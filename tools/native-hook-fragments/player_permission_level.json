@@ -1,0 +1,24 @@
+{
+  "hooks": [
+    {
+      "name": "player_permission_level",
+      "target": "horizon_client_lib::lan::hub::native_player_permission_level",
+      "side": "server",
+      "mod_api": {
+        "contract": "listen"
+      }
+    }
+  ],
+  "helpers": [
+    {
+      "name": "refresh_permissions",
+      "target": "horizon_client::game::native_perms::Game<'_>::native_refresh_permissions"
+    }
+  ],
+  "rust_summary": "server player permission levels (`native_player_permission_level`), and the `native_refresh_permissions` helper in `native_perms.rs`.",
+  "doc_summary": "server-side player permission levels (`MinecraftServer.getProfilePermissions`): `native_player_permission_level(player, vanilla, level)` lets mods change a player's computed level, initially `vanilla`, capping changed levels at 4. `refresh_permissions()` recomputes levels and resends each placed player's level and command tree through vanilla's own packets; false when no server or its players are not reachable (call from `native_server_tick`). Operator-list membership checks (spawn protection, chat-spam exemption and whitelist) are unchanged. The hook may run more than once for the same player in one resend; mods should answer the same way each time. Bundles need \"hooks\": @API:player_permission_level@.",
+  "comments": [
+    "crates/horizon-client/src/lan/hub.rs",
+    "crates/horizon-client/src/game/native_perms.rs"
+  ]
+}

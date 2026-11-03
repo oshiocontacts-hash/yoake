@@ -3541,6 +3541,7 @@ pub(crate) mod tests {
                     }
                 },
                 living_heal: |_, _, _| {},
+                player_permission_level: |_, _, _| {},
                 living_breathe: |_, _, _, _, _| {},
                 living_drown: |_, _, _, _, _, _| {},
                 living_fall: |_, _, _, _, _| {},

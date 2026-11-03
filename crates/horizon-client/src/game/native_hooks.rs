@@ -10562,6 +10562,7 @@ mod tests {
         // The crafting loaders' (`horizon_client_lib::crafting`).
         let crafting_hooks = free_hooks(include_str!("../crafting.rs"));
         let hunger_hooks = free_hooks(include_str!("../hunger.rs"));
+        let hub_hooks = free_hooks(include_str!("../lan/hub.rs"));
         let landing_hooks = free_hooks(include_str!("../landing.rs"));
         let motion_hooks = free_hooks(include_str!("../motion.rs"));
         let declared: BTreeSet<_> = section
@@ -10580,6 +10581,7 @@ mod tests {
             .chain(breath_hooks.iter().copied())
             .chain(crafting_hooks.iter().copied())
             .chain(hunger_hooks.iter().copied())
+            .chain(hub_hooks.iter().copied())
             .chain(landing_hooks.iter().copied())
             .chain(motion_hooks.iter().copied())
             .collect();
@@ -10605,6 +10607,9 @@ mod tests {
                 format!("horizon_client_lib::crafting::native_{name}")
             } else if hunger_hooks.contains(name) {
                 format!("horizon_client_lib::hunger::native_{name}")
+            } else if hub_hooks.contains(name) {
+                // hub.rs compiles into horizon-client-lib too.
+                format!("horizon_client_lib::lan::hub::native_{name}")
             } else if landing_hooks.contains(name) {
                 format!("horizon_client_lib::landing::native_{name}")
             } else if motion_hooks.contains(name) {

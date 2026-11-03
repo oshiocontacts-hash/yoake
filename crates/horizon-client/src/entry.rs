@@ -112,6 +112,14 @@ pub fn main_with(mods: crate::mod_api::Mods) {
         living_heal: |entity, amount, cancel| {
             crate::mod_api::dispatch_living_heal(crate::mod_api::mods(), entity, amount, cancel);
         },
+        player_permission_level: |player, vanilla, level| {
+            crate::mod_api::dispatch_player_permission_level(
+                crate::mod_api::mods(),
+                player,
+                vanilla,
+                level,
+            );
+        },
         living_breathe: |entity, kind, can_breathe, consume, refill| {
             crate::mod_api::dispatch_living_breathe(
                 crate::mod_api::mods(),
