@@ -1078,19 +1078,44 @@ impl Hub {
         self.guests.push(guest);
         conn
     }
+}
 
+/// `MinecraftServer.getProfilePermissions`: the permission level a server gives a player.
+/// `vanilla` is what it computed (the ops list, the integrated owner, LAN guests' commands);
+/// mods may change `level`, which starts as `vanilla`. A level a mod set is capped at 4.
+/// It may run more than once per player in one resend; mods should answer
+/// the same way each time. API @API:player_permission_level@.
+#[inline(never)]
+pub fn native_player_permission_level(player: u128, vanilla: u8, level: &mut u8) {
+    crate::native_client_hooks::player_permission_level(player, vanilla, level);
+}
+
+fn apply_permission_hook(vanilla: u8, hook: impl FnOnce(&mut u8)) -> u8 {
+    let mut level = vanilla;
+    hook(&mut level);
+    if level == vanilla {
+        vanilla
+    } else {
+        level.min(4)
+    }
+}
+
+impl Hub {
     /// The permission level a player gets: an integrated server gives every
     /// guest the game masters' level when commands are allowed
     /// (IntegratedServer.setGuestCommandAccess); a dedicated server its
     /// operators' level (`ops`).
     fn default_permission(&self, uuid: u128) -> u8 {
-        if self.config.integrated {
+        let vanilla = if self.config.integrated {
             // IntegratedServer.getProfilePermissions / getCustomPermissionLevel.
             let guests = if self.config.guest_commands { 2 } else { 0 };
             self.ops.get(&uuid).copied().unwrap_or(guests)
         } else {
             self.ops.get(&uuid).copied().unwrap_or(0)
-        }
+        };
+        apply_permission_hook(vanilla, |level| {
+            native_player_permission_level(uuid, vanilla, level);
+        })
     }
 
     /// The levels of a server, in MinecraftServer.levelKeys order.
@@ -4240,6 +4265,78 @@ fn listed_properties(
 mod tests {
     use super::*;
     use crate::fast_hash::FxHashSet;
+
+    #[test]
+    fn permission_without_a_mod_uses_vanilla_defaults() {
+        let config = crate::lan::NetConfig {
+            announce: false,
+            listen: false,
+            ..crate::lan::NetConfig::lan(0, "PermissionTest".into(), 2)
+        };
+        let sync = std::sync::Arc::new(SyncData::empty());
+        let lan = Lan::start_with(sync.clone(), config).unwrap();
+        let encoder = ChunkEncoder::new(
+            [] as [(std::sync::Arc<str>, bool); 0],
+            &horizon_protocol::registry::Builtin::default(),
+            &[],
+            &[],
+        );
+        let hub_config = HubConfig {
+            default_game_mode: 0,
+            guest_commands: false,
+            force_game_mode: false,
+            hardcore: false,
+            view_distance: 10,
+            simulation_distance: 10,
+            dimension: "minecraft:overworld".into(),
+            allow_flight: false,
+            seed: 0,
+            max_players: 20,
+            integrated: false,
+            levels: Default::default(),
+        };
+        let mut hub = Hub::new(lan, sync, encoder, hub_config);
+        let player = 1;
+
+        for (integrated, guest_commands, ops_level, expected) in [
+            (true, false, None, 0),
+            (true, false, Some(0), 0),
+            (true, false, Some(2), 2),
+            (true, false, Some(4), 4),
+            (true, true, None, 2),
+            (true, true, Some(0), 0),
+            (true, true, Some(2), 2),
+            (true, true, Some(4), 4),
+            (false, false, None, 0),
+            (false, false, Some(0), 0),
+            (false, false, Some(2), 2),
+            (false, false, Some(4), 4),
+            (false, true, None, 0),
+            (false, true, Some(0), 0),
+            (false, true, Some(2), 2),
+            (false, true, Some(4), 4),
+        ] {
+            hub.config.integrated = integrated;
+            hub.config.guest_commands = guest_commands;
+            hub.ops.clear();
+            if let Some(level) = ops_level {
+                hub.ops.insert(player, level);
+            }
+            assert_eq!(
+                hub.default_permission(player),
+                expected,
+                "integrated={integrated}, guest_commands={guest_commands}, ops_level={ops_level:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn permission_hook_caps_only_changed_levels() {
+        assert_eq!(apply_permission_hook(0, |level| *level = 2), 2);
+        assert_eq!(apply_permission_hook(0, |level| *level = 9), 4);
+        assert_eq!(apply_permission_hook(6, |_| {}), 6);
+        assert_eq!(apply_permission_hook(4, |level| *level = 0), 0);
+    }
 
     /// A hub with one placed guest, the speed effect registered, and what the
     /// guest is sent.
