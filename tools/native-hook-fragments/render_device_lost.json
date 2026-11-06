@@ -1,0 +1,17 @@
+{
+  "hooks": [
+    {
+      "name": "render_device_lost",
+      "target": "horizon_client_render::gfx::native_render::native_render_device_lost",
+      "side": "client",
+      "mod_api": {
+        "contract": "listen"
+      }
+    }
+  ],
+  "rust_summary": "the render hook point `native_render_device_lost(reason, message)`: wgpu reports an unexpected device loss.",
+  "doc_summary": "the render hook point `native_render_device_lost(reason, message)`, on wgpu's callback thread, to release\npersistent GPU resources before Horizon attempts renderer recovery. Bundles need `\"hooks\": @API:render_device_lost@`.",
+  "comments": [
+    "crates/horizon-client-render/src/gfx/native_render.rs"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "hooks": [
+    {
+      "name": "render_device_ready",
+      "target": "horizon_client_render::gfx::native_render::native_render_device_ready",
+      "side": "client",
+      "mod_api": {
+        "contract": "listen"
+      }
+    }
+  ],
+  "rust_summary": "the render hook point `native_render_device_ready(device, queue)`: a newly opened GPU device is ready.",
+  "doc_summary": "the render hook point `native_render_device_ready(device, queue)`, on the device-opening thread, at initial\ndevice creation and successful device-loss recovery, before renderer construction. Bundles need `\"hooks\": @API:render_device_ready@`.",
+  "comments": [
+    "crates/horizon-client-render/src/gfx/native_render.rs"
+  ]
+}

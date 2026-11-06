@@ -1093,6 +1093,8 @@ pub struct Renderer {
     layout: crate::chunk::ColumnLayout,
     /// Resolution scale, FXAA and TAA (Horizon settings).
     world_post: world_post::Post,
+    native_pre_post_previous: Option<(Mat4, DVec3)>,
+    native_pre_post_frame: u64,
     /// Frame generation (Horizon setting).
     frame_gen: frame_gen::FrameGen,
     /// The entities' texture atlas (`entity_group`'s), for frame generation's motion.
@@ -1896,8 +1898,10 @@ async fn open_backend(
                 log::warn!(
                     "Horizon renderer: the graphics device was lost ({reason:?}: {message})"
                 );
+                native_render::native_render_device_lost(&reason, &message);
                 lost.store(true, std::sync::atomic::Ordering::Relaxed);
             });
+            native_render::native_render_device_ready(&device, &queue);
             Ok(Opened {
                 instance,
                 surface,
@@ -4174,6 +4178,8 @@ impl Renderer {
             occlusion: occlusion::Occlusion::new(crate::chunk::MIN_Y, crate::chunk::HEIGHT / 16),
             layout: crate::chunk::ColumnLayout::VANILLA,
             world_post,
+            native_pre_post_previous: None,
+            native_pre_post_frame: 0,
             frame_gen: frame_gen::FrameGen::new(),
             entity_atlas: atlas_view.clone(),
             hdr: None,
@@ -7757,11 +7763,13 @@ impl Renderer {
         }
         let pack_reads_world = pack_post || native_post;
         laps.lap("r_uploads");
+        let render_needs = native_render::render_needs();
         // Phase 2 of occlusion culling draws over the depth, and a shader pack or TAA reads it.
         let keep_depth = pack_reads_world
             || (taa && self.world_post.taa)
             || oit_on
-            || native_render::render_needs().world_depth
+            || render_needs.world_depth
+            || render_needs.pre_post
             || fg;
         // The pack's program reads the vertices this frame's draws bind.
         let pack_draws_terrain = pack_terrain && flat_frame == self.pack_terrain_flat;
@@ -7830,6 +7838,7 @@ impl Renderer {
             && self.hdr.is_none()
             // Frame generation draws the hand over the real and the made frame after the world.
             && fg_frames.is_none()
+            && !render_needs.pre_post
             && !native_render::world_drawn_hooked();
         if oit_on {
             let size = self
@@ -9000,6 +9009,34 @@ impl Renderer {
                 self.draw_hand(&mut pass, hand_quads, world_quads + additive_quads);
             }
         }
+        if !frame.title && render_needs.pre_post {
+            let previous = self.native_pre_post_previous;
+            native_render::native_world_pre_post(&mut native_render::WorldPrePost {
+                device: &self.device,
+                queue: &self.queue,
+                encoder: &mut encoder,
+                color: world_view.texture(),
+                color_view: world_view,
+                color_format: self.config.format.remove_srgb_suffix(),
+                size: [world_view.texture().width(), world_view.texture().height()],
+                depth: world_depth.texture(),
+                depth_view: world_depth,
+                view_proj,
+                jittered,
+                previous_view_proj: previous.map(|(matrix, _)| matrix),
+                previous_camera: previous.map(|(_, camera)| camera),
+                camera: frame.camera,
+                frame_index: self.native_pre_post_frame,
+                sun_direction: sun,
+                sky: &frame.sky,
+                fog_color,
+                fog,
+            });
+            self.native_pre_post_previous = Some((view_proj, frame.camera));
+            self.native_pre_post_frame = self.native_pre_post_frame.wrapping_add(1);
+        } else if self.native_pre_post_previous.is_some() {
+            self.native_pre_post_previous = None;
+        }
         if let Some((color, depth)) = &scaled
             && pack_post
             && let Some((dimension, Some(mut post))) = self.pack_post.take()
@@ -9176,6 +9213,7 @@ impl Renderer {
                     real: false,
                     hand_drawn: !pack_draws_hand,
                     hand_view_proj,
+                    native_overlay: render_needs.overlay,
                 };
                 self.draw_overlay(&mut encoder, frame, &generated_view, generated, &overlay);
             }
@@ -9228,6 +9266,7 @@ impl Renderer {
             real: true,
             hand_drawn: !pack_draws_hand,
             hand_view_proj,
+            native_overlay: render_needs.overlay,
         };
         let readback =
             self.draw_overlay(&mut encoder, frame, &view_target, &target_texture, &overlay);
@@ -9733,6 +9772,18 @@ impl Renderer {
             blur_at..frame.hud.vertices.len() as u32,
             timing.as_mut(),
         );
+        if overlay.native_overlay {
+            native_render::native_overlay_drawn(&mut native_render::OverlayDrawn {
+                device: &self.device,
+                queue: &self.queue,
+                encoder,
+                color: target_texture,
+                color_view: view_target,
+                color_format: self.config.format.remove_srgb_suffix(),
+                size: [target_texture.width(), target_texture.height()],
+                gui_scale: frame.hud.scale,
+            });
+        }
         if overlay.real {
             self.own_timing = timing;
         }
@@ -10097,6 +10148,7 @@ struct Overlay {
     hand_drawn: bool,
     /// Camera-relative world to clip space for the hand: its own field of view and the bob.
     hand_view_proj: Mat4,
+    native_overlay: bool,
 }
 
 fn world_projection(fov_degrees: f32, aspect: f32, far: f32) -> Mat4 {

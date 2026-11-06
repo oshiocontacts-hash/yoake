@@ -1,0 +1,17 @@
+{
+  "hooks": [
+    {
+      "name": "overlay_drawn",
+      "target": "horizon_client_render::gfx::native_render::native_overlay_drawn",
+      "side": "client",
+      "mod_api": {
+        "contract": "listen"
+      }
+    }
+  ],
+  "rust_summary": "the render hook point `native_overlay_drawn(overlay)`: the final HUD and screen batch is drawn (`OverlayDrawn`).",
+  "doc_summary": "the render hook point `native_overlay_drawn(overlay)`, after HUD, screens, menus, toasts and tooltips, with the\nactual target and GUI scale, before screenshot readback and HDR output conversion (`OverlayDrawn`). Bundles need `\"hooks\": @API:overlay_drawn@`.",
+  "comments": [
+    "crates/horizon-client-render/src/gfx/native_render.rs"
+  ]
+}

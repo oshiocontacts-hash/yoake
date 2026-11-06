@@ -1,0 +1,17 @@
+{
+  "hooks": [
+    {
+      "name": "world_pre_post",
+      "target": "horizon_client_render::gfx::native_render::native_world_pre_post",
+      "side": "client",
+      "mod_api": {
+        "contract": "listen"
+      }
+    }
+  ],
+  "rust_summary": "the render hook point `native_world_pre_post(world)`: the world is drawn, before finishing passes (`WorldPrePost`).",
+  "doc_summary": "the render hook point `native_world_pre_post(world)`, after world transparency and before shader-pack post passes\nor built-in world post/TAA, with writable world depth, camera history and frame lighting (`WorldPrePost`). Bundles need `\"hooks\": @API:world_pre_post@`.",
+  "comments": [
+    "crates/horizon-client-render/src/gfx/native_render.rs"
+  ]
+}
