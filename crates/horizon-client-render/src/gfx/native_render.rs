@@ -5,7 +5,7 @@
 
 use super::Vertex;
 use super::pack_draw::EntitySpan;
-use glam::{DVec3, Mat4};
+use glam::{DVec3, Mat4, Vec3};
 use std::sync::{
     OnceLock,
     atomic::{AtomicBool, Ordering},
@@ -14,7 +14,10 @@ use std::sync::{
 mod generated {
     include!(concat!(env!("OUT_DIR"), "/native_render_generated.rs"));
 }
-pub use generated::{HandDrawnEvent, RenderHooks, RenderNeedsEvent, WorldDrawnEvent};
+pub use generated::{
+    HandDrawnEvent, OverlayDrawnEvent, RenderDeviceLostEvent, RenderDeviceReadyEvent, RenderHooks,
+    RenderNeedsEvent, WorldDrawnEvent, WorldPrePostEvent,
+};
 pub use wgpu;
 
 static RENDERERS: OnceLock<Box<[&'static dyn RenderHooks]>> = OnceLock::new();
@@ -135,6 +138,70 @@ pub struct HandDrawn<'a> {
     pub quad_indices: &'a wgpu::Buffer,
 }
 
+/// The world before any finishing passes ([`native_world_pre_post`]), after Improved
+/// Transparency, before the first-person hand. Draws enter the shader pack's bloom/post chain
+/// or the built-in world post pass and TAA. There is no motion-vector target: built-in TAA
+/// reprojects with camera motion only, including geometry a mod draws here.
+#[non_exhaustive]
+pub struct WorldPrePost<'a> {
+    pub device: &'a wgpu::Device,
+    pub queue: &'a wgpu::Queue,
+    pub encoder: &'a mut wgpu::CommandEncoder,
+    /// The world colour the next finishing pass reads, not a pack's material/MRT targets.
+    /// Copy it out before sampling it while drawing into it. Its format is the renderer's
+    /// working format without sRGB, also when scaled or HDR output is enabled.
+    pub color: &'a wgpu::Texture,
+    pub color_view: &'a wgpu::TextureView,
+    pub color_format: wgpu::TextureFormat,
+    /// The world colour and depth size, smaller than the window when scaled.
+    pub size: [u32; 2],
+    /// The world's stored Depth32Float depth, reversed Z (0 is sky), with
+    /// RENDER_ATTACHMENT, TEXTURE_BINDING and COPY_SRC usage. Attach `depth_view` with Load
+    /// and Store to test/write against the world; use the world's jittered clip matrix.
+    pub depth: &'a wgpu::Texture,
+    pub depth_view: &'a wgpu::TextureView,
+    /// Camera-relative world to clip space, without TAA's jitter, and with it.
+    pub view_proj: Mat4,
+    pub jittered: Mat4,
+    /// Last consecutive requested world frame's unjittered clip matrix and camera position.
+    /// The matrix is relative to `previous_camera`, not this frame's camera. Both are None
+    /// on the first call, after a title/unrequested frame, or after device recreation.
+    pub previous_view_proj: Option<Mat4>,
+    pub previous_camera: Option<DVec3>,
+    pub camera: DVec3,
+    /// Requested world frames on this renderer, starting at 0 and wrapping at u64::MAX.
+    pub frame_index: u64,
+    /// The world uniform's sun direction, in world space.
+    pub sun_direction: Vec3,
+    /// This frame's existing sky lighting and colours. The moon is available as
+    /// `Sky::moon_angle` in degrees; the world uniform retains no moon direction vector.
+    pub sky: &'a crate::environment::Sky,
+    /// The exact world uniform fog colour and distances: environmental start/end, then
+    /// render-distance start/end. These include underwater and environmental overrides.
+    pub fog_color: [f32; 4],
+    pub fog: [f32; 4],
+}
+
+/// The final overlay target ([`native_overlay_drawn`]), after HUD, screens, menus, toasts and
+/// tooltips. Draws precede screenshot readback, HDR output conversion and presentation.
+#[non_exhaustive]
+pub struct OverlayDrawn<'a> {
+    pub device: &'a wgpu::Device,
+    pub queue: &'a wgpu::Queue,
+    pub encoder: &'a mut wgpu::CommandEncoder,
+    /// The overlay's actual target: normally the swapchain image, but an intermediate for
+    /// HDR, frame generation, offscreen rendering or screenshot fallback. COPY_SRC is not
+    /// guaranteed: check `color.usage()` before copying. Never sample it as an attachment.
+    /// With HDR output this is still gamma-encoded working colour, before HDR10/scRGB
+    /// conversion, not the HDR swapchain's output colour space.
+    pub color: &'a wgpu::Texture,
+    pub color_view: &'a wgpu::TextureView,
+    pub color_format: wgpu::TextureFormat,
+    pub size: [u32; 2],
+    /// Physical pixels per GUI unit, as used by the HUD batch for this frame.
+    pub gui_scale: f32,
+}
+
 /// What the mods need from a frame that the game doesn't make for itself. Each mod sets what it
 /// needs and leaves the rest, so several can ask.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -145,6 +212,10 @@ pub struct RenderNeeds {
     pub entity_spans: bool,
     /// Keep the world pass's depth for [`native_world_drawn`] when nothing else does.
     pub world_depth: bool,
+    /// Call [`native_world_pre_post`] and retain the world depth for its attachments.
+    pub pre_post: bool,
+    /// Call [`native_overlay_drawn`] after the final HUD/screen batch, including title frames.
+    pub overlay: bool,
 }
 
 /// The world is drawn (see [`WorldDrawn`]). Not called on the title screen's panorama.
@@ -158,6 +229,46 @@ pub fn native_world_drawn(world: &mut WorldDrawn<'_>) {
 #[inline(never)]
 pub fn native_hand_drawn(hand: &mut HandDrawn<'_>) {
     generated::dispatch_hand_drawn(RENDERERS.get().map_or(&[], |renderers| renderers), hand);
+}
+
+/// The world is drawn, before every finishing branch (see [`WorldPrePost`]). Only called
+/// when [`RenderNeeds::pre_post`] is set, never on the title panorama. API @API:world_pre_post@.
+#[inline(never)]
+pub fn native_world_pre_post(world: &mut WorldPrePost<'_>) {
+    generated::dispatch_world_pre_post(RENDERERS.get().map_or(&[], |renderers| renderers), world);
+}
+
+/// The final HUD/screen batch is drawn (see [`OverlayDrawn`]). Only called when
+/// [`RenderNeeds::overlay`] is set, on real and generated overlay frames. API @API:overlay_drawn@.
+#[inline(never)]
+pub fn native_overlay_drawn(overlay: &mut OverlayDrawn<'_>) {
+    generated::dispatch_overlay_drawn(RENDERERS.get().map_or(&[], |renderers| renderers), overlay);
+}
+
+/// A device was lost, not deliberately destroyed. Runs synchronously on wgpu's device-lost
+/// callback thread, which need not be the render thread. Drop persistent GPU resources using
+/// thread-safe state; do not draw here. Horizon attempts recovery, which can fail. References
+/// are valid only for this call. API @API:render_device_lost@.
+#[inline(never)]
+pub fn native_render_device_lost(reason: &wgpu::DeviceLostReason, message: &str) {
+    generated::dispatch_render_device_lost(
+        RENDERERS.get().map_or(&[], |renderers| renderers),
+        reason,
+        message,
+    );
+}
+
+/// A newly opened GPU device is ready, on the device-opening thread, before the renderer is
+/// constructed. Runs at initial device creation and successful device-loss recovery, not
+/// surface reconfiguration or device reuse. References are valid only for this call; retain
+/// cloned handles if needed. API @API:render_device_ready@.
+#[inline(never)]
+pub fn native_render_device_ready(device: &wgpu::Device, queue: &wgpu::Queue) {
+    generated::dispatch_render_device_ready(
+        RENDERERS.get().map_or(&[], |renderers| renderers),
+        device,
+        queue,
+    );
 }
 
 /// Asked as a frame is built and drawn: set what your mod needs.
@@ -188,6 +299,69 @@ mod tests {
         fn render_needs(&self, event: &mut RenderNeedsEvent<'_>) {
             event.needs.entity_spans = event.needs.world_depth;
         }
+    }
+
+    struct PrePost;
+    impl RenderHooks for PrePost {
+        fn render_needs(&self, event: &mut RenderNeedsEvent<'_>) {
+            event.needs.pre_post = true;
+        }
+    }
+    struct Overlay;
+    impl RenderHooks for Overlay {
+        fn render_needs(&self, event: &mut RenderNeedsEvent<'_>) {
+            event.needs.overlay = true;
+        }
+    }
+
+    #[test]
+    fn no_mod_needs_no_extra_render_work() {
+        let mut needs = RenderNeeds::default();
+        generated::dispatch_render_needs(&[], &mut needs);
+        assert!(!needs.pre_post);
+        assert!(!needs.overlay);
+        assert!(!needs.world_depth);
+        assert!(!needs.entity_spans);
+    }
+
+    #[test]
+    fn pre_post_does_not_request_overlay() {
+        let mut needs = RenderNeeds::default();
+        generated::dispatch_render_needs(&[&PrePost], &mut needs);
+        assert_eq!(
+            needs,
+            RenderNeeds {
+                pre_post: true,
+                ..RenderNeeds::default()
+            }
+        );
+    }
+
+    #[test]
+    fn overlay_does_not_request_pre_post() {
+        let mut needs = RenderNeeds::default();
+        generated::dispatch_render_needs(&[&Overlay], &mut needs);
+        assert_eq!(
+            needs,
+            RenderNeeds {
+                overlay: true,
+                ..RenderNeeds::default()
+            }
+        );
+    }
+
+    #[test]
+    fn render_hook_needs_accumulate() {
+        let mut needs = RenderNeeds::default();
+        generated::dispatch_render_needs(&[&PrePost, &Overlay], &mut needs);
+        assert_eq!(
+            needs,
+            RenderNeeds {
+                pre_post: true,
+                overlay: true,
+                ..RenderNeeds::default()
+            }
+        );
     }
 
     /// A mod samples `BlockSpriteArrays` as the renderer hands them over: a layer of the second
@@ -381,7 +555,8 @@ mod tests {
             needs,
             RenderNeeds {
                 world_depth: true,
-                entity_spans: true
+                entity_spans: true,
+                ..RenderNeeds::default()
             }
         );
     }
