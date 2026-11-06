@@ -1,0 +1,18 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "set_item_cooldown",
+      "target": "horizon_client::game::native_cooldowns::Game<'_>::native_set_item_cooldown"
+    },
+    {
+      "name": "item_cooldown_remaining",
+      "target": "horizon_client::game::native_cooldowns::Game<'_>::native_item_cooldown_remaining"
+    }
+  ],
+  "rust_summary": "server-only online-player item cooldown setters and exact remaining/total tick queries in `native_cooldowns.rs`.",
+  "doc_summary": "server cooldown helpers: `set_item_cooldown(player, target, ticks) -> Result<bool, String>` starts or replaces for positive ticks and removes/sends duration zero for zero ticks; negative durations and reentrant setters are errors. `item_cooldown_remaining(player, target) -> Option<(i32, i32)>` returns exact remaining and total whole ticks. `NativeCooldownTarget::ItemId`, `Stack` and `Group` resolve the item's default group, the stack's effective group and an explicit group respectively. The current actor is checked first, then online placed guests while their LAN host is available; unavailable players, invalid items and client execution refuse the operation. Only the affected player receives the cooldown packet, including the integrated owner. Positive item/stack starts retain the existing cancellable item cooldown hook; removals and explicit groups do not call it. No optional group event is added. Bundles need the @API:item_cooldown_helpers@ hook requirement.",
+  "comments": [
+    "crates/horizon-client/src/game/native_cooldowns.rs"
+  ]
+}

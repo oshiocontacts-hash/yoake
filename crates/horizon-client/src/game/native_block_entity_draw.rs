@@ -3,6 +3,7 @@
 //! pose stack (`PoseStack`) places what the helpers here add to the entity
 //! batch, as vanilla's block entity renderers draw.
 
+use super::native_avatar_equipment::{EquipmentOutlineRange, NativeEquipmentOutline};
 use super::{Dim, Game};
 use glam::{DVec3, Mat4, Quat, Vec3};
 use horizon_assets::{
@@ -57,6 +58,8 @@ pub struct BlockEntityDraw {
     poses: Vec<Mat4>,
     lights: (Vec3, Vec3),
     vertices: Vec<Vertex>,
+    equipment_outlines: Vec<EquipmentOutlineRange>,
+    equipment_origin: Vec3,
     kept: bool,
 }
 
@@ -96,12 +99,40 @@ impl BlockEntityDraw {
             poses: vec![pose],
             lights,
             vertices,
+            equipment_outlines: Vec::new(),
+            equipment_origin: Vec3::ZERO,
             kept: false,
         }
     }
     /// The vertices drawn, with those it was made with first.
     pub(super) fn into_vertices(self) -> Vec<Vertex> {
         self.vertices
+    }
+
+    pub(super) fn equipment_vertices(&mut self) -> &mut Vec<Vertex> {
+        &mut self.vertices
+    }
+
+    pub(super) fn equipment_frame(&self, frame: Mat4) -> Mat4 {
+        if self.equipment_origin == Vec3::ZERO {
+            frame
+        } else {
+            Mat4::from_translation(-self.equipment_origin) * frame
+        }
+    }
+
+    pub(super) fn stage_equipment_outline(&mut self, start: usize, policy: NativeEquipmentOutline) {
+        if start < self.vertices.len() {
+            self.equipment_outlines.push(EquipmentOutlineRange {
+                start,
+                end: self.vertices.len(),
+                policy,
+            });
+        }
+    }
+
+    pub(super) fn take_equipment_outlines(&mut self) -> Vec<EquipmentOutlineRange> {
+        std::mem::take(&mut self.equipment_outlines)
     }
     /// `PoseStack.pushPose`: `pop` comes back to the pose as it is now.
     pub fn push(&mut self) {
@@ -250,6 +281,7 @@ struct KeptEntry {
     used: i64,
     /// Relative to the block's corner.
     vertices: Vec<Vertex>,
+    equipment_outlines: Vec<EquipmentOutlineRange>,
 }
 
 /// Geometry mods kept (`BlockEntityDraw::keep`), by position. As
@@ -310,6 +342,7 @@ impl KeptGeometry {
                 bounds,
                 used: now,
                 vertices: kept,
+                equipment_outlines: Vec::new(),
             },
         );
     }
@@ -357,6 +390,8 @@ impl Game<'_> {
             poses: Vec::new(),
             lights: diffuse_lights(self.dim == Dim::Nether),
             vertices: std::mem::take(out),
+            equipment_outlines: Vec::new(),
+            equipment_origin: Vec3::ZERO,
             kept: false,
         };
         let now = self.world.game_time;
@@ -388,6 +423,14 @@ impl Game<'_> {
                         pos: (Vec3::from_array(v.pos) + origin).to_array(),
                         ..*v
                     }));
+                    if !entry.equipment_outlines.is_empty() {
+                        self.mark_equipment_outlines(
+                            &draw.vertices[start..],
+                            0,
+                            None,
+                            &entry.equipment_outlines,
+                        );
+                    }
                 }
                 continue;
             }
@@ -407,7 +450,13 @@ impl Game<'_> {
             draw.poses.push(Mat4::IDENTITY);
             draw.light = light;
             draw.kept = false;
+            draw.equipment_origin = origin;
             self.native_block_entity_submit(pos, block, id, entity, &mut draw);
+            let mut equipment_outlines = draw.take_equipment_outlines();
+            for range in &mut equipment_outlines {
+                range.start -= start;
+                range.end -= start;
+            }
             if draw.kept {
                 kept.keep(
                     pos,
@@ -417,11 +466,18 @@ impl Game<'_> {
                     &draw.vertices[start..],
                     now,
                 );
+                if !equipment_outlines.is_empty() {
+                    kept.entries.get_mut(&pos).unwrap().equipment_outlines =
+                        equipment_outlines.clone();
+                }
             } else {
                 kept.forget(pos);
             }
             for v in &mut draw.vertices[start..] {
                 v.pos = (Vec3::from_array(v.pos) + origin).to_array();
+            }
+            if !equipment_outlines.is_empty() {
+                self.mark_equipment_outlines(&draw.vertices[start..], 0, None, &equipment_outlines);
             }
         }
         *out = draw.vertices;
@@ -621,6 +677,8 @@ mod tests {
             poses: vec![Mat4::from_translation(Vec3::new(10.0, 0.0, 0.0))],
             lights: diffuse_lights(false),
             vertices: Vec::new(),
+            equipment_outlines: Vec::new(),
+            equipment_origin: Vec3::ZERO,
             kept: false,
         }
     }
@@ -701,6 +759,18 @@ mod tests {
                 .abs_diff_eq(Vec3::Z, 1e-5)
         );
         assert_eq!(draw.pose_matrix().transform_vector3(Vec3::Y), Vec3::Y);
+    }
+
+    #[test]
+    fn equipment_frames_ignore_the_pose_and_rebase_cached_vertices() {
+        let mut draw = draw();
+        let frame = Mat4::from_translation(Vec3::new(2.0, 3.0, -4.0)) * Mat4::from_rotation_y(0.75);
+        let local = Vec3::new(0.25, -0.5, 0.125);
+        assert_eq!(draw.equipment_frame(frame), frame);
+        draw.equipment_origin = Vec3::new(20.0, 60.0, -30.0);
+        let rebased = draw.equipment_frame(frame).transform_point3(local) + draw.equipment_origin;
+        assert!(rebased.abs_diff_eq(frame.transform_point3(local), 1e-5));
+        assert_eq!(draw.pose_matrix(), Mat4::from_translation(Vec3::X * 10.0));
     }
 
     #[test]

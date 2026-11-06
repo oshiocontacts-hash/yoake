@@ -20,7 +20,107 @@ use std::{
 struct Channel {
     state: Mutex<(std::collections::VecDeque<u8>, bool)>,
     ready: Condvar,
+    #[cfg(feature = "dev-capture")]
+    capture: Mutex<CaptureFenceState>,
 }
+
+#[cfg(feature = "dev-capture")]
+pub const CAPTURE_FENCE_CHANNEL: &str = "horizon:dev_capture_fence";
+
+#[cfg(feature = "dev-capture")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CaptureFenceId {
+    pub session: u64,
+    pub generation: u64,
+    pub sequence: u64,
+}
+
+#[cfg(feature = "dev-capture")]
+impl CaptureFenceId {
+    pub fn encode(self) -> Vec<u8> {
+        [self.session, self.generation, self.sequence]
+            .into_iter()
+            .flat_map(u64::to_be_bytes)
+            .collect()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() != 24 {
+            return None;
+        }
+        Some(Self {
+            session: u64::from_be_bytes(bytes[..8].try_into().ok()?),
+            generation: u64::from_be_bytes(bytes[8..16].try_into().ok()?),
+            sequence: u64::from_be_bytes(bytes[16..].try_into().ok()?),
+        })
+    }
+}
+
+#[cfg(feature = "dev-capture")]
+#[derive(Default)]
+struct CaptureFenceState {
+    expected: Option<CaptureFenceId>,
+    input_applied: bool,
+    output_applied: bool,
+}
+
+#[cfg(feature = "dev-capture")]
+#[derive(Clone)]
+pub struct CaptureFences(Arc<Channel>);
+
+#[cfg(feature = "dev-capture")]
+impl CaptureFences {
+    pub fn prepare(&self, id: CaptureFenceId) -> bool {
+        let mut state = self.0.capture.lock().unwrap();
+        if let Some(previous) = state.expected {
+            if previous.session == id.session && previous.generation == id.generation {
+                if id.sequence <= previous.sequence || !state.output_applied {
+                    return false;
+                }
+            } else if id.generation <= previous.generation {
+                return false;
+            }
+        }
+        *state = CaptureFenceState {
+            expected: Some(id),
+            ..Default::default()
+        };
+        true
+    }
+
+    pub fn expected(&self, id: CaptureFenceId) -> bool {
+        self.0.capture.lock().unwrap().expected == Some(id)
+    }
+
+    pub fn apply_input(&self, id: CaptureFenceId) -> bool {
+        let mut state = self.0.capture.lock().unwrap();
+        if state.expected != Some(id) || state.input_applied {
+            return false;
+        }
+        state.input_applied = true;
+        true
+    }
+
+    pub fn input_applied(&self, id: CaptureFenceId) -> bool {
+        let state = self.0.capture.lock().unwrap();
+        state.expected == Some(id) && state.input_applied
+    }
+
+    pub fn apply_output(&self, id: CaptureFenceId) -> bool {
+        let mut state = self.0.capture.lock().unwrap();
+        if state.expected != Some(id) || !state.input_applied || state.output_applied {
+            return false;
+        }
+        state.output_applied = true;
+        true
+    }
+
+    pub fn output_applied(&self, id: CaptureFenceId) -> bool {
+        let state = self.0.capture.lock().unwrap();
+        state.expected == Some(id) && state.output_applied
+    }
+}
+
 impl Channel {
     fn close(&self) {
         self.state.lock().unwrap().1 = true;
@@ -44,14 +144,20 @@ pub struct Pipe {
     end: Arc<End>,
     /// The read timeout (`set_read_timeout`).
     timeout: Mutex<Option<Duration>>,
+    #[cfg(feature = "dev-capture")]
+    capture: Arc<Channel>,
 }
 impl Pipe {
     /// Two connected ends.
     pub fn pair() -> (Self, Self) {
         let (a, b) = (Arc::new(Channel::default()), Arc::new(Channel::default()));
+        #[cfg(feature = "dev-capture")]
+        let capture = a.clone();
         let end = |incoming, outgoing| Self {
             end: Arc::new(End { incoming, outgoing }),
             timeout: Mutex::new(None),
+            #[cfg(feature = "dev-capture")]
+            capture: capture.clone(),
         };
         (end(a.clone(), b.clone()), end(b, a))
     }
@@ -59,7 +165,13 @@ impl Pipe {
         Self {
             end: self.end.clone(),
             timeout: Mutex::new(*self.timeout.lock().unwrap()),
+            #[cfg(feature = "dev-capture")]
+            capture: self.capture.clone(),
         }
+    }
+    #[cfg(feature = "dev-capture")]
+    pub fn capture_fences(&self) -> CaptureFences {
+        CaptureFences(self.capture.clone())
     }
     /// Close both directions: reads at either end then see the end of the stream.
     pub fn shutdown(&self) {
@@ -325,6 +437,13 @@ impl Connection {
     pub fn is_memory(&self) -> bool {
         matches!(self.reader.stream, Stream::Memory(_))
     }
+    #[cfg(feature = "dev-capture")]
+    pub fn capture_fences(&self) -> Option<CaptureFences> {
+        match &self.reader.stream {
+            Stream::Memory(pipe) => Some(pipe.capture_fences()),
+            Stream::Tcp(_) => None,
+        }
+    }
     /// ClientboundLoginCompressionPacket: negative thresholds disable compression.
     pub fn set_compression(&mut self, threshold: i32) {
         let t = usize::try_from(threshold).ok();
@@ -508,6 +627,100 @@ impl ConnWriter {
 mod tests {
     use super::*;
     use std::net::TcpListener;
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_fence_codec_requires_the_complete_identity() {
+        let id = CaptureFenceId {
+            session: 17,
+            generation: 23,
+            sequence: 31,
+        };
+        let bytes = id.encode();
+        assert_eq!(CaptureFenceId::decode(&bytes), Some(id));
+        assert_eq!(CaptureFenceId::decode(&bytes[..23]), None);
+        assert_eq!(CaptureFenceId::decode(&[0; 25]), None);
+    }
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_fences_wait_for_application_in_both_directions() {
+        let (client, server) = Pipe::pair();
+        let client = client.capture_fences();
+        let server = server.capture_fences();
+        let id = CaptureFenceId {
+            session: 17,
+            generation: 23,
+            sequence: 1,
+        };
+        assert!(client.prepare(id));
+        assert!(server.expected(id));
+        assert!(!client.apply_output(id));
+        assert!(!client.output_applied(id));
+        assert!(server.apply_input(id));
+        assert!(!server.apply_input(id));
+        assert!(client.input_applied(id));
+        assert!(!client.output_applied(id));
+        assert!(client.apply_output(id));
+        assert!(!client.apply_output(id));
+        assert!(server.output_applied(id));
+        assert!(!client.prepare(id));
+        let next = CaptureFenceId { sequence: 2, ..id };
+        assert!(client.prepare(next));
+        assert!(!client.prepare(CaptureFenceId { sequence: 3, ..id }));
+        assert!(!server.apply_input(id));
+        assert!(!client.apply_output(id));
+        assert!(server.apply_input(next));
+        assert!(client.apply_output(next));
+    }
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_fences_invalidate_cancelled_generations() {
+        let (client, server) = Pipe::pair();
+        let client = client.capture_fences();
+        let server = server.capture_fences();
+        let old = CaptureFenceId {
+            session: 17,
+            generation: 23,
+            sequence: 1,
+        };
+        let next = CaptureFenceId {
+            session: 18,
+            generation: 24,
+            sequence: 1,
+        };
+        assert!(client.prepare(old));
+        assert!(client.prepare(next));
+        assert!(!server.apply_input(old));
+        assert!(!client.prepare(old));
+        assert!(!client.prepare(CaptureFenceId {
+            session: 99,
+            ..next
+        }));
+        assert!(server.apply_input(next));
+        assert!(client.apply_output(next));
+    }
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_marker_bytes_follow_preceding_memory_packets() {
+        let (mut client, mut server) = Pipe::pair();
+        let marker = CaptureFenceId {
+            session: 17,
+            generation: 23,
+            sequence: 1,
+        }
+        .encode();
+        client.write_all(b"preceding").unwrap();
+        client.write_all(&marker).unwrap();
+        let mut preceding = [0; 9];
+        server.read_exact(&mut preceding).unwrap();
+        assert_eq!(&preceding, b"preceding");
+        let mut received = [0; 24];
+        server.read_exact(&mut received).unwrap();
+        assert_eq!(received.as_slice(), marker.as_slice());
+    }
 
     #[test]
     fn ipv4_first_keeps_each_familys_order() {

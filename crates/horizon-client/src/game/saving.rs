@@ -30,6 +30,8 @@ const SNAPSHOT_BUDGET: Duration = Duration::from_millis(2);
 
 impl Game<'_> {
     pub(super) fn begin_closing_save(&mut self, quit: bool) -> Result<()> {
+        #[cfg(feature = "dev-capture")]
+        let _ = self.capture_cancel();
         if let Some(save) = &mut self.pending_save {
             save.quit |= quit;
             return Ok(());
@@ -140,6 +142,8 @@ impl Game<'_> {
                     } else {
                         self.leave_server(None)?;
                     }
+                    #[cfg(feature = "dev-capture")]
+                    self.capture_shutdown();
                     Ok(true)
                 }
                 Stage::Generation => {

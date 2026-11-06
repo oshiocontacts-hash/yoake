@@ -115,12 +115,14 @@ pub struct Dynamic {
     pub registries: HashMap<String, Vec<(String, Option<Tag>)>>,
     /// The `minecraft:dialog` tags the server sent: each tag's entries by id.
     pub dialog_tags: HashMap<String, Vec<i32>>,
+    /// The server's item tags, when requested and received for this connection.
+    pub item_tags: Option<HashMap<String, Vec<i32>>>,
     /// The peer confirmed the native component registry identity.
     pub custom_components: bool,
 }
 impl Dynamic {
-    /// The dialog tags of a `ClientboundUpdateTagsPacket`.
-    pub fn add_tags(&mut self, packet: &UpdateTags) {
+    /// The dialog tags and optionally item tags of a configuration tag packet.
+    pub fn add_tags(&mut self, packet: &UpdateTags, capture_item_tags: bool) {
         for r in packet
             .registries
             .iter()
@@ -132,6 +134,38 @@ impl Dynamic {
                 .map(|t| (t.name.clone(), t.ids.clone()))
                 .collect();
         }
+        if capture_item_tags {
+            self.add_item_tags(packet);
+        }
+    }
+    /// Replace the supplied item registry's tags, retaining no previous entries.
+    pub fn add_item_tags(&mut self, packet: &UpdateTags) {
+        for registry in packet
+            .registries
+            .iter()
+            .filter(|registry| registry.registry == "minecraft:item")
+        {
+            self.item_tags = Some(
+                registry
+                    .tags
+                    .iter()
+                    .map(|tag| (tag.name.clone(), tag.ids.clone()))
+                    .collect(),
+            );
+        }
+    }
+    /// Query server-synchronized item tags using this connection's builtin ids.
+    pub fn item_in_tag(&self, builtin: &Builtin, tag: &str, item: &str) -> bool {
+        let Some(item_id) = builtin
+            .get("minecraft:item")
+            .and_then(|items| items.id(item))
+        else {
+            return false;
+        };
+        self.item_tags
+            .as_ref()
+            .and_then(|tags| tags.get(tag))
+            .is_some_and(|ids| ids.contains(&item_id))
     }
     pub fn add(&mut self, packet: RegistryData) {
         let entries = packet.entries.into_iter().map(|e| (e.id, e.data)).collect();
@@ -268,7 +302,98 @@ pub fn ceil_log2(n: usize) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::packets::configuration::RegistryEntry;
+    use crate::packets::configuration::{RegistryEntry, RegistryTags, TagEntry};
+
+    fn item_builtin() -> Builtin {
+        Builtin {
+            registries: HashMap::from([(
+                "minecraft:item".into(),
+                Ids::from_names(vec![
+                    "minecraft:air".into(),
+                    "minecraft:stone".into(),
+                    "minecraft:stick".into(),
+                ]),
+            )]),
+        }
+    }
+
+    fn item_tags(tags: &[(&str, &[i32])]) -> UpdateTags {
+        UpdateTags {
+            registries: vec![RegistryTags {
+                registry: "minecraft:item".into(),
+                tags: tags
+                    .iter()
+                    .map(|(name, ids)| TagEntry {
+                        name: (*name).into(),
+                        ids: ids.to_vec(),
+                    })
+                    .collect(),
+            }],
+        }
+    }
+
+    #[test]
+    fn item_tags_replace_instead_of_accumulating() {
+        let builtin = item_builtin();
+        let mut registries = Dynamic::default();
+        registries.add_tags(
+            &item_tags(&[("test:changed", &[1]), ("test:removed", &[1])]),
+            true,
+        );
+        registries.add_item_tags(&item_tags(&[("test:changed", &[2])]));
+        assert!(!registries.item_in_tag(&builtin, "test:changed", "minecraft:stone"));
+        assert!(registries.item_in_tag(&builtin, "test:changed", "minecraft:stick"));
+        assert!(!registries.item_in_tag(&builtin, "test:removed", "minecraft:stone"));
+        registries.add_item_tags(&UpdateTags {
+            registries: Vec::new(),
+        });
+        assert!(registries.item_in_tag(&builtin, "test:changed", "minecraft:stick"));
+        registries.add_item_tags(&item_tags(&[]));
+        assert_eq!(registries.item_tags, Some(HashMap::new()));
+    }
+
+    #[test]
+    fn unavailable_and_unknown_item_tags_are_false() {
+        let builtin = item_builtin();
+        let mut registries = Dynamic::default();
+        assert!(!registries.item_in_tag(&builtin, "test:items", "minecraft:stone"));
+        registries.add_tags(&item_tags(&[("test:items", &[1, 3, -1])]), true);
+        registries.add(RegistryData {
+            registry: "minecraft:item".into(),
+            entries: vec![RegistryEntry {
+                id: "test:dynamic_only".into(),
+                data: None,
+            }],
+        });
+        assert!(registries.item_in_tag(&builtin, "test:items", "minecraft:stone"));
+        assert!(!registries.item_in_tag(&builtin, "test:missing", "minecraft:stone"));
+        assert!(!registries.item_in_tag(&builtin, "test:items", "test:unknown"));
+        assert!(!registries.item_in_tag(&builtin, "test:items", "test:dynamic_only"));
+        assert!(!registries.item_in_tag(&Builtin::default(), "test:items", "minecraft:stone"));
+    }
+
+    #[test]
+    fn no_item_interest_preserves_dialog_handling_without_an_item_table() {
+        let mut registries = Dynamic::default();
+        let mut packet = item_tags(&[("test:items", &[1])]);
+        packet.registries.push(RegistryTags {
+            registry: "minecraft:dialog".into(),
+            tags: vec![TagEntry {
+                name: "test:dialogs".into(),
+                ids: vec![2],
+            }],
+        });
+        registries.add_tags(&packet, false);
+        assert!(registries.item_tags.is_none());
+        assert_eq!(
+            registries.dialog_tags,
+            HashMap::from([("test:dialogs".into(), vec![2])])
+        );
+        packet.registries[1].tags.clear();
+        registries.add_tags(&packet, false);
+        assert!(registries.item_tags.is_none());
+        assert!(registries.dialog_tags.is_empty());
+    }
 
     #[test]
     fn parses_registry_reports() {

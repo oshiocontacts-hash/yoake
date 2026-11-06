@@ -32,7 +32,11 @@ const MINIMAP_BUDGET: Duration = Duration::from_micros(300);
 
 impl Game<'_> {
     fn extras_now(&self) -> f64 {
-        self.started.elapsed().as_secs_f64()
+        #[cfg(feature = "dev-capture")]
+        let elapsed = self.capture_presentation_time();
+        #[cfg(not(feature = "dev-capture"))]
+        let elapsed = self.started.elapsed();
+        elapsed.as_secs_f64()
     }
     /// Mouse buttons while playing, for mods' clicks.
     pub(super) fn extras_mouse(&mut self, button: MouseButton, pressed: bool) {

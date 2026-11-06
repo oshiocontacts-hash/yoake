@@ -8,7 +8,7 @@ use super::{Game, commands::Target};
 use horizon_client::mod_api::EntityRef;
 use horizon_core::geometry::{Aabb, Axis, Vec3};
 
-fn corners(b: Aabb) -> [[f64; 3]; 2] {
+pub(super) fn corners(b: Aabb) -> [[f64; 3]; 2] {
     let axes = [Axis::X, Axis::Y, Axis::Z];
     [axes.map(|a| b.min(a)), axes.map(|a| b.max(a))]
 }

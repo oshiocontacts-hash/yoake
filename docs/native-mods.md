@@ -313,9 +313,13 @@ API 46 adds `native_visuals`: a world-frame hook that appends block-rim and
 colored-light requests. Rims trace the client's existing block outline edges,
 depth-tested against terrain. Lights add camera-local RGB illumination to the
 normal terrain/entity shaders, not gameplay light. Only the first eight rims
-and eight lights are examined; positions must be within 32 blocks of the player,
-values must be finite and bounded, and source chunks must be loaded. At most
-256 rim edges and 16 colored lights are rendered. Requests are frame-local,
+and the first eight lights are examined, before they are checked. A rim's centre must be
+within 32 blocks of the player. Since @API:visual_light_limits@, a light's radius may be
+0.25 to 32 blocks and its centre must be within 64 blocks of the render camera (before
+that: radius up to 16, within 32 blocks of the player), so a light stays when the camera
+is moved away from the player. Values must be finite and bounded, and source chunks must
+be loaded. At most 256 rim edges are drawn, and at most 16 colored lights, chosen after
+the mod lights are merged with particle and pack lights. Requests are frame-local,
 so disabling a native mod or leaving the world clears them without a retained
 state. Helpers `native_lit_block_name` and `native_flame_particle` read loaded
 blocks and emit a nearby vanilla flame particle; native mods must rate-limit
@@ -2547,6 +2551,42 @@ items are left out (NeoForge's `RenderLivingEvent.Pre`, cancelled); its name tag
   `BlockEntityDraw::for_test(pose, light)`, `NativeMobRender::for_test(id, kind)`, `NativePlayerRender::for_test(name, local)`,
   `PlayerSubmitEvent::for_test` and `MobLayerEvent::for_test` build synthetic render events with neutral fields. They do not
   simulate a connected client or fill registries. A dependency does not inherit the consumer's `cfg(test)`: enable the feature.
+
+- Since @API:equipment_draw@, `draw_armor_part(draw, stack, slot, part, frame, options)` draws one piece of an armour
+  stack on a frame the mod chooses. Examples are a helmet on its avatar's head bone, or a chestplate's body and arm parts on
+  its body and arm bones. `draw_player_back(draw, player, who, chest, layer, back, options)` draws the elytra or the cape
+  on a back frame in the same way.
+  - `part` is a `NativeHumanoidPart` (`Head`, `Body`, `LeftArm`, `RightArm`, `LeftLeg`, `RightLeg`), and
+    `layer` a `NativeBackLayer` (`Wings`, `Cape`).
+  - `frame` and `back` map the part's own geometry, in blocks, straight to camera-relative world space. They replace
+    the part's vanilla placement: do not multiply by `draw.pose_matrix()` again.
+  - Material, dye colour, trim and glint are resolved as for the vanilla armour layer.
+  - `NativeEquipmentDrawOptions::new(light)` keeps vanilla's overlay and outline. `with_overlay` and
+    `with_outline` change them; `NativeEquipmentOutline` is `Inherit`, `Disabled` or `Rgb`. A glowing player
+    drawn this way still gets one outline, not two.
+  - Both helpers return `false` and draw nothing when there is no such equipment to draw.
+- Stacks that only a mod draws need their trim atlas entries before the draw callbacks. Since
+  @API:equipment_render_stacks@, set `native_equipment_render_stacks_listened` and push them in
+  `native_equipment_render_stacks(stacks)`. With no listener, no list is made.
+- Since @API:render_name_tag_position@, `native_render_name_tag_position(entity_id, kind, anchor)` (client, asked only
+  while a mod sets `native_render_name_tag_position_listened`) can move a name tag, for an avatar taller or shorter than
+  the vanilla model.
+  - `anchor` is camera-relative, in world blocks, on the same axes as `pose_matrix`.
+  - The score line under the name moves with it.
+  - Visibility, distance and sneaking rules are unchanged.
+  - The shown-name diagnostics do not call it.
+- With the `test-support` feature, `NativeScreenView::for_test(id)` builds an empty screen view (no menu or title, no
+  slots) for tests (@API:screen_view_test_support@).
+- Since @API:client_item_queries@, a client mod can ask about items:
+  - `item_is_block(item)` says whether an item places a block. This is not a check of its Java class.
+  - `item_in_tag(tag, item)` answers from the item tags the server sent on this connection. To get them, set
+    `client_item_tags_listened(listened)` before connecting; this works for every kind of connection: single player,
+    servers, LAN and transfers.
+  - The tags are replaced, never added to, by each configuration or play-state update. They are replaced on
+    reconfiguration and dropped on disconnect.
+  - Unknown items or tags, and missing data, answer `false`. There is no fallback to local tags.
+  - `item_tags_ready()` tells "no data yet" apart from "not in the tag".
+  - Without a listener, no tag table is made and the dialog handling is the same as before.
 
 ### Advancement triggers
 

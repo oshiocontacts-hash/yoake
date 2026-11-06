@@ -16,8 +16,21 @@ const PROTOCOL: &str = "0.1.0";
 
 /// The command groups the game serves, as `help` chains them: what `hello` reports as its features.
 const FEATURES: &[&str] = &[
-    "game", "station", "blocks", "lan", "friends", "render", "sculk", "agent", "ui", "options",
-    "events", "saves", "pad",
+    "game",
+    "station",
+    "blocks",
+    "lan",
+    "friends",
+    "render",
+    "sculk",
+    "agent",
+    "ui",
+    "options",
+    "events",
+    "saves",
+    "pad",
+    #[cfg(feature = "dev-capture")]
+    "capture",
 ];
 
 /// `hello`: the protocol the socket speaks, the game's release and the command groups it serves.
@@ -52,6 +65,12 @@ const HELP: &[&str] = &[
     "fill X1 Y1 Z1 X2 Y2 Z2 BLOCK   set a box of loaded blocks",
     "resume                         leave the pause menu",
     "screenshot PATH                write the next frame as PNG",
+    #[cfg(feature = "dev-capture")]
+    "capture JSON                   capture {directory,fps,frames} in unpublished single player",
+    #[cfg(feature = "dev-capture")]
+    "capture-status                 report the capture's state and written frame count",
+    #[cfg(feature = "dev-capture")]
+    "capture-cancel                 cancel capture and restore real-time clocks",
     "chat TEXT                      send a chat line or /command as if typed",
     "type TEXT                      type into the open chat box (key enter tap sends)",
     "chat-log [N]                   the newest N chat messages (default 10)",
@@ -85,11 +104,69 @@ pub struct Flight {
     /// The world's smoothed tick time each frame (the F3 server line): the
     /// server thread's when single player runs on one.
     tick_ms: Vec<f32>,
+    #[cfg(feature = "dev-capture")]
+    capture_started: Option<(Duration, Duration)>,
+}
+
+#[cfg(feature = "dev-capture")]
+fn capture_arguments(line: &str) -> std::result::Result<(std::path::PathBuf, u32, u64), String> {
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Arguments {
+        directory: std::path::PathBuf,
+        fps: u32,
+        frames: u64,
+    }
+
+    let arguments = line
+        .trim_start()
+        .strip_prefix("capture")
+        .ok_or("expected capture command")?
+        .trim_start();
+    let Arguments {
+        directory,
+        fps,
+        frames,
+    } = serde_json::from_str(arguments).map_err(|error| error.to_string())?;
+    if directory.as_os_str().is_empty() {
+        return Err("missing capture directory".into());
+    }
+    if fps == 0 || frames == 0 {
+        return Err("capture fps and frame count must be positive".into());
+    }
+    Ok((directory, fps, frames))
 }
 
 impl Game<'_> {
+    #[cfg(feature = "dev-capture")]
+    pub(super) fn capture_flight_begin(&mut self) {
+        let presentation = self.capture_presentation_time();
+        if let Some(flight) = self.flight.as_mut() {
+            flight.capture_started = Some((flight.started.elapsed(), presentation));
+        }
+    }
+
+    #[cfg(feature = "dev-capture")]
+    pub(super) fn capture_flight_end(&mut self) {
+        let presentation = self.capture_presentation_time();
+        if let Some(flight) = self.flight.as_mut()
+            && let Some((elapsed, origin)) = flight.capture_started.take()
+        {
+            let elapsed = elapsed + presentation.saturating_sub(origin);
+            flight.started = Instant::now()
+                .checked_sub(elapsed)
+                .unwrap_or_else(Instant::now);
+        }
+    }
+
     /// Move the camera along the running flight; reply when it ends.
     pub(super) fn advance_flight(&mut self) {
+        #[cfg(feature = "dev-capture")]
+        let presentation = self
+            .flight
+            .as_ref()
+            .and_then(|flight| flight.capture_started)
+            .map(|_| self.capture_presentation_time());
         let tick_ms = self
             .integrated
             .as_ref()
@@ -99,7 +176,16 @@ impl Game<'_> {
         };
         flight.tick_ms.push(tick_ms);
         let flight = &*flight;
-        let t = (flight.started.elapsed().as_secs_f64() / flight.seconds).min(1.0);
+        #[cfg(feature = "dev-capture")]
+        let elapsed = match (flight.capture_started, presentation) {
+            (Some((elapsed, origin)), Some(presentation)) => {
+                elapsed + presentation.saturating_sub(origin)
+            }
+            _ => flight.started.elapsed(),
+        };
+        #[cfg(not(feature = "dev-capture"))]
+        let elapsed = flight.started.elapsed();
+        let t = (elapsed.as_secs_f64() / flight.seconds).min(1.0);
         let (a, b) = (flight.from, flight.to);
         let d = [b.x - a.x, b.y - a.y, b.z - a.z];
         let at = Vec3::new(a.x + d[0] * t, a.y + d[1] * t, a.z + d[2] * t);
@@ -157,10 +243,16 @@ impl Game<'_> {
         }
         horizon_client::widgets::end_frame(self.frames);
         self.narrate_screen();
-        self.poll_repro(event_loop);
-        self.advance_agent();
-        for request in self.ui_wait.ready() {
-            self.answer(request, event_loop);
+        #[cfg(feature = "dev-capture")]
+        let advance_controls = !self.frame_capture.active();
+        #[cfg(not(feature = "dev-capture"))]
+        let advance_controls = true;
+        if advance_controls {
+            self.poll_repro(event_loop);
+            self.advance_agent();
+            for request in self.ui_wait.ready() {
+                self.answer(request, event_loop);
+            }
         }
         while let Some(request) = self.control.as_ref().and_then(|c| c.try_recv()) {
             // Once per line received, not once per handler: a deferred `ui`
@@ -304,6 +396,32 @@ impl Game<'_> {
         event_loop: &dyn EventLoopCtl,
     ) -> Result<Option<Value>> {
         let words: Vec<&str> = line.split_whitespace().collect();
+        #[cfg(feature = "dev-capture")]
+        {
+            let command = words.first().copied().unwrap_or_default();
+            match command {
+                "capture" => {
+                    let (directory, fps, frames) = capture_arguments(line)?;
+                    self.capture_start(&directory, fps, frames, reply.clone())?;
+                    return Ok(None);
+                }
+                "capture-status" | "capture-cancel" => {
+                    if words.len() != 1 {
+                        return Err(format!("{command} takes no arguments").into());
+                    }
+                    if command == "capture-cancel" {
+                        self.capture_cancel();
+                    }
+                    return Ok(Some(json!({"ok": true, "capture": self.capture_status()})));
+                }
+                _ if self.frame_capture.active()
+                    && !matches!(command, "hello" | "help" | "status") =>
+                {
+                    return Err("capture is active; use capture-cancel first".into());
+                }
+                _ => {}
+            }
+        }
         if self.pending_save.is_some() && words.first() != Some(&"quit") {
             return Err("a world save is in progress".into());
         }
@@ -963,6 +1081,8 @@ impl Game<'_> {
                     raw: words.get(9) == Some(&"raw"),
                     reply: reply.clone(),
                     tick_ms: Vec::new(),
+                    #[cfg(feature = "dev-capture")]
+                    capture_started: None,
                 });
                 Ok(None)
             }
@@ -1488,6 +1608,40 @@ pub(super) fn title_owns_text(screen: &Screen, title_up: bool) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_json_preserves_directory_spaces_and_backslashes() {
+        let directory = std::path::PathBuf::from(r"C:\capture output\frames");
+        let line = format!(
+            "capture {}",
+            json!({"directory": directory, "fps": 29, "frames": 120})
+        );
+        assert_eq!(capture_arguments(&line).unwrap(), (directory, 29, 120));
+    }
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_json_rejects_missing_unknown_zero_and_invalid_arguments() {
+        for arguments in [
+            r#"{}"#,
+            r#"{"directory":"frames","fps":30}"#,
+            r#"{"directory":"frames","frames":1}"#,
+            r#"{"directory":"","fps":30,"frames":1}"#,
+            r#"{"directory":"frames","fps":0,"frames":1}"#,
+            r#"{"directory":"frames","fps":30,"frames":0}"#,
+            r#"{"directory":"frames","fps":-1,"frames":1}"#,
+            r#"{"directory":"frames","fps":30,"frames":-1}"#,
+            r#"{"directory":"frames","fps":30.5,"frames":1}"#,
+            r#"{"directory":"frames","fps":4294967296,"frames":1}"#,
+            r#"{"directory":"frames","fps":30,"frames":1,"unknown":true}"#,
+            r#"{"directory":"frames","fps":30,"fps":60,"frames":1}"#,
+            r#"{"directory":"frames","fps":30,"frames":1} trailing"#,
+            "frames --fps 30 --frames 1",
+        ] {
+            assert!(capture_arguments(&format!("capture {arguments}")).is_err());
+        }
+    }
 
     #[test]
     fn the_title_takes_text_only_on_its_own_screens() {

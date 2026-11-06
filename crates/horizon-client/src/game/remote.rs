@@ -834,6 +834,8 @@ impl Game<'_> {
         cookies: Option<horizon_client::net::Cookies>,
         lan: bool,
     ) -> Result<()> {
+        let mut capture_item_tags = false;
+        self.native_client_item_tags_listened(&mut capture_item_tags);
         self.reset_tutorial();
         self.perf.world_opening();
         // A server's own biomes come over the connection; the last local
@@ -871,9 +873,14 @@ impl Game<'_> {
         );
         self.server_packs_connect(local.is_none().then_some(address), user);
         let session = match local {
-            Some(pipe) => {
-                Session::connect_local(pipe, name, info.clone(), lang.clone(), root.clone())
-            }
+            Some(pipe) => Session::connect_local(
+                pipe,
+                name,
+                info.clone(),
+                lang.clone(),
+                root.clone(),
+                capture_item_tags,
+            ),
             None => {
                 self.extras_connecting(address, name, lan);
                 match cookies {
@@ -885,6 +892,7 @@ impl Game<'_> {
                         lang.clone(),
                         cookies,
                         root.clone(),
+                        capture_item_tags,
                     ),
                     None => {
                         let connect = if lan {
@@ -899,6 +907,7 @@ impl Game<'_> {
                             info.clone(),
                             lang.clone(),
                             root.clone(),
+                            capture_item_tags,
                         )
                     }
                 }
@@ -1870,6 +1879,9 @@ impl Game<'_> {
                     // offers its own far terrain, or none.
                     if let Some(remote) = &mut self.remote {
                         remote.far_terrain = None;
+                        if remote.registries.item_tags.is_some() {
+                            Arc::make_mut(&mut remote.registries).item_tags = None;
+                        }
                     }
                     self.clear_lod();
                     if let Some(remote) = &self.remote {
@@ -1965,6 +1977,12 @@ impl Game<'_> {
                     return Ok(());
                 }
                 Event::Packet(packet) => self.handle_packet(*packet)?,
+                #[cfg(feature = "dev-capture")]
+                Event::CaptureFence(id) => {
+                    if let Some(remote) = self.remote.as_ref() {
+                        remote.session.capture_apply_output(id);
+                    }
+                }
             }
             chunks += started.map_or(Duration::ZERO, |t| t.elapsed());
             if self.remote.is_none() {
@@ -3029,6 +3047,18 @@ impl Game<'_> {
             // ClientCommonPacketListenerImpl.handlePing runs on the game
             // thread, after all preceding packets (especially teleports).
             C::Ping(p) => self.send(S::Pong(p)),
+            C::UpdateTags(tags) => {
+                if let Some(remote) = &mut self.remote {
+                    if remote.session.captures_item_tags()
+                        && tags
+                            .registries
+                            .iter()
+                            .any(|registry| registry.registry == "minecraft:item")
+                    {
+                        Arc::make_mut(&mut remote.registries).add_item_tags(&tags);
+                    }
+                }
+            }
             // A native mod's server half to its client half.
             C::CustomPayload(p) if p.channel == horizon_protocol::mod_net::CHANNEL => {
                 self.remote_native_net(&p.data);

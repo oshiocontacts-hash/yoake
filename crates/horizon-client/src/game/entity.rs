@@ -98,9 +98,15 @@ pub(super) trait Entity: EntityRules {
     fn is_alive(&self) -> bool {
         true
     }
+    fn native_query_alive(&self) -> bool {
+        self.is_alive()
+    }
     /// `Entity.isRemoved`.
     fn is_removed(&self) -> bool {
         false
+    }
+    fn native_query_removed(&self) -> bool {
+        self.is_removed()
     }
     /// `instanceof LivingEntity`.
     fn is_living(&self) -> bool {
@@ -365,8 +371,11 @@ macro_rules! define_entity_handles {
             $(pub(super) $field: horizon_client::join_seq::JoinList<$ty>,)*
         }
 
-
         impl EntityLists<'_> {
+            pub(super) fn candidate_count(self) -> usize {
+                0usize$(.saturating_add(self.$field.len()))*
+            }
+
             /// Visits every entity once, in the order they joined, whatever the
             /// kind: a merge of the lists, each already in join order, by a
             /// cursor per list. Static dispatch and nothing allocated. Checked:
@@ -725,7 +734,7 @@ impl Entity for Mob {
     fn is_alive(&self) -> bool {
         !self.removed && self.alive()
     }
-    fn is_removed(&self) -> bool {
+    fn native_query_removed(&self) -> bool {
         self.removed
     }
     fn is_living(&self) -> bool {
@@ -1032,6 +1041,9 @@ impl Entity for ArmorStand {
     }
     fn native_type(&self) -> Cow<'static, str> {
         "minecraft:armor_stand".into()
+    }
+    fn native_query_alive(&self) -> bool {
+        self.health > 0.0
     }
     fn save_nbt(
         game: &mut Game<'_>,

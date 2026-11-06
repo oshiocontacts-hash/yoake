@@ -502,6 +502,30 @@ impl Game<'_> {
         Ok(())
     }
 
+    #[cfg(feature = "dev-capture")]
+    pub(super) fn capture_drain_packets(&mut self) -> Result<()> {
+        let original_dim = self.dim;
+        let original_pass = self.level_pass;
+        let dims = self.levels_to_tick();
+        let count = dims.len();
+        let result = (|| {
+            for (index, dim) in dims.into_iter().enumerate() {
+                self.enter_level(None, dim)?;
+                self.level_pass = Pass {
+                    first: index == 0,
+                    last: index + 1 == count,
+                    running: None,
+                    packets_drained: false,
+                };
+                self.capture_lan_packets();
+            }
+            Ok(())
+        })();
+        self.level_pass = original_pass;
+        let restored = self.enter_level(None, original_dim);
+        result.and(restored)
+    }
+
     /// `tick_server` as a server thread runs it. With `HORIZON_SPIKES=MS`, a
     /// tick longer than MS is logged with its thread CPU time and spans.
     pub(super) fn tick_server_timed(&mut self, paused: bool) -> Result<()> {

@@ -34,6 +34,11 @@ pub struct NativeModCall {
     pub hook: &'static str,
 }
 
+/// The innermost native-mod call currently active on this thread.
+pub fn native_mod_call() -> Option<NativeModCall> {
+    IN_NATIVE_MOD.with(Cell::get)
+}
+
 /// Marks this thread as inside `call` until the guard drops, which also happens while a panic
 /// unwinds. A hook called from a hook is named by the inner call.
 pub fn enter_native_mod(call: NativeModCall) -> NativeModGuard {

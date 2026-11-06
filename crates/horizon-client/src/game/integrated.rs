@@ -24,6 +24,8 @@ use horizon_client::{
     title::WorldOptions,
 };
 use horizon_protocol::connection::Pipe;
+#[cfg(feature = "dev-capture")]
+use horizon_protocol::connection::{CaptureFenceId, CaptureFences};
 use horizon_protocol::{crypto::offline_uuid, text::translatable};
 use std::{
     net::TcpListener,
@@ -52,6 +54,12 @@ struct Flags {
     /// `Minecraft.pause`: a single-player pause screen is open.
     paused: AtomicBool,
     stop: AtomicBool,
+    #[cfg(feature = "dev-capture")]
+    capture: AtomicBool,
+    #[cfg(feature = "dev-capture")]
+    capture_authority: Mutex<CaptureAuthority>,
+    #[cfg(feature = "dev-capture")]
+    capture_failure: Mutex<Option<(CaptureSession, String)>>,
     failure: Mutex<Option<String>>,
     /// `IntegratedServer.getPort`: the port it is open to the LAN on, 0
     /// while it is not.
@@ -88,6 +96,121 @@ struct Flags {
 
 /// Work the window hands its server thread (`MinecraftServer.execute`).
 type Task = Box<dyn FnOnce(&mut Game<'_>) + Send>;
+
+#[cfg(feature = "dev-capture")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct CaptureSession {
+    pub session: u64,
+    pub generation: u64,
+}
+
+#[cfg(feature = "dev-capture")]
+#[derive(Default)]
+struct CaptureAuthority {
+    cancelled: u64,
+    active: Option<CaptureSession>,
+}
+
+#[cfg(feature = "dev-capture")]
+impl CaptureAuthority {
+    fn acquire(&mut self, id: CaptureSession) -> bool {
+        if self.active.is_some() || id.generation <= self.cancelled {
+            return false;
+        }
+        self.active = Some(id);
+        true
+    }
+
+    fn cancel(&mut self, id: CaptureSession) {
+        self.cancelled = self.cancelled.max(id.generation);
+    }
+
+    fn released(&self, id: CaptureSession) -> bool {
+        self.cancelled >= id.generation && self.active != Some(id)
+    }
+}
+
+#[cfg(feature = "dev-capture")]
+#[derive(Clone)]
+pub(super) struct CaptureControl(Arc<Flags>);
+
+#[cfg(feature = "dev-capture")]
+struct CaptureThreadExit(Arc<Flags>);
+
+#[cfg(feature = "dev-capture")]
+impl Drop for CaptureThreadExit {
+    fn drop(&mut self) {
+        let mut authority = self
+            .0
+            .capture_authority
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(id) = authority.active.take() {
+            authority.cancel(id);
+            let reason = if std::thread::panicking() {
+                "the integrated server panicked during capture"
+            } else {
+                "the integrated server stopped during capture"
+            };
+            *self
+                .0
+                .capture_failure
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((id, reason.into()));
+        }
+        self.0.capture.store(false, Ordering::Release);
+    }
+}
+
+#[cfg(feature = "dev-capture")]
+impl CaptureControl {
+    pub fn cancel(&self, id: CaptureSession) {
+        self.0.capture_authority.lock().unwrap().cancel(id);
+    }
+
+    pub fn released(&self, id: CaptureSession) -> bool {
+        self.0.capture_authority.lock().unwrap().released(id)
+    }
+}
+
+#[cfg(feature = "dev-capture")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum CaptureOperation {
+    Hold,
+    Fence(CaptureFenceId),
+    Step(CaptureFenceId),
+    Release,
+}
+
+#[cfg(feature = "dev-capture")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct CaptureRequest {
+    pub id: CaptureSession,
+    pub operation: CaptureOperation,
+}
+
+#[cfg(feature = "dev-capture")]
+#[derive(Debug)]
+pub(super) struct CaptureReply {
+    pub request: CaptureRequest,
+    pub result: std::result::Result<(), String>,
+}
+
+#[cfg(feature = "dev-capture")]
+struct CapturePending {
+    request: CaptureRequest,
+    reply: Sender<CaptureReply>,
+    stepped: bool,
+}
+
+#[cfg(feature = "dev-capture")]
+struct CaptureLease {
+    id: CaptureSession,
+    saved_clock: crate::clock::FixedStep,
+    ticks: u64,
+    sequence: u64,
+    pending: Option<CapturePending>,
+}
 
 /// The window's handle on its server thread.
 pub(super) struct Integrated {
@@ -157,10 +280,18 @@ impl Integrated {
     /// Splitscreen: a connection through memory for another player on this machine, who gets
     /// the owner's permissions. `None` once the server has stopped.
     pub fn join_split(&self, name: &str) -> Option<horizon_protocol::connection::Pipe> {
+        #[cfg(feature = "dev-capture")]
+        if self.flags.capture.load(Ordering::Acquire) {
+            return None;
+        }
         let uuid = horizon_protocol::crypto::offline_uuid(name);
         self.flags.split_players.lock().unwrap().push(uuid);
         let pipe = self
             .call(move |g| {
+                #[cfg(feature = "dev-capture")]
+                if g.serving.as_ref()?.capture.is_some() {
+                    return None;
+                }
                 let host = g.lan.as_mut()?;
                 let owner = host.owner.as_ref()?.uuid;
                 let level = host.hub.ops.get(&owner).copied().unwrap_or(0);
@@ -187,6 +318,31 @@ impl Integrated {
     /// `IntegratedServer.getPort` while `isPublished`.
     pub fn published(&self) -> Option<u16> {
         Some(self.flags.published.load(Ordering::Relaxed)).filter(|&p| p != 0)
+    }
+    #[cfg(feature = "dev-capture")]
+    pub fn capture_request(&self, request: CaptureRequest) -> Receiver<CaptureReply> {
+        if request.operation == CaptureOperation::Release {
+            self.capture_control().cancel(request.id);
+        }
+        let (reply, receiver) = channel();
+        let _ = self.tasks.send(Box::new(move |game| {
+            game.capture_server_request(request, reply);
+        }));
+        receiver
+    }
+    #[cfg(feature = "dev-capture")]
+    pub fn capture_control(&self) -> CaptureControl {
+        CaptureControl(Arc::clone(&self.flags))
+    }
+    #[cfg(feature = "dev-capture")]
+    pub fn capture_failure(&self, id: CaptureSession) -> Option<String> {
+        self.flags
+            .capture_failure
+            .lock()
+            .unwrap()
+            .as_ref()
+            .filter(|(failed, _)| *failed == id)
+            .map(|(_, reason)| reason.clone())
     }
     /// `executeBlocking`: run `f` on the server thread between two ticks and
     /// wait for its answer; `None` once the server has stopped, or when it has
@@ -234,9 +390,12 @@ impl Integrated {
     fn halt(&mut self) -> Result<()> {
         self.request_stop();
         if let Some(thread) = self.thread.take() {
-            thread
-                .join()
-                .map_err(|_| "the integrated server panicked")?;
+            let result = thread.join();
+            #[cfg(feature = "dev-capture")]
+            {
+                self.flags.capture_authority.lock().unwrap().active = None;
+            }
+            result.map_err(|_| "the integrated server panicked")?;
         }
         match self
             .flags
@@ -269,6 +428,14 @@ pub(super) struct Serving {
     pending: Option<Publish>,
     /// Where the load focus is and how far the player's chunks are.
     load: LoadPhase,
+    #[cfg(feature = "dev-capture")]
+    capture: Option<CaptureLease>,
+    #[cfg(feature = "dev-capture")]
+    capture_fences: CaptureFences,
+    #[cfg(feature = "dev-capture")]
+    capture_generation: u64,
+    #[cfg(feature = "dev-capture")]
+    capture_rebase: bool,
 }
 /// The part of `LevelLoadListener` after `prepareLevels`: `PrepareSpawnTask`'s
 /// `LOAD_PLAYER_CHUNKS`.
@@ -288,6 +455,229 @@ impl Serving {
 enum Publish {
     Open(TcpListener, LanSettings),
     Close,
+}
+
+#[cfg(feature = "dev-capture")]
+impl Game<'_> {
+    fn capture_server_gate(&self) -> std::result::Result<(), String> {
+        let serving = self.serving.as_ref().ok_or("not an integrated server")?;
+        if serving.flags.published.load(Ordering::Relaxed) != 0 || serving.pending.is_some() {
+            return Err("capture requires an unpublished world".into());
+        }
+        if !serving.flags.split_players.lock().unwrap().is_empty()
+            || !self.lan.as_ref().is_some_and(|host| {
+                host.hub.guests.len() == 1 && host.hub.guests[0].uuid == serving.owner
+            })
+        {
+            return Err("capture requires exactly the single-player owner".into());
+        }
+        if self.agent.hold_server
+            || self.clock.rate() != 20.0
+            || self.clock.frozen()
+            || self.clock.stepping()
+            || self.clock.sprinting()
+        {
+            return Err(
+                "capture requires an unheld, unfrozen 20 TPS server without tick sprint".into(),
+            );
+        }
+        Ok(())
+    }
+
+    fn capture_server_request(&mut self, request: CaptureRequest, reply: Sender<CaptureReply>) {
+        let result = self.capture_server_accept(request);
+        match result {
+            Ok(true) => {
+                self.serving
+                    .as_mut()
+                    .unwrap()
+                    .capture
+                    .as_mut()
+                    .unwrap()
+                    .pending = Some(CapturePending {
+                    request,
+                    reply,
+                    stepped: false,
+                });
+            }
+            result => {
+                let _ = reply.send(CaptureReply {
+                    request,
+                    result: result.map(|_| ()),
+                });
+            }
+        }
+    }
+
+    fn capture_server_accept(
+        &mut self,
+        request: CaptureRequest,
+    ) -> std::result::Result<bool, String> {
+        if request.operation == CaptureOperation::Release {
+            let serving = self.serving.as_ref().ok_or("not an integrated server")?;
+            if serving
+                .flags
+                .capture_authority
+                .lock()
+                .unwrap()
+                .released(request.id)
+            {
+                return Ok(false);
+            }
+            if serving.capture.as_ref().map(|lease| lease.id) != Some(request.id) {
+                return Err("stale capture release".into());
+            }
+            self.capture_server_release();
+            return Ok(false);
+        }
+        self.capture_server_gate()?;
+        let serving = self.serving.as_mut().unwrap();
+        if request.operation == CaptureOperation::Hold {
+            if serving.capture.is_some() || request.id.generation <= serving.capture_generation {
+                return Err("capture is already held or the generation is stale".into());
+            }
+            if !serving
+                .flags
+                .capture_authority
+                .lock()
+                .unwrap()
+                .acquire(request.id)
+            {
+                return Err("capture generation was cancelled".into());
+            }
+            serving.capture_generation = request.id.generation;
+            serving.flags.capture.store(true, Ordering::Release);
+            *serving.flags.capture_failure.lock().unwrap() = None;
+            serving.capture = Some(CaptureLease {
+                id: request.id,
+                saved_clock: self.clock.clone(),
+                ticks: 0,
+                sequence: 0,
+                pending: None,
+            });
+            return Ok(false);
+        }
+        let lease = serving.capture.as_ref().ok_or("capture is not held")?;
+        let marker = match request.operation {
+            CaptureOperation::Fence(marker) | CaptureOperation::Step(marker) => marker,
+            _ => unreachable!(),
+        };
+        if lease.id != request.id
+            || marker.session != request.id.session
+            || marker.generation != request.id.generation
+            || lease.sequence.checked_add(1) != Some(marker.sequence)
+            || lease.pending.is_some()
+            || !serving.capture_fences.expected(marker)
+        {
+            return Err("stale, duplicate, or unfenced capture step".into());
+        }
+        Ok(true)
+    }
+
+    fn capture_server_release(&mut self) {
+        let Some(serving) = self.serving.as_mut() else {
+            return;
+        };
+        if let Some(lease) = serving.capture.take() {
+            if let Some(pending) = lease.pending {
+                let _ = pending.reply.send(CaptureReply {
+                    request: pending.request,
+                    result: Err("capture was released".into()),
+                });
+            }
+            self.clock.capture_restore(lease.saved_clock);
+            serving.capture_rebase = true;
+            serving.flags.capture.store(false, Ordering::Release);
+            serving.flags.capture_authority.lock().unwrap().active = None;
+        }
+    }
+
+    fn capture_server_restore(&mut self, reason: &str) {
+        if let Some(serving) = self.serving.as_ref()
+            && let Some(lease) = serving.capture.as_ref()
+        {
+            *serving.flags.capture_failure.lock().unwrap() = Some((lease.id, reason.into()));
+        }
+        self.capture_server_release();
+    }
+
+    fn capture_server_iteration(&mut self) -> Result<bool> {
+        let Some(serving) = self.serving.as_mut() else {
+            return Ok(false);
+        };
+        if std::mem::take(&mut serving.capture_rebase) {
+            return Ok(true);
+        }
+        if serving.capture.is_none() {
+            return Ok(false);
+        }
+        let cancelled = serving.flags.capture_authority.lock().unwrap().cancelled;
+        if serving.capture.as_ref().unwrap().id.generation <= cancelled {
+            self.capture_server_release();
+            return Ok(true);
+        }
+        if let Err(reason) = self.capture_server_gate() {
+            self.capture_server_restore(&reason);
+            return Ok(true);
+        }
+        let pending = self
+            .serving
+            .as_mut()
+            .unwrap()
+            .capture
+            .as_mut()
+            .unwrap()
+            .pending
+            .take();
+        let Some(mut pending) = pending else {
+            std::thread::sleep(Duration::from_millis(1));
+            return Ok(true);
+        };
+        let marker = match pending.request.operation {
+            CaptureOperation::Fence(marker) | CaptureOperation::Step(marker) => marker,
+            _ => unreachable!(),
+        };
+        let result = (|| -> Result<()> {
+            if matches!(pending.request.operation, CaptureOperation::Step(_)) && !pending.stepped {
+                let lease = self.serving.as_mut().unwrap().capture.as_mut().unwrap();
+                lease.ticks = lease.ticks.checked_add(1).ok_or("capture tick overflow")?;
+                self.clock.capture_set_time(
+                    &lease.saved_clock,
+                    crate::capture_clock::FrameTime {
+                        index: lease.ticks,
+                        fps: std::num::NonZeroU32::new(20).unwrap(),
+                    },
+                )?;
+                self.tick_server_timed(false)?;
+                pending.stepped = true;
+            }
+            self.capture_drain_packets()?;
+            self.capture_server_gate().map_err(Into::into)
+        })();
+        if let Err(error) = result {
+            let reason = error.to_string();
+            let _ = pending.reply.send(CaptureReply {
+                request: pending.request,
+                result: Err(reason.clone()),
+            });
+            self.capture_server_restore(&reason);
+            return Ok(true);
+        }
+        let serving = self.serving.as_mut().unwrap();
+        if serving.capture_fences.input_applied(marker) {
+            let owner = &self.lan.as_ref().unwrap().hub.guests[0];
+            owner.sender.capture_output(marker);
+            serving.capture.as_mut().unwrap().sequence = marker.sequence;
+            let _ = pending.reply.send(CaptureReply {
+                request: pending.request,
+                result: Ok(()),
+            });
+        } else {
+            serving.capture.as_mut().unwrap().pending = Some(pending);
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        Ok(true)
+    }
 }
 
 /// What the server thread hands the window once the world is open: its end
@@ -423,6 +813,8 @@ impl Game<'_> {
         let thread = std::thread::Builder::new()
             .name("Server thread".into())
             .spawn(move || {
+                #[cfg(feature = "dev-capture")]
+                let _capture_exit = CaptureThreadExit(server_flags.clone());
                 // MinecraftServer.spin's Thread.setPriority(8).
                 horizon_threads::favour_current();
                 let result = serve(
@@ -610,6 +1002,8 @@ impl Game<'_> {
     ) -> Result<()> {
         let result = self.run_integrated_inner(launch, flags, tasks, ready, opening);
         if let Err(error) = &result {
+            #[cfg(feature = "dev-capture")]
+            self.capture_server_restore(&error.to_string());
             self.native_players_leaving();
             self.native_lifecycle_close_failed(&error.to_string());
         }
@@ -646,6 +1040,11 @@ impl Game<'_> {
         let mut was_paused = false;
         while !flags.stop.load(Ordering::Relaxed) {
             self.run_tasks();
+            #[cfg(feature = "dev-capture")]
+            if self.capture_server_iteration()? {
+                next = Instant::now();
+                continue;
+            }
             if self.agent.hold_server {
                 // Keep servicing control requests so the fixture can release the barrier.
                 // Unlike /tick freeze, no player's queued packets are applied here.
@@ -810,6 +1209,14 @@ impl Game<'_> {
             owner,
             pending: None,
             load: LoadPhase::default(),
+            #[cfg(feature = "dev-capture")]
+            capture: None,
+            #[cfg(feature = "dev-capture")]
+            capture_fences: pipe.capture_fences(),
+            #[cfg(feature = "dev-capture")]
+            capture_generation: 0,
+            #[cfg(feature = "dev-capture")]
+            capture_rebase: false,
         });
         // MinecraftServer.prepareLevels: no forced chunks to load, so the
         // stage is over at once; the player's chunks come after.
@@ -823,6 +1230,8 @@ impl Game<'_> {
     /// `MinecraftServer.stopServer`: the players are saved and sent away,
     /// then the world is saved.
     fn stop_integrated(&mut self) -> Result<()> {
+        #[cfg(feature = "dev-capture")]
+        self.capture_server_restore("the integrated server stopped");
         // Abort background terrain generation/decoration on shutdown, matching vanilla behavior.
         self.streaming.abort_generation();
         // The close request: lifecycle observation stops.
@@ -990,6 +1399,10 @@ impl Game<'_> {
         let Some(s) = self.serving.as_mut() else {
             return Err("not an integrated server".into());
         };
+        #[cfg(feature = "dev-capture")]
+        if s.capture.is_some() {
+            return Err("cannot publish during capture".into());
+        }
         if s.flags.published.load(Ordering::Relaxed) != 0 {
             return Err("already published".into());
         }
@@ -1260,6 +1673,63 @@ fn refused(owner: bool, published: bool, split_seat: bool, memory: bool) -> bool
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_cancel_before_a_queued_hold_cannot_acquire_it() {
+        let id = CaptureSession {
+            session: 17,
+            generation: 23,
+        };
+        let mut authority = CaptureAuthority::default();
+        authority.cancel(id);
+        assert!(authority.released(id));
+        assert!(!authority.acquire(id));
+        assert!(authority.acquire(CaptureSession {
+            session: 18,
+            generation: 24,
+        }));
+    }
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_release_waits_until_the_server_restores_its_clock() {
+        let id = CaptureSession {
+            session: 17,
+            generation: 23,
+        };
+        let mut authority = CaptureAuthority::default();
+        assert!(authority.acquire(id));
+        assert!(!authority.released(id));
+        authority.cancel(id);
+        assert!(!authority.released(id));
+        assert!(!authority.acquire(CaptureSession {
+            session: 18,
+            generation: 24,
+        }));
+        authority.active = None;
+        assert!(authority.released(id));
+        assert!(!authority.acquire(id));
+    }
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_server_exit_releases_a_lease_and_reports_failure() {
+        let flags = Arc::new(Flags::default());
+        let id = CaptureSession {
+            session: 17,
+            generation: 23,
+        };
+        assert!(flags.capture_authority.lock().unwrap().acquire(id));
+        flags.capture.store(true, Ordering::Release);
+        drop(CaptureThreadExit(flags.clone()));
+        assert!(CaptureControl(flags.clone()).released(id));
+        assert!(!flags.capture.load(Ordering::Acquire));
+        let failure = flags.capture_failure.lock().unwrap();
+        assert_eq!(failure.as_ref().unwrap().0, id);
+        assert!(failure.as_ref().unwrap().1.contains("server stopped"));
+        assert!(!flags.capture_authority.lock().unwrap().acquire(id));
+    }
 
     #[test]
     fn a_splitscreen_seat_is_let_in_only_through_memory() {

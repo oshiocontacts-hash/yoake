@@ -380,6 +380,32 @@ impl FixedStep {
         self.timer = Timer::new(20.0, self.now_ms());
         self.timer.update_pause_state(self.pause);
     }
+
+    #[cfg(feature = "dev-capture")]
+    pub fn capture_set_time(
+        &mut self,
+        origin: &Self,
+        time: crate::capture_clock::FrameTime,
+    ) -> Result<(), &'static str> {
+        let now = origin
+            .now
+            .checked_add(time.elapsed())
+            .filter(|now| now.as_nanos() <= i64::MAX as u128)
+            .ok_or("capture simulation time overflows")?;
+        self.now = now;
+        self.pause = false;
+        self.timer = Timer::new(20.0, self.now_ms());
+        self.timer.delta_tick_residual = time.partial_tick();
+        self.timer.delta_ticks = 20.0 / time.fps.get() as f32;
+        self.timer.realtime_delta_ticks = self.timer.delta_ticks;
+        Ok(())
+    }
+
+    #[cfg(feature = "dev-capture")]
+    pub fn capture_restore(&mut self, saved: Self) {
+        *self = saved;
+        self.reset();
+    }
     /// The partial tick for interpolation (`getGameTimeDeltaPartialTick(false)`).
     pub fn fraction(&self) -> f64 {
         f64::from(self.timer.game_time_delta_partial_tick(false))
@@ -512,6 +538,67 @@ impl FixedStep {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_time_uses_absolute_rational_endpoints() {
+        let mut clock = FixedStep::client();
+        clock.advance(std::time::Duration::from_millis(17));
+        let saved = clock.clone();
+        let fps = std::num::NonZeroU32::new(29).unwrap();
+        for index in 1..=290 {
+            let time = crate::capture_clock::FrameTime { index, fps };
+            clock.capture_set_time(&saved, time).unwrap();
+            assert_eq!(clock.now, saved.now + time.elapsed());
+            assert_eq!(clock.fraction(), f64::from(time.partial_tick()));
+        }
+        assert_eq!(clock.now, saved.now + std::time::Duration::from_secs(10));
+    }
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_restore_preserves_policy_and_discards_backlog() {
+        for _outcome in ["complete", "cancelled", "failed"] {
+            let mut clock = FixedStep::client();
+            clock.advance(std::time::Duration::from_millis(17));
+            clock.pause = true;
+            let saved = clock.clone();
+            let now = saved.now;
+            clock
+                .capture_set_time(
+                    &saved,
+                    crate::capture_clock::FrameTime {
+                        index: 290,
+                        fps: std::num::NonZeroU32::new(29).unwrap(),
+                    },
+                )
+                .unwrap();
+            clock.capture_restore(saved);
+            assert_eq!(clock.now, now);
+            assert!(clock.pause);
+            assert!(clock.client);
+            assert_eq!(clock.rate(), 20.0);
+            assert_eq!(clock.advance(std::time::Duration::ZERO), 0);
+        }
+    }
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_overflow_does_not_change_the_clock() {
+        let mut clock = FixedStep::client();
+        let saved = clock.clone();
+        let result = clock.capture_set_time(
+            &saved,
+            crate::capture_clock::FrameTime {
+                index: u64::MAX,
+                fps: std::num::NonZeroU32::new(1).unwrap(),
+            },
+        );
+        assert!(result.is_err());
+        assert_eq!(clock.now, saved.now);
+        assert_eq!(clock.fraction(), saved.fraction());
+        assert_eq!(clock.pause, saved.pause);
+    }
 
     #[test]
     fn timer_carries_fractions_and_caps_nothing_itself() {

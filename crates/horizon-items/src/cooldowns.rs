@@ -87,6 +87,24 @@ impl Cooldowns {
         let remaining = *end as f32 - (self.tick_count as f32 + partial_tick);
         (remaining / duration).clamp(0.0, 1.0)
     }
+    /// Remaining and total ticks for an active entry, including partial ticks.
+    pub fn remaining(&self, group: &str, partial_tick: f32) -> Option<(f32, f32)> {
+        let (start, end) = self.entries.get(group)?;
+        let total = end.wrapping_sub(*start);
+        if total <= 0 {
+            return None;
+        }
+        let total = total as f32;
+        let remaining = (end.wrapping_sub(self.tick_count) as f32 - partial_tick).clamp(0.0, total);
+        (remaining > 0.0).then_some((remaining, total))
+    }
+    /// Exact whole remaining and total ticks for an active entry.
+    pub fn remaining_ticks(&self, group: &str) -> Option<(i32, i32)> {
+        let (start, end) = self.entries.get(group)?;
+        let total = end.wrapping_sub(*start);
+        let remaining = end.wrapping_sub(self.tick_count).clamp(0, total.max(0));
+        (remaining > 0 && total > 0).then_some((remaining, total))
+    }
     /// `isOnCooldown`: whether the group still has time to run.
     pub fn is_on_cooldown(&self, group: &str) -> bool {
         self.percent(group, 0.0) > 0.0
@@ -171,6 +189,58 @@ mod tests {
         assert_eq!(&*group(&grouped, Some(&default)), "minecraft:pearls");
         // An item without the component has no cooldown.
         assert!(component(&stack("minecraft:dirt"), None).is_none());
+    }
+
+    #[test]
+    fn remaining_uses_the_stored_interval_and_partial_ticks() {
+        let mut cooldowns = Cooldowns::default();
+        assert_eq!(cooldowns.remaining("test:missing", 0.0), None);
+        cooldowns.add(Arc::from("test:group"), 20);
+        assert_eq!(cooldowns.remaining("test:group", 0.0), Some((20.0, 20.0)));
+        for _ in 0..10 {
+            cooldowns.tick();
+        }
+        assert_eq!(cooldowns.remaining("test:group", 0.5), Some((9.5, 20.0)));
+        assert_eq!(cooldowns.remaining_ticks("test:group"), Some((10, 20)));
+        assert_eq!(cooldowns.percent("test:group", 0.5), 9.5 / 20.0);
+        assert_eq!(cooldowns.remaining("test:group", -20.0), Some((20.0, 20.0)));
+        assert_eq!(cooldowns.remaining("test:group", 10.0), None);
+        assert_eq!(cooldowns.remaining_ticks("test:group"), Some((10, 20)));
+    }
+
+    #[test]
+    fn remaining_replaces_removes_and_expires() {
+        let mut cooldowns = Cooldowns::default();
+        let group: Arc<str> = Arc::from("test:group");
+        cooldowns.add(group.clone(), 20);
+        cooldowns.tick();
+        cooldowns.add(group.clone(), 3);
+        assert_eq!(cooldowns.remaining(&group, 0.25), Some((2.75, 3.0)));
+        cooldowns.remove(&group);
+        assert_eq!(cooldowns.remaining(&group, 0.0), None);
+        cooldowns.add(group.clone(), 1);
+        assert_eq!(cooldowns.remaining(&group, 0.5), Some((0.5, 1.0)));
+        assert_eq!(cooldowns.remaining(&group, 1.0), None);
+        assert_eq!(cooldowns.tick(), vec![group.clone()]);
+        assert_eq!(cooldowns.remaining(&group, 0.0), None);
+        assert_eq!(cooldowns.remaining_ticks(&group), None);
+        cooldowns.add(group.clone(), 0);
+        assert_eq!(cooldowns.remaining(&group, 0.0), None);
+    }
+
+    #[test]
+    fn whole_remaining_ticks_do_not_round_large_durations() {
+        let mut cooldowns = Cooldowns::default();
+        cooldowns.add(Arc::from("test:group"), 16_777_217);
+        assert_eq!(
+            cooldowns.remaining_ticks("test:group"),
+            Some((16_777_217, 16_777_217))
+        );
+        cooldowns.tick();
+        assert_eq!(
+            cooldowns.remaining_ticks("test:group"),
+            Some((16_777_216, 16_777_217))
+        );
     }
 
     #[test]

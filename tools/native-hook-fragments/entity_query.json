@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "entities_in",
+      "target": "horizon_client::game::native_entity_query::Game<'_>::native_entities_in"
+    }
+  ],
+  "rust_summary": "bounded server-side sphere queries returning NativeEntityInfo snapshots (`entities_in`).",
+  "doc_summary": "bounded server-side sphere queries returning NativeEntityInfo snapshots (`entities_in`). Bundles need a hooks manifest entry for @API:entity_query@.",
+  "comments": ["crates/horizon-client/src/game/native_entity_query.rs"]
+}

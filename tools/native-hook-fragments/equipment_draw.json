@@ -1,0 +1,20 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "draw_armor_part",
+      "target": "horizon_client::game::native_avatar_equipment::Game<'_>::native_draw_armor_part",
+      "mod_api": {}
+    },
+    {
+      "name": "draw_player_back",
+      "target": "horizon_client::game::native_avatar_equipment::Game<'_>::native_draw_player_back",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "Custom-frame humanoid armour parts, articulated player wings and capes, and staged equipment outline policies.",
+  "doc_summary": "Host::draw_armor_part and Host::draw_player_back draw equipment on camera-relative world-block frames without applying draw.pose_matrix() again. NativeHumanoidPart, NativeBackLayer and NativeEquipmentDrawOptions select geometry, light, overlay and outline policy. Helpers return false without geometry when the requested equipment is unavailable. Require hooks @API:equipment_draw@ or higher.",
+  "comments": [
+    "crates/horizon-client/src/game/native_avatar_equipment.rs"
+  ]
+}

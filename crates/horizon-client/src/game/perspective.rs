@@ -647,7 +647,26 @@ impl Game<'_> {
         // not asked, as for the others).
         let name = self.own_profile_name();
         let who = (name.as_str(), true);
-        if body && self.mod_player_geometry(m, who, alpha as f32, camera, packed, out) {
+        let mut equipment_outlines = Vec::new();
+        if body
+            && self.mod_player_geometry(
+                m,
+                who,
+                alpha as f32,
+                camera,
+                packed,
+                out,
+                &mut equipment_outlines,
+            )
+        {
+            let outline = self
+                .potions
+                .effects
+                .get("glowing")
+                .map(|_| super::glowing::team_color(self.own_team()));
+            if outline.is_some() || !equipment_outlines.is_empty() {
+                self.mark_equipment_outlines(out, start, outline, &equipment_outlines);
+            }
             return;
         }
         // A spectator still draws its own model in third person: the poses'
@@ -696,7 +715,15 @@ impl Game<'_> {
             // CustomHeadLayer: a pumpkin, skull or other head item.
             self.head_item_geometry(m, camera, alpha, packed, true, out);
             // `native_mob_layer`: a native mod's layer, over the vanilla ones.
-            self.mod_mob_layer_geometry(m, Some(who), alpha as f32, camera, packed, out);
+            self.mod_mob_layer_geometry(
+                m,
+                Some(who),
+                alpha as f32,
+                camera,
+                packed,
+                out,
+                &mut equipment_outlines,
+            );
         }
         // LivingEntity.isCurrentlyGlowing: the Glowing effect.
         if self.potions.effects.get("glowing").is_some() {
@@ -716,7 +743,9 @@ impl Game<'_> {
                 );
                 self.mark_outline(&silhouette, color);
             }
-            self.mark_outline(&out[start..], color);
+            self.mark_equipment_outlines(out, start, Some(color), &equipment_outlines);
+        } else if !equipment_outlines.is_empty() {
+            self.mark_equipment_outlines(out, start, None, &equipment_outlines);
         }
     }
     /// `extractEntityInInventoryFollowsMouse`: the player in the box

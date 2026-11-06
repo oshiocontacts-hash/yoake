@@ -739,30 +739,183 @@ pub fn damage_bar(damage: i32, max_damage: i32) -> Option<(i32, u32)> {
 /// the durability bar, the cooldown shade and the count.
 pub fn item_decorations(x: i32, y: i32, d: &ItemDecorations, font: &Font) -> Vec<GuiDraw> {
     let mut out = vec![GuiDraw::Push(Vec::new())];
-    if let Some((width, color)) = d.bar {
+    item_decoration_bar(&mut out, x, y, d);
+    item_decorations_after_bar(&mut out, x, y, d, font, true);
+    out.push(GuiDraw::Pop);
+    out
+}
+
+/// Append only the durability bar, leaving the caller's pose unchanged.
+#[inline]
+pub fn item_decoration_bar(out: &mut Vec<GuiDraw>, x: i32, y: i32, decorations: &ItemDecorations) {
+    if let Some((width, color)) = decorations.bar {
         let (left, top) = (x + 2, y + 13);
         out.push(fill(left, top, left + 13, top + 2, 0xFF00_0000));
         out.push(fill(left, top, left + width, top + 1, color | 0xFF00_0000));
     }
-    if d.cooldown > 0.0 {
-        let top = y + crate::hud_layout::floor(16.0 * (1.0 - d.cooldown));
-        let bottom = top + crate::hud_layout::ceil(16.0 * d.cooldown);
+}
+
+/// Append the optional white cooldown shade and the unchanged count.
+#[inline]
+pub fn item_decorations_after_bar(
+    out: &mut Vec<GuiDraw>,
+    x: i32,
+    y: i32,
+    decorations: &ItemDecorations,
+    font: &Font,
+    show_cooldown: bool,
+) {
+    if show_cooldown && decorations.cooldown > 0.0 {
+        let top = y + crate::hud_layout::floor(16.0 * (1.0 - decorations.cooldown));
+        let bottom = top + crate::hud_layout::ceil(16.0 * decorations.cooldown);
         out.push(fill(x, top, x + 16, bottom, 0x7FFF_FFFF));
     }
-    if d.count != 1 || d.count_text.is_some() {
-        let amount = d.count_text.clone().unwrap_or_else(|| d.count.to_string());
-        let w = font.width(&amount) as i32;
+    if decorations.count != 1 || decorations.count_text.is_some() {
+        let amount = decorations
+            .count_text
+            .clone()
+            .unwrap_or_else(|| decorations.count.to_string());
+        let count_width = font.width(&amount) as i32;
         text(
-            &mut out,
+            out,
             Text::literal(amount),
-            x + 19 - 2 - w,
+            x + 19 - 2 - count_width,
             y + 6 + 3,
             crate::hud_layout::WHITE,
             true,
         );
     }
-    out.push(GuiDraw::Pop);
-    out
+}
+
+#[cfg(test)]
+mod item_decoration_tests {
+    use super::*;
+    use crate::hud::Rect;
+    use std::{collections::HashMap, path::Path};
+
+    fn font() -> Font {
+        Font::load(
+            Path::new("/nonexistent-horizon-item-decoration-test-resources"),
+            &HashMap::new(),
+            &[],
+            (1, 1),
+            (0, 0),
+            Rect {
+                u0: 0.0,
+                v0: 0.0,
+                u1: 1.0,
+                v1: 1.0,
+                w: 1,
+                h: 1,
+            },
+        )
+    }
+
+    fn combined_reference(
+        x: i32,
+        y: i32,
+        decorations: &ItemDecorations,
+        font: &Font,
+    ) -> Vec<GuiDraw> {
+        let mut out = vec![GuiDraw::Push(Vec::new())];
+        if let Some((width, color)) = decorations.bar {
+            let (left, top) = (x + 2, y + 13);
+            out.push(fill(left, top, left + 13, top + 2, 0xFF00_0000));
+            out.push(fill(left, top, left + width, top + 1, color | 0xFF00_0000));
+        }
+        if decorations.cooldown > 0.0 {
+            let top = y + crate::hud_layout::floor(16.0 * (1.0 - decorations.cooldown));
+            let bottom = top + crate::hud_layout::ceil(16.0 * decorations.cooldown);
+            out.push(fill(x, top, x + 16, bottom, 0x7FFF_FFFF));
+        }
+        if decorations.count != 1 || decorations.count_text.is_some() {
+            let amount = decorations
+                .count_text
+                .clone()
+                .unwrap_or_else(|| decorations.count.to_string());
+            let count_width = font.width(&amount) as i32;
+            text(
+                &mut out,
+                Text::literal(amount),
+                x + 19 - 2 - count_width,
+                y + 6 + 3,
+                crate::hud_layout::WHITE,
+                true,
+            );
+        }
+        out.push(GuiDraw::Pop);
+        out
+    }
+
+    #[test]
+    fn no_listener_combined_output_is_identical() {
+        let font = font();
+        for count in [0, 1, 2, 64] {
+            for count_text in [None, Some("custom".to_string())] {
+                for bar in [
+                    None,
+                    Some((0, 0)),
+                    Some((7, 0x12_3456)),
+                    Some((13, 0xFF_FFFF)),
+                ] {
+                    for cooldown in [0.0, 0.01, 0.5, 1.0] {
+                        let decorations = ItemDecorations {
+                            count,
+                            count_text: count_text.clone(),
+                            bar,
+                            cooldown,
+                        };
+                        assert_eq!(
+                            item_decorations(3, -4, &decorations, &font),
+                            combined_reference(3, -4, &decorations, &font)
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn continuing_stages_preserve_the_combined_output() {
+        let font = font();
+        let decorations = ItemDecorations {
+            count: 12,
+            count_text: Some("custom".to_string()),
+            bar: Some((7, 0x12_3456)),
+            cooldown: 0.5,
+        };
+        let mut continued = vec![GuiDraw::Push(Vec::new())];
+        item_decoration_bar(&mut continued, 3, -4, &decorations);
+        item_decorations_after_bar(&mut continued, 3, -4, &decorations, &font, true);
+        continued.push(GuiDraw::Pop);
+        assert_eq!(continued, item_decorations(3, -4, &decorations, &font));
+    }
+
+    #[test]
+    fn cancel_removes_only_the_white_shade() {
+        let font = font();
+        let decorations = ItemDecorations {
+            count: 12,
+            count_text: Some("custom".to_string()),
+            bar: Some((7, 0x12_3456)),
+            cooldown: 0.5,
+        };
+        let mut canceled = vec![GuiDraw::Push(Vec::new())];
+        item_decoration_bar(&mut canceled, 3, -4, &decorations);
+        item_decorations_after_bar(&mut canceled, 3, -4, &decorations, &font, false);
+        canceled.push(GuiDraw::Pop);
+        let without_cooldown = ItemDecorations {
+            cooldown: 0.0,
+            ..decorations.clone()
+        };
+        assert_eq!(
+            canceled,
+            combined_reference(3, -4, &without_cooldown, &font)
+        );
+        let mut expected = combined_reference(3, -4, &decorations, &font);
+        assert_eq!(expected.remove(3), fill(3, 4, 19, 12, 0x7FFF_FFFF));
+        assert_eq!(canceled, expected);
+    }
 }
 
 /// A full-screen `graphics.blit` of `textures/<texture>.png`.
