@@ -154,6 +154,55 @@ mod tests {
     }
 
     #[test]
+    fn nearest_sixteen_colored_lights_win_after_merging_sources() {
+        let native = (0..8).rev().map(|index| {
+            (
+                [100.0 + f64::from(index) * 3.0, 64.0, 100.0],
+                0xff0000,
+                32.0,
+                1.0,
+            )
+        });
+        let particles = (0..8).rev().map(|index| {
+            (
+                [101.0 + f64::from(index) * 3.0, 64.0, 100.0],
+                0x00ff00,
+                5.0,
+                0.5,
+            )
+        });
+        let pack = (0..8).rev().map(|index| {
+            (
+                [102.0 + f64::from(index) * 3.0, 64.0, 100.0],
+                0x0000ff,
+                14.0,
+                0.75,
+            )
+        });
+        let lights = select_colored(
+            native.chain(particles).chain(pack),
+            DVec3::new(100.0, 64.0, 100.0),
+        );
+        assert_eq!(lights.len(), 16);
+        for (index, light) in lights.iter().enumerate() {
+            let distance = index as f32;
+            let expected = match index % 3 {
+                0 => [[distance, 0.0, 0.0, 32.0], [1.0, 0.0, 0.0, 1.0]],
+                1 => [[distance, 0.0, 0.0, 5.0], [0.0, 1.0, 0.0, 0.5]],
+                _ => [[distance, 0.0, 0.0, 14.0], [0.0, 0.0, 1.0, 0.75]],
+            };
+            assert_eq!(*light, expected);
+        }
+    }
+
+    #[test]
+    fn empty_colored_sources_need_no_allocation() {
+        let lights = select_colored(std::iter::empty(), DVec3::ZERO);
+        assert!(lights.is_empty());
+        assert_eq!(lights.capacity(), 0);
+    }
+
+    #[test]
     fn nearest_sources_win() {
         let camera = DVec3::new(100.0, 64.0, 100.0);
         let mut sources: Vec<Source> = (0..40)

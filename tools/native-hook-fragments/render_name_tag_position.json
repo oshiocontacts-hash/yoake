@@ -1,0 +1,20 @@
+{
+  "hooks": [
+    {
+      "name": "render_name_tag_position_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_render_name_tag_position_listened",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {"contract": "collect", "out": "listened"}
+    },
+    {
+      "name": "render_name_tag_position",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_render_name_tag_position",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {"contract": "listen"}
+    }
+  ],
+  "rust_summary": "A gated name-tag anchor hook in camera-relative world blocks.",
+  "doc_summary": "Set native_render_name_tag_position_listened to true to receive native_render_name_tag_position(entity_id, kind, anchor). The mutable DVec3 anchor uses camera-relative world blocks and the same axes as BlockEntityDraw::pose_matrix. It moves the name and below-name score together without changing visibility, distance or sneaking rules. It is not called by shown-name diagnostics. Require hooks @API:render_name_tag_position@ or higher."
+}

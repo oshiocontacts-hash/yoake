@@ -21,17 +21,22 @@ pub use crate::extras_hud::Corners;
 pub use crate::first_person::Hand;
 pub use crate::fog::{FogData, FogType};
 pub use crate::game::native_block_entity_draw::{BlockEntityDraw, CubeFace};
+pub use crate::game::native_entity_query::NativeEntityInfo;
 pub use crate::game::{
-    ItemEnergyBuffer, NativeBlockEdit, NativeBlockRun, NativeClock, NativeColumnBlocks,
-    NativeDataMapType, NativeExperienceOrb, NativeFalling, NativeHeightmap, NativeHeldItem,
-    NativeHit, NativeMapDecoration, NativeMapInfo, NativeMobRender, NativeModEvent,
-    NativePlayerRender, NativeShake,
+    ItemEnergyBuffer, NativeBackLayer, NativeBlockEdit, NativeBlockRun, NativeClock,
+    NativeColumnBlocks, NativeCooldownTarget, NativeDataMapType, NativeEquipmentDrawOptions,
+    NativeEquipmentOutline, NativeEquipmentOverlay, NativeExperienceOrb, NativeFalling,
+    NativeHeightmap, NativeHeldItem, NativeHit, NativeHumanoidPart, NativeMapDecoration,
+    NativeMapInfo, NativeMobRender, NativeModEvent, NativePlayerRender, NativeShake,
 };
 pub use crate::gfx::native_render::{
     BlockSpriteArrays, RenderHooks, RenderNeeds, RenderNeedsEvent, WorldDrawn, WorldDrawnEvent,
     wgpu,
 };
 pub use crate::hud::HudBatch;
+pub use crate::hud::native_textures::{
+    NativeGuiNineSlice, NativeGuiTexture, NativeGuiTextureError, NativeGuiTextureFilter,
+};
 pub use crate::hud_layout::{GuiDraw, HealthInputs};
 pub use crate::items::ItemStack;
 pub use crate::merchant::MerchantOffer;
@@ -40,6 +45,8 @@ pub use crate::music::{Music, MusicLayer};
 pub use crate::particles::{ParticleOptions, ParticleType};
 pub use crate::recipe_book::RecipeBookCategory;
 pub use crate::text::Text;
+/// The matrix type of the equipment-draw hooks, re-exported so mods need no own glam.
+pub use glam::Mat4;
 pub use horizon_assets::item_model::{DisplayContext, StackView};
 pub use horizon_core::{
     geometry::Direction,
@@ -180,6 +187,24 @@ pub struct NativeScreenView<'a> {
     /// This frame's partial tick (`getGameTimeDeltaPartialTick(false)`, 0 to
     /// 1): what the screen draws animation against.
     pub partial_tick: f32,
+}
+
+impl NativeScreenView<'_> {
+    /// An empty synthetic screen view for native-mod tests.
+    /// Available with API @API:screen_view_test_support@ and `test-support`.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn for_test(id: &'static str) -> Self {
+        // CHECK: Compile an external test-support consumer after native API generation.
+        Self {
+            id,
+            menu: None,
+            title: None,
+            rect: [0.0; 4],
+            slots: 0,
+            mouse: [0.0; 2],
+            partial_tick: 0.0,
+        }
+    }
 }
 
 /// A depth-tested outline of the client's block selection shape.
@@ -695,6 +720,18 @@ mod tests {
 
     struct Quiet;
     impl Hooks for Quiet {}
+
+    #[test]
+    fn synthetic_screen_view_starts_empty() {
+        let view = NativeScreenView::for_test("native:fixture");
+        assert_eq!(view.id, "native:fixture");
+        assert!(view.menu.is_none());
+        assert!(view.title.is_none());
+        assert_eq!(view.rect, [0.0; 4]);
+        assert_eq!(view.slots, 0);
+        assert_eq!(view.mouse, [0.0; 2]);
+        assert_eq!(view.partial_tick, 0.0);
+    }
 
     #[test]
     fn local_sound_identity_is_scoped_to_each_dispatching_tick_mod() {

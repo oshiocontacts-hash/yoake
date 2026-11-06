@@ -225,6 +225,27 @@ fn draw_sprite(
         None => batch.rect_uv(x, y, w, h, r, color),
     }
 }
+pub(crate) fn draw_native_nine_slice(
+    batch: &mut HudBatch,
+    rect: Rect,
+    slice: crate::hud::native_textures::NativeGuiNineSlice,
+    destination: [f32; 4],
+    color: u32,
+) {
+    draw_nine_slice(
+        batch,
+        rect,
+        NineSlice {
+            width: slice.source_size[0],
+            height: slice.source_size[1],
+            border: slice.border,
+            stretch_inner: true,
+        },
+        destination,
+        color,
+    );
+}
+
 fn draw_nine_slice(
     batch: &mut HudBatch,
     r: Rect,

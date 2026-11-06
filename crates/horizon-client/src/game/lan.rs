@@ -2060,6 +2060,15 @@ impl Game<'_> {
     /// sees the support (#4510). `tick_lan` then syncs the level; a paused
     /// tick that never calls this still drains inside `tick_lan`.
     pub(super) fn tick_lan_packets(&mut self) {
+        self.tick_lan_packets_inner::<false>();
+    }
+
+    #[cfg(feature = "dev-capture")]
+    pub(super) fn capture_lan_packets(&mut self) {
+        self.tick_lan_packets_inner::<true>();
+    }
+
+    fn tick_lan_packets_inner<const CAPTURE: bool>(&mut self) {
         if self.level_pass.packets_drained {
             return;
         }
@@ -2094,11 +2103,29 @@ impl Game<'_> {
             );
             host.hub.mods_loaded = !horizon_client::mod_api::mods().is_empty();
             let pass = self.level_pass;
+            #[cfg(feature = "dev-capture")]
+            let mut events = if pass.first {
+                if CAPTURE {
+                    host.hub.poll_capture(&mut ctx)
+                } else {
+                    host.hub.poll(&mut ctx)
+                }
+            } else {
+                Vec::new()
+            };
+            #[cfg(not(feature = "dev-capture"))]
             let mut events = if pass.first {
                 host.hub.poll(&mut ctx)
             } else {
                 Vec::new()
             };
+            #[cfg(feature = "dev-capture")]
+            if CAPTURE {
+                events.extend(host.hub.drain_capture_packets(&mut ctx));
+            } else {
+                events.extend(host.hub.drain_packets(&mut ctx));
+            }
+            #[cfg(not(feature = "dev-capture"))]
             events.extend(host.hub.drain_packets(&mut ctx));
             events
         };

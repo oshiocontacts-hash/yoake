@@ -17,7 +17,7 @@ use horizon_client::{
     items::ItemStack,
     lan::{
         guest::SPECTATOR,
-        hub::TickCtx,
+        hub::{Hub, TickCtx},
         menu::{Rules, Slots},
     },
     motion::{MotionEvent, MotionWorld, PlayerMotion},
@@ -33,6 +33,16 @@ use horizon_protocol::{
 };
 use horizon_world::entity_move::EntityMoveWorld;
 use winit::keyboard::KeyCode;
+
+pub(super) fn send_item_cooldown(hub: &Hub, conn: u32, group: &str, duration: i32) {
+    hub.send_to(
+        conn,
+        &C::Cooldown(play::Cooldown {
+            group: group.to_string(),
+            duration,
+        }),
+    );
+}
 
 /// Per-guest state of the gameplay code that lives outside `Guest`.
 #[derive(Default)]
@@ -829,13 +839,7 @@ impl Game<'_> {
         }
         // ServerItemCooldowns.onCooldownStarted: the guest's own cooldown.
         for (group, duration) in std::mem::take(&mut self.guest_cooldowns) {
-            host.hub.send_to(
-                conn,
-                &C::Cooldown(play::Cooldown {
-                    group: group.to_string(),
-                    duration,
-                }),
-            );
+            send_item_cooldown(&host.hub, conn, &group, duration);
         }
         (
             self.lan_acting,
@@ -3740,13 +3744,7 @@ impl Game<'_> {
             // ServerItemCooldowns.onCooldownEnded: a finished entry is told to
             // the guest (a duration of 0 removes it).
             for group in play.cooldowns.tick() {
-                host.hub.send_to(
-                    conn,
-                    &C::Cooldown(play::Cooldown {
-                        group: group.to_string(),
-                        duration: 0,
-                    }),
-                );
+                send_item_cooldown(&host.hub, conn, &group, 0);
             }
             // Player.tick: a different main-hand item resets the attack
             // strength, and detectEquipmentUpdates gives the guest its modifiers.

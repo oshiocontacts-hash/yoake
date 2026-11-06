@@ -1,0 +1,23 @@
+{
+  "hooks": [
+    {
+      "name": "equipment_render_stacks_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_equipment_render_stacks_listened",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {"contract": "collect", "out": "listened"}
+    },
+    {
+      "name": "equipment_render_stacks",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_equipment_render_stacks",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {"contract": "collect", "out": "stacks"}
+    }
+  ],
+  "rust_summary": "A gated client collect hook for mod-chosen equipment trim preparation.",
+  "doc_summary": "Set native_equipment_render_stacks_listened to true and append custom equipment stacks in native_equipment_render_stacks before drawing them. The host prepares their trim atlas entries before render callbacks. No extra stack collection is allocated without a listener. Require hooks @API:equipment_render_stacks@ or higher.",
+  "comments": [
+    "crates/horizon-client/src/game/armor_stands.rs"
+  ]
+}

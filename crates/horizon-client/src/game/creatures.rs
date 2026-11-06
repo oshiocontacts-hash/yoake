@@ -6782,16 +6782,35 @@ impl Game<'_> {
                 .then(|| self.remote_player_name(mob.id))
                 .flatten()
                 .map(|name| (name, false));
+            let mut equipment_outlines = Vec::new();
             let modded = if layers_only {
                 false
             } else if let Some(who) = who {
-                self.mod_player_geometry(mob, who, alpha as f32, camera, packed, out)
+                self.mod_player_geometry(
+                    mob,
+                    who,
+                    alpha as f32,
+                    camera,
+                    packed,
+                    out,
+                    &mut equipment_outlines,
+                )
             } else {
-                !is_player && self.mod_mob_geometry(mob, alpha as f32, camera, packed, out)
+                !is_player
+                    && self.mod_mob_geometry(
+                        mob,
+                        alpha as f32,
+                        camera,
+                        packed,
+                        out,
+                        &mut equipment_outlines,
+                    )
             };
             if modded {
-                if let Some(rgb) = outline {
-                    self.mark_outline(&out[entity_start..], rgb);
+                if outline.is_some() || !equipment_outlines.is_empty() {
+                    self.mark_equipment_outlines(out, entity_start, outline, &equipment_outlines);
+                }
+                if outline.is_some() {
                     if mob.invisible {
                         out.truncate(entity_start);
                         continue;
@@ -6926,10 +6945,18 @@ impl Game<'_> {
                 let skin = (skinning && silhouette_on_gpu).then_some(&mut skinned);
                 self.mob_block_geometry(mob, camera, alpha, packed, skin, out);
                 // `native_mob_layer`: a native mod's layer, over the vanilla ones.
-                self.mod_mob_layer_geometry(mob, who, alpha as f32, camera, packed, out);
+                self.mod_mob_layer_geometry(
+                    mob,
+                    who,
+                    alpha as f32,
+                    camera,
+                    packed,
+                    out,
+                    &mut equipment_outlines,
+                );
             }
             if let Some(rgb) = outline {
-                self.mark_outline(&out[entity_start..], rgb);
+                self.mark_equipment_outlines(out, entity_start, Some(rgb), &equipment_outlines);
                 if let Some(((first, _, _), _)) = skinned {
                     let color = horizon_client::mobs::render::abgr(rgb);
                     self.skin_frame.borrow_mut().outline_since(first, color);
@@ -6938,6 +6965,8 @@ impl Game<'_> {
                     out.truncate(entity_start);
                     continue;
                 }
+            } else if !equipment_outlines.is_empty() {
+                self.mark_equipment_outlines(out, entity_start, None, &equipment_outlines);
             }
             // Glowing outlines and a guardian's beam remain visible independently
             // of whether the body is hidden behind terrain.

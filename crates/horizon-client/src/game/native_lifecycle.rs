@@ -69,6 +69,22 @@ impl NativeLifecycle {
         self.attempt.map(|a| NativeWorldEpoch::new(a.epoch))
     }
 
+    /// The authoritative tick sequence available to native entity queries.
+    pub(super) fn entity_query_tick(&self) -> Option<(NativeWorldEpoch, NativeTickId)> {
+        let attempt = self.attempt?;
+        if attempt.session != OpenState::Ready
+            || attempt.authority == NativeAuthority::RemoteClient
+            || attempt.ticks == 0
+            || (!attempt.tick_open && !self.read_scope)
+        {
+            return None;
+        }
+        Some((
+            NativeWorldEpoch::new(attempt.epoch),
+            NativeTickId::new(attempt.ticks),
+        ))
+    }
+
     /// The open starts: a fresh process-wide epoch, never reused.
     pub(super) fn begin_open(&mut self, authority: NativeAuthority) {
         let epoch = NEXT_EPOCH.fetch_add(1, Ordering::Relaxed);

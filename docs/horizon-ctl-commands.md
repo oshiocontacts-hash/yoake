@@ -149,3 +149,13 @@ Every command `horizon-ctl` takes, its MCP tool in `horizon-ctl mcp` (the launch
 | `record-list` | `record_list` | The recordings and repro bundles on disk | none |
 | `record-replay NAME [--stop] [--in-place] [--keep-world] [--timeout S]` | `record_replay` | Replay a recording, best effort | `name` (string): recording from record-list<br>`--stop` (boolean): stop the running replay<br>`--in-place` (boolean): feed the open world instead of opening the copy<br>`--keep-world` (boolean): leave the copied world in saves/<br>`--timeout` (integer): give up after this many seconds (default 300) |
 | `repro-export [NAME] [PATH] [--no-world]` | `repro_export` | Zip a recording with the logs, crash report and status | `name` (string): recording from record-list (default the newest)<br>`path` (string): where to write the zip<br>`--no-world` (boolean): leave the world out |
+
+## Development capture (`dev-capture`)
+
+These commands are available only in builds with `dev-capture`. Both the client and `horizon-ctl` need the feature. Start the game with explicit `--control` or `--control-socket`; enabling Agent Control in settings alone is insufficient. Capture requires the main-loop and transport integration plus a registered PNG output adapter; without the adapter it fails before holding the server. See [agent-control.md](agent-control.md#fixed-step-capture-dev-capture).
+
+| Command | MCP tool | What it does | Arguments |
+| --- | --- | --- | --- |
+| `capture DIR [--fps FPS] --frames N` | `capture` | Capture numbered PNGs at fixed simulation intervals | `dir` (string, required): output directory, relative to horizon-ctl<br>`--fps` (integer): positive frames per second (default 30)<br>`--frames` (integer, required): positive number of frames |
+| `capture-status` | `capture_status` | Read capture progress and terminal status | none |
+| `capture-cancel` | `capture_cancel` | Request cancellation and restore real-time clocks | none |

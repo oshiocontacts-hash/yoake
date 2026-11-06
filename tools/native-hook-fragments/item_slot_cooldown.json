@@ -1,0 +1,29 @@
+{
+  "hooks": [
+    {
+      "name": "item_slot_cooldown",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_item_slot_cooldown",
+      "side": "client",
+      "cancellable": true,
+      "mod_api": {
+        "contract": "cancel",
+        "out": "canceled"
+      }
+    },
+    {
+      "name": "item_slot_cooldown_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_item_slot_cooldown_listened",
+      "side": "client",
+      "mod_api": {
+        "contract": "collect",
+        "out": "listened"
+      }
+    }
+  ],
+  "rust_summary": "opt-in client item-slot cooldown drawing between the bar and shade/count stages in `native_item_slot.rs`.",
+  "doc_summary": "client slot cooldown drawing: set `listened` in `item_slot_cooldown_listened(listened)` to opt in before the first slot draw. `item_slot_cooldown(batch, stack, rect, cooldown, partial_tick) -> Flow` runs after the item bar and before the cooldown shade/count. `rect` is `[left, top, width, height]` in GUI coordinates; `cooldown` is `Some((fraction, remaining_ticks))` for an active local cooldown and `None` otherwise. Returning `Cancel` stops later cooldown listeners and suppresses only the white shade, preserving bar, count/custom count, item foil and the existing post-decoration hook. Interest is collected once after native mods load. With no interest, the original combined decoration path runs without another cooldown lookup or draw allocation. Bundles need the @API:item_slot_cooldown@ hook requirement.",
+  "comments": [
+    "crates/horizon-client/src/game/native_hooks.rs",
+    "crates/horizon-client/src/game/native_item_slot.rs"
+  ]
+}

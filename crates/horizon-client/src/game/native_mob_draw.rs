@@ -8,7 +8,10 @@
 //! player in view gets `native_mob_layer` after its vanilla model
 //! (`EntityRenderersEvent.AddLayers`), in the same frame.
 
-use super::{Dim, Game, Hand, native_block_entity_draw::BlockEntityDraw, shield::OFFHAND_SLOT};
+use super::{
+    Dim, Game, Hand, native_avatar_equipment::EquipmentOutlineRange,
+    native_block_entity_draw::BlockEntityDraw, shield::OFFHAND_SLOT,
+};
 use glam::{DVec3, Mat4};
 use horizon_client::{
     block_entity_render::diffuse_lights,
@@ -368,6 +371,7 @@ impl Game<'_> {
     /// pass packs it): true when a mod drew it, and its vanilla model, armour
     /// and held items are left out. The name tag, shadow, fire and a glowing
     /// outline still draw as for any mob.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn mod_mob_geometry(
         &self,
         mob: &Mob,
@@ -375,16 +379,26 @@ impl Game<'_> {
         camera: DVec3,
         light: u32,
         out: &mut Vec<Vertex>,
+        outlines: &mut Vec<EquipmentOutlineRange>,
     ) -> bool {
-        self.mod_entity_draw(mob, partial, camera, light, out, |render, draw, _state| {
-            let mut drawn = false;
-            self.native_mob_submit(render, draw, &mut drawn);
-            drawn
-        })
+        self.mod_entity_draw(
+            mob,
+            partial,
+            camera,
+            light,
+            out,
+            outlines,
+            |render, draw, _state| {
+                let mut drawn = false;
+                self.native_mob_submit(render, draw, &mut drawn);
+                drawn
+            },
+        )
     }
     /// `native_player_submit` for the player `mob` (`who` says which): true
     /// when a mod drew it and the vanilla model, armour, held items, cape and
     /// other layers are left out.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn mod_player_geometry(
         &self,
         mob: &Mob,
@@ -393,21 +407,31 @@ impl Game<'_> {
         camera: DVec3,
         light: u32,
         out: &mut Vec<Vertex>,
+        outlines: &mut Vec<EquipmentOutlineRange>,
     ) -> bool {
         // Posing a player for the mods costs, each frame: only when one listens.
         let mut listened = false;
         self.native_player_render_listened(&mut listened);
         if_player_render_listened(listened, || {
-            self.mod_entity_draw(mob, partial, camera, light, out, |render, draw, state| {
-                let who = self.player_render(mob, who, state);
-                let mut drawn = false;
-                self.native_player_submit(render, &who, draw, &mut drawn);
-                drawn
-            })
+            self.mod_entity_draw(
+                mob,
+                partial,
+                camera,
+                light,
+                out,
+                outlines,
+                |render, draw, state| {
+                    let who = self.player_render(mob, who, state);
+                    let mut drawn = false;
+                    self.native_player_submit(render, &who, draw, &mut drawn);
+                    drawn
+                },
+            )
         })
     }
     /// `native_mob_layer` for `mob` (`who` set for a player): what a mod adds
     /// is kept, drawn after the vanilla model and its layers.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn mod_mob_layer_geometry(
         &self,
         mob: &Mob,
@@ -416,20 +440,30 @@ impl Game<'_> {
         camera: DVec3,
         light: u32,
         out: &mut Vec<Vertex>,
+        outlines: &mut Vec<EquipmentOutlineRange>,
     ) {
         // Every mob in view each frame: only when a mod listens.
         let mut listened = false;
         self.native_player_render_listened(&mut listened);
         if_player_render_listened(listened, || {
-            self.mod_entity_draw(mob, partial, camera, light, out, |render, draw, state| {
-                let who = who.map(|who| self.player_render(mob, who, state));
-                self.native_mob_layer(render, who.as_ref(), draw);
-                true
-            })
+            self.mod_entity_draw(
+                mob,
+                partial,
+                camera,
+                light,
+                out,
+                outlines,
+                |render, draw, state| {
+                    let who = who.map(|who| self.player_render(mob, who, state));
+                    self.native_mob_layer(render, who.as_ref(), draw);
+                    true
+                },
+            )
         });
     }
     /// Gives `hook` the frame of `mob` and a draw posed at its feet; what it
     /// added to `out` stays when it answers true.
+    #[allow(clippy::too_many_arguments)]
     fn mod_entity_draw(
         &self,
         mob: &Mob,
@@ -437,6 +471,7 @@ impl Game<'_> {
         camera: DVec3,
         light: u32,
         out: &mut Vec<Vertex>,
+        outlines: &mut Vec<EquipmentOutlineRange>,
         hook: impl FnOnce(&NativeMobRender<'_>, &mut BlockEntityDraw, anim::State) -> bool,
     ) -> bool {
         let state = anim::state(mob, partial);
@@ -455,6 +490,9 @@ impl Game<'_> {
             std::mem::take(out),
         );
         let keep = hook(&render, &mut draw, state);
+        if keep {
+            outlines.extend(draw.take_equipment_outlines());
+        }
         *out = draw.into_vertices();
         if !keep {
             out.truncate(start);
@@ -468,7 +506,7 @@ mod tests {
     use super::*;
     use crate::mod_api::{MobLayerEvent, PlayerSubmitEvent};
     use glam::Vec3;
-    use horizon_client::mobs::{Brain, Flags, MobType, Part, Species};
+    use horizon_client::mobs::{Brain, Flags, MobData, MobType, Part, Polygon, Species, render};
     use horizon_core::geometry::Vec3 as Position;
     use std::{cell::Cell, sync::Arc};
 
@@ -509,11 +547,20 @@ mod tests {
                 model: Arc::new(Part {
                     name: "root".into(),
                     pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
-                    polygons: vec![],
+                    polygons: vec![Polygon {
+                        normal: [0.0, 0.0, 1.0],
+                        vertices: [
+                            [-4.0, -8.0, 2.0, 0.0, 0.0],
+                            [4.0, -8.0, 2.0, 1.0, 0.0],
+                            [4.0, 8.0, 2.0, 1.0, 1.0],
+                            [-4.0, 8.0, 2.0, 0.0, 1.0],
+                        ],
+                        cull_back: false,
+                    }],
                     children: vec![],
                 }),
                 layers: Default::default(),
-                texture: String::new(),
+                texture: "fixture_player".into(),
                 brain: Brain::Passive,
                 anim: anim::Anim::Humanoid { zombie_arms: false },
                 sounds: [""; 3],
@@ -685,6 +732,43 @@ mod tests {
             assert_eq!(drawn, listened);
             assert_eq!(builds.get(), i32::from(listened));
         }
+    }
+
+    #[test]
+    fn unlistened_player_vertices_match_the_vanilla_path() {
+        let mob = player();
+        let data = MobData {
+            states: vec![],
+            placements: Default::default(),
+            heightmaps: Default::default(),
+            animations: Default::default(),
+            villager_hats: Default::default(),
+            cem: Default::default(),
+            random_textures: Default::default(),
+            emissive: Default::default(),
+            blinks: Default::default(),
+            biome_tags: Default::default(),
+            entity_tags: Default::default(),
+            pois: Default::default(),
+            species_placements: Default::default(),
+        };
+        let atlas = |_: &str| Some([0.0, 0.0, 1.0, 1.0]);
+        let camera = DVec3::new(1.0, 2.0, 3.0);
+        let mut expected = Vec::new();
+        render::render(&mob, 0.25, camera, &atlas, 240, &data, &mut expected);
+        let mut actual = Vec::new();
+        let replaced =
+            if_player_render_listened(false, || panic!("an unlistened player submit must not run"));
+        if !replaced {
+            render::render(&mob, 0.25, camera, &atlas, 240, &data, &mut actual);
+        }
+        if_player_render_listened(false, || panic!("an unlistened mob layer must not run"));
+        assert_eq!(expected.len(), 4);
+        assert_eq!(actual.len(), expected.len());
+        assert_eq!(
+            bytemuck::cast_slice::<Vertex, u8>(&actual),
+            bytemuck::cast_slice::<Vertex, u8>(&expected)
+        );
     }
 
     #[test]

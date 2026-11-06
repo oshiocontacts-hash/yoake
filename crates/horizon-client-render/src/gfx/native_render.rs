@@ -157,7 +157,9 @@ pub struct WorldPrePost<'a> {
     pub size: [u32; 2],
     /// The world's stored Depth32Float depth, reversed Z (0 is sky), with
     /// RENDER_ATTACHMENT, TEXTURE_BINDING and COPY_SRC usage. Attach `depth_view` with Load
-    /// and Store to test/write against the world; use the world's jittered clip matrix.
+    /// and Store to test/write against the world, using `GreaterEqual` and the world's
+    /// jittered clip matrix. With legacy shader packs this is not necessarily their final
+    /// composite depth, and this hook does not expose their material/MRT targets.
     pub depth: &'a wgpu::Texture,
     pub depth_view: &'a wgpu::TextureView,
     /// Camera-relative world to clip space, without TAA's jitter, and with it.
@@ -180,6 +182,10 @@ pub struct WorldPrePost<'a> {
     /// render-distance start/end. These include underwater and environmental overrides.
     pub fog_color: [f32; 4],
     pub fog: [f32; 4],
+    /// The same borrowed block sprite arrays and samplers exposed by `WorldDrawn`.
+    /// Resolve sprites with `native_block_sprites` / `native_texture_sprites`; these are
+    /// not the entity atlas. API @API:world_pre_post_block_sprites@.
+    pub block_sprites: BlockSpriteArrays<'a>,
 }
 
 /// The final overlay target ([`native_overlay_drawn`]), after HUD, screens, menus, toasts and
@@ -364,8 +370,8 @@ mod tests {
         );
     }
 
-    /// A mod samples `BlockSpriteArrays` as the renderer hands them over: a layer of the second
-    /// array through its view, texels sharp and repeating with the nearest sampler.
+    /// A mod samples `WorldPrePost::block_sprites`: a layer of the second array through its
+    /// view, texels sharp and repeating with the nearest sampler.
     #[test]
     fn a_pass_samples_a_sprite_layer_sharp() {
         let instance = crate::gfx::test_gpu::instance();
@@ -468,24 +474,6 @@ mod tests {
             multiview_mask: None,
             cache: None,
         });
-        let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: None,
-            layout: &pipeline.get_bind_group_layout(0),
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&views[0]),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&views[1]),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::Sampler(&nearest),
-                },
-            ],
-        });
         let target = device.create_texture(&wgpu::TextureDescriptor {
             label: None,
             size: wgpu::Extent3d {
@@ -500,28 +488,101 @@ mod tests {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
+        let depth = device.create_texture(&wgpu::TextureDescriptor {
+            label: None,
+            size: target.size(),
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
         let out = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: u64::from(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT),
             usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+        let view = target.create_view(&Default::default());
+        let depth_view = depth.create_view(&Default::default());
+        let sky = crate::environment::Sky::default();
         let mut encoder = device.create_command_encoder(&Default::default());
         {
-            let view = target.create_view(&Default::default());
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    depth_slice: None,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                ..Default::default()
-            });
+            let pre_post = WorldPrePost {
+                device: &device,
+                queue: &queue,
+                encoder: &mut encoder,
+                color: &target,
+                color_view: &view,
+                color_format: target.format(),
+                size: [5, 1],
+                depth: &depth,
+                depth_view: &depth_view,
+                view_proj: Mat4::IDENTITY,
+                jittered: Mat4::IDENTITY,
+                previous_view_proj: None,
+                previous_camera: None,
+                camera: DVec3::ZERO,
+                frame_index: 0,
+                sun_direction: Vec3::Y,
+                sky: &sky,
+                fog_color: [0.; 4],
+                fog: [0.; 4],
+                block_sprites: BlockSpriteArrays {
+                    views: &views,
+                    split: 1,
+                    size: 2,
+                    nearest: &nearest,
+                    filtered: &nearest,
+                },
+            };
+            assert_eq!(pre_post.block_sprites.views.len(), 8);
+            assert_eq!(pre_post.block_sprites.split, 1);
+            assert_eq!(pre_post.block_sprites.size, 2);
+            let group = pre_post
+                .device
+                .create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: None,
+                    layout: &pipeline.get_bind_group_layout(0),
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(
+                                &pre_post.block_sprites.views[0],
+                            ),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::TextureView(
+                                &pre_post.block_sprites.views[1],
+                            ),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 2,
+                            resource: wgpu::BindingResource::Sampler(
+                                pre_post.block_sprites.nearest,
+                            ),
+                        },
+                    ],
+                });
+            let mut pass = pre_post
+                .encoder
+                .begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: None,
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: pre_post.color_view,
+                        depth_slice: None,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    ..Default::default()
+                });
             pass.set_pipeline(&pipeline);
             pass.set_bind_group(0, &group, &[]);
             pass.draw(0..3, 0..1);

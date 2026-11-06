@@ -1895,6 +1895,7 @@ async fn open_backend(
                 if reason == wgpu::DeviceLostReason::Destroyed {
                     return;
                 }
+                crate::hud::native_textures::device_lost();
                 log::warn!(
                     "Horizon renderer: the graphics device was lost ({reason:?}: {message})"
                 );
@@ -9031,6 +9032,13 @@ impl Renderer {
                 sky: &frame.sky,
                 fog_color,
                 fog,
+                block_sprites: native_render::BlockSpriteArrays {
+                    views: &self.sprite_views,
+                    split: self.sprite_split,
+                    size: self.sprite_textures[0].width(),
+                    nearest: &self.sprite_nearest,
+                    filtered: &self.sprite_sampler,
+                },
             });
             self.native_pre_post_previous = Some((view_proj, frame.camera));
             self.native_pre_post_frame = self.native_pre_post_frame.wrapping_add(1);

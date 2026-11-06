@@ -78,6 +78,8 @@ mod brush;
 mod bundles;
 mod campfire;
 mod campfire_douse;
+#[cfg(feature = "dev-capture")]
+mod capture;
 mod cartography;
 mod cat_spawner;
 mod chat;
@@ -200,24 +202,30 @@ mod music;
 mod names;
 mod narrator;
 mod native_audio;
+mod native_avatar_equipment;
 mod native_biome_colors;
 pub mod native_block_entity_draw;
 mod native_block_sprites;
 mod native_claimed_items;
+mod native_client_items;
 mod native_components;
+mod native_cooldowns;
 mod native_criteria;
 mod native_data_maps;
 mod native_entities;
 mod native_entity_data;
 mod native_entity_motion;
+pub mod native_entity_query;
 mod native_entity_refs;
 mod native_explosions;
 mod native_falling;
+mod native_gui_textures;
 mod native_hooks;
 mod native_inventories;
 mod native_item_container;
 mod native_item_energy;
 mod native_item_fluids;
+mod native_item_slot;
 mod native_level_refs;
 mod native_lifecycle;
 mod native_living_refs;
@@ -409,8 +417,13 @@ use horizon_world::{
     registry::BlockStateId,
 };
 pub use maps::{NativeMapDecoration, NativeMapInfo};
+pub use native_avatar_equipment::{
+    NativeBackLayer, NativeEquipmentDrawOptions, NativeEquipmentOutline, NativeEquipmentOverlay,
+    NativeHumanoidPart,
+};
 pub use native_block_entity_draw::BlockEntityDraw;
 pub use native_claimed_items::{NativeHeldItem, NativeHit, NativeModEvent};
+pub use native_cooldowns::NativeCooldownTarget;
 pub use native_data_maps::NativeDataMapType;
 pub use native_falling::NativeFalling;
 pub use native_hooks::{NativeClock, NativeShake};
@@ -2503,6 +2516,8 @@ struct Game<'a> {
     /// The shader pack's entity and block entity ids, while one draws entities.
     pack_ids: Option<shader_packs::PackIds>,
     started: Instant,
+    #[cfg(feature = "dev-capture")]
+    frame_capture: capture::CaptureState,
     /// `SpectatorGui`: the menu a spectator opens with the hotbar keys.
     spectator_gui: horizon_client::spectator_menu::SpectatorGui,
     previous: Instant,
@@ -2914,6 +2929,7 @@ struct Game<'a> {
     native_input: native_claimed_items::ModInput,
     /// The native lifecycle bookkeeping.
     native_lifecycle: native_lifecycle::NativeLifecycle,
+    native_entity_queries: native_entity_query::QueryBudgets,
     native_audio: Option<native_audio::NativeAudio>,
     /// Native mods' messages waiting (`game/native_net.rs`).
     native_net: native_net::NativeNet,
@@ -7836,6 +7852,9 @@ impl Game<'_> {
     /// an active window, as it cannot grab the real one.
     fn apply_mouse_look(&mut self) {
         let look = self.look_options();
+        #[cfg(feature = "dev-capture")]
+        let time = self.capture_presentation_time().as_secs_f64();
+        #[cfg(not(feature = "dev-capture"))]
         let time = self.started.elapsed().as_secs_f64();
         let pointer = self.captured || self.agent_pointer;
         let grabbed = pointer && self.screen == Screen::Playing && self.player.is_some();
@@ -8255,6 +8274,19 @@ impl Game<'_> {
             bar,
             cooldown: self.cooldowns.percent(&cooldown, partial),
         };
+        // A mod drawing its own cooldown look gets the slot between the bar
+        // and the shade; with no listener this returns false at once.
+        if self.native_draw_item_slot_cooldown(
+            batch,
+            stack,
+            [x, y],
+            &decorations,
+            &cooldown,
+            partial,
+        ) {
+            self.native_item_decorations(stack, x, y, batch);
+            return;
+        }
         let mut draws = vec![hud_layout::GuiDraw::Push(vec![
             hud_layout::PoseOp::Translate(x, y),
         ])];
@@ -8512,6 +8544,8 @@ impl Game<'_> {
                     hud_layout::paint(batch, &g.gui.atlas, &draws);
                 }
             });
+            #[cfg(feature = "dev-capture")]
+            let capture_millis = self.capture_presentation_time().as_millis() as i64;
             if !self.creative
                 && !spectator
                 && let Some(p) = &mut self.player
@@ -8531,7 +8565,16 @@ impl Game<'_> {
                 let under_water = p.is_eye_in_fluid(horizon_client::motion::WATER);
                 let inputs = hud_layout::HealthInputs {
                     tick: self.ticks as i32,
-                    millis: self.started.elapsed().as_millis() as i64,
+                    millis: {
+                        #[cfg(feature = "dev-capture")]
+                        {
+                            capture_millis
+                        }
+                        #[cfg(not(feature = "dev-capture"))]
+                        {
+                            self.started.elapsed().as_millis() as i64
+                        }
+                    },
                     health: p.health.health(),
                     max_health: p.attribute("minecraft:max_health").unwrap_or(20.0) as f32,
                     absorption: p.health.absorption(),
@@ -12378,6 +12421,8 @@ impl Game<'_> {
     }
 
     pub(super) fn save_for_exit(&mut self) -> Result<()> {
+        #[cfg(feature = "dev-capture")]
+        self.capture_shutdown();
         // Native application termination can bypass CloseRequested. Finish any
         // save screen synchronously here, before the process can go away.
         while self.pending_save.is_some() {
@@ -15666,9 +15711,13 @@ impl Game<'_> {
         let title = self.shows_panorama();
         let (yaw, pitch) = if title {
             // PanoramaRenderer: the title cube spins at 0.1 degrees per tick, pitched 10 degrees.
+            #[cfg(feature = "dev-capture")]
+            let time = self.capture_presentation_time().as_secs_f32();
+            #[cfg(not(feature = "dev-capture"))]
+            let time = self.started.elapsed().as_secs_f32();
             (
                 self.panorama_rotation.update(
-                    self.started.elapsed().as_secs_f32(),
+                    time,
                     self.settings.file.double("panoramaScrollSpeed") as f32,
                 ),
                 10.0,
@@ -16119,6 +16168,9 @@ impl Game<'_> {
         {
             return None;
         }
+        #[cfg(feature = "dev-capture")]
+        let millis = self.capture_presentation_time().as_millis() as i64;
+        #[cfg(not(feature = "dev-capture"))]
         let millis = self.started.elapsed().as_millis() as i64;
         Some(horizon_client::gfx::BorderDraw {
             vertices: self.border_renderer.vertices,
@@ -16912,6 +16964,18 @@ impl ApplicationHandler for Game<'_> {
         self.previous = Instant::now();
     }
     fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
+        #[cfg(feature = "dev-capture")]
+        if self.frame_capture.active()
+            && !matches!(
+                &event,
+                WindowEvent::CloseRequested
+                    | WindowEvent::Resized(_)
+                    | WindowEvent::ScaleFactorChanged { .. }
+                    | WindowEvent::RedrawRequested
+            )
+        {
+            return;
+        }
         let key = if self.window.as_ref().is_some_and(|w| w.id() == id)
             && let WindowEvent::KeyboardInput {
                 event,
@@ -16929,6 +16993,10 @@ impl ApplicationHandler for Game<'_> {
         }
     }
     fn device_event(&mut self, _: &ActiveEventLoop, _: DeviceId, event: DeviceEvent) {
+        #[cfg(feature = "dev-capture")]
+        if self.frame_capture.active() {
+            return;
+        }
         // A composited view renders offscreen but its keyboard/mouse owner still
         // controls a visible native window. A headless offscreen run never does.
         if self.pending_save.is_none()
@@ -16978,6 +17046,18 @@ impl Game<'_> {
             None => self.options.headless,
         };
         if !ours {
+            return;
+        }
+        #[cfg(feature = "dev-capture")]
+        if self.frame_capture.active()
+            && !matches!(
+                &event,
+                WindowEvent::CloseRequested
+                    | WindowEvent::Resized(_)
+                    | WindowEvent::ScaleFactorChanged { .. }
+                    | WindowEvent::RedrawRequested
+            )
+        {
             return;
         }
         follow_keymap(&mut event);
@@ -18197,6 +18277,10 @@ impl Game<'_> {
                     self.mapped_key_event(key, event.state == ElementState::Pressed, event.repeat)?;
                 }
                 WindowEvent::RedrawRequested => {
+                    #[cfg(feature = "dev-capture")]
+                    if self.capture_redraw() {
+                        return Ok(());
+                    }
                     horizon_client::spans::time("recover_device", || self.recover_device())?;
                     self.observe_fullscreen();
                     self.sync_ime();
@@ -18504,12 +18588,18 @@ impl Game<'_> {
         if self.pending_save.is_some() {
             return;
         }
-        horizon_client::spans::time("pads", || self.poll_pads(event_loop));
-        self.pause_if_inactive();
-        if self.options.frames.is_some() && self.started.elapsed() > self.options.timeout {
-            self.error = Some("frame-limited run timed out".into());
-            event_loop.exit();
-            return;
+        #[cfg(feature = "dev-capture")]
+        let real_time_input = !self.frame_capture.active();
+        #[cfg(not(feature = "dev-capture"))]
+        let real_time_input = true;
+        if real_time_input {
+            horizon_client::spans::time("pads", || self.poll_pads(event_loop));
+            self.pause_if_inactive();
+            if self.options.frames.is_some() && self.started.elapsed() > self.options.timeout {
+                self.error = Some("frame-limited run timed out".into());
+                event_loop.exit();
+                return;
+            }
         }
         if let Some(w) = &self.window {
             if self.options.offscreen {
@@ -18728,6 +18818,8 @@ impl<'a> Game<'a> {
             pack_ids: None,
             health_hud: hud_layout::HealthHud::default(),
             started: now,
+            #[cfg(feature = "dev-capture")]
+            frame_capture: capture::CaptureState::default(),
             spectator_gui: Default::default(),
             previous: now,
             frame_end: now,
@@ -18984,6 +19076,7 @@ impl<'a> Game<'a> {
             native_shaders: Default::default(),
             native_input: Default::default(),
             native_lifecycle: Default::default(),
+            native_entity_queries: Default::default(),
             native_audio: None,
             native_net: Default::default(),
             native_mod_screen: None,

@@ -1,0 +1,8 @@
+{
+  "hooks": [],
+  "rust_summary": "native_visuals coloured lights use radii 0.25..=32.0 and centres within 64 blocks of the render camera; request budgets, loaded-source checks and rims are unchanged",
+  "doc_summary": "native_visuals coloured lights accept radii from 0.25 through 32 blocks and centres within 64 blocks of the render camera. Only the first eight native light requests are examined; at most 16 lights are selected after merging native, particle and pack sources. RGB, intensity, finite-value and loaded-chunk checks stay unchanged, as do player-relative rim limits. Bundles relying on these wider light limits require hooks @API:visual_light_limits@ or newer.",
+  "comments": [
+    "crates/horizon-client/src/game/native_visuals.rs"
+  ]
+}

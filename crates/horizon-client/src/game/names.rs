@@ -96,13 +96,13 @@ impl Game<'_> {
     }
     /// The names the name tags show this frame (the control socket's status).
     pub(super) fn shown_name_tags(&self, camera: glam::DVec3) -> Vec<String> {
-        self.name_tags(camera, 1.0)
+        self.name_tags(camera, 1.0, false)
             .into_iter()
             .filter_map(|t| t.lines.last().map(|(t, _)| t.plain()))
             .collect()
     }
     /// Each name tag this frame.
-    fn name_tags(&self, camera: glam::DVec3, alpha: f64) -> Vec<NameTag> {
+    fn name_tags(&self, camera: glam::DVec3, alpha: f64, capture_position: bool) -> Vec<NameTag> {
         let hooks = !mod_api::mods().is_empty();
         let target = self.mob_hit().map(|(i, _)| self.mobs[i].id);
         let viewer = self.player_team();
@@ -217,6 +217,17 @@ impl Game<'_> {
                     );
                     tags.push(NameTag {
                         at: p,
+                        entity: capture_position.then(|| {
+                            (
+                                m.id,
+                                if player {
+                                    "minecraft:player"
+                                } else {
+                                    &m.kind.id
+                                }
+                                .to_owned(),
+                            )
+                        }),
                         lines: vec![(text, 0.0)],
                         light: l,
                         discrete,
@@ -272,6 +283,17 @@ impl Game<'_> {
             };
             tags.push(NameTag {
                 at: p,
+                entity: capture_position.then(|| {
+                    (
+                        m.id,
+                        if player {
+                            "minecraft:player"
+                        } else {
+                            &m.kind.id
+                        }
+                        .to_owned(),
+                    )
+                }),
                 lines,
                 light: l,
                 discrete,
@@ -354,6 +376,7 @@ impl Game<'_> {
             );
             tags.push(NameTag {
                 at: glam::DVec3::new(at.x, at.y + height + 0.5, at.z),
+                entity: capture_position.then(|| (a.id, "minecraft:armor_stand".to_owned())),
                 lines,
                 light: l,
                 discrete: false,
@@ -410,6 +433,7 @@ impl Game<'_> {
                             0.75,
                             f64::from(step[2] as f32 * 0.3),
                         ),
+                    entity: capture_position.then(|| (frame.id, frame.kind().to_owned())),
                     lines: vec![(
                         Text::literal(text.or(name).unwrap_or_default()).resolve_legacy(),
                         0.0,
@@ -440,8 +464,13 @@ impl Game<'_> {
         // max((0.25 + 0.75) / 2, 0.5), as ARGB.color (the floor of 255 times it).
         const FADED: u32 = 0x7F;
         let mut patches = Vec::new();
-        for tag in self.name_tags(camera, alpha) {
-            let o = tag.at - camera;
+        let mut position_listened = false;
+        self.native_render_name_tag_position_listened(&mut position_listened);
+        for tag in self.name_tags(camera, alpha, position_listened) {
+            let mut o = tag.at - camera;
+            if let Some((entity_id, kind)) = &tag.entity {
+                self.native_render_name_tag_position(*entity_id, kind, &mut o);
+            }
             // `gbuffers_entities` draws name tag text (2.3); a sneaking player's faded tag, on its
             // background, blends.
             if tag.discrete {
@@ -526,8 +555,6 @@ impl Game<'_> {
         out: &mut Vec<Vertex>,
         style: Option<TagStyle>,
     ) -> Vec<horizon_client::font::Patch> {
-        // Options.getBackgroundOpacity(0.25) black, as ARGB.color.
-        const BACKGROUND: u32 = 0x3F00_0000;
         // The camera's facing (Camera.rotation()), turned round in third-person
         // front view, so the text reads the right way from where it is seen.
         let (view_yaw, view_pitch) =
@@ -536,71 +563,102 @@ impl Game<'_> {
             } else {
                 (self.yaw, self.pitch)
             };
-        let forward = glam::DVec3::from_array(view_vector(view_yaw, view_pitch));
-        let right = forward.cross(glam::DVec3::Y).normalize_or_zero();
-        let up = right.cross(forward).normalize_or_zero();
-        let away = forward.as_vec3() * 0.002;
-        let mut batch = HudBatch::new([1, 1]);
-        let last = lines.len().saturating_sub(1);
-        for (n, (text, lift)) in lines.iter().enumerate() {
-            let o = (o + glam::DVec3::new(0.0, *lift, 0.0)).as_vec3();
-            let (r, u) = (right.as_vec3() * unit, up.as_vec3() * unit);
-            // Text space: x right, y down (scale 0.025, -0.025).
-            let at = |x: f32, y: f32| o + r * x - u * y;
-            let y0 = if text.plain() == "deadmau5" {
-                -10.0
-            } else {
-                0.0
-            };
-            batch.vertices.clear();
-            // Font.prepareText, as any text: bold, italic, fonts and each
-            // glyph's own box (accented.png's are 12 pixels tall).
-            let behind = batch.name_tag(
-                &self.gui.atlas,
-                text,
-                y0,
-                text_alpha << 24 | 0xFF_FFFF,
-                if background { BACKGROUND } else { 0 },
+        name_tag_quads_at(
+            &self.gui.atlas,
+            o,
+            lines,
+            text_alpha,
+            background,
+            text_layer,
+            light,
+            unit,
+            out,
+            style,
+            (view_yaw, view_pitch),
+        )
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn name_tag_quads_at(
+    atlas: &horizon_client::hud::HudAtlas,
+    o: glam::DVec3,
+    lines: &[(Text, f64)],
+    text_alpha: u32,
+    background: bool,
+    text_layer: u32,
+    light: u32,
+    unit: f32,
+    out: &mut Vec<Vertex>,
+    style: Option<TagStyle>,
+    view: (f32, f32),
+) -> Vec<horizon_client::font::Patch> {
+    // Options.getBackgroundOpacity(0.25) black, as ARGB.color.
+    const BACKGROUND: u32 = 0x3F00_0000;
+    let forward = glam::DVec3::from_array(view_vector(view.0, view.1));
+    let right = forward.cross(glam::DVec3::Y).normalize_or_zero();
+    let up = right.cross(forward).normalize_or_zero();
+    let away = forward.as_vec3() * 0.002;
+    let mut batch = HudBatch::new([1, 1]);
+    let last = lines.len().saturating_sub(1);
+    for (n, (text, lift)) in lines.iter().enumerate() {
+        let o = (o + glam::DVec3::new(0.0, *lift, 0.0)).as_vec3();
+        let (r, u) = (right.as_vec3() * unit, up.as_vec3() * unit);
+        // Text space: x right, y down (scale 0.025, -0.025).
+        let at = |x: f32, y: f32| o + r * x - u * y;
+        let y0 = if text.plain() == "deadmau5" {
+            -10.0
+        } else {
+            0.0
+        };
+        batch.vertices.clear();
+        // Font.prepareText, as any text: bold, italic, fonts and each
+        // glyph's own box (accented.png's are 12 pixels tall).
+        let behind = batch.name_tag(
+            atlas,
+            text,
+            y0,
+            text_alpha << 24 | 0xFF_FFFF,
+            if background { BACKGROUND } else { 0 },
+        );
+        if let Some(style) = style.filter(|_| n == last) {
+            let x = -atlas.font.width_text(text) / 2.0;
+            let alpha = text_alpha << 24;
+            // The mark, 8 text pixels square, a pixel left of the background.
+            batch.rect_uv(x - 10.0, y0, 8.0, 8.0, style.mark, alpha | 0xFF_FFFF);
+            // The line, a pixel tall, under the background (which runs from -1 to 9).
+            let width = atlas.font.width_text(text);
+            batch.fill(
+                atlas,
+                x - 1.0,
+                y0 + 9.0,
+                width + 1.0,
+                1.0,
+                alpha | style.line,
             );
-            if let Some(style) = style.filter(|_| n == last) {
-                let x = -self.gui.atlas.font.width_text(text) / 2.0;
-                let alpha = text_alpha << 24;
-                // The mark, 8 text pixels square, a pixel left of the background.
-                batch.rect_uv(x - 10.0, y0, 8.0, 8.0, style.mark, alpha | 0xFF_FFFF);
-                // The line, a pixel tall, under the background (which runs from -1 to 9).
-                let width = self.gui.atlas.font.width_text(text);
-                batch.fill(
-                    &self.gui.atlas,
-                    x - 1.0,
-                    y0 + 9.0,
-                    width + 1.0,
-                    1.0,
-                    alpha | style.line,
-                );
-            }
-            for (i, quad) in batch.vertices.as_chunks::<6>().0.iter().enumerate() {
-                let shift = if i * 6 < behind {
-                    away
-                } else {
-                    glam::Vec3::ZERO
-                };
-                // The corners from the bottom left, as the world draws quads.
-                for v in [quad[5], quad[2], quad[1], quad[0]] {
-                    out.push(Vertex {
-                        normal: [0; 4],
-                        pos: (at(v.pos[0], v.pos[1]) + shift).to_array(),
-                        uv: v.uv,
-                        layer: text_layer,
-                        color: v.color,
-                        light,
-                        glint_uv: [0.0, 0.0],
-                    });
-                }
+        }
+        for (i, quad) in batch.vertices.as_chunks::<6>().0.iter().enumerate() {
+            let shift = if i * 6 < behind {
+                away
+            } else {
+                glam::Vec3::ZERO
+            };
+            // The corners from the bottom left, as the world draws quads.
+            for v in [quad[5], quad[2], quad[1], quad[0]] {
+                out.push(Vertex {
+                    normal: [0; 4],
+                    pos: (at(v.pos[0], v.pos[1]) + shift).to_array(),
+                    uv: v.uv,
+                    layer: text_layer,
+                    color: v.color,
+                    light,
+                    glint_uv: [0.0, 0.0],
+                });
             }
         }
-        // Glyphs rasterized on first use (Unifont's) upload with the frame.
-        batch.patches
     }
+    // Glyphs rasterized on first use (Unifont's) upload with the frame.
+    batch.patches
 }
 
 /// `EntityAttachment.NAME_TAG`: `(0, bbHeight, 0)` of the box of the entity's
@@ -620,6 +678,7 @@ fn name_tag_at(m: &Mob, alpha: f64) -> glam::DVec3 {
 /// the entity and whether it is discrete.
 struct NameTag {
     at: glam::DVec3,
+    entity: Option<(u32, String)>,
     lines: Vec<(Text, f64)>,
     light: u8,
     discrete: bool,
@@ -642,6 +701,123 @@ mod tests {
     use horizon_client::pose::Pose;
     use horizon_core::geometry::Vec3;
     use std::sync::Arc;
+
+    fn legacy_name_tag_vertices(
+        atlas: &horizon_client::hud::HudAtlas,
+        anchor: glam::DVec3,
+        lines: &[(Text, f64)],
+    ) -> Vec<Vertex> {
+        let forward = glam::DVec3::from_array(view_vector(30.0, 15.0));
+        let right = forward.cross(glam::DVec3::Y).normalize_or_zero();
+        let up = right.cross(forward).normalize_or_zero();
+        let mut batch = HudBatch::new([1, 1]);
+        let mut vertices = Vec::new();
+        for (text, lift) in lines {
+            let origin = (anchor + glam::DVec3::new(0.0, *lift, 0.0)).as_vec3();
+            let right = right.as_vec3() * 0.025;
+            let up = up.as_vec3() * 0.025;
+            batch.vertices.clear();
+            let behind = batch.name_tag(atlas, text, 0.0, 0xFFFF_FFFF, 0x3F00_0000);
+            for (index, quad) in batch.vertices.as_chunks::<6>().0.iter().enumerate() {
+                let shift = if index * 6 < behind {
+                    forward.as_vec3() * 0.002
+                } else {
+                    glam::Vec3::ZERO
+                };
+                for vertex in [quad[5], quad[2], quad[1], quad[0]] {
+                    vertices.push(Vertex {
+                        normal: [0; 4],
+                        pos: (origin + right * vertex.pos[0] - up * vertex.pos[1] + shift)
+                            .to_array(),
+                        uv: vertex.uv,
+                        layer: 0,
+                        color: vertex.color,
+                        light: 240,
+                        glint_uv: [0.0; 2],
+                    });
+                }
+            }
+        }
+        vertices
+    }
+
+    #[test]
+    fn unlistened_name_tag_vertices_match_legacy_geometry() {
+        let atlas = horizon_client::hud::HudAtlas::boot();
+        let tag = NameTag {
+            at: glam::DVec3::new(1.0, 2.0, -3.0),
+            entity: None,
+            lines: vec![
+                (Text::literal("7 points"), 0.25),
+                (Text::literal("Player"), 0.0),
+            ],
+            light: 15,
+            discrete: false,
+            style: None,
+        };
+        let expected = legacy_name_tag_vertices(&atlas, tag.at, &tag.lines);
+        let mut actual = Vec::new();
+        name_tag_quads_at(
+            &atlas,
+            tag.at,
+            &tag.lines,
+            255,
+            true,
+            0,
+            240,
+            0.025,
+            &mut actual,
+            tag.style,
+            (30.0, 15.0),
+        );
+        assert!(tag.entity.is_none());
+        assert!(!expected.is_empty());
+        assert_eq!(actual.len(), expected.len());
+        assert_eq!(
+            bytemuck::cast_slice::<Vertex, u8>(&actual),
+            bytemuck::cast_slice::<Vertex, u8>(&expected)
+        );
+    }
+
+    #[test]
+    fn moved_anchor_translates_name_and_score_together() {
+        let atlas = horizon_client::hud::HudAtlas::boot();
+        let lines = [
+            (Text::literal("7 points"), 0.25),
+            (Text::literal("Player"), 0.0),
+        ];
+        let anchor = glam::DVec3::new(1.0, 2.0, -3.0);
+        let movement = glam::DVec3::new(0.5, -0.25, 1.0);
+        let mut original = Vec::new();
+        let mut moved = Vec::new();
+        for (position, output) in [(anchor, &mut original), (anchor + movement, &mut moved)] {
+            name_tag_quads_at(
+                &atlas,
+                position,
+                &lines,
+                255,
+                true,
+                0,
+                240,
+                0.025,
+                output,
+                None,
+                (30.0, 15.0),
+            );
+        }
+        assert!(original.len() >= 8);
+        assert_eq!(original.len(), moved.len());
+        for (before, after) in original.iter().zip(&moved) {
+            let delta = glam::Vec3::from_array(after.pos) - glam::Vec3::from_array(before.pos);
+            assert!((delta - movement.as_vec3()).abs().max_element() < 1e-6);
+            assert_eq!(before.normal, after.normal);
+            assert_eq!(before.uv, after.uv);
+            assert_eq!(before.layer, after.layer);
+            assert_eq!(before.color, after.color);
+            assert_eq!(before.light, after.light);
+            assert_eq!(before.glint_uv, after.glint_uv);
+        }
+    }
 
     /// The player model `perspective::player_type` builds from the prepared
     /// resources, without them: its box only needs the id and the pointer.

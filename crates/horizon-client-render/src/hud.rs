@@ -3,6 +3,7 @@
 //! GUI scale is applied when drawing).
 use crate::Result;
 use horizon_assets::animation::AnimationMetadata;
+use native_textures::{NativeGuiTexture, NativeGuiTextureError, NativeGuiTextureFilter};
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -12,6 +13,7 @@ use std::{
 use wgpu::util::DeviceExt;
 
 pub mod cit_glint;
+pub mod native_textures;
 mod pack_text;
 
 /// A sprite's atlas region, and its size in GUI pixels: the size of the
@@ -1478,6 +1480,8 @@ pub struct HudBatch {
     pub blur_at: u32,
     /// Player object profiles encountered while painting text this frame.
     pub inline_profiles: Vec<serde_json::Value>,
+    /// Sparse mod texture selections; absent for an atlas-only batch.
+    pub native_textures: Option<Vec<native_textures::NativeTextureRun>>,
 }
 /// How a run of HUD vertices blends and tests depth.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1534,6 +1538,7 @@ impl HudBatch {
             game_time: 0.0,
             blur_at: 0,
             inline_profiles: Vec::new(),
+            native_textures: None,
         }
     }
     /// Draw the vertices added since `start` with the inverting blend.
@@ -1792,9 +1797,28 @@ impl HudBatch {
         for (range, _) in &mut self.blends {
             if range.start as usize >= start {
                 *range = at(range.start)..at(range.end);
+            } else if self.native_textures.is_some() && range.end as usize >= start {
+                range.end = at(range.end);
             }
         }
-        self.blends.retain(|(range, _)| !range.is_empty());
+        if let Some(runs) = &mut self.native_textures {
+            self.blends.retain(|(range, _)| !range.is_empty());
+            let remap = |vertex: u32| {
+                if (vertex as usize) < start {
+                    vertex
+                } else {
+                    at(vertex)
+                }
+            };
+            for run in runs.iter_mut() {
+                run.range = remap(run.range.start)..remap(run.range.end);
+            }
+            runs.retain(|run| !run.range.is_empty());
+            self.blur_at = remap(self.blur_at);
+            if runs.is_empty() {
+                self.native_textures = None;
+            }
+        }
     }
     /// `blit` of the top-left `w x h` texels of a `tw x th` texture.
     pub fn sprite_region(
@@ -2236,6 +2260,14 @@ pub struct HudRenderer {
     /// The layout of `group`, which the CIT glint pipelines share.
     layout: wgpu::BindGroupLayout,
     group: wgpu::BindGroup,
+    native_textures: OnceLock<native_textures::NativeGuiTextures>,
+    native_texture_epoch: u64,
+    #[cfg(test)]
+    native_texture_draw_counts: native_textures::DrawCounts,
+    sampler: wgpu::Sampler,
+    linear_sampler: wgpu::Sampler,
+    glint_view: wgpu::TextureView,
+    glint_sampler: wgpu::Sampler,
     /// The pack's CIT enchantment glints, when it has any.
     cit_glint: Option<cit_glint::CitGlintPass>,
     uniform: wgpu::Buffer,
@@ -2488,6 +2520,14 @@ impl HudRenderer {
             end_portal_pipeline,
             layout,
             group,
+            native_textures: OnceLock::new(),
+            native_texture_epoch: native_textures::device_epoch(),
+            #[cfg(test)]
+            native_texture_draw_counts: native_textures::DrawCounts::default(),
+            sampler,
+            linear_sampler,
+            glint_view: glint_view.clone(),
+            glint_sampler: glint_sampler.clone(),
             cit_glint: None,
             uniform,
             buffer,
@@ -2498,6 +2538,59 @@ impl HudRenderer {
             zoom: 1.0,
         })
     }
+    /// Register a mod-owned texture before preparing any batch that samples it.
+    /// The texture must belong to `device`, the device used to construct this renderer.
+    pub fn native_gui_texture_register(
+        &self,
+        device: &wgpu::Device,
+        texture: &wgpu::Texture,
+        filter: NativeGuiTextureFilter,
+    ) -> std::result::Result<NativeGuiTexture, NativeGuiTextureError> {
+        self.native_gui_texture_insert(device, native_textures::Source::Register(texture), filter)
+    }
+
+    /// Create a sampled, renderable, uploadable texture on this renderer's device.
+    pub fn native_gui_texture_create(
+        &self,
+        device: &wgpu::Device,
+        size: [u32; 2],
+        format: wgpu::TextureFormat,
+        filter: NativeGuiTextureFilter,
+    ) -> std::result::Result<NativeGuiTexture, NativeGuiTextureError> {
+        self.native_gui_texture_insert(
+            device,
+            native_textures::Source::Create(size, format),
+            filter,
+        )
+    }
+
+    pub fn native_gui_texture_owns(&self, texture: &NativeGuiTexture) -> bool {
+        self.native_textures
+            .get()
+            .is_some_and(|textures| textures.owns(texture))
+    }
+
+    fn native_gui_texture_insert(
+        &self,
+        device: &wgpu::Device,
+        source: native_textures::Source<'_>,
+        filter: NativeGuiTextureFilter,
+    ) -> std::result::Result<NativeGuiTexture, NativeGuiTextureError> {
+        self.native_textures
+            .get_or_init(|| native_textures::NativeGuiTextures::new(self.native_texture_epoch))
+            .insert(
+                device,
+                source,
+                filter,
+                &self.layout,
+                &self.uniform,
+                &self.glint_view,
+                &self.glint_sampler,
+                &self.sampler,
+                &self.linear_sampler,
+            )
+    }
+
     /// Draw the CIT glint layers of `textures` (the pack's enchantment rules); `None` or no
     /// textures draws none.
     pub fn set_cit_glints(
@@ -2711,6 +2804,10 @@ impl HudRenderer {
                     .position(|(_, b)| matches!(b, Blend::Depth(_)))
                     .map_or(runs.len(), |n| at + n)
             };
+            #[cfg(test)]
+            self.native_texture_draw_counts
+                .passes
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("HUD"),
                 timestamp_writes: timing.as_deref_mut().and_then(|t| t.writes("HUD")),
@@ -2726,6 +2823,10 @@ impl HudRenderer {
                 ..Default::default()
             });
             pass.set_bind_group(0, &self.group, &[]);
+            #[cfg(test)]
+            self.native_texture_draw_counts
+                .groups
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             pass.set_vertex_buffer(0, self.buffer.slice(..));
             if let Some(clip) = clip {
                 let [x, y, w, h] = clip.map(|v| (v as f32 * self.zoom) as u32);
@@ -2737,40 +2838,120 @@ impl HudRenderer {
                 }
                 pass.set_scissor_rect(x, y, w, h);
             }
-            for (range, blend) in &runs[at..end] {
-                let pipeline = match blend {
-                    Blend::Alpha => &self.pipeline,
-                    Blend::Invert => &self.invert_pipeline,
-                    Blend::Additive => &self.additive_pipeline,
-                    Blend::Depth(_) => &self.depth_pipeline,
-                    Blend::Vignette => &self.vignette_pipeline,
-                    Blend::EndPortal => &self.end_portal_pipeline,
-                    Blend::CitGlint(blend) => {
-                        if let Some(cit) = &self.cit_glint {
-                            cit.draw(&mut pass, *blend, range.clone());
+            if let Some(textures) = &batch.native_textures {
+                for (range, blend) in &runs[at..end] {
+                    self.draw_texture_parts(&mut pass, batch, textures, range.clone(), *blend);
+                }
+            } else {
+                for (range, blend) in &runs[at..end] {
+                    let pipeline = match blend {
+                        Blend::Alpha => &self.pipeline,
+                        Blend::Invert => &self.invert_pipeline,
+                        Blend::Additive => &self.additive_pipeline,
+                        Blend::Depth(_) => &self.depth_pipeline,
+                        Blend::Vignette => &self.vignette_pipeline,
+                        Blend::EndPortal => &self.end_portal_pipeline,
+                        Blend::CitGlint(blend) => {
+                            if let Some(cit) = &self.cit_glint {
+                                cit.draw(&mut pass, *blend, range.clone());
+                            }
+                            continue;
                         }
-                        continue;
-                    }
-                };
-                match &self.pack_text {
-                    Some(pack_text) if *blend == Blend::Alpha => {
-                        for (part, text) in pack_text::text_runs(&batch.vertices, range.clone()) {
-                            if text {
-                                pack_text.draw(&mut pass, part);
-                                pass.set_bind_group(0, &self.group, &[]);
-                            } else {
-                                pass.set_pipeline(pipeline);
-                                pass.draw(part, 0..1);
+                    };
+                    match &self.pack_text {
+                        Some(pack_text) if *blend == Blend::Alpha => {
+                            for (part, text) in pack_text::text_runs(&batch.vertices, range.clone())
+                            {
+                                if text {
+                                    pack_text.draw(&mut pass, part);
+                                    pass.set_bind_group(0, &self.group, &[]);
+                                    #[cfg(test)]
+                                    self.native_texture_draw_counts
+                                        .groups
+                                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                } else {
+                                    pass.set_pipeline(pipeline);
+                                    pass.draw(part, 0..1);
+                                }
                             }
                         }
-                    }
-                    _ => {
-                        pass.set_pipeline(pipeline);
-                        pass.draw(range.clone(), 0..1);
+                        _ => {
+                            pass.set_pipeline(pipeline);
+                            pass.draw(range.clone(), 0..1);
+                        }
                     }
                 }
             }
             at = end;
+        }
+    }
+
+    fn draw_texture_parts(
+        &self,
+        pass: &mut wgpu::RenderPass<'_>,
+        batch: &HudBatch,
+        textures: &[native_textures::NativeTextureRun],
+        range: std::ops::Range<u32>,
+        blend: Blend,
+    ) {
+        for (part, texture) in native_textures::TextureParts::new(textures, range) {
+            if let Some(texture) = texture {
+                if !self.native_gui_texture_owns(texture) {
+                    continue;
+                }
+                pass.set_bind_group(0, texture.group(), &[]);
+                #[cfg(test)]
+                self.native_texture_draw_counts
+                    .groups
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+            let pipeline = match blend {
+                Blend::Alpha => &self.pipeline,
+                Blend::Invert => &self.invert_pipeline,
+                Blend::Additive => &self.additive_pipeline,
+                Blend::Depth(_) => &self.depth_pipeline,
+                Blend::Vignette => &self.vignette_pipeline,
+                Blend::EndPortal => &self.end_portal_pipeline,
+                Blend::CitGlint(mode) => {
+                    if let Some(cit) = &self.cit_glint {
+                        cit.draw(pass, mode, part);
+                    }
+                    pass.set_bind_group(0, &self.group, &[]);
+                    #[cfg(test)]
+                    self.native_texture_draw_counts
+                        .groups
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    continue;
+                }
+            };
+            match &self.pack_text {
+                Some(pack_text) if texture.is_none() && blend == Blend::Alpha => {
+                    for (text_part, text) in pack_text::text_runs(&batch.vertices, part) {
+                        if text {
+                            pack_text.draw(pass, text_part);
+                            pass.set_bind_group(0, &self.group, &[]);
+                            #[cfg(test)]
+                            self.native_texture_draw_counts
+                                .groups
+                                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        } else {
+                            pass.set_pipeline(pipeline);
+                            pass.draw(text_part, 0..1);
+                        }
+                    }
+                }
+                _ => {
+                    pass.set_pipeline(pipeline);
+                    pass.draw(part, 0..1);
+                }
+            }
+            if texture.is_some() {
+                pass.set_bind_group(0, &self.group, &[]);
+                #[cfg(test)]
+                self.native_texture_draw_counts
+                    .groups
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
         }
     }
 }
@@ -4084,6 +4265,7 @@ texture=wide",
                 game_time: 0.0,
                 blur_at: 0,
                 inline_profiles: Vec::new(),
+                native_textures: None,
             };
             for (image_width, image_height) in [(195, 136), (176, 166), (176, 222)] {
                 assert_eq!(

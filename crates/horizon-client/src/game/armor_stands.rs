@@ -36,6 +36,40 @@ fn layer_color(undyed: Option<u32>, stack: Option<&ItemStack>) -> u32 {
     })
 }
 
+#[allow(clippy::too_many_arguments)]
+fn append_armor_materials<'a>(
+    part: &'a Part,
+    layers: &[(String, Option<u32>)],
+    stack: Option<&ItemStack>,
+    overlay: u32,
+    strict: bool,
+    mut rect: impl FnMut(&str) -> Option<[f32; 4]>,
+    mut emissive_rect: impl FnMut(&str) -> Option<[f32; 4]>,
+    trim_rect: impl FnOnce() -> std::result::Result<Option<[f32; 4]>, ()>,
+    out: &mut Vec<(&'a Part, [f32; 4], u32, u32, bool)>,
+) -> bool {
+    let start = out.len();
+    for (index, (texture, undyed)) in layers.iter().enumerate() {
+        let Some(uv) = rect(texture) else {
+            if strict {
+                return false;
+            }
+            continue;
+        };
+        let color = layer_color(*undyed, stack);
+        out.push((part, uv, color, if index == 0 { overlay } else { 0 }, false));
+        if let Some(uv) = emissive_rect(texture) {
+            out.push((part, uv, color, 0, true));
+        }
+    }
+    match trim_rect() {
+        Ok(Some(uv)) => out.push((part, uv, 0xFFFF_FFFF, overlay, false)),
+        Ok(None) => {}
+        Err(()) => return false,
+    }
+    out.len() != start
+}
+
 /// Armor stand models and the humanoid layers of every equipment asset.
 pub(super) struct ArmorStandAssets {
     /// Shared (`Arc`) so the GPU path (`mobs::skin`) keeps one stored copy of each.
@@ -217,7 +251,6 @@ impl Game<'_> {
         &self,
         worn: [Option<(&str, Option<&ItemStack>)>; 4],
     ) -> Vec<(&Part, [f32; 4], u32, u32, bool)> {
-        let assets = &self.armor_stand_assets;
         let emissive = self
             .res
             .mob_data()
@@ -232,65 +265,105 @@ impl Game<'_> {
             let Some((item, stack)) = item else {
                 continue;
             };
-            let Some(asset) = self
-                .res
-                .items()
-                .get(item)
-                .and_then(|i| i.equip_asset.clone())
-            else {
-                continue;
-            };
-            let kind = if layer == "leggings" {
-                "humanoid_leggings"
-            } else {
-                "humanoid"
-            };
-            let Some(layers) = assets.equipment.get(&asset).and_then(|k| k.get(kind)) else {
-                continue;
-            };
-            let Some(part) = assets.player.get(layer) else {
-                continue;
-            };
-            // EquipmentLayerRenderer.renderLayers: NO_OVERLAY, the armour
-            // glint on the first layer and on the trim when `stack.hasFoil()`.
-            let item_glint = self
-                .res
-                .items()
-                .enchantments
-                .props
-                .get(item)
-                .is_some_and(|p| p.glint);
-            let overlay = if stack.is_some_and(|s| s.has_foil(item_glint)) {
-                horizon_client::mobs::render::ARMOR_GLINT
-            } else {
-                0
-            };
-            // Every layer of the asset, the leather overlay too, then the
-            // trim layer over the armour.
-            let cit = stack.and_then(|s| self.cit_worn_rule(Kind::Armor, s));
-            for (i, (texture, undyed)) in layers.iter().enumerate() {
-                let Some(uv) = self.armor_layer_rect(cit, &asset, kind, texture) else {
-                    continue;
-                };
-                let color = layer_color(*undyed, stack);
-                out.push((part, uv, color, if i == 0 { overlay } else { 0 }, false));
-                // The layer's OptiFine emissive overlay, full bright without the glint.
-                if let Some(g) = emissive
-                    .overlay(texture)
-                    .and_then(|e| self.gui.atlas.sprites.get(e))
-                {
-                    out.push((part, [g.u0, g.v0, g.u1, g.v1], color, 0, true));
-                }
-            }
-            if let Some(r) = stack
-                .and_then(|s| assets.trim_texture(&asset, kind, s))
-                .and_then(|t| self.gui.atlas.sprites.get(&t.sprite()))
-            {
-                out.push((part, [r.u0, r.v0, r.u1, r.v1], 0xFFFF_FFFF, overlay, false));
-            }
+            self.append_armor_layers(item, stack, layer, &emissive, false, &mut out);
         }
         out
     }
+
+    pub(super) fn armor_stack_layers(
+        &self,
+        stack: &ItemStack,
+        layer: &str,
+    ) -> Option<Vec<(&Part, [f32; 4], u32, u32, bool)>> {
+        let emissive = self
+            .res
+            .mob_data()
+            .emissive
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut out = Vec::new();
+        self.append_armor_layers(&stack.item, Some(stack), layer, &emissive, true, &mut out)
+            .then_some(out)
+    }
+
+    fn append_armor_layers<'a>(
+        &'a self,
+        item: &str,
+        stack: Option<&ItemStack>,
+        layer: &str,
+        emissive: &horizon_optifine::emissive::Emissive,
+        strict: bool,
+        out: &mut Vec<(&'a Part, [f32; 4], u32, u32, bool)>,
+    ) -> bool {
+        let assets = &self.armor_stand_assets;
+        let Some(asset) = self
+            .res
+            .items()
+            .get(item)
+            .and_then(|i| i.equip_asset.clone())
+        else {
+            return false;
+        };
+        let kind = if layer == "leggings" {
+            "humanoid_leggings"
+        } else {
+            "humanoid"
+        };
+        let Some(layers) = assets.equipment.get(&asset).and_then(|k| k.get(kind)) else {
+            return false;
+        };
+        let Some(part) = assets.player.get(layer) else {
+            return false;
+        };
+        let item_glint = self
+            .res
+            .items()
+            .enchantments
+            .props
+            .get(item)
+            .is_some_and(|p| p.glint);
+        let overlay = if stack.is_some_and(|s| s.has_foil(item_glint)) {
+            horizon_client::mobs::render::ARMOR_GLINT
+        } else {
+            0
+        };
+        let cit = stack.and_then(|s| self.cit_worn_rule(Kind::Armor, s));
+        append_armor_materials(
+            part,
+            layers,
+            stack,
+            overlay,
+            strict,
+            |texture| self.armor_layer_rect(cit, &asset, kind, texture),
+            |texture| {
+                emissive
+                    .overlay(texture)
+                    .and_then(|sprite| self.gui.atlas.sprites.get(sprite))
+                    .map(|rect| [rect.u0, rect.v0, rect.u1, rect.v1])
+            },
+            || {
+                let trim = stack.and_then(|stack| assets.trim_texture(&asset, kind, stack));
+                let rect = trim
+                    .and_then(|trim| self.gui.atlas.sprites.get(&trim.sprite()))
+                    .map(|rect| [rect.u0, rect.v0, rect.u1, rect.v1]);
+                if strict
+                    && rect.is_none()
+                    && stack.is_some_and(|stack| {
+                        stack
+                            .extra
+                            .as_ref()
+                            .is_some_and(|extra| extra.trim.is_some())
+                    })
+                {
+                    Err(())
+                } else {
+                    Ok(rect)
+                }
+            },
+            out,
+        )
+    }
+
     /// `PalettedTextureManager.getOrPrepare` for the trims drawn this frame
     /// (the player's armour and the armour stands'): each generated texture
     /// goes into an atlas trim slot, a free one, else the least recently
@@ -336,6 +409,32 @@ impl Game<'_> {
                 && !wanted.contains(&t)
             {
                 wanted.push(t);
+            }
+        }
+        let mut listened = false;
+        self.native_equipment_render_stacks_listened(&mut listened);
+        if listened {
+            // CHECK: Verify mod-only trimmed stacks enter the atlas before draw callbacks.
+            let mut stacks = Vec::new();
+            self.native_equipment_render_stacks(&mut stacks);
+            for stack in &stacks {
+                let Some(asset) = items
+                    .get(&stack.item)
+                    .and_then(|item| item.equip_asset.as_deref())
+                else {
+                    continue;
+                };
+                for kind in ["humanoid", "humanoid_leggings"] {
+                    if assets
+                        .equipment
+                        .get(asset)
+                        .is_some_and(|layers| layers.contains_key(kind))
+                        && let Some(trim) = assets.trim_texture(asset, kind, stack)
+                        && !wanted.contains(&trim)
+                    {
+                        wanted.push(trim);
+                    }
+                }
             }
         }
         for t in wanted {
@@ -1670,6 +1769,103 @@ mod burn_drop_tests {
 #[cfg(test)]
 mod layer_color_tests {
     use super::*;
+
+    #[test]
+    fn vanilla_armor_materials_keep_the_same_vertices() {
+        use horizon_client::mobs::{Polygon, render};
+
+        let part = Part {
+            name: "body".into(),
+            pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+            polygons: vec![Polygon {
+                normal: [0.0, 0.0, 1.0],
+                vertices: [
+                    [-4.0, -8.0, 2.0, 0.0, 0.0],
+                    [4.0, -8.0, 2.0, 1.0, 0.0],
+                    [4.0, 8.0, 2.0, 1.0, 1.0],
+                    [-4.0, 8.0, 2.0, 0.0, 1.0],
+                ],
+                cull_back: false,
+            }],
+            children: Vec::new(),
+        };
+        let layers = vec![
+            ("base".to_string(), Some(0xA06540)),
+            ("missing".to_string(), None),
+            ("overlay".to_string(), None),
+        ];
+        let mut stack = ItemStack::new("minecraft:leather_chestplate", 1);
+        stack.data_mut().dyed_color = Some(0x1E_90FF);
+        let trim = [0.5, 0.5, 0.75, 0.75];
+        let poses = Poses::new(&part);
+        let frame = glam::Mat4::from_translation(glam::Vec3::new(1.0, 2.0, -3.0));
+        let vertices = |materials: &[(&Part, [f32; 4], u32, u32, bool)]| {
+            let mut out = Vec::new();
+            for &(part, uv, color, overlay, emissive) in materials {
+                render::draw(
+                    part,
+                    frame,
+                    &poses,
+                    uv,
+                    color,
+                    if emissive { render::FULL_BRIGHT } else { 96 },
+                    overlay,
+                    &mut out,
+                );
+            }
+            out
+        };
+        for overlay in [0, render::ARMOR_GLINT] {
+            for missing_base in [false, true] {
+                let rect = |texture: &str| match texture {
+                    "base" if !missing_base => Some([0.0, 0.0, 0.25, 0.25]),
+                    "overlay" => Some([0.25, 0.0, 0.5, 0.25]),
+                    _ => None,
+                };
+                let emissive_rect =
+                    |texture: &str| (texture == "base").then_some([0.0, 0.25, 0.25, 0.5]);
+                let mut legacy = Vec::new();
+                for (index, (texture, undyed)) in layers.iter().enumerate() {
+                    let Some(uv) = rect(texture) else {
+                        continue;
+                    };
+                    let color = layer_color(*undyed, Some(&stack));
+                    legacy.push((
+                        &part,
+                        uv,
+                        color,
+                        if index == 0 { overlay } else { 0 },
+                        false,
+                    ));
+                    if let Some(uv) = emissive_rect(texture) {
+                        legacy.push((&part, uv, color, 0, true));
+                    }
+                }
+                legacy.push((&part, trim, 0xFFFF_FFFF, overlay, false));
+                let mut resolved = Vec::new();
+                assert!(append_armor_materials(
+                    &part,
+                    &layers,
+                    Some(&stack),
+                    overlay,
+                    false,
+                    rect,
+                    emissive_rect,
+                    || Ok(Some(trim)),
+                    &mut resolved,
+                ));
+                let legacy = vertices(&legacy);
+                let resolved = vertices(&resolved);
+                assert_eq!(resolved.len(), if missing_base { 8 } else { 16 });
+                assert_eq!(resolved.len(), legacy.len());
+                assert_eq!(
+                    bytemuck::cast_slice::<Vertex, u8>(&resolved),
+                    bytemuck::cast_slice::<Vertex, u8>(&legacy),
+                );
+            }
+        }
+    }
+
     #[test]
     fn the_smithing_preview_wears_armour_and_holds_the_rest_in_its_off_hand() {
         assert_eq!(preview_slot(Some("head")), 5);

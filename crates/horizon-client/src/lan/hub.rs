@@ -1668,8 +1668,19 @@ impl Hub {
     /// level ticks: joins (into the level in place), leaves, and each guest's
     /// packets queued for its own level's pass.
     pub fn poll(&mut self, ctx: &mut TickCtx) -> Vec<HostEvent> {
-        self.ticks += 1;
-        self.anticheat_tick(ctx.tick_rate);
+        self.poll_inner::<false>(ctx)
+    }
+
+    #[cfg(feature = "dev-capture")]
+    pub fn poll_capture(&mut self, ctx: &mut TickCtx) -> Vec<HostEvent> {
+        self.poll_inner::<true>(ctx)
+    }
+
+    fn poll_inner<const CAPTURE: bool>(&mut self, ctx: &mut TickCtx) -> Vec<HostEvent> {
+        if !CAPTURE {
+            self.ticks += 1;
+            self.anticheat_tick(ctx.tick_rate);
+        }
         let mut events = std::mem::take(&mut self.pending_kicks);
         for event in self.lan.poll() {
             match event {
@@ -1727,7 +1738,7 @@ impl Hub {
         // the writer thread: a client that stops reading blocks that thread
         // and would hold its slot forever. Kicked, it gets the reason; still
         // here a second later, its connection is closed under the writer.
-        if self.ticks.is_multiple_of(20) {
+        if CAPTURE || self.ticks.is_multiple_of(20) {
             for g in &self.guests {
                 if !g.left_reason.is_empty() && g.sender.timed_out() {
                     g.sender.close();
@@ -1752,11 +1763,22 @@ impl Hub {
     /// (#4510). `tick_level` then syncs what those packets (and the block ticks)
     /// changed.
     pub fn drain_packets(&mut self, ctx: &mut TickCtx) -> Vec<HostEvent> {
+        self.drain_packets_inner::<false>(ctx)
+    }
+
+    #[cfg(feature = "dev-capture")]
+    pub fn drain_capture_packets(&mut self, ctx: &mut TickCtx) -> Vec<HostEvent> {
+        self.drain_packets_inner::<true>(ctx)
+    }
+
+    fn drain_packets_inner<const CAPTURE: bool>(&mut self, ctx: &mut TickCtx) -> Vec<HostEvent> {
         let mut events = Vec::new();
         for i in 0..self.guests.len() {
             if self.here(&self.guests[i]) {
-                self.process_inbox(i, ctx, &mut events);
-                self.tick_floating(i, &mut events);
+                self.process_inbox::<CAPTURE>(i, ctx, &mut events);
+                if !CAPTURE {
+                    self.tick_floating(i, &mut events);
+                }
             }
         }
         events
@@ -3113,14 +3135,21 @@ impl Hub {
         }
     }
 
-    fn process_inbox(&mut self, i: usize, ctx: &mut TickCtx, events: &mut Vec<HostEvent>) {
-        // ServerGamePacketListenerImpl.tickPlayer ran between the last
-        // tick's packets and these: resetPosition, and the moves it counted.
-        let g = &mut self.guests[i];
-        g.first_good = g.position;
-        g.known_moves = g.received_moves;
-        // ServerPlayer.tick: tickClientLoadTimeout.
-        g.load_timeout = g.load_timeout.saturating_sub(1);
+    fn process_inbox<const CAPTURE: bool>(
+        &mut self,
+        i: usize,
+        ctx: &mut TickCtx,
+        events: &mut Vec<HostEvent>,
+    ) {
+        if !CAPTURE {
+            // ServerGamePacketListenerImpl.tickPlayer ran between the last
+            // tick's packets and these: resetPosition, and the moves it counted.
+            let g = &mut self.guests[i];
+            g.first_good = g.position;
+            g.known_moves = g.received_moves;
+            // ServerPlayer.tick: tickClientLoadTimeout.
+            g.load_timeout = g.load_timeout.saturating_sub(1);
+        }
         let mut budget = PACKETS_PER_TICK;
         // An action the game runs after this pass has a move queued behind it: the
         // move waits for the next tick, but the arm swing the client sent right after
@@ -3136,6 +3165,10 @@ impl Hub {
             };
             self.guests[i].inbox_bytes -= bytes;
             budget -= 1;
+            #[cfg(feature = "dev-capture")]
+            if self.guests[i].sender.capture_apply_input(&packet) {
+                continue;
+            }
             let conn = self.guests[i].conn;
             // ServerPlayer.resetLastActionTime: every handler of a player's
             // own action resets it, movement only when it moved

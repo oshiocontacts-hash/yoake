@@ -1,0 +1,9 @@
+{
+  "hooks": [],
+  "helpers": [],
+  "rust_summary": "borrowed block sprite arrays in `WorldPrePost::block_sprites`.",
+  "doc_summary": "WorldPrePost::block_sprites exposes the same eight D2Array views, split, size and nearest/filtered samplers as WorldDrawn. Resolve array/layer and face UVs with native_block_sprites or native_texture_sprites; these are block sprites, not entity atlas textures. The arrays and views are borrowed for the callback only. WorldPrePost already provides writable Depth32Float depth: load/store it, use the jittered view_proj matrix and reversed-Z GreaterEqual testing. Legacy shader packs may use different final composited depth and do not expose their MRT attachments here. Built-in temporal history reprojects camera motion, not arbitrary mod animation. Listen to WorldPrePost with `hooks`: @API:world_pre_post@.",
+  "comments": [
+    "crates/horizon-client-render/src/gfx/native_render.rs"
+  ]
+}

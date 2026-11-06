@@ -1,0 +1,31 @@
+use super::Game;
+
+#[allow(dead_code)]
+impl Game<'_> {
+    /// Whether this is a block-backed item, not a Java class identity check.
+    /// @API:client_item_queries@.
+    pub(super) fn native_item_is_block(&self, item: &str) -> bool {
+        self.items()
+            .get(item)
+            .is_some_and(|info| info.block.is_some())
+    }
+
+    /// Query only the current connection's server-synchronized item tags.
+    /// Unknown items, unknown tags and unavailable data return false.
+    /// @API:client_item_queries@.
+    pub(super) fn native_client_item_in_tag(&self, tag: &str, item: &str) -> bool {
+        self.remote.as_ref().is_some_and(|remote| {
+            remote.reconfiguring.is_none()
+                && remote.registries.item_in_tag(&remote.builtin, tag, item)
+        })
+    }
+
+    /// Whether the current connection has received its requested item tags.
+    /// An empty synchronized table is ready; disconnected or reconfiguring is not.
+    /// @API:client_item_queries@.
+    pub(super) fn native_client_item_tags_ready(&self) -> bool {
+        self.remote.as_ref().is_some_and(|remote| {
+            remote.reconfiguring.is_none() && remote.registries.item_tags.is_some()
+        })
+    }
+}

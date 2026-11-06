@@ -243,6 +243,19 @@ pub const COMMANDS: &[Cmd] = &[
     cmd!("screenshot", Session, "screenshot PATH", "write the next rendered frame as a PNG",
         "Relative paths are taken from horizon-ctl's directory. Over MCP the image is returned directly.",
         ["horizon-ctl screenshot view.png"], &[], mcp: true, local: false),
+    #[cfg(feature = "dev-capture")]
+    cmd!("capture", Session, "capture DIR [--fps FPS] --frames N", "start fixed-step numbered PNG capture",
+        "Requires dev-capture, explicit --control or --control-socket, an installed capture output, and an unpublished integrated single-player world at 20 TPS. FPS defaults to 30. Requests the muted audio policy. Relative paths use horizon-ctl's directory. The command waits for every PNG write acknowledgement and restored clocks; use another connection for capture-status and capture-cancel.",
+        ["horizon-ctl capture frames --fps 30 --frames 120"],
+        &[p("dir", Ty::Str, "output directory"), flag("fps", Ty::Int, "positive frames per second (default 30)"), Param { name: "frames", ty: Ty::Int, required: true, flag: true, help: "positive number of frames" }], mcp: true, local: false),
+    #[cfg(feature = "dev-capture")]
+    cmd!("capture-status", Session, "capture-status", "read fixed-step capture progress",
+        "Reports session and generation IDs, state, requested and written frame counts, FPS, simulated ticks, and any failure. Terminal status remains available after clock restoration.",
+        ["horizon-ctl capture-status"], &[], mcp: true, local: false),
+    #[cfg(feature = "dev-capture")]
+    cmd!("capture-cancel", Session, "capture-cancel", "cancel capture and restore real-time clocks",
+        "Cancellation is asynchronous. Poll capture-status until cancelled or failed; an in-flight output is aborted rather than acknowledged as a completed frame.",
+        ["horizon-ctl capture-cancel"], &[], mcp: true, local: false),
     // Observe
     cmd!("state", Observe, "state", "player, world, screen and crosshair target in one reply",
         "position, block_pos, eye, yaw, pitch, velocity, on_ground, health, food, saturation, xp, effects, gamemode, dimension, time, weather, the screen or title menu, the held item, what the crosshair points at and whether an action is running.",
@@ -551,6 +564,10 @@ pub fn markdown() -> String {
             group.title()
         ));
         for c in COMMANDS.iter().filter(|c| c.group == group) {
+            #[cfg(feature = "dev-capture")]
+            if matches!(c.name, "capture" | "capture-status" | "capture-cancel") {
+                continue;
+            }
             let tool = if c.mcp {
                 let mut t = format!("`{}`", tool_name(c));
                 if DESTRUCTIVE.contains(&c.name) {
@@ -596,6 +613,20 @@ pub fn markdown() -> String {
             ));
         }
     }
+    out.push_str(
+        "\n## Development capture (`dev-capture`)\n\n\
+         These commands are available only in builds with `dev-capture`. Both the client and \
+         `horizon-ctl` need the feature. Start the game with explicit `--control` or \
+         `--control-socket`; enabling Agent Control in settings alone is insufficient. \
+         Capture requires the main-loop and transport integration plus a registered PNG output \
+         adapter; without the adapter it fails before holding the server. See \
+         [agent-control.md](agent-control.md#fixed-step-capture-dev-capture).\n\n\
+         | Command | MCP tool | What it does | Arguments |\n\
+         | --- | --- | --- | --- |\n\
+         | `capture DIR [--fps FPS] --frames N` | `capture` | Capture numbered PNGs at fixed simulation intervals | `dir` (string, required): output directory, relative to horizon-ctl<br>`--fps` (integer): positive frames per second (default 30)<br>`--frames` (integer, required): positive number of frames |\n\
+         | `capture-status` | `capture_status` | Read capture progress and terminal status | none |\n\
+         | `capture-cancel` | `capture_cancel` | Request cancellation and restore real-time clocks | none |\n",
+    );
     out
 }
 

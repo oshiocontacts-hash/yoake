@@ -1,0 +1,32 @@
+{
+  "hooks": [
+    {
+      "name": "client_item_tags_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_client_item_tags_listened",
+      "side": "client",
+      "mod_api": {
+        "contract": "collect",
+        "out": "listened"
+      }
+    }
+  ],
+  "helpers": [
+    {
+      "name": "item_is_block",
+      "target": "horizon_client::game::native_client_items::Game<'_>::native_item_is_block"
+    },
+    {
+      "name": "item_in_tag",
+      "target": "horizon_client::game::native_client_items::Game<'_>::native_client_item_in_tag"
+    },
+    {
+      "name": "item_tags_ready",
+      "target": "horizon_client::game::native_client_items::Game<'_>::native_client_item_tags_ready"
+    }
+  ],
+  "rust_summary": "client block-backed item classification and opt-in, connection-scoped server-synchronized item tag queries in `native_client_items.rs`.",
+  "doc_summary": "client item queries: `item_is_block(item)` checks whether the item is block-backed, not its Java class identity. Set `listened` to true in `client_item_tags_listened(listened)` before connecting to capture the server's item tags for integrated, ordinary, LAN and transfer connections. `item_in_tag(tag, item)` uses only the current connection's synchronized tags and builtin item ids; unknown items or tags, unavailable data and reconfiguration return false, with no local-tag fallback. Configuration and play updates replace the supplied item registry's tag set, reconfiguration replaces the connection's registry snapshot, and disconnect drops it. `item_tags_ready()` distinguishes unavailable data from a received empty table. With no listener interest, no item-tag table is allocated and existing dialog handling is unchanged. Bundles need the @API:client_item_queries@ hook requirement.",
+  "comments": [
+    "crates/horizon-client/src/game/native_client_items.rs"
+  ]
+}

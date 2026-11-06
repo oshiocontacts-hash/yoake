@@ -1357,6 +1357,26 @@ pub fn draw(
 ) {
     draw_scrolled(part, base, poses, uv, 0.0, color, light, overlay, out);
 }
+/// Draw one named part with its placement replaced by a block-space frame.
+#[allow(clippy::too_many_arguments)]
+pub fn draw_part_frame(
+    model: &Part,
+    name: &str,
+    frame: glam::Mat4,
+    uv: [f32; 4],
+    color: u32,
+    light: u32,
+    overlay: u32,
+    out: &mut Vec<Vertex>,
+) -> bool {
+    let Some(part) = find_part(model, name) else {
+        return false;
+    };
+    let mut poses = Poses::new(part);
+    *poses.get(name) = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+    draw(part, frame, &poses, uv, color, light, overlay, out);
+    true
+}
 /// `draw` for a texture that scrolls: the vertex's U is moved by the offset
 /// and wraps inside the texture, as the texture matrix of
 /// `RenderTypes.breezeWind` does.
@@ -1582,6 +1602,31 @@ pub fn cape(
     let s = anim::state(m, alpha);
     let mut poses = Poses::new(model);
     anim::setup(m, &s, &mut poses, &data.animations);
+    pose_cape(m, alpha, poses.get("cape"));
+    // RenderTypes.entitySolid with OverlayTexture.NO_OVERLAY.
+    draw(model, base, &poses, uv, 0xFFFF_FFFF, light, 0, out);
+}
+
+pub fn cape_on_frame(
+    m: &Mob,
+    alpha: f32,
+    frame: glam::Mat4,
+    uv: [f32; 4],
+    light: u32,
+    out: &mut Vec<Vertex>,
+) {
+    let Some(model) = m.kind.layer("player#cape") else {
+        return;
+    };
+    let Some(part) = find_part(model, "cape") else {
+        return;
+    };
+    let mut poses = Poses::new(part);
+    pose_cape(m, alpha, poses.get("cape"));
+    draw(part, frame, &poses, uv, 0xFFFF_FFFF, light, 0, out);
+}
+
+fn pose_cape(m: &Mob, alpha: f32, pose: &mut [f32; 9]) {
     let a = f64::from(alpha);
     let at = [
         m.previous.x + (m.position.x - m.previous.x) * a,
@@ -1593,7 +1638,6 @@ pub fn cape(
     let ticks = m.extra.fall_fly_ticks as f32 + alpha;
     let gliding = (ticks * ticks / 100.0).clamp(0.0, 1.0);
     let [flap, lean, lean2] = m.extra.avatar.cape(alpha, at, body, gliding);
-    let pose = poses.get("cape");
     let by = glam::Quat::from_rotation_y(-PI)
         * glam::Quat::from_rotation_x((6.0 + lean / 2.0 + flap).to_radians())
         * glam::Quat::from_rotation_z((lean2 / 2.0).to_radians())
@@ -1601,8 +1645,6 @@ pub fn cape(
     let now = glam::Quat::from_euler(glam::EulerRot::ZYX, pose[5], pose[4], pose[3]);
     let (z, y, x) = (now * by).to_euler(glam::EulerRot::ZYX);
     (pose[3], pose[4], pose[5]) = (x, y, z);
-    // RenderTypes.entitySolid with OverlayTexture.NO_OVERLAY.
-    draw(model, base, &poses, uv, 0xFFFF_FFFF, light, 0, out);
 }
 /// `Deadmau5EarsLayer.submit` with `PlayerEarsModel`: the player model's
 /// head carrying two 6x6x1 ears (the model's other cubes are cleared),
@@ -2341,7 +2383,7 @@ pub fn part_matrix(
         .find_map(|c| part_matrix(c, m, poses, name, x_offset))
 }
 /// The first part named `name`, depth first.
-pub(super) fn find_part<'a>(part: &'a Part, name: &str) -> Option<&'a Part> {
+pub fn find_part<'a>(part: &'a Part, name: &str) -> Option<&'a Part> {
     if part.name == name {
         return Some(part);
     }
@@ -2679,6 +2721,84 @@ pub fn held_item_stack(extra: &super::Extra, off_hand: bool) -> Option<crate::it
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn each_equipment_part_uses_its_own_block_space_frame() {
+        let polygon = super::super::Polygon {
+            normal: [0.0, 0.0, 1.0],
+            vertices: [
+                [-4.0, -8.0, 2.0, 0.0, 0.0],
+                [4.0, -8.0, 2.0, 1.0, 0.0],
+                [4.0, 8.0, 2.0, 1.0, 1.0],
+                [-4.0, 8.0, 2.0, 0.0, 1.0],
+            ],
+            cull_back: false,
+        };
+        let names = [
+            "head",
+            "body",
+            "left_arm",
+            "right_arm",
+            "left_leg",
+            "right_leg",
+        ];
+        let model = Part {
+            name: "root".into(),
+            pose: [32.0, 48.0, -16.0, 0.3, 0.4, 0.5, 2.0, 3.0, 4.0],
+            polygons: Vec::new(),
+            children: names
+                .iter()
+                .map(|name| Part {
+                    name: (*name).into(),
+                    pose: [16.0, -24.0, 8.0, 0.1, 0.2, 0.3, 1.5, 2.0, 0.5],
+                    polygons: vec![polygon.clone()],
+                    children: Vec::new(),
+                })
+                .collect(),
+        };
+        let mut vertices = Vec::new();
+        for (index, name) in names.into_iter().enumerate() {
+            let frame =
+                glam::Mat4::from_translation(glam::Vec3::new(index as f32 * 2.0, 3.0, -5.0))
+                    * glam::Mat4::from_rotation_y(index as f32 * 0.2)
+                    * glam::Mat4::from_scale(glam::Vec3::new(0.5, 1.5, 2.0));
+            let start = vertices.len();
+            assert!(draw_part_frame(
+                &model,
+                name,
+                frame,
+                [0.1, 0.2, 0.7, 0.9],
+                0xff12_3456,
+                0x00f0_0070,
+                ARMOR_GLINT,
+                &mut vertices,
+            ));
+            assert_eq!(vertices.len() - start, 4);
+            for (vertex, local) in vertices[start..].iter().zip(polygon.vertices) {
+                let expected = frame.transform_point3(glam::Vec3::new(
+                    local[0] / 16.0,
+                    local[1] / 16.0,
+                    local[2] / 16.0,
+                ));
+                assert!((glam::Vec3::from(vertex.pos) - expected).length() < 1.0e-6);
+                assert_eq!(vertex.layer, ARMOR_GLINT);
+                assert_eq!(vertex.color, 0xff12_3456);
+                assert_eq!(vertex.light, 0x00f0_0070);
+                assert_eq!(vertex.glint_uv, [local[3], local[4]]);
+            }
+        }
+        assert!(!draw_part_frame(
+            &model,
+            "missing",
+            glam::Mat4::IDENTITY,
+            [0.0, 0.0, 1.0, 1.0],
+            u32::MAX,
+            0,
+            0,
+            &mut vertices,
+        ));
+        assert_eq!(vertices.len(), 24);
+    }
 
     #[test]
     fn creeper_swelling_uses_local_fuse_and_keeps_java_zero_division() {

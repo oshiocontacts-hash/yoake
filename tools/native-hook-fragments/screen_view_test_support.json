@@ -1,0 +1,8 @@
+{
+  "hooks": [],
+  "rust_summary": "NativeScreenView::for_test for resource-free native mod tests.",
+  "doc_summary": "NativeScreenView::for_test(id: &'static str) constructs an empty synthetic screen view under cfg(test) or feature test-support. Require hooks @API:screen_view_test_support@ or higher.",
+  "comments": [
+    "crates/horizon-client/src/mod_api.rs"
+  ]
+}

@@ -7,6 +7,8 @@
 //! (crate::auth): the login joins the server through the session service and
 //! encrypts the connection (ClientHandshakePacketListenerImpl.handleHello).
 use crate::auth::AuthSession;
+#[cfg(feature = "dev-capture")]
+use horizon_protocol::connection::{CAPTURE_FENCE_CHANNEL, CaptureFenceId, CaptureFences};
 use horizon_protocol::{
     PROTOCOL_VERSION,
     connection::{ConnReader, ConnWriter, Connection, Counters},
@@ -57,6 +59,8 @@ pub enum Event {
         name: String,
     },
     Packet(Box<play::Clientbound>),
+    #[cfg(feature = "dev-capture")]
+    CaptureFence(CaptureFenceId),
     /// A packet that failed to decode (skipped, like vanilla's skippable packets).
     DecodeError(String),
     /// The server sent us back to configuration (`ClientboundStartConfigurationPacket`):
@@ -100,10 +104,13 @@ pub enum Event {
 
 pub struct Session {
     events: Receiver<Event>,
+    #[cfg(feature = "dev-capture")]
+    capture_fences: Option<CaptureFences>,
     writer: Arc<Mutex<Option<ConnWriter>>>,
     /// The connection is in configuration (else in play). Changed only
     /// with `writer` locked, as the packet that switches is sent.
     configuring: Arc<AtomicBool>,
+    capture_item_tags: bool,
     thread: Option<JoinHandle<()>>,
     pub address: String,
     pub name: String,
@@ -124,9 +131,19 @@ impl Session {
         info: cfg::ClientInformation,
         lang: Arc<Language>,
         resources: PathBuf,
+        capture_item_tags: bool,
     ) -> Self {
         Self::start(
-            address, name, auth, info, lang, None, None, resources, false,
+            address,
+            name,
+            auth,
+            info,
+            lang,
+            None,
+            None,
+            resources,
+            false,
+            capture_item_tags,
         )
     }
     /// `ClientHandshakePacketListenerImpl.handleHello`: LAN entries can continue
@@ -139,8 +156,20 @@ impl Session {
         info: cfg::ClientInformation,
         lang: Arc<Language>,
         resources: PathBuf,
+        capture_item_tags: bool,
     ) -> Self {
-        Self::start(address, name, auth, info, lang, None, None, resources, true)
+        Self::start(
+            address,
+            name,
+            auth,
+            info,
+            lang,
+            None,
+            None,
+            resources,
+            true,
+            capture_item_tags,
+        )
     }
     /// `ConnectScreen.startConnecting` for a `transfer`: the cookies the
     /// server stored carry to the new connection (`TransferState`).
@@ -152,6 +181,7 @@ impl Session {
         lang: Arc<Language>,
         cookies: Cookies,
         resources: PathBuf,
+        capture_item_tags: bool,
     ) -> Self {
         Self::start(
             address,
@@ -163,6 +193,7 @@ impl Session {
             Some(cookies),
             resources,
             false,
+            capture_item_tags,
         )
     }
     /// Join an integrated server through memory (`Connection.connectToLocalServer`).
@@ -172,6 +203,7 @@ impl Session {
         info: cfg::ClientInformation,
         lang: Arc<Language>,
         resources: PathBuf,
+        capture_item_tags: bool,
     ) -> Self {
         Self::start(
             "local",
@@ -183,6 +215,7 @@ impl Session {
             None,
             resources,
             false,
+            capture_item_tags,
         )
     }
     fn start(
@@ -195,8 +228,11 @@ impl Session {
         cookies: Option<Cookies>,
         resources: PathBuf,
         lan: bool,
+        capture_item_tags: bool,
     ) -> Self {
         let (send, events) = channel();
+        #[cfg(feature = "dev-capture")]
+        let capture_fences = local.as_ref().map(|pipe| pipe.capture_fences());
         let writer = Arc::new(Mutex::new(None));
         let configuring = Arc::new(AtomicBool::new(true));
         let counters = Arc::new(Mutex::new(None));
@@ -229,6 +265,7 @@ impl Session {
                     transferred,
                     &resources,
                     lan,
+                    capture_item_tags,
                 );
                 thread_far.cancel();
                 let from_server = result.is_ok();
@@ -246,8 +283,11 @@ impl Session {
         let debug = std::env::var_os("HORIZON_NET_DEBUG").is_some();
         Self {
             events,
+            #[cfg(feature = "dev-capture")]
+            capture_fences,
             writer,
             configuring,
+            capture_item_tags,
             thread,
             address: address.to_owned(),
             name: name.to_owned(),
@@ -260,6 +300,46 @@ impl Session {
     /// Everything received since the last poll.
     pub fn poll(&self) -> Vec<Event> {
         self.events.try_iter().collect()
+    }
+    /// Whether this connection captures server-synchronized item tags.
+    pub fn captures_item_tags(&self) -> bool {
+        self.capture_item_tags
+    }
+    #[cfg(feature = "dev-capture")]
+    pub fn capture_fence(&self, id: CaptureFenceId) -> Result<(), String> {
+        let fences = self
+            .capture_fences
+            .as_ref()
+            .ok_or("capture requires an in-memory connection")?;
+        let mut writer = self.writer.lock().unwrap();
+        if self.configuring.load(Ordering::Relaxed) {
+            return Err("capture cannot fence a configuring connection".into());
+        }
+        let writer = writer.as_mut().ok_or("capture connection is closed")?;
+        if !fences.prepare(id) {
+            return Err("capture fence is stale or another fence is pending".into());
+        }
+        writer
+            .send(
+                &play::Serverbound::CustomPayload(cfg::CustomPayload {
+                    channel: CAPTURE_FENCE_CHANNEL.into(),
+                    data: id.encode(),
+                })
+                .encode(),
+            )
+            .map_err(|error| error.to_string())
+    }
+    #[cfg(feature = "dev-capture")]
+    pub fn capture_apply_output(&self, id: CaptureFenceId) -> bool {
+        self.capture_fences
+            .as_ref()
+            .is_some_and(|fences| fences.apply_output(id))
+    }
+    #[cfg(feature = "dev-capture")]
+    pub fn capture_output_applied(&self, id: CaptureFenceId) -> bool {
+        self.capture_fences
+            .as_ref()
+            .is_some_and(|fences| fences.output_applied(id))
     }
     /// Send a play packet; silently dropped once the connection is gone,
     /// and while the server has the connection back in configuration (a
@@ -616,6 +696,7 @@ fn run(
     transferred: bool,
     resources: &Path,
     lan: bool,
+    capture_item_tags: bool,
 ) -> Result<Reason, Reason> {
     let (host, port, mut c) = if let Some(pipe) = local {
         (address.to_owned(), 0, Connection::local(pipe))
@@ -770,6 +851,8 @@ fn run(
         .encode(),
     )
     .map_err(e)?;
+    #[cfg(feature = "dev-capture")]
+    let capture_fences = c.capture_fences();
     let (mut reader, writer) = c.split();
     *shared_writer.lock().unwrap() = Some(writer);
     let registries = configure(
@@ -780,6 +863,7 @@ fn run(
         send,
         cookies,
         resources,
+        capture_item_tags,
     )?;
     let _ = send.send(Event::Joined {
         registries: Arc::new(registries),
@@ -795,6 +879,9 @@ fn run(
         cookies,
         far,
         resources,
+        capture_item_tags,
+        #[cfg(feature = "dev-capture")]
+        capture_fences,
     )
 }
 
@@ -807,6 +894,8 @@ fn receive_play(
     cookies: &Cookies,
     far: &crate::lod_net::Inbox,
     resources: &Path,
+    capture_item_tags: bool,
+    #[cfg(feature = "dev-capture")] capture_fences: Option<CaptureFences>,
 ) -> Result<Reason, Reason> {
     loop {
         let (id, payload) = reader
@@ -853,6 +942,7 @@ fn receive_play(
                     send,
                     cookies,
                     resources,
+                    capture_item_tags,
                 )?;
                 let _ = send.send(Event::Reconfigured(Arc::new(registries)));
             }
@@ -881,6 +971,18 @@ fn receive_play(
                 return Ok(Reason::keyed("disconnect.transfer", lang));
             }
             play::Clientbound::Disconnect(d) => return Ok(Reason::tag(&d.reason, lang)),
+            #[cfg(feature = "dev-capture")]
+            play::Clientbound::CustomPayload(payload)
+                if payload.channel == CAPTURE_FENCE_CHANNEL && capture_fences.is_some() =>
+            {
+                if let Some(id) = CaptureFenceId::decode(&payload.data)
+                    && capture_fences
+                        .as_ref()
+                        .is_some_and(|fences| fences.expected(id))
+                {
+                    let _ = send.send(Event::CaptureFence(id));
+                }
+            }
             play::Clientbound::CustomPayload(p) if p.channel == "minecraft:brand" => {
                 receive_brand(&p, send);
             }
@@ -907,6 +1009,7 @@ fn configure(
     send: &Sender<Event>,
     cookies: &Cookies,
     resources: &Path,
+    capture_item_tags: bool,
 ) -> Result<Dynamic, Reason> {
     let mut registries = Dynamic::default();
     let mut content_verified = false;
@@ -976,7 +1079,7 @@ fn configure(
                 let _ = send.send(Event::Features(p.features));
             }
             cfg::Clientbound::RegistryData(r) => registries.add(r),
-            cfg::Clientbound::UpdateTags(t) => registries.add_tags(&t),
+            cfg::Clientbound::UpdateTags(t) => registries.add_tags(&t, capture_item_tags),
             cfg::Clientbound::CodeOfConduct(c) => {
                 let _ = send.send(Event::CodeOfConduct(c.text));
             }
@@ -1271,6 +1374,7 @@ mod tests {
                 cfg::ClientInformation::new(8),
                 Arc::new(Language::new()),
                 PathBuf::new(),
+                false,
             );
             let (stream, _) = listener.accept().unwrap();
             stream
@@ -1425,6 +1529,9 @@ mod tests {
                 &Cookies::default(),
                 &crate::lod_net::Inbox::default(),
                 Path::new("."),
+                false,
+                #[cfg(feature = "dev-capture")]
+                None,
             ));
         });
         let ended = result
@@ -1452,6 +1559,118 @@ mod tests {
     }
 
     #[test]
+    fn reconfiguration_replaces_optional_item_tags_without_changing_dialog_tags() {
+        for capture_item_tags in [false, true] {
+            let (client, server) = horizon_protocol::connection::Pipe::pair();
+            let (mut reader, writer) = Connection::local(client).split();
+            let writer = Arc::new(Mutex::new(Some(writer)));
+            let thread_writer = writer.clone();
+            let (send, events) = channel();
+            let thread = std::thread::spawn(move || {
+                receive_play(
+                    &mut reader,
+                    &thread_writer,
+                    &AtomicBool::new(false),
+                    &Language::new(),
+                    &send,
+                    &Cookies::default(),
+                    &crate::lod_net::Inbox::default(),
+                    Path::new("."),
+                    capture_item_tags,
+                    #[cfg(feature = "dev-capture")]
+                    None,
+                )
+            });
+            let mut server = Connection::local(server);
+            let mut snapshots = Vec::new();
+            for round in 0..3 {
+                server
+                    .send(&play::Clientbound::StartConfiguration(Empty).encode())
+                    .unwrap();
+                let (packet_id, body) = server.recv().unwrap();
+                assert_eq!(
+                    play::Serverbound::decode(packet_id, &body).unwrap(),
+                    play::Serverbound::ConfigurationAcknowledged(Empty)
+                );
+                assert!(matches!(
+                    events.recv_timeout(Duration::from_secs(5)).unwrap(),
+                    Event::Reconfiguring
+                ));
+                let mut packet = cfg::UpdateTags {
+                    registries: vec![cfg::RegistryTags {
+                        registry: "minecraft:dialog".into(),
+                        tags: vec![cfg::TagEntry {
+                            name: "test:dialogs".into(),
+                            ids: vec![7],
+                        }],
+                    }],
+                };
+                if round < 2 {
+                    let mut tags = vec![cfg::TagEntry {
+                        name: "test:changed".into(),
+                        ids: vec![round + 1],
+                    }];
+                    if round == 0 {
+                        tags.push(cfg::TagEntry {
+                            name: "test:removed".into(),
+                            ids: vec![1],
+                        });
+                    }
+                    packet.registries.push(cfg::RegistryTags {
+                        registry: "minecraft:item".into(),
+                        tags,
+                    });
+                }
+                server
+                    .send(&cfg::Clientbound::UpdateTags(packet).encode())
+                    .unwrap();
+                server
+                    .send(&cfg::Clientbound::FinishConfiguration(Empty).encode())
+                    .unwrap();
+                let (packet_id, body) = server.recv().unwrap();
+                assert_eq!(
+                    cfg::Serverbound::decode(packet_id, &body).unwrap(),
+                    cfg::Serverbound::FinishConfiguration(Empty)
+                );
+                let Event::Reconfigured(registries) =
+                    events.recv_timeout(Duration::from_secs(5)).unwrap()
+                else {
+                    panic!("expected reconfigured registries");
+                };
+                assert_eq!(
+                    registries.dialog_tags,
+                    HashMap::from([("test:dialogs".into(), vec![7])])
+                );
+                let expected = if capture_item_tags {
+                    match round {
+                        0 => Some(HashMap::from([
+                            ("test:changed".into(), vec![1]),
+                            ("test:removed".into(), vec![1]),
+                        ])),
+                        1 => Some(HashMap::from([("test:changed".into(), vec![2])])),
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
+                assert_eq!(registries.item_tags, expected);
+                snapshots.push(registries);
+            }
+            if capture_item_tags {
+                assert_eq!(
+                    snapshots[0].item_tags.as_ref().unwrap(),
+                    &HashMap::from([
+                        ("test:changed".into(), vec![1]),
+                        ("test:removed".into(), vec![1]),
+                    ])
+                );
+            }
+            writer.lock().unwrap().take().unwrap().shutdown();
+            assert!(thread.join().unwrap().is_err());
+        }
+    }
+
+    #[test]
     fn configuration_answers_the_content_identity_challenge() {
         let root =
             std::env::temp_dir().join(format!("horizon-content-identity-{}", std::process::id()));
@@ -1475,6 +1694,7 @@ mod tests {
                 &send,
                 &Cookies::default(),
                 &root,
+                false,
             )
         });
         let mut server = Connection::local(server);
@@ -1537,6 +1757,7 @@ mod tests {
                 events,
                 writer: writer.clone(),
                 configuring: Arc::new(AtomicBool::new(false)),
+                capture_item_tags: false,
                 thread: Some(thread),
                 address: "local".into(),
                 name: "TestPlayer".into(),
@@ -1593,6 +1814,9 @@ mod tests {
                 &Cookies::default(),
                 &crate::lod_net::Inbox::default(),
                 Path::new("."),
+                false,
+                #[cfg(feature = "dev-capture")]
+                None,
             )
         });
         let mut server = Connection::local(server);
@@ -1638,6 +1862,7 @@ mod tests {
             events,
             writer: Arc::new(Mutex::new(Some(writer))),
             configuring: Arc::new(AtomicBool::new(false)),
+            capture_item_tags: false,
             thread: None,
             address: "local".into(),
             name: "Player".into(),
@@ -1658,6 +1883,9 @@ mod tests {
                 &Cookies::default(),
                 &crate::lod_net::Inbox::default(),
                 Path::new("."),
+                false,
+                #[cfg(feature = "dev-capture")]
+                None,
             )
         });
         let mut server = Connection::local(server);
@@ -1706,6 +1934,9 @@ mod tests {
                 &thread_cookies,
                 &crate::lod_net::Inbox::default(),
                 Path::new("."),
+                false,
+                #[cfg(feature = "dev-capture")]
+                None,
             )
         });
         let mut server = Connection::local(server);
@@ -1842,6 +2073,7 @@ mod tests {
                 cfg::ClientInformation::new(8),
                 Arc::new(lang),
                 PathBuf::new(),
+                false,
             );
             let reason = loop {
                 if let Event::Disconnected { reason, .. } = session

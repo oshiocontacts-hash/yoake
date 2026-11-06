@@ -2546,6 +2546,29 @@ impl Game<'_> {
             text,
         );
     }
+    /// Whether a mod changes name tag anchors. API @API:render_name_tag_position@.
+    pub(super) fn native_render_name_tag_position_listened(&self, listened: &mut bool) {
+        mod_api::dispatch_render_name_tag_position_listened(self, mod_api::mods(), listened);
+    }
+    /// Camera-relative world-block anchor, shared by the name and score lines.
+    /// API @API:render_name_tag_position@.
+    pub(super) fn native_render_name_tag_position(
+        &self,
+        entity_id: u32,
+        kind: &str,
+        anchor: &mut glam::DVec3,
+    ) {
+        mod_api::dispatch_render_name_tag_position(self, mod_api::mods(), entity_id, kind, anchor);
+    }
+    /// Whether a mod supplies extra equipment stacks. API @API:equipment_render_stacks@.
+    pub(super) fn native_equipment_render_stacks_listened(&self, listened: &mut bool) {
+        mod_api::dispatch_equipment_render_stacks_listened(self, mod_api::mods(), listened);
+    }
+    /// Extra stacks whose trims must be ready before render callbacks.
+    /// API @API:equipment_render_stacks@.
+    pub(super) fn native_equipment_render_stacks(&self, stacks: &mut Vec<ItemStack>) {
+        mod_api::dispatch_equipment_render_stacks(self, mod_api::mods(), stacks);
+    }
     /// Before one first-person hand and its displayed stack are drawn (RenderHandEvent).
     /// Equip progress is the inverse arm height, including the item's swap animation scale.
     /// Cancel skips that hand's default geometry, including its map and arm geometry.
@@ -6140,6 +6163,44 @@ impl Game<'_> {
     pub(super) fn native_item_bar(&self, stack: &ItemStack, bar: &mut Option<(i32, u32)>) {
         mod_api::dispatch_item_bar(self, mod_api::mods(), stack, bar);
     }
+
+    /// Draw in GUI coordinates after the bar and before the shade and count.
+    /// Cancel suppresses only the vanilla cooldown shade. @API:item_slot_cooldown@.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn native_item_slot_cooldown(
+        &self,
+        batch: &mut HudBatch,
+        stack: &ItemStack,
+        rect: [f32; 4],
+        cooldown: Option<(f32, f32)>,
+        partial_tick: f32,
+        canceled: &mut bool,
+    ) {
+        mod_api::dispatch_item_slot_cooldown(
+            self,
+            mod_api::mods(),
+            batch,
+            stack,
+            rect,
+            cooldown,
+            partial_tick,
+            canceled,
+        );
+    }
+
+    /// Collect fixed interest once after native mods have been loaded.
+    /// @API:item_slot_cooldown@.
+    pub(super) fn native_item_slot_cooldown_listened(&self, listened: &mut bool) {
+        mod_api::dispatch_item_slot_cooldown_listened(self, mod_api::mods(), listened);
+    }
+
+    /// Collect item-tag interest before opening any connection.
+    /// Set `listened` to true to capture that connection's item tag packets.
+    /// @API:client_item_queries@.
+    pub(super) fn native_client_item_tags_listened(&self, listened: &mut bool) {
+        mod_api::dispatch_client_item_tags_listened(self, mod_api::mods(), listened);
+    }
+
     /// Append an item's custom decorations after its default bar, cooldown and count.
     /// Coordinates are the icon's top-left in GUI units, as the batch takes them;
     /// no item translation is active.

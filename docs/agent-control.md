@@ -352,6 +352,46 @@ A recording is one folder, a bundle is that folder plus the logs in one zip:
   `state.jsonl` is the oracle for where the re-run should have ended. A server recording replays
   only `--in-place`, into the same world.
 
+## Fixed-step capture (`dev-capture`)
+
+Development capture is compiled only with the non-default `dev-capture` feature, in both the
+client and `horizon-ctl`. Start the game with explicit `--control` or `--control-socket`;
+enabling Agent Control in settings alone does not permit capture. The main-loop and transport
+integration and a registered PNG output adapter are prerequisites. This implementation slice
+provides the clock, control and server-stepping interfaces, not the GPU readback or PNG worker;
+without an output adapter the command fails before holding the server.
+
+```sh
+horizon-ctl capture frames --fps 30 --frames 120
+horizon-ctl capture-status
+horizon-ctl capture-cancel
+```
+
+`--fps` defaults to 30; `--frames` is required. Both must be positive integers. Relative output
+directories are resolved against the CLI's working directory. The wire command is `capture`
+followed by one JSON object, for example `capture {"directory":"/tmp/frames","fps":30,"frames":120}`;
+unknown JSON fields are rejected. The capture command waits for all frame-write
+acknowledgements and restored clocks before replying. Use a second connection for status and
+cancellation. Cancellation is asynchronous; poll status until it becomes terminal.
+
+Only an unpublished integrated single-player world is accepted. Remote servers, LAN
+publication or pending publication, split-screen or extra players, a frozen or sprinting tick
+manager, outstanding tick steps, Agent Control's tick hold, and rates other than 20 TPS are
+rejected. Recording and replay cannot run concurrently. The gate is checked again while held.
+
+Frames use the exact rational schedule `floor(20*k/fps) - floor(20*(k-1)/fps)` for server ticks
+and `(20*k % fps)/fps` for the partial tick. Start holds the server and fences the transport.
+Each due tick runs on the integrated thread, then both directions are application-fenced.
+All due server ticks finish before the client ticks run. A frame without a due tick is fenced
+too. A frame event and render
+are requested once at that frame's virtual endpoint, and the next frame waits for the output
+write acknowledgement. Slow rendering or encoding cannot advance simulation time twice.
+Numbering starts at `000000.png`. Status reports session/generation identity, phase, FPS,
+requested and written frame counts, acknowledged server/client ticks and any failure; terminal
+status remains available after restoration. Finish, cancel and failure restore and rebase the
+real-time clocks. Capture requests the `Muted` audio policy; applying that policy to audio
+playback belongs to the audio integration slice.
+
 ## Tests
 
 - **Unit tests:**
@@ -361,7 +401,10 @@ A recording is one folder, a bundle is that folder plus the logs in one zip:
   - `horizon_core::no_ai`;
   - `options_ui`: the AI Agent page, and that No AI hides it;
   - `input_trace`: origins, the ring, the intrusion rule, `input-log` and the recording writer;
-  - `repro`: the format's round trip, the folder slug and the world copy.
+  - `repro`: the format's round trip, the folder slug and the world copy;
+  - with `dev-capture`: rational schedules and residuals, one presentation per frame with a
+    slow fake output, cancellation/failure restoration, typed asynchronous step identity and
+    in-memory transport fences. These tests do not replace GPU/readback or end-to-end checks.
 - **`tools/agent_control_e2e.py`** drives a real game, offscreen on macOS and on a virtual screen
   on Linux, through the CLI and MCP:
   - `survival`, `ui`, `options`, `events`, `consume`, `pick`, `suggestions`;

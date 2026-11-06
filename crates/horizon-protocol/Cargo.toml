@@ -6,6 +6,9 @@ license.workspace = true
 rust-version.workspace = true
 description = "Horizon's Minecraft Java Edition 26.3 network protocol (version 777)"
 
+[features]
+dev-capture = []
+
 [dependencies]
 horizon-core = { path = "../horizon-core" }
 horizon-world = { path = "../horizon-world" }

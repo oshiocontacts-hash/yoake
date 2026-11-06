@@ -1,0 +1,14 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "fan",
+      "target": "horizon_client::game::native_item_slot::Game<'_>::native_fan"
+    }
+  ],
+  "rust_summary": "a GUI triangle-fan Host helper backed by existing six-vertex quads in `native_item_slot.rs`.",
+  "doc_summary": "`fan(batch, center, edge, argb)` emits one triangle for each adjacent pair of GUI edge points, using `[center, a, b, b]` quads. Fewer than two edge points emit nothing. The boundary is open: repeat the first point at the end for a closed fan. Existing quad clipping/scaling can be used without a new rendering pipeline. Bundles need the @API:gui_fan@ hook requirement.",
+  "comments": [
+    "crates/horizon-client/src/game/native_item_slot.rs"
+  ]
+}

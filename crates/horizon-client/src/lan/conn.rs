@@ -247,6 +247,8 @@ pub struct PlayerSender {
     posted: Arc<AtomicUsize>,
     /// A network connection's keep-alive clock (none for a test's channel).
     watch: Option<Arc<KeepAliveWatch>>,
+    #[cfg(feature = "dev-capture")]
+    capture_fences: Option<horizon_protocol::connection::CaptureFences>,
 }
 impl PlayerSender {
     pub fn new(tx: Sender<Out>, pending: Arc<AtomicUsize>) -> Self {
@@ -256,12 +258,38 @@ impl PlayerSender {
             held: Arc::default(),
             posted: Arc::default(),
             watch: None,
+            #[cfg(feature = "dev-capture")]
+            capture_fences: None,
         }
     }
     /// Whether the client has answered no keep-alive for too long, read
     /// without the writer thread, which a client that stops reading blocks.
     pub fn timed_out(&self) -> bool {
         self.watch.as_ref().is_some_and(|w| w.timed_out())
+    }
+    #[cfg(feature = "dev-capture")]
+    pub fn capture_apply_input(&self, packet: &play::Serverbound) -> bool {
+        use horizon_protocol::connection::{CAPTURE_FENCE_CHANNEL, CaptureFenceId};
+        let play::Serverbound::CustomPayload(payload) = packet else {
+            return false;
+        };
+        payload.channel == CAPTURE_FENCE_CHANNEL
+            && CaptureFenceId::decode(&payload.data).is_some_and(|id| {
+                self.capture_fences
+                    .as_ref()
+                    .is_some_and(|fences| fences.apply_input(id))
+            })
+    }
+    #[cfg(feature = "dev-capture")]
+    pub fn capture_output(&self, id: horizon_protocol::connection::CaptureFenceId) {
+        self.send(
+            play::Clientbound::CustomPayload(cfg::CustomPayload {
+                channel: horizon_protocol::connection::CAPTURE_FENCE_CHANNEL.into(),
+                data: id.encode(),
+            })
+            .encode(),
+        );
+        self.flush();
     }
     /// Close the connection now: the writer and reader threads then end,
     /// even blocked on it.
@@ -1254,6 +1282,8 @@ fn play(c: Connection, shared: &Arc<Shared>, parts: Parts, address: std::net::So
     let conn_id = shared.next_id();
     let events = shared.events.clone();
     let _ = c.reader.set_read_timeout(Some(READ_TIMEOUT));
+    #[cfg(feature = "dev-capture")]
+    let capture_fences = c.capture_fences();
     let (mut reader, writer) = c.split();
     let (tx, rx) = channel();
     let pending = Arc::new(AtomicUsize::new(0));
@@ -1261,6 +1291,10 @@ fn play(c: Connection, shared: &Arc<Shared>, parts: Parts, address: std::net::So
     let alive = Arc::new(AtomicI64::new(-1));
     let start = Instant::now();
     let mut sender = PlayerSender::new(tx.clone(), pending.clone());
+    #[cfg(feature = "dev-capture")]
+    {
+        sender.capture_fences = capture_fences;
+    }
     if let Ok(closer) = reader.closer() {
         sender.watch = Some(Arc::new(KeepAliveWatch {
             start,

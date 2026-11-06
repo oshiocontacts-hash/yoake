@@ -223,6 +223,12 @@ impl Session {
                 self.wait_ready(limit)
             }
             "help" if words.get(1).is_some_and(|w| w == "--game") => self.game("help"),
+            #[cfg(feature = "dev-capture")]
+            "capture" => {
+                let cwd =
+                    std::env::current_dir().map_err(|error| Failure::usage(error.to_string()))?;
+                self.game(&capture_wire(words, &cwd)?)
+            }
             _ => {
                 let mut words = words.to_vec();
                 if let Some(cmd) = commands::find(name) {
@@ -312,6 +318,54 @@ fn logs(home: &Path, words: &[String]) -> Result<Value, Failure> {
 
 fn usage(name: &str) -> String {
     commands::find(name).map_or_else(|| name.to_owned(), |c| format!("horizon-ctl {}", c.usage))
+}
+
+#[cfg(feature = "dev-capture")]
+fn capture_wire(words: &[String], cwd: &Path) -> Result<String, Failure> {
+    let directory = words
+        .get(1)
+        .filter(|directory| !directory.is_empty() && !directory.starts_with("--"))
+        .ok_or_else(|| Failure::usage(usage("capture")))?;
+    let mut flags = words[2..].chunks_exact(2);
+    let mut fps = None;
+    let mut frames = None;
+    for pair in &mut flags {
+        match pair[0].as_str() {
+            "--fps" if fps.is_none() => {
+                fps = Some(
+                    pair[1]
+                        .parse::<u32>()
+                        .map_err(|error| Failure::usage(error.to_string()))?,
+                );
+            }
+            "--frames" if frames.is_none() => {
+                frames = Some(
+                    pair[1]
+                        .parse::<u64>()
+                        .map_err(|error| Failure::usage(error.to_string()))?,
+                );
+            }
+            flag => {
+                return Err(Failure::usage(format!(
+                    "unknown or duplicate capture flag: {flag}"
+                )));
+            }
+        }
+    }
+    if !flags.remainder().is_empty() {
+        return Err(Failure::usage("missing capture flag value"));
+    }
+    let fps = fps.unwrap_or(30);
+    let frames = frames.ok_or_else(|| Failure::usage("capture requires --frames N"))?;
+    if fps == 0 || frames == 0 {
+        return Err(Failure::usage(
+            "capture fps and frame count must be positive",
+        ));
+    }
+    Ok(format!(
+        "capture {}",
+        json!({"directory": cwd.join(directory), "fps": fps, "frames": frames})
+    ))
 }
 
 /// Paths are written by the game process: make them absolute here.
@@ -555,6 +609,60 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_paths_are_json_encoded_and_relative_to_the_caller() {
+        let cwd = Path::new("capture-home");
+        let words = vec![
+            "capture".into(),
+            "frames with spaces".into(),
+            "--frames".into(),
+            "120".into(),
+        ];
+        let wire = capture_wire(&words, cwd).unwrap();
+        let arguments: Value =
+            serde_json::from_str(wire.strip_prefix("capture ").unwrap()).unwrap();
+        assert_eq!(
+            arguments["directory"],
+            json!(cwd.join("frames with spaces"))
+        );
+        assert_eq!(arguments["fps"], 30);
+        assert_eq!(arguments["frames"], 120);
+        let wire = capture_wire(
+            &["capture", "frames", "--frames", "5", "--fps", "29"].map(String::from),
+            cwd,
+        )
+        .unwrap();
+        let arguments: Value =
+            serde_json::from_str(wire.strip_prefix("capture ").unwrap()).unwrap();
+        assert_eq!(arguments["fps"], 29);
+    }
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_rejects_missing_zero_duplicate_and_unknown_arguments() {
+        for command in [
+            "capture",
+            "capture frames",
+            "capture frames --frames",
+            "capture frames --frames 0",
+            "capture frames --fps 0 --frames 1",
+            "capture frames --fps -1 --frames 1",
+            "capture frames --frames 1 --frames 2",
+            "capture frames --frames 1 --fps 30 --fps 60",
+            "capture frames --unknown 1 --frames 1",
+        ] {
+            let words: Vec<_> = command.split_whitespace().map(String::from).collect();
+            assert_eq!(
+                capture_wire(&words, Path::new("capture-home"))
+                    .unwrap_err()
+                    .status,
+                USAGE,
+                "{command}"
+            );
+        }
+    }
 
     #[test]
     fn logs_reads_the_end_of_latest_log_and_the_newest_crash_report() {
