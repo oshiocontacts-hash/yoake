@@ -878,12 +878,16 @@ fn sources(root: &Path, fill: FillMode) -> Result<Sources, String> {
         let mut lifetimes = EventLifetimes::default();
         let mut fields = String::new();
         let mut inits = Vec::new();
+        let mut test_params = Vec::new();
+        let mut test_inits = Vec::new();
         let mut write_back = String::new();
         let collected = output.as_ref().filter(|_| contract == "collect");
         for (name, ty) in args.iter().chain(collected) {
             dispatch_params.push(format!("{name}: {}", ty.to_token_stream()));
             let (field, scalar) = lifetimes.field(ty);
             fields.push_str(&format!("pub {name}: {},\n", field.to_token_stream()));
+            test_params.push(format!("{name}: {}", field.to_token_stream()));
+            test_inits.push(name.clone());
             if scalar {
                 inits.push(format!("{name}: *{name}"));
                 write_back.push_str(&format!("*{name} = {event}.{name};"));
@@ -964,6 +968,18 @@ fn sources(root: &Path, fill: FillMode) -> Result<Sources, String> {
         dispatch.push_str(&format!(
             "/// What [`{trait_name}::{name}`] is told. Fields may be added: the struct is `#[non_exhaustive]`.\n#[non_exhaustive]\npub struct {event_type}{generics} {{\n{fields}}}\n"
         ));
+        if matches!(name, "player_submit" | "mob_layer") {
+            let test_params = test_params.join(", ");
+            let test_inits = test_inits.join(", ");
+            dispatch.push_str(&format!(
+                r#"#[cfg(any(test, feature = "test-support"))]
+impl{generics} {event_type}{generics} {{
+/// A synthetic event for trait-mod tests.
+pub fn for_test({test_params}) -> Self {{ Self {{ {test_inits} }} }}
+}}
+"#
+            ));
+        }
         let build = format!("let mut {event} = {event_type} {{ {} }};", inits.join(", "));
         // A trait mod's call is marked with the mod for a panic to name; render hooks are called bare.
         let each = if is_render {
@@ -1168,6 +1184,60 @@ pub fn generate_test_hooks(root: &Path, out_dir: &Path) -> Result<(), String> {
 mod tests {
     use quote::ToTokens;
     use serde_json::Value;
+
+    #[test]
+    fn player_render_events_have_feature_gated_test_constructors() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let generated = super::sources(&root, super::FillMode::Ignore)
+            .unwrap()
+            .hooks;
+        let file = syn::parse_file(&generated).unwrap();
+        let expected_attribute: syn::Attribute =
+            syn::parse_quote!(#[cfg(any(test, feature = "test-support"))]);
+        for (event_type, signature) in [
+            (
+                "PlayerSubmitEvent",
+                "fn for_test(player: &'a NativeMobRender<'a>, who: &'a NativePlayerRender<'a>, draw: &'a mut BlockEntityDraw) -> Self",
+            ),
+            (
+                "MobLayerEvent",
+                "fn for_test(mob: &'a NativeMobRender<'a>, who: Option<&'a NativePlayerRender<'a>>, draw: &'a mut BlockEntityDraw) -> Self",
+            ),
+        ] {
+            let implementation = file
+                .items
+                .iter()
+                .find_map(|item| {
+                    let syn::Item::Impl(implementation) = item else {
+                        return None;
+                    };
+                    let syn::Type::Path(path) = implementation.self_ty.as_ref() else {
+                        return None;
+                    };
+                    (path.path.segments.last()?.ident == event_type).then_some(implementation)
+                })
+                .expect("event test constructor implementation");
+            assert!(implementation.attrs.iter().any(|attribute| {
+                attribute.to_token_stream().to_string()
+                    == expected_attribute.to_token_stream().to_string()
+            }));
+            let constructor = implementation
+                .items
+                .iter()
+                .find_map(|item| match item {
+                    syn::ImplItem::Fn(method) if method.sig.ident == "for_test" => Some(method),
+                    _ => None,
+                })
+                .expect("public for_test constructor");
+            assert!(matches!(&constructor.vis, syn::Visibility::Public(_)));
+            let expected_signature: syn::Signature = syn::parse_str(signature).unwrap();
+            assert_eq!(
+                constructor.sig.to_token_stream().to_string(),
+                expected_signature.to_token_stream().to_string(),
+            );
+        }
+    }
+
     #[test]
     fn fragment_hooks_generate_and_duplicates_fail() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");

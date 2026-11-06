@@ -3,8 +3,13 @@
 //! Trait mods are process-wide, like mixin module statics.
 //! Hooks use `&self + Send + Sync` for shared and reentrant calls; see `docs/native-mods.md`.
 //! Cargo generates the trait and dispatch from the catalog and source signatures into OUT_DIR.
+use std::cell::Cell;
 use std::sync::{Arc, OnceLock};
 
+pub use crate::audio::{
+    NativePlaybackHandle, NativeSoundError, NativeSoundHandle, NativeSoundLimits,
+    NativeSoundRegistration, NativeSoundTarget,
+};
 pub use crate::biome::{BiomeColors, SpawnEntry};
 pub use crate::block_sprites::{BlockSprites, FaceSprite, SpriteRef};
 pub use crate::camera::{CameraEntity, FovPlayer};
@@ -529,6 +534,22 @@ pub fn name_mods(ids: &'static [&'static str]) {
     }
 }
 
+thread_local! {
+    static LOCAL_SOUND_CALLER: Cell<Option<usize>> = const { Cell::new(None) };
+}
+
+pub(crate) fn local_sound_caller() -> Option<usize> {
+    LOCAL_SOUND_CALLER.with(Cell::get)
+}
+
+struct LocalSoundScope(Option<usize>);
+
+impl Drop for LocalSoundScope {
+    fn drop(&mut self) {
+        LOCAL_SOUND_CALLER.with(|caller| caller.set(self.0));
+    }
+}
+
 /// `mods` in order, each marked as running `hook` until the next one is (or the loop ends), so a
 /// panic in it names the mod. The generated dispatch loops over it.
 fn entered<'a>(mods: &'a [Box<dyn Hooks>], hook: &'static str) -> Entered<'a> {
@@ -536,6 +557,7 @@ fn entered<'a>(mods: &'a [Box<dyn Hooks>], hook: &'static str) -> Entered<'a> {
         mods: mods.iter().enumerate(),
         hook,
         guard: None,
+        sound_scope: None,
     }
 }
 
@@ -543,6 +565,7 @@ struct Entered<'a> {
     mods: std::iter::Enumerate<std::slice::Iter<'a, Box<dyn Hooks>>>,
     hook: &'static str,
     guard: Option<crate::crash::NativeModGuard>,
+    sound_scope: Option<LocalSoundScope>,
 }
 
 impl<'a> Iterator for Entered<'a> {
@@ -550,8 +573,13 @@ impl<'a> Iterator for Entered<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         // The last mod's mark goes first, so the next one's puts back what was there before.
+        drop(self.sound_scope.take());
         drop(self.guard.take());
         let (index, hooks) = self.mods.next()?;
+        self.sound_scope =
+            Some(LocalSoundScope(LOCAL_SOUND_CALLER.with(|caller| {
+                caller.replace((self.hook == "tick").then_some(index))
+            })));
         self.guard = Some(crate::crash::enter_native_mod(
             crate::crash::NativeModCall {
                 id: MOD_IDS.get().and_then(|ids| ids.get(index)).copied(),
@@ -667,6 +695,43 @@ mod tests {
 
     struct Quiet;
     impl Hooks for Quiet {}
+
+    #[test]
+    fn local_sound_identity_is_scoped_to_each_dispatching_tick_mod() {
+        let mods: Vec<Box<dyn Hooks>> = vec![Box::new(Quiet), Box::new(Quiet)];
+        assert_eq!(local_sound_caller(), None);
+        let mut dispatch = entered(&mods, "tick");
+        assert!(dispatch.next().is_some());
+        assert_eq!(local_sound_caller(), Some(0));
+        assert!(dispatch.next().is_some());
+        assert_eq!(local_sound_caller(), Some(1));
+        {
+            let mut nested = entered(&mods, "use_item_on");
+            assert!(nested.next().is_some());
+            assert_eq!(local_sound_caller(), None);
+        }
+        assert_eq!(local_sound_caller(), Some(1));
+        assert!(dispatch.next().is_none());
+        assert_eq!(local_sound_caller(), None);
+    }
+
+    #[test]
+    fn local_sound_identity_is_restored_after_early_exit_and_unwind() {
+        let mods: Vec<Box<dyn Hooks>> = vec![Box::new(Quiet)];
+        {
+            let mut dispatch = entered(&mods, "tick");
+            assert!(dispatch.next().is_some());
+            assert_eq!(local_sound_caller(), Some(0));
+        }
+        assert_eq!(local_sound_caller(), None);
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut dispatch = entered(&mods, "tick");
+            assert!(dispatch.next().is_some());
+            panic!("local sound scope probe");
+        }));
+        assert!(result.is_err());
+        assert_eq!(local_sound_caller(), None);
+    }
 
     struct Broken;
     impl Hooks for Broken {

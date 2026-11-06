@@ -55,6 +55,27 @@ pub struct NativeMobRender<'a> {
 }
 
 impl<'a> NativeMobRender<'a> {
+    /// A synthetic mob frame with neutral animation state, for mod tests.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn for_test(id: u32, kind: &'a str) -> Self {
+        Self {
+            id,
+            kind,
+            custom_name: None,
+            baby: false,
+            partial: 0.0,
+            age: 0.0,
+            body_yaw: 0.0,
+            head_yaw: 0.0,
+            pitch: 0.0,
+            walk_position: 0.0,
+            walk_speed: 0.0,
+            hurt_time: 0,
+            death_time: 0,
+            on_ground: false,
+        }
+    }
+
     /// The render state of `m` at `pose.partial` (`LivingEntityRenderer.extractRenderState`).
     pub(super) fn of(m: &'a Mob, pose: anim::State) -> Self {
         let partial = pose.partial;
@@ -131,9 +152,62 @@ pub struct NativePlayerRender<'a> {
     pub glowing: bool,
     /// The client's synchronized frozen tick count.
     pub frozen_ticks: i32,
+    /// Whether the player's body touches water this tick.
+    pub in_water: bool,
+    /// Whether the player's eye is in water this tick.
+    pub eye_in_water: bool,
+    /// Ability flight for the local player; remote abilities are not available.
+    pub flying: Option<bool>,
+    /// Current health, or `None` if the local player's motion state is unavailable.
+    pub health: Option<f32>,
+    /// Effective maximum health, or `None` when its client attribute is unavailable.
+    pub max_health: Option<f32>,
+    /// The local player's food level; remote food data is not available.
+    pub food_level: Option<i32>,
+    /// The vanilla model's physical right-arm pose, as an uppercase pose name.
+    pub right_arm_pose: &'static str,
+    /// The vanilla model's physical left-arm pose, as an uppercase pose name.
+    pub left_arm_pose: &'static str,
 }
 
 impl<'a> NativePlayerRender<'a> {
+    /// A synthetic standing player with no synchronized data, for mod tests.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn for_test(name: &'a str, local: bool) -> Self {
+        Self {
+            name,
+            local,
+            uuid: None,
+            pose: "STANDING",
+            crouch_amount: 0.0,
+            swim_amount: 0.0,
+            riding: false,
+            sleeping: false,
+            sprinting: false,
+            attack_progress: 0.0,
+            swing_hand: Hand::Main,
+            using_item: None,
+            use_ticks: 0.0,
+            main_hand_right: true,
+            main_hand: None,
+            off_hand: None,
+            armor: [None; 4],
+            elytra: false,
+            on_fire: false,
+            invisible: false,
+            glowing: false,
+            frozen_ticks: 0,
+            in_water: false,
+            eye_in_water: false,
+            flying: None,
+            health: None,
+            max_health: None,
+            food_level: None,
+            right_arm_pose: "EMPTY",
+            left_arm_pose: "EMPTY",
+        }
+    }
+
     fn of(
         mob: &'a Mob,
         state: anim::State,
@@ -142,6 +216,7 @@ impl<'a> NativePlayerRender<'a> {
         held: [Option<&'a ItemStack>; 2],
     ) -> Self {
         let main_hand_right = !mob.main_arm_left();
+        let humanoid = anim::humanoid_state(mob, &state);
         let using_item = (mob.extra.using_item > 0).then_some(if mob.extra.using_off_hand {
             Hand::Off
         } else {
@@ -192,7 +267,31 @@ impl<'a> NativePlayerRender<'a> {
             invisible: mob.invisible,
             glowing: mob.glowing,
             frozen_ticks: mob.ticks_frozen,
+            in_water: mob.fluids.in_water,
+            eye_in_water: mob.fluids.eye_in_water,
+            flying: None,
+            health: (!who.1).then_some(mob.health),
+            max_health: (!who.1).then_some(mob.kind.max_health),
+            food_level: None,
+            right_arm_pose: arm_pose_name(humanoid.right),
+            left_arm_pose: arm_pose_name(humanoid.left),
         }
+    }
+}
+
+fn arm_pose_name(pose: anim::ArmPose) -> &'static str {
+    match pose {
+        anim::ArmPose::Empty => "EMPTY",
+        anim::ArmPose::Item => "ITEM",
+        anim::ArmPose::Block => "BLOCK",
+        anim::ArmPose::Bow => "BOW_AND_ARROW",
+        anim::ArmPose::CrossbowHold => "CROSSBOW_HOLD",
+        anim::ArmPose::CrossbowCharge => "CROSSBOW_CHARGE",
+        anim::ArmPose::ThrowTrident => "THROW_SPEAR",
+        anim::ArmPose::TootHorn => "TOOT_HORN",
+        anim::ArmPose::Spyglass => "SPYGLASS",
+        anim::ArmPose::Spear => "SPEAR",
+        anim::ArmPose::Brush => "BRUSH",
     }
 }
 
@@ -215,13 +314,16 @@ impl Game<'_> {
         state: anim::State,
     ) -> NativePlayerRender<'a> {
         let uuid = if who.1 {
-            self.remote.as_ref().map(|remote| remote.profile()).or_else(|| {
-                self.level.player_uuid.map(|words| {
-                    words.iter().fold(0_u128, |uuid, &word| {
-                        (uuid << 32) | u128::from(word as u32)
+            self.remote
+                .as_ref()
+                .map(|remote| remote.profile())
+                .or_else(|| {
+                    self.level.player_uuid.map(|words| {
+                        words
+                            .iter()
+                            .fold(0_u128, |uuid, &word| (uuid << 32) | u128::from(word as u32))
                     })
                 })
-            })
         } else {
             self.remote_player_uuid(mob.id)
         };
@@ -236,6 +338,25 @@ impl Game<'_> {
                 render.sprinting = player.sprinting;
                 render.on_fire = player.fire_ticks > 0;
                 render.frozen_ticks = player.ticks_frozen;
+                render.in_water = player.fluids.was_touching_water;
+                render.eye_in_water = player.is_eye_in_fluid(horizon_client::motion::WATER);
+                render.flying = Some(player.flying);
+                render.health = Some(player.health.health());
+                render.food_level = Some(player.health.food.food);
+                let attributes = &player.attributes;
+                render.max_health = attributes.key("minecraft:max_health").and_then(|key| {
+                    let value = if let Some(handle) = attributes.lookup(Some(&key)) {
+                        attributes.instance(&handle).ok()?.clone().value()
+                    } else {
+                        let catalog = attributes.catalog();
+                        let attribute = key.attribute();
+                        catalog
+                            .attribute(attribute)
+                            .definition
+                            .sanitize(catalog.default_base("minecraft:player", attribute)?)
+                    };
+                    Some(value as f32)
+                });
             }
             render.invisible = self.own_invisible();
             render.glowing = self.potions.effects.get("glowing").is_some();
@@ -345,6 +466,7 @@ impl Game<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mod_api::{MobLayerEvent, PlayerSubmitEvent};
     use glam::Vec3;
     use horizon_client::mobs::{Brain, Flags, MobType, Part, Species};
     use horizon_core::geometry::Vec3 as Position;
@@ -393,7 +515,7 @@ mod tests {
                 layers: Default::default(),
                 texture: String::new(),
                 brain: Brain::Passive,
-                anim: anim::Anim::Rabbit,
+                anim: anim::Anim::Humanoid { zombie_arms: false },
                 sounds: [""; 3],
                 step_sound: None,
                 food: Arc::default(),
@@ -409,6 +531,137 @@ mod tests {
         stack.damage = damage;
         stack.data_mut().repair_cost = 9;
         stack
+    }
+
+    #[test]
+    fn test_constructors_build_player_and_mob_layer_events() {
+        let pose = Mat4::from_translation(Vec3::new(2.0, 3.0, 4.0));
+        let light = 0x00f0_00f0;
+        let mut draw = BlockEntityDraw::for_test(pose, light);
+        let mob = NativeMobRender::for_test(42, "minecraft:player");
+        let who = NativePlayerRender::for_test("Fixture", true);
+        assert_eq!(mob.id, 42);
+        assert_eq!(mob.kind, "minecraft:player");
+        assert_eq!(mob.custom_name, None);
+        assert!(!mob.baby && !mob.on_ground);
+        assert_eq!(mob.partial, 0.0);
+        assert_eq!(mob.age, 0.0);
+        assert_eq!((mob.body_yaw, mob.head_yaw, mob.pitch), (0.0, 0.0, 0.0));
+        assert_eq!((mob.walk_position, mob.walk_speed), (0.0, 0.0));
+        assert_eq!((mob.hurt_time, mob.death_time), (0, 0));
+        assert_eq!(who.name, "Fixture");
+        assert!(who.local);
+        assert_eq!(who.pose, "STANDING");
+        assert_eq!(who.uuid, None);
+        assert_eq!((who.crouch_amount, who.swim_amount), (0.0, 0.0));
+        assert!(!who.riding && !who.sleeping && !who.sprinting);
+        assert_eq!((who.attack_progress, who.use_ticks), (0.0, 0.0));
+        assert_eq!(who.swing_hand, Hand::Main);
+        assert_eq!(who.using_item, None);
+        assert!(who.main_hand_right);
+        assert!(who.main_hand.is_none() && who.off_hand.is_none());
+        assert!(who.armor.iter().all(Option::is_none));
+        assert!(!who.elytra && !who.on_fire && !who.invisible && !who.glowing);
+        assert_eq!(who.frozen_ticks, 0);
+        assert!(!who.in_water && !who.eye_in_water);
+        assert_eq!((who.flying, who.food_level), (None, None));
+        assert_eq!((who.health, who.max_health), (None, None));
+        assert_eq!((who.right_arm_pose, who.left_arm_pose), ("EMPTY", "EMPTY"));
+        assert_eq!(draw.pose_matrix(), pose);
+        assert_eq!(draw.origin(), Vec3::new(2.0, 3.0, 4.0));
+        assert_eq!((draw.partial, draw.game_time, draw.light), (0.0, 0, light));
+        {
+            let event = PlayerSubmitEvent::for_test(&mob, &who, &mut draw);
+            assert_eq!(event.player.id, 42);
+            assert_eq!(event.who.name, "Fixture");
+            assert_eq!(event.draw.pose_matrix(), pose);
+        }
+        {
+            let event = MobLayerEvent::for_test(&mob, Some(&who), &mut draw);
+            assert_eq!(event.mob.id, 42);
+            assert!(event.who.is_some_and(|player| player.local));
+        }
+        {
+            let event = MobLayerEvent::for_test(&mob, None, &mut draw);
+            assert!(event.who.is_none());
+        }
+        assert!(!NativePlayerRender::for_test("Remote", false).local);
+        assert!(draw.into_vertices().is_empty());
+    }
+
+    #[test]
+    fn player_state_uses_mob_water_and_remote_health_without_local_guesses() {
+        let mut mob = player();
+        mob.fluids.in_water = true;
+        mob.fluids.eye_in_water = true;
+        mob.health = 12.0;
+        let state = anim::state(&mob, 0.25);
+        let remote = NativePlayerRender::of(&mob, state, ("Remote", false), None, [None; 2]);
+        assert!(remote.in_water && remote.eye_in_water);
+        assert_eq!(remote.health, Some(12.0));
+        assert_eq!(remote.max_health, Some(mob.kind.max_health));
+        assert_eq!(remote.flying, None);
+        assert_eq!(remote.food_level, None);
+        let local = NativePlayerRender::of(&mob, state, ("Local", true), None, [None; 2]);
+        assert_eq!((local.health, local.max_health), (None, None));
+        assert_eq!((local.flying, local.food_level), (None, None));
+    }
+
+    #[test]
+    fn player_arm_pose_names_cover_every_model_pose() {
+        for (pose, name) in [
+            (anim::ArmPose::Empty, "EMPTY"),
+            (anim::ArmPose::Item, "ITEM"),
+            (anim::ArmPose::Block, "BLOCK"),
+            (anim::ArmPose::Bow, "BOW_AND_ARROW"),
+            (anim::ArmPose::CrossbowHold, "CROSSBOW_HOLD"),
+            (anim::ArmPose::CrossbowCharge, "CROSSBOW_CHARGE"),
+            (anim::ArmPose::ThrowTrident, "THROW_SPEAR"),
+            (anim::ArmPose::TootHorn, "TOOT_HORN"),
+            (anim::ArmPose::Spyglass, "SPYGLASS"),
+            (anim::ArmPose::Spear, "SPEAR"),
+            (anim::ArmPose::Brush, "BRUSH"),
+        ] {
+            assert_eq!(arm_pose_name(pose), name);
+        }
+    }
+
+    #[test]
+    fn player_arm_poses_match_the_model_for_both_main_arms() {
+        for (item, using, blocking, charged, main_pose, off_pose) in [
+            ("stone", false, false, false, "ITEM", "ITEM"),
+            ("shield", true, true, false, "BLOCK", "ITEM"),
+            ("bow", true, false, false, "BOW_AND_ARROW", "EMPTY"),
+            ("trident", true, false, false, "THROW_SPEAR", "EMPTY"),
+            ("crossbow", true, false, false, "CROSSBOW_CHARGE", "EMPTY"),
+            ("crossbow", false, false, true, "CROSSBOW_HOLD", "EMPTY"),
+            ("spyglass", true, false, false, "SPYGLASS", "ITEM"),
+            ("goat_horn", true, false, false, "TOOT_HORN", "ITEM"),
+            ("brush", true, false, false, "BRUSH", "ITEM"),
+            ("iron_spear", true, false, false, "SPEAR", "ITEM"),
+        ] {
+            for left_main in [false, true] {
+                let mut mob = player();
+                mob.extra.main_hand = Some(format!("minecraft:{item}").into());
+                mob.extra.off_hand = Some("minecraft:stone".into());
+                mob.extra.main_hand_left = left_main;
+                mob.extra.using_item = if using { 5 } else { 0 };
+                mob.extra.blocking = blocking;
+                mob.extra.charged = charged;
+                let state = anim::state(&mob, 0.25);
+                let humanoid = anim::humanoid_state(&mob, &state);
+                let render =
+                    NativePlayerRender::of(&mob, state, ("Remote", false), None, [None; 2]);
+                let expected = if left_main {
+                    (off_pose, main_pose)
+                } else {
+                    (main_pose, off_pose)
+                };
+                assert_eq!((render.right_arm_pose, render.left_arm_pose), expected);
+                assert_eq!(render.right_arm_pose, arm_pose_name(humanoid.right));
+                assert_eq!(render.left_arm_pose, arm_pose_name(humanoid.left));
+            }
+        }
     }
 
     #[test]
@@ -592,7 +845,8 @@ mod tests {
     #[test]
     fn unavailable_remote_stacks_and_uuid_stay_unavailable() {
         let mut mob = player();
-        mob.extra.set_main_hand_stack(Some(stack("minecraft:bow", 1, 6)));
+        mob.extra
+            .set_main_hand_stack(Some(stack("minecraft:bow", 1, 6)));
         mob.extra.off_hand = Some("minecraft:shield".into());
         let render = NativePlayerRender::of(
             &mob,

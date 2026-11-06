@@ -16,8 +16,768 @@ use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex, OnceLock, Weak,
+        atomic::{AtomicU64, Ordering},
+    },
 };
+
+macro_rules! local_sound_handle {
+    ($name:ident) => {
+        #[doc = "An opaque, mod-owned, generational local audio handle."]
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+        pub struct $name {
+            owner: usize,
+            session: u64,
+            slot: usize,
+            generation: u64,
+        }
+    };
+}
+local_sound_handle!(NativeSoundHandle);
+local_sound_handle!(NativePlaybackHandle);
+local_sound_handle!(NativeSoundRegistration);
+
+/// A local, non-networked sound's location or following target.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum NativeSoundTarget {
+    Position([f64; 3]),
+    Player(u128),
+    Entity(u32),
+}
+
+/// Conservative process-wide limits, including all split-screen seats.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NativeSoundLimits {
+    pub sounds_per_mod: usize,
+    pub sounds_global: usize,
+    pub decoded_bytes_per_mod: usize,
+    pub decoded_bytes_global: usize,
+    pub decoded_bytes_per_sound: usize,
+    pub encoded_bytes_per_sound: usize,
+    pub encoded_bytes_per_mod: usize,
+    pub encoded_bytes_global: usize,
+    pub registrations_per_mod: usize,
+    pub registrations_global: usize,
+    pub playbacks_per_mod: usize,
+    pub playbacks_global: usize,
+    pub minimum_sample_rate: u32,
+    pub maximum_sample_rate: u32,
+}
+
+impl Default for NativeSoundLimits {
+    fn default() -> Self {
+        Self {
+            sounds_per_mod: 256,
+            sounds_global: 512,
+            decoded_bytes_per_mod: 64 * 1024 * 1024,
+            decoded_bytes_global: 128 * 1024 * 1024,
+            decoded_bytes_per_sound: 8 * 1024 * 1024,
+            encoded_bytes_per_sound: 8 * 1024 * 1024,
+            encoded_bytes_per_mod: 16 * 1024 * 1024,
+            encoded_bytes_global: 32 * 1024 * 1024,
+            registrations_per_mod: 4,
+            registrations_global: 8,
+            playbacks_per_mod: 32,
+            playbacks_global: 64,
+            minimum_sample_rate: 8_000,
+            maximum_sample_rate: 192_000,
+        }
+    }
+}
+
+/// Registration, ownership, validation and playback failures.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NativeSoundError {
+    OutsideClientTick,
+    WorldUnavailable,
+    AudioUnavailable,
+    InvalidChannels,
+    InvalidSampleRate,
+    EmptySamples,
+    IncompleteFrame,
+    SoundTooLarge,
+    InvalidOgg,
+    TruncatedOgg,
+    InvalidPosition,
+    InvalidVolume,
+    InvalidPitch,
+    ForeignHandle,
+    StaleHandle,
+    SoundCountLimit,
+    DecodedByteLimit,
+    EncodedByteLimit,
+    RegistrationQueueFull,
+    WorkerUnavailable,
+    MissingTarget,
+    PlaybackLimit,
+    ChannelExhausted,
+    Muted,
+}
+
+impl std::fmt::Display for NativeSoundError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{self:?}")
+    }
+}
+impl std::error::Error for NativeSoundError {}
+
+#[derive(Clone, Copy, Default)]
+struct LocalCharge {
+    sounds: usize,
+    decoded: usize,
+    encoded: usize,
+    registrations: usize,
+    playbacks: usize,
+}
+
+impl LocalCharge {
+    fn add(self, other: Self) -> Self {
+        Self {
+            sounds: self.sounds + other.sounds,
+            decoded: self.decoded + other.decoded,
+            encoded: self.encoded + other.encoded,
+            registrations: self.registrations + other.registrations,
+            playbacks: self.playbacks + other.playbacks,
+        }
+    }
+
+    fn subtract(self, other: Self) -> Self {
+        Self {
+            sounds: self.sounds - other.sounds,
+            decoded: self.decoded - other.decoded,
+            encoded: self.encoded - other.encoded,
+            registrations: self.registrations - other.registrations,
+            playbacks: self.playbacks - other.playbacks,
+        }
+    }
+
+    fn empty(self) -> bool {
+        self.sounds | self.decoded | self.encoded | self.registrations | self.playbacks == 0
+    }
+}
+
+#[derive(Default)]
+struct LocalBudget {
+    mods: HashMap<usize, LocalCharge>,
+    total: LocalCharge,
+}
+
+struct LocalSoundService {
+    limits: NativeSoundLimits,
+    budget: Mutex<LocalBudget>,
+    worker: Mutex<Option<std::sync::mpsc::SyncSender<Arc<Mutex<LocalRegistrationState>>>>>,
+}
+
+impl LocalSoundService {
+    fn shared() -> Arc<Self> {
+        static SERVICE: OnceLock<Mutex<Weak<LocalSoundService>>> = OnceLock::new();
+        let mut service = SERVICE
+            .get_or_init(|| Mutex::new(Weak::new()))
+            .lock()
+            .unwrap();
+        if let Some(service) = service.upgrade() {
+            return service;
+        }
+        let created = Self::new();
+        *service = Arc::downgrade(&created);
+        created
+    }
+
+    fn new() -> Arc<Self> {
+        Arc::new(Self {
+            limits: NativeSoundLimits::default(),
+            budget: Mutex::new(LocalBudget::default()),
+            worker: Mutex::new(None),
+        })
+    }
+
+    fn reserve(
+        self: &Arc<Self>,
+        owner: usize,
+        charge: LocalCharge,
+    ) -> std::result::Result<LocalLease, NativeSoundError> {
+        let mut budget = self.budget.lock().unwrap();
+        let local = budget
+            .mods
+            .get(&owner)
+            .copied()
+            .unwrap_or_default()
+            .add(charge);
+        let total = budget.total.add(charge);
+        let limits = self.limits;
+        let error = if local.sounds > limits.sounds_per_mod || total.sounds > limits.sounds_global {
+            Some(NativeSoundError::SoundCountLimit)
+        } else if local.decoded > limits.decoded_bytes_per_mod
+            || total.decoded > limits.decoded_bytes_global
+        {
+            Some(NativeSoundError::DecodedByteLimit)
+        } else if local.encoded > limits.encoded_bytes_per_mod
+            || total.encoded > limits.encoded_bytes_global
+        {
+            Some(NativeSoundError::EncodedByteLimit)
+        } else if local.registrations > limits.registrations_per_mod
+            || total.registrations > limits.registrations_global
+        {
+            Some(NativeSoundError::RegistrationQueueFull)
+        } else if local.playbacks > limits.playbacks_per_mod
+            || total.playbacks > limits.playbacks_global
+        {
+            Some(NativeSoundError::PlaybackLimit)
+        } else {
+            None
+        };
+        if let Some(error) = error {
+            return Err(error);
+        }
+        budget.mods.insert(owner, local);
+        budget.total = total;
+        Ok(LocalLease {
+            service: self.clone(),
+            owner,
+            charge,
+        })
+    }
+
+    fn submit(
+        &self,
+        state: Arc<Mutex<LocalRegistrationState>>,
+    ) -> std::result::Result<(), NativeSoundError> {
+        use std::sync::mpsc::{TrySendError, sync_channel};
+        let mut worker = self.worker.lock().unwrap();
+        if worker.is_none() {
+            let (sender, receiver) = sync_channel::<Arc<Mutex<LocalRegistrationState>>>(
+                self.limits.registrations_global,
+            );
+            std::thread::Builder::new()
+                .name("native-local-sound".into())
+                .spawn(move || {
+                    while let Ok(state) = receiver.recv() {
+                        let job = state.lock().unwrap().queued.take();
+                        if let Some(job) = job {
+                            job.run(&state);
+                        }
+                    }
+                })
+                .map_err(|_| NativeSoundError::WorkerUnavailable)?;
+            *worker = Some(sender);
+        }
+        match worker.as_ref().unwrap().try_send(state) {
+            Ok(()) => Ok(()),
+            Err(TrySendError::Full(_)) => Err(NativeSoundError::RegistrationQueueFull),
+            Err(TrySendError::Disconnected(_)) => {
+                *worker = None;
+                Err(NativeSoundError::WorkerUnavailable)
+            }
+        }
+    }
+}
+
+struct LocalLease {
+    service: Arc<LocalSoundService>,
+    owner: usize,
+    charge: LocalCharge,
+}
+
+impl LocalLease {
+    fn reduce(&mut self, retained: LocalCharge) {
+        let released = self.charge.subtract(retained);
+        if released.empty() {
+            return;
+        }
+        let mut budget = self.service.budget.lock().unwrap();
+        let local = budget.mods.get_mut(&self.owner).unwrap();
+        *local = local.subtract(released);
+        if local.empty() {
+            budget.mods.remove(&self.owner);
+        }
+        budget.total = budget.total.subtract(released);
+        self.charge = retained;
+    }
+}
+
+impl Drop for LocalLease {
+    fn drop(&mut self) {
+        self.reduce(LocalCharge::default());
+    }
+}
+
+/// Engine-owned immutable mono samples; quota follows every retained reference.
+pub struct RegisteredSoundBuffer {
+    samples: Arc<Vec<f32>>,
+    rate: u32,
+    _lease: LocalLease,
+}
+
+impl std::fmt::Debug for RegisteredSoundBuffer {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RegisteredSoundBuffer")
+            .field("frames", &self.samples.len())
+            .field("rate", &self.rate)
+            .finish()
+    }
+}
+
+struct LocalSlot<Value> {
+    generation: u64,
+    value: Option<(usize, Value)>,
+}
+
+struct LocalArena<Value> {
+    slots: Vec<LocalSlot<Value>>,
+}
+
+impl<Value> Default for LocalArena<Value> {
+    fn default() -> Self {
+        Self { slots: Vec::new() }
+    }
+}
+
+impl<Value> LocalArena<Value> {
+    fn insert(&mut self, owner: usize, value: Value) -> (usize, u64) {
+        if let Some((index, slot)) = self
+            .slots
+            .iter_mut()
+            .enumerate()
+            .find(|(_, slot)| slot.value.is_none() && slot.generation < u64::MAX)
+        {
+            slot.generation += 1;
+            slot.value = Some((owner, value));
+            return (index, slot.generation);
+        }
+        self.slots.push(LocalSlot {
+            generation: 1,
+            value: Some((owner, value)),
+        });
+        (self.slots.len() - 1, 1)
+    }
+
+    fn get(
+        &self,
+        owner: usize,
+        index: usize,
+        generation: u64,
+    ) -> std::result::Result<&Value, NativeSoundError> {
+        let slot = self
+            .slots
+            .get(index)
+            .filter(|slot| slot.generation == generation)
+            .ok_or(NativeSoundError::StaleHandle)?;
+        let (actual_owner, value) = slot.value.as_ref().ok_or(NativeSoundError::StaleHandle)?;
+        if owner != *actual_owner {
+            return Err(NativeSoundError::ForeignHandle);
+        }
+        Ok(value)
+    }
+
+    fn remove(
+        &mut self,
+        owner: usize,
+        index: usize,
+        generation: u64,
+    ) -> std::result::Result<Value, NativeSoundError> {
+        self.get(owner, index, generation)?;
+        Ok(self.slots[index].value.take().unwrap().1)
+    }
+}
+
+#[derive(Default)]
+struct LocalRegistrationState {
+    cancelled: bool,
+    queued: Option<LocalDecode>,
+    result: Option<std::result::Result<Arc<RegisteredSoundBuffer>, NativeSoundError>>,
+}
+
+struct LocalRegistration {
+    state: Arc<Mutex<LocalRegistrationState>>,
+    _lease: Arc<LocalLease>,
+}
+
+impl Drop for LocalRegistration {
+    fn drop(&mut self) {
+        let mut state = self.state.lock().unwrap();
+        state.cancelled = true;
+        state.queued.take();
+        state.result.take();
+    }
+}
+
+struct LocalDecode {
+    bytes: Vec<u8>,
+    buffer_lease: LocalLease,
+    _work: LocalLease,
+    _registration: Arc<LocalLease>,
+}
+
+impl LocalDecode {
+    fn run(mut self, registration: &Mutex<LocalRegistrationState>) {
+        if registration.lock().unwrap().cancelled {
+            return;
+        }
+        let decoded = decode_local_ogg(
+            std::mem::take(&mut self.bytes),
+            self.buffer_lease.service.limits,
+            registration,
+        );
+        let result = decoded.map(|(samples, rate)| {
+            self.buffer_lease.reduce(LocalCharge {
+                sounds: 1,
+                decoded: samples.capacity() * 4,
+                ..LocalCharge::default()
+            });
+            Arc::new(RegisteredSoundBuffer {
+                samples: Arc::new(samples),
+                rate,
+                _lease: self.buffer_lease,
+            })
+        });
+        let mut state = registration.lock().unwrap();
+        if !state.cancelled {
+            state.result = Some(result);
+        }
+    }
+}
+
+struct LocalPlayback {
+    sound: NativeSoundHandle,
+    instance: InstanceId,
+    _lease: LocalLease,
+}
+
+static LOCAL_SOUND_SESSION: AtomicU64 = AtomicU64::new(1);
+
+struct LocalSounds {
+    session: u64,
+    service: Arc<LocalSoundService>,
+    sounds: LocalArena<Arc<RegisteredSoundBuffer>>,
+    registrations: LocalArena<LocalRegistration>,
+    playbacks: LocalArena<LocalPlayback>,
+}
+
+impl LocalSounds {
+    fn new(service: Arc<LocalSoundService>) -> Self {
+        Self {
+            session: LOCAL_SOUND_SESSION.fetch_add(1, Ordering::Relaxed),
+            service,
+            sounds: LocalArena::default(),
+            registrations: LocalArena::default(),
+            playbacks: LocalArena::default(),
+        }
+    }
+
+    fn check(
+        &self,
+        owner: usize,
+        handle_owner: usize,
+        session: u64,
+    ) -> std::result::Result<(), NativeSoundError> {
+        if owner != handle_owner {
+            Err(NativeSoundError::ForeignHandle)
+        } else if session != self.session {
+            Err(NativeSoundError::StaleHandle)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn insert_sound(
+        &mut self,
+        owner: usize,
+        buffer: Arc<RegisteredSoundBuffer>,
+    ) -> NativeSoundHandle {
+        let (slot, generation) = self.sounds.insert(owner, buffer);
+        NativeSoundHandle {
+            owner,
+            session: self.session,
+            slot,
+            generation,
+        }
+    }
+}
+
+fn validate_local_format(
+    channels: usize,
+    rate: u32,
+    limits: NativeSoundLimits,
+) -> std::result::Result<(), NativeSoundError> {
+    if !matches!(channels, 1 | 2) {
+        return Err(NativeSoundError::InvalidChannels);
+    }
+    if !(limits.minimum_sample_rate..=limits.maximum_sample_rate).contains(&rate) {
+        return Err(NativeSoundError::InvalidSampleRate);
+    }
+    Ok(())
+}
+
+fn local_pcm_frames(
+    samples: &[i16],
+    channels: u8,
+    rate: u32,
+    limits: NativeSoundLimits,
+) -> std::result::Result<usize, NativeSoundError> {
+    validate_local_format(usize::from(channels), rate, limits)?;
+    if samples.is_empty() {
+        return Err(NativeSoundError::EmptySamples);
+    }
+    if samples.len() % usize::from(channels) != 0 {
+        return Err(NativeSoundError::IncompleteFrame);
+    }
+    let frames = samples.len() / usize::from(channels);
+    if frames > limits.decoded_bytes_per_sound / std::mem::size_of::<f32>() {
+        return Err(NativeSoundError::SoundTooLarge);
+    }
+    Ok(frames)
+}
+
+fn local_ogg_crc(page: &[u8]) -> u32 {
+    let mut checksum = 0_u32;
+    for (index, byte) in page.iter().enumerate() {
+        checksum ^= u32::from(if (22..26).contains(&index) { 0 } else { *byte }) << 24;
+        for _ in 0..8 {
+            checksum = (checksum << 1)
+                ^ if checksum & 0x8000_0000 != 0 {
+                    0x04c1_1db7
+                } else {
+                    0
+                };
+        }
+    }
+    checksum
+}
+
+fn validate_local_comments(packet: &[u8]) -> std::result::Result<(), NativeSoundError> {
+    let mut offset = 7_usize;
+    let read_length = |offset: &mut usize| -> std::result::Result<usize, NativeSoundError> {
+        let bytes = packet
+            .get(*offset..*offset + 4)
+            .ok_or(NativeSoundError::TruncatedOgg)?;
+        *offset += 4;
+        Ok(u32::from_le_bytes(bytes.try_into().unwrap()) as usize)
+    };
+    let vendor = read_length(&mut offset)?;
+    offset = offset
+        .checked_add(vendor)
+        .filter(|end| *end <= packet.len())
+        .ok_or(NativeSoundError::TruncatedOgg)?;
+    let comments = read_length(&mut offset)?;
+    if comments > packet.len().saturating_sub(offset) / 4 {
+        return Err(NativeSoundError::TruncatedOgg);
+    }
+    for _ in 0..comments {
+        let length = read_length(&mut offset)?;
+        offset = offset
+            .checked_add(length)
+            .filter(|end| *end <= packet.len())
+            .ok_or(NativeSoundError::TruncatedOgg)?;
+    }
+    if packet.get(offset..) != Some(&[1][..]) {
+        return Err(NativeSoundError::InvalidOgg);
+    }
+    Ok(())
+}
+
+fn validate_local_ogg(
+    bytes: &[u8],
+    limits: NativeSoundLimits,
+) -> std::result::Result<(usize, u32, usize), NativeSoundError> {
+    use NativeSoundError::{InvalidOgg, SoundTooLarge, TruncatedOgg};
+    if bytes.len() > limits.encoded_bytes_per_sound {
+        return Err(SoundTooLarge);
+    }
+    let mut offset = 0;
+    let mut serial = None;
+    let mut sequence = 0_u32;
+    let mut continued = false;
+    let mut headers = 0;
+    let mut audio_packets = 0;
+    let mut packet = Vec::new();
+    let mut packet_length = 0_usize;
+    let mut channels = 0;
+    let mut rate = 0;
+    let mut last_granule = 0;
+    let mut ended = false;
+    while offset < bytes.len() {
+        let header = bytes.get(offset..offset + 27).ok_or(TruncatedOgg)?;
+        if &header[..4] != b"OggS" || header[4] != 0 || header[5] & !7 != 0 {
+            return Err(InvalidOgg);
+        }
+        let flags = header[5];
+        let page_serial = u32::from_le_bytes(header[14..18].try_into().unwrap());
+        let page_sequence = u32::from_le_bytes(header[18..22].try_into().unwrap());
+        if ended || page_sequence != sequence || (flags & 1 != 0) != continued {
+            return Err(InvalidOgg);
+        }
+        if let Some(expected) = serial {
+            if expected != page_serial || flags & 2 != 0 {
+                return Err(InvalidOgg);
+            }
+        } else {
+            if flags & 2 == 0 || flags & 1 != 0 {
+                return Err(InvalidOgg);
+            }
+            serial = Some(page_serial);
+        }
+        sequence = sequence.checked_add(1).ok_or(InvalidOgg)?;
+        let table_end = offset + 27 + usize::from(header[26]);
+        let lacing = bytes.get(offset + 27..table_end).ok_or(TruncatedOgg)?;
+        let end = table_end
+            + lacing
+                .iter()
+                .map(|length| usize::from(*length))
+                .sum::<usize>();
+        let page = bytes.get(offset..end).ok_or(TruncatedOgg)?;
+        if local_ogg_crc(page) != u32::from_le_bytes(header[22..26].try_into().unwrap()) {
+            return Err(InvalidOgg);
+        }
+        let granule = u64::from_le_bytes(header[6..14].try_into().unwrap());
+        if granule != u64::MAX {
+            if granule < last_granule {
+                return Err(InvalidOgg);
+            }
+            if granule > (limits.decoded_bytes_per_sound / 4) as u64 {
+                return Err(SoundTooLarge);
+            }
+            last_granule = granule;
+        }
+        let mut body = table_end;
+        for length in lacing {
+            let length = usize::from(*length);
+            packet_length += length;
+            if headers < 3 {
+                packet.extend_from_slice(&bytes[body..body + length]);
+            }
+            body += length;
+            continued = length == 255;
+            if !continued {
+                if headers < 3 {
+                    let header_type = match headers {
+                        0 => 1,
+                        1 => 3,
+                        _ => 5,
+                    };
+                    if packet.get(..7)
+                        != Some(&[header_type, b'v', b'o', b'r', b'b', b'i', b's'][..])
+                    {
+                        return Err(InvalidOgg);
+                    }
+                    if headers == 0 {
+                        if packet.len() != 30 || packet[7..11] != [0; 4] || packet[29] != 1 {
+                            return Err(InvalidOgg);
+                        }
+                        channels = usize::from(packet[11]);
+                        rate = u32::from_le_bytes(packet[12..16].try_into().unwrap());
+                        validate_local_format(channels, rate, limits)?;
+                        let small = packet[28] & 15;
+                        let large = packet[28] >> 4;
+                        if !(6..=13).contains(&small) || !(small..=13).contains(&large) {
+                            return Err(InvalidOgg);
+                        }
+                    } else if headers == 1 {
+                        validate_local_comments(&packet)?;
+                    }
+                    headers += 1;
+                    packet.clear();
+                } else {
+                    if packet_length == 0 {
+                        return Err(InvalidOgg);
+                    }
+                    audio_packets += 1;
+                }
+                packet_length = 0;
+            }
+        }
+        if audio_packets == 0 && granule != 0 && granule != u64::MAX {
+            return Err(InvalidOgg);
+        }
+        if flags & 4 != 0 {
+            if continued || granule == u64::MAX {
+                return Err(TruncatedOgg);
+            }
+            ended = true;
+        }
+        offset = end;
+    }
+    if !ended || headers != 3 || audio_packets == 0 {
+        return Err(TruncatedOgg);
+    }
+    if last_granule == 0 {
+        return Err(NativeSoundError::EmptySamples);
+    }
+    Ok((channels, rate, last_granule as usize))
+}
+
+fn decode_local_ogg(
+    bytes: Vec<u8>,
+    limits: NativeSoundLimits,
+    state: &Mutex<LocalRegistrationState>,
+) -> std::result::Result<(Vec<f32>, u32), NativeSoundError> {
+    use symphonia::core::{
+        audio::SampleBuffer, codecs::DecoderOptions, errors::Error, formats::FormatOptions,
+        io::MediaSourceStream, meta::MetadataOptions, probe::Hint,
+    };
+    let (channels, rate, granule) = validate_local_ogg(&bytes, limits)?;
+    let stream = MediaSourceStream::new(Box::new(std::io::Cursor::new(bytes)), Default::default());
+    let mut hint = Hint::new();
+    hint.with_extension("ogg");
+    let probed = symphonia::default::get_probe()
+        .format(
+            &hint,
+            stream,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
+        .map_err(|_| NativeSoundError::InvalidOgg)?;
+    let mut format = probed.format;
+    let track = format.default_track().ok_or(NativeSoundError::InvalidOgg)?;
+    let track_id = track.id;
+    let mut decoder = symphonia::default::get_codecs()
+        .make(&track.codec_params, &DecoderOptions::default())
+        .map_err(|_| NativeSoundError::InvalidOgg)?;
+    let mut samples = Vec::with_capacity(limits.decoded_bytes_per_sound / 4);
+    loop {
+        if state.lock().unwrap().cancelled {
+            return Err(NativeSoundError::StaleHandle);
+        }
+        let packet = match format.next_packet() {
+            Ok(packet) => packet,
+            Err(Error::IoError(error)) if error.kind() == std::io::ErrorKind::UnexpectedEof => {
+                break;
+            }
+            Err(_) => return Err(NativeSoundError::InvalidOgg),
+        };
+        if packet.track_id() != track_id {
+            return Err(NativeSoundError::InvalidOgg);
+        }
+        let buffer = decoder
+            .decode(&packet)
+            .map_err(|_| NativeSoundError::InvalidOgg)?;
+        let spec = *buffer.spec();
+        if spec.rate != rate || spec.channels.count() != channels {
+            return Err(NativeSoundError::InvalidOgg);
+        }
+        let capacity = buffer.capacity();
+        if capacity > 8192
+            || samples.len().saturating_add(buffer.frames()) > limits.decoded_bytes_per_sound / 4
+        {
+            return Err(NativeSoundError::SoundTooLarge);
+        }
+        let mut interleaved = SampleBuffer::<f32>::new(capacity as u64, spec);
+        interleaved.copy_interleaved_ref(buffer);
+        for frame in interleaved.samples().chunks_exact(channels) {
+            if frame.iter().any(|sample| !sample.is_finite()) {
+                return Err(NativeSoundError::InvalidOgg);
+            }
+            samples.push(frame.iter().sum::<f32>() / channels as f32);
+        }
+    }
+    // CHECK: Confirm end-granule trimming against independent Vorbis fixtures.
+    if samples.len() < granule {
+        return Err(NativeSoundError::TruncatedOgg);
+    }
+    samples.truncate(granule);
+    Ok((samples, rate))
+}
 
 /// An OpenAL source's state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -30,6 +790,7 @@ enum State {
 /// An OpenAL source.
 struct Channel {
     samples: Option<(Arc<Vec<f32>>, u32)>,
+    registered: Option<Arc<RegisteredSoundBuffer>>,
     position: f64,
     state: State,
     gain: f32,
@@ -231,6 +992,7 @@ pub struct Audio {
     pub stopped: std::collections::BTreeMap<String, u32>,
     /// The volume sliders' `SoundPreviewHandler`.
     preview: crate::sound_preview::SoundPreview,
+    local_sounds: Option<LocalSounds>,
     /// `SoundEngine.lastSeenDevices`: the system default output last seen.
     #[cfg(feature = "audio")]
     default_seen: Option<String>,
@@ -357,6 +1119,7 @@ impl Backend for MixerBackend {
             id,
             Channel {
                 samples: None,
+                registered: None,
                 position: 0.0,
                 state: State::Initial,
                 gain: 1.0,
@@ -379,6 +1142,21 @@ impl Backend for MixerBackend {
     }
     fn set_pitch(&mut self, channel: ChannelId, pitch: f32) {
         self.with(channel, |c| c.pitch = pitch);
+    }
+    fn start_registered(
+        &mut self,
+        channel: ChannelId,
+        buffer: Arc<RegisteredSoundBuffer>,
+        looping: bool,
+    ) {
+        if self.live {
+            self.with(channel, |channel| {
+                channel.samples = Some((buffer.samples.clone(), buffer.rate));
+                channel.registered = Some(buffer);
+                channel.looping = looping;
+                channel.state = State::Playing;
+            });
+        }
     }
     fn set_volume(&mut self, channel: ChannelId, volume: f32) {
         self.with(channel, |c| c.gain = volume);
@@ -842,6 +1620,355 @@ pub fn output_devices() -> Vec<String> {
 }
 
 impl Audio {
+    pub fn local_sound_limits(&self) -> NativeSoundLimits {
+        NativeSoundLimits::default()
+    }
+
+    pub fn register_local_sound_pcm(
+        &mut self,
+        owner: usize,
+        samples: &[i16],
+        channels: u8,
+        sample_rate: u32,
+    ) -> std::result::Result<NativeSoundHandle, NativeSoundError> {
+        let frames = local_pcm_frames(samples, channels, sample_rate, self.local_sound_limits())?;
+        let local = self
+            .local_sounds
+            .get_or_insert_with(|| LocalSounds::new(LocalSoundService::shared()));
+        let lease = local.service.reserve(
+            owner,
+            LocalCharge {
+                sounds: 1,
+                decoded: frames * 4,
+                ..LocalCharge::default()
+            },
+        )?;
+        let mut mono = Vec::with_capacity(frames);
+        for frame in samples.chunks_exact(usize::from(channels)) {
+            mono.push(
+                frame
+                    .iter()
+                    .map(|sample| f32::from(*sample) / 32768.0)
+                    .sum::<f32>()
+                    / f32::from(channels),
+            );
+        }
+        Ok(local.insert_sound(
+            owner,
+            Arc::new(RegisteredSoundBuffer {
+                samples: Arc::new(mono),
+                rate: sample_rate,
+                _lease: lease,
+            }),
+        ))
+    }
+
+    pub fn begin_local_sound_ogg(
+        &mut self,
+        owner: usize,
+        bytes: &[u8],
+    ) -> std::result::Result<NativeSoundRegistration, NativeSoundError> {
+        let limits = self.local_sound_limits();
+        if bytes.is_empty() {
+            return Err(NativeSoundError::InvalidOgg);
+        }
+        if bytes.len() > limits.encoded_bytes_per_sound {
+            return Err(NativeSoundError::SoundTooLarge);
+        }
+        let local = self
+            .local_sounds
+            .get_or_insert_with(|| LocalSounds::new(LocalSoundService::shared()));
+        let registration = Arc::new(local.service.reserve(
+            owner,
+            LocalCharge {
+                registrations: 1,
+                ..LocalCharge::default()
+            },
+        )?);
+        let buffer_lease = local.service.reserve(
+            owner,
+            LocalCharge {
+                sounds: 1,
+                decoded: limits.decoded_bytes_per_sound,
+                ..LocalCharge::default()
+            },
+        )?;
+        let work = local.service.reserve(
+            owner,
+            LocalCharge {
+                encoded: bytes.len(),
+                decoded: 256 * 1024,
+                ..LocalCharge::default()
+            },
+        )?;
+        let state = Arc::new(Mutex::new(LocalRegistrationState {
+            queued: Some(LocalDecode {
+                bytes: bytes.to_vec(),
+                buffer_lease,
+                _work: work,
+                _registration: registration.clone(),
+            }),
+            ..LocalRegistrationState::default()
+        }));
+        local.service.submit(state.clone())?;
+        let (slot, generation) = local.registrations.insert(
+            owner,
+            LocalRegistration {
+                state,
+                _lease: registration,
+            },
+        );
+        Ok(NativeSoundRegistration {
+            owner,
+            session: local.session,
+            slot,
+            generation,
+        })
+    }
+
+    pub fn poll_local_sound_registration(
+        &mut self,
+        owner: usize,
+        ticket: NativeSoundRegistration,
+    ) -> std::result::Result<Option<NativeSoundHandle>, NativeSoundError> {
+        let local = self
+            .local_sounds
+            .as_mut()
+            .ok_or(NativeSoundError::StaleHandle)?;
+        local.check(owner, ticket.owner, ticket.session)?;
+        let result = local
+            .registrations
+            .get(owner, ticket.slot, ticket.generation)?
+            .state
+            .lock()
+            .unwrap()
+            .result
+            .take();
+        let Some(result) = result else {
+            return Ok(None);
+        };
+        local
+            .registrations
+            .remove(owner, ticket.slot, ticket.generation)?;
+        result.map(|buffer| Some(local.insert_sound(owner, buffer)))
+    }
+
+    pub fn cancel_local_sound_registration(
+        &mut self,
+        owner: usize,
+        ticket: NativeSoundRegistration,
+    ) -> std::result::Result<(), NativeSoundError> {
+        let local = self
+            .local_sounds
+            .as_mut()
+            .ok_or(NativeSoundError::StaleHandle)?;
+        local.check(owner, ticket.owner, ticket.session)?;
+        local
+            .registrations
+            .remove(owner, ticket.slot, ticket.generation)?;
+        Ok(())
+    }
+
+    pub fn play_registered_local_sound(
+        &mut self,
+        owner: usize,
+        sound: NativeSoundHandle,
+        position: [f64; 3],
+        volume: f32,
+        pitch: f32,
+        looping: bool,
+    ) -> std::result::Result<NativePlaybackHandle, NativeSoundError> {
+        if !position
+            .iter()
+            .all(|coordinate| coordinate.is_finite() && (*coordinate as f32).is_finite())
+        {
+            return Err(NativeSoundError::InvalidPosition);
+        }
+        if !volume.is_finite() || volume < 0.0 {
+            return Err(NativeSoundError::InvalidVolume);
+        }
+        if !pitch.is_finite() || pitch <= 0.0 {
+            return Err(NativeSoundError::InvalidPitch);
+        }
+        let local = self
+            .local_sounds
+            .as_ref()
+            .ok_or(NativeSoundError::StaleHandle)?;
+        local.check(owner, sound.owner, sound.session)?;
+        let buffer = local
+            .sounds
+            .get(owner, sound.slot, sound.generation)?
+            .clone();
+        if !self.engine.loaded || !self.backend.live {
+            return Err(NativeSoundError::AudioUnavailable);
+        }
+        self.prune_local_playbacks();
+        self.sync_volumes();
+        if self
+            .engine
+            .calculate_volume(volume, crate::sound_engine::PLAYERS)
+            == 0.0
+        {
+            return Err(NativeSoundError::Muted);
+        }
+        let local = self.local_sounds.as_ref().unwrap();
+        let lease = local.service.reserve(
+            owner,
+            LocalCharge {
+                playbacks: 1,
+                ..LocalCharge::default()
+            },
+        )?;
+        let mut instance = SoundInstance::at(
+            "",
+            crate::sound_engine::PLAYERS,
+            volume,
+            pitch,
+            LegacyRandom::new(0),
+            position,
+        );
+        let mut metadata = Sound::empty();
+        metadata.sentinel = crate::sound_events::Sentinel::None;
+        instance.sound = Some(metadata);
+        instance.event = Some(None);
+        instance.chosen = true;
+        instance.registered = Some(buffer);
+        instance.looping = looping;
+        let instance = self.engine.add(instance, true);
+        if self.engine.play(instance, &mut self.backend) == PlayResult::NotStarted {
+            self.engine.remove_registered(instance, &mut self.backend);
+            return Err(NativeSoundError::ChannelExhausted);
+        }
+        let local = self.local_sounds.as_mut().unwrap();
+        let (slot, generation) = local.playbacks.insert(
+            owner,
+            LocalPlayback {
+                sound,
+                instance,
+                _lease: lease,
+            },
+        );
+        Ok(NativePlaybackHandle {
+            owner,
+            session: local.session,
+            slot,
+            generation,
+        })
+    }
+
+    pub fn stop_local_playback(
+        &mut self,
+        owner: usize,
+        playback: NativePlaybackHandle,
+    ) -> std::result::Result<(), NativeSoundError> {
+        let local = self
+            .local_sounds
+            .as_mut()
+            .ok_or(NativeSoundError::StaleHandle)?;
+        local.check(owner, playback.owner, playback.session)?;
+        let playback = local
+            .playbacks
+            .remove(owner, playback.slot, playback.generation)?;
+        self.engine
+            .remove_registered(playback.instance, &mut self.backend);
+        Ok(())
+    }
+
+    pub fn unregister_local_sound(
+        &mut self,
+        owner: usize,
+        sound: NativeSoundHandle,
+    ) -> std::result::Result<(), NativeSoundError> {
+        let local = self
+            .local_sounds
+            .as_mut()
+            .ok_or(NativeSoundError::StaleHandle)?;
+        local.check(owner, sound.owner, sound.session)?;
+        local.sounds.get(owner, sound.slot, sound.generation)?;
+        for slot in &mut local.playbacks.slots {
+            if slot
+                .value
+                .as_ref()
+                .is_some_and(|(_, playback)| playback.sound == sound)
+            {
+                let (_, playback) = slot.value.take().unwrap();
+                self.engine
+                    .remove_registered(playback.instance, &mut self.backend);
+            }
+        }
+        local.sounds.remove(owner, sound.slot, sound.generation)?;
+        Ok(())
+    }
+
+    pub fn move_local_playback(
+        &mut self,
+        owner: usize,
+        playback: NativePlaybackHandle,
+        position: [f64; 3],
+    ) -> bool {
+        let Some(local) = self.local_sounds.as_ref() else {
+            return false;
+        };
+        if local
+            .check(owner, playback.owner, playback.session)
+            .is_err()
+        {
+            return false;
+        }
+        let Ok(playback) = local
+            .playbacks
+            .get(owner, playback.slot, playback.generation)
+        else {
+            return false;
+        };
+        if !position
+            .iter()
+            .all(|coordinate| coordinate.is_finite() && (*coordinate as f32).is_finite())
+            || !self
+                .engine
+                .registered_active(playback.instance, &mut self.backend)
+        {
+            return false;
+        }
+        self.engine
+            .move_registered(playback.instance, position, &mut self.backend);
+        true
+    }
+
+    fn prune_local_playbacks(&mut self) {
+        let Some(local) = self.local_sounds.as_mut() else {
+            return;
+        };
+        for slot in &mut local.playbacks.slots {
+            if slot.value.as_ref().is_some_and(|(_, playback)| {
+                !self
+                    .engine
+                    .registered_active(playback.instance, &mut self.backend)
+            }) {
+                let (_, playback) = slot.value.take().unwrap();
+                self.engine
+                    .remove_registered(playback.instance, &mut self.backend);
+            }
+        }
+    }
+
+    fn stop_registered_playbacks(&mut self) {
+        let Some(local) = self.local_sounds.as_mut() else {
+            return;
+        };
+        for slot in &mut local.playbacks.slots {
+            if let Some((_, playback)) = slot.value.take() {
+                self.engine
+                    .remove_registered(playback.instance, &mut self.backend);
+            }
+        }
+    }
+
+    pub fn clear_local_sounds(&mut self) {
+        self.stop_registered_playbacks();
+        self.local_sounds = None;
+    }
+
     pub fn new(root: &Path) -> Self {
         Self::with_device(root, "")
     }
@@ -921,6 +2048,7 @@ impl Audio {
             heard: Default::default(),
             stopped: Default::default(),
             preview: Default::default(),
+            local_sounds: None,
             #[cfg(feature = "audio")]
             default_seen: if live { default_output_name() } else { None },
             #[cfg(feature = "audio")]
@@ -1080,6 +2208,7 @@ impl Audio {
             heard: Default::default(),
             stopped: Default::default(),
             preview: Default::default(),
+            local_sounds: None,
             // The device belongs to the first player's output, which looks after it.
             #[cfg(feature = "audio")]
             default_seen: self.default_seen.clone(),
@@ -1184,6 +2313,7 @@ impl Audio {
         }
         self.sync_volumes();
         self.engine.tick(paused, ctx, &mut self.backend);
+        self.prune_local_playbacks();
     }
     /// The `uiSoundReserve` extra: positional sounds leave
     /// `sound_engine::HEARD_RESERVE` static channels free (off: vanilla's pool).
@@ -1208,6 +2338,7 @@ impl Audio {
     /// `SoundManager.stop()`: every sound.
     pub fn stop_all(&mut self) {
         self.engine.stop_all(&mut self.backend);
+        self.stop_registered_playbacks();
     }
     /// `SoundManager.reload` (resource packs changed): stop every sound, then
     /// read sound events and sound files from the new resource root.
@@ -1448,9 +2579,576 @@ impl Sounds for Audio {
 mod tests {
     use super::*;
 
+    fn local_test_audio() -> Audio {
+        let mut audio = Audio::silent(Path::new("/nonexistent/horizon-test-assets"));
+        audio.engine.loaded = true;
+        audio.backend.live = true;
+        audio.local_sounds = Some(LocalSounds::new(LocalSoundService::new()));
+        audio
+    }
+
+    fn local_ogg_page(sequence: u32, flags: u8, granule: u64, packet: &[u8]) -> Vec<u8> {
+        assert!(packet.len() < 255);
+        let mut page = vec![0_u8; 27];
+        page[..4].copy_from_slice(b"OggS");
+        page[5] = flags;
+        page[6..14].copy_from_slice(&granule.to_le_bytes());
+        page[14..18].copy_from_slice(&1_u32.to_le_bytes());
+        page[18..22].copy_from_slice(&sequence.to_le_bytes());
+        page[26] = 1;
+        page.push(packet.len() as u8);
+        page.extend_from_slice(packet);
+        let checksum = local_ogg_crc(&page);
+        page[22..26].copy_from_slice(&checksum.to_le_bytes());
+        page
+    }
+
+    fn local_ogg_fixture(channels: u8, rate: u32) -> Vec<u8> {
+        let mut identification = vec![0_u8; 30];
+        identification[..7].copy_from_slice(b"\x01vorbis");
+        identification[11] = channels;
+        identification[12..16].copy_from_slice(&rate.to_le_bytes());
+        identification[28] = 0x76;
+        identification[29] = 1;
+        let mut comments = b"\x03vorbis".to_vec();
+        comments.extend_from_slice(&[0; 8]);
+        comments.push(1);
+        let mut bytes = local_ogg_page(0, 2, 0, &identification);
+        bytes.extend(local_ogg_page(1, 0, 0, &comments));
+        bytes.extend(local_ogg_page(2, 0, 0, b"\x05vorbis\x01"));
+        bytes.extend(local_ogg_page(3, 4, 32, &[0]));
+        bytes
+    }
+
+    #[test]
+    fn local_pcm_validates_format_size_and_downmixes_stereo() {
+        let limits = NativeSoundLimits::default();
+        for channels in [0, 3, 255] {
+            assert_eq!(
+                local_pcm_frames(&[0], channels, 48_000, limits),
+                Err(NativeSoundError::InvalidChannels)
+            );
+        }
+        for rate in [0, 7_999, 192_001, u32::MAX] {
+            assert_eq!(
+                local_pcm_frames(&[0], 1, rate, limits),
+                Err(NativeSoundError::InvalidSampleRate)
+            );
+        }
+        assert_eq!(
+            local_pcm_frames(&[], 1, 48_000, limits),
+            Err(NativeSoundError::EmptySamples)
+        );
+        assert_eq!(
+            local_pcm_frames(&[0], 2, 48_000, limits),
+            Err(NativeSoundError::IncompleteFrame)
+        );
+        let small = NativeSoundLimits {
+            decoded_bytes_per_sound: 4,
+            ..limits
+        };
+        assert_eq!(
+            local_pcm_frames(&[0, 0], 1, 48_000, small),
+            Err(NativeSoundError::SoundTooLarge)
+        );
+        assert_eq!(local_pcm_frames(&[0, 0], 2, 8_000, small), Ok(1));
+        assert_eq!(local_pcm_frames(&[0], 1, 192_000, limits), Ok(1));
+        let mut audio = local_test_audio();
+        let sound = audio
+            .register_local_sound_pcm(7, &[32_767, -32_768, 16_384, 16_384], 2, 48_000)
+            .unwrap();
+        let local = audio.local_sounds.as_ref().unwrap();
+        let buffer = local.sounds.get(7, sound.slot, sound.generation).unwrap();
+        assert_eq!(buffer.samples.as_slice(), &[-1.0 / 65_536.0, 0.5]);
+        assert_eq!(buffer.rate, 48_000);
+        assert_eq!(local.service.budget.lock().unwrap().total.decoded, 8);
+        assert!(local.service.worker.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn local_ogg_rejects_bad_truncated_and_oversized_data() {
+        let limits = NativeSoundLimits::default();
+        let fixture = local_ogg_fixture(1, 48_000);
+        assert_eq!(validate_local_ogg(&fixture, limits), Ok((1, 48_000, 32)));
+        assert_eq!(
+            validate_local_ogg(b"not an ogg file", limits),
+            Err(NativeSoundError::TruncatedOgg)
+        );
+        let mut bad = fixture.clone();
+        bad[0] = 0;
+        assert_eq!(
+            validate_local_ogg(&bad, limits),
+            Err(NativeSoundError::InvalidOgg)
+        );
+        let mut bad_checksum = fixture.clone();
+        bad_checksum[22] ^= 1;
+        assert_eq!(
+            validate_local_ogg(&bad_checksum, limits),
+            Err(NativeSoundError::InvalidOgg)
+        );
+        assert_eq!(
+            validate_local_ogg(&fixture[..fixture.len() - 1], limits),
+            Err(NativeSoundError::TruncatedOgg)
+        );
+        assert_eq!(
+            validate_local_ogg(&fixture[..fixture.len() - 29], limits),
+            Err(NativeSoundError::TruncatedOgg)
+        );
+        let encoded_limit = NativeSoundLimits {
+            encoded_bytes_per_sound: fixture.len() - 1,
+            ..limits
+        };
+        assert_eq!(
+            validate_local_ogg(&fixture, encoded_limit),
+            Err(NativeSoundError::SoundTooLarge)
+        );
+        let decoded_limit = NativeSoundLimits {
+            decoded_bytes_per_sound: 31 * 4,
+            ..limits
+        };
+        assert_eq!(
+            validate_local_ogg(&fixture, decoded_limit),
+            Err(NativeSoundError::SoundTooLarge)
+        );
+        for channels in [0, 3] {
+            assert_eq!(
+                validate_local_ogg(&local_ogg_fixture(channels, 48_000), limits),
+                Err(NativeSoundError::InvalidChannels)
+            );
+        }
+        for rate in [0, 7_999, 192_001] {
+            assert_eq!(
+                validate_local_ogg(&local_ogg_fixture(1, rate), limits),
+                Err(NativeSoundError::InvalidSampleRate)
+            );
+        }
+        let state = Mutex::new(LocalRegistrationState::default());
+        assert!(matches!(
+            decode_local_ogg(fixture, limits, &state),
+            Err(NativeSoundError::InvalidOgg)
+        ));
+        assert_eq!(
+            validate_local_comments(b"\x03vorbis\x00"),
+            Err(NativeSoundError::TruncatedOgg)
+        );
+    }
+
+    #[test]
+    fn local_budgets_enforce_each_mod_and_global_cap_and_release_leases() {
+        let cases = [
+            (
+                LocalCharge {
+                    sounds: 2,
+                    ..LocalCharge::default()
+                },
+                NativeSoundError::SoundCountLimit,
+            ),
+            (
+                LocalCharge {
+                    decoded: 8,
+                    ..LocalCharge::default()
+                },
+                NativeSoundError::DecodedByteLimit,
+            ),
+            (
+                LocalCharge {
+                    encoded: 8,
+                    ..LocalCharge::default()
+                },
+                NativeSoundError::EncodedByteLimit,
+            ),
+            (
+                LocalCharge {
+                    registrations: 2,
+                    ..LocalCharge::default()
+                },
+                NativeSoundError::RegistrationQueueFull,
+            ),
+            (
+                LocalCharge {
+                    playbacks: 2,
+                    ..LocalCharge::default()
+                },
+                NativeSoundError::PlaybackLimit,
+            ),
+        ];
+        for (charge, expected) in cases {
+            let mut service = LocalSoundService::new();
+            Arc::get_mut(&mut service).unwrap().limits = NativeSoundLimits {
+                sounds_per_mod: 2,
+                sounds_global: 4,
+                decoded_bytes_per_mod: 8,
+                decoded_bytes_global: 16,
+                encoded_bytes_per_mod: 8,
+                encoded_bytes_global: 16,
+                registrations_per_mod: 2,
+                registrations_global: 4,
+                playbacks_per_mod: 2,
+                playbacks_global: 4,
+                ..NativeSoundLimits::default()
+            };
+            let first = service.reserve(1, charge).unwrap();
+            assert!(matches!(service.reserve(1, charge), Err(error) if error == expected));
+            let second = service.reserve(2, charge).unwrap();
+            assert!(matches!(service.reserve(3, charge), Err(error) if error == expected));
+            drop(first);
+            let third = service.reserve(3, charge).unwrap();
+            drop(second);
+            drop(third);
+            let budget = service.budget.lock().unwrap();
+            assert!(budget.total.empty());
+            assert!(budget.mods.is_empty());
+            assert!(service.worker.lock().unwrap().is_none());
+        }
+    }
+
+    fn queued_local_registration(
+        audio: &mut Audio,
+        owner: usize,
+    ) -> (NativeSoundRegistration, Arc<Mutex<LocalRegistrationState>>) {
+        let local = audio.local_sounds.as_mut().unwrap();
+        let registration = Arc::new(
+            local
+                .service
+                .reserve(
+                    owner,
+                    LocalCharge {
+                        registrations: 1,
+                        ..LocalCharge::default()
+                    },
+                )
+                .unwrap(),
+        );
+        let buffer_lease = local
+            .service
+            .reserve(
+                owner,
+                LocalCharge {
+                    sounds: 1,
+                    decoded: 8,
+                    ..LocalCharge::default()
+                },
+            )
+            .unwrap();
+        let work = local
+            .service
+            .reserve(
+                owner,
+                LocalCharge {
+                    encoded: 4,
+                    decoded: 8,
+                    ..LocalCharge::default()
+                },
+            )
+            .unwrap();
+        let state = Arc::new(Mutex::new(LocalRegistrationState {
+            queued: Some(LocalDecode {
+                bytes: vec![0; 4],
+                buffer_lease,
+                _work: work,
+                _registration: registration.clone(),
+            }),
+            ..LocalRegistrationState::default()
+        }));
+        let (slot, generation) = local.registrations.insert(
+            owner,
+            LocalRegistration {
+                state: state.clone(),
+                _lease: registration,
+            },
+        );
+        (
+            NativeSoundRegistration {
+                owner,
+                session: local.session,
+                slot,
+                generation,
+            },
+            state,
+        )
+    }
+
+    #[test]
+    fn local_sound_handles_reject_foreign_stale_and_previous_world_values() {
+        let mut audio = local_test_audio();
+        let first = audio
+            .register_local_sound_pcm(1, &[1, 2], 1, 48_000)
+            .unwrap();
+        assert_eq!(
+            audio.unregister_local_sound(2, first),
+            Err(NativeSoundError::ForeignHandle)
+        );
+        let forged = NativeSoundHandle { owner: 2, ..first };
+        assert_eq!(
+            audio.unregister_local_sound(2, forged),
+            Err(NativeSoundError::ForeignHandle)
+        );
+        audio.unregister_local_sound(1, first).unwrap();
+        let second = audio
+            .register_local_sound_pcm(1, &[3, 4], 1, 48_000)
+            .unwrap();
+        assert_eq!(first.slot, second.slot);
+        assert_ne!(first.generation, second.generation);
+        assert_eq!(
+            audio.unregister_local_sound(1, first),
+            Err(NativeSoundError::StaleHandle)
+        );
+        assert_eq!(
+            audio.play_registered_local_sound(1, first, [0.0; 3], 1.0, 1.0, false),
+            Err(NativeSoundError::StaleHandle),
+        );
+        audio.clear_local_sounds();
+        let third = audio
+            .register_local_sound_pcm(1, &[5, 6], 1, 48_000)
+            .unwrap();
+        assert_ne!(second.session, third.session);
+        assert_eq!(
+            audio.unregister_local_sound(1, second),
+            Err(NativeSoundError::StaleHandle)
+        );
+        audio.clear_local_sounds();
+    }
+
+    #[test]
+    fn local_playbacks_share_buffers_and_unregister_stops_only_their_owner() {
+        let mut audio = local_test_audio();
+        let sound = audio
+            .register_local_sound_pcm(1, &[1, 2], 1, 48_000)
+            .unwrap();
+        let other_sound = audio
+            .register_local_sound_pcm(2, &[3, 4], 1, 48_000)
+            .unwrap();
+        let first = audio
+            .play_registered_local_sound(1, sound, [0.0; 3], 1.0, 1.0, true)
+            .unwrap();
+        let second = audio
+            .play_registered_local_sound(1, sound, [1.0; 3], 1.0, 1.0, false)
+            .unwrap();
+        let other = audio
+            .play_registered_local_sound(2, other_sound, [0.0; 3], 1.0, 1.0, true)
+            .unwrap();
+        let (first_id, second_id, other_id) = {
+            let local = audio.local_sounds.as_ref().unwrap();
+            (
+                local
+                    .playbacks
+                    .get(1, first.slot, first.generation)
+                    .unwrap()
+                    .instance,
+                local
+                    .playbacks
+                    .get(1, second.slot, second.generation)
+                    .unwrap()
+                    .instance,
+                local
+                    .playbacks
+                    .get(2, other.slot, other.generation)
+                    .unwrap()
+                    .instance,
+            )
+        };
+        {
+            let local = audio.local_sounds.as_ref().unwrap();
+            let buffer = local.sounds.get(1, sound.slot, sound.generation).unwrap();
+            let mixer = audio.backend.mixer.lock().unwrap();
+            assert!(Arc::ptr_eq(
+                buffer,
+                mixer.channels[&first_id].registered.as_ref().unwrap()
+            ));
+            assert!(Arc::ptr_eq(
+                buffer,
+                mixer.channels[&second_id].registered.as_ref().unwrap()
+            ));
+            assert!(Arc::ptr_eq(
+                &buffer.samples,
+                &mixer.channels[&first_id].samples.as_ref().unwrap().0
+            ));
+            assert!(Arc::ptr_eq(
+                &buffer.samples,
+                &mixer.channels[&second_id].samples.as_ref().unwrap().0
+            ));
+        }
+        assert_eq!(
+            audio.stop_local_playback(2, first),
+            Err(NativeSoundError::ForeignHandle)
+        );
+        audio.stop_local_playback(1, first).unwrap();
+        assert_eq!(
+            audio.stop_local_playback(1, first),
+            Err(NativeSoundError::StaleHandle)
+        );
+        let replacement = audio
+            .play_registered_local_sound(1, sound, [0.0; 3], 1.0, 1.0, true)
+            .unwrap();
+        assert_eq!(first.slot, replacement.slot);
+        assert_ne!(first.generation, replacement.generation);
+        let replacement_id = audio
+            .local_sounds
+            .as_ref()
+            .unwrap()
+            .playbacks
+            .get(1, replacement.slot, replacement.generation)
+            .unwrap()
+            .instance;
+        audio.unregister_local_sound(1, sound).unwrap();
+        for instance in [first_id, second_id, replacement_id] {
+            assert!(audio.engine.instance(instance).is_none());
+            assert!(
+                !audio
+                    .backend
+                    .mixer
+                    .lock()
+                    .unwrap()
+                    .channels
+                    .contains_key(&instance)
+            );
+        }
+        assert!(audio.engine.instance(other_id).is_some());
+        assert_eq!(
+            audio.stop_local_playback(1, second),
+            Err(NativeSoundError::StaleHandle)
+        );
+        let service = audio.local_sounds.as_ref().unwrap().service.clone();
+        assert!(!service.budget.lock().unwrap().mods.contains_key(&1));
+        audio.clear_local_sounds();
+        assert!(service.budget.lock().unwrap().total.empty());
+    }
+
+    #[test]
+    fn local_registration_tickets_are_owned_generational_and_consumed_on_completion() {
+        let mut audio = local_test_audio();
+        let service = audio.local_sounds.as_ref().unwrap().service.clone();
+        let (first, state) = queued_local_registration(&mut audio, 1);
+        assert_eq!(audio.poll_local_sound_registration(1, first), Ok(None));
+        assert_eq!(
+            audio.cancel_local_sound_registration(2, first),
+            Err(NativeSoundError::ForeignHandle)
+        );
+        assert_eq!(
+            audio.poll_local_sound_registration(2, first),
+            Err(NativeSoundError::ForeignHandle)
+        );
+        audio.cancel_local_sound_registration(1, first).unwrap();
+        assert!(state.lock().unwrap().cancelled);
+        assert!(state.lock().unwrap().queued.is_none());
+        assert!(service.budget.lock().unwrap().total.empty());
+        let (second, state) = queued_local_registration(&mut audio, 1);
+        assert_eq!(first.slot, second.slot);
+        assert_ne!(first.generation, second.generation);
+        assert_eq!(
+            audio.poll_local_sound_registration(1, first),
+            Err(NativeSoundError::StaleHandle)
+        );
+        state.lock().unwrap().result = Some(Err(NativeSoundError::InvalidOgg));
+        assert_eq!(
+            audio.poll_local_sound_registration(1, second),
+            Err(NativeSoundError::InvalidOgg)
+        );
+        assert_eq!(
+            audio.poll_local_sound_registration(1, second),
+            Err(NativeSoundError::StaleHandle)
+        );
+        assert!(service.budget.lock().unwrap().total.empty());
+        let (third, state) = queued_local_registration(&mut audio, 1);
+        let LocalDecode {
+            bytes,
+            buffer_lease,
+            _work: work,
+            _registration: registration,
+        } = state.lock().unwrap().queued.take().unwrap();
+        drop((bytes, work, registration));
+        state.lock().unwrap().result = Some(Ok(Arc::new(RegisteredSoundBuffer {
+            samples: Arc::new(vec![0.0, 0.5]),
+            rate: 48_000,
+            _lease: buffer_lease,
+        })));
+        let sound = audio
+            .poll_local_sound_registration(1, third)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            audio.cancel_local_sound_registration(1, third),
+            Err(NativeSoundError::StaleHandle)
+        );
+        assert_eq!(service.budget.lock().unwrap().total.registrations, 0);
+        assert_eq!(service.budget.lock().unwrap().total.encoded, 0);
+        audio.unregister_local_sound(1, sound).unwrap();
+        assert!(service.budget.lock().unwrap().total.empty());
+        assert!(service.worker.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn local_cancelled_inflight_work_releases_its_reservations_before_decoding() {
+        let mut audio = local_test_audio();
+        let service = audio.local_sounds.as_ref().unwrap().service.clone();
+        let (ticket, state) = queued_local_registration(&mut audio, 1);
+        let job = state.lock().unwrap().queued.take().unwrap();
+        audio.cancel_local_sound_registration(1, ticket).unwrap();
+        assert!(!service.budget.lock().unwrap().total.empty());
+        job.run(&state);
+        assert!(state.lock().unwrap().result.is_none());
+        assert!(service.budget.lock().unwrap().total.empty());
+        assert!(service.worker.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn local_teardown_clears_sounds_playbacks_and_pending_registrations() {
+        let mut audio = local_test_audio();
+        let service = audio.local_sounds.as_ref().unwrap().service.clone();
+        let sound = audio
+            .register_local_sound_pcm(1, &[1, 2], 1, 48_000)
+            .unwrap();
+        let playback = audio
+            .play_registered_local_sound(1, sound, [0.0; 3], 1.0, 1.0, true)
+            .unwrap();
+        let (ticket, state) = queued_local_registration(&mut audio, 2);
+        state.lock().unwrap().result = Some(Err(NativeSoundError::InvalidOgg));
+        let instance = audio
+            .local_sounds
+            .as_ref()
+            .unwrap()
+            .playbacks
+            .get(1, playback.slot, playback.generation)
+            .unwrap()
+            .instance;
+        audio.clear_local_sounds();
+        assert!(audio.local_sounds.is_none());
+        assert!(audio.backend.mixer.lock().unwrap().channels.is_empty());
+        assert!(audio.engine.instance(instance).is_none());
+        assert!(state.lock().unwrap().cancelled);
+        assert!(state.lock().unwrap().queued.is_none());
+        assert!(state.lock().unwrap().result.is_none());
+        assert!(service.budget.lock().unwrap().mods.is_empty());
+        assert!(service.budget.lock().unwrap().total.empty());
+        assert!(service.worker.lock().unwrap().is_none());
+        assert_eq!(
+            audio.poll_local_sound_registration(2, ticket),
+            Err(NativeSoundError::StaleHandle)
+        );
+        audio.clear_local_sounds();
+        assert!(audio.local_sounds.is_none());
+    }
+
+    #[test]
+    fn unused_local_audio_stays_unallocated_through_limits_cleanup_and_stops() {
+        let mut audio = Audio::silent(Path::new("/nonexistent/horizon-test-assets"));
+        let limits = audio.local_sound_limits();
+        assert_eq!(limits.sounds_per_mod, 256);
+        assert_eq!(limits.decoded_bytes_per_mod, 64 * 1024 * 1024);
+        assert_eq!(limits.decoded_bytes_global, 128 * 1024 * 1024);
+        assert!(audio.local_sounds.is_none());
+        audio.prune_local_playbacks();
+        audio.stop_registered_playbacks();
+        audio.clear_local_sounds();
+        audio.stop_all();
+        assert!(audio.local_sounds.is_none());
+        assert!(audio.backend.mixer.lock().unwrap().channels.is_empty());
+    }
+
     #[test]
     fn button_click_uses_vanilla_ui_parameters_without_advancing_world_random() {
         let mut audio = Audio::silent(Path::new("/nonexistent/horizon-test-assets"));
+        assert!(audio.local_sounds.is_none());
         audio.engine.registry.add_file(
             "minecraft",
             br#"{"ui.button.click":{"sounds":["gui/button"]}}"#,
@@ -1468,6 +3166,7 @@ mod tests {
         assert_eq!(instance.volume, 0.25);
         assert_eq!(instance.pitch, 1.0);
         assert_eq!(instance.attenuation, Attenuation::None);
+        assert!(instance.registered.is_none());
         assert_eq!(instance.position, [0.0; 3]);
         assert!(instance.relative);
         assert!(!instance.looping);
@@ -1478,11 +3177,13 @@ mod tests {
             State::Initial
         );
         audio.stop_all();
+        assert!(audio.local_sounds.is_none());
     }
 
     fn channel(samples: Vec<f32>, linear: Option<f32>, at: [f32; 3], looping: bool) -> Channel {
         Channel {
             samples: Some((Arc::new(samples), 48_000)),
+            registered: None,
             position: 0.0,
             state: State::Playing,
             gain: 1.0,

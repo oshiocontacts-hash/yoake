@@ -440,6 +440,102 @@ impl ArmPose {
         self.two_handed() || self == Self::ThrowTrident
     }
 }
+/// The arm poses and animation inputs used by the skeleton and player models.
+pub fn humanoid_state(mob: &Mob, state: &State) -> Hum {
+    let bow = mob.extra.main_hand.as_deref() == Some("minecraft:bow");
+    let player = matches!(mob.kind.anim, Anim::Humanoid { .. });
+    let right = if bow && mob.ai.aggressive {
+        ArmPose::Bow
+    } else if player && mob.extra.main_hand.is_some() {
+        ArmPose::Item
+    } else {
+        ArmPose::Empty
+    };
+    let using_main = mob.extra.using_item > 0 && !mob.extra.using_off_hand;
+    let using_off = mob.extra.using_item > 0 && mob.extra.using_off_hand;
+    let spear_in = |hand: &Option<std::sync::Arc<str>>| {
+        hand.as_deref()
+            .filter(|_| player)
+            .and_then(crate::spear::Kinetic::of)
+    };
+    let (main_spear, off_spear) = (
+        spear_in(&mob.extra.main_hand),
+        spear_in(&mob.extra.off_hand),
+    );
+    let pose = if player {
+        match mob.extra.main_hand.as_deref() {
+            Some(_) if using_main && mob.extra.blocking => ArmPose::Block,
+            Some("minecraft:bow") if using_main => ArmPose::Bow,
+            Some("minecraft:trident") if using_main => ArmPose::ThrowTrident,
+            Some("minecraft:spyglass") if using_main => ArmPose::Spyglass,
+            Some("minecraft:goat_horn") if using_main => ArmPose::TootHorn,
+            Some("minecraft:crossbow") if using_main && !mob.extra.charged => {
+                ArmPose::CrossbowCharge
+            }
+            Some("minecraft:crossbow") if mob.extra.charged && state.swing == 0.0 => {
+                ArmPose::CrossbowHold
+            }
+            Some("minecraft:brush") if using_main => ArmPose::Brush,
+            Some(_) if main_spear.is_some() => ArmPose::Spear,
+            Some(_) => ArmPose::Item,
+            None => ArmPose::Empty,
+        }
+    } else {
+        right
+    };
+    let off = if player && mob.extra.off_hand.is_some() && !pose.affects_offhand() {
+        if off_spear.is_some() {
+            ArmPose::Spear
+        } else if using_off && mob.extra.blocking {
+            ArmPose::Block
+        } else if using_off && mob.extra.off_hand.as_deref() == Some("minecraft:spyglass") {
+            ArmPose::Spyglass
+        } else if using_off && mob.extra.off_hand.as_deref() == Some("minecraft:goat_horn") {
+            ArmPose::TootHorn
+        } else if using_off && mob.extra.off_hand.as_deref() == Some("minecraft:brush") {
+            ArmPose::Brush
+        } else {
+            ArmPose::Item
+        }
+    } else {
+        ArmPose::Empty
+    };
+    let mut humanoid = if mob.main_arm_left() {
+        Hum::new(off, pose)
+    } else {
+        Hum::new(pose, off)
+    };
+    humanoid.charge = (mob.extra.ints[5] as f32, mob.extra.using_item as f32);
+    humanoid.fall_flying = mob.extra.fall_flying;
+    if humanoid.fall_flying {
+        let velocity = mob.velocity;
+        humanoid.fly_speed_scale = (((velocity.x * velocity.x
+            + velocity.y * velocity.y
+            + velocity.z * velocity.z) as f32
+            / 0.2)
+            .powi(3))
+        .max(1.0);
+    }
+    humanoid.crouching = mob.extra.crouching;
+    humanoid.passenger = mob.extra.passenger;
+    humanoid.swim = mob.extra.swim.amount(state.partial);
+    humanoid.using_item = mob.extra.using_item > 0;
+    humanoid.swing_right_arm = mob.extra.swing_right_arm;
+    humanoid.stab = mob.extra.swing_stab;
+    humanoid.left_main = mob.main_arm_left();
+    let main_side = usize::from(mob.main_arm_left());
+    humanoid.spear[main_side] = main_spear;
+    humanoid.spear[1 - main_side] = off_spear;
+    if mob.extra.using_item > 0 {
+        let using_side = if mob.extra.using_off_hand {
+            1 - main_side
+        } else {
+            main_side
+        };
+        humanoid.spear_ticks[using_side] = mob.extra.using_item as f32 + state.partial;
+    }
+    humanoid
+}
 /// `AnimationUtils.animateCrossbowHold`.
 pub(super) fn crossbow_hold(p: &mut Poses, hx: f32, hy: f32, in_right: bool) {
     let (hold, shoot) = if in_right {
@@ -875,92 +971,8 @@ pub fn setup(
         Anim::Skeleton | Anim::Humanoid { zombie_arms: false } => {
             let bow = m.extra.main_hand.as_deref() == Some("minecraft:bow");
             let player = matches!(m.kind.anim, Anim::Humanoid { .. });
-            let right = if bow && m.ai.aggressive {
-                ArmPose::Bow
-            } else if player && m.extra.main_hand.is_some() {
-                ArmPose::Item
-            } else {
-                ArmPose::Empty
-            };
-            let using_main = m.extra.using_item > 0 && !m.extra.using_off_hand;
-            let using_off = m.extra.using_item > 0 && m.extra.using_off_hand;
-            // AvatarRenderer.getArmPose: an arm holding a spear (at rest too).
-            let spear_in = |hand: &Option<std::sync::Arc<str>>| {
-                hand.as_deref()
-                    .filter(|_| player)
-                    .and_then(crate::spear::Kinetic::of)
-            };
-            let (main_spear, off_spear) =
-                (spear_in(&m.extra.main_hand), spear_in(&m.extra.off_hand));
-            let pose = if player {
-                match m.extra.main_hand.as_deref() {
-                    Some(_) if using_main && m.extra.blocking => ArmPose::Block,
-                    Some("minecraft:bow") if using_main => ArmPose::Bow,
-                    Some("minecraft:trident") if using_main => ArmPose::ThrowTrident,
-                    Some("minecraft:spyglass") if using_main => ArmPose::Spyglass,
-                    Some("minecraft:goat_horn") if using_main => ArmPose::TootHorn,
-                    Some("minecraft:crossbow") if using_main && !m.extra.charged => {
-                        ArmPose::CrossbowCharge
-                    }
-                    Some("minecraft:crossbow") if m.extra.charged && s.swing == 0.0 => {
-                        ArmPose::CrossbowHold
-                    }
-                    Some("minecraft:brush") if using_main => ArmPose::Brush,
-                    Some(_) if main_spear.is_some() => ArmPose::Spear,
-                    Some(_) => ArmPose::Item,
-                    None => ArmPose::Empty,
-                }
-            } else {
-                right
-            };
-            let off = if player && m.extra.off_hand.is_some() && !pose.affects_offhand() {
-                if off_spear.is_some() {
-                    ArmPose::Spear
-                } else if using_off && m.extra.blocking {
-                    ArmPose::Block
-                } else if using_off && m.extra.off_hand.as_deref() == Some("minecraft:spyglass") {
-                    ArmPose::Spyglass
-                } else if using_off && m.extra.off_hand.as_deref() == Some("minecraft:goat_horn") {
-                    ArmPose::TootHorn
-                } else if using_off && m.extra.off_hand.as_deref() == Some("minecraft:brush") {
-                    ArmPose::Brush
-                } else {
-                    ArmPose::Item
-                }
-            } else {
-                ArmPose::Empty
-            };
-            let mut h = if m.main_arm_left() {
-                Hum::new(off, pose)
-            } else {
-                Hum::new(pose, off)
-            };
-            h.charge = (m.extra.ints[5] as f32, m.extra.using_item as f32);
-            h.fall_flying = m.extra.fall_flying;
-            if h.fall_flying {
-                let v = m.velocity;
-                h.fly_speed_scale =
-                    (((v.x * v.x + v.y * v.y + v.z * v.z) as f32 / 0.2).powi(3)).max(1.0);
-            }
-            h.crouching = m.extra.crouching;
-            h.passenger = m.extra.passenger;
-            h.swim = m.extra.swim.amount(s.partial);
-            h.using_item = m.extra.using_item > 0;
-            h.swing_right_arm = m.extra.swing_right_arm;
-            h.stab = m.extra.swing_stab;
-            h.left_main = m.main_arm_left();
-            let main_side = usize::from(m.main_arm_left());
-            h.spear[main_side] = main_spear;
-            h.spear[1 - main_side] = off_spear;
-            if m.extra.using_item > 0 {
-                let using_side = if m.extra.using_off_hand {
-                    1 - main_side
-                } else {
-                    main_side
-                };
-                h.spear_ticks[using_side] = m.extra.using_item as f32 + s.partial;
-            }
-            humanoid(p, s, &h);
+            let humanoid_state = humanoid_state(m, s);
+            humanoid(p, s, &humanoid_state);
             if player {
                 player_model_visibility(p, m.extra.hidden_model_parts, m.extra.spectator);
             }

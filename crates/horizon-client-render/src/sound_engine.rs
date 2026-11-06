@@ -156,6 +156,7 @@ pub struct SoundInstance {
     /// out), so `resolve` keeps it. Every other instance resolves again at each
     /// play, as vanilla's `getOrResolve` does.
     pub chosen: bool,
+    pub(crate) registered: Option<std::sync::Arc<crate::audio::RegisteredSoundBuffer>>,
 }
 impl SoundInstance {
     #[allow(clippy::too_many_arguments)]
@@ -188,6 +189,7 @@ impl SoundInstance {
             sound: None,
             event: None,
             chosen: false,
+            registered: None,
         }
     }
     /// `new SimpleSoundInstance(sound, source, volume, pitch, random, x, y, z)`.
@@ -773,6 +775,13 @@ pub trait Backend {
     fn set_relative(&mut self, channel: ChannelId, relative: bool);
     /// Attach the sound's buffer or stream (when loaded) and play it.
     fn start(&mut self, channel: ChannelId, sound: &Sound, looping: bool);
+    fn start_registered(
+        &mut self,
+        _channel: ChannelId,
+        _buffer: std::sync::Arc<crate::audio::RegisteredSoundBuffer>,
+        _looping: bool,
+    ) {
+    }
     fn stop(&mut self, channel: ChannelId);
     fn pause(&mut self, channel: ChannelId);
     fn unpause(&mut self, channel: ChannelId);
@@ -872,6 +881,50 @@ impl SoundEngine {
     pub fn release(&mut self, id: InstanceId) {
         self.retained.remove(&id);
         self.collect(id);
+    }
+    pub(crate) fn remove_registered(&mut self, id: InstanceId, backend: &mut impl Backend) {
+        if !self
+            .instances
+            .get(&id)
+            .is_some_and(|instance| instance.registered.is_some())
+        {
+            return;
+        }
+        if let Some(handle) = self.channel_of(id) {
+            self.release_handle(handle, backend);
+            self.handles.remove(&handle);
+        }
+        self.instance_to_channel
+            .retain(|(instance, _)| *instance != id);
+        self.instance_by_source
+            .retain(|(_, instance)| *instance != id);
+        self.queued.retain(|(instance, _)| *instance != id);
+        self.ticking.retain(|instance| *instance != id);
+        self.queued_tickable.retain(|instance| *instance != id);
+        self.delete_time.remove(&id);
+        self.retained.remove(&id);
+        self.instances.remove(&id);
+    }
+    pub(crate) fn registered_active(&mut self, id: InstanceId, backend: &mut impl Backend) -> bool {
+        self.channel_of(id)
+            .and_then(|handle| self.handles.get(&handle).and_then(handle_channel))
+            .is_some_and(|channel| !backend.stopped(channel))
+    }
+    pub(crate) fn move_registered(
+        &mut self,
+        id: InstanceId,
+        position: [f64; 3],
+        backend: &mut impl Backend,
+    ) {
+        if let Some(instance) = self.instances.get_mut(&id) {
+            instance.position = position;
+        }
+        if let Some(channel) = self
+            .channel_of(id)
+            .and_then(|handle| self.handles.get(&handle).and_then(handle_channel))
+        {
+            backend.set_position(channel, position);
+        }
     }
     fn referenced(&self, id: InstanceId) -> bool {
         self.retained.contains_key(&id)
@@ -1111,7 +1164,10 @@ impl SoundEngine {
         if !self.loaded || !self.instances.contains_key(&id) {
             return PlayResult::NotStarted;
         }
-        self.resolve(id);
+        let registered = self.instances[&id].registered.clone();
+        if registered.is_none() {
+            self.resolve(id);
+        }
         let instance = &self.instances[&id];
         let Some(subtitle) = instance.event.clone() else {
             return PlayResult::NotStarted;
@@ -1123,7 +1179,7 @@ impl SoundEngine {
         let instance = self.instances.get_mut(&id).expect("present");
         let instance_volume = instance.get_volume();
         let attenuation_distance = sound.attenuation_distance(instance_volume);
-        if self.listening {
+        if self.listening && registered.is_none() {
             self.notify(id, subtitle, attenuation_distance);
         }
         let instance = &self.instances[&id];
@@ -1189,7 +1245,11 @@ impl SoundEngine {
         backend.set_looping(channel, looping && !streaming);
         backend.set_position(channel, position);
         backend.set_relative(channel, relative);
-        backend.start(channel, &sound, looping);
+        if let Some(buffer) = registered {
+            backend.start_registered(channel, buffer, looping);
+        } else {
+            backend.start(channel, &sound, looping);
+        }
         if tickable {
             self.ticking.push(id);
         }
