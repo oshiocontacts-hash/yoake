@@ -3,8 +3,7 @@
 //! breeding, conversions, drops), projectiles, player interactions
 //! (feeding, shearing, milking, spawn eggs, throwing) and rendering.
 use super::{
-    Dim, Game, Hand, InteractTarget, dispenser, native_mob_draw::NativePlayerRender,
-    native_projectiles::Impact, view_vector,
+    Dim, Game, Hand, InteractTarget, dispenser, native_projectiles::Impact, view_vector,
 };
 use horizon_assets::item_model::DisplayContext;
 use horizon_client::{
@@ -6784,7 +6783,7 @@ impl Game<'_> {
             let who = is_player
                 .then(|| self.remote_player_name(mob.id))
                 .flatten()
-                .map(|name| NativePlayerRender { name, local: false });
+                .map(|name| (name, false));
             let modded = if layers_only {
                 false
             } else if let Some(who) = who {

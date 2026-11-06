@@ -2524,6 +2524,20 @@ items are left out (NeoForge's `RenderLivingEvent.Pre`, cancelled); its name tag
   after its vanilla model and layers, in the same frame (not for one a mod drew itself); `who` is set for a player. The
   geometry hangs from the entity's frame, not from a model bone: place a hat from `head_yaw`, `pitch` and the entity type's
   eye height.
+- Since @API:player_render_state@, `who` (`NativePlayerRender`) also carries the player's identity, pose, interpolated
+  animation, logical hands, available complete equipment stacks and visual flags: `uuid`, `pose` (`STANDING`, `CROUCHING`,
+  `SWIMMING`, `FALL_FLYING`, `SLEEPING`, `SPIN_ATTACK`, or `DYING` when dead), `crouch_amount` (binary), `swim_amount`
+  (interpolated), `riding`, `sleeping`, `sprinting`, `attack_progress` (0..1), `swing_hand`, `using_item`, `use_ticks`,
+  `main_hand_right`, `main_hand`, `off_hand`, `armor` (head, chest, legs, feet), `elytra`, `on_fire`, `invisible`, `glowing`
+  and `frozen_ticks`. `Hand::Main` and `Hand::Off` are logical hands; `main_hand_right` names the physical main arm. Stacks
+  are borrowed for the callback and may be passed to `native_draw_item`; clone them to keep their components. An identity
+  or full stack the client does not have is `None` (a remote player's off-hand stack, for now). These are filled only while a
+  mod sets `native_player_render_listened`.
+- `BlockEntityDraw::pose_matrix()` and `origin()` return copies of the current transform without changing the stack. In
+  player callbacks the root is camera-relative at the interpolated feet, in blocks, turned with the body yaw: apply the same
+  frame's `WorldDrawn::view_proj` (or `jittered`, to match the jittered world pass) directly to this matrix and a model-space
+  point, without subtracting the camera again. They do not include vanilla's later player-model transforms (crouch, scale,
+  sleep, death, flight). Block-entity callbacks expose block-corner-local poses instead.
 
 ### Advancement triggers
 
@@ -2724,8 +2738,22 @@ player whose state is (inside `native_perform_command`): call them from a menu h
 
 `crates/horizon-client-render/src/gfx/native_render.rs`: the renderer's own hook points, free functions rather than
 `Game` methods, which a bundle targets as `horizon_client_render::gfx::native_render::native_<name>`. They run on the
-render thread with the frame's wgpu objects; what a mod draws there shows in that frame.
+render thread with the frame's wgpu objects; what a mod draws there shows in that frame. Device lifecycle hooks are
+the exception: they run on the threads described below, without a frame encoder.
 
+- `native_world_pre_post(world)`: the world and Improved Transparency are drawn, before the first-person hand and
+  before every finishing branch: legacy shader-pack processing, native-pack bloom/post, or built-in world post/TAA
+  when enabled. Set `RenderNeeds::pre_post` to request it; the title panorama does not call it. `WorldPrePost` holds
+  the device, queue and encoder, the actual world colour target and writable reversed-Z `Depth32Float` depth,
+  their size (the scaled size when scaling is enabled), the camera, jittered and unjittered clip matrices, the
+  previous consecutive requested world frame's unjittered matrix and camera (both optional), and a wrapping frame
+  index counting requested world frames. Both histories reset on title/unrequested frames or device recreation.
+  The colour format is the renderer's working format without sRGB, not a pack's material/MRT targets or HDR's final
+  output format. Depth has `RENDER_ATTACHMENT | TEXTURE_BINDING | COPY_SRC`; attach its view with Load/Store and the
+  jittered matrix to test/write against the world. The world uniform's sun direction, this frame's existing `Sky`
+  (sky lighting, colours and moon angle), and the exact uniform fog colour/start/end values are supplied without
+  recalculating them. There is no motion-vector target: built-in TAA uses camera-only reprojection for these draws
+  too. Bundles need `"hooks": @API:world_pre_post@`.
 - `native_world_drawn(world)`: the world is drawn (sky, terrain, entities, particles, weather and the world post pass),
   the first-person hand, the HUD and screens not yet. `WorldDrawn` holds the device, queue and encoder, the frame's
   colour target (copy it out before sampling it), the world's reversed depth and its size, the camera's position and
@@ -2741,10 +2769,28 @@ render thread with the frame's wgpu objects; what a mod draws there shows in tha
   of view and the view bob, no jitter), the camera, the entity atlas and the quad index buffer. The hand's depth isn't
   kept: draw its quads into a depth of your own. A motion blur can match the hand's quads with last frame's for the
   swing, attack, equip and bob motion, and blur the picture with the hand in it.
+- `native_overlay_drawn(overlay)`: the final HUD/screen batch is drawn, including menus, toasts and tooltips, on
+  world, title and loading frames that reach `draw_overlay`. Set `RenderNeeds::overlay` to request it. `OverlayDrawn`
+  holds the device, queue and encoder, the actual target texture/view, its working format and size, and the GUI
+  scale. The target is normally the swapchain image, but HDR, frame generation, offscreen rendering and screenshot
+  fallback use intermediates. `COPY_SRC` is not guaranteed; check `color.usage()` before copying. HDR still draws
+  gamma-encoded working colour here, before HDR10/scRGB output conversion. Full-frame screenshots include the
+  hook; the earlier world-icon capture does not. Frame generation runs before the overlays, so generated and real
+  overlay frames each call it. Bundles need `"hooks": @API:overlay_drawn@`.
+- `native_render_device_lost(reason, message)`: an unexpected wgpu device loss, not deliberate destruction. Runs
+  synchronously on wgpu's callback thread, not necessarily the render thread. Release persistent GPU resources
+  using thread-safe state; do not draw here. Horizon attempts renderer/device recovery, which can fail. Arguments
+  are borrowed for the call. Bundles need `"hooks": @API:render_device_lost@`.
+- `native_render_device_ready(device, queue)`: a newly opened device and queue, at initial creation and successful
+  device-loss recovery, on the device-opening thread before renderer construction. Surface reconfiguration and
+  device reuse do not call it. Arguments are borrowed for the call; clone the handles to retain them. Bundles need
+  `"hooks": @API:render_device_ready@`.
 - `native_render_needs(needs)`: set `entity_spans` to have the entity geometry split into runs by entity without a
   shader pack (each run's id is stable from frame to frame: a hash of the entity type's name, a block entity's state),
-  and `world_depth` to keep the world pass's depth when nothing else needs it. Set what you need and leave the rest:
-  several mods can ask. It's asked as each frame is built, so keep it cheap.
+  and `world_depth` to keep the world pass's depth when nothing else needs it. Set `pre_post` for the before-post
+  hook (also retains world depth), and `overlay` for the final overlay hook. Set what you need and leave the rest:
+  several mods can ask. All default to false; without a request the new draw hooks add no GPU work. It's asked as
+  each frame is built, so keep it cheap.
 
 ### Block textures
 
