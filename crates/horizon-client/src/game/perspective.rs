@@ -2,7 +2,7 @@
 //! in front, cycled by F5), the detached camera (`Camera.setup` with
 //! `getMaxZoom`), and the local player drawn as a model: in third person
 //! and in the inventory (`InventoryScreen.extractEntityInInventoryFollowsMouse`).
-use super::{Game, Screen, native_mob_draw::NativePlayerRender, shoulders::shoulder_variants};
+use super::{Game, Screen, shoulders::shoulder_variants};
 use horizon_client::{
     blocks::BlockFacts,
     camera::{CameraEntity, LivingCamera},
@@ -646,10 +646,7 @@ impl Game<'_> {
         // in place of the vanilla one and its layers (an invisible player is
         // not asked, as for the others).
         let name = self.own_profile_name();
-        let who = NativePlayerRender {
-            name: &name,
-            local: true,
-        };
+        let who = (name.as_str(), true);
         if body && self.mod_player_geometry(m, who, alpha as f32, camera, packed, out) {
             return;
         }

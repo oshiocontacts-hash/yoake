@@ -120,6 +120,36 @@ impl BlockEntityDraw {
     pub fn scale(&mut self, by: [f32; 3]) {
         self.apply(Mat4::from_scale(Vec3::from_array(by)));
     }
+    /// A copy of the current model matrix, including this stack's transforms.
+    /// Changing the copy does not change this draw. API @API:player_render_state@.
+    ///
+    /// In mob and player callbacks, model coordinates are blocks: +X left,
+    /// +Y up, +Z forward. The root applies body yaw and translates interpolated
+    /// feet minus the camera into camera-relative world coordinates (+X east,
+    /// +Y up, +Z south), subtracting in f64 before converting to f32. It does
+    /// not apply the vanilla model's crouch, scale, sleep, death or flight
+    /// transforms; a replacement model supplies its own.
+    ///
+    /// For a later GPU pass in the same frame, clip coordinates are
+    /// `world.view_proj * model * point.extend(1.0)`, or use
+    /// `world.jittered` for the jittered projection. Do not subtract
+    /// the camera or apply another view matrix to this model matrix.
+    ///
+    /// Block entity callbacks instead start at identity in block-corner-local
+    /// coordinates (blocks, +X east, +Y up, +Z south). Their corner-minus-camera
+    /// translation is applied to submitted vertices after the callback and is
+    /// not part of this matrix, including when geometry is kept.
+    pub fn pose_matrix(&self) -> Mat4 {
+        self.pose()
+    }
+    /// The current model origin, `pose_matrix().transform_point3(Vec3::ZERO)`,
+    /// returned by value. It follows nested translations and uses the same
+    /// coordinate space as `pose_matrix`: initially camera-relative feet in
+    /// mob/player callbacks, or zero in block-corner-local block entity
+    /// callbacks. API @API:player_render_state@.
+    pub fn origin(&self) -> Vec3 {
+        self.pose().transform_point3(Vec3::ZERO)
+    }
     /// Keeps what this call drew: the block is drawn the same again, with
     /// neither `native_block_entity_submit` nor
     /// `native_block_entity_render_bounding_box` called, until its state,
@@ -609,6 +639,63 @@ mod tests {
         d.scale([2.0, 2.0, 2.0]);
         let p = d.pose().transform_point3(Vec3::ONE);
         assert_eq!(p, Vec3::new(12.0, 4.0, 2.0));
+    }
+
+    #[test]
+    fn the_pose_accessors_copy_the_current_stack_without_mutating_it() {
+        let mut draw = draw();
+        let root = draw.pose_matrix();
+        let mut copied = draw.pose_matrix();
+        copied *= Mat4::from_translation(Vec3::Y);
+        assert_ne!(copied, root);
+        assert_eq!(draw.pose_matrix(), root);
+        assert_eq!(draw.origin(), Vec3::new(10.0, 0.0, 0.0));
+        assert_eq!(draw.poses.len(), 1);
+        assert!(draw.vertices.is_empty());
+        assert!(!draw.kept);
+
+        draw.push();
+        draw.translate([0.0, 2.0, 0.0]);
+        draw.scale([2.0, 3.0, 4.0]);
+        assert_eq!(draw.origin(), Vec3::new(10.0, 2.0, 0.0));
+        assert_eq!(
+            draw.pose_matrix().transform_point3(Vec3::ONE),
+            Vec3::new(12.0, 5.0, 4.0)
+        );
+        draw.pop();
+        assert_eq!(draw.pose_matrix(), root);
+    }
+
+    #[test]
+    fn the_player_pose_is_camera_relative_at_the_interpolated_feet() {
+        let previous = DVec3::new(30_000_000.0, 70.0, -30_000_000.0);
+        let current = previous + DVec3::new(2.0, 1.0, 4.0);
+        let camera = previous + DVec3::new(0.25, 1.5, -0.5);
+        let feet = previous.lerp(current, 0.25) - camera;
+        let mut draw = draw();
+        draw.poses = vec![super::super::native_mob_draw::mob_pose(feet, 90.0)];
+
+        assert_eq!(draw.origin(), Vec3::new(0.25, -1.25, 1.5));
+        assert!(
+            draw.pose_matrix()
+                .transform_vector3(Vec3::Z)
+                .abs_diff_eq(Vec3::NEG_X, 1e-5)
+        );
+        assert!(
+            draw.pose_matrix()
+                .transform_vector3(Vec3::X)
+                .abs_diff_eq(Vec3::Z, 1e-5)
+        );
+        assert_eq!(draw.pose_matrix().transform_vector3(Vec3::Y), Vec3::Y);
+    }
+
+    #[test]
+    fn the_block_entity_pose_remains_corner_local() {
+        let mut draw = draw();
+        draw.block = [12, 34, 56];
+        draw.poses = vec![Mat4::IDENTITY];
+        assert_eq!(draw.pose_matrix(), Mat4::IDENTITY);
+        assert_eq!(draw.origin(), Vec3::ZERO);
     }
 
     #[test]

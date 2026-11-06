@@ -1,0 +1,9 @@
+{
+  "hooks": [],
+  "rust_summary": "Expanded `NativePlayerRender` frame state and read-only `BlockEntityDraw::pose_matrix` and `BlockEntityDraw::origin` accessors for replacement player models.",
+  "doc_summary": "`NativePlayerRender` in `native_player_submit` and `native_mob_layer` includes the player's identity, pose, interpolated animation, logical hands, complete available equipment stacks and visual flags. `BlockEntityDraw::pose_matrix` and `BlockEntityDraw::origin` return copies of the current draw transform and origin for use in a later GPU pass in the same frame. Bundles that read these additions must set their `hooks` requirement to @API:player_render_state@ or higher.",
+  "comments": [
+    "crates/horizon-client/src/game/native_mob_draw.rs",
+    "crates/horizon-client/src/game/native_block_entity_draw.rs"
+  ]
+}
