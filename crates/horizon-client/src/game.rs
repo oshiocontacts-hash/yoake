@@ -199,6 +199,7 @@ mod moving_pistons;
 mod music;
 mod names;
 mod narrator;
+mod native_audio;
 mod native_biome_colors;
 pub mod native_block_entity_draw;
 mod native_block_sprites;
@@ -2913,6 +2914,7 @@ struct Game<'a> {
     native_input: native_claimed_items::ModInput,
     /// The native lifecycle bookkeeping.
     native_lifecycle: native_lifecycle::NativeLifecycle,
+    native_audio: Option<native_audio::NativeAudio>,
     /// Native mods' messages waiting (`game/native_net.rs`).
     native_net: native_net::NativeNet,
     /// The mod whose own screen is open (`Screen::Mod`).
@@ -12424,6 +12426,7 @@ impl Game<'_> {
         self.begin_closing_save(false)
     }
     fn finish_close_world(&mut self) -> Result<()> {
+        self.clear_native_local_sounds();
         self.ambience.clear(&mut self.audio);
         // updateLevelInEngines(null): every sound stops; the music manager
         // lets go of its track.
@@ -18981,6 +18984,7 @@ impl<'a> Game<'a> {
             native_shaders: Default::default(),
             native_input: Default::default(),
             native_lifecycle: Default::default(),
+            native_audio: None,
             native_net: Default::default(),
             native_mod_screen: None,
             sky_darken_memo: Default::default(),

@@ -62,6 +62,20 @@ pub struct BlockEntityDraw {
 
 #[allow(dead_code)]
 impl BlockEntityDraw {
+    /// An empty synthetic draw with zero time and owner position, for mod tests.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn for_test(pose: Mat4, light: u32) -> Self {
+        Self::posed(
+            0.0,
+            0,
+            light,
+            [0; 3],
+            pose,
+            diffuse_lights(false),
+            Vec::new(),
+        )
+    }
+
     /// A frame drawn from `pose` (relative to the camera), lit by `light` and
     /// `lights`, adding to `vertices`; `block` is where `native_draw_item`'s
     /// owner stands. A mob's frame (`native_mob_submit`) is made this way.

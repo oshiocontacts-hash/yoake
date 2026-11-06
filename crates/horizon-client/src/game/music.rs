@@ -148,6 +148,7 @@ impl Game<'_> {
     /// `pauseAllExcept(MUSIC, UI)` when the game pauses and `resume` when it
     /// carries on.
     pub(super) fn tick_sound_engine(&mut self) {
+        self.tick_native_local_sounds();
         if self.pause != self.sound_paused {
             if self.pause {
                 self.audio.pause();
@@ -195,6 +196,7 @@ impl Game<'_> {
     /// The music manager keeps its stopped track and, on its next tick, waits
     /// the level's music delay before the next one.
     pub(super) fn stop_sounds_for_new_level(&mut self) {
+        self.clear_native_local_sounds();
         self.ambience.clear(&mut self.audio);
         self.audio.stop_all();
     }

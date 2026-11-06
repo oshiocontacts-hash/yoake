@@ -8065,6 +8065,27 @@ impl GameLevel<'_> {
     }
 }
 
+fn local_particle_type(
+    id: &str,
+    at: [f64; 3],
+    velocity: [f64; 3],
+    player: [f64; 3],
+) -> Option<ParticleType> {
+    if at
+        .iter()
+        .chain(velocity.iter())
+        .any(|value| !value.is_finite())
+    {
+        return None;
+    }
+    if (at[0] - player[0]).powi(2) + (at[1] - player[1]).powi(2) + (at[2] - player[2]).powi(2)
+        > 1024.0
+    {
+        return None;
+    }
+    ParticleType::from_name(id).filter(|kind| kind.is_simple())
+}
+
 /// Helpers for native mods, kept as stable as the hook points.
 // Native mods use these; nothing in Horizon does.
 #[allow(dead_code)]
@@ -8109,6 +8130,38 @@ impl Game<'_> {
         };
         self.particles
             .add(&ParticleOptions::simple(kind), at, [0.0, 0.01, 0.0]);
+    }
+    /// Submit one local vanilla no-options particle, with an optional
+    /// `minecraft:` prefix, from a client hook. Caller should rate-limit emission.
+    /// Rejects unknown or option-bearing types, non-finite position or velocity,
+    /// a missing local player, positions beyond 32 blocks of that player, and
+    /// non-client execution. API @API:local_particle@.
+    ///
+    /// Passes `velocity` unchanged as vanilla `ClientLevel.addParticle`'s
+    /// `xd, yd, zd` arguments; providers may interpret them rather than use them
+    /// as motion. In particular, `note` uses `velocity[0]` as its colour.
+    /// Returns true when handed to the particle engine, not necessarily drawn:
+    /// the packet-particle settings and camera-distance gate still applies,
+    /// including vanilla per-type limiter overrides.
+    pub(super) fn native_local_particle(
+        &mut self,
+        id: &str,
+        at: [f64; 3],
+        velocity: [f64; 3],
+    ) -> bool {
+        if !self.native_window() {
+            return false;
+        }
+        let Some(player) = self.native_player() else {
+            return false;
+        };
+        let Some(kind) = local_particle_type(id, at, velocity, [player.x, player.y, player.z])
+        else {
+            return false;
+        };
+        self.particles
+            .add(&ParticleOptions::simple(kind), at, velocity);
+        true
     }
     /// The stack the acting player carries in `slot`, by
     /// `native_inventory_tick`'s numbers: none for an empty slot or another
@@ -9987,6 +10040,110 @@ fn mod_screen_opens(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn local_particle_accepts_only_no_option_types() {
+        let option_ids = [
+            "block",
+            "block_marker",
+            "falling_dust",
+            "dust_pillar",
+            "block_crumble",
+            "entity_effect",
+            "tinted_leaves",
+            "flash",
+            "dust",
+            "dust_color_transition",
+            "effect",
+            "instant_effect",
+            "dragon_breath",
+            "sculk_charge",
+            "shriek",
+            "trail",
+            "item",
+            "vibration",
+            "geyser",
+            "geyser_base",
+            "geyser_poof",
+            "geyser_plume",
+        ];
+        for &kind in super::ParticleType::ALL {
+            let expected = (!option_ids.contains(&kind.name())).then_some(kind);
+            for id in [kind.name().to_owned(), format!("minecraft:{}", kind.name())] {
+                assert_eq!(
+                    super::local_particle_type(&id, [0.0; 3], [0.0; 3], [0.0; 3]),
+                    expected,
+                    "{id}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn local_particle_rejects_unknown_ids() {
+        for id in [
+            "",
+            "unknown",
+            "minecraft:unknown",
+            "mod:heart",
+            "Heart",
+            "minecraft:minecraft:heart",
+        ] {
+            assert_eq!(
+                super::local_particle_type(id, [0.0; 3], [0.0; 3], [0.0; 3]),
+                None,
+                "{id}"
+            );
+        }
+    }
+
+    #[test]
+    fn local_particle_rejects_non_finite_input() {
+        for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            for axis in 0..3 {
+                let mut at = [0.0; 3];
+                at[axis] = invalid;
+                assert_eq!(
+                    super::local_particle_type("heart", at, [0.0; 3], [0.0; 3]),
+                    None
+                );
+                let mut velocity = [0.0; 3];
+                velocity[axis] = invalid;
+                assert_eq!(
+                    super::local_particle_type("note", [0.0; 3], velocity, [0.0; 3]),
+                    None
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn local_particle_enforces_player_distance() {
+        let player = [8.0, 64.0, -8.0];
+        for axis in 0..3 {
+            for direction in [-1.0, 1.0] {
+                let mut at = player;
+                at[axis] += direction * 32.0;
+                assert_eq!(
+                    super::local_particle_type("note", at, [0.75, -2.0, 3.0], player),
+                    Some(super::ParticleType::Note)
+                );
+                at[axis] += direction * 0.000_001;
+                assert_eq!(
+                    super::local_particle_type("heart", at, [0.0; 3], player),
+                    None
+                );
+            }
+        }
+        assert_eq!(
+            super::local_particle_type("heart", [32.0, 88.0, -8.0], [0.0; 3], player),
+            None
+        );
+        assert_eq!(
+            super::local_particle_type("heart", [f64::MAX, 0.0, 0.0], [0.0; 3], player),
+            None
+        );
+    }
+
     #[test]
     fn hand_pose_rejects_invalid_components() {
         let identity = super::hand_pose_matrix([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]);

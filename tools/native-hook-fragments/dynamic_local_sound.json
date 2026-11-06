@@ -1,0 +1,16 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "local_sound_limits", "target": "horizon_client::game::native_audio::Game<'_>::native_local_sound_limits", "mod_api": {}},
+    {"name": "register_local_sound_pcm", "target": "horizon_client::game::native_audio::Game<'_>::native_register_local_sound_pcm", "mod_api": {}},
+    {"name": "begin_local_sound_ogg", "target": "horizon_client::game::native_audio::Game<'_>::native_begin_local_sound_ogg", "mod_api": {}},
+    {"name": "poll_local_sound_registration", "target": "horizon_client::game::native_audio::Game<'_>::native_poll_local_sound_registration", "mod_api": {}},
+    {"name": "cancel_local_sound_registration", "target": "horizon_client::game::native_audio::Game<'_>::native_cancel_local_sound_registration", "mod_api": {}},
+    {"name": "play_registered_local_sound", "target": "horizon_client::game::native_audio::Game<'_>::native_play_registered_local_sound", "mod_api": {}},
+    {"name": "stop_local_playback", "target": "horizon_client::game::native_audio::Game<'_>::native_stop_local_playback", "mod_api": {}},
+    {"name": "unregister_local_sound", "target": "horizon_client::game::native_audio::Game<'_>::native_unregister_local_sound", "mod_api": {}}
+  ],
+  "rust_summary": "bounded client-local PCM/Ogg registration and private positional or entity-following playback.",
+  "doc_summary": "bounded client-local PCM/Ogg registration and private positional or entity-following playback. Bundles opt in through the @API:dynamic_local_sound@ fragment.",
+  "comments": ["crates/horizon-client/src/game/native_audio.rs"]
+}

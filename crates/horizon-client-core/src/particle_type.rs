@@ -149,6 +149,36 @@ particle_types! {
     BlockMarker = "block_marker",
 }
 impl ParticleType {
+    /// Whether the vanilla type takes no options (`SimpleParticleType`).
+    pub fn is_simple(self) -> bool {
+        // CHECK: Confirm the no-options set against the 26.3 vanilla oracle.
+        !matches!(
+            self,
+            Self::Block
+                | Self::BlockMarker
+                | Self::FallingDust
+                | Self::DustPillar
+                | Self::BlockCrumble
+                | Self::EntityEffect
+                | Self::TintedLeaves
+                | Self::Flash
+                | Self::Dust
+                | Self::DustColorTransition
+                | Self::Effect
+                | Self::InstantEffect
+                | Self::DragonBreath
+                | Self::SculkCharge
+                | Self::Shriek
+                | Self::Trail
+                | Self::Item
+                | Self::Vibration
+                | Self::Geyser
+                | Self::GeyserBase
+                | Self::GeyserPoof
+                | Self::GeyserPlume
+        )
+    }
+
     /// `ParticleType.getOverrideLimiter` (`ParticleTypes.register(name, true)`):
     /// spawned regardless of distance.
     pub fn override_limiter(self) -> bool {

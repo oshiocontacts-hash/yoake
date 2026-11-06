@@ -2,9 +2,7 @@
 //! chunk-generation spawning (`NaturalSpawner`), mob events (attacks,
 //! breeding, conversions, drops), projectiles, player interactions
 //! (feeding, shearing, milking, spawn eggs, throwing) and rendering.
-use super::{
-    Dim, Game, Hand, InteractTarget, dispenser, native_projectiles::Impact, view_vector,
-};
+use super::{Dim, Game, Hand, InteractTarget, dispenser, native_projectiles::Impact, view_vector};
 use horizon_assets::item_model::DisplayContext;
 use horizon_client::{
     Result,

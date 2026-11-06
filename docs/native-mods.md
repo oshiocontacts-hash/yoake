@@ -2538,6 +2538,15 @@ items are left out (NeoForge's `RenderLivingEvent.Pre`, cancelled); its name tag
   frame's `WorldDrawn::view_proj` (or `jittered`, to match the jittered world pass) directly to this matrix and a model-space
   point, without subtracting the camera again. They do not include vanilla's later player-model transforms (crouch, scale,
   sleep, death, flight). Block-entity callbacks expose block-corner-local poses instead.
+- `NativePlayerRender` also has `in_water` and `eye_in_water`, `flying` (the local ability-flight flag, not elytra flight;
+  `None` for remote players), `health` and `max_health`, `food_level` (`None` for remote players), and `right_arm_pose` /
+  `left_arm_pose` (`EMPTY`, `ITEM`, `BLOCK`, `BOW_AND_ARROW`, `CROSSBOW_HOLD`, `CROSSBOW_CHARGE`, `THROW_SPEAR`, `TOOT_HORN`,
+  `SPYGLASS`, `SPEAR`, `BRUSH`) for the physical arms, from the same decision Horizon's humanoid model uses. Unavailable data
+  is `None`, never an invented zero.
+- Tests of an external trait mod can enable the non-default `test-support` feature on their `horizon-client` dev-dependency:
+  `BlockEntityDraw::for_test(pose, light)`, `NativeMobRender::for_test(id, kind)`, `NativePlayerRender::for_test(name, local)`,
+  `PlayerSubmitEvent::for_test` and `MobLayerEvent::for_test` build synthetic render events with neutral fields. They do not
+  simulate a connected client or fill registries. A dependency does not inherit the consumer's `cfg(test)`: enable the feature.
 
 ### Advancement triggers
 
@@ -2644,6 +2653,30 @@ farther, as vanilla's attenuation does. A client half that hears from its server
 something happened can time the sound to the distance, such as a blast heard when its shock wave reaches the player:
 `delay = distance / speed`. It answers false on a server and for a value out of range; an event the resources lack
 plays nothing.
+
+`host.local_particle(id, at, velocity) -> bool` (client, API @API:local_particle@) submits one local vanilla particle that
+takes no options (`heart` or `minecraft:heart`, `smoke`, `note`, `end_rod`, ...); unknown ids and types with options (`dust`,
+`block`, `item`, ...) answer false. Position and velocity must be finite and within 32 blocks of the local player. `velocity`
+goes unchanged into vanilla's `xd, yd, zd` (for `note`, `velocity[0]` is its colour). The player's Particles option and the
+camera-distance gate apply as for packet particles. True means the engine took it, not that it was drawn; rate-limit.
+
+### Sounds a mod brings (dynamic local sounds)
+
+Since @API:dynamic_local_sound@, a client mod can register finite sounds of its own (not sound events) and play them for this
+player only, from its client `tick` with a world present (ownership comes from the dispatching mod, not from an argument):
+
+- `register_local_sound_pcm(samples, channels, sample_rate)`: interleaved i16, mono or stereo (averaged to mono), 8,000 to
+  192,000 Hz, at most 2,097,152 frames; copied synchronously.
+- `begin_local_sound_ogg(bytes)` (at most 8 MiB of Ogg Vorbis) returns a ticket decoded on its own bounded worker;
+  `poll_local_sound_registration(ticket)` answers `Ok(None)` while pending, then the `NativeSoundHandle` or an error;
+  `cancel_local_sound_registration(ticket)` drops it.
+- `play_registered_local_sound(sound, target, volume, pitch, looping)` returns a `NativePlaybackHandle`; `target` is
+  `NativeSoundTarget::Position`, `Player(uuid)` or `Entity(id)` (followed each tick; stopped when the target goes or is
+  replaced). It plays in the `player` category and takes ordinary channels.
+- `stop_local_playback(playback)`, `unregister_local_sound(sound)` (stops its playbacks). Leaving the world, a new level and
+  closing clear everything; general audio stops also stop these playbacks.
+- `local_sound_limits()`: per mod 256 sounds, 64 MiB decoded, 16 MiB pending input, 4 tickets, 32 playbacks (process-wide
+  512, 128 MiB, 32 MiB, 8, 64). Errors are `NativeSoundError` values. With no mod using it nothing is allocated or started.
 
 ### Falling blocks
 

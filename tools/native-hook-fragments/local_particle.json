@@ -1,0 +1,14 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "local_particle",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_local_particle"
+    }
+  ],
+  "rust_summary": "local vanilla no-options particles (`native_local_particle`) through the normal particle engine settings gate.",
+  "doc_summary": "`host.local_particle(id, at, velocity)` submits one local vanilla no-options particle. `note` interprets velocity[0] as colour. Bundles need the @API:local_particle@ hooks API.",
+  "comments": [
+    "crates/horizon-client/src/game/native_hooks.rs"
+  ]
+}
