@@ -2234,6 +2234,7 @@ impl Game<'_> {
     /// (`IntegratedServer.tickPaused`): `ServerGamePacketListenerImpl.tick`
     /// skips `tickPlayer`, so no player's air, hunger or damage moves on.
     pub(super) fn tick_lan(&mut self, paused: bool) {
+        crate::mod_guard::maintenance();
         // A frozen level does not reach tick_lan_packets through tick_world.
         // Apply its packets before taking the snapshot too.
         if !paused {
@@ -2245,6 +2246,11 @@ impl Game<'_> {
             }
             return;
         };
+        for notice in crate::mod_guard::take_notices(true) {
+            let text = crate::mod_guard::notice_text(&notice.id, notice.hook);
+            host.hub
+                .system_message(crate::lan::data::component_nbt(&text.component()));
+        }
         // What the tick sends a guest goes to its connection at the end.
         let holding = lan::Holding::start();
         self.register_native_commands(&mut host);

@@ -1,7 +1,7 @@
 //! Mod-owned GUI textures. Register before preparing the HUD batch, redraw in
 //! `WorldPrePost`, then sample in the HUD or a mod screen. API @API:gui_textures@.
 
-use super::{HudBatch, Rect};
+use super::{Blend, HudBatch, Rect};
 use std::{
     ops::Range,
     sync::{
@@ -12,9 +12,140 @@ use std::{
 
 const MAX_REGISTRATIONS: usize = 64;
 const MAX_BYTES: u64 = 128 * 1024 * 1024;
+const MAX_RETAINED_RUNS: usize = 256;
+const RUN_POOL_SIZE: usize = 4;
+const BUNDLE_CACHE_SIZE: usize = 256;
+pub(super) const MAX_CACHED_DRAWS: usize = 256;
 static DEVICE_EPOCH: AtomicU64 = AtomicU64::new(0);
 static NEXT_GENERATION: AtomicU64 = AtomicU64::new(1);
+static NEXT_REGISTRATION: AtomicU64 = AtomicU64::new(1);
 static REGISTRATIONS: OnceLock<Mutex<Vec<Weak<Registration>>>> = OnceLock::new();
+static RUN_POOL: Mutex<RunPool<NativeTextureRun>> = Mutex::new(RunPool::new());
+static BLEND_POOL: Mutex<RunPool<(Range<u32>, Blend)>> = Mutex::new(RunPool::new());
+
+#[cfg(test)]
+thread_local! {
+    static RUN_POOL_TAKES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static BLEND_POOL_TAKES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+struct RunPool<Run> {
+    slots: [Option<Vec<Run>>; RUN_POOL_SIZE],
+}
+
+impl<Run> RunPool<Run> {
+    const fn new() -> Self {
+        Self {
+            slots: [const { None }; RUN_POOL_SIZE],
+        }
+    }
+
+    fn take(&mut self) -> Vec<Run> {
+        self.slots
+            .iter_mut()
+            .find_map(Option::take)
+            .unwrap_or_default()
+    }
+
+    fn recycle(&mut self, runs: Vec<Run>) {
+        if runs.capacity() != 0
+            && runs.capacity() <= MAX_RETAINED_RUNS
+            && let Some(slot) = self.slots.iter_mut().find(|slot| slot.is_none())
+        {
+            *slot = Some(runs);
+        }
+    }
+}
+
+fn take_runs() -> Vec<NativeTextureRun> {
+    #[cfg(test)]
+    RUN_POOL_TAKES.with(|takes| takes.set(takes.get() + 1));
+    RUN_POOL
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner())
+        .take()
+}
+
+pub(super) fn recycle_runs(mut runs: Vec<NativeTextureRun>) {
+    runs.clear();
+    if runs.capacity() == 0 || runs.capacity() > MAX_RETAINED_RUNS {
+        return;
+    }
+    RUN_POOL
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner())
+        .recycle(runs);
+}
+
+fn take_blends() -> Vec<(Range<u32>, Blend)> {
+    #[cfg(test)]
+    BLEND_POOL_TAKES.with(|takes| takes.set(takes.get() + 1));
+    BLEND_POOL
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner())
+        .take()
+}
+
+fn recycle_blends(mut blends: Vec<(Range<u32>, Blend)>) {
+    blends.clear();
+    if blends.capacity() == 0 || blends.capacity() > MAX_RETAINED_RUNS {
+        return;
+    }
+    BLEND_POOL
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner())
+        .recycle(blends);
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct DrawKey {
+    pub(super) vertices: [u32; 2],
+    pub(super) registration: u64,
+    pub(super) blend: Blend,
+    pub(super) text: bool,
+}
+
+impl DrawKey {
+    pub(super) const EMPTY: Self = Self {
+        vertices: [0; 2],
+        registration: 0,
+        blend: Blend::Alpha,
+        text: false,
+    };
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct CachedBundle {
+    pub(super) bundle: wgpu::RenderBundle,
+    pub(super) groups: usize,
+}
+
+#[derive(Debug)]
+struct BundleEntry {
+    commands: Box<[DrawKey]>,
+    depth: bool,
+    cached: CachedBundle,
+}
+
+#[derive(Debug)]
+struct BundleCache {
+    entries: [Option<BundleEntry>; BUNDLE_CACHE_SIZE],
+    next: usize,
+}
+
+impl BundleCache {
+    const fn new() -> Self {
+        Self {
+            entries: [const { None }; BUNDLE_CACHE_SIZE],
+            next: 0,
+        }
+    }
+
+    fn clear(&mut self) {
+        self.entries.fill_with(|| None);
+        self.next = 0;
+    }
+}
 
 #[cfg(test)]
 #[derive(Default)]
@@ -29,6 +160,14 @@ pub(crate) fn device_epoch() -> u64 {
 
 pub(crate) fn device_lost() {
     DEVICE_EPOCH.fetch_add(1, Ordering::AcqRel);
+    if let Some(registrations) = REGISTRATIONS.get() {
+        let registrations = registrations
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        for registration in registrations.iter().filter_map(Weak::upgrade) {
+            registration.generation.clear_bundles();
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -69,20 +208,35 @@ struct Generation {
     id: u64,
     epoch: u64,
     valid: AtomicBool,
+    bundles: Mutex<BundleCache>,
 }
 
 impl Generation {
     fn is_valid(&self) -> bool {
         self.valid.load(Ordering::Acquire) && self.epoch == device_epoch()
     }
+
+    fn clear_bundles(&self) {
+        self.bundles
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .clear();
+    }
 }
 
 #[derive(Debug)]
 struct Registration {
+    id: u64,
     generation: Arc<Generation>,
     texture: wgpu::Texture,
     group: wgpu::BindGroup,
     bytes: u64,
+}
+
+impl Drop for Registration {
+    fn drop(&mut self) {
+        self.generation.clear_bundles();
+    }
 }
 
 /// Opaque registration. Cloning retains the texture and cached bind group, not
@@ -105,6 +259,10 @@ impl NativeGuiTexture {
 
     pub(super) fn group(&self) -> &wgpu::BindGroup {
         &self.0.group
+    }
+
+    pub(super) fn registration(&self) -> u64 {
+        self.0.id
     }
 }
 
@@ -180,21 +338,64 @@ pub(super) enum Source<'a> {
 
 pub(super) struct NativeGuiTextures {
     generation: Arc<Generation>,
+    device: wgpu::Device,
 }
 
 impl NativeGuiTextures {
-    pub(super) fn new(epoch: u64) -> Self {
+    pub(super) fn new(epoch: u64, device: &wgpu::Device) -> Self {
         Self {
             generation: Arc::new(Generation {
                 id: NEXT_GENERATION.fetch_add(1, Ordering::Relaxed),
                 epoch,
                 valid: AtomicBool::new(true),
+                bundles: Mutex::new(BundleCache::new()),
             }),
+            device: device.clone(),
         }
     }
 
     pub(super) fn owns(&self, texture: &NativeGuiTexture) -> bool {
         texture.is_valid() && Arc::ptr_eq(&self.generation, &texture.0.generation)
+    }
+
+    pub(super) fn clear_bundles(&self) {
+        self.generation.clear_bundles();
+    }
+
+    pub(super) fn bundle(
+        &self,
+        commands: &[DrawKey],
+        depth: bool,
+        create: impl FnOnce(&wgpu::Device) -> CachedBundle,
+    ) -> Option<CachedBundle> {
+        if commands.is_empty() || commands.len() > MAX_CACHED_DRAWS {
+            return None;
+        }
+        let mut bundles = self
+            .generation
+            .bundles
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        if !self.generation.is_valid() {
+            return None;
+        }
+        if let Some(entry) = bundles
+            .entries
+            .iter()
+            .flatten()
+            .find(|entry| entry.depth == depth && entry.commands.as_ref() == commands)
+        {
+            return Some(entry.cached.clone());
+        }
+        let cached = create(&self.device);
+        let next = bundles.next;
+        bundles.entries[next] = Some(BundleEntry {
+            commands: commands.into(),
+            depth,
+            cached: cached.clone(),
+        });
+        bundles.next = (next + 1) % BUNDLE_CACHE_SIZE;
+        Some(cached)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -325,6 +526,7 @@ impl NativeGuiTextures {
             ],
         });
         let registration = Arc::new(Registration {
+            id: NEXT_REGISTRATION.fetch_add(1, Ordering::Relaxed),
             generation: self.generation.clone(),
             texture,
             group,
@@ -338,6 +540,18 @@ impl NativeGuiTextures {
 impl Drop for NativeGuiTextures {
     fn drop(&mut self) {
         self.generation.valid.store(false, Ordering::Release);
+        self.generation.clear_bundles();
+    }
+}
+
+impl Drop for HudBatch {
+    fn drop(&mut self) {
+        if let Some(runs) = self.native_textures.take() {
+            recycle_runs(runs);
+        }
+        if self.native_texture_storage {
+            recycle_blends(std::mem::take(&mut self.blends));
+        }
     }
 }
 
@@ -390,7 +604,16 @@ impl HudBatch {
         if start == end {
             return true;
         }
-        let runs = self.native_textures.get_or_insert_with(Vec::new);
+        if !self.native_texture_storage {
+            let mut blends = take_blends();
+            if blends.capacity() > self.blends.capacity() {
+                blends.append(&mut self.blends);
+                self.blends = blends;
+            }
+            self.native_texture_storage = true;
+        }
+        self.blend_since(start as usize, Blend::Alpha);
+        let runs = self.native_textures.get_or_insert_with(take_runs);
         if let Some(last) = runs.last_mut()
             && last.range.end == start
             && Arc::ptr_eq(&last.texture.0, &texture.0)
@@ -410,6 +633,62 @@ impl HudBatch {
 mod tests {
     use super::super::{Blend, HudRenderer, rgba};
     use super::*;
+
+    #[test]
+    fn run_pool_reuses_storage_and_bounds_retention() {
+        let mut pool = RunPool::<NativeTextureRun>::new();
+        assert_eq!(pool.take().capacity(), 0);
+        pool.recycle(Vec::new());
+        assert!(pool.slots.iter().all(Option::is_none));
+        pool.recycle(Vec::with_capacity(MAX_RETAINED_RUNS + 1));
+        assert!(pool.slots.iter().all(Option::is_none));
+
+        let runs = Vec::with_capacity(8);
+        let pointer = runs.as_ptr();
+        let capacity = runs.capacity();
+        pool.recycle(runs);
+        let runs = pool.take();
+        assert!(runs.is_empty());
+        assert_eq!(runs.as_ptr(), pointer);
+        assert_eq!(runs.capacity(), capacity);
+        assert!(pool.slots.iter().all(Option::is_none));
+
+        for _ in 0..RUN_POOL_SIZE + 1 {
+            pool.recycle(Vec::with_capacity(MAX_RETAINED_RUNS));
+        }
+        assert_eq!(pool.slots.iter().flatten().count(), RUN_POOL_SIZE);
+        assert!(
+            pool.slots
+                .iter()
+                .flatten()
+                .all(|runs| runs.is_empty() && runs.capacity() <= MAX_RETAINED_RUNS)
+        );
+    }
+
+    #[test]
+    fn atlas_only_batches_never_take_run_storage() {
+        let takes = RUN_POOL_TAKES.with(std::cell::Cell::get);
+        let blend_takes = BLEND_POOL_TAKES.with(std::cell::Cell::get);
+        drop(HudBatch::new([16, 16]));
+        let mut batch = HudBatch::new([16, 16]);
+        atlas_rect(&mut batch, [0.0, 0.0, 8.0, 8.0], u32::MAX);
+        batch.clip_since(0, 1.0, 1.0, 7.0, 7.0);
+        assert!(batch.native_textures.is_none());
+        drop(batch);
+        assert_eq!(RUN_POOL_TAKES.with(std::cell::Cell::get), takes);
+        assert_eq!(BLEND_POOL_TAKES.with(std::cell::Cell::get), blend_takes);
+    }
+
+    fn live_registrations() -> usize {
+        REGISTRATIONS.get().map_or(0, |registrations| {
+            registrations
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .iter()
+                .filter(|registration| registration.strong_count() != 0)
+                .count()
+        })
+    }
 
     #[test]
     fn dimensions_slots_and_retained_memory_are_bounded() {
@@ -641,6 +920,109 @@ mod tests {
             ),
             Err(NativeGuiTextureError::InvalidDimensions)
         ));
+        let registration_count = live_registrations();
+        let temporary = renderer
+            .native_gui_texture_register(&device, &atlas, NativeGuiTextureFilter::Nearest)
+            .unwrap();
+        let registration = Arc::downgrade(&temporary.0);
+        let generation = Arc::clone(&temporary.0.generation);
+        assert_eq!(live_registrations(), registration_count + 1);
+        let mut recycled = HudBatch::new([1, 1]);
+        assert!(recycled.native_gui_texture(
+            &temporary,
+            [0.0, 0.0, 1.0, 1.0],
+            [0.0, 0.0, 1.0, 1.0],
+            u32::MAX,
+            None,
+        ));
+        assert_eq!(
+            render(&mut renderer, &device, &queue, &recycled, [1, 1], false),
+            baseline
+        );
+        assert_eq!(
+            render(&mut renderer, &device, &queue, &recycled, [1, 1], false),
+            baseline
+        );
+        let commands = [DrawKey {
+            vertices: [0, 6],
+            registration: temporary.registration(),
+            blend: Blend::Alpha,
+            text: false,
+        }];
+        let manager = renderer.native_textures.get().unwrap();
+        let cached = manager
+            .bundle(&commands, false, |_| panic!("bundle was not reused"))
+            .unwrap();
+        assert!(
+            manager
+                .bundle(&[DrawKey::EMPTY; MAX_CACHED_DRAWS + 1], false, |_| {
+                    panic!("oversized bundle was retained")
+                })
+                .is_none()
+        );
+        for offset in 1..=BUNDLE_CACHE_SIZE {
+            let mut commands = commands;
+            commands[0].vertices = [offset as u32, offset as u32 + 6];
+            assert!(
+                manager
+                    .bundle(&commands, false, |_| cached.clone())
+                    .is_some()
+            );
+        }
+        assert_eq!(
+            generation
+                .bundles
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .entries
+                .iter()
+                .flatten()
+                .count(),
+            BUNDLE_CACHE_SIZE
+        );
+        drop(cached);
+        drop(temporary);
+        assert_eq!(registration.strong_count(), 1);
+        drop(recycled);
+        assert_eq!(registration.strong_count(), 0);
+        assert_eq!(live_registrations(), registration_count);
+        assert!(
+            generation
+                .bundles
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .entries
+                .iter()
+                .all(Option::is_none)
+        );
+        assert!(
+            RUN_POOL
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .slots
+                .iter()
+                .flatten()
+                .all(Vec::is_empty)
+        );
+
+        let temporary = renderer
+            .native_gui_texture_register(&device, &atlas, NativeGuiTextureFilter::Nearest)
+            .unwrap();
+        let registration = Arc::downgrade(&temporary.0);
+        let mut clipped = HudBatch::new([1, 1]);
+        assert!(clipped.native_gui_texture(
+            &temporary,
+            [0.0, 0.0, 1.0, 1.0],
+            [0.0, 0.0, 1.0, 1.0],
+            u32::MAX,
+            None,
+        ));
+        drop(temporary);
+        clipped.clip_since(0, 2.0, 2.0, 3.0, 3.0);
+        assert!(clipped.native_textures.is_none());
+        assert_eq!(registration.strong_count(), 0);
+        assert_eq!(live_registrations(), registration_count);
+
         let red = sampled_texture(&device, &queue, &[[255, 0, 0, 255]]);
         let green = sampled_texture(&device, &queue, &[[0, 255, 0, 255]]);
         let first = renderer
@@ -650,6 +1032,21 @@ mod tests {
             .native_gui_texture_register(&device, &green, NativeGuiTextureFilter::Linear)
             .unwrap();
         assert!(Arc::ptr_eq(&first.0, &first.clone().0));
+        let mut native_only = HudBatch::new([1, 1]);
+        for _ in 0..2 {
+            assert!(native_only.native_gui_texture(
+                &first,
+                [0.0, 0.0, 1.0, 1.0],
+                [0.0, 0.0, 1.0, 1.0],
+                u32::MAX,
+                None,
+            ));
+        }
+        assert_eq!(native_only.native_textures.as_ref().unwrap().len(), 1);
+        assert_eq!(
+            render(&mut renderer, &device, &queue, &native_only, [1, 1], false).1,
+            (1, 1)
+        );
         let mut ordered = HudBatch::new([1, 1]);
         atlas_rect(&mut ordered, [0.0, 0.0, 1.0, 1.0], u32::MAX);
         for texture in [&first, &second] {
@@ -672,7 +1069,7 @@ mod tests {
         assert!(Arc::ptr_eq(&parts[1].1.unwrap().0, &first.0));
         assert!(Arc::ptr_eq(&parts[2].1.unwrap().0, &second.0));
         let (pixels, counts) = render(&mut renderer, &device, &queue, &ordered, [1, 1], false);
-        assert_eq!(counts, (1, 5));
+        assert_eq!(counts, (1, 4));
         for (actual, expected) in pixels.iter().zip([63_u8, 95, 159, 255]) {
             assert!(actual.abs_diff(expected) <= 1);
         }
@@ -749,7 +1146,10 @@ mod tests {
         clipped.clip_since(6, 2.0, 1.0, 4.0, 3.0);
         assert_eq!(clipped.vertices.len(), 18);
         assert_eq!(clipped.blur_at, 12);
-        assert_eq!(clipped.blends, [(0..18, Blend::Additive)]);
+        assert_eq!(
+            clipped.blends,
+            [(6..12, Blend::Alpha), (0..18, Blend::Additive)]
+        );
         let runs = clipped.native_textures.as_ref().unwrap();
         assert_eq!(runs.len(), 1);
         assert_eq!(runs[0].range, 6..12);
@@ -893,6 +1293,17 @@ mod tests {
         drop(retained);
 
         device_lost();
+        assert!(
+            first
+                .0
+                .generation
+                .bundles
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .entries
+                .iter()
+                .all(Option::is_none)
+        );
         assert!(!first.is_valid());
         assert!(!renderer.native_gui_texture_owns(&first));
         assert!(!plain.native_gui_texture(
@@ -913,7 +1324,7 @@ mod tests {
                 .unwrap_err(),
             NativeGuiTextureError::StaleGeneration
         );
-        let reloaded = HudRenderer::new(
+        let mut reloaded = HudRenderer::new(
             &device,
             wgpu::TextureFormat::Rgba8Unorm,
             &view,
@@ -931,7 +1342,38 @@ mod tests {
             .unwrap();
         assert_ne!(fresh.generation(), first.generation());
         assert!(fresh.is_valid());
+        let mut fresh_batch = HudBatch::new([1, 1]);
+        assert!(fresh_batch.native_gui_texture(
+            &fresh,
+            [0.0, 0.0, 1.0, 1.0],
+            [0.0, 0.0, 1.0, 1.0],
+            u32::MAX,
+            None,
+        ));
+        render(&mut reloaded, &device, &queue, &fresh_batch, [1, 1], false);
+        assert!(
+            fresh
+                .0
+                .generation
+                .bundles
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .entries
+                .iter()
+                .any(Option::is_some)
+        );
         drop(reloaded);
         assert!(!fresh.is_valid());
+        assert!(
+            fresh
+                .0
+                .generation
+                .bundles
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .entries
+                .iter()
+                .all(Option::is_none)
+        );
     }
 }

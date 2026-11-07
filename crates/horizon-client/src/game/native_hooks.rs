@@ -870,6 +870,7 @@
 //! that would break such a bundle is not made.
 //! Bodies have no `cfg` and no macros: horizon-mixins refuses a target with
 //! either (`tests::hook_points_stay_hookable`).
+use super::native_client_state::{NativeClientWorld, NativeSoundCategory};
 use super::native_data_maps::NativeDataMapType;
 use super::native_item_energy::ItemEnergyBuffer;
 use super::{
@@ -2098,6 +2099,7 @@ impl Game<'_> {
     /// tells it after the new level is made. Client-side, on the window; the
     /// server's levels have `native_level_load`. API 135.
     pub(super) fn native_client_level_load(&mut self, dimension: &str) {
+        self.native_client_state.level_loaded();
         mod_api::dispatch_client_level_load(self, mod_api::mods(), dimension);
     }
     /// The client dropped its level for `dimension` (`LevelEvent.Unload`
@@ -2106,6 +2108,7 @@ impl Game<'_> {
     /// `native_client_level_load`. Not told when the game itself quits.
     /// Client-side. API 135.
     pub(super) fn native_client_level_unload(&mut self, dimension: &str) {
+        self.native_client_state.level_unloaded();
         mod_api::dispatch_client_level_unload(self, mod_api::mods(), dimension);
     }
     /// Once a tick, in every `Game`: the window's (in single player, on LAN
@@ -8548,13 +8551,36 @@ impl Game<'_> {
         }
     }
     /// Playing, with nothing over the world: keys and zoom apply.
+    /// API @API:client_state_reads@.
     pub(super) fn native_playing(&self) -> bool {
-        self.screen == Screen::Playing
-            && self.title.is_none()
-            && self.sign_edit.is_none()
-            && self.book.is_none()
+        super::native_client_state::playing(
+            self.screen == Screen::Playing,
+            self.title.is_some(),
+            self.sign_edit.is_some(),
+            self.book.is_some(),
+        )
     }
-    /// This `Game` is the window's, not a server's.
+
+    /// The loaded client's destination, without a full save path or friend invite.
+    /// None on title, before a level loads, or on a server. API @API:client_state_reads@.
+    pub(super) fn native_client_world_key(&self) -> Option<NativeClientWorld> {
+        self.native_client_state.world_key(
+            self.options.execution_role.is_client(),
+            self.title.is_some(),
+        )
+    }
+
+    /// The sound-option slider, without multiplying by master. API @API:client_state_reads@.
+    pub(super) fn native_sound_volume(&self, category: NativeSoundCategory) -> f32 {
+        super::native_client_state::sound_volume(&self.settings, category)
+    }
+
+    /// Master times the source slider; Master itself is not squared. API @API:client_state_reads@.
+    pub(super) fn native_sound_volume_effective(&self, category: NativeSoundCategory) -> f32 {
+        super::native_client_state::sound_volume_effective(&self.settings, category)
+    }
+
+    /// This `Game` is the window's, not a server's. API @API:client_state_reads@.
     pub(super) fn native_window(&self) -> bool {
         self.options.execution_role == ExecutionRole::Client
     }

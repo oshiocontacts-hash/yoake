@@ -1013,6 +1013,8 @@ fn configure(
 ) -> Result<Dynamic, Reason> {
     let mut registries = Dynamic::default();
     let mut content_verified = false;
+    let mut horizon_peer = false;
+    let mut native_check = horizon_protocol::mod_list::native::Negotiation::default();
     let reply = |p: cfg::Serverbound| -> Result<(), Reason> {
         match writer.lock().unwrap().as_mut() {
             Some(w) => w
@@ -1038,6 +1040,28 @@ fn configure(
                     data: hash.to_vec(),
                 }))?;
             }
+            cfg::Clientbound::CustomPayload(p)
+                if horizon_peer && p.channel == horizon_protocol::mod_list::native::CHANNEL =>
+            {
+                if native_check.receive_capabilities(&p.data) {
+                    reply(cfg::Serverbound::CustomPayload(cfg::CustomPayload {
+                        channel: horizon_protocol::mod_list::native::CHANNEL.into(),
+                        data: horizon_protocol::mod_list::native::CAPABILITIES.to_vec(),
+                    }))?;
+                } else if native_check.supported() {
+                    horizon_protocol::mod_list::native::decode(&p.data)
+                        .map_err(|error| Reason::plain(error.to_string()))?;
+                    let snapshot = horizon_protocol::mod_list::native::Snapshot::new(
+                        &horizon_protocol::mod_list::local(),
+                        horizon_protocol::mod_list::native::local(),
+                    )
+                    .map_err(|error| Reason::plain(error.to_string()))?;
+                    reply(cfg::Serverbound::CustomPayload(cfg::CustomPayload {
+                        channel: horizon_protocol::mod_list::native::CHANNEL.into(),
+                        data: native_check.payload(&snapshot).unwrap(),
+                    }))?;
+                }
+            }
             // The server names its mods; the answer is ours, and the server judges.
             cfg::Clientbound::CustomPayload(p)
                 if p.channel == horizon_protocol::mod_list::CHANNEL =>
@@ -1059,12 +1083,21 @@ fn configure(
                         .as_deref()
                         == Some("horizon")
                 {
+                    horizon_peer = true;
                     let mut w = horizon_protocol::buf::Writer::new();
                     w.string("horizon");
                     reply(cfg::Serverbound::CustomPayload(cfg::CustomPayload {
                         channel: "minecraft:brand".into(),
                         data: w.data,
                     }))?;
+                    if horizon_protocol::mod_list::native::has_shared(
+                        horizon_protocol::mod_list::native::local(),
+                    ) {
+                        reply(cfg::Serverbound::CustomPayload(cfg::CustomPayload {
+                            channel: horizon_protocol::mod_list::native::CHANNEL.into(),
+                            data: horizon_protocol::mod_list::native::CAPABILITIES.to_vec(),
+                        }))?;
+                    }
                 }
                 receive_brand(&p, send);
             }
@@ -1736,6 +1769,127 @@ mod tests {
             std::env::temp_dir().join(format!("horizon-content-identity-{}", std::process::id())),
         )
         .unwrap();
+    }
+
+    #[test]
+    fn native_configuration_requires_a_horizon_brand_and_capabilities() {
+        use horizon_protocol::mod_list::{Entry, Side, native};
+
+        assert!(!native::has_shared(native::local()));
+        for (server_brand, negotiate) in [("vanilla", true), ("horizon", false), ("horizon", true)]
+        {
+            let (client, server) = horizon_protocol::connection::Pipe::pair();
+            let (mut reader, writer) = Connection::local(client).split();
+            let writer = Mutex::new(Some(writer));
+            let thread = std::thread::spawn(move || {
+                let (send, _events) = channel();
+                configure(
+                    &mut reader,
+                    &writer,
+                    &AtomicBool::new(true),
+                    &Language::new(),
+                    &send,
+                    &Cookies::default(),
+                    Path::new(""),
+                    false,
+                )
+            });
+            let mut server = Connection::local(server);
+            let mut brand = horizon_protocol::buf::Writer::new();
+            brand.string(server_brand);
+            let brand = cfg::CustomPayload {
+                channel: "minecraft:brand".into(),
+                data: brand.data,
+            };
+            server
+                .send(&cfg::Clientbound::CustomPayload(brand.clone()).encode())
+                .unwrap();
+            server
+                .send(&cfg::Clientbound::Ping(cfg::Ping { id: 21 }).encode())
+                .unwrap();
+            if server_brand == "horizon" {
+                let (packet_id, body) = server.recv().unwrap();
+                assert_eq!(
+                    cfg::Serverbound::decode(packet_id, &body).unwrap(),
+                    cfg::Serverbound::CustomPayload(brand)
+                );
+            }
+            let (packet_id, body) = server.recv().unwrap();
+            assert_eq!(
+                cfg::Serverbound::decode(packet_id, &body).unwrap(),
+                cfg::Serverbound::Pong(cfg::Ping { id: 21 })
+            );
+            if negotiate {
+                let capabilities = cfg::CustomPayload {
+                    channel: native::CHANNEL.into(),
+                    data: native::CAPABILITIES.to_vec(),
+                };
+                server
+                    .send(&cfg::Clientbound::CustomPayload(capabilities.clone()).encode())
+                    .unwrap();
+                if server_brand == "horizon" {
+                    let (packet_id, body) = server.recv().unwrap();
+                    assert_eq!(
+                        cfg::Serverbound::decode(packet_id, &body).unwrap(),
+                        cfg::Serverbound::CustomPayload(capabilities)
+                    );
+                }
+            }
+            let server_snapshot = native::Snapshot::new(
+                &[],
+                &[Entry {
+                    id: "kigurumi".into(),
+                    version: "0.4.2".into(),
+                    side: Side::Both,
+                    sha256: None,
+                }],
+            )
+            .unwrap();
+            let mut server_check = native::Negotiation::default();
+            assert!(server_check.receive_capabilities(native::CAPABILITIES));
+            server
+                .send(
+                    &cfg::Clientbound::CustomPayload(cfg::CustomPayload {
+                        channel: native::CHANNEL.into(),
+                        data: server_check.payload(&server_snapshot).unwrap(),
+                    })
+                    .encode(),
+                )
+                .unwrap();
+            server
+                .send(&cfg::Clientbound::Ping(cfg::Ping { id: 23 }).encode())
+                .unwrap();
+            if server_brand == "horizon" && negotiate {
+                let (packet_id, body) = server.recv().unwrap();
+                let cfg::Serverbound::CustomPayload(reply) =
+                    cfg::Serverbound::decode(packet_id, &body).unwrap()
+                else {
+                    panic!("Expected a native mod snapshot");
+                };
+                assert_eq!(reply.channel, native::CHANNEL);
+                let client_snapshot = native::decode(&reply.data).unwrap();
+                assert!(client_snapshot.native.is_empty());
+                assert!(
+                    native::compare(&server_snapshot, &client_snapshot)
+                        .reason()
+                        .ends_with("Missing: kigurumi 0.4.2")
+                );
+            }
+            let (packet_id, body) = server.recv().unwrap();
+            assert_eq!(
+                cfg::Serverbound::decode(packet_id, &body).unwrap(),
+                cfg::Serverbound::Pong(cfg::Ping { id: 23 })
+            );
+            server
+                .send(&cfg::Clientbound::FinishConfiguration(Empty).encode())
+                .unwrap();
+            let (packet_id, body) = server.recv().unwrap();
+            assert_eq!(
+                cfg::Serverbound::decode(packet_id, &body).unwrap(),
+                cfg::Serverbound::FinishConfiguration(Empty)
+            );
+            assert!(thread.join().unwrap().is_ok());
+        }
     }
 
     #[test]

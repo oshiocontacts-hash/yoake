@@ -143,6 +143,8 @@ pub struct NativeFrame {
     history_reset: bool,
     start: std::time::Instant,
     frames: u32,
+    #[cfg(feature = "dev-capture")]
+    capture_time: Option<super::capture::PresentationTime>,
     /// `frame.wetness`, and when it was last written.
     wetness: (f32, Option<std::time::Instant>),
 }
@@ -352,6 +354,8 @@ impl NativeFrame {
             history_reset: true,
             start: std::time::Instant::now(),
             frames: 0,
+            #[cfg(feature = "dev-capture")]
+            capture_time: None,
             wetness: (0.0, None),
         }
     }
@@ -507,19 +511,43 @@ impl NativeFrame {
         );
     }
 
+    #[cfg(feature = "dev-capture")]
+    pub(super) fn set_capture_presentation_time(
+        &mut self,
+        time: Option<super::capture::PresentationTime>,
+    ) {
+        if self.capture_time.is_some() != time.is_some() {
+            self.last = None;
+            self.wetness.1 = None;
+        }
+        self.capture_time = time;
+    }
+
     /// Writes this frame's inputs, for a world of `size`.
     pub fn write(&mut self, queue: &wgpu::Queue, frame: &Frame, size: [u32; 2]) {
+        #[cfg(not(feature = "dev-capture"))]
         let seconds = self.start.elapsed().as_secs_f32() % 3600.0;
-        let now = std::time::Instant::now();
-        let since = self.wetness.1.map_or(0.0, |t| (now - t).as_secs_f32());
-        self.wetness = (wetness(self.wetness.0, frame.pack.rain, since), Some(now));
-        let mut inputs = frame_inputs(
-            frame,
-            size,
-            seconds,
-            self.frames,
-            self.shadow_camera.as_ref(),
+        #[cfg(feature = "dev-capture")]
+        let seconds = self.capture_time.map_or_else(
+            || self.start.elapsed().as_secs_f32() % 3600.0,
+            |clock| clock.elapsed().as_secs_f32() % 3600.0,
         );
+        #[cfg(not(feature = "dev-capture"))]
+        let now = std::time::Instant::now();
+        #[cfg(feature = "dev-capture")]
+        let now = self
+            .capture_time
+            .map_or_else(std::time::Instant::now, |clock| clock.now());
+        let since = self.wetness.1.map_or(0.0, |t| (now - t).as_secs_f32());
+        #[cfg(feature = "dev-capture")]
+        let since = self
+            .capture_time
+            .map_or(since, |clock| clock.delta().as_secs_f32());
+        self.wetness = (wetness(self.wetness.0, frame.pack.rain, since), Some(now));
+        let counter = self.frames;
+        #[cfg(feature = "dev-capture")]
+        let counter = self.capture_time.map_or(counter, |clock| clock.frame());
+        let mut inputs = frame_inputs(frame, size, seconds, counter, self.shadow_camera.as_ref());
         inputs.wetness = self.wetness.0;
         if !self.reflects {
             inputs.has_reflection = 0;
@@ -542,6 +570,10 @@ impl NativeFrame {
             }
         }
         self.last = Some((view_proj, frame.camera, now));
+        #[cfg(feature = "dev-capture")]
+        if let Some(clock) = self.capture_time {
+            inputs.delta_time = clock.delta().as_secs_f32();
+        }
         // The eye's light and medium eased by half-lives in seconds, from where they are at
         // first.
         let targets = [

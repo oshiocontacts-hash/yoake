@@ -1,13 +1,33 @@
 //! Startup shared by the gameplay library and its executable.
 use crate::{crash, game, logging, ram_limit};
 
+pub use horizon_protocol::mod_list::{Side as NativeSide, native::Mod as NativeMod};
+
 /// Start the game. The executable supplies the allocator and retains the mod API marker.
 pub fn main() {
     main_with(Default::default());
 }
 
-/// Start the game with trait mods in dispatch order.
+/// Start with trait mods in dispatch order but no native identities: the multiplayer check
+/// can't see them. Native bundles should use [`main_with_native`].
 pub fn main_with(mods: crate::mod_api::Mods) {
+    if !mods.is_empty() {
+        eprintln!("Native hooks without identities; the multiplayer mod check can't see them");
+    }
+    run(mods);
+}
+
+/// Start with hook objects and the build-time identities of every native bundle.
+pub fn main_with_native(mods: crate::mod_api::Mods, identities: &'static [NativeMod]) {
+    assert!(
+        identities.len() >= mods.len(),
+        "Missing native mod identities"
+    );
+    horizon_protocol::mod_list::native::install(identities).expect("Invalid native mod identities");
+    run(mods);
+}
+
+fn run(mods: crate::mod_api::Mods) {
     // First: a trait injection into anything below (logging, the crash handler) calls its mod.
     if crate::mod_api::MODS.set(mods).is_err() {
         log::warn!("Trait mods already installed; ignoring the second list");
@@ -55,11 +75,13 @@ pub fn main_with(mods: crate::mod_api::Mods) {
         crash::install(home.clone(), side);
         ram_limit::start(&home, side);
     }
+    crate::mod_api::initialize_guard().expect("initialize the native mod guard");
     let renderers = crate::mod_api::mods()
         .iter()
-        .filter_map(|m| m.render())
+        .enumerate()
+        .filter_map(|(index, hooks)| hooks.render().map(|renderer| (index, renderer)))
         .collect();
-    if crate::gfx::native_render::install(renderers).is_err() {
+    if crate::gfx::native_render::install_indexed(renderers).is_err() {
         log::warn!("Trait renderers already installed; keeping the first list");
     }
     if horizon_world::native_load_hooks::install(

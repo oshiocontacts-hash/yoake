@@ -80,6 +80,8 @@ mod campfire;
 mod campfire_douse;
 #[cfg(feature = "dev-capture")]
 mod capture;
+#[cfg(feature = "dev-capture")]
+mod capture_output;
 mod cartography;
 mod cat_spawner;
 mod chat;
@@ -208,9 +210,11 @@ pub mod native_block_entity_draw;
 mod native_block_sprites;
 mod native_claimed_items;
 mod native_client_items;
+mod native_client_state;
 mod native_components;
 mod native_cooldowns;
 mod native_criteria;
+mod native_damage;
 mod native_data_maps;
 mod native_entities;
 mod native_entity_data;
@@ -423,8 +427,11 @@ pub use native_avatar_equipment::{
 };
 pub use native_block_entity_draw::BlockEntityDraw;
 pub use native_claimed_items::{NativeHeldItem, NativeHit, NativeModEvent};
+pub use native_client_state::{NativeClientWorld, NativeSoundCategory};
 pub use native_cooldowns::NativeCooldownTarget;
+pub use native_damage::{NativeDamage, NativeDamageActor, NativeDamageKind};
 pub use native_data_maps::NativeDataMapType;
+pub use native_explosions::NativeBlast;
 pub use native_falling::NativeFalling;
 pub use native_hooks::{NativeClock, NativeShake};
 pub use native_item_energy::ItemEnergyBuffer;
@@ -2551,7 +2558,7 @@ struct Game<'a> {
     health_hud: hud_layout::HealthHud,
     /// What ends the game with an error; kept as it is, so main can tell a debug crash.
     error: Option<Box<dyn std::error::Error>>,
-    message: Option<(String, Instant)>,
+    message: Option<(String, chat::UiInstant)>,
     save: Arc<SaveDir>,
     level: Level,
     /// Must precede session_lock: dropping the writer drains writes while the world is locked.
@@ -2742,6 +2749,7 @@ struct Game<'a> {
     sleep_seen: (i64, i64),
     dim: Dim,
     world_root: PathBuf,
+    native_client_state: native_client_state::ClientState,
     /// The world's data packs' content tables, when it has packs (`None`
     /// keeps `Resources.rest`'s own in use).
     world_tables: Option<WorldTables>,
@@ -2930,6 +2938,7 @@ struct Game<'a> {
     /// The native lifecycle bookkeeping.
     native_lifecycle: native_lifecycle::NativeLifecycle,
     native_entity_queries: native_entity_query::QueryBudgets,
+    native_damage_budgets: native_damage::DamageBudgets,
     native_audio: Option<native_audio::NativeAudio>,
     /// Native mods' messages waiting (`game/native_net.rs`).
     native_net: native_net::NativeNet,
@@ -5678,7 +5687,7 @@ impl Game<'_> {
                     "{} is not available yet",
                     name.trim_start_matches("minecraft:").replace('_', " ")
                 ),
-                Instant::now(),
+                Instant::now().into(),
             ));
             return;
         }
@@ -7373,7 +7382,7 @@ impl Game<'_> {
         if player.health.dead_or_dying() {
             self.screen = Screen::Dead;
             self.death_focus = None;
-            self.ui.died_at = Some(Instant::now());
+            self.ui.died_at = Some(Instant::now().into());
             self.ui.death_text = None;
             self.ui.death_confirm = None;
             self.capture(false);
@@ -14151,6 +14160,8 @@ impl Game<'_> {
         renderer.screenshot = screenshot;
         renderer.screenshot_result = screenshot_result;
         self.renderer = Some(renderer);
+        #[cfg(feature = "dev-capture")]
+        self.capture_install_output()?;
         self.skin_slots.forget();
         self.maps.slots.forget();
         self.map_patches.clear();
@@ -14359,7 +14370,7 @@ impl Game<'_> {
                     },
                 ));
         } else if overlay {
-            self.message = Some((self.translate(key, fallback), Instant::now()));
+            self.message = Some((self.translate(key, fallback), Instant::now().into()));
         } else {
             self.system_message(horizon_client::text::Text::translate(key, &[]));
         }
@@ -15318,7 +15329,7 @@ impl Game<'_> {
             self.lan = Some(host);
         }
         self.save_world_state();
-        self.message = Some(("Saved the game".into(), Instant::now()));
+        self.message = Some(("Saved the game".into(), Instant::now().into()));
         Ok(())
     }
     /// Save the level in place: its changed chunks, its entities and its raids.
@@ -16949,6 +16960,12 @@ impl ApplicationHandler for Game<'_> {
         match self.new_renderer(window.clone()) {
             Ok(r) => {
                 self.renderer = Some(r);
+                #[cfg(feature = "dev-capture")]
+                if let Err(reason) = self.capture_install_output() {
+                    self.error = Some(reason.into());
+                    event_loop.exit();
+                    return;
+                }
                 self.world_renderer_ready = true;
             }
             Err(e) => {
@@ -18538,6 +18555,10 @@ impl Game<'_> {
     /// winit's `about_to_wait`: what happens between frames (stop requests, the closing
     /// save, world entry, the control socket, pads), then the next frame.
     pub(super) fn idle(&mut self, event_loop: &dyn EventLoopCtl) {
+        crate::mod_guard::maintenance();
+        for notice in crate::mod_guard::take_notices(false) {
+            self.system_message(crate::mod_guard::notice_text(&notice.id, notice.hook));
+        }
         // A splitscreen player's game has nothing to save: P1's shuts the process down.
         if horizon_threads::stop_requests() > 0
             && !self.options.split_guest
@@ -18949,6 +18970,7 @@ impl<'a> Game<'a> {
             sleep_seen: (0, 0),
             dim: Dim::Overworld,
             world_root: PathBuf::new(),
+            native_client_state: Default::default(),
             world_flat: false,
             world_debug: false,
             server_trips: Vec::new(),
@@ -19077,6 +19099,7 @@ impl<'a> Game<'a> {
             native_input: Default::default(),
             native_lifecycle: Default::default(),
             native_entity_queries: Default::default(),
+            native_damage_budgets: Default::default(),
             native_audio: None,
             native_net: Default::default(),
             native_mod_screen: None,
@@ -19336,6 +19359,7 @@ impl WorldRestLoader {
 impl Game<'_> {
     fn defer_world_entry(&mut self, entry: PendingWorldEntry) -> Result<bool> {
         self.poll_world_rest()?;
+        self.native_client_state.enter(&entry);
         if self.rest_loader.is_none() {
             return Ok(false);
         }
@@ -20723,6 +20747,7 @@ fn start_game<'a>(
             let (seed, creative) = (game.options.seed, game.options.creative);
             if std::env::var_os("HORIZON_COMMAND_SCRIPT").is_some() {
                 // Headless, but with the same server and memory connection as play.
+                game.native_client_state.enter_singleplayer(&folder);
                 game.open_integrated(&folder, None, Some(seed), creative, None)?;
             } else {
                 // Start after the window is handed over, so --world uses the
@@ -21129,6 +21154,8 @@ impl Loading {
         let game_ms = game_at.elapsed().as_millis();
         game.window = Some(window);
         game.renderer = Some(renderer);
+        #[cfg(feature = "dev-capture")]
+        game.capture_install_output()?;
         game.world_renderer_ready = true;
         game.fullscreen = self.fullscreen;
         game.panorama_rotation = self.panorama_rotation;

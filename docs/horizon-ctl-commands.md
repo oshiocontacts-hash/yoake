@@ -152,10 +152,16 @@ Every command `horizon-ctl` takes, its MCP tool in `horizon-ctl mcp` (the launch
 
 ## Development capture (`dev-capture`)
 
-These commands are available only in builds with `dev-capture`. Both the client and `horizon-ctl` need the feature. Start the game with explicit `--control` or `--control-socket`; enabling Agent Control in settings alone is insufficient. Capture requires the main-loop and transport integration plus a registered PNG output adapter; without the adapter it fails before holding the server. See [agent-control.md](agent-control.md#fixed-step-capture-dev-capture).
+These commands are available only in builds with `dev-capture`. Both the client and `horizon-ctl` need the feature. Start the game with explicit `--control` or `--control-socket`; enabling Agent Control in settings alone is insufficient. The client installs its PNG backend when the renderer is created. A loaded local single-player world, a ready player and renderer, the playing screen, and an idle 20 TPS server are required; LAN and remote servers, frozen/sprinting/stepping ticks, an existing screenshot, and conflicting save/agent operations are rejected before capture holds the server. See [agent-control.md](agent-control.md#fixed-step-capture-dev-capture).
 
 | Command | MCP tool | What it does | Arguments |
 | --- | --- | --- | --- |
 | `capture DIR [--fps FPS] --frames N` | `capture` | Capture numbered PNGs at fixed simulation intervals | `dir` (string, required): output directory, relative to horizon-ctl<br>`--fps` (integer): positive frames per second (default 30)<br>`--frames` (integer, required): positive number of frames |
 | `capture-status` | `capture_status` | Read capture progress and terminal status | none |
 | `capture-cancel` | `capture_cancel` | Request cancellation and restore real-time clocks | none |
+
+Output is a sequence of opaque, 8-bit SDR RGBA PNGs tagged as sRGB, named `000000.png`, `000001.png`, and so on, in `DIR`. Files are created without overwriting existing names. Each frame includes the final GUI/HUD unless it is hidden. The pixel size is fixed to the renderer size at capture start; resizing, including minimizing to zero size, fails capture and releases the server. A bounded worker encodes and writes one outstanding frame at a time. Simulation waits for the exact frame's completed write, including flush/sync, so slow storage applies backpressure rather than dropping frames. Cancellation or failure can leave already written files or a partial final file; use a fresh directory for another capture.
+
+With HDR enabled, capture reads the existing 8-bit gamma-space SDR composition before its HDR10/scRGB output transform. It does not record HDR pixels or apply a separate HDR-to-SDR tone mapper. Normal screenshots use their own readback buffer and remain available during capture; their capture-time resolution is the fixed renderer size rather than a supersampled redraw. Without `dev-capture`, the normal screenshot path is unchanged.
+
+Presentation animations advance on the fixed capture clock, not PNG worker wait time. Audio is muted throughout capture, including music and UI sounds. Existing sounds and pending playback are cleared, and playback attempts while muted are discarded rather than queued for a burst afterward. Finish, cancellation, and failure restore real-time presentation and audio playback; stopped sounds are not resumed.

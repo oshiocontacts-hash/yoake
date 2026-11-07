@@ -1250,11 +1250,12 @@ pub struct SubtitleFrame {
 }
 /// Milliseconds on a monotonic clock (`Util.getMillis`).
 pub fn now_ms() -> i64 {
-    static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
-    START
-        .get_or_init(std::time::Instant::now)
-        .elapsed()
-        .as_millis() as i64
+    #[cfg(feature = "dev-capture")]
+    use crate::capture_time::AnimationInstant as Instant;
+    #[cfg(not(feature = "dev-capture"))]
+    use std::time::Instant;
+    static START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
+    START.get_or_init(Instant::now).elapsed().as_millis() as i64
 }
 #[derive(Default)]
 pub struct SubtitleOverlay {

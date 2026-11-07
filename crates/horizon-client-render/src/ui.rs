@@ -1,10 +1,14 @@
 //! Shared GUI widgets drawn as HUD quads: nine-slice sprites (gui.scaling
 //! metadata), buttons, sliders, tiled menu backgrounds, separators and the
 //! EditBox text field with vanilla cursor, selection and scrolling.
+#[cfg(feature = "dev-capture")]
+use crate::capture_time::AnimationInstant;
 use crate::{
     hud::{HudAtlas, HudBatch, Rect, rgba},
     text::Text,
 };
+#[cfg(not(feature = "dev-capture"))]
+use std::time::Instant as AnimationInstant;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -1058,7 +1062,7 @@ pub struct EditBox {
     pub width: f32,
     pub height: f32,
     pub focused: bool,
-    focused_at: Instant,
+    focused_at: AnimationInstant,
     /// Grey completion shown after the text (EditBox.setSuggestion).
     pub suggestion: Option<String>,
     pub text_color: u32,
@@ -1175,8 +1179,12 @@ impl Caret {
         };
         [edit.x, edit.y, edit.width, edit.height] = rect;
         edit.focused = focused;
-        if edit.focused_at < focused_at {
-            edit.focused_at = focused_at;
+        #[cfg(feature = "dev-capture")]
+        let previous_focus = edit.focused_at.wall();
+        #[cfg(not(feature = "dev-capture"))]
+        let previous_focus = edit.focused_at;
+        if previous_focus < focused_at {
+            edit.focused_at = focused_at.into();
         }
         edit.draw(batch, atlas, None);
     }
@@ -1323,7 +1331,7 @@ impl EditBox {
             width,
             height,
             focused: true,
-            focused_at: Instant::now(),
+            focused_at: AnimationInstant::now(),
             suggestion: None,
             text_color: rgba(224, 224, 224, 255),
             message: String::new(),
@@ -1347,7 +1355,7 @@ impl EditBox {
         }
     }
     pub fn reset_blink(&mut self) {
-        self.focused_at = Instant::now();
+        self.focused_at = AnimationInstant::now();
     }
     /// The caret is showing (`EditBox`'s blink, on for 300 ms of every 600).
     pub fn cursor_visible(&self) -> bool {

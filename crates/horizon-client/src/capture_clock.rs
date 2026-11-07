@@ -57,7 +57,6 @@ pub struct CaptureWrite {
     pub result: Result<(), String>,
 }
 
-// CHECK: T28 must install a generation-aware, single-readback PNG output before capture starts.
 pub trait CaptureOutput {
     fn begin(&mut self, directory: &Path, frames: u64) -> Result<(), String>;
     fn request_frame(&mut self, frame: CaptureFrame) -> Result<(), String>;

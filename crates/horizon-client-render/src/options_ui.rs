@@ -3,6 +3,11 @@
 //! Language and Resource Packs, laid out like vanilla's HeaderAndFooter /
 //! OptionsList screens and drawn with the shared widgets.
 use std::time::Instant;
+#[cfg(not(feature = "dev-capture"))]
+use std::time::Instant as AnimationInstant;
+
+#[cfg(feature = "dev-capture")]
+use crate::capture_time::AnimationInstant;
 
 pub use crate::settings::Opt;
 
@@ -1491,7 +1496,7 @@ fn delays_apply(opt: Opt) -> bool {
 }
 /// Whether a slider still shows its own position: while held, or for a
 /// delayed one until its value applies (both then `resetValue`).
-fn slider_unsnapped(opt: Opt, held: bool, moved: Instant) -> bool {
+fn slider_unsnapped(opt: Opt, held: bool, moved: AnimationInstant) -> bool {
     if delays_apply(opt) {
         moved.elapsed().as_millis() < 600
     } else {
@@ -1510,7 +1515,7 @@ pub struct OptionsUi {
     /// The pressed slider's own position (`AbstractSliderButton.value`) and
     /// when it last moved: the handle follows the pointer while the option
     /// keeps its stepped value, then snaps to it (`resetValue`).
-    slider_value: Option<(Opt, f32, Instant)>,
+    slider_value: Option<(Opt, f32, AnimationInstant)>,
     /// The pointer's last y while a scrollbar is held.
     pub(crate) scrollbar_drag_y: Option<f32>,
     /// Key Binds: the mapping waiting for a key ([`NATIVE_KEY`]: a native
@@ -1543,7 +1548,7 @@ pub struct OptionsUi {
     /// A reload failure, dismissed before returning to the current page.
     pub resource_error: Option<String>,
     /// When the pack screen's search box took the focus (its cursor blink).
-    pack_focus: Instant,
+    pack_focus: AnimationInstant,
     /// The selection carried over from a pack screen made again over a changed pack list
     /// (`update_pack_infos`) differs from the settings'.
     pack_reselected: bool,
@@ -1614,7 +1619,7 @@ impl Default for OptionsUi {
             data_pack_resources: Default::default(),
             data_pack_stamp: (Vec::new(), Instant::now()),
             resource_error: None,
-            pack_focus: Instant::now(),
+            pack_focus: AnimationInstant::now(),
             pack_reselected: false,
             in_world: false,
             minecart_improvements: false,
@@ -3929,7 +3934,7 @@ impl OptionsUi {
             let before = p.search_focused();
             let action = p.click(&m, x as f64, y as f64);
             if !before && p.search_focused() {
-                self.pack_focus = Instant::now();
+                self.pack_focus = AnimationInstant::now();
             }
             match action {
                 crate::pack_screen::Action::OpenFolder => events.push(match &self.data_pack_dir {
@@ -4006,7 +4011,7 @@ impl OptionsUi {
                     .find(|wd| matches!(&wd.kind, WKind::Slider { opt: o, .. } if *o == opt))
             {
                 let v = ui::slider_value(wd.x, wd.w, x);
-                self.slider_value = Some((opt, v, Instant::now()));
+                self.slider_value = Some((opt, v, AnimationInstant::now()));
                 drag_slider(opt, s, v, &mut events);
             }
             return events;
@@ -4240,7 +4245,7 @@ impl OptionsUi {
                     self.can_change_value = true;
                     self.dragging = Some(opt);
                     let v = ui::slider_value(wd.x, wd.w, x);
-                    self.slider_value = Some((opt, v, Instant::now()));
+                    self.slider_value = Some((opt, v, AnimationInstant::now()));
                     drag_slider(opt, s, v, &mut events);
                 }
                 WKind::LanguageRow { code, .. } => {
@@ -4479,7 +4484,7 @@ impl OptionsUi {
                 }
             }
             None => {
-                self.pack_focus = Instant::now();
+                self.pack_focus = AnimationInstant::now();
                 let title = if self.data_pack_dir.is_some() {
                     "dataPack.title"
                 } else {
@@ -6664,12 +6669,12 @@ mod tests {
         assert_eq!(ui.slider_shown(Opt::Volume(0), 0.25), 0.25);
         // Render distance applies late (applyValueImmediately = false) and
         // keeps its position until then, even once released.
-        ui.slider_value = Some((Opt::RenderDistance, 0.51, Instant::now()));
+        ui.slider_value = Some((Opt::RenderDistance, 0.51, AnimationInstant::now()));
         assert_eq!(ui.slider_shown(Opt::RenderDistance, 0.5), 0.51);
         ui.slider_value = Some((
             Opt::RenderDistance,
             0.51,
-            Instant::now() - std::time::Duration::from_millis(600),
+            (Instant::now() - std::time::Duration::from_millis(600)).into(),
         ));
         assert_eq!(ui.slider_shown(Opt::RenderDistance, 0.5), 0.5);
     }

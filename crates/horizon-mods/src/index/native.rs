@@ -36,6 +36,8 @@ pub struct Manifest {
     pub schema: u32,
     pub id: String,
     pub version: String,
+    #[serde(default = "default_side")]
+    pub side: crate::Side,
     pub game: String,
     /// Exact source revisions tested together, never mutable tags.
     pub horizon: String,
@@ -46,6 +48,10 @@ pub struct Manifest {
     /// `horizon` is only the revision it was tested on.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hooks: Option<u32>,
+}
+
+fn default_side() -> crate::Side {
+    crate::Side::Both
 }
 
 pub fn revision(value: &str) -> bool {
@@ -60,6 +66,8 @@ impl Manifest {
         if self.schema != 1
             || !valid_id(&self.id)
             || self.version.is_empty()
+            || self.version.chars().count() > 64
+            || self.version.chars().any(char::is_control)
             || self.game.is_empty()
             || !revision(&self.horizon)
             || !revision(&self.mixins)
@@ -236,6 +244,7 @@ mod tests {
             schema: 1,
             id: "veinminer".into(),
             version: "0.3.0".into(),
+            side: crate::Side::Both,
             game: "26.3".into(),
             horizon: "a".repeat(40),
             mixins: "b".repeat(40),
@@ -267,6 +276,38 @@ mod tests {
             "[mod]\nid = \"veinminer\"\nversion = \"0.3.0\"\n[compatibility]\nhorizon_revision = \"{}\"\n",
             "a".repeat(40)
         )
+    }
+    #[test]
+    fn native_side_defaults_to_both_and_accepts_only_known_sides() {
+        let mut json = serde_json::to_value(manifest()).unwrap();
+        json.as_object_mut().unwrap().remove("side");
+        let parsed: Manifest = serde_json::from_value(json.clone()).unwrap();
+        assert_eq!(parsed.side, crate::Side::Both);
+        for (text, expected) in [
+            ("both", crate::Side::Both),
+            ("client", crate::Side::Client),
+            ("server", crate::Side::Server),
+        ] {
+            json["side"] = text.into();
+            let parsed: Manifest = serde_json::from_value(json.clone()).unwrap();
+            assert_eq!(parsed.side, expected);
+            assert!(parsed.check().is_ok());
+        }
+        json["side"] = "unknown".into();
+        assert!(serde_json::from_value::<Manifest>(json).is_err());
+    }
+    #[test]
+    fn native_versions_fit_the_identity_packet() {
+        for version in [String::new(), "1".repeat(65), "1\n2".into()] {
+            assert!(
+                Manifest {
+                    version,
+                    ..manifest()
+                }
+                .check()
+                .is_err()
+            );
+        }
     }
     #[test]
     fn source_bundle_carries_exact_compatibility_into_index_facts() {

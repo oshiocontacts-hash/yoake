@@ -41,6 +41,10 @@ impl Game<'_> {
     /// Answers the requests waiting on the control endpoint.
     pub(super) fn poll_server_control(&mut self, state: &mut ServerState) {
         while let Some(request) = self.control.as_ref().and_then(|c| c.try_recv()) {
+            if let Some(response) = crate::mod_guard::control_command(&request.line) {
+                let _ = request.reply.send(response.to_string());
+                continue;
+            }
             let reply = match request.line.trim().split_once(' ') {
                 _ if request.line.trim() == "server-status" => self.server_status(state),
                 Some(("server-events", since)) => {

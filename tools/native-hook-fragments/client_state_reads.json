@@ -1,0 +1,32 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "client_world_key",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_client_world_key",
+      "mod_api": {}
+    },
+    {
+      "name": "sound_volume",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_sound_volume",
+      "mod_api": {}
+    },
+    {
+      "name": "sound_volume_effective",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_sound_volume_effective",
+      "mod_api": {}
+    },
+    {
+      "name": "playing",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_playing",
+      "mod_api": {}
+    },
+    {
+      "name": "window",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_window",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "reading the client's world destination, sound-option sliders and screen-free playing state, and whether this `Game` is the window's (`native_client_world_key`, `native_sound_volume`, `native_sound_volume_effective`, `native_playing`, `native_window`).",
+  "doc_summary": "Client state: `client_world_key()` returns the loaded client's save-folder basename, normalized server/LAN address, or `Friend` without the invite secret; none on the title screen, before a client level loads or on a server instance. A LAN host remains Singleplayer. `sound_volume(category)` reads the option slider; `sound_volume_effective(category)` multiplies by master (Master itself is not squared). Categories are Master, Music, Records, Weather, Blocks, Hostile, Neutral, Players, Ambient, Voice and Ui. `playing()` exposes the existing screen predicate: Playing with no title, sign editor or book, not a simulation-pause flag. `window()` is true in the window's `Game` and false in a server's (the integrated server included), so a hook that runs in both can tell them apart. All are reads and do not change audio or vanilla gameplay. Requires native hooks API @API:client_state_reads@."
+}

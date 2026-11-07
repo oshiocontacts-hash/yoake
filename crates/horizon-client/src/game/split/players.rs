@@ -167,6 +167,10 @@ impl Split<'_> {
             .join_split(&name)
             .ok_or("P1's world does not let players in")?;
         self.guests[i].options = options;
+        self.guests[i]
+            .game
+            .native_client_state
+            .enter_shared(&self.host.native_client_state);
         self.turn(i + 1);
         let guest = &mut self.guests[i];
         // Its profile page closes as it goes in.

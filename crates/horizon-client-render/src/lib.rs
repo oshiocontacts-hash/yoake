@@ -20,6 +20,10 @@ pub mod border_render;
 pub mod breaking;
 pub mod brewing;
 pub mod camera;
+#[cfg(feature = "dev-capture")]
+mod capture_time;
+#[cfg(feature = "dev-capture")]
+pub use capture_time::AnimationInstant;
 pub mod chat;
 pub mod chunk;
 pub mod chunk_map;

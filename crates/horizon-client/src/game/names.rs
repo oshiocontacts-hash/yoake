@@ -658,7 +658,7 @@ fn name_tag_quads_at(
         }
     }
     // Glyphs rasterized on first use (Unifont's) upload with the frame.
-    batch.patches
+    std::mem::take(&mut batch.patches)
 }
 
 /// `EntityAttachment.NAME_TAG`: `(0, bbHeight, 0)` of the box of the entity's

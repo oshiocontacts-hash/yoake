@@ -164,6 +164,24 @@ impl Tile {
     pub fn meshes_mut(&mut self) -> impl Iterator<Item = &mut SectionGpu> {
         std::iter::once(&mut self.mesh).chain(self.previous.as_mut().map(|(mesh, _)| mesh))
     }
+    #[cfg(feature = "dev-capture")]
+    pub(super) fn rebase_capture_time(&mut self, from: Instant, to: Instant) {
+        for stamp in [&mut self.shown, &mut self.dying] {
+            if let Some(stamp) = stamp {
+                super::capture::rebase(stamp, from, to);
+            }
+        }
+        if let Some((_, Some(stamp))) = &mut self.previous {
+            super::capture::rebase(stamp, from, to);
+        }
+        for mesh in self.meshes_mut() {
+            for stamp in [&mut mesh.fading, &mut mesh.leaving] {
+                if let Some(stamp) = stamp {
+                    super::capture::rebase(stamp, from, to);
+                }
+            }
+        }
+    }
     pub fn visible(
         &self,
         key: TileKey,
@@ -283,11 +301,15 @@ impl Renderer {
     /// Uploads queued tile meshes for about `budget` (at least one), then,
     /// once all are in, fades them in over the tiles they replace.
     pub fn upload_lods(&mut self, budget: Duration) {
-        let start = Instant::now();
+        let started = Instant::now();
         if self.lod_pending.is_some() {
             // Far tiles fill the arenas too: large translucent pages wait for them.
-            self.shrink_gate.wait(start, super::SHRINK_SETTLE);
+            self.shrink_gate.wait(started, super::SHRINK_SETTLE);
         }
+        #[cfg(not(feature = "dev-capture"))]
+        let start = started;
+        #[cfg(feature = "dev-capture")]
+        let start = self.animation_now();
         self.release_left(start);
         let faded: Vec<_> = self
             .lods
@@ -431,7 +453,7 @@ impl Renderer {
                     (x..x + size).contains(&(cx * 16)) && (z..z + size).contains(&(cz * 16))
                 });
             self.upload_lod(key, &mesh, keep);
-            if start.elapsed() >= budget {
+            if started.elapsed() >= budget {
                 return;
             }
         }

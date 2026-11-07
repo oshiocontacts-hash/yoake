@@ -12,6 +12,11 @@
 use crate::sound_events::{INTENTIONALLY_EMPTY, Sentinel, Sound, SoundRegistry};
 use horizon_core::random::LegacyRandom;
 use std::collections::HashMap;
+#[cfg(feature = "dev-capture")]
+use std::sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering},
+};
 
 /// `SoundSource` indices (vanilla order).
 pub const MASTER: usize = 0;
@@ -806,6 +811,10 @@ struct Handle {
     stopped: bool,
 }
 pub struct SoundEngine {
+    #[cfg(feature = "dev-capture")]
+    capture_policy: Arc<AtomicU64>,
+    #[cfg(feature = "dev-capture")]
+    capture_epoch: u64,
     pub registry: SoundRegistry,
     /// `loaded`: the library opened.
     pub loaded: bool,
@@ -843,6 +852,10 @@ fn handle_channel(h: &Handle) -> Option<ChannelId> {
 impl SoundEngine {
     pub fn new(registry: SoundRegistry) -> Self {
         Self {
+            #[cfg(feature = "dev-capture")]
+            capture_policy: Arc::new(AtomicU64::new(0)),
+            #[cfg(feature = "dev-capture")]
+            capture_epoch: 0,
             registry,
             loaded: true,
             tick_count: 0,
@@ -866,9 +879,47 @@ impl SoundEngine {
             notifications: Vec::new(),
         }
     }
+    #[cfg(feature = "dev-capture")]
+    pub(crate) fn share_capture_policy(&mut self, other: &Self) {
+        self.capture_policy = other.capture_policy.clone();
+        self.sync_capture_policy();
+    }
+    #[cfg(feature = "dev-capture")]
+    pub(crate) fn capture_muted(&self) -> bool {
+        self.capture_policy.load(Ordering::Acquire) & 1 != 0
+    }
+    #[cfg(feature = "dev-capture")]
+    pub(crate) fn set_capture_muted(&mut self, muted: bool) {
+        if self.capture_muted() != muted {
+            self.capture_policy.fetch_add(1, Ordering::AcqRel);
+        }
+        self.sync_capture_policy();
+    }
+    #[cfg(feature = "dev-capture")]
+    fn sync_capture_policy(&mut self) -> bool {
+        let epoch = self.capture_policy.load(Ordering::Acquire);
+        if epoch != self.capture_epoch {
+            self.capture_epoch = epoch;
+            self.instance_to_channel.clear();
+            self.handles.clear();
+            self.instance_by_source.clear();
+            self.gain_by_source = [1.0; 11];
+            self.ticking.clear();
+            self.queued.clear();
+            self.delete_time.clear();
+            self.queued_tickable.clear();
+            self.used = [0, 0];
+            self.notifications.clear();
+            self.instances
+                .retain(|id, _| self.retained.contains_key(id));
+        }
+        epoch & 1 != 0
+    }
     /// Hand an instance to the engine. A retained instance stays until
     /// `release`; others go once the engine no longer refers to them.
     pub fn add(&mut self, instance: SoundInstance, retain: bool) -> InstanceId {
+        #[cfg(feature = "dev-capture")]
+        self.sync_capture_policy();
         let id = self.next_instance;
         self.next_instance += 1;
         self.instances.insert(id, instance);
@@ -906,6 +957,10 @@ impl SoundEngine {
         self.instances.remove(&id);
     }
     pub(crate) fn registered_active(&mut self, id: InstanceId, backend: &mut impl Backend) -> bool {
+        #[cfg(feature = "dev-capture")]
+        if self.sync_capture_policy() {
+            return false;
+        }
         self.channel_of(id)
             .and_then(|handle| self.handles.get(&handle).and_then(handle_channel))
             .is_some_and(|channel| !backend.stopped(channel))
@@ -1161,6 +1216,10 @@ impl SoundEngine {
         (id, self.play(id, backend))
     }
     fn play_inner(&mut self, id: InstanceId, backend: &mut impl Backend) -> PlayResult {
+        #[cfg(feature = "dev-capture")]
+        if self.sync_capture_policy() {
+            return PlayResult::NotStarted;
+        }
         if !self.loaded || !self.instances.contains_key(&id) {
             return PlayResult::NotStarted;
         }
@@ -1261,10 +1320,20 @@ impl SoundEngine {
     }
     /// `queueTickingSound`.
     pub fn queue_ticking(&mut self, id: InstanceId) {
+        #[cfg(feature = "dev-capture")]
+        if self.sync_capture_policy() {
+            self.collect(id);
+            return;
+        }
         self.queued_tickable.push(id);
     }
     /// `playDelayed`.
     pub fn play_delayed(&mut self, id: InstanceId, delay: i32) {
+        #[cfg(feature = "dev-capture")]
+        if self.sync_capture_policy() {
+            self.collect(id);
+            return;
+        }
         let at = self.tick_count + delay;
         if let Some(entry) = self.queued.iter_mut().find(|(i, _)| *i == id) {
             entry.1 = at;
@@ -1274,10 +1343,19 @@ impl SoundEngine {
     }
     /// `isActive`.
     pub fn is_active(&self, id: InstanceId) -> bool {
+        #[cfg(feature = "dev-capture")]
+        if self.capture_muted() || self.capture_policy.load(Ordering::Acquire) != self.capture_epoch
+        {
+            return false;
+        }
         self.loaded && self.channel_of(id).is_some()
     }
     /// `tick(paused)`, then `ChannelAccess.scheduleTick`.
     pub fn tick(&mut self, paused: bool, ctx: &TickContext, backend: &mut impl Backend) {
+        #[cfg(feature = "dev-capture")]
+        if self.sync_capture_policy() {
+            return;
+        }
         if !paused {
             self.tick_in_game(ctx, backend);
         } else {
@@ -1557,6 +1635,57 @@ pub mod test_backend {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_mute_drops_music_ui_and_delayed_sounds_in_shared_engines() {
+        let mut registry = SoundRegistry::default();
+        registry.add_file(
+            "minecraft",
+            br#"{"ui.button.click":{"sounds":["random/click"]},
+                 "music.menu":{"sounds":["music/menu"]}}"#,
+            &|_, _| true,
+        );
+        let mut engine = SoundEngine::new(registry.clone());
+        let mut shared = SoundEngine::new(registry);
+        shared.share_capture_policy(&engine);
+        let mut backend = test_backend::Null::default();
+        let click =
+            || SoundInstance::for_ui("minecraft:ui.button.click", 1.0, 0.25, LegacyRandom::new(0));
+        let music = || SoundInstance::for_music("minecraft:music.menu", LegacyRandom::new(0));
+        let playing = shared.play_new(music(), false, &mut backend).0;
+        assert!(shared.is_active(playing));
+        let delayed = shared.add(click(), false);
+        shared.play_delayed(delayed, 4);
+
+        engine.set_capture_muted(true);
+        assert!(!shared.is_active(playing));
+        assert_eq!(
+            shared.play_new(click(), false, &mut backend).1,
+            PlayResult::NotStarted
+        );
+        assert_eq!(
+            shared.play_new(music(), false, &mut backend).1,
+            PlayResult::NotStarted
+        );
+        let queued = shared.add(click(), false);
+        shared.queue_ticking(queued);
+        let delayed = shared.add(click(), false);
+        shared.play_delayed(delayed, 1);
+        assert!(shared.queued.is_empty());
+        assert!(shared.queued_tickable.is_empty());
+
+        engine.set_capture_muted(false);
+        for _ in 0..8 {
+            shared.tick(false, &TickContext::default(), &mut backend);
+        }
+        assert!(shared.handles.is_empty());
+        assert!(shared.queued.is_empty());
+        assert_eq!(
+            shared.play_new(click(), false, &mut backend).1,
+            PlayResult::Started
+        );
+    }
 
     #[test]
     fn happy_ghast_riding_sound_follows_the_ghast_speed() {

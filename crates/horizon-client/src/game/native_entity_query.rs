@@ -451,7 +451,7 @@ where
     }
 }
 
-fn require_server_context(
+pub(super) fn require_server_context(
     role: ExecutionRole,
     remote: bool,
     acting_guest: bool,

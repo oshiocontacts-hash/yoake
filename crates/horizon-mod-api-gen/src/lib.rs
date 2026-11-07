@@ -818,6 +818,9 @@ fn sources(root: &Path, fill: FillMode) -> Result<Sources, String> {
         let mod_list = fresh_name("mods", &mut used);
         let mod_item = fresh_name("mod_hook", &mut used);
         let replacement = fresh_name("replacement", &mut used);
+        let mod_index = fresh_name("mod_index", &mut used);
+        let guard = fresh_name("guard", &mut used);
+        let pending = fresh_name("pending", &mut used);
         let contract = api["contract"].as_str().ok_or("contract missing")?;
         let out = api.get("out").and_then(|v| v.as_str());
         if !matches!(
@@ -881,6 +884,8 @@ fn sources(root: &Path, fill: FillMode) -> Result<Sources, String> {
         let mut test_params = Vec::new();
         let mut test_inits = Vec::new();
         let mut write_back = String::new();
+        let mut prepare = String::new();
+        let mut rollback = String::new();
         let collected = output.as_ref().filter(|_| contract == "collect");
         for (name, ty) in args.iter().chain(collected) {
             dispatch_params.push(format!("{name}: {}", ty.to_token_stream()));
@@ -891,6 +896,28 @@ fn sources(root: &Path, fill: FillMode) -> Result<Sources, String> {
             if scalar {
                 inits.push(format!("{name}: *{name}"));
                 write_back.push_str(&format!("*{name} = {event}.{name};"));
+            } else if is_render
+                && let Type::Reference(reference) = ty
+                && reference.mutability.is_some()
+            {
+                let element = reference.elem.to_token_stream().to_string();
+                if [
+                    "WorldDrawn",
+                    "HandDrawn",
+                    "WorldPrePost",
+                    "OverlayDrawn",
+                    "RenderNeeds",
+                ]
+                .iter()
+                .any(|context| element.starts_with(context))
+                {
+                    let snapshot = fresh_name(&format!("snapshot_{name}"), &mut used);
+                    prepare.push_str(&format!("let {snapshot} = {name}.guard_snapshot();"));
+                    rollback.push_str(&format!("{name}.guard_restore({snapshot});"));
+                    inits.push(format!("{name}: &mut *{name}"));
+                } else {
+                    inits.push(name.clone());
+                }
             } else {
                 inits.push(name.clone());
             }
@@ -981,25 +1008,39 @@ pub fn for_test({test_params}) -> Self {{ Self {{ {test_inits} }} }}
             ));
         }
         let build = format!("let mut {event} = {event_type} {{ {} }};", inits.join(", "));
-        // A trait mod's call is marked with the mod for a panic to name; render hooks are called bare.
         let each = if is_render {
-            mod_list.clone()
+            format!("{mod_list}.iter().enumerate()")
         } else {
-            format!("super::entered({mod_list}, \"{name}\")")
+            format!("super::entered({mod_list}, \"{name}\").enumerate()")
         };
-        let body = match contract {
-            "cancel" => format!(
-                "if *{o} {{ return; }} {build} for {mod_item} in {each} {{ if matches!({mod_item}.{name}({invoke}), Flow::Cancel) {{ *{o} = true; break; }} }} {write_back}",
-                o = out.unwrap()
+        let (precondition, pending_init, completed, output_commit) = match contract {
+            "cancel" => (
+                format!("if *{} {{ return; }}", out.unwrap()),
+                format!("let mut {pending} = false;"),
+                format!("if matches!({replacement}, Flow::Cancel) {{ {pending} = true; break; }}"),
+                format!("*{} = {pending};", out.unwrap()),
             ),
-            "replace" => format!(
-                "if {o}.is_some() {{ return; }} {build} for {mod_item} in {each} {{ if let Some({replacement}) = {mod_item}.{name}({invoke}) {{ *{o} = Some({replacement}); break; }} }} {write_back}",
-                o = out.unwrap()
+            "replace" => (
+                format!("if {}.is_some() {{ return; }}", out.unwrap()),
+                format!("let mut {pending} = None;"),
+                format!("if {replacement}.is_some() {{ {pending} = {replacement}; break; }}"),
+                format!("*{} = {pending};", out.unwrap()),
             ),
-            _ => format!(
-                "{build} for {mod_item} in {each} {{ {mod_item}.{name}({invoke}); }} {write_back}"
-            ),
+            _ => (String::new(), String::new(), String::new(), String::new()),
         };
+        let body = format!(
+            r#"{precondition}
+let Some({guard}) = super::guard_dispatch({mod_list}.len(), "{name}") else {{ return; }};
+{prepare} {pending_init} {build}
+for ({mod_index}, {mod_item}) in {each} {{
+    match {guard}.call(super::guard_index({mod_index}), || {mod_item}.{name}({invoke})) {{
+        super::GuardOutcome::Skipped => continue,
+        super::GuardOutcome::Completed({replacement}) => {{ let _ = &{replacement}; {completed} }}
+        super::GuardOutcome::Panicked => {{ drop({event}); {rollback} return; }}
+    }}
+}}
+{write_back} drop({event}); {output_commit}"#
+        );
         dispatch.push_str(&format!(
             "pub fn dispatch_{name}({dispatch_params}) {{ {body} }}\n"
         ));
@@ -1007,8 +1048,13 @@ pub fn for_test({test_params}) -> Self {{ Self {{ {test_inits} }} }}
     if hooks.is_empty() {
         return Err("no native hooks".into());
     }
+    let guarded_hooks = hooks
+        .iter()
+        .map(|hook| format!("{:?}", hook["name"].as_str().unwrap()))
+        .collect::<Vec<_>>()
+        .join(", ");
     let code = format!(
-        "// @generated by cargo run -p xtask -- mod-api; do not edit.\nuse super::*;\npub trait Hooks: Send + Sync {{\nfn render(&self) -> Option<&dyn RenderHooks> {{ None }}\n{traits}}}\n{dispatch}"
+        "// @generated by cargo run -p xtask -- mod-api; do not edit.\nuse super::*;\npub const GUARDED_HOOKS: &[&str] = &[{guarded_hooks}];\npub trait Hooks: Send + Sync {{\nfn render(&self) -> Option<&dyn RenderHooks> {{ None }}\n{traits}}}\n{dispatch}"
     );
     let api_source = fs::read_to_string(root.join("crates/horizon-client/src/mod_api.rs"))
         .map_err(|e| e.to_string())?;
@@ -1176,14 +1222,54 @@ mod injection_tests;
 #[doc(hidden)]
 pub fn generate_test_hooks(root: &Path, out_dir: &Path) -> Result<(), String> {
     build::track(root)?;
-    let code = sources(root, FillMode::Ignore)?.hooks;
-    fs::write(out_dir.join("mod_api_generated.rs"), code).map_err(|e| e.to_string())
+    let code = sources(root, FillMode::Ignore)?;
+    fs::write(out_dir.join("mod_api_generated.rs"), code.hooks).map_err(|e| e.to_string())?;
+    fs::write(out_dir.join("mod_render_generated.rs"), code.render).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
 mod tests {
     use quote::ToTokens;
     use serde_json::Value;
+
+    #[test]
+    fn non_render_dispatch_bodies_do_not_clone_arguments() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let generated = super::sources(&root, super::FillMode::Ignore)
+            .unwrap()
+            .hooks;
+        let file = syn::parse_file(&generated).unwrap();
+        let mut dispatch_count = 0;
+        for item in file.items {
+            let syn::Item::Fn(function) = item else {
+                continue;
+            };
+            if !function.sig.ident.to_string().starts_with("dispatch_") {
+                continue;
+            }
+            dispatch_count += 1;
+            let body = function
+                .block
+                .to_token_stream()
+                .to_string()
+                .split_whitespace()
+                .collect::<String>();
+            assert!(
+                !body.contains(".clone()"),
+                "{} must not clone dispatch arguments",
+                function.sig.ident
+            );
+            assert!(
+                !body.contains("clone_for_dispatch"),
+                "{} must not stage block entities",
+                function.sig.ident
+            );
+        }
+        assert!(
+            dispatch_count > 0,
+            "non-render dispatch bodies must be checked"
+        );
+    }
 
     #[test]
     fn player_render_events_have_feature_gated_test_constructors() {

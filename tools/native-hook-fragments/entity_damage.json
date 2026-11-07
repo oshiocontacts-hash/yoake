@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "hurt_entity",
+      "target": "horizon_client::game::native_damage::Game<'_>::native_hurt_entity"
+    }
+  ],
+  "rust_summary": "bounded server-side mob and player damage with explicit player attribution (`hurt_entity`, `NativeDamage`, `NativeDamageKind`, `NativeDamageActor`).",
+  "doc_summary": "bounded server-side mob and player damage with explicit player attribution (`hurt_entity`, `NativeDamage`, `NativeDamageKind`, `NativeDamageActor`). Bundles need a hooks manifest entry for @API:entity_damage@.",
+  "comments": ["crates/horizon-client/src/game/native_damage.rs"]
+}

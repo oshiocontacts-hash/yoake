@@ -193,6 +193,74 @@ mod tests {
         assert!(!readback.drawn);
     }
 
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn screenshots_and_capture_use_independent_readbacks() {
+        use crate::gfx::capture::{CaptureHandle, CaptureToken};
+
+        let Some((device, queue)) = device() else {
+            return;
+        };
+        let surface = texture(
+            &device,
+            wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+        );
+        let capture = CaptureHandle::new([70, 3]);
+        let mut readback = Readback::default();
+        capture.begin().unwrap();
+        for index in 1..=2 {
+            let token = CaptureToken {
+                session: 7,
+                generation: 3,
+                index,
+            };
+            capture.request(token).unwrap();
+            let scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
+            let mut encoder = device.create_command_encoder(&Default::default());
+            let frame = readback
+                .target(&device, &surface, true)
+                .unwrap_or_else(|| surface.clone());
+            let red = if index == 1 { 1.0 } else { 0.0 };
+            clear(
+                &mut encoder,
+                &frame,
+                wgpu::Color {
+                    r: red,
+                    g: 0.0,
+                    b: 1.0 - red,
+                    a: 1.0,
+                },
+            );
+            let screenshot = crate::gfx::copy_frame(&device, &mut encoder, &frame, [70, 3]);
+            let captured = capture.copy(&device, &mut encoder, &frame).unwrap();
+            readback.present(&device, &mut encoder, &surface);
+            queue.submit([encoder.finish()]);
+            capture.submitted(captured);
+            if let Some(error) = pollster::block_on(scope.pop()) {
+                panic!("{error}");
+            }
+            let (completed, captured) = capture.poll().unwrap();
+            assert_eq!(completed, token);
+            let pixels = captured.unwrap().read().unwrap();
+            let rgba = if index == 1 {
+                [255, 0, 0, 255]
+            } else {
+                [0, 0, 255, 255]
+            };
+            assert_eq!(pixels.size, [70, 3]);
+            assert_eq!(pixels.rgba, rgba.repeat(70 * 3));
+            assert_eq!(
+                last_pixel(&device, &screenshot),
+                [rgba[2], rgba[1], rgba[0], rgba[3]]
+            );
+            assert!(capture.poll().is_none());
+        }
+        capture.abort();
+        let mut encoder = device.create_command_encoder(&Default::default());
+        assert!(capture.copy(&device, &mut encoder, &surface).is_none());
+        assert!(!readback.drawn);
+    }
+
     /// A surface that can be copied from, or a frame nobody reads back,
     /// draws straight into the swapchain image.
     #[test]

@@ -397,7 +397,7 @@ impl Game<'_> {
                 }
             }
             self.text_display_vertices += batch.vertices.len() / 6 * 4;
-            self.map_patches.extend(batch.patches);
+            self.map_patches.append(&mut batch.patches);
         }
         self.text_displays = displays;
     }

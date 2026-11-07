@@ -1221,6 +1221,22 @@ impl Game<'_> {
             self.particles.add(&options, [x, y, z], [xa, ya, za]);
         }
     }
+    pub(super) fn finish_native_mob_damage(&mut self, id: u32, by_player: bool) {
+        let killed = self
+            .mobs
+            .iter()
+            .find(|mob| mob.id == id && !mob.alive() && !mob.removed && !self.died.contains(&id))
+            .cloned();
+        if let Some(mob) = killed {
+            self.died.insert(id);
+            if !by_player {
+                self.mob_died(&mob);
+            } else if !self.mob_death_canceled(&mob) {
+                self.mob_died_with_credit(&mob, |game, mob, _| game.credit_kill(mob));
+            }
+        }
+    }
+
     /// `LivingDeathEvent` for a mob whose health ran out: whether a native
     /// mod canceled the death. A canceled mob stays alive at 1 health.
     fn mob_death_canceled(&mut self, m: &Mob) -> bool {
@@ -1233,12 +1249,10 @@ impl Game<'_> {
         };
         let attacker = match attacker {
             Some(Who::Mob(id)) => id,
-            Some(Who::Player) => {
-                let conn = self.last_hurt_by_player.get(&m.id).copied().flatten();
-                let guests = self.lan.as_ref().map(|host| host.hub.guests.as_slice());
-                let guest = guests.and_then(|all| all.iter().find(|g| Some(g.conn) == conn));
-                guest.map_or(0, |g| g.entity_id as u32)
-            }
+            Some(Who::Player) => self
+                .player
+                .as_ref()
+                .map_or(0, |player| player.entity_id as u32),
             None => 0,
         };
         let kind = super::native_hooks::mob_kind(m);
@@ -1258,6 +1272,23 @@ impl Game<'_> {
         if self.mob_death_canceled(m) {
             return;
         }
+        self.mob_died_with_credit(m, |game, mob, killer| {
+            if let Some(conn) = killer.flatten() {
+                if let Some(mut host) = game.lan.take() {
+                    game.as_guest(&mut host, conn, |game| game.credit_kill(mob));
+                    game.lan = Some(host);
+                }
+            } else {
+                game.credit_kill(mob);
+            }
+        });
+    }
+
+    fn mob_died_with_credit(
+        &mut self,
+        m: &Mob,
+        credit: impl FnOnce(&mut Self, &Mob, Option<Option<u32>>),
+    ) {
         // LivingEntity.die: a sleeper gets up, and its bed is free again.
         if let Some(bed) = horizon_client::mobs::villager::sleeping_pos(m) {
             self.wake_villager(m.id);
@@ -1289,7 +1320,7 @@ impl Game<'_> {
         if consumed && catalyst_xp > 0 {
             let who = match killer {
                 Some(Some(conn)) => Some(super::commands::Target::Guest(conn)),
-                Some(None) if self.lan_acting.is_none() => Some(super::commands::Target::Player),
+                Some(None) => Some(super::commands::Target::Player),
                 _ => None,
             };
             if let Some(who) = who {
@@ -1308,20 +1339,7 @@ impl Game<'_> {
         if by_player {
             // A guest's kill is theirs: their statistics, scores and
             // advancements (LivingEntity.die credits lastHurtByPlayer).
-            let guest = killer.flatten().filter(|_| self.lan_acting.is_none());
-            let credited = guest.is_some_and(|conn| {
-                let Some(mut host) = self.lan.take() else {
-                    return false;
-                };
-                let done = self
-                    .as_guest(&mut host, conn, |g| g.credit_kill(m))
-                    .is_some();
-                self.lan = Some(host);
-                done
-            });
-            if !credited {
-                self.credit_kill(m);
-            }
+            credit(self, m, killer);
         }
         self.score_entity_removed(m.id);
         // Raider.die's hero and Villager.tellWitnessesThatIWasMurdered go to
@@ -1331,7 +1349,6 @@ impl Game<'_> {
         self.raider_died(m, slain_by_player);
         self.villager_murdered(m, slain_by_player, killer.flatten());
         let pos = [m.position.x, m.position.y + 0.5, m.position.z];
-        let killer_entity = self.killer_loot_entity(killer.flatten());
         // LAST_DAMAGE_PLAYER only while the player-hurt memory lasts
         // (LivingEntity.dropFromLootTable's playerKilled): a mob that dies to
         // the environment long after a player's hit names no player.
@@ -1341,7 +1358,7 @@ impl Game<'_> {
         if let Some(player) = player.filter(|_| m.extra.leash.is_some()) {
             self.lead_killers.insert(m.id, (player, self.dim));
         }
-        self.drop_death_loot(&mut dying, player, by_player, killer_entity, consumed, pos);
+        self.drop_death_loot(&mut dying, player, by_player, consumed, pos);
         self.create_wither_rose(m);
         if m.species() == Species::CopperGolem {
             // CopperGolem.dropEquipment: the preserved equipment too.
@@ -1427,64 +1444,26 @@ impl Game<'_> {
             ..Default::default()
         }
     }
-    /// `dropAllDeathLoot` through `mobs::drops`: the entity loot table from the
-    /// world's random sequence, equipment by drop chance, species extras and
-    /// the experience orbs, spawned in order.
-    /// The killing player as a loot entity: their worn and held items, read
-    /// from the guest who struck the last blow when a server's player did
-    /// (on the server thread that is every player, the window's too), so
-    /// Looting on their weapon counts.
-    fn killer_loot_entity(&mut self, guest: Option<u32>) -> horizon_world::loot::LootEntity {
-        let own = |g: &Self| {
-            let mut e = horizon_world::loot::LootEntity::new("minecraft:player");
-            let slots = [
-                ("mainhand", g.stack_in(g.selected)),
-                ("offhand", g.stack_in(super::shield::OFFHAND_SLOT)),
-                ("head", g.armor[0].as_ref()),
-                ("chest", g.armor[1].as_ref()),
-                ("legs", g.armor[2].as_ref()),
-                ("feet", g.armor[3].as_ref()),
-            ];
-            for (slot, stack) in slots {
-                if let Some(stack) = stack {
-                    e.equipment.push((slot.into(), to_loot(stack)));
-                }
-            }
-            e
-        };
-        if let Some(conn) = guest.filter(|_| self.lan_acting.is_none())
-            && let Some(mut host) = self.lan.take()
-        {
-            let entity = self.as_guest(&mut host, conn, |g| own(g));
-            self.lan = Some(host);
-            if let Some(entity) = entity {
-                return entity;
-            }
-        }
-        own(self)
-    }
     /// The UUID of the player `last_hurt_by_player` keeps: the guest on
     /// connection `conn` (None once they left), else the player in place
     /// (None on a server, which has none of its own).
     fn killer_uuid(&mut self, conn: Option<u32>) -> Option<u128> {
         match conn {
-            // During that guest's own turn, the hub is out of `lan`.
-            Some(conn) if self.lan_acting != Some(conn) => {
-                Some(self.lan.as_ref()?.hub.guest(conn)?.uuid)
-            }
-            Some(_) => Some(self.native_acting_id()),
-            None if self.lan_acting.is_none() && self.player.is_some() => {
-                Some(self.native_acting_id())
-            }
+            Some(conn) => Some(self.lan.as_ref()?.hub.guest(conn)?.uuid),
+            None if self.player.is_some() => Some(horizon_client::lan::playerdata::ints_uuid(
+                self.acting_player_uuid(),
+            )),
             None => None,
         }
     }
+    /// `dropAllDeathLoot` through `mobs::drops`: the entity loot table from the
+    /// world's random sequence, equipment by drop chance, species extras and
+    /// the experience orbs, spawned in order.
     fn drop_death_loot(
         &mut self,
         m: &mut Mob,
         player_uuid: Option<u128>,
         by_player: bool,
-        killer: horizon_world::loot::LootEntity,
         consumed: bool,
         pos: [f64; 3],
     ) {
@@ -1496,7 +1475,23 @@ impl Game<'_> {
         ) else {
             return;
         };
-        let player = || killer.clone();
+        let player = || {
+            let mut entity = LootEntity::new("minecraft:player");
+            let slots = [
+                ("mainhand", self.stack_in(self.selected)),
+                ("offhand", self.stack_in(super::shield::OFFHAND_SLOT)),
+                ("head", self.armor[0].as_ref()),
+                ("chest", self.armor[1].as_ref()),
+                ("legs", self.armor[2].as_ref()),
+                ("feet", self.armor[3].as_ref()),
+            ];
+            for (slot, stack) in slots {
+                if let Some(stack) = stack {
+                    entity.equipment.push((slot.into(), to_loot(stack)));
+                }
+            }
+            entity
+        };
         let damage = m.last_damage.map(|(d, _)| {
             let source = match d.attacker {
                 Some(Who::Player) => Some(player()),
@@ -3495,6 +3490,17 @@ impl Game<'_> {
         damage_type: &str,
         known: Option<Option<u32>>,
     ) -> bool {
+        self.hurt_player_from_entities(amount, from, damage_type, known, None)
+    }
+
+    pub(super) fn hurt_player_from_entities(
+        &mut self,
+        amount: f32,
+        from: Option<[f64; 3]>,
+        damage_type: &str,
+        known: Option<Option<u32>>,
+        native: Option<&super::native_damage::PlayerDamageSource>,
+    ) -> bool {
         let post_attack_if_alive = std::mem::take(&mut self.combat.post_attack_if_alive);
         let rocket = std::mem::take(&mut self.combat.rocket_hit);
         // ServerPlayer.canHarmPlayer refused another player's projectile.
@@ -3534,11 +3540,14 @@ impl Game<'_> {
         };
         // The causing entity for the death message.
         let owner = self.combat.projectile_owner.take();
-        let _attacker = self.knockback_scope(
-            attacker
-                .or(owner)
-                .map_or_else(horizon_client::health::knockback_attacker, |id| id as i32),
-        );
+        let _attacker = self.knockback_scope(native.map_or_else(
+            || {
+                attacker
+                    .or(owner)
+                    .map_or_else(horizon_client::health::knockback_attacker, |id| id as i32)
+            },
+            |source| source.id,
+        ));
         if let Some(a) = attacker.or(owner) {
             self.note_attacker(damage_type, a);
         }
@@ -3556,14 +3565,18 @@ impl Game<'_> {
         // owner of the projectile that hit (`projectile_owner` outlives a
         // projectile's other hits), not the guessed melee attacker.
         let owner = owner.filter(|_| projectile);
-        let causing = known.flatten().or(owner).map_or(0, |id| id as i32);
+        let causing = native.map_or_else(
+            || known.flatten().or(owner).map_or(0, |id| id as i32),
+            |source| source.id,
+        );
+        let direct = native.map_or(0, |source| source.direct);
         let mut outcome = horizon_client::health::BlockOutcome::default();
         // The hit's own push, held back until after the shield's (`hurtServer`
         // runs `applyItemBlocking` before `dealDefaultKnockback`).
         let mut default_push: Option<([f64; 2], HurtSource<'_>)> = None;
         if let Some(player) = self.player.as_mut()
             && let Some(id) = self.motion.health.damage.id(damage_type)
-            && let Ok(o) = player.hurt_caused_by(
+            && let Ok(o) = player.hurt_from_entities(
                 &self.motion.health,
                 self.world.health_rules,
                 id,
@@ -3571,6 +3584,7 @@ impl Game<'_> {
                 blocking,
                 living_cause,
                 causing,
+                direct,
             )
             && {
                 outcome = o;
@@ -3591,7 +3605,7 @@ impl Game<'_> {
                 let source = HurtSource {
                     damage_type,
                     causing,
-                    direct: 0,
+                    direct,
                 };
                 default_push = Some(([xd, zd], source));
             }
@@ -3610,10 +3624,15 @@ impl Game<'_> {
         // A hit a native mod canceled records no damage (hurtServer never ran).
         self.combat.forget_noted(outcome.canceled);
         if outcome.hurt || outcome.sound {
-            let source = attacker
-                .or(owner)
-                .and_then(|id| self.mobs.iter().find(|m| m.id == id))
-                .map(|m| self.mob_entity(m));
+            let source = native.map_or_else(
+                || {
+                    attacker
+                        .or(owner)
+                        .and_then(|id| self.mobs.iter().find(|m| m.id == id))
+                        .map(|m| self.mob_entity(m))
+                },
+                |source| source.entity.clone(),
+            );
             self.trigger_entity_hurt_player(&horizon_client::advancements::DamageView {
                 kind: damage_type.to_owned(),
                 // Arrows and the like name no direct entity here; a
@@ -3625,9 +3644,11 @@ impl Game<'_> {
                         ..Default::default()
                     })
                 } else {
-                    source.clone().filter(|_| !projectile)
+                    source
+                        .clone()
+                        .filter(|_| !projectile && native.is_none_or(|source| source.direct != 0))
                 },
-                is_direct: !projectile,
+                is_direct: !projectile && native.is_none_or(|source| source.direct == source.id),
                 source,
                 original: amount,
                 actual: amount - outcome.blocked,
@@ -3638,7 +3659,7 @@ impl Game<'_> {
             let source = HurtSource {
                 damage_type,
                 causing,
-                direct: 0,
+                direct,
             };
             self.after_block(outcome, (attacker, projectile), source);
         }
