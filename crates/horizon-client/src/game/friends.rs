@@ -71,6 +71,10 @@ impl Game<'_> {
                 port: horizon_client::lan::available_port(),
                 guest_commands: false,
                 force_game_mode: true,
+                loopback_only: false,
+                announce: true,
+                max_players: horizon_client::lan::MAX_PLAYERS,
+                game_mode: None,
             })?;
         }
         let port = self.lan_port().ok_or("the world isn't open to LAN")?;

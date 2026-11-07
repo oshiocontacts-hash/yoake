@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "kick_player",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_kick_player",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "disconnect a guest by UUID with a literal reason (`native_kick_player`); while the hub is detached, true means accepted for tick-end resolution, not kicked.",
+  "doc_summary": "Guest disconnection by UUID with a literal reason. With the hub in place, the owner and unknown players are refused. While detached, true means accepted, not kicked: at most 64 distinct players are queued, the latest reason wins, and tick-end resolution drops requests for the owner or players no longer present. A new player is refused when the queue is full. Requires native hooks API @API:native_kick@."
+}

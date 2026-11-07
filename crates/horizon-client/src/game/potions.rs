@@ -400,6 +400,16 @@ impl PotionState {
     pub(super) fn clear_thrown(&mut self) {
         self.thrown.clear();
     }
+    pub(super) fn native_stream_position(&self, id: u32, alpha: f64) -> Option<[f64; 3]> {
+        self.thrown
+            .iter()
+            .find(|thrown| thrown.id == id)
+            .map(|thrown| {
+                let position = thrown.previous.lerp(thrown.position, alpha);
+                [position.x, position.y, position.z]
+            })
+    }
+
     /// Their entity ids, for a server to number them.
     pub(super) fn thrown_ids(&mut self) -> impl Iterator<Item = &mut u32> {
         self.thrown.iter_mut().map(|t| &mut t.id)

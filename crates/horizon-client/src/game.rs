@@ -203,6 +203,7 @@ mod moving_pistons;
 mod music;
 mod names;
 mod narrator;
+mod native_account;
 mod native_audio;
 mod native_avatar_equipment;
 mod native_biome_colors;
@@ -230,6 +231,7 @@ mod native_item_container;
 mod native_item_energy;
 mod native_item_fluids;
 mod native_item_slot;
+pub(crate) mod native_lan;
 mod native_level_refs;
 mod native_lifecycle;
 mod native_living_refs;
@@ -238,6 +240,7 @@ mod native_mob_draw;
 mod native_mobs;
 mod native_motion;
 mod native_mounts;
+pub(crate) mod native_name_lines;
 mod native_net;
 mod native_panel;
 mod native_panel_recipes;
@@ -246,8 +249,12 @@ mod native_projectiles;
 mod native_quick_move;
 mod native_recipes;
 mod native_server;
+mod native_server_ops;
+mod native_session;
 mod native_shaders;
+mod native_streams;
 mod native_ticks;
+mod native_title_screen;
 mod native_visuals;
 mod native_world_columns;
 mod native_world_edit;
@@ -421,6 +428,7 @@ use horizon_world::{
     registry::BlockStateId,
 };
 pub use maps::{NativeMapDecoration, NativeMapInfo};
+pub use native_account::{NativeAccount, NativeJoinPoll};
 pub use native_avatar_equipment::{
     NativeBackLayer, NativeEquipmentDrawOptions, NativeEquipmentOutline, NativeEquipmentOverlay,
     NativeHumanoidPart,
@@ -2750,6 +2758,8 @@ struct Game<'a> {
     dim: Dim,
     world_root: PathBuf,
     native_client_state: native_client_state::ClientState,
+    native_session_joins: native_account::NativeSessionJoins,
+    native_session: native_session::NativeSession,
     /// The world's data packs' content tables, when it has packs (`None`
     /// keeps `Resources.rest`'s own in use).
     world_tables: Option<WorldTables>,
@@ -2940,10 +2950,13 @@ struct Game<'a> {
     native_entity_queries: native_entity_query::QueryBudgets,
     native_damage_budgets: native_damage::DamageBudgets,
     native_audio: Option<native_audio::NativeAudio>,
+    native_streams: Option<native_streams::NativeStreams>,
     /// Native mods' messages waiting (`game/native_net.rs`).
     native_net: native_net::NativeNet,
+    native_server_ops: native_server_ops::NativeServerOps,
     /// The mod whose own screen is open (`Screen::Mod`).
     native_mod_screen: Option<String>,
+    native_title_mod_screen_return: Option<Screen>,
     /// Meshed sections waiting for an upload budget (Horizon settings).
     pending_uploads: Vec<((i32, i32, i32), horizon_client::mesher::SectionMesh)>,
     /// This frame's view frustum, for culling entities and block entities.
@@ -8406,7 +8419,11 @@ impl Game<'_> {
             // ScreenEvent.Render.Post over the title's own screens: a mod draws
             // over them here (a pack browser over Create New World, say), and the
             // toasts still come after, as over any screen.
-            self.fire_title_screen_render_post(&mut batch);
+            if self.title_mod_screen_open() {
+                self.fire_screen_render_post(&mut batch);
+            } else {
+                self.fire_title_screen_render_post(&mut batch);
+            }
             self.draw_toasts(&mut batch, false);
             self.draw_tutorial_toasts(&mut batch, false);
             self.draw_pack_toasts(&mut batch, false);
@@ -12481,6 +12498,7 @@ impl Game<'_> {
     }
     fn finish_close_world(&mut self) -> Result<()> {
         self.clear_native_local_sounds();
+        self.clear_native_streams();
         self.ambience.clear(&mut self.audio);
         // updateLevelInEngines(null): every sound stops; the music manager
         // lets go of its track.
@@ -15268,7 +15286,10 @@ impl Game<'_> {
         self.save_level(wait)?;
         self.save_parked_levels(wait)?;
         self.save_game_metadata()?;
-        let _ = self.finish_player_autosaves(wait);
+        let saves = self.finish_player_autosaves(wait);
+        if self.native_server_ops.save_in_progress() {
+            saves?;
+        }
         self.native_world_saved(wait);
         if dedicated {
             dedicated::events::record_server("saved", serde_json::json!({}));
@@ -15299,7 +15320,10 @@ impl Game<'_> {
         self.save_warden_tracker();
         self.sync_level();
         // Level::write can synchronously replace the integrated owner file.
-        let _ = self.finish_player_autosaves(true);
+        let saves = self.finish_player_autosaves(true);
+        if self.native_server_ops.save_in_progress() {
+            saves?;
+        }
         let stored_owner = self.store_owner();
         write_level_for_role(
             &mut self.level,
@@ -15315,7 +15339,7 @@ impl Game<'_> {
         // their own file (`PlayerDataStorage.save`); the owner is also in the
         // file level.dat names, which is the one it loads from
         // (`playerdata::load_owner`).
-        if self.options.dedicated.is_some()
+        if (self.options.dedicated.is_some() || self.native_server_ops.save_in_progress())
             && !self.options.execution_role.is_client()
             && let Some(host) = self.lan.take()
         {
@@ -15542,6 +15566,7 @@ impl Game<'_> {
         };
         self.audio
             .set_listener([camera.x, camera.y, camera.z], view_yaw, view_pitch);
+        self.update_native_streams(alpha, camera_alpha);
         let block = [
             camera.x.floor() as i32,
             camera.y.floor() as i32,
@@ -17065,6 +17090,10 @@ impl Game<'_> {
         if !ours {
             return;
         }
+        if matches!(&event, WindowEvent::RedrawRequested) {
+            self.native_session_joins.expire();
+            self.native_run_session_request();
+        }
         #[cfg(feature = "dev-capture")]
         if self.frame_capture.active()
             && !matches!(
@@ -17158,6 +17187,7 @@ impl Game<'_> {
         }
         // `PackSelectionScreen.onFilesDrop` on the Create New World screen.
         if let WindowEvent::DroppedFile(path) = &event
+            && !self.title_mod_screen_open()
             && let Some(title) = &mut self.title
         {
             title.drop_file(path.clone());
@@ -17171,6 +17201,7 @@ impl Game<'_> {
         } = &event
             && key_event.state == ElementState::Pressed
             && matches!(key_event.physical_key, PhysicalKey::Unidentified(_))
+            && !self.title_mod_screen_open()
             && let Some(text) = key_event.text.as_deref()
         {
             let text: String = text.chars().filter(|c| !c.is_control()).collect();
@@ -17225,6 +17256,9 @@ impl Game<'_> {
         // in game, before the screen takes the key.
         if let WindowEvent::KeyboardInput { event, .. } = &event {
             self.narrator_hotkey(event);
+        }
+        if self.handle_title_mod_screen_event(&event) {
+            return;
         }
         if matches!(
             event,
@@ -18546,16 +18580,19 @@ impl Game<'_> {
     }
     /// The loop ended: close the pads' output, save the world, write the perf report.
     pub(super) fn shut_down(&mut self) {
+        self.clear_native_streams();
         self.pad_close_output();
         if let Err(e) = self.save_for_exit() {
             log::warn!("Horizon: failed to save the world on exit: {e}");
         }
+        self.native_finish_session_shutdown();
         self.finish_perf();
     }
     /// winit's `about_to_wait`: what happens between frames (stop requests, the closing
     /// save, world entry, the control socket, pads), then the next frame.
     pub(super) fn idle(&mut self, event_loop: &dyn EventLoopCtl) {
         crate::mod_guard::maintenance();
+        self.maintain_native_streams();
         for notice in crate::mod_guard::take_notices(false) {
             self.system_message(crate::mod_guard::notice_text(&notice.id, notice.hook));
         }
@@ -18971,6 +19008,8 @@ impl<'a> Game<'a> {
             dim: Dim::Overworld,
             world_root: PathBuf::new(),
             native_client_state: Default::default(),
+            native_session_joins: Default::default(),
+            native_session: Default::default(),
             world_flat: false,
             world_debug: false,
             server_trips: Vec::new(),
@@ -19101,8 +19140,11 @@ impl<'a> Game<'a> {
             native_entity_queries: Default::default(),
             native_damage_budgets: Default::default(),
             native_audio: None,
+            native_streams: None,
             native_net: Default::default(),
+            native_server_ops: Default::default(),
             native_mod_screen: None,
+            native_title_mod_screen_return: None,
             sky_darken_memo: Default::default(),
             water_plane_memo: Default::default(),
             water_plane_scan: Default::default(),

@@ -1898,6 +1898,50 @@ shared knockback path; direct velocity pushes (explosions, Punch arrows, hoglin 
 `LivingEntity.knockback` and do not fire it. The fragment assigns the new API number when
 stamped; the existing hook stays version 1.
 
+### LAN publication and server operations
+
+LAN publication and admission helpers require native hooks API @API:native_lan@. Guest kicking requires
+@API:native_kick@. Requested saves require @API:native_save@.
+
+`NativeLanPublish` configures `native_lan_publish`:
+
+- `port: Option<u16>`: `None` or `Some(0)` selects an available ephemeral port.
+- `loopback_only: bool`: bind to IPv4 loopback when true; default false.
+- `announce: bool`: enable the LAN announcement when true; default true.
+- `guest_commands: bool`: request guest commands, subject to the world's command permission; default false.
+- `game_mode: Option<u8>`: `None` preserves the current mode. Values 0 through 3 select and enforce a mode;
+  other values return an error.
+- `max_players: Option<u16>`: default 8, clamped to 1 through 1000.
+
+`native_lan_publish(&NativeLanPublish) -> Result<u16, String>` publishes an authoritative integrated world
+and returns the bound port. If already published, it returns the existing port without reconfiguring publication.
+
+`native_lan_close() -> bool` closes an existing publication without stopping the world.
+`native_lan_port() -> Option<u16>` reports its published port.
+
+`native_set_max_players(u16) -> bool` changes the admission/status limit, clamped to 1 through 1000. It does
+not automatically remove existing guests. A change requested while the hub is detached is applied at tick end.
+
+`native_kick_player(u128, &str) -> bool` uses a literal text reason. With the hub in place, it disconnects a
+present guest and returns true; the owner and unknown players return false.
+
+While the hub is detached, true means accepted, not kicked. Requests store only the UUID and reason, with at most
+64 distinct players queued. A later request for the same player replaces its reason, even when the queue is full;
+a new player is refused when full. At tick end, requests are resolved against the real hub using each guest's
+current connection. Requests for the owner or players no longer present are dropped.
+
+`native_request_save(bool) -> bool` accepts a save request; its return value does not mean the save has completed.
+Detached-hub requests execute at tick end; other requests execute at the next tick start. Requests coalesce within
+each phase without weakening a requested flush. Save-completion callbacks that request another save defer it until
+the next tick.
+
+Completion is reported through the existing `world_saved(flushed)` hook. Request `true` when waiting for a flushed
+save before copying a world. `world_saved(false)` is not a durability guarantee. The notification has no request ID
+and can also describe other saves; coordinate the wait accordingly. A completed save does not itself freeze the
+world or make a concurrent directory copy atomic.
+
+As with other integrated-owner calls, a timeout does not cancel work already queued to the owner.
+
 ### Reading server blocks (draft)
 
 A native server tick hook can call `native_server_block` with its context, a dimension id and a block position. It returns the block name and state properties from a loaded chunk. It does not load a chunk or open a dimension. Reads outside that hook, from a stale context, from unavailable dimensions or outside the world bounds return an error.
@@ -2588,6 +2632,48 @@ items are left out (NeoForge's `RenderLivingEvent.Pre`, cancelled); its name tag
   - `item_tags_ready()` tells "no data yet" apart from "not in the tag".
   - Without a listener, no tag table is made and the dialog handling is the same as before.
 
+### @API:mod_screen_open_anywhere@ `mod_screen_open_anywhere`
+
+`fn native_mod_screen_open_anywhere(&mut self, mod_id: &str) -> bool`
+
+Opens the mod-owned screen over ordinary title menus as well as in a world. The world path retains
+`native_mod_screen_open` behavior.
+
+Over the title, the screen uses the existing screen render, key, character, mouse, drag, scroll, and IME-commit hooks.
+Underlying title widgets receive no input. An uncancelled Escape restores the previous title screen without grabbing
+the mouse.
+
+Loading, recovery, onboarding, warning, and security-confirmation screens reject opening. Reopening the same owner's
+screen succeeds; another owner cannot replace it.
+
+With no mod screen open, title drawing and input retain their existing paths.
+
+### @API:name_tag_lines@ `name_tag_lines`
+
+`fn name_tag_lines(&self, host: &dyn Host, event: &mut NameTagLinesEvent<'_>)`
+
+A client-side, noncancellable collect hook. The event exposes:
+
+- `entity_id: u32`
+- `kind: &str`
+- `lines: &mut Vec<NameTagLine>`
+
+`NameTagLine { text: String, sprite: Option<String> }` contains legacy-formatted text and an optional GUI-atlas sprite
+identifier.
+
+Collected lines stack above the existing name-tag stack using its line spacing. The first collected line is nearest
+that stack; subsequent lines extend upward.
+
+The existing `render_name_tag` hook remains responsible for the name's visibility and presentation.
+`render_name_tag_position` moves the complete stack, including these additional lines. Names hidden by the existing
+visibility, invisibility, sneaking, or distance rules do not collect additional lines.
+
+Lines are collected only when a mod sets `name_tag_lines_listened(listened)`. Loading an unrelated mod does not enable
+this collection or its entity-info work; a separate name-tag-position listener can still request entity information.
+
+Collection runs once per eligible entity per render and is shared by the render passes. An empty collection leaves
+the existing name-tag geometry unchanged.
+
 ### Advancement triggers
 
 `crates/horizon-client/src/game/native_criteria.rs`: a mod's own criteria triggers, as a NeoForge mod registers a
@@ -2717,6 +2803,93 @@ player only, from its client `tick` with a world present (ownership comes from t
   closing clear everything; general audio stops also stop these playbacks.
 - `local_sound_limits()`: per mod 256 sounds, 64 MiB decoded, 16 MiB pending input, 4 tickets, 32 playbacks (process-wide
   512, 128 MiB, 32 MiB, 8, 64). Errors are `NativeSoundError` values. With no mod using it nothing is allocated or started.
+
+### Client PCM streams and microphone capture
+
+These APIs are client-only. Opening, pushing, moving, reading, and closing use the calling native mod's identity during
+its permitted client callback. Handles are opaque and cannot be used by another mod. No stream or microphone opens
+automatically.
+
+```rust
+pub enum NativeStreamAnchor {
+    Entity(u32),
+    Position([f64; 3]),
+    Listener,
+}
+
+fn native_audio_stream_limits(&self) -> NativeAudioStreamLimits;
+
+fn native_audio_stream_open(
+    &mut self,
+    anchor: NativeStreamAnchor,
+    sample_rate: u32,
+    channels: u16,
+    category: NativeSoundCategory,
+) -> Result<NativeAudioStreamId, NativeSoundError>;
+
+fn native_audio_stream_push(
+    &mut self,
+    id: NativeAudioStreamId,
+    samples: &[f32],
+) -> Result<usize, NativeSoundError>;
+
+fn native_audio_stream_push_i16(
+    &mut self,
+    id: NativeAudioStreamId,
+    samples: &[i16],
+) -> Result<usize, NativeSoundError>;
+
+fn native_audio_stream_queued(&mut self, id: NativeAudioStreamId) -> Option<usize>;
+
+fn native_audio_stream_dropped(&mut self, id: NativeAudioStreamId) -> Option<u64>;
+
+fn native_audio_stream_move(
+    &mut self,
+    id: NativeAudioStreamId,
+    anchor: NativeStreamAnchor,
+) -> Result<(), NativeSoundError>;
+
+fn native_audio_stream_close(&mut self, id: NativeAudioStreamId) -> bool;
+
+fn native_mic_devices(&self) -> Vec<String>;
+
+fn native_mic_open(
+    &mut self,
+    device: Option<&str>,
+    sample_rate: u32,
+) -> Result<NativeMicId, String>;
+
+fn native_mic_read(&mut self, id: NativeMicId, output: &mut [f32]) -> usize;
+
+fn native_mic_close(&mut self, id: NativeMicId) -> bool;
+```
+
+The stream helper group is @API:positional_pcm_streams@; microphone capture is @API:microphone_input@.
+
+**PCM format and buffering.** Streams accept mono or stereo interleaved PCM at 8,000–192,000 Hz. Push returns the number
+of **samples**, not frames, accepted. Stereo pushes must contain complete frames. Each stream reserves one second;
+excess samples are dropped and added to its cumulative dropped-sample count. Float samples are sanitized and clamped;
+signed 16-bit samples are converted to float.
+
+**Mixing and anchors.** Pass `NativeSoundCategory::Voice` for voice audio; the required category argument also accepts
+every other native sound category. Master and category volume apply. Fixed/entity streams use the same spatial-gain
+calculation as positional sounds; listener streams bypass positional attenuation and preserve stereo. PCM is linearly
+resampled to the output rate; underrun produces silence. An unloaded entity anchor remains open and consumes queued
+audio silently. The PCM output callback keeps preallocated scratch: it is allocation-free but takes the same short
+blocking mixer lock as the legacy path.
+
+**Limits.** Defaults are eight streams/eight reserved buffered seconds per mod and 32 streams/32 reserved buffered
+seconds globally. Quotas account for reserved capacity, not current queue occupancy. Microphones have a separate limit
+of one per mod and four globally, each with a one-second mono queue.
+
+**Microphone use and consent.** `None` selects the default input device; a supplied name selects an enumerated device.
+Capture downmixes hardware input to mono and resamples to the requested rate. `native_mic_read` never waits: it writes
+only the returned sample-count prefix, leaving the remaining output slice unchanged. **A mod must obtain the player's
+informed consent before calling `native_mic_open`**, including explaining recording, voice imitation, storage, and any
+destination for captured audio. This API does not supply a consent dialog or persist consent.
+
+**Lifetime.** Streams and microphones close on world close, disconnect, shutdown, and the next maintenance pass after
+their mod is disabled. Dedicated-server execution cannot open them.
 
 ### Falling blocks
 
@@ -3032,6 +3205,94 @@ how loud the game is and whether the player is in play. API @API:client_state_re
   server's (no `world_dir()` there).
 - `camera()` keeps the last rendered world frame's camera, so input, screen and the window's `command` calls see it
   too; it is None before the first world frame, on the title panorama and in a server's `Game`.
+
+### Client sessions, requests, and account access
+
+These hooks and helpers operate on window clients, not server instances.
+
+#### Connection notifications — @API:client_connection@
+
+`client_logged_in(single_player, address)` runs once when the client enters Play. Integrated play reports
+`single_player = true` and no address. Remote play reports the address supplied to the connection entry point.
+Reconfiguration does not emit another login notification.
+
+`client_logged_out()` reports the end of a session that reached Play. Ordinary leave and transfer deliver it
+before teardown. During application shutdown, any final logout follows the exit-save attempt, even if saving
+fails. A failed login does not produce a logout notification.
+
+#### Claiming a disconnect — @API:client_disconnected@
+
+`client_disconnected(reason, key, from_server)` runs after session teardown. The reason, optional translation
+key, and server-origin flag are preserved.
+
+Return `Flow::Cancel` to claim the disconnect. The game keeps the title screen instead of opening the Disconnected
+screen and does not offer its reconnect UI. Continuing preserves the existing disconnect behavior.
+
+Intentional leave and transfer handoff do not invoke this hook. This is a post-teardown disconnect claim, not a
+general screen-opening hook.
+
+#### Deferred session requests — @API:client_session_requests@
+
+The following helpers return whether a request was accepted:
+
+- `request_open_world(folder: &str) -> bool`
+- `request_connect(address: &str) -> bool`
+- `request_leave() -> bool`
+
+Open-world and connect requests require an idle Main, Select World, or Multiplayer screen with no active session.
+Leave requires a loaded playing session without a title screen.
+
+A loader, pending entry, pack reload, integrated-server startup, world creation, or pending save makes the client
+busy. Requests are also rejected while leaving or shutting down, or when another request is pending.
+
+A world folder must be a single save-directory basename, not a path. Connection addresses must be nonblank and
+are passed through unchanged.
+
+At most one request is pending. Accepted work runs at the start of the next redraw through the existing open,
+connect, or close entry point. State is checked again before execution; stale requests are discarded. Existing
+prompts, saving, and error presentation remain in use.
+
+#### Account and session service — @API:client_account@
+
+`account() -> Option<NativeAccount>` returns an owned public identity snapshot:
+
+- `name: String`
+- `uuid: u128`
+- `online: bool`
+
+It returns `Some` for the window client's authenticated account and `None` when there is no authenticated account,
+for later splitscreen players, or for server roles. The snapshot is not proof that cached credentials remain
+valid. No access token is exposed to mods.
+
+`session_join_start(server_hash: &str) -> Option<u32>` clones the existing authenticated session into a short-lived
+worker and returns a ticket without waiting for session-service network I/O or retry.
+
+It returns `None` for a non-window client, no online account, an empty hash, or four joins already in flight for this
+Game. Thread-creation failure or exhausted ticket IDs also returns `None`. Completed results do not count against
+the four-in-flight limit.
+
+`session_join_poll(ticket: u32) -> NativeJoinPoll` never waits for the worker:
+
+- `Pending`: the worker has not delivered a result.
+- `Joined`: the session-service join succeeded.
+- `Failed(String)`: the existing join-error translation key or error string.
+- `Unknown`: the ticket was never issued, was already consumed, or expired.
+
+A `Joined` or `Failed` result is handed out once and then forgotten. Completed results expire at 60 seconds measured
+from worker completion, including results not yet read from the worker channel. Redraw housekeeping and start/poll
+remove expired results. Pending work is not expired by this result-retention interval.
+
+Call both helpers through the normal main-thread Host; do not move the Host to a worker. Authentication credentials
+remain inside the worker operation and never cross the mod API. No worker or channel is created unless a mod calls
+start.
+
+#### Application shutdown — @API:client_shutdown@
+
+`client_shutdown()` runs once after exit saving is attempted through the existing shutdown path, whether saving
+succeeds or logs a warning. Any final logout is delivered first. Pending session requests are cleared and new
+requests are rejected.
+
+Keep the callback short; do not perform long uploads or other blocking work in it.
 
 ### Menu slot rules
 

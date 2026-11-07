@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "mic_devices", "target": "horizon_client::game::native_hooks::Game<'_>::native_mic_devices", "mod_api": {}},
+    {"name": "mic_open", "target": "horizon_client::game::native_hooks::Game<'_>::native_mic_open", "mod_api": {}},
+    {"name": "mic_read", "target": "horizon_client::game::native_hooks::Game<'_>::native_mic_read", "mod_api": {}},
+    {"name": "mic_close", "target": "horizon_client::game::native_hooks::Game<'_>::native_mic_close", "mod_api": {}}
+  ],
+  "rust_summary": "explicitly opened, mod-owned cpal microphone capture with bounded mono PCM queues and non-blocking reads.",
+  "doc_summary": "explicitly opened, mod-owned cpal microphone capture with bounded mono PCM queues and non-blocking reads. Mods must obtain the player's consent before opening capture. Bundles opt in through the @API:microphone_input@ fragment.",
+  "comments": ["crates/horizon-client/src/game/native_streams.rs"]
+}

@@ -963,6 +963,10 @@ impl Game<'_> {
             port: port as u16,
             guest_commands: allow,
             force_game_mode: false,
+            loopback_only: false,
+            announce: true,
+            max_players: horizon_client::lan::MAX_PLAYERS,
+            game_mode: None,
         };
         // A dedicated server is open from the start (`published` above).
         let started = self.serving() && self.publish(settings).is_ok();

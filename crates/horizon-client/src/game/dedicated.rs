@@ -1020,6 +1020,10 @@ impl Game<'_> {
             port,
             guest_commands: true,
             force_game_mode: props.force_game_mode,
+            loopback_only: false,
+            announce: true,
+            max_players: horizon_client::lan::MAX_PLAYERS,
+            game_mode: None,
         };
         if let Some(sync) = sync {
             sync.adopt(&self.pack_files());
@@ -2109,6 +2113,7 @@ impl Game<'_> {
         // Only a successful final save closes the epoch; storage is still held.
         self.native_lifecycle_world_closed();
         self.lan_close(false);
+        self.native_server_ops = Default::default();
         Ok(())
     }
 }

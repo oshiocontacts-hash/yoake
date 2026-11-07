@@ -173,6 +173,9 @@ impl Game<'_> {
     }
 
     fn pad_all_targets(&self) -> Vec<Target> {
+        if self.title_mod_screen_open() {
+            return Vec::new();
+        }
         let mut targets = key_focus::drawn_targets();
         if self.title.is_some() || self.sign_edit.is_some() || self.book.is_some() {
             return targets;
@@ -1343,6 +1346,9 @@ impl Game<'_> {
     /// a search box, the anvil's name, the title screens' and the options'
     /// fields, the LAN port.
     fn pad_typing(&self) -> bool {
+        if self.title_mod_screen_open() {
+            return false;
+        }
         (self.screen == Screen::Chat && self.title.is_none())
             || self.sign_edit.is_some()
             || matches!(self.book, Some(super::books::BookScreen::Edit { .. }))
@@ -1400,6 +1406,14 @@ impl Game<'_> {
                 return;
             }
         };
+        if self.title_mod_screen_open() {
+            if let Some(text) = text {
+                let _ = self.screen_text_typed(text);
+            } else if let Some(key) = key {
+                self.screen_key_pressed(key, false);
+            }
+            return;
+        }
         let backspace = key == Some(KeyCode::Backspace);
         if self.screen == Screen::Chat && self.title.is_none() {
             match text {

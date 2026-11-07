@@ -1,0 +1,13 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "mod_screen_open_anywhere",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mod_screen_open_anywhere",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "Open a native mod's modal screen over ordinary title menus or the world, preserving the underlying title and its input isolation.",
+  "doc_summary": "### @API:mod_screen_open_anywhere@ `mod_screen_open_anywhere`\n\n`fn native_mod_screen_open_anywhere(&mut self, mod_id: &str) -> bool` opens the mod-owned modal screen over ordinary title menus as well as in a world. The world path retains `native_mod_screen_open` behavior. A title modal uses the existing screen render, key, character, mouse and IME hooks; underlying title widgets receive no input. An uncanceled Escape restores the previous title menu without grabbing the mouse. Loading, recovery, onboarding, warning and security-confirmation screens reject opening. Reopening the same owner's screen succeeds; another owner cannot replace it. No open modal means title rendering and input continue through their existing paths.",
+  "comments": ["crates/horizon-client/src/game/native_title_screen.rs"]
+}

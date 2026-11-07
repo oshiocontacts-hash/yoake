@@ -1,0 +1,15 @@
+{
+  "hooks": [
+    {
+      "name": "client_shutdown",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_client_shutdown",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    }
+  ],
+  "rust_summary": "a once-only client shutdown observation after successful exit saving (`native_client_shutdown`).",
+  "doc_summary": "`client_shutdown()` runs once after save_for_exit succeeds, after a final logged-in connection's logout notification. Pending client requests are discarded and new requests are rejected. The hook is not emitted when exit saving fails. Keep it short and start lengthy uploads asynchronously. Requires native hooks API @API:client_shutdown@."
+}

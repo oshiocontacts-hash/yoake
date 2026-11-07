@@ -362,6 +362,27 @@ pub enum Mode {
     /// `BanNoticeScreens`: a ConfirmLinkScreen `Gui.addInitialScreens` queued.
     BanNotice(crate::ban_notice::Notice),
 }
+
+impl Mode {
+    fn allows_mod_screen(&self) -> bool {
+        matches!(
+            self,
+            Self::Main
+                | Self::Select { .. }
+                | Self::Create { .. }
+                | Self::Edit { .. }
+                | Self::CreateFlat { .. }
+                | Self::CreateBuffet { .. }
+                | Self::Multiplayer(
+                    crate::multiplayer::Screen::List { .. }
+                        | crate::multiplayer::Screen::Edit { .. }
+                        | crate::multiplayer::Screen::Direct { .. }
+                        | crate::multiplayer::Screen::Friend { .. }
+                )
+        )
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Action {
     None,
@@ -973,6 +994,22 @@ impl Title {
     pub fn preparing(&self) -> bool {
         self.preparing
     }
+
+    pub fn allows_mod_screen(&self) -> bool {
+        self.mode.allows_mod_screen()
+            && !self.preparing
+            && self.backup.is_none()
+            && self.backup_then_open.is_none()
+            && self.optimize_after_backup.is_none()
+            && !self.restore_after_backup
+            && self.optimize.is_none()
+            && self.open_request.is_none()
+            && self.ban_queue.is_empty()
+            && self.rules.borrow().is_none()
+            && self.experiments.borrow().is_none()
+            && self.confirm_experiments.borrow().is_none()
+    }
+
     /// The Create screen's chosen packs: the temp folder and the selected
     /// ids, for the worldgen data the preparing read loads.
     pub fn creation_packs(&self) -> Option<(Option<std::path::PathBuf>, Vec<String>)> {

@@ -5,6 +5,46 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+#[test]
+fn ordinary_title_menus_allow_mod_screens() {
+    let modes = [
+        Mode::Main,
+        Mode::Select {
+            worlds: Vec::new(),
+            selected: None,
+        },
+        Mode::Multiplayer(crate::multiplayer::Screen::Direct {
+            address: String::new(),
+        }),
+        Mode::Multiplayer(crate::multiplayer::Screen::Friend {
+            code: String::new(),
+            relay: String::new(),
+            focus: 0,
+        }),
+    ];
+    assert!(modes.iter().all(Mode::allows_mod_screen));
+}
+
+#[test]
+fn security_confirmation_and_error_screens_reject_mod_screens() {
+    let modes = [
+        Mode::MultiplayerWarning { check: false },
+        Mode::Multiplayer(crate::multiplayer::Screen::ConfirmDelete {
+            list: Box::new(crate::multiplayer::Screen::Direct {
+                address: String::new(),
+            }),
+            name: String::new(),
+            lines: std::cell::Cell::new(0),
+        }),
+        Mode::Error {
+            message: String::new(),
+            return_to: Box::new(Mode::Main),
+            alert: None,
+        },
+    ];
+    assert!(modes.iter().all(|mode| !mode.allows_mod_screen()));
+}
+
 struct Fixture {
     root: PathBuf,
     title: Title,

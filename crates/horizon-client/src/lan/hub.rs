@@ -912,6 +912,11 @@ impl Hub {
             },
         }));
     }
+    pub fn set_max_players(&mut self, max_players: usize) {
+        self.config.max_players = max_players;
+        self.lan.shared.set_max_players(max_players);
+    }
+
     /// Disconnect a guest with a reason (ServerGamePacketListenerImpl.disconnect).
     pub fn kick(&mut self, conn: u32, reason: Tag) {
         // The log's "lost connection" line gives the reason, as vanilla's.

@@ -1,0 +1,24 @@
+{
+  "hooks": [
+    {
+      "name": "client_logged_in",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_client_logged_in",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "client_logged_out",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_client_logged_out",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    }
+  ],
+  "rust_summary": "client play-state login and logout observations, including integrated connections and server transfers (`native_client_logged_in`, `native_client_logged_out`).",
+  "doc_summary": "`client_logged_in(single_player, address)` runs after the client enters play: integrated connections have single_player=true and no address; remote connections carry their supplied address. Reconfiguration does not repeat login. `client_logged_out()` runs once for a logged-in connection before ordinary teardown, including a transfer; at final shutdown it follows successful exit saving. Failed login has no logout. Both run only in the window's client role. Requires native hooks API @API:client_connection@."
+}

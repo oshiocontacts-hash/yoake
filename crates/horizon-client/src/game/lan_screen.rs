@@ -1618,6 +1618,10 @@ impl Game<'_> {
                     port: wanted.port,
                     guest_commands: wanted.guest_commands,
                     force_game_mode: wanted.force,
+                    loopback_only: false,
+                    announce: true,
+                    max_players: horizon_client::lan::MAX_PLAYERS,
+                    game_mode: None,
                 });
                 if opened.is_err() {
                     self.send_publish_message(Text::translate("commands.publish.failed", &[]));

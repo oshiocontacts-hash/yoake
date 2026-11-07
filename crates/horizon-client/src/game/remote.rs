@@ -834,6 +834,7 @@ impl Game<'_> {
         cookies: Option<horizon_client::net::Cookies>,
         lan: bool,
     ) -> Result<()> {
+        let single_player = local.is_some();
         let mut capture_item_tags = false;
         self.native_client_item_tags_listened(&mut capture_item_tags);
         self.reset_tutorial();
@@ -1115,6 +1116,8 @@ impl Game<'_> {
             debug_query: Default::default(),
             transfer: None,
         });
+        self.native_session
+            .connecting(single_player, (!single_player).then_some(address));
         // The level's TickRateManager follows the server's ticking packets.
         self.clock = horizon_client::clock::FixedStep::client();
         // The player's advancements and statistics are the server's.
@@ -1125,10 +1128,22 @@ impl Game<'_> {
 
     /// Disconnect and return to the multiplayer screen (DisconnectedScreen).
     pub(super) fn leave_server(&mut self, reason: Option<String>) -> Result<()> {
+        self.leave_server_with_context(reason, None, false)
+            .map(|_| ())
+    }
+
+    fn leave_server_with_context(
+        &mut self,
+        reason: Option<String>,
+        key: Option<&str>,
+        from_server: bool,
+    ) -> Result<bool> {
         if reason.is_none() && self.integrated.as_ref().is_some_and(|s| !s.stopped()) {
-            return self.begin_closing_save(false);
+            return self.begin_closing_save(false).map(|_| false);
         }
+        self.native_session_left();
         self.clear_native_local_sounds();
+        self.clear_native_streams();
         self.finish_perf();
         if reason.is_none() {
             // Leaving on purpose: nothing for auto-reconnect to retry.
@@ -1214,21 +1229,31 @@ impl Game<'_> {
             .with_user(|| self.options.player_name());
         title.last_server = self.settings.file.string("lastServer");
         title.skip_multiplayer_warning = self.settings.file.bool("skipMultiplayerWarning");
-        if single_player && reason.is_none() {
-            self.title = Some(title);
-            self.capture(false);
-            return Ok(());
-        }
-        title.mode = horizon_client::title::Mode::Multiplayer(match reason {
-            Some(reason) => horizon_client::multiplayer::Screen::Disconnected {
-                reason,
-                retry: None,
-            },
-            None => horizon_client::multiplayer::Screen::list(&saves),
-        });
         self.title = Some(title);
         self.capture(false);
-        Ok(())
+        self.native_session.finish_leave();
+        let mode = match reason {
+            Some(reason) => {
+                if self.native_disconnect_claimed(&reason, key, from_server) {
+                    self.extras_left();
+                    return Ok(true);
+                }
+                horizon_client::title::Mode::Multiplayer(
+                    horizon_client::multiplayer::Screen::Disconnected {
+                        reason,
+                        retry: None,
+                    },
+                )
+            }
+            None if single_player => return Ok(false),
+            None => horizon_client::title::Mode::Multiplayer(
+                horizon_client::multiplayer::Screen::list(&saves),
+            ),
+        };
+        if let Some(title) = &mut self.title {
+            title.mode = mode;
+        }
+        Ok(false)
     }
     /// `Hud.onDisconnected`, from `Minecraft.disconnect` and `clearClientLevel`
     /// (a proxy's reconfiguration too), but the chat: joining clears it and a
@@ -1972,8 +1997,11 @@ impl Game<'_> {
                         return Ok(());
                     }
                     let retry = self.reconnect_after(&reason, key.as_deref(), from_server);
-                    self.leave_server(Some(reason))?;
-                    self.offer_reconnect(retry);
+                    let claimed =
+                        self.leave_server_with_context(Some(reason), key.as_deref(), from_server)?;
+                    if !claimed {
+                        self.offer_reconnect(retry);
+                    }
                     return Ok(());
                 }
                 Event::Packet(packet) => self.handle_packet(*packet)?,
@@ -3122,6 +3150,7 @@ impl Game<'_> {
                 }
                 self.send(S::ClientInformation(info));
                 self.remote_chat_login();
+                self.native_session_ready();
             }
             C::Respawn(p) => {
                 // A new player, without effects (the server sends them

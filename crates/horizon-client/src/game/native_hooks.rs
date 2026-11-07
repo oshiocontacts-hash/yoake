@@ -870,6 +870,7 @@
 //! that would break such a bundle is not made.
 //! Bodies have no `cfg` and no macros: horizon-mixins refuses a target with
 //! either (`tests::hook_points_stay_hookable`).
+use super::native_account::{NativeAccount, NativeJoinPoll};
 use super::native_client_state::{NativeClientWorld, NativeSoundCategory};
 use super::native_data_maps::NativeDataMapType;
 use super::native_item_energy::ItemEnergyBuffer;
@@ -883,8 +884,10 @@ use super::{
 };
 use horizon_assets::item_model::StackView;
 use horizon_client::mod_api::{
-    self, NativeCamera, NativeCommand, NativeDispensed, NativeLifecycleContext,
-    NativeNoteBlockChange, NativeServerPlayer, RecipeBookCategory, ServerTickPhase, WorldPhase,
+    self, NameTagLine, NativeAudioStreamId, NativeAudioStreamLimits, NativeCamera, NativeCommand,
+    NativeDispensed, NativeLanPublish, NativeLifecycleContext, NativeMicId, NativeNoteBlockChange,
+    NativeServerPlayer, NativeSoundError, NativeStreamAnchor, RecipeBookCategory, ServerTickPhase,
+    WorldPhase,
 };
 use horizon_client::mod_api::{AttachmentResult, Attachments, Holder, Suggestion};
 pub(crate) use horizon_client::mod_api::{
@@ -967,6 +970,88 @@ fn observed_overlay_id(overlays: &[(bool, &'static str)]) -> Option<&'static str
 }
 
 impl Game<'_> {
+    /// Client PCM stream quotas (@API:positional_pcm_streams@).
+    pub(super) fn native_audio_stream_limits(&self) -> NativeAudioStreamLimits {
+        self.streams_limits()
+    }
+
+    /// Open a mod-owned PCM stream (@API:positional_pcm_streams@).
+    pub(super) fn native_audio_stream_open(
+        &mut self,
+        anchor: NativeStreamAnchor,
+        sample_rate: u32,
+        channels: u16,
+        category: NativeSoundCategory,
+    ) -> Result<NativeAudioStreamId, NativeSoundError> {
+        self.streams_open(anchor, sample_rate, channels, category)
+    }
+
+    /// Push interleaved float samples (@API:positional_pcm_streams@).
+    pub(super) fn native_audio_stream_push(
+        &mut self,
+        id: NativeAudioStreamId,
+        samples: &[f32],
+    ) -> Result<usize, NativeSoundError> {
+        self.streams_push(id, samples)
+    }
+
+    /// Push interleaved signed 16-bit samples (@API:positional_pcm_streams@).
+    pub(super) fn native_audio_stream_push_i16(
+        &mut self,
+        id: NativeAudioStreamId,
+        samples: &[i16],
+    ) -> Result<usize, NativeSoundError> {
+        self.streams_push_i16(id, samples)
+    }
+
+    /// Queued interleaved sample count (@API:positional_pcm_streams@).
+    pub(super) fn native_audio_stream_queued(&mut self, id: NativeAudioStreamId) -> Option<usize> {
+        self.streams_queued(id)
+    }
+
+    /// Cumulative overflow sample count (@API:positional_pcm_streams@).
+    pub(super) fn native_audio_stream_dropped(&mut self, id: NativeAudioStreamId) -> Option<u64> {
+        self.streams_dropped(id)
+    }
+
+    /// Change a stream's anchor (@API:positional_pcm_streams@).
+    pub(super) fn native_audio_stream_move(
+        &mut self,
+        id: NativeAudioStreamId,
+        anchor: NativeStreamAnchor,
+    ) -> Result<(), NativeSoundError> {
+        self.streams_move(id, anchor)
+    }
+
+    /// Close a mod-owned PCM stream (@API:positional_pcm_streams@).
+    pub(super) fn native_audio_stream_close(&mut self, id: NativeAudioStreamId) -> bool {
+        self.streams_close(id)
+    }
+
+    /// Enumerate input devices without opening capture (@API:microphone_input@).
+    pub(super) fn native_mic_devices(&self) -> Vec<String> {
+        self.mic_devices()
+    }
+
+    /// Open capture only after obtaining the player's consent (@API:microphone_input@).
+    pub(super) fn native_mic_open(
+        &mut self,
+        device: Option<&str>,
+        sample_rate: u32,
+    ) -> Result<NativeMicId, String> {
+        self.mic_open(device, sample_rate)
+    }
+
+    /// Read available mono samples without waiting (@API:microphone_input@).
+    pub(super) fn native_mic_read(&mut self, id: NativeMicId, output: &mut [f32]) -> usize {
+        self.mic_read(id, output)
+    }
+
+    /// Close a mod-owned microphone (@API:microphone_input@).
+    pub(super) fn native_mic_close(&mut self, id: NativeMicId) -> bool {
+        self.mic_close(id)
+    }
+
     fn observed_screen_view(&self) -> Option<NativeScreenView<'_>> {
         let book = match &self.book {
             Some(super::books::BookScreen::Edit { signing: true, .. }) => Some("book_sign"),
@@ -2111,6 +2196,37 @@ impl Game<'_> {
         self.native_client_state.level_unloaded();
         mod_api::dispatch_client_level_unload(self, mod_api::mods(), dimension);
     }
+    /// Entered Play on a window client. API @API:client_connection@.
+    pub(super) fn native_client_logged_in(&mut self, single_player: bool, address: Option<&str>) {
+        super::native_session::dispatch_client_logged_in(self, single_player, address);
+    }
+
+    /// A window client's Play session ended. API @API:client_connection@.
+    pub(super) fn native_client_logged_out(&mut self) {
+        super::native_session::dispatch_client_logged_out(self);
+    }
+
+    /// Claim a disconnect after teardown. API @API:client_disconnected@.
+    pub(super) fn native_client_disconnected(
+        &mut self,
+        reason: &str,
+        key: Option<&str>,
+        from_server: bool,
+        claimed: &mut bool,
+    ) {
+        super::native_session::dispatch_client_disconnected(
+            self,
+            reason,
+            key,
+            from_server,
+            claimed,
+        );
+    }
+
+    /// Exit saving was attempted; the client is shutting down. API @API:client_shutdown@.
+    pub(super) fn native_client_shutdown(&mut self) {
+        super::native_session::dispatch_client_shutdown(self);
+    }
     /// Once a tick, in every `Game`: the window's (in single player, on LAN
     /// and on servers), and the server's own (`native_window` is false
     /// there: the single player server thread, a dedicated server).
@@ -2548,6 +2664,20 @@ impl Game<'_> {
             visible,
             text,
         );
+    }
+    /// Whether a mod collects name tag lines. API @API:name_tag_lines@.
+    pub(super) fn native_name_tag_lines_listened(&self, listened: &mut bool) {
+        mod_api::dispatch_name_tag_lines_listened(self, mod_api::mods(), listened);
+    }
+
+    /// @API:name_tag_lines@ Collects extra lines above a visible name.
+    pub(super) fn native_name_tag_lines(
+        &self,
+        entity_id: u32,
+        kind: &str,
+        lines: &mut Vec<NameTagLine>,
+    ) {
+        super::native_name_lines::dispatch_name_tag_lines(self, entity_id, kind, lines);
     }
     /// Whether a mod changes name tag anchors. API @API:render_name_tag_position@.
     pub(super) fn native_render_name_tag_position_listened(&self, listened: &mut bool) {
@@ -8154,6 +8284,36 @@ fn local_particle_type(
 // Native mods use these; nothing in Horizon does.
 #[allow(dead_code)]
 impl Game<'_> {
+    /// Publish the integrated world's LAN endpoint. API @API:native_lan@.
+    pub(super) fn native_lan_publish(&mut self, opts: &NativeLanPublish) -> Result<u16, String> {
+        self.native_lan_publish_impl(opts)
+    }
+
+    /// Close LAN publication without stopping the world. API @API:native_lan@.
+    pub(super) fn native_lan_close(&mut self) -> bool {
+        self.native_lan_close_impl()
+    }
+
+    /// Return the published LAN port. API @API:native_lan@.
+    pub(super) fn native_lan_port(&self) -> Option<u16> {
+        self.native_lan_port_impl()
+    }
+
+    /// Set the admission limit, deferring detached changes. API @API:native_lan@.
+    pub(super) fn native_set_max_players(&mut self, max: u16) -> bool {
+        self.native_set_max_players_impl(max)
+    }
+
+    /// Kick a guest; detached `true` means accepted, not kicked. API @API:native_kick@.
+    pub(super) fn native_kick_player(&mut self, player: u128, reason: &str) -> bool {
+        self.native_kick_player_impl(player, reason)
+    }
+
+    /// Accept a save request, not its completion. API @API:native_save@.
+    pub(super) fn native_request_save(&mut self, flush: bool) -> bool {
+        self.native_request_save_impl(flush)
+    }
+
     /// Access a server-owned holder's attachment map. On a client it is the
     /// copy of what the server synced: `set` and `remove` change only the copy.
     pub(super) fn native_attachments(
@@ -8580,6 +8740,36 @@ impl Game<'_> {
         super::native_client_state::sound_volume_effective(&self.settings, category)
     }
 
+    /// Queue an idle title-screen world entry. API @API:client_session_requests@.
+    pub(super) fn native_request_open_world(&mut self, folder: &str) -> bool {
+        super::native_session::request_open_world(self, folder)
+    }
+
+    /// Queue an idle title-screen connection. API @API:client_session_requests@.
+    pub(super) fn native_request_connect(&mut self, address: &str) -> bool {
+        super::native_session::request_connect(self, address)
+    }
+
+    /// Queue a leave from a loaded playing session. API @API:client_session_requests@.
+    pub(super) fn native_request_leave(&mut self) -> bool {
+        super::native_session::request_leave(self)
+    }
+
+    /// Read public account identity without credentials. API @API:client_account@.
+    pub(super) fn native_account(&self) -> Option<NativeAccount> {
+        super::native_account::account(self)
+    }
+
+    /// Start a session-service worker without waiting. API @API:client_account@.
+    pub(super) fn native_session_join_start(&mut self, server_hash: &str) -> Option<u32> {
+        super::native_account::session_join_start(self, server_hash)
+    }
+
+    /// Poll once without waiting; terminal results are consumed. API @API:client_account@.
+    pub(super) fn native_session_join_poll(&mut self, ticket: u32) -> NativeJoinPoll {
+        super::native_account::session_join_poll(self, ticket)
+    }
+
     /// This `Game` is the window's, not a server's. API @API:client_state_reads@.
     pub(super) fn native_window(&self) -> bool {
         self.options.execution_role == ExecutionRole::Client
@@ -8814,13 +9004,14 @@ impl Game<'_> {
             .as_deref()
             .filter(|_| self.screen == Screen::Mod)
     }
+    /// @API:mod_screen_open_anywhere@ Opens a mod screen over ordinary title menus or the world.
+    pub(super) fn native_mod_screen_open_anywhere(&mut self, mod_id: &str) -> bool {
+        self.mod_screen_open_anywhere(mod_id)
+    }
+
     /// A mod's own screen closes (Escape, or `native_mod_screen_close`).
     pub(super) fn close_mod_screen(&mut self) {
-        self.native_mod_screen = None;
-        if self.screen == Screen::Mod {
-            self.screen = Screen::Playing;
-            self.capture(true);
-        }
+        self.close_native_mod_screen();
     }
     /// The open menu's title (the block's name, or the one it was given),
     /// as plain text. API 20.

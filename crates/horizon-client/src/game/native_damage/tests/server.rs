@@ -74,6 +74,10 @@ fn with_server(test: impl FnOnce(&mut Game<'_>, Receiver<Out>, Receiver<Out>)) {
             port: 0,
             guest_commands: false,
             force_game_mode: false,
+            loopback_only: false,
+            announce: true,
+            max_players: horizon_client::lan::MAX_PLAYERS,
+            game_mode: None,
         },
         NetConfig {
             listen: false,

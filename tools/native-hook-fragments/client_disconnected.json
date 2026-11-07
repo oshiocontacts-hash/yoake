@@ -1,0 +1,16 @@
+{
+  "hooks": [
+    {
+      "name": "client_disconnected",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_client_disconnected",
+      "side": "client",
+      "cancellable": true,
+      "mod_api": {
+        "contract": "cancel",
+        "out": "claimed"
+      }
+    }
+  ],
+  "rust_summary": "claiming the disconnected screen after connection teardown (`native_client_disconnected`).",
+  "doc_summary": "`client_disconnected(reason, key, from_server)` receives the original disconnect context after teardown and returns `Flow::Cancel` to claim the screen. A claim keeps the title screen instead of Disconnected and suppresses reconnect UI; it never cancels teardown. Intentional leave and transfer do not notify. With no claim the existing screen and reconnect path remain. This is disconnect-specific, not the general screen-opening proposal #7277. Requires native hooks API @API:client_disconnected@."
+}

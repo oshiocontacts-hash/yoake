@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "request_save",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_request_save",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "request a world save (`native_request_save`), completed through `world_saved`; detached-hub requests run at tick end.",
+  "doc_summary": "Requested world saves use the existing world_saved completion hook. Detached-hub requests run at tick end; other requests run at the next tick start. Requires native hooks API @API:native_save@."
+}
