@@ -743,6 +743,7 @@ impl Game<'_> {
     /// DedicatedServer.initServer and MinecraftServer.runServer.
     // The epoch starts at world open; failures before that send no lifecycle event.
     pub(super) fn run_dedicated(&mut self) -> Result<()> {
+        let _mod_thread = crate::mod_guard::enter_thread(crate::mod_guard::ModThread::Server);
         let result = self.run_dedicated_inner();
         if let Err(error) = &result {
             self.native_players_leaving();

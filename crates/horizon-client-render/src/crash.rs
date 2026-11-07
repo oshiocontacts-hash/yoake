@@ -594,7 +594,7 @@ pub fn worker_panic_report(info: &std::panic::PanicHookInfo, side: &'static str)
 pub fn install(home: PathBuf, side: &'static str) {
     let default = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
-        if contained_panic(info) {
+        if mod_guard::capture_panic(info) || contained_panic(info) {
             return;
         }
         default(info);
@@ -706,6 +706,793 @@ pub fn debug_crash_after() -> Option<std::time::Duration> {
     let value = std::env::var("HORIZON_DEBUG_CRASH").ok()?;
     let seconds = value.parse::<f64>().unwrap_or(5.0).max(0.0);
     Some(std::time::Duration::from_secs_f64(seconds))
+}
+
+pub mod mod_guard {
+    use std::cell::{Cell, RefCell};
+    use std::panic::{AssertUnwindSafe, PanicHookInfo};
+    use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+    use std::sync::{Mutex, OnceLock};
+    use std::time::Instant;
+
+    const OPEN: usize = 1 << (usize::BITS - 1);
+    const USERS: usize = OPEN - 1;
+    const LANES: usize = 3;
+    const VALUE_MASK: u64 = u32::MAX as u64;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum PanicMode {
+        Contain,
+        Crash,
+    }
+
+    pub fn panic_mode(value: Option<&str>) -> PanicMode {
+        if value == Some("crash") {
+            PanicMode::Crash
+        } else {
+            PanicMode::Contain
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum ModThread {
+        Client,
+        Server,
+        Background,
+    }
+
+    impl ModThread {
+        pub fn as_str(self) -> &'static str {
+            match self {
+                Self::Client => "client",
+                Self::Server => "server",
+                Self::Background => "background",
+            }
+        }
+
+        fn index(self) -> usize {
+            match self {
+                Self::Client => 0,
+                Self::Server => 1,
+                Self::Background => 2,
+            }
+        }
+    }
+
+    thread_local! {
+        static THREAD: Cell<ModThread> = const { Cell::new(ModThread::Client) };
+        static CAPTURING: Cell<bool> = const { Cell::new(false) };
+        static PANIC: RefCell<Option<(String, String)>> = const { RefCell::new(None) };
+    }
+
+    pub struct ThreadScope(ModThread);
+
+    pub fn enter_thread(thread: ModThread) -> ThreadScope {
+        ThreadScope(THREAD.with(|current| current.replace(thread)))
+    }
+
+    impl Drop for ThreadScope {
+        fn drop(&mut self) {
+            THREAD.with(|current| current.set(self.0));
+        }
+    }
+
+    struct CaptureScope {
+        active: bool,
+        previous: Option<(String, String)>,
+    }
+
+    impl CaptureScope {
+        fn new() -> Self {
+            Self {
+                active: CAPTURING.with(|active| active.replace(true)),
+                previous: PANIC.with(|panic| panic.take()),
+            }
+        }
+    }
+
+    impl Drop for CaptureScope {
+        fn drop(&mut self) {
+            CAPTURING.with(|active| active.set(self.active));
+            PANIC.with(|panic| *panic.borrow_mut() = self.previous.take());
+        }
+    }
+
+    pub(super) fn capture_panic(info: &PanicHookInfo<'_>) -> bool {
+        if !CAPTURING.with(Cell::get) {
+            return false;
+        }
+        let mut message = super::payload_text(info.payload());
+        if let Some(location) = info.location() {
+            use std::fmt::Write;
+            let _ = write!(message, " at {}:{}", location.file(), location.line());
+        }
+        let stack = std::backtrace::Backtrace::force_capture().to_string();
+        PANIC.with(|panic| *panic.borrow_mut() = Some((message, stack)));
+        true
+    }
+
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct ModError {
+        pub hook: &'static str,
+        pub message: String,
+    }
+
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct ModStatus {
+        pub id: String,
+        pub index: usize,
+        pub enabled: bool,
+        pub first_error: Option<ModError>,
+    }
+
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    #[non_exhaustive]
+    pub struct CostWindow {
+        pub calls: u64,
+        pub total_ns: u64,
+        pub max_ns: u64,
+    }
+
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct ModCost {
+        pub id: String,
+        pub index: usize,
+        pub hook: &'static str,
+        pub thread: ModThread,
+        pub last_second: CostWindow,
+        pub since_enabled: CostWindow,
+    }
+
+    struct ModState {
+        id: Option<&'static str>,
+        label: String,
+        enabled: AtomicBool,
+        first_error: OnceLock<ModError>,
+        local_notice: AtomicBool,
+        server_notice: AtomicBool,
+    }
+
+    pub struct Registry {
+        mods: Box<[ModState]>,
+        hooks: &'static [&'static str],
+        mode: PanicMode,
+        profiling: AtomicBool,
+        gate: AtomicUsize,
+        profile: OnceLock<ProfileSession>,
+        control: Mutex<()>,
+    }
+
+    static REGISTRY: OnceLock<Registry> = OnceLock::new();
+
+    impl Registry {
+        pub fn new(
+            ids: &[&'static str],
+            count: usize,
+            hooks: &'static [&'static str],
+            mode: PanicMode,
+        ) -> Self {
+            Self {
+                mods: (0..count)
+                    .map(|index| ModState {
+                        id: ids.get(index).copied(),
+                        label: ids
+                            .get(index)
+                            .map_or_else(|| format!("#{index}"), |id| (*id).into()),
+                        enabled: AtomicBool::new(true),
+                        first_error: OnceLock::new(),
+                        local_notice: AtomicBool::new(false),
+                        server_notice: AtomicBool::new(false),
+                    })
+                    .collect(),
+                hooks,
+                mode,
+                profiling: AtomicBool::new(false),
+                gate: AtomicUsize::new(0),
+                profile: OnceLock::new(),
+                control: Mutex::new(()),
+            }
+        }
+
+        pub fn dispatch(&self, count: usize, hook: &'static str) -> Option<Dispatch<'_>> {
+            if count == 0 {
+                return None;
+            }
+            let lease = if self.profiling.load(Ordering::Relaxed) {
+                self.hooks
+                    .iter()
+                    .position(|candidate| *candidate == hook)
+                    .and_then(|hook_index| self.lease(hook_index))
+            } else {
+                None
+            };
+            Some(Dispatch {
+                registry: Some(self),
+                hook,
+                lease,
+            })
+        }
+
+        fn lease(&self, hook_index: usize) -> Option<ProfileLease<'_>> {
+            let mut gate = self.gate.load(Ordering::Acquire);
+            loop {
+                if gate & OPEN == 0 || gate & USERS == USERS {
+                    return None;
+                }
+                match self.gate.compare_exchange_weak(
+                    gate,
+                    gate + 1,
+                    Ordering::Acquire,
+                    Ordering::Relaxed,
+                ) {
+                    Ok(_) => {
+                        return Some(ProfileLease {
+                            registry: self,
+                            session: self.profile.get().expect("open profiler"),
+                            hook_index,
+                            thread: THREAD.with(Cell::get),
+                        });
+                    }
+                    Err(current) => gate = current,
+                }
+            }
+        }
+
+        pub fn set_profile_enabled(&self, enabled: bool) -> Result<(), &'static str> {
+            let _control = self
+                .control
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            if enabled == self.profiling.load(Ordering::Relaxed) {
+                return Ok(());
+            }
+            if !enabled {
+                self.profiling.store(false, Ordering::Relaxed);
+                self.gate.fetch_and(USERS, Ordering::AcqRel);
+                if let Some(session) = self.profile.get() {
+                    session.stopped_ns.store(session.now(), Ordering::Relaxed);
+                }
+                return Ok(());
+            }
+            if self.gate.load(Ordering::Acquire) != 0 {
+                return Err("Previous profiled calls are finishing; retry mod-profile on");
+            }
+            let session = self
+                .profile
+                .get_or_init(|| ProfileSession::new(self.mods.len() * self.hooks.len() * LANES));
+            session.reset();
+            self.gate.store(OPEN, Ordering::Release);
+            self.profiling.store(true, Ordering::Relaxed);
+            Ok(())
+        }
+
+        pub fn profile_snapshot(&self) -> Vec<ModCost> {
+            let _control = self
+                .control
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            let Some(session) = self.profile.get() else {
+                return Vec::new();
+            };
+            let now = if self.profiling.load(Ordering::Relaxed) {
+                session.now()
+            } else {
+                session.stopped_ns.load(Ordering::Relaxed)
+            };
+            let second = session.second(now);
+            let mut costs = Vec::new();
+            for (index, state) in self.mods.iter().enumerate() {
+                for (hook_index, hook) in self.hooks.iter().enumerate() {
+                    for thread in [ModThread::Client, ModThread::Server, ModThread::Background] {
+                        let cell = &session.cells
+                            [(index * self.hooks.len() + hook_index) * LANES + thread.index()];
+                        let since_enabled = cell.total();
+                        if since_enabled.calls != 0 {
+                            costs.push(ModCost {
+                                id: state.label.clone(),
+                                index,
+                                hook,
+                                thread,
+                                last_second: second
+                                    .checked_sub(1)
+                                    .map_or_else(CostWindow::default, |second| cell.window(second)),
+                                since_enabled,
+                            });
+                        }
+                    }
+                }
+            }
+            costs.sort_by(|left, right| {
+                right
+                    .since_enabled
+                    .total_ns
+                    .cmp(&left.since_enabled.total_ns)
+                    .then_with(|| left.index.cmp(&right.index))
+                    .then_with(|| left.hook.cmp(right.hook))
+                    .then_with(|| left.thread.index().cmp(&right.thread.index()))
+            });
+            costs
+        }
+
+        pub fn statuses(&self) -> Vec<ModStatus> {
+            self.mods
+                .iter()
+                .enumerate()
+                .map(|(index, state)| ModStatus {
+                    id: state.label.clone(),
+                    index,
+                    enabled: state.enabled.load(Ordering::Relaxed),
+                    first_error: state.first_error.get().cloned(),
+                })
+                .collect()
+        }
+
+        pub fn take_notices(&self, server: bool) -> Vec<ModNotice> {
+            self.mods
+                .iter()
+                .enumerate()
+                .filter_map(|(index, state)| {
+                    let pending = if server {
+                        &state.server_notice
+                    } else {
+                        &state.local_notice
+                    };
+                    if !pending.swap(false, Ordering::AcqRel) {
+                        return None;
+                    }
+                    state.first_error.get().map(|error| ModNotice {
+                        id: state.label.clone(),
+                        index,
+                        hook: error.hook,
+                    })
+                })
+                .collect()
+        }
+
+        pub fn maintenance(&self) {
+            if !self.profiling.load(Ordering::Relaxed) {
+                return;
+            }
+            let Some(session) = self.profile.get() else {
+                return;
+            };
+            let second = session.second(session.now());
+            let previous = session.summary_second.load(Ordering::Relaxed);
+            if second.saturating_sub(previous) < 10
+                || session
+                    .summary_second
+                    .compare_exchange(previous, second, Ordering::Relaxed, Ordering::Relaxed)
+                    .is_err()
+            {
+                return;
+            }
+            let mut costs = self.profile_snapshot();
+            costs.sort_by_key(|cost| std::cmp::Reverse(cost.last_second.total_ns));
+            let top = costs
+                .iter()
+                .take(5)
+                .map(|cost| {
+                    format!(
+                        "{}/{} [{}] {:.3} ms/s",
+                        cost.id,
+                        cost.hook,
+                        cost.thread.as_str(),
+                        cost.last_second.total_ns as f64 / 1_000_000.0
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            log::info!("Native mod profile: {top}");
+        }
+    }
+
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct ModNotice {
+        pub id: String,
+        pub index: usize,
+        pub hook: &'static str,
+    }
+
+    #[derive(Debug, PartialEq, Eq)]
+    pub enum CallOutcome<T> {
+        Skipped,
+        Completed(T),
+        Panicked,
+    }
+
+    pub struct Dispatch<'a> {
+        registry: Option<&'a Registry>,
+        hook: &'static str,
+        lease: Option<ProfileLease<'a>>,
+    }
+
+    impl Dispatch<'_> {
+        pub fn call<T>(&self, index: usize, call: impl FnOnce() -> T) -> CallOutcome<T> {
+            let Some(registry) = self.registry else {
+                return CallOutcome::Completed(call());
+            };
+            let Some(state) = registry.mods.get(index) else {
+                return CallOutcome::Skipped;
+            };
+            if !state.enabled.load(Ordering::Relaxed) {
+                return CallOutcome::Skipped;
+            }
+            let _mark = super::enter_native_mod(super::NativeModCall {
+                id: state.id,
+                index,
+                hook: self.hook,
+            });
+            let started = self.lease.as_ref().map(|lease| lease.session.now());
+            let result = match registry.mode {
+                PanicMode::Crash => Ok(call()),
+                PanicMode::Contain => {
+                    let _capture = CaptureScope::new();
+                    std::panic::catch_unwind(AssertUnwindSafe(call)).map_err(|payload| {
+                        PANIC.with(|panic| panic.take()).unwrap_or_else(|| {
+                            (
+                                super::payload_text(&*payload),
+                                std::backtrace::Backtrace::force_capture().to_string(),
+                            )
+                        })
+                    })
+                }
+            };
+            if let (Some(lease), Some(started)) = (&self.lease, started) {
+                let ended = lease.session.now();
+                let offset = (index * registry.hooks.len() + lease.hook_index) * LANES
+                    + lease.thread.index();
+                lease.session.cells[offset]
+                    .record(lease.session.second(ended), ended.saturating_sub(started));
+            }
+            match result {
+                Ok(value) => CallOutcome::Completed(value),
+                Err((message, stack)) => {
+                    if state.enabled.swap(false, Ordering::Relaxed) {
+                        let _ = state.first_error.set(ModError {
+                            hook: self.hook,
+                            message: message.clone(),
+                        });
+                        state.local_notice.store(true, Ordering::Release);
+                        state.server_notice.store(true, Ordering::Release);
+                        log::error!(
+                            "Native mod {} stopped: hook={}, message={message:?}, stack={stack:?}",
+                            state.label,
+                            self.hook
+                        );
+                    }
+                    CallOutcome::Panicked
+                }
+            }
+        }
+    }
+
+    struct ProfileLease<'a> {
+        registry: &'a Registry,
+        session: &'a ProfileSession,
+        hook_index: usize,
+        thread: ModThread,
+    }
+
+    impl Drop for ProfileLease<'_> {
+        fn drop(&mut self) {
+            self.registry.gate.fetch_sub(1, Ordering::Release);
+        }
+    }
+
+    #[derive(Default)]
+    struct SecondSlot {
+        calls: AtomicU64,
+        total_us: AtomicU64,
+        max_us: AtomicU64,
+    }
+
+    fn update_stamped(value: &AtomicU64, second: u64, amount: u64, maximum: bool) {
+        let stamp = second.saturating_add(1).min(VALUE_MASK);
+        let mut previous = value.load(Ordering::Relaxed);
+        loop {
+            let old_stamp = previous >> 32;
+            if old_stamp > stamp {
+                return;
+            }
+            let old_value = if old_stamp == stamp {
+                previous & VALUE_MASK
+            } else {
+                0
+            };
+            let next = if maximum {
+                old_value.max(amount)
+            } else {
+                old_value.saturating_add(amount)
+            }
+            .min(VALUE_MASK);
+            match value.compare_exchange_weak(
+                previous,
+                (stamp << 32) | next,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => return,
+                Err(current) => previous = current,
+            }
+        }
+    }
+
+    fn read_stamped(value: &AtomicU64, second: u64) -> u64 {
+        let value = value.load(Ordering::Relaxed);
+        if value >> 32 == second.saturating_add(1).min(VALUE_MASK) {
+            value & VALUE_MASK
+        } else {
+            0
+        }
+    }
+
+    #[derive(Default)]
+    struct CostCell {
+        calls: AtomicU64,
+        total_ns: AtomicU64,
+        max_ns: AtomicU64,
+        seconds: [SecondSlot; 3],
+    }
+
+    impl CostCell {
+        fn record(&self, second: u64, elapsed: u64) {
+            self.calls.fetch_add(1, Ordering::Relaxed);
+            self.total_ns.fetch_add(elapsed, Ordering::Relaxed);
+            self.max_ns.fetch_max(elapsed, Ordering::Relaxed);
+            let slot = &self.seconds[second as usize % self.seconds.len()];
+            update_stamped(&slot.calls, second, 1, false);
+            update_stamped(&slot.total_us, second, elapsed / 1_000, false);
+            update_stamped(&slot.max_us, second, elapsed / 1_000, true);
+        }
+
+        fn total(&self) -> CostWindow {
+            CostWindow {
+                calls: self.calls.load(Ordering::Relaxed),
+                total_ns: self.total_ns.load(Ordering::Relaxed),
+                max_ns: self.max_ns.load(Ordering::Relaxed),
+            }
+        }
+
+        fn window(&self, second: u64) -> CostWindow {
+            let slot = &self.seconds[second as usize % self.seconds.len()];
+            CostWindow {
+                calls: read_stamped(&slot.calls, second),
+                total_ns: read_stamped(&slot.total_us, second) * 1_000,
+                max_ns: read_stamped(&slot.max_us, second) * 1_000,
+            }
+        }
+
+        fn reset(&self) {
+            self.calls.store(0, Ordering::Relaxed);
+            self.total_ns.store(0, Ordering::Relaxed);
+            self.max_ns.store(0, Ordering::Relaxed);
+            for slot in &self.seconds {
+                slot.calls.store(0, Ordering::Relaxed);
+                slot.total_us.store(0, Ordering::Relaxed);
+                slot.max_us.store(0, Ordering::Relaxed);
+            }
+        }
+    }
+
+    struct ProfileSession {
+        origin: Instant,
+        started_ns: AtomicU64,
+        stopped_ns: AtomicU64,
+        summary_second: AtomicU64,
+        cells: Box<[CostCell]>,
+        #[cfg(test)]
+        clock_reads: AtomicU64,
+    }
+
+    impl ProfileSession {
+        fn new(count: usize) -> Self {
+            Self {
+                origin: Instant::now(),
+                started_ns: AtomicU64::new(0),
+                stopped_ns: AtomicU64::new(0),
+                summary_second: AtomicU64::new(0),
+                cells: (0..count).map(|_| CostCell::default()).collect(),
+                #[cfg(test)]
+                clock_reads: AtomicU64::new(0),
+            }
+        }
+
+        fn now(&self) -> u64 {
+            #[cfg(test)]
+            self.clock_reads.fetch_add(1, Ordering::Relaxed);
+            self.origin.elapsed().as_nanos().min(u64::MAX as u128) as u64
+        }
+
+        fn second(&self, now: u64) -> u64 {
+            now.saturating_sub(self.started_ns.load(Ordering::Relaxed)) / 1_000_000_000
+        }
+
+        fn reset(&self) {
+            for cell in &self.cells {
+                cell.reset();
+            }
+            let now = self.now();
+            self.started_ns.store(now, Ordering::Relaxed);
+            self.stopped_ns.store(now, Ordering::Relaxed);
+            self.summary_second.store(0, Ordering::Relaxed);
+        }
+    }
+
+    pub fn initialize(
+        ids: &[&'static str],
+        count: usize,
+        hooks: &'static [&'static str],
+    ) -> Result<(), &'static str> {
+        let mode = panic_mode(std::env::var("HORIZON_MOD_PANIC").ok().as_deref());
+        let registry = Registry::new(ids, count, hooks, mode);
+        if std::env::var("HORIZON_MOD_PROFILE").as_deref() == Ok("1") {
+            registry.set_profile_enabled(true)?;
+        }
+        REGISTRY
+            .set(registry)
+            .map_err(|_| "Mod guard already initialized")
+    }
+
+    pub fn dispatch(count: usize, hook: &'static str) -> Option<Dispatch<'static>> {
+        if count == 0 {
+            return None;
+        }
+        match REGISTRY.get() {
+            Some(registry) => registry.dispatch(count, hook),
+            None => Some(Dispatch {
+                registry: None,
+                hook,
+                lease: None,
+            }),
+        }
+    }
+
+    pub fn mod_statuses() -> Vec<ModStatus> {
+        REGISTRY.get().map_or_else(Vec::new, Registry::statuses)
+    }
+
+    pub fn take_notices(server: bool) -> Vec<ModNotice> {
+        REGISTRY
+            .get()
+            .map_or_else(Vec::new, |registry| registry.take_notices(server))
+    }
+
+    pub fn profile_enabled() -> bool {
+        REGISTRY
+            .get()
+            .is_some_and(|registry| registry.profiling.load(Ordering::Relaxed))
+    }
+
+    pub fn set_profile_enabled(enabled: bool) -> Result<(), &'static str> {
+        REGISTRY
+            .get()
+            .ok_or("Mod guard is not initialized")?
+            .set_profile_enabled(enabled)
+    }
+
+    pub fn profile_snapshot() -> Vec<ModCost> {
+        REGISTRY
+            .get()
+            .map_or_else(Vec::new, Registry::profile_snapshot)
+    }
+
+    pub fn maintenance() {
+        if let Some(registry) = REGISTRY.get() {
+            registry.maintenance();
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn containment_restores_marks_and_quarantines_all_hooks() {
+            let registry = Registry::new(
+                &["broken", "good"],
+                2,
+                &["tick", "render"],
+                PanicMode::Contain,
+            );
+            let outer = super::super::enter_native_mod(super::super::NativeModCall {
+                id: Some("outer"),
+                index: 9,
+                hook: "outer",
+            });
+            let dispatch = registry.dispatch(2, "tick").unwrap();
+            assert_eq!(
+                dispatch.call(0, || panic!("broken tick")),
+                CallOutcome::<()>::Panicked,
+            );
+            assert_eq!(super::super::native_mod_call().unwrap().id, Some("outer"));
+            assert_eq!(
+                dispatch.call(0, || panic!("must not run")),
+                CallOutcome::<()>::Skipped,
+            );
+            assert_eq!(
+                registry.dispatch(2, "render").unwrap().call(0, || ()),
+                CallOutcome::Skipped,
+            );
+            assert_eq!(dispatch.call(1, || 7), CallOutcome::Completed(7));
+            assert_eq!(registry.take_notices(false).len(), 1);
+            assert!(registry.take_notices(false).is_empty());
+            assert_eq!(registry.take_notices(true).len(), 1);
+            assert_eq!(
+                registry.statuses()[0].first_error.as_ref().unwrap().hook,
+                "tick",
+            );
+            drop(outer);
+        }
+
+        #[test]
+        fn developer_mode_keeps_unwinding() {
+            assert_eq!(panic_mode(Some("crash")), PanicMode::Crash);
+            assert_eq!(panic_mode(None), PanicMode::Contain);
+            let registry = Registry::new(&[], 1, &["tick"], panic_mode(Some("crash")));
+            assert!(
+                std::panic::catch_unwind(AssertUnwindSafe(|| {
+                    registry
+                        .dispatch(1, "tick")
+                        .unwrap()
+                        .call(0, || panic!("unwind"))
+                }))
+                .is_err(),
+            );
+            assert!(registry.statuses()[0].enabled);
+        }
+
+        #[test]
+        fn profiling_has_no_clock_or_counter_work_when_off_or_empty() {
+            let registry = Registry::new(&[], 1, &["tick"], PanicMode::Contain);
+            registry.dispatch(1, "tick").unwrap().call(0, || ());
+            assert!(registry.profile.get().is_none());
+            registry.set_profile_enabled(true).unwrap();
+            let session = registry.profile.get().unwrap();
+            let before = session.clock_reads.load(Ordering::Relaxed);
+            assert!(registry.dispatch(0, "tick").is_none());
+            assert_eq!(before, session.clock_reads.load(Ordering::Relaxed));
+            registry.dispatch(1, "tick").unwrap().call(0, || {
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            });
+            {
+                let _server = enter_thread(ModThread::Server);
+                registry.dispatch(1, "tick").unwrap().call(0, || ());
+            }
+            assert_eq!(registry.profile_snapshot().len(), 2);
+            let costs = registry.profile_snapshot();
+            assert_eq!(costs[0].since_enabled.calls, 1);
+            assert!(costs[0].since_enabled.total_ns > 0);
+            registry.set_profile_enabled(false).unwrap();
+            let before = session.clock_reads.load(Ordering::Relaxed);
+            registry.dispatch(1, "tick").unwrap().call(0, || ());
+            assert_eq!(before, session.clock_reads.load(Ordering::Relaxed));
+            assert_eq!(registry.profile_snapshot()[0].since_enabled.calls, 1);
+        }
+
+        #[test]
+        fn completed_seconds_roll_over_without_sleeping() {
+            let cell = CostCell::default();
+            cell.record(0, 12_000);
+            cell.record(0, 5_000);
+            cell.record(1, 20_000);
+            assert_eq!(
+                cell.window(0),
+                CostWindow {
+                    calls: 2,
+                    total_ns: 17_000,
+                    max_ns: 12_000,
+                },
+            );
+            assert_eq!(cell.window(1).calls, 1);
+            cell.record(3, 1_000);
+            assert_eq!(cell.window(0), CostWindow::default());
+            assert_eq!(cell.total().calls, 4);
+        }
+    }
 }
 
 #[cfg(test)]

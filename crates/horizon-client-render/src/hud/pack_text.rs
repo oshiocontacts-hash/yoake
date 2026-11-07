@@ -223,9 +223,13 @@ impl PackText {
 
     /// Draw `range` (whole glyph quads) with the pack's shader; the caller sets its own
     /// pipeline and bind group again after.
-    pub(super) fn draw(&self, pass: &mut wgpu::RenderPass<'_>, range: std::ops::Range<u32>) {
+    pub(super) fn draw<'encoder>(
+        &'encoder self,
+        pass: &mut impl wgpu::util::RenderEncoder<'encoder>,
+        range: std::ops::Range<u32>,
+    ) {
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, &self.group, &[]);
+        pass.set_bind_group(0, Some(&self.group), &[]);
         pass.draw(range.clone(), range.start..range.start + 1);
     }
 }
@@ -268,17 +272,23 @@ fn uniforms(batch: &HudBatch, size: [u32; 2], scale: f32) -> Vec<u8> {
 /// `range` split into runs of GUI text and of the rest, in order.
 pub(super) fn text_runs(
     vertices: &[HudVertex],
-    range: std::ops::Range<u32>,
-) -> Vec<(std::ops::Range<u32>, bool)> {
-    let mut runs: Vec<(std::ops::Range<u32>, bool)> = Vec::new();
-    for i in range {
-        let text = vertices.get(i as usize).is_some_and(|v| v.text != 0);
-        match runs.last_mut() {
-            Some((run, t)) if *t == text => run.end = i + 1,
-            _ => runs.push((i..i + 1, text)),
+    mut range: std::ops::Range<u32>,
+) -> impl Iterator<Item = (std::ops::Range<u32>, bool)> + '_ {
+    std::iter::from_fn(move || {
+        let start = range.next()?;
+        let text = vertices
+            .get(start as usize)
+            .is_some_and(|vertex| vertex.text != 0);
+        while !range.is_empty()
+            && vertices
+                .get(range.start as usize)
+                .is_some_and(|vertex| vertex.text != 0)
+                == text
+        {
+            range.start += 1;
         }
-    }
-    runs
+        Some((start..range.start, text))
+    })
 }
 
 #[cfg(test)]
@@ -321,7 +331,7 @@ mod tests {
         };
         let vertices: Vec<HudVertex> = [0, 0, 1, 1, 1, 0].into_iter().map(vertex).collect();
         assert_eq!(
-            text_runs(&vertices, 1..6),
+            text_runs(&vertices, 1..6).collect::<Vec<_>>(),
             [(1..2, false), (2..5, true), (5..6, false)]
         );
     }

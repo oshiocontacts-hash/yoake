@@ -252,8 +252,12 @@ impl Game<'_> {
         Ok(1)
     }
 
-    /// Retain the mob hit's causing-player connection after the hit is accepted.
-    fn command_damage_mob(&mut self, id: u32, amount: f32, damage: Damage) -> bool {
+    pub(in crate::game) fn command_damage_mob(
+        &mut self,
+        id: u32,
+        amount: f32,
+        damage: Damage,
+    ) -> bool {
         let hurt = self
             .mobs
             .iter_mut()
@@ -263,16 +267,6 @@ impl Game<'_> {
             self.resolve_player_responsible(id, damage);
             if damage.attacker == Some(Who::Player) {
                 self.last_hurt_by_player.insert(id, self.lan_acting);
-                if let Some(host) = self.lan.as_mut() {
-                    match self.lan_acting {
-                        Some(conn) => {
-                            host.mob_players.insert(id, conn);
-                        }
-                        None => {
-                            host.mob_players.remove(&id);
-                        }
-                    }
-                }
             }
         }
         hurt

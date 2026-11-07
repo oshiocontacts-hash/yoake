@@ -1000,6 +1000,7 @@ impl Game<'_> {
         ready: &Sender<Ready>,
         opening: Opening,
     ) -> Result<()> {
+        let _mod_thread = crate::mod_guard::enter_thread(crate::mod_guard::ModThread::Server);
         let result = self.run_integrated_inner(launch, flags, tasks, ready, opening);
         if let Err(error) = &result {
             #[cfg(feature = "dev-capture")]

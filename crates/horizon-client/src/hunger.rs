@@ -167,6 +167,7 @@ impl FoodWorld for TickWorld<'_> {
         let mut environment = Environment {
             entity: self.entity,
             causing: 0,
+            direct: 0,
             invulnerable: false,
             client_loaded: self.client_loaded,
             rules: self.rules,

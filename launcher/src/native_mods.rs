@@ -463,6 +463,7 @@ pub fn installed_mods(home: &Path) -> Result<PathBuf, String> {
 pub struct Bundle {
     pub id: String,
     pub version: String,
+    pub side: horizon_mods::Side,
     pub dir: PathBuf,
     /// The Horizon commit it builds on (`[compatibility] horizon_revision`, or its `.hnmod`'s).
     pub horizon: Option<String>,
@@ -595,12 +596,26 @@ pub(crate) fn bundle_in(dir: &Path) -> Result<Option<Bundle>, String> {
         return Err(format!("{}: invalid mod id {id:?}", path.display()));
     }
     let found = bundle(&dir.join("mixins").join(&id), field("mixins"))?;
+    let version = field("version").ok_or_else(|| format!("{} has no version.", path.display()))?;
+    if found.id != id || found.version != version {
+        return Err(format!(
+            "{}: id/version must match its {MANIFEST}.",
+            path.display()
+        ));
+    }
+    let side = native_json
+        .get("side")
+        .map(|value| serde_json::from_value::<horizon_mods::Side>(value.clone()))
+        .transpose()
+        .map_err(|error| format!("{}: {error}", path.display()))?
+        .unwrap_or(horizon_mods::Side::Both);
     match (&found.horizon, field("horizon")) {
         (Some(pinned), Some(native)) if *pinned != native => Err(format!(
             "{id}: {NATIVE_MANIFEST} pins Horizon {native}, its {MANIFEST} {pinned}."
         )),
         (_, native) => Ok(Some(Bundle {
             horizon: found.horizon.clone().or(native),
+            side,
             hooks: native_json["hooks"]
                 .as_u64()
                 .and_then(|v| u32::try_from(v).ok()),
@@ -672,12 +687,24 @@ fn bundle(dir: &Path, mixins: Option<String>) -> Result<Bundle, String> {
     // Reject links before copying the bundle into the incoming folder.
     files_with_api(dir, api.as_deref())?;
     let id = need("id")?;
-    if !api::valid_id(&id) {
+    if !api::valid_id(&id) || id.len() > 64 {
         return Err(format!("{}: invalid mod id {id:?}", path.display()));
     }
+    let version = need("version")?;
+    if version.is_empty() || version.chars().count() > 64 || version.chars().any(char::is_control) {
+        return Err(format!("{}: invalid mod version {version:?}", path.display()));
+    }
+    let side = value
+        .get("mod")
+        .and_then(|table| table.get("side"))
+        .map(|value| value.clone().try_into())
+        .transpose()
+        .map_err(|error: toml::de::Error| format!("{}: {error}", path.display()))?
+        .unwrap_or(horizon_mods::Side::Both);
     Ok(Bundle {
         id,
-        version: need("version")?,
+        version,
+        side,
         dir: dir.to_owned(),
         horizon: field("compatibility", "horizon_revision"),
         mixins,
@@ -2750,6 +2777,91 @@ mod tests {
     }
 
     #[test]
+    fn native_bundle_side_defaults_to_both_and_accepts_explicit_sides() {
+        let directory = dir("native-side");
+        write_native(&directory, "example", A, B);
+        assert_eq!(
+            bundle_in(&directory).unwrap().unwrap().side,
+            horizon_mods::Side::Both
+        );
+        let path = directory.join(NATIVE_MANIFEST);
+        let mut manifest: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        for (side, expected) in [
+            ("both", horizon_mods::Side::Both),
+            ("client", horizon_mods::Side::Client),
+            ("server", horizon_mods::Side::Server),
+        ] {
+            manifest["side"] = side.into();
+            fs::write(&path, manifest.to_string()).unwrap();
+            assert_eq!(bundle_in(&directory).unwrap().unwrap().side, expected);
+        }
+        manifest["side"] = "unknown".into();
+        fs::write(&path, manifest.to_string()).unwrap();
+        assert!(bundle_in(&directory).is_err());
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn native_bundle_identity_must_match_its_mixin_manifest() {
+        let directory = dir("native-identity");
+        write_native(&directory, "example", A, B);
+        let path = directory.join(NATIVE_MANIFEST);
+        let original: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        for field in ["id", "version"] {
+            let mut manifest = original.clone();
+            manifest[field] = "different".into();
+            fs::write(&path, manifest.to_string()).unwrap();
+            assert!(
+                bundle_in(&directory)
+                    .unwrap_err()
+                    .contains("id/version must match")
+            );
+        }
+        let mut manifest = original;
+        manifest.as_object_mut().unwrap().remove("version");
+        fs::write(&path, manifest.to_string()).unwrap();
+        assert!(bundle_in(&directory).unwrap_err().contains("has no version"));
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn local_native_manifest_requires_a_version_and_defaults_to_both() {
+        let directory = dir("local-native-identity");
+        fs::write(
+            directory.join(MANIFEST),
+            "[mod]\nid = 'example'\nversion = '0.4.1'\n",
+        )
+        .unwrap();
+        assert_eq!(
+            bundle(&directory, None).unwrap().side,
+            horizon_mods::Side::Both
+        );
+        fs::write(
+            directory.join(MANIFEST),
+            "[mod]\nid = 'example'\nversion = '0.4.1'\nside = 'client'\n",
+        )
+        .unwrap();
+        assert_eq!(
+            bundle(&directory, None).unwrap().side,
+            horizon_mods::Side::Client
+        );
+        for version in [None, Some(""), Some("bad\nversion")] {
+            let version = version
+                .map(|version| format!("version = {version:?}\n"))
+                .unwrap_or_default();
+            fs::write(
+                directory.join(MANIFEST),
+                format!("[mod]\nid = 'example'\n{version}"),
+            )
+            .unwrap();
+            assert!(bundle(&directory, None).is_err());
+        }
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
     fn installed_mods_are_the_checked_files_of_those_turned_on() {
         let d = dir("installed-src");
         write_native(&d, "veinminer", A, B);
@@ -2829,6 +2941,7 @@ mod tests {
         let pinned = |id: &str, horizon: Option<&str>| Bundle {
             id: id.into(),
             version: "1".into(),
+            side: horizon_mods::Side::Both,
             dir: PathBuf::new(),
             horizon: horizon.map(str::to_owned),
             mixins: None,
@@ -2864,6 +2977,7 @@ mod tests {
         let pinned = |id: &str, horizon: Option<&str>, mixins: Option<&str>| Bundle {
             id: id.into(),
             version: "1".into(),
+            side: horizon_mods::Side::Both,
             dir: PathBuf::new(),
             horizon: horizon.map(str::to_owned),
             mixins: mixins.map(str::to_owned),
@@ -2970,6 +3084,7 @@ mod tests {
         let mod_ = |id: &str, horizon: &str, hooks: Option<u32>| Bundle {
             id: id.into(),
             version: "1".into(),
+            side: horizon_mods::Side::Both,
             dir: PathBuf::new(),
             horizon: Some(horizon.into()),
             mixins: None,
@@ -3029,6 +3144,7 @@ mod tests {
         let mod_ = |id: &str, horizon: &str, hooks: Option<u32>| Bundle {
             id: id.into(),
             version: "1".into(),
+            side: horizon_mods::Side::Both,
             dir: PathBuf::new(),
             horizon: Some(horizon.into()),
             mixins: None,

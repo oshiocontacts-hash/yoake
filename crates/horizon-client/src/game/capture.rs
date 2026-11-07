@@ -378,6 +378,15 @@ impl Game<'_> {
         Ok(())
     }
 
+    pub(super) fn capture_install_output(&mut self) -> Result<(), String> {
+        let renderer = self
+            .renderer
+            .as_ref()
+            .ok_or("capture requires a renderer")?;
+        let output = super::capture_output::PngCaptureOutput::new(renderer.capture_handle());
+        self.capture_set_output(Box::new(output))
+    }
+
     pub(super) fn capture_status(&self) -> Value {
         self.frame_capture.run.as_ref().map_or_else(
             || {
@@ -467,6 +476,12 @@ impl Game<'_> {
             reply,
             directory: directory.to_path_buf(),
         });
+        self.audio
+            .set_capture_muted(self.capture_audio_policy() == CaptureAudioPolicy::Muted);
+        let presentation = self.capture_presentation_time();
+        if let Some(renderer) = &mut self.renderer {
+            renderer.set_capture_presentation_time(Some(presentation));
+        }
         Ok(())
     }
 
@@ -505,16 +520,19 @@ impl Game<'_> {
         }
     }
 
-    // CHECK: Wire this before ordinary redraw clocks, ticks, and frame events advance.
     pub(super) fn capture_redraw(&mut self) -> bool {
         let frame = match self.capture_pump() {
             CapturePump::Inactive => return false,
             CapturePump::Waiting | CapturePump::Restored => return true,
             CapturePump::Render(frame) => frame,
         };
-        if let Err(error) = self.recover_device().and_then(|_| self.extras_retry()) {
+        if let Err(error) = self.extras_retry() {
             self.capture_fail(error.to_string());
             return true;
+        }
+        let presentation = self.capture_presentation_time();
+        if let Some(renderer) = &mut self.renderer {
+            renderer.set_capture_presentation_time(Some(presentation));
         }
         self.extras_frame(frame.time.delta());
         self.advance_flight();
@@ -546,6 +564,11 @@ impl Game<'_> {
         self.frame_capture.presentation = None;
         self.frame_capture.stop = None;
         self.frame_capture.active = false;
+        self.audio
+            .set_capture_muted(self.capture_audio_policy() == CaptureAudioPolicy::Muted);
+        if let Some(renderer) = &mut self.renderer {
+            renderer.set_capture_presentation_time(None);
+        }
         self.frame_capture.status = Some(CaptureState::status_for(&run));
         let _ = run.reply.send(CaptureState::final_reply(&run).to_string());
     }
@@ -573,6 +596,14 @@ impl Game<'_> {
             run.machine.phase,
             Phase::Release | Phase::WaitingRelease | Phase::Done
         ) {
+            if self
+                .renderer
+                .as_ref()
+                .is_none_or(|renderer| renderer.device_lost())
+            {
+                run.machine
+                    .stop(Outcome::Failed("capture renderer lost its device".into()));
+            }
             if let Err(error) = self.poll_remote() {
                 run.machine.stop(Outcome::Failed(error.to_string()));
             }

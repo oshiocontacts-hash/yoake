@@ -431,6 +431,29 @@ impl PlayerMotion {
         living_cause: bool,
         causing: i32,
     ) -> Result<BlockOutcome> {
+        self.hurt_from_entities(
+            resources,
+            rules,
+            source,
+            amount,
+            blocking,
+            living_cause,
+            causing,
+            0,
+        )
+    }
+
+    pub fn hurt_from_entities(
+        &mut self,
+        resources: &HealthResources,
+        rules: HealthRules,
+        source: DamageTypeId,
+        amount: f32,
+        blocking: Option<Blocking>,
+        living_cause: bool,
+        causing: i32,
+        direct: i32,
+    ) -> Result<BlockOutcome> {
         if self.client_side {
             return Ok(BlockOutcome::default());
         }
@@ -449,6 +472,7 @@ impl PlayerMotion {
         let mut environment = Environment {
             entity: self.entity_id,
             causing,
+            direct,
             invulnerable,
             client_loaded: self.client_loaded,
             rules,
@@ -539,6 +563,7 @@ pub(crate) struct Environment<'a> {
     /// The player's entity id, and the causing entity's (0: none or not known).
     pub(crate) entity: i32,
     pub(crate) causing: i32,
+    pub(crate) direct: i32,
     /// Abilities.invulnerable.
     pub(crate) invulnerable: bool,
     /// The player's client has loaded the world since its last respawn or
@@ -822,7 +847,7 @@ impl HurtWorld for Environment<'_> {
         let source = HurtSource {
             damage_type: &self.source.definition().name,
             causing: self.causing,
-            direct: 0,
+            direct: self.direct,
         };
         let canceled = hurt_server_canceled(Hurting::Player(self.entity, source), damage);
         self.canceled |= canceled;

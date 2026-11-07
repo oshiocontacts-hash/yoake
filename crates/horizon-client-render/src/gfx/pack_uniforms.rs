@@ -285,6 +285,8 @@ pub struct FrameUniforms {
     start: std::time::Instant,
     last: Option<std::time::Instant>,
     frame: u32,
+    #[cfg(feature = "dev-capture")]
+    capture_time: Option<super::capture::PresentationTime>,
     previous: Option<(glam::DVec3, Mat4, Mat4)>,
     wetness: f32,
     eye_smooth: [f32; 2],
@@ -303,6 +305,8 @@ impl Default for FrameUniforms {
             start: std::time::Instant::now(),
             last: None,
             frame: 0,
+            #[cfg(feature = "dev-capture")]
+            capture_time: None,
             previous: None,
             wetness: 0.0,
             eye_smooth: [0.0; 2],
@@ -405,10 +409,30 @@ fn smooth(value: f32, target: f32, half_life: f32, dt: f32) -> f32 {
 }
 
 impl FrameUniforms {
+    #[cfg(feature = "dev-capture")]
+    pub(super) fn set_capture_presentation_time(
+        &mut self,
+        time: Option<super::capture::PresentationTime>,
+    ) {
+        if self.capture_time.is_some() != time.is_some() {
+            self.last = None;
+        }
+        self.capture_time = time;
+    }
+
     /// This frame's values for a render size of `size` pixels.
     pub fn update(&mut self, frame: &Frame, inputs: &PackInputs, size: [u32; 2]) {
+        #[cfg(not(feature = "dev-capture"))]
         let now = std::time::Instant::now();
+        #[cfg(feature = "dev-capture")]
+        let now = self
+            .capture_time
+            .map_or_else(std::time::Instant::now, |clock| clock.now());
         let dt = self.last.map_or(0.0, |l| (now - l).as_secs_f32());
+        #[cfg(feature = "dev-capture")]
+        let dt = self
+            .capture_time
+            .map_or(dt, |clock| clock.delta().as_secs_f32());
         self.last = Some(now);
         let aspect = size[0] as f32 / size[1].max(1) as f32;
         // Packs take gbufferProjection for a plain perspective (they invert only its perspective
@@ -490,7 +514,18 @@ impl FrameUniforms {
         let (shadow_view, shadow_projection) = shadow_camera(light, frame.camera, &self.shadow);
         let day_time = inputs.day_time.rem_euclid(24000) as i32;
         let world_day = inputs.day_time.div_euclid(24000);
+        #[cfg(not(feature = "dev-capture"))]
         let seconds = (now - self.start).as_secs_f32() % 3600.0;
+        #[cfg(feature = "dev-capture")]
+        let seconds = self.capture_time.map_or_else(
+            || (now - self.start).as_secs_f32() % 3600.0,
+            |clock| clock.elapsed().as_secs_f32() % 3600.0,
+        );
+        let counter = self.frame;
+        #[cfg(feature = "dev-capture")]
+        let counter = self
+            .capture_time
+            .map_or(counter, |clock| clock.frame() % 720_720);
 
         let value = |name: &str| -> Value {
             let v3 = |v: Vec3| Value::f(&v.to_array());
@@ -526,7 +561,7 @@ impl FrameUniforms {
                 "worldTime" => Value::i(&[day_time]),
                 "worldDay" => Value::i(&[world_day as i32]),
                 "moonPhase" => Value::i(&[world_day.rem_euclid(8) as i32]),
-                "frameCounter" => Value::i(&[self.frame as i32]),
+                "frameCounter" => Value::i(&[counter as i32]),
                 "shadowModelView" => m4(shadow_view),
                 "shadowModelViewInverse" => m4(shadow_view.inverse()),
                 "shadowProjection" => m4(shadow_projection),
@@ -883,6 +918,69 @@ mod tests {
 mod initial_history_tests {
     use super::*;
     use crate::hud::HudBatch;
+
+    #[cfg(not(feature = "dev-capture"))]
+    #[test]
+    fn feature_off_uses_wall_time_and_draw_counter() {
+        use std::time::{Duration, Instant};
+
+        let hud = HudBatch::new([800, 450]);
+        let mut uniforms = FrameUniforms::default();
+        let inputs = PackInputs::default();
+        uniforms.start = Instant::now() - Duration::from_secs(4);
+        uniforms.update(&frame(&hud), &inputs, [800, 450]);
+        assert!(float(&uniforms, "frameTimeCounter")[0] >= 4.0);
+        assert_eq!(float(&uniforms, "frameTime")[0], 0.0);
+        match uniforms.values[index("frameCounter").unwrap()] {
+            Value::I(counter) => assert_eq!(counter[0], 0),
+            _ => panic!("integer uniform expected"),
+        }
+
+        uniforms.last = Some(Instant::now() - Duration::from_millis(50));
+        uniforms.update(&frame(&hud), &inputs, [800, 450]);
+        assert!(float(&uniforms, "frameTime")[0] >= 0.05);
+        match uniforms.values[index("frameCounter").unwrap()] {
+            Value::I(counter) => assert_eq!(counter[0], 1),
+            _ => panic!("integer uniform expected"),
+        }
+    }
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_presentation_time_drives_shader_pack_time() {
+        use super::super::capture::PresentationTime;
+        use std::time::Duration;
+
+        let hud = HudBatch::new([800, 450]);
+        let mut uniforms = FrameUniforms::default();
+        let inputs = PackInputs::default();
+        let mut clock = None;
+        PresentationTime::set(&mut clock, Some(Duration::from_secs(4)));
+        uniforms.set_capture_presentation_time(clock);
+        uniforms.update(&frame(&hud), &inputs, [800, 450]);
+        assert_eq!(float(&uniforms, "frameTimeCounter")[0], 4.0);
+        assert_eq!(float(&uniforms, "frameTime")[0], 0.0);
+
+        PresentationTime::set(&mut clock, Some(Duration::from_millis(4050)));
+        uniforms.set_capture_presentation_time(clock);
+        uniforms.update(&frame(&hud), &inputs, [800, 450]);
+        assert!((float(&uniforms, "frameTimeCounter")[0] - 4.05).abs() < 1e-6);
+        assert!((float(&uniforms, "frameTime")[0] - 0.05).abs() < 1e-6);
+        let values = uniforms.values.clone();
+        uniforms.update(&frame(&hud), &inputs, [800, 450]);
+        for name in ["frameCounter", "frameTime", "frameTimeCounter"] {
+            let uniform = index(name).unwrap();
+            match (values[uniform], uniforms.values[uniform]) {
+                (Value::F(before), Value::F(after)) => assert_eq!(before, after),
+                (Value::I(before), Value::I(after)) => assert_eq!(before, after),
+                _ => panic!("unexpected clock uniform type"),
+            }
+        }
+        uniforms.set_capture_presentation_time(None);
+        uniforms.update(&frame(&hud), &inputs, [800, 450]);
+        assert_eq!(float(&uniforms, "frameTime")[0], 0.0);
+    }
+
     fn float(u: &FrameUniforms, name: &str) -> [f32; 16] {
         match u.values[index(name).unwrap()] {
             Value::F(v) => v,

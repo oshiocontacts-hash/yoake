@@ -120,6 +120,8 @@ fn translucent_split(batching: bool, flat_draws: bool, terrain: bool, shadow: bo
 
 mod animate;
 mod arena;
+#[cfg(feature = "dev-capture")]
+pub mod capture;
 pub mod compositor;
 mod cull;
 mod end_sky;
@@ -1136,6 +1138,10 @@ pub struct Renderer {
     post_effects: Option<crate::post_chain::PostEffects>,
     /// Where a screenshot's frame is drawn when the swapchain cannot be read back.
     readback: readback::Readback,
+    #[cfg(feature = "dev-capture")]
+    capture: capture::CaptureHandle,
+    #[cfg(feature = "dev-capture")]
+    capture_time: Option<capture::PresentationTime>,
     pub info: wgpu::AdapterInfo,
     pub suspended: bool,
     /// Consecutive frames whose surface acquisition failed validation. The
@@ -4201,6 +4207,10 @@ impl Renderer {
             menu_blur: None,
             post_effects: None,
             readback: readback::Readback::default(),
+            #[cfg(feature = "dev-capture")]
+            capture: capture::CaptureHandle::new([size.width, size.height]),
+            #[cfg(feature = "dev-capture")]
+            capture_time: None,
             info,
             suspended: !drawable_size(size.width, size.height, max_side),
             acquire_validation_failures: 0,
@@ -4424,9 +4434,68 @@ impl Renderer {
             self.configure_surface();
         }
     }
+    #[cfg(feature = "dev-capture")]
+    pub fn capture_handle(&self) -> capture::CaptureHandle {
+        self.capture.clone()
+    }
+
+    #[cfg(feature = "dev-capture")]
+    pub fn set_capture_presentation_time(&mut self, time: Option<std::time::Duration>) {
+        if time.is_none() && self.capture_time.is_none() {
+            return;
+        }
+        if time.is_none()
+            && let Some(clock) = self.capture_time
+        {
+            let from = clock.now();
+            let to = Instant::now();
+            for section in self.sections.values_mut() {
+                for stamp in [&mut section.fading, &mut section.leaving] {
+                    if let Some(stamp) = stamp {
+                        capture::rebase(stamp, from, to);
+                    }
+                }
+            }
+            for tile in self.lods.values_mut() {
+                tile.rebase_capture_time(from, to);
+            }
+            for (_, stamp) in &mut self.lod_leaving {
+                capture::rebase(stamp, from, to);
+            }
+            for stamp in self.section_uploaded.values_mut() {
+                capture::rebase(stamp, from, to);
+            }
+            for stamp in [&mut self.newest_upload, &mut self.newest_lod_fade] {
+                if let Some(stamp) = stamp {
+                    capture::rebase(stamp, from, to);
+                }
+            }
+        }
+        capture::PresentationTime::set(&mut self.capture_time, time);
+        crate::capture_time::set(time);
+        if let Some((_, Some(post))) = &mut self.pack_post {
+            post.set_capture_presentation_time(self.capture_time);
+        }
+        if let Some(native) = &mut self.native {
+            native
+                .frame
+                .set_capture_presentation_time(self.capture_time);
+        }
+    }
+
+    fn animation_now(&self) -> Instant {
+        #[cfg(feature = "dev-capture")]
+        if let Some(clock) = self.capture_time {
+            return clock.now();
+        }
+        Instant::now()
+    }
+
     /// Follows the window to `width` x `height`. A size the swapchain can't take
     /// ([`drawable_size`]) keeps the last one and draws nothing until the next.
     pub fn resize(&mut self, width: u32, height: u32) {
+        #[cfg(feature = "dev-capture")]
+        self.capture.resize([width, height]);
         let max = self.device.limits().max_texture_dimension_2d;
         self.suspended = !drawable_size(width, height, max);
         if self.suspended {
@@ -4662,14 +4731,14 @@ impl Renderer {
         let fading = match self.sections.find(key) {
             Some(old) => old.fading,
             None if !self.lods.is_empty() => {
-                let now = std::time::Instant::now();
+                let now = self.animation_now();
                 self.newest_lod_fade = Some(now);
                 Some(now)
             }
             None => None,
         };
         if fading.is_none() && !self.section_uploaded.contains_key(&key) {
-            let now = std::time::Instant::now();
+            let now = self.animation_now();
             self.section_uploaded.insert(key, now);
             self.newest_upload = Some(now);
         }
@@ -5034,7 +5103,7 @@ impl Renderer {
         fade_seconds: f32,
     ) -> impl Iterator<Item = &([i32; 3], u32)> {
         let fade = fade_millis(fade_seconds);
-        let now = std::time::Instant::now();
+        let now = self.animation_now();
         let all = !self.sections_fading_in(fade, now);
         self.block_entities
             .iter()
@@ -5075,7 +5144,7 @@ impl Renderer {
         keep_long_range: impl Fn(u32) -> bool + 'a,
     ) -> impl Iterator<Item = (&'a ([i32; 3], u32), bool)> + 'a {
         let fade = fade_millis(fade_seconds);
-        let now = Instant::now();
+        let now = self.animation_now();
         // No section uploaded within the fade: all are whole, none is looked up.
         let all = !self.sections_fading_in(fade, now);
         let min_y = self.layout.min_y();
@@ -5269,7 +5338,7 @@ impl Renderer {
     /// away at once, the column's detail dropped to the far terrain's in one
     /// frame.
     fn leave_section(&mut self, key: SectionKey) {
-        let now = std::time::Instant::now();
+        let now = self.animation_now();
         if let Some(section) = self.sections.find_mut(key)
             && section.leaving.is_none()
         {
@@ -6088,7 +6157,8 @@ impl Renderer {
             self.queue.submit([copies]);
         }
         // A scaled screenshot's frame never reached the window.
-        rendered.map(|drawn| drawn && scaled.is_none())
+        let scaled_only = scaled.is_some();
+        rendered.map(|drawn| drawn && !scaled_only)
     }
     /// Whether the device's loss callback has fired. A surface reconfigure
     /// alone cannot restore resources belonging to a lost device.
@@ -6101,6 +6171,10 @@ impl Renderer {
     /// and halved for each time it ran out of video memory.
     fn screenshot_size(&self) -> Option<[u32; 2]> {
         let request = self.screenshot.as_ref()?;
+        #[cfg(feature = "dev-capture")]
+        if self.capture_time.is_some() {
+            return None;
+        }
         if !request.scaled || request.size.is_some() || self.suspended {
             return None;
         }
@@ -6234,6 +6308,8 @@ impl Renderer {
             && self.native.as_ref().is_none_or(|n| n.post.is_none())
             && (self.surface.is_none()
                 || self.config.usage.contains(wgpu::TextureUsages::COPY_DST));
+        #[cfg(feature = "dev-capture")]
+        let fg = fg && self.capture_time.is_none();
         if !fg {
             self.frame_gen.stop();
         }
@@ -6300,6 +6376,10 @@ impl Renderer {
             self.frame_gen.paused = false;
         }
         let size = [self.config.width, self.config.height];
+        let needs_readback = self.screenshot.is_some();
+        #[cfg(feature = "dev-capture")]
+        let needs_readback =
+            needs_readback || (self.capture_time.is_some() && self.capture.pending());
         let target_texture = match (&surface_frame, &mut self.hdr) {
             _ if let Some((real, _)) = &fg_frames => real.clone(),
             (Some(_), Some(hdr)) => hdr.frame(&self.device, size),
@@ -6307,7 +6387,7 @@ impl Renderer {
             // into a texture that has it, then onto the swapchain.
             (Some(f), None) => self
                 .readback
-                .target(&self.device, &f.texture, self.screenshot.is_some())
+                .target(&self.device, &f.texture, needs_readback)
                 .unwrap_or_else(|| f.texture.clone()),
             (None, _) => self.offscreen.clone().ok_or("no offscreen target")?,
         };
@@ -6670,7 +6750,7 @@ impl Renderer {
                 &mut visible,
             )
         });
-        let now = std::time::Instant::now();
+        let now = self.animation_now();
         let mut visible_lods = std::mem::take(&mut self.visible_lods);
         visible_lods.clear();
         if frame.title {
@@ -7916,6 +7996,10 @@ impl Renderer {
                 .size()
                 .filter(|_| scaled.is_some())
                 .unwrap_or([self.config.width, self.config.height]);
+            #[cfg(feature = "dev-capture")]
+            native
+                .frame
+                .set_capture_presentation_time(self.capture_time);
             native.frame.write(&self.queue, frame, size);
             native.frame.block_light.update(
                 &self.queue,
@@ -9027,7 +9111,16 @@ impl Renderer {
                 previous_view_proj: previous.map(|(matrix, _)| matrix),
                 previous_camera: previous.map(|(_, camera)| camera),
                 camera: frame.camera,
-                frame_index: self.native_pre_post_frame,
+                frame_index: {
+                    #[cfg(feature = "dev-capture")]
+                    if let Some(clock) = self.capture_time {
+                        clock.frame() as u64
+                    } else {
+                        self.native_pre_post_frame
+                    }
+                    #[cfg(not(feature = "dev-capture"))]
+                    self.native_pre_post_frame
+                },
                 sun_direction: sun,
                 sky: &frame.sky,
                 fog_color,
@@ -9150,6 +9243,8 @@ impl Renderer {
                 indices: self.indices.clone(),
                 quads: cloud_quads,
             }));
+            #[cfg(feature = "dev-capture")]
+            post.set_capture_presentation_time(self.capture_time);
             post.run(
                 &self.device,
                 &self.queue,
@@ -9299,6 +9394,12 @@ impl Renderer {
                 .take()
                 .and_then(|request| self.take_readback(request, &mut encoder, shown_texture))
         });
+        #[cfg(feature = "dev-capture")]
+        let capture_readback = if self.capture_time.is_some() {
+            self.capture.copy(&self.device, &mut encoder, shown_texture)
+        } else {
+            None
+        };
         self.uploads.finish(&encoder);
         if has_section_copies {
             self.section_copy_bytes = 0;
@@ -9332,15 +9433,17 @@ impl Renderer {
         // submission needs this one: screenshots' readbacks, the error scopes (one per
         // thread), the first frame's startup log, VSync's frame callback, a reconfigure.
         // Frame generation presents its own frames (`frame_gen.present` below).
-        let (encoder, surface_frame, after) = if readback.is_none()
+        let can_defer = readback.is_none()
             && fg_frames.is_none()
             && hdr_readback.is_none()
             && checks.is_none()
             && !first_frame
             && !reconfigure
             && self.hdr_marker.is_none()
-            && (surface_frame.is_none() || self.config.present_mode != wgpu::PresentMode::Fifo)
-        {
+            && (surface_frame.is_none() || self.config.present_mode != wgpu::PresentMode::Fifo);
+        #[cfg(feature = "dev-capture")]
+        let can_defer = can_defer && capture_readback.is_none();
+        let (encoder, surface_frame, after) = if can_defer {
             let offscreen = surface_frame.is_none();
             // Culling and a shader pack's centre depth read back as soon as the frame is
             // submitted, as here.
@@ -9386,6 +9489,10 @@ impl Renderer {
             self.first_frame = FirstFrame::Drawn;
         }
         let submission = crate::spans::time("submit", || self.queue.submit([commands]));
+        #[cfg(feature = "dev-capture")]
+        if let Some(readback) = capture_readback {
+            self.capture.submitted(readback);
+        }
         if let Some(read) = after {
             read();
         } else if let Some(read) = self.cull.as_mut().and_then(|c| c.submitted()) {

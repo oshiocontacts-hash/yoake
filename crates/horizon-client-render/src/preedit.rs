@@ -8,12 +8,16 @@
 //! many places, so the event is kept here and every focused field calls
 //! [`report_caret`] where it draws its caret; the game draws the overlay last
 //! with [`draw_overlay`] and applies [`take_text_input_area`] to the window.
+#[cfg(feature = "dev-capture")]
+use crate::capture_time::AnimationInstant as Instant;
 use crate::{
     hud::{HudAtlas, HudBatch},
     text::{Style, Text},
     ui::nine_slice,
 };
-use std::{sync::Mutex, time::Instant};
+use std::sync::Mutex;
+#[cfg(not(feature = "dev-capture"))]
+use std::time::Instant;
 
 /// `PreeditEvent`: the composition, its caret and the blocks of text the
 /// input method set apart (the one being converted is `focused_block`).

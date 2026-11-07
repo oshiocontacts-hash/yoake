@@ -17,6 +17,7 @@ const PROTOCOL: &str = "0.1.0";
 /// The command groups the game serves, as `help` chains them: what `hello` reports as its features.
 const FEATURES: &[&str] = &[
     "game",
+    "mods",
     "station",
     "blocks",
     "lan",
@@ -45,6 +46,8 @@ fn hello() -> Value {
 const HELP: &[&str] = &[
     "hello                          the control protocol's version, the game's release and the command groups it serves",
     "status                         game, player, streaming and renderer state",
+    "mods                           native mod state and first errors",
+    "mod-profile on|off|get         native mod hook timing, sorted by total time",
     "simulation                     authoritative projectiles in the owner's level",
     "server-hold on|off             hold simulation and player packets at a control-fixture barrier",
     "stall MILLISECONDS             stall the window thread (0..5000), leaving transport alive",
@@ -395,6 +398,9 @@ impl Game<'_> {
         reply: &Sender<String>,
         event_loop: &dyn EventLoopCtl,
     ) -> Result<Option<Value>> {
+        if let Some(response) = crate::mod_guard::control_command(line) {
+            return Ok(Some(response));
+        }
         let words: Vec<&str> = line.split_whitespace().collect();
         #[cfg(feature = "dev-capture")]
         {
@@ -946,8 +952,10 @@ impl Game<'_> {
             }
             "chat" => {
                 let text = line.trim_start().strip_prefix("chat").unwrap_or("").trim();
+                // As typed: a client mod's command goes first, on a server too
+                // (single player's own included), then the line is sent.
                 if self.remote.is_some() {
-                    self.send_chat(text);
+                    self.handle_chat_input(text);
                     return ok();
                 }
                 self.require_world()?;

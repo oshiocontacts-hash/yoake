@@ -416,15 +416,15 @@ impl CitGlintPass {
     }
 
     /// Draw `vertices` with blend `blend` (an index into `GlintTextures::blends`).
-    pub(super) fn draw(
-        &self,
-        pass: &mut wgpu::RenderPass<'_>,
+    pub(super) fn draw<'encoder>(
+        &'encoder self,
+        pass: &mut impl wgpu::util::RenderEncoder<'encoder>,
         blend: u8,
         vertices: std::ops::Range<u32>,
     ) {
         if let Some(pipeline) = self.pipelines.get(usize::from(blend)) {
             pass.set_pipeline(pipeline);
-            pass.set_bind_group(1, &self.group, &[]);
+            pass.set_bind_group(1, Some(&self.group), &[]);
             pass.draw(vertices, 0..1);
         }
     }

@@ -1599,7 +1599,9 @@ dependencies = [
 name = "horizon-mod-api-gen-tests"
 version = "0.1.0"
 dependencies = [
+ "glam",
  "horizon-mod-api-gen",
+ "log",
  "serde_json",
 ]
 

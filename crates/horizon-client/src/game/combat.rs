@@ -157,7 +157,54 @@ pub(super) struct CombatTracker {
     /// end of the last one).
     fall_before: f64,
 }
+pub(super) struct IncomingDamage {
+    pending: Vec<(String, (u32, Text), Option<Text>)>,
+    pending_direct: Vec<(String, Text)>,
+    noted_since: Option<(usize, usize)>,
+    projectile_owner: Option<u32>,
+    projectile_direct: Option<Text>,
+    blast_owner: Option<(u32, Text)>,
+    blast_guest: Option<u32>,
+    projectile_attacker: Option<(u32, Text)>,
+    refuse_player_hit: bool,
+    post_attack_if_alive: bool,
+    rocket_hit: bool,
+    player_attacker: Option<([f64; 3], f32)>,
+}
+
 impl CombatTracker {
+    pub(super) fn take_incoming(&mut self) -> IncomingDamage {
+        IncomingDamage {
+            pending: std::mem::take(&mut self.pending),
+            pending_direct: std::mem::take(&mut self.pending_direct),
+            noted_since: self.noted_since.take(),
+            projectile_owner: self.projectile_owner.take(),
+            projectile_direct: self.projectile_direct.take(),
+            blast_owner: self.blast_owner.take(),
+            blast_guest: self.blast_guest.take(),
+            projectile_attacker: self.projectile_attacker.take(),
+            refuse_player_hit: std::mem::take(&mut self.refuse_player_hit),
+            post_attack_if_alive: std::mem::take(&mut self.post_attack_if_alive),
+            rocket_hit: std::mem::take(&mut self.rocket_hit),
+            player_attacker: self.player_attacker.take(),
+        }
+    }
+
+    pub(super) fn restore_incoming(&mut self, incoming: IncomingDamage) {
+        self.pending = incoming.pending;
+        self.pending_direct = incoming.pending_direct;
+        self.noted_since = incoming.noted_since;
+        self.projectile_owner = incoming.projectile_owner;
+        self.projectile_direct = incoming.projectile_direct;
+        self.blast_owner = incoming.blast_owner;
+        self.blast_guest = incoming.blast_guest;
+        self.projectile_attacker = incoming.projectile_attacker;
+        self.refuse_player_hit = incoming.refuse_player_hit;
+        self.post_attack_if_alive = incoming.post_attack_if_alive;
+        self.rocket_hit = incoming.rocket_hit;
+        self.player_attacker = incoming.player_attacker;
+    }
+
     /// The last blow taken: its damage type and the causing entity's id (0
     /// for none), for `LivingDeathEvent`.
     pub(super) fn last_blow(&self) -> Option<(&str, u32)> {

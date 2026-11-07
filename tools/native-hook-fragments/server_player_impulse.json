@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "push_server_player",
+      "target": "horizon_client::game::native_damage::Game<'_>::native_push_server_player"
+    }
+  ],
+  "rust_summary": "bounded additive server-player impulses using the vanilla motion packet path (`push_server_player`).",
+  "doc_summary": "bounded additive server-player impulses using the vanilla motion packet path (`push_server_player`). Bundles need a hooks manifest entry for @API:server_player_impulse@.",
+  "comments": ["crates/horizon-client/src/game/native_damage.rs"]
+}

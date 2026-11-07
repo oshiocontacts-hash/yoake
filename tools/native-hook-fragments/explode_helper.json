@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "explode",
+      "target": "horizon_client::game::native_explosions::Game<'_>::native_explode"
+    }
+  ],
+  "rust_summary": "bounded source-less server explosions with explicit block interaction (`explode`, `NativeBlast`).",
+  "doc_summary": "bounded source-less server explosions with explicit block interaction (`explode`, `NativeBlast`). Bundles need a hooks manifest entry for @API:explode_helper@.",
+  "comments": ["crates/horizon-client/src/game/native_explosions.rs"]
+}

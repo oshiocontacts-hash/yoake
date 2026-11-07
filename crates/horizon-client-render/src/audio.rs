@@ -809,6 +809,8 @@ struct Channel {
 }
 #[derive(Default)]
 struct Mixer {
+    #[cfg(feature = "dev-capture")]
+    capture_muted: bool,
     channels: HashMap<ChannelId, Channel>,
     listener: [f64; 3],
     listener_yaw: f32,
@@ -1115,7 +1117,12 @@ impl Backend for MixerBackend {
     fn create(&mut self, _streaming: bool) -> Option<ChannelId> {
         self.next += 1;
         let id = self.next;
-        self.mixer.lock().ok()?.channels.insert(
+        let mut mixer = self.mixer.lock().ok()?;
+        #[cfg(feature = "dev-capture")]
+        if mixer.capture_muted {
+            return None;
+        }
+        mixer.channels.insert(
             id,
             Channel {
                 samples: None,
@@ -1300,6 +1307,10 @@ fn distance_gain(linear: Option<f32>, distance: f32) -> f32 {
 #[cfg_attr(not(feature = "audio"), allow(dead_code))]
 fn mix(mixer: &mut Mixer, data: &mut [f32], channels: usize, rate: u32) {
     data.fill(0.0);
+    #[cfg(feature = "dev-capture")]
+    if mixer.capture_muted {
+        return;
+    }
     // The camera's forward and up vectors (`Camera.forwardVector`/`upVector`)
     // and OpenAL's right = forward x up.
     let basis = |yaw: f32, pitch: f32| {
@@ -1778,6 +1789,10 @@ impl Audio {
         pitch: f32,
         looping: bool,
     ) -> std::result::Result<NativePlaybackHandle, NativeSoundError> {
+        #[cfg(feature = "dev-capture")]
+        if self.engine.capture_muted() {
+            return Err(NativeSoundError::Muted);
+        }
         if !position
             .iter()
             .all(|coordinate| coordinate.is_finite() && (*coordinate as f32).is_finite())
@@ -2182,6 +2197,8 @@ impl Audio {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let mut engine = SoundEngine::new(self.engine.registry.clone());
         engine.loaded = self.backend.live;
+        #[cfg(feature = "dev-capture")]
+        engine.share_capture_policy(&self.engine);
         Self {
             _stream: None,
             device_name: self.device_name.clone(),
@@ -2338,6 +2355,24 @@ impl Audio {
     /// `SoundManager.stop()`: every sound.
     pub fn stop_all(&mut self) {
         self.engine.stop_all(&mut self.backend);
+        self.stop_registered_playbacks();
+    }
+    #[cfg(feature = "dev-capture")]
+    pub fn set_capture_muted(&mut self, muted: bool) {
+        if self.engine.capture_muted() == muted {
+            return;
+        }
+        {
+            let mut mixer = self
+                .backend
+                .mixer
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            mixer.capture_muted = muted;
+            mixer.channels.clear();
+            mixer.limiter_peak = 0.0;
+        }
+        self.engine.set_capture_muted(muted);
         self.stop_registered_playbacks();
     }
     /// `SoundManager.reload` (resource packs changed): stop every sound, then
@@ -2578,6 +2613,41 @@ impl Sounds for Audio {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "dev-capture")]
+    #[test]
+    fn capture_mute_silences_the_mixer_and_restores_new_playback() {
+        let mut audio = local_test_audio();
+        let mut shared = audio.share(1);
+        let channel = audio.backend.create(false).unwrap();
+        audio.backend.with(channel, |source| {
+            source.samples = Some((Arc::new(vec![0.5; 32]), 48_000));
+            source.state = State::Playing;
+            source.relative = true;
+        });
+        let mut output = [0.0; 16];
+        mix(
+            &mut audio.backend.mixer.lock().unwrap(),
+            &mut output,
+            2,
+            48_000,
+        );
+        assert!(output.iter().any(|sample| *sample != 0.0));
+        audio.set_capture_muted(true);
+        assert!(audio.backend.mixer.lock().unwrap().channels.is_empty());
+        assert!(shared.backend.create(false).is_none());
+        output.fill(1.0);
+        mix(
+            &mut audio.backend.mixer.lock().unwrap(),
+            &mut output,
+            2,
+            48_000,
+        );
+        assert!(output.iter().all(|sample| *sample == 0.0));
+        audio.set_capture_muted(false);
+        assert!(shared.backend.create(false).is_some());
+        assert!(!shared.engine.capture_muted());
+    }
 
     fn local_test_audio() -> Audio {
         let mut audio = Audio::silent(Path::new("/nonexistent/horizon-test-assets"));

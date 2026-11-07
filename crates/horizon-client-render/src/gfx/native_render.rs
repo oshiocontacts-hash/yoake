@@ -5,6 +5,7 @@
 
 use super::Vertex;
 use super::pack_draw::EntitySpan;
+use crate::crash::mod_guard::{self, CallOutcome as GuardOutcome};
 use glam::{DVec3, Mat4, Vec3};
 use std::sync::{
     OnceLock,
@@ -20,13 +21,86 @@ pub use generated::{
 };
 pub use wgpu;
 
-static RENDERERS: OnceLock<Box<[&'static dyn RenderHooks]>> = OnceLock::new();
+struct Renderers {
+    hooks: Box<[&'static dyn RenderHooks]>,
+    indices: Box<[usize]>,
+}
+
+static RENDERERS: OnceLock<Renderers> = OnceLock::new();
 
 /// Install trait mod renderers in dispatch order, once per process.
 pub fn install(
     renderers: Box<[&'static dyn RenderHooks]>,
 ) -> Result<(), Box<[&'static dyn RenderHooks]>> {
-    RENDERERS.set(renderers)
+    let indices = (0..renderers.len()).collect();
+    RENDERERS
+        .set(Renderers {
+            hooks: renderers,
+            indices,
+        })
+        .map_err(|renderers| renderers.hooks)
+}
+
+pub fn install_indexed(
+    renderers: Box<[(usize, &'static dyn RenderHooks)]>,
+) -> Result<(), Box<[(usize, &'static dyn RenderHooks)]>> {
+    let (indices, hooks): (Vec<_>, Vec<_>) = renderers.into_vec().into_iter().unzip();
+    RENDERERS
+        .set(Renderers {
+            hooks: hooks.into_boxed_slice(),
+            indices: indices.into_boxed_slice(),
+        })
+        .map_err(|renderers| {
+            renderers
+                .indices
+                .into_vec()
+                .into_iter()
+                .zip(renderers.hooks.into_vec())
+                .collect()
+        })
+}
+
+fn renderers() -> &'static [&'static dyn RenderHooks] {
+    RENDERERS.get().map_or(&[], |renderers| &renderers.hooks)
+}
+
+fn guard_index(index: usize) -> usize {
+    RENDERERS
+        .get()
+        .map_or(index, |renderers| renderers.indices[index])
+}
+
+fn guard_dispatch(count: usize, hook: &'static str) -> Option<mod_guard::Dispatch<'static>> {
+    #[cfg(test)]
+    {
+        return TEST_GUARD.with(|guard| guard.get().dispatch(count, hook));
+    }
+    #[cfg(not(test))]
+    mod_guard::dispatch(count, hook)
+}
+
+#[cfg(test)]
+thread_local! {
+    static TEST_GUARD: std::cell::Cell<&'static mod_guard::Registry> =
+        std::cell::Cell::new(new_test_guard());
+}
+
+#[cfg(test)]
+fn new_test_guard() -> &'static mod_guard::Registry {
+    Box::leak(Box::new(mod_guard::Registry::new(
+        &[],
+        16,
+        &[
+            "world_drawn",
+            "hand_drawn",
+            "world_pre_post",
+            "overlay_drawn",
+            "render_device_lost",
+            "render_device_ready",
+            "render_needs",
+        ],
+        mod_guard::PanicMode::Contain,
+    )))
 }
 
 static MODS_BUILT_IN: AtomicBool = AtomicBool::new(false);
@@ -41,7 +115,7 @@ pub fn world_drawn_hooked() -> bool {
     MODS_BUILT_IN.load(Ordering::Relaxed)
         || RENDERERS
             .get()
-            .is_some_and(|renderers| !renderers.is_empty())
+            .is_some_and(|renderers| !renderers.hooks.is_empty())
 }
 
 /// What a mod can draw with once the world is drawn: after the sky, terrain, entities,
@@ -94,6 +168,7 @@ pub struct WorldDrawn<'a> {
 /// its UVs 0 to 1 across it, as the world uses them (gamma-encoded, animated layers at the frame
 /// shown).
 #[non_exhaustive]
+#[derive(Clone, Copy)]
 pub struct BlockSpriteArrays<'a> {
     /// The arrays as `D2Array` views, terrain.wgsl's eight (`sprites`, `sprites_1`...): a 1-layer
     /// stand-in past the ones in use, each with the mip levels the Mipmap Levels option leaves.
@@ -208,6 +283,88 @@ pub struct OverlayDrawn<'a> {
     pub gui_scale: f32,
 }
 
+macro_rules! guard_snapshot {
+    ($context:ident, $snapshot:ident, { $($field:ident: $kind:ty),* $(,)? }) => {
+        struct $snapshot<'a> {
+            $($field: $kind),*
+        }
+
+        impl<'a> $context<'a> {
+            fn guard_snapshot(&self) -> $snapshot<'a> {
+                $snapshot { $($field: self.$field),* }
+            }
+
+            fn guard_restore(&mut self, snapshot: $snapshot<'a>) {
+                $(self.$field = snapshot.$field;)*
+            }
+        }
+    };
+}
+
+// CHECK: GPU submissions and commands already recorded through encoder cannot be undone.
+guard_snapshot!(WorldDrawn, WorldDrawnSnapshot, {
+    device: &'a wgpu::Device,
+    queue: &'a wgpu::Queue,
+    color: &'a wgpu::Texture,
+    color_view: &'a wgpu::TextureView,
+    color_format: wgpu::TextureFormat,
+    size: [u32; 2],
+    depth: &'a wgpu::TextureView,
+    depth_size: [u32; 2],
+    view_proj: Mat4,
+    jittered: Mat4,
+    camera: DVec3,
+    entities: &'a [Vertex],
+    spans: &'a [EntitySpan],
+    motion: &'a [(u32, u64)],
+    atlas: Option<&'a wgpu::Texture>,
+    quad_indices: &'a wgpu::Buffer,
+    block_sprites: BlockSpriteArrays<'a>,
+});
+guard_snapshot!(HandDrawn, HandDrawnSnapshot, {
+    device: &'a wgpu::Device,
+    queue: &'a wgpu::Queue,
+    color: &'a wgpu::Texture,
+    color_view: &'a wgpu::TextureView,
+    color_format: wgpu::TextureFormat,
+    size: [u32; 2],
+    hand: &'a [Vertex],
+    view_proj: Mat4,
+    camera: DVec3,
+    atlas: Option<&'a wgpu::Texture>,
+    quad_indices: &'a wgpu::Buffer,
+});
+guard_snapshot!(WorldPrePost, WorldPrePostSnapshot, {
+    device: &'a wgpu::Device,
+    queue: &'a wgpu::Queue,
+    color: &'a wgpu::Texture,
+    color_view: &'a wgpu::TextureView,
+    color_format: wgpu::TextureFormat,
+    size: [u32; 2],
+    depth: &'a wgpu::Texture,
+    depth_view: &'a wgpu::TextureView,
+    view_proj: Mat4,
+    jittered: Mat4,
+    previous_view_proj: Option<Mat4>,
+    previous_camera: Option<DVec3>,
+    camera: DVec3,
+    frame_index: u64,
+    sun_direction: Vec3,
+    sky: &'a crate::environment::Sky,
+    fog_color: [f32; 4],
+    fog: [f32; 4],
+    block_sprites: BlockSpriteArrays<'a>,
+});
+guard_snapshot!(OverlayDrawn, OverlayDrawnSnapshot, {
+    device: &'a wgpu::Device,
+    queue: &'a wgpu::Queue,
+    color: &'a wgpu::Texture,
+    color_view: &'a wgpu::TextureView,
+    color_format: wgpu::TextureFormat,
+    size: [u32; 2],
+    gui_scale: f32,
+});
+
 /// What the mods need from a frame that the game doesn't make for itself. Each mod sets what it
 /// needs and leaves the rest, so several can ask.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -224,31 +381,41 @@ pub struct RenderNeeds {
     pub overlay: bool,
 }
 
+impl RenderNeeds {
+    fn guard_snapshot(&self) -> Self {
+        *self
+    }
+
+    fn guard_restore(&mut self, snapshot: Self) {
+        *self = snapshot;
+    }
+}
+
 /// The world is drawn (see [`WorldDrawn`]). Not called on the title screen's panorama.
 #[inline(never)]
 pub fn native_world_drawn(world: &mut WorldDrawn<'_>) {
-    generated::dispatch_world_drawn(RENDERERS.get().map_or(&[], |renderers| renderers), world);
+    generated::dispatch_world_drawn(renderers(), world);
 }
 
 /// The first-person hand is drawn (see [`HandDrawn`]), on every frame [`native_world_drawn`]
 /// runs, with no hand too. API @API:hand_drawn@.
 #[inline(never)]
 pub fn native_hand_drawn(hand: &mut HandDrawn<'_>) {
-    generated::dispatch_hand_drawn(RENDERERS.get().map_or(&[], |renderers| renderers), hand);
+    generated::dispatch_hand_drawn(renderers(), hand);
 }
 
 /// The world is drawn, before every finishing branch (see [`WorldPrePost`]). Only called
 /// when [`RenderNeeds::pre_post`] is set, never on the title panorama. API @API:world_pre_post@.
 #[inline(never)]
 pub fn native_world_pre_post(world: &mut WorldPrePost<'_>) {
-    generated::dispatch_world_pre_post(RENDERERS.get().map_or(&[], |renderers| renderers), world);
+    generated::dispatch_world_pre_post(renderers(), world);
 }
 
 /// The final HUD/screen batch is drawn (see [`OverlayDrawn`]). Only called when
 /// [`RenderNeeds::overlay`] is set, on real and generated overlay frames. API @API:overlay_drawn@.
 #[inline(never)]
 pub fn native_overlay_drawn(overlay: &mut OverlayDrawn<'_>) {
-    generated::dispatch_overlay_drawn(RENDERERS.get().map_or(&[], |renderers| renderers), overlay);
+    generated::dispatch_overlay_drawn(renderers(), overlay);
 }
 
 /// A device was lost, not deliberately destroyed. Runs synchronously on wgpu's device-lost
@@ -257,11 +424,8 @@ pub fn native_overlay_drawn(overlay: &mut OverlayDrawn<'_>) {
 /// are valid only for this call. API @API:render_device_lost@.
 #[inline(never)]
 pub fn native_render_device_lost(reason: &wgpu::DeviceLostReason, message: &str) {
-    generated::dispatch_render_device_lost(
-        RENDERERS.get().map_or(&[], |renderers| renderers),
-        reason,
-        message,
-    );
+    let _thread = mod_guard::enter_thread(mod_guard::ModThread::Background);
+    generated::dispatch_render_device_lost(renderers(), reason, message);
 }
 
 /// A newly opened GPU device is ready, on the device-opening thread, before the renderer is
@@ -270,17 +434,13 @@ pub fn native_render_device_lost(reason: &wgpu::DeviceLostReason, message: &str)
 /// cloned handles if needed. API @API:render_device_ready@.
 #[inline(never)]
 pub fn native_render_device_ready(device: &wgpu::Device, queue: &wgpu::Queue) {
-    generated::dispatch_render_device_ready(
-        RENDERERS.get().map_or(&[], |renderers| renderers),
-        device,
-        queue,
-    );
+    generated::dispatch_render_device_ready(renderers(), device, queue);
 }
 
 /// Asked as a frame is built and drawn: set what your mod needs.
 #[inline(never)]
 pub fn native_render_needs(needs: &mut RenderNeeds) {
-    generated::dispatch_render_needs(RENDERERS.get().map_or(&[], |renderers| renderers), needs);
+    generated::dispatch_render_needs(renderers(), needs);
 }
 
 /// What the mods need this frame ([`native_render_needs`]).
@@ -293,6 +453,100 @@ pub fn render_needs() -> RenderNeeds {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::AtomicUsize;
+
+    struct Probe {
+        panics: bool,
+        calls: AtomicUsize,
+    }
+
+    impl RenderHooks for Probe {
+        fn render_needs(&self, event: &mut RenderNeedsEvent<'_>) {
+            event.needs.overlay = true;
+            self.calls.fetch_add(1, Ordering::Relaxed);
+            assert!(!self.panics, "broken renderer");
+        }
+
+        fn render_device_lost(&self, _event: &mut RenderDeviceLostEvent<'_>) {
+            self.calls.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    #[test]
+    fn a_render_panic_rolls_back_and_quarantines_every_hook() {
+        let registry = new_test_guard();
+        TEST_GUARD.with(|guard| guard.set(registry));
+        let first = Probe {
+            panics: false,
+            calls: AtomicUsize::new(0),
+        };
+        let broken = Probe {
+            panics: true,
+            calls: AtomicUsize::new(0),
+        };
+        let last = Probe {
+            panics: false,
+            calls: AtomicUsize::new(0),
+        };
+        let mods: &[&dyn RenderHooks] = &[&first, &broken, &last];
+        let previous = crate::crash::enter_native_mod(crate::crash::NativeModCall {
+            id: Some("outer"),
+            index: 99,
+            hook: "outer_hook",
+        });
+        let mark = crate::crash::native_mod_call();
+        let mut needs = RenderNeeds::default();
+        generated::dispatch_render_needs(mods, &mut needs);
+        assert_eq!(needs, RenderNeeds::default());
+        assert_eq!(first.calls.load(Ordering::Relaxed), 1);
+        assert_eq!(broken.calls.load(Ordering::Relaxed), 1);
+        assert_eq!(last.calls.load(Ordering::Relaxed), 0);
+        assert_eq!(crate::crash::native_mod_call(), mark);
+        assert!(!registry.statuses()[1].enabled);
+        generated::dispatch_render_needs(mods, &mut needs);
+        assert!(needs.overlay);
+        generated::dispatch_render_device_lost(mods, &wgpu::DeviceLostReason::Destroyed, "test");
+        assert_eq!(first.calls.load(Ordering::Relaxed), 3);
+        assert_eq!(broken.calls.load(Ordering::Relaxed), 1);
+        assert_eq!(last.calls.load(Ordering::Relaxed), 2);
+        drop(previous);
+        TEST_GUARD.with(|guard| guard.set(new_test_guard()));
+    }
+
+    #[test]
+    fn quarantined_renderers_stop_requesting_every_frame_resource() {
+        struct AllNeeds;
+
+        impl RenderHooks for AllNeeds {
+            fn render_needs(&self, event: &mut RenderNeedsEvent<'_>) {
+                event.needs.entity_spans = true;
+                event.needs.world_depth = true;
+                event.needs.pre_post = true;
+                event.needs.overlay = true;
+            }
+
+            fn render_device_lost(&self, _event: &mut RenderDeviceLostEvent<'_>) {
+                panic!("broken renderer");
+            }
+        }
+
+        let registry = new_test_guard();
+        TEST_GUARD.with(|guard| guard.set(registry));
+        let renderer = AllNeeds;
+        let mods: &[&dyn RenderHooks] = &[&renderer];
+        let mut needs = RenderNeeds::default();
+        generated::dispatch_render_needs(mods, &mut needs);
+        assert!(needs.entity_spans);
+        assert!(needs.world_depth);
+        assert!(needs.pre_post);
+        assert!(needs.overlay);
+        generated::dispatch_render_device_lost(mods, &wgpu::DeviceLostReason::Destroyed, "test");
+        assert!(!registry.statuses()[0].enabled);
+        let mut needs = RenderNeeds::default();
+        generated::dispatch_render_needs(mods, &mut needs);
+        assert_eq!(needs, RenderNeeds::default());
+        TEST_GUARD.with(|guard| guard.set(new_test_guard()));
+    }
 
     struct Depth;
     impl RenderHooks for Depth {

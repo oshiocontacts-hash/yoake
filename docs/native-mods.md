@@ -2896,6 +2896,143 @@ as the terrain samples them. API @API:native_block_sprites@.
 
 Look blocks up once and keep what you need (a few words a block for your own shader), not every frame.
 
+### Mod textures on the GUI
+
+`crates/horizon-client/src/game/native_gui_textures.rs` and `horizon_client::hud::native_textures`: for a client mod
+that draws a texture of its own on the HUD or on its screen (a live mirror of the player, a mini map, a picture it
+renders each frame). API @API:gui_textures@.
+
+- `native_gui_texture_create(size, format, filter)` makes a single-mip texture the mod can render into and upload to
+  (`TEXTURE_BINDING | RENDER_ATTACHMENT | COPY_DST`). `native_gui_texture_register(&texture, filter)` takes one the
+  mod made itself on the renderer's device: a single-layer, single-sample 2D texture with `TEXTURE_BINDING`. Formats
+  are non-sRGB `Rgba8Unorm`, `Bgra8Unorm` and filterable `Rgba16Float`; `filter` is `Nearest` or `Linear`. Both give
+  a `NativeGuiTexture`, or a `NativeGuiTextureError` (`RendererUnavailable` before the renderer exists).
+- `native_gui_texture(batch, &texture, [x, y, w, h], [u0, v0, u1, v1], argb, nine_slice)` appends one draw to a GUI
+  batch, in GUI units, with UVs from 0 to 1 and a straight-alpha ARGB tint. `nine_slice` (`NativeGuiNineSlice`) gives
+  the source size and the left, top, right and bottom borders in source pixels; the borders are drawn that many GUI
+  units wide. The draw keeps its place among the batch's other draws (translucent draws are not sorted), clipping and
+  the blur behind a screen included. It returns false and appends nothing for a stale or another renderer's handle,
+  a non-finite or empty rectangle, UVs outside 0 to 1, or borders wider than the source.
+- Order in a frame: register or create the texture first, then append its draws while the GUI is built, then render
+  its contents in `WorldPrePost` (the GUI batch is prepared before that hook and samples the texture after the world
+  passes). Don't append GUI draws from `WorldPrePost`.
+- Limits: 64 registrations at once, sides up to `min(4096, the device's limit)`, 128 MiB in all with mip levels.
+  Clones of a handle are the same registration; a registration is freed when its last handle and the last prepared
+  batch using it are dropped. A resource reload or a lost device ends every handle (`is_valid()` turns false):
+  register again on the new renderer. A window resize does not.
+- Once warmed up, drawing the same textures each frame allocates nothing extra: the draw lists are kept, cleared,
+  for the next frame (a few lists of up to 256 draws), and a kept list holds no registration alive.
+
+### Item cooldowns
+
+`crates/horizon-client/src/game/native_cooldowns.rs` and `native_item_slot.rs`: for a mod with skills on a cooldown
+of its own, and for drawing that cooldown on the slot.
+
+- `native_set_item_cooldown(player, target, ticks)` (API @API:item_cooldown_helpers@) starts, replaces or ends an
+  item cooldown for an online player, on the server only. `target` is a `NativeCooldownTarget`: `ItemId("minecraft:
+  ender_pearl")` (the item's default group), `Stack(&stack)` (the stack's `use_cooldown` group, if it has one) or
+  `Group("mymod:dash")`. A positive `ticks` starts it, 0 ends it, a negative one is an `Err`. An `ItemId` or `Stack`
+  start goes through `native_player_item_cooldown` first, so a mod can still cancel it there; a `Group` start and an
+  end do not. The player's client hears it as it hears vanilla cooldowns. `Ok(false)` when the player isn't reachable
+  (not online, a LAN client); calling it from inside itself is an `Err`.
+- `native_item_cooldown_remaining(player, target)` gives `(remaining_ticks, total_ticks)` of an active cooldown, or
+  None.
+- To draw a slot's cooldown your own way, set `listened` in `native_item_slot_cooldown_listened(listened)` (asked once,
+  after mods load) and hook `native_item_slot_cooldown(batch, stack, rect, cooldown, partial_tick) -> Flow` (API
+  @API:item_slot_cooldown@). It runs for each slot drawn, after the durability bar and before the white cooldown shade
+  and the count; `rect` is the slot's `[left, top, width, height]` in GUI units, and `cooldown` is
+  `Some((fraction, remaining_ticks))` while the stack's group is cooling down on this client (the fraction counts the
+  partial tick). Return `Cancel` to leave out the white shade (and later listeners); the bar, count, glint and
+  `native_item_decorations` stay. With no listener, slots draw as before, with no extra lookup.
+- `native_fan(batch, center, edge, argb)` (API @API:gui_fan@) fills a fan of triangles from `center` to each pair of
+  neighbouring `edge` points, for a clock-hand sweep or a pie. Repeat the first edge point at the end to close it.
+
+### Entities in a sphere
+
+`crates/horizon-client/src/game/native_entity_query.rs`: for a skill that finds what it hits. API
+@API:entity_query@.
+
+- `native_entities_in(dimension, center, radius) -> Result<Vec<NativeEntityInfo>, String>` lists the entities of the
+  loaded server level whose box touches the sphere (the box's nearest point inside it or on its edge), in network id
+  order. It loads no chunks. `NativeEntityInfo` (`#[non_exhaustive]`; `NativeEntityInfo::new` for tests) has `id`,
+  `dimension`, `kind` (`minecraft:zombie`), `position`, `bounding_box` (min and max corners), `alive` (false for a mob
+  that is dying) and `player_uuid` for a player. Removed entities are left out.
+- Server side only, inside a mod's call while the server tick runs: the single player owner, a LAN host, a dedicated
+  server. A LAN client, a guest's packet context or no host give an `Err`. Another dimension than the current one
+  gives an empty list.
+- Each mod has, per server tick: radius up to 64, 8 queries, 4096 entities looked at and 256 results. Past one of them
+  it's an `Err` and no part of a list.
+- Lightning, the dragon, dragon fireballs, breath clouds, thrown potions, eyes of ender, leash knots, ominous spawners,
+  evoker fangs and other entities without a tracked box count as a point at their position. Thrown potions and eyes
+  of ender have no dimension yet: while one exists and another level is parked, the whole query is an `Err`.
+
+### Multiplayer identity
+
+So that two players with different builds of a native mod can't join each other and drift apart, each native
+bundle has an id, a version and a side, built into the executable.
+
+- `horizon-native.json` takes an optional `"side"`: `"both"` (the default: every Yoake player runs the same pack),
+  `"client"` (never blocks a join, never told to a server) or `"server"` (stays private). Content mods keep their own
+  default. The numeric `hooks` field is still the hook API revision, not the mod's version.
+- The launcher writes the ids, versions and sides of every bundle (mixin-only ones too) into the generated
+  executable and checks that the JSON matches `horizon-mixin.toml`. A hand-written executable calls
+  `horizon_client::entry::main_with_native(mods, identities)` with a `&'static [NativeMod]` (`id`, `version`,
+  `side: NativeSide`); `main_with(mods)` still runs, but its hooks are invisible to the check.
+- In the configuration phase two Horizon peers with `both` native mods agree on `horizon:native_mods` and exchange
+  their lists. A difference is refused with the mods named and a short pack digest (SHA-256 of the sorted id and
+  version list): `Different Yoake pack (here …, server …).` then `kigurumi (server 0.4.2, yours 0.4.1)`, `Missing: …`
+  or `Not on this server: …`.
+- With no `both` native mod at either end nothing extra is sent, and the content check is as before. Vanilla peers
+  take no part; an older Horizon falls back to the content check alone and can't confirm the native pack.
+- It compares declared versions, not the code: bump a mod's version whenever a build changes how it behaves.
+
+### Server damage, player pushes and explosions
+
+`crates/horizon-client/src/game/native_damage.rs` and `native_explosions.rs`: for a skill that hits, knocks back
+or blows up what it finds (with `native_entities_in`). API @API:entity_damage@, @API:server_player_impulse@,
+@API:explode_helper@.
+
+- `hurt_entity(dimension, id, amount, &damage) -> Result<bool, String>` damages an ordinary mob or a ready server
+  player through the game's own damage path (armour, resistance, absorption, invulnerability time, PvP and team
+  rules, death, loot, XP and kill credit). `Ok(true)`: the hit was taken (health may still not drop); `Ok(false)`:
+  the game's rules refused it. A bad amount or position, an unknown target, another kind of entity, the wrong
+  context or a spent limit is an `Err`. `NativeDamage::new(kind, actor, position)`: `kind` is `Magic`,
+  `PlayerAttack` or `Explosion` (`minecraft:explosion`, or `minecraft:player_explosion` with a player);
+  `actor` is `ActingPlayer` (outside a player's context, the single player owner), `Player(uuid)` or `None`.
+  A player who isn't online is an `Err`; credit never goes to someone else.
+- `push_server_player(dimension, uuid, impulse) -> Result<bool, String>` adds to a server player's velocity and
+  sends it as the game sends knockback, to the owner and to LAN guests alike. The client's `push_player` and the
+  server's `push_mob` are separate.
+- `explode(dimension, at, power, fire, blast) -> bool` makes an explosion with no source. `NativeBlast::Keep` breaks
+  no blocks, `Block` and `Tnt` drop blocks as those explosions do. `at` must be finite, inside ±30,000,000 and in a
+  loaded chunk; `0 < power <= 32`. Anything refused is `false`.
+- Server side only, with the world ready and `dimension` the one being ticked: a LAN client and a guest's packet
+  context are refused before anything changes. Per mod and server tick: 256 hurts and pushes together, 4 explosions,
+  and calls from inside these helpers' own effects at most 4 deep.
+
+### Client state
+
+`crates/horizon-client/src/game/native_client_state.rs`: for a client mod that needs to know where the player is,
+how loud the game is and whether the player is in play. API @API:client_state_reads@.
+
+- `client_world_key() -> Option<NativeClientWorld>` (`#[non_exhaustive]`): `Singleplayer { folder }` (the save's
+  folder name only; a world opened to LAN and split-screen guests stay `Singleplayer`), `Server { address }` and
+  `LanGuest { address }` (lowercase host, explicit port, 25565 by default, IPv6 in brackets, as the server list keys
+  them) or `Friend` (no invite secret). None on the title screen, before the client's level loads, after it unloads,
+  and in a server's `Game`.
+- `sound_volume(category)` gives a sound slider from 0 to 1; `sound_volume_effective(category)` gives master times
+  it (master itself unchanged), the gain the options give. `NativeSoundCategory` (`#[non_exhaustive]`): `Master`,
+  `Music`, `Records`, `Weather`, `Blocks`, `Hostile`, `Neutral`, `Players`, `Ambient`, `Voice`, `Ui`. They only read.
+- `playing()`: in a world, no screen and no title, sign editor or book over it (the test keys and zoom use). False
+  with the pause menu, chat, an inventory or a mod screen.
+- `window()`: true in the window's `Game`, false in a server's, the single player's integrated server included.
+  Some hooks run in both: `command` (API 35) is first asked in the window's `Game` when the player sends a `/` line
+  (typed, clicked or `horizon-ctl chat`); only if no mod sets `ran` does the line go to the server, whose `Game` asks
+  `command` again for its own commands. So a client command sets `ran` in the window's call and doesn't need the
+  server's (no `world_dir()` there).
+- `camera()` keeps the last rendered world frame's camera, so input, screen and the window's `command` calls see it
+  too; it is None before the first world frame, on the title panorama and in a server's `Game`.
+
 ### Menu slot rules
 
 `crates/horizon-client/src/menu.rs`: `native_menu_slot_rules(menu, slot, stack, may_place, max_stack)`, a free function

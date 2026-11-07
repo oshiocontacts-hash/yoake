@@ -968,6 +968,7 @@ fn login_and_configure(
     )?;
     let mut info = ClientInformation::new(10);
     let mut brand = String::from("vanilla");
+    let mut native_check = horizon_protocol::mod_list::native::Negotiation::default();
     let known_pack = loop {
         let (id, payload) = c.recv().map_err(e)?;
         match decode_config(id, &payload).map_err(e)? {
@@ -976,6 +977,11 @@ fn login_and_configure(
                 brand = horizon_protocol::buf::Reader::new(&p.data)
                     .string(32767)
                     .unwrap_or(brand);
+            }
+            cfg::Serverbound::CustomPayload(p)
+                if p.channel == horizon_protocol::mod_list::native::CHANNEL =>
+            {
+                native_check.receive_capabilities(&p.data);
             }
             cfg::Serverbound::SelectKnownPacks(p) => break p.packs == vec![core.clone()],
             _ => {}
@@ -1034,7 +1040,89 @@ fn login_and_configure(
     // The mods that must be the same on both sides, named when they are not
     // (horizon_protocol::mod_list); the registry hash below only sees ids.
     let server_mods = horizon_protocol::mod_list::local();
-    if brand == "horizon" && !server_mods.is_empty() {
+    let server_native = horizon_protocol::mod_list::native::local();
+    let mut native_checked = false;
+    if brand == "horizon"
+        && (horizon_protocol::mod_list::native::has_shared(server_native)
+            || native_check.supported())
+    {
+        send(
+            c,
+            cfg::Clientbound::CustomPayload(cfg::CustomPayload {
+                channel: horizon_protocol::mod_list::native::CHANNEL.into(),
+                data: horizon_protocol::mod_list::native::CAPABILITIES.to_vec(),
+            }),
+        )?;
+        if !native_check.supported() {
+            send(c, cfg::Clientbound::Ping(cfg::Ping { id: 2 }))?;
+            loop {
+                let (id, payload) = c.recv().map_err(e)?;
+                match decode_config(id, &payload).map_err(e)? {
+                    cfg::Serverbound::CustomPayload(p)
+                        if p.channel == horizon_protocol::mod_list::native::CHANNEL =>
+                    {
+                        native_check.receive_capabilities(&p.data);
+                    }
+                    cfg::Serverbound::Pong(p) if p.id == 2 => break,
+                    cfg::Serverbound::ClientInformation(i) => info = i,
+                    _ => {}
+                }
+            }
+        }
+        if native_check.supported() {
+            let snapshot =
+                horizon_protocol::mod_list::native::Snapshot::new(&server_mods, server_native)
+                    .map_err(e)?;
+            send(
+                c,
+                cfg::Clientbound::CustomPayload(cfg::CustomPayload {
+                    channel: horizon_protocol::mod_list::native::CHANNEL.into(),
+                    data: native_check.payload(&snapshot).unwrap(),
+                }),
+            )?;
+            send(c, cfg::Clientbound::Ping(cfg::Ping { id: 3 }))?;
+            let mut client_snapshot = None;
+            let mut invalid_reply = false;
+            loop {
+                let (id, payload) = c.recv().map_err(e)?;
+                match decode_config(id, &payload).map_err(e)? {
+                    cfg::Serverbound::CustomPayload(p)
+                        if p.channel == horizon_protocol::mod_list::native::CHANNEL =>
+                    {
+                        if !native_check.receive_capabilities(&p.data) {
+                            match horizon_protocol::mod_list::native::decode(&p.data) {
+                                Ok(snapshot) => client_snapshot = Some(snapshot),
+                                Err(_) => invalid_reply = true,
+                            }
+                        }
+                    }
+                    cfg::Serverbound::Pong(p) if p.id == 3 => break,
+                    cfg::Serverbound::ClientInformation(i) => info = i,
+                    _ => {}
+                }
+            }
+            let refusal = if invalid_reply {
+                Some("Native mod check failed: invalid reply.".to_string())
+            } else if let Some(client_snapshot) = client_snapshot {
+                let difference =
+                    horizon_protocol::mod_list::native::compare(&snapshot, &client_snapshot);
+                (!difference.is_empty()).then(|| difference.reason())
+            } else {
+                Some("Native mod check failed: missing reply.".to_string())
+            };
+            if let Some(text) = refusal {
+                let reason = horizon_world::nbt::Tag::String(horizon_world::nbt::JavaString::from(
+                    text.as_str(),
+                ));
+                let _ = send(c, cfg::Clientbound::Disconnect(cfg::Disconnect { reason }));
+                lost(shared, &format!("{name} ({})", uuid_string(uuid)), &text);
+                return Ok(None);
+            }
+            native_checked = true;
+        }
+    }
+    // CHECK: Unsupported peers retain the legacy content-only packet and comparison.
+    if !native_checked && brand == "horizon" && !server_mods.is_empty() {
         send(
             c,
             cfg::Clientbound::CustomPayload(cfg::CustomPayload {

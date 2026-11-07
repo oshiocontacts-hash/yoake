@@ -14,6 +14,8 @@ use crate::{
 };
 use std::sync::OnceLock;
 
+pub mod native;
+
 /// The custom payload channel, both ways.
 pub const CHANNEL: &str = "horizon:mod_list";
 /// Mods in a list at most; a list with more is refused whole.

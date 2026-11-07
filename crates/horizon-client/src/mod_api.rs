@@ -29,6 +29,8 @@ pub use crate::game::{
     NativeHeightmap, NativeHeldItem, NativeHit, NativeHumanoidPart, NativeMapDecoration,
     NativeMapInfo, NativeMobRender, NativeModEvent, NativePlayerRender, NativeShake,
 };
+pub use crate::game::{NativeBlast, NativeDamage, NativeDamageActor, NativeDamageKind};
+pub use crate::game::{NativeClientWorld, NativeSoundCategory};
 pub use crate::gfx::native_render::{
     BlockSpriteArrays, RenderHooks, RenderNeeds, RenderNeedsEvent, WorldDrawn, WorldDrawnEvent,
     wgpu,
@@ -573,6 +575,24 @@ impl Drop for LocalSoundScope {
     fn drop(&mut self) {
         LOCAL_SOUND_CALLER.with(|caller| caller.set(self.0));
     }
+}
+
+use crate::mod_guard::CallOutcome as GuardOutcome;
+
+pub(crate) fn initialize_guard() -> Result<(), &'static str> {
+    crate::mod_guard::initialize(
+        MOD_IDS.get().copied().unwrap_or(&[]),
+        mods().len(),
+        GUARDED_HOOKS,
+    )
+}
+
+fn guard_dispatch(count: usize, hook: &'static str) -> Option<crate::mod_guard::Dispatch<'static>> {
+    crate::mod_guard::dispatch(count, hook)
+}
+
+fn guard_index(index: usize) -> usize {
+    index
 }
 
 /// `mods` in order, each marked as running `hook` until the next one is (or the loop ends), so a
