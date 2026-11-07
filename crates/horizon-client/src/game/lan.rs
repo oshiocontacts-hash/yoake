@@ -144,6 +144,17 @@ pub struct LanSettings {
     pub port: u16,
     pub guest_commands: bool,
     pub force_game_mode: bool,
+    pub loopback_only: bool,
+    pub announce: bool,
+    pub max_players: usize,
+    pub game_mode: Option<u8>,
+}
+
+impl LanSettings {
+    pub(super) fn bind_address(self) -> Option<std::net::IpAddr> {
+        self.loopback_only
+            .then_some(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST))
+    }
 }
 
 pub(super) struct LanHost {
@@ -1162,6 +1173,10 @@ impl Game<'_> {
                     },
                     guest_commands: words.contains(&"commands"),
                     force_game_mode: words.contains(&"force"),
+                    loopback_only: false,
+                    announce: true,
+                    max_players: lan::MAX_PLAYERS,
+                    game_mode: None,
                 })?;
                 Ok(Some(json!({ "ok": true, "port": self.lan_port() })))
             }

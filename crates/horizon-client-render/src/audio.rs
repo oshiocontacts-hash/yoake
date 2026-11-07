@@ -4,6 +4,9 @@
 //! rolloff 1), looping, relative flag and source state, Ogg/Vorbis decoding
 //! (streams on a worker thread) and OpenAL Soft's stereo panning.
 use crate::Result;
+use crate::native_audio_stream::{
+    NativeAudioStreamId, NativeAudioStreamLimits, NativeAudioStreams, StreamVoice,
+};
 use crate::sound_engine::{
     Attenuation, Backend, Bound, ChannelId, InstanceId, PlayResult, SoundEngine, SoundInstance,
     Sounds, TickContext,
@@ -18,7 +21,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Arc, Mutex, OnceLock, Weak,
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
 };
 
@@ -113,6 +116,8 @@ pub enum NativeSoundError {
     PlaybackLimit,
     ChannelExhausted,
     Muted,
+    StreamLimit,
+    BufferedSecondsLimit,
 }
 
 impl std::fmt::Display for NativeSoundError {
@@ -788,6 +793,7 @@ enum State {
     Stopped,
 }
 /// An OpenAL source.
+#[cfg_attr(test, derive(Clone))]
 struct Channel {
     samples: Option<(Arc<Vec<f32>>, u32)>,
     registered: Option<Arc<RegisteredSoundBuffer>>,
@@ -822,8 +828,8 @@ struct Mixer {
     worlds: HashMap<u8, u32>,
     /// World names by id - 1 (`world_id`).
     world_names: Vec<String>,
-    /// The callback's cameras (position, basis, world), kept to be refilled without allocating.
-    cameras: Vec<([f64; 3], Basis, u32)>,
+    streams: Option<HashMap<NativeAudioStreamId, StreamVoice>>,
+    streaming_enabled: Arc<AtomicBool>,
     limiter_peak: f32,
     /// The output device the stream was opened on (`Library.currentDeviceName`).
     #[cfg(feature = "audio")]
@@ -877,6 +883,15 @@ pub struct MixerBackend {
 /// A splitscreen player's backend leaving: its camera and sounds go with it.
 impl Drop for MixerBackend {
     fn drop(&mut self) {
+        if let Ok(mut mixer) = self.mixer.lock()
+            && let Some(streams) = mixer.streams.as_mut()
+        {
+            streams.retain(|_, stream| stream.seat != self.owner);
+            if streams.is_empty() {
+                mixer.streams = None;
+                mixer.streaming_enabled.store(false, Ordering::Release);
+            }
+        }
         if self.owner == 0 {
             return;
         }
@@ -995,6 +1010,7 @@ pub struct Audio {
     /// The volume sliders' `SoundPreviewHandler`.
     preview: crate::sound_preview::SoundPreview,
     local_sounds: Option<LocalSounds>,
+    native_streams: Option<NativeAudioStreams>,
     /// `SoundEngine.lastSeenDevices`: the system default output last seen.
     #[cfg(feature = "audio")]
     default_seen: Option<String>,
@@ -1294,6 +1310,19 @@ fn stereo_gains(right: f32, up: f32, forward: f32) -> [f32; 2] {
     let front = azimuth.cos() * elevation.cos() * 0.095_660_8;
     [0.5 - 0.5 * side + front, 0.5 + 0.5 * side + front]
 }
+fn validate_stream_position(
+    position: Option<[f64; 3]>,
+) -> std::result::Result<(), NativeSoundError> {
+    if position.is_some_and(|position| {
+        position
+            .iter()
+            .any(|coordinate| !coordinate.is_finite() || !(*coordinate as f32).is_finite())
+    }) {
+        return Err(NativeSoundError::InvalidPosition);
+    }
+    Ok(())
+}
+
 /// The gain OpenAL applies for distance (`AL_LINEAR_DISTANCE` with reference
 /// distance 0 and rolloff 1: the distance clamps to the max distance).
 fn distance_gain(linear: Option<f32>, distance: f32) -> f32 {
@@ -1305,14 +1334,193 @@ fn distance_gain(linear: Option<f32>, distance: f32) -> f32 {
 }
 // Only the output stream mixes; a build without one (no `audio` feature) never does.
 #[cfg_attr(not(feature = "audio"), allow(dead_code))]
+fn camera_basis(yaw: f32, pitch: f32) -> Basis {
+    let (yaw, pitch) = (f64::from(yaw.to_radians()), f64::from(pitch.to_radians()));
+    let forward = [
+        -yaw.sin() * pitch.cos(),
+        -pitch.sin(),
+        yaw.cos() * pitch.cos(),
+    ];
+    let up = [
+        -yaw.sin() * pitch.sin(),
+        pitch.cos(),
+        yaw.cos() * pitch.sin(),
+    ];
+    let right = [
+        forward[1] * up[2] - forward[2] * up[1],
+        forward[2] * up[0] - forward[0] * up[2],
+        forward[0] * up[1] - forward[1] * up[0],
+    ];
+    (forward, up, right)
+}
+
+struct SpatialContext<'a> {
+    listener: ([f64; 3], f32, f32),
+    listeners: &'a HashMap<u8, ([f64; 3], f32, f32)>,
+    worlds: &'a HashMap<u8, u32>,
+}
+
+impl SpatialContext<'_> {
+    fn gains(
+        &self,
+        at: [f32; 3],
+        relative: bool,
+        world: u32,
+        gain: f32,
+        linear: Option<f32>,
+    ) -> [f32; 3] {
+        let at = at.map(f64::from);
+        let away = |listener: [f64; 3]| {
+            [
+                at[0] - listener[0],
+                at[1] - listener[1],
+                at[2] - listener[2],
+            ]
+        };
+        let length =
+            |delta: [f64; 3]| delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2];
+        let camera = std::iter::once((0, self.listener))
+            .chain(
+                self.listeners
+                    .iter()
+                    .map(|(&owner, &camera)| (owner, camera)),
+            )
+            .map(|(owner, (position, yaw, pitch))| {
+                (
+                    position,
+                    camera_basis(yaw, pitch),
+                    self.worlds.get(&owner).copied().unwrap_or_default(),
+                )
+            })
+            .filter(|camera| relative || camera.2 == world)
+            .min_by(|first, second| length(away(first.0)).total_cmp(&length(away(second.0))))
+            .map(|camera| (camera.0, camera.1));
+        let (listener, (forward, up, right)) = camera.unwrap_or(([0.0; 3], camera_basis(0.0, 0.0)));
+        let delta = if relative { at } else { away(listener) };
+        let distance = length(delta).sqrt() as f32;
+        let gain = if camera.is_some() {
+            gain.clamp(0.0, 1.0) * distance_gain(linear, distance)
+        } else {
+            0.0
+        };
+        let dot = |first: [f64; 3], second: [f64; 3]| {
+            (first[0] * second[0] + first[1] * second[1] + first[2] * second[2]) as f32
+        };
+        let [mut left, mut right] = if relative {
+            stereo_gains(delta[0] as f32, delta[1] as f32, -delta[2] as f32)
+        } else {
+            stereo_gains(dot(delta, right), dot(delta, up), dot(delta, forward))
+        };
+        if !self.listeners.is_empty() {
+            let middle = (left + right) / 2.0;
+            left = middle + (left - middle) / 2.0;
+            right = middle + (right - middle) / 2.0;
+        }
+        [gain * left, gain * right, gain]
+    }
+}
+
+#[cfg_attr(not(feature = "audio"), allow(dead_code))]
 fn mix(mixer: &mut Mixer, data: &mut [f32], channels: usize, rate: u32) {
     data.fill(0.0);
     #[cfg(feature = "dev-capture")]
     if mixer.capture_muted {
         return;
     }
-    // The camera's forward and up vectors (`Camera.forwardVector`/`upVector`)
-    // and OpenAL's right = forward x up.
+    let spatial = SpatialContext {
+        listener: (mixer.listener, mixer.listener_yaw, mixer.listener_pitch),
+        listeners: &mixer.listeners,
+        worlds: &mixer.worlds,
+    };
+    for channel in mixer.channels.values_mut() {
+        let Some((samples, source_rate)) = &channel.samples else {
+            continue;
+        };
+        if channel.state != State::Playing {
+            continue;
+        }
+        let [left, right, gain] = spatial.gains(
+            channel.at,
+            channel.relative,
+            channel.world,
+            channel.gain,
+            channel.linear,
+        );
+        let step = f64::from(*source_rate) / f64::from(rate) * f64::from(channel.pitch.max(0.0));
+        for frame in data.chunks_mut(channels) {
+            let mut index = channel.position as usize;
+            if index + 1 >= samples.len() {
+                if channel.looping && samples.len() > 1 {
+                    channel.position = 0.0;
+                    index = 0;
+                } else {
+                    channel.state = State::Stopped;
+                    break;
+                }
+            }
+            let fraction = (channel.position - index as f64) as f32;
+            let sample = samples[index] * (1.0 - fraction) + samples[index + 1] * fraction;
+            if channels >= 2 {
+                frame[0] += sample * left;
+                frame[1] += sample * right;
+            } else {
+                frame[0] += sample * gain;
+            }
+            channel.position += step;
+        }
+    }
+    if let Some(streams) = &mut mixer.streams {
+        for voice in streams.values_mut() {
+            let [left, right, gain] = spatial.gains(
+                voice.position.unwrap_or([0.0; 3]),
+                voice.relative,
+                voice.world,
+                if voice.position.is_some() {
+                    voice.gain
+                } else {
+                    0.0
+                },
+                if voice.relative { None } else { Some(16.0) },
+            );
+            let step = f64::from(voice.sample_rate) / f64::from(rate);
+            for frame in data.chunks_mut(channels) {
+                let [sample_left, sample_right] = voice.reader.next(step);
+                let mono = (sample_left + sample_right) * 0.5;
+                if channels >= 2 {
+                    if voice.relative {
+                        frame[0] += sample_left * left;
+                        frame[1] += sample_right * right;
+                    } else {
+                        frame[0] += mono * left;
+                        frame[1] += mono * right;
+                    }
+                } else {
+                    frame[0] += mono * gain;
+                }
+            }
+        }
+    }
+    let peak = data
+        .iter()
+        .fold(1.0f32, |peak, sample| peak.max(sample.abs()));
+    mixer.limiter_peak = mixer.limiter_peak.max(peak);
+    let release = (-1.0 / (0.2 * rate as f32)).exp();
+    for frame in data.chunks_mut(channels) {
+        let gain = mixer.limiter_peak.recip();
+        for sample in frame {
+            *sample *= gain;
+        }
+        mixer.limiter_peak = (mixer.limiter_peak * release).max(peak);
+    }
+}
+
+#[cfg(test)]
+fn legacy_mix(mixer: &mut Mixer, data: &mut [f32], channels: usize, rate: u32) {
+    data.fill(0.0);
+    #[cfg(feature = "dev-capture")]
+    if mixer.capture_muted {
+        return;
+    }
     let basis = |yaw: f32, pitch: f32| {
         let (yaw, pitch) = (f64::from(yaw.to_radians()), f64::from(pitch.to_radians()));
         let forward = [
@@ -1332,8 +1540,7 @@ fn mix(mixer: &mut Mixer, data: &mut [f32], channels: usize, rate: u32) {
         ];
         (forward, up, right)
     };
-    // Every camera hearing (splitscreen: the other players' too), in the mixer's own buffer.
-    let mut cameras = std::mem::take(&mut mixer.cameras);
+    let mut cameras = Vec::new();
     cameras.clear();
     cameras.extend(
         std::iter::once((
@@ -1355,17 +1562,22 @@ fn mix(mixer: &mut Mixer, data: &mut [f32], channels: usize, rate: u32) {
         }),
     );
     let shared = cameras.len() > 1;
-    let dot = |a: [f64; 3], b: [f64; 3]| (a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) as f32;
-    // Gains and pans per source for this buffer.
+    let dot = |first: [f64; 3], second: [f64; 3]| {
+        (first[0] * second[0] + first[1] * second[1] + first[2] * second[2]) as f32
+    };
     let mut voices: Vec<(ChannelId, [f32; 3], f64)> = Vec::new();
-    for (id, c) in &mixer.channels {
-        let Some((_, source_rate)) = &c.samples else {
+    for (id, channel) in &mixer.channels {
+        let Some((_, source_rate)) = &channel.samples else {
             continue;
         };
-        if c.state != State::Playing {
+        if channel.state != State::Playing {
             continue;
         }
-        let at = [f64::from(c.at[0]), f64::from(c.at[1]), f64::from(c.at[2])];
+        let at = [
+            f64::from(channel.at[0]),
+            f64::from(channel.at[1]),
+            f64::from(channel.at[2]),
+        ];
         let away = |listener: [f64; 3]| {
             [
                 at[0] - listener[0],
@@ -1373,85 +1585,80 @@ fn mix(mixer: &mut Mixer, data: &mut [f32], channels: usize, rate: u32) {
                 at[2] - listener[2],
             ]
         };
-        let length = |d: [f64; 3]| d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
-        // The nearest camera hears it (one camera but in splitscreen).
+        let length = |offset: [f64; 3]| {
+            offset[0] * offset[0] + offset[1] * offset[1] + offset[2] * offset[2]
+        };
         let camera = cameras
             .iter()
-            .filter(|camera| c.relative || camera.2 == c.world)
-            .min_by(|a, b| length(away(a.0)).total_cmp(&length(away(b.0))))
+            .filter(|camera| channel.relative || camera.2 == channel.world)
+            .min_by(|first, second| length(away(first.0)).total_cmp(&length(away(second.0))))
             .map(|camera| (camera.0, camera.1));
-        // Unheard sources still advance: returning to a world must not resume stale sounds.
         let (listener, (forward, up, right)) = camera.unwrap_or(([0.0; 3], basis(0.0, 0.0)));
-        let d = if c.relative { at } else { away(listener) };
-        let distance = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt() as f32;
+        let offset = if channel.relative { at } else { away(listener) };
+        let distance =
+            (offset[0] * offset[0] + offset[1] * offset[1] + offset[2] * offset[2]).sqrt() as f32;
         let gain = if camera.is_some() {
-            c.gain.clamp(0.0, 1.0) * distance_gain(c.linear, distance)
+            channel.gain.clamp(0.0, 1.0) * distance_gain(channel.linear, distance)
         } else {
             0.0
         };
-        // Relative sources are already in OpenAL's listener space (-Z ahead).
-        let [mut left, mut right] = if c.relative {
-            stereo_gains(d[0] as f32, d[1] as f32, -d[2] as f32)
+        let [mut left, mut right] = if channel.relative {
+            stereo_gains(offset[0] as f32, offset[1] as f32, -offset[2] as f32)
         } else {
-            stereo_gains(dot(d, right), dot(d, up), dot(d, forward))
+            stereo_gains(dot(offset, right), dot(offset, up), dot(offset, forward))
         };
         if shared {
-            // Several players on the speakers: half the stereo width, as left and right are
-            // nobody's in particular.
             let middle = (left + right) / 2.0;
             left = middle + (left - middle) / 2.0;
             right = middle + (right - middle) / 2.0;
         }
         let [left, right] = [left, right].map(|pan| gain * pan);
-        let step = f64::from(*source_rate) / f64::from(rate) * f64::from(c.pitch.max(0.0));
+        let step = f64::from(*source_rate) / f64::from(rate) * f64::from(channel.pitch.max(0.0));
         voices.push((*id, [left, right, gain], step));
     }
-    mixer.cameras = cameras;
     for (id, [left, right, gain], step) in voices {
-        let Some(c) = mixer.channels.get_mut(&id) else {
+        let Some(channel) = mixer.channels.get_mut(&id) else {
             continue;
         };
-        let Some((samples, _)) = c.samples.clone() else {
+        let Some((samples, _)) = channel.samples.clone() else {
             continue;
         };
         for frame in data.chunks_mut(channels) {
-            let mut i = c.position as usize;
-            if i + 1 >= samples.len() {
-                if c.looping && samples.len() > 1 {
-                    c.position = 0.0;
-                    i = 0;
+            let mut index = channel.position as usize;
+            if index + 1 >= samples.len() {
+                if channel.looping && samples.len() > 1 {
+                    channel.position = 0.0;
+                    index = 0;
                 } else {
-                    c.state = State::Stopped;
+                    channel.state = State::Stopped;
                     break;
                 }
             }
-            let t = (c.position - i as f64) as f32;
-            let s = samples[i] * (1.0 - t) + samples[i + 1] * t;
+            let fraction = (channel.position - index as f64) as f32;
+            let sample = samples[index] * (1.0 - fraction) + samples[index + 1] * fraction;
             if channels >= 2 {
-                frame[0] += s * left;
-                frame[1] += s * right;
+                frame[0] += sample * left;
+                frame[1] += sample * right;
             } else {
-                // A mono output has no panning: the source's own gain.
-                frame[0] += s * gain;
+                frame[0] += sample * gain;
             }
-            c.position += step;
+            channel.position += step;
         }
     }
-    // Limit the whole buffer together, preserving waveform and stereo balance
-    // instead of flattening each overloaded sample; release over 200 ms
-    // (OpenAL Soft's output limiter, `ALC_OUTPUT_LIMITER_SOFT`, releases
-    // over 0.2 s).
-    let peak = data.iter().fold(1.0f32, |peak, s| peak.max(s.abs()));
+    let peak = data
+        .iter()
+        .fold(1.0f32, |peak, sample| peak.max(sample.abs()));
     mixer.limiter_peak = mixer.limiter_peak.max(peak);
     let release = (-1.0 / (0.2 * rate as f32)).exp();
     for frame in data.chunks_mut(channels) {
         let gain = mixer.limiter_peak.recip();
-        for s in frame {
-            *s *= gain;
+        for sample in frame {
+            *sample *= gain;
         }
         mixer.limiter_peak = (mixer.limiter_peak * release).max(peak);
     }
 }
+
 /// Why the game should not open an output, if it should not:
 /// `HORIZON_NO_AUDIO`, or a virtual screen (`vscreen`), where agents and
 /// harnesses run the game and must stay off the user's speakers.
@@ -1570,6 +1777,28 @@ fn cards_changed(seen: Option<&str>, cards: Option<&str>) -> bool {
         _ => true,
     }
 }
+#[cfg(any(feature = "audio", test))]
+fn mix_stream_output<T>(
+    mixer: &Mutex<Mixer>,
+    data: &mut [T],
+    scratch: &mut [f32],
+    channels: usize,
+    rate: u32,
+    convert: impl Fn(f32) -> T,
+) {
+    for output in data.chunks_mut(scratch.len()) {
+        let scratch = &mut scratch[..output.len()];
+        if let Ok(mut mixer) = mixer.lock() {
+            mix(&mut mixer, scratch, channels, rate);
+        } else {
+            scratch.fill(0.0);
+        }
+        for (output, sample) in output.iter_mut().zip(scratch.iter()) {
+            *output = convert(*sample);
+        }
+    }
+}
+
 #[cfg(feature = "audio")]
 fn build_stream<T: cpal::SizedSample + cpal::FromSample<f32>>(
     device: &cpal::Device,
@@ -1579,18 +1808,36 @@ fn build_stream<T: cpal::SizedSample + cpal::FromSample<f32>>(
     let rate = config.sample_rate().0;
     let channels = config.channels() as usize;
     let mut scratch = Vec::new();
+    let mut stream_scratch = vec![0.0f32; rate as usize * channels];
+    let streaming_enabled = mixer
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .streaming_enabled
+        .clone();
     let on_error = mixer.clone();
     let stream = device.build_output_stream(
         &config.config(),
         move |data: &mut [T], _| {
-            scratch.resize(data.len(), 0.0f32);
-            if let Ok(mut m) = mixer.lock() {
-                mix(&mut m, &mut scratch, channels, rate);
+            // CHECK: the PCM path is allocation-free but takes the same short lock as the legacy path.
+            if streaming_enabled.load(Ordering::Acquire) {
+                mix_stream_output(
+                    &mixer,
+                    data,
+                    &mut stream_scratch,
+                    channels,
+                    rate,
+                    T::from_sample,
+                );
+                return;
+            }
+            scratch.resize(data.len(), 0.0);
+            if let Ok(mut mixer) = mixer.lock() {
+                mix(&mut mixer, &mut scratch, channels, rate);
             } else {
                 scratch.fill(0.0);
             }
-            for (out, s) in data.iter_mut().zip(&scratch) {
-                *out = T::from_sample(*s);
+            for (output, sample) in data.iter_mut().zip(scratch.iter()) {
+                *output = T::from_sample(*sample);
             }
         },
         move |e| {
@@ -1631,6 +1878,152 @@ pub fn output_devices() -> Vec<String> {
 }
 
 impl Audio {
+    pub fn audio_stream_limits(&self) -> NativeAudioStreamLimits {
+        NativeAudioStreamLimits::default()
+    }
+
+    pub fn open_audio_stream(
+        &mut self,
+        owner: usize,
+        sample_rate: u32,
+        channels: u16,
+        category: usize,
+        position: Option<[f64; 3]>,
+        relative: bool,
+    ) -> std::result::Result<NativeAudioStreamId, NativeSoundError> {
+        validate_stream_position(position)?;
+        if !self.engine.loaded || !self.backend.live {
+            return Err(NativeSoundError::AudioUnavailable);
+        }
+        #[cfg(feature = "dev-capture")]
+        if self.engine.capture_muted() {
+            return Err(NativeSoundError::Muted);
+        }
+        self.sync_volumes();
+        let category = category.min(10);
+        let gain = self.engine.calculate_volume(1.0, category);
+        let streams = self
+            .native_streams
+            .get_or_insert_with(NativeAudioStreams::default);
+        let (id, mut voice) = streams.open(owner, sample_rate, channels, category)?;
+        voice.gain = gain;
+        voice.position = position.map(|position| position.map(|coordinate| coordinate as f32));
+        voice.relative = relative;
+        voice.seat = self.backend.owner;
+        voice.world = self.backend.world;
+        let Ok(mut mixer) = self.backend.mixer.lock() else {
+            streams.close(owner, id);
+            return Err(NativeSoundError::AudioUnavailable);
+        };
+        mixer
+            .streams
+            .get_or_insert_with(HashMap::new)
+            .insert(id, voice);
+        mixer.streaming_enabled.store(true, Ordering::Release);
+        Ok(id)
+    }
+
+    pub fn push_audio_stream(
+        &mut self,
+        owner: usize,
+        id: NativeAudioStreamId,
+        samples: &[f32],
+    ) -> std::result::Result<usize, NativeSoundError> {
+        self.native_streams
+            .as_mut()
+            .ok_or(NativeSoundError::StaleHandle)?
+            .push(owner, id, samples)
+    }
+
+    pub fn push_audio_stream_i16(
+        &mut self,
+        owner: usize,
+        id: NativeAudioStreamId,
+        samples: &[i16],
+    ) -> std::result::Result<usize, NativeSoundError> {
+        self.native_streams
+            .as_mut()
+            .ok_or(NativeSoundError::StaleHandle)?
+            .push_i16(owner, id, samples)
+    }
+
+    pub fn queued_audio_stream(&mut self, owner: usize, id: NativeAudioStreamId) -> Option<usize> {
+        self.native_streams.as_mut()?.queued(owner, id)
+    }
+
+    pub fn dropped_audio_stream(&mut self, owner: usize, id: NativeAudioStreamId) -> Option<u64> {
+        self.native_streams.as_mut()?.dropped(owner, id)
+    }
+
+    pub fn place_audio_stream(
+        &mut self,
+        owner: usize,
+        id: NativeAudioStreamId,
+        position: Option<[f64; 3]>,
+        relative: bool,
+    ) -> std::result::Result<(), NativeSoundError> {
+        validate_stream_position(position)?;
+        self.native_streams
+            .as_mut()
+            .ok_or(NativeSoundError::StaleHandle)?
+            .check(owner, id)?;
+        let mut mixer = self
+            .backend
+            .mixer
+            .lock()
+            .map_err(|_| NativeSoundError::AudioUnavailable)?;
+        let voice = mixer
+            .streams
+            .as_mut()
+            .and_then(|streams| streams.get_mut(&id))
+            .ok_or(NativeSoundError::StaleHandle)?;
+        voice.position = position.map(|position| position.map(|coordinate| coordinate as f32));
+        voice.relative = relative;
+        voice.world = self.backend.world;
+        Ok(())
+    }
+
+    pub fn close_audio_stream(&mut self, owner: usize, id: NativeAudioStreamId) -> bool {
+        let Some(streams) = self.native_streams.as_mut() else {
+            return false;
+        };
+        if streams.check(owner, id).is_err() {
+            return false;
+        }
+        let mut mixer = self
+            .backend
+            .mixer
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if let Some(voices) = mixer.streams.as_mut() {
+            voices.remove(&id);
+            if voices.is_empty() {
+                mixer.streams = None;
+                mixer.streaming_enabled.store(false, Ordering::Release);
+            }
+        }
+        streams.close(owner, id)
+    }
+
+    pub fn clear_audio_streams(&mut self) {
+        if self.native_streams.is_none() {
+            return;
+        }
+        let mut mixer = self
+            .backend
+            .mixer
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if let Some(voices) = mixer.streams.as_mut() {
+            voices.retain(|_, voice| voice.seat != self.backend.owner);
+            if voices.is_empty() {
+                mixer.streams = None;
+                mixer.streaming_enabled.store(false, Ordering::Release);
+            }
+        }
+        self.native_streams = None;
+    }
+
     pub fn local_sound_limits(&self) -> NativeSoundLimits {
         NativeSoundLimits::default()
     }
@@ -2064,6 +2457,7 @@ impl Audio {
             stopped: Default::default(),
             preview: Default::default(),
             local_sounds: None,
+            native_streams: None,
             #[cfg(feature = "audio")]
             default_seen: if live { default_output_name() } else { None },
             #[cfg(feature = "audio")]
@@ -2226,6 +2620,7 @@ impl Audio {
             stopped: Default::default(),
             preview: Default::default(),
             local_sounds: None,
+            native_streams: None,
             // The device belongs to the first player's output, which looks after it.
             #[cfg(feature = "audio")]
             default_seen: self.default_seen.clone(),
@@ -2252,6 +2647,21 @@ impl Audio {
             }
         }
         self.engine.listening = self.record_heard;
+        self.refresh_stream_volumes();
+    }
+
+    fn refresh_stream_volumes(&self) {
+        if self.native_streams.is_some()
+            && let Ok(mut mixer) = self.backend.mixer.lock()
+            && let Some(streams) = mixer.streams.as_mut()
+        {
+            for voice in streams
+                .values_mut()
+                .filter(|voice| voice.seat == self.backend.owner)
+            {
+                voice.gain = self.engine.calculate_volume(1.0, voice.category);
+            }
+        }
     }
     /// `SoundEngine.shouldChangeDevice`: the open device was lost, the system
     /// default changed (with no device chosen in the options), or the chosen
@@ -2655,6 +3065,250 @@ mod tests {
         audio.backend.live = true;
         audio.local_sounds = Some(LocalSounds::new(LocalSoundService::new()));
         audio
+    }
+
+    fn pcm_test_channel(position: [f32; 3]) -> Channel {
+        Channel {
+            samples: Some((
+                Arc::new((0..257).map(|index| (index as f32 * 0.17).sin()).collect()),
+                32_000,
+            )),
+            registered: None,
+            position: 0.0,
+            state: State::Playing,
+            gain: 0.6,
+            pitch: 1.0,
+            linear: Some(16.0),
+            looping: false,
+            at: position,
+            relative: false,
+            owner: 0,
+            world: 0,
+            started: None,
+        }
+    }
+
+    #[test]
+    fn no_mod_mixer_matches_legacy_output_bit_for_bit() {
+        for channels in [1, 2, 6] {
+            for rate in [22_050, 48_000] {
+                for shared in [false, true] {
+                    let mut mixer = Mixer {
+                        listener: [1.25, -0.5, 2.0],
+                        listener_yaw: 37.0,
+                        listener_pitch: -18.0,
+                        ..Mixer::default()
+                    };
+                    if shared {
+                        mixer.listeners.insert(1, ([4.0, 0.0, -1.0], -85.0, 12.0));
+                        mixer.worlds.insert(1, 1);
+                    }
+                    for index in 0_u64..8 {
+                        let mut channel =
+                            pcm_test_channel([index as f32 - 2.0, index as f32 * 0.2, 4.0]);
+                        channel.pitch = 0.7 + index as f32 * 0.1;
+                        channel.looping = index % 2 == 0;
+                        channel.relative = index == 1;
+                        channel.world = u32::from(index == 2);
+                        channel.linear = if index == 3 { None } else { Some(16.0) };
+                        if index == 6 {
+                            channel.state = State::Paused;
+                        }
+                        if index == 7 {
+                            channel.samples = None;
+                        }
+                        mixer.channels.insert(index, channel);
+                    }
+                    let mut legacy = Mixer {
+                        channels: mixer.channels.clone(),
+                        listener: mixer.listener,
+                        listener_yaw: mixer.listener_yaw,
+                        listener_pitch: mixer.listener_pitch,
+                        listeners: mixer.listeners.clone(),
+                        worlds: mixer.worlds.clone(),
+                        ..Mixer::default()
+                    };
+                    for _ in 0..8 {
+                        let mut actual = vec![1.0; 67 * channels];
+                        let mut expected = actual.clone();
+                        mix(&mut mixer, &mut actual, channels, rate);
+                        legacy_mix(&mut legacy, &mut expected, channels, rate);
+                        assert_eq!(
+                            actual
+                                .iter()
+                                .map(|sample| sample.to_bits())
+                                .collect::<Vec<_>>(),
+                            expected
+                                .iter()
+                                .map(|sample| sample.to_bits())
+                                .collect::<Vec<_>>()
+                        );
+                        assert_eq!(mixer.limiter_peak.to_bits(), legacy.limiter_peak.to_bits());
+                        for (id, channel) in &mixer.channels {
+                            assert_eq!(channel.state, legacy.channels[id].state);
+                            assert_eq!(
+                                channel.position.to_bits(),
+                                legacy.channels[id].position.to_bits()
+                            );
+                        }
+                    }
+                    assert!(mixer.streams.is_none());
+                    assert!(!mixer.streaming_enabled.load(Ordering::Acquire));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn pcm_stream_matches_positional_sound_attenuation_pan_and_resampling() {
+        for position in [
+            [0.0; 3],
+            [5.0, 2.0, 7.0],
+            [-12.0, 0.0, 0.0],
+            [20.0, 0.0, 0.0],
+        ] {
+            for channels in [1, 2] {
+                let channel = pcm_test_channel(position);
+                let samples = Arc::clone(&channel.samples.as_ref().unwrap().0);
+                let mut ordinary = Mixer::default();
+                ordinary.channels.insert(1, channel);
+                let mut streams = NativeAudioStreams::default();
+                let (id, mut voice) = streams.open(81_001, 32_000, 1, 9).unwrap();
+                assert_eq!(streams.push(81_001, id, &samples).unwrap(), samples.len());
+                voice.position = Some(position);
+                voice.gain = 0.6;
+                let mut streaming = Mixer {
+                    streams: Some(HashMap::from([(id, voice)])),
+                    ..Mixer::default()
+                };
+                let mut actual = vec![0.0; 96 * channels];
+                let mut expected = actual.clone();
+                mix(&mut streaming, &mut actual, channels, 48_000);
+                mix(&mut ordinary, &mut expected, channels, 48_000);
+                for (actual, expected) in actual.iter().zip(&expected) {
+                    assert!((actual - expected).abs() < 0.000_01);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn pcm_stream_uses_master_and_every_category_slider() {
+        let mut audio = local_test_audio();
+        for category in 0..11 {
+            let id = audio
+                .open_audio_stream(81_002, 48_000, 1, category, Some([0.0; 3]), true)
+                .unwrap();
+            audio.engine.source_volumes = [0.5; 11];
+            audio.refresh_stream_volumes();
+            let expected = if category == crate::sound_engine::MASTER {
+                0.5
+            } else {
+                0.25
+            };
+            assert_eq!(
+                audio
+                    .backend
+                    .mixer
+                    .lock()
+                    .unwrap()
+                    .streams
+                    .as_ref()
+                    .unwrap()[&id]
+                    .gain,
+                expected
+            );
+            audio.engine.source_volumes[category] = 0.0;
+            audio.refresh_stream_volumes();
+            assert_eq!(
+                audio
+                    .backend
+                    .mixer
+                    .lock()
+                    .unwrap()
+                    .streams
+                    .as_ref()
+                    .unwrap()[&id]
+                    .gain,
+                0.0
+            );
+            assert!(audio.close_audio_stream(81_002, id));
+        }
+    }
+
+    #[test]
+    fn pcm_stream_lifecycle_preserves_other_seats_and_rejects_stale_handles() {
+        let mut audio = local_test_audio();
+        let mut shared = audio.share(1);
+        let first = audio
+            .open_audio_stream(81_003, 8_000, 1, 9, None, false)
+            .unwrap();
+        let second = shared
+            .open_audio_stream(81_004, 8_000, 1, 9, Some([0.0; 3]), true)
+            .unwrap();
+        assert_eq!(
+            audio.push_audio_stream(81_003, first, &[0.5; 32]).unwrap(),
+            32
+        );
+        assert_eq!(audio.queued_audio_stream(81_003, first), Some(32));
+        assert_eq!(audio.queued_audio_stream(81_004, first), None);
+        let mut output = [1.0; 16];
+        mix(
+            &mut audio.backend.mixer.lock().unwrap(),
+            &mut output,
+            2,
+            8_000,
+        );
+        assert!(output.iter().all(|sample| *sample == 0.0));
+        assert_eq!(audio.queued_audio_stream(81_003, first), Some(24));
+        audio.clear_audio_streams();
+        assert_eq!(audio.queued_audio_stream(81_003, first), None);
+        assert_eq!(shared.queued_audio_stream(81_004, second), Some(0));
+        assert!(
+            audio
+                .backend
+                .mixer
+                .lock()
+                .unwrap()
+                .streaming_enabled
+                .load(Ordering::Acquire)
+        );
+        let replacement = audio
+            .open_audio_stream(81_003, 8_000, 1, 9, Some([0.0; 3]), true)
+            .unwrap();
+        assert_ne!(first, replacement);
+        assert!(audio.push_audio_stream(81_003, first, &[0.5]).is_err());
+        assert!(audio.close_audio_stream(81_003, replacement));
+        shared.clear_audio_streams();
+        assert!(
+            !audio
+                .backend
+                .mixer
+                .lock()
+                .unwrap()
+                .streaming_enabled
+                .load(Ordering::Acquire)
+        );
+    }
+
+    #[test]
+    fn pcm_callback_underrun_is_silence() {
+        let mut streams = NativeAudioStreams::default();
+        let (id, mut voice) = streams.open(81_005, 8_000, 2, 9).unwrap();
+        streams.push(81_005, id, &[0.5, -0.5, 0.25, -0.25]).unwrap();
+        voice.position = Some([0.0; 3]);
+        voice.relative = true;
+        voice.gain = 1.0;
+        let mixer = Mutex::new(Mixer {
+            streams: Some(HashMap::from([(id, voice)])),
+            ..Mixer::default()
+        });
+        let mut output = [1.0; 16];
+        let mut scratch = [0.0; 4];
+        mix_stream_output(&mixer, &mut output, &mut scratch, 2, 8_000, |sample| sample);
+        assert!(output[0] > 0.0 && output[1] < 0.0);
+        assert_eq!(&output[4..], &[0.0; 12]);
+        assert_eq!(streams.queued(81_005, id), Some(0));
     }
 
     fn local_ogg_page(sequence: u32, flags: u8, granule: u64, packet: &[u8]) -> Vec<u8> {

@@ -1657,6 +1657,7 @@ mod tests {
         assert!(!title_owns_text(&Screen::Playing, false));
         assert!(!title_owns_text(&Screen::Options, true));
         assert!(!title_owns_text(&Screen::Chat, true));
+        assert!(!title_owns_text(&Screen::Mod, true));
     }
 
     #[test]

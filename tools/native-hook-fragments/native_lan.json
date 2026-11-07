@@ -1,0 +1,27 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "lan_publish",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_lan_publish",
+      "mod_api": {}
+    },
+    {
+      "name": "lan_close",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_lan_close",
+      "mod_api": {}
+    },
+    {
+      "name": "lan_port",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_lan_port",
+      "mod_api": {}
+    },
+    {
+      "name": "set_max_players",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_set_max_players",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "LAN publishing options and runtime admission limits (`native_lan_publish`, `native_lan_close`, `native_lan_port`, `native_set_max_players`, `NativeLanPublish`).",
+  "doc_summary": "LAN publishing options and runtime admission limits. Requires native hooks API @API:native_lan@."
+}

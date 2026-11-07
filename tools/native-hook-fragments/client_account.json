@@ -1,0 +1,22 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "account",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_account",
+      "mod_api": {}
+    },
+    {
+      "name": "session_join_start",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_session_join_start",
+      "mod_api": {}
+    },
+    {
+      "name": "session_join_poll",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_session_join_poll",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "reading credential-free account identity and starting and polling worker-thread session-service joins (`native_account`, `native_session_join_start`, `native_session_join_poll`).",
+  "doc_summary": "`account()` returns an owned NativeAccount { name, uuid, online } for the window client's authenticated account, otherwise None, including later splitscreen players and server roles. No access token is exposed to mods. `session_join_start(server_hash: &str) -> Option<u32>` clones the existing authenticated session into a short-lived worker and returns a ticket without waiting for network I/O or retry. It returns None for a non-window client, no online account, an empty hash, four joins already in flight for this Game, thread-spawn failure, or exhausted ticket IDs. `session_join_poll(ticket: u32) -> NativeJoinPoll` never waits: Pending, Joined, Failed(String) using the existing translation key/error strings, or Unknown for never-issued, consumed, or expired tickets. Joined/Failed is handed out once; completed results expire after 60 seconds measured from worker completion, including results not yet read from the worker channel. Redraw housekeeping and start/poll remove expired results; completed results do not count against the four in-flight joins. Call both helpers through the normal main-thread Host, not from a worker. No worker or channel is created unless a mod calls start; credentials stay inside the worker and never cross the mod API. Requires native hooks API @API:client_account@."
+}

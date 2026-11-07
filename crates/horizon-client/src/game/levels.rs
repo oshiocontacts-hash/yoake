@@ -414,6 +414,7 @@ impl Game<'_> {
     /// run. The native server tick hook brackets it (`ServerTickStart` before
     /// the first level, `ServerTickEnd` after the last).
     pub(super) fn tick_server(&mut self, paused: bool) -> Result<()> {
+        self.native_server_ops_tick_start()?;
         // `tickRateManager.tick()` once per server tick, before any level
         // (each `ServerLevel.tick` only reads `runsNormally`), and the native
         // `ServerTickStart` before that level work, where NeoForge fires
@@ -499,6 +500,7 @@ impl Game<'_> {
         // `ServerTickEnd`: an errored tick or an idle-close failure (at
         // the `?` above) never reaches this site.
         self.native_lifecycle_server_tick_end(paused);
+        self.native_server_ops_tick_end()?;
         Ok(())
     }
 

@@ -1,0 +1,16 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "audio_stream_limits", "target": "horizon_client::game::native_hooks::Game<'_>::native_audio_stream_limits", "mod_api": {}},
+    {"name": "audio_stream_open", "target": "horizon_client::game::native_hooks::Game<'_>::native_audio_stream_open", "mod_api": {}},
+    {"name": "audio_stream_push", "target": "horizon_client::game::native_hooks::Game<'_>::native_audio_stream_push", "mod_api": {}},
+    {"name": "audio_stream_push_i16", "target": "horizon_client::game::native_hooks::Game<'_>::native_audio_stream_push_i16", "mod_api": {}},
+    {"name": "audio_stream_queued", "target": "horizon_client::game::native_hooks::Game<'_>::native_audio_stream_queued", "mod_api": {}},
+    {"name": "audio_stream_dropped", "target": "horizon_client::game::native_hooks::Game<'_>::native_audio_stream_dropped", "mod_api": {}},
+    {"name": "audio_stream_move", "target": "horizon_client::game::native_hooks::Game<'_>::native_audio_stream_move", "mod_api": {}},
+    {"name": "audio_stream_close", "target": "horizon_client::game::native_hooks::Game<'_>::native_audio_stream_close", "mod_api": {}}
+  ],
+  "rust_summary": "bounded client-local PCM streams with positional, entity-following or listener anchors, category volume and private mod ownership.",
+  "doc_summary": "bounded client-local PCM streams with positional, entity-following or listener anchors, category volume and private mod ownership. Bundles opt in through the @API:positional_pcm_streams@ fragment.",
+  "comments": ["crates/horizon-client/src/game/native_streams.rs"]
+}

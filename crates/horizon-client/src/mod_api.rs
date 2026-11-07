@@ -22,6 +22,8 @@ pub use crate::first_person::Hand;
 pub use crate::fog::{FogData, FogType};
 pub use crate::game::native_block_entity_draw::{BlockEntityDraw, CubeFace};
 pub use crate::game::native_entity_query::NativeEntityInfo;
+pub use crate::game::native_lan::NativeLanPublish;
+pub use crate::game::native_name_lines::NameTagLine;
 pub use crate::game::{
     ItemEnergyBuffer, NativeBackLayer, NativeBlockEdit, NativeBlockRun, NativeClock,
     NativeColumnBlocks, NativeCooldownTarget, NativeDataMapType, NativeEquipmentDrawOptions,
@@ -29,8 +31,8 @@ pub use crate::game::{
     NativeHeightmap, NativeHeldItem, NativeHit, NativeHumanoidPart, NativeMapDecoration,
     NativeMapInfo, NativeMobRender, NativeModEvent, NativePlayerRender, NativeShake,
 };
+pub use crate::game::{NativeAccount, NativeClientWorld, NativeJoinPoll, NativeSoundCategory};
 pub use crate::game::{NativeBlast, NativeDamage, NativeDamageActor, NativeDamageKind};
-pub use crate::game::{NativeClientWorld, NativeSoundCategory};
 pub use crate::gfx::native_render::{
     BlockSpriteArrays, RenderHooks, RenderNeeds, RenderNeedsEvent, WorldDrawn, WorldDrawnEvent,
     wgpu,
@@ -44,6 +46,10 @@ pub use crate::items::ItemStack;
 pub use crate::merchant::MerchantOffer;
 pub use crate::mesher::TintSource;
 pub use crate::music::{Music, MusicLayer};
+pub use crate::native_audio_stream::{
+    NativeAudioStreamId, NativeAudioStreamLimits, NativeStreamAnchor,
+};
+pub use crate::native_mic::NativeMicId;
 pub use crate::particles::{ParticleOptions, ParticleType};
 pub use crate::recipe_book::RecipeBookCategory;
 pub use crate::text::Text;

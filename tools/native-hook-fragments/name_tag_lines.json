@@ -1,0 +1,29 @@
+{
+  "hooks": [
+    {
+      "name": "name_tag_lines_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_name_tag_lines_listened",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "collect",
+        "out": "listened"
+      }
+    },
+    {
+      "name": "name_tag_lines",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_name_tag_lines",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "collect",
+        "out": "lines"
+      }
+    }
+  ],
+  "rust_summary": "Collect additional name-tag lines after vanilla visibility, sharing the existing name-tag position and render passes.",
+  "doc_summary": "### @API:name_tag_lines@ `name_tag_lines`\n\n`fn name_tag_lines(&self, host: &dyn Host, event: &mut NameTagLinesEvent<'_>)` collects extra lines above a visible name. The event exposes `entity_id: u32`, `kind: &str`, and `lines: &mut Vec<NameTagLine>`. `NameTagLine { text: String, sprite: Option<String> }` uses legacy-formatted text and an optional GUI-atlas sprite identifier. The first collected line is nearest the name; subsequent lines stack upward at vanilla line spacing. The existing `render_name_tag` hook still controls the name, and `render_name_tag_position` moves the complete stack. Hidden, invisible, sneaking and out-of-range vanilla names do not collect lines. A mod must set `name_tag_lines_listened` to true to enable entity-info and line collection; unrelated mods do not enable it. Collection happens once per visible entity per render, shared by both render passes. With no lines collected, existing geometry is unchanged.",
+  "comments": [
+    "crates/horizon-client/src/game/native_name_lines.rs"
+  ]
+}

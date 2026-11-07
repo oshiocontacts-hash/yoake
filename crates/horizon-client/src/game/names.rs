@@ -6,7 +6,11 @@
 //! objective displayed below names. Other players' names (on a LAN host
 //! or a server) show whenever `LivingEntityRenderer.shouldShowName` allows,
 //! and the player's own in third person with the `ownNameTag` extra.
-use super::{Game, view_vector};
+use super::{
+    Game,
+    native_name_lines::{NameTagLine, collect_name_tag_lines, name_tag_line_quads_at},
+    view_vector,
+};
 use horizon_client::{
     block_entity_render::vertex_light, hud::HudBatch, mesher::Vertex, mobs::Mob, mod_api,
     save::uuid_text, scoreboard as sb, text::Text,
@@ -229,6 +233,7 @@ impl Game<'_> {
                             )
                         }),
                         lines: vec![(text, 0.0)],
+                        extra_lines_visible: false,
                         light: l,
                         discrete,
                         style: None,
@@ -295,6 +300,7 @@ impl Game<'_> {
                     )
                 }),
                 lines,
+                extra_lines_visible: name_shown && !discrete && !invisible,
                 light: l,
                 discrete,
                 style,
@@ -378,6 +384,7 @@ impl Game<'_> {
                 at: glam::DVec3::new(at.x, at.y + height + 0.5, at.z),
                 entity: capture_position.then(|| (a.id, "minecraft:armor_stand".to_owned())),
                 lines,
+                extra_lines_visible: name_shown && !invisible,
                 light: l,
                 discrete: false,
                 style: None,
@@ -438,6 +445,7 @@ impl Game<'_> {
                         Text::literal(text.or(name).unwrap_or_default()).resolve_legacy(),
                         0.0,
                     )],
+                    extra_lines_visible: name_shown,
                     light: self.world.light(
                         center.x.floor() as i32,
                         center.y.floor() as i32,
@@ -466,11 +474,21 @@ impl Game<'_> {
         let mut patches = Vec::new();
         let mut position_listened = false;
         self.native_render_name_tag_position_listened(&mut position_listened);
-        for tag in self.name_tags(camera, alpha, position_listened) {
+        let mut lines_listened = false;
+        self.native_name_tag_lines_listened(&mut lines_listened);
+        for tag in self.name_tags(camera, alpha, position_listened || lines_listened) {
             let mut o = tag.at - camera;
-            if let Some((entity_id, kind)) = &tag.entity {
+            if let Some((entity_id, kind)) = &tag.entity
+                && position_listened
+            {
                 self.native_render_name_tag_position(*entity_id, kind, &mut o);
             }
+            let extra_lines =
+                collect_name_tag_lines(lines_listened && tag.extra_lines_visible, |lines| {
+                    if let Some((entity_id, kind)) = &tag.entity {
+                        self.native_name_tag_lines(*entity_id, kind, lines);
+                    }
+                });
             // `gbuffers_entities` draws name tag text (2.3); a sneaking player's faded tag, on its
             // background, blends.
             if tag.discrete {
@@ -479,6 +497,7 @@ impl Game<'_> {
                 patches.extend(self.styled_name_tag_quads(
                     o,
                     &tag.lines,
+                    &extra_lines,
                     FADED,
                     true,
                     0,
@@ -496,6 +515,7 @@ impl Game<'_> {
             patches.extend(self.styled_name_tag_quads(
                 o,
                 &tag.lines,
+                &extra_lines,
                 0xFF,
                 false,
                 0,
@@ -508,6 +528,7 @@ impl Game<'_> {
             patches.extend(self.styled_name_tag_quads(
                 o,
                 &tag.lines,
+                &extra_lines,
                 FADED,
                 true,
                 2,
@@ -536,7 +557,16 @@ impl Game<'_> {
         out: &mut Vec<Vertex>,
     ) -> Vec<horizon_client::font::Patch> {
         self.styled_name_tag_quads(
-            o, lines, text_alpha, background, text_layer, light, unit, out, None,
+            o,
+            lines,
+            &[],
+            text_alpha,
+            background,
+            text_layer,
+            light,
+            unit,
+            out,
+            None,
         )
     }
 
@@ -547,6 +577,7 @@ impl Game<'_> {
         &self,
         o: glam::DVec3,
         lines: &[(Text, f64)],
+        extra_lines: &[NameTagLine],
         text_alpha: u32,
         background: bool,
         text_layer: u32,
@@ -563,7 +594,7 @@ impl Game<'_> {
             } else {
                 (self.yaw, self.pitch)
             };
-        name_tag_quads_at(
+        let mut patches = name_tag_quads_at(
             &self.gui.atlas,
             o,
             lines,
@@ -575,7 +606,21 @@ impl Game<'_> {
             out,
             style,
             (view_yaw, view_pitch),
-        )
+        );
+        patches.extend(name_tag_line_quads_at(
+            &self.gui.atlas,
+            o,
+            lines.iter().map(|(_, lift)| *lift).fold(0.0, f64::max),
+            extra_lines,
+            text_alpha,
+            background,
+            text_layer,
+            light,
+            unit,
+            out,
+            (view_yaw, view_pitch),
+        ));
+        patches
     }
 }
 
@@ -680,6 +725,7 @@ struct NameTag {
     at: glam::DVec3,
     entity: Option<(u32, String)>,
     lines: Vec<(Text, f64)>,
+    extra_lines_visible: bool,
     light: u8,
     discrete: bool,
     style: Option<TagStyle>,
@@ -751,6 +797,7 @@ mod tests {
                 (Text::literal("7 points"), 0.25),
                 (Text::literal("Player"), 0.0),
             ],
+            extra_lines_visible: false,
             light: 15,
             discrete: false,
             style: None,
@@ -768,6 +815,20 @@ mod tests {
             0.025,
             &mut actual,
             tag.style,
+            (30.0, 15.0),
+        );
+        // CHECK: An empty C5 collection must preserve the existing name and score bytes.
+        name_tag_line_quads_at(
+            &atlas,
+            tag.at,
+            0.25,
+            &[],
+            255,
+            true,
+            0,
+            240,
+            0.025,
+            &mut actual,
             (30.0, 15.0),
         );
         assert!(tag.entity.is_none());

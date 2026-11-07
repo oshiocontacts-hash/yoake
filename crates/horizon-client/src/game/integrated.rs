@@ -1186,6 +1186,10 @@ impl Game<'_> {
             port: 0,
             guest_commands: false,
             force_game_mode: false,
+            loopback_only: false,
+            announce: true,
+            max_players: MAX_PLAYERS,
+            game_mode: None,
         };
         startup::time("server.lan_host", || self.lan_host(settings, net, config))?;
         let commands = self.allow_commands();
@@ -1269,6 +1273,7 @@ impl Game<'_> {
         self.save.flush()?;
         // `WorldCloseFinal` follows a successful final save.
         self.native_lifecycle_world_closed();
+        self.native_server_ops = Default::default();
         self.session_lock = None;
         Ok(())
     }
@@ -1394,7 +1399,7 @@ impl Game<'_> {
         Some(s.flags.published.load(Ordering::Relaxed)).filter(|&p| p != 0)
     }
     /// `IntegratedServer.publishServer`: listen on `settings.port` (0 picks
-    /// one) and announce the world. The socket is bound at once so a busy
+    /// one) and optionally announce the world. The socket is bound at once so a busy
     /// port fails here; the hub starts listening once it is at hand.
     pub(super) fn publish(&mut self, settings: LanSettings) -> std::result::Result<u16, String> {
         let Some(s) = self.serving.as_mut() else {
@@ -1407,7 +1412,8 @@ impl Game<'_> {
         if s.flags.published.load(Ordering::Relaxed) != 0 {
             return Err("already published".into());
         }
-        let listener = Lan::bind(None, settings.port).map_err(|e| e.to_string())?;
+        let listener =
+            Lan::bind(settings.bind_address(), settings.port).map_err(|e| e.to_string())?;
         let port = listener.local_addr().map_err(|e| e.to_string())?.port();
         log::info!("Published LAN server on port {port}");
         s.flags.published.store(port, Ordering::Relaxed);
@@ -1459,9 +1465,15 @@ impl Game<'_> {
         if self.lan.is_none() {
             return;
         }
+        let detached = self.native_server_ops_detached();
         let Some(s) = self.serving.as_mut() else {
             return;
         };
+        if detached
+            && matches!(s.pending.as_ref(), Some(Publish::Open(_, settings)) if settings.game_mode.is_some())
+        {
+            return;
+        }
         let (Some(pending), owner) = (s.pending.take(), s.owner) else {
             return;
         };
@@ -1469,16 +1481,18 @@ impl Game<'_> {
         let Some(host) = self.lan.as_mut() else {
             return;
         };
-        match pending {
+        let game_mode = match pending {
             Publish::Open(listener, settings) => {
-                if let Err(e) = host.hub.lan.listen_on(listener, true) {
+                if let Err(e) = host.hub.lan.listen_on(listener, settings.announce) {
                     log::error!("Horizon: Open to LAN: {e}");
                 }
                 host.settings = settings;
+                host.hub.set_max_players(settings.max_players);
                 host.hub.config.force_game_mode = settings.force_game_mode;
                 // IntegratedServer.setGuestCommandAccess, then updatePermissions.
                 host.hub.config.guest_commands = settings.guest_commands && allow_commands;
                 host.hub.resend_commands();
+                settings.game_mode
             }
             Publish::Close => {
                 host.hub.lan.stop_listening();
@@ -1499,7 +1513,11 @@ impl Game<'_> {
                         translatable("multiplayer.disconnect.server_shutdown", &[]),
                     );
                 }
+                None
             }
+        };
+        if let Some(game_mode) = game_mode {
+            self.set_default_game_mode(i32::from(game_mode));
         }
     }
     /// The world options screen's state, read on the server.

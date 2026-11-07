@@ -11,6 +11,9 @@ use horizon_client::{
 impl Game<'_> {
     /// Whether a text box has focus right now (the fields `ime_commit` can fill).
     pub(super) fn text_field_focused(&mut self) -> bool {
+        if self.title_mod_screen_open() {
+            return true;
+        }
         if self.dialog_open() {
             return self.dialog_has_text_field();
         }
@@ -73,6 +76,14 @@ impl Game<'_> {
     /// input method's candidate window to the caret
     /// (`TextInputManager.setTextInputArea`, in window pixels).
     pub(super) fn flush_ime(&mut self, hud: &mut HudBatch) {
+        if self.title_mod_screen_open() {
+            let vertex_start = hud.vertices.len();
+            preedit::draw_overlay(hud, &self.gui.atlas);
+            hud.vertices.truncate(vertex_start);
+            let _ = preedit::take_text_input_area();
+            self.ime_area = None;
+            return;
+        }
         preedit::draw_overlay(hud, &self.gui.atlas);
         let Some([x0, y0, x1, y1]) = preedit::take_text_input_area() else {
             return;
@@ -101,6 +112,7 @@ impl Game<'_> {
     pub(super) fn ime_commit(&mut self, text: &str) {
         preedit::set_preedit(None);
         let text: String = text.chars().filter(|c| !c.is_control()).collect();
+        let title_mod_screen = self.title_mod_screen_open();
         // ScreenEvent.CharacterTyped.Pre: the input method's committed text
         // reaches a text box by characters, as a key's own text does, so the
         // open screen hears of each of them first and a cancelled one never
@@ -108,6 +120,9 @@ impl Game<'_> {
         let Some(text) = self.screen_text_typed(&text) else {
             return;
         };
+        if title_mod_screen {
+            return;
+        }
         if text.is_empty() || !self.text_field_focused() {
             return;
         }

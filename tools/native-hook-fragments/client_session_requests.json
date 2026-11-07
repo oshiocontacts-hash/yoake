@@ -1,0 +1,22 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "request_open_world",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_request_open_world",
+      "mod_api": {}
+    },
+    {
+      "name": "request_connect",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_request_connect",
+      "mod_api": {}
+    },
+    {
+      "name": "request_leave",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_request_leave",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "queueing one client world-entry, connection or leave request for the next frame (`native_request_open_world`, `native_request_connect`, `native_request_leave`).",
+  "doc_summary": "`request_open_world(folder)` accepts a single saves-folder basename; `request_connect(address)` accepts a nonblank address. Both require idle Main, world-selection or multiplayer title menus with no active connection, player, integrated server or loading/saving work. `request_leave()` requires a loaded client world without a title menu, reconfiguration or pending work. One request may wait at a time; state is rechecked at the next frame start and stale requests are discarded. Execution uses open_world, connect_server_with_options or close_world, with existing prompts, save behavior and setup errors. False rejects without side effects. Requires native hooks API @API:client_session_requests@."
+}
