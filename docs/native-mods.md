@@ -2804,6 +2804,56 @@ player only, from its client `tick` with a world present (ownership comes from t
 - `local_sound_limits()`: per mod 256 sounds, 64 MiB decoded, 16 MiB pending input, 4 tickets, 32 playbacks (process-wide
   512, 128 MiB, 32 MiB, 8, 64). Errors are `NativeSoundError` values. With no mod using it nothing is allocated or started.
 
+### Mob navigation
+
+`crates/horizon-client/src/game/native_mob_navigation.rs`: for a mod that steers an ordinary
+ground-walking mob. API @API:mob_navigation@.
+
+- `native_mob_set_control(&mut self, mob: EntityRef, mode: NativeMobControlMode) -> bool`
+  claims external control or returns an owned mob to vanilla control.
+- `native_mob_move_to(&mut self, mob: EntityRef, target: [i32; 3], speed: f64,
+  options: &NativeMobPathOptions) -> bool` queues a move command.
+- `native_mob_find_path(&mut self, mob: EntityRef, target: [i32; 3],
+  options: &NativeMobPathOptions) -> Result<Option<NativeMobPath>, String>`
+  queries a path without changing the live route.
+- `native_mob_stop(&mut self, mob: EntityRef) -> bool` queues a navigation stop.
+- `native_mob_look_at(&mut self, mob: EntityRef, target: [f64; 3]) -> bool`
+  queues a look target.
+- `native_mob_jump(&mut self, mob: EntityRef) -> bool` queues a jump request.
+- `native_mob_navigation(&self, mob: EntityRef) -> Option<NativeMobNavigation>`
+  reads the controlled navigation state.
+
+Server side only, inside a mod's call during an open, running authoritative server tick.
+Control belongs to the calling mod. Other mods receive `false` or `None` for a claimed mob.
+`find_path` returns an error outside that tick context or for a stale handle.
+
+The initial carriers are Zombie, Husk, ZombieVillager, Villager, and WanderingTrader, with
+ordinary ground navigation and the default ground move control. Mounted mobs, passengers,
+mobs carrying riders, mannequins, dead or removed mobs, `no_ai` mobs, and custom move controls
+are not supported.
+
+Entering External stops running goals once at the mob's next AI tick and suspends its goal
+selectors and brain. Vanilla releases ownership, restores navigation flags, and resumes normal
+AI. Unclaimed mobs have no allocated native control state.
+
+`true` from a command means accepted, not completed. Move, stop, look, and jump commands are
+applied in the mob's own AI tick. Pathfinding runs for a new move command or a needed
+recomputation, rather than on every movement tick.
+
+Path options default to reach 1, follow-range-derived distance and visited-node limits, inherited
+floating behavior, and partial paths allowed. Distance is clamped to 1–128 blocks, visited nodes
+to 1–4096, reach to 0–16, and positive finite speed to at most 4.
+
+Paths contain width-aware foot waypoints. A partial path has `reaches_target == false`.
+Navigation reports Idle, Pending, Moving, Done, Stopped, Stuck, or Unreachable. Terminal states
+remain until another navigation command, release, or control-state removal. A mob outside
+ticking chunks does not accumulate navigation timeout.
+
+Closed-door opening is not supported by this API. There is no `can_open_doors` option.
+
+Teleportation, dimension transfer, unload, and death discard control state. Acquire a fresh
+entity handle and claim control again when appropriate.
+
 ### Client PCM streams and microphone capture
 
 These APIs are client-only and work only inside the calling mod's client `tick` hook, the same rule as
