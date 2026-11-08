@@ -2813,6 +2813,16 @@ mod tests {
             let mut manifest = original.clone();
             manifest[field] = "different".into();
             fs::write(&path, manifest.to_string()).unwrap();
+            if field == "id" {
+                // A mixins folder under the new id whose own manifest still says `example`.
+                let other = directory.join("mixins").join("different");
+                fs::create_dir_all(&other).unwrap();
+                fs::copy(
+                    directory.join("mixins").join("example").join(MANIFEST),
+                    other.join(MANIFEST),
+                )
+                .unwrap();
+            }
             assert!(
                 bundle_in(&directory)
                     .unwrap_err()
