@@ -74,6 +74,7 @@ pub mod yoake_auth;
 pub mod yoake_feed;
 pub mod yoake_install;
 pub mod yoake_login;
+mod yoake_page;
 pub mod yoake_update;
 
 use gpui::{
@@ -109,6 +110,8 @@ enum Page {
     /// What the player wears (`wardrobe_page.rs`), with the cosmetics flag on.
     Wardrobe,
     Notes,
+    /// The group's modpacks and the portal sign-in (`yoake_page.rs`), in Yoake builds.
+    Yoake,
     Settings,
 }
 
@@ -125,6 +128,7 @@ impl Page {
             Ok("wardrobe") if horizon_cosmetics::enabled() => Page::Wardrobe,
             Ok("versions") => Page::Versions,
             Ok("notes") => Page::Notes,
+            Ok("yoake") => Page::Yoake,
             Ok("settings") => Page::Settings,
             _ => Page::Play,
         }
@@ -132,8 +136,9 @@ impl Page {
 
     /// Every page, with its name and icon: the top bar shows all but Settings, which has its
     /// own button.
-    const ALL: [(Page, &'static str, &'static str); 7] = [
+    const ALL: [(Page, &'static str, &'static str); 8] = [
         (Page::Play, "Home", "home"),
+        (Page::Yoake, "Yoake", "user-multiple-02"),
         (Page::Mods, "Mods", "package"),
         (Page::Servers, "Servers", "server"),
         (Page::Wardrobe, "Wardrobe", "user"),
@@ -147,6 +152,7 @@ impl Page {
         Self::ALL.into_iter().filter(|(page, ..)| match page {
             Page::Settings => false,
             Page::Wardrobe => horizon_cosmetics::enabled(),
+            Page::Yoake => yoake_page::enabled(),
             _ => true,
         })
     }
@@ -204,6 +210,7 @@ struct Launcher {
     yoake_user_code: Option<String>,
     yoake_update_task: Option<yoake_update::UpdateTask>,
     yoake_update_states: HashMap<std::path::PathBuf, yoake_update::UpdateState>,
+    yoake: yoake_page::YoakePage,
     page: Page,
     /// How many times the page changed, for the page transition.
     switches: usize,
@@ -542,6 +549,7 @@ impl Launcher {
             yoake_user_code: None,
             yoake_update_task,
             yoake_update_states: HashMap::new(),
+            yoake: yoake_page::YoakePage::new(cx),
             page: Page::from_env(),
             switches: 0,
             content_scroll: Scrollbar::default(),
@@ -1007,8 +1015,9 @@ impl Launcher {
             self.yoake_login_task = None;
         }
         if login_succeeded {
-            self.check_yoake_updates();
+            self.yoake_refresh();
         }
+        changed |= self.drain_yoake_page();
         let mut update_finished = false;
         if let Some(task) = &self.yoake_update_task {
             loop {
@@ -3693,136 +3702,6 @@ impl Launcher {
         }
     }
 
-    fn yoake_rows(&mut self, cx: &mut Context<Self>) -> Div {
-        let t = self.theme;
-        let mut rows = div().flex().flex_col();
-        if option_env!("YOAKE_PORTAL_URL").is_some() {
-            let authenticated = matches!(
-                yoake_auth::YoakeAuth::authorization(&yoake_auth::TokenFileAuth::new(
-                    &backend::data_dir()
-                )),
-                Ok(Some(_))
-            );
-            let message = match &self.yoake_login_event {
-                Some(yoake_login::LoginEvent::VerificationRequired { .. })
-                | Some(yoake_login::LoginEvent::AuthorizationPending) => {
-                    "Approve the sign-in in your browser.".to_string()
-                }
-                Some(yoake_login::LoginEvent::SlowDown { interval }) => {
-                    format!("Waiting for approval; retrying every {interval} seconds.")
-                }
-                Some(yoake_login::LoginEvent::Success(_)) => "Signed in.".to_string(),
-                Some(yoake_login::LoginEvent::WrongCode) => "Wrong invite code.".to_string(),
-                Some(yoake_login::LoginEvent::ExpiredOrUsed) => {
-                    "Invite expired or already used.".to_string()
-                }
-                Some(yoake_login::LoginEvent::TooManyTries) => {
-                    "Too many attempts; try again later.".to_string()
-                }
-                Some(yoake_login::LoginEvent::Expired) => "Sign-in expired.".to_string(),
-                Some(yoake_login::LoginEvent::AccessDenied) => "Sign-in denied.".to_string(),
-                Some(yoake_login::LoginEvent::Cancelled) => "Sign-in cancelled.".to_string(),
-                Some(yoake_login::LoginEvent::Offline) => "Portal unavailable.".to_string(),
-                Some(yoake_login::LoginEvent::InvalidResponse) => {
-                    "Invalid portal configuration or response.".to_string()
-                }
-                Some(yoake_login::LoginEvent::StorageError) => {
-                    "Could not securely save or remove credentials.".to_string()
-                }
-                None if authenticated => "Signed in.".to_string(),
-                None => "Sign in to the Yoake portal.".to_string(),
-            };
-            let detail = match &self.yoake_user_code {
-                Some(code) => format!("{message} Code: {code}"),
-                None => message,
-            };
-            let action = if self.yoake_login_task.is_some() {
-                button("yoake-cancel", "Cancel", Kind::Secondary, &t).on_click(cx.listener(
-                    |this, _: &ClickEvent, _, cx| {
-                        if let Some(task) = &this.yoake_login_task {
-                            task.cancel();
-                        }
-                        cx.notify();
-                    },
-                ))
-            } else if authenticated {
-                button("yoake-logout", "Log out", Kind::Secondary, &t).on_click(cx.listener(
-                    |this, _: &ClickEvent, _, cx| {
-                        this.yoake_login_event = match yoake_auth::logout(&backend::data_dir()) {
-                            Ok(()) => None,
-                            Err(_) => Some(yoake_login::LoginEvent::StorageError),
-                        };
-                        this.check_yoake_updates();
-                        cx.notify();
-                    },
-                ))
-            } else {
-                button("yoake-login", "Sign in", Kind::Secondary, &t).on_click(cx.listener(
-                    |this, _: &ClickEvent, _, cx| {
-                        match yoake_login::PortalClient::configured() {
-                            Ok(Some(client)) => {
-                                let label = std::env::var("COMPUTERNAME")
-                                    .or_else(|_| std::env::var("HOSTNAME"))
-                                    .unwrap_or_else(|_| "Horizon launcher".to_string());
-                                this.yoake_login_task = Some(client.start_device_login(&label));
-                                this.yoake_login_event = None;
-                                this.yoake_user_code = None;
-                            }
-                            _ => {
-                                this.yoake_login_event =
-                                    Some(yoake_login::LoginEvent::InvalidResponse);
-                            }
-                        }
-                        cx.notify();
-                    },
-                ))
-            };
-            rows = rows
-                .child(section_title("Yoake", "user", &t).mt(px(20.)).mb(px(12.)))
-                .child(index_row(
-                    0,
-                    "Portal account",
-                    Some(div().child(detail).into_any_element()),
-                    Some(action.into_any_element()),
-                    &t,
-                ));
-        }
-        if option_env!("YOAKE_COMPILED_FEED_URL").is_some() {
-            let instance = instances::selected();
-            let detail = if self.yoake_update_task.is_some() {
-                "Checking for updates.".to_string()
-            } else {
-                match self.yoake_update_states.get(&instance.home) {
-                    Some(yoake_update::UpdateState::UpToDate) => "Up to date.".to_string(),
-                    Some(yoake_update::UpdateState::Available {
-                        from,
-                        to,
-                        download_bytes,
-                    }) => format!("{from} → {to}; {download_bytes} bytes to download."),
-                    Some(yoake_update::UpdateState::NeedsLogin) => "Sign in to check.".to_string(),
-                    Some(yoake_update::UpdateState::Offline) => "Feed unavailable.".to_string(),
-                    Some(yoake_update::UpdateState::Error) => "Update check failed.".to_string(),
-                    None => "No update status for the selected instance.".to_string(),
-                }
-            };
-            rows = rows.child(index_row(
-                0,
-                "Yoake pack updates",
-                Some(div().child(detail).into_any_element()),
-                Some(
-                    button("yoake-check", "Check now", Kind::Secondary, &t)
-                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                            this.check_yoake_updates();
-                            cx.notify();
-                        }))
-                        .into_any_element(),
-                ),
-                &t,
-            ));
-        }
-        rows
-    }
-
     fn settings_page(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let toggle = switch("auto-install", self.settings.auto_install(), &t).on_click(
@@ -3941,7 +3820,6 @@ impl Launcher {
         let plain = |s: &str| div().child(tr(s).to_string()).into_any_element();
         let (accounts, n) = self.account_rows(cx);
         let (offline, n) = self.offline_rows(n, cx);
-        let yoake = self.yoake_rows(cx);
         let appearance = segments(
             "appearance",
             &[
@@ -3983,7 +3861,6 @@ impl Launcher {
                     .child(group("Account", "user").mt_0())
                     .child(accounts)
                     .child(offline)
-                    .child(yoake)
                     .child(group("Updates", "reload"))
                     .child(index_row(
                         n + 1,
@@ -5207,6 +5084,7 @@ impl Render for Launcher {
             Page::Servers => self.servers_page(cx),
             Page::Wardrobe => self.wardrobe_page(cx),
             Page::Notes => self.notes_page(cx),
+            Page::Yoake => self.yoake_page(window, cx),
             Page::Settings => self.settings_page(cx),
         };
         self.sky.free_replaced(window);
