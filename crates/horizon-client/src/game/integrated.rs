@@ -810,6 +810,7 @@ impl Game<'_> {
         let (ready_tx, ready) = channel();
         let (tasks, server_tasks) = channel();
         let server_flags = flags.clone();
+        let deferred = self.native_deferred.clone();
         let thread = std::thread::Builder::new()
             .name("Server thread".into())
             .spawn(move || {
@@ -824,6 +825,7 @@ impl Game<'_> {
                     settings,
                     launch,
                     server_flags.clone(),
+                    deferred,
                     server_tasks,
                     &ready_tx,
                 );
@@ -1198,6 +1200,7 @@ impl Game<'_> {
                 .lan
                 .as_mut()
                 .ok_or("the integrated server did not start")?;
+            host.hub.world_allow_commands = commands;
             // The owner is an operator when the world allows commands
             // (`IntegratedPlayerList`, `MinecraftServer.getProfilePermissions`).
             host.hub.ops.insert(owner, if commands { 4 } else { 0 });
@@ -1565,6 +1568,7 @@ impl Game<'_> {
         };
         let published = self.published_port().is_some();
         if let Some(host) = self.lan.as_mut() {
+            host.hub.world_allow_commands = allow;
             let level = if allow { 4 } else { 0 };
             host.hub.ops.insert(owner, level);
             // Splitscreen seats have the owner's permissions (`join_split`): they follow it.
@@ -1588,6 +1592,7 @@ fn serve(
     settings: Settings,
     launch: Launch,
     flags: Arc<Flags>,
+    deferred: super::native_deferred::DeferredRequests,
     tasks: Receiver<Task>,
     ready: &Sender<Ready>,
 ) -> Result<()> {
@@ -1627,6 +1632,7 @@ fn serve(
             return Err(e);
         }
     };
+    server.native_deferred = deferred;
     server.run_integrated(launch, flags, tasks, ready, opening)
 }
 

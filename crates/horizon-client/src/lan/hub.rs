@@ -288,6 +288,7 @@ pub struct Hub {
     pub hidden: crate::fast_hash::FxHashMap<u128, u8>,
     pub lan: Lan,
     pub config: HubConfig,
+    pub world_allow_commands: bool,
     pub encoder: ChunkEncoder,
     pub guests: Vec<Guest>,
     pub(super) sync: Arc<SyncData>,
@@ -606,9 +607,11 @@ impl Hub {
         let clock_ids = (0..sync.dynamic.len("minecraft:world_clock") as i32).collect();
         let mut encoder = encoder;
         encoder.set_dimension(config.levels.get(&config.dimension));
+        let world_allow_commands = !config.integrated;
         Self {
             lan,
             config,
+            world_allow_commands,
             encoder,
             guests: Vec::new(),
             sync,
@@ -1087,12 +1090,23 @@ impl Hub {
 
 /// `MinecraftServer.getProfilePermissions`: the permission level a server gives a player.
 /// `vanilla` is what it computed (the ops list, the integrated owner, LAN guests' commands);
+/// `world_allow_commands` is the integrated world's Allow Commands state, or true on dedicated servers.
 /// mods may change `level`, which starts as `vanilla`. A level a mod set is capped at 4.
 /// It may run more than once per player in one resend; mods should answer
 /// the same way each time. API @API:player_permission_level@.
 #[inline(never)]
-pub fn native_player_permission_level(player: u128, vanilla: u8, level: &mut u8) {
-    crate::native_client_hooks::player_permission_level(player, vanilla, level);
+pub fn native_player_permission_level(
+    player: u128,
+    vanilla: u8,
+    world_allow_commands: bool,
+    level: &mut u8,
+) {
+    crate::native_client_hooks::player_permission_level(
+        player,
+        vanilla,
+        world_allow_commands,
+        level,
+    );
 }
 
 fn apply_permission_hook(vanilla: u8, hook: impl FnOnce(&mut u8)) -> u8 {
@@ -1119,7 +1133,7 @@ impl Hub {
             self.ops.get(&uuid).copied().unwrap_or(0)
         };
         apply_permission_hook(vanilla, |level| {
-            native_player_permission_level(uuid, vanilla, level);
+            native_player_permission_level(uuid, vanilla, self.world_allow_commands, level);
         })
     }
 
@@ -1376,6 +1390,18 @@ impl Hub {
         self.refresh_permissions();
         for i in 0..self.guests.len() {
             if self.guests[i].placed {
+                self.send_permission_level(i);
+            }
+        }
+    }
+
+    /// Recompute permissions and notify only placed players whose levels changed.
+    pub fn resend_changed_permissions(&mut self) {
+        for i in 0..self.guests.len() {
+            let previous = self.guests[i].permission;
+            let level = self.default_permission(self.guests[i].uuid);
+            self.guests[i].permission = level;
+            if self.guests[i].placed && level != previous {
                 self.send_permission_level(i);
             }
         }
@@ -4381,6 +4407,7 @@ mod tests {
     fn hub_with_a_guest() -> (Hub, std::sync::mpsc::Receiver<crate::lan::Out>) {
         let config = crate::lan::NetConfig {
             announce: false,
+            listen: false,
             ..crate::lan::NetConfig::lan(0, "EffectSyncTest".into(), 2)
         };
         let mut sync = SyncData::empty();
@@ -4432,6 +4459,40 @@ mod tests {
         bob.dimension = "minecraft:overworld".into();
         hub.guests.push(bob);
         (hub, rx)
+    }
+
+    #[test]
+    fn changed_permission_refresh_sends_only_changed_levels() {
+        let (mut hub, rx) = hub_with_a_guest();
+        hub.guests[0].permission = hub.default_permission(1);
+
+        hub.resend_changed_permissions();
+        assert!(rx.try_recv().is_err());
+
+        hub.ops.insert(1, 2);
+        hub.resend_changed_permissions();
+        assert_eq!(hub.guests[0].permission, 2);
+        let crate::lan::Out::Packet(body) = rx.try_recv().unwrap() else {
+            panic!("expected a permission-level packet");
+        };
+        let mut reader = horizon_protocol::buf::Reader::new(&body);
+        let id = reader.varint().unwrap();
+        assert!(matches!(
+            C::decode(id, reader.rest()).unwrap(),
+            C::EntityEvent(event) if event.id == 1 && event.event == 26
+        ));
+        let crate::lan::Out::Packet(body) = rx.try_recv().unwrap() else {
+            panic!("expected a commands packet");
+        };
+        let mut reader = horizon_protocol::buf::Reader::new(&body);
+        let id = reader.varint().unwrap();
+        assert!(matches!(
+            C::decode(id, reader.rest()).unwrap(),
+            C::Commands(_)
+        ));
+
+        hub.resend_changed_permissions();
+        assert!(rx.try_recv().is_err());
     }
 
     /// `handlePlayerCommand` START_RIDING_JUMP (3) and STOP_RIDING_JUMP (4): the

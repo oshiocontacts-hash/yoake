@@ -1,6 +1,6 @@
 # Native mods
 
-API @API:player_permission_level@ adds `native_player_permission_level(player, vanilla, level)` on the server (`MinecraftServer.getProfilePermissions`). `player` is the player's UUID; `level` starts as `vanilla`, computed from the ops list, integrated owner and LAN guest settings. Mods may change it; changed levels are capped at 4. The `refresh_permissions()` helper recomputes levels and resends every placed player's level and command tree through vanilla's own packets; it returns false when this game runs no server or its players are not reachable (call from `native_server_tick`). Operator-list membership checks (spawn protection, chat-spam exemption and whitelist) are unchanged. The hook may run more than once for the same player in one resend, including twice through `resend_commands_filtered`; mods should answer the same way each time. Bundles need "hooks": @API:player_permission_level@.
+API @API:player_permission_level@ adds `native_player_permission_level(player, vanilla, world_allow_commands, level)` on the server (`MinecraftServer.getProfilePermissions`). `player` is the player's UUID; `level` starts as `vanilla`, computed from the ops list, integrated owner and LAN guest settings. `world_allow_commands` is the current integrated-world Allow Commands setting, or true on a dedicated server. Mods may change the level; changed levels are capped at 4. The `refresh_permissions()` helper recomputes levels and resends every placed player's level and command tree through vanilla's own packets; it returns false when this game runs no server or its players are not reachable (call from `native_server_tick`). Operator-list membership checks (spawn protection, chat-spam exemption and whitelist) are unchanged. The hook may run more than once for the same player in one resend, including twice through `resend_commands_filtered`; mods should answer the same way each time. Bundles need "hooks": @API:player_permission_level@.
 
 API @API:compute_fov_modifier@ adds `native_compute_fov_modifier(player, base, modifier)` on the client each tick for the local player's FOV scale, after vanilla effects and before zoom and camera easing. `player` contains the calculation inputs and `base` is the original scale. Non-finite modifiers or values outside 0.01..=10 fall back to `base`. It does not affect a spectator camera on a mob. Bundles need "hooks": @API:compute_fov_modifier@.
 
@@ -2673,6 +2673,21 @@ Loading, recovery, onboarding, warning, and security-confirmation screens reject
 screen succeeds; another owner cannot replace it.
 
 With no mod screen open, title drawing and input retain their existing paths.
+
+### @API:deferred_requests@ Deferred requests
+
+`fn request_permission_refresh(&mut self) -> bool` queues a permission recomputation for the start of a server tick,
+outside mod callbacks. Repeated requests coalesce; it returns false when there is no server. Only placed players whose
+level changes receive the vanilla permission-level update and command tree.
+
+`fn request_mod_screen_open_anywhere(&mut self, mod_id: &str) -> bool` queues a loaded mod's screen to open at the
+start of a client redraw, outside mod callbacks, both on the title screen and in a world. It returns false for an
+unloaded mod ID; the last valid request before a redraw wins. A successful request only means it was queued: the
+existing screen ownership and modal restrictions still apply when it is drained.
+
+Both request helpers avoid file IO, blocking locks and waiting. With no request, the drain checks for pending work and
+does not run a permission hook or open a screen. These methods require a mutable `Host`; callbacks with no host, a
+read-only host, or only a level host cannot call them. Bundles need "hooks": @API:deferred_requests@.
 
 ### @API:name_tag_lines@ `name_tag_lines`
 

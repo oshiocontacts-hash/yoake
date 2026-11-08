@@ -8297,6 +8297,28 @@ fn local_particle_type(
 // Native mods use these; nothing in Horizon does.
 #[allow(dead_code)]
 impl Game<'_> {
+    /// Queues connected-player permission recomputation for the next server tick.
+    /// API @API:deferred_requests@.
+    pub(super) fn native_request_permission_refresh(&mut self) -> bool {
+        let server_exists = self.lan.is_some()
+            || self.lan_acting.is_some()
+            || self.serving.is_some()
+            || self.integrated.is_some()
+            || self.integrated_starting.is_some()
+            || (self.options.dedicated.is_some() && self.native_lifecycle.epoch().is_some());
+        self.native_deferred
+            .request_permission_refresh(server_exists)
+    }
+
+    /// Queues a loaded mod's screen to open on the next client frame.
+    /// API @API:deferred_requests@.
+    pub(super) fn native_request_mod_screen_open_anywhere(&mut self, mod_id: &str) -> bool {
+        let index = horizon_protocol::mod_list::native::local()
+            .iter()
+            .position(|entry| entry.id == mod_id);
+        self.native_deferred.request_mod_screen(index)
+    }
+
     /// Adds a transient player attribute modifier. API @API:player_ops@.
     pub(super) fn native_player_attribute_modifier_add(
         &mut self,

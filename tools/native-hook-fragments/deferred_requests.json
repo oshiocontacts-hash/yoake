@@ -1,0 +1,18 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "request_permission_refresh",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_request_permission_refresh",
+      "mod_api": {}
+    },
+    {
+      "name": "request_mod_screen_open_anywhere",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_request_mod_screen_open_anywhere",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "Non-blocking requests for deferred player permission recomputation and mod-screen opening.",
+  "doc_summary": "### @API:deferred_requests@ Deferred requests\n\n`request_permission_refresh(&mut self) -> bool` coalesces requests to recompute connected-player permissions at the start of a server tick outside mod callbacks; it returns false if there is no server. Only players whose level changes receive the vanilla permission-level update and command tree. `request_mod_screen_open_anywhere(&mut self, mod_id: &str) -> bool` queues a loaded mod's screen to open at the start of a client redraw outside mod callbacks. The last valid request before that redraw wins; false means the mod ID is not loaded. Acceptance does not guarantee the screen opens: the existing mod-screen ownership and modal restrictions still apply. Both request methods avoid file IO, blocking locks and waiting. They require a mutable `Host`; callbacks with no host, a read-only host, or only a level host cannot call them.",
+  "comments": []
+}
