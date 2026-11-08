@@ -2806,9 +2806,12 @@ player only, from its client `tick` with a world present (ownership comes from t
 
 ### Client PCM streams and microphone capture
 
-These APIs are client-only. Opening, pushing, moving, reading, and closing use the calling native mod's identity during
-its permitted client callback. Handles are opaque and cannot be used by another mod. No stream or microphone opens
-automatically.
+These APIs are client-only and work only inside the calling mod's client `tick` hook, the same rule as
+`native_play_local_sound`: that is where the mod's identity is known. Called from any other hook (`frame`,
+`net_from_server`, `command`, screens), `open`, `push`, `push_i16` and `move` return `Err(OutsideClientTick)`,
+`queued` and `dropped` return `None`, `close` returns `false`, and the microphone calls fail the same way (`read`
+returns 0). Buffer what arrives elsewhere (for example audio from `net_from_server`) and push it in the next `tick`.
+Handles are opaque and cannot be used by another mod. No stream or microphone opens automatically.
 
 ```rust
 pub enum NativeStreamAnchor {

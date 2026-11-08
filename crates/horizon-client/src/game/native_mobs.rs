@@ -241,6 +241,7 @@ impl Game<'_> {
             return false;
         };
         let to = Vec3::new(pos[0], pos[1], pos[2]);
+        m.native_control_drop();
         // `TeleportCommand`: stop the navigation, no vertical motion, and a
         // rider is put back on its vehicle unless it gets off first.
         m.ai.nav.stop();
@@ -306,6 +307,7 @@ impl Game<'_> {
         let Some(m) = self.mobs.iter_mut().find(|m| m.id == id && !m.removed) else {
             return false;
         };
+        m.native_control_drop();
         m.removed = true;
         true
     }
