@@ -1,0 +1,9 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "server_player_motion", "target": "horizon_client::game::native_hooks::Game<'_>::native_server_player_motion"},
+    {"name": "set_server_player_velocity", "target": "horizon_client::game::native_hooks::Game<'_>::native_set_server_player_velocity"}
+  ],
+  "rust_summary": "reading server player motion and setting player velocity (`native_server_player_motion`, `native_set_server_player_velocity`).",
+  "doc_summary": "On the authoritative server tick, read a ready player's position, velocity, ground state, server motion collision flag, and fall distance with `native_server_player_motion(uuid)`. `native_set_server_player_velocity(dimension, uuid, velocity)` updates the matching player and uses the server motion synchronization path. Each helper is limited to 512 calls per mod per tick. The collision flag is the last accepted movement packet's horizontal-collision bit; verify its lifetime across teleports, passengers, and rejected moves. Bundles need fragment @API:server_player_motion@."
+}

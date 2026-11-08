@@ -27,6 +27,18 @@ fn mode_name(id: i32) -> &'static str {
 }
 
 impl Game<'_> {
+    pub(in crate::game) fn native_player_teleport_here(
+        &mut self,
+        pos: [f64; 3],
+        yaw: f32,
+        pitch: f32,
+    ) {
+        self.teleport_to(Target::Player, pos, Some([yaw, pitch]));
+        if let Some(player) = self.player.as_mut() {
+            player.teleported = true;
+        }
+    }
+
     /// The guest `conn`, while the hub is in `self.lan`.
     pub(in crate::game) fn command_guest(&self, conn: u32) -> Option<&Guest> {
         self.lan.as_ref()?.hub.guest(conn)

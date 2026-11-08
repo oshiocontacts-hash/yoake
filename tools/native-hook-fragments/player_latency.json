@@ -1,0 +1,8 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "player_latency_ms", "target": "horizon_client::game::native_hooks::Game<'_>::native_player_latency_ms"}
+  ],
+  "rust_summary": "reading a server player's smoothed keep-alive latency (`native_player_latency_ms`).",
+  "doc_summary": "Read a connected, ready player's smoothed server keep-alive latency with `native_player_latency_ms(uuid)`. It returns none outside a server tick, when the player is unavailable, or after 512 calls per mod in a tick. Bundles need fragment @API:player_latency@."
+}

@@ -982,21 +982,23 @@ impl Game<'_> {
         // Minecraft.services() has the keys wherever the game is played, single player's own
         // server included: its guests' chat keys are checked against them.
         let services_keys = Arc::new(std::sync::Mutex::new(ServicesKeys::Pending));
-        let slot = services_keys.clone();
-        let _ = std::thread::Builder::new()
-            .name("Services keys".into())
-            .spawn(move || {
-                use horizon_server_files::profiles;
-                let keys = profiles::fetch_profile_key_keys(&profiles::discovery_url());
-                *slot.lock().unwrap_or_else(|e| e.into_inner()) = match keys {
-                    Ok(keys) if !keys.is_empty() => ServicesKeys::Ready(keys),
-                    Ok(_) => ServicesKeys::Missing,
-                    Err(why) => {
-                        log::error!("Horizon: {why}");
-                        ServicesKeys::Missing
-                    }
-                };
-            });
+        if !cfg!(test) || !single_player {
+            let slot = services_keys.clone();
+            let _ = std::thread::Builder::new()
+                .name("Services keys".into())
+                .spawn(move || {
+                    use horizon_server_files::profiles;
+                    let keys = profiles::fetch_profile_key_keys(&profiles::discovery_url());
+                    *slot.lock().unwrap_or_else(|e| e.into_inner()) = match keys {
+                        Ok(keys) if !keys.is_empty() => ServicesKeys::Ready(keys),
+                        Ok(_) => ServicesKeys::Missing,
+                        Err(why) => {
+                            log::error!("Horizon: {why}");
+                            ServicesKeys::Missing
+                        }
+                    };
+                });
+        }
         self.remote = Some(Remote {
             session,
             brand: "unknown".into(),
@@ -1141,6 +1143,7 @@ impl Game<'_> {
         if reason.is_none() && self.integrated.as_ref().is_some_and(|s| !s.stopped()) {
             return self.begin_closing_save(false).map(|_| false);
         }
+        *self.native_mob_player_cache.get_mut() = None;
         self.native_session_left();
         self.clear_native_local_sounds();
         self.clear_native_streams();
@@ -5388,7 +5391,7 @@ impl Game<'_> {
     /// Whether a downloaded skin or cape is in the atlas to draw, marking it
     /// drawn; if not (new, or its slot taken), its image is queued for upload
     /// again and it is drawn from the next frame.
-    fn again_skin(&mut self, location: &str) -> bool {
+    pub(super) fn again_skin(&mut self, location: &str) -> bool {
         let mut downloads = self.skin_downloads.borrow_mut();
         // A slot without its sprite (the atlas was rebuilt, or the upload
         // never happened) counts as missing, so the skin is stored again.
@@ -5730,12 +5733,12 @@ impl Game<'_> {
 
     /// One client tick while connected (Minecraft.tick with a ClientLevel).
     pub(super) fn tick_remote(&mut self) -> Result<()> {
+        self.native_net.to_server = 0;
         self.tick_remote_level()?;
         // The rockets boosting this player tick after it, also while it waits
         // for chunks.
         self.tick_own_rockets();
         // Client mods tick on any server, single player's own included.
-        self.native_net.to_server = 0;
         self.native_tick();
         self.tell_native_now();
         // Far tiles the samplers asked for (`lod_net`).
@@ -5787,6 +5790,15 @@ impl Game<'_> {
         let w = &mut self.world.weather;
         w.rain_level.0 = w.rain_level.1;
         w.thunder_level.0 = w.thunder_level.1;
+        let mouse_buttons_eligible = self
+            .remote
+            .as_ref()
+            .is_some_and(|remote| remote.loaded_sent)
+            && self.screen == Screen::Playing
+            && self.title.is_none()
+            && self.sleeping.is_none()
+            && !self.screen_over_playing();
+        super::native_mouse_buttons::poll(self, mouse_buttons_eligible);
         if self.use_delay > 0 {
             self.use_delay -= 1;
         }
@@ -8550,21 +8562,29 @@ impl Game<'_> {
             && self.screen == Screen::Playing
             && self.sleeping.is_none()
             && !self.dialog_open();
-        if stop || !ready {
-            self.stop_remote_mining();
-        }
+        let stopped_mining = (stop || !ready) && self.stop_remote_mining();
         if !ready {
             // A screen's opening released the keys (`KeyMapping.releaseAll`).
             self.hotbar_presses.clear();
             return;
         }
+        let buttons = self.mouse_buttons_state.frame;
+        if buttons.cancel_attack_started {
+            self.clicks.miss_time = 0;
+            if stopped_mining || self.stop_remote_mining() {
+                self.mining = None;
+            }
+        }
         // MultiPlayerGameMode.tick syncs the carried slot before keybinds.
         self.remote_send_carried();
-        let (attack, use_item) = (self.left, self.right);
+        use horizon_client::interaction_input::Button;
+        input.filter_clicks(Button::Attack, |clicks| buttons.attack_clicks(clicks));
+        input.filter_clicks(Button::Use, |clicks| buttons.use_clicks(clicks));
+        let (attack, use_item) = (buttons.attack_down(self.left), buttons.use_down(self.right));
         // A tick that clicks, attacks or uses acts with the slot its number
         // keys select (`ensureHasSentCarriedItem` before the packets).
         let acts = input.has_clicks() || attack || use_item;
-        input.tick(&mut RemoteInputWorld(self, acts), attack, use_item);
+        input.tick(&mut RemoteInputWorld(self, acts, buttons), attack, use_item);
         self.remote_queued_keys();
         if let Some(r) = self.remote.as_mut() {
             r.input = input;
@@ -8910,7 +8930,9 @@ impl Game<'_> {
         // reads held and a use would start again on the first tick back.
         self.right = false;
         horizon_client::interaction_input::release_on_screen_open(&mut RemoteInputWorld(
-            self, false,
+            self,
+            false,
+            super::native_mouse_buttons::MouseButtonsFrame::default(),
         ));
     }
     /// `MultiPlayerGameMode.releaseUsingItem`: sends `RELEASE_USE_ITEM` and
@@ -10236,7 +10258,11 @@ fn synced_local_use(
 }
 
 /// The game as the tick's input sees it, and whether the tick acts.
-struct RemoteInputWorld<'g, 'a>(&'g mut Game<'a>, bool);
+struct RemoteInputWorld<'g, 'a>(
+    &'g mut Game<'a>,
+    bool,
+    super::native_mouse_buttons::MouseButtonsFrame,
+);
 
 struct RemoteUseWorld<'g, 'a>(&'g mut Game<'a>);
 
@@ -10269,6 +10295,9 @@ impl horizon_client::interaction_input::InteractionWorld for RemoteInputWorld<'_
         self.0.using.is_some()
     }
     fn release_using(&mut self) {
+        if self.2.cancel_use && !self.2.cancel_use_started && self.0.right {
+            return;
+        }
         if let Some((slot, ticks)) = self.0.using
             && self.0.mod_use_tick(slot, ticks, true)
         {
@@ -10309,7 +10338,9 @@ impl horizon_client::interaction_input::InteractionWorld for RemoteInputWorld<'_
         self.0.use_delay
     }
     fn continue_attack(&mut self, down: bool) {
-        self.0.remote_continue_attack(down);
+        if !self.2.cancel_attack {
+            self.0.remote_continue_attack(down);
+        }
     }
 }
 
@@ -10468,6 +10499,10 @@ fn hold_server_fire(fire_ticks: i32, server_on_fire: bool) -> i32 {
         fire_ticks
     }
 }
+
+#[cfg(test)]
+#[path = "remote_mouse_buttons_tests.rs"]
+mod mouse_buttons_tests;
 
 #[cfg(test)]
 mod tests {

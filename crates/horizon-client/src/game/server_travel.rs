@@ -47,6 +47,7 @@ pub(super) struct Trip {
     /// The level the player left for another one: the mods are told they
     /// changed dimension when the trip ends (`tell_mods_changed_dimension`).
     pub(super) left: Option<Dim>,
+    pub(super) native_ticket: Option<horizon_client::mod_api::NativeTeleportTicket>,
 }
 
 /// A vehicle a player rides: an animal, a boat or a minecart. It travels
@@ -502,6 +503,7 @@ impl Game<'_> {
             finder: None,
             placed: false,
             left: Some(source),
+            native_ticket: None,
         });
         if let Err(e) = self.enter_level(Some(host), source) {
             log::error!("could not reopen {}: {e}", source.id());
@@ -526,6 +528,7 @@ impl Game<'_> {
             finder: None,
             placed: false,
             left: None,
+            native_ticket: None,
         });
     }
 
@@ -594,6 +597,7 @@ impl Game<'_> {
             finder: None,
             placed: false,
             left: None,
+            native_ticket: None,
         });
     }
 
@@ -643,6 +647,7 @@ impl Game<'_> {
             finder: None,
             placed: false,
             left: None,
+            native_ticket: None,
         });
     }
 
@@ -655,7 +660,11 @@ impl Game<'_> {
             let trip = &self.server_trips[k];
             let Some(i) = host.hub.guests.iter().position(|g| g.conn == trip.conn) else {
                 // They left on the way.
-                self.server_trips.remove(k);
+                let trip = self.server_trips.remove(k);
+                self.native_player_ops.finish(
+                    trip.native_ticket,
+                    Some("native teleport player disconnected".into()),
+                );
                 continue;
             };
             let (cx, cz) = (
@@ -674,6 +683,7 @@ impl Game<'_> {
             }
             let mut trip = self.server_trips.remove(k);
             if trip.placed {
+                self.native_player_ops.finish(trip.native_ticket, None);
                 self.tell_mods_changed_dimension(host, trip.conn, trip.left, trip.dim);
                 continue;
             }
@@ -841,17 +851,49 @@ impl Game<'_> {
     /// keeping all data and the teleport, with no portal sound. The server
     /// leaves the body alone until the level has loaded around it.
     pub(super) fn run_level_teleports(&mut self, host: &mut LanHost) {
-        for t in std::mem::take(&mut self.level_teleports) {
+        let mut native = std::mem::take(&mut self.native_player_ops.queued);
+        for (index, t) in std::mem::take(&mut self.level_teleports)
+            .into_iter()
+            .enumerate()
+        {
+            let ticket = native.remove(&index);
+            self.native_player_ops.processing(ticket);
             let Some(i) = host.hub.guests.iter().position(|g| g.conn == t.conn) else {
+                self.native_player_ops
+                    .finish(ticket, Some("native teleport player disconnected".into()));
                 continue;
             };
+            let previous = self.dim;
+            if ticket.is_some() {
+                let player_dim = Dim::from_id(&host.hub.guests[i].dimension);
+                if player_dim != self.dim
+                    && let Err(e) = self.enter_level(Some(host), player_dim)
+                {
+                    self.native_player_ops
+                        .finish(ticket, Some(format!("could not open player level: {e}")));
+                    if self.dim != previous {
+                        let _ = self.enter_level(Some(host), previous);
+                    }
+                    continue;
+                }
+            }
             let source = self.dim;
-            if t.dim != source {
+            if t.dim != source && ticket.is_none() {
                 drop_hook(host, t.conn);
             }
             if let Err(e) = self.enter_level(Some(host), t.dim) {
                 log::error!("could not open {}: {e}", t.dim.id());
+                self.native_player_ops.finish(
+                    ticket,
+                    Some(format!("could not open destination level: {e}")),
+                );
+                if ticket.is_some() && self.dim != previous {
+                    let _ = self.enter_level(Some(host), previous);
+                }
                 continue;
+            }
+            if t.dim != source && ticket.is_some() {
+                drop_hook(host, t.conn);
             }
             let (uuid, name) = (host.hub.guests[i].uuid, host.hub.guests[i].name.clone());
             let g = &mut host.hub.guests[i];
@@ -859,18 +901,49 @@ impl Game<'_> {
             let origin = g.position;
             // A new body there: no fall distance or motion carried over, but
             // the player's attributes (ServerPlayer.teleport keeps the entity).
-            g.new_body(true);
+            let old_body = g.new_body(true).filter(|_| ticket.is_some());
             let cooldown = host.play.get(&t.conn).map_or(0, |p| p.portal.cooldown);
             let ctx = self.server_ctx();
             host.hub
                 .change_level(i, t.at, yaw, Some(pitch), false, cooldown, &ctx);
-            self.as_guest(host, t.conn, |g| {
+            let entered = self.as_guest(host, t.conn, |g| {
+                if let Some(body) = old_body
+                    && let Some(player) = g.player.as_mut()
+                {
+                    player.attributes = body.attributes;
+                    let syncable: Vec<_> = player
+                        .attributes
+                        .instances()
+                        .filter(|(_, key, _)| {
+                            player
+                                .attributes
+                                .catalog()
+                                .attribute(key.attribute())
+                                .syncable
+                        })
+                        .map(|(handle, _, _)| handle.clone())
+                        .collect();
+                    for handle in syncable {
+                        player.attributes.sync_mut().add(Some(handle));
+                    }
+                }
                 g.trigger_dimension(source, t.dim, origin);
                 // The mods hear the teleport into another level, with the
                 // player's state swapped in.
                 g.native_player_teleported(uuid, &name, origin, t.at, t.dim.id());
             });
+            if ticket.is_some() && entered.is_none() {
+                self.native_player_ops.finish(
+                    ticket,
+                    Some("could not enter the teleported player's state".into()),
+                );
+                if self.dim != previous {
+                    let _ = self.enter_level(Some(host), previous);
+                }
+                continue;
+            }
             self.server_trips.retain(|trip| !trip.is(t.conn));
+            self.native_player_ops.arriving(ticket);
             self.server_trips.push(Trip {
                 conn: t.conn,
                 dim: t.dim,
@@ -887,9 +960,15 @@ impl Game<'_> {
                 finder: None,
                 placed: true,
                 left: Some(source),
+                native_ticket: ticket,
             });
-            if let Err(e) = self.enter_level(Some(host), source) {
-                log::error!("could not reopen {}: {e}", source.id());
+            let restore = if ticket.is_some() { previous } else { source };
+            if let Err(e) = self.enter_level(Some(host), restore) {
+                log::error!("could not reopen {}: {e}", restore.id());
+                self.native_player_ops.finish(
+                    ticket,
+                    Some(format!("could not restore previous level: {e}")),
+                );
             }
         }
     }

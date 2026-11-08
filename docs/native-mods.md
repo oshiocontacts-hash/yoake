@@ -1946,6 +1946,19 @@ As with other integrated-owner calls, a timeout does not cancel work already que
 
 A native server tick hook can call `native_server_block` with its context, a dimension id and a block position. It returns the block name and state properties from a loaded chunk. It does not load a chunk or open a dimension. Reads outside that hook, from a stale context, from unavailable dimensions or outside the world bounds return an error.
 
+### @API:server_block_collision@ `server_block_collision`
+
+`native_clip(dimension, from, to)` and `native_box_collides(dimension, min, max)` query block
+colliders during an authoritative server tick. They use an empty entity collision context, ignore
+fluids and entities, and treat unloaded chunks as empty without loading them. The box query also
+excludes the world border. `native_clip` returns an optional `BlockHit` with the block position,
+hit location and face.
+
+Each helper allows 512 calls per mod per server tick. Excess calls, invalid coordinates, unavailable
+dimensions, oversized queries and collision-query failures return an error. Clips traverse at most
+1,024 blocks, and boxes scan at most 65,536 cells. Bundles need the `hooks` field set to
+@API:server_block_collision@.
+
 ### Neighbour observations (draft)
 
 `native_neighbor_changed` observes each authoritative server `neighborChanged` before the block handles it. It supplies the dimension, position, current state ID, changed block ID and moved flag. Resolve IDs with the level's registries during the hook; the hook does not load chunks or change the update queue.
@@ -2632,6 +2645,19 @@ items are left out (NeoForge's `RenderLivingEvent.Pre`, cancelled); its name tag
   - `item_tags_ready()` tells "no data yet" apart from "not in the tag".
   - Without a listener, no tag table is made and the dialog handling is the same as before.
 
+### @API:mouse_buttons@ `mouse_buttons`
+
+`Hooks::mouse_buttons_listened` is the opt-in gate: set `event.listened = true` to receive
+`Hooks::mouse_buttons` each eligible client tick. The event reports
+the bound attack and use controls, including keyboard rebindings, and is suppressed while a screen
+or playing-screen overlay is open.
+
+The independent `cancel_vanilla_attack` and `cancel_vanilla_use` flags suppress
+their respective actions for the current tick. When cancellation begins during active mining or
+item use, the client performs the corresponding vanilla release, including the abort-destroy
+or release-use-item action. When cancellation ends while a button remains held, the client makes
+a fresh vanilla press attempt. Bundles need the `hooks` field set to @API:mouse_buttons@.
+
 ### @API:mod_screen_open_anywhere@ `mod_screen_open_anywhere`
 
 `fn native_mod_screen_open_anywhere(&mut self, mod_id: &str) -> bool`
@@ -2745,6 +2771,24 @@ it moves only what the player sees, not where they are or aim.
   moved-too-quickly check, which can send them back, as vanilla's does. It answers false for a player not on this server,
   on a client, and inside a player's hook (call it from a tick hook).
 
+### @API:server_player_motion@ `server_player_motion`
+
+`native_server_player_motion(uuid)` returns a `NativeServerPlayerMotion` containing the player's
+position, velocity, on-ground state, horizontal-collision state and fall distance.
+`native_set_server_player_velocity(dimension, uuid, velocity)` returns false when no matching ready
+player is found. Both helpers include the integrated host player when available. The setter uses the
+existing server motion-packet path, including its handling of pending hurt synchronization. The
+horizontal-collision value is the bit from the player's last accepted movement packet. Each helper
+allows 512 calls per mod per server tick. Bundles need the `hooks` field set to
+@API:server_player_motion@.
+
+### @API:player_latency@ `player_latency`
+
+`native_player_latency_ms(uuid)` returns the connected player's smoothed keep-alive latency, or
+`None` when unavailable, outside the allowed server-tick context, or after its 512-call per-mod
+tick budget. Horizon initializes that latency to zero before a measurement arrives. Bundles need
+the `hooks` field set to @API:player_latency@.
+
 ### Values for a mod's shader pack
 
 `native_shader_params(partial, params)` (client) asks every frame, while a Horizon shader pack is on, for eight
@@ -2853,6 +2897,24 @@ Closed-door opening is not supported by this API. There is no `can_open_doors` o
 
 Teleportation, dimension transfer, unload, and death discard control state. Acquire a fresh
 entity handle and claim control again when appropriate.
+
+### Drawing a mob as a player
+
+In server tick context, `player_appearance(player_uuid)` returns an appearance snapshot for a
+placed player, including the singleplayer owner. It returns `None` outside that context, including
+guest-packet callbacks while the host is detached. Take a new snapshot when the copied player's
+appearance or equipment changes. Hands are ordered main hand, off hand; armour is ordered head,
+chest, legs, feet. `encode` returns an empty vector for invalid or oversized data, and `decode`
+rejects malformed data or messages over 30,000 bytes. Send the encoded snapshot using your mod
+message.
+
+In `mob_submit`, call `draw_mob_as_player(mob, draw, &appearance)` and cancel the original draw
+only when it returns `true`. Pending or failed skins use the UUID's default skin; mobs sharing an
+appearance still have independent poses. Armour trims may need a frame to prepare. Kigurumi
+avatars are not drawn, and culling is unchanged: use a roughly player-sized carrier.
+
+For a name tag, match the mob's ID in `render_name_tag` and set its visibility and text from
+`appearance.name_tag`. Use `render_name_tag_position` if its anchor needs adjustment.
 
 ### Client PCM streams and microphone capture
 

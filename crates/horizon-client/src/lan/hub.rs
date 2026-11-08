@@ -3645,7 +3645,7 @@ impl Hub {
         g.yaw = yaw;
         g.pitch = pitch.clamp(-90.0, 90.0);
         g.head_yaw = g.yaw;
-        g.on_ground = flags & 1 != 0;
+        g.accept_move_flags(flags);
         g.ticks = g.ticks.max(1);
     }
 

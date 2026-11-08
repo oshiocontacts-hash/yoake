@@ -538,3 +538,28 @@ fn invalid_and_over_budget_explosions_leave_blocks_unchanged() {
         assert_eq!(game.world.block(8, 64, 8), dirt);
     });
 }
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn player_appearance_is_available_for_placed_guest_and_owner_during_server_tick() {
+    with_server(|game, _, _| {
+        let owner = game.native_player_appearance(OWNER).unwrap();
+        assert_eq!((owner.uuid, owner.profile_name.as_str()), (OWNER, "Owner"));
+        let guest = game.native_player_appearance(GUEST).unwrap();
+        assert_eq!((guest.uuid, guest.profile_name.as_str()), (GUEST, "Guest"));
+    });
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn player_appearance_is_unavailable_outside_the_attached_server_tick() {
+    with_server(|game, _, _| {
+        let host = game.lan.take().unwrap();
+        assert!(game.native_player_appearance(OWNER).is_none());
+        assert!(game.native_player_appearance(GUEST).is_none());
+        game.lan = Some(host);
+        game.native_lifecycle.server_tick_end(false);
+        assert!(game.native_player_appearance(OWNER).is_none());
+        assert!(game.native_player_appearance(GUEST).is_none());
+    });
+}

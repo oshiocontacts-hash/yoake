@@ -238,19 +238,23 @@ mod native_living_refs;
 mod native_menus;
 mod native_mob_draw;
 mod native_mob_navigation;
+mod native_mob_player;
 mod native_mobs;
 mod native_motion;
 mod native_mounts;
+pub(crate) mod native_mouse_buttons;
 pub(crate) mod native_name_lines;
 mod native_net;
 mod native_panel;
 mod native_panel_recipes;
 mod native_perms;
+mod native_player_ops;
 mod native_projectiles;
 mod native_quick_move;
 mod native_recipes;
 mod native_server;
 mod native_server_ops;
+pub(crate) mod native_server_physics;
 mod native_session;
 mod native_shaders;
 mod native_streams;
@@ -445,6 +449,7 @@ pub use native_falling::NativeFalling;
 pub use native_hooks::{NativeClock, NativeShake};
 pub use native_item_energy::ItemEnergyBuffer;
 pub use native_mob_draw::{NativeMobRender, NativePlayerRender};
+pub use native_mob_player::{NativePlayerAppearance, NativePlayerModel};
 pub use native_server::NativeExperienceOrb;
 pub use native_world_columns::NativeColumnBlocks;
 pub use native_world_edit::{NativeBlockEdit, NativeBlockRun, NativeHeightmap};
@@ -516,6 +521,10 @@ struct Options {
     /// GPU the display cannot present from can still be benchmarked. The
     /// window stays hidden and never grabs the system pointer.
     offscreen: bool,
+    /// `--no-focus` or `HORIZON_NO_FOCUS=1`: the window opens behind the others without taking
+    /// the keyboard focus (an automated run recorded by a capture tool while someone works).
+    /// It grabs the pointer only after the player clicks it to the front, as any unfocused window.
+    no_focus: bool,
     /// `--headless` (#4951): no display, no window and no renderer. The game runs its own
     /// loop (`game/headless.rs`) instead of winit's, so it starts where no display server
     /// is (an SSH session, a server). It counts as `offscreen` for everything else (an
@@ -656,6 +665,7 @@ impl Options {
             no_pause: false,
             control: None,
             offscreen: false,
+            no_focus: std::env::var_os("HORIZON_NO_FOCUS").is_some_and(|v| v == "1"),
             headless: false,
             window_size: [1280, 720],
             spikes: std::env::var("HORIZON_SPIKES")
@@ -699,6 +709,7 @@ impl Options {
                 "--test-terrain" => o.test_terrain = true,
                 "--no-pause" => o.no_pause = true,
                 "--offscreen" => o.offscreen = true,
+                "--no-focus" => o.no_focus = true,
                 "--headless" => {
                     o.headless = true;
                     o.offscreen = true;
@@ -2730,6 +2741,7 @@ struct Game<'a> {
     attack_clicks: u32,
     /// Use clicks since the last tick; `handleKeybinds` consumes them after the attack clicks.
     use_clicks: u32,
+    mouse_buttons_state: native_mouse_buttons::MouseButtonsState,
     hand_strength: horizon_client::attack_strength::AttackStrength,
     settings: Settings,
     tutorial: tutorial::Tutorial,
@@ -2870,6 +2882,7 @@ struct Game<'a> {
     /// and mannequins) resolve through the services in the background.
     skin_profiles: RefCell<horizon_client::skins::Resolver>,
     skin_slots: horizon_client::skins::SkinSlots,
+    native_mob_player_cache: RefCell<Option<native_mob_player::NativeMobPlayerCache>>,
     /// Cosmetics on players (game/cosmetics.rs), off by default.
     cosmetics: cosmetics::Cosmetics,
     /// Atlas trim slots in use: (sprite name, slot), least recently drawn first.
@@ -2949,6 +2962,8 @@ struct Game<'a> {
     /// The native lifecycle bookkeeping.
     native_lifecycle: native_lifecycle::NativeLifecycle,
     native_entity_queries: native_entity_query::QueryBudgets,
+    native_server_physics_budgets: native_server_physics::PhysicsBudgets,
+    native_player_ops: native_player_ops::PlayerOpsState,
     native_damage_budgets: native_damage::DamageBudgets,
     native_audio: Option<native_audio::NativeAudio>,
     native_streams: Option<native_streams::NativeStreams>,
@@ -8688,9 +8703,12 @@ impl Game<'_> {
         // The chat screen draws the focused chat itself; F1 hides the rest.
         if show_hud && self.screen != Screen::Chat {
             self.gui_layer("minecraft:chat", &mut batch, |g, batch| g.draw_chat(batch));
-            self.gui_layer("minecraft:tab_list", &mut batch, |g, batch| {
+            let drawn = self.gui_layer("minecraft:tab_list", &mut batch, |g, batch| {
                 g.draw_tab_list(batch);
             });
+            if drawn.is_none() && self.native_mob_player_cache.get_mut().is_some() {
+                self.flush_skin_slots();
+            }
         } else {
             self.draw_chat(&mut batch);
             self.draw_tab_list(&mut batch);
@@ -12498,6 +12516,7 @@ impl Game<'_> {
         self.begin_closing_save(false)
     }
     fn finish_close_world(&mut self) -> Result<()> {
+        *self.native_mob_player_cache.get_mut() = None;
         self.clear_native_local_sounds();
         self.clear_native_streams();
         self.ambience.clear(&mut self.audio);
@@ -16972,7 +16991,8 @@ impl ApplicationHandler for Game<'_> {
             attributes
                 .with_inner_size(winit::dpi::LogicalSize::new(size[0], size[1]))
                 .with_fullscreen(fullscreen.then_some(winit::window::Fullscreen::Borderless(None)))
-                .with_visible(!self.options.offscreen),
+                .with_visible(!self.options.offscreen)
+                .with_active(!self.options.no_focus),
         ) {
             Ok(w) => Arc::new(w),
             Err(e) => {
@@ -18747,6 +18767,9 @@ impl<'a> Game<'a> {
         let tutorial = tutorial::Tutorial::new(tutorial::Step::from_option(
             settings.file.int("tutorialStep"),
         ));
+        // A window opened with `--no-focus` starts unfocused, so nothing grabs the pointer
+        // before the platform says otherwise.
+        let start_focused = !options.no_focus;
         let creative = options.creative;
         let inventory = vec![None; 36];
         let now = Instant::now();
@@ -18844,7 +18867,7 @@ impl<'a> Game<'a> {
             split_window: false,
             view_at: [0, 0],
             split_hud: Default::default(),
-            focused: true,
+            focused: start_focused,
             ime_allowed: false,
             ime_area: None,
             focus_lost: None,
@@ -18990,6 +19013,7 @@ impl<'a> Game<'a> {
             clicks: Default::default(),
             attack_clicks: 0,
             use_clicks: 0,
+            mouse_buttons_state: native_mouse_buttons::MouseButtonsState::default(),
             hand_strength: Default::default(),
             settings,
             tutorial,
@@ -19082,6 +19106,7 @@ impl<'a> Game<'a> {
             }),
             skin_profiles: RefCell::new(horizon_client::skins::Resolver::new()),
             skin_slots: horizon_client::skins::SkinSlots::new(horizon_client::hud::SKIN_SLOTS),
+            native_mob_player_cache: RefCell::new(None),
             cosmetics: Default::default(),
             trim_slots: Vec::new(),
             cart_models: prepared.cart_models,
@@ -19139,6 +19164,8 @@ impl<'a> Game<'a> {
             native_input: Default::default(),
             native_lifecycle: Default::default(),
             native_entity_queries: Default::default(),
+            native_server_physics_budgets: Default::default(),
+            native_player_ops: Default::default(),
             native_damage_budgets: Default::default(),
             native_audio: None,
             native_streams: None,
@@ -20960,7 +20987,8 @@ impl Loading {
             attributes
                 .with_inner_size(winit::dpi::LogicalSize::new(size[0], size[1]))
                 .with_fullscreen(fullscreen.then_some(winit::window::Fullscreen::Borderless(None)))
-                .with_visible(!self.options.as_ref().is_some_and(|o| o.offscreen)),
+                .with_visible(!self.options.as_ref().is_some_and(|o| o.offscreen))
+                .with_active(!self.options.as_ref().is_some_and(|o| o.no_focus)),
         ) {
             Ok(w) => Arc::new(w),
             Err(e) => {

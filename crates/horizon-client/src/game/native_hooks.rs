@@ -880,15 +880,17 @@ use super::{
     maps::{NativeMapDecoration, NativeMapInfo},
     native_block_entity_draw::BlockEntityDraw,
     native_mob_draw::{NativeMobRender, NativePlayerRender},
+    native_mob_player::NativePlayerAppearance,
     native_panel_recipes::RecipePage,
 };
 use horizon_assets::item_model::StackView;
 use horizon_client::mod_api::{
-    self, EntityRef, NameTagLine, NativeAudioStreamId, NativeAudioStreamLimits, NativeCamera,
-    NativeCommand, NativeDispensed, NativeLanPublish, NativeLifecycleContext, NativeMicId,
-    NativeMobControlMode, NativeMobNavigation, NativeMobPath, NativeMobPathOptions,
-    NativeNoteBlockChange, NativeServerPlayer, NativeSoundError, NativeStreamAnchor,
-    RecipeBookCategory, ServerTickPhase, WorldPhase,
+    self, BlockHit, EntityRef, MouseButtons, NameTagLine, NativeAttributeOperation,
+    NativeAudioStreamId, NativeAudioStreamLimits, NativeCamera, NativeCommand, NativeDispensed,
+    NativeGameMode, NativeLanPublish, NativeLifecycleContext, NativeMicId, NativeMobControlMode,
+    NativeMobNavigation, NativeMobPath, NativeMobPathOptions, NativeNoteBlockChange,
+    NativeServerPlayer, NativeServerPlayerMotion, NativeSoundError, NativeStreamAnchor,
+    NativeTeleportStatus, NativeTeleportTicket, RecipeBookCategory, ServerTickPhase, WorldPhase,
 };
 use horizon_client::mod_api::{AttachmentResult, Attachments, Holder, Suggestion};
 pub(crate) use horizon_client::mod_api::{
@@ -2127,6 +2129,16 @@ fn chars_to_type(text: &str, canceled: impl FnMut(char) -> bool) -> Option<Strin
 
 /// The hook points. Each does nothing in Horizon.
 impl Game<'_> {
+    /// Check whether a mod listens for mouse buttons. API @API:mouse_buttons@.
+    pub(super) fn native_mouse_buttons_listened(&self, listened: &mut bool) {
+        super::native_mouse_buttons::dispatch_mouse_buttons_listened(self, listened);
+    }
+
+    /// Observe and cancel the bound attack and use buttons. API @API:mouse_buttons@.
+    pub(super) fn native_mouse_buttons(&mut self, buttons: &mut MouseButtons) {
+        super::native_mouse_buttons::dispatch_mouse_buttons(self, buttons);
+    }
+
     /// Declare categories for custom recipe types, with registered item icons.
     /// Asked lazily once per recipe table by `native_recipe_book_category`.
     /// Invalid declarations are logged and skipped; the first valid category
@@ -8285,6 +8297,131 @@ fn local_particle_type(
 // Native mods use these; nothing in Horizon does.
 #[allow(dead_code)]
 impl Game<'_> {
+    /// Adds a transient player attribute modifier. API @API:player_ops@.
+    pub(super) fn native_player_attribute_modifier_add(
+        &mut self,
+        uuid: u128,
+        attribute: &str,
+        id: &str,
+        amount: f64,
+        operation: NativeAttributeOperation,
+    ) -> Result<(), String> {
+        self.native_player_attribute_modifier_add_impl(uuid, attribute, id, amount, operation)
+    }
+
+    /// Removes a player attribute modifier. API @API:player_ops@.
+    pub(super) fn native_player_attribute_modifier_remove(
+        &mut self,
+        uuid: u128,
+        attribute: &str,
+        id: &str,
+    ) -> Result<bool, String> {
+        self.native_player_attribute_modifier_remove_impl(uuid, attribute, id)
+    }
+
+    /// Applies a player effect. API @API:player_ops@.
+    pub(super) fn native_player_effect_give(
+        &mut self,
+        uuid: u128,
+        effect: &str,
+        duration_ticks: i32,
+        amplifier: u8,
+        ambient: bool,
+        particles: bool,
+        icon: bool,
+    ) -> Result<bool, String> {
+        self.native_player_effect_give_impl(
+            uuid,
+            effect,
+            duration_ticks,
+            amplifier,
+            ambient,
+            particles,
+            icon,
+        )
+    }
+
+    /// Clears one or all player effects. API @API:player_ops@.
+    pub(super) fn native_player_effect_clear(
+        &mut self,
+        uuid: u128,
+        effect: Option<&str>,
+    ) -> Result<bool, String> {
+        self.native_player_effect_clear_impl(uuid, effect)
+    }
+
+    /// Starts a player teleport. API @API:player_ops@.
+    pub(super) fn native_player_teleport(
+        &mut self,
+        uuid: u128,
+        dimension: &str,
+        pos: [f64; 3],
+        yaw: f32,
+        pitch: f32,
+    ) -> Result<NativeTeleportTicket, String> {
+        self.native_player_teleport_impl(uuid, dimension, pos, yaw, pitch)
+    }
+
+    /// Reports a teleport's server-side status. API @API:player_ops@.
+    pub(super) fn native_player_teleport_status(
+        &mut self,
+        ticket: NativeTeleportTicket,
+    ) -> NativeTeleportStatus {
+        self.native_player_teleport_status_impl(ticket)
+    }
+
+    /// Changes a player game mode. API @API:player_ops@.
+    pub(super) fn native_player_set_gamemode(
+        &mut self,
+        uuid: u128,
+        mode: NativeGameMode,
+    ) -> Result<bool, String> {
+        self.native_player_set_gamemode_impl(uuid, mode)
+    }
+
+    /// Clip a segment against block colliders. API @API:server_block_collision@.
+    pub(super) fn native_clip(
+        &mut self,
+        dimension: &str,
+        from: [f64; 3],
+        to: [f64; 3],
+    ) -> Result<Option<BlockHit>, String> {
+        self.native_clip_impl(dimension, from, to)
+    }
+
+    /// Test a box against block colliders. API @API:server_block_collision@.
+    pub(super) fn native_box_collides(
+        &mut self,
+        dimension: &str,
+        min: [f64; 3],
+        max: [f64; 3],
+    ) -> Result<bool, String> {
+        self.native_box_collides_impl(dimension, min, max)
+    }
+
+    /// Read server player motion. API @API:server_player_motion@.
+    pub(super) fn native_server_player_motion(
+        &mut self,
+        uuid: u128,
+    ) -> Result<NativeServerPlayerMotion, String> {
+        self.native_server_player_motion_impl(uuid)
+    }
+
+    /// Set server player velocity. API @API:server_player_motion@.
+    pub(super) fn native_set_server_player_velocity(
+        &mut self,
+        dimension: &str,
+        uuid: u128,
+        velocity: [f64; 3],
+    ) -> Result<bool, String> {
+        self.native_set_server_player_velocity_impl(dimension, uuid, velocity)
+    }
+
+    /// Read server connection latency. API @API:player_latency@.
+    pub(super) fn native_player_latency_ms(&mut self, uuid: u128) -> Option<u32> {
+        self.native_player_latency_ms_impl(uuid)
+    }
+
     /// Claim or release a ground-walking mob's control. API @API:mob_navigation@.
     pub(super) fn native_mob_set_control(
         &mut self,
@@ -8333,6 +8470,19 @@ impl Game<'_> {
     /// Read an owned mob's navigation state. API @API:mob_navigation@.
     pub(super) fn native_mob_navigation(&self, mob: EntityRef) -> Option<NativeMobNavigation> {
         self.native_mob_navigation_impl(mob)
+    }
+
+    pub(super) fn native_player_appearance(&self, player: u128) -> Option<NativePlayerAppearance> {
+        self.native_player_appearance_impl(player)
+    }
+
+    pub(super) fn native_draw_mob_as_player(
+        &self,
+        mob: &NativeMobRender<'_>,
+        draw: &mut BlockEntityDraw,
+        appearance: &NativePlayerAppearance,
+    ) -> bool {
+        self.native_draw_mob_as_player_impl(mob, draw, appearance)
     }
 
     /// Publish the integrated world's LAN endpoint. API @API:native_lan@.

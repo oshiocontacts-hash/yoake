@@ -1,0 +1,14 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "player_attribute_modifier_add", "target": "horizon_client::game::native_hooks::Game<'_>::native_player_attribute_modifier_add"},
+    {"name": "player_attribute_modifier_remove", "target": "horizon_client::game::native_hooks::Game<'_>::native_player_attribute_modifier_remove"},
+    {"name": "player_effect_give", "target": "horizon_client::game::native_hooks::Game<'_>::native_player_effect_give"},
+    {"name": "player_effect_clear", "target": "horizon_client::game::native_hooks::Game<'_>::native_player_effect_clear"},
+    {"name": "player_teleport", "target": "horizon_client::game::native_hooks::Game<'_>::native_player_teleport"},
+    {"name": "player_teleport_status", "target": "horizon_client::game::native_hooks::Game<'_>::native_player_teleport_status"},
+    {"name": "player_set_gamemode", "target": "horizon_client::game::native_hooks::Game<'_>::native_player_set_gamemode"}
+  ],
+  "rust_summary": "typed authoritative-server player attribute, effect, teleport and game-mode operations.",
+  "doc_summary": "On the authoritative server tick, target a ready player by UUID, including the integrated owner and remote guests. Each helper is limited to 512 calls per mod per tick. Attribute modifiers are transient and synchronized. Effect duration is in ticks, with -1 denoting infinite; Horizon currently rejects independent hidden icons. Teleports return a mod-scoped ticket: Pending means accepted, Done means the move was applied on the server (and cross-dimension destination chunks are ready), Failed gives an error, and Unknown includes invalid, out-of-context or over-budget lookups. Tickets are retained until the next world. While the server host is detached during a reentrant hook, only the acting player can be targeted. Bundles need fragment @API:player_ops@."
+}

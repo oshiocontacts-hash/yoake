@@ -413,10 +413,12 @@ impl Game<'_> {
         }
         let mut listened = false;
         self.native_equipment_render_stacks_listened(&mut listened);
+        let mut stacks = self.native_mob_player_trim_stacks();
         if listened {
-            // CHECK: Verify mod-only trimmed stacks enter the atlas before draw callbacks.
-            let mut stacks = Vec::new();
             self.native_equipment_render_stacks(&mut stacks);
+        }
+        if listened || !stacks.is_empty() {
+            // CHECK: Verify mod-only trimmed stacks enter the atlas before draw callbacks.
             for stack in &stacks {
                 let Some(asset) = items
                     .get(&stack.item)

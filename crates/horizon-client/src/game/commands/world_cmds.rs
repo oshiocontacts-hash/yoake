@@ -778,160 +778,173 @@ impl Game<'_> {
             _ => String::new(),
         };
         match target {
-            Target::Player => {
-                let Some(player) = self.player.as_mut() else {
-                    return Ok(0);
-                };
-                let Some(key) = player.attributes.key(&attribute) else {
-                    return Err(no_attribute(&name, &description));
-                };
-                let unavailable = |_| no_attribute(&name, &description);
-                match id {
-                    "attribute.get" | "attribute.base.get" => {
-                        let kind = if id == "attribute.get" {
-                            ValueKind::Computed
-                        } else {
-                            ValueKind::Base
-                        };
-                        let v = player
-                            .attributes
-                            .value(Some(key), kind)
-                            .map_err(unavailable)?;
-                        let k = if id == "attribute.get" {
-                            "commands.attribute.value.get.success"
-                        } else {
-                            "commands.attribute.base_value.get.success"
-                        };
-                        self.feedback(Text::translate(
-                            k,
-                            &[description, name, java_double_text(v)],
-                        ));
-                        Ok((v * scale) as i32)
-                    }
-                    "attribute.base.set" => {
-                        let handle = player
-                            .attributes
-                            .get_instance(Some(key))
-                            .ok()
-                            .flatten()
-                            .ok_or_else(|| no_attribute(&name, &description))?;
-                        let _ = player.attributes.edit(&handle, |value, observer| {
-                            value.set_base_value(value_arg, observer)
-                        });
-                        self.feedback(Text::translate(
-                            "commands.attribute.base_value.set.success",
-                            &[description, name, java_double_text(value_arg)],
-                        ));
-                        Ok(1)
-                    }
-                    "attribute.base.reset" => {
-                        if !player
-                            .attributes
-                            .reset_base(Some(key.clone()))
-                            .unwrap_or(false)
-                        {
-                            return Err(no_attribute(&name, &description));
+            Target::Player | Target::Guest(_) => {
+                let mut feedback = None;
+                let result = self.for_player(target, |game| {
+                    let Some(player) = game.player.as_mut() else {
+                        return Ok(0);
+                    };
+                    let Some(key) = player.attributes.key(&attribute) else {
+                        return Err(no_attribute(&name, &description));
+                    };
+                    let unavailable = |_| no_attribute(&name, &description);
+                    match id {
+                        "attribute.get" | "attribute.base.get" => {
+                            let kind = if id == "attribute.get" {
+                                ValueKind::Computed
+                            } else {
+                                ValueKind::Base
+                            };
+                            let v = player
+                                .attributes
+                                .value(Some(key), kind)
+                                .map_err(unavailable)?;
+                            let k = if id == "attribute.get" {
+                                "commands.attribute.value.get.success"
+                            } else {
+                                "commands.attribute.base_value.get.success"
+                            };
+                            feedback = Some(Text::translate(
+                                k,
+                                &[description, name, java_double_text(v)],
+                            ));
+                            Ok((v * scale) as i32)
                         }
-                        let v = player
-                            .attributes
-                            .value(Some(key.clone()), ValueKind::Base)
-                            .unwrap_or(0.0);
-                        self.feedback(Text::translate(
-                            "commands.attribute.base_value.reset.success",
-                            &[description, name, java_double_text(v)],
-                        ));
-                        Ok(1)
-                    }
-                    "attribute.modifier.add" => {
-                        if player
-                            .attributes
-                            .has_modifier(Some(key), &modifier_id)
-                            .unwrap_or(false)
-                        {
-                            return Err(text_error(
-                                "commands.attribute.failed.modifier_already_present",
+                        "attribute.base.set" => {
+                            let handle = player
+                                .attributes
+                                .get_instance(Some(key))
+                                .ok()
+                                .flatten()
+                                .ok_or_else(|| no_attribute(&name, &description))?;
+                            let _ = player.attributes.edit(&handle, |value, observer| {
+                                value.set_base_value(value_arg, observer)
+                            });
+                            feedback = Some(Text::translate(
+                                "commands.attribute.base_value.set.success",
+                                &[description, name, java_double_text(value_arg)],
+                            ));
+                            Ok(1)
+                        }
+                        "attribute.base.reset" => {
+                            if !player
+                                .attributes
+                                .reset_base(Some(key.clone()))
+                                .unwrap_or(false)
+                            {
+                                return Err(no_attribute(&name, &description));
+                            }
+                            let v = player
+                                .attributes
+                                .value(Some(key.clone()), ValueKind::Base)
+                                .unwrap_or(0.0);
+                            feedback = Some(Text::translate(
+                                "commands.attribute.base_value.reset.success",
+                                &[description, name, java_double_text(v)],
+                            ));
+                            Ok(1)
+                        }
+                        "attribute.modifier.add" => {
+                            if player
+                                .attributes
+                                .has_modifier(Some(key), &modifier_id)
+                                .unwrap_or(false)
+                            {
+                                return Err(text_error(
+                                    "commands.attribute.failed.modifier_already_present",
+                                    &[
+                                        Text::literal(modifier_id.clone()),
+                                        description.clone(),
+                                        name.clone(),
+                                    ],
+                                ));
+                            }
+                            let op = ctx
+                                .literals
+                                .last()
+                                .cloned()
+                                .unwrap_or_else(|| "add_value".into());
+                            player
+                                .set_modifier(&attribute, &modifier_id, value_arg, &op, true)
+                                .map_err(|_| no_attribute(&name, &description))?;
+                            feedback = Some(Text::translate(
+                                "commands.attribute.modifier.add.success",
+                                &[Text::literal(modifier_id), description, name],
+                            ));
+                            Ok(1)
+                        }
+                        "attribute.modifier.remove" => {
+                            if !player
+                                .attributes
+                                .has_modifier(Some(key), &modifier_id)
+                                .unwrap_or(false)
+                            {
+                                return Err(text_error(
+                                    "commands.attribute.failed.no_modifier",
+                                    &[
+                                        description.clone(),
+                                        name.clone(),
+                                        Text::literal(modifier_id.clone()),
+                                    ],
+                                ));
+                            }
+                            let _ = player.set_modifier(
+                                &attribute,
+                                &modifier_id,
+                                0.0,
+                                "add_value",
+                                false,
+                            );
+                            feedback = Some(Text::translate(
+                                "commands.attribute.modifier.remove.success",
+                                &[Text::literal(modifier_id), description, name],
+                            ));
+                            Ok(1)
+                        }
+                        _ => {
+                            let Some(handle) =
+                                player.attributes.get_instance(Some(key)).ok().flatten()
+                            else {
+                                return Err(no_attribute(&name, &description));
+                            };
+                            let found = player
+                                .attributes
+                                .edit(&handle, |value, _| {
+                                    Ok(value
+                                        .modifiers()
+                                        .iter()
+                                        .find(|m| m.id() == modifier_id)
+                                        .map(|m| m.amount()))
+                                })
+                                .ok()
+                                .flatten();
+                            let Some(v) = found else {
+                                return Err(text_error(
+                                    "commands.attribute.failed.no_modifier",
+                                    &[
+                                        description.clone(),
+                                        name.clone(),
+                                        Text::literal(modifier_id.clone()),
+                                    ],
+                                ));
+                            };
+                            feedback = Some(Text::translate(
+                                "commands.attribute.modifier.value.get.success",
                                 &[
-                                    Text::literal(modifier_id.clone()),
-                                    description.clone(),
-                                    name.clone(),
+                                    Text::literal(modifier_id),
+                                    description,
+                                    name,
+                                    java_double_text(v),
                                 ],
                             ));
+                            Ok((v * scale) as i32)
                         }
-                        let op = ctx
-                            .literals
-                            .last()
-                            .cloned()
-                            .unwrap_or_else(|| "add_value".into());
-                        player
-                            .set_modifier(&attribute, &modifier_id, value_arg, &op, true)
-                            .map_err(|_| no_attribute(&name, &description))?;
-                        self.feedback(Text::translate(
-                            "commands.attribute.modifier.add.success",
-                            &[Text::literal(modifier_id), description, name],
-                        ));
-                        Ok(1)
                     }
-                    "attribute.modifier.remove" => {
-                        if !player
-                            .attributes
-                            .has_modifier(Some(key), &modifier_id)
-                            .unwrap_or(false)
-                        {
-                            return Err(text_error(
-                                "commands.attribute.failed.no_modifier",
-                                &[
-                                    description.clone(),
-                                    name.clone(),
-                                    Text::literal(modifier_id.clone()),
-                                ],
-                            ));
-                        }
-                        let _ =
-                            player.set_modifier(&attribute, &modifier_id, 0.0, "add_value", false);
-                        self.feedback(Text::translate(
-                            "commands.attribute.modifier.remove.success",
-                            &[Text::literal(modifier_id), description, name],
-                        ));
-                        Ok(1)
-                    }
-                    _ => {
-                        let Some(handle) = player.attributes.get_instance(Some(key)).ok().flatten()
-                        else {
-                            return Err(no_attribute(&name, &description));
-                        };
-                        let found = player
-                            .attributes
-                            .edit(&handle, |value, _| {
-                                Ok(value
-                                    .modifiers()
-                                    .iter()
-                                    .find(|m| m.id() == modifier_id)
-                                    .map(|m| m.amount()))
-                            })
-                            .ok()
-                            .flatten();
-                        let Some(v) = found else {
-                            return Err(text_error(
-                                "commands.attribute.failed.no_modifier",
-                                &[
-                                    description.clone(),
-                                    name.clone(),
-                                    Text::literal(modifier_id.clone()),
-                                ],
-                            ));
-                        };
-                        self.feedback(Text::translate(
-                            "commands.attribute.modifier.value.get.success",
-                            &[
-                                Text::literal(modifier_id),
-                                description,
-                                name,
-                                java_double_text(v),
-                            ],
-                        ));
-                        Ok((v * scale) as i32)
-                    }
+                });
+                if let Some(message) = feedback {
+                    self.feedback(message);
                 }
+                result.unwrap_or(Ok(0))
             }
             Target::Mob(_) | Target::Stand(_)
                 if !(matches!(target, Target::Mob(_))
