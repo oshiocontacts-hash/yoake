@@ -115,7 +115,7 @@ pub struct Pack {
     pub versions: Vec<PackVersion>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Object {
     pub sha256: String,
@@ -157,14 +157,14 @@ pub struct PackFile {
     pub size: u64,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Scope {
     Version,
     Instance,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Policy {
     Managed,
@@ -177,7 +177,7 @@ pub enum ParsedFeedIndex {
     V2(FeedIndexV2),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FeedIndexV2 {
     pub schema: u32,
@@ -187,24 +187,28 @@ pub struct FeedIndexV2 {
     pub packs: Vec<PackV2>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct BaseVersionV2 {
     pub version: String,
     pub horizon_release: String,
     pub research_lock_sha256: String,
     pub prepared_format: String,
+    /// Native mods compiled into this base exe. They always run, so a pack
+    /// version on this base must enable exactly this set.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub native_mods: Vec<String>,
     #[serde(deserialize_with = "deserialize_targets")]
     pub targets: BTreeMap<String, BaseTargetV2>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct BaseTargetV2 {
     pub files: Vec<BaseFileV2>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct BaseFileV2 {
     pub scope: Scope,
@@ -213,7 +217,7 @@ pub struct BaseFileV2 {
     pub size: u64,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PackV2 {
     pub id: String,
@@ -222,7 +226,7 @@ pub struct PackV2 {
     pub versions: Vec<PackVersionV2>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PackVersionV2 {
     pub version: String,
@@ -236,13 +240,13 @@ pub struct PackVersionV2 {
     pub targets: BTreeMap<String, PackTargetV2>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PackTargetV2 {
     pub files: Vec<PackFileV2>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PackFileV2 {
     pub scope: Scope,
@@ -287,6 +291,54 @@ where
 pub struct VerifiedFeed {
     pub index: ParsedFeedIndex,
     pub index_sha256: String,
+    pub proof: Option<FeedProof>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FeedProof {
+    pub index_json: String,
+    pub sums: String,
+    pub signature: String,
+}
+
+pub fn verify_saved_feed(proof: &FeedProof) -> Result<VerifiedFeed, FeedError> {
+    let config = FeedConfig::compiled()?.ok_or(FeedError::Configuration)?;
+    if proof.index_json.len() > MAX_INDEX
+        || proof.sums.len() > MAX_SUMS
+        || proof.signature.len() > MAX_SIGNATURE
+    {
+        return Err(FeedError::TooLarge);
+    }
+    let entries = verify(
+        DOMAIN,
+        proof.sums.as_bytes(),
+        &proof.signature,
+        &config.keys,
+    )
+    .map_err(|_| FeedError::BadSignature)?;
+    if entries.len() != 1 || entries[0].0 != "index.json" {
+        return Err(FeedError::Malformed);
+    }
+    let index_sha256 = sha256_hex(proof.index_json.as_bytes());
+    if entries[0].1 != index_sha256 {
+        return Err(FeedError::HashMismatch);
+    }
+    let index: FeedIndexV2 =
+        serde_json::from_str(&proof.index_json).map_err(|_| FeedError::Malformed)?;
+    validate_index_v2(&index)?;
+    if config
+        .source_id
+        .as_ref()
+        .is_some_and(|source_id| source_id != &index.source_id)
+    {
+        return Err(FeedError::WrongSource);
+    }
+    Ok(VerifiedFeed {
+        index: ParsedFeedIndex::V2(index),
+        index_sha256,
+        proof: Some(proof.clone()),
+    })
 }
 
 #[derive(Deserialize)]
@@ -488,6 +540,11 @@ impl FeedClient {
         Ok(VerifiedFeed {
             index,
             index_sha256,
+            proof: Some(FeedProof {
+                index_json: String::from_utf8(bytes).map_err(|_| FeedError::Malformed)?,
+                sums: String::from_utf8(sums).map_err(|_| FeedError::Malformed)?,
+                signature: signature.to_owned(),
+            }),
         })
     }
 
@@ -694,6 +751,15 @@ fn validate_index(index: &FeedIndex) -> Result<(), FeedError> {
     Ok(())
 }
 
+/// True when a pack's enabled native mods are exactly the ones compiled into
+/// its base (compared case-insensitively, order ignored).
+pub(crate) fn same_native_mods(enabled: &[String], base: &[String]) -> bool {
+    let lower = |mods: &[String]| -> BTreeSet<String> {
+        mods.iter().map(|id| id.to_ascii_lowercase()).collect()
+    };
+    enabled.len() == base.len() && lower(enabled) == lower(base)
+}
+
 pub(crate) fn validate_index_v2(index: &FeedIndexV2) -> Result<(), FeedError> {
     if index.schema != 2 || index.source_id != "yoake-official" || index.sequence == 0 {
         return Err(FeedError::Malformed);
@@ -710,6 +776,10 @@ pub(crate) fn validate_index_v2(index: &FeedIndexV2) -> Result<(), FeedError> {
             || base.targets.is_empty()
         {
             return Err(FeedError::Malformed);
+        }
+        let mut native_ids = BTreeSet::new();
+        for id in &base.native_mods {
+            insert_unique(&mut native_ids, id)?;
         }
         let mut targets = BTreeSet::new();
         for (name, target) in &base.targets {
@@ -753,6 +823,9 @@ pub(crate) fn validate_index_v2(index: &FeedIndexV2) -> Result<(), FeedError> {
                 for id in mods {
                     insert_unique(&mut ids, id)?;
                 }
+            }
+            if !same_native_mods(&version.enabled_native_mods, &base.native_mods) {
+                return Err(FeedError::Malformed);
             }
             let mut targets = BTreeSet::new();
             for (name, target) in &version.targets {
@@ -1219,6 +1292,14 @@ mod tests {
         let mut invalid = index_v2(42);
         invalid["packs"][0]["versions"][0]["enabled_native_mods"] = json!(["native", "NATIVE"]);
         cases.push(("duplicate native mod", invalid));
+
+        let mut invalid = index_v2(42);
+        invalid["packs"][0]["versions"][0]["enabled_native_mods"] = json!(["other"]);
+        cases.push(("native mod not in base", invalid));
+
+        let mut invalid = index_v2(42);
+        invalid["bases"][0]["native_mods"] = json!(["native", "NATIVE"]);
+        cases.push(("duplicate base native mod", invalid));
 
         let mut invalid = index_v2(42);
         invalid["packs"][0]["versions"][0]["description"] = json!("");

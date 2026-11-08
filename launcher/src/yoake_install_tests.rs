@@ -78,6 +78,7 @@ fn feed(version: &str, files: Vec<Value>) -> VerifiedFeed {
     VerifiedFeed {
         index: ParsedFeedIndex::V2(serde_json::from_value(index).unwrap()),
         index_sha256: "0".repeat(64),
+        proof: None,
     }
 }
 
@@ -169,6 +170,8 @@ fn plans_skips_defaults_and_obsolete_managed_files() {
             sha256: hash(b"old mod"),
         }],
         transaction: "a".repeat(32),
+        rollback_index: None,
+        rollback_proof: None,
     });
     snapshot
         .base_files
@@ -309,6 +312,123 @@ fn installs_upgrades_preserves_defaults_and_reuses_shared_cache() {
     let calls = source.calls.lock().unwrap();
     assert_eq!(calls.len(), before + 1);
     assert_eq!(calls.last().unwrap(), &hash(b"new default"));
+}
+
+#[test]
+fn rollback_restores_cached_objects_without_opening_source() {
+    let temp = TestDirectory::new();
+    let source = Arc::new(DirectorySource::new(
+        &temp.0.join("source"),
+        &[b"base", b"old", b"new"],
+    ));
+    let data = temp.0.join("data");
+    let instance = temp.0.join("instance");
+    let first = feed(
+        "1",
+        vec![entry("horizon-mods/test.hmod", "managed", b"old")],
+    );
+    install(first.clone(), "1", &instance, &data, source.clone()).unwrap();
+    let second = feed(
+        "2",
+        vec![entry("horizon-mods/test.hmod", "managed", b"new")],
+    );
+    install(second.clone(), "2", &instance, &data, source.clone()).unwrap();
+    install(second, "2", &instance, &data, source).unwrap();
+
+    let task = start_rollback_with_source(
+        Some(first),
+        instance.clone(),
+        data,
+        Ok("windows-x86_64".to_owned()),
+        "1.0.0".to_owned(),
+        Arc::new(LoginRequiredSource),
+    );
+    let restored = loop {
+        if let InstallEvent::Finished(result) = task.events.recv().unwrap() {
+            break result.unwrap();
+        }
+    };
+    assert_eq!(restored.pack_version, "1");
+    assert_eq!(
+        fs::read(instance.join("horizon-mods/test.hmod")).unwrap(),
+        b"old"
+    );
+    let previous: InstalledPack =
+        serde_json::from_slice(&fs::read(instance.join(PREVIOUS_MANIFEST)).unwrap()).unwrap();
+    assert_eq!(previous.pack_version, "2");
+}
+
+#[test]
+fn update_download_bytes_counts_unique_uncached_objects() {
+    let temp = TestDirectory::new();
+    let source = Arc::new(DirectorySource::new(
+        &temp.0.join("source"),
+        &[b"base", b"old"],
+    ));
+    let data = temp.0.join("data");
+    let instance = temp.0.join("instance");
+    install(
+        feed(
+            "1",
+            vec![entry("horizon-mods/test.hmod", "managed", b"old")],
+        ),
+        "1",
+        &instance,
+        &data,
+        source,
+    )
+    .unwrap();
+    let next = feed(
+        "2",
+        vec![
+            entry("horizon-mods/test.hmod", "managed", b"new"),
+            entry("horizon-mods/other.hmod", "managed", b"new"),
+        ],
+    );
+    let plan = plan_install_at(
+        &next,
+        "example",
+        "2",
+        &instance,
+        &data,
+        "windows-x86_64",
+        "1.0.0",
+    )
+    .unwrap();
+    assert_eq!(download_bytes(&plan).unwrap(), 3);
+}
+
+struct FixedUpdateFeed(VerifiedFeed);
+
+impl crate::yoake_update::UpdateFeedSource for FixedUpdateFeed {
+    fn fetch(&self) -> Result<VerifiedFeed, crate::yoake_feed::FeedError> {
+        Ok(self.0.clone())
+    }
+}
+
+#[test]
+fn update_check_reports_installed_version_without_network() {
+    let temp = TestDirectory::new();
+    let source = Arc::new(DirectorySource::new(
+        &temp.0.join("source"),
+        &[b"base", b"old"],
+    ));
+    let data = temp.0.join("data");
+    let instance = temp.0.join("instance");
+    let original = feed(
+        "1",
+        vec![entry("horizon-mods/test.hmod", "managed", b"old")],
+    );
+    install(original.clone(), "1", &instance, &data, source).unwrap();
+    let task = crate::yoake_update::start_update_check_with_source(
+        Arc::new(FixedUpdateFeed(original)),
+        vec![instance.clone()],
+        data,
+        "1.0.0".to_owned(),
+    );
+    let result = task.events.recv().unwrap();
+    assert_eq!(result.instance_dir, instance);
+    assert_eq!(result.state, crate::yoake_update::UpdateState::UpToDate);
 }
 
 #[test]
@@ -476,6 +596,8 @@ fn rollback_after_manifest_replacement_restores_previous_manifest() {
         target: "windows-x86_64".to_owned(),
         managed_files: Vec::new(),
         transaction: "e".repeat(32),
+        rollback_index: None,
+        rollback_proof: None,
     };
     let mut installed = previous.clone();
     installed.pack_version = "2".to_owned();
@@ -504,6 +626,20 @@ fn rollback_after_manifest_replacement_restores_previous_manifest() {
     recover_locked(&instance, &staging, true).unwrap();
     assert_eq!(read_manifest(&instance).unwrap(), Some(previous));
     assert!(!stage.join(JOURNAL).exists());
+}
+
+#[test]
+fn launch_checks_staging_without_a_manifest() {
+    let temp = TestDirectory::new();
+    let instance = temp.0.join("instance");
+    fs::create_dir(&instance).unwrap();
+    assert!(!has_manifest_or_pending(&instance));
+    assert_eq!(prepare_launch(&instance, &temp.0).unwrap(), None);
+
+    fs::create_dir(instance.join(STAGING)).unwrap();
+    assert!(!has_manifest_or_pending(&instance));
+    assert_eq!(prepare_launch(&instance, &temp.0).unwrap(), None);
+    assert!(!has_manifest_or_pending(&instance));
 }
 
 #[test]
@@ -538,6 +674,10 @@ fn missing_recovery_backup_keeps_the_journal() {
     fs::write(stage.join(JOURNAL), serde_json::to_vec(&journal).unwrap()).unwrap();
     assert_eq!(
         recover_install(&instance).unwrap_err(),
+        InstallError::RecoveryRequired
+    );
+    assert_eq!(
+        prepare_launch(&instance, &temp.0).unwrap_err(),
         InstallError::RecoveryRequired
     );
     assert!(stage.join(JOURNAL).exists());

@@ -1407,7 +1407,28 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 Some(name) => instances::find(&name)?,
                 None => instances::selected(),
             };
-            if instance.java.is_some() {
+            let expected_yoake = crate::yoake_install::has_manifest_or_pending(&instance.home);
+            let yoake_program =
+                crate::yoake_install::prepare_launch(&instance.home, &backend::data_dir())
+                    .map_err(|error| format!("Cannot launch Yoake: {error}"))?;
+            if expected_yoake && yoake_program.is_none() {
+                return Err(
+                    "The Yoake installation was recovered without a pack; retry the instance."
+                        .into(),
+                );
+            }
+            if let Some(program) = &yoake_program {
+                if version
+                    .as_deref()
+                    .is_some_and(|requested| requested != program.resource_tag.as_str())
+                {
+                    return Err(format!(
+                        "This Yoake instance requires base version {}; --version cannot override it.",
+                        program.resource_tag
+                    ));
+                }
+            }
+            if instance.java.is_some() && yoake_program.is_none() {
                 if version.is_some()
                     || world.is_some()
                     || join.is_some()
@@ -1432,6 +1453,14 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 cmd.args(arg);
                 let vars = instance.vars(cmd.get_program());
                 cmd.envs(vars.iter().map(|(k, v)| (k, v)));
+                if crate::yoake_install::prepare_launch(&instance.home, &backend::data_dir())
+                    .map_err(|error| format!("Cannot launch Yoake: {error}"))?
+                    .is_some()
+                {
+                    return Err(
+                        "The instance changed to Yoake while starting; retry the launch.".into(),
+                    );
+                }
                 let started = std::time::Instant::now();
                 let played = attached(horizon_launcher::launch::wrap(cmd, &instance.launch));
                 if let Err(e) = instances::record_play(&instance.id, started.elapsed()) {
@@ -1458,9 +1487,23 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             if let Some(who) = &who {
                 accounts.play_as(account::store(), who.clone())?;
             }
-            let mut cmd =
-                backend::client_as(&instance.resolve_version(version.as_deref())?, who.as_ref())?;
-            instances::apply(&mut cmd, &instance)?;
+            let tag = match &yoake_program {
+                Some(program) => program.resource_tag.clone(),
+                None => instance.resolve_version(version.as_deref())?,
+            };
+            let mut cmd = backend::client_as_for_program(
+                &tag,
+                who.as_ref(),
+                yoake_program
+                    .as_ref()
+                    .map(|program| program.executable.as_path()),
+            )?;
+            let mut launch_instance = instance.clone();
+            if yoake_program.is_some() {
+                launch_instance.kind = instances::Kind::Own;
+                launch_instance.java = None;
+            }
+            instances::apply(&mut cmd, &launch_instance)?;
             if let Some(code) = join {
                 backend::join_friend(&mut cmd, &code)?;
             }
@@ -1481,10 +1524,20 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 cmd.arg("--name").arg(name);
             }
             cmd.envs(accounts.look_env());
-            let vars = instance.vars(cmd.get_program());
+            let vars = launch_instance.vars(cmd.get_program());
             cmd.envs(vars.iter().map(|(k, v)| (k, v)));
             horizon_launcher::launch::limit_memory(&mut cmd, &instance.launch);
-            let played = attached(horizon_launcher::launch::wrap(cmd, &instance.launch));
+            let current_yoake =
+                crate::yoake_install::prepare_launch(&instance.home, &backend::data_dir())
+                    .map_err(|error| format!("Cannot launch Yoake: {error}"))?;
+            if current_yoake != yoake_program {
+                return Err("The instance changed while starting; retry the launch.".into());
+            }
+            let mut cmd = horizon_launcher::launch::wrap(cmd, &instance.launch);
+            if yoake_program.is_some() {
+                cmd.env("HORIZON_HOME", &instance.home);
+            }
+            let played = attached(cmd);
             if let Err(e) = instances::record_play(&instance.id, started.elapsed()) {
                 eprintln!("Play time not saved: {e}");
             }

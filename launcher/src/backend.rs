@@ -2246,9 +2246,13 @@ pub fn append_game_args(cmd: &mut Command) {
 }
 
 pub fn client_command(tag: &str) -> Command {
+    client_command_for_program(tag, &client_program(tag))
+}
+
+pub fn client_command_for_program(tag: &str, program: &Path) -> Command {
     let home = game_home();
     let _ = fs::create_dir_all(&home);
-    let mut cmd = Command::new(client_program(tag));
+    let mut cmd = Command::new(program);
     cmd.current_dir(home).arg("--resources").arg(resources(tag));
     // How the game asks for a renewed session (`account session`) while it runs.
     if let Ok(exe) = std::env::current_exe() {
@@ -2441,6 +2445,14 @@ pub fn client(tag: &str) -> Result<Command, String> {
 
 /// [`client`], playing as `who` for this launch only (`play --account`).
 pub fn client_as(tag: &str, who: Option<&account::Player>) -> Result<Command, String> {
+    client_as_for_program(tag, who, None)
+}
+
+pub fn client_as_for_program(
+    tag: &str,
+    who: Option<&account::Player>,
+    program: Option<&Path>,
+) -> Result<Command, String> {
     let (session, offline) = match who {
         None => account::session_for_game(&game_home(), false).map_err(|e| e.to_string()),
         Some(who) => account::session_for_game_as(&game_home(), who),
@@ -2449,7 +2461,10 @@ pub fn client_as(tag: &str, who: Option<&account::Player>) -> Result<Command, St
     need_prepared(tag)?;
     complete_assets(tag);
     crate::browser::horizon::before_play(&game_home());
-    let mut cmd = client_command(tag);
+    let mut cmd = match program {
+        Some(program) => client_command_for_program(tag, program),
+        None => client_command(tag),
+    };
     if let Some(file) = session {
         cmd.arg("--session-file").arg(file);
     }
