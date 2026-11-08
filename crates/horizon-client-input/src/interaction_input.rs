@@ -51,6 +51,13 @@ impl InteractionInput {
     pub fn press(&mut self, button: Button) {
         self.clicks[button as usize] += 1;
     }
+
+    /// Transform one logical button's pending click count.
+    pub fn filter_clicks(&mut self, button: Button, filter: impl FnOnce(u32) -> u32) {
+        let clicks = &mut self.clicks[button as usize];
+        *clicks = filter(*clicks);
+    }
+
     /// Whether a click waits for the next tick.
     pub fn has_clicks(&self) -> bool {
         self.clicks.iter().any(|&c| c > 0)

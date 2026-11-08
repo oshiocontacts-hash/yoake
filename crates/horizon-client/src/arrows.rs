@@ -14,7 +14,7 @@ use crate::{
     world::World,
 };
 use horizon_core::{
-    geometry::{Aabb, Direction, Vec3, sweep_intersected_blocks},
+    geometry::{Aabb, Direction, Vec3, VoxelShape, sweep_intersected_blocks},
     position::BlockPos,
     random::{LegacyRandom, RandomSource},
 };
@@ -437,24 +437,120 @@ pub fn clip_block_hit(
         from.y + movement.y,
         from.z + movement.z,
     );
+    clip_block_segment_inner(world, facts, collision, from, to, false)
+        .ok()
+        .flatten()
+}
+
+/// An error from a block clip that requires complete results.
+#[derive(Debug)]
+pub enum BlockClipError {
+    Traversal(horizon_core::geometry::TraversalError),
+    Collision(horizon_world::block_collision::CollisionQueryError<std::io::Error>),
+}
+
+impl fmt::Display for BlockClipError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Traversal(error) => write!(formatter, "{error}"),
+            Self::Collision(error) => write!(formatter, "{error}"),
+        }
+    }
+}
+
+/// Clip a segment against empty-entity collider shapes and report failures.
+pub fn clip_block_segment(
+    world: &World,
+    facts: &BlockFacts,
+    collision: &BlockCollisionRegistry<'_>,
+    from: Vec3,
+    to: Vec3,
+) -> Result<Option<(Vec3, BlockPos, [i32; 3])>, BlockClipError> {
+    clip_block_segment_inner(world, facts, collision, from, to, true)
+}
+
+fn clip_block_segment_inner(
+    world: &World,
+    facts: &BlockFacts,
+    collision: &BlockCollisionRegistry<'_>,
+    from: Vec3,
+    to: Vec3,
+    strict: bool,
+) -> Result<Option<(Vec3, BlockPos, [i32; 3])>, BlockClipError> {
     let mut scene = SceneCollisions {
         world,
         binding: collision,
         subject: None,
     };
-    let hit = horizon_core::geometry::traverse_blocks(from, to, 1024, |p: BlockPos| {
+    clip_block_shapes(from, to, |p| {
         let state = world.block(p.x, p.y, p.z);
         if facts.is_air(state) {
-            return None;
+            return Ok(None);
         }
-        let shape = collision
-            .collision_shape(&mut scene, state, [p.x, p.y, p.z])
-            .ok()?;
-        shape.clip(from, to, p)
+        let shape = if strict {
+            collision.collision_shape_with_context(
+                &mut scene,
+                state,
+                p,
+                &horizon_world::collision_context::CollisionContext::empty(false),
+            )
+        } else {
+            collision.collision_shape(&mut scene, state, [p.x, p.y, p.z])
+        };
+        match shape {
+            Ok(shape) => Ok(Some(shape)),
+            Err(error) if strict => Err(BlockClipError::Collision(error)),
+            Err(_) => Ok(None),
+        }
     })
-    .ok()
-    .flatten()?;
-    Some((hit.location, hit.block, hit.direction.normal()))
+}
+
+fn clip_block_shapes(
+    from: Vec3,
+    to: Vec3,
+    mut shape_at: impl FnMut(BlockPos) -> Result<Option<VoxelShape>, BlockClipError>,
+) -> Result<Option<(Vec3, BlockPos, [i32; 3])>, BlockClipError> {
+    let hit = horizon_core::geometry::traverse_blocks(from, to, 1024, |position| {
+        match shape_at(position) {
+            Ok(Some(shape)) => shape.clip(from, to, position).map(Ok),
+            Ok(None) => None,
+            Err(error) => Some(Err(error)),
+        }
+    })
+    .map_err(BlockClipError::Traversal)?;
+    match hit {
+        Some(Ok(hit)) => Ok(Some((hit.location, hit.block, hit.direction.normal()))),
+        Some(Err(error)) => Err(error),
+        None => Ok(None),
+    }
+}
+
+#[cfg(test)]
+mod native_clip_tests {
+    use super::*;
+
+    #[test]
+    fn segment_uses_collider_shape_and_reports_face() {
+        let result = clip_block_shapes(
+            Vec3::new(-1.0, 0.5, 0.5),
+            Vec3::new(2.0, 0.5, 0.5),
+            |position| Ok((position == BlockPos::new(0, 0, 0)).then(VoxelShape::block)),
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(result.0, Vec3::new(0.0, 0.5, 0.5));
+        assert_eq!(result.1, BlockPos::new(0, 0, 0));
+        assert_eq!(result.2, [-1, 0, 0]);
+    }
+
+    #[test]
+    fn empty_segment_path_has_no_hit() {
+        let result = clip_block_shapes(Vec3::new(-1.0, 0.5, 0.5), Vec3::new(2.0, 0.5, 0.5), |_| {
+            Ok(None)
+        })
+        .unwrap();
+        assert!(result.is_none());
+    }
 }
 /// `AbstractArrow.onHitBlock`'s back-off: vanilla scales `(double) 0.05f` by
 /// `Math.signum` per axis, whose value at zero is zero (not Rust's -1.0).

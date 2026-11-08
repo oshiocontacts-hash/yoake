@@ -1,0 +1,16 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "player_appearance",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_player_appearance"
+    },
+    {
+      "name": "draw_mob_as_player",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_draw_mob_as_player"
+    }
+  ],
+  "rust_summary": "snapshot and encode a player appearance, and draw it on a mob render frame.",
+  "doc_summary": "snapshots player appearance and draws a vanilla player on a mob. Bundles need a hooks manifest entry for @API:mob_player_appearance@.",
+  "comments": ["crates/horizon-client/src/game/native_mob_player.rs"]
+}

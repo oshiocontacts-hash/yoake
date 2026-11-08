@@ -1,0 +1,20 @@
+{
+  "hooks": [
+    {
+      "name": "mouse_buttons_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mouse_buttons_listened",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {"contract": "collect", "out": "listened"}
+    },
+    {
+      "name": "mouse_buttons",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mouse_buttons",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {"contract": "listen"}
+    }
+  ],
+  "rust_summary": "Gated, per-tick bound attack and use button state and vanilla cancellation.",
+  "doc_summary": "Set MouseButtonsListenedEvent.listened to true in Hooks::mouse_buttons_listened to receive Hooks::mouse_buttons during eligible client ticks. MouseButtonsEvent.buttons reports the held attack and use bindings, including keyboard rebinds. Set cancel_vanilla_attack or cancel_vanilla_use to suppress that vanilla action for the tick; send mod-specific network messages separately. Require hooks @API:mouse_buttons@ or higher."
+}

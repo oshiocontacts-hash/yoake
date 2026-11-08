@@ -1,0 +1,9 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "clip", "target": "horizon_client::game::native_hooks::Game<'_>::native_clip"},
+    {"name": "box_collides", "target": "horizon_client::game::native_hooks::Game<'_>::native_box_collides"}
+  ],
+  "rust_summary": "querying server block collider shapes (`native_clip`, `native_box_collides`).",
+  "doc_summary": "On the authoritative server tick, `native_clip(dimension, from, to)` clips a segment against block collider shapes; `native_box_collides(dimension, min, max)` checks block collisions only. Both use an empty entity context, ignore fluids, treat unloaded chunks as empty, and never load a dimension or chunk. Each has a budget of 512 calls per mod per tick; oversized queries and collision errors return an error. Bundles need fragment @API:server_block_collision@."
+}

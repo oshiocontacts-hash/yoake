@@ -103,6 +103,7 @@ pub struct Guest {
     pub pitch: f32,
     pub head_yaw: f32,
     pub on_ground: bool,
+    pub native_horizontal_collision: bool,
     pub game_mode: i32,
     /// The permission level (0 none, 2 game masters, 4 owners).
     pub permission: u8,
@@ -376,6 +377,7 @@ impl Guest {
             pitch: 0.0,
             head_yaw: 0.0,
             on_ground: false,
+            native_horizontal_collision: false,
             game_mode: SURVIVAL,
             permission: 0,
             sneaking: false,
@@ -494,6 +496,11 @@ impl Guest {
             recipes_unlocked: Vec::new(),
         }
     }
+    pub(super) fn accept_move_flags(&mut self, flags: u8) {
+        self.on_ground = flags & 1 != 0;
+        self.native_horizontal_collision = flags & 2 != 0;
+    }
+
     /// `ServerPlayer.onUpdateAbilities`: the guest's abilities, flying speed included.
     pub fn abilities(&self) -> play::Clientbound {
         play::Clientbound::PlayerAbilities(play::PlayerAbilities {
@@ -1427,6 +1434,18 @@ mod tests {
             position,
             10,
         )
+    }
+
+    #[test]
+    fn accepted_movement_flags_record_ground_and_horizontal_collision() {
+        let mut guest = guest_at([0.0; 3]);
+        assert!(!guest.on_ground);
+        assert!(!guest.native_horizontal_collision);
+        for flags in 0..=u8::MAX {
+            guest.accept_move_flags(flags);
+            assert_eq!(guest.on_ground, flags & 1 != 0);
+            assert_eq!(guest.native_horizontal_collision, flags & 2 != 0);
+        }
     }
 
     #[test]

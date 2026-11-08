@@ -23,13 +23,16 @@ pub use crate::fog::{FogData, FogType};
 pub use crate::game::native_block_entity_draw::{BlockEntityDraw, CubeFace};
 pub use crate::game::native_entity_query::NativeEntityInfo;
 pub use crate::game::native_lan::NativeLanPublish;
+pub use crate::game::native_mouse_buttons::MouseButtons;
 pub use crate::game::native_name_lines::NameTagLine;
+pub use crate::game::native_server_physics::{BlockHit, NativeServerPlayerMotion};
 pub use crate::game::{
     ItemEnergyBuffer, NativeBackLayer, NativeBlockEdit, NativeBlockRun, NativeClock,
     NativeColumnBlocks, NativeCooldownTarget, NativeDataMapType, NativeEquipmentDrawOptions,
     NativeEquipmentOutline, NativeEquipmentOverlay, NativeExperienceOrb, NativeFalling,
     NativeHeightmap, NativeHeldItem, NativeHit, NativeHumanoidPart, NativeMapDecoration,
-    NativeMapInfo, NativeMobRender, NativeModEvent, NativePlayerRender, NativeShake,
+    NativeMapInfo, NativeMobRender, NativeModEvent, NativePlayerAppearance, NativePlayerModel,
+    NativePlayerRender, NativeShake,
 };
 pub use crate::game::{NativeAccount, NativeClientWorld, NativeJoinPoll, NativeSoundCategory};
 pub use crate::game::{NativeBlast, NativeDamage, NativeDamageActor, NativeDamageKind};
@@ -82,6 +85,32 @@ use serde_json::{Map, Value};
 use std::time::Duration;
 /// The window events `input_key` hands over (`winit::event::KeyEvent`) and their key types.
 pub use winit;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NativeAttributeOperation {
+    AddValue,
+    AddMultipliedBase,
+    AddMultipliedTotal,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NativeGameMode {
+    Survival,
+    Creative,
+    Adventure,
+    Spectator,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct NativeTeleportTicket(pub u64);
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum NativeTeleportStatus {
+    Pending,
+    Done,
+    Failed(String),
+    Unknown,
+}
 
 /// Camera values from the most recently extracted world frame.
 #[derive(Clone, Debug)]
