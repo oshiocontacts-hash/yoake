@@ -1,0 +1,36 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "mob_set_control",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_set_control"
+    },
+    {
+      "name": "mob_move_to",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_move_to"
+    },
+    {
+      "name": "mob_find_path",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_find_path"
+    },
+    {
+      "name": "mob_stop",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_stop"
+    },
+    {
+      "name": "mob_look_at",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_look_at"
+    },
+    {
+      "name": "mob_jump",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_jump"
+    },
+    {
+      "name": "mob_navigation",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_navigation"
+    }
+  ],
+  "rust_summary": "caller-owned, bounded server ground-walker navigation and queued AI controls (`mob_set_control`, `mob_move_to`, `mob_find_path`, `mob_stop`, `mob_look_at`, `mob_jump`, `mob_navigation`).",
+  "doc_summary": "caller-owned, bounded server ground-walker navigation, pure path queries and queued look/jump controls. Bundles need a hooks manifest entry for @API:mob_navigation@.",
+  "comments": ["crates/horizon-client/src/game/native_mob_navigation.rs", "crates/horizon-client/src/mobs/native_control.rs"]
+}

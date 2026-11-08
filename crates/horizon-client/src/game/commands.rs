@@ -1557,6 +1557,7 @@ impl Game<'_> {
             }
             Target::Mob(id) => {
                 if let Some(m) = self.mobs.iter_mut().find(|m| m.id == id) {
+                    m.native_control_drop();
                     m.position = v;
                     m.previous = v;
                     // Entity.teleportSetPosition: setYRot, setYHeadRot, setXRot
@@ -2129,6 +2130,7 @@ impl Game<'_> {
                             f32::MAX,
                         );
                     }
+                    m.native_control_drop();
                     m.health = 0.0;
                     if m.death_time == 0 {
                         m.death_time = 1;

@@ -1,4 +1,6 @@
 //! Opt-in, mod-owned microphone capture. Merely constructing the manager opens nothing.
+// Without the `audio` feature there is no capture device, so the converter is only used by tests.
+#![cfg_attr(not(feature = "audio"), allow(dead_code))]
 
 use crate::native_audio_stream::{PcmReader, PcmWriter, pcm_ring};
 use std::{

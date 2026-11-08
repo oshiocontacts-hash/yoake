@@ -1056,6 +1056,7 @@ impl Game<'_> {
                     .world
                     .loaded(m.position.x.floor() as i32, m.position.z.floor() as i32)
                 {
+                    m.native_control_drop();
                     keep.push(!m.hostile() || m.persistent);
                     continue;
                 }

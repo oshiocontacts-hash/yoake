@@ -57,6 +57,7 @@ pub mod leash;
 pub mod living;
 pub mod llama;
 pub mod monster_brain;
+pub mod native_control;
 pub mod nautilus;
 pub mod nav;
 pub mod nether;
@@ -1235,6 +1236,7 @@ pub struct Mob {
     pub invisible: bool,
     pub random: LegacyRandom,
     pub ai: Box<ai::Ai>,
+    pub(crate) native_control: Option<Box<native_control::NativeMobControl>>,
     pub extra: Extra,
     pub fluids: living::Fluids,
     /// Entity.wasEyeInWater: the eyes were in water before this tick's fluid
@@ -2732,6 +2734,7 @@ impl Mob {
             persistent: false,
             random,
             ai: Box::default(),
+            native_control: None,
             extra: Extra::default(),
             fluids: living::Fluids::default(),
             was_eye_in_water: false,
@@ -3135,6 +3138,9 @@ impl Mob {
             // `LivingEntity.hurtServer`: a killing blow is taken by a
             // `death_protection` item in either hand instead of dying.
             self.use_death_protection(&source);
+        }
+        if !self.alive() {
+            self.native_control_drop();
         }
         if knock {
             // playHurtSound (Mob: also resets the ambient sound clock) or the

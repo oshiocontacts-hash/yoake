@@ -564,6 +564,22 @@ fn drop_invalid_player_target(m: &mut Mob, w: &MobWorld) {
     }
 }
 pub fn tick(
+    mob: &mut Mob,
+    world: &MobWorld,
+    level_random: &mut LegacyRandom,
+    events: &mut Vec<MobEvent>,
+) -> bool {
+    if mob.native_control.is_some() && !mob.native_control_supported() {
+        mob.native_control_drop();
+    }
+    let result = tick_inner(mob, world, level_random, events);
+    if mob.native_control.is_some() && !mob.native_control_supported() {
+        mob.native_control_drop();
+    }
+    result
+}
+
+fn tick_inner(
     m: &mut Mob,
     w: &MobWorld,
     level_random: &mut LegacyRandom,
@@ -1625,6 +1641,37 @@ fn server_ai_step(
     events: &mut Vec<MobEvent>,
 ) {
     m.ai.no_action_time += 1;
+    // CHECK: Unclaimed mobs must retain the original selector/brain order and random draws.
+    if m.native_control.is_some() {
+        if m.native_control_take_suspension() {
+            let mut targets = std::mem::take(&mut m.ai.targets);
+            let mut goals = std::mem::take(&mut m.ai.goals);
+            let mut cx = Cx {
+                w,
+                lr: level_random,
+                events,
+            };
+            targets.stop_all(m, &mut cx);
+            goals.stop_all(m, &mut cx);
+            m.ai.targets = targets;
+            m.ai.goals = goals;
+            m.native_navigation_reset();
+            m.native_control_halt();
+        }
+        m.native_control_tick(w);
+        {
+            let mut cx = Cx {
+                w,
+                lr: level_random,
+                events,
+            };
+            custom_server_ai_step(m, &mut cx);
+        }
+        m.move_control_tick(w, events);
+        m.look_control_tick();
+        m.jump_control_tick();
+        return;
+    }
     // A happy ghast set up for its age (ageBoundaryReached runs at once).
     if m.species() == Species::HappyGhast {
         super::happy_ghast::ensure_setup(m);

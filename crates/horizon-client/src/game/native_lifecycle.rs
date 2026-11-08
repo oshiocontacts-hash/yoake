@@ -85,6 +85,15 @@ impl NativeLifecycle {
         ))
     }
 
+    /// The running server AI window available to native mob controls.
+    pub(super) fn mob_control_tick(&self) -> Option<(NativeWorldEpoch, NativeTickId)> {
+        let attempt = self.attempt?;
+        if !attempt.tick_open || !attempt.tick_world_running {
+            return None;
+        }
+        self.entity_query_tick()
+    }
+
     /// The open starts: a fresh process-wide epoch, never reused.
     pub(super) fn begin_open(&mut self, authority: NativeAuthority) {
         let epoch = NEXT_EPOCH.fetch_add(1, Ordering::Relaxed);
@@ -294,6 +303,31 @@ mod tests {
             observed += usize::from(running);
         }
         assert_eq!(observed, 4);
+    }
+
+    #[test]
+    fn mob_controls_require_an_open_running_authoritative_tick() {
+        let mut lifecycle = NativeLifecycle::default();
+        assert!(lifecycle.mob_control_tick().is_none());
+        lifecycle.begin_open(NativeAuthority::IntegratedServer);
+        assert!(lifecycle.mob_control_tick().is_none());
+        lifecycle.world_open_ready().unwrap();
+        assert!(lifecycle.mob_control_tick().is_none());
+        lifecycle.server_tick_start(false).unwrap();
+        assert!(lifecycle.mob_control_tick().is_none());
+        lifecycle.server_tick_end(false).unwrap();
+        lifecycle.server_tick_start(true).unwrap();
+        assert!(lifecycle.mob_control_tick().is_some());
+        lifecycle.cancel_server_tick();
+        assert!(lifecycle.mob_control_tick().is_none());
+        lifecycle.server_tick_start(true).unwrap();
+        lifecycle.server_tick_end(false).unwrap();
+        lifecycle.read_scope = true;
+        assert!(lifecycle.mob_control_tick().is_none());
+        lifecycle.begin_open(NativeAuthority::RemoteClient);
+        lifecycle.world_open_ready().unwrap();
+        lifecycle.server_tick_start(true).unwrap();
+        assert!(lifecycle.mob_control_tick().is_none());
     }
 
     /// A lifecycle mid-open on the server thread.

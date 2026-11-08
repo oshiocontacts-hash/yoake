@@ -884,10 +884,11 @@ use super::{
 };
 use horizon_assets::item_model::StackView;
 use horizon_client::mod_api::{
-    self, NameTagLine, NativeAudioStreamId, NativeAudioStreamLimits, NativeCamera, NativeCommand,
-    NativeDispensed, NativeLanPublish, NativeLifecycleContext, NativeMicId, NativeNoteBlockChange,
-    NativeServerPlayer, NativeSoundError, NativeStreamAnchor, RecipeBookCategory, ServerTickPhase,
-    WorldPhase,
+    self, EntityRef, NameTagLine, NativeAudioStreamId, NativeAudioStreamLimits, NativeCamera,
+    NativeCommand, NativeDispensed, NativeLanPublish, NativeLifecycleContext, NativeMicId,
+    NativeMobControlMode, NativeMobNavigation, NativeMobPath, NativeMobPathOptions,
+    NativeNoteBlockChange, NativeServerPlayer, NativeSoundError, NativeStreamAnchor,
+    RecipeBookCategory, ServerTickPhase, WorldPhase,
 };
 use horizon_client::mod_api::{AttachmentResult, Attachments, Holder, Suggestion};
 pub(crate) use horizon_client::mod_api::{
@@ -8284,6 +8285,56 @@ fn local_particle_type(
 // Native mods use these; nothing in Horizon does.
 #[allow(dead_code)]
 impl Game<'_> {
+    /// Claim or release a ground-walking mob's control. API @API:mob_navigation@.
+    pub(super) fn native_mob_set_control(
+        &mut self,
+        mob: EntityRef,
+        mode: NativeMobControlMode,
+    ) -> bool {
+        self.native_mob_set_control_impl(mob, mode)
+    }
+
+    /// Queue an owned mob's move command. API @API:mob_navigation@.
+    pub(super) fn native_mob_move_to(
+        &mut self,
+        mob: EntityRef,
+        target: [i32; 3],
+        speed: f64,
+        options: &NativeMobPathOptions,
+    ) -> bool {
+        self.native_mob_move_to_impl(mob, target, speed, options)
+    }
+
+    /// Query an owned mob's path without changing its route. API @API:mob_navigation@.
+    pub(super) fn native_mob_find_path(
+        &mut self,
+        mob: EntityRef,
+        target: [i32; 3],
+        options: &NativeMobPathOptions,
+    ) -> Result<Option<NativeMobPath>, String> {
+        self.native_mob_find_path_impl(mob, target, options)
+    }
+
+    /// Queue an owned mob's navigation stop. API @API:mob_navigation@.
+    pub(super) fn native_mob_stop(&mut self, mob: EntityRef) -> bool {
+        self.native_mob_stop_impl(mob)
+    }
+
+    /// Queue an owned mob's look target. API @API:mob_navigation@.
+    pub(super) fn native_mob_look_at(&mut self, mob: EntityRef, target: [f64; 3]) -> bool {
+        self.native_mob_look_at_impl(mob, target)
+    }
+
+    /// Queue an owned mob's jump request. API @API:mob_navigation@.
+    pub(super) fn native_mob_jump(&mut self, mob: EntityRef) -> bool {
+        self.native_mob_jump_impl(mob)
+    }
+
+    /// Read an owned mob's navigation state. API @API:mob_navigation@.
+    pub(super) fn native_mob_navigation(&self, mob: EntityRef) -> Option<NativeMobNavigation> {
+        self.native_mob_navigation_impl(mob)
+    }
+
     /// Publish the integrated world's LAN endpoint. API @API:native_lan@.
     pub(super) fn native_lan_publish(&mut self, opts: &NativeLanPublish) -> Result<u16, String> {
         self.native_lan_publish_impl(opts)

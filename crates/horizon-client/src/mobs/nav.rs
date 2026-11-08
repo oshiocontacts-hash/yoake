@@ -276,14 +276,53 @@ impl Mob {
         let pm = self.path_mob();
         let max_visited =
             (self.ai.nav.max_visited_nodes as f32 * self.ai.nav.max_visited_multiplier) as i32;
-        let finder = Finder::new(w, &pm, self.ai.nav.evaluator());
-        let path = finder.find(targets, max_len, reach, max_visited);
+        let path = self.query_path_raw(w, targets, reach, max_len, max_visited, &pm);
         if let Some(p) = &path {
             self.ai.nav.target_pos = Some(p.target);
             self.ai.nav.reach_range = reach;
             self.ai.nav.reset_stuck_timeout();
         }
         path
+    }
+    fn query_path_raw(
+        &self,
+        world: &MobWorld,
+        targets: &[[i32; 3]],
+        reach: i32,
+        max_len: f32,
+        max_visited: i32,
+        mob: &PathMob,
+    ) -> Option<Path> {
+        if targets.is_empty()
+            || self.position.y < f64::from(world.world.bottom_y())
+            || !self.can_update_path()
+        {
+            return None;
+        }
+        let finder = Finder::new(world, mob, self.ai.nav.evaluator());
+        finder.find(targets, max_len, reach, max_visited)
+    }
+    pub(super) fn path_foot_position(&self, world: &MobWorld, path: &Path, index: usize) -> Vec3 {
+        let target = path.entity_pos_at(index, self.width());
+        let foot_y = match self.ai.nav.kind {
+            NavKind::Ground | NavKind::WallClimber => {
+                let (block_x, block_y, block_z) = (
+                    target.x.floor() as i32,
+                    target.y.floor() as i32,
+                    target.z.floor() as i32,
+                );
+                if world
+                    .facts
+                    .is_air(world.world.block(block_x, block_y - 1, block_z))
+                {
+                    target.y
+                } else {
+                    world.floor_level(block_x, block_y, block_z)
+                }
+            }
+            _ => target.y,
+        };
+        Vec3::new(target.x, foot_y, target.z)
     }
     /// PathNavigation.createPath(BlockPos, reach) with the ground surface search.
     pub fn create_path_to(&mut self, w: &MobWorld, mut p: [i32; 3], reach: i32) -> Option<Path> {
@@ -386,7 +425,133 @@ impl Mob {
     pub fn nav_stop(&mut self) {
         self.ai.nav.path = None;
     }
+    pub(super) fn native_navigation_reset(&mut self) {
+        let position = self.position;
+        let nav = &mut self.ai.nav;
+        nav.path = None;
+        nav.target_pos = None;
+        nav.delayed_recompute = false;
+        nav.pending_recompute = false;
+        nav.climb_to = None;
+        nav.reset_stuck_timeout();
+        nav.last_timeout_check = nav.tick;
+        nav.last_stuck_check = nav.tick;
+        nav.last_stuck_pos = position;
+    }
+
+    pub(super) fn native_navigation_query(
+        &self,
+        world: &MobWorld,
+        target: [i32; 3],
+        options: &super::native_control::PathOptions,
+    ) -> Option<Path> {
+        if target[0].abs_diff(0) > 30_000_000
+            || target[2].abs_diff(0) > 30_000_000
+            || !(-4096..=4096).contains(&target[1])
+            || !world.world.loaded(target[0], target[2])
+        {
+            return None;
+        }
+        let mut path_mob = self.path_mob();
+        path_mob.can_float = options.can_float;
+        path_mob.can_open_doors = false;
+        let target = if self.ai.nav.below_surface {
+            target
+        } else {
+            self.surface_position(world, target)
+        };
+        self.query_path_raw(
+            world,
+            &[target],
+            options.reach,
+            options.max_distance,
+            options.max_visited,
+            &path_mob,
+        )
+        .map(|mut path| {
+            if Self::trim_queried_path(
+                world,
+                self.position,
+                self.ai.nav.kind,
+                self.ai.nav.avoid_sun,
+                Some(&mut path),
+            ) {
+                path.reached = false;
+            }
+            path
+        })
+        .filter(|path| options.allow_partial || path.reached)
+    }
+
+    pub(super) fn native_navigation_start(
+        &mut self,
+        world: &MobWorld,
+        request: super::native_control::MoveRequest,
+    ) {
+        use super::native_control::NativeMobNavigationState;
+
+        self.native_navigation_reset();
+        self.ai.nav.can_float = request.options.can_float;
+        self.ai.nav.can_open_doors = false;
+        self.ai.nav.target_pos = Some(request.target);
+        self.ai.nav.reach_range = request.options.reach;
+        self.ai.nav.time_last_recompute = self.ai.nav.tick;
+        let path = self.native_navigation_query(world, request.target, &request.options);
+        if let Some(control) = &mut self.native_control {
+            control.route = Some(request);
+            control.navigation.state = NativeMobNavigationState::Moving;
+            control.navigation.target = Some(request.target);
+            control.navigation.next_waypoint = 0;
+            control.navigation.waypoint_count = path.as_ref().map_or(0, |path| path.nodes.len());
+            control.navigation.reaches_target = path.as_ref().is_some_and(|path| path.reached);
+        }
+        self.ai.nav.path = path;
+        self.ai.nav.speed_modifier = request.speed;
+        self.native_navigation_progress();
+    }
+
+    pub(super) fn native_navigation_progress(&mut self) {
+        use super::native_control::NativeMobNavigationState;
+
+        let Some(control) = &mut self.native_control else {
+            return;
+        };
+        if control.navigation.state != NativeMobNavigationState::Moving {
+            return;
+        }
+        if let Some(path) = &self.ai.nav.path {
+            control.navigation.next_waypoint = path.next;
+            control.navigation.waypoint_count = path.nodes.len();
+            control.navigation.reaches_target = path.reached;
+            if !path.is_done() {
+                return;
+            }
+        }
+        control.navigation.state = if control.navigation.reaches_target {
+            NativeMobNavigationState::Done
+        } else {
+            NativeMobNavigationState::Unreachable
+        };
+        control.route = None;
+    }
+
     fn recompute_path(&mut self, w: &MobWorld) {
+        if self.native_control.is_some() {
+            let Some(request) = self
+                .native_control
+                .as_ref()
+                .and_then(|control| control.route)
+            else {
+                self.ai.nav.delayed_recompute = false;
+                return;
+            };
+            if self.ai.nav.tick - self.ai.nav.time_last_recompute <= 20 || !self.can_update_path() {
+                self.ai.nav.delayed_recompute = true;
+            } else {
+                self.native_navigation_start(w, request);
+            }
+            return;
+        }
         if w.game_time - self.ai.nav.time_last_recompute <= 20 || !self.can_update_path() {
             self.ai.nav.delayed_recompute = true;
         } else if let Some(t) = self.ai.nav.target_pos {
@@ -401,29 +566,55 @@ impl Mob {
     /// `GroundPathNavigation.trimPath` with `avoidSun`: a mob that is out of the
     /// sun keeps only the nodes before the first one the sky sees.
     fn trim_path(&mut self, w: &MobWorld) {
-        if let Some(path) = &mut self.ai.nav.path {
-            path.raise_cauldron_nodes(|x, y, z| {
-                w.has_tag("minecraft:cauldrons", w.block_name(x, y, z))
+        if Self::trim_queried_path(
+            w,
+            self.position,
+            self.ai.nav.kind,
+            self.ai.nav.avoid_sun,
+            self.ai.nav.path.as_mut(),
+        ) && self.native_control.is_some()
+            && let Some(path) = &mut self.ai.nav.path
+        {
+            path.reached = false;
+        }
+    }
+
+    fn trim_queried_path(
+        world: &MobWorld,
+        position: Vec3,
+        kind: NavKind,
+        avoid_sun: bool,
+        mut path: Option<&mut Path>,
+    ) -> bool {
+        if let Some(path) = path.as_mut() {
+            path.raise_cauldron_nodes(|block_x, block_y, block_z| {
+                world.has_tag(
+                    "minecraft:cauldrons",
+                    world.block_name(block_x, block_y, block_z),
+                )
             });
         }
-        if !self.ai.nav.avoid_sun
-            || !matches!(self.ai.nav.kind, NavKind::Ground | NavKind::WallClimber)
-        {
-            return;
+        if !avoid_sun || !matches!(kind, NavKind::Ground | NavKind::WallClimber) {
+            return false;
         }
         let at = [
-            self.position.x.floor() as i32,
-            (self.position.y + 0.5).floor() as i32,
-            self.position.z.floor() as i32,
+            position.x.floor() as i32,
+            (position.y + 0.5).floor() as i32,
+            position.z.floor() as i32,
         ];
-        if w.can_see_sky(at[0], at[1], at[2]) {
-            return;
+        if world.can_see_sky(at[0], at[1], at[2]) {
+            return false;
         }
-        if let Some(path) = &mut self.ai.nav.path
-            && let Some(i) = path.nodes.iter().position(|n| w.can_see_sky(n.x, n.y, n.z))
+        if let Some(path) = path
+            && let Some(node_index) = path
+                .nodes
+                .iter()
+                .position(|node| world.can_see_sky(node.x, node.y, node.z))
         {
-            path.nodes.truncate(i);
+            path.nodes.truncate(node_index);
+            return true;
         }
+        false
     }
     /// `PathNavigation.shouldRecomputePath`: a block changed at `pos` near the
     /// middle of what is left of the path.
@@ -515,24 +706,9 @@ impl Mob {
         if let Some(path) = &self.ai.nav.path
             && !path.is_done()
         {
-            let target = path.entity_pos_at(path.next, self.width());
-            let y = match self.ai.nav.kind {
-                NavKind::Ground | NavKind::WallClimber => {
-                    let (bx, by, bz) = (
-                        target.x.floor() as i32,
-                        target.y.floor() as i32,
-                        target.z.floor() as i32,
-                    );
-                    if w.facts.is_air(w.world.block(bx, by - 1, bz)) {
-                        target.y
-                    } else {
-                        w.floor_level(bx, by, bz)
-                    }
-                }
-                _ => target.y,
-            };
+            let target = self.path_foot_position(w, path, path.next);
             let speed = self.ai.nav.speed_modifier;
-            self.ai.mov.set_wanted(target.x, y, target.z, speed);
+            self.ai.mov.set_wanted(target.x, target.y, target.z, speed);
         }
     }
     fn follow_the_path(&mut self, w: &MobWorld) {
@@ -614,6 +790,17 @@ impl Mob {
         }
     }
     fn do_stuck_detection(&mut self, w: &MobWorld, mob: Vec3) {
+        let now = self.stuck_detection_time(w.game_time);
+        self.do_stuck_detection_at(mob, now);
+    }
+    fn stuck_detection_time(&self, game_time: i64) -> i64 {
+        if self.native_control.is_some() {
+            self.ai.nav.tick
+        } else {
+            game_time
+        }
+    }
+    fn do_stuck_detection_at(&mut self, mob: Vec3, now: i64) {
         let speed = self.ai.speed;
         let nav = &mut self.ai.nav;
         if nav.tick - nav.last_stuck_check > 100 {
@@ -623,6 +810,10 @@ impl Mob {
                 + (mob.y - nav.last_stuck_pos.y).powi(2)
                 + (mob.z - nav.last_stuck_pos.z).powi(2);
             if d < threshold * threshold {
+                if let Some(state) = &mut self.native_control {
+                    state.navigation.state = super::native_control::NativeMobNavigationState::Stuck;
+                    state.route = None;
+                }
                 nav.stuck = true;
                 nav.path = None;
             } else {
@@ -637,7 +828,7 @@ impl Mob {
             let n = path.next_node();
             let pos = [n.x, n.y, n.z];
             if pos == nav.timeout_node {
-                nav.timeout_timer += w.game_time - nav.last_timeout_check;
+                nav.timeout_timer += now - nav.last_timeout_check;
             } else {
                 nav.timeout_node = pos;
                 let c = Vec3::new(f64::from(n.x) + 0.5, f64::from(n.y), f64::from(n.z) + 0.5);
@@ -650,10 +841,14 @@ impl Mob {
                 };
             }
             if nav.timeout_limit > 0.0 && nav.timeout_timer as f64 > nav.timeout_limit * 3.0 {
+                if let Some(state) = &mut self.native_control {
+                    state.navigation.state = super::native_control::NativeMobNavigationState::Stuck;
+                    state.route = None;
+                }
                 nav.reset_stuck_timeout();
                 nav.path = None;
             }
-            nav.last_timeout_check = w.game_time;
+            nav.last_timeout_check = now;
         }
     }
     /// PathNavigation.isStableDestination for the mob's navigation.
@@ -681,6 +876,166 @@ impl Mob {
                 w.data.state(w.world.block(p[0], p[1], p[2])).flags & super::data::STURDY_TOP != 0
             }
             NavKind::Amphibious { .. } => !w.facts.is_air(w.world.block(p[0], p[1] - 1, p[2])),
+        }
+    }
+}
+
+#[cfg(test)]
+mod native_control_tests {
+    use super::*;
+    use crate::mobs::{
+        Species,
+        native_control::{NativeMobControlMode, NativeMobNavigationState},
+        path::PathNode,
+    };
+
+    fn walker() -> Mob {
+        let mut kind = crate::mobs::sensor_scan_tests::kind();
+        std::sync::Arc::make_mut(&mut kind).species = Species::Zombie;
+        Mob::new(1, kind, Vec3::new(0.5, 0.0, 0.5), 0.0)
+    }
+
+    fn straight(length: i32) -> Path {
+        Path {
+            nodes: (0..length)
+                .map(|column| PathNode {
+                    x: column,
+                    y: 0,
+                    z: 0,
+                    kind: PathType::Walkable,
+                })
+                .collect(),
+            next: 0,
+            target: [length - 1, 0, 0],
+            dist_to_target: 0.0,
+            reached: true,
+        }
+    }
+
+    #[test]
+    fn unclaimed_progress_leaves_the_existing_route_untouched() {
+        let mut mob = walker();
+        mob.ai.nav.path = Some(straight(3));
+        mob.native_navigation_progress();
+        assert!(mob.native_control.is_none());
+        let path = mob.ai.nav.path.as_ref().unwrap();
+        assert_eq!(path.next, 0);
+        assert_eq!(path.nodes.len(), 3);
+        assert!(path.reached);
+    }
+
+    #[test]
+    fn positional_stall_retains_a_terminal_reason() {
+        let mut mob = walker();
+        assert!(mob.native_control_set(7, NativeMobControlMode::External));
+        mob.ai.speed = 1.0;
+        mob.ai.nav.path = Some(straight(3));
+        mob.ai.nav.tick = 101;
+        mob.ai.nav.last_stuck_pos = mob.position;
+        mob.native_control.as_mut().unwrap().navigation.state = NativeMobNavigationState::Moving;
+        mob.do_stuck_detection_at(mob.position, 101);
+        assert!(mob.ai.nav.path.is_none());
+        assert!(mob.ai.nav.stuck);
+        mob.native_navigation_progress();
+        assert_eq!(
+            mob.native_control_navigation(7).unwrap().state,
+            NativeMobNavigationState::Stuck
+        );
+    }
+
+    #[test]
+    fn node_timeout_retains_a_terminal_reason() {
+        let mut mob = walker();
+        assert!(mob.native_control_set(7, NativeMobControlMode::External));
+        mob.ai.speed = 1.0;
+        mob.ai.nav.tick = 1;
+        let mut path = straight(3);
+        path.next = 1;
+        mob.ai.nav.path = Some(path);
+        mob.native_control.as_mut().unwrap().navigation.state = NativeMobNavigationState::Moving;
+        mob.do_stuck_detection_at(mob.position, 0);
+        assert_eq!(mob.ai.nav.timeout_limit, 20.0);
+        mob.do_stuck_detection_at(mob.position, 61);
+        assert!(mob.ai.nav.path.is_none());
+        mob.native_navigation_progress();
+        assert_eq!(
+            mob.native_control_navigation(7).unwrap().state,
+            NativeMobNavigationState::Stuck
+        );
+    }
+
+    #[test]
+    fn command_reset_starts_a_fresh_stuck_window() {
+        let mut mob = walker();
+        assert!(mob.native_control_set(7, NativeMobControlMode::External));
+        mob.ai.nav.tick = 5000;
+        mob.native_navigation_reset();
+        assert_eq!(mob.ai.nav.last_stuck_check, 5000);
+        assert_eq!(mob.ai.nav.last_timeout_check, 5000);
+        assert_eq!(mob.ai.nav.last_stuck_pos.x, mob.position.x);
+        assert_eq!(mob.ai.nav.last_stuck_pos.y, mob.position.y);
+        assert_eq!(mob.ai.nav.last_stuck_pos.z, mob.position.z);
+        mob.ai.speed = 1.0;
+        mob.ai.nav.path = Some(straight(3));
+        mob.do_stuck_detection_at(mob.position, 5000);
+        assert!(mob.ai.nav.path.is_some());
+    }
+
+    #[test]
+    fn only_controlled_time_pauses_when_the_mob_does_not_tick() {
+        let mut mob = walker();
+        mob.ai.nav.tick = 12;
+        assert_eq!(mob.stuck_detection_time(200), 200);
+        assert_eq!(mob.stuck_detection_time(10000), 10000);
+        assert!(mob.native_control_set(7, NativeMobControlMode::External));
+        assert_eq!(mob.stuck_detection_time(200), 12);
+        assert_eq!(mob.stuck_detection_time(10000), 12);
+        mob.ai.nav.tick += 1;
+        assert_eq!(mob.stuck_detection_time(10001), 13);
+    }
+
+    #[test]
+    fn route_completion_distinguishes_full_and_partial_paths() {
+        for (reached, expected) in [
+            (true, NativeMobNavigationState::Done),
+            (false, NativeMobNavigationState::Unreachable),
+        ] {
+            let mut mob = walker();
+            assert!(mob.native_control_set(7, NativeMobControlMode::External));
+            let mut path = straight(3);
+            path.next = path.nodes.len();
+            path.reached = reached;
+            mob.ai.nav.path = Some(path);
+            mob.native_control.as_mut().unwrap().navigation.state =
+                NativeMobNavigationState::Moving;
+            mob.native_navigation_progress();
+            let navigation = mob.native_control_navigation(7).unwrap();
+            assert_eq!(navigation.state, expected);
+            assert_eq!(navigation.next_waypoint, 3);
+            assert_eq!(navigation.waypoint_count, 3);
+            assert_eq!(navigation.reaches_target, reached);
+        }
+    }
+
+    #[test]
+    fn missing_paths_are_unreachable_and_terminal_states_are_sticky() {
+        let mut mob = walker();
+        assert!(mob.native_control_set(7, NativeMobControlMode::External));
+        mob.native_control.as_mut().unwrap().navigation.state = NativeMobNavigationState::Moving;
+        mob.native_navigation_progress();
+        assert_eq!(
+            mob.native_control_navigation(7).unwrap().state,
+            NativeMobNavigationState::Unreachable
+        );
+        for terminal in [
+            NativeMobNavigationState::Stopped,
+            NativeMobNavigationState::Stuck,
+            NativeMobNavigationState::Done,
+            NativeMobNavigationState::Unreachable,
+        ] {
+            mob.native_control.as_mut().unwrap().navigation.state = terminal;
+            mob.native_navigation_progress();
+            assert_eq!(mob.native_control_navigation(7).unwrap().state, terminal);
         }
     }
 }

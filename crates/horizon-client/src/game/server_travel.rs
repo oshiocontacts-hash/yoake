@@ -65,6 +65,7 @@ impl Rideable for Mob {
         self.id
     }
     fn arrive(&mut self, at: Vec3, yaw: f32, _motion: Vec3) {
+        self.native_control_drop();
         self.position = at;
         self.previous = at;
         self.velocity = Vec3::ZERO;
