@@ -28,7 +28,11 @@ impl Launcher {
         prepared: bool,
         cx: &mut Context<Self>,
     ) -> Div {
-        let java = self.selected_instance().and_then(|i| i.java.clone());
+        let java = self.selected_instance().and_then(|instance| {
+            (!yoake_install::has_manifest_or_pending(&instance.home))
+                .then(|| instance.java.clone())
+                .flatten()
+        });
         // How long this game has run, for "Playing for 5 min now".
         match (&self.client, self.client_since) {
             (Some(_), None) => self.client_since = Some(Instant::now()),
@@ -216,9 +220,9 @@ impl Launcher {
         let t = self.theme;
         let accent = ui::color(self.look.accent);
         let running = self.client.is_some();
-        let follows = self
-            .selected_instance()
-            .is_some_and(|i| i.version.is_none());
+        let follows = self.selected_instance().is_some_and(|i| {
+            i.version.is_none() && !yoake_install::has_manifest_or_pending(&i.home)
+        });
         let update = self
             .updates
             .horizon

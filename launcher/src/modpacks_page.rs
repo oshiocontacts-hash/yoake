@@ -119,9 +119,8 @@ impl Launcher {
         // The pack's instance plays its own version, if it has one.
         let pack = self.instances.list.iter().find(|i| i.work == work);
         let Some(tag) = pack
-            .and_then(|i| self.version_of(i))
-            .or_else(|| self.launcher_version())
-            .cloned()
+            .and_then(|instance| self.instance_play_tag(instance))
+            .or_else(|| self.launcher_version().cloned())
         else {
             return;
         };

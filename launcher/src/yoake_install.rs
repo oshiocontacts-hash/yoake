@@ -23,6 +23,7 @@ mod secure_fs;
 use secure_fs::Dir;
 
 const MANIFEST: &str = "yoake-pack.json";
+const PREVIOUS_MANIFEST: &str = "yoake-pack.previous.json";
 const STAGING: &str = ".yoake-staging";
 const JOURNAL: &str = "journal.json";
 const MAX_METADATA: u64 = 8 * 1024 * 1024;
@@ -42,6 +43,11 @@ pub enum InstallError {
     BaseConflict(String),
     UnsafePath,
     NeedsLogin,
+    FeedRequired,
+    NoRollback,
+    MissingBase,
+    LaunchMetadataUnavailable,
+    UnsupportedNativeMods,
     Authentication,
     HttpStatus(u16),
     Network,
@@ -82,6 +88,10 @@ pub struct InstalledPack {
     pub target: String,
     pub managed_files: Vec<ManagedFile>,
     pub transaction: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rollback_index: Option<FeedIndexV2>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rollback_proof: Option<yoake_feed::FeedProof>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -129,6 +139,8 @@ pub struct InstallPlan {
     pub target: String,
     pub files: Vec<PlannedFile>,
     pub removals: Vec<Removal>,
+    rollback_index: FeedIndexV2,
+    rollback_proof: Option<yoake_feed::FeedProof>,
     previous: Option<InstalledPack>,
     instance_dir: PathBuf,
     data_dir: PathBuf,
@@ -175,6 +187,40 @@ fn validate_installed(manifest: &InstalledPack) -> Result<(), InstallError> {
         yoake_feed::validate_pack_destination(&file.destination, Policy::Managed)
             .map_err(|_| InstallError::InvalidMetadata)?;
         if !valid_hash(&file.sha256) || !paths.insert(file.destination.to_ascii_lowercase()) {
+            return Err(InstallError::InvalidMetadata);
+        }
+    }
+    if let Some(index) = &manifest.rollback_index {
+        yoake_feed::validate_index_v2(index).map_err(|_| InstallError::InvalidMetadata)?;
+        if index.sequence != manifest.sequence || index.packs.len() != 1 || index.bases.len() != 1 {
+            return Err(InstallError::InvalidMetadata);
+        }
+        let pack = &index.packs[0];
+        if pack.id != manifest.pack_id || pack.versions.len() != 1 {
+            return Err(InstallError::InvalidMetadata);
+        }
+        let version = &pack.versions[0];
+        if version.version != manifest.pack_version
+            || !version
+                .base_version
+                .eq_ignore_ascii_case(&manifest.base_version)
+            || index.bases[0].version != manifest.base_version
+            || !version.targets.contains_key(&manifest.target)
+        {
+            return Err(InstallError::InvalidMetadata);
+        }
+        let expected: BTreeSet<_> = version.targets[&manifest.target]
+            .files
+            .iter()
+            .filter(|file| matches!(file.policy, Policy::Managed))
+            .map(|file| (&file.destination, &file.sha256))
+            .collect();
+        let actual: BTreeSet<_> = manifest
+            .managed_files
+            .iter()
+            .map(|file| (&file.destination, &file.sha256))
+            .collect();
+        if expected != actual {
             return Err(InstallError::InvalidMetadata);
         }
     }
@@ -247,6 +293,14 @@ fn file_hash(mut file: File) -> Result<String, InstallError> {
 
 pub trait ObjectSource: Send + Sync {
     fn open(&self, sha256: &str) -> Result<Box<dyn Read + Send>, InstallError>;
+}
+
+struct CacheOnlySource;
+
+impl ObjectSource for CacheOnlySource {
+    fn open(&self, _sha256: &str) -> Result<Box<dyn Read + Send>, InstallError> {
+        Err(InstallError::FeedRequired)
+    }
 }
 
 pub struct HttpObjectSource {
@@ -333,6 +387,39 @@ fn object_matches(file: File, sha256: &str, size: u64) -> Result<bool, InstallEr
         return Ok(false);
     }
     Ok(file_hash(file)? == sha256)
+}
+
+fn missing_objects(plan: &InstallPlan) -> Result<(u64, bool), InstallError> {
+    let cache = plan.data_dir.join("yoake-cache").join("objects");
+    let mut objects = BTreeMap::new();
+    for file in plan
+        .files
+        .iter()
+        .filter(|file| file.action == FileAction::Install)
+    {
+        if let Some(size) = objects.insert(&file.sha256, file.size) {
+            if size != file.size {
+                return Err(InstallError::InvalidFeed);
+            }
+        }
+    }
+    let mut total = 0_u64;
+    let mut missing = false;
+    for (sha256, size) in objects {
+        let valid = match read_file(&cache, sha256)? {
+            Some(file) => object_matches(file, sha256, size)?,
+            None => false,
+        };
+        if !valid {
+            missing = true;
+            total = total.checked_add(size).ok_or(InstallError::InvalidFeed)?;
+        }
+    }
+    Ok((total, missing))
+}
+
+pub fn download_bytes(plan: &InstallPlan) -> Result<u64, InstallError> {
+    Ok(missing_objects(plan)?.0)
 }
 
 fn cache_object(
@@ -488,10 +575,18 @@ fn validate_journal(journal: &Journal) -> Result<(), InstallError> {
     let mut destinations = BTreeSet::new();
     for (index, operation) in journal.operations.iter().enumerate() {
         let is_manifest = index + 1 == journal.operations.len();
+        let is_previous_manifest = operation.destination == PREVIOUS_MANIFEST;
         if is_manifest != (operation.destination == MANIFEST) {
             return Err(InstallError::InvalidMetadata);
         }
-        if !is_manifest {
+        if is_previous_manifest
+            && (index + 2 != journal.operations.len()
+                || operation.default_on_create
+                || operation.after.is_none())
+        {
+            return Err(InstallError::InvalidMetadata);
+        }
+        if !is_manifest && !is_previous_manifest {
             let policy = if operation.default_on_create {
                 Policy::DefaultOnCreate
             } else {
@@ -726,6 +821,87 @@ pub fn recover_install(instance: &Path) -> Result<(), InstallError> {
     recover_locked(instance, &staging, false)
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LaunchProgram {
+    pub executable: PathBuf,
+    pub resource_tag: String,
+}
+
+pub(crate) fn has_manifest_or_pending(instance: &Path) -> bool {
+    [
+        instance.join(MANIFEST),
+        instance.join(STAGING).join(JOURNAL),
+    ]
+    .iter()
+    .any(|path| match std::fs::symlink_metadata(path) {
+        Ok(_) => true,
+        Err(error) => error.kind() != io::ErrorKind::NotFound,
+    })
+}
+
+pub fn prepare_launch(
+    instance: &Path,
+    data_dir: &Path,
+) -> Result<Option<LaunchProgram>, InstallError> {
+    match std::fs::symlink_metadata(instance.join(STAGING)) {
+        Ok(_) => recover_install(instance)?,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    match std::fs::symlink_metadata(instance.join(MANIFEST)) {
+        Ok(_) => {}
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error.into()),
+    }
+    let Some(manifest) = read_manifest(instance)? else {
+        return Ok(None);
+    };
+    let stored_index = manifest
+        .rollback_index
+        .as_ref()
+        .ok_or(InstallError::LaunchMetadataUnavailable)?;
+    let proof = manifest
+        .rollback_proof
+        .as_ref()
+        .ok_or(InstallError::LaunchMetadataUnavailable)?;
+    let verified =
+        yoake_feed::verify_saved_feed(proof).map_err(|_| InstallError::InvalidMetadata)?;
+    let index = schema(&verified)?;
+    let version = select(index, &manifest.pack_id, &manifest.pack_version)?;
+    let base = index
+        .bases
+        .iter()
+        .find(|base| base.version == manifest.base_version)
+        .ok_or(InstallError::InvalidMetadata)?;
+    if index.sequence != manifest.sequence
+        || version.base_version != manifest.base_version
+        || stored_index.source_id != index.source_id
+        || &stored_index.packs[0].versions[0] != version
+        || &stored_index.bases[0] != base
+    {
+        return Err(InstallError::InvalidMetadata);
+    }
+    let target = base
+        .targets
+        .get(&manifest.target)
+        .ok_or(InstallError::InvalidMetadata)?;
+    let [base_file] = target.files.as_slice() else {
+        return Err(InstallError::InvalidMetadata);
+    };
+    let base_dir = data_dir.join("yoake-bases").join(&manifest.base_version);
+    let file = read_file(&base_dir, &base_file.destination)?.ok_or(InstallError::MissingBase)?;
+    if !object_matches(file, &base_file.sha256, base_file.size)? {
+        return Err(InstallError::InvalidObject);
+    }
+    if !crate::yoake_feed::same_native_mods(&version.enabled_native_mods, &base.native_mods) {
+        return Err(InstallError::UnsupportedNativeMods);
+    }
+    Ok(Some(LaunchProgram {
+        executable: base_dir.join(&base_file.destination),
+        resource_tag: base.horizon_release.clone(),
+    }))
+}
+
 fn apply_plan(
     plan: &InstallPlan,
     staging: &Dir,
@@ -740,9 +916,27 @@ fn apply_plan(
     };
     let mut temporary = Vec::new();
     let prepare = (|| {
-        if read_manifest(&plan.instance_dir)? != plan.previous {
+        let previous_bytes = read_file(&plan.instance_dir, MANIFEST)?
+            .map(read_limited)
+            .transpose()?;
+        let previous = previous_bytes
+            .as_ref()
+            .map(|bytes| {
+                let manifest =
+                    serde_json::from_slice(bytes).map_err(|_| InstallError::InvalidMetadata)?;
+                validate_installed(&manifest)?;
+                Ok::<_, InstallError>(manifest)
+            })
+            .transpose()?;
+        if previous != plan.previous {
             return Err(InstallError::Conflict(MANIFEST.to_owned()));
         }
+        let version_changed = previous.as_ref().is_some_and(|manifest| {
+            manifest.pack_id != plan.pack_id || manifest.pack_version != plan.pack_version
+        });
+        let manifest_before = previous_bytes
+            .as_ref()
+            .map(|bytes| format!("{:x}", Sha256::digest(bytes)));
         for file in plan
             .files
             .iter()
@@ -785,6 +979,20 @@ fn apply_plan(
                 default_on_create: false,
             });
         }
+        if let Some(bytes) = previous_bytes.filter(|_| version_changed) {
+            let index = journal.operations.len();
+            let name = format!("new-{transaction}-{index}");
+            temporary.push(name.clone());
+            let after = write_staged(staging, &name, &bytes)?;
+            journal.operations.push(JournalOperation {
+                destination: PREVIOUS_MANIFEST.to_owned(),
+                before: hash_at(&plan.instance_dir, PREVIOUS_MANIFEST)?,
+                after: Some(after),
+                staged: Some(name),
+                backup: format!("old-{transaction}-{index}"),
+                default_on_create: false,
+            });
+        }
         let manifest = InstalledPack {
             pack_id: plan.pack_id.clone(),
             pack_version: plan.pack_version.clone(),
@@ -803,6 +1011,8 @@ fn apply_plan(
                 })
                 .collect(),
             transaction: transaction.clone(),
+            rollback_index: Some(plan.rollback_index.clone()),
+            rollback_proof: plan.rollback_proof.clone(),
         };
         let index = journal.operations.len();
         let name = format!("new-{transaction}-{index}");
@@ -815,7 +1025,7 @@ fn apply_plan(
         let after = write_staged(staging, &name, &bytes)?;
         journal.operations.push(JournalOperation {
             destination: MANIFEST.to_owned(),
-            before: hash_at(&plan.instance_dir, MANIFEST)?,
+            before: manifest_before,
             after: Some(after),
             staged: Some(name),
             backup: format!("old-{transaction}-{index}"),
@@ -961,11 +1171,202 @@ pub fn start_install_with_source(
     InstallTask { events, cancelled }
 }
 
+pub fn start_rollback(
+    client: Option<&FeedClient>,
+    feed: Option<VerifiedFeed>,
+    instance_dir: PathBuf,
+) -> InstallTask {
+    let (data_dir, source): (PathBuf, Arc<dyn ObjectSource>) = match client {
+        Some(client) => (
+            client.install_connection().2,
+            Arc::new(HttpObjectSource::from_feed_client(client)),
+        ),
+        None => (
+            horizon_launcher::backend::data_dir(),
+            Arc::new(CacheOnlySource),
+        ),
+    };
+    start_rollback_with_source(
+        feed,
+        instance_dir,
+        data_dir,
+        current_target(),
+        env!("CARGO_PKG_VERSION").to_owned(),
+        source,
+    )
+}
+
+pub fn rollback(instance_dir: PathBuf) -> InstallTask {
+    let (sender, events) = mpsc::channel();
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let worker_cancelled = Arc::clone(&cancelled);
+    thread::spawn(move || {
+        let mut task = start_rollback(None, None, instance_dir.clone());
+        let mut attempted_feed = false;
+        loop {
+            if worker_cancelled.load(Ordering::SeqCst) {
+                task.cancel();
+            }
+            match task.events.recv_timeout(Duration::from_millis(100)) {
+                Ok(InstallEvent::Finished(Err(InstallError::FeedRequired)))
+                    if worker_cancelled.load(Ordering::SeqCst) =>
+                {
+                    let _ = sender.send(InstallEvent::Finished(Err(InstallError::Cancelled)));
+                    break;
+                }
+                Ok(InstallEvent::Finished(Err(InstallError::FeedRequired)))
+                    if !attempted_feed && !worker_cancelled.load(Ordering::SeqCst) =>
+                {
+                    attempted_feed = true;
+                    let online = (|| {
+                        let client = FeedClient::configured()
+                            .map_err(|_| InstallError::InvalidFeed)?
+                            .ok_or(InstallError::FeedRequired)?;
+                        let (_, auth, _) = client.install_connection();
+                        if auth
+                            .authorization()
+                            .map_err(|_| InstallError::Authentication)?
+                            .is_none()
+                        {
+                            return Err(InstallError::NeedsLogin);
+                        }
+                        check_cancelled(&worker_cancelled)?;
+                        let feed = client.fetch_feed().map_err(|error| match error {
+                            yoake_feed::FeedError::NeedsLogin
+                            | yoake_feed::FeedError::HttpStatus(401 | 403) => {
+                                InstallError::NeedsLogin
+                            }
+                            yoake_feed::FeedError::Authentication(_) => {
+                                InstallError::Authentication
+                            }
+                            yoake_feed::FeedError::HttpStatus(status) => {
+                                InstallError::HttpStatus(status)
+                            }
+                            yoake_feed::FeedError::Network => InstallError::Network,
+                            _ => InstallError::InvalidFeed,
+                        })?;
+                        check_cancelled(&worker_cancelled)?;
+                        Ok(start_rollback(
+                            Some(&client),
+                            Some(feed),
+                            instance_dir.clone(),
+                        ))
+                    })();
+                    match online {
+                        Ok(next) => task = next,
+                        Err(error) => {
+                            let _ = sender.send(InstallEvent::Finished(Err(error)));
+                            break;
+                        }
+                    }
+                }
+                Ok(event @ InstallEvent::Finished(_)) => {
+                    let _ = sender.send(event);
+                    break;
+                }
+                Ok(event) => {
+                    let _ = sender.send(event);
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+                Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    let _ = sender.send(InstallEvent::Finished(Err(InstallError::Io(
+                        "rollback worker stopped unexpectedly".to_owned(),
+                    ))));
+                    break;
+                }
+            }
+        }
+    });
+    InstallTask { events, cancelled }
+}
+
+pub fn start_rollback_with_source(
+    feed: Option<VerifiedFeed>,
+    instance_dir: PathBuf,
+    data_dir: PathBuf,
+    target: Result<String, InstallError>,
+    launcher_version: String,
+    source: Arc<dyn ObjectSource>,
+) -> InstallTask {
+    let (sender, events) = mpsc::channel();
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let worker_cancelled = Arc::clone(&cancelled);
+    thread::spawn(move || {
+        let result = (|| {
+            if !instance_dir.is_absolute() || !data_dir.is_absolute() {
+                return Err(InstallError::UnsafePath);
+            }
+            let root = Dir::open(&instance_dir, false)?;
+            let staging = root.child(OsStr::new(STAGING), true)?;
+            let lock = staging.lock_file(OsStr::new("install.lock"))?;
+            lock.try_lock().map_err(|_| InstallError::Busy)?;
+            recover_locked(&instance_dir, &staging, false)?;
+            check_cancelled(&worker_cancelled)?;
+            let file =
+                read_file(&instance_dir, PREVIOUS_MANIFEST)?.ok_or(InstallError::NoRollback)?;
+            let previous: InstalledPack = serde_json::from_slice(&read_limited(file)?)
+                .map_err(|_| InstallError::InvalidMetadata)?;
+            validate_installed(&previous)?;
+            let target = target?;
+            if previous.target != target {
+                return Err(InstallError::UnsupportedTarget);
+            }
+            let snapshot_feed = match &previous.rollback_proof {
+                Some(proof) => yoake_feed::verify_saved_feed(proof)
+                    .map_err(|_| InstallError::InvalidMetadata)?,
+                None => feed.clone().ok_or(InstallError::FeedRequired)?,
+            };
+            let saved_index = schema(&snapshot_feed)?.clone();
+            if previous.rollback_proof.is_some() && saved_index.sequence != previous.sequence {
+                return Err(InstallError::InvalidMetadata);
+            }
+            let plan = plan_install_at(
+                &snapshot_feed,
+                &previous.pack_id,
+                &previous.pack_version,
+                &instance_dir,
+                &data_dir,
+                &target,
+                &launcher_version,
+            )?;
+            if plan.base_version != previous.base_version {
+                return Err(InstallError::InvalidMetadata);
+            }
+            let cache_only = CacheOnlySource;
+            let download_source: &dyn ObjectSource = if missing_objects(&plan)?.1 {
+                let live = schema(feed.as_ref().ok_or(InstallError::FeedRequired)?)?;
+                let live_version = select(live, &previous.pack_id, &previous.pack_version)?;
+                let saved_version =
+                    select(&saved_index, &previous.pack_id, &previous.pack_version)?;
+                let live_base = live
+                    .bases
+                    .iter()
+                    .find(|base| base.version == plan.base_version);
+                let saved_base = saved_index
+                    .bases
+                    .iter()
+                    .find(|base| base.version == plan.base_version);
+                if live_version != saved_version || live_base != saved_base {
+                    return Err(InstallError::InvalidFeed);
+                }
+                source.as_ref()
+            } else {
+                &cache_only
+            };
+            download_objects(&plan, download_source, &worker_cancelled, &sender)?;
+            prepare_base(&plan, &worker_cancelled)?;
+            apply_plan(&plan, &staging, &worker_cancelled, &sender)
+        })();
+        let _ = sender.send(InstallEvent::Finished(result));
+    });
+    InstallTask { events, cancelled }
+}
+
 fn hash_at(root: &Path, destination: &str) -> Result<Option<String>, InstallError> {
     read_file(root, destination)?.map(file_hash).transpose()
 }
 
-fn read_manifest(instance: &Path) -> Result<Option<InstalledPack>, InstallError> {
+pub fn read_manifest(instance: &Path) -> Result<Option<InstalledPack>, InstallError> {
     let Some(file) = read_file(instance, MANIFEST)? else {
         return Ok(None);
     };
@@ -999,7 +1400,7 @@ fn select<'a>(
         .ok_or(InstallError::VersionNotFound)
 }
 
-fn launcher_version(value: &str) -> Result<Version, InstallError> {
+pub(crate) fn launcher_version(value: &str) -> Result<Version, InstallError> {
     if let Ok(version) = Version::parse(value) {
         return Ok(version);
     }
@@ -1222,6 +1623,16 @@ pub fn plan_install_with_snapshot(
             }
         }
     }
+    let mut rollback_index = index.clone();
+    rollback_index
+        .packs
+        .retain(|candidate| candidate.id == pack_id);
+    rollback_index.packs[0]
+        .versions
+        .retain(|candidate| candidate.version == pack_version);
+    rollback_index
+        .bases
+        .retain(|candidate| candidate.version == base.version);
     Ok(InstallPlan {
         pack_id: pack_id.to_owned(),
         pack_version: pack_version.to_owned(),
@@ -1230,6 +1641,8 @@ pub fn plan_install_with_snapshot(
         target: target.to_owned(),
         files,
         removals,
+        rollback_index,
+        rollback_proof: feed.proof.clone(),
         previous: snapshot.previous.clone(),
         instance_dir: instance_dir.to_owned(),
         data_dir: data_dir.to_owned(),

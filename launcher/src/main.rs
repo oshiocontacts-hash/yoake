@@ -73,6 +73,8 @@ mod worlds_page;
 pub mod yoake_auth;
 pub mod yoake_feed;
 pub mod yoake_install;
+pub mod yoake_login;
+pub mod yoake_update;
 
 use gpui::{
     actions, div, ease_out_quint, prelude::*, px, relative, size, Animation, AnimationExt,
@@ -197,6 +199,11 @@ const LOG_LINES: usize = 2000;
 
 struct Launcher {
     theme: Theme,
+    yoake_login_task: Option<yoake_login::LoginTask>,
+    yoake_login_event: Option<yoake_login::LoginEvent>,
+    yoake_user_code: Option<String>,
+    yoake_update_task: Option<yoake_update::UpdateTask>,
+    yoake_update_states: HashMap<std::path::PathBuf, yoake_update::UpdateState>,
     page: Page,
     /// How many times the page changed, for the page transition.
     switches: usize,
@@ -327,6 +334,7 @@ struct Launcher {
     /// The game is waiting for its session (a token renewal), or a Java instance for its files
     /// and Java (`start_java`), before it starts.
     starting_client: Option<String>,
+    starting_yoake_home: Option<std::path::PathBuf>,
     /// Play was pressed on a version not prepared yet: it starts once this preparation ends well.
     play_when_prepared: Option<String>,
     /// Join a friend: the code typed on the Play page, and the one the game
@@ -500,6 +508,23 @@ impl Launcher {
             });
         }
         let installed = backend::installed();
+        let yoake_update_task = match yoake_feed::FeedClient::configured() {
+            Ok(Some(client))
+                if matches!(
+                    yoake_auth::YoakeAuth::authorization(&yoake_auth::TokenFileAuth::new(
+                        &backend::data_dir()
+                    )),
+                    Ok(Some(_))
+                ) =>
+            {
+                let homes = instances::list()
+                    .into_iter()
+                    .map(|instance| instance.home)
+                    .collect();
+                Some(yoake_update::start_update_check(client, homes))
+            }
+            _ => None,
+        };
         if settings
             .selected
             .as_ref()
@@ -512,6 +537,11 @@ impl Launcher {
         titlebar::apply_appearance(window, settings.appearance);
         let mut this = Self {
             theme: Theme::for_appearance(settings.appearance, settings.accent, window.appearance()),
+            yoake_login_task: None,
+            yoake_login_event: None,
+            yoake_user_code: None,
+            yoake_update_task,
+            yoake_update_states: HashMap::new(),
             page: Page::from_env(),
             switches: 0,
             content_scroll: Scrollbar::default(),
@@ -604,6 +634,7 @@ impl Launcher {
             dev_clicks: 0,
             dev_options: false,
             starting_client: None,
+            starting_yoake_home: None,
             play_when_prepared: None,
             friend_code: line_edit::LineEdit::new(String::new(), 256, 32),
             friend_focused: false,
@@ -944,6 +975,61 @@ impl Launcher {
 
     fn drain(&mut self, cx: &mut Context<Self>) {
         let mut changed = false;
+        let login_events: Vec<_> = self
+            .yoake_login_task
+            .as_ref()
+            .map(|task| task.events.try_iter().collect())
+            .unwrap_or_default();
+        let mut login_finished = false;
+        let mut login_succeeded = false;
+        for event in login_events {
+            match &event {
+                yoake_login::LoginEvent::VerificationRequired { user_code, url } => {
+                    self.yoake_user_code = Some(user_code.clone());
+                    cx.open_url(url);
+                }
+                yoake_login::LoginEvent::AuthorizationPending
+                | yoake_login::LoginEvent::SlowDown { .. } => {}
+                yoake_login::LoginEvent::Success(_) => {
+                    login_finished = true;
+                    login_succeeded = true;
+                    self.yoake_user_code = None;
+                }
+                _ => {
+                    login_finished = true;
+                    self.yoake_user_code = None;
+                }
+            }
+            self.yoake_login_event = Some(event);
+            changed = true;
+        }
+        if login_finished {
+            self.yoake_login_task = None;
+        }
+        if login_succeeded {
+            self.check_yoake_updates();
+        }
+        let mut update_finished = false;
+        if let Some(task) = &self.yoake_update_task {
+            loop {
+                match task.events.try_recv() {
+                    Ok(update) => {
+                        self.yoake_update_states
+                            .insert(update.instance_dir, update.state);
+                        changed = true;
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Empty) => break,
+                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                        update_finished = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if update_finished {
+            self.yoake_update_task = None;
+            changed = true;
+        }
         self.perf.tick();
         match self.bench.as_mut().map(|b| b.tick(&self.perf)) {
             Some(perf::Step::Go(page)) => {
@@ -1032,6 +1118,21 @@ impl Launcher {
                 Msg::OfficialPlayers(players) => self.official_players = players,
                 Msg::JavaGame(id, home, cmd) => {
                     self.starting_client = None;
+                    match yoake_install::prepare_launch(&home, &backend::data_dir()) {
+                        Ok(None) => {}
+                        Ok(Some(_)) => {
+                            self.client_error = Some(
+                                "The instance changed to Yoake while starting; retry the launch."
+                                    .to_string(),
+                            );
+                            continue;
+                        }
+                        Err(error) => {
+                            self.client_error =
+                                Some(format!("Yoake launch preparation failed: {error}"));
+                            continue;
+                        }
+                    }
                     let spawned = cmd.and_then(|(cmd, vars)| {
                         self.client_vars = vars;
                         backend::spawn(Job::Client, cmd, self.tx.clone())
@@ -1056,7 +1157,76 @@ impl Launcher {
                 Msg::Session(session) => {
                     self.load_auth_statuses(false);
                     if let Some(tag) = self.starting_client.take() {
-                        let mut cmd = backend::client_command(&tag);
+                        let instance_home = self.start_instance_home();
+                        let expected_home = self.starting_yoake_home.take();
+                        if expected_home
+                            .as_ref()
+                            .is_some_and(|home| home != &instance_home)
+                        {
+                            self.client_error = Some(
+                                "The selected Yoake instance changed; retry the launch."
+                                    .to_string(),
+                            );
+                            self.starting_pack = None;
+                            self.joining = None;
+                            self.quick_play = None;
+                            continue;
+                        }
+                        let expected_yoake = expected_home.is_some()
+                            || yoake_install::has_manifest_or_pending(&instance_home);
+                        let (mut cmd, yoake) = match yoake_install::prepare_launch(
+                            &instance_home,
+                            &backend::data_dir(),
+                        ) {
+                            Ok(Some(program)) => {
+                                if program.resource_tag != tag
+                                    || !backend::is_prepared(&program.resource_tag)
+                                {
+                                    self.client_error = Some(if program.resource_tag != tag {
+                                        "Yoake's base version changed; retry the launch."
+                                            .to_string()
+                                    } else {
+                                        format!(
+                                            "Yoake requires prepared resources for Horizon {}; prepare that version and retry.",
+                                            program.resource_tag
+                                        )
+                                    });
+                                    self.starting_pack = None;
+                                    self.joining = None;
+                                    self.quick_play = None;
+                                    continue;
+                                }
+                                (
+                                    backend::client_command_for_program(
+                                        &program.resource_tag,
+                                        &program.executable,
+                                    ),
+                                    true,
+                                )
+                            }
+                            Ok(None)
+                                if expected_yoake
+                                    || (self.starting_pack.is_none()
+                                        && instances::selected().java.is_some()) =>
+                            {
+                                self.client_error = Some(
+                                    "The Yoake installation was recovered without a pack; retry the instance."
+                                        .to_string(),
+                                );
+                                self.starting_pack = None;
+                                self.joining = None;
+                                self.quick_play = None;
+                                continue;
+                            }
+                            Ok(None) => (backend::client_command(&tag), false),
+                            Err(error) => {
+                                self.client_error = Some(format!("Cannot launch Yoake: {error}"));
+                                self.starting_pack = None;
+                                self.joining = None;
+                                self.quick_play = None;
+                                continue;
+                            }
+                        };
                         let (file, offline) = match session {
                             Ok(pass) => pass,
                             Err(account::NoOwner) => {
@@ -1091,22 +1261,39 @@ impl Launcher {
                         // A pack's Play button plays that pack; Play plays the selected instance.
                         let (profile, run) = match self.starting_pack.take() {
                             Some(work) => {
-                                let id = instances::list()
+                                let instance = instances::list()
                                     .into_iter()
-                                    .find(|i| i.work == work)
-                                    .map(|i| i.id);
-                                let applied =
-                                    horizon_launcher::modpacks::apply_profile(&mut cmd, &work);
+                                    .find(|instance| instance.work == work);
+                                let id = instance.as_ref().map(|instance| instance.id.clone());
+                                let applied = if yoake {
+                                    if let Some(mut instance) = instance {
+                                        instance.kind = instances::Kind::Own;
+                                        instance.java = None;
+                                        instances::apply(&mut cmd, &instance)
+                                    } else {
+                                        Ok(())
+                                    }
+                                } else {
+                                    horizon_launcher::modpacks::apply_profile(&mut cmd, &work)
+                                };
                                 (applied, id)
                             }
                             None => {
-                                let instance = instances::selected();
+                                let mut instance = instances::selected();
+                                if yoake {
+                                    instance.kind = instances::Kind::Own;
+                                    instance.java = None;
+                                }
                                 (instances::apply(&mut cmd, &instance), Some(instance.id))
                             }
                         };
                         if let Err(e) = profile {
                             self.client_error = Some(e);
                             continue;
+                        }
+                        if yoake {
+                            cmd.current_dir(&instance_home)
+                                .env("HORIZON_HOME", &instance_home);
                         }
                         if let Some(code) = self.joining.take() {
                             if let Err(e) = backend::join_friend(&mut cmd, &code) {
@@ -1121,7 +1308,13 @@ impl Launcher {
                         // wrapper and variables.
                         let instance = run
                             .as_ref()
-                            .and_then(|id| instances::list().into_iter().find(|i| &i.id == id));
+                            .and_then(|id| instances::list().into_iter().find(|i| &i.id == id))
+                            .map(|mut instance| {
+                                if yoake {
+                                    instance.java = None;
+                                }
+                                instance
+                            });
                         self.client_vars = instance
                             .as_ref()
                             .map(|i| i.vars(cmd.get_program()))
@@ -1129,7 +1322,10 @@ impl Launcher {
                         cmd.envs(self.client_vars.iter().map(|(k, v)| (k, v)));
                         let launch = instance.map(|i| i.launch).unwrap_or_default();
                         horizon_launcher::launch::limit_memory(&mut cmd, &launch);
-                        let cmd = horizon_launcher::launch::wrap(cmd, &launch);
+                        let mut cmd = horizon_launcher::launch::wrap(cmd, &launch);
+                        if yoake {
+                            cmd.env("HORIZON_HOME", &instance_home);
+                        }
                         self.client_home = cmd.get_current_dir().map(|d| d.to_path_buf());
                         match backend::spawn(Job::Client, cmd, self.tx.clone()) {
                             Ok(r) => {
@@ -1429,6 +1625,31 @@ impl Launcher {
             .or_else(|| self.launcher_version())
     }
 
+    fn instance_play_tag(&self, instance: &instances::Instance) -> Option<String> {
+        let yoake_tag = yoake_install::read_manifest(&instance.home)
+            .ok()
+            .flatten()
+            .and_then(|manifest| manifest.rollback_index)
+            .and_then(|index| index.bases.into_iter().next())
+            .map(|base| base.horizon_release);
+        yoake_tag.or_else(|| {
+            self.version_of(instance)
+                .or_else(|| self.launcher_version())
+                .cloned()
+        })
+    }
+
+    fn selected_play_tag(&self) -> Option<String> {
+        self.selected_instance()
+            .and_then(|instance| self.instance_play_tag(instance))
+            .or_else(|| self.selected().cloned())
+            .or_else(|| {
+                self.selected_instance()
+                    .filter(|instance| yoake_install::has_manifest_or_pending(&instance.home))
+                    .map(|_| String::new())
+            })
+    }
+
     /// The launcher's version: what instances without one of their own play.
     fn launcher_version(&self) -> Option<&String> {
         self.settings
@@ -1516,7 +1737,7 @@ impl Launcher {
     /// Prepares the selected version, its Minecraft files from the player's install or, for an
     /// owner who asks, from Mojang.
     fn prepare(&mut self, from: backend::MinecraftFrom) {
-        let Some(tag) = self.selected().cloned() else {
+        let Some(tag) = self.selected_play_tag() else {
             return;
         };
         horizon_launcher::mojang::CANCEL.store(false, Ordering::Relaxed);
@@ -1568,7 +1789,7 @@ impl Launcher {
     fn play(&mut self) {
         let java = self
             .selected_instance()
-            .filter(|i| i.java.is_some())
+            .filter(|i| i.java.is_some() && !yoake_install::has_manifest_or_pending(&i.home))
             .cloned();
         if let Some(instance) = java {
             // Mojang's game: no Horizon version or preparation, only no game already running.
@@ -1586,7 +1807,7 @@ impl Launcher {
             self.start_java(instance, server);
             return;
         }
-        let Some(tag) = self.selected().cloned() else {
+        let Some(tag) = self.selected_play_tag() else {
             return;
         };
         if !self.can_start(&tag) {
@@ -1624,22 +1845,41 @@ impl Launcher {
     /// running or starting.
     pub(crate) fn can_start(&self, tag: &str) -> bool {
         let running = self.client.is_some() || self.starting_client.is_some();
-        starts_now(backend::is_prepared(tag), self.preparing, running)
+        let yoake = self
+            .selected_instance()
+            .is_some_and(|instance| yoake_install::has_manifest_or_pending(&instance.home));
+        starts_now(backend::is_prepared(tag) || yoake, self.preparing, running)
     }
 
     /// Whether the selected instance's version can start now, from a shortcut (a server's Join,
     /// a world's Play, a friend's code): Horizon's only, never a Java instance.
     pub(crate) fn can_start_selected(&self) -> bool {
-        self.selected_instance().is_none_or(|i| i.java.is_none())
-            && self.selected().is_some_and(|tag| self.can_start(tag))
+        self.selected_instance()
+            .is_none_or(|i| i.java.is_none() || yoake_install::has_manifest_or_pending(&i.home))
+            && self
+                .selected_play_tag()
+                .is_some_and(|tag| self.can_start(&tag))
     }
 
     /// Whether a server's Join starts the selected instance now: a Java instance too, as Play
     /// would (no game running or starting).
     pub(crate) fn can_join_selected(&self) -> bool {
         match self.selected_instance() {
-            Some(i) if i.java.is_some() => self.client.is_none() && self.starting_client.is_none(),
+            Some(i) if i.java.is_some() && !yoake_install::has_manifest_or_pending(&i.home) => {
+                self.client.is_none() && self.starting_client.is_none()
+            }
             _ => self.can_start_selected(),
+        }
+    }
+
+    fn start_instance_home(&self) -> std::path::PathBuf {
+        match &self.starting_pack {
+            Some(work) => instances::list()
+                .into_iter()
+                .find(|instance| instance.work == *work)
+                .map(|instance| instance.home)
+                .unwrap_or_else(|| horizon_launcher::modpacks::profile_home(work)),
+            None => instances::selected().home,
         }
     }
 
@@ -1649,6 +1889,9 @@ impl Launcher {
         self.client_error = None;
         self.crash = None;
         self.prepare_log.clear();
+        let instance_home = self.start_instance_home();
+        let expected_yoake = yoake_install::has_manifest_or_pending(&instance_home);
+        self.starting_yoake_home = expected_yoake.then_some(instance_home);
         // A little earlier than the spawn: file times can be coarse.
         self.client_started =
             Some(std::time::SystemTime::now() - std::time::Duration::from_secs(2));
@@ -1660,7 +1903,9 @@ impl Launcher {
         let tx = self.tx.clone();
         let offline_without_owner = self.settings.dev_offline;
         std::thread::spawn(move || {
-            backend::complete_assets(&tag);
+            if !expected_yoake || backend::is_prepared(&tag) {
+                backend::complete_assets(&tag);
+            }
             let session = account::session_for_game(&backend::game_home(), offline_without_owner);
             let _ = tx.send(Msg::Session(session));
         });
@@ -2984,10 +3229,16 @@ impl Launcher {
     fn play_page(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         // A Java instance plays Mojang's game: no Horizon version, nothing of Horizon's to prepare.
-        let java = self.selected_instance().and_then(|i| i.java.clone());
+        let java = self.selected_instance().and_then(|i| {
+            (!yoake_install::has_manifest_or_pending(&i.home))
+                .then(|| i.java.clone())
+                .flatten()
+        });
+        let yoake = self
+            .selected_instance()
+            .is_some_and(|instance| yoake_install::has_manifest_or_pending(&instance.home));
         let Some(tag) = self
-            .selected()
-            .cloned()
+            .selected_play_tag()
             .or_else(|| java.is_some().then(String::new))
         else {
             // No hero without a version: the page starts below the top bar like the others.
@@ -3218,7 +3469,7 @@ impl Launcher {
                 .flex()
                 .flex_col()
                 .gap(px(24.))
-                .child(self.glass_home_head(&tag, prepared, cx))
+                .child(self.glass_home_head(&tag, prepared || yoake, cx))
                 .children(steps)
         } else {
             let hero = match &java {
@@ -3232,7 +3483,8 @@ impl Launcher {
                 }
                 None => self.hero(&tag, &version, prepared, cx),
             };
-            let actions = self.home_actions(prepared || java.is_some(), java.is_some(), cx);
+            let actions =
+                self.home_actions(prepared || java.is_some() || yoake, java.is_some(), cx);
             // The banner: the hero and the Play row over the sky (`sky.rs`), or over the player's
             // own picture under a veil of the page colour. It reaches the content's edges and the top
             // bar.
@@ -3427,6 +3679,150 @@ impl Launcher {
             .child(body)
     }
 
+    fn check_yoake_updates(&mut self) {
+        if let Some(task) = self.yoake_update_task.take() {
+            task.cancel();
+        }
+        self.yoake_update_states.clear();
+        if let Ok(Some(client)) = yoake_feed::FeedClient::configured() {
+            let homes = instances::list()
+                .into_iter()
+                .map(|instance| instance.home)
+                .collect();
+            self.yoake_update_task = Some(yoake_update::start_update_check(client, homes));
+        }
+    }
+
+    fn yoake_rows(&mut self, cx: &mut Context<Self>) -> Div {
+        let t = self.theme;
+        let mut rows = div().flex().flex_col();
+        if option_env!("YOAKE_PORTAL_URL").is_some() {
+            let authenticated = matches!(
+                yoake_auth::YoakeAuth::authorization(&yoake_auth::TokenFileAuth::new(
+                    &backend::data_dir()
+                )),
+                Ok(Some(_))
+            );
+            let message = match &self.yoake_login_event {
+                Some(yoake_login::LoginEvent::VerificationRequired { .. })
+                | Some(yoake_login::LoginEvent::AuthorizationPending) => {
+                    "Approve the sign-in in your browser.".to_string()
+                }
+                Some(yoake_login::LoginEvent::SlowDown { interval }) => {
+                    format!("Waiting for approval; retrying every {interval} seconds.")
+                }
+                Some(yoake_login::LoginEvent::Success(_)) => "Signed in.".to_string(),
+                Some(yoake_login::LoginEvent::WrongCode) => "Wrong invite code.".to_string(),
+                Some(yoake_login::LoginEvent::ExpiredOrUsed) => {
+                    "Invite expired or already used.".to_string()
+                }
+                Some(yoake_login::LoginEvent::TooManyTries) => {
+                    "Too many attempts; try again later.".to_string()
+                }
+                Some(yoake_login::LoginEvent::Expired) => "Sign-in expired.".to_string(),
+                Some(yoake_login::LoginEvent::AccessDenied) => "Sign-in denied.".to_string(),
+                Some(yoake_login::LoginEvent::Cancelled) => "Sign-in cancelled.".to_string(),
+                Some(yoake_login::LoginEvent::Offline) => "Portal unavailable.".to_string(),
+                Some(yoake_login::LoginEvent::InvalidResponse) => {
+                    "Invalid portal configuration or response.".to_string()
+                }
+                Some(yoake_login::LoginEvent::StorageError) => {
+                    "Could not securely save or remove credentials.".to_string()
+                }
+                None if authenticated => "Signed in.".to_string(),
+                None => "Sign in to the Yoake portal.".to_string(),
+            };
+            let detail = match &self.yoake_user_code {
+                Some(code) => format!("{message} Code: {code}"),
+                None => message,
+            };
+            let action = if self.yoake_login_task.is_some() {
+                button("yoake-cancel", "Cancel", Kind::Secondary, &t).on_click(cx.listener(
+                    |this, _: &ClickEvent, _, cx| {
+                        if let Some(task) = &this.yoake_login_task {
+                            task.cancel();
+                        }
+                        cx.notify();
+                    },
+                ))
+            } else if authenticated {
+                button("yoake-logout", "Log out", Kind::Secondary, &t).on_click(cx.listener(
+                    |this, _: &ClickEvent, _, cx| {
+                        this.yoake_login_event = match yoake_auth::logout(&backend::data_dir()) {
+                            Ok(()) => None,
+                            Err(_) => Some(yoake_login::LoginEvent::StorageError),
+                        };
+                        this.check_yoake_updates();
+                        cx.notify();
+                    },
+                ))
+            } else {
+                button("yoake-login", "Sign in", Kind::Secondary, &t).on_click(cx.listener(
+                    |this, _: &ClickEvent, _, cx| {
+                        match yoake_login::PortalClient::configured() {
+                            Ok(Some(client)) => {
+                                let label = std::env::var("COMPUTERNAME")
+                                    .or_else(|_| std::env::var("HOSTNAME"))
+                                    .unwrap_or_else(|_| "Horizon launcher".to_string());
+                                this.yoake_login_task = Some(client.start_device_login(&label));
+                                this.yoake_login_event = None;
+                                this.yoake_user_code = None;
+                            }
+                            _ => {
+                                this.yoake_login_event =
+                                    Some(yoake_login::LoginEvent::InvalidResponse);
+                            }
+                        }
+                        cx.notify();
+                    },
+                ))
+            };
+            rows = rows
+                .child(section_title("Yoake", "user", &t).mt(px(20.)).mb(px(12.)))
+                .child(index_row(
+                    0,
+                    "Portal account",
+                    Some(div().child(detail).into_any_element()),
+                    Some(action.into_any_element()),
+                    &t,
+                ));
+        }
+        if option_env!("YOAKE_COMPILED_FEED_URL").is_some() {
+            let instance = instances::selected();
+            let detail = if self.yoake_update_task.is_some() {
+                "Checking for updates.".to_string()
+            } else {
+                match self.yoake_update_states.get(&instance.home) {
+                    Some(yoake_update::UpdateState::UpToDate) => "Up to date.".to_string(),
+                    Some(yoake_update::UpdateState::Available {
+                        from,
+                        to,
+                        download_bytes,
+                    }) => format!("{from} → {to}; {download_bytes} bytes to download."),
+                    Some(yoake_update::UpdateState::NeedsLogin) => "Sign in to check.".to_string(),
+                    Some(yoake_update::UpdateState::Offline) => "Feed unavailable.".to_string(),
+                    Some(yoake_update::UpdateState::Error) => "Update check failed.".to_string(),
+                    None => "No update status for the selected instance.".to_string(),
+                }
+            };
+            rows = rows.child(index_row(
+                0,
+                "Yoake pack updates",
+                Some(div().child(detail).into_any_element()),
+                Some(
+                    button("yoake-check", "Check now", Kind::Secondary, &t)
+                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                            this.check_yoake_updates();
+                            cx.notify();
+                        }))
+                        .into_any_element(),
+                ),
+                &t,
+            ));
+        }
+        rows
+    }
+
     fn settings_page(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let toggle = switch("auto-install", self.settings.auto_install(), &t).on_click(
@@ -3545,6 +3941,7 @@ impl Launcher {
         let plain = |s: &str| div().child(tr(s).to_string()).into_any_element();
         let (accounts, n) = self.account_rows(cx);
         let (offline, n) = self.offline_rows(n, cx);
+        let yoake = self.yoake_rows(cx);
         let appearance = segments(
             "appearance",
             &[
@@ -3586,6 +3983,7 @@ impl Launcher {
                     .child(group("Account", "user").mt_0())
                     .child(accounts)
                     .child(offline)
+                    .child(yoake)
                     .child(group("Updates", "reload"))
                     .child(index_row(
                         n + 1,
