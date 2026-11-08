@@ -1,9 +1,9 @@
 //! horizon-release-sign: checks a release's signed checksums, and makes new keys
-//! (docs/release-flow.md, "Signed checksums"). The signing itself is tools/ci/sign_release.sh: the
-//! job that holds the private key runs only the runner's sha256sum and OpenSSL, no code from the
-//! repository.
+//! (docs/release-flow.md, "Signed checksums"). Release signing uses tools/ci/sign_release.sh;
+//! the `sign` command is restricted to Yoake indexes.
 //!
 //!     horizon-release-sign verify --tag v2026.10.19 [--key <base64>] [--publishing] <folder>
+//!     horizon-release-sign sign --tag yoake-index-v1 --key-file <file> <folder>
 //!     horizon-release-sign keygen --public-out key.pub | gh secret set RELEASE_SIGNING_KEY --env release
 //!
 //! `verify` checks SHA256SUMS.sig and every file SHA256SUMS lists with the keys built in from
@@ -20,10 +20,12 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let result = match args.first().map(String::as_str) {
         Some("verify") => check_folder(&args[1..]),
+        Some("sign") => sign_folder(&args[1..]),
         Some("keygen") => keygen(&args[1..]),
         _ => Err(
             "usage: horizon-release-sign verify --tag <tag> [--key <base64>]... [--publishing] \
-             <folder> | keygen --public-out <file>"
+             <folder> | sign --tag yoake-index-v1 --key-file <file> <folder> | \
+             keygen --public-out <file>"
                 .into(),
         ),
     };
@@ -34,6 +36,30 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+fn sign_folder(args: &[String]) -> Result<(), String> {
+    let (tags, rest) = options(args, "--tag");
+    if tags.len() != 1 || tags[0] != "yoake-index-v1" {
+        return Err("sign requires --tag yoake-index-v1".into());
+    }
+    let (paths, rest) = options(&rest, "--key-file");
+    if paths.len() != 1 || rest.len() != 1 {
+        return Err("sign needs one --key-file and folder".into());
+    }
+    let key = std::fs::read_to_string(&paths[0]).map_err(|e| format!("key: {e}"))?;
+    let key = SigningKey::from_base64(&key)?;
+    let folder = Path::new(&rest[0]);
+    let sums = std::fs::read(folder.join(SUMS)).map_err(|e| format!("{SUMS}: {e}"))?;
+    let mut signature = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(folder.join(SIGNATURE))
+        .map_err(|e| format!("{SIGNATURE}: {e}"))?;
+    writeln!(signature, "{}", key.sign(&tags[0], &sums))
+        .map_err(|e| format!("{SIGNATURE}: {e}"))?;
+    println!("{}", key.public_base64());
+    Ok(())
 }
 
 /// The values of every `--name value` in `args`, and the other arguments.

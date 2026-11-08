@@ -172,9 +172,126 @@ pub enum Policy {
 }
 
 #[derive(Debug, Clone)]
+pub enum ParsedFeedIndex {
+    V1(FeedIndex),
+    V2(FeedIndexV2),
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FeedIndexV2 {
+    pub schema: u32,
+    pub source_id: String,
+    pub sequence: u64,
+    pub bases: Vec<BaseVersionV2>,
+    pub packs: Vec<PackV2>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BaseVersionV2 {
+    pub version: String,
+    pub horizon_release: String,
+    pub research_lock_sha256: String,
+    pub prepared_format: String,
+    #[serde(deserialize_with = "deserialize_targets")]
+    pub targets: BTreeMap<String, BaseTargetV2>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BaseTargetV2 {
+    pub files: Vec<BaseFileV2>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BaseFileV2 {
+    pub scope: Scope,
+    pub destination: String,
+    pub sha256: String,
+    pub size: u64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PackV2 {
+    pub id: String,
+    pub name: String,
+    pub icon: Object,
+    pub versions: Vec<PackVersionV2>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PackVersionV2 {
+    pub version: String,
+    pub minimum_launcher: String,
+    pub description: String,
+    pub changelog: String,
+    pub base_version: String,
+    pub enabled_native_mods: Vec<String>,
+    pub enabled_content_mods: Vec<String>,
+    #[serde(deserialize_with = "deserialize_targets")]
+    pub targets: BTreeMap<String, PackTargetV2>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PackTargetV2 {
+    pub files: Vec<PackFileV2>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PackFileV2 {
+    pub scope: Scope,
+    pub policy: Policy,
+    pub destination: String,
+    pub sha256: String,
+    pub size: u64,
+}
+
+fn deserialize_targets<'de, D, T>(deserializer: D) -> Result<BTreeMap<String, T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    struct TargetVisitor<T>(std::marker::PhantomData<T>);
+
+    impl<'de, T: Deserialize<'de>> serde::de::Visitor<'de> for TargetVisitor<T> {
+        type Value = BTreeMap<String, T>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("a map of unique targets")
+        }
+
+        fn visit_map<A: serde::de::MapAccess<'de>>(
+            self,
+            mut entries: A,
+        ) -> Result<Self::Value, A::Error> {
+            let mut targets = BTreeMap::new();
+            while let Some((name, target)) = entries.next_entry::<String, T>()? {
+                if targets.insert(name, target).is_some() {
+                    return Err(serde::de::Error::custom("duplicate target"));
+                }
+            }
+            Ok(targets)
+        }
+    }
+
+    deserializer.deserialize_map(TargetVisitor(std::marker::PhantomData))
+}
+
+#[derive(Debug, Clone)]
 pub struct VerifiedFeed {
-    pub index: FeedIndex,
+    pub index: ParsedFeedIndex,
     pub index_sha256: String,
+}
+
+#[derive(Deserialize)]
+struct Schema {
+    schema: u32,
 }
 
 #[derive(Deserialize)]
@@ -334,12 +451,32 @@ impl FeedClient {
         if index_sha256 != entries[0].1 {
             return Err(FeedError::HashMismatch);
         }
-        let index: FeedIndex = serde_json::from_slice(&bytes).map_err(|_| FeedError::Malformed)?;
-        if index.sequence != pointer.sequence || index.source_id != pointer.source_id {
+        let schema: Schema = serde_json::from_slice(&bytes).map_err(|_| FeedError::Malformed)?;
+        let index = match schema.schema {
+            1 => {
+                let index: FeedIndex =
+                    serde_json::from_slice(&bytes).map_err(|_| FeedError::Malformed)?;
+                ParsedFeedIndex::V1(index)
+            }
+            2 => {
+                let index: FeedIndexV2 =
+                    serde_json::from_slice(&bytes).map_err(|_| FeedError::Malformed)?;
+                ParsedFeedIndex::V2(index)
+            }
+            _ => return Err(FeedError::Malformed),
+        };
+        let (source_id, sequence) = match &index {
+            ParsedFeedIndex::V1(index) => (&index.source_id, index.sequence),
+            ParsedFeedIndex::V2(index) => (&index.source_id, index.sequence),
+        };
+        if sequence != pointer.sequence || *source_id != pointer.source_id {
             return Err(FeedError::WrongSource);
         }
-        validate_index(&index)?;
-        self.remember(&index, &index_sha256)?;
+        match &index {
+            ParsedFeedIndex::V1(index) => validate_index(index)?,
+            ParsedFeedIndex::V2(index) => validate_index_v2(index)?,
+        }
+        self.remember(source_id, sequence, &index_sha256)?;
         Ok(VerifiedFeed {
             index,
             index_sha256,
@@ -361,7 +498,7 @@ impl FeedClient {
         Ok(bytes)
     }
 
-    fn remember(&self, index: &FeedIndex, digest: &str) -> Result<(), FeedError> {
+    fn remember(&self, source_id: &str, sequence: u64, digest: &str) -> Result<(), FeedError> {
         let directory = self.data_dir.join("yoake-feeds");
         fs::create_dir_all(&directory).map_err(|_| FeedError::Storage)?;
         let feed_id = sha256_hex(self.config.root.as_str().as_bytes());
@@ -388,15 +525,15 @@ impl FeedClient {
                 if !valid_digest(&previous.index_sha256) {
                     return Err(FeedError::Storage);
                 }
-                if previous.source_id != index.source_id {
+                if previous.source_id != source_id {
                     return Err(FeedError::WrongSource);
                 }
-                if index.sequence < previous.sequence
-                    || (index.sequence == previous.sequence && digest != previous.index_sha256)
+                if sequence < previous.sequence
+                    || (sequence == previous.sequence && digest != previous.index_sha256)
                 {
                     return Err(FeedError::Replay);
                 }
-                if index.sequence == previous.sequence {
+                if sequence == previous.sequence {
                     return Ok(());
                 }
             }
@@ -404,8 +541,8 @@ impl FeedClient {
             Err(_) => return Err(FeedError::Storage),
         }
         let state = HighWater {
-            source_id: index.source_id.clone(),
-            sequence: index.sequence,
+            source_id: source_id.to_owned(),
+            sequence,
             index_sha256: digest.to_owned(),
         };
         let contents = serde_json::to_vec(&state).map_err(|_| FeedError::Storage)?;
@@ -448,7 +585,7 @@ fn safe_component(value: &str) -> bool {
         || value.ends_with([' ', '.'])
         || value
             .chars()
-            .any(|ch| ch.is_control() || "<>:\\|?*/".contains(ch))
+            .any(|ch| ch.is_control() || ch == '\u{22}' || "<>:\\|?*/".contains(ch))
     {
         return false;
     }
@@ -546,6 +683,197 @@ fn validate_index(index: &FeedIndex) -> Result<(), FeedError> {
             }
         }
     }
+    Ok(())
+}
+
+fn validate_index_v2(index: &FeedIndexV2) -> Result<(), FeedError> {
+    if index.schema != 2 || index.source_id != "yoake-official" || index.sequence == 0 {
+        return Err(FeedError::Malformed);
+    }
+    let mut bases = BTreeMap::new();
+    for base in &index.bases {
+        if !safe_component(&base.version)
+            || bases
+                .insert(base.version.to_ascii_lowercase(), base)
+                .is_some()
+            || !safe_component(&base.horizon_release)
+            || !safe_component(&base.prepared_format)
+            || !valid_digest(&base.research_lock_sha256)
+            || base.targets.is_empty()
+        {
+            return Err(FeedError::Malformed);
+        }
+        let mut targets = BTreeSet::new();
+        for (name, target) in &base.targets {
+            insert_unique(&mut targets, name)?;
+            let [file] = target.files.as_slice() else {
+                return Err(FeedError::Malformed);
+            };
+            if !matches!(file.scope, Scope::Version)
+                || file.destination != "horizon-client.exe"
+                || !valid_digest(&file.sha256)
+                || file.size > MAX_FILE
+            {
+                return Err(FeedError::Malformed);
+            }
+        }
+    }
+
+    let mut pack_ids = BTreeSet::new();
+    for pack in &index.packs {
+        insert_unique(&mut pack_ids, &pack.id)?;
+        if !valid_text(&pack.name) || !valid_digest(&pack.icon.sha256) || pack.icon.size > MAX_ICON
+        {
+            return Err(FeedError::Malformed);
+        }
+        let mut versions = BTreeSet::new();
+        for version in &pack.versions {
+            insert_unique(&mut versions, &version.version)?;
+            if !safe_component(&version.minimum_launcher)
+                || !safe_component(&version.base_version)
+                || !valid_text(&version.description)
+                || !valid_text(&version.changelog)
+                || version.targets.is_empty()
+            {
+                return Err(FeedError::Malformed);
+            }
+            let base = bases
+                .get(&version.base_version.to_ascii_lowercase())
+                .ok_or(FeedError::Malformed)?;
+            for mods in [&version.enabled_native_mods, &version.enabled_content_mods] {
+                let mut ids = BTreeSet::new();
+                for id in mods {
+                    insert_unique(&mut ids, id)?;
+                }
+            }
+            let mut targets = BTreeSet::new();
+            for (name, target) in &version.targets {
+                insert_unique(&mut targets, name)?;
+                if !base.targets.contains_key(name) {
+                    return Err(FeedError::Malformed);
+                }
+                let mut destinations = BTreeSet::new();
+                for file in &target.files {
+                    if !matches!(file.scope, Scope::Instance)
+                        || !valid_digest(&file.sha256)
+                        || file.size > MAX_FILE
+                    {
+                        return Err(FeedError::Malformed);
+                    }
+                    validate_pack_destination(&file.destination, file.policy)?;
+                    insert_destination(&mut destinations, &file.destination)?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn valid_text(value: &str) -> bool {
+    !value.is_empty() && value.len() <= 4096
+}
+
+fn validate_pack_destination(destination: &str, policy: Policy) -> Result<(), FeedError> {
+    validate_destination(destination)?;
+    let lower = destination.to_ascii_lowercase();
+    let parts: Vec<&str> = lower.split('/').collect();
+    const FORBIDDEN: &[&str] = &[
+        ".local",
+        ".minecraft",
+        "horizon-resources.json",
+        "horizon-prepare.json",
+        "minecraft.exe",
+        "minecraftlauncher.exe",
+        "minecraftinstaller.exe",
+        ".horizon-prepare.lock",
+        "horizon-data.bin",
+        "asset-index.json",
+        "horizon-sprites.cache",
+        "prepared.json",
+        "facts.json",
+        "block-tags.json",
+        "attributes.json",
+        "landing-definitions.json",
+        "damage-types.json",
+        "damage-tags.json",
+        "damage-catalog.json",
+        "player-float-ids.json",
+        "render-definitions.json",
+        "gameplay-facts.json",
+        "entity-types.json",
+        "block-behaviours.json",
+        "model-states.json",
+        "entity-models.json",
+        "mob-data.json",
+        "command-registries.json",
+        "creative-inventory.json",
+        "survival-rules.json",
+        "survival-extra-definitions.json",
+        "placement-definitions.json",
+    ];
+    if parts
+        .iter()
+        .any(|part| FORBIDDEN.contains(part) || part.ends_with(".jar") || part.ends_with(".class"))
+        || parts.windows(2).any(|pair| {
+            matches!(
+                pair,
+                ["assets", "indexes" | "objects" | "minecraft"]
+                    | ["data", "minecraft"]
+                    | ["com", "mojang"]
+            )
+        })
+    {
+        return Err(FeedError::UnsafePath);
+    }
+    let extension = parts
+        .last()
+        .and_then(|name| name.rsplit_once('.'))
+        .filter(|(stem, _)| !stem.is_empty())
+        .map(|(_, extension)| extension)
+        .unwrap_or_default();
+    let allowed = match parts.as_slice() {
+        ["horizon-mods", _] => extension == "hmod",
+        ["resourcepacks" | "datapacks", _] => extension == "zip",
+        ["config", _, ..] => matches!(
+            extension,
+            "toml" | "json" | "properties" | "txt" | "yaml" | "yml"
+        ),
+        ["saves", _, _, ..] if matches!(policy, Policy::DefaultOnCreate) => {
+            matches!(extension, "dat" | "mca" | "json" | "txt")
+                || (parts.len() == 4 && parts[2] == "datapacks" && extension == "zip")
+        }
+        _ => false,
+    };
+    if !allowed {
+        return Err(FeedError::UnsafePath);
+    }
+    Ok(())
+}
+
+fn insert_destination(
+    destinations: &mut BTreeSet<String>,
+    destination: &str,
+) -> Result<(), FeedError> {
+    let destination = destination.to_ascii_lowercase();
+    if destinations.contains(&destination) {
+        return Err(FeedError::UnsafePath);
+    }
+    let mut parent = destination.as_str();
+    while let Some((prefix, _)) = parent.rsplit_once('/') {
+        if destinations.contains(prefix) {
+            return Err(FeedError::UnsafePath);
+        }
+        parent = prefix;
+    }
+    let descendant = format!("{destination}/");
+    if destinations
+        .range(descendant.clone()..)
+        .next()
+        .is_some_and(|entry| entry.starts_with(&descendant))
+    {
+        return Err(FeedError::UnsafePath);
+    }
+    destinations.insert(destination);
     Ok(())
 }
 
@@ -731,6 +1059,271 @@ mod tests {
         })
     }
 
+    fn index_v2(sequence: u64) -> Value {
+        let mut index: Value =
+            serde_json::from_slice(include_bytes!("../tests/fixtures/yoake-schema2/index.json"))
+                .unwrap();
+        index["sequence"] = json!(sequence);
+        index
+    }
+
+    fn pack_file_v2(index: &mut Value) -> &mut Value {
+        &mut index["packs"][0]["versions"][0]["targets"]["windows-x86_64"]["files"][0]
+    }
+
+    #[test]
+    fn accepts_python_signed_schema_two_fixture() {
+        let mut fixture = Fixture::new(None);
+        fixture.client.config.keys = parse_keys(include_str!(
+            "../tests/fixtures/yoake-schema2/test-only-public-key.b64"
+        ))
+        .unwrap();
+        fixture.transport.respond(
+            "current.json",
+            Ok(br#"{"source_id":"yoake-official","sequence":42}"#.to_vec()),
+        );
+        let files: [(&str, &[u8]); 3] = [
+            (
+                "index.json",
+                include_bytes!("../tests/fixtures/yoake-schema2/index.json"),
+            ),
+            (
+                "SHA256SUMS",
+                include_bytes!("../tests/fixtures/yoake-schema2/SHA256SUMS"),
+            ),
+            (
+                "SHA256SUMS.sig",
+                include_bytes!("../tests/fixtures/yoake-schema2/SHA256SUMS.sig"),
+            ),
+        ];
+        for (name, bytes) in files {
+            fixture
+                .transport
+                .respond(&format!("indexes/000042/{name}"), Ok(bytes.to_vec()));
+        }
+
+        let feed = fixture.client.fetch_feed().unwrap();
+        let ParsedFeedIndex::V2(index) = feed.index else {
+            panic!("expected schema 2");
+        };
+        assert_eq!(index.sequence, 42);
+        assert_eq!(index.bases[0].version, "1");
+        assert_eq!(index.packs[0].id, "example");
+        assert_eq!(index.packs[0].versions[0].base_version, "1");
+        assert_eq!(
+            index.packs[0].versions[0].targets["windows-x86_64"].files[0].destination,
+            "config/test.toml"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_schema_two_indexes() {
+        let fixture = Fixture::new(None);
+        let mut cases = Vec::new();
+
+        let mut invalid = index_v2(42);
+        invalid["schema"] = json!(3);
+        cases.push(("unsupported schema", invalid));
+
+        let mut invalid = index_v2(42);
+        invalid["packs"][0]["id"] = json!(format!("bad{}name", '\u{22}'));
+        cases.push(("invalid Windows identifier", invalid));
+
+        let mut invalid = index_v2(42);
+        let duplicate = invalid["bases"][0].clone();
+        invalid["bases"].as_array_mut().unwrap().push(duplicate);
+        cases.push(("duplicate base version", invalid));
+
+        let mut invalid = index_v2(42);
+        let mut duplicate = invalid["packs"][0].clone();
+        duplicate["id"] = json!("EXAMPLE");
+        invalid["packs"].as_array_mut().unwrap().push(duplicate);
+        cases.push(("duplicate pack id", invalid));
+
+        let mut invalid = index_v2(42);
+        let duplicate = invalid["packs"][0]["versions"][0].clone();
+        invalid["packs"][0]["versions"]
+            .as_array_mut()
+            .unwrap()
+            .push(duplicate);
+        cases.push(("duplicate pack version", invalid));
+
+        let mut invalid = index_v2(42);
+        invalid["packs"][0]["versions"][0]["base_version"] = json!("missing");
+        cases.push(("missing base", invalid));
+
+        let mut invalid = index_v2(42);
+        let target = invalid["packs"][0]["versions"][0]["targets"]["windows-x86_64"].clone();
+        invalid["packs"][0]["versions"][0]["targets"] = json!({"linux-x86_64": target});
+        cases.push(("incompatible target", invalid));
+
+        let mut invalid = index_v2(42);
+        invalid["bases"][0]["targets"] = json!({});
+        cases.push(("empty base targets", invalid));
+
+        let mut invalid = index_v2(42);
+        invalid["packs"][0]["versions"][0]["targets"] = json!({});
+        cases.push(("empty pack targets", invalid));
+
+        let mut invalid = index_v2(42);
+        invalid["bases"][0]["targets"]["windows-x86_64"]["files"][0]["scope"] = json!("instance");
+        cases.push(("base scope", invalid));
+
+        let mut invalid = index_v2(42);
+        invalid["bases"][0]["targets"]["windows-x86_64"]["files"][0]["destination"] =
+            json!("other.exe");
+        cases.push(("base destination", invalid));
+
+        let mut invalid = index_v2(42);
+        invalid["bases"][0]["targets"]["windows-x86_64"]["files"][0]["policy"] = json!("managed");
+        cases.push(("unknown base file field", invalid));
+
+        let mut invalid = index_v2(42);
+        pack_file_v2(&mut invalid)["scope"] = json!("version");
+        cases.push(("pack scope", invalid));
+
+        let mut invalid = index_v2(42);
+        pack_file_v2(&mut invalid)["policy"] = json!("replace");
+        cases.push(("pack policy", invalid));
+
+        let mut invalid = index_v2(42);
+        pack_file_v2(&mut invalid)
+            .as_object_mut()
+            .unwrap()
+            .remove("policy");
+        cases.push(("missing pack policy", invalid));
+
+        let mut invalid = index_v2(42);
+        invalid["bases"][0]["research_lock_sha256"] = json!("a".repeat(63));
+        cases.push(("invalid base hash", invalid));
+
+        let mut invalid = index_v2(42);
+        invalid["packs"][0]["icon"]["size"] = json!(MAX_ICON + 1);
+        cases.push(("oversize icon", invalid));
+
+        let mut invalid = index_v2(42);
+        pack_file_v2(&mut invalid)["size"] = json!(MAX_FILE + 1);
+        cases.push(("oversize file", invalid));
+
+        let mut invalid = index_v2(42);
+        invalid["packs"][0]["versions"][0]["enabled_native_mods"] = json!(["native", "NATIVE"]);
+        cases.push(("duplicate native mod", invalid));
+
+        let mut invalid = index_v2(42);
+        invalid["packs"][0]["versions"][0]["description"] = json!("");
+        cases.push(("empty description", invalid));
+
+        let mut invalid = index_v2(42);
+        invalid["packs"][0]["unexpected"] = json!(true);
+        cases.push(("unknown pack field", invalid));
+
+        let mut invalid = index_v2(42);
+        pack_file_v2(&mut invalid)["destination"] = json!("config/../bad.toml");
+        cases.push(("unsafe destination", invalid));
+
+        let mut invalid = index_v2(42);
+        let mut duplicate = pack_file_v2(&mut invalid).clone();
+        duplicate["destination"] = json!("CONFIG/TEST.TOML");
+        invalid["packs"][0]["versions"][0]["targets"]["windows-x86_64"]["files"]
+            .as_array_mut()
+            .unwrap()
+            .push(duplicate);
+        cases.push(("case-insensitive collision", invalid));
+
+        let mut invalid = index_v2(42);
+        let mut child = pack_file_v2(&mut invalid).clone();
+        child["destination"] = json!("config/test.toml/child.toml");
+        invalid["packs"][0]["versions"][0]["targets"]["windows-x86_64"]["files"]
+            .as_array_mut()
+            .unwrap()
+            .push(child);
+        cases.push(("file-directory collision", invalid));
+
+        for (description, document) in cases {
+            fixture.publish(42, &document, DOMAIN);
+            assert!(fixture.client.fetch_feed().is_err(), "{description}");
+        }
+    }
+
+    #[test]
+    fn schema_two_targets_reject_duplicate_json_keys() {
+        let document = index_v2(42);
+        let serialized = serde_json::to_string(&document).unwrap();
+        let target =
+            serde_json::to_string(&document["bases"][0]["targets"]["windows-x86_64"]).unwrap();
+        let entry = format!("{:?}:{target}", "windows-x86_64");
+        let duplicate = serialized.replacen(&entry, &format!("{entry},{entry}"), 1);
+        assert_ne!(serialized, duplicate);
+        assert!(serde_json::from_str::<FeedIndexV2>(&duplicate).is_err());
+    }
+
+    #[test]
+    fn schema_two_pack_paths_enforce_publisher_allowlist() {
+        for (path, policy) in [
+            ("horizon-mods/example.hmod", Policy::Managed),
+            ("resourcepacks/example.zip", Policy::Managed),
+            ("datapacks/example.zip", Policy::Managed),
+            ("config/nested/example.toml", Policy::DefaultOnCreate),
+            ("saves/world/level.dat", Policy::DefaultOnCreate),
+            ("saves/world/datapacks/example.zip", Policy::DefaultOnCreate),
+        ] {
+            assert!(validate_pack_destination(path, policy).is_ok(), "{path}");
+        }
+        for (path, policy) in [
+            ("config/../example.toml", Policy::Managed),
+            ("config/facts.json", Policy::Managed),
+            ("config/example.jar", Policy::Managed),
+            ("config/com/mojang/example.json", Policy::Managed),
+            ("horizon-mods/nested/example.hmod", Policy::Managed),
+            ("saves/world/level.dat", Policy::Managed),
+            ("saves/world/file.zip", Policy::DefaultOnCreate),
+        ] {
+            assert!(validate_pack_destination(path, policy).is_err(), "{path}");
+        }
+        let invalid = format!("config/bad{}name.toml", '\u{22}');
+        assert!(validate_pack_destination(&invalid, Policy::Managed).is_err());
+    }
+
+    #[test]
+    fn checks_signatures_and_hashes_before_schema_dispatch() {
+        let fixture = Fixture::new(None);
+        let mut unsupported = index_v2(42);
+        unsupported["schema"] = json!(3);
+        fixture.publish(42, &unsupported, "wrong-domain");
+        assert_eq!(
+            fixture.client.fetch_feed().unwrap_err(),
+            FeedError::BadSignature
+        );
+        fixture.publish(42, &unsupported, DOMAIN);
+        fixture
+            .transport
+            .respond("indexes/000042/index.json", Ok(b"tampered".to_vec()));
+        assert_eq!(
+            fixture.client.fetch_feed().unwrap_err(),
+            FeedError::HashMismatch
+        );
+        fixture.publish(42, &unsupported, DOMAIN);
+        assert_eq!(
+            fixture.client.fetch_feed().unwrap_err(),
+            FeedError::Malformed
+        );
+    }
+
+    #[test]
+    fn replay_protection_spans_both_feed_schemas() {
+        let fixture = Fixture::new(None);
+        fixture.publish(41, &index(41), DOMAIN);
+        fixture.client.fetch_feed().unwrap();
+        fixture.publish(42, &index_v2(42), DOMAIN);
+        fixture.client.fetch_feed().unwrap();
+        fixture.publish(41, &index(41), DOMAIN);
+        assert_eq!(fixture.client.fetch_feed().unwrap_err(), FeedError::Replay);
+        let mut equivocation = index_v2(42);
+        equivocation["packs"][0]["name"] = json!("Another pack name");
+        fixture.publish(42, &equivocation, DOMAIN);
+        assert_eq!(fixture.client.fetch_feed().unwrap_err(), FeedError::Replay);
+    }
+
     #[test]
     fn valid_feed_and_object_are_verified_with_authorization() {
         let fixture = Fixture::new(Some("Bearer test-token"));
@@ -742,8 +1335,11 @@ mod tests {
         });
         fixture.publish(42, &document, DOMAIN);
         let feed = fixture.client.fetch_feed().unwrap();
-        assert_eq!(feed.index.sequence, 42);
-        let object = &feed.index.packs[0].icon;
+        let ParsedFeedIndex::V1(index) = &feed.index else {
+            panic!("expected schema 1");
+        };
+        assert_eq!(index.sequence, 42);
+        let object = &index.packs[0].icon;
         fixture.transport.respond(
             &format!("objects/sha256/{}", object.sha256),
             Ok(icon.to_vec()),

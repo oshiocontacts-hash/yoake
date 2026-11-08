@@ -94,6 +94,44 @@ fn a_signature_made_like_openssls_checks_and_tampering_fails() {
 }
 
 #[test]
+fn yoake_signatures_verify_and_cannot_be_overwritten() {
+    let dir = folder("yoake-sign");
+    let key_path = dir.join("test-only-private-key.pk8");
+    let (key, secret) = SigningKey::generate().unwrap();
+    std::fs::write(&key_path, secret).unwrap();
+    let args = ["sign", "--tag", "yoake-index-v1", "--key-file"];
+    let signed = tool(&args, &[&key_path, &dir]);
+    assert!(
+        signed.status.success(),
+        "{}",
+        String::from_utf8_lossy(&signed.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&signed.stdout).trim(),
+        key.public_base64()
+    );
+    let verified = tool(
+        &[
+            "verify",
+            "--tag",
+            "yoake-index-v1",
+            "--key",
+            &key.public_base64(),
+        ],
+        &[&dir],
+    );
+    assert!(
+        verified.status.success(),
+        "{}",
+        String::from_utf8_lossy(&verified.stderr)
+    );
+    let signature = std::fs::read(dir.join(SIGNATURE)).unwrap();
+    assert!(!tool(&args, &[&key_path, &dir]).status.success());
+    assert_eq!(std::fs::read(dir.join(SIGNATURE)).unwrap(), signature);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
 fn unsigned_releases_go_out_only_until_a_key_is_listed() {
     let dir = folder("unsigned");
     assert_eq!(
