@@ -70,6 +70,8 @@ mod titlebar;
 mod wardrobe_page;
 mod while_playing;
 mod worlds_page;
+pub mod yoake_auth;
+pub mod yoake_feed;
 
 use gpui::{
     actions, div, ease_out_quint, prelude::*, px, relative, size, Animation, AnimationExt,
