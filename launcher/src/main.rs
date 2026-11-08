@@ -72,6 +72,7 @@ mod while_playing;
 mod worlds_page;
 pub mod yoake_auth;
 pub mod yoake_feed;
+pub mod yoake_install;
 
 use gpui::{
     actions, div, ease_out_quint, prelude::*, px, relative, size, Animation, AnimationExt,

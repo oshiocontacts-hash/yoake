@@ -373,6 +373,14 @@ pub struct FeedClient {
 }
 
 impl FeedClient {
+    pub(crate) fn install_connection(&self) -> (Url, Arc<dyn YoakeAuth>, PathBuf) {
+        (
+            self.config.root.clone(),
+            Arc::clone(&self.auth),
+            self.data_dir.clone(),
+        )
+    }
+
     pub fn configured() -> Result<Option<Self>, FeedError> {
         let Some(config) = FeedConfig::compiled()? else {
             return Ok(None);
@@ -686,7 +694,7 @@ fn validate_index(index: &FeedIndex) -> Result<(), FeedError> {
     Ok(())
 }
 
-fn validate_index_v2(index: &FeedIndexV2) -> Result<(), FeedError> {
+pub(crate) fn validate_index_v2(index: &FeedIndexV2) -> Result<(), FeedError> {
     if index.schema != 2 || index.source_id != "yoake-official" || index.sequence == 0 {
         return Err(FeedError::Malformed);
     }
@@ -773,7 +781,10 @@ fn valid_text(value: &str) -> bool {
     !value.is_empty() && value.len() <= 4096
 }
 
-fn validate_pack_destination(destination: &str, policy: Policy) -> Result<(), FeedError> {
+pub(crate) fn validate_pack_destination(
+    destination: &str,
+    policy: Policy,
+) -> Result<(), FeedError> {
     validate_destination(destination)?;
     let lower = destination.to_ascii_lowercase();
     let parts: Vec<&str> = lower.split('/').collect();
