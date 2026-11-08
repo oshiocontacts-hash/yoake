@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 pub struct NativeClientHooks {
     pub menu_slot_rules: fn(&str, usize, &ItemStack, &mut bool, &mut u32),
     pub living_heal: fn(u32, &mut f32, &mut bool),
-    pub player_permission_level: fn(u128, u8, &mut u8),
+    pub player_permission_level: fn(u128, u8, bool, &mut u8),
     pub living_breathe: fn(u32, &str, &mut bool, &mut i32, &mut i32),
     pub living_drown: fn(u32, &str, &mut bool, &mut f32, i32, &mut bool),
     pub living_fall: fn(u32, &str, &mut f64, &mut f32, &mut bool),
@@ -41,9 +41,14 @@ pub(crate) fn living_heal(entity: u32, amount: &mut f32, cancel: &mut bool) {
     }
 }
 
-pub(crate) fn player_permission_level(player: u128, vanilla: u8, level: &mut u8) {
+pub(crate) fn player_permission_level(
+    player: u128,
+    vanilla: u8,
+    world_allow_commands: bool,
+    level: &mut u8,
+) {
     if let Some(hooks) = HOOKS.get() {
-        (hooks.player_permission_level)(player, vanilla, level);
+        (hooks.player_permission_level)(player, vanilla, world_allow_commands, level);
     }
 }
 

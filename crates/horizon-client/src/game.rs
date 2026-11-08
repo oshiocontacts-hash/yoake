@@ -217,6 +217,7 @@ mod native_cooldowns;
 mod native_criteria;
 mod native_damage;
 mod native_data_maps;
+mod native_deferred;
 mod native_entities;
 mod native_entity_data;
 mod native_entity_motion;
@@ -2973,6 +2974,7 @@ struct Game<'a> {
     /// The mod whose own screen is open (`Screen::Mod`).
     native_mod_screen: Option<String>,
     native_title_mod_screen_return: Option<Screen>,
+    native_deferred: native_deferred::DeferredRequests,
     /// Meshed sections waiting for an upload budget (Horizon settings).
     pending_uploads: Vec<((i32, i32, i32), horizon_client::mesher::SectionMesh)>,
     /// This frame's view frustum, for culling entities and block entities.
@@ -17112,6 +17114,7 @@ impl Game<'_> {
             return;
         }
         if matches!(&event, WindowEvent::RedrawRequested) {
+            self.native_drain_mod_screen_request();
             self.native_session_joins.expire();
             self.native_run_session_request();
         }
@@ -19173,6 +19176,7 @@ impl<'a> Game<'a> {
             native_server_ops: Default::default(),
             native_mod_screen: None,
             native_title_mod_screen_return: None,
+            native_deferred: Default::default(),
             sky_darken_memo: Default::default(),
             water_plane_memo: Default::default(),
             water_plane_scan: Default::default(),
