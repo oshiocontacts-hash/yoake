@@ -754,10 +754,9 @@ API 57 adds chunks and players coming and going, on the server: `native_chunk_lo
 API 58 adds [the renderer's hook points](#render-hook-points): `native_world_drawn`, called once the world is drawn with its colour, depth, matrices and entity geometry, and
 `native_render_needs`, where a mod asks for the entity runs and the world's depth without a shader pack. Bundles that use them need `"hooks": 58`.
 
-API 59 adds [entities](#entities) for server mods: `native_summon(dimension, kind, pos, nbt)` spawns any entity from its compound
-as `/summon` does, and `native_move_entity`, `native_set_display` (a display's transformation, eased over ticks) and
-`native_remove_entity` move, pose and remove displays, markers and interactions: models that move, from a mod's own
-item models. Bundles that use them need `"hooks": 59`.
+API 59 implements [entity routines](#entities) internally: `native_summon(dimension, kind, pos, nbt)` spawns an entity from its compound,
+and `native_move_entity`, `native_set_display` and `native_remove_entity` operate on displays, markers and interactions.
+These routines are not currently exposed as Yoake host helpers.
 
 API 60 adds `native_item_bar(stack, bar)`: the small bar `GuiGraphicsExtractor.itemDecorations` draws under an item,
 wherever the game shows one. `bar` arrives holding
@@ -864,6 +863,10 @@ API 77 adds a `minecraft:post_attack` enchantment effect of a mod's own kind, on
 [A mod's own enchantment effect kinds](#a-mods-own-enchantment-effect-kinds)). Bundles need "hooks": 77.
 
 API 78 adds `native_screen_render_post`, the point of `ScreenEvent.Render.Post`: a native mod draws over the open screen after it and its tooltips, given its id, the server-opened menu's vanilla type (`menu`) and title, its container panel, its slot count, the mouse in GUI pixels and the partial tick (`NativeScreenView`). Every container, station and mod window draws on the inventory screen and so reports `inventory`: tell them apart by `menu` and `title` (None on a window the client opened) and by `slots`. It does not fire on the title screen, nor for the prompts, books and sign editors drawn over gameplay after it. Bundles that use it need "hooks": 78.
+
+In an inventory or container, the carried stack is drawn above native screen drawing, including
+`native_inventory_background_pre` and `native_screen_render_post`; mods need not redraw it.
+When neither a mod screen layer nor the mod browser draws, the ordinary screen draw order is unchanged.
 
 API 79 adds `native_modify_default_components(item, components)`, in `horizon-world`'s `item_defaults.rs`: an item's default
 components in `items.json`'s form, for any item, vanilla's included (NeoForge's `ModifyDefaultComponentsEvent`). Insert
@@ -2012,6 +2015,11 @@ For mods that run where the world is simulated: a dedicated server, a LAN host, 
 (`crates/horizon-client/src/game/native_server.rs`). The SMP mod of the official server is built on them
 ([smp.md](smp.md)).
 
+The player-operations `player_teleport` helper currently accepts only `minecraft:overworld`,
+`minecraft:the_nether`, and `minecraft:the_end`. Check its ticket with `player_teleport_status`;
+data-pack dimensions cannot yet be selected for player travel. The void flat preset changes the
+overworld rather than creating an additional dimension.
+
 API `@API:player_ops2@` adds server-tick helpers for player health, inventory, titles, and positional sounds, plus per-mod boss bars. Player targets are UUIDs. Each helper has a limit of 512 calls per mod per tick; boss bars are limited to 16 per mod and 1,024 audience UUIDs per bar. Health is clamped to the player's maximum; titles and bar names are plain text, and sounds use a fixed packet seed. Boss-bar colors are `pink`, `blue`, `red`, `green`, `yellow`, `purple`, and `white`; overlays are `progress`, `notched_6`, `notched_10`, `notched_12`, and `notched_20`. Bars are cleared when the world session ends. Helpers return `false` for invalid context, invalid input, exhausted budget, or an unavailable target. Some callbacks do not expose the server host, so another online player can be unavailable in those callbacks.
 
 - **`native_register_commands(commands)`**: push a `NativeCommand` per usage, asked once when a world opens to
@@ -2497,10 +2505,9 @@ API `@API:player_ops2@` adds server-tick helpers for player health, inventory, t
 
 ### Mobs
 
-API 37, `crates/horizon-client/src/game/native_mobs.rs`: helpers for server mods, for the level in place, on a server only (on a
-client they do nothing, and the readers give nothing). Each takes the `dimension` (`minecraft:overworld`) of the level it means, as
-`native_set_block` does, and is refused when another level is in place. The per-level tick hooks (API 23) run with a defined level in
-place; `native_server_tick` does not define one, so name the dimension and expect a refusal there.
+`crates/horizon-client/src/game/native_mobs.rs` implements internal server-side mob routines. They are not currently
+exposed as Yoake host helpers. Each takes the `dimension` (`minecraft:overworld`) of the level it means, as
+`native_set_block` does, and is refused when another level is in place.
 
 - `native_spawn_mob(dimension, kind, pos, &NativeSpawn)` spawns a mob and returns its id. `NativeSpawn` holds an optional name and health, and the
   `no_ai`, `invisible`, `silent`, `invulnerable` and `no_gravity` flags; its default is a plain mob. The mob is finalized as a natural spawn
@@ -2553,8 +2560,9 @@ During a machine's own tick its block entity is out of the world, so these answe
 
 ### Entities
 
-`crates/horizon-client/src/game/native_entities.rs`: helpers for server mods, for the level in place, on a server only. Each
-names the level it means by its `dimension` (`minecraft:overworld`), as `native_set_block` does.
+`crates/horizon-client/src/game/native_entities.rs` implements internal routines for the level in place, on a server only.
+They are not currently exposed as Yoake host helpers. Each names the level it means by its `dimension`
+(`minecraft:overworld`), as `native_set_block` does.
 
 - `native_summon(dimension, kind, pos, nbt)` spawns an entity of `kind` from its compound, as `/summon <kind> <pos> <nbt>`
   does (passengers included), and returns its id. None on a client, for another dimension, a position outside `/summon`'s
@@ -2566,9 +2574,13 @@ names the level it means by its `dimension` (`minecraft:overworld`), as `native_
   ease over (`interpolation`) and its teleport duration (`teleport`, 0 to 59). Each call restarts the ease on clients.
 - `native_remove_entity(dimension, id)` removes such an entity as `/kill` does. Mobs go with `native_remove_mob`.
 
-A model that moves (a turning gun barrel, a thrown projectile) is an `item_display` showing an item whose model comes from
-the mod's `.hmod` assets: summon it once, then move and pose it from a tick hook. Easing between ticks happens on each
-client, so a call a tick looks smooth.
+Mannequin profile NBT can contain a player name or a compound with an `id` UUID int array and
+optional texture properties. The internal `native_summon` and `native_remove_mob` methods are not
+currently exposed as Yoake host helpers. Mannequin pose NBT and a ground-lying pose are not
+implemented yet.
+
+An `item_display` can show an item model from a mod's `.hmod` assets. The internal display routines above are not yet
+available to summon, move, or pose one from a Yoake tick hook.
 
 ### Entity and level handles
 

@@ -8249,7 +8249,9 @@ impl Game<'_> {
             }
             stack.count = left;
         }
+        let start = batch.vertices.len();
         self.draw_item(batch, &stack, self.cursor.0 - 8.0, self.cursor.1 - 8.0);
+        batch.mark_carried(start);
     }
     /// The quick craft drag in progress, as the menu engine previews it.
     fn drag_view(&mut self) -> Option<DragView> {
@@ -8732,6 +8734,7 @@ impl Game<'_> {
         } else {
             self.screen
         };
+        let mut mod_drawn_after_carried = false;
         match screen {
             Screen::Paused if self.pause_menu => self.draw_pause_menu(&mut batch),
             // PauseScreen(false): only its title, at the top.
@@ -8766,7 +8769,9 @@ impl Game<'_> {
             Screen::DebugOptions => self.draw_debug_options(&mut batch),
             Screen::Inventory => {
                 self.draw_inventory(&mut batch);
+                let before_browser = batch.vertices.len();
                 self.draw_mod_browser(&mut batch);
+                mod_drawn_after_carried = batch.vertices.len() > before_browser;
             }
             Screen::Creative => {
                 self.draw_creative(&mut batch);
@@ -8778,7 +8783,11 @@ impl Game<'_> {
         // tooltips, so a native mod draws over it here. Never `Playing`: the
         // prompts, books and sign editors drawn over gameplay keep it, draw
         // after this point and so over what a mod drew.
+        let before_mod_screen = batch.vertices.len();
         self.fire_screen_render_post(&mut batch);
+        if mod_drawn_after_carried || batch.vertices.len() > before_mod_screen {
+            batch.raise_carried();
+        }
         self.draw_saving_indicator(&mut batch);
         // ToastManager.extractRenderState: F1 hides the toasts too.
         self.draw_toasts(&mut batch, !show_hud);
