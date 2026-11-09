@@ -534,6 +534,8 @@ impl Game<'_> {
         if let Some(renderer) = &mut self.renderer {
             renderer.set_capture_presentation_time(Some(presentation));
         }
+        let _native_crosshair_frame = (!horizon_client::mod_api::mods().is_empty())
+            .then(super::native_crosshair::enter_frame);
         self.extras_frame(frame.time.delta());
         self.advance_flight();
         match self.render() {

@@ -1,0 +1,20 @@
+{
+  "hooks": [
+    {
+      "name": "server_chat_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_server_chat_listened",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {"contract": "collect", "out": "listened"}
+    },
+    {
+      "name": "server_chat",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_server_chat",
+      "side": "server",
+      "cancellable": true,
+      "mod_api": {"contract": "cancel", "out": "canceled"}
+    }
+  ],
+  "rust_summary": "An opt-in ordinary server chat hook with cancellation, rewriting, and UUID recipient selection.",
+  "doc_summary": "Set native_server_chat_listened to true to receive native_server_chat(player, name, message, recipients, canceled). Recipients defaults to All; Only lists the UUIDs allowed to receive the line, including its sender. Changed text is sent unsigned, and is limited to 256 UTF-16 units. Require hooks @API:server_chat@ or higher."
+}

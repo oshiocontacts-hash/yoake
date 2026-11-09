@@ -86,6 +86,20 @@ mod tests {
         pub(super) struct NativeMapInfo<'a>(pub &'a ());
         pub(super) struct NativePlayerRender<'a>(pub &'a ());
         pub(super) struct NativeCommand;
+        #[derive(Clone, Debug, Default, PartialEq, Eq)]
+        pub(super) enum NativeChatRecipients {
+            #[default]
+            All,
+            Only(Vec<u128>),
+        }
+        #[derive(Clone, Debug, PartialEq)]
+        pub(super) struct NativeCrosshairEntity {
+            pub entity_id: u32,
+            pub uuid: Option<u128>,
+            pub kind: String,
+            pub name: String,
+            pub distance: f32,
+        }
         pub(super) struct NativeLifecycleContext;
         pub(super) struct NativeServerPlayer;
         #[derive(Clone, Copy)]
@@ -151,6 +165,8 @@ mod tests {
         include!(concat!(env!("OUT_DIR"), "/mod_api_generated.rs"));
     }
     use generated::*;
+    include!("server_chat_tests.rs");
+    include!("pvp_attacker_tests.rs");
     thread_local! {
         static GUARD: std::cell::Cell<Option<&'static mod_guard::Registry>> = std::cell::Cell::new(
             Some(Box::leak(Box::new(mod_guard::Registry::new(

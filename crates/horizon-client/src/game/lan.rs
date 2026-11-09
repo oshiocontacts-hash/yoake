@@ -1826,6 +1826,54 @@ impl Game<'_> {
                 event @ (HostEvent::Chat { .. } | HostEvent::Warn(_) | HostEvent::Error(_)) => {
                     self.lan_log_event(event);
                 }
+                HostEvent::NativeServerChat {
+                    name,
+                    message,
+                    bound,
+                } => {
+                    let mut text = message.content.clone();
+                    let mut recipients = super::native_chat::NativeChatRecipients::All;
+                    let mut canceled = false;
+                    self.lan = Some(host);
+                    self.native_server_chat(
+                        message.sender,
+                        &name,
+                        &mut text,
+                        &mut recipients,
+                        &mut canceled,
+                    );
+                    host = self.lan.take()?;
+                    if !canceled {
+                        super::native_chat::limit_chat_message(&mut text);
+                        host.hub.broadcast_native_chat(
+                            &message,
+                            &bound,
+                            &text,
+                            recipients.only(),
+                        );
+                        let owner = host
+                            .owner
+                            .as_ref()
+                            .map(|owner| owner.uuid)
+                            .or_else(|| self.level.player_uuid.map(playerdata::ints_uuid));
+                        let show = self.options.dedicated.is_some()
+                            || recipients.only().is_none()
+                            || owner.is_some_and(|uuid| {
+                                horizon_client::lan::hub::chat::chat_recipient_allowed(
+                                    uuid,
+                                    recipients.only(),
+                                )
+                            });
+                        if show {
+                            let secure = text == message.content
+                                && message.trusted(horizon_client::lan::hub::chat::now_millis());
+                            self.lan_log_event(HostEvent::Chat {
+                                line: format!("<{name}> {text}"),
+                                secure,
+                            });
+                        }
+                    }
+                }
                 HostEvent::Ban { uuid, name, reason } => {
                     self.anticheat_ban(&mut host.hub, uuid, &name, &reason);
                 }
@@ -2095,6 +2143,10 @@ impl Game<'_> {
         // before this tick moves anyone.
         let entities = std::mem::take(&mut host.states);
         let spawn = self.spawn.map_or([0.5, 80.0, 0.5], |s| [s.x, s.y, s.z]);
+        host.hub.native_chat_listening = false;
+        if !horizon_client::mod_api::mods().is_empty() {
+            self.native_server_chat_listened(&mut host.hub.native_chat_listening);
+        }
         let events = {
             let clock_rate = self.network_clock_rate();
             let mut ctx = TickCtx {
@@ -2360,6 +2412,10 @@ impl Game<'_> {
             }
             host.hub.far_level(&self.save);
             let spawn = self.spawn.map_or([0.5, 80.0, 0.5], |s| [s.x, s.y, s.z]);
+            host.hub.native_chat_listening = false;
+            if !horizon_client::mod_api::mods().is_empty() {
+                self.native_server_chat_listened(&mut host.hub.native_chat_listening);
+            }
             let events = {
                 let clock_rate = self.network_clock_rate();
                 let mut ctx = TickCtx {

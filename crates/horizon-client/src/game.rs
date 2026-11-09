@@ -209,12 +209,14 @@ mod native_avatar_equipment;
 mod native_biome_colors;
 pub mod native_block_entity_draw;
 mod native_block_sprites;
+mod native_chat;
 mod native_claimed_items;
 mod native_client_items;
 mod native_client_state;
 mod native_components;
 mod native_cooldowns;
 mod native_criteria;
+mod native_crosshair;
 mod native_damage;
 mod native_data_maps;
 mod native_deferred;
@@ -251,6 +253,7 @@ mod native_panel_recipes;
 mod native_perms;
 mod native_player_ops;
 mod native_projectiles;
+mod native_pvp;
 mod native_quick_move;
 mod native_recipes;
 mod native_server;
@@ -440,8 +443,10 @@ pub use native_avatar_equipment::{
     NativeHumanoidPart,
 };
 pub use native_block_entity_draw::BlockEntityDraw;
+pub use native_chat::NativeChatRecipients;
 pub use native_claimed_items::{NativeHeldItem, NativeHit, NativeModEvent};
 pub use native_client_state::{NativeClientWorld, NativeSoundCategory};
+pub use native_crosshair::NativeCrosshairEntity;
 pub use native_cooldowns::NativeCooldownTarget;
 pub use native_damage::{NativeDamage, NativeDamageActor, NativeDamageKind};
 pub use native_data_maps::NativeDataMapType;
@@ -18416,6 +18421,8 @@ impl Game<'_> {
                             self.sprint_report(&report);
                         }
                     }
+                    let _native_crosshair_frame = (!horizon_client::mod_api::mods().is_empty())
+                        .then(native_crosshair::enter_frame);
                     self.extras_frame(elapsed);
                     self.extras_retry()?;
                     self.apply_mouse_look();

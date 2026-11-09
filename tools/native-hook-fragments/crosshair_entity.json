@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "crosshair_entity",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_crosshair_entity",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "A bounded snapshot of the entity under the client crosshair during a frame.",
+  "doc_summary": "`crosshair_entity()` returns the nearest entity before a block during a client frame, or None outside the frame or after eight queries per mod in that frame. Names fall back to the entity kind when no player or custom name is known. Requires native hooks API @API:crosshair_entity@."
+}

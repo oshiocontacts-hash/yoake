@@ -231,14 +231,25 @@ impl Game<'_> {
         };
         let shooter = self.player_attacker(&host, p.guest);
         let result = match victim {
-            Victim::Guest(conn) => self.guest_hit_by(&mut host, conn, |g| {
-                g.combat.refuse_player_hit = refused;
-                g.combat.projectile_attacker = shooter;
-                let r = g.projectile_hit(p, on_player);
-                g.combat.refuse_player_hit = false;
-                g.combat.projectile_attacker = None;
-                r
-            }),
+            Victim::Guest(conn) => {
+                let victim_id = host.hub.guest(conn).map_or(0, |guest| guest.entity_id as u32);
+                let attacker_id = shooter.as_ref().map_or_else(
+                    || match p.guest {
+                        Some(_) => 0,
+                        None => self.player.as_ref().map_or(0, |player| player.entity_id as u32),
+                    },
+                    |(id, _)| *id,
+                );
+                let _source = super::native_pvp::scope(victim_id, attacker_id, p.id);
+                self.guest_hit_by(&mut host, conn, |g| {
+                    g.combat.refuse_player_hit = refused;
+                    g.combat.projectile_attacker = shooter;
+                    let r = g.projectile_hit(p, on_player);
+                    g.combat.refuse_player_hit = false;
+                    g.combat.projectile_attacker = None;
+                    r
+                })
+            }
         };
         self.lan = Some(host);
         result.unwrap_or(Ok(()))
@@ -304,7 +315,16 @@ impl Game<'_> {
         };
         let (hurt, thorns) = if self.ui.rules.bool("pvp") && harm {
             match victim {
-                Victim::Guest(conn) => self.guest_struck_by(host, conn, land).unwrap_or_default(),
+                Victim::Guest(conn) => {
+                    let victim_id = host.hub.guest(conn).map_or(0, |guest| guest.entity_id as u32);
+                    let attacker = match (s.attacker, attacker_note.as_ref()) {
+                        (Some(_), Some((id, _))) => *id as u32,
+                        (Some(_), None) => 0,
+                        (None, _) => attacker_id as u32,
+                    };
+                    let _source = super::native_pvp::scope(victim_id, attacker, attacker);
+                    self.guest_struck_by(host, conn, land).unwrap_or_default()
+                }
             }
         } else {
             Default::default()
@@ -353,6 +373,12 @@ impl Game<'_> {
         }
         let thorns_cause = self.player_attacker(host, victim.conn());
         for damage in thorns {
+            let target_id = match s.attacker {
+                Some(conn) => host.hub.guest(conn).map_or(0, |guest| guest.entity_id as u32),
+                None => self.player.as_ref().map_or(0, |player| player.entity_id as u32),
+            };
+            let source_id = thorns_cause.as_ref().map_or(0, |(id, _)| *id);
+            let _source = super::native_pvp::scope(target_id, source_id, source_id);
             match s.attacker {
                 None => {
                     if let Some((id, name)) = &thorns_cause {
@@ -490,6 +516,12 @@ impl Game<'_> {
                 continue;
             }
             let Victim::Guest(conn) = victim;
+            let source_id = match (sweep.attacker, attacker.as_ref()) {
+                (Some(_), Some((id, _))) => *id,
+                (Some(_), None) => 0,
+                (None, _) => attacker_id as u32,
+            };
+            let _source = super::native_pvp::scope(id as u32, source_id, source_id);
             self.guest_struck_by(host, conn, land);
         }
     }
