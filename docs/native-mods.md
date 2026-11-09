@@ -688,12 +688,11 @@ the hit, which doesn't tell every vanilla type apart yet:
 
 The causing and direct entities are 0 for now in these cases:
 
-- A player's direct entity, always
-- A player's causing entity, except for a mob that shot the projectile, the mob `/damage` names, an evoker that summoned
-  the fangs, a slime or magma cube that touched the player, and a mob that exploded (a sulfur cube's is guessed until
-  its blast names its source)
-- A mob's causing and direct entities when a player is behind the hit (melee, arrows, tridents, blasts, TNT a player
-  lit)
+- A player's direct entity, except for tracked native and scoped player-versus-player sources
+- A player's causing entity, except for tracked native and scoped player-versus-player sources, a mob that shot the projectile, the mob
+  `/damage` names, an evoker that summoned the fangs, a slime or magma cube that touched the player, and a mob that
+  exploded (a sulfur cube's is guessed until its blast names its source)
+- A mob's causing entity when its player source is unavailable
 - A mob's direct entity when it isn't the causing one (a projectile, a blast, a potion)
 - A falling block on a mob, whose causing and direct entity is the block in vanilla
 - The dragon's direct entity for a projectile or a blast
@@ -704,6 +703,12 @@ And `/damage` on a mob `by` one entity `from` another with a melee damage type g
 one, where vanilla gives the `by` one.
 
 Bundles that use it need `"hooks": 50`.
+
+**Damage attribution.**
+
+Player-caused damage supplies the player entity ID in the existing `causing` and `attacker` fields where the player
+source is available. Scoped attribution carries player IDs across guest-player damage paths and records the player
+responsible for a mob's last hit. The existing field types and unknown-source value remain unchanged.
 
 API 51 adds `native_menu_button_v2`: a mod container's menu button (`AbstractContainerMenu.clickMenuButton(Player, int)`) with the clicking player's cursor stack, read and written, so a widget outside the slots can take or give what the player carries (a tank taking a bucket). It fires right after `native_menu_button`, on the server, for single player and LAN guests alike. Bundles need "hooks": 51.
 
@@ -765,6 +770,20 @@ name, as vanilla sends a sound that isn't in its registry, and they hear it when
 and its `.ogg` files). `minecraft:` events must still be registered. Bundles that play their own sounds need `"hooks": 61`.
 
 API 62 adds nicknames for server mods: `native_set_nickname(uuid, Option<&str>)` shows a name in place of a player's in chat (their messages, `/me`, `/msg`) and the Tab list, the real name on hover and everywhere else; `native_text_allowed(text)` asks the server's chat filter. Both outside a player's hook. Bundles need "hooks": 62.
+
+**Server chat (@API:server_chat@).**
+
+`native_server_chat` observes ordinary player chat after Horizon's incoming chat validation and filtering, before
+delivery. Commands use a separate path. A listener must set `native_server_chat_listened` to true; it can then
+cancel the line, replace its text, or set recipients to `NativeChatRecipients::Only`. The sender's echo follows
+that same recipient list. Replacement text is truncated to 256 UTF-16 code units. With no listener, the original
+broadcast path remains in use.
+
+Unchanged lines retain their original player-chat signature. Rewritten lines are sent as disguised, unsigned chat
+rather than attaching the original signature to different text. Horizon's current client receives disguised chat
+without a signature but labels its trust as `ChatTrust::Secure`; this does not mean that the rewritten content is
+signed. The queued `PlayerChat` monitoring event retains the original line, including when a listener changes or
+cancels delivery.
 
 API 63 adds context-free block and item tag lookups from server hooks (`native_server_block_in_tag`, `native_server_item_in_tag`). They return `NotServer` on a client and `TagsUnavailable` before the world loads its tags. An unknown tag returns false; an empty stack tests `minecraft:air`. Bundles need "hooks": 63.
 
@@ -1941,6 +1960,12 @@ and can also describe other saves; coordinate the wait accordingly. A completed 
 world or make a concurrent directory copy atomic.
 
 As with other integrated-owner calls, a timeout does not cancel work already queued to the owner.
+
+#### Integrated owner (@API:integrated_owner@)
+
+`native_integrated_owner()` returns the integrated server owner's UUID in server tick context and `None` when that
+context or an integrated server is unavailable. Calls are limited per mod per tick. In offline mode, the integrated
+server uses its offline player UUID.
 
 ### Reading server blocks (draft)
 
@@ -3335,6 +3360,13 @@ how loud the game is and whether the player is in play. API @API:client_state_re
   server's (no `world_dir()` there).
 - `camera()` keeps the last rendered world frame's camera, so input, screen and the window's `command` calls see it
   too; it is None before the first world frame, on the title panorama and in a server's `Game`.
+
+#### Crosshair entity (@API:crosshair_entity@)
+
+`native_crosshair_entity()` returns a snapshot during a client frame callback, or `None` outside that context, when
+no supported entity is picked, or after the per-mod frame budget is exhausted. Its result contains the entity ID,
+optional UUID, kind, display name, and distance. The implementation currently derives the nearest result from
+Horizon's entity-pick candidates; equivalence with vanilla's stored hit result still needs validation.
 
 ### Client sessions, requests, and account access
 

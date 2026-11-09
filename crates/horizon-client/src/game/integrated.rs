@@ -15,6 +15,7 @@ use super::{
     world_loading::{WorldLoader, WorldRequest},
 };
 use horizon_client::level_loading::{STATUS_RADIUS, Stage};
+use horizon_client::mod_api::{NativeTickId, NativeWorldEpoch};
 use horizon_client::spans::startup;
 use horizon_client::{
     Result,
@@ -28,6 +29,7 @@ use horizon_protocol::connection::Pipe;
 use horizon_protocol::connection::{CaptureFenceId, CaptureFences};
 use horizon_protocol::{crypto::offline_uuid, text::translatable};
 use std::{
+    cell::RefCell,
     net::TcpListener,
     sync::{
         Arc, Mutex,
@@ -452,6 +454,56 @@ impl Serving {
         self.flags.saving.store(saving, Ordering::Relaxed);
     }
 }
+fn integrated_owner_in_context(server_tick: bool, owner: Option<u128>) -> Option<u128> {
+    if server_tick {
+        owner
+    } else {
+        None
+    }
+}
+
+const OWNER_QUERIES_PER_MOD: usize = 512;
+
+#[derive(Default)]
+struct OwnerQueryBudget {
+    tick: Option<(NativeWorldEpoch, NativeTickId)>,
+    mods: Vec<(usize, usize)>,
+}
+
+impl OwnerQueryBudget {
+    fn admit(&mut self, tick: (NativeWorldEpoch, NativeTickId), mod_index: usize) -> bool {
+        if self.tick != Some(tick) {
+            self.tick = Some(tick);
+            self.mods.clear();
+        }
+        if let Some((_, count)) = self.mods.iter_mut().find(|(index, _)| *index == mod_index) {
+            if *count >= OWNER_QUERIES_PER_MOD {
+                return false;
+            }
+            *count += 1;
+        } else {
+            self.mods.push((mod_index, 1));
+        }
+        true
+    }
+}
+
+thread_local! {
+    static OWNER_QUERIES: RefCell<OwnerQueryBudget> = RefCell::new(OwnerQueryBudget::default());
+}
+
+impl Game<'_> {
+    pub(super) fn native_integrated_owner_impl(&self) -> Option<u128> {
+        let caller = horizon_client::crash::native_mod_call()?;
+        let tick = self.native_lifecycle.entity_query_tick()?;
+        let owner =
+            integrated_owner_in_context(true, self.serving.as_ref().map(|serving| serving.owner))?;
+        OWNER_QUERIES
+            .with(|budget| budget.borrow_mut().admit(tick, caller.index))
+            .then_some(owner)
+    }
+}
+
 enum Publish {
     Open(TcpListener, LanSettings),
     Close,
@@ -1698,6 +1750,27 @@ fn refused(owner: bool, published: bool, split_seat: bool, memory: bool) -> bool
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn integrated_owner_requires_an_authoritative_tick_and_server() {
+        let owner = Some(0x1234);
+        assert_eq!(integrated_owner_in_context(true, owner), owner);
+        assert_eq!(integrated_owner_in_context(false, owner), None);
+        assert_eq!(integrated_owner_in_context(true, None), None);
+    }
+
+    #[test]
+    fn integrated_owner_queries_are_bounded_per_mod_and_tick() {
+        let mut budget = OwnerQueryBudget::default();
+        let tick = (NativeWorldEpoch::new(1), NativeTickId::new(1));
+        for _ in 0..OWNER_QUERIES_PER_MOD {
+            assert!(budget.admit(tick, 3));
+        }
+        assert!(!budget.admit(tick, 3));
+        assert!(budget.admit(tick, 4));
+        assert!(budget.admit((tick.0, NativeTickId::new(2)), 3));
+        assert!(budget.admit((NativeWorldEpoch::new(2), tick.1), 3));
+    }
 
     #[cfg(feature = "dev-capture")]
     #[test]

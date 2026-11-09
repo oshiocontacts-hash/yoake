@@ -226,6 +226,16 @@ impl Hub {
             name: self.player_display_name(uuid, &name),
             target: None,
         };
+        if self.native_chat_listening {
+            let text = message.content.clone();
+            events.push(HostEvent::NativeServerChat {
+                name,
+                message,
+                bound,
+            });
+            events.push(HostEvent::PlayerChat { sender: uuid, text });
+            return;
+        }
         let line = format!("<{name}> {}", message.content);
         self.broadcast_chat(&message, &bound, line, events);
         events.push(HostEvent::PlayerChat {
@@ -306,6 +316,26 @@ impl Hub {
         for k in 0..self.guests.len() {
             if self.guests[k].placed {
                 self.send_chat(k, message, bound);
+            }
+        }
+    }
+
+    pub fn broadcast_native_chat(
+        &mut self,
+        message: &ChatMessage,
+        bound: &play::ChatTypeBound,
+        text: &str,
+        only: Option<&[u128]>,
+    ) {
+        for index in 0..self.guests.len() {
+            if self.guests[index].placed {
+                match native_chat_delivery(self.guests[index].uuid, only, &message.content, text) {
+                    NativeChatDelivery::Omit => {}
+                    NativeChatDelivery::Signed => self.send_chat(index, message, bound),
+                    NativeChatDelivery::Unsigned => {
+                        self.send_disguised(index, literal(text), bound.clone());
+                    }
+                }
             }
         }
     }
@@ -509,5 +539,70 @@ impl Hub {
         self.sync
             .id("minecraft:chat_type", &format!("minecraft:{name}"))
             .unwrap_or(self.chat_type)
+    }
+}
+
+pub fn chat_recipient_allowed(uuid: u128, only: Option<&[u128]>) -> bool {
+    only.is_none_or(|players| players.contains(&uuid))
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NativeChatDelivery {
+    Omit,
+    Signed,
+    Unsigned,
+}
+
+fn native_chat_delivery(
+    uuid: u128,
+    only: Option<&[u128]>,
+    original: &str,
+    text: &str,
+) -> NativeChatDelivery {
+    if !chat_recipient_allowed(uuid, only) {
+        NativeChatDelivery::Omit
+    } else if text == original {
+        NativeChatDelivery::Signed
+    } else {
+        NativeChatDelivery::Unsigned
+    }
+}
+
+#[cfg(test)]
+mod native_chat_tests {
+    use super::{NativeChatDelivery, native_chat_delivery};
+
+    #[test]
+    fn default_guest_chat_includes_sender_and_other_players() {
+        assert_eq!(
+            native_chat_delivery(1, None, "hello", "hello"),
+            NativeChatDelivery::Signed
+        );
+        assert_eq!(
+            native_chat_delivery(2, None, "hello", "hello"),
+            NativeChatDelivery::Signed
+        );
+    }
+
+    #[test]
+    fn guest_chat_restricted_to_one_recipient_excludes_sender() {
+        let recipients = [2];
+        let only = Some(recipients.as_slice());
+        assert_eq!(
+            native_chat_delivery(1, only, "hello", "hello"),
+            NativeChatDelivery::Omit
+        );
+        assert_eq!(
+            native_chat_delivery(2, only, "hello", "hello"),
+            NativeChatDelivery::Signed
+        );
+        assert_eq!(
+            native_chat_delivery(3, only, "hello", "hello"),
+            NativeChatDelivery::Omit
+        );
+        assert_eq!(
+            native_chat_delivery(2, only, "hello", "rewritten"),
+            NativeChatDelivery::Unsigned
+        );
     }
 }

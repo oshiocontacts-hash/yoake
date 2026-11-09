@@ -1250,10 +1250,7 @@ impl Game<'_> {
         };
         let attacker = match attacker {
             Some(Who::Mob(id)) => id,
-            Some(Who::Player) => self
-                .player
-                .as_ref()
-                .map_or(0, |player| player.entity_id as u32),
+            Some(Who::Player) => m.native_last_player_attacker,
             None => 0,
         };
         let kind = super::native_hooks::mob_kind(m);
@@ -3566,11 +3563,23 @@ impl Game<'_> {
         // owner of the projectile that hit (`projectile_owner` outlives a
         // projectile's other hits), not the guessed melee attacker.
         let owner = owner.filter(|_| projectile);
+        let pvp = self
+            .player
+            .as_ref()
+            .and_then(|player| super::native_pvp::source(player.entity_id as u32));
         let causing = native.map_or_else(
-            || known.flatten().or(owner).map_or(0, |id| id as i32),
+            || {
+                pvp.map(|source| source.0)
+                    .or(known.flatten())
+                    .or(owner)
+                    .map_or(0, |id| id as i32)
+            },
             |source| source.id,
         );
-        let direct = native.map_or(0, |source| source.direct);
+        let direct = native.map_or_else(
+            || pvp.map_or(0, |source| source.1 as i32),
+            |source| source.direct,
+        );
         let mut outcome = horizon_client::health::BlockOutcome::default();
         // The hit's own push, held back until after the shield's (`hurtServer`
         // runs `applyItemBlocking` before `dealDefaultKnockback`).
@@ -4119,7 +4128,28 @@ impl Game<'_> {
                 {
                     self.guest_projectile_hit(conn, &p, hit)?;
                 }
-                _ => self.projectile_hit(&p, hit)?,
+                _ => {
+                    let _source = match (p.guest, p.owner, hit, self.player.as_ref()) {
+                        (
+                            Some(conn),
+                            Some(Who::Player),
+                            Hit::Entity {
+                                who: Who::Player, ..
+                            },
+                            Some(player),
+                        ) => self.lan.as_ref().and_then(|host| {
+                            host.hub.guest(conn).map(|guest| {
+                                super::native_pvp::scope(
+                                    player.entity_id as u32,
+                                    guest.entity_id as u32,
+                                    p.id,
+                                )
+                            })
+                        }),
+                        _ => None,
+                    };
+                    self.projectile_hit(&p, hit)?;
+                }
             }
         }
         self.flush_lan_explosions();

@@ -16,6 +16,7 @@ pub(super) const DROWN_EVENT: i8 = 67;
 struct Entry {
     damage_type: String,
     damage: f32,
+    native_attacker: Option<u32>,
     fall_location: Option<&'static str>,
     fall_distance: f32,
     /// The causing entity: its id (for comparisons) and display name.
@@ -209,7 +210,12 @@ impl CombatTracker {
     /// for none), for `LivingDeathEvent`.
     pub(super) fn last_blow(&self) -> Option<(&str, u32)> {
         let e = self.entries.last()?;
-        Some((&e.damage_type, e.attacker.as_ref().map_or(0, |a| a.0)))
+        Some((
+            &e.damage_type,
+            e.native_attacker
+                .or_else(|| e.attacker.as_ref().map(|attacker| attacker.0))
+                .unwrap_or(0),
+        ))
     }
     fn mark(&mut self) {
         let marks = (self.pending.len(), self.pending_direct.len());
@@ -381,6 +387,11 @@ impl Game<'_> {
             self.combat.entries.push(Entry {
                 damage_type: name,
                 damage: amount,
+                native_attacker: self
+                    .player
+                    .as_ref()
+                    .and_then(|player| super::native_pvp::source(player.entity_id as u32))
+                    .map(|source| source.0),
                 fall_location,
                 fall_distance,
                 attacker,
@@ -696,6 +707,7 @@ impl Game<'_> {
                 Entry {
                     damage_type: super::creatures::source_damage_type(e.source).to_owned(),
                     damage: e.damage,
+                    native_attacker: None,
                     fall_location: e.in_water.then_some("water"),
                     fall_distance: e.fall_distance,
                     attacker,
@@ -742,6 +754,41 @@ fn mob_name(m: &Mob) -> Text {
         (Some(text), _) => text.clone(),
         (None, Some(name)) => Text::literal(name.clone()),
         (None, None) => Text::translate(&format!("entity.{}", m.kind.id.replace(':', ".")), &[]),
+    }
+}
+
+#[cfg(test)]
+mod native_pvp_tests {
+    use super::{CombatTracker, Entry};
+
+    fn record_killing_blow(tracker: &mut CombatTracker, victim: u32) {
+        tracker.entries.push(Entry {
+            damage_type: "minecraft:player_attack".into(),
+            damage: 20.0,
+            native_attacker: super::super::native_pvp::source(victim).map(|source| source.0),
+            fall_location: None,
+            fall_distance: 0.0,
+            attacker: None,
+            item: None,
+            direct: None,
+        });
+    }
+
+    #[test]
+    fn unscoped_killing_blow_keeps_unknown_attacker() {
+        let mut tracker = CombatTracker::default();
+        record_killing_blow(&mut tracker, 7);
+        assert_eq!(tracker.last_blow(), Some(("minecraft:player_attack", 0)));
+    }
+
+    #[test]
+    fn player_killing_blow_reports_the_killer() {
+        let mut tracker = CombatTracker::default();
+        {
+            let _source = super::super::native_pvp::scope(7, 3, 9);
+            record_killing_blow(&mut tracker, 7);
+        }
+        assert_eq!(tracker.last_blow(), Some(("minecraft:player_attack", 3)));
     }
 }
 

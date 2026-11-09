@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "integrated_owner",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_integrated_owner",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "The integrated server owner's UUID during an authoritative server tick (`native_integrated_owner`).",
+  "doc_summary": "`integrated_owner()` returns the integrated server owner's UUID during an authoritative server tick. It returns None on dedicated servers, outside that tick context, without an active native mod, or when no integrated server is hosting. It is limited to 512 calls per mod per server tick; further calls return None. Requires native hooks API @API:integrated_owner@."
+}

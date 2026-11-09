@@ -884,6 +884,7 @@ use super::{
     native_panel_recipes::RecipePage,
 };
 use horizon_assets::item_model::StackView;
+use horizon_client::mod_api::{NativeChatRecipients, NativeCrosshairEntity};
 use horizon_client::mod_api::{
     self, BlockHit, EntityRef, MouseButtons, NameTagLine, NativeAttributeOperation,
     NativeAudioStreamId, NativeAudioStreamLimits, NativeCamera, NativeCommand, NativeDispensed,
@@ -2129,6 +2130,23 @@ fn chars_to_type(text: &str, canceled: impl FnMut(char) -> bool) -> Option<Strin
 
 /// The hook points. Each does nothing in Horizon.
 impl Game<'_> {
+    /// Check for server chat listeners. API @API:server_chat@.
+    pub(super) fn native_server_chat_listened(&self, listened: &mut bool) {
+        super::native_chat::dispatch_server_chat_listened(self, listened);
+    }
+
+    /// Observe, rewrite, restrict, or cancel player chat. API @API:server_chat@.
+    pub(super) fn native_server_chat(
+        &mut self,
+        player: u128,
+        name: &str,
+        message: &mut String,
+        recipients: &mut NativeChatRecipients,
+        canceled: &mut bool,
+    ) {
+        super::native_chat::dispatch_server_chat(self, player, name, message, recipients, canceled);
+    }
+
     /// Check whether a mod listens for mouse buttons. API @API:mouse_buttons@.
     pub(super) fn native_mouse_buttons_listened(&self, listened: &mut bool) {
         super::native_mouse_buttons::dispatch_mouse_buttons_listened(self, listened);
@@ -5889,7 +5907,7 @@ impl Game<'_> {
     /// experience and death message have not run. `entity` is its id and
     /// `kind` its type (`minecraft:zombie`, `minecraft:player`); `damage_type`
     /// names the last blow (`minecraft:player_attack`) and `attacker` is the
-    /// mob that dealt it, 0 for none or a player. Set `cancel` to keep it alive:
+    /// player or mob that dealt it, 0 if none or unknown. Set `cancel` to keep it alive:
     /// Horizon decides death by health, so it stays at 1 health. The hook
     /// fires once per death attempt. Armor stands, boats and other non-mob
     /// entities are not told. API @API:living_death@.
@@ -7989,11 +8007,11 @@ fn hurt_server_args(hurting: Hurting<'_>) -> (i32, &str, HurtSource<'_>) {
         Hurting::ArmorStand(entity, source) => (entity, "minecraft:armor_stand", source),
     }
 }
-/// A mob's damage as its `DamageSource`: the causing entity is known when it
-/// is a mob, and is the direct one too when it deals the damage itself.
+/// A mob's damage as its `DamageSource`, including a scoped player attacker.
 fn mob_source(damage: &Damage) -> HurtSource<'static> {
     let causing = match damage.attacker {
         Some(Who::Mob(id)) => id as i32,
+        Some(Who::Player) => horizon_client::health::knockback_attacker(),
         _ => 0,
     };
     let melee = super::creatures::melee(damage.kind);
@@ -8297,6 +8315,16 @@ fn local_particle_type(
 // Native mods use these; nothing in Horizon does.
 #[allow(dead_code)]
 impl Game<'_> {
+    /// Snapshot the crosshair entity in a client frame. API @API:crosshair_entity@.
+    pub(super) fn native_crosshair_entity(&self) -> Option<NativeCrosshairEntity> {
+        self.native_crosshair_entity_impl()
+    }
+
+    /// Return the integrated server's owner UUID. API @API:integrated_owner@.
+    pub(super) fn native_integrated_owner(&self) -> Option<u128> {
+        self.native_integrated_owner_impl()
+    }
+
     /// Queues connected-player permission recomputation for the next server tick.
     /// API @API:deferred_requests@.
     pub(super) fn native_request_permission_refresh(&mut self) -> bool {
@@ -11335,9 +11363,17 @@ mod tests {
         assert_eq!(source(K::Arrow, zombie), ("minecraft:arrow", 3, 0));
         let blast = source(K::Explosion, zombie);
         assert_eq!(blast, ("minecraft:player_explosion", 3, 0));
-        // A player behind a mob's hit isn't known yet, nor is a fall's source.
         let hit = source(K::PlayerAttack, Some(Who::Player));
         assert_eq!(hit, ("minecraft:player_attack", 0, 0));
+        {
+            let _attacker = horizon_client::health::knockback_from(7);
+            assert_eq!(
+                source(K::PlayerAttack, Some(Who::Player)),
+                ("minecraft:player_attack", 7, 7)
+            );
+            assert_eq!(source(K::Arrow, Some(Who::Player)), ("minecraft:arrow", 7, 0));
+        }
+        assert_eq!(source(K::PlayerAttack, Some(Who::Player)), hit);
         assert_eq!(source(K::Fall, None), ("minecraft:fall", 0, 0));
         let arrow = HurtSource {
             damage_type: "minecraft:arrow",

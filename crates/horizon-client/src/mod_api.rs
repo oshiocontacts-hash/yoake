@@ -36,6 +36,7 @@ pub use crate::game::{
 };
 pub use crate::game::{NativeAccount, NativeClientWorld, NativeJoinPoll, NativeSoundCategory};
 pub use crate::game::{NativeBlast, NativeDamage, NativeDamageActor, NativeDamageKind};
+pub use crate::game::{NativeChatRecipients, NativeCrosshairEntity};
 pub use crate::gfx::native_render::{
     BlockSpriteArrays, RenderHooks, RenderNeeds, RenderNeedsEvent, WorldDrawn, WorldDrawnEvent,
     wgpu,

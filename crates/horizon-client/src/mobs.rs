@@ -1274,6 +1274,7 @@ pub struct Mob {
     /// `LivingEntity.getAbsorptionAmount`: golden hearts that soak damage before health.
     pub absorption: f32,
     pub last_damage: Option<(Damage, i64)>,
+    pub native_last_player_attacker: u32,
     /// `LivingEntity.combatTracker`: the hits taken lately.
     pub combat: combat::Tracker,
     /// Set by `remove`: the mob disappears without dying (conversion, despawn, pickup).
@@ -2755,6 +2756,7 @@ impl Mob {
             last_hurt: 0.0,
             absorption: 0.0,
             last_damage: None,
+            native_last_player_attacker: 0,
             combat: combat::Tracker::default(),
             removed: false,
             custom_name: None,
@@ -3112,6 +3114,11 @@ impl Mob {
             self.extra.in_love = 0;
         }
         self.last_damage = Some((source, i64::from(self.age)));
+        self.native_last_player_attacker = if source.attacker == Some(Who::Player) {
+            crate::health::knockback_attacker().max(0) as u32
+        } else {
+            0
+        };
         if let Some(who) = source.attacker {
             self.ai.last_hurt_by = Some(who);
             self.ai.last_hurt_by_time = self.age as i32;
