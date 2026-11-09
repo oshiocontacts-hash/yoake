@@ -78,10 +78,10 @@ mod yoake_page;
 pub mod yoake_update;
 
 use gpui::{
-    actions, div, ease_out_quint, prelude::*, px, relative, size, Animation, AnimationExt,
-    AnyElement, App, Bounds, ClickEvent, Context, Div, ElementId, FocusHandle, FontWeight, Hsla,
-    KeyBinding, KeyDownEvent, Menu, MenuItem, MouseDownEvent, PathPromptOptions, Pixels, Point,
-    SharedString, Stateful, Subscription, Window, WindowBounds, WindowOptions,
+    Animation, AnimationExt, AnyElement, App, Bounds, ClickEvent, Context, Div, ElementId,
+    FocusHandle, FontWeight, Hsla, KeyBinding, KeyDownEvent, Menu, MenuItem, MouseDownEvent,
+    PathPromptOptions, Pixels, Point, SharedString, Stateful, Subscription, Window, WindowBounds,
+    WindowOptions, actions, div, ease_out_quint, prelude::*, px, relative, size,
 };
 use horizon_launcher::account::{self, Accounts, SignIn, SignInState};
 use horizon_launcher::backend::{self, Job, Msg, Release, Running, Settings, Updates};
@@ -94,9 +94,9 @@ use horizon_launcher::telemetry;
 use scrollbar::Scrollbar;
 use std::borrow::Cow;
 use std::collections::{HashMap, VecDeque};
-use std::sync::atomic::Ordering;
-use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Mutex;
+use std::sync::atomic::Ordering;
+use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant};
 use theme::Theme;
 
@@ -464,36 +464,41 @@ impl Launcher {
             this.theme = this.settings_theme(window);
             cx.notify();
         });
-        cx.spawn(async move |this, cx| loop {
-            cx.background_executor()
-                .timer(Duration::from_millis(80))
-                .await;
-            if this.update(cx, |this, cx| this.drain(cx)).is_err() {
-                break;
+        cx.spawn(async move |this, cx| {
+            loop {
+                cx.background_executor()
+                    .timer(Duration::from_millis(80))
+                    .await;
+                if this.update(cx, |this, cx| this.drain(cx)).is_err() {
+                    break;
+                }
             }
         })
         .detach();
         // Counts the time a partner banner is on screen, until it may be hidden.
-        cx.spawn(async move |this, cx| loop {
-            cx.background_executor()
-                .timer(Duration::from_secs(10))
-                .await;
-            let counting = this.update(cx, |this, cx| {
-                let s = &mut this.settings;
-                if s.partner_hidden || s.partner_seen_secs >= partner::SEEN_BEFORE_HIDE {
-                    return false;
+        cx.spawn(async move |this, cx| {
+            loop {
+                cx.background_executor()
+                    .timer(Duration::from_secs(10))
+                    .await;
+                let counting = this.update(cx, |this, cx| {
+                    let s = &mut this.settings;
+                    if s.partner_hidden || s.partner_seen_secs >= partner::SEEN_BEFORE_HIDE {
+                        return false;
+                    }
+                    // On screen on every page: the card in the sidebar, the banner on Servers.
+                    s.partner_seen_secs += 10;
+                    if s.partner_seen_secs % 60 == 0
+                        || s.partner_seen_secs >= partner::SEEN_BEFORE_HIDE
+                    {
+                        this.save_settings();
+                        cx.notify();
+                    }
+                    true
+                });
+                if !matches!(counting, Ok(true)) {
+                    break;
                 }
-                // On screen on every page: the card in the sidebar, the banner on Servers.
-                s.partner_seen_secs += 10;
-                if s.partner_seen_secs % 60 == 0 || s.partner_seen_secs >= partner::SEEN_BEFORE_HIDE
-                {
-                    this.save_settings();
-                    cx.notify();
-                }
-                true
-            });
-            if !matches!(counting, Ok(true)) {
-                break;
             }
         })
         .detach();
@@ -1249,7 +1254,7 @@ impl Launcher {
                             }
                         };
                         // Past the gate by the developer option alone is no owner.
-                        if !self.settings.dev_offline {
+                        if !account::dev_offline_enabled(self.settings.dev_offline) {
                             self.owner = Some(true);
                         }
                         if let Some(file) = file {
@@ -1329,6 +1334,10 @@ impl Launcher {
                             .map(|i| i.vars(cmd.get_program()))
                             .unwrap_or_default();
                         cmd.envs(self.client_vars.iter().map(|(k, v)| (k, v)));
+                        if let Err(error) = backend::check_client_args(&cmd) {
+                            self.client_error = Some(error);
+                            continue;
+                        }
                         let launch = instance.map(|i| i.launch).unwrap_or_default();
                         horizon_launcher::launch::limit_memory(&mut cmd, &launch);
                         let mut cmd = horizon_launcher::launch::wrap(cmd, &launch);
@@ -1910,7 +1919,7 @@ impl Launcher {
         self.starting_client = Some(tag.clone());
         self.play_pressed = Some(Instant::now());
         let tx = self.tx.clone();
-        let offline_without_owner = self.settings.dev_offline;
+        let offline_without_owner = account::dev_offline_enabled(self.settings.dev_offline);
         std::thread::spawn(move || {
             if !expected_yoake || backend::is_prepared(&tag) {
                 backend::complete_assets(&tag);
@@ -4735,7 +4744,7 @@ impl Launcher {
                             },
                         )),
                     ),
-                )
+                );
             }
             Load::Ready(r) if r.is_empty() => {
                 return page.child(centered(tr("No releases yet."), &t));
@@ -4948,7 +4957,7 @@ impl Launcher {
                             }),
                         ),
                     ),
-                )
+                );
             }
             Load::Ready(r) => r,
         };
@@ -5508,7 +5517,7 @@ mod tests {
     #[test]
     fn a_menu_button_stays_closed_after_the_press_that_closed_its_menu() {
         use super::closed_by_press;
-        use gpui::{point, px, ClickEvent, KeyboardClickEvent, MouseClickEvent, MouseDownEvent};
+        use gpui::{ClickEvent, KeyboardClickEvent, MouseClickEvent, MouseDownEvent, point, px};
         let click = |x: f32| {
             ClickEvent::Mouse(MouseClickEvent {
                 down: MouseDownEvent {
@@ -5531,7 +5540,7 @@ mod tests {
     #[cfg(target_os = "macos")]
     #[test]
     fn cmd_q_quits_and_cmd_w_closes_the_window() {
-        use super::{key_bindings, CloseWindow, Quit};
+        use super::{CloseWindow, Quit, key_bindings};
         use gpui::{Keymap, Keystroke};
         let keymap = Keymap::new(key_bindings());
         let key = |s: &'static str| [Keystroke::parse(s).unwrap()];
@@ -5575,7 +5584,7 @@ mod tests {
     /// it stays off: signing in comes first.
     #[test]
     fn play_prepares_first_for_an_owner() {
-        use super::{play_press, PlayPress};
+        use super::{PlayPress, play_press};
         assert_eq!(play_press(true, Some(true), false), PlayPress::Play);
         assert_eq!(play_press(true, None, false), PlayPress::Play);
         assert_eq!(
@@ -5605,7 +5614,7 @@ mod tests {
 
     #[test]
     fn a_completed_sign_in_is_handled_once_across_ui_polls() {
-        use super::{sign_in_change, SignInState};
+        use super::{SignInState, sign_in_change};
         let mut shown = None;
         let completed = SignInState::Done(Ok(horizon_launcher::account::Account {
             uuid: "11111111111111111111111111111111".into(),

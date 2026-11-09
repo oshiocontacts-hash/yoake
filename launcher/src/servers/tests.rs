@@ -1,6 +1,52 @@
 use super::*;
 use std::io::{BufRead, BufReader, Write};
 
+#[test]
+fn yoake_refuses_offline_hosting_without_changing_upstream() {
+    assert_eq!(
+        require_account_checks(false, true).unwrap_err(),
+        ACCOUNT_CHECKS_REQUIRED
+    );
+    assert!(require_account_checks(false, false).is_ok());
+    assert!(require_account_checks(true, true).is_ok());
+    for args in [
+        &["init", "--offline"][..],
+        &["config", "set", "server.online_mode=false"][..],
+        &["config", "--json", "set", "server.online_mode=false"][..],
+        &["config", "set", "properties.online-mode=true"][..],
+        &["service", "install"][..],
+        &["mcp"][..],
+        &["panel"][..],
+        &["import"][..],
+    ] {
+        assert_eq!(
+            validate_server_args(args, true).unwrap_err(),
+            ACCOUNT_CHECKS_REQUIRED
+        );
+        assert!(validate_server_args(args, false).is_ok());
+    }
+    assert!(validate_server_args(&["config", "set", "server.online_mode=true"], true).is_ok());
+    assert!(!configured_account_checks("[server]\nonline_mode = false\n").unwrap());
+    assert!(configured_account_checks("[server]\nonline_mode = true\n").unwrap());
+    assert!(configured_account_checks("").unwrap());
+    assert!(!configured_account_checks("[properties]\nonline-mode = false\n").unwrap());
+    assert!(configured_account_checks("[server\n").is_err());
+    for verb in ["run", "start", "restart", "rollback", "restore", "update"] {
+        assert!(starts_server(&[verb]));
+    }
+    assert!(!starts_server(&["update", "--check"]));
+    assert!(!starts_server(&["update", "--version", "tag", "--check"]));
+    assert!(starts_server(&[
+        "update",
+        "--archive",
+        "--check",
+        "--version",
+        "next"
+    ]));
+    assert!(starts_server(&["update", "--version", "--check"]));
+    assert!(starts_server(&["update", "--timeout", "--check"]));
+}
+
 fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("horizon-servers-{name}-{}", std::process::id()));
     let _ = fs::remove_dir_all(&dir);
@@ -74,9 +120,10 @@ fn programs_are_laid_out_as_install_sh_does() {
     // The game's macOS bundle is the launcher's, not the server's.
     assert!(!rt.join("releases/v1/Horizon.app").exists());
     // The release finds the game files where horizon-server looks: .local beside it.
-    assert!(rt
-        .join("current/.local/horizon-client/26.3/horizon-resources.json")
-        .is_file());
+    assert!(
+        rt.join("current/.local/horizon-client/26.3/horizon-resources.json")
+            .is_file()
+    );
     // Again with newer game files: only they change, swapped in whole.
     fs::write(
         version.join(".local/horizon-client/26.3/horizon-resources.json"),
@@ -218,9 +265,10 @@ fn the_api_sends_the_token() {
         "{}",
         seen[0]
     );
-    assert!(seen
-        .iter()
-        .all(|h| h.to_ascii_lowercase().contains("authorization: bearer t0k")));
+    assert!(
+        seen.iter()
+            .all(|h| h.to_ascii_lowercase().contains("authorization: bearer t0k"))
+    );
     assert!(seen[1].starts_with("POST /api/v1/command"));
     fs::remove_dir_all(&dir).unwrap();
     // Nothing answers: stopped.

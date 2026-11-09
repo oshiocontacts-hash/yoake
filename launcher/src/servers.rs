@@ -8,9 +8,9 @@
 //! rollback work on them unchanged. The game files are the player's own, copied from the version the
 //! launcher prepared: nothing of Mojang's is downloaded or shipped.
 
-use crate::backend;
+use crate::{account, backend};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -137,11 +137,7 @@ pub fn slug(name: &str) -> String {
         }
     }
     let out = out.trim_matches('-').to_string();
-    if out.is_empty() {
-        "server".into()
-    } else {
-        out
-    }
+    if out.is_empty() { "server".into() } else { out }
 }
 
 /// A new folder for a server called `name`, under `servers/` in the data folder.
@@ -309,13 +305,106 @@ fn point(link: &Path, target: &Path) -> std::io::Result<()> {
 
 // ----- Running horizon-server -------------------------------------------------------------------
 
+pub const ACCOUNT_CHECKS_REQUIRED: &str = "This build always checks Minecraft accounts.";
+
+fn require_account_checks(check_accounts: bool, require_owner: bool) -> Result<(), String> {
+    if require_owner && !check_accounts {
+        Err(ACCOUNT_CHECKS_REQUIRED.into())
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_server_args(args: &[&str], require_owner: bool) -> Result<(), String> {
+    if !require_owner {
+        return Ok(());
+    }
+    match args {
+        ["init", rest @ ..] if rest.contains(&"--offline") => Err(ACCOUNT_CHECKS_REQUIRED.into()),
+        ["config", options @ ..] => {
+            let mut options = options.iter().copied().filter(|arg| *arg != "--json");
+            if options.next() != Some("set") {
+                return Ok(());
+            }
+            for change in options {
+                if let Some((key, value)) = change.split_once('=') {
+                    if (key.trim() == "server.online_mode"
+                        && !matches!(value.trim(), "true" | "on" | "yes"))
+                        || key.trim() == "properties.online-mode"
+                    {
+                        return Err(ACCOUNT_CHECKS_REQUIRED.into());
+                    }
+                }
+            }
+            Ok(())
+        }
+        ["service", "install", ..] | ["mcp", ..] | ["panel", ..] | ["import", ..] => {
+            Err(ACCOUNT_CHECKS_REQUIRED.into())
+        }
+        _ => Ok(()),
+    }
+}
+
+fn configured_account_checks(text: &str) -> Result<bool, String> {
+    let invalid = || format!("{ACCOUNT_CHECKS_REQUIRED} The server configuration is invalid.");
+    let config = text.parse::<toml::Table>().map_err(|_| invalid())?;
+    if let Some(server) = config.get("server") {
+        let server = server.as_table().ok_or_else(invalid)?;
+        if let Some(online) = server.get("online_mode") {
+            if online.as_bool() != Some(true) {
+                return Ok(false);
+            }
+        }
+    }
+    if let Some(properties) = config.get("properties") {
+        let properties = properties.as_table().ok_or_else(invalid)?;
+        if properties.contains_key("online-mode") {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+fn update_is_check_only(args: &[&str]) -> bool {
+    let mut options = args.iter().copied();
+    while let Some(option) = options.next() {
+        match option {
+            "--check" => return true,
+            "--version" | "--archive" | "--timeout" => {
+                options.next();
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+fn starts_server(args: &[&str]) -> bool {
+    matches!(
+        args.first(),
+        Some(&("run" | "start" | "restart" | "rollback" | "restore"))
+    ) || (args.first() == Some(&"update") && !update_is_check_only(&args[1..]))
+}
+
 /// `horizon-server --dir <dir> <args>`.
 pub fn command(dir: &Path, args: &[&str]) -> Result<Command, String> {
+    let require_owner = account::owner_required();
+    validate_server_args(args, require_owner)?;
+    if require_owner && starts_server(args) {
+        let text = fs::read_to_string(dir.join("server.toml")).map_err(|_| {
+            format!("{ACCOUNT_CHECKS_REQUIRED} Couldn't read the server configuration.")
+        })?;
+        require_account_checks(configured_account_checks(&text)?, true)?;
+        account::require_signed_in_owner()?;
+    }
     let program = program().ok_or(
         "The server programs aren't set up yet: create a server, or press Prepare on its page.",
     )?;
     let mut cmd = crate::process::command(program);
     cmd.arg("--dir").arg(dir).args(args);
+    if require_owner && args.first() == Some(&"init") {
+        cmd.env("HORIZON_ONLINE", "true");
+    }
     Ok(cmd)
 }
 
@@ -630,6 +719,8 @@ pub fn settings_args(spec: &NewServer, panel_port: u16) -> Vec<String> {
 /// Creates a server: its folder, the world (a copy when asked), `init` and the settings, then adds it to
 /// the list. `tag` is the installed version whose programs and game files it uses when none are set up.
 pub fn create(spec: &NewServer, tag: Option<&str>, log: &dyn Fn(String)) -> Result<Entry, Problem> {
+    require_account_checks(spec.check_accounts, account::owner_required())
+        .map_err(Problem::plain)?;
     if !spec.eula {
         return Err(Problem {
             message: "Running a server needs your agreement to the Minecraft EULA.".into(),
@@ -920,6 +1011,7 @@ impl Api {
 
     /// A one-time login link for the web panel.
     pub fn panel_link(&self) -> Result<String, String> {
+        require_account_checks(false, account::owner_required())?;
         let v = self.call("POST", "/api/v1/panel/login", None)?;
         v["url"]
             .as_str()

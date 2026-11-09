@@ -1487,7 +1487,7 @@ impl Launcher {
             .gap(px(8.))
             .child(start)
             .child(restart)
-            .child(panel)
+            .when(!account::owner_required(), |buttons| buttons.child(panel))
             .child(
                 button("server-folder", "Open the folder", Kind::Ghost, &t)
                     .on_click(move |_, _, cx| cx.open_with_system(&folder)),
@@ -2273,6 +2273,17 @@ impl Launcher {
                 cx.notify();
             }))
             .into_any_element();
+        let enable_accounts = button(
+            "enable-account-checks",
+            "Enable account checks",
+            Kind::Secondary,
+            &t,
+        )
+        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+            this.set_setting("server.online_mode", "true".into());
+            cx.notify();
+        }))
+        .into_any_element();
         let live = if running {
             tr("Applies at once.")
         } else {
@@ -2349,21 +2360,30 @@ impl Launcher {
                     port,
                 ),
             )
-            .child(self.setting_row(
-                "Check Minecraft accounts",
-                if accounts {
-                    format!(
-                        "{} {later}",
-                        tr("On: players must own Minecraft and sign in with Microsoft.")
-                    )
-                } else {
-                    format!(
-                        "{} {later}",
-                        tr("Off: anyone can play under any name, so keep Friends only on.")
-                    )
-                },
-                accounts_switch,
-            ))
+            .when(!account::owner_required(), |form| {
+                form.child(self.setting_row(
+                    "Check Minecraft accounts",
+                    if accounts {
+                        format!(
+                            "{} {later}",
+                            tr("On: players must own Minecraft and sign in with Microsoft.")
+                        )
+                    } else {
+                        format!(
+                            "{} {later}",
+                            tr("Off: anyone can play under any name, so keep Friends only on.")
+                        )
+                    },
+                    accounts_switch,
+                ))
+            })
+            .when(account::owner_required() && !accounts, |form| {
+                form.child(self.setting_row(
+                    "Minecraft accounts",
+                    servers::ACCOUNT_CHECKS_REQUIRED.into(),
+                    enable_accounts,
+                ))
+            })
             .child(self.background_row(cx))
             .child(self.delete_server_section(status, cx));
         div()

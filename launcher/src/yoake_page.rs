@@ -47,7 +47,7 @@ impl YoakePage {
 
 /// True when the launcher was built with a Yoake feed or portal: the page is shown then.
 pub(super) fn enabled() -> bool {
-    option_env!("YOAKE_COMPILED_FEED_URL").is_some() || option_env!("YOAKE_PORTAL_URL").is_some()
+    account::owner_required()
 }
 
 fn signed_in() -> bool {
