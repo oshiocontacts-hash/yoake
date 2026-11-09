@@ -1487,6 +1487,8 @@ pub struct HudBatch {
     /// Sparse mod texture selections; absent for an atlas-only batch.
     pub native_textures: Option<Vec<native_textures::NativeTextureRun>>,
     native_texture_storage: bool,
+    carried_range: Option<std::ops::Range<u32>>,
+    carried_raised_until: Option<u32>,
 }
 
 /// How a run of HUD vertices blends and tests depth.
@@ -1546,7 +1548,40 @@ impl HudBatch {
             inline_profiles: Vec::new(),
             native_textures: None,
             native_texture_storage: false,
+            carried_range: None,
+            carried_raised_until: None,
         }
+    }
+    pub fn mark_carried(&mut self, start: usize) {
+        let range = start as u32..self.vertices.len() as u32;
+        if !range.is_empty() {
+            self.carried_range = Some(range);
+            self.carried_raised_until = None;
+        }
+    }
+    pub fn raise_carried(&mut self) {
+        let Some(range) = &self.carried_range else {
+            return;
+        };
+        let total = self.vertices.len() as u32;
+        if range.start >= self.blur_at && range.end < total {
+            self.carried_raised_until = Some(total);
+        }
+    }
+    fn ordered_ranges(&self, vertices: std::ops::Range<u32>) -> [Option<std::ops::Range<u32>>; 4] {
+        if let (Some(carried), Some(raised_until)) =
+            (&self.carried_range, self.carried_raised_until)
+            && vertices.start <= carried.start
+            && raised_until <= vertices.end
+        {
+            return [
+                Some(vertices.start..carried.start),
+                Some(carried.end..raised_until),
+                Some(carried.clone()),
+                Some(raised_until..vertices.end),
+            ];
+        }
+        [Some(vertices), None, None, None]
     }
     /// Draw the vertices added since `start` with the inverting blend.
     pub fn invert_since(&mut self, start: usize) {
@@ -1832,15 +1867,21 @@ impl HudBatch {
                 range.end = at(range.end);
             }
         }
+        let remap = |vertex: u32| {
+            if (vertex as usize) < start {
+                vertex
+            } else {
+                at(vertex)
+            }
+        };
+        if let Some(range) = &mut self.carried_range {
+            *range = remap(range.start)..remap(range.end);
+        }
+        if let Some(raised_until) = &mut self.carried_raised_until {
+            *raised_until = remap(*raised_until);
+        }
         if let Some(runs) = &mut self.native_textures {
             self.blends.retain(|(range, _)| !range.is_empty());
-            let remap = |vertex: u32| {
-                if (vertex as usize) < start {
-                    vertex
-                } else {
-                    at(vertex)
-                }
-            };
             for run in runs.iter_mut() {
                 run.range = remap(run.range.start)..remap(run.range.end);
             }
@@ -2835,7 +2876,12 @@ impl HudRenderer {
             },
         })];
         let textures = batch.native_textures.as_deref().unwrap_or(&[]);
-        let mut runs = batch.runs_in(vertices).peekable();
+        let mut runs = batch
+            .ordered_ranges(vertices)
+            .into_iter()
+            .flatten()
+            .flat_map(|range| batch.runs_in(range))
+            .peekable();
         while runs.peek().is_some() {
             let pass_runs = runs.clone();
             let (_, blend) = runs.next().unwrap();
@@ -3040,6 +3086,124 @@ impl HudRenderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn carried_runs_are_raised_after_mod_drawing() {
+        let mut batch = HudBatch::new([320, 240]);
+        for color in 0..5 {
+            batch.vertices.push(HudVertex {
+                pos: [0.0; 2],
+                uv: [0.0; 2],
+                color,
+                depth: 0.0,
+                glint_uv: [0.0; 2],
+                text: 0,
+            });
+            if color == 2 {
+                batch.mark_carried(1);
+            }
+        }
+        batch.blends = vec![
+            (1..2, Blend::Invert),
+            (2..3, Blend::Depth([0, 0, 1, 1])),
+            (3..5, Blend::Additive),
+        ];
+        batch.raise_carried();
+        assert_eq!(
+            batch
+                .ordered_ranges(0..5)
+                .into_iter()
+                .flatten()
+                .flat_map(|range| batch.runs_in(range))
+                .collect::<Vec<_>>(),
+            vec![
+                (0..1, Blend::Alpha),
+                (3..5, Blend::Additive),
+                (1..2, Blend::Invert),
+                (2..3, Blend::Depth([0, 0, 1, 1])),
+            ]
+        );
+    }
+
+    #[test]
+    fn raising_an_unmarked_cursor_preserves_the_batch() {
+        let mut batch = HudBatch::new([320, 240]);
+        batch.blends.push((0..1, Blend::Invert));
+        batch.raise_carried();
+        assert_eq!(batch.blends, vec![(0..1, Blend::Invert)]);
+        assert_eq!(batch.ordered_ranges(0..1), [Some(0..1), None, None, None]);
+    }
+
+    #[test]
+    fn marked_cursor_without_mod_drawing_keeps_original_order() {
+        let mut batch = HudBatch::new([320, 240]);
+        batch.quad([[0.0; 2]; 4], [[0.0; 2]; 4], 0);
+        batch.mark_carried(0);
+        batch.quad([[0.0; 2]; 4], [[0.0; 2]; 4], 0);
+        assert_eq!(batch.ordered_ranges(0..12), [Some(0..12), None, None, None]);
+    }
+
+    #[test]
+    fn raised_cursor_preserves_overlap_order_and_later_overlays() {
+        let mut batch = HudBatch::new([320, 240]);
+        batch.quad([[0.0; 2]; 4], [[0.0; 2]; 4], 0);
+        batch.blur_at = 6;
+        batch.quad([[0.0; 2]; 4], [[0.0; 2]; 4], 0);
+        batch.mark_carried(6);
+        for _ in 0..3 {
+            batch.quad([[0.0; 2]; 4], [[0.0; 2]; 4], 0);
+        }
+        batch.blends = vec![(12..30, Blend::Invert), (12..18, Blend::Additive)];
+        batch.raise_carried();
+        batch.quad([[0.0; 2]; 4], [[0.0; 2]; 4], 0);
+
+        assert_eq!(batch.ordered_ranges(0..6), [Some(0..6), None, None, None]);
+        assert_eq!(
+            batch
+                .ordered_ranges(6..36)
+                .into_iter()
+                .flatten()
+                .flat_map(|range| batch.runs_in(range))
+                .collect::<Vec<_>>(),
+            vec![
+                (12..30, Blend::Invert),
+                (12..18, Blend::Additive),
+                (18..30, Blend::Alpha),
+                (6..12, Blend::Alpha),
+                (30..36, Blend::Alpha),
+            ]
+        );
+    }
+
+    #[test]
+    fn clipping_remaps_the_carried_range_and_raised_boundary() {
+        let mut batch = HudBatch::new([320, 240]);
+        batch.quad(
+            [[20.0, 20.0], [24.0, 20.0], [24.0, 24.0], [20.0, 24.0]],
+            [[0.0; 2]; 4],
+            0,
+        );
+        batch.quad(
+            [[1.0, 1.0], [4.0, 1.0], [4.0, 4.0], [1.0, 4.0]],
+            [[0.0; 2]; 4],
+            0,
+        );
+        batch.mark_carried(6);
+        batch.quad(
+            [[2.0, 2.0], [5.0, 2.0], [5.0, 5.0], [2.0, 5.0]],
+            [[0.0; 2]; 4],
+            0,
+        );
+        batch.raise_carried();
+        batch.clip_since(0, 0.0, 0.0, 8.0, 8.0);
+
+        assert_eq!(batch.carried_range, Some(0..6));
+        assert_eq!(batch.carried_raised_until, Some(12));
+        assert_eq!(
+            batch.ordered_ranges(0..12),
+            [Some(0..0), Some(6..12), Some(0..6), Some(12..12)]
+        );
+    }
 
     /// The mod image slot is paid only by a game with a native mod loaded.
     #[test]
@@ -4364,6 +4528,8 @@ texture=wide",
                 inline_profiles: Vec::new(),
                 native_textures: None,
                 native_texture_storage: false,
+                carried_range: None,
+                carried_raised_until: None,
             };
             for (image_width, image_height) in [(195, 136), (176, 166), (176, 222)] {
                 assert_eq!(

@@ -3516,6 +3516,89 @@ mod tests {
     use super::*;
     use crate::items::ItemStack;
 
+    #[test]
+    fn mannequin_profile_round_trips_through_entity_nbt() {
+        let mut kind = crate::mobs::sensor_scan_tests::kind();
+        let ty = Arc::make_mut(&mut kind);
+        ty.id = "minecraft:mannequin".into();
+        ty.species = crate::mobs::Species::Mannequin;
+        let types = [("minecraft:mannequin".into(), kind)].into();
+        let profile = horizon_protocol::entity_data::Profile {
+            name: Some("Alex".into()),
+            uuid: Some(0x00112233445566778899aabbccddeeff),
+            properties: vec![horizon_protocol::packets::login::Property {
+                name: "textures".into(),
+                value: "texture-value".into(),
+                signature: Some("signature".into()),
+            }],
+            body: Some("example:body".into()),
+            cape: Some("example:cape".into()),
+            elytra: Some("example:elytra".into()),
+            slim: Some(true),
+        };
+        let raw = Tag::compound([
+            ("id", string("minecraft:mannequin")),
+            ("Pos", doubles(&[4.5, 64.0, 4.5])),
+            ("profile", profile_nbt(&profile)),
+        ]);
+        let mob = mob_from_nbt(&raw, &types, 1, None).unwrap();
+        assert_eq!(mob.profile.as_ref(), Some(&profile));
+        let saved = mob_to_nbt(&mob, [0; 4], None, None);
+        assert_eq!(
+            saved.get("profile").and_then(profile_from_nbt),
+            Some(profile)
+        );
+    }
+
+    #[test]
+    fn mannequin_profile_reads_uuid_and_signed_texture_property() {
+        let profile = Tag::compound([
+            (
+                "id",
+                Tag::IntArray(vec![
+                    0x00112233,
+                    0x44556677,
+                    0x8899aabb_u32 as i32,
+                    0xccddeeff_u32 as i32,
+                ]),
+            ),
+            (
+                "properties",
+                Tag::List(vec![Tag::compound([
+                    ("name", string("textures")),
+                    ("value", string("texture-value")),
+                    ("signature", string("signature")),
+                ])]),
+            ),
+        ]);
+        let parsed = profile_from_nbt(&profile).unwrap();
+        assert_eq!(parsed.uuid, Some(0x00112233445566778899aabbccddeeff));
+        assert_eq!(parsed.properties.len(), 1);
+        assert_eq!(parsed.properties[0].name, "textures");
+        assert_eq!(parsed.properties[0].value, "texture-value");
+        assert_eq!(parsed.properties[0].signature.as_deref(), Some("signature"));
+    }
+
+    #[test]
+    fn mannequin_profile_reads_name_and_texture_property_map() {
+        let named = profile_from_nbt(&string("Alex")).unwrap();
+        assert_eq!(named.name.as_deref(), Some("Alex"));
+        assert_eq!(named.uuid, None);
+        let profile = Tag::compound([(
+            "properties",
+            Tag::compound([(
+                "textures",
+                Tag::List(vec![string("first"), string("second")]),
+            )]),
+        )]);
+        let parsed = profile_from_nbt(&profile).unwrap();
+        assert_eq!(parsed.properties.len(), 2);
+        assert_eq!(parsed.properties[0].name, "textures");
+        assert_eq!(parsed.properties[0].value, "first");
+        assert_eq!(parsed.properties[0].signature, None);
+        assert_eq!(parsed.properties[1].value, "second");
+    }
+
     /// A mount keeps its body armour and a helmet (say
     /// `/item replace entity <horse> armor.head with minecraft:iron_helmet`)
     /// in their own slots through a save: vanilla holds both (`equipment.body`
