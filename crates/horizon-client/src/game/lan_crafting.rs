@@ -96,6 +96,7 @@ impl Game<'_> {
             names: &self.pack.names,
             trade: None,
             maps: None,
+            inventory_slot_rules: None,
         }
     }
 
@@ -117,8 +118,20 @@ impl Game<'_> {
                 .collect();
             self.level_maps(&held)
         });
+        let mut inventory_rules_listened = false;
+        if menu.kind() == Kind::Inventory {
+            self.native_inventory_slot_rules_listened(&mut inventory_rules_listened);
+        }
+        let player = host.hub.guests[gi].uuid;
+        let inventory_slot_rule = |slot: usize, stack: &ItemStack| {
+            let mut canceled = false;
+            self.native_inventory_slot_rules(player, slot, stack, &mut canceled);
+            !canceled
+        };
         let env = Env {
             maps: maps.as_ref().map(|m| m as &dyn horizon_client::menu::Maps),
+            inventory_slot_rules: inventory_rules_listened
+                .then_some(&inventory_slot_rule as &dyn Fn(usize, &ItemStack) -> bool),
             ..self.menu_env()
         };
         load_player(menu, &host.hub.guests[gi]);
@@ -616,7 +629,7 @@ impl Game<'_> {
     }
 
     /// The whole crafting table menu for the client (`sendAllDataToRemote`).
-    fn lan_send_table_content(&mut self, host: &mut LanHost, conn: u32) {
+    pub(super) fn lan_send_table_content(&mut self, host: &mut LanHost, conn: u32) {
         let Some(gi) = host.hub.guests.iter().position(|g| g.conn == conn) else {
             return;
         };

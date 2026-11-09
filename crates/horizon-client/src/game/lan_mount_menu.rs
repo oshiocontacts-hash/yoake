@@ -66,7 +66,7 @@ impl Game<'_> {
 
     /// The menu's slots (the mount's, then the inventory and the hotbar)
     /// and the carried stack, sent when they changed since the last time.
-    fn lan_send_mount(&mut self, host: &mut LanHost, conn: u32) {
+    pub(super) fn lan_send_mount(&mut self, host: &mut LanHost, conn: u32) {
         let Some(gm) = host.play.get(&conn).and_then(|p| p.mount_window.as_ref()) else {
             return;
         };

@@ -884,20 +884,21 @@ use super::{
     native_panel_recipes::RecipePage,
 };
 use horizon_assets::item_model::StackView;
-use horizon_client::mod_api::{NativeChatRecipients, NativeCrosshairEntity};
 use horizon_client::mod_api::{
     self, BlockHit, EntityRef, MouseButtons, NameTagLine, NativeAttributeOperation,
     NativeAudioStreamId, NativeAudioStreamLimits, NativeCamera, NativeCommand, NativeDispensed,
-    NativeGameMode, NativeLanPublish, NativeLifecycleContext, NativeMicId, NativeMobControlMode,
-    NativeMobNavigation, NativeMobPath, NativeMobPathOptions, NativeNoteBlockChange,
-    NativeServerPlayer, NativeServerPlayerMotion, NativeSoundError, NativeStreamAnchor,
-    NativeTeleportStatus, NativeTeleportTicket, RecipeBookCategory, ServerTickPhase, WorldPhase,
+    NativeGameMode, NativeInventoryContext, NativeInventoryLayout, NativeLanPublish,
+    NativeLifecycleContext, NativeMicId, NativeMobControlMode, NativeMobNavigation, NativeMobPath,
+    NativeMobPathOptions, NativeNoteBlockChange, NativeServerPlayer, NativeServerPlayerMotion,
+    NativeSoundError, NativeStreamAnchor, NativeTeleportStatus, NativeTeleportTicket,
+    RecipeBookCategory, ServerTickPhase, WorldPhase,
 };
 use horizon_client::mod_api::{AttachmentResult, Attachments, Holder, Suggestion};
 pub(crate) use horizon_client::mod_api::{
     NativeBlockRim, NativeColoredLight, NativeLootDrops, NativeMinimap, NativeMod,
     NativePanelEvent, NativeScreen, NativeScreenView, NativeStack, NativeZoom,
 };
+use horizon_client::mod_api::{NativeChatRecipients, NativeCrosshairEntity};
 use horizon_client::{
     atlas_sources::qualified,
     biome::{BiomeColors, SpawnEntry},
@@ -949,6 +950,7 @@ pub(super) struct ObservedScreen {
     id: &'static str,
     menu: Option<String>,
     title: Option<Text>,
+    inventory_context: Option<NativeInventoryContext>,
     rect: [f32; 4],
     slots: usize,
     mouse: [f32; 2],
@@ -965,6 +967,7 @@ impl ObservedScreen {
             slots: self.slots,
             mouse: self.mouse,
             partial_tick: self.partial_tick,
+            inventory_context: self.inventory_context,
         }
     }
 }
@@ -1088,6 +1091,7 @@ impl Game<'_> {
             slots: 0,
             mouse: self.native_cursor(),
             partial_tick: self.clock.fraction() as f32,
+            inventory_context: None,
         })
     }
 
@@ -1104,6 +1108,7 @@ impl Game<'_> {
             slots: view.slots,
             mouse: view.mouse,
             partial_tick: view.partial_tick,
+            inventory_context: view.inventory_context,
         });
         let changed = match (&self.observed_screen, &current) {
             (Some(old), Some(new)) => old.id != new.id || old.menu != new.menu,
@@ -2130,6 +2135,51 @@ fn chars_to_type(text: &str, canceled: impl FnMut(char) -> bool) -> Option<Strin
 
 /// The hook points. Each does nothing in Horizon.
 impl Game<'_> {
+    /// Whether a native mod uses the inventory layout hook. API @API:inventory_screen_layout@.
+    pub(super) fn native_inventory_screen_layout_listened(&self, listened: &mut bool) {
+        super::native_inventory_screen::dispatch_inventory_screen_layout_listened(self, listened);
+    }
+
+    /// Change the player inventory layout. API @API:inventory_screen_layout@.
+    pub(super) fn native_inventory_screen_layout(&self, layout: &mut NativeInventoryLayout) {
+        super::native_inventory_screen::dispatch_inventory_screen_layout(self, layout);
+    }
+
+    /// Whether a native mod replaces the inventory background. API @API:inventory_background_pre@.
+    pub(super) fn native_inventory_background_pre_listened(&self, listened: &mut bool) {
+        super::native_inventory_screen::dispatch_inventory_background_pre_listened(self, listened);
+    }
+
+    /// Draw before the inventory background. API @API:inventory_background_pre@.
+    pub(super) fn native_inventory_background_pre(
+        &self,
+        batch: &mut HudBatch,
+        screen: &NativeScreenView<'_>,
+        canceled: &mut bool,
+    ) {
+        super::native_inventory_screen::dispatch_inventory_background_pre(
+            self, batch, screen, canceled,
+        );
+    }
+
+    /// Whether a native mod restricts the inventory grid. API @API:inventory_slot_rules@.
+    pub(super) fn native_inventory_slot_rules_listened(&self, listened: &mut bool) {
+        super::native_inventory_rules::dispatch_inventory_slot_rules_listened(self, listened);
+    }
+
+    /// Restrict a server inventory-grid placement. API @API:inventory_slot_rules@.
+    pub(super) fn native_inventory_slot_rules(
+        &self,
+        player: u128,
+        slot: usize,
+        stack: &ItemStack,
+        canceled: &mut bool,
+    ) {
+        super::native_inventory_rules::dispatch_inventory_slot_rules(
+            self, player, slot, stack, canceled,
+        );
+    }
+
     /// Check for server chat listeners. API @API:server_chat@.
     pub(super) fn native_server_chat_listened(&self, listened: &mut bool) {
         super::native_chat::dispatch_server_chat_listened(self, listened);
@@ -2142,9 +2192,12 @@ impl Game<'_> {
         name: &str,
         message: &mut String,
         recipients: &mut NativeChatRecipients,
+        system: &mut bool,
         canceled: &mut bool,
     ) {
-        super::native_chat::dispatch_server_chat(self, player, name, message, recipients, canceled);
+        super::native_chat::dispatch_server_chat(
+            self, player, name, message, recipients, system, canceled,
+        );
     }
 
     /// Check whether a mod listens for mouse buttons. API @API:mouse_buttons@.
@@ -3557,6 +3610,7 @@ impl Game<'_> {
             slots: self.slot_count(),
             mouse: self.native_cursor(),
             partial_tick: self.clock.fraction() as f32,
+            inventory_context: self.native_inventory_context_impl(screen),
         }
     }
     /// The title's own screen as a native mod sees it (`NativeScreenView`):
@@ -3574,6 +3628,7 @@ impl Game<'_> {
             slots: 0,
             mouse: self.native_cursor(),
             partial_tick: self.clock.fraction() as f32,
+            inventory_context: None,
         })
     }
     /// The open screen's container panel in GUI pixels (`screen`'s, the one
@@ -8315,6 +8370,16 @@ fn local_particle_type(
 // Native mods use these; nothing in Horizon does.
 #[allow(dead_code)]
 impl Game<'_> {
+    /// The client cursor's nonempty stack. API @API:screen_carried_stack@.
+    pub(super) fn native_screen_carried_stack(&self) -> Option<&ItemStack> {
+        self.native_screen_carried_stack_impl()
+    }
+
+    /// Measure text in the drawing font. API @API:text_width@.
+    pub(super) fn native_measure_text_width(&self, text: &str) -> Option<f32> {
+        self.native_inventory_text_width_impl(text)
+    }
+
     /// Snapshot the crosshair entity in a client frame. API @API:crosshair_entity@.
     pub(super) fn native_crosshair_entity(&self) -> Option<NativeCrosshairEntity> {
         self.native_crosshair_entity_impl()
@@ -8427,6 +8492,84 @@ impl Game<'_> {
         mode: NativeGameMode,
     ) -> Result<bool, String> {
         self.native_player_set_gamemode_impl(uuid, mode)
+    }
+
+    /// Sets a player's clamped health. API @API:player_ops2@.
+    pub(super) fn native_player_set_health(&mut self, player: u128, health: f32) -> bool {
+        self.native_player_set_health_impl(player, health)
+    }
+
+    /// Clears a player's inventory. API @API:player_ops2@.
+    pub(super) fn native_player_clear_inventory(&mut self, player: u128) -> bool {
+        self.native_player_clear_inventory_impl(player)
+    }
+
+    /// Sends a title to a player. API @API:player_ops2@.
+    pub(super) fn native_player_title(
+        &mut self,
+        player: u128,
+        title: Option<&str>,
+        subtitle: Option<&str>,
+        fade_in: i32,
+        stay: i32,
+        fade_out: i32,
+    ) -> bool {
+        self.native_player_title_impl(player, title, subtitle, fade_in, stay, fade_out)
+    }
+
+    /// Clears a player's title. API @API:player_ops2@.
+    pub(super) fn native_player_clear_title(&mut self, player: u128) -> bool {
+        self.native_player_clear_title_impl(player)
+    }
+
+    /// Creates a mod-owned boss bar. API @API:player_ops2@.
+    pub(super) fn native_bossbar_create(&mut self, id: &str, name: &str) -> bool {
+        self.native_bossbar_create_impl(id, name)
+    }
+
+    /// Changes a mod-owned boss bar's name. API @API:player_ops2@.
+    pub(super) fn native_bossbar_set_name(&mut self, id: &str, name: &str) -> bool {
+        self.native_bossbar_set_name_impl(id, name)
+    }
+
+    /// Changes a mod-owned boss bar's progress. API @API:player_ops2@.
+    pub(super) fn native_bossbar_set_progress(&mut self, id: &str, progress: f32) -> bool {
+        self.native_bossbar_set_progress_impl(id, progress)
+    }
+
+    /// Changes a mod-owned boss bar's color. API @API:player_ops2@.
+    pub(super) fn native_bossbar_set_color(&mut self, id: &str, color: &str) -> bool {
+        self.native_bossbar_set_color_impl(id, color)
+    }
+
+    /// Changes a mod-owned boss bar's overlay. API @API:player_ops2@.
+    pub(super) fn native_bossbar_set_overlay(&mut self, id: &str, overlay: &str) -> bool {
+        self.native_bossbar_set_overlay_impl(id, overlay)
+    }
+
+    /// Changes a mod-owned boss bar's audience. API @API:player_ops2@.
+    pub(super) fn native_bossbar_set_players(&mut self, id: &str, players: &[u128]) -> bool {
+        self.native_bossbar_set_players_impl(id, players)
+    }
+
+    /// Removes a mod-owned boss bar. API @API:player_ops2@.
+    pub(super) fn native_bossbar_remove(&mut self, id: &str) -> bool {
+        self.native_bossbar_remove_impl(id)
+    }
+
+    /// Plays a positional sound for a player. API @API:player_ops2@.
+    pub(super) fn native_player_play_sound(
+        &mut self,
+        player: u128,
+        sound: &str,
+        category: NativeSoundCategory,
+        x: f64,
+        y: f64,
+        z: f64,
+        volume: f32,
+        pitch: f32,
+    ) -> bool {
+        self.native_player_play_sound_impl(player, sound, category, x, y, z, volume, pitch)
     }
 
     /// Clip a segment against block colliders. API @API:server_block_collision@.
@@ -11371,7 +11514,10 @@ mod tests {
                 source(K::PlayerAttack, Some(Who::Player)),
                 ("minecraft:player_attack", 7, 7)
             );
-            assert_eq!(source(K::Arrow, Some(Who::Player)), ("minecraft:arrow", 7, 0));
+            assert_eq!(
+                source(K::Arrow, Some(Who::Player)),
+                ("minecraft:arrow", 7, 0)
+            );
         }
         assert_eq!(source(K::PlayerAttack, Some(Who::Player)), hit);
         assert_eq!(source(K::Fall, None), ("minecraft:fall", 0, 0));

@@ -184,7 +184,12 @@ impl Game<'_> {
         gm.sent = s.offers.clone();
         gm.sent_level = s.level;
     }
-    fn lan_send_merchant_content(&mut self, host: &mut LanHost, conn: u32, gm: &mut GuestMerchant) {
+    pub(super) fn lan_send_merchant_content(
+        &mut self,
+        host: &mut LanHost,
+        conn: u32,
+        gm: &mut GuestMerchant,
+    ) {
         let Some(gi) = host.hub.guests.iter().position(|g| g.conn == conn) else {
             return;
         };
@@ -249,6 +254,7 @@ impl Game<'_> {
             names: &self.pack.names,
             trade: Some(&trade_env),
             maps: None,
+            inventory_slot_rules: None,
         };
         let mut menu = Menu::new(Kind::Merchant);
         {

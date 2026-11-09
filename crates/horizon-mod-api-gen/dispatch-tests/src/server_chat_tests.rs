@@ -3,6 +3,7 @@ mod server_chat_tests {
 
     struct ChatMod {
         cancel: bool,
+        system: bool,
     }
 
     impl Hooks for ChatMod {
@@ -15,6 +16,7 @@ mod server_chat_tests {
             assert_eq!(event.name, "Guest");
             *event.message = "rewritten".to_owned();
             *event.recipients = NativeChatRecipients::Only(vec![2]);
+            event.system = self.system;
             if self.cancel {
                 Flow::Cancel
             } else {
@@ -32,6 +34,7 @@ mod server_chat_tests {
 
         let mut message = "original".to_owned();
         let mut recipients = NativeChatRecipients::All;
+        let mut system = false;
         let mut canceled = false;
         dispatch_server_chat(
             &mut TestHost,
@@ -40,22 +43,28 @@ mod server_chat_tests {
             "Guest",
             &mut message,
             &mut recipients,
+            &mut system,
             &mut canceled,
         );
         assert_eq!(message, "original");
         assert_eq!(recipients, NativeChatRecipients::All);
+        assert!(!system);
         assert!(!canceled);
     }
 
     #[test]
     fn guest_chat_listener_rewrites_and_limits_recipients() {
-        let mods: Vec<Box<dyn Hooks>> = vec![Box::new(ChatMod { cancel: false })];
+        let mods: Vec<Box<dyn Hooks>> = vec![Box::new(ChatMod {
+            cancel: false,
+            system: true,
+        })];
         let mut listened = false;
         dispatch_server_chat_listened(&TestHost, &mods, &mut listened);
         assert!(listened);
 
         let mut message = "original".to_owned();
         let mut recipients = NativeChatRecipients::All;
+        let mut system = false;
         let mut canceled = false;
         dispatch_server_chat(
             &mut TestHost,
@@ -64,18 +73,24 @@ mod server_chat_tests {
             "Guest",
             &mut message,
             &mut recipients,
+            &mut system,
             &mut canceled,
         );
         assert_eq!(message, "rewritten");
         assert_eq!(recipients, NativeChatRecipients::Only(vec![2]));
+        assert!(system);
         assert!(!canceled);
     }
 
     #[test]
     fn guest_chat_listener_cancels_delivery() {
-        let mods: Vec<Box<dyn Hooks>> = vec![Box::new(ChatMod { cancel: true })];
+        let mods: Vec<Box<dyn Hooks>> = vec![Box::new(ChatMod {
+            cancel: true,
+            system: false,
+        })];
         let mut message = "original".to_owned();
         let mut recipients = NativeChatRecipients::All;
+        let mut system = false;
         let mut canceled = false;
         dispatch_server_chat(
             &mut TestHost,
@@ -84,6 +99,7 @@ mod server_chat_tests {
             "Guest",
             &mut message,
             &mut recipients,
+            &mut system,
             &mut canceled,
         );
         assert!(canceled);

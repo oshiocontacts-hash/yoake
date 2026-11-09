@@ -1,0 +1,5 @@
+{
+  "hooks": [],
+  "rust_summary": "Distinguish player inventories, crafting tables and container screens.",
+  "doc_summary": "NativeScreenView::inventory_context identifies the player inventory, a crafting table or a container, including menus opened locally. Other and custom native screens report None. Requires native hooks API @API:screen_inventory_context@."
+}

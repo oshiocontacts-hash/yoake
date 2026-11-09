@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "text_width",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_measure_text_width",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "A bounded measurement of text in the native drawing font.",
+  "doc_summary": "`text_width(text)` returns the width in GUI pixels using `native_text`'s literal component and font metrics, rounded up to a whole pixel. It returns None outside a native mod call, for text longer than 4096 bytes, or after 8192 calls per mod in a one-second window. At most 256 callers are tracked in a window. Requires native hooks API @API:text_width@."
+}

@@ -11028,6 +11028,7 @@ mod tests {
             names: &names,
             trade: None,
             maps: None,
+            inventory_slot_rules: None,
         };
         let mut menu = Menu::new(Kind::Inventory);
         let cobblestone = ItemStack {

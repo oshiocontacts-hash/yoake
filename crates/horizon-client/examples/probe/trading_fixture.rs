@@ -387,6 +387,7 @@ pub fn main() -> horizon_client::Result<()> {
                     names: &names,
                     trade: Some(&env_trade),
                     maps: None,
+                    inventory_slot_rules: None,
                 };
                 trade(&mut out, name, &kv, &mut world, &env, origin)?;
             }

@@ -1,0 +1,19 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "player_set_health", "target": "horizon_client::game::native_hooks::Game<'_>::native_player_set_health"},
+    {"name": "player_clear_inventory", "target": "horizon_client::game::native_hooks::Game<'_>::native_player_clear_inventory"},
+    {"name": "player_title", "target": "horizon_client::game::native_hooks::Game<'_>::native_player_title"},
+    {"name": "player_clear_title", "target": "horizon_client::game::native_hooks::Game<'_>::native_player_clear_title"},
+    {"name": "bossbar_create", "target": "horizon_client::game::native_hooks::Game<'_>::native_bossbar_create"},
+    {"name": "bossbar_set_name", "target": "horizon_client::game::native_hooks::Game<'_>::native_bossbar_set_name"},
+    {"name": "bossbar_set_progress", "target": "horizon_client::game::native_hooks::Game<'_>::native_bossbar_set_progress"},
+    {"name": "bossbar_set_color", "target": "horizon_client::game::native_hooks::Game<'_>::native_bossbar_set_color"},
+    {"name": "bossbar_set_overlay", "target": "horizon_client::game::native_hooks::Game<'_>::native_bossbar_set_overlay"},
+    {"name": "bossbar_set_players", "target": "horizon_client::game::native_hooks::Game<'_>::native_bossbar_set_players"},
+    {"name": "bossbar_remove", "target": "horizon_client::game::native_hooks::Game<'_>::native_bossbar_remove"},
+    {"name": "player_play_sound", "target": "horizon_client::game::native_hooks::Game<'_>::native_player_play_sound"}
+  ],
+  "rust_summary": "tick-bounded authoritative player health, inventory, title, boss-bar and sound operations.",
+  "doc_summary": "On the authoritative server tick, target ready players by UUID. Each helper is limited to 512 calls per mod per tick. Health is clamped to the player's maximum; zero reaches Horizon's normal player death processing. Inventory clearing includes equipment and the carried stack. Titles are plain text. Boss bars are private to the creating mod, limited to 16 per mod, and removed at world close; audiences are bounded to 1024 UUIDs. Colors are pink, blue, red, green, yellow, purple, and white; overlays are progress, notched_6, notched_10, notched_12, and notched_20. Sounds use the specified category and a fixed packet seed. Helpers return false when their target or required server context is unavailable. Bundles need fragment @API:player_ops2@."
+}

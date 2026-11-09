@@ -230,6 +230,8 @@ mod native_falling;
 mod native_gui_textures;
 mod native_hooks;
 mod native_inventories;
+mod native_inventory_rules;
+pub(crate) mod native_inventory_screen;
 mod native_item_container;
 mod native_item_energy;
 mod native_item_fluids;
@@ -446,8 +448,8 @@ pub use native_block_entity_draw::BlockEntityDraw;
 pub use native_chat::NativeChatRecipients;
 pub use native_claimed_items::{NativeHeldItem, NativeHit, NativeModEvent};
 pub use native_client_state::{NativeClientWorld, NativeSoundCategory};
-pub use native_crosshair::NativeCrosshairEntity;
 pub use native_cooldowns::NativeCooldownTarget;
+pub use native_crosshair::NativeCrosshairEntity;
 pub use native_damage::{NativeDamage, NativeDamageActor, NativeDamageKind};
 pub use native_data_maps::NativeDataMapType;
 pub use native_explosions::NativeBlast;
@@ -8840,9 +8842,15 @@ impl Game<'_> {
         if self.screen == Screen::Creative {
             return Self::creative_origin(batch);
         }
-        let width = self.native_screen_width().unwrap_or(176.0);
+        let layout = self.native_player_inventory_layout();
+        let width = layout
+            .map(|layout| layout.width as f32)
+            .unwrap_or_else(|| self.native_screen_width().unwrap_or(176.0));
         let (x, y) = batch.centered_origin(width, self.screen_height());
-        (x + self.recipe_book_shift(batch.width), y)
+        native_inventory_screen::inventory_origin_for_layout(
+            (x + self.recipe_book_shift(batch.width), y),
+            layout,
+        )
     }
     /// Slot ids: 0..36 player inventory, 100..109 crafting grid, 200 result.
     fn container_kind(&self) -> Option<&BlockEntity> {
@@ -8898,8 +8906,10 @@ impl Game<'_> {
                 | BlockEntity::TestInstanceBlock(_),
             ) => {}
             None => {
-                v.extend((0..self.craft_size * self.craft_size).map(|i| 100 + i));
-                v.push(200);
+                if !self.native_player_inventory_hide_crafting() {
+                    v.extend((0..self.craft_size * self.craft_size).map(|i| 100 + i));
+                    v.push(200);
+                }
                 if self.craft_size == 2 {
                     v.extend(500..505);
                 }
@@ -8960,7 +8970,12 @@ impl Game<'_> {
                 | BlockEntity::TestInstanceBlock(_),
             ) => 0,
             None => {
-                self.craft_size * self.craft_size + 1 + if self.craft_size == 2 { 5 } else { 0 }
+                let crafting = if self.native_player_inventory_hide_crafting() {
+                    0
+                } else {
+                    self.craft_size * self.craft_size + 1
+                };
+                crafting + if self.craft_size == 2 { 5 } else { 0 }
             }
         };
         inventory + container
@@ -9188,16 +9203,24 @@ impl Game<'_> {
             return;
         }
         let (ox, oy) = self.inventory_origin(batch);
+        batch.fill(
+            &self.gui.atlas,
+            0.0,
+            0.0,
+            batch.width,
+            batch.height,
+            rgba(16, 16, 16, 160),
+        );
+        let background_hidden = if self.native_inventory_context_impl(self.screen)
+            == Some(native_inventory_screen::NativeInventoryContext::PlayerInventory)
+        {
+            self.native_player_inventory_background_pre_impl(batch)
+        } else {
+            false
+        };
+        self.recipe_ui.inventory_background_hidden = background_hidden;
         {
             let atlas = &self.gui.atlas;
-            batch.fill(
-                atlas,
-                0.0,
-                0.0,
-                batch.width,
-                batch.height,
-                rgba(16, 16, 16, 160),
-            );
             let part = |batch: &mut HudBatch,
                         name: &str,
                         sx: f32,
@@ -9322,11 +9345,25 @@ impl Game<'_> {
                     } else {
                         "gui/container/inventory"
                     };
-                    part(batch, texture, 0.0, 0.0, 176.0, 166.0, ox, oy);
+                    if !background_hidden {
+                        part(batch, texture, 0.0, 0.0, 176.0, 166.0, ox, oy);
+                        if self.native_player_inventory_hide_crafting() {
+                            batch.fill(
+                                atlas,
+                                ox + 96.0,
+                                oy + 16.0,
+                                77.0,
+                                38.0,
+                                rgba(198, 198, 198, 255),
+                            );
+                        }
+                    }
                     let title = self.translate("container.crafting", "Crafting");
                     screen_info::name_container(|| title.clone());
                     let tx = if self.craft_size == 3 { 29.0 } else { 97.0 };
-                    batch.text(atlas, &title, ox + tx, oy + 6.0, grey, false);
+                    if !background_hidden && !self.native_player_inventory_hide_crafting() {
+                        batch.text(atlas, &title, ox + tx, oy + 6.0, grey, false);
+                    }
                     if self.craft_size == 3 {
                         let inventory = self.translate("container.inventory", "Inventory");
                         batch.text(atlas, &inventory, ox + 8.0, oy + 72.0, grey, false);
@@ -9344,7 +9381,10 @@ impl Game<'_> {
         self.draw_recipe_book(batch);
         let effect_tip = if self.container.is_none() && self.craft_size == 2 && !self.mount_active()
         {
-            self.draw_inventory_effects(batch, (ox, oy), 176)
+            let width = self
+                .native_player_inventory_layout()
+                .map_or(176, |layout| layout.width as i32);
+            self.draw_inventory_effects(batch, (ox, oy), width)
         } else {
             None
         };
@@ -9528,7 +9568,7 @@ impl Game<'_> {
             self.crafter_slot_clicked(*slot, *button, *input);
         }
         let ops = ops.to_vec();
-        let done = self.menu_session(move |menu, env, to_menu| {
+        let done = self.menu_session_with_inventory_rules(move |menu, env, to_menu| {
             let mut clicks = Vec::new();
             for &(slot, button, input) in &ops {
                 let menu_slot = match slot {
@@ -9580,6 +9620,29 @@ impl Game<'_> {
     /// open screen is not one the engine models or `run` did not handle it.
     pub(super) fn menu_session(
         &mut self,
+        run: impl FnOnce(
+            &mut horizon_client::menu::Menu,
+            &horizon_client::menu::Env,
+            &dyn Fn(usize) -> Option<usize>,
+        ) -> Option<bool>,
+    ) -> bool {
+        self.menu_session_inner(false, run)
+    }
+
+    pub(super) fn menu_session_with_inventory_rules(
+        &mut self,
+        run: impl FnOnce(
+            &mut horizon_client::menu::Menu,
+            &horizon_client::menu::Env,
+            &dyn Fn(usize) -> Option<usize>,
+        ) -> Option<bool>,
+    ) -> bool {
+        self.menu_session_inner(true, run)
+    }
+
+    fn menu_session_inner(
+        &mut self,
+        enforce_inventory_rules: bool,
         run: impl FnOnce(
             &mut horizon_client::menu::Menu,
             &horizon_client::menu::Env,
@@ -9807,6 +9870,11 @@ impl Game<'_> {
             plain_map = Some(map);
             (kind, (0..total).map(|i| map.to_game(i)).collect())
         };
+        let mut inventory_rules_listened = false;
+        if enforce_inventory_rules && kind == Kind::Inventory && self.remote.is_none() {
+            self.native_inventory_slot_rules_listened(&mut inventory_rules_listened);
+        }
+        let inventory_rule_player = inventory_rules_listened.then(|| self.native_acting_id());
         // The plain map also takes the crafting result slot (a shift-click on it).
         let to_menu = |g: usize| match plain_map {
             Some(map) => map.to_menu(g),
@@ -9874,6 +9942,13 @@ impl Game<'_> {
             enchantments: &self.stations().enchantments,
             maps: Some(&maps),
         };
+        let inventory_slot_rule = |slot: usize, stack: &ItemStack| {
+            let mut canceled = false;
+            if let Some(player) = inventory_rule_player {
+                self.native_inventory_slot_rules(player, slot, stack, &mut canceled);
+            }
+            !canceled
+        };
         let env = Env {
             items: self.items(),
             recipes: self.recipes(),
@@ -9886,6 +9961,8 @@ impl Game<'_> {
             maps: level_maps
                 .as_ref()
                 .map(|m| m as &dyn horizon_client::menu::Maps),
+            inventory_slot_rules: inventory_rules_listened
+                .then_some(&inventory_slot_rule as &dyn Fn(usize, &ItemStack) -> bool),
         };
         menu.creative = creative;
         menu.selected = self.selected;
@@ -10256,7 +10333,7 @@ impl Game<'_> {
                     if self.remote.is_some() && self.screen != Screen::Creative {
                         self.remote_quick_move_all(slot, &moved);
                     } else {
-                        self.menu_session(|menu, env, to_menu| {
+                        self.menu_session_with_inventory_rules(|menu, env, to_menu| {
                             Some(menu.quick_move_all(env, to_menu(slot)?, &moved).is_ok())
                         });
                         if self.remote.is_some() {
@@ -10420,7 +10497,12 @@ impl Game<'_> {
             let (shift, width) = match self.station.as_ref().map(|s| s.kind) {
                 Some(stations::Kind::Merchant) => (-50.0, 276),
                 Some(stations::Kind::Beacon) => (beacon::SHIFT, 230),
-                _ => (0.0, self.native_screen_width().map_or(176, |w| w as i32)),
+                _ => (
+                    0.0,
+                    self.native_player_inventory_layout()
+                        .map(|layout| layout.width as i32)
+                        .unwrap_or_else(|| self.native_screen_width().map_or(176, |w| w as i32)),
+                ),
             };
             (shift, width, self.screen_height() as i32)
         };
@@ -10695,6 +10777,13 @@ impl Game<'_> {
                 }
                 for (i, rest) in remainders.into_iter().enumerate() {
                     let Some(rest) = rest else { continue };
+                    let fits_grid = self.craft_grid[i]
+                        .as_ref()
+                        .is_none_or(|have| have.same_item_same_components(&rest));
+                    if fits_grid && !self.native_inventory_remainder_allowed(i + 1, &rest) {
+                        self.give_or_drop(rest);
+                        continue;
+                    }
                     match &mut self.craft_grid[i] {
                         cell @ None => *cell = Some(rest),
                         Some(c) if c.same_item_same_components(&rest) => c.count += rest.count,
@@ -10719,6 +10808,9 @@ impl Game<'_> {
             && (slot < 36 || (500..504).contains(&slot) || (100..109).contains(&slot))
             && self.inventory_quick_move(slot)
         {
+            return;
+        }
+        if (100..104).contains(&slot) && !self.native_inventory_carried_allowed(slot - 99) {
             return;
         }
         if (500..504).contains(&slot) {
@@ -15461,6 +15553,12 @@ impl Game<'_> {
         self.glint_frame = self.capture_glint_frame();
         if self.renderer.as_mut().is_some_and(|r| r.display_changed()) {
             self.apply_ui_settings();
+        }
+        if self.screen == Screen::Inventory
+            && self.server_packs.prompt.is_none()
+            && self.book.is_none()
+        {
+            self.native_refresh_player_inventory_layout();
         }
         self.observe_screen();
         // Minecraft.doWorldLoad: the LevelLoadingScreen while single player's

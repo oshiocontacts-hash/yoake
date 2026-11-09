@@ -230,6 +230,7 @@ pub(super) struct GuestSwap {
     known_movement: Vec3,
     /// The packets queued for that guest.
     packets: Vec<play::Clientbound>,
+    sound_packet_indices: Vec<usize>,
     /// The entity events queued for that guest.
     entity_events: Vec<i8>,
     /// The equipment breaks queued for that guest.
@@ -582,6 +583,7 @@ impl Game<'_> {
             self.lan_acting_entity.replace(g.entity_id as u32),
         );
         let packets = std::mem::take(&mut self.guest_packets);
+        let sound_packet_indices = std::mem::take(&mut self.native_player_ops.sound_packet_indices);
         let entity_events = std::mem::take(&mut self.guest_entity_events);
         let equipment_breaks = std::mem::take(&mut self.guest_equipment_breaks);
         let swings = self.swings_started;
@@ -660,6 +662,7 @@ impl Game<'_> {
             acting,
             known_movement,
             packets,
+            sound_packet_indices,
             entity_events,
             equipment_breaks,
             swings,
@@ -760,6 +763,7 @@ impl Game<'_> {
             acting,
             known_movement,
             packets,
+            sound_packet_indices,
             entity_events,
             equipment_breaks,
             swings,
@@ -810,7 +814,17 @@ impl Game<'_> {
         // The guest's swings are theirs: the host's own count stays the host's.
         play.swings += self.swings_started.wrapping_sub(swings);
         self.swings_started = swings;
-        for packet in std::mem::replace(&mut self.guest_packets, packets) {
+        let native_sounds = std::mem::replace(
+            &mut self.native_player_ops.sound_packet_indices,
+            sound_packet_indices,
+        );
+        for (index, mut packet) in std::mem::replace(&mut self.guest_packets, packets)
+            .into_iter()
+            .enumerate()
+        {
+            if native_sounds.binary_search(&index).is_ok() {
+                super::native_player_ops::resolve_native_sound(&host.hub, &mut packet);
+            }
             host.hub.send_to(conn, &packet);
         }
         // ServerPlayer.connection.send: the guest's own entity events.
@@ -1091,6 +1105,26 @@ impl Game<'_> {
         }
         // The turn's teleports are in the hub now: the mods hear them.
         self.flush_teleport_notes(host);
+        if self.native_player_ops.inventory_dirty.remove(&conn)
+            && let Some(index) = host.hub.guests.iter().position(|guest| guest.conn == conn)
+        {
+            let window = host.hub.guests[index].menu.as_ref().map(|menu| menu.window);
+            host.hub.send_inventory(index);
+            if let Some(window) = window {
+                host.hub.resend_menu(conn, window, &self.world);
+            }
+            self.lan_send_table_content(host, conn);
+            self.lan_send_station(host, conn);
+            self.lan_send_mount(host, conn);
+            if let Some(mut merchant) = host
+                .play
+                .get_mut(&conn)
+                .and_then(|play| play.merchant.take())
+            {
+                self.lan_send_merchant_content(host, conn, &mut merchant);
+                host.play.entry(conn).or_default().merchant = Some(merchant);
+            }
+        }
     }
 
     /// `ServerLevel.broadcastDamageEvent` for a guest that took an unblocked hit.
@@ -2271,6 +2305,31 @@ impl Game<'_> {
                     // what it was told, so the next broadcast sends the real slot back.
                     host.hub.guests[gi].menu_sent[p.slot as usize] = item;
                     return;
+                }
+                if (1..=4).contains(&p.slot)
+                    && let Some(stack) = item.as_ref()
+                {
+                    let mut listened = false;
+                    self.native_inventory_slot_rules_listened(&mut listened);
+                    if listened {
+                        let old = host.hub.guests[gi].menu_slot(p.slot as usize);
+                        let placing = old.as_ref().is_none_or(|old| {
+                            !old.same_item_same_components(stack) || stack.count > old.count
+                        });
+                        if placing {
+                            let mut canceled = false;
+                            self.native_inventory_slot_rules(
+                                host.hub.guests[gi].uuid,
+                                p.slot as usize,
+                                stack,
+                                &mut canceled,
+                            );
+                            if canceled {
+                                host.hub.guests[gi].menu_sent[p.slot as usize] = item;
+                                return;
+                            }
+                        }
+                    }
                 }
                 let slot = p.slot as usize;
                 let g = &mut host.hub.guests[gi];
@@ -3650,16 +3709,16 @@ impl Game<'_> {
     }
 
     /// Per tick, for every guest: dig, use items, pick up drops, die.
-    pub(super) fn tick_guests(&mut self, host: &mut LanHost) {
-        self.tick_guest_cameras(host);
-        self.lan_merchant_tick(host);
-        self.lan_stations_tick(host);
-        self.lan_tables_tick(host);
-        self.lan_containers_tick(host);
-        self.tick_lan_mount_menus(host);
-        self.tick_player_menus(host);
-        self.native_players_equipment(host);
-        self.announce_guest_advancements(host);
+    pub(super) fn tick_guests(&mut self, mut host: LanHost) -> Option<LanHost> {
+        self.tick_guest_cameras(&mut host);
+        self.lan_merchant_tick(&mut host);
+        self.lan_stations_tick(&mut host);
+        self.lan_tables_tick(&mut host);
+        self.lan_containers_tick(&mut host);
+        self.tick_lan_mount_menus(&mut host);
+        self.tick_player_menus(&mut host);
+        self.native_players_equipment(&mut host);
+        self.announce_guest_advancements(&mut host);
         let conns: Vec<u32> = host
             .hub
             .guests
@@ -3669,7 +3728,7 @@ impl Game<'_> {
             .collect();
         // The players the guests' hooks can catch.
         if host.play.values().any(|p| p.hook.is_some()) {
-            self.refresh_hook_targets(host);
+            self.refresh_hook_targets(&mut host);
         }
         for conn in conns {
             let Some(gi) = host.hub.guests.iter().position(|g| g.conn == conn) else {
@@ -3682,17 +3741,17 @@ impl Game<'_> {
             play.command_spam = play.command_spam.saturating_sub(1);
             // commandSuggestionsProvider.tick: one answer a tick, to the latest request.
             play.suggestion_budget = true;
-            self.guest_try_suggestions(host, conn);
-            self.guest_sleep_tick(host, gi);
+            self.guest_try_suggestions(&mut host, conn);
+            self.guest_sleep_tick(&mut host, gi);
             if host.hub.guests[gi].dead {
-                self.guest_tick_death(host, gi);
+                self.guest_tick_death(&mut host, gi);
                 continue;
             }
             if self.on_server_trip(conn) {
                 // LivingEntity.hurt kills at once (die), whether the level
                 // has loaded around the player or not: its respawn request
                 // is taken as soon as it comes.
-                self.guest_die(host, gi, conn);
+                host = self.guest_die(host, gi, conn)?;
                 continue;
             }
             let play = host.play.entry(conn).or_default();
@@ -3702,7 +3761,7 @@ impl Game<'_> {
             let using = play.using.is_some();
             let delayed = play.destroy_delay > 0 || play.use_delay > 0 || play.attack_ticks < 100;
             if digging.is_some() || using || delayed {
-                self.as_guest(host, conn, |g| {
+                self.as_guest(&mut host, conn, |g| {
                     g.attack_ticks = g.attack_ticks.saturating_add(1);
                     if let Some((pos, face)) = digging {
                         g.forced_hit = Some(Hit {
@@ -3760,8 +3819,8 @@ impl Game<'_> {
                 play.attack_ticks = 0;
                 play.attack_item = held;
             }
-            self.guest_delayed_destroy(host, conn);
-            self.guest_server_tick(host, conn);
+            self.guest_delayed_destroy(&mut host, conn);
+            self.guest_server_tick(&mut host, conn);
             // Player.tick's statistics and ServerPlayer.tick's triggers, then
             // PlayerAdvancements.flushDirty.
             let sleeping = host.hub.guests[gi].sleeping;
@@ -3769,7 +3828,7 @@ impl Game<'_> {
             // armor, experience and level objectives follow the guest.
             let mut recorded =
                 std::mem::take(&mut host.play.entry(conn).or_default().score_recorded);
-            self.as_guest(host, conn, |g| {
+            let mut tick = |g: &mut Self| {
                 g.tick_fishing();
                 g.tick_maps();
                 g.tick_lodestone_compasses();
@@ -3778,23 +3837,42 @@ impl Game<'_> {
                 g.tick_advancements();
                 g.update_player_attributes();
                 g.record_player_scores(&mut recorded);
-                // Native mods, at the end of ServerPlayer.tick.
-                g.native_player_tick();
-            });
+            };
+            if horizon_client::mod_api::mods().is_empty() {
+                self.as_guest(&mut host, conn, |game| {
+                    tick(game);
+                    game.native_player_tick();
+                });
+            } else if let Some(swap) = self.enter_guest(&mut host, conn) {
+                super::dedicated::crash_fixture("guest", || {
+                    host.hub.guests.iter().any(|g| g.conn == conn && g.placed)
+                });
+                let dimension = (self.serving.is_some() || self.options.dedicated.is_some())
+                    .then_some(self.dim.id());
+                horizon_client::block_contact::in_level(dimension, || tick(self));
+                self.lan = Some(host);
+                horizon_client::block_contact::in_level(dimension, || self.native_player_tick());
+                host = self.lan.take()?;
+                self.leave_guest(&mut host, swap);
+            }
             host.play.entry(conn).or_default().score_recorded = recorded;
-            self.lan_map_updates(host, conn);
+            let Some(gi) = host.hub.guests.iter().position(|g| g.conn == conn) else {
+                continue;
+            };
+            self.lan_map_updates(&mut host, conn);
             host.hub.flush_progress(conn);
-            self.guest_dig_feedback(host, conn);
-            self.guest_pickups(host, gi);
-            self.guest_arrows(host, gi);
-            self.guest_orbs(host, gi);
-            self.guest_die(host, gi, conn);
+            self.guest_dig_feedback(&mut host, conn);
+            self.guest_pickups(&mut host, gi);
+            self.guest_arrows(&mut host, gi);
+            self.guest_orbs(&mut host, gi);
+            host = self.guest_die(host, gi, conn)?;
         }
+        Some(host)
     }
 
     /// `ServerPlayer.die` for a guest whose health has run out: the death
     /// message, the loot and experience, the death screen.
-    fn guest_die(&mut self, host: &mut LanHost, gi: usize, conn: u32) {
+    fn guest_die(&mut self, mut host: LanHost, mut gi: usize, conn: u32) -> Option<LanHost> {
         if host.hub.guests[gi].health <= 0.0
             && !host.hub.guests[gi].dead
             && !horizon_client::mod_api::mods().is_empty()
@@ -3811,6 +3889,7 @@ impl Game<'_> {
                 };
             let (damage_type, entity) = (damage_type.to_owned(), host.hub.guests[gi].entity_id);
             let mut cancel = false;
+            self.lan = Some(host);
             self.native_living_death(
                 entity as u32,
                 "minecraft:player",
@@ -3818,13 +3897,25 @@ impl Game<'_> {
                 attacker,
                 &mut cancel,
             );
+            host = self.lan.take()?;
+            let Some(index) = host.hub.guests.iter().position(|guest| guest.conn == conn) else {
+                return Some(host);
+            };
+            gi = index;
             if cancel {
                 host.hub.guests[gi].health = 1.0;
-                return;
+            }
+            if host.hub.guests[gi].health > 0.0 && !host.hub.guests[gi].dead {
+                if let Some(motion) = host.hub.guests[gi].motion.as_mut() {
+                    motion.health.dead = false;
+                }
+            }
+            if cancel {
+                return Some(host);
             }
         }
         if host.hub.guests[gi].health <= 0.0 && !host.hub.guests[gi].dead {
-            self.guest_forget_digging(host, conn);
+            self.guest_forget_digging(&mut host, conn);
             // FishingHook.shouldStopFishing: its owner is dead.
             if let Some(play) = host.play.get_mut(&conn) {
                 play.hook = None;
@@ -3847,7 +3938,18 @@ impl Game<'_> {
             let drops =
                 (g.game_mode != SPECTATOR).then(|| [at[0], at[1] + g.eye_height() - 0.3, at[2]]);
             let cause = host.play.get_mut(&conn).and_then(|p| p.death_cause.take());
-            self.native_player_died(uuid, cause.as_deref());
+            if horizon_client::mod_api::mods().is_empty() {
+                self.native_player_died(uuid, cause.as_deref());
+            } else {
+                self.lan = Some(host);
+                self.native_player_died(uuid, cause.as_deref());
+                host = self.lan.take()?;
+                let Some(index) = host.hub.guests.iter().position(|guest| guest.conn == conn)
+                else {
+                    return Some(host);
+                };
+                gi = index;
+            }
             // ServerPlayer.die: the neutral mobs near a guest in this level
             // forget their anger at them.
             if here {
@@ -3913,11 +4015,11 @@ impl Game<'_> {
             // CatalystListener: with experience to take, the player who last
             // hurt them gets KILL_MOB_NEAR_SCULK_CATALYST.
             if consumed && catalyst_xp > 0 {
-                self.guest_catalyst_trigger(host, gi, conn, at);
+                self.guest_catalyst_trigger(&mut host, gi, conn, at);
             }
             // ServerPlayer.die: the drops, then the deathCount objectives, then
             // the `deaths` statistic and the two timers it resets.
-            self.as_guest(host, conn, |game| {
+            self.as_guest(&mut host, conn, |game| {
                 if let Some(eyes) = drops {
                     game.drop_inventory(eyes);
                 }
@@ -3931,6 +4033,7 @@ impl Game<'_> {
                 self.spawn_orbs(at, reward);
             }
         }
+        Some(host)
     }
 
     /// `SculkCatalystBlockEntity.CatalystListener`'s trigger on a player's

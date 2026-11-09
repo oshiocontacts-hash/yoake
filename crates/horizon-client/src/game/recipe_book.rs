@@ -87,6 +87,8 @@ pub(super) struct RecipeUi {
     /// The display a click last placed (`lastRecipe`), which Enter and Space
     /// place again; slot clicks keep it.
     last_clicked: Option<i32>,
+    pub(super) inventory_background_hidden: bool,
+    pub(super) inventory_layout: Option<super::native_inventory_screen::NativeInventoryLayout>,
 }
 
 impl RecipeUi {
@@ -103,6 +105,8 @@ impl RecipeUi {
         }
         self.view_key = 0;
         self.last_clicked = None;
+        self.inventory_background_hidden = false;
+        self.inventory_layout = None;
     }
 }
 
@@ -298,6 +302,7 @@ impl Game<'_> {
                 names: &self.pack.names,
                 trade: None,
                 maps: None,
+                inventory_slot_rules: None,
             };
             for i in 0..36 {
                 menu.set_player_item(i, self.inventory[i].clone());
@@ -579,11 +584,17 @@ impl Game<'_> {
     /// The green book button's top-left corner.
     fn book_button_pos(&self, book: BookType, ox: f32, batch: &HudBatch) -> (f32, f32) {
         let mid = (batch.height / 2.0).floor();
-        match book {
+        let (x, mut y) = match book {
             BookType::Crafting if self.craft_size == 2 => (ox + 104.0, mid - 22.0),
             BookType::Crafting => (ox + 5.0, mid - 49.0),
             _ => (ox + 20.0, mid - 49.0),
+        };
+        if self.native_player_inventory_layout().is_some() {
+            let (_, panel_y) = self.inventory_origin(batch);
+            let (_, vanilla_y) = batch.centered_origin(176.0, self.screen_height());
+            y += panel_y - vanilla_y;
         }
+        (x, y)
     }
     fn tab_pos(&self, xo: f32, yo: f32, index: usize) -> (f32, f32) {
         (xo - 30.0, yo + 3.0 + 27.0 * index as f32)
@@ -625,7 +636,7 @@ impl Game<'_> {
             self.recipe_ui.ghost.clear();
         }
         let (bx, by) = self.book_button_pos(book_type, ox, &batch);
-        if inside(cursor, bx, by, 20.0, 18.0) {
+        if !self.native_inventory_background_hidden() && inside(cursor, bx, by, 20.0, 18.0) {
             let open = !self.book_open(book_type);
             self.level.recipe_book.open[book_type.index()] = open;
             self.send_book_settings(book_type);
@@ -843,7 +854,11 @@ impl Game<'_> {
         };
         let (ox, _) = self.inventory_origin(&batch);
         let (bx, by) = self.book_button_pos(book_type, ox, &batch);
-        let mut out = vec![button([bx, by, 20.0, 18.0])];
+        let mut out = if self.native_inventory_background_hidden() {
+            Vec::new()
+        } else {
+            vec![button([bx, by, 20.0, 18.0])]
+        };
         if !self.book_open(book_type) || self.spectator() {
             return out;
         }
@@ -1022,7 +1037,7 @@ impl Game<'_> {
         let creative = self.creative;
         let mut post = None;
         let answer = &mut post;
-        self.menu_session(|menu, env, _| {
+        self.menu_session_with_inventory_rules(|menu, env, _| {
             // handlePlaceRecipe: an impossible recipe is refused outright.
             if env
                 .recipes
@@ -1163,16 +1178,18 @@ impl Game<'_> {
         let cursor = self.cursor;
         let (bx, by) = self.book_button_pos(book_type, ox, batch);
         let hover = inside(cursor, bx, by, 20.0, 18.0);
-        batch.sprite(
-            &self.gui.atlas,
-            &sprite(if hover {
-                "button_highlighted"
-            } else {
-                "button"
-            }),
-            bx,
-            by,
-        );
+        if !self.native_inventory_background_hidden() {
+            batch.sprite(
+                &self.gui.atlas,
+                &sprite(if hover {
+                    "button_highlighted"
+                } else {
+                    "button"
+                }),
+                bx,
+                by,
+            );
+        }
         self.draw_ghost(batch, book_type);
         if self.book_open(book_type) {
             self.refresh_book_view(book_type);
@@ -1189,9 +1206,11 @@ impl Game<'_> {
             return;
         }
         // The button moves with the book: it keeps the focus a click gave it.
-        widgets::narratable(|| {
-            Narratable::button("", button, true).key(key_of(&"recipe_book/button"))
-        });
+        if !self.native_inventory_background_hidden() {
+            widgets::narratable(|| {
+                Narratable::button("", button, true).key(key_of(&"recipe_book/button"))
+            });
+        }
         let open = self.book_open(book_type);
         let (xo, yo) = self.book_origin(batch);
         let group = key_of(&"recipe_book");
@@ -1280,7 +1299,7 @@ impl Game<'_> {
     }
     /// `GhostSlots.extractRenderState`, among the container's slots.
     fn draw_ghost(&mut self, batch: &mut HudBatch, book_type: BookType) {
-        if self.recipe_ui.ghost.is_empty() {
+        if self.recipe_ui.ghost.is_empty() || self.native_player_inventory_hide_crafting() {
             return;
         }
         let (ox, oy) = self.inventory_origin(batch);

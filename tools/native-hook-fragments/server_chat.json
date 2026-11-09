@@ -16,5 +16,5 @@
     }
   ],
   "rust_summary": "An opt-in ordinary server chat hook with cancellation, rewriting, and UUID recipient selection.",
-  "doc_summary": "Set native_server_chat_listened to true to receive native_server_chat(player, name, message, recipients, canceled). Recipients defaults to All; Only lists the UUIDs allowed to receive the line, including its sender. Changed text is sent unsigned, and is limited to 256 UTF-16 units. Require hooks @API:server_chat@ or higher."
+  "doc_summary": "Set native_server_chat_listened to true to receive native_server_chat(player, name, message, recipients, system, canceled). Recipients defaults to All; Only lists the UUIDs allowed to receive the line, including its sender. Changed text is sent unsigned, and is limited to 256 UTF-16 units. Set system to true to send the line as a system message without chat-type decoration. Require hooks @API:server_chat@ or higher."
 }

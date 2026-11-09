@@ -27,6 +27,7 @@ pub(super) fn dispatch_server_chat(
     name: &str,
     message: &mut String,
     recipients: &mut NativeChatRecipients,
+    system: &mut bool,
     canceled: &mut bool,
 ) {
     mod_api::dispatch_server_chat(
@@ -36,6 +37,7 @@ pub(super) fn dispatch_server_chat(
         name,
         message,
         recipients,
+        system,
         canceled,
     );
 }

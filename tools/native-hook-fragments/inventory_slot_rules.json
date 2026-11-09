@@ -1,0 +1,20 @@
+{
+  "hooks": [
+    {
+      "name": "inventory_slot_rules_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_inventory_slot_rules_listened",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {"contract": "collect", "out": "listened"}
+    },
+    {
+      "name": "inventory_slot_rules",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_inventory_slot_rules",
+      "side": "server",
+      "cancellable": true,
+      "mod_api": {"contract": "cancel", "out": "canceled"}
+    }
+  ],
+  "rust_summary": "A gated server-side placement rule for the player inventory's crafting inputs.",
+  "doc_summary": "Set inventory_slot_rules_listened to receive inventory_slot_rules(player, slot, stack). Return Flow::Cancel to refuse that stack in player-inventory crafting input slot 1..=4. Normal menu clicks, swaps, drag, quick moves and recipe placement check the rule; LAN guest click prediction uses the existing correction. Creative slot packets are checked separately, but source preservation across separate packets needs confirmation. A refused crafting remainder goes to the player's inventory, or is dropped if it does not fit. Other menus and slots are unchanged. Requires native hooks API @API:inventory_slot_rules@."
+}
