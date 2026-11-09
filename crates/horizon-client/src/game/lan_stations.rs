@@ -579,7 +579,7 @@ impl Game<'_> {
 
     /// The whole station menu and its changed data slots for the client
     /// (`sendAllDataToRemote` / `broadcastChanges`).
-    fn lan_send_station(&mut self, host: &mut LanHost, conn: u32) {
+    pub(super) fn lan_send_station(&mut self, host: &mut LanHost, conn: u32) {
         let Some(gi) = host.hub.guests.iter().position(|g| g.conn == conn) else {
             return;
         };

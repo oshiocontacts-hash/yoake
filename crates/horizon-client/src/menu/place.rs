@@ -464,6 +464,35 @@ impl Menu {
                 return;
             }
         }
+        if self.kind == Kind::Inventory && env.inventory_slot_rules.is_some() {
+            let (w, h) = placement.shaped.unwrap_or((grid.width, grid.height));
+            let slots = &placement.slots;
+            let mut preview = self.clone();
+            preview.clear_grid(env, grid);
+            for (ingredient, index) in
+                crate::recipe_book::place_cells(grid.width, grid.height, w, h, slots)
+            {
+                if ingredient == -1 {
+                    continue;
+                }
+                let target = grid.inputs[index];
+                let item = &used[ingredient as usize];
+                let mut remaining = adjusted;
+                while remaining > 0 {
+                    let Some(source) = preview.find_item_to_grid(target, item) else {
+                        break;
+                    };
+                    let stack = preview.containers[PLAYER][source].as_ref().expect("found");
+                    if !preview.inventory_rule_allows(env, target, stack) {
+                        return;
+                    }
+                    remaining = preview.move_item_to_grid(target, item, remaining);
+                    if remaining == -1 {
+                        break;
+                    }
+                }
+            }
+        }
         self.clear_grid(env, grid);
         let (w, h) = placement.shaped.unwrap_or((grid.width, grid.height));
         let slots: Vec<i32> = placement.slots.clone();
@@ -487,17 +516,7 @@ impl Menu {
 
     /// `moveItemToGrid`: the rest still to move, or -1 when nothing matches.
     fn move_item_to_grid(&mut self, target: usize, item: &str, count: i32) -> i32 {
-        let existing = self.slot(target).cloned();
-        let found = (0..36).find(|&i| {
-            self.containers[PLAYER][i].as_ref().is_some_and(|s| {
-                &*s.item == item
-                    && usable_for_crafting(s)
-                    && existing
-                        .as_ref()
-                        .is_none_or(|e| e.same_item_same_components(s))
-            })
-        });
-        let Some(i) = found else {
+        let Some(i) = self.find_item_to_grid(target, item) else {
             return -1;
         };
         let cell = &mut self.containers[PLAYER][i];
@@ -513,6 +532,19 @@ impl Menu {
             Some(have) => have.count += taken.count,
         }
         count - taken_count
+    }
+
+    fn find_item_to_grid(&self, target: usize, item: &str) -> Option<usize> {
+        let existing = self.slot(target).cloned();
+        (0..36).find(|&i| {
+            self.containers[PLAYER][i].as_ref().is_some_and(|s| {
+                &*s.item == item
+                    && usable_for_crafting(s)
+                    && existing
+                        .as_ref()
+                        .is_none_or(|e| e.same_item_same_components(s))
+            })
+        })
     }
 
     /// `clearGrid`: the slots to clear go back to the inventory (or drop),
@@ -647,6 +679,40 @@ mod tests {
             s.account(&Arc::from(*item), *n);
         }
         s
+    }
+
+    #[test]
+    fn inventory_recipe_placement_respects_the_grid_rule_transactionally() {
+        crate::menu::tests::with_empty_inventory_env(|vanilla| {
+            let placement = Placement::of(vec![Some(ing(&["minecraft:stone"]))], Some((1, 1)));
+            let mut menu = Menu::new(Kind::Inventory);
+            menu.set_player_item(0, Some(ItemStack::new("minecraft:stone", 2)));
+            let grid = menu.place_grid().unwrap();
+            let mut contents = menu.stacked_contents(vanilla);
+            menu.place(vanilla, "test:missing", &grid, &placement, &mut contents, false);
+            assert_eq!(menu.slot(1).map(|item| item.count), Some(1));
+            assert_eq!(menu.player_item(0).map(|item| item.count), Some(1));
+
+            let refuse = |_: usize, _: &ItemStack| false;
+            let restricted = Env {
+                inventory_slot_rules: Some(&refuse),
+                ..*vanilla
+            };
+            let mut menu = Menu::new(Kind::Inventory);
+            menu.set_player_item(0, Some(ItemStack::new("minecraft:stone", 2)));
+            let grid = menu.place_grid().unwrap();
+            let mut contents = menu.stacked_contents(&restricted);
+            menu.place(
+                &restricted,
+                "test:missing",
+                &grid,
+                &placement,
+                &mut contents,
+                false,
+            );
+            assert!(menu.slot(1).is_none());
+            assert_eq!(menu.player_item(0).map(|item| item.count), Some(2));
+        });
     }
     #[test]
     fn a_single_item_can_fill_several_ingredients() {

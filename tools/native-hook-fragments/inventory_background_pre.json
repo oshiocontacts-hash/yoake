@@ -1,0 +1,20 @@
+{
+  "hooks": [
+    {
+      "name": "inventory_background_pre_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_inventory_background_pre_listened",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {"contract": "collect", "out": "listened"}
+    },
+    {
+      "name": "inventory_background_pre",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_inventory_background_pre",
+      "side": "client",
+      "cancellable": true,
+      "mod_api": {"contract": "cancel", "out": "canceled"}
+    }
+  ],
+  "rust_summary": "A gated pre-draw hook for the player inventory background.",
+  "doc_summary": "Set inventory_background_pre_listened to receive inventory_background_pre(batch, screen). Return Flow::Cancel to replace the vanilla player-inventory background, its crafting label and its recipe-book button; the dim overlay, figure, slots and existing open recipe book are still drawn. Requires native hooks API @API:inventory_background_pre@."
+}

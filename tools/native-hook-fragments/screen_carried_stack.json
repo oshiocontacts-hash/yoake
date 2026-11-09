@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "screen_carried_stack",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_screen_carried_stack",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "The current client cursor stack, borrowed without copying.",
+  "doc_summary": "`screen_carried_stack()` borrows the client cursor's `ItemStack`, or returns None when empty. Requires native hooks API @API:screen_carried_stack@."
+}

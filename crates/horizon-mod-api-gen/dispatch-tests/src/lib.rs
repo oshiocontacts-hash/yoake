@@ -41,6 +41,12 @@ mod tests {
         pub(super) struct NameTagLine;
         pub(super) struct MouseButtons;
         pub(super) struct NativeScreenView<'a>(pub &'a ());
+        #[derive(Clone, Copy, Debug, PartialEq)]
+        pub(super) struct NativeInventoryLayout {
+            pub offset: [f32; 2],
+            pub width: u32,
+            pub show_crafting: bool,
+        }
         pub(super) struct Corners;
         #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
         pub(super) struct ItemEnergyBuffer;

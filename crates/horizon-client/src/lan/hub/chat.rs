@@ -340,6 +340,20 @@ impl Hub {
         }
     }
 
+    pub fn broadcast_native_system_chat(&self, text: &str, only: Option<&[u128]>) {
+        for guest in &self.guests {
+            if guest.placed
+                && guest.info.chat_visibility != 2
+                && chat_recipient_allowed(guest.uuid, only)
+            {
+                guest.send(&C::SystemChat(play::SystemChat {
+                    content: literal(text),
+                    overlay: false,
+                }));
+            }
+        }
+    }
+
     /// ServerPlayer.sendChatMessage (players who show chat) and
     /// sendPlayerChatMessage: numbered for the connection, the last seen
     /// packed against its cache; a signed message joins the cache and the

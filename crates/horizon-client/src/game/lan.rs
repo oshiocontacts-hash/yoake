@@ -1833,6 +1833,7 @@ impl Game<'_> {
                 } => {
                     let mut text = message.content.clone();
                     let mut recipients = super::native_chat::NativeChatRecipients::All;
+                    let mut system = false;
                     let mut canceled = false;
                     self.lan = Some(host);
                     self.native_server_chat(
@@ -1840,17 +1841,23 @@ impl Game<'_> {
                         &name,
                         &mut text,
                         &mut recipients,
+                        &mut system,
                         &mut canceled,
                     );
                     host = self.lan.take()?;
                     if !canceled {
                         super::native_chat::limit_chat_message(&mut text);
-                        host.hub.broadcast_native_chat(
-                            &message,
-                            &bound,
-                            &text,
-                            recipients.only(),
-                        );
+                        if system {
+                            host.hub
+                                .broadcast_native_system_chat(&text, recipients.only());
+                        } else {
+                            host.hub.broadcast_native_chat(
+                                &message,
+                                &bound,
+                                &text,
+                                recipients.only(),
+                            );
+                        }
                         let owner = host
                             .owner
                             .as_ref()
@@ -1865,12 +1872,21 @@ impl Game<'_> {
                                 )
                             });
                         if show {
-                            let secure = text == message.content
-                                && message.trusted(horizon_client::lan::hub::chat::now_millis());
-                            self.lan_log_event(HostEvent::Chat {
-                                line: format!("<{name}> {text}"),
-                                secure,
-                            });
+                            if system {
+                                if self.options.dedicated.is_some() {
+                                    super::dedicated::log("INFO", &text);
+                                } else if self.remote.is_none() {
+                                    self.system_message(Text::literal(text));
+                                }
+                            } else {
+                                let secure = text == message.content
+                                    && message
+                                        .trusted(horizon_client::lan::hub::chat::now_millis());
+                                self.lan_log_event(HostEvent::Chat {
+                                    line: format!("<{name}> {text}"),
+                                    secure,
+                                });
+                            }
                         }
                     }
                 }
@@ -2345,7 +2361,10 @@ impl Game<'_> {
         // this tick to their clients. Otherwise a newly broken block and its
         // drops remain absent from the snapshot until the following tick.
         if !paused {
-            self.tick_guests(&mut host);
+            let Some(next_host) = self.tick_guests(host) else {
+                return;
+            };
+            host = next_host;
             // The vehicles the guests just moved enter their portals now.
             let ridden: Vec<u32> = host.hub.guests.iter().filter_map(|g| g.vehicle).collect();
             self.find_ridden_vehicle_portals(&ridden);

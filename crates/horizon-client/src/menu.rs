@@ -20,6 +20,7 @@ mod bundle;
 pub mod place;
 
 /// What a menu needs to know about items and recipes.
+#[derive(Clone, Copy)]
 pub struct Env<'a> {
     pub items: &'a Items,
     pub recipes: &'a Recipes,
@@ -38,6 +39,7 @@ pub struct Env<'a> {
     /// and makes them. None is a client's menu (`ContainerLevelAccess.NULL`):
     /// it makes no result, and a taken result keeps its map id.
     pub maps: Option<&'a dyn Maps>,
+    pub inventory_slot_rules: Option<&'a dyn Fn(usize, &ItemStack) -> bool>,
 }
 
 /// The maps of the level a menu is in.
@@ -270,6 +272,7 @@ const RESULT: usize = 3;
 const CONTAINER_MAX: u32 = 99;
 const OFFHAND: usize = 40;
 
+#[derive(Clone)]
 pub struct Menu {
     kind: Kind,
     slots: Vec<Slot>,
@@ -1307,7 +1310,16 @@ impl Menu {
 
     // ---- Slot ----
 
+    fn inventory_rule_allows(&self, env: &Env, slot: usize, stack: &ItemStack) -> bool {
+        self.kind != Kind::Inventory
+            || !(1..=4).contains(&slot)
+            || env.inventory_slot_rules.is_none_or(|rule| rule(slot, stack))
+    }
+
     fn may_place(&self, env: &Env, s: usize, stack: &ItemStack) -> bool {
+        if !self.inventory_rule_allows(env, s, stack) {
+            return false;
+        }
         match self.slots[s].role {
             Role::Plain | Role::CreativeDisplay => true,
             Role::Armor(eq) => env
@@ -1829,23 +1841,38 @@ impl Menu {
             tidy(&mut here);
             self.containers[GRID][cell] = here;
             if let Some(replacement) = remaining.get(cell).cloned().flatten() {
-                match self.containers[GRID][cell].as_mut() {
-                    None => self.containers[GRID][cell] = Some(replacement),
-                    Some(have) if have.same_item_same_components(&replacement) => {
-                        let mut merged = replacement;
-                        merged.count += have.count;
-                        self.containers[GRID][cell] = Some(merged);
-                    }
-                    Some(_) => {
-                        let mut left = replacement;
-                        if !self.inventory_add(env, &mut left) {
-                            self.drop_stack(&left);
-                        }
-                    }
-                }
+                self.place_crafting_remainder(env, cell, replacement);
             }
         }
         self.recompute(env);
+    }
+
+    fn place_crafting_remainder(&mut self, env: &Env, cell: usize, replacement: ItemStack) {
+        let fits_grid = self.containers[GRID][cell]
+            .as_ref()
+            .is_none_or(|have| have.same_item_same_components(&replacement));
+        if fits_grid && !self.inventory_rule_allows(env, cell + 1, &replacement) {
+            let mut left = replacement;
+            self.inventory_add(env, &mut left);
+            if left.count > 0 {
+                self.drop_stack(&left);
+            }
+            return;
+        }
+        match self.containers[GRID][cell].as_mut() {
+            None => self.containers[GRID][cell] = Some(replacement),
+            Some(have) if have.same_item_same_components(&replacement) => {
+                let mut merged = replacement;
+                merged.count += have.count;
+                self.containers[GRID][cell] = Some(merged);
+            }
+            Some(_) => {
+                let mut left = replacement;
+                if !self.inventory_add(env, &mut left) {
+                    self.drop_stack(&left);
+                }
+            }
+        }
     }
 
     fn drop_stack(&mut self, stack: &ItemStack) {
@@ -1879,7 +1906,13 @@ impl Menu {
     fn allow_modification(&self, env: &Env, s: usize) -> bool {
         self.may_pickup(env, s)
             && match self.slot(s) {
-                Some(stack) => self.may_place(env, s, stack),
+                Some(stack) => {
+                    let vanilla_env = Env {
+                        inventory_slot_rules: None,
+                        ..*env
+                    };
+                    self.may_place(&vanilla_env, s, stack)
+                }
                 None => true,
             }
     }
@@ -2055,7 +2088,11 @@ impl Menu {
                     _ => false,
                 };
                 let max = match self.slot(dest) {
-                    Some(target) if !refuses && target.same_item_same_components(stack) => {
+                    Some(target)
+                        if !refuses
+                            && target.same_item_same_components(stack)
+                            && self.inventory_rule_allows(env, dest, stack) =>
+                    {
                         self.slot_max(env, dest, target)
                     }
                     _ => continue,
@@ -2854,6 +2891,15 @@ impl Menu {
                     }
                 }
                 Some(mut carried) => {
+                    if !self.inventory_rule_allows(env, s, &carried) {
+                        self.carried = Some(carried);
+                        return;
+                    }
+                    let permitted_env = Env {
+                        inventory_slot_rules: None,
+                        ..*env
+                    };
+                    let env = &permitted_env;
                     if self.may_place(env, s, &carried) {
                         if clicked.same_item_same_components(&carried) {
                             let amount = if primary { carried.count } else { 1 };
@@ -3256,6 +3302,146 @@ pub(crate) mod tests {
         })
     }
 
+    pub(crate) fn with_empty_inventory_env(test: impl FnOnce(&Env)) {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        static NEXT_FIXTURE: AtomicUsize = AtomicUsize::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "horizon-inventory-rule-{}-{}",
+            std::process::id(),
+            NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir_all(root.join("data/minecraft/recipe")).unwrap();
+        let items = Items::for_tests(Default::default());
+        let recipes = Recipes::load(&root, &items, &PackOverlay::NONE).unwrap();
+        let brewing = Brewing::load(&root, &items, &PackOverlay::NONE);
+        let _ = std::fs::remove_dir_all(&root);
+        let (banners, station_recipes) = (Banners::default(), Default::default());
+        let (enchantments, names) = (Default::default(), Default::default());
+        let env = Env {
+            items: &items,
+            recipes: &recipes,
+            brewing: &brewing,
+            banners: &banners,
+            station_recipes: &station_recipes,
+            enchantments: &enchantments,
+            names: &names,
+            trade: None,
+            maps: None,
+            inventory_slot_rules: None,
+        };
+        test(&env);
+    }
+
+    #[test]
+    fn inventory_rules_preserve_vanilla_and_refuse_pickup_and_number_keys() {
+        with_empty_inventory_env(|vanilla| {
+            let mut menu = Menu::new(Kind::Inventory);
+            menu.carried = stack("stone", 4);
+            menu.click(vanilla, 1, 0, Input::Pickup).unwrap();
+            assert_eq!(menu.slot(1).map(|item| item.count), Some(4));
+
+            let refuse_first = |slot: usize, _: &ItemStack| slot != 1;
+            let restricted = Env {
+                inventory_slot_rules: Some(&refuse_first),
+                ..*vanilla
+            };
+            let mut menu = Menu::new(Kind::Inventory);
+            menu.carried = stack("stone", 4);
+            menu.click(&restricted, 1, 0, Input::Pickup).unwrap();
+            assert!(menu.slot(1).is_none());
+            assert_eq!(menu.carried.as_ref().map(|item| item.count), Some(4));
+            menu.set_slot(&restricted, 1, stack("stone", 2));
+            menu.click(&restricted, 1, 0, Input::Pickup).unwrap();
+            assert_eq!(menu.slot(1).map(|item| item.count), Some(2));
+            assert_eq!(menu.carried.as_ref().map(|item| item.count), Some(4));
+            let calls = std::cell::Cell::new(0);
+            let one_acceptance = |_: usize, _: &ItemStack| {
+                calls.set(calls.get() + 1);
+                calls.get() == 1
+            };
+            let once = Env {
+                inventory_slot_rules: Some(&one_acceptance),
+                ..*vanilla
+            };
+            menu.click(&once, 1, 0, Input::Pickup).unwrap();
+            assert_eq!(calls.get(), 1);
+            assert_eq!(menu.slot(1).map(|item| item.count), Some(6));
+            assert!(menu.carried.is_none());
+            menu.click(&restricted, 1, 1, Input::Pickup).unwrap();
+            assert_eq!(menu.slot(1).map(|item| item.count), Some(3));
+            assert_eq!(menu.carried.as_ref().map(|item| item.count), Some(3));
+            menu.carried = None;
+            menu.set_slot(&restricted, 1, None);
+            menu.set_player_item(0, stack("dirt", 3));
+            menu.click(&restricted, 1, 0, Input::Swap).unwrap();
+            assert!(menu.slot(1).is_none());
+            assert_eq!(menu.player_item(0).map(|item| item.count), Some(3));
+            assert!(Menu::new(Kind::Crafting).may_place(
+                &restricted,
+                1,
+                &ItemStack::new("minecraft:stone", 1)
+            ));
+        });
+    }
+
+    #[test]
+    fn inventory_rules_filter_drag_and_both_quick_move_destinations() {
+        with_empty_inventory_env(|vanilla| {
+            let refuse_first = |slot: usize, _: &ItemStack| slot != 1;
+            let restricted = Env {
+                inventory_slot_rules: Some(&refuse_first),
+                ..*vanilla
+            };
+            let mut menu = Menu::new(Kind::Inventory);
+            menu.carried = stack("stone", 4);
+            for (slot, button) in [(-999, 0), (1, 1), (2, 1), (-999, 2)] {
+                menu.click(&restricted, slot, button, Input::QuickCraft)
+                    .unwrap();
+            }
+            assert!(menu.slot(1).is_none());
+            assert_eq!(menu.slot(2).map(|item| item.count), Some(4));
+
+            let mut remaining = ItemStack::new("minecraft:stone", 3);
+            assert!(!menu.move_to(&restricted, &mut remaining, 1, 2, false));
+            assert_eq!(remaining.count, 3);
+            menu.put(&restricted, 1, stack("stone", 2));
+            assert!(!menu.move_to(&restricted, &mut remaining, 1, 2, false));
+            assert_eq!(menu.slot(1).map(|item| item.count), Some(2));
+            assert_eq!(remaining.count, 3);
+            assert!(menu.move_to(vanilla, &mut remaining, 1, 2, false));
+            assert_eq!(menu.slot(1).map(|item| item.count), Some(5));
+        });
+    }
+
+    #[test]
+    fn inventory_rules_route_rejected_crafting_remainders_to_inventory() {
+        with_empty_inventory_env(|vanilla| {
+            let remainder = ItemStack::new("minecraft:bucket", 1);
+            let mut unchanged = Menu::new(Kind::Inventory);
+            unchanged.place_crafting_remainder(vanilla, 0, remainder.clone());
+            assert_eq!(unchanged.slot(1).map(|item| item.count), Some(1));
+
+            let refuse_first = |slot: usize, _: &ItemStack| slot != 1;
+            let restricted = Env {
+                inventory_slot_rules: Some(&refuse_first),
+                ..*vanilla
+            };
+            let mut blocked = Menu::new(Kind::Inventory);
+            blocked.place_crafting_remainder(&restricted, 0, remainder.clone());
+            assert!(blocked.slot(1).is_none());
+            assert!(blocked.player_contains(&remainder));
+
+            blocked.set_slot(&restricted, 1, Some(remainder.clone()));
+            blocked.place_crafting_remainder(&restricted, 0, remainder.clone());
+            assert_eq!(blocked.slot(1).map(|item| item.count), Some(1));
+            assert_eq!(blocked.player_item(0).map(|item| item.count), Some(2));
+
+            blocked.place_crafting_remainder(&restricted, 1, remainder);
+            assert_eq!(blocked.slot(2).map(|item| item.count), Some(1));
+        });
+    }
+
     /// An item tab's ItemPickerMenu: the 45 display slots show `shown`.
     fn with_picker(shown: &str, test: impl FnOnce(&Env, &mut Menu)) {
         with_menu(Kind::ItemPicker, |env, menu| {
@@ -3293,6 +3479,7 @@ pub(crate) mod tests {
             names: &names,
             trade: None,
             maps: None,
+            inventory_slot_rules: None,
         };
         let mut menu = Menu::new(kind);
         menu.creative = true;
@@ -3585,6 +3772,7 @@ pub(crate) mod tests {
             names: &names,
             trade: None,
             maps: None,
+            inventory_slot_rules: None,
         };
         // Both a pick-up onto the cursor and a shift-click into the inventory.
         for input in [Input::Pickup, Input::QuickMove] {
@@ -3660,6 +3848,7 @@ pub(crate) mod tests {
             names: &names,
             trade: None,
             maps: None,
+            inventory_slot_rules: None,
         };
         let menu = &mut Menu::new(mod_menu());
         {

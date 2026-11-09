@@ -41,9 +41,16 @@ impl Menu {
             }
             (None, false) => {
                 if let Some(stack) = contents.remove_one(env.items) {
+                    if !self.inventory_rule_allows(env, s, &stack) {
+                        return true;
+                    }
                     let count = stack.count;
                     let mut remainder = Some(stack);
-                    self.safe_insert(env, s, &mut remainder, count);
+                    let permitted_env = Env {
+                        inventory_slot_rules: None,
+                        ..*env
+                    };
+                    self.safe_insert(&permitted_env, s, &mut remainder, count);
                     match remainder {
                         Some(mut rest) => {
                             contents.try_insert(env.items, &mut rest);

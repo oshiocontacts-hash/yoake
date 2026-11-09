@@ -776,8 +776,10 @@ API 62 adds nicknames for server mods: `native_set_nickname(uuid, Option<&str>)`
 `native_server_chat` observes ordinary player chat after Horizon's incoming chat validation and filtering, before
 delivery. Commands use a separate path. A listener must set `native_server_chat_listened` to true; it can then
 cancel the line, replace its text, or set recipients to `NativeChatRecipients::Only`. The sender's echo follows
-that same recipient list. Replacement text is truncated to 256 UTF-16 code units. With no listener, the original
-broadcast path remains in use.
+that same recipient list. Replacement text is truncated to 256 UTF-16 code units. Set the `system` output to
+`true` to send the line as a system message, without the chat type's name decoration; it defaults to `false`.
+System messages respect each recipient's chat visibility settings. With no listener, the original broadcast path
+remains in use.
 
 Unchanged lines retain their original player-chat signature. Rewritten lines are sent as disguised, unsigned chat
 rather than attaching the original signature to different text. Horizon's current client receives disguised chat
@@ -900,6 +902,18 @@ API 87 adds `native_render_hand(hand, stack, partial, swing, equip, canceled)` r
 `native_render_hand_pose` runs after cancellation for each visible first-person hand, including maps and the empty main-hand arm (the same path as `RenderArmEvent`). Add to `x`, `y`, `z` in blocks and `pitch`, `yaw`, `roll` in degrees, and multiply `scale` to compose with other mods. The pose is applied in hand view space before the ordinary hand and item poses, in translation, pitch, yaw, roll, scale order. Non-finite or out-of-range components are ignored individually: offsets must be within -16..=16 blocks, angles within -3600..=3600 degrees and scale within 0.01..=100. Bundles need "hooks": @API:render_hand_pose@.
 
 `native_screen_opening(screen)`, `native_screen_init_post(screen)` and `native_screen_closing(screen)` observe screens once per frame with `NativeScreenView`, including sign editors, book edit/sign/view and lectern screens, dialogs and prompts. Overlay views use the full window as their rectangle and have no menu or title; anvil rename remains part of its inventory screen. Dialog states share the `dialog` id. Screens opened and closed within one frame are missed; cancelling an opening is not possible because there is no single transition point. Bundles need "hooks": @API:screen_opening@.
+
+### Player inventory hooks
+
+Set `inventory_screen_layout_listened` to receive `inventory_screen_layout(layout)` for the standard player inventory. `NativeInventoryLayout` supplies a GUI-pixel origin offset, logical panel width, and `show_crafting`. The resolved layout is shared by drawing, screen bounds, and hit-testing. Width is clamped to `1..=4096`; offsets are clamped to -4096..=4096 and non-finite values become zero. A custom width changes bounds, not the fixed-size vanilla texture. API `@API:inventory_screen_layout@`.
+
+Set `inventory_background_pre_listened` to receive `inventory_background_pre(batch, screen)` before the player inventory background. Return `Flow::Cancel` to replace the background, crafting label, and recipe-book button using native drawing helpers. The dim overlay, player figure, slots, and an already-open recipe book remain. API `@API:inventory_background_pre@`.
+
+`NativeScreenView::inventory_context` distinguishes player inventory, crafting table, and container screens, including locally opened screens; unrelated screens return `None`. API `@API:screen_inventory_context@`. `screen_carried_stack()` borrows the client cursor's nonempty `ItemStack`, or returns `None`. API `@API:screen_carried_stack@`.
+
+On the server, set `inventory_slot_rules_listened` to receive `inventory_slot_rules(player, slot, stack)`. Return `Flow::Cancel` to refuse placement into player-inventory crafting input slots `1..=4`. Keep the predicate side-effect-free: one operation may consult it more than once. Normal menu and recipe-placement paths use the rule; creative packets are checked separately, but cross-packet moves remain unverified. A refused crafting remainder is given to the player or dropped if it cannot fit. API `@API:inventory_slot_rules@`.
+
+`text_width(text)` measures literal text in the `native_text` font and returns a whole-pixel width as `Option<f32>`. It returns `None` outside a native mod call, for text longer than 4096 bytes, or after the per-mod budget of 8192 calls in a one-second window; at most 256 callers are tracked per window. API `@API:text_width@`.
 
 API 88 adds `native_client_resources_reloaded()` fires on the render thread after successful client resource-pack application: the atlas, models, renderer and client caches already use the new resources. It covers selection/F3+T and server-pack reloads. Failed staging or application and initial startup do not fire it. This is a completion notification, not a reload-listener registration or staging API. Bundles need "hooks": 88.
 
@@ -1997,6 +2011,8 @@ dimensions, oversized queries and collision-query failures return an error. Clip
 For mods that run where the world is simulated: a dedicated server, a LAN host, single player's server thread
 (`crates/horizon-client/src/game/native_server.rs`). The SMP mod of the official server is built on them
 ([smp.md](smp.md)).
+
+API `@API:player_ops2@` adds server-tick helpers for player health, inventory, titles, and positional sounds, plus per-mod boss bars. Player targets are UUIDs. Each helper has a limit of 512 calls per mod per tick; boss bars are limited to 16 per mod and 1,024 audience UUIDs per bar. Health is clamped to the player's maximum; titles and bar names are plain text, and sounds use a fixed packet seed. Boss-bar colors are `pink`, `blue`, `red`, `green`, `yellow`, `purple`, and `white`; overlays are `progress`, `notched_6`, `notched_10`, `notched_12`, and `notched_20`. Bars are cleared when the world session ends. Helpers return `false` for invalid context, invalid input, exhausted budget, or an unavailable target. Some callbacks do not expose the server host, so another online player can be unavailable in those callbacks.
 
 - **`native_register_commands(commands)`**: push a `NativeCommand` per usage, asked once when a world opens to
   players. A usage is words, then arguments `<name:kind>`, optional ones last in brackets:

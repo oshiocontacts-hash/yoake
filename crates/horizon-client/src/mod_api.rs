@@ -22,6 +22,7 @@ pub use crate::first_person::Hand;
 pub use crate::fog::{FogData, FogType};
 pub use crate::game::native_block_entity_draw::{BlockEntityDraw, CubeFace};
 pub use crate::game::native_entity_query::NativeEntityInfo;
+pub use crate::game::native_inventory_screen::{NativeInventoryContext, NativeInventoryLayout};
 pub use crate::game::native_lan::NativeLanPublish;
 pub use crate::game::native_mouse_buttons::MouseButtons;
 pub use crate::game::native_name_lines::NameTagLine;
@@ -229,6 +230,8 @@ pub struct NativeScreenView<'a> {
     /// This frame's partial tick (`getGameTimeDeltaPartialTick(false)`, 0 to
     /// 1): what the screen draws animation against.
     pub partial_tick: f32,
+    /// The vanilla inventory-like menu, including menus opened locally.
+    pub inventory_context: Option<NativeInventoryContext>,
 }
 
 impl NativeScreenView<'_> {
@@ -245,6 +248,7 @@ impl NativeScreenView<'_> {
             slots: 0,
             mouse: [0.0; 2],
             partial_tick: 0.0,
+            inventory_context: None,
         }
     }
 }

@@ -1,0 +1,20 @@
+{
+  "hooks": [
+    {
+      "name": "inventory_screen_layout_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_inventory_screen_layout_listened",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {"contract": "collect", "out": "listened"}
+    },
+    {
+      "name": "inventory_screen_layout",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_inventory_screen_layout",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {"contract": "listen"}
+    }
+  ],
+  "rust_summary": "A gated layout hook for the player inventory screen.",
+  "doc_summary": "Set inventory_screen_layout_listened to receive inventory_screen_layout(layout). The layout has offset in GUI pixels, logical panel width, and show_crafting. It is resolved once per drawn frame and shared by drawing, screen bounds and input. A modified origin is truncated to whole GUI pixels. Width is clamped to 1..=4096; finite offsets are clamped to +/-4096 and non-finite offsets become zero. Custom widths change layout bounds, not the fixed-size vanilla texture; combine with inventory_background_pre for a custom background. Requires native hooks API @API:inventory_screen_layout@."
+}

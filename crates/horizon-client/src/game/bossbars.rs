@@ -551,6 +551,21 @@ impl Game<'_> {
                 scope: Scope::Global,
             });
         }
+        for bar in &self.native_player_ops.bars {
+            if bar.players.contains(&viewer.uuid) {
+                out.push(Offer {
+                    id: bar.uuid,
+                    name: Tag::String(bar.name.as_str().into()),
+                    progress: bar.progress,
+                    color: bar.color,
+                    overlay: bar.overlay,
+                    darken: false,
+                    music: false,
+                    fog: false,
+                    scope: Scope::Global,
+                });
+            }
+        }
         if viewer.here
             && let Some(progress) = self.dragon_boss_progress(viewer.at, viewer.alive)
         {
