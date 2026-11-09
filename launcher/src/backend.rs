@@ -2245,6 +2245,25 @@ pub fn append_game_args(cmd: &mut Command) {
     cmd.args(game_args());
 }
 
+pub fn check_client_args(cmd: &Command) -> Result<(), String> {
+    check_client_args_with_policy(cmd, account::owner_required())
+}
+
+fn check_client_args_with_policy(cmd: &Command, require_owner: bool) -> Result<(), String> {
+    if require_owner
+        && cmd.get_args().any(|arg| {
+            let arg = arg.to_string_lossy();
+            arg == "--dedicated" || arg.starts_with("--dedicated=")
+        })
+    {
+        return Err(format!(
+            "{} Use the Servers page or servers command to host.",
+            crate::servers::ACCOUNT_CHECKS_REQUIRED
+        ));
+    }
+    Ok(())
+}
+
 pub fn client_command(tag: &str) -> Command {
     client_command_for_program(tag, &client_program(tag))
 }
@@ -2475,6 +2494,7 @@ pub fn client_as_for_program(
         eprintln!("{e}");
     }
     append_game_args(&mut cmd);
+    check_client_args(&cmd)?;
     Ok(cmd)
 }
 
@@ -2489,6 +2509,12 @@ pub fn join_friend(cmd: &mut Command, code: &str) -> Result<(), String> {
 
 /// The dedicated server's command in `folder`, once prepared and the EULA is agreed to.
 pub fn server(tag: &str, folder: &Path, accept_eula: bool) -> Result<Command, String> {
+    if account::owner_required() {
+        return Err(format!(
+            "{} Use the Servers page or servers command to host.",
+            crate::servers::ACCOUNT_CHECKS_REQUIRED
+        ));
+    }
     need_prepared(tag)?;
     if accept_eula {
         agree_eula(folder)?;
@@ -3467,6 +3493,22 @@ mod tests {
     use std::cmp::Ordering::*;
 
     #[test]
+    fn yoake_refuses_legacy_dedicated_client_arguments() {
+        let mut command = Command::new("horizon-client");
+        command.arg("--dedicated");
+        assert!(
+            check_client_args_with_policy(&command, true)
+                .unwrap_err()
+                .contains(crate::servers::ACCOUNT_CHECKS_REQUIRED)
+        );
+        assert!(check_client_args_with_policy(&command, false).is_ok());
+
+        let mut command = Command::new("horizon-client");
+        command.arg("--server").arg("example.invalid");
+        assert!(check_client_args_with_policy(&command, true).is_ok());
+    }
+
+    #[test]
     #[cfg(windows)]
     fn failed_removal_stays_listed_and_can_be_retried() {
         use std::os::windows::fs::OpenOptionsExt;
@@ -3858,9 +3900,10 @@ pub fn {f}("
             .get_envs()
             .find(|(k, _)| *k == "PIPEWIRE_PROPS")
             .and_then(|(_, v)| v);
-        assert!(props.is_some_and(|v| v
-            .to_string_lossy()
-            .contains("application.name = \"Horizon\"")));
+        assert!(props.is_some_and(|v| {
+            v.to_string_lossy()
+                .contains("application.name = \"Horizon\"")
+        }));
     }
 
     #[test]
@@ -4615,9 +4658,11 @@ pub fn {f}("
             Some("v2026.10.13".into())
         );
         assert!(is_prepared("v2026.10.13.1"));
-        assert!(resources_at(&versions.join("v2026.10.13.1"))
-            .join("worldgen/biomes.json")
-            .exists());
+        assert!(
+            resources_at(&versions.join("v2026.10.13.1"))
+                .join("worldgen/biomes.json")
+                .exists()
+        );
         let left: Vec<_> = fs::read_dir(versions.join("v2026.10.13.1/.local/horizon-client"))
             .unwrap()
             .flatten()
@@ -4962,9 +5007,11 @@ pub fn {f}("
                 "v0.2.2: The sounds",
             ]
         );
-        assert!(resources_at(&versions.join("v0.2.2"))
-            .join(RESOURCES_MANIFEST)
-            .exists());
+        assert!(
+            resources_at(&versions.join("v0.2.2"))
+                .join(RESOURCES_MANIFEST)
+                .exists()
+        );
         assert_eq!(
             asset("v0.2.2", &format!("{background}/panorama_0.png")).as_deref(),
             Some(&placeholder[..])

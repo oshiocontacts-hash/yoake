@@ -7,7 +7,7 @@ use crate::game_tools::{self, GameTools};
 use horizon_launcher::account::{self, Accounts, SignIn, SignInState};
 use horizon_launcher::backend::{self, Job, Logged};
 use horizon_launcher::instances;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -103,6 +103,7 @@ impl Session {
                 if let Some(extra) = args.get("arg").and_then(Value::as_array) {
                     cmd.args(extra.iter().filter_map(Value::as_str));
                 }
+                backend::check_client_args(&cmd)?;
                 let client = Logged::start(Job::Client, cmd)?;
                 // Started once its control socket answers, as horizon-ctl launch waits.
                 let deadline = std::time::Instant::now() + Duration::from_secs(120);

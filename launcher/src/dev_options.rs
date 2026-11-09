@@ -11,7 +11,7 @@ const CLICKS: u8 = 7;
 impl Launcher {
     /// A click on the sidebar's launcher version; the last one opens Settings on the section.
     pub(super) fn version_clicked(&mut self) {
-        if self.dev_options {
+        if account::owner_required() || self.dev_options {
             return;
         }
         self.dev_clicks += 1;
@@ -23,7 +23,7 @@ impl Launcher {
 
     /// The section, when revealed or when one of its options is on.
     pub(super) fn dev_options_section(&self, cx: &mut Context<Self>) -> Option<Div> {
-        if !self.dev_options && !self.settings.dev_offline {
+        if account::owner_required() || (!self.dev_options && !self.settings.dev_offline) {
             return None;
         }
         let t = self.theme;

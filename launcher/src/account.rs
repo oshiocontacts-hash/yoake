@@ -14,7 +14,7 @@
 //! build time, or at run time to override it. Without one, sign-in says it is not configured.
 pub mod session;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
@@ -35,6 +35,30 @@ const OTHER_PROFILE: &str =
 const SIGN_IN_AGAIN: &str = "Your Microsoft sign-in expired. Sign in again.";
 /// The Minecraft token is renewed when it has less than this left.
 const RENEW_BEFORE: u64 = 3600;
+
+pub fn owner_required() -> bool {
+    option_env!("YOAKE_COMPILED_FEED_URL").is_some() || option_env!("YOAKE_PORTAL_URL").is_some()
+}
+
+pub fn require_signed_in_owner() -> Result<(), String> {
+    let mut accounts = Accounts::load();
+    let result = launch(
+        &Endpoints::live(),
+        client_id().as_deref(),
+        store(),
+        &mut accounts,
+    );
+    let _ = accounts.save();
+    result.map(|_| ()).map_err(|error| error.to_string())
+}
+
+fn allow_dev_offline(dev_offline: bool, require_owner: bool) -> bool {
+    dev_offline && !require_owner
+}
+
+pub fn dev_offline_enabled(dev_offline: bool) -> bool {
+    allow_dev_offline(dev_offline, owner_required())
+}
 
 /// The configured Azure app, if any: the run-time variable wins over the build-time one, and an
 /// empty value means none.
@@ -487,6 +511,11 @@ pub struct Secrets {
     #[serde(default = "owned_at_sign_in")]
     owns: bool,
 }
+
+fn eligible_owner(secrets: &Secrets, require_owner: bool) -> bool {
+    secrets.owns && (!require_owner || !secrets.sign_in_required)
+}
+
 fn owned_at_sign_in() -> bool {
     true
 }
@@ -829,7 +858,7 @@ fn file_key() -> chacha20poly1305::Key {
 
 /// `json` sealed for the secrets file ([`SEALED`]).
 fn seal(json: &[u8]) -> Result<Vec<u8>, String> {
-    use chacha20poly1305::{aead::Aead, KeyInit};
+    use chacha20poly1305::{KeyInit, aead::Aead};
     let mut nonce = [0u8; 12];
     getrandom::fill(&mut nonce).map_err(|e| e.to_string())?;
     let sealed = chacha20poly1305::ChaCha20Poly1305::new(&file_key())
@@ -841,7 +870,7 @@ fn seal(json: &[u8]) -> Result<Vec<u8>, String> {
 /// What [`seal`] sealed, or `None` for a file in another format, changed, or sealed on another
 /// computer.
 fn unseal(bytes: &[u8]) -> Option<Vec<u8>> {
-    use chacha20poly1305::{aead::Aead, KeyInit};
+    use chacha20poly1305::{KeyInit, aead::Aead};
     let rest = bytes.strip_prefix(SEALED)?;
     let (nonce, sealed) = rest.split_at_checked(12)?;
     let nonce: [u8; 12] = nonce.try_into().ok()?;
@@ -1599,12 +1628,16 @@ impl Accounts {
     /// Whether an account here owned the game at its last check (the keychain's answer, no
     /// request): what Play and offline names need.
     pub fn has_owner(&self, store: &dyn SecretStore) -> bool {
+        self.has_owner_with_policy(store, owner_required())
+    }
+
+    fn has_owner_with_policy(&self, store: &dyn SecretStore, require_owner: bool) -> bool {
         // The selected account first: it owning the game ends the search after one account's
         // item — every account's item read can ask for the keychain (macOS, #4912).
         self.selected()
             .into_iter()
             .chain(self.accounts.iter().filter(|a| Some(*a) != self.selected()))
-            .any(|a| secrets_in(store, &a.uuid).is_some_and(|s| s.owns))
+            .any(|a| secrets_in(store, &a.uuid).is_some_and(|s| eligible_owner(&s, require_owner)))
     }
 
     /// Who plays now.
@@ -1631,6 +1664,16 @@ impl Accounts {
         who: Player,
         offline_without_owner: bool,
     ) -> Result<(), String> {
+        self.play_as_with_policy(store, who, offline_without_owner, owner_required())
+    }
+
+    fn play_as_with_policy(
+        &mut self,
+        store: &dyn SecretStore,
+        who: Player,
+        offline_without_owner: bool,
+        require_owner: bool,
+    ) -> Result<(), String> {
         match who {
             Player::Microsoft(uuid) => {
                 if !self.accounts.iter().any(|a| a.uuid == uuid) {
@@ -1639,7 +1682,9 @@ impl Accounts {
                 self.selected = Some(uuid);
             }
             Player::Offline(name) => {
-                if !offline_without_owner && !self.has_owner(store) {
+                if !allow_dev_offline(offline_without_owner, require_owner)
+                    && !self.has_owner_with_policy(store, require_owner)
+                {
                     return Err(OFFLINE_NEEDS_OWNER.into());
                 }
                 let name = self.add_offline(&name)?;
@@ -1777,6 +1822,16 @@ pub fn launch(
     store: &dyn SecretStore,
     accounts: &mut Accounts,
 ) -> Result<Launch, NoOwner> {
+    launch_with_policy(ep, client_id, store, accounts, owner_required())
+}
+
+fn launch_with_policy(
+    ep: &Endpoints,
+    client_id: Option<&str>,
+    store: &dyn SecretStore,
+    accounts: &mut Accounts,
+    require_owner: bool,
+) -> Result<Launch, NoOwner> {
     let selected = accounts.selected.clone();
     let mut order = accounts.accounts.clone();
     order.sort_by_key(|a| Some(&a.uuid) != selected.as_ref());
@@ -1814,7 +1869,7 @@ pub fn launch(
             Check::DoesNot(secrets) => (Some(DOES_NOT_OWN.to_string()), secrets),
             Check::NoAnswer(e, secrets) => (Some(e), secrets),
         };
-        owned = secrets.owns;
+        owned = eligible_owner(&secrets, require_owner);
         if plays {
             pass.offline = said;
         }
@@ -1836,11 +1891,7 @@ pub fn launch(
             }
         }
     }
-    if owned {
-        Ok(pass)
-    } else {
-        Err(NoOwner)
-    }
+    if owned { Ok(pass) } else { Err(NoOwner) }
 }
 
 /// The owner gate before the game starts. With the window's hidden developer option
@@ -1854,8 +1905,28 @@ pub fn launch_for_game(
     accounts: &mut Accounts,
     offline_without_owner: bool,
 ) -> Result<Launch, NoOwner> {
-    match launch(ep, client_id, store, accounts) {
-        Err(NoOwner) if offline_without_owner => Ok(Launch::default()),
+    launch_for_game_with_policy(
+        ep,
+        client_id,
+        store,
+        accounts,
+        offline_without_owner,
+        owner_required(),
+    )
+}
+
+fn launch_for_game_with_policy(
+    ep: &Endpoints,
+    client_id: Option<&str>,
+    store: &dyn SecretStore,
+    accounts: &mut Accounts,
+    offline_without_owner: bool,
+    require_owner: bool,
+) -> Result<Launch, NoOwner> {
+    match launch_with_policy(ep, client_id, store, accounts, require_owner) {
+        Err(NoOwner) if allow_dev_offline(offline_without_owner, require_owner) => {
+            Ok(Launch::default())
+        }
         pass => pass,
     }
 }
@@ -2114,9 +2185,12 @@ fn java_player_with(
     let pass = launch(ep, client_id, store, accounts).map_err(|e| e.to_string())?;
     let kept = || {
         let order = accounts.selected().into_iter().chain(&accounts.accounts);
-        order
-            .into_iter()
-            .find_map(|a| Some((a.clone(), secrets_in(store, &a.uuid).filter(|s| s.owns)?)))
+        order.into_iter().find_map(|a| {
+            Some((
+                a.clone(),
+                secrets_in(store, &a.uuid).filter(|s| eligible_owner(s, owner_required()))?,
+            ))
+        })
     };
     let (account, secrets) = pass
         .session

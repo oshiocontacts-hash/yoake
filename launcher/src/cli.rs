@@ -1365,9 +1365,13 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             if as_json {
                 json(serde_json::json!({ "imported": tag, "prepared": prepared }));
             } else if prepared {
-                println!("Imported {tag} and selected it. It is prepared already, from another installed version.");
+                println!(
+                    "Imported {tag} and selected it. It is prepared already, from another installed version."
+                );
             } else {
-                println!("Imported {tag} and selected it. Prepare it next: horizon-launcher prepare --version {tag}");
+                println!(
+                    "Imported {tag} and selected it. Prepare it next: horizon-launcher prepare --version {tag}"
+                );
             }
         }
         Cmd::Prepare {
@@ -1519,6 +1523,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 cmd.arg("--creative");
             }
             cmd.args(arg);
+            backend::check_client_args(&cmd)?;
             let started = std::time::Instant::now();
             if let Some(name) = accounts.name_arg() {
                 cmd.arg("--name").arg(name);
@@ -2351,7 +2356,7 @@ fn github_native(
 }
 
 fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
-    use horizon_launcher::browser::{horizon, installed, java_instance, Kind, Query, SourceId};
+    use horizon_launcher::browser::{Kind, Query, SourceId, horizon, installed, java_instance};
     use horizon_launcher::modpacks;
     // What the browser installs goes into an instance's game folder; Java mods' checks are kept
     // in the default one, shared by all.
@@ -3184,13 +3189,13 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
                     return Err(format!(
                         "No other launcher has an instance called {name}: \
                          horizon-launcher instance others"
-                    ))
+                    ));
                 }
                 _ => {
                     return Err(format!(
                         "More than one launcher has an instance called {name}: say which \
                          with --folder."
-                    ))
+                    ));
                 }
             };
             let made = other_launchers::import(
@@ -3248,7 +3253,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
                         "{} is a data pack: put it into a world with horizon-launcher worlds \
                          datapack-add <world> <file>",
                         file.display()
-                    ))
+                    ));
                 }
             }
         }
@@ -3670,6 +3675,7 @@ fn modpack(action: ModpackCmd, as_json: bool) -> Result<(), String> {
         ModpackCmd::Play { pack, version } => {
             let mut cmd = backend::client(&backend::resolve_version(version.as_deref())?)?;
             modpacks::apply_profile(&mut cmd, &work(&pack)?)?;
+            backend::check_client_args(&cmd)?;
             attached(cmd)?
         }
         ModpackCmd::Remove { pack } => modpacks::remove(&work(&pack)?)?,
@@ -3914,15 +3920,17 @@ mod tests {
             _ => panic!("expected native-build"),
         }
         // A version refuses --update, as in the game mode.
-        assert!(parse(&[
-            "mods",
-            "--server-output",
-            "engine-out",
-            "--version",
-            "v2026.10.13",
-            "--update"
-        ])
-        .is_err());
+        assert!(
+            parse(&[
+                "mods",
+                "--server-output",
+                "engine-out",
+                "--version",
+                "v2026.10.13",
+                "--update"
+            ])
+            .is_err()
+        );
         // The game mode is unchanged: an instance build without --server-output.
         assert!(matches!(
             parse(&["--instance", "A"]).unwrap().command,
