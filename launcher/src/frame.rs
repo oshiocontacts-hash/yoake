@@ -403,7 +403,7 @@ impl Launcher {
         // Sculk's card (not in the mockup, kept: a sponsor), where the old sidebar had it: above
         // the links on every page but Servers, which shows the wide banner. Tall where the
         // sidebar has the height for it besides its rows, compact otherwise.
-        if self.page != Page::Servers && !self.settings.partner_hidden {
+        if !yoake_page::enabled() && self.page != Page::Servers && !self.settings.partner_hidden {
             let rows = self.instances.list.len() + servers.len();
             let free = f32::from(window.viewport_size().height)
                 - 2. * MARGIN
@@ -430,7 +430,7 @@ impl Launcher {
             foot = foot.child(side);
         }
 
-        if !self.links.discord.is_empty() {
+        if !yoake_page::enabled() && !self.links.discord.is_empty() {
             let url = self.links.discord.clone();
             foot = foot.child(keyboard(
                 div()
@@ -486,7 +486,7 @@ impl Launcher {
             )
         };
         let mut links = div().flex().flex_col().mt(px(8.));
-        if !self.links.sponsor.is_empty() {
+        if !yoake_page::enabled() && !self.links.sponsor.is_empty() {
             links = links.child(link(
                 "sponsor",
                 tr("Sponsor"),
@@ -494,7 +494,7 @@ impl Launcher {
                 self.links.sponsor.clone(),
             ));
         }
-        if !self.links.website.is_empty() {
+        if !yoake_page::enabled() && !self.links.website.is_empty() {
             links = links.child(link(
                 "website",
                 tr("Website"),

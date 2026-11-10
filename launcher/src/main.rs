@@ -73,6 +73,7 @@ mod worlds_page;
 pub mod yoake_auth;
 pub mod yoake_feed;
 pub mod yoake_install;
+mod yoake_launcher_update;
 pub mod yoake_login;
 mod yoake_page;
 pub mod yoake_update;
@@ -1197,12 +1198,12 @@ impl Launcher {
                                     || !backend::is_prepared(&program.resource_tag)
                                 {
                                     self.client_error = Some(if program.resource_tag != tag {
-                                        "Yoake's base version changed; retry the launch."
+                                        tr("Yoake's base version changed; retry the launch.")
                                             .to_string()
                                     } else {
-                                        format!(
-                                            "Yoake requires prepared resources for Horizon {}; prepare that version and retry.",
-                                            program.resource_tag
+                                        trf(
+                                            "Yoake requires prepared resources for Horizon {version}; prepare that version and retry.",
+                                            &[("version", &program.resource_tag)],
                                         )
                                     });
                                     self.starting_pack = None;
@@ -1516,6 +1517,7 @@ impl Launcher {
                                     .filter(|_| e.starts_with("Exited with"));
                                 tail.map_or(e.clone(), |t| format!("{e}: {t}"))
                             });
+                            self.finish_yoake_base_prepare();
                         }
                         Job::Client => {
                             self.client = None;
@@ -1644,8 +1646,8 @@ impl Launcher {
     }
 
     fn instance_play_tag(&self, instance: &instances::Instance) -> Option<String> {
-        let yoake_tag = yoake_install::read_manifest(&instance.home)
-            .ok()
+        let yoake_tag = yoake_page::enabled()
+            .then(|| yoake_install::read_manifest(&instance.home).ok().flatten())
             .flatten()
             .and_then(|manifest| manifest.rollback_index)
             .and_then(|index| index.bases.into_iter().next())
@@ -1662,6 +1664,9 @@ impl Launcher {
             .and_then(|instance| self.instance_play_tag(instance))
             .or_else(|| self.selected().cloned())
             .or_else(|| {
+                if !yoake_page::enabled() {
+                    return None;
+                }
                 self.selected_instance()
                     .filter(|instance| yoake_install::has_manifest_or_pending(&instance.home))
                     .map(|_| String::new())
@@ -1677,7 +1682,10 @@ impl Launcher {
     }
 
     fn install(&mut self, release: &Release) {
-        if release.asset.is_none() || self.removing.contains(&release.tag) {
+        if release.asset.is_none()
+            || self.removing.contains(&release.tag)
+            || (yoake_page::enabled() && self.yoake_busy())
+        {
             return;
         }
         let (release, tx) = (release.clone(), self.tx.clone());
@@ -1699,6 +1707,9 @@ impl Launcher {
     /// the window must keep drawing meanwhile. `Msg::Removed` ends it.
     fn remove(&mut self, tag: &str) {
         self.confirm_remove = None;
+        if yoake_page::enabled() && self.yoake_busy() {
+            return;
+        }
         let installing = self.installing.as_ref().map(|(t, _)| t.as_str());
         if !removable(&self.installed, installing, &self.removing, tag) {
             return;
@@ -1755,9 +1766,16 @@ impl Launcher {
     /// Prepares the selected version, its Minecraft files from the player's install or, for an
     /// owner who asks, from Mojang.
     fn prepare(&mut self, from: backend::MinecraftFrom) {
+        if yoake_page::enabled() && self.yoake_busy() {
+            return;
+        }
         let Some(tag) = self.selected_play_tag() else {
             return;
         };
+        self.prepare_tag(tag, from);
+    }
+
+    fn prepare_tag(&mut self, tag: String, from: backend::MinecraftFrom) {
         horizon_launcher::mojang::CANCEL.store(false, Ordering::Relaxed);
         let minecraft = self
             .settings
@@ -1769,23 +1787,55 @@ impl Launcher {
         self.prepare_log
             .push_back("Checking Java and your Minecraft install".into());
         let tx = self.tx.clone();
+        let yoake_cancel = self.yoake_prepare_cancel();
         // The checks may download the server jar, so they run on the thread too.
         std::thread::spawn(move || {
             let log = |line| {
                 let _ = tx.send(Msg::Line(Job::Prepare, line));
             };
             let result = backend::preparer(&tag, &minecraft, from, &log)
-                .inspect(|(_, minecraft)| backend::sounds(&tag, minecraft, &log))
+                .inspect(|(_, minecraft)| {
+                    if !yoake_cancel
+                        .as_ref()
+                        .is_some_and(|cancel| cancel.load(Ordering::Relaxed))
+                    {
+                        backend::sounds(&tag, minecraft, &log);
+                    }
+                })
                 .map(|(p, _)| {
                     backend::set_prepare_step(backend::PrepareStep::Prepare);
                     p
                 })
-                .and_then(|p| match p {
-                    backend::Preparer::Process(cmd) => {
-                        backend::spawn(Job::Prepare, cmd, tx.clone()).map(|_running| false)
+                .and_then(|p| {
+                    if yoake_cancel
+                        .as_ref()
+                        .is_some_and(|cancel| cancel.load(Ordering::Relaxed))
+                    {
+                        return Err("Cancelled.".to_string());
                     }
-                    backend::Preparer::InProcess(options) => {
-                        backend::prepare_in_process(&options, &log).map(|_| true)
+                    match p {
+                        backend::Preparer::Process(cmd) => {
+                            let running = backend::spawn(Job::Prepare, cmd, tx.clone())?;
+                            if let Some(cancel) = yoake_cancel {
+                                let child = std::sync::Arc::clone(&running.child);
+                                std::thread::spawn(move || loop {
+                                    let mut child = child.lock().unwrap();
+                                    if cancel.load(Ordering::Relaxed) {
+                                        let _ = child.kill();
+                                        break;
+                                    }
+                                    if !matches!(child.try_wait(), Ok(None)) {
+                                        break;
+                                    }
+                                    drop(child);
+                                    std::thread::sleep(std::time::Duration::from_millis(100));
+                                });
+                            }
+                            Ok(false)
+                        }
+                        backend::Preparer::InProcess(options) => {
+                            backend::prepare_in_process(&options, &log).map(|_| true)
+                        }
                     }
                 });
             match result {
@@ -1805,6 +1855,19 @@ impl Launcher {
     }
 
     fn play(&mut self) {
+        if yoake_page::enabled() {
+            if let Some(home) = self
+                .selected_instance()
+                .filter(|instance| yoake_install::has_manifest_or_pending(&instance.home))
+                .map(|instance| instance.home.clone())
+            {
+                if self.client.is_none() && self.starting_client.is_none() {
+                    self.starting_pack = None;
+                    self.begin_yoake_base(home, true);
+                }
+                return;
+            }
+        }
         let java = self
             .selected_instance()
             .filter(|i| i.java.is_some() && !yoake_install::has_manifest_or_pending(&i.home))
@@ -1863,10 +1926,11 @@ impl Launcher {
     /// running or starting.
     pub(crate) fn can_start(&self, tag: &str) -> bool {
         let running = self.client.is_some() || self.starting_client.is_some();
-        let yoake = self
-            .selected_instance()
-            .is_some_and(|instance| yoake_install::has_manifest_or_pending(&instance.home));
-        starts_now(backend::is_prepared(tag) || yoake, self.preparing, running)
+        starts_now(
+            backend::is_prepared(tag),
+            self.preparing || (yoake_page::enabled() && self.yoake_busy()),
+            running,
+        )
     }
 
     /// Whether the selected instance's version can start now, from a shortcut (a server's Join,
@@ -3015,7 +3079,7 @@ impl Launcher {
         // its wide banner. Tall where the sidebar has the height for it besides the wordmark, its rows
         // (52 high each, under headings of 40) and the links, compact otherwise. After a while on
         // screen a "Hide" beside its label puts it away for good.
-        if self.page != Page::Servers && !self.settings.partner_hidden {
+        if !yoake_page::enabled() && self.page != Page::Servers && !self.settings.partner_hidden {
             let free = f32::from(window.viewport_size().height)
                 - theme::TOPBAR
                 - 40. * headings as f32
@@ -3039,7 +3103,7 @@ impl Launcher {
             }
             foot = foot.child(side);
         }
-        if !self.links.sponsor.is_empty() {
+        if !yoake_page::enabled() && !self.links.sponsor.is_empty() {
             foot = foot.child(link(
                 "sponsor",
                 tr("Sponsor"),
@@ -3047,7 +3111,7 @@ impl Launcher {
                 self.links.sponsor.clone(),
             ));
         }
-        if !self.links.discord.is_empty() {
+        if !yoake_page::enabled() && !self.links.discord.is_empty() {
             foot = foot.child(link(
                 "discord",
                 "Discord",
@@ -3055,7 +3119,7 @@ impl Launcher {
                 self.links.discord.clone(),
             ));
         }
-        if !self.links.website.is_empty() {
+        if !yoake_page::enabled() && !self.links.website.is_empty() {
             foot = foot.child(link(
                 "website",
                 tr("Website"),
@@ -3252,9 +3316,10 @@ impl Launcher {
                 .then(|| i.java.clone())
                 .flatten()
         });
-        let yoake = self
-            .selected_instance()
-            .is_some_and(|instance| yoake_install::has_manifest_or_pending(&instance.home));
+        let yoake = yoake_page::enabled()
+            && self
+                .selected_instance()
+                .is_some_and(|instance| yoake_install::has_manifest_or_pending(&instance.home));
         let Some(tag) = self
             .selected_play_tag()
             .or_else(|| java.is_some().then(String::new))
@@ -3968,6 +4033,24 @@ impl Launcher {
                         ))
                     }),
             )
+            .when(yoake_page::enabled(), |page| {
+                page.child(
+                    plate(&t)
+                        .flex()
+                        .flex_col()
+                        .gap(px(12.))
+                        .p(px(24.))
+                        .child(section_title("About / licences", "info-box", &t))
+                        .child(text(theme::UI).text_color(t.ink).child(tr(
+                            "Yoake Launcher is built on Horizon (licence below)",
+                        )))
+                        .child(
+                            text(theme::UI)
+                                .text_color(t.muted)
+                                .child(include_str!("../../LICENSE")),
+                        ),
+                )
+            })
             .child(self.collection_section(cx))
             .children(self.agents_section(cx))
             .children(self.dev_options_section(cx))
@@ -4477,7 +4560,9 @@ impl Launcher {
     pub(crate) fn quick_play(&mut self, flag: &'static str, value: String) {
         self.quick_play = Some((flag, value));
         self.play();
-        if self.starting_client.is_none() {
+        if self.starting_client.is_none()
+            && !(yoake_page::enabled() && self.yoake_base_pending_play())
+        {
             self.quick_play = None;
         }
     }
@@ -4488,7 +4573,9 @@ impl Launcher {
         }
         self.joining = Some(self.friend_code.text().to_string());
         self.play();
-        if self.starting_client.is_none() {
+        if self.starting_client.is_none()
+            && !(yoake_page::enabled() && self.yoake_base_pending_play())
+        {
             self.joining = None;
         }
     }
@@ -4901,7 +4988,7 @@ impl Launcher {
 
     fn notes_page(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
-        let sponsor = (!self.links.sponsor.is_empty()).then(|| {
+        let sponsor = (!yoake_page::enabled() && !self.links.sponsor.is_empty()).then(|| {
             plate(&t)
                 .flex()
                 .items_center()

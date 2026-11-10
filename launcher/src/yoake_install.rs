@@ -24,6 +24,7 @@ use secure_fs::Dir;
 
 const MANIFEST: &str = "yoake-pack.json";
 const PREVIOUS_MANIFEST: &str = "yoake-pack.previous.json";
+const MOD_LIST: &str = "horizon-mods.txt";
 const STAGING: &str = ".yoake-staging";
 const JOURNAL: &str = "journal.json";
 const MAX_METADATA: u64 = 8 * 1024 * 1024;
@@ -576,6 +577,7 @@ fn validate_journal(journal: &Journal) -> Result<(), InstallError> {
     for (index, operation) in journal.operations.iter().enumerate() {
         let is_manifest = index + 1 == journal.operations.len();
         let is_previous_manifest = operation.destination == PREVIOUS_MANIFEST;
+        let is_mod_list = operation.destination == MOD_LIST;
         if is_manifest != (operation.destination == MANIFEST) {
             return Err(InstallError::InvalidMetadata);
         }
@@ -586,7 +588,10 @@ fn validate_journal(journal: &Journal) -> Result<(), InstallError> {
         {
             return Err(InstallError::InvalidMetadata);
         }
-        if !is_manifest && !is_previous_manifest {
+        if is_mod_list && (operation.default_on_create || operation.after.is_none()) {
+            return Err(InstallError::InvalidMetadata);
+        }
+        if !is_manifest && !is_previous_manifest && !is_mod_list {
             let policy = if operation.default_on_create {
                 Policy::DefaultOnCreate
             } else {
@@ -979,6 +984,23 @@ fn apply_plan(
                 default_on_create: false,
             });
         }
+        let index = journal.operations.len();
+        let name = format!("new-{transaction}-{index}");
+        temporary.push(name.clone());
+        let content_mods = select(&plan.rollback_index, &plan.pack_id, &plan.pack_version)?
+            .enabled_content_mods
+            .iter()
+            .map(|id| format!("mod.{id}:true\n"))
+            .collect::<String>();
+        let after = write_staged(staging, &name, content_mods.as_bytes())?;
+        journal.operations.push(JournalOperation {
+            destination: MOD_LIST.to_owned(),
+            before: hash_at(&plan.instance_dir, MOD_LIST)?,
+            after: Some(after),
+            staged: Some(name),
+            backup: format!("old-{transaction}-{index}"),
+            default_on_create: false,
+        });
         if let Some(bytes) = previous_bytes.filter(|_| version_changed) {
             let index = journal.operations.len();
             let name = format!("new-{transaction}-{index}");

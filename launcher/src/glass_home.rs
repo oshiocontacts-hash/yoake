@@ -33,6 +33,10 @@ impl Launcher {
                 .then(|| instance.java.clone())
                 .flatten()
         });
+        let yoake = yoake_page::enabled()
+            && self
+                .selected_instance()
+                .is_some_and(|instance| yoake_install::has_manifest_or_pending(&instance.home));
         // How long this game has run, for "Playing for 5 min now".
         match (&self.client, self.client_since) {
             (Some(_), None) => self.client_since = Some(Instant::now()),
@@ -56,7 +60,7 @@ impl Launcher {
                         // would wrap the row away from under the pointer, which hides it again.
                         .items_center()
                         .gap(px(10.))
-                        .child(self.play_group(tag, prepared || java.is_some(), cx))
+                        .child(self.play_group(tag, prepared || java.is_some() || yoake, cx))
                         .children(java.is_none().then(|| self.glass_picker(cx)))
                         .child(ui::big_icon("home-mods", "puzzle", &self.theme).on_click(
                             cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -217,6 +221,32 @@ impl Launcher {
     /// Play and its ⋯ menu (`PlayGroup`): Stop while the game runs, Update when the launcher's
     /// version has a newer one, the progress while preparing, updating or starting.
     fn play_group(&mut self, tag: &str, ready: bool, cx: &mut Context<Self>) -> Div {
+        if let Some((done, message)) = self.yoake_base_progress() {
+            return div()
+                .flex()
+                .flex_col()
+                .w(px(260.))
+                .gap(px(8.))
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .gap(px(10.))
+                        .child(format!("{message} {:.0}%", done * 100.))
+                        .child(
+                            div()
+                                .id("yoake-base-cancel-glass")
+                                .cursor_pointer()
+                                .child(tr("Cancel"))
+                                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                                    this.cancel_yoake_base();
+                                    cx.notify();
+                                })),
+                        ),
+                )
+                .child(ui::bar(done, self.look.accent_soft));
+        }
         let t = self.theme;
         let accent = ui::color(self.look.accent);
         let running = self.client.is_some();
@@ -331,7 +361,11 @@ impl Launcher {
                     Some(_) => (tr("Update"), "download-04"),
                     None => (tr("Play"), "play"),
                 };
-                let press = play_press(ready, self.owner, false);
+                let press = play_press(
+                    ready,
+                    self.owner,
+                    yoake_page::enabled() && self.yoake_busy(),
+                );
                 let main = body(label.into(), icon).id("play").cursor_pointer();
                 let main = match (&update, press) {
                     (Some(_), _) => main.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {

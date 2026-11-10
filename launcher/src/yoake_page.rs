@@ -5,16 +5,34 @@
 use super::*;
 use std::path::PathBuf;
 use std::sync::mpsc;
+use std::sync::{Arc, atomic::AtomicBool};
 use yoake_feed::{FeedClient, FeedError, ParsedFeedIndex, VerifiedFeed};
 use yoake_install::{InstallError, InstallEvent, InstallTask};
+
+struct BaseTask {
+    home: PathBuf,
+    play: bool,
+    cancel: Arc<AtomicBool>,
+    events: Option<mpsc::Receiver<BaseEvent>>,
+    preparing: Option<String>,
+}
+
+enum BaseEvent {
+    Progress(f32),
+    Finished(Result<String, String>),
+}
 
 /// What the page keeps between frames.
 pub(super) struct YoakePage {
     /// The verified feed, once fetched, or why it could not be.
     catalog: Option<Result<VerifiedFeed, FeedError>>,
     catalog_task: Option<mpsc::Receiver<Result<VerifiedFeed, FeedError>>>,
+    launcher_update: Option<(String, String)>,
+    launcher_update_task: Option<mpsc::Receiver<Option<(String, String)>>>,
+    launcher_update_checked: bool,
     /// The install, update or rollback running now, and the instance it works on.
     job: Option<(PathBuf, InstallTask)>,
+    base: Option<BaseTask>,
     /// How far the job is (0..1) and the file it is on.
     progress: Option<(f32, String)>,
     /// The last job's outcome, shown under the account.
@@ -29,10 +47,14 @@ pub(super) struct YoakePage {
 
 impl YoakePage {
     pub(super) fn new(cx: &mut App) -> Self {
-        Self {
+        let mut page = Self {
             catalog: None,
             catalog_task: None,
+            launcher_update: None,
+            launcher_update_task: None,
+            launcher_update_checked: false,
             job: None,
+            base: None,
             progress: None,
             note: None,
             invite_code: line_edit::LineEdit::new(String::new(), 32, 16),
@@ -41,7 +63,38 @@ impl YoakePage {
             name_focus: cx.focus_handle(),
             code_focused: false,
             name_focused: false,
+        };
+        if enabled() {
+            page.check_launcher_update(false);
         }
+        page
+    }
+
+    fn check_launcher_update(&mut self, force: bool) {
+        if self.launcher_update_task.is_some() || (!force && self.launcher_update_checked) {
+            return;
+        }
+        let Some(portal) = option_env!("YOAKE_PORTAL_URL") else {
+            return;
+        };
+        if !signed_in() {
+            self.launcher_update = None;
+            self.launcher_update_checked = false;
+            return;
+        }
+        self.launcher_update_checked = true;
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let auth = yoake_auth::TokenFileAuth::new(&backend::data_dir());
+            let result = yoake_launcher_update::check(
+                portal,
+                &auth,
+                &yoake_feed::HttpTransport,
+                env!("CARGO_PKG_VERSION"),
+            );
+            let _ = tx.send(result);
+        });
+        self.launcher_update_task = Some(rx);
     }
 }
 
@@ -163,6 +216,7 @@ fn newest(pack: &yoake_feed::PackV2) -> Option<&yoake_feed::PackVersionV2> {
 impl Launcher {
     /// Fetches the feed in the background (Refresh, sign-in, opening the page).
     pub(super) fn yoake_refresh(&mut self) {
+        self.yoake.check_launcher_update(false);
         let Ok(Some(client)) = FeedClient::configured() else {
             return;
         };
@@ -177,6 +231,19 @@ impl Launcher {
     /// The page's background work: the feed and the running job. True when something changed.
     pub(super) fn drain_yoake_page(&mut self) -> bool {
         let mut changed = false;
+        if let Some(rx) = &self.yoake.launcher_update_task {
+            match rx.try_recv() {
+                Ok(result) => {
+                    self.yoake.launcher_update = if signed_in() { result } else { None };
+                    self.yoake.launcher_update_task = None;
+                    changed = true;
+                }
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.yoake.launcher_update_task = None;
+                }
+                Err(mpsc::TryRecvError::Empty) => {}
+            }
+        }
         if let Some(rx) = &self.yoake.catalog_task {
             match rx.try_recv() {
                 Ok(result) => {
@@ -217,26 +284,238 @@ impl Launcher {
             }
         }
         if let Some(result) = finished {
+            let home = self.yoake.job.as_ref().map(|(home, _)| home.clone());
             self.yoake.job = None;
             self.yoake.progress = None;
-            self.yoake.note = Some(match result {
-                Ok(pack) => (
-                    true,
-                    trf(
-                        "{pack} {version} is ready.",
-                        &[("pack", &pack.pack_id), ("version", &pack.pack_version)],
-                    ),
-                ),
-                Err(e) => (false, install_text(&e)),
-            });
             self.reload_instances();
             self.check_yoake_updates();
+            match (result, home) {
+                (Ok(_), Some(home)) => self.begin_yoake_base(home, false),
+                (Err(error), _) => self.yoake.note = Some((false, install_text(&error))),
+                _ => {}
+            }
         }
+        changed |= self.drain_yoake_base();
         changed
     }
 
-    fn yoake_busy(&self) -> bool {
-        self.yoake.job.is_some()
+    pub(super) fn yoake_busy(&self) -> bool {
+        self.yoake.job.is_some() || self.yoake.base.is_some()
+    }
+
+    pub(super) fn yoake_base_pending_play(&self) -> bool {
+        self.yoake.base.as_ref().is_some_and(|base| base.play)
+    }
+
+    pub(super) fn yoake_prepare_cancel(&self) -> Option<Arc<AtomicBool>> {
+        self.yoake
+            .base
+            .as_ref()
+            .filter(|base| base.preparing.is_some())
+            .map(|base| Arc::clone(&base.cancel))
+    }
+
+    pub(super) fn begin_yoake_base(&mut self, home: PathBuf, play: bool) {
+        if self.yoake_busy() {
+            return;
+        }
+        self.yoake.base = Some(BaseTask {
+            home,
+            play,
+            cancel: Arc::new(AtomicBool::new(false)),
+            events: None,
+            preparing: None,
+        });
+        self.yoake.progress = Some((0., tr("Waiting to prepare the game…").to_string()));
+        self.yoake.note = None;
+    }
+
+    pub(super) fn cancel_yoake_base(&mut self) {
+        if let Some(base) = &self.yoake.base {
+            base.cancel.store(true, Ordering::Relaxed);
+            if base.preparing.is_some() {
+                horizon_launcher::mojang::CANCEL.store(true, Ordering::Relaxed);
+            }
+        }
+    }
+
+    pub(super) fn yoake_base_progress(&self) -> Option<(f32, String)> {
+        let base = self.yoake.base.as_ref()?;
+        let instance = self.selected_instance()?;
+        (instance.home == base.home)
+            .then(|| self.yoake.progress.clone())
+            .flatten()
+    }
+
+    fn complete_yoake_base(&mut self, result: Result<String, String>) {
+        let Some(base) = self.yoake.base.take() else {
+            return;
+        };
+        self.yoake.progress = None;
+        if base.cancel.load(Ordering::Relaxed) {
+            if base.play {
+                self.quick_play = None;
+                self.joining = None;
+            }
+            self.yoake.note = Some((false, tr("Cancelled.").to_string()));
+            return;
+        }
+        match result {
+            Ok(tag) if base.play => {
+                if self
+                    .selected_instance()
+                    .is_some_and(|instance| instance.home == base.home)
+                    && self.client.is_none()
+                    && self.starting_client.is_none()
+                {
+                    self.start_client(tag);
+                } else {
+                    self.quick_play = None;
+                    self.joining = None;
+                    self.yoake.note = Some((
+                        false,
+                        tr("Select the pack and press Play again.").to_string(),
+                    ));
+                }
+            }
+            Ok(_) => self.yoake.note = Some((true, tr("The pack is ready to play.").to_string())),
+            Err(error) => {
+                if base.play {
+                    self.quick_play = None;
+                    self.joining = None;
+                }
+                self.client_error = Some(error.clone());
+                self.yoake.note = Some((false, error));
+            }
+        }
+    }
+
+    pub(super) fn finish_yoake_base_prepare(&mut self) {
+        let Some(tag) = self
+            .yoake
+            .base
+            .as_ref()
+            .and_then(|base| base.preparing.clone())
+        else {
+            return;
+        };
+        let result = if self.prepare_error.is_none() && backend::is_prepared(&tag) {
+            Ok(tag)
+        } else {
+            Err(
+                tr("Could not prepare the game. Check your Minecraft installation and try again.")
+                    .to_string(),
+            )
+        };
+        self.complete_yoake_base(result);
+    }
+
+    fn drain_yoake_base(&mut self) -> bool {
+        let Some(base) = self.yoake.base.as_mut() else {
+            return false;
+        };
+        if base.events.is_none() && base.preparing.is_none() {
+            if base.cancel.load(Ordering::Relaxed) {
+                self.complete_yoake_base(Err(tr("Cancelled.").to_string()));
+                return true;
+            }
+            if self.installing.is_some() || self.preparing || !self.removing.is_empty() {
+                return false;
+            }
+            let home = base.home.clone();
+            let cancel = Arc::clone(&base.cancel);
+            let (tx, rx) = mpsc::channel();
+            base.events = Some(rx);
+            self.yoake.progress = Some((0., tr("Checking the game version…").to_string()));
+            std::thread::spawn(move || {
+                let result = (|| {
+                    let program = yoake_install::prepare_launch(&home, &backend::data_dir())
+                        .map_err(|error| install_text(&error))?
+                        .ok_or_else(|| {
+                            tr("The pack's game files are missing; install the pack again.")
+                                .to_string()
+                        })?;
+                    let tag = program.resource_tag;
+                    if cancel.load(Ordering::Relaxed) {
+                        return Err(tr("Cancelled.").to_string());
+                    }
+                    if !backend::installed().contains(&tag) {
+                        let release = backend::yoake_release(&tag)
+                            .map_err(|_| {
+                                tr("Cannot check game versions. Check the connection and try again.")
+                                    .to_string()
+                            })?
+                            .ok_or_else(|| {
+                                trf(
+                                    "The required game version {version} is not available.",
+                                    &[("version", &tag)],
+                                )
+                            })?;
+                        let progress = |done| {
+                            let _ = tx.send(BaseEvent::Progress(done));
+                        };
+                        backend::install_for_yoake(&release, progress, &cancel).map_err(|_| {
+                            trf(
+                                "Could not install game version {version}. Check the connection and try again.",
+                                &[("version", &tag)],
+                            )
+                        })?;
+                    }
+                    Ok(tag)
+                })();
+                let _ = tx.send(BaseEvent::Finished(result));
+            });
+            return true;
+        }
+        if base.preparing.is_some() {
+            if let Some((done, total)) = horizon_launcher::mojang::progress() {
+                let fraction = done as f32 / total.max(1) as f32;
+                self.yoake.progress = Some((
+                    fraction.min(1.),
+                    tr("Preparing game files…").to_string(),
+                ));
+                return true;
+            }
+            return false;
+        }
+        let mut finished = None;
+        let mut changed = false;
+        if let Some(events) = &base.events {
+            loop {
+                match events.try_recv() {
+                    Ok(BaseEvent::Progress(done)) => {
+                        self.yoake.progress =
+                            Some((done, tr("Installing the game version…").to_string()));
+                        changed = true;
+                    }
+                    Ok(BaseEvent::Finished(result)) => {
+                        finished = Some(result);
+                        break;
+                    }
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        finished = Some(Err(
+                            tr("Could not install the game version. Try again.").to_string(),
+                        ));
+                        break;
+                    }
+                    Err(mpsc::TryRecvError::Empty) => break,
+                }
+            }
+        }
+        if let Some(result) = finished {
+            self.installed = backend::installed();
+            match result {
+                Ok(tag) if !backend::is_prepared(&tag) && !base.cancel.load(Ordering::Relaxed) => {
+                    base.events = None;
+                    base.preparing = Some(tag.clone());
+                    self.yoake.progress = Some((0., tr("Preparing game files…").to_string()));
+                    self.prepare_tag(tag, backend::MinecraftFrom::Install);
+                }
+                result => self.complete_yoake_base(result),
+            }
+            return true;
+        }
+        changed
     }
 
     /// Installs `version` of pack `id` into a new instance named after the pack.
@@ -292,6 +571,28 @@ impl Launcher {
             "The group's modpacks. Sign in once; packs install and update from here.",
             &t,
         ));
+        if let Some((version, url)) = self.yoake.launcher_update.clone().filter(|_| signed_in()) {
+            page = page.child(
+                plate(&t)
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .gap(px(12.))
+                    .p(px(16.))
+                    .child(
+                        text(theme::UI).text_color(t.ink).child(trf(
+                            "A new launcher ({version}) is available.",
+                            &[("version", &version)],
+                        )),
+                    )
+                    .child(
+                        button("yoake-launcher-download", "Open launcher page", Kind::Secondary, &t)
+                            .on_click(cx.listener(move |_, _: &ClickEvent, _, cx| {
+                                cx.open_url(&url);
+                            })),
+                    ),
+            );
+        }
         page = page.child(self.yoake_account(cx));
         if let Some((done, file)) = self.yoake.progress.clone() {
             let label = if file.is_empty() {
@@ -317,6 +618,7 @@ impl Launcher {
                                         if let Some((_, task)) = &this.yoake.job {
                                             task.cancel();
                                         }
+                                        this.cancel_yoake_base();
                                         cx.notify();
                                     }),
                                 ),
@@ -434,6 +736,9 @@ impl Launcher {
                         Err(_) => Some(yoake_login::LoginEvent::StorageError),
                     };
                     this.yoake.catalog = None;
+                    this.yoake.launcher_update = None;
+                    this.yoake.launcher_update_task = None;
+                    this.yoake.launcher_update_checked = false;
                     this.check_yoake_updates();
                     cx.notify();
                 }),
@@ -608,6 +913,7 @@ impl Launcher {
             disabled(refresh)
         } else {
             refresh.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                this.yoake.check_launcher_update(true);
                 this.yoake_refresh();
                 cx.notify();
             }))
