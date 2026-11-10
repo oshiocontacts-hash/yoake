@@ -1100,6 +1100,25 @@ fn enderman_render_offset(m: &Mob, alpha: f32) -> glam::DVec3 {
     let z = random.next_gaussian() * d;
     glam::DVec3::new(x, 0.0, z)
 }
+fn bedless_sleep_angle(yaw: f32) -> f32 {
+    // CHECK: Confirm vanilla's bedless sleeping rotation and yaw convention.
+    (90.0 - yaw).rem_euclid(360.0)
+}
+
+fn sleeping_pose(m: &Mob, alpha: f32) -> Option<(f32, [f32; 2])> {
+    (m.species() == Species::Villager || avatar(m))
+        .then(|| super::villager::sleep_pose(m))
+        .flatten()
+        .or_else(|| {
+            (m.species() == Species::Mannequin
+                && m.extra.avatar_pose == crate::pose::Pose::Sleeping)
+                .then(|| {
+                    let yaw = m.previous_yaw + wrap(m.yaw - m.previous_yaw) * alpha;
+                    (bedless_sleep_angle(yaw), [0.0, 0.0])
+                })
+        })
+}
+
 /// `base_transform` from a pose of the entity's origin (`EntityRenderDispatcher.submit`
 /// under a pose stack, as `SpawnerRenderer` draws the mob inside a spawner).
 pub fn base_transform_at(m: &Mob, alpha: f32, origin: glam::Mat4) -> glam::Mat4 {
@@ -1110,9 +1129,7 @@ pub fn base_transform_at(m: &Mob, alpha: f32, origin: glam::Mat4) -> glam::Mat4 
         body += (f64::from(ticks * 3.25).cos() * std::f64::consts::PI * 0.4) as f32;
     }
     // A sleeping villager, or another player lying in their bed.
-    let sleep = (m.species() == Species::Villager || avatar(m))
-        .then(|| super::villager::sleep_pose(m))
-        .flatten();
+    let sleep = sleeping_pose(m, alpha);
     // `LivingEntityRenderer.submit` moves a sleeper toward the pillow before
     // it scales the model, so the bed offset is not scaled and the pose after
     // it is. Keep the two apart.
@@ -2721,6 +2738,31 @@ pub fn held_item_stack(extra: &super::Extra, off_hand: bool) -> Option<crate::it
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bedless_sleep_direction_follows_yaw() {
+        for (yaw, expected) in [(0.0, 90.0), (90.0, 0.0), (180.0, 270.0), (270.0, 180.0)] {
+            assert_eq!(bedless_sleep_angle(yaw), expected);
+        }
+        assert_eq!(bedless_sleep_angle(405.0), 45.0);
+    }
+
+    #[test]
+    fn mannequin_sleep_uses_yaw_without_overriding_a_bed() {
+        let mut kind = crate::mobs::sensor_scan_tests::kind();
+        let ty = std::sync::Arc::make_mut(&mut kind);
+        ty.id = "minecraft:mannequin".into();
+        ty.species = Species::Mannequin;
+        let mut mob = Mob::new(1, kind, horizon_core::geometry::Vec3::ZERO, 0.0);
+        mob.yaw = 90.0;
+        mob.previous_yaw = 90.0;
+        mob.body_yaw = 180.0;
+        assert_eq!(sleeping_pose(&mob, 1.0), None);
+        mob.extra.avatar_pose = crate::pose::Pose::Sleeping;
+        assert_eq!(sleeping_pose(&mob, 1.0), Some((0.0, [0.0, 0.0])));
+        mob.extra.ints[1] = 1;
+        assert_eq!(sleeping_pose(&mob, 1.0), Some((270.0, [0.0, -1.0])));
+    }
 
     #[test]
     fn each_equipment_part_uses_its_own_block_space_frame() {

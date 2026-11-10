@@ -240,6 +240,7 @@ pub(crate) mod native_lan;
 mod native_level_refs;
 mod native_lifecycle;
 mod native_living_refs;
+mod native_mannequin;
 mod native_menus;
 mod native_mob_draw;
 mod native_mob_navigation;
@@ -456,6 +457,7 @@ pub use native_explosions::NativeBlast;
 pub use native_falling::NativeFalling;
 pub use native_hooks::{NativeClock, NativeShake};
 pub use native_item_energy::ItemEnergyBuffer;
+pub use native_mannequin::NativeMannequinPose;
 pub use native_mob_draw::{NativeMobRender, NativePlayerRender};
 pub use native_mob_player::{NativePlayerAppearance, NativePlayerModel};
 pub use native_server::NativeExperienceOrb;
@@ -2969,6 +2971,7 @@ struct Game<'a> {
     native_input: native_claimed_items::ModInput,
     /// The native lifecycle bookkeeping.
     native_lifecycle: native_lifecycle::NativeLifecycle,
+    native_mannequins: native_mannequin::NativeMannequins,
     native_entity_queries: native_entity_query::QueryBudgets,
     native_server_physics_budgets: native_server_physics::PhysicsBudgets,
     native_player_ops: native_player_ops::PlayerOpsState,
@@ -8717,8 +8720,16 @@ impl Game<'_> {
             let drawn = self.gui_layer("minecraft:tab_list", &mut batch, |g, batch| {
                 g.draw_tab_list(batch);
             });
-            if drawn.is_none() && self.native_mob_player_cache.get_mut().is_some() {
-                self.flush_skin_slots();
+            if drawn.is_none() {
+                let has_mannequin_profile = self.mobs.iter().any(|mob| {
+                    &*mob.kind.id == "minecraft:mannequin" && mob.profile.is_some()
+                });
+                if self.native_mob_player_cache.get_mut().is_some() || has_mannequin_profile {
+                    self.flush_skin_slots();
+                }
+                if has_mannequin_profile {
+                    self.update_remote_skins();
+                }
             }
         } else {
             self.draw_chat(&mut batch);
@@ -19280,6 +19291,7 @@ impl<'a> Game<'a> {
             native_shaders: Default::default(),
             native_input: Default::default(),
             native_lifecycle: Default::default(),
+            native_mannequins: Default::default(),
             native_entity_queries: Default::default(),
             native_server_physics_budgets: Default::default(),
             native_player_ops: Default::default(),

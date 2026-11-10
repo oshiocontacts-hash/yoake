@@ -40,6 +40,7 @@ pub const INHALING: u8 = 17;
 /// keeps in its own fields.
 pub fn pose_id(m: &Mob) -> u8 {
     match m.species() {
+        Species::Mannequin => m.extra.avatar_pose.id(),
         Species::Warden => warden::pose_id(m),
         Species::Breeze => breeze::pose_id(m),
         Species::Camel | Species::CamelHusk if camel::sitting(m) => SITTING,
@@ -47,6 +48,40 @@ pub fn pose_id(m: &Mob) -> u8 {
         // LivingEntity.startSleeping: the pose, with the bed in index 14.
         Species::Villager if villager::sleeping(m) => SLEEPING,
         _ => STANDING,
+    }
+}
+
+#[cfg(test)]
+mod mannequin_pose_tests {
+    use super::*;
+    use crate::pose::Pose;
+    use horizon_core::geometry::Vec3;
+    use horizon_protocol::{
+        buf::{Codec, Reader, Writer},
+        entity_data::{EntityData, Value, serializer},
+    };
+
+    #[test]
+    fn mannequin_pose_uses_entity_metadata_ids() {
+        let mut kind = super::super::sensor_scan_tests::kind();
+        let ty = std::sync::Arc::make_mut(&mut kind);
+        ty.id = "minecraft:mannequin".into();
+        ty.species = Species::Mannequin;
+        let mut mob = Mob::new(1, kind, Vec3::ZERO, 0.0);
+        assert_eq!(pose_id(&mob), STANDING);
+        mob.extra.avatar_pose = Pose::Sleeping;
+        assert_eq!(pose_id(&mob), SLEEPING);
+        assert_eq!(Pose::from_id(i32::from(pose_id(&mob))), Pose::Sleeping);
+        for pose in [Pose::Standing, Pose::Sleeping] {
+            mob.extra.avatar_pose = pose;
+            let entries = vec![(6, serializer::POSE, Value::Id(i32::from(pose_id(&mob))))];
+            let mut writer = Writer::new();
+            EntityData::write(&entries, &mut writer);
+            assert_eq!(
+                EntityData::read(&mut Reader::new(&writer.data)).unwrap(),
+                entries
+            );
+        }
     }
 }
 

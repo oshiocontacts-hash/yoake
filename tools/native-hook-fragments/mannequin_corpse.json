@@ -1,0 +1,9 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "spawn_mannequin", "target": "horizon_client::game::native_hooks::Game<'_>::native_spawn_mannequin"},
+    {"name": "remove_spawned_entity", "target": "horizon_client::game::native_hooks::Game<'_>::native_remove_spawned_entity"}
+  ],
+  "rust_summary": "spawning and removing session-scoped mannequins owned by a native mod.",
+  "doc_summary": "Spawn an immovable, invulnerable mannequin with `host.spawn_mannequin(x, y, z, yaw, uuid, pose)`, and remove your own with `host.remove_spawned_entity(id)`. Each helper is limited to 512 calls per mod per authoritative server tick. Bundles need fragment @API:mannequin_corpse@."
+}

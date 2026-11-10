@@ -233,6 +233,7 @@ impl Game<'_> {
         if let Some(context) = self.native_lifecycle.world_open_failed() {
             self.native_world_lifecycle(&context, WorldPhase::WorldOpenFailed, error_text);
         }
+        self.native_clear_mannequins();
     }
 
     /// Report a server-loop or shutdown failure once and retire its epoch.
@@ -244,6 +245,7 @@ impl Game<'_> {
         if let Some(context) = self.native_lifecycle.world_close_failed() {
             self.native_world_lifecycle(&context, WorldPhase::WorldCloseFailed, error_text);
         }
+        self.native_clear_mannequins();
     }
 
     /// After the final save, before the lock release. Mirrors never fire.
@@ -258,6 +260,7 @@ impl Game<'_> {
         if let Some(context) = self.native_lifecycle.world_close_final() {
             self.native_world_lifecycle(&context, WorldPhase::WorldCloseFinal, "");
         }
+        self.native_clear_mannequins();
     }
 
     pub(super) fn native_lifecycle_server_tick_start(&mut self, world_running: bool) {

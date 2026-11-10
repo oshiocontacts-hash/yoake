@@ -35,7 +35,9 @@ pub use crate::game::{
     NativeMapInfo, NativeMobRender, NativeModEvent, NativePlayerAppearance, NativePlayerModel,
     NativePlayerRender, NativeShake,
 };
-pub use crate::game::{NativeAccount, NativeClientWorld, NativeJoinPoll, NativeSoundCategory};
+pub use crate::game::{
+    NativeAccount, NativeClientWorld, NativeJoinPoll, NativeMannequinPose, NativeSoundCategory,
+};
 pub use crate::game::{NativeBlast, NativeDamage, NativeDamageActor, NativeDamageKind};
 pub use crate::game::{NativeChatRecipients, NativeCrosshairEntity};
 pub use crate::gfx::native_render::{

@@ -2575,9 +2575,24 @@ They are not currently exposed as Yoake host helpers. Each names the level it me
 - `native_remove_entity(dimension, id)` removes such an entity as `/kill` does. Mobs go with `native_remove_mob`.
 
 Mannequin profile NBT can contain a player name or a compound with an `id` UUID int array and
-optional texture properties. The internal `native_summon` and `native_remove_mob` methods are not
-currently exposed as Yoake host helpers. Mannequin pose NBT and a ground-lying pose are not
-implemented yet.
+optional texture properties. Its `pose` accepts `standing` and `sleeping`; a sleeping mannequin
+without a bed lies along its yaw. `/summon` and saved entities use this same pose data.
+
+#### Session-scoped mannequins
+
+Add `@API:mannequin_corpse@`, `@API:living_death@` and `@API:entity_handles@` to a native mod's
+hook fragments. In `living_death`, check `event.kind == "minecraft:player"`, use
+`host.entity(event.entity)` and the entity handle's `position(host)`, `rotation(host)` and
+`uuid(host)` to obtain the death position, yaw and UUID, then call
+`host.spawn_mannequin(x, y, z, yaw, uuid, NativeMannequinPose::Sleeping)`. Store its returned
+entity ID and later call `host.remove_spawned_entity(id)`. The existing `host.remove_entity`
+has a different signature and is not this owned-mannequin helper. Both new methods fail safely for invalid context;
+removal is restricted to the creating mod. Calls are limited to 512 per operation, per mod, per
+authoritative tick. The spawn position must be in a loaded chunk of the active dimension. These
+mannequins are immovable and invulnerable, with their descriptions hidden; they are not saved to
+the world and are cleared at the end of the world session. An online player's already-known skin
+is reused; if its image is not available in the local cache, its default skin may remain until the
+image becomes available.
 
 An `item_display` can show an item model from a mod's `.hmod` assets. The internal display routines above are not yet
 available to summon, move, or pose one from a Yoake tick hook.
