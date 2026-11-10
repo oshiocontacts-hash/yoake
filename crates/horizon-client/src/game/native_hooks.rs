@@ -875,7 +875,7 @@ use super::native_client_state::{NativeClientWorld, NativeSoundCategory};
 use super::native_data_maps::NativeDataMapType;
 use super::native_item_energy::ItemEnergyBuffer;
 use super::{
-    Game, GameLevel, LevelDimension, Screen,
+    Game, GameLevel, LevelDimension, NativeMannequinPose, Screen,
     execution_role::ExecutionRole,
     maps::{NativeMapDecoration, NativeMapInfo},
     native_block_entity_draw::BlockEntityDraw,
@@ -8667,6 +8667,24 @@ impl Game<'_> {
 
     pub(super) fn native_player_appearance(&self, player: u128) -> Option<NativePlayerAppearance> {
         self.native_player_appearance_impl(player)
+    }
+
+    /// Spawns an owned mannequin for this world session. API @API:mannequin_corpse@.
+    pub(super) fn native_spawn_mannequin(
+        &mut self,
+        x: f64,
+        y: f64,
+        z: f64,
+        yaw: f32,
+        profile: u128,
+        pose: NativeMannequinPose,
+    ) -> Option<u32> {
+        self.native_spawn_mannequin_impl(x, y, z, yaw, profile, pose)
+    }
+
+    /// Removes a mannequin spawned by the calling mod. API @API:mannequin_corpse@.
+    pub(super) fn native_remove_spawned_entity(&mut self, id: u32) -> bool {
+        self.native_remove_spawned_entity_impl(id)
     }
 
     pub(super) fn native_draw_mob_as_player(

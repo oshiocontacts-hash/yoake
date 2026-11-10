@@ -123,7 +123,27 @@ mod tests {
         Continue,
         Cancel,
     }
-    trait Host {}
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    enum NativeMannequinPose {
+        Sleeping,
+    }
+    trait Host {
+        fn spawn_mannequin(
+            &mut self,
+            _x: f64,
+            _y: f64,
+            _z: f64,
+            _yaw: f32,
+            _uuid: u128,
+            _pose: NativeMannequinPose,
+        ) -> Option<u32> {
+            None
+        }
+
+        fn remove_spawned_entity(&mut self, _id: u32) -> bool {
+            false
+        }
+    }
     trait RenderHooks {}
     struct TestHost;
     impl Host for TestHost {}
@@ -173,6 +193,7 @@ mod tests {
     use generated::*;
     include!("server_chat_tests.rs");
     include!("pvp_attacker_tests.rs");
+    include!("mannequin_corpse_tests.rs");
     thread_local! {
         static GUARD: std::cell::Cell<Option<&'static mod_guard::Registry>> = std::cell::Cell::new(
             Some(Box::leak(Box::new(mod_guard::Registry::new(

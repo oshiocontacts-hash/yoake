@@ -678,8 +678,12 @@ impl Game<'_> {
             .filter(|d| self.vehicle_waits_in(*d))
             .collect();
         let mut closing = Vec::new();
+        let mannequins = &self.native_mannequins;
         for (dim, p) in &mut self.levels.parked {
-            if occupied.contains(dim) || waiting.contains(dim) {
+            if occupied.contains(dim)
+                || waiting.contains(dim)
+                || p.mobs.iter().any(|mob| mannequins.contains(mob.id))
+            {
                 p.idle = 0;
                 continue;
             }

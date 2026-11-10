@@ -5153,6 +5153,7 @@ impl Game<'_> {
         let local = self.remote.as_ref().map(|r| r.profile);
         self.poll_own_profile();
         let Some(r) = self.remote.as_mut() else {
+            self.update_mannequin_skins();
             return;
         };
         let local = local.unwrap_or(r.profile);
@@ -5285,15 +5286,146 @@ impl Game<'_> {
                 mob.cape = cape;
             }
         }
+        self.update_mannequin_skins();
+    }
+
+    fn update_mannequin_skins(&mut self) {
+        if !self
+            .mobs
+            .iter()
+            .any(|mob| &*mob.kind.id == "minecraft:mannequin" && mob.profile.is_some())
+        {
+            return;
+        }
+        let mut online: HashMap<u128, Option<(String, bool)>> = HashMap::new();
+        if let Some(remote) = self.remote.as_ref() {
+            for uuid in remote.tab_players.keys() {
+                online.entry(*uuid).or_insert(None);
+            }
+            for (id, uuid) in &remote.level_players {
+                let appearance = self
+                    .mobs
+                    .iter()
+                    .find(|mob| mob.id == *id as u32 && &*mob.kind.id == "minecraft:player")
+                    .and_then(|mob| mob.skin.clone().map(|skin| (skin, mob.slim)));
+                online.insert(*uuid, appearance);
+            }
+            for (uuid, textures) in &remote.skin_textures {
+                let appearance = remote
+                    .skins
+                    .get(uuid)
+                    .cloned()
+                    .map(|skin| (skin, textures.slim));
+                online
+                    .entry(*uuid)
+                    .and_modify(|current| {
+                        if appearance.is_some() {
+                            *current = appearance.clone();
+                        }
+                    })
+                    .or_insert(appearance);
+            }
+            let appearance = self
+                .player_model
+                .as_ref()
+                .and_then(|mob| mob.skin.clone().map(|skin| (skin, mob.slim)));
+            online
+                .entry(remote.profile)
+                .and_modify(|current| {
+                    if appearance.is_some() {
+                        *current = appearance.clone();
+                    }
+                })
+                .or_insert(appearance);
+        }
+        if let Some(host) = self.lan.as_ref() {
+            for guest in &host.hub.guests {
+                let live_appearance = if host.hub.singleplayer_owner == Some(guest.uuid) {
+                    self.player_model.as_ref()
+                } else {
+                    self.mobs.iter().find(|mob| mob.id == guest.entity_id as u32)
+                }
+                .and_then(|mob| mob.skin.clone().map(|skin| (skin, mob.slim)));
+                let appearance = live_appearance
+                    .clone()
+                    .filter(|(skin, _)| {
+                        skin.starts_with("skins/") || skin == "horizon/offline_skin"
+                    })
+                    .or_else(|| {
+                        let property = guest.properties.iter().find(|p| p.name == "textures")?;
+                        let signature = if property.signature.is_some() {
+                            horizon_client::skins::Signature::Signed
+                        } else {
+                            horizon_client::skins::Signature::Unsigned
+                        };
+                        let textures = horizon_client::skins::unpack(
+                            &property.value,
+                            signature,
+                            &horizon_client::skins::TEXTURE_URIS,
+                        );
+                        let hash =
+                            horizon_client::skins::texture_hash(textures.skin.as_deref()?)?;
+                        Some((horizon_client::skins::skin_location(&hash), textures.slim))
+                    })
+                    .or(live_appearance);
+                online.entry(guest.uuid).or_insert(appearance);
+            }
+        }
+        if self.remote.is_none()
+            && let Some(uuid) = self
+                .level
+                .player_uuid
+                .map(horizon_client::lan::playerdata::ints_uuid)
+        {
+            let appearance = self
+                .player_model
+                .as_ref()
+                .and_then(|mob| mob.skin.clone().map(|skin| (skin, mob.slim)));
+            online.entry(uuid).or_insert(appearance);
+        }
         // ClientMannequin.updateSkin (PlayerSkinRenderCache.lookup): a
         // mannequin's DATA_PROFILE `textures` property resolves like a
         // player's, never required to be signed.
-        let mannequins: Vec<(u32, horizon_client::skins::Textures)> = self
+        let mannequins: Vec<(u32, Option<(String, bool)>, horizon_client::skins::Textures)> = self
             .mobs
             .iter()
             .filter(|m| &*m.kind.id == "minecraft:mannequin" && m.profile.is_some())
             .map(|m| {
                 let profile = m.profile.as_ref();
+                if let Some(uuid) = profile.and_then(|profile| profile.uuid)
+                    && let Some(appearance) = online.get(&uuid)
+                {
+                    let appearance = appearance
+                        .clone()
+                        .filter(|(skin, _)| {
+                            skin.starts_with("skins/") || skin == "horizon/offline_skin"
+                        })
+                        .or_else(|| {
+                            let property = profile?
+                                .properties
+                                .iter()
+                                .find(|property| property.name == "textures")?;
+                            let signature = if property.signature.is_some() {
+                                horizon_client::skins::Signature::Signed
+                            } else {
+                                horizon_client::skins::Signature::Unsigned
+                            };
+                            let textures = horizon_client::skins::unpack(
+                                &property.value,
+                                signature,
+                                &horizon_client::skins::TEXTURE_URIS,
+                            );
+                            let hash =
+                                horizon_client::skins::texture_hash(textures.skin.as_deref()?)?;
+                            Some((horizon_client::skins::skin_location(&hash), textures.slim))
+                        })
+                        .or_else(|| appearance.clone())
+                        .unwrap_or_else(|| {
+                            let skin = horizon_client::tab_list::default_skin(uuid);
+                            (skin.to_owned(), skin.contains("/slim/"))
+                        });
+                    return (m.id, Some(appearance), Default::default());
+                }
                 let t = profile.and_then(|p| p.properties.iter().find(|p| p.name == "textures"));
                 let textures = if let Some(t) = t {
                     let signature = if t.signature.is_some() {
@@ -5330,11 +5462,15 @@ impl Game<'_> {
                     })
                     .unwrap_or_default()
                 };
-                (m.id, textures)
+                (m.id, None, textures)
             })
             .collect();
         let mut resolved: Vec<(u32, Option<String>, bool)> = Vec::new();
-        for (id, textures) in mannequins {
+        for (id, online_skin, textures) in mannequins {
+            if let Some((skin, slim)) = online_skin {
+                resolved.push((id, Some(skin), slim));
+                continue;
+            }
             let skin = {
                 let mut downloads = self.skin_downloads.borrow_mut();
                 horizon_client::skins::lookup(&textures, false, |kind, url| {

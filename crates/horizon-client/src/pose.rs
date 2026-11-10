@@ -18,6 +18,40 @@ pub enum Pose {
     Sleeping,
 }
 impl Pose {
+    pub fn id(self) -> u8 {
+        match self {
+            Self::Standing => 0,
+            Self::FallFlying => 1,
+            Self::Sleeping => 2,
+            Self::Swimming => 3,
+            Self::SpinAttack => 4,
+            Self::Crouching => 5,
+        }
+    }
+
+    pub fn mannequin_name(self) -> &'static str {
+        match self {
+            Self::Standing => "standing",
+            Self::FallFlying => "fall_flying",
+            Self::Sleeping => "sleeping",
+            Self::Swimming => "swimming",
+            Self::SpinAttack => "spin_attack",
+            Self::Crouching => "crouching",
+        }
+    }
+
+    pub fn mannequin_from_name(name: &str) -> Option<Self> {
+        match name {
+            "standing" => Some(Self::Standing),
+            "fall_flying" => Some(Self::FallFlying),
+            "sleeping" => Some(Self::Sleeping),
+            "swimming" => Some(Self::Swimming),
+            "spin_attack" => Some(Self::SpinAttack),
+            "crouching" => Some(Self::Crouching),
+            _ => None,
+        }
+    }
+
     /// `Pose` by its network id (`Pose.id`); the poses a player never takes
     /// are standing.
     pub fn from_id(id: i32) -> Self {

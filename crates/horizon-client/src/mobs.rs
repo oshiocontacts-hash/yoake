@@ -1257,6 +1257,7 @@ pub struct Mob {
     pub silent: bool,
     /// `Invulnerable`: immune to damage (but not to `/kill`).
     pub invulnerable_flag: bool,
+    pub native_damage_immune: bool,
     /// The entity that causes the blow being dealt (`source.getEntity()`): its eye, view
     /// direction and feet, which `SulfurCube.knockback` turns the launch by. Set by whoever deals
     /// the blow (`Game::attacker_aim`) and cleared once it is dealt.
@@ -2746,6 +2747,7 @@ impl Mob {
             no_ai: false,
             silent: false,
             invulnerable_flag: false,
+            native_damage_immune: false,
             attacker_aim: None,
             projectile_motion: None,
             climbing: false,
@@ -2924,6 +2926,7 @@ impl Mob {
     pub fn refuses_damage(&self, source: &Damage) -> bool {
         !self.alive()
             || self.removed
+            || self.native_damage_immune
             || (self.invulnerable_flag && !source.kind.bypasses_invulnerability())
     }
     /// `damage` by a source with a weapon: `armor_effectiveness` runs the
@@ -2934,6 +2937,9 @@ impl Mob {
         source: Damage,
         armor_effectiveness: Option<&mut dyn FnMut(f32) -> f32>,
     ) -> bool {
+        if self.native_damage_immune {
+            return false;
+        }
         axolotl::before_damage(self, amount, &source);
         raider::note_hurt(self);
         // SulfurCube.hurtServer: the priming and a block's immune knockback
@@ -4537,6 +4543,24 @@ mod fire_resistance_damage_tests {
             assert!(!invulnerable.damage(1.0, Damage::of(kind)));
             assert_eq!(invulnerable.health, 10.0);
         }
+    }
+
+    #[test]
+    fn native_damage_immunity_also_rejects_bypass_damage() {
+        let mut mob = pig();
+        mob.native_damage_immune = true;
+        for kind in [
+            DamageKind::Cactus,
+            DamageKind::OutOfWorld,
+            DamageKind::GenericKill,
+        ] {
+            assert!(!mob.damage(1000.0, Damage::of(kind)), "{kind:?}");
+            assert_eq!(mob.health, 10.0);
+            assert!(mob.last_damage.is_none());
+        }
+        let mut vanilla = pig();
+        vanilla.invulnerable_flag = true;
+        assert!(vanilla.damage(1000.0, Damage::of(DamageKind::GenericKill)));
     }
 
     #[test]

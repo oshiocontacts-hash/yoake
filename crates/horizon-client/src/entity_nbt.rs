@@ -414,6 +414,12 @@ pub fn mob_to_nbt(
         if let Some(profile) = &m.profile {
             put(&mut tag, "profile", profile_nbt(profile));
         }
+        // CHECK: Confirm vanilla's default-pose omission and supported pose names.
+        if m.extra.avatar_pose != crate::pose::Pose::Standing {
+            put(&mut tag, "pose", string(m.extra.avatar_pose.mannequin_name()));
+        } else if let Tag::Compound(map) = &mut tag {
+            map.remove(&"pose".into());
+        }
         put(
             &mut tag,
             "immovable",
@@ -1582,6 +1588,10 @@ pub fn mob_from_nbt(
     // `immovable`, `hide_description` and `description` (`updateDescription`).
     if m.species() == crate::mobs::Species::Mannequin {
         m.profile = tag.get("profile").and_then(profile_from_nbt);
+        m.extra.avatar_pose = text(tag.get("pose"))
+            .as_deref()
+            .and_then(crate::pose::Pose::mannequin_from_name)
+            .unwrap_or_default();
         m.extra.immovable = flag(tag, "immovable");
         m.extra.description = if flag(tag, "hide_description") {
             crate::mobs::MannequinDescription::Hidden
@@ -3515,6 +3525,54 @@ mod tnt_power_tests {
 mod tests {
     use super::*;
     use crate::items::ItemStack;
+
+    #[test]
+    fn mannequin_pose_round_trips_and_defaults_to_standing() {
+        let mut kind = crate::mobs::sensor_scan_tests::kind();
+        let ty = Arc::make_mut(&mut kind);
+        ty.id = "minecraft:mannequin".into();
+        ty.species = crate::mobs::Species::Mannequin;
+        let types = [("minecraft:mannequin".into(), kind)].into();
+        for (name, expected) in [
+            ("standing", crate::pose::Pose::Standing),
+            ("sleeping", crate::pose::Pose::Sleeping),
+        ] {
+            let raw = Tag::compound([
+                ("id", string("minecraft:mannequin")),
+                ("Pos", doubles(&[4.5, 64.0, 4.5])),
+                ("pose", string(name)),
+            ]);
+            let mob = mob_from_nbt(&raw, &types, 1, None).unwrap();
+            assert_eq!(mob.extra.avatar_pose, expected);
+            let saved = mob_to_nbt(&mob, [0; 4], None, None);
+            let loaded = mob_from_nbt(&saved, &types, 2, None).unwrap();
+            assert_eq!(loaded.extra.avatar_pose, expected);
+        }
+        let missing = Tag::compound([
+            ("id", string("minecraft:mannequin")),
+            ("Pos", doubles(&[4.5, 64.0, 4.5])),
+        ]);
+        let invalid = Tag::compound([
+            ("id", string("minecraft:mannequin")),
+            ("Pos", doubles(&[4.5, 64.0, 4.5])),
+            ("pose", string("invalid")),
+        ]);
+        for raw in [missing, invalid] {
+            let mob = mob_from_nbt(&raw, &types, 1, None).unwrap();
+            assert_eq!(mob.extra.avatar_pose, crate::pose::Pose::Standing);
+        }
+        let sleeping = Tag::compound([
+            ("id", string("minecraft:mannequin")),
+            ("Pos", doubles(&[4.5, 64.0, 4.5])),
+            ("pose", string("sleeping")),
+        ]);
+        let mut mob = mob_from_nbt(&sleeping, &types, 1, None).unwrap();
+        mob.extra.avatar_pose = crate::pose::Pose::Standing;
+        let saved = mob_to_nbt(&mob, [0; 4], Some(&sleeping), None);
+        assert!(saved.get("pose").is_none());
+        let loaded = mob_from_nbt(&saved, &types, 2, None).unwrap();
+        assert_eq!(loaded.extra.avatar_pose, crate::pose::Pose::Standing);
+    }
 
     #[test]
     fn mannequin_profile_round_trips_through_entity_nbt() {

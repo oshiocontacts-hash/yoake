@@ -870,7 +870,11 @@ impl Game<'_> {
     /// passengers it kept from loading.
     pub(super) fn put_mob_passengers(&mut self, tag: &mut Tag, id: u32) {
         let riders: Vec<usize> = (0..self.mobs.len())
-            .filter(|&j| self.mobs[j].extra.mount == Some(id) && self.mobs[j].alive())
+            .filter(|&j| {
+                self.mobs[j].extra.mount == Some(id)
+                    && self.mobs[j].alive()
+                    && !self.native_mannequins.contains(self.mobs[j].id)
+            })
             .collect();
         let riders: Vec<Tag> = riders.into_iter().map(|j| self.mob_tree_nbt(j)).collect();
         add_passengers(tag, riders);
@@ -1446,6 +1450,9 @@ impl Game<'_> {
             // Riders leave with their root vehicle, a boat's with the boat.
             let leaving: HashSet<u32> = (0..self.mobs.len())
                 .filter(|&i| {
+                    if self.native_mannequins.contains(self.mobs[i].id) {
+                        return false;
+                    }
                     let r = self.mob_root(i);
                     match self.mobs[r].extra.mount {
                         Some(v) if removed.contains(&v) => true,
@@ -1569,6 +1576,7 @@ impl Game<'_> {
     ) -> Option<(ChunkKey, Tag)> {
         let m = &self.mobs[i];
         let saves = self.mob_root(i) == i
+            && !self.native_mannequins.contains(m.id)
             && m.extra.mount.is_none_or(|v| {
                 self.boats.iter().all(|b| b.id != v) && self.carts.iter().all(|c| c.id != v)
             })
