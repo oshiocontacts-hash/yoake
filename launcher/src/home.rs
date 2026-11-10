@@ -197,6 +197,33 @@ impl Launcher {
     pub(super) fn home_actions(&self, ready: bool, java: bool, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let running = self.client.is_some() || self.starting_client.is_some();
+        if let Some((done, message)) = self.yoake_base_progress() {
+            return div()
+                .flex()
+                .flex_col()
+                .gap(px(8.))
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(10.))
+                        .child(
+                            action("yoake-base-progress", Action::Main, &t)
+                                .min_w(px(260.))
+                                .cursor_default()
+                                .child(label(format!("{message} {:.0}%", done * 100.))),
+                        )
+                        .child(
+                            action("yoake-base-cancel", Action::Quiet, &t)
+                                .child(label(tr("Cancel").to_string()))
+                                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                                    this.cancel_yoake_base();
+                                    cx.notify();
+                                })),
+                        ),
+                )
+                .child(crate::glass_ui::bar(done, self.look.accent_soft));
+        }
         if self.preparing {
             // Play waits for the steps below it; a download can stop (the next one goes on from
             // there).
@@ -237,7 +264,11 @@ impl Launcher {
             .child(label(
                 tr(if running { "Running" } else { "Play" }).to_string(),
             ));
-        match play_press(ready, self.owner, self.preparing || running) {
+        match play_press(
+            ready,
+            self.owner,
+            self.preparing || running || (yoake_page::enabled() && self.yoake_busy()),
+        ) {
             PlayPress::Nothing => play = disabled(play),
             PlayPress::Play => {
                 play = play.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {

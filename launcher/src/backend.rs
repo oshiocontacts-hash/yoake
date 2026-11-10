@@ -372,6 +372,34 @@ pub fn releases() -> Result<Vec<Release>, String> {
     Ok(game_releases(&release_list()?))
 }
 
+pub fn yoake_release(tag: &str) -> Result<Option<Release>, String> {
+    yoake_release_with(tag, crate::github::json)
+}
+
+fn yoake_release_with(
+    tag: &str,
+    json: impl Fn(&str) -> Result<serde_json::Value, String>,
+) -> Result<Option<Release>, String> {
+    let list = if is_game_tag(tag) {
+        let mut url = url::Url::parse(&format!(
+            "https://api.github.com/repos/{REPO}/releases/tags/"
+        ))
+        .map_err(|error| error.to_string())?;
+        url.path_segments_mut()
+            .map_err(|_| "Invalid release URL".to_string())?
+            .pop_if_empty()
+            .push(tag);
+        serde_json::Value::Array(vec![json(url.as_str())?])
+    } else {
+        json(&format!(
+            "https://api.github.com/repos/{REPO}/releases?per_page=100"
+        ))?
+    };
+    Ok(game_releases(&list)
+        .into_iter()
+        .find(|release| release.tag == tag))
+}
+
 /// The game's builds in `list`, newest first. A Nightly is listed under the version it installs as
 /// ([`crate::nightly::version_of`]); only the current one (`nightly`) is an update.
 pub(crate) fn game_releases(list: &serde_json::Value) -> Vec<Release> {
@@ -725,6 +753,26 @@ pub(crate) fn download(
     to: &Path,
     progress: &impl Fn(f32),
 ) -> Result<(), String> {
+    download_inner(url, size, sha256, to, progress, None)
+}
+
+fn check_install_cancelled(cancel: Option<&std::sync::atomic::AtomicBool>) -> Result<(), String> {
+    if cancel.is_some_and(|cancel| cancel.load(std::sync::atomic::Ordering::Relaxed)) {
+        Err("Cancelled.".to_string())
+    } else {
+        Ok(())
+    }
+}
+
+fn download_inner(
+    url: &str,
+    size: u64,
+    sha256: &str,
+    to: &Path,
+    progress: &impl Fn(f32),
+    cancel: Option<&std::sync::atomic::AtomicBool>,
+) -> Result<(), String> {
+    check_install_cancelled(cancel)?;
     let response = get(url)?;
     let size = match size {
         0 => response
@@ -738,6 +786,7 @@ pub(crate) fn download(
     let mut hash = horizon_release_sign::Sha256::default();
     let (mut done, mut buf) = (0u64, vec![0u8; 1 << 16]);
     loop {
+        check_install_cancelled(cancel)?;
         let n = reader
             .read(&mut buf)
             .map_err(|e| format!("Download interrupted: {e}"))?;
@@ -749,6 +798,7 @@ pub(crate) fn download(
         done += n as u64;
         progress((done as f32 / size.max(1) as f32).min(1.0) * 0.9);
     }
+    check_install_cancelled(cancel)?;
     let name = url.rsplit('/').next().unwrap_or(url);
     horizon_release_sign::check(name, sha256, &hash.hex()).inspect_err(|_| {
         let _ = fs::remove_file(to);
@@ -771,6 +821,23 @@ fn unpack(archive: &Path, url: &str, to: &Path) -> Result<(), String> {
 /// Downloads one release, checks it against its signed checksums and unpacks it; `progress` gets
 /// the fraction done.
 pub fn install(release: &Release, progress: impl Fn(f32)) -> Result<(), String> {
+    install_inner(release, progress, None)
+}
+
+pub fn install_for_yoake(
+    release: &Release,
+    progress: impl Fn(f32),
+    cancel: &std::sync::atomic::AtomicBool,
+) -> Result<(), String> {
+    install_inner(release, progress, Some(cancel))
+}
+
+fn install_inner(
+    release: &Release,
+    progress: impl Fn(f32),
+    cancel: Option<&std::sync::atomic::AtomicBool>,
+) -> Result<(), String> {
+    check_install_cancelled(cancel)?;
     let tag = release.tag.as_str();
     let sha256 = match &release.nightly {
         // Signed for the Nightly channel, served under its own GitHub tag.
@@ -783,7 +850,8 @@ pub fn install(release: &Release, progress: impl Fn(f32)) -> Result<(), String> 
         None if is_game_tag(tag) => signed_digest(tag, ASSET.unwrap_or_default())?,
         None => return Err(format!("{tag} is not a Horizon release.")),
     };
-    install_as(release, tag, &sha256, progress)
+    check_install_cancelled(cancel)?;
+    install_as_inner(release, tag, &sha256, progress, cancel)
 }
 
 /// Downloads `release`'s archive for this platform, checks it against `sha256` (its signed
@@ -794,6 +862,16 @@ pub(crate) fn install_as(
     sha256: &str,
     progress: impl Fn(f32),
 ) -> Result<(), String> {
+    install_as_inner(release, tag, sha256, progress, None)
+}
+
+fn install_as_inner(
+    release: &Release,
+    tag: &str,
+    sha256: &str,
+    progress: impl Fn(f32),
+    cancel: Option<&std::sync::atomic::AtomicBool>,
+) -> Result<(), String> {
     let (url, size) = release
         .asset
         .clone()
@@ -802,36 +880,43 @@ pub(crate) fn install_as(
     let partial = root.join(format!(".{tag}.partial"));
     let _ = fs::remove_dir_all(&partial);
     fs::create_dir_all(&partial).map_err(|e| e.to_string())?;
-    let archive = partial.join("download");
-    download(&url, size, sha256, &archive, &progress)?;
-    let unpacked = partial.join("unpacked");
-    unpack(&archive, &url, &unpacked)?;
-    progress(0.97);
-    // The archives hold one top folder (horizon-linux-x86_64/...); the version folder is its contents.
-    let entries: Vec<_> = fs::read_dir(&unpacked)
-        .map_err(|e| e.to_string())?
-        .flatten()
-        .collect();
-    let top = match entries.as_slice() {
-        [only] if only.path().is_dir() => only.path(),
-        _ => unpacked.clone(),
-    };
-    if !top.join(CLIENT).exists() {
-        return Err(format!("The download has no {CLIENT}"));
+    let result = (|| {
+        let archive = partial.join("download");
+        download_inner(&url, size, sha256, &archive, &progress, cancel)?;
+        let unpacked = partial.join("unpacked");
+        unpack(&archive, &url, &unpacked)?;
+        check_install_cancelled(cancel)?;
+        progress(0.97);
+        // The archives hold one top folder (horizon-linux-x86_64/...); the version folder is its contents.
+        let entries: Vec<_> = fs::read_dir(&unpacked)
+            .map_err(|e| e.to_string())?
+            .flatten()
+            .collect();
+        let top = match entries.as_slice() {
+            [only] if only.path().is_dir() => only.path(),
+            _ => unpacked.clone(),
+        };
+        if !top.join(CLIENT).exists() {
+            return Err(format!("The download has no {CLIENT}"));
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(top.join(CLIENT), fs::Permissions::from_mode(0o755));
+        }
+        let target = version_dir(tag);
+        let _ = fs::remove_dir_all(&target);
+        fs::rename(&top, &target).map_err(|e| e.to_string())?;
+        fs::write(target.join(COMPLETE), "").map_err(|e| e.to_string())?;
+        let _ = fs::remove_dir_all(&partial);
+        reuse_prepared_for(tag);
+        progress(1.0);
+        Ok(())
+    })();
+    if result.is_err() && cancel.is_some() {
+        let _ = fs::remove_dir_all(&partial);
     }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(top.join(CLIENT), fs::Permissions::from_mode(0o755));
-    }
-    let target = version_dir(tag);
-    let _ = fs::remove_dir_all(&target);
-    fs::rename(&top, &target).map_err(|e| e.to_string())?;
-    fs::write(target.join(COMPLETE), "").map_err(|e| e.to_string())?;
-    let _ = fs::remove_dir_all(&partial);
-    reuse_prepared_for(tag);
-    progress(1.0);
-    Ok(())
+    result
 }
 
 pub fn remove(tag: &str) -> Result<(), String> {
@@ -3491,6 +3576,49 @@ mod java_tests;
 mod tests {
     use super::*;
     use std::cmp::Ordering::*;
+
+    #[test]
+    fn yoake_install_cancellation_is_honored() {
+        let cancelled = std::sync::atomic::AtomicBool::new(false);
+        assert!(check_install_cancelled(Some(&cancelled)).is_ok());
+        cancelled.store(true, std::sync::atomic::Ordering::Relaxed);
+        assert_eq!(
+            check_install_cancelled(Some(&cancelled)).unwrap_err(),
+            "Cancelled."
+        );
+        assert!(check_install_cancelled(None).is_ok());
+    }
+
+    #[test]
+    fn yoake_looks_up_the_exact_release_even_outside_the_recent_list() {
+        let requested = std::cell::RefCell::new(Vec::new());
+        let json = |url: &str| {
+            requested.borrow_mut().push(url.to_string());
+            Ok(serde_json::json!({
+                "tag_name": "v2026.10.23",
+                "name": "0.2.97",
+                "published_at": "2026-10-23T00:00:00Z",
+                "assets": []
+            }))
+        };
+        let release = yoake_release_with("v2026.10.23", json).unwrap().unwrap();
+        assert_eq!(release.tag, "v2026.10.23");
+        assert_eq!(release.name, "0.2.97");
+        assert_eq!(
+            requested.into_inner(),
+            [format!(
+                "https://api.github.com/repos/{REPO}/releases/tags/v2026.10.23"
+            )]
+        );
+        assert!(
+            yoake_release_with("v2026.10.22", |_| Ok(serde_json::json!({
+                "tag_name": "v2026.10.23",
+                "assets": []
+            })))
+            .unwrap()
+            .is_none()
+        );
+    }
 
     #[test]
     fn yoake_refuses_legacy_dedicated_client_arguments() {

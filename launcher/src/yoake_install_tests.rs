@@ -82,6 +82,16 @@ fn feed(version: &str, files: Vec<Value>) -> VerifiedFeed {
     }
 }
 
+fn feed_with_content_mods(version: &str, content_mods: &[&str]) -> VerifiedFeed {
+    let mut verified = feed(version, Vec::new());
+    let ParsedFeedIndex::V2(index) = &mut verified.index else {
+        panic!("expected a schema 2 feed");
+    };
+    index.packs[0].versions[0].enabled_content_mods =
+        content_mods.iter().map(|id| (*id).to_owned()).collect();
+    verified
+}
+
 fn plan(
     feed: &VerifiedFeed,
     version: &str,
@@ -312,6 +322,62 @@ fn installs_upgrades_preserves_defaults_and_reuses_shared_cache() {
     let calls = source.calls.lock().unwrap();
     assert_eq!(calls.len(), before + 1);
     assert_eq!(calls.last().unwrap(), &hash(b"new default"));
+}
+
+#[test]
+fn writes_only_pack_content_mods_on_install_update_and_rollback() {
+    let temp = TestDirectory::new();
+    let source = Arc::new(DirectorySource::new(&temp.0.join("source"), &[b"base"]));
+    let data = temp.0.join("data");
+    let instance = temp.0.join("instance");
+    let first = feed_with_content_mods("1", &["first", "shared"]);
+    install(first.clone(), "1", &instance, &data, source.clone()).unwrap();
+    assert_eq!(
+        fs::read_to_string(instance.join(MOD_LIST)).unwrap(),
+        "mod.first:true\nmod.shared:true\n"
+    );
+    fs::write(instance.join(MOD_LIST), "mod.extra:true\n").unwrap();
+    let second = feed_with_content_mods("2", &["second"]);
+    install(second, "2", &instance, &data, source).unwrap();
+    assert_eq!(
+        fs::read_to_string(instance.join(MOD_LIST)).unwrap(),
+        "mod.second:true\n"
+    );
+    let task = start_rollback_with_source(
+        Some(first),
+        instance.clone(),
+        data,
+        Ok("windows-x86_64".to_owned()),
+        "1.0.0".to_owned(),
+        Arc::new(LoginRequiredSource),
+    );
+    loop {
+        if let InstallEvent::Finished(result) = task.events.recv().unwrap() {
+            result.unwrap();
+            break;
+        }
+    }
+    assert_eq!(
+        fs::read_to_string(instance.join(MOD_LIST)).unwrap(),
+        "mod.first:true\nmod.shared:true\n"
+    );
+}
+
+#[test]
+fn writes_an_empty_mod_list_when_the_pack_has_no_content_mods() {
+    let temp = TestDirectory::new();
+    let source = Arc::new(DirectorySource::new(&temp.0.join("source"), &[b"base"]));
+    let instance = temp.0.join("instance");
+    let data = temp.0.join("data");
+    install(
+        feed_with_content_mods("1", &[]),
+        "1",
+        &instance,
+        &data,
+        source,
+    )
+    .unwrap();
+    assert_eq!(fs::read_to_string(instance.join(MOD_LIST)).unwrap(), "");
 }
 
 #[test]
