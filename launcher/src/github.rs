@@ -104,6 +104,9 @@ pub(crate) fn json_with(
         return Ok(k.body);
     }
     Err(match from_mirror {
+        Some(_) if crate::brand::yoake() => format!(
+            "{why}, and the upstream GitHub mirror couldn't help either. Try again in a few minutes."
+        ),
         Some(m) => format!(
             "{why}, and Horizon's mirror of GitHub couldn't help either ({m}). Try again in a few minutes."
         ),

@@ -751,7 +751,10 @@ impl Launcher {
             Fix::Prepare => match self.selected().cloned() {
                 Some(tag) if backend::is_prepared(&tag) => {
                     self.server_job("Copying the game files", move |log| {
-                        log(format!("Copying the game files prepared for Horizon {tag}"));
+                        log(format!(
+                            "Copying the game files prepared for {} {tag}",
+                            horizon_launcher::brand::name()
+                        ));
                         servers::set_up(&tag)
                             .map(|_| "The game files are ready. Press Start again.".to_string())
                             .map_err(Problem::plain)
@@ -1317,8 +1320,12 @@ impl Launcher {
         std::thread::spawn(move || {
             let result = (|| {
                 if servers::program().is_none() {
-                    let tag =
-                        tag.ok_or_else(|| Problem::plain("Install a Horizon version first."))?;
+                    let tag = tag.ok_or_else(|| {
+                        Problem::plain(
+                            horizon_launcher::brand::text("Install a Horizon version first.")
+                                .into_owned(),
+                        )
+                    })?;
                     servers::set_up(&tag).map_err(Problem::plain)?;
                 }
                 if !dir.join("server.toml").is_file() {
@@ -2579,8 +2586,10 @@ impl Launcher {
                 &[("tag", tag), ("release", &release)],
             ),
             (None, Some(_), _) => trf("Up to date: Horizon {release}.", &[("release", &release)]),
-            (None, None, Some((last, _))) => format!("Horizon {release}. {last}"),
-            (None, None, None) => format!("Horizon {release}."),
+            (None, None, Some((last, _))) => {
+                format!("{} {release}. {last}", horizon_launcher::brand::name())
+            }
+            (None, None, None) => format!("{} {release}.", horizon_launcher::brand::name()),
         };
         let control = match available {
             Some(tag) => {
@@ -2590,7 +2599,8 @@ impl Launcher {
                         this.servers.update = None;
                         if let Some(dir) = this.servers.open.clone() {
                             let done = format!(
-                                "Updated to Horizon {tag}. The world was backed up first (Backups)."
+                                "Updated to {} {tag}. The world was backed up first (Backups).",
+                                horizon_launcher::brand::name()
                             );
                             this.server_job(format!("Updating to {tag}"), move |log| {
                                 servers::run_streamed(&dir, &["update"], log).map(|_| done)
@@ -2634,7 +2644,11 @@ impl Launcher {
             .flex_col()
             .border_t_1()
             .border_color(t.rule)
-            .child(self.setting_row("This server's Horizon", about, control.into_any_element()));
+            .child(self.setting_row(
+                &horizon_launcher::brand::text("This server's Horizon"),
+                about,
+                control.into_any_element(),
+            ));
         if self.servers.setting("updates", "keep").is_some() {
             rows = rows.child(self.setting_row(
                 "Older versions kept",

@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU8, Ordering};
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Language {
@@ -217,7 +217,32 @@ fn table(language: Language) -> &'static Table {
 
 /// `en` in `language`, or `en` itself where the table lacks it.
 pub fn tr_in(language: Language, en: &str) -> &str {
-    table(language).get(en).copied().unwrap_or(en)
+    tr_in_brand(language, en, crate::brand::yoake())
+}
+
+fn tr_in_brand(language: Language, en: &str, yoake: bool) -> &str {
+    let translated = table(language).get(en).copied().unwrap_or(en);
+    let translated = if yoake
+        && language != Language::Japanese
+        && matches!(crate::brand::translate(en, en, true), std::borrow::Cow::Owned(_))
+    {
+        en
+    } else {
+        translated
+    };
+    match crate::brand::translate(en, translated, yoake) {
+        std::borrow::Cow::Borrowed(value) => value,
+        std::borrow::Cow::Owned(value) => {
+            static BRANDED: OnceLock<Mutex<HashMap<String, &'static str>>> = OnceLock::new();
+            let mut strings = BRANDED
+                .get_or_init(|| Mutex::new(HashMap::new()))
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            *strings
+                .entry(value.clone())
+                .or_insert_with(|| Box::leak(value.into_boxed_str()))
+        }
+    }
 }
 
 /// `en` in the launcher's language.

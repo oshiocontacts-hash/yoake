@@ -69,6 +69,21 @@ fn same_address(a: &str, b: &str) -> bool {
     norm(a) == norm(b)
 }
 
+pub fn is_official(ip: &str, address: &str, previous: &[String]) -> bool {
+    (!address.trim().is_empty() && same_address(ip, address))
+        || previous
+            .iter()
+            .any(|old| !old.trim().is_empty() && same_address(ip, old))
+}
+
+pub fn is_visible(ip: &str, address: &str, previous: &[String]) -> bool {
+    is_visible_in_brand(ip, address, previous, crate::brand::yoake())
+}
+
+fn is_visible_in_brand(ip: &str, address: &str, previous: &[String], yoake: bool) -> bool {
+    !yoake || !is_official(ip, address, previous)
+}
+
 impl List {
     /// The list in `home`; empty when there is none or it can't be read, as the game does.
     pub fn load(home: &Path) -> List {
@@ -212,6 +227,13 @@ impl List {
 /// the new one, once, and it is not offered again to a player who removed it. A list that can't be
 /// read is left alone; an empty `address` changes nothing.
 pub fn add_official(home: &Path, address: &str, previous: &[String]) -> Result<(), String> {
+    if crate::brand::yoake() {
+        return Ok(());
+    }
+    add_official_impl(home, address, previous)
+}
+
+fn add_official_impl(home: &Path, address: &str, previous: &[String]) -> Result<(), String> {
     let address = address.trim();
     if address.is_empty() {
         return Ok(());

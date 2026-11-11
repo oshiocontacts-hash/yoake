@@ -268,7 +268,11 @@ pub(super) fn refused(
     api_ids: &[&str],
 ) -> Option<String> {
     let why = |mod_id: &str, name: &str, version: &str| {
-        format!("{mod_id} needs {name} {version}, which isn't in Horizon's Cargo.lock. A native mod's crate can use only the crates Horizon itself uses, in the versions its Cargo.lock has.")
+        if crate::brand::yoake() {
+            format!("{mod_id} needs {name} {version}, which isn't in the game's Cargo.lock. A native mod's crate can use only the crates the game itself uses, in the versions its Cargo.lock has.")
+        } else {
+            format!("{mod_id} needs {name} {version}, which isn't in Horizon's Cargo.lock. A native mod's crate can use only the crates Horizon itself uses, in the versions its Cargo.lock has.")
+        }
     };
     if let Some(w) = wanted
         .iter()
@@ -301,7 +305,11 @@ pub(super) fn locked(error: String) -> String {
     if !error.contains("--locked was passed") {
         return error;
     }
-    format!("A native mod's crate needs a crate that isn't in Horizon's Cargo.lock, through one of its dependencies' features. A native mod's crate can use only the crates Horizon itself uses, with the features that need no others.\n\n{error}")
+    if crate::brand::yoake() {
+        format!("A native mod's crate needs a crate that isn't in the game's Cargo.lock, through one of its dependencies' features. A native mod's crate can use only the crates the game itself uses, with the features that need no others.\n\n{error}")
+    } else {
+        format!("A native mod's crate needs a crate that isn't in Horizon's Cargo.lock, through one of its dependencies' features. A native mod's crate can use only the crates Horizon itself uses, with the features that need no others.\n\n{error}")
+    }
 }
 
 /// A mod's post-build step: a program of one of its crates, run after the game compiles.

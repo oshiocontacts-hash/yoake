@@ -233,6 +233,22 @@ pub fn official(p: &index::Project) -> bool {
     p.authors == ["Horizon"] && p.source.starts_with("https://github.com/horizon-rust/")
 }
 
+pub fn display_author<'a>(id: &str, author: &'a str) -> &'a str {
+    let yoake = crate::brand::yoake();
+    let is_official = yoake
+        && author == "Horizon"
+        && known_index().is_some_and(|index| index.project(id).is_some_and(official));
+    display_author_in_brand(author, is_official, yoake)
+}
+
+fn display_author_in_brand(author: &str, official: bool, yoake: bool) -> &str {
+    if yoake && official && author == "Horizon" {
+        "the upstream project"
+    } else {
+        author
+    }
+}
+
 /// What the player reads about a registry project before installing it: who made it, whether its
 /// files are signed, and for a mod what it may do, in the game's words (Options > Mods). A native
 /// mod says it runs with the player's rights.
@@ -243,7 +259,14 @@ pub fn trust_and_capabilities(id: &str) -> Vec<String> {
     let Some(p) = index.project(id) else {
         return Vec::new();
     };
-    let mut lines = vec![if official(p) {
+    let mut lines = vec![if crate::brand::yoake() && official(p) {
+        "Made by the upstream project".to_owned()
+    } else if crate::brand::yoake() {
+        format!(
+            "Made by {}. Not made or endorsed by the upstream project",
+            p.authors.join(", ")
+        )
+    } else if official(p) {
         "Made by Horizon".to_owned()
     } else {
         format!(
@@ -261,10 +284,17 @@ pub fn trust_and_capabilities(id: &str) -> Vec<String> {
         );
         if let Some(v) = p.versions.first() {
             let pin = v.api.split('/').nth(1).unwrap_or_default();
-            lines.push(format!(
-                "Built by the launcher on Horizon {}",
-                &pin[..pin.len().min(7)]
-            ));
+            lines.push(if crate::brand::yoake() {
+                format!(
+                    "Built by the launcher on upstream revision {}",
+                    &pin[..pin.len().min(7)]
+                )
+            } else {
+                format!(
+                    "Built by the launcher on Horizon {}",
+                    &pin[..pin.len().min(7)]
+                )
+            });
         }
     }
     if let Some(v) = p.versions.first().filter(|_| p.kind == index::Kind::Mod) {
@@ -327,8 +357,8 @@ fn version_of(
         blocked: index
             .revoked(&p.id, &v.file.sha256)
             .map(|r| format!("taken down: {}", r.reason))
-            .or_else(|| needs_port(v).then(|| NEEDS_PORT.to_string()))
-            .or_else(|| needs_newer(v, level).then(|| NEEDS_NEWER.to_string())),
+            .or_else(|| needs_port(v).then(|| crate::brand::text(NEEDS_PORT).into_owned()))
+            .or_else(|| needs_newer(v, level).then(|| crate::brand::text(NEEDS_NEWER).into_owned())),
     }
 }
 
@@ -419,12 +449,13 @@ impl Source for Registry {
         let index = index()?;
         let p = index
             .project(id)
-            .ok_or_else(|| format!("{id} isn't in Horizon's registry."))?;
+            .ok_or_else(|| format!("{id} isn't in {}'s registry.", crate::brand::name()))?;
         project_of(p).ok_or_else(|| {
             format!(
-                "{} is a {} in Horizon's registry: this launcher can't install those yet.",
+                "{} is a {} in {}'s registry: this launcher can't install those yet.",
                 p.name,
-                p.kind.name()
+                p.kind.name(),
+                crate::brand::name()
             )
         })
     }
@@ -433,7 +464,7 @@ impl Source for Registry {
         let index = index()?;
         let p = index
             .project(&project.id)
-            .ok_or_else(|| format!("{} isn't in Horizon's registry.", project.title))?;
+            .ok_or_else(|| format!("{} isn't in {}'s registry.", project.title, crate::brand::name()))?;
         let level = crate::backend::game_mod_api_level();
         Ok(p.versions
             .iter()
@@ -446,7 +477,7 @@ impl Source for Registry {
         let index = index()?;
         let p = index
             .project(&project.id)
-            .ok_or_else(|| format!("{} isn't in Horizon's registry.", project.title))?;
+            .ok_or_else(|| format!("{} isn't in {}'s registry.", project.title, crate::brand::name()))?;
         let newest = p.versions.first();
         let mut body = p.description.clone();
         if let Some(v) = newest.filter(|v| !v.capabilities.is_empty()) {
@@ -557,7 +588,7 @@ fn relative(kind: Kind, id: &str, file_name: &str) -> Result<String, String> {
         Kind::ResourcePack => Ok(format!("resourcepacks/{file_name}")),
         Kind::Shader => Ok(format!("shaderpacks/{file_name}")),
         Kind::Modpack => Err("A modpack installs as its own profile (pack::install).".into()),
-        Kind::DataPack => Err("Horizon's registry has no data packs.".into()),
+        Kind::DataPack => Err(format!("{}'s registry has no data packs.", crate::brand::name())),
     }
 }
 
@@ -585,10 +616,10 @@ fn install_from(
 ) -> Result<Vec<installed::Entry>, String> {
     let p = index
         .project(&project.id)
-        .ok_or_else(|| format!("{} isn't in Horizon's registry.", project.title))?;
+        .ok_or_else(|| format!("{} isn't in {}'s registry.", project.title, crate::brand::name()))?;
     let v = newest(index, p, level)?;
     if needs_port(v) {
-        return Err(format!("{} {NEEDS_PORT}.", p.name));
+        return Err(format!("{} {}.", p.name, crate::brand::text(NEEDS_PORT)));
     }
     install_version(index, local, p, v, home, progress).map(|e| vec![e])
 }
@@ -611,7 +642,11 @@ fn newest<'a>(
         }
     }
     Err(match taken_down {
-        _ if too_new => format!("{} {NEEDS_NEWER}: update it first.", p.name),
+        _ if too_new => format!(
+            "{} {}: update it first.",
+            p.name,
+            crate::brand::text(NEEDS_NEWER)
+        ),
         Some(r) => format!("{} was taken down: {}", p.name, r.reason),
         None => format!("{} has no version for {GAME} to install.", p.name),
     })
@@ -619,6 +654,14 @@ fn newest<'a>(
 
 const NEEDS_NEWER: &str = "needs a newer Horizon than the game you play";
 const NEEDS_PORT: &str = "needs a native port: Horizon doesn't run WebAssembly mods any more";
+
+pub fn display_skipped(note: &str) -> std::borrow::Cow<'_, str> {
+    if note == format!("its code ({NEEDS_PORT})") {
+        crate::brand::text(note)
+    } else {
+        std::borrow::Cow::Borrowed(note)
+    }
+}
 
 /// Whether version `v` is a WebAssembly mod with code: a `.hmod` that may do more than add
 /// content. The registry keeps it for the modpacks that need it; a modpack installs it with its

@@ -334,7 +334,7 @@ fn device_label(label: &str) -> String {
         .take(40)
         .collect();
     if label.trim().is_empty() {
-        "Horizon launcher".to_owned()
+        horizon_launcher::brand::text("Horizon launcher").into_owned()
     } else {
         label
     }

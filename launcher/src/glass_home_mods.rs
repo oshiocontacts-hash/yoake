@@ -150,9 +150,9 @@ impl Launcher {
             match &row.entry {
                 Some(e) if e.dependency => trf(
                     "{source} · needed by another mod",
-                    &[("source", e.source.label())],
+                    &[("source", e.source.display_label())],
                 ),
-                Some(e) => e.source.label().to_string(),
+                Some(e) => e.source.display_label().to_string(),
                 None => trf(
                     "Local file · {file}",
                     &[("file", row.file.trim_start_matches("mods/"))],

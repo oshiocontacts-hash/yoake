@@ -90,7 +90,19 @@ impl Launcher {
             return 0;
         };
         self.load_servers(home);
-        self.multiplayer.list.len()
+        self.multiplayer
+            .list
+            .iter()
+            .filter(|(server, _)| self.server_visible(server))
+            .count()
+    }
+
+    pub(super) fn server_visible(&self, server: &Server) -> bool {
+        server_list::is_visible(
+            &server.ip,
+            &self.links.official_server,
+            &self.links.official_server_previous,
+        )
     }
 
     /// Home's Multiplayer tab, for the selected instance: its button (beside the tabs) and its
@@ -132,12 +144,15 @@ impl Launcher {
             );
         }
         let list = self.multiplayer.list.clone();
-        if list.is_empty() && !self.multiplayer.adding {
+        if !list.iter().any(|(server, _)| self.server_visible(server)) && !self.multiplayer.adding {
             section = section.child(text(theme::CAPTION).text_color(t.muted).child(tr(
                 "No servers yet: add one here or in the game's Multiplayer screen.",
             )));
         }
         for (i, (server, icon)) in list.into_iter().enumerate() {
+            if !self.server_visible(&server) {
+                continue;
+            }
             section = section.child(self.server_row(i, server, icon, cx));
         }
         Some((actions, section))

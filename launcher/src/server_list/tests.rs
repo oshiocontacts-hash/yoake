@@ -146,7 +146,7 @@ fn a_server_without_a_name_gets_the_games_default() {
 /// The official server as the launcher knows it before links.json is read.
 fn add_official_default(home: &Path) -> Result<(), String> {
     let links = Links::default();
-    add_official(
+    add_official_impl(
         home,
         &links.official_server,
         &links.official_server_previous,
@@ -214,7 +214,7 @@ fn the_official_server_is_put_on_top_once() {
     assert!(!home.join(OFFICIAL_MARKER).exists());
     // No official server in links.json: nothing offered, nothing written.
     let home = scratch("official-none");
-    add_official(&home, " ", &["horizon.bunchy7s.dev".into()]).unwrap();
+    add_official_impl(&home, " ", &["horizon.bunchy7s.dev".into()]).unwrap();
     assert!(!home.join(FILE).exists());
     assert!(!home.join(OFFICIAL_MARKER).exists());
 }
@@ -351,7 +351,7 @@ fn the_official_address_comes_from_links_json() {
         ],
         "play.playhorizon.dev",
     );
-    add_official(
+    add_official_impl(
         &home,
         &links.official_server,
         &links.official_server_previous,
@@ -360,7 +360,7 @@ fn the_official_address_comes_from_links_json() {
     assert_eq!(shown(&home), [("SMP".into(), "next.example".into())]);
     // A fresh list gets the address links.json gives.
     let home = scratch("links-fresh");
-    add_official(
+    add_official_impl(
         &home,
         &links.official_server,
         &links.official_server_previous,
@@ -385,6 +385,43 @@ fn the_official_address_comes_from_links_json() {
         Links::parse(r#"{"official_server": ""}"#).official_server,
         ""
     );
+}
+
+#[test]
+fn official_servers_are_only_hidden_in_yoake() {
+    let previous = vec!["old.example".to_string()];
+    assert!(!is_visible_in_brand(
+        "CURRENT.example:25565",
+        "current.example",
+        &previous,
+        true,
+    ));
+    assert!(!is_visible_in_brand(
+        "old.example",
+        "current.example",
+        &previous,
+        true,
+    ));
+    assert!(is_visible_in_brand(
+        "friends.example",
+        "current.example",
+        &previous,
+        true,
+    ));
+    assert!(is_visible_in_brand(
+        "current.example",
+        "current.example",
+        &previous,
+        false,
+    ));
+}
+
+#[test]
+fn offering_the_official_server_respects_the_brand() {
+    let home = scratch("official-brand");
+    add_official(&home, "official.example", &[]).unwrap();
+    assert_eq!(home.join(FILE).exists(), !crate::brand::yoake());
+    assert_eq!(home.join(OFFICIAL_MARKER).exists(), !crate::brand::yoake());
 }
 
 fn entries_of(bytes: &[u8]) -> Vec<Tag> {

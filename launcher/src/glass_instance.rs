@@ -379,8 +379,8 @@ impl Launcher {
         );
         let mut summary = match kind {
             NewKind::Horizon => match self.draft_horizon() {
-                Some(tag) => format!("Horizon · {}", version_label(&tag)),
-                None => "Horizon".into(),
+                Some(tag) => format!("{} · {}", horizon_launcher::brand::name(), version_label(&tag)),
+                None => horizon_launcher::brand::name().into(),
             },
             NewKind::Vanilla => format!("{} · {minecraft}", tr("Vanilla")),
             NewKind::Modded => format!("{} · {minecraft}", loader.name()),
@@ -556,7 +556,7 @@ impl Launcher {
         };
         let (busy, copy, error) = (d.busy, d.copy, d.error.clone());
         let title = match (editing, kind) {
-            (Some(i), _) => trf("Edit {name}", &[("name", &i.name)]),
+            (Some(i), _) => trf("Edit {name}", &[("name", i.display_name())]),
             (None, NewKind::Horizon) => tr("A new Horizon instance").into(),
             (None, NewKind::Vanilla) => tr("A new vanilla instance").into(),
             (None, NewKind::Modded) => tr("A new modded instance").into(),
@@ -820,7 +820,7 @@ impl Launcher {
         let selected = self.selected_instance().cloned();
         let from = selected
             .as_ref()
-            .map_or_else(|| "Horizon".into(), |i| i.name.clone());
+            .map_or_else(|| horizon_launcher::brand::name().to_string(), |i| i.display_name().to_string());
         let icon = match &selected {
             Some(i) => self.glass_instance_icon(i, 36.),
             None => ui::mark_tile(36., self.look.accent_soft).into_any_element(),

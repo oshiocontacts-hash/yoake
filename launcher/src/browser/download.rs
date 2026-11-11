@@ -66,8 +66,9 @@ pub(super) fn agent(url: &str) -> ureq::Agent {
 pub fn refuse(file: &FileRef) -> Option<String> {
     if !HOSTS.iter().any(|h| file.url.starts_with(h)) && !github_release_asset(&file.url) {
         return Some(format!(
-            "{} isn't on Modrinth's, CurseForge's or Horizon's file servers, or a GitHub release.",
-            file.url
+            "{} isn't on Modrinth's, CurseForge's or {}'s file servers, or a GitHub release.",
+            file.url,
+            crate::brand::name()
         ));
     }
     refuse_file(file)

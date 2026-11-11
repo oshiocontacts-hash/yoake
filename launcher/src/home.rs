@@ -28,14 +28,15 @@ impl Launcher {
             if tag.is_empty() {
                 "Minecraft"
             } else {
-                "Horizon"
+                horizon_launcher::brand::name()
             },
-            |i| i.name.as_str(),
+            |i| i.display_name(),
         );
         let mut what = vec![format!("Minecraft: Java Edition {game}")];
         if !tag.is_empty() {
             what.push(format!(
-                "Horizon {}",
+                "{} {}",
+                horizon_launcher::brand::name(),
                 horizon_launcher::nightly::label(tag)
                     .or_else(|| horizon_launcher::build_import::label(tag))
                     .unwrap_or_else(|| tag.trim_start_matches('v').to_string())
@@ -153,7 +154,10 @@ impl Launcher {
         }
         // Players who answered the first-run question before the ping existed read about it
         // once here.
-        if !self.settings.ping_notice_seen && !self.collection.consent.needs_asking() {
+        if !horizon_launcher::brand::yoake()
+            && !self.settings.ping_notice_seen
+            && !self.collection.consent.needs_asking()
+        {
             hero = hero.child(
                 crate::plate::plate(&n)
                     .flex()

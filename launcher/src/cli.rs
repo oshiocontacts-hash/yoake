@@ -1120,7 +1120,18 @@ pub fn run() -> Option<i32> {
             definition = definition.mut_subcommand(name, |c| c.hide(true));
         }
     }
-    let cli = Cli::from_arg_matches(&definition.get_matches()).unwrap_or_else(|e| e.exit());
+    let matches = if horizon_launcher::brand::yoake() {
+        definition.try_get_matches().unwrap_or_else(|error| {
+            if error.kind() == clap::error::ErrorKind::DisplayHelp {
+                print!("{}", horizon_launcher::brand::text(&error.to_string()));
+                std::process::exit(0);
+            }
+            error.exit()
+        })
+    } else {
+        definition.get_matches()
+    };
+    let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
     let command = cli.command?;
     let result = match command {
         Cmd::Mcp | Cmd::AgentConfig { .. } if no_ai => Err(horizon_core::no_ai::REFUSAL.into()),
@@ -1292,10 +1303,17 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                     steps,
                 )
                 .map_err(|e| match e.starts_with(native_mods::MISMATCH) {
-                    true => trf(
-                        "{error} They often still build: pass --allow-version-mismatch to try.",
-                        &[("error", e.as_str())],
-                    ),
+                    true => {
+                        let shown = format!(
+                            "{}{}",
+                            horizon_launcher::brand::text(native_mods::MISMATCH),
+                            e.strip_prefix(native_mods::MISMATCH).unwrap_or_default()
+                        );
+                        trf(
+                            "{error} They often still build: pass --allow-version-mismatch to try.",
+                            &[("error", &shown)],
+                        )
+                    }
                     false => e,
                 })?;
                 let built = std::path::absolute(&built).unwrap_or(built);
@@ -1339,7 +1357,12 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             )
             .map_err(|e| match e.starts_with(native_mods::MISMATCH) {
                 true => {
-                    format!("{e} They often still build: pass --allow-version-mismatch to try.")
+                    let shown = format!(
+                        "{}{}",
+                        horizon_launcher::brand::text(native_mods::MISMATCH),
+                        e.strip_prefix(native_mods::MISMATCH).unwrap_or_default()
+                    );
+                    format!("{shown} They often still build: pass --allow-version-mismatch to try.")
                 }
                 false => e,
             })?;
@@ -1358,7 +1381,10 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             trust_unsigned,
         } => {
             if !trust_unsigned {
-                return Err("An imported build is unsigned: Horizon can't check where it came from. If you trust it, pass --trust-unsigned.".into());
+                return Err(format!(
+                    "An imported build is unsigned: {} can't check where it came from. If you trust it, pass --trust-unsigned.",
+                    horizon_launcher::brand::name()
+                ));
             }
             let tag = build_import::import(&path, version.as_deref())?;
             let prepared = backend::is_prepared(&tag);
@@ -1441,8 +1467,9 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 {
                     return Err(format!(
                         "{} plays Minecraft: Java Edition: --version, --world, --creative, \
-                         --join and --account are for Horizon instances.",
-                        instance.name
+                         --join and --account are for {} instances.",
+                        instance.display_name(),
+                        horizon_launcher::brand::name()
                     ));
                 }
                 let server = server.map(|server| {
@@ -1542,6 +1569,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             if yoake_program.is_some() {
                 cmd.env("HORIZON_HOME", &instance.home);
             }
+            horizon_launcher::telemetry::protect_command(&mut cmd);
             let played = attached(cmd);
             if let Err(e) = instances::record_play(&instance.id, started.elapsed()) {
                 eprintln!("Play time not saved: {e}");
@@ -1594,6 +1622,11 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                     ("Sponsor", &links.sponsor),
                     ("Website", &links.website),
                 ] {
+                    if (name == "Discord" && horizon_launcher::brand::yoake())
+                        || !horizon_launcher::brand::show_url(url)
+                    {
+                        continue;
+                    }
                     println!("{name:<8} {}", if url.is_empty() { "(none)" } else { url });
                 }
             }
@@ -1738,10 +1771,10 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             settings.save()?;
             if remove {
                 horizon_launcher::desktop::remove()?;
-                println!("Removed Horizon from the applications menu.");
+                println!("Removed {} from the applications menu.", horizon_launcher::brand::name());
             } else {
                 horizon_launcher::desktop::install(backend::exe_path())?;
-                println!("Horizon is in the applications menu.");
+                println!("{} is in the applications menu.", horizon_launcher::brand::name());
             }
         }
         Cmd::Worlds { action } => worlds(
@@ -1783,10 +1816,16 @@ fn java(action: JavaCmd, as_json: bool) -> Result<(), String> {
             if as_json {
                 json(serde_json::json!(all));
             } else if all.is_empty() {
-                println!("No Java yet. Horizon downloads Mojang's when an instance needs it.");
+                println!(
+                    "No Java yet. {} downloads Mojang's when an instance needs it.",
+                    horizon_launcher::brand::name()
+                );
             } else {
                 for r in &all {
                     let from = match r.source {
+                        java::Source::Mojang if horizon_launcher::brand::yoake() => {
+                            "Mojang's, downloaded by Yoake"
+                        }
                         java::Source::Mojang => "Mojang's, downloaded by Horizon",
                         java::Source::Installed => "installed",
                     };
@@ -1870,12 +1909,12 @@ fn update(check: bool, as_json: bool) -> Result<(), String> {
         return Ok(());
     }
     match &updates.horizon {
-        None => println!("Horizon: up to date."),
-        Some(r) if check => println!("Horizon: {} is available.", r.tag),
+        None => println!("{}: up to date.", horizon_launcher::brand::name()),
+        Some(r) if check => println!("{}: {} is available.", horizon_launcher::brand::name(), r.tag),
         Some(r) => {
             let tag =
                 backend::install_tag(&r.tag, true, progress(format!("Installing {}", r.tag)))?;
-            println!("Horizon: installed {tag}.");
+            println!("{}: installed {tag}.", horizon_launcher::brand::name());
         }
     }
     match &updates.launcher {
@@ -2155,9 +2194,16 @@ fn data(action: DataCmd, as_json: bool) -> Result<(), String> {
                 let on = consent.allows(kind);
                 println!("{name}: {}", if on { "on" } else { "off" });
             }
-            println!("Waiting to be sent: {}", status["waiting"]);
-            match horizon_telemetry::endpoint() {
+            if horizon_launcher::brand::yoake() {
+                println!("Queued items (not sent by this build): {}", status["waiting"]);
+            } else {
+                println!("Waiting to be sent: {}", status["waiting"]);
+            }
+            match horizon_launcher::telemetry::endpoint() {
                 Some(url) => println!("Server: {url}"),
+                None if horizon_launcher::brand::yoake() => {
+                    println!("Server: turned off for Yoake Launcher, nothing is sent")
+                }
                 None => println!("Server: turned off (HORIZON_TELEMETRY_URL=off), nothing is sent"),
             }
         }
@@ -2273,7 +2319,8 @@ fn servers(action: ServersCmd, as_json: bool) -> Result<(), String> {
             let tag = backend::resolve_version(version.as_deref())?;
             servers::set_up(&tag)?;
             println!(
-                "Servers run Horizon {}",
+                "Servers run {} {}",
+                horizon_launcher::brand::name(),
                 servers::runtime_release().unwrap_or(tag)
             );
         }
@@ -2311,11 +2358,21 @@ fn github_native(
     trust: bool,
 ) -> Result<(), String> {
     if java {
-        return Err("Native mods from GitHub are for Horizon instances.".into());
+        return Err(format!(
+            "Native mods from GitHub are for {} instances.",
+            horizon_launcher::brand::name()
+        ));
     }
     println!("{}", found.label());
     println!("Source, to read: {}", found.source_url());
-    eprintln!("{}", github_mods::WARNING);
+    eprintln!(
+        "{}",
+        if horizon_launcher::brand::yoake() {
+            "Not reviewed by the mod registry. Native mods run with full access to this computer. Read the source first."
+        } else {
+            github_mods::WARNING
+        }
+    );
     if !trust {
         return Err(format!(
             "Read the source at {}, then pass --trust-native-code.",
@@ -2427,7 +2484,7 @@ fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
                     e.title,
                     if off { " (off)" } else { "" },
                     e.number,
-                    e.source.label(),
+                    e.source.display_label(),
                     e.slug,
                     e.file,
                     e.checksum
@@ -2483,12 +2540,21 @@ fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
                 }).collect());
             } else {
                 if datapack && !found.is_empty() {
-                    println!("{}\n", horizon_launcher::browser::DATAPACK_SUPPORT);
+                    println!(
+                        "{}\n",
+                        horizon_launcher::brand::text(horizon_launcher::browser::DATAPACK_SUPPORT)
+                    );
                 }
                 for p in &found {
                     let support = p.support();
                     if p.source == SourceId::Horizon {
-                        println!("{}  ({})  {}\n  {}", p.title, p.slug, p.author, p.summary);
+                        println!(
+                            "{}  ({})  {}\n  {}",
+                            p.title,
+                            p.slug,
+                            horizon::display_author(&p.id, &p.author),
+                            p.summary
+                        );
                         for line in horizon::trust_and_capabilities(&p.id) {
                             println!("  {line}");
                         }
@@ -2512,7 +2578,7 @@ fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
                     } else if datapack {
                         println!("  horizon-launcher mods install {} --world <world>", p.slug);
                     } else if let Some(why) = support.reason() {
-                        println!("  {why}");
+                        println!("  {}", horizon_launcher::browser::display_reason(why));
                     }
                 }
             }
@@ -2648,7 +2714,7 @@ fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
             for e in done.iter().filter(|_| !as_json) {
                 println!("{} {}: {} ({})", e.title, e.number, e.file, e.checksum);
                 for s in &e.skipped {
-                    println!("  not ported: {s}");
+                    println!("  not ported: {}", horizon::display_skipped(s));
                 }
             }
         }
@@ -2670,7 +2736,7 @@ fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
             }
             for e in chosen {
                 let Some(source) = horizon_launcher::browser::source(e.source) else {
-                    println!("{}: {} isn't available here.", e.title, e.source.label());
+                    println!("{}: {} isn't available here.", e.title, e.source.display_label());
                     continue;
                 };
                 let newer = match &java {
@@ -2722,7 +2788,10 @@ fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
             ..
         } => {
             if java.is_some() {
-                return Err("Native mods from GitHub are for Horizon instances.".into());
+                return Err(format!(
+                    "Native mods from GitHub are for {} instances.",
+                    horizon_launcher::brand::name()
+                ));
             }
             let mut origins = github_mods::origins(&home);
             origins.retain(|o| id.as_deref().is_none_or(|i| o.id == i));
@@ -2895,7 +2964,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
         };
         println!(
             "{mark} {} ({}){pinned}{group}{played}\n    {}",
-            i.name,
+            i.display_name(),
             i.id,
             i.home.display()
         );
@@ -2952,7 +3021,8 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
         } => {
             let Some(java) = instances::find(&instance)?.java else {
                 return Err(format!(
-                    "{instance} is a Horizon instance: mod loaders are for Java instances."
+                    "{instance} is a {} instance: mod loaders are for Java instances.",
+                    horizon_launcher::brand::name()
                 ));
             };
             if list {
@@ -2998,7 +3068,9 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             let window = window.as_deref().map(parse_window).transpose()?;
             if instances::find(&instance)?.java.is_none() {
                 return Err(format!(
-                    "{instance} is a Horizon instance: Horizon is not a Java program."
+                    "{instance} is a {} instance: {} is not a Java program.",
+                    horizon_launcher::brand::name(),
+                    horizon_launcher::brand::name()
                 ));
             }
             changed(instances::edit(&instance, |m| {
@@ -3119,7 +3191,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             } else {
                 println!(
                     "{}: {}",
-                    i.name,
+                    i.display_name(),
                     l.summary().unwrap_or("nothing around the game".into())
                 );
                 println!("  pre-launch: {}", l.pre_launch);
@@ -3150,7 +3222,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             if as_json {
                 json(serde_json::json!({ "instance": i.id, "paths": paths }));
             } else if remove && paths.is_empty() {
-                println!("{} has no shortcut.", i.name);
+                println!("{} has no shortcut.", i.display_name());
             } else {
                 let did = if remove { "Moved to the trash" } else { "Made" };
                 for path in paths {
@@ -3245,7 +3317,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
                     let p = horizon_launcher::packs::add(&i.home, &file)?;
                     println!(
                         "Added {} to {}: turn it on with horizon-launcher packs on",
-                        p.title, i.name
+                        p.title, i.display_name()
                     );
                 }
                 Dropped::DataPack => {
@@ -3297,7 +3369,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             } else {
                 println!(
                     "Exported {} to {}: {} files, {} listed by their Modrinth download{}.",
-                    i.name,
+                    i.display_name(),
                     done.path.display(),
                     done.copied,
                     done.linked,
@@ -3451,17 +3523,32 @@ fn multiplayer(action: MultiplayerCmd, as_json: bool) -> Result<(), String> {
         MultiplayerCmd::List { instance } => {
             let home = home(instance)?;
             let servers = server_list::List::load(&home).servers();
+            let links = horizon_launcher::brand::yoake().then(backend::links);
+            let visible = |server: &server_list::Server| {
+                links.as_ref().is_none_or(|links| {
+                    server_list::is_visible(
+                        &server.ip,
+                        &links.official_server,
+                        &links.official_server_previous,
+                    )
+                })
+            };
             if as_json {
                 json(
                     servers
                         .iter()
+                        .filter(|server| visible(server))
                         .map(|s| serde_json::json!({ "name": s.name, "address": s.ip, "icon": s.icon.is_some() }))
                         .collect(),
                 );
-            } else if servers.is_empty() {
+            } else if !servers.iter().any(&visible) {
                 println!("No servers in {}", home.join("servers.dat").display());
             }
-            for (i, s) in servers.iter().enumerate().filter(|_| !as_json) {
+            for (i, s) in servers
+                .iter()
+                .enumerate()
+                .filter(|(_, server)| !as_json && visible(server))
+            {
                 println!("{}. {} ({})", i + 1, s.name, s.ip);
             }
         }
@@ -3646,10 +3733,11 @@ fn modpack(action: ModpackCmd, as_json: bool) -> Result<(), String> {
                     );
                 } else {
                     println!(
-                        "{} {}  ({}, from Horizon's registry)\n  {}",
+                        "{} {}  ({}, from {}'s registry)\n  {}",
                         p.name,
                         p.version,
                         p.id,
+                        horizon_launcher::brand::name(),
                         p.mods.join(", ")
                     );
                 }

@@ -181,6 +181,10 @@ pub struct JavaGame {
 }
 
 impl Instance {
+    pub fn display_name(&self) -> &str {
+        display_name(&self.id, &self.name, crate::brand::yoake())
+    }
+
     /// Its variables for the game started as `program` and the commands around it
     /// ([`crate::launch::instance_vars`]).
     pub fn vars(&self, program: &std::ffi::OsStr) -> crate::launch::Vars {
@@ -256,9 +260,12 @@ impl Instance {
         match &self.java {
             None => Ok(()),
             Some(java) => Err(format!(
-                "{} plays Minecraft {} (Java Edition), not Horizon: Play starts it, without a \
-                 Horizon version.",
-                self.name, java.minecraft
+                "{} plays Minecraft {} (Java Edition), not {}: Play starts it, without a \
+                 {} version.",
+                self.display_name(),
+                java.minecraft,
+                crate::brand::name(),
+                crate::brand::name()
             )),
         }
     }
@@ -277,6 +284,14 @@ impl Instance {
             }),
             _ => backend::resolve_version(requested),
         }
+    }
+}
+
+fn display_name<'a>(id: &str, name: &'a str, yoake: bool) -> &'a str {
+    if yoake && id == DEFAULT && name == "Horizon" {
+        "Yoake"
+    } else {
+        name
     }
 }
 
@@ -312,7 +327,7 @@ fn list_in(game_home: &Path, data: &Path) -> Vec<Instance> {
             .retain(|id, _| id == DEFAULT || id.contains(':') || own.contains(id));
         if store.instances.len() != before {
             if let Err(e) = store.save(data) {
-                eprintln!("Horizon: instances.json is not saved: {e}");
+                eprintln!("{}: instances.json is not saved: {e}", crate::brand::name());
             }
         }
     }

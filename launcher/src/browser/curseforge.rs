@@ -203,7 +203,7 @@ impl Source for CurseForge {
 
     fn search(&self, query: &Query) -> Result<Vec<Project>, String> {
         if query.kind == Kind::Shader {
-            return Err(super::SHADERS_ON_HORIZON.into());
+            return Err(crate::brand::text(super::SHADERS_ON_HORIZON).into_owned());
         }
         let found = self.get(&search_url(query))?;
         Ok(found["data"]
@@ -217,7 +217,7 @@ impl Source for CurseForge {
     fn project(&self, id: &str) -> Result<Project, String> {
         let m = self.get(&format!("{API}/mods/{}", encode(id)))?;
         parse_mod(&m["data"])
-            .ok_or_else(|| format!("CurseForge: {id} is not a pack Horizon loads."))
+            .ok_or_else(|| format!("CurseForge: {id} is not a pack {} loads.", crate::brand::name()))
     }
 
     fn versions(&self, project: &Project) -> Result<Vec<Version>, String> {

@@ -208,7 +208,8 @@ pub fn classify(exists: bool, before: Option<&Record>, now: &Record) -> Plan {
     if before.horizon != now.horizon {
         let short = |r: &str| r.chars().take(7).collect::<String>();
         changes.push(format!(
-            "Horizon commit {} to {}",
+            "{} commit {} to {}",
+            crate::brand::name(),
             short(&before.horizon),
             short(&now.horizon)
         ));
@@ -611,7 +612,8 @@ pub(crate) fn bundle_in(dir: &Path) -> Result<Option<Bundle>, String> {
         .unwrap_or(horizon_mods::Side::Both);
     match (&found.horizon, field("horizon")) {
         (Some(pinned), Some(native)) if *pinned != native => Err(format!(
-            "{id}: {NATIVE_MANIFEST} pins Horizon {native}, its {MANIFEST} {pinned}."
+            "{id}: {NATIVE_MANIFEST} pins {} {native}, its {MANIFEST} {pinned}.",
+            crate::brand::name()
         )),
         (_, native) => Ok(Some(Bundle {
             horizon: found.horizon.clone().or(native),
@@ -1016,7 +1018,7 @@ fn with_hooks(
     let tested: Vec<Bundle> = hooked.iter().map(|b| (*b).clone()).collect();
     let fallback = agreed(
         &tested,
-        "Horizon",
+        crate::brand::name(),
         |b| b.horizon.as_ref(),
         || Err(String::new()),
     );
@@ -1036,9 +1038,11 @@ fn with_hooks(
         .map(|b| format!("{} (hook points v{})", b.id, b.hooks.unwrap_or_default()))
         .collect();
     Err(format!(
-        "Horizon {} doesn't have the native hook points these mods use: {}. Update Horizon or the mods.",
+        "{} {} doesn't have the native hook points these mods use: {}. Update {} or the mods.",
+        crate::brand::name(),
         &pinned[..pinned.len().min(7)],
-        list.join(", ")
+        list.join(", "),
+        crate::brand::name()
     ))
 }
 
@@ -1401,6 +1405,11 @@ impl Step {
 /// An error ends with its first `error` lines and the last lines: a failed build script's output
 /// alone could push the line naming its crate out of the last ones.
 fn run(mut cmd: Command, what: &str, mut line: impl FnMut(&str)) -> Result<(), String> {
+    let what = if what == "Downloading Horizon's crates" {
+        crate::brand::text(what)
+    } else {
+        std::borrow::Cow::Borrowed(what)
+    };
     let mut log = fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -1436,7 +1445,7 @@ fn run(mut cmd: Command, what: &str, mut line: impl FnMut(&str)) -> Result<(), S
         return Ok(());
     }
     let tail: Vec<String> = tail.into();
-    Err(failure(what, &status.to_string(), &errors, &tail))
+    Err(failure(&what, &status.to_string(), &errors, &tail))
 }
 
 /// [`run`]'s error: the `errors` lines not already among the last ones (`tail`), then those.
@@ -1841,7 +1850,7 @@ fn pipeline(
     let free = pins.iter().all(|b| b.horizon.is_none());
     let pinned = newest(
         &pins,
-        "Horizon",
+        crate::brand::name(),
         |b| b.horizon.as_ref(),
         || match &built_on {
             Some(about) => Ok(about.horizon.clone()),
@@ -1866,7 +1875,8 @@ fn pipeline(
     let blame = |e: String| {
         match &other {
         Some(list) => format!(
-            "{e}\n\nSome mods were made for other Horizon versions ({list}), which may be why. Install versions made for the same Nightly."
+            "{e}\n\nSome mods were made for other {} versions ({list}), which may be why. Install versions made for the same Nightly.",
+            crate::brand::name()
         ),
         None => e,
     }
@@ -3718,7 +3728,10 @@ mod tests {
         let plan = classify(false, Some(&before), &next);
         assert_eq!(
             plan.label(),
-            "Incremental rebuild: Horizon commit aaaaaaa to bbbbbbb; mods keys, zoom"
+            format!(
+                "Incremental rebuild: {} commit aaaaaaa to bbbbbbb; mods keys, zoom",
+                crate::brand::name()
+            )
         );
         // A removed mod counts as a change too.
         next = record("aaaaaaa1111", &[("zoom", "1")]);

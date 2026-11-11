@@ -848,7 +848,7 @@ fn install_inner(
             fetch_small,
         )?,
         None if is_game_tag(tag) => signed_digest(tag, ASSET.unwrap_or_default())?,
-        None => return Err(format!("{tag} is not a Horizon release.")),
+        None => return Err(format!("{tag} is not a {} release.", crate::brand::name())),
     };
     check_install_cancelled(cancel)?;
     install_as_inner(release, tag, &sha256, progress, cancel)
@@ -1582,7 +1582,7 @@ fn download_for_owner(
         &mut accounts,
     );
     if let Err(e) = accounts.save() {
-        log(format!("Horizon: the accounts are not saved: {e}"));
+        log(format!("{}: the accounts are not saved: {e}", crate::brand::name()));
     }
     download_for(pins, dir, pass, !accounts.accounts.is_empty(), fetch, log)
 }
@@ -1622,8 +1622,9 @@ pub fn java_game(
 ) -> Result<Command, String> {
     let game = instance.java.as_ref().ok_or_else(|| {
         format!(
-            "{} plays Horizon, not Minecraft: Java Edition",
-            instance.name
+            "{} plays {}, not Minecraft: Java Edition",
+            instance.name,
+            crate::brand::name()
         )
     })?;
     let player = account::java_player()?;
@@ -1719,7 +1720,10 @@ fn download_for(
                 sources::Os::Windows => "windows",
             };
             mojang::download(pins, dir, os, 8, fetch, &mojang::CANCEL, log).map_err(|e| {
-                format!("\n  • Horizon tried to download {v} from Mojang for {name}, but: {e}")
+                format!(
+                    "\n  • {} tried to download {v} from Mojang for {name}, but: {e}",
+                    crate::brand::name()
+                )
             })
         }
         // An owner by its last answer, who can't be asked now.
@@ -1728,13 +1732,14 @@ fn download_for(
              checked: {}",
             pass.offline.unwrap_or_default()
         )),
-        Err(_) if signed_in => Err(
-            "\n  • No signed-in account owns Minecraft: Java Edition, so Horizon can't download it."
-                .into(),
-        ),
+        Err(_) if signed_in => Err(format!(
+            "\n  • No signed-in account owns Minecraft: Java Edition, so {} can't download it.",
+            crate::brand::name()
+        )),
         Err(_) => Err(format!(
-            "\n  • Or sign in with the Microsoft account that owns Minecraft: Horizon then \
-             downloads {v} from Mojang itself."
+            "\n  • Or sign in with the Microsoft account that owns Minecraft: {} then \
+             downloads {v} from Mojang itself.",
+            crate::brand::name()
         )),
     }
 }
@@ -1792,7 +1797,10 @@ fn java(
     let runtime = data_dir().join("minecraft").join("runtime");
     let home = mojang::java_runtime(&component, &runtime, 8, &fetch, &mojang::CANCEL, log)
         .map_err(|e| {
-        format!("{missing}\n  • Horizon also tried to download Minecraft's own Java from Mojang, but: {e}")
+        format!(
+            "{missing}\n  • {} also tried to download Minecraft's own Java from Mojang, but: {e}",
+            crate::brand::name()
+        )
     })?;
     find(major, &[home]).map(|jdk| jdk.home())
 }
@@ -1910,7 +1918,12 @@ pub fn preparer(
             .and_then(|lock| sources::Pins::read(&lock))
             .ok_or("The version's research-lock.json doesn't pin the Minecraft files")?;
         let own = data_dir().join("minecraft");
-        let mut known = vec![("Horizon's own download", own.clone())];
+        let label = if crate::brand::yoake() {
+            "Yoake's own download"
+        } else {
+            "Horizon's own download"
+        };
+        let mut known = vec![(label, own.clone())];
         known.extend(
             sources::Folders::current()
                 .map(|f| sources::known_folders(sources::Os::current(), &f))
@@ -2358,6 +2371,9 @@ pub fn client_command_for_program(tag: &str, program: &Path) -> Command {
     let _ = fs::create_dir_all(&home);
     let mut cmd = Command::new(program);
     cmd.current_dir(home).arg("--resources").arg(resources(tag));
+    if crate::brand::yoake() {
+        cmd.env("HORIZON_TELEMETRY_URL", "off");
+    }
     // How the game asks for a renewed session (`account session`) while it runs.
     if let Ok(exe) = std::env::current_exe() {
         cmd.env("HORIZON_LAUNCHER_EXE", exe);
@@ -2392,6 +2408,9 @@ pub fn server_command(tag: &str, folder: &Path) -> Command {
         .arg("--resources")
         .arg(resources(tag))
         .args(["--dedicated", "--nogui"]);
+    if crate::brand::yoake() {
+        cmd.env("HORIZON_TELEMETRY_URL", "off");
+    }
     cmd
 }
 
@@ -2618,7 +2637,7 @@ pub fn release_notes(tag: Option<&str>) -> Result<Release, String> {
         Some(tag) => releases
             .into_iter()
             .find(|r| r.tag == tag)
-            .ok_or_else(|| format!("No Horizon release is tagged {tag}.")),
+            .ok_or_else(|| format!("No {} release is tagged {tag}.", crate::brand::name())),
         None => releases
             .into_iter()
             .next()
@@ -2795,7 +2814,7 @@ pub fn install_tag(tag: &str, as_update: bool, progress: impl Fn(f32)) -> Result
         releases
             .iter()
             .find(|r| r.tag == tag)
-            .ok_or_else(|| format!("No Horizon release is tagged {tag}."))?
+            .ok_or_else(|| format!("No {} release is tagged {tag}.", crate::brand::name()))?
     };
     if release.asset.is_none() {
         return Err(format!("{} has no build for this platform.", release.tag));

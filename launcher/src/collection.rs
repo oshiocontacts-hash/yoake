@@ -114,7 +114,9 @@ impl Launcher {
     /// Whether the question covers the window: not answered for this consent version, and the
     /// opening is over.
     pub(crate) fn asking_consent(&self) -> bool {
-        self.opening.is_none() && self.collection.consent.needs_asking()
+        !horizon_launcher::brand::yoake()
+            && self.opening.is_none()
+            && self.collection.consent.needs_asking()
     }
 
     fn answer_consent(&mut self, choices: Choices) {
@@ -310,7 +312,7 @@ impl Launcher {
                 &[("prefix", &id[..4]), ("suffix", &id[id.len() - 4..])],
             ),
         };
-        let server = if horizon_telemetry::endpoint().is_some() {
+        let server = if telemetry::endpoint().is_some() {
             trf(
                 "{count} waiting to be sent",
                 &[("count", &waiting.to_string())],

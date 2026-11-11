@@ -292,10 +292,16 @@ impl Launcher {
             };
             actions = actions.child(toggle).child(remove);
         }
-        let facts = match pack.description.is_empty() {
+        let description =
+            if pack.kind == PackKind::Shader && pack.description == "Horizon shader pack" {
+                horizon_launcher::brand::text("Horizon shader pack").into_owned()
+            } else {
+                pack.description.clone()
+            };
+        let facts = match description.is_empty() {
             true => pack.file.clone(),
-            false if pack.title == pack.file => pack.description.clone(),
-            false => format!("{} · {}", pack.description, pack.file),
+            false if pack.title == pack.file => description,
+            false => format!("{} · {}", description, pack.file),
         };
         plate(&t)
             .flex()

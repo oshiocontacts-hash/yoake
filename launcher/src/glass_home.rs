@@ -155,7 +155,7 @@ impl Launcher {
                     .text_size(px(64.))
                     .line_height(px(64.))
                     .text_color(white(ink::FULL))
-                    .child(instance.name),
+                    .child(instance.display_name().to_string()),
             )
     }
 

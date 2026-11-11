@@ -222,6 +222,34 @@ fn a_missing_string_shows_in_english() {
 }
 
 #[test]
+fn yoake_translations_keep_attribution_and_brand_visible_text() {
+    let attribution = "Yoake Launcher is built on Horizon (licence below)";
+    for language in Language::ALL {
+        assert_eq!(
+            tr_in_brand(language, attribution, true),
+            tr_in_brand(language, attribution, false)
+        );
+        assert!(tr_in_brand(language, attribution, true).contains("Horizon"));
+        assert_eq!(
+            tr_in_brand(language, "Horizon Launcher", true),
+            "Yoake Launcher"
+        );
+    }
+    assert_eq!(
+        tr_in_brand(Language::Japanese, "Horizon crashed", true),
+        "Yoakeがクラッシュしました"
+    );
+    assert_eq!(
+        tr_in_brand(Language::Polish, "Horizon crashed", true),
+        "Yoake crashed"
+    );
+    assert_eq!(
+        tr_in_brand(Language::English, "Horizon Launcher", false),
+        "Horizon Launcher"
+    );
+}
+
+#[test]
 fn polish_entries_are_valid_and_keep_placeholders() {
     let (_, all) = strings();
     let table: HashMap<String, String> = serde_json::from_str(Language::Polish.source()).unwrap();

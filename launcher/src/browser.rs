@@ -85,6 +85,13 @@ impl SourceId {
             SourceId::Horizon => "Horizon",
         }
     }
+
+    pub fn display_label(self) -> &'static str {
+        match self {
+            SourceId::Horizon => crate::brand::name(),
+            _ => self.label(),
+        }
+    }
 }
 
 /// How well a project runs in Horizon.
@@ -340,6 +347,26 @@ pub fn support(kind: Kind, game_versions: &[String], loaders: &[String]) -> Supp
 pub const DATAPACK_SUPPORT: &str = "Horizon runs a data pack's functions, function tags, \
      predicates and item modifiers; not yet its recipes, loot tables, advancements, other tags \
      or worldgen.";
+
+pub fn display_reason(reason: &str) -> std::borrow::Cow<'_, str> {
+    if !crate::brand::yoake() {
+        return std::borrow::Cow::Borrowed(reason);
+    }
+    if let Some(version) = reason.strip_prefix("Made for Horizon on ") {
+        return format!("Made for Yoake on {version}").into();
+    }
+    if let Some(prefix) = reason.strip_suffix(DATAPACK_SUPPORT) {
+        return format!("{prefix}{}", crate::brand::text(DATAPACK_SUPPORT)).into();
+    }
+    if let Some(prefix) = reason.strip_suffix(": Horizon ports mods made for 1.21 and later.") {
+        return format!("{prefix}: Yoake ports mods made for 1.21 and later.").into();
+    }
+    match reason {
+        "Horizon runs the mods it can port, from your own downloads."
+        | "Not one of Horizon's own shader packs." => crate::brand::text(reason),
+        _ => std::borrow::Cow::Borrowed(reason),
+    }
+}
 
 /// A Minecraft version whose mods port-pack carries over: 1.21 and later (the data folders
 /// took their current names in 1.21).

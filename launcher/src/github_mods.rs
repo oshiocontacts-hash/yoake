@@ -473,8 +473,9 @@ fn walk_files(root: &Path, dir: &Path, out: &mut Vec<(String, PathBuf)>) -> Resu
 pub fn pack(bundle: &Bundle) -> Result<Vec<u8>, String> {
     let horizon = bundle.horizon.clone().filter(|h| format::revision(h)).ok_or_else(|| {
         format!(
-            "{} has no [compatibility] horizon_revision (40 hex digits): add the Horizon commit it was made for.",
-            bundle.id
+            "{} has no [compatibility] horizon_revision (40 hex digits): add the {} commit it was made for.",
+            bundle.id,
+            crate::brand::name()
         )
     })?;
     let manifest = format::Manifest {

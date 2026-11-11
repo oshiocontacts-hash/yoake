@@ -57,8 +57,14 @@ impl Launcher {
                 std::fs::read(grass).ok()
             });
         }
-        let horizon = || Some(horizon_theme::ICON_PNG.to_vec());
-        self.icon_image("mark:horizon".into(), size, false, horizon)
+        let mark = || {
+            Some(if horizon_launcher::brand::yoake() {
+                include_bytes!("../../packaging/icons/yoake-256.png").to_vec()
+            } else {
+                horizon_theme::ICON_PNG.to_vec()
+            })
+        };
+        self.icon_image("mark:horizon".into(), size, false, mark)
     }
 
     /// A mod loader's logo by its id (`fabric`, `quilt`, `forge`, `neoforge`): None for another

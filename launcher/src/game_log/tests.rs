@@ -87,10 +87,12 @@ fn shares_and_deletes_through_the_paste_api() {
     );
     let request = served.join().unwrap();
     assert!(request.starts_with("POST /log "), "{request}");
-    assert!(
-        request.ends_with(r#"{"content":"[main/INFO]: hello\n","source":"Horizon launcher"}"#),
-        "{request}"
-    );
+    let expected = if crate::brand::yoake() {
+        r#"{"content":"[main/INFO]: hello\n","source":"Yoake launcher"}"#
+    } else {
+        r#"{"content":"[main/INFO]: hello\n","source":"Horizon launcher"}"#
+    };
+    assert!(request.ends_with(expected), "{request}");
 
     let (url, served) = stub(r#"{"success":true}"#);
     std::env::set_var(PASTE_ENV, &url);
