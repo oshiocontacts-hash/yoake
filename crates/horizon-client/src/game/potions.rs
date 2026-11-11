@@ -1519,7 +1519,10 @@ impl Game<'_> {
             }
             let p = previous.lerp(position, alpha);
             let owner = owner_at(p.to_array(), 0.0, &t.stack.item);
-            let state = self.resolve_item(&t.stack, DisplayContext::Ground, Some(&owner), 0);
+            let mut state = self.resolve_item(&t.stack, DisplayContext::Ground, Some(&owner), 0);
+            if state.native_owner.is_some() {
+                state.native_entity_id = (t.id != 0).then_some(t.id as i32);
+            }
             if state.is_empty() {
                 continue;
             }

@@ -57,6 +57,24 @@ pub struct NativeItemHolder {
     pub partial_tick: f32,
 }
 
+fn item_holder(
+    owner: &horizon_assets::item_model::OwnerState,
+    entity_id: Option<i32>,
+    swing_progress: Option<f32>,
+    offhand: bool,
+    partial_tick: f32,
+) -> NativeItemHolder {
+    NativeItemHolder {
+        entity_id,
+        is_local_player: owner.is_local_player,
+        offhand,
+        using_item: owner.using_this_item,
+        use_ticks: owner.use_item_remaining_ticks,
+        swing_progress,
+        partial_tick,
+    }
+}
+
 #[derive(Default)]
 pub(super) struct NativeItemClaims {
     listened: Cell<bool>,
@@ -133,14 +151,14 @@ impl Game<'_> {
         }
         let _guard = DispatchGuard(&self.native_item_claims.dispatching);
         let partial = self.clock.fraction() as f32;
-        let holder = state.native_owner.as_ref().map(|owner| NativeItemHolder {
-            entity_id: None,
-            is_local_player: owner.is_local_player,
-            offhand: state.native_offhand,
-            using_item: owner.using_this_item,
-            use_ticks: owner.use_item_remaining_ticks,
-            swing_progress: None,
-            partial_tick: partial,
+        let holder = state.native_owner.as_ref().map(|owner| {
+            item_holder(
+                owner,
+                state.native_entity_id,
+                state.native_swing_progress,
+                state.native_offhand,
+                partial,
+            )
         });
         let block = state.native_owner.as_ref().map_or([0; 3], |owner| {
             owner.position.map(|coordinate| coordinate.floor() as i32)
@@ -166,6 +184,27 @@ impl Game<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn holder_preserves_owner_identity_and_interpolated_swing() {
+        let owner = horizon_assets::item_model::OwnerState {
+            is_local_player: true,
+            using_this_item: true,
+            use_item_remaining_ticks: 9,
+            ..Default::default()
+        };
+        let holder = item_holder(&owner, Some(47), Some(0.375), true, 0.5);
+        assert_eq!(holder.entity_id, Some(47));
+        assert_eq!(holder.swing_progress, Some(0.375));
+        assert!(holder.is_local_player);
+        assert!(holder.offhand);
+        assert!(holder.using_item);
+        assert_eq!(holder.use_ticks, 9);
+        assert_eq!(holder.partial_tick, 0.5);
+        let unavailable = item_holder(&owner, None, None, false, 0.0);
+        assert_eq!(unavailable.entity_id, None);
+        assert_eq!(unavailable.swing_progress, None);
+    }
 
     #[test]
     fn claims_are_empty_without_listeners_and_rebuilt_on_reload() {

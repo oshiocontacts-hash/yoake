@@ -68,8 +68,8 @@ the normal glint layer when the stack has foil, but its glint coordinates are an
 `ThirdPersonRight`, `ThirdPersonLeft`, `Gui`, `Ground`, `Fixed`, `Head`, `ItemDisplay`, `OnShelf`,
 and `None`. Item displays use `ItemDisplay` regardless of their selected model transform.
 `NativeItemHolder` is optional; when available it carries `is_local_player`, `offhand`,
-`using_item`, `use_ticks`, and `partial_tick`. Its `entity_id` and `swing_progress` are currently
-unavailable. `NativeItemDraw` is the block-entity draw interface: its pose stack and the host's
+`using_item`, `use_ticks`, `partial_tick`, and the available `entity_id` and `swing_progress`.
+`NativeItemDraw` is the block-entity draw interface: its pose stack and the host's
 `draw_quad`, `draw_cube`, `draw_block`, and `draw_item` helpers are shared with block-entity
 renderers. A nested `draw_item` uses the vanilla item model, without recursively invoking this hook.
 GUI geometry goes through the 3D-in-slot renderer and is clipped to the slot unless the model is
@@ -2796,8 +2796,8 @@ a fresh vanilla press attempt. Bundles need the `hooks` field set to @API:mouse_
 
 `fn native_mod_screen_open_anywhere(&mut self, mod_id: &str) -> bool`
 
-Opens the mod-owned screen over ordinary title menus as well as in a world. The world path retains
-`native_mod_screen_open` behavior.
+Opens the mod-owned screen over ordinary title menus, settings, and in a world. Outside settings,
+the world path retains `native_mod_screen_open` behavior.
 
 Over the title, the screen uses the existing screen render, key, character, mouse, drag, scroll, and IME-commit hooks.
 Underlying title widgets receive no input. An uncancelled Escape restores the previous title screen without grabbing
@@ -2822,6 +2822,58 @@ existing screen ownership and modal restrictions still apply when it is drained.
 Both request helpers avoid file IO, blocking locks and waiting. With no request, the drain checks for pending work and
 does not run a permission hook or open a screen. These methods require a mutable `Host`; callbacks with no host, a
 read-only host, or only a level host cannot call them. Bundles need "hooks": @API:deferred_requests@.
+
+### @API:yoake_deferred_io@ Deferred LAN operations
+
+```rust
+fn request_lan_publish(&mut self, opts: NativeLanPublish) -> Option<LanTicket>;
+fn request_lan_close(&mut self) -> Option<LanTicket>;
+fn poll_lan_operation(&self, ticket: LanTicket) -> LanOperationStatus;
+```
+
+These mutable-host requests enqueue integrated-server operations without waiting in the callback. They return `None`
+when there is no ready integrated server, the server is stopping, or the queue is contended. A ticket starts as
+`Pending`; the window processes
+requests in order at the start of a later redraw, using the existing LAN publish and close operations. Processing can
+wait for the server on that redraw, not in the requesting hook. The existing synchronous LAN helpers remain available.
+
+Polling returns `Pending`, `Done { port: Some(port) }` for a successful publish, `Done { port: None }` for a successful
+close, `Failed(String)`, or `Unknown`. Stopping the integrated server fails queued operations that have not started.
+A contended poll returns `Pending`; completed ticket statuses persist for the
+session. With no queued operation, the redraw does not publish or close LAN. Bundles using these helpers require
+"hooks": @API:yoake_deferred_io@.
+
+### Deferred clipboard writes
+
+`fn request_clipboard_write(&mut self, text: &str) -> bool` queues text for the client window's next redraw, using
+the existing clipboard backend. It returns false on server-side games, before a window exists, or for text over
+32 KiB measured in UTF-8 bytes. True means the write was queued, not that the operating system accepted it. Each
+queued write is applied once, in order; the existing clipboard backend ignores empty text. Without a request, the
+clipboard is unchanged. Bundles require "hooks": @API:yoake_deferred_io@.
+
+### Mod screens over settings
+
+`mod_screen_open_anywhere` and `request_mod_screen_open_anywhere` can open a mod screen over settings on the title
+screen or in a world. Closing it, including by an uncancelled Escape, restores the same settings screen and its
+existing settings state. An in-world single-player settings overlay continues to pause under the usual pause rules.
+Controller focus and the on-screen keyboard are restored; an in-progress system IME composition is cancelled when
+the overlay opens. Screen ownership and modal restrictions still apply. Without a mod-screen request, the settings
+flow is unchanged.
+
+### GUI textures before a world loads
+
+`gui_texture_create` and `gui_texture_register` use the existing HUD texture upload and registration path and do not
+require a loaded world. They work on the title screen and in mod screens after the window renderer is installed;
+earlier calls, including during startup before renderer handoff, return `RendererUnavailable`. No alternate texture
+upload path is needed, and unused texture helpers do not change vanilla rendering.
+
+### Item holder fields
+
+When the item path knows its owner, `NativeItemHolder.entity_id` contains that entity's ID. This includes local and
+remote players, living mobs, armor stands, dropped items, item frames, and the applicable projectile and firework paths; a missing
+or unavailable owner remains `None`. For players and living mobs, `swing_progress` carries the interpolated attack
+animation used by the arm swing when that state is available. Nonliving owners without an attack animation leave it
+`None`. These fields are collected for claimed native item rendering and do not change vanilla item rendering.
 
 ### @API:name_tag_lines@ `name_tag_lines`
 

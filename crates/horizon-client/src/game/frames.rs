@@ -636,12 +636,15 @@ impl Game<'_> {
         for (stack, id, m, light) in items {
             let entity_start = out.len();
             let owner = super::item_draw::owner_at([0.0; 3], 0.0, "minecraft:item_frame");
-            let state = self.resolve_item(
+            let mut state = self.resolve_item(
                 &stack,
                 horizon_assets::item_model::DisplayContext::Fixed,
                 Some(&owner),
                 id as i32,
             );
+            if state.native_owner.is_some() {
+                state.native_entity_id = Some(id as i32);
+            }
             let light = horizon_client::block_entity_render::vertex_light(light);
             // Posed on the GPU when every layer can be.
             let skinned = skinning

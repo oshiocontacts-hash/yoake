@@ -630,13 +630,21 @@ impl Game<'_> {
             } else {
                 horizon_client::cit::Hand::Main
             };
-            let state = self.resolve_item_in_hand(
+            let mut state = self.resolve_item_in_hand(
                 stack,
                 display,
                 Some(&owner),
                 (mob.id as i32).wrapping_add(if left { 1 } else { 2 }),
                 hand,
             );
+            if state.native_owner.is_some() {
+                state.native_entity_id = Some(mob.id as i32);
+                state.native_swing_progress = self
+                    .mobs
+                    .iter()
+                    .find(|entity| entity.id == mob.id)
+                    .map(|entity| horizon_client::mobs::anim::state(entity, mob.partial).swing);
+            }
             self.submit_item_world(&state, origin * frame, light, draw.equipment_vertices());
         }
         if let Some(cache) = self.native_mob_player_cache.borrow_mut().as_mut() {

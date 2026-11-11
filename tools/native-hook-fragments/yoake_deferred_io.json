@@ -1,0 +1,27 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "request_lan_publish",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_request_lan_publish",
+      "mod_api": {}
+    },
+    {
+      "name": "request_lan_close",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_request_lan_close",
+      "mod_api": {}
+    },
+    {
+      "name": "poll_lan_operation",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_poll_lan_operation",
+      "mod_api": {}
+    },
+    {
+      "name": "request_clipboard_write",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_request_clipboard_write",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "deferred LAN publication and closure with tickets, and client clipboard writes.",
+  "doc_summary": "`request_lan_publish`, `request_lan_close` and `poll_lan_operation` defer integrated-server LAN changes until the next window frame and expose their result; `request_clipboard_write` queues a client clipboard write for that frame. Requires native hooks API @API:yoake_deferred_io@."
+}

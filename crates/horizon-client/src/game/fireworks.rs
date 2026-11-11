@@ -709,7 +709,10 @@ impl Game<'_> {
             );
             // `updateForNonLiving`: GROUND, owned by the rocket.
             let owner = owner_at(p.to_array(), 0.0, "minecraft:firework_rocket");
-            let state = self.resolve_item(&r.item, DisplayContext::Ground, Some(&owner), 0);
+            let mut state = self.resolve_item(&r.item, DisplayContext::Ground, Some(&owner), 0);
+            if state.native_owner.is_some() {
+                state.native_entity_id = Some(r.id as i32);
+            }
             if state.is_empty() {
                 continue;
             }

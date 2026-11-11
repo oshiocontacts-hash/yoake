@@ -219,6 +219,7 @@ pub(super) struct Integrated {
     flags: Arc<Flags>,
     thread: Option<JoinHandle<()>>,
     tasks: Sender<Task>,
+    deferred: super::native_deferred::DeferredRequests,
     /// The world's name (`level.dat`'s `LevelName`), for the pause menu.
     pub world_name: String,
 }
@@ -382,6 +383,7 @@ impl Integrated {
     }
     /// Stop on the server thread; the window polls completion while drawing.
     pub fn request_stop(&self) {
+        self.deferred.set_lan_available(false);
         self.flags.stop.store(true, Ordering::Relaxed);
     }
     pub fn stopped(&self) -> bool {
@@ -891,6 +893,7 @@ impl Game<'_> {
             flags,
             thread: Some(thread),
             tasks,
+            deferred: self.native_deferred.clone(),
             world_name: String::new(),
         };
         self.integrated_starting = Some(Starting {
@@ -970,6 +973,7 @@ impl Game<'_> {
             last_attempt: None,
         });
         self.integrated = Some(handle);
+        self.native_deferred.set_lan_available(true);
         Ok(())
     }
 
@@ -1855,6 +1859,7 @@ mod tests {
             flags: flags.clone(),
             thread: Some(std::thread::spawn(move || wait.recv().unwrap())),
             tasks,
+            deferred: Default::default(),
             world_name: String::new(),
         };
         server.request_stop();
@@ -1875,6 +1880,7 @@ mod tests {
                 *saving.failure.lock().unwrap() = Some("disk write failed".into());
             })),
             tasks,
+            deferred: Default::default(),
             world_name: String::new(),
         };
         assert_eq!(server.stop().unwrap_err().to_string(), "disk write failed");

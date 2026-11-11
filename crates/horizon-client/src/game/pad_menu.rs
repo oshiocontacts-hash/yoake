@@ -113,6 +113,23 @@ pub(super) struct MenuCursor {
 }
 
 impl MenuCursor {
+    pub(super) fn suspend_for_mod_screen(&mut self) -> Self {
+        let mut saved = std::mem::take(self);
+        self.os_hidden = saved.os_hidden;
+        saved.synthetic = false;
+        saved.held = [false; 2];
+        saved.repeat = None;
+        saved.stick = None;
+        saved.nudge = None;
+        saved.last_poll = None;
+        saved
+    }
+
+    pub(super) fn resume_from_mod_screen(&mut self, mut saved: Self) {
+        saved.os_hidden = self.os_hidden;
+        *self = saved;
+    }
+
     /// `Screen.clearFocus`: nothing is focused any more, and no click focus
     /// is kept for the next Tab (`ComponentPath.applyFocus(false)`).
     fn clear_focus(&mut self) {
@@ -1566,6 +1583,34 @@ fn field_at(targets: &[Target], at: (f32, f32)) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn settings_menu_focus_and_keyboard_survive_mod_screen() {
+        let mut menu = MenuCursor {
+            focus: Some(Target {
+                rect: [229.0, 98.0, 20.0, 18.0],
+                kind: Kind::Button,
+            }),
+            osk: Some(Keyboard::default()),
+            keyboard: true,
+            synthetic: true,
+            held: [true, false],
+            os_hidden: true,
+            ..MenuCursor::default()
+        };
+        let saved = menu.suspend_for_mod_screen();
+        assert!(menu.focus.is_none());
+        assert!(menu.osk.is_none());
+        assert!(menu.os_hidden);
+        menu.os_hidden = false;
+        menu.resume_from_mod_screen(saved);
+        assert!(menu.focus.is_some());
+        assert!(menu.osk.is_some());
+        assert!(menu.keyboard);
+        assert!(!menu.synthetic);
+        assert_eq!(menu.held, [false; 2]);
+        assert!(!menu.os_hidden);
+    }
 
     #[test]
     fn keyboard_auto_opens_for_pad_on_typing_screen() {
