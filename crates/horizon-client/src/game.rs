@@ -208,6 +208,7 @@ mod native_audio;
 mod native_avatar_equipment;
 mod native_biome_colors;
 pub mod native_block_entity_draw;
+pub mod native_item_render;
 mod native_block_sprites;
 mod native_chat;
 mod native_claimed_items;
@@ -2569,6 +2570,8 @@ struct Game<'a> {
     /// The glint clock and options, read once at the start of each frame
     /// (game/item_draw.rs).
     glint_frame: horizon_client::item_render::GlintFrame,
+    native_item_claims: native_item_render::NativeItemClaims,
+    native_item_ticks: i64,
     /// Mod block entities' geometry their mods kept
     /// (game/native_block_entity_draw.rs).
     kept_block_entities: std::cell::RefCell<native_block_entity_draw::KeptGeometry>,
@@ -7474,6 +7477,7 @@ impl Game<'_> {
         self.with_level(|b, level, ticks| b.notify_written(level, ticks, position, flags));
     }
     fn tick(&mut self) -> Result<()> {
+        self.native_item_ticks = self.native_item_ticks.saturating_add(1);
         if self.agent.hold_server {
             return Ok(());
         }
@@ -15563,6 +15567,7 @@ impl Game<'_> {
         });
     }
     fn render(&mut self) -> Result<bool> {
+        self.refresh_native_item_render(false);
         // The window's GPU holds the atlas: its copy in memory is kept
         // compressed (a no-op once it is).
         if self.renderer.is_some() {
@@ -19037,6 +19042,8 @@ impl<'a> Game<'a> {
             pad: Default::default(),
             frames: 0,
             glint_frame: Default::default(),
+            native_item_claims: Default::default(),
+            native_item_ticks: 0,
             kept_block_entities: Default::default(),
             item_level_cache: Default::default(),
             world_frames: 0,

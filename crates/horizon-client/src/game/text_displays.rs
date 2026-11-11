@@ -327,7 +327,8 @@ impl Game<'_> {
                         _ => DisplayContext::None,
                     };
                     // updateForNonLiving: seeded by the entity id.
-                    let state = self.resolve_item(stack, context, None, *id);
+                    let mut state = self.resolve_item(stack, context, None, *id);
+                    state.native_item_display = true;
                     let pose = matrix * glam::Mat4::from_rotation_y(std::f32::consts::PI);
                     self.submit_item_world(&state, pose, light, out);
                 }

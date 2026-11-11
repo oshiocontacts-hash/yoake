@@ -472,6 +472,7 @@ impl Game<'_> {
         // The creative screen survives the reload; item names may not.
         self.creative_screen.forget_items();
         self.native_client_resources_reloaded();
+        self.refresh_native_item_render(true);
         Ok(())
     }
 }

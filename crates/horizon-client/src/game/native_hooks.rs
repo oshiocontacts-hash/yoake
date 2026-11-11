@@ -879,6 +879,9 @@ use super::{
     execution_role::ExecutionRole,
     maps::{NativeMapDecoration, NativeMapInfo},
     native_block_entity_draw::BlockEntityDraw,
+    native_item_render::{
+        NativeItemContext, NativeItemDraw, NativeItemHolder, NativeItemRenderStack,
+    },
     native_mob_draw::{NativeMobRender, NativePlayerRender},
     native_mob_player::NativePlayerAppearance,
     native_panel_recipes::RecipePage,
@@ -6405,6 +6408,25 @@ impl Game<'_> {
             partial_tick,
             canceled,
         );
+    }
+
+    pub(super) fn native_item_render_listened(&self, listened: &mut bool) {
+        mod_api::dispatch_item_render_listened(self, mod_api::mods(), listened);
+    }
+
+    pub(super) fn native_item_render_claims(&self, item: &str, claimed: &mut bool) {
+        mod_api::dispatch_item_render_claims(self, mod_api::mods(), item, claimed);
+    }
+
+    pub(super) fn native_item_render(
+        &self,
+        stack: &NativeItemRenderStack,
+        context: NativeItemContext,
+        holder: Option<NativeItemHolder>,
+        draw: &mut NativeItemDraw,
+        drawn: &mut bool,
+    ) {
+        mod_api::dispatch_item_render(self, mod_api::mods(), stack, context, holder, draw, drawn);
     }
 
     /// Collect fixed interest once after native mods have been loaded.

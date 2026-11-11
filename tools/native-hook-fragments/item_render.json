@@ -1,0 +1,28 @@
+{
+  "hooks": [
+    {
+      "name": "item_render_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_item_render_listened",
+      "side": "client",
+      "mod_api": { "contract": "collect", "out": "listened" }
+    },
+    {
+      "name": "item_render_claims",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_item_render_claims",
+      "side": "client",
+      "mod_api": { "contract": "collect", "out": "claimed" }
+    },
+    {
+      "name": "item_render",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_item_render",
+      "side": "client",
+      "mod_api": { "contract": "collect", "out": "drawn" }
+    }
+  ],
+  "rust_summary": "Native item rendering with cached item claims",
+  "doc_summary": "Custom item rendering: @API:item_render@",
+  "comments": [
+    "crates/horizon-client/src/game/native_hooks.rs",
+    "crates/horizon-client/src/game/native_item_render.rs"
+  ]
+}
