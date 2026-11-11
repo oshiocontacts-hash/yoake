@@ -8,13 +8,19 @@ use winit::{
 
 impl Game<'_> {
     pub(super) fn mod_screen_open_anywhere(&mut self, mod_id: &str) -> bool {
-        let Some(title) = self.title.as_ref() else {
+        if self.title.is_none() && self.screen != Screen::Options {
             return self.native_mod_screen_open(mod_id);
-        };
+        }
         if self.screen == Screen::Mod {
             return self.native_mod_screen() == Some(mod_id);
         }
-        let blocked = !title.allows_mod_screen()
+        let blocked = title_mode_blocks(
+            self.screen,
+            self.title
+                .as_ref()
+                .is_some_and(|title| !title.allows_mod_screen()),
+        )
+            || (self.title.is_none() && self.player.is_none())
             || self.renderer.is_none()
             || self.screen_over_playing()
             || self.remote_loading()
@@ -31,6 +37,9 @@ impl Game<'_> {
                 .is_some_and(|screen| screen.confirming());
         if !title_can_open(self.screen, blocked) {
             return false;
+        }
+        if self.screen == Screen::Options {
+            self.native_settings_menu = Some(self.pad.menu.suspend_for_mod_screen());
         }
         self.native_title_mod_screen_return = Some(self.screen);
         self.native_mod_screen = Some(mod_id.to_owned());
@@ -56,7 +65,14 @@ impl Game<'_> {
             close_destination(self.screen, self.title.is_some(), title_return)
         {
             self.screen = screen;
+            if screen == Screen::Options
+                && let Some(menu) = self.native_settings_menu.take()
+            {
+                self.pad.menu.resume_from_mod_screen(menu);
+            }
             self.capture(capture);
+        } else {
+            self.native_settings_menu = None;
         }
     }
 
@@ -152,8 +168,16 @@ impl Game<'_> {
     }
 }
 
+fn title_mode_blocks(screen: Screen, title_restricted: bool) -> bool {
+    screen != Screen::Options && title_restricted
+}
+
 fn title_can_open(screen: Screen, blocked: bool) -> bool {
     !blocked && matches!(screen, Screen::Playing | Screen::Options)
+}
+
+pub(super) fn settings_suspended(screen: Screen, return_screen: Option<Screen>) -> bool {
+    screen == Screen::Mod && return_screen == Some(Screen::Options)
 }
 
 fn close_destination(
@@ -162,8 +186,10 @@ fn close_destination(
     title_return: Option<Screen>,
 ) -> Option<(Screen, bool)> {
     (screen == Screen::Mod).then(|| {
-        if title_open {
-            (title_return.unwrap_or(Screen::Playing), false)
+        if let Some(previous) = title_return {
+            (previous, false)
+        } else if title_open {
+            (Screen::Playing, false)
         } else {
             (Screen::Playing, true)
         }
@@ -253,12 +279,23 @@ mod tests {
 
     #[test]
     fn title_gate_rejects_loading_and_other_screens() {
+        assert!(!title_mode_blocks(Screen::Options, true));
+        assert!(title_mode_blocks(Screen::Playing, true));
+        assert!(!title_mode_blocks(Screen::Playing, false));
         assert!(title_can_open(Screen::Playing, false));
         assert!(title_can_open(Screen::Options, false));
         assert!(!title_can_open(Screen::Playing, true));
         assert!(!title_can_open(Screen::Options, true));
         assert!(!title_can_open(Screen::Inventory, false));
         assert!(!title_can_open(Screen::Mod, false));
+    }
+
+    #[test]
+    fn suspended_settings_preserve_calibration() {
+        assert!(settings_suspended(Screen::Mod, Some(Screen::Options)));
+        assert!(!settings_suspended(Screen::Options, None));
+        assert!(!settings_suspended(Screen::Mod, Some(Screen::Playing)));
+        assert!(!settings_suspended(Screen::Mod, None));
     }
 
     #[test]
@@ -272,6 +309,10 @@ mod tests {
         assert!(!closes_on_key(KeyCode::Escape, ElementState::Pressed, true));
         assert!(matches!(
             close_destination(Screen::Mod, true, Some(Screen::Options)),
+            Some((Screen::Options, false))
+        ));
+        assert!(matches!(
+            close_destination(Screen::Mod, false, Some(Screen::Options)),
             Some((Screen::Options, false))
         ));
         assert!(matches!(

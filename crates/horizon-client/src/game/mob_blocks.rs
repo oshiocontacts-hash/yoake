@@ -485,7 +485,15 @@ impl Game<'_> {
             } else {
                 horizon_client::cit::Hand::Main
             };
-            let state = self.resolve_item_in_hand(&stack, context, Some(&owner), seed, hand);
+            let mut state = self.resolve_item_in_hand(&stack, context, Some(&owner), seed, hand);
+            if state.native_owner.is_some() {
+                state.native_entity_id = Some(mob.id as i32);
+                state.native_swing_progress = Some(if local_player {
+                    self.swing.animation(alpha as f32)
+                } else {
+                    horizon_client::mobs::anim::state(mob, alpha as f32).swing
+                });
+            }
             if lit
                 && let Some(skinned) = skin.as_deref_mut()
                 && self.skin_item_into(&state, t, light, skinned)
@@ -656,7 +664,15 @@ impl Game<'_> {
             &mob.kind.id,
         );
         let seed = mob.id as i32 + 5;
-        let state = self.resolve_item(&stack, DisplayContext::Head, Some(&owner), seed);
+        let mut state = self.resolve_item(&stack, DisplayContext::Head, Some(&owner), seed);
+        if state.native_owner.is_some() {
+            state.native_entity_id = Some(mob.id as i32);
+            state.native_swing_progress = Some(if local_player {
+                self.swing.animation(alpha as f32)
+            } else {
+                horizon_client::mobs::anim::state(mob, alpha as f32).swing
+            });
+        }
         if lit {
             self.submit_item_world(&state, pose, light, out);
         } else {

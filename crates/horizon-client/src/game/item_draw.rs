@@ -376,6 +376,12 @@ impl Game<'_> {
             state.native_stack = Some(std::sync::Arc::new(stack.clone()));
             state.native_owner = owner.cloned().map(std::sync::Arc::new);
             state.native_offhand = matches!(hand, CitHand::Off);
+            if owner.is_some_and(|owner| owner.is_local_player) {
+                state.native_entity_id = self.player.as_ref().map(|player| player.entity_id);
+                state.native_swing_progress = self.player.as_ref().map(|_| {
+                    self.swing.animation(self.clock.fraction() as f32)
+                });
+            }
         }
         state
     }
@@ -667,12 +673,15 @@ impl Game<'_> {
             }
             // `extractItemGroupRenderState`: GROUND, seeded by the entity id.
             let owner = owner_at([q.x, q.y, q.z], 0.0, "minecraft:item");
-            let state = self.resolve_item(
+            let mut state = self.resolve_item(
                 &item.stack,
                 DisplayContext::Ground,
                 Some(&owner),
                 item.id as i32,
             );
+            if state.native_owner.is_some() {
+                state.native_entity_id = Some(item.id as i32);
+            }
             if state.is_empty() {
                 continue;
             }

@@ -220,7 +220,7 @@ mod native_criteria;
 mod native_crosshair;
 mod native_damage;
 mod native_data_maps;
-mod native_deferred;
+pub mod native_deferred;
 mod native_entities;
 mod native_entity_data;
 mod native_entity_motion;
@@ -2987,7 +2987,9 @@ struct Game<'a> {
     /// The mod whose own screen is open (`Screen::Mod`).
     native_mod_screen: Option<String>,
     native_title_mod_screen_return: Option<Screen>,
+    native_settings_menu: Option<pad_menu::MenuCursor>,
     native_deferred: native_deferred::DeferredRequests,
+    native_clipboard: native_deferred::ClipboardRequests,
     /// Meshed sections waiting for an upload budget (Horizon settings).
     pending_uploads: Vec<((i32, i32, i32), horizon_client::mesher::SectionMesh)>,
     /// This frame's view frustum, for culling entities and block entities.
@@ -7927,21 +7929,24 @@ impl Game<'_> {
         self.has_singleplayer_server()
             && !self.is_published()
             && self.title.is_none()
-            && (matches!(
-                self.screen,
-                Screen::Paused
-                    | Screen::Options
-                    | Screen::Stats
-                    | Screen::Advancements
-                    | Screen::WorldOptions
-                    | Screen::Friends
-                    | Screen::Social
-                    | Screen::ServerLinks
-                    | Screen::ConfirmLink
-                    | Screen::DialogWarning
-                    | Screen::CommandBlock
-                    | Screen::DebugOptions
-            ) || self.book.is_some()
+            && ((self.screen == Screen::Mod
+                && self.native_title_mod_screen_return == Some(Screen::Options))
+                || matches!(
+                    self.screen,
+                    Screen::Paused
+                        | Screen::Options
+                        | Screen::Stats
+                        | Screen::Advancements
+                        | Screen::WorldOptions
+                        | Screen::Friends
+                        | Screen::Social
+                        | Screen::ServerLinks
+                        | Screen::ConfirmLink
+                        | Screen::DialogWarning
+                        | Screen::CommandBlock
+                        | Screen::DebugOptions
+                )
+                || self.book.is_some()
                 || self.win_screen_pauses())
     }
     /// A screen open over gameplay while `screen` stays `Playing`: a book or
@@ -8397,8 +8402,17 @@ impl Game<'_> {
         let (w, h) = (batch.width, batch.height);
         // HDR calibration ends when its page does, whatever moved the screen
         // off Options (a death screen opened by a server, say).
-        if self.screen != Screen::Options && self.ui.options.calibration_fullscreen.is_some() {
-            self.show_calibration(h);
+        if self.ui.options.calibration_fullscreen.is_some() {
+            if native_title_screen::settings_suspended(
+                self.screen,
+                self.native_title_mod_screen_return,
+            ) {
+                if let Some(renderer) = &mut self.renderer {
+                    renderer.set_hdr_calibration(None);
+                }
+            } else if self.screen != Screen::Options {
+                self.show_calibration(h);
+            }
         }
         if self.screen == Screen::Win {
             self.draw_win_screen(&mut batch);
@@ -14250,7 +14264,10 @@ impl Game<'_> {
             } else {
                 horizon_client::cit::Hand::Main
             };
-            let state = self.resolve_item_in_hand(&stack, context, Some(&owner), seed, cit_hand);
+            let mut state = self.resolve_item_in_hand(&stack, context, Some(&owner), seed, cit_hand);
+            if state.native_owner.is_some() {
+                state.native_swing_progress = Some(swing);
+            }
             let light = self.world.light(
                 eye[0].floor() as i32,
                 eye[1].floor() as i32,
@@ -17242,6 +17259,8 @@ impl Game<'_> {
             return;
         }
         if matches!(&event, WindowEvent::RedrawRequested) {
+            self.native_drain_lan_requests();
+            self.native_drain_clipboard();
             self.native_drain_mod_screen_request();
             self.native_session_joins.expire();
             self.native_run_session_request();
@@ -19309,7 +19328,9 @@ impl<'a> Game<'a> {
             native_server_ops: Default::default(),
             native_mod_screen: None,
             native_title_mod_screen_return: None,
+            native_settings_menu: None,
             native_deferred: Default::default(),
+            native_clipboard: Default::default(),
             sky_darken_memo: Default::default(),
             water_plane_memo: Default::default(),
             water_plane_scan: Default::default(),

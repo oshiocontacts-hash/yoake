@@ -21,10 +21,11 @@ pub use crate::extras_hud::Corners;
 pub use crate::first_person::Hand;
 pub use crate::fog::{FogData, FogType};
 pub use crate::game::native_block_entity_draw::{BlockEntityDraw, CubeFace};
+pub use crate::game::native_deferred::{LanOperationStatus, LanTicket};
+pub use crate::game::native_entity_query::NativeEntityInfo;
 pub use crate::game::native_item_render::{
     NativeItemContext, NativeItemDraw, NativeItemHolder, NativeItemRenderStack,
 };
-pub use crate::game::native_entity_query::NativeEntityInfo;
 pub use crate::game::native_inventory_screen::{NativeInventoryContext, NativeInventoryLayout};
 pub use crate::game::native_lan::NativeLanPublish;
 pub use crate::game::native_mouse_buttons::MouseButtons;

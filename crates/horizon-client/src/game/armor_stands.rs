@@ -1559,11 +1559,14 @@ impl Game<'_> {
                 ));
             let seed = a.id as i32 + if left { 1 } else { 2 };
             // OptiFine CIT `hand=off` rules: slot 1 is the off hand.
-            let state = if left {
+            let mut state = if left {
                 self.resolve_item_in_hand(stack, context, Some(&owner), seed, Hand::Off)
             } else {
                 self.resolve_item(stack, context, Some(&owner), seed)
             };
+            if state.native_owner.is_some() {
+                state.native_entity_id = Some(a.id as i32);
+            }
             submit(&state, pose, out);
         }
         // `CustomHeadLayer`: a worn skull draws the skull model.
@@ -1623,8 +1626,11 @@ impl Game<'_> {
                 * glam::Mat4::from_rotation_y(std::f32::consts::PI)
                 * glam::Mat4::from_scale(glam::Vec3::new(0.625, -0.625, -0.625));
             // `updateForLiving`: seeded by the entity id plus HEAD's ordinal.
-            let state =
+            let mut state =
                 self.resolve_item(stack, DisplayContext::Head, Some(&owner), a.id as i32 + 5);
+            if state.native_owner.is_some() {
+                state.native_entity_id = Some(a.id as i32);
+            }
             submit(&state, pose, out);
         }
     }

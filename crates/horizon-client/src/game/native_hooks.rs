@@ -888,13 +888,13 @@ use super::{
 };
 use horizon_assets::item_model::StackView;
 use horizon_client::mod_api::{
-    self, BlockHit, EntityRef, MouseButtons, NameTagLine, NativeAttributeOperation,
-    NativeAudioStreamId, NativeAudioStreamLimits, NativeCamera, NativeCommand, NativeDispensed,
-    NativeGameMode, NativeInventoryContext, NativeInventoryLayout, NativeLanPublish,
-    NativeLifecycleContext, NativeMicId, NativeMobControlMode, NativeMobNavigation, NativeMobPath,
-    NativeMobPathOptions, NativeNoteBlockChange, NativeServerPlayer, NativeServerPlayerMotion,
-    NativeSoundError, NativeStreamAnchor, NativeTeleportStatus, NativeTeleportTicket,
-    RecipeBookCategory, ServerTickPhase, WorldPhase,
+    self, BlockHit, EntityRef, LanOperationStatus, LanTicket, MouseButtons, NameTagLine,
+    NativeAttributeOperation, NativeAudioStreamId, NativeAudioStreamLimits, NativeCamera,
+    NativeCommand, NativeDispensed, NativeGameMode, NativeInventoryContext, NativeInventoryLayout,
+    NativeLanPublish, NativeLifecycleContext, NativeMicId, NativeMobControlMode,
+    NativeMobNavigation, NativeMobPath, NativeMobPathOptions, NativeNoteBlockChange,
+    NativeServerPlayer, NativeServerPlayerMotion, NativeSoundError, NativeStreamAnchor,
+    NativeTeleportStatus, NativeTeleportTicket, RecipeBookCategory, ServerTickPhase, WorldPhase,
 };
 use horizon_client::mod_api::{AttachmentResult, Attachments, Holder, Suggestion};
 pub(crate) use horizon_client::mod_api::{
@@ -8410,6 +8410,25 @@ impl Game<'_> {
     /// Return the integrated server's owner UUID. API @API:integrated_owner@.
     pub(super) fn native_integrated_owner(&self) -> Option<u128> {
         self.native_integrated_owner_impl()
+    }
+
+    pub(super) fn native_request_lan_publish(
+        &mut self,
+        opts: NativeLanPublish,
+    ) -> Option<LanTicket> {
+        self.native_request_lan_publish_impl(opts)
+    }
+
+    pub(super) fn native_request_lan_close(&mut self) -> Option<LanTicket> {
+        self.native_request_lan_close_impl()
+    }
+
+    pub(super) fn native_poll_lan_operation(&self, ticket: LanTicket) -> LanOperationStatus {
+        self.native_poll_lan_operation_impl(ticket)
+    }
+
+    pub(super) fn native_request_clipboard_write(&mut self, text: &str) -> bool {
+        self.native_request_clipboard_write_impl(text)
     }
 
     /// Queues connected-player permission recomputation for the next server tick.
