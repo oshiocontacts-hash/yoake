@@ -551,7 +551,14 @@ impl Launcher {
             status: match state.as_str() {
                 "offline" => Status::Offline,
                 "failed" => {
-                    Status::Failed("cosmetics.playhorizon.dev · 503 · 2026-11-02 21:40".into())
+                    Status::Failed(
+                        if horizon_launcher::brand::yoake() {
+                            "503 · 2026-11-02 21:40"
+                        } else {
+                            "cosmetics.playhorizon.dev · 503 · 2026-11-02 21:40"
+                        }
+                        .into(),
+                    )
                 }
                 _ => Status::Ready,
             },

@@ -202,8 +202,8 @@ impl Launcher {
                     .child(message.clone()),
             );
         }
-        Some(
-            section.child(
+        if !horizon_launcher::brand::yoake() {
+            section = section.child(
                 div()
                     .id("agent-docs")
                     .text_color(t.accent)
@@ -211,8 +211,9 @@ impl Launcher {
                     .hover(|s| s.opacity(0.8))
                     .child(tr("What an agent can do, and the commands"))
                     .on_click(|_, _, cx| cx.open_url(backend::AGENT_DOCS_URL)),
-            ),
-        )
+            );
+        }
+        Some(section)
     }
 }
 

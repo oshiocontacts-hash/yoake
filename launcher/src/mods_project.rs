@@ -15,7 +15,7 @@ use gpui::img;
 use horizon_launcher::browser::{
     self,
     details::{Details, Environment, Filters, Sort, Tags},
-    images, java, Kind as PackKind, Project, SourceId, Support, Version,
+    horizon, images, java, Kind as PackKind, Project, SourceId, Support, Version,
 };
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -580,10 +580,15 @@ impl Launcher {
         if !p.license.is_empty() {
             meta.push(p.license.clone());
         }
-        meta.push(trf("from {source}", &[("source", p.source.label())]));
+        meta.push(trf("from {source}", &[("source", p.source.display_label())]));
         let authors = match &details {
             Some(Ok(d)) if !d.authors.is_empty() => d.authors.join(", "),
             _ => p.author.clone(),
+        };
+        let display_authors = if p.source == SourceId::Horizon {
+            horizon::display_author(&p.id, &authors)
+        } else {
+            authors.as_str()
         };
         let icon = self.mods_icon(&p, 72.);
         let busy = self.mods.busy.as_ref().map(|b| b.0.clone());
@@ -636,12 +641,12 @@ impl Launcher {
                     .child(
                         text(theme::UI)
                             .text_color(t.muted)
-                            .child(if authors.is_empty() {
+                            .child(if display_authors.is_empty() {
                                 p.summary.clone()
                             } else {
                                 format!(
                                     "{} · {}",
-                                    trf("by {author}", &[("author", &authors)]),
+                                    trf("by {author}", &[("author", display_authors)]),
                                     p.summary
                                 )
                             }),
@@ -660,7 +665,7 @@ impl Launcher {
             .child(div().flex().child(back))
             .child(head);
         // Registry projects are rated on the site, signed in with GitHub (one rating per account).
-        if p.source == SourceId::Horizon {
+        if p.source == SourceId::Horizon && !horizon_launcher::brand::yoake() {
             let url = browser::horizon::rate_url(&p.id);
             page = page.child(
                 div()
@@ -678,7 +683,7 @@ impl Launcher {
             page = page.child(
                 text(theme::UI)
                     .text_color(t.ink_soft)
-                    .child(why.to_string()),
+                    .child(horizon_launcher::browser::display_reason(why).into_owned()),
             );
         }
         if let Some(Checking::Done(c)) = self.mods.checks.get(&(p.source, p.id.clone())) {
@@ -705,11 +710,11 @@ impl Launcher {
         if let Some(Ok(d)) = &details {
             let mut links = div().flex().flex_wrap().gap(px(8.));
             let page_url = p.page.clone();
-            if !page_url.is_empty() {
+            if !page_url.is_empty() && horizon_launcher::brand::show_url(&page_url) {
                 links = links.child(
                     button(
                         "mods-link-page",
-                        trf("{source} page", &[("source", p.source.label())]),
+                        trf("{source} page", &[("source", p.source.display_label())]),
                         Kind::Ghost,
                         &t,
                     )
@@ -717,6 +722,9 @@ impl Launcher {
                 );
             }
             for (i, l) in d.links.iter().enumerate() {
+                if !horizon_launcher::brand::show_url(&l.url) {
+                    continue;
+                }
                 let url = l.url.clone();
                 links = links.child(
                     button(format!("mods-link-{i}"), l.label.clone(), Kind::Ghost, &t)

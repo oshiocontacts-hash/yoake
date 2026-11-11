@@ -6,6 +6,7 @@ fn main() {
     println!("cargo:rerun-if-env-changed=YOAKE_FEED_SOURCE_ID");
     println!("cargo:rerun-if-env-changed=YOAKE_PORTAL_URL");
     let feed_url = std::env::var("YOAKE_FEED_URL").ok();
+    let yoake = feed_url.is_some() || std::env::var_os("YOAKE_PORTAL_URL").is_some();
     let keys_path = std::env::var("YOAKE_PUBLIC_KEYS_FILE").ok();
     match (feed_url, keys_path) {
         (None, None) => {}
@@ -36,8 +37,10 @@ fn main() {
         _ => panic!("set both YOAKE_FEED_URL and YOAKE_PUBLIC_KEYS_FILE, or neither"),
     }
     let dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default();
-    let ico = format!("{dir}/../packaging/icons/horizon.ico");
-    println!("cargo:rerun-if-changed={ico}");
+    println!("cargo:rerun-if-changed={dir}/../packaging/icons/horizon.ico");
+    println!("cargo:rerun-if-changed={dir}/../packaging/icons/yoake.ico");
+    let icon = if yoake { "yoake.ico" } else { "horizon.ico" };
+    let ico = format!("{dir}/../packaging/icons/{icon}");
     #[cfg(windows)]
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         let mut resource = winresource::WindowsResource::new();

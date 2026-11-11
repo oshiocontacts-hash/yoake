@@ -100,7 +100,7 @@ impl YoakePage {
 
 /// True when the launcher was built with a Yoake feed or portal: the page is shown then.
 pub(super) fn enabled() -> bool {
-    account::owner_required()
+    horizon_launcher::brand::yoake()
 }
 
 fn signed_in() -> bool {

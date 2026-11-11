@@ -1195,7 +1195,7 @@ fn write_error(e: keyring::Error) -> String {
             .downcast_ref::<security_framework::base::Error>()
             .and_then(|error| macos_keychain_says(error.code()))
         {
-            return said.to_string();
+            return crate::brand::text(said).into_owned();
         }
     }
     #[cfg(target_os = "windows")]
@@ -1204,7 +1204,7 @@ fn write_error(e: keyring::Error) -> String {
             .downcast_ref::<keyring::windows::Error>()
             .and_then(|code| credential_manager_says(code.0))
         {
-            return said.to_string();
+            return crate::brand::text(said).into_owned();
         }
     }
     e.to_string()
@@ -2096,7 +2096,7 @@ pub fn session_for_game(
         offline_without_owner,
     )?;
     if let Err(e) = accounts.save() {
-        eprintln!("Horizon: the accounts are not saved: {e}");
+        eprintln!("{}: the accounts are not saved: {e}", crate::brand::name());
     }
     Ok(session_file(game_home, pass))
 }
@@ -2118,7 +2118,7 @@ pub fn session_for_game_as(
         who,
     );
     if let Err(e) = accounts.save() {
-        eprintln!("Horizon: the accounts are not saved: {e}");
+        eprintln!("{}: the accounts are not saved: {e}", crate::brand::name());
     }
     Ok(session_file(game_home, pass?))
 }
@@ -2171,7 +2171,7 @@ pub fn java_player() -> Result<crate::java_launch::Player, String> {
         &mut accounts,
     );
     if let Err(e) = accounts.save() {
-        eprintln!("Horizon: the accounts are not saved: {e}");
+        eprintln!("{}: the accounts are not saved: {e}", crate::brand::name());
     }
     player
 }

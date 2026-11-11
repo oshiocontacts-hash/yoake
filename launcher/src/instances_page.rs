@@ -163,7 +163,7 @@ impl Launcher {
                     .child(
                         blocks::pixel((size * 0.42).round(), FontWeight::BOLD)
                             .text_color(gpui::white())
-                            .child(initial(&instance.name)),
+                            .child(initial(instance.display_name())),
                     )
                     .into_any_element();
             }
@@ -180,7 +180,7 @@ impl Launcher {
                 }
             }
         }
-        blocks::slot(None, &instance.name, size, &t).into_any_element()
+        blocks::slot(None, instance.display_name(), size, &t).into_any_element()
     }
 
     /// The sidebar's instances: those without a group, then each group under its name.
@@ -243,7 +243,7 @@ impl Launcher {
             out.push(
                 shell::row(format!("side-instance-{}", i.id), open, &t)
                     .child(div().relative().child(icon))
-                    .child(shell::row_text(i.name.clone(), sub, state, &t))
+                    .child(shell::row_text(i.display_name().to_string(), sub, state, &t))
                     .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                         match clicked.kind {
                             InstanceKind::Default | InstanceKind::Own => {
@@ -267,7 +267,7 @@ impl Launcher {
     pub(super) fn open_instance_dialog(&mut self, editing: Option<Instance>) {
         let (name, group) = editing
             .as_ref()
-            .map(|i| (i.name.clone(), i.group.clone().unwrap_or_default()))
+            .map(|i| (i.display_name().to_string(), i.group.clone().unwrap_or_default()))
             .unwrap_or_default();
         self.servers.text(Field::InstanceName).set(name);
         self.servers.text(Field::InstanceGroup).set(group);
@@ -314,6 +314,11 @@ impl Launcher {
     pub(super) fn save_instance(&mut self, cx: &mut Context<Self>) {
         let selected = self.selected_instance().map(|i| i.id.clone());
         let name = self.servers.value(Field::InstanceName).trim().to_string();
+        let default_is_unrenamed = self
+            .instances
+            .list
+            .iter()
+            .any(|i| i.id == instances::DEFAULT && i.name == "Horizon");
         let group = Some(self.servers.value(Field::InstanceGroup).to_string());
         let Some(d) = self.instances.dialog.as_mut().filter(|d| !d.busy) else {
             return;
@@ -325,6 +330,15 @@ impl Launcher {
             .as_ref()
             .map(|p| p.as_ref().map(|c| c.png.clone()));
         let editing = d.editing.clone();
+        let name = if horizon_launcher::brand::yoake()
+            && editing.as_deref() == Some(instances::DEFAULT)
+            && default_is_unrenamed
+            && name == "Yoake"
+        {
+            "Horizon".to_string()
+        } else {
+            name
+        };
         let copy = selected.filter(|_| d.copy);
         // The Horizon version is Horizon's instances' alone: a Java one plays its own game.
         let plays_horizon = match &editing {
@@ -435,7 +449,7 @@ impl Launcher {
         let n = t.night;
         let from = self
             .selected_instance()
-            .map_or_else(|| "Horizon".into(), |i| i.name.clone());
+            .map_or_else(|| horizon_launcher::brand::name().to_string(), |i| i.display_name().to_string());
         let row = |label: &'static str, control: AnyElement| {
             div()
                 .flex()
@@ -790,7 +804,7 @@ impl Launcher {
                             .flex()
                             .items_baseline()
                             .gap(px(10.))
-                            .child(instance.name.clone())
+                            .child(instance.display_name().to_string())
                             .child(
                                 text(theme::CAPTION)
                                     .text_color(t.muted)
@@ -840,7 +854,7 @@ impl Launcher {
             Some(e) => e.clone(),
             None => trf(
                 "Move {name} to the Trash, with its worlds and settings? You can get it back from there.",
-                &[("name", &instance.name)],
+                &[("name", instance.display_name())],
             ),
         };
         Some(

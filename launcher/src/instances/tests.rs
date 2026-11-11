@@ -1,6 +1,14 @@
 use super::*;
 use std::collections::BTreeMap;
 
+#[test]
+fn default_instance_brand_is_display_only() {
+    assert_eq!(display_name(DEFAULT, "Horizon", true), "Yoake");
+    assert_eq!(display_name(DEFAULT, "Horizon", false), "Horizon");
+    assert_eq!(display_name(DEFAULT, "My world", true), "My world");
+    assert_eq!(display_name("other", "Horizon", true), "Horizon");
+}
+
 fn scratch(name: &str) -> PathBuf {
     let root = std::env::temp_dir().join(format!(
         "horizon-launcher-instances-{name}-{}",

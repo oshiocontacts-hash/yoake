@@ -2,6 +2,17 @@
 //! (`crates/horizon-mods/tests/index/`), its files served from disk.
 use super::*;
 
+#[test]
+fn official_author_display_preserves_attribution() {
+    assert_eq!(
+        display_author_in_brand("Horizon", true, true),
+        "the upstream project"
+    );
+    assert_eq!(display_author_in_brand("Horizon", true, false), "Horizon");
+    assert_eq!(display_author_in_brand("Horizon", false, true), "Horizon");
+    assert_eq!(display_author_in_brand("Other", true, true), "Other");
+}
+
 fn fixtures() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../crates/horizon-mods/tests/index")
 }
@@ -143,7 +154,10 @@ fn installs_checked_turns_on_and_removes() {
     let home = scratch("install");
     let p = hud(&index);
     let e = install_from(&index, true, None, &p, &home, &|_, _| {}).unwrap_err();
-    assert_eq!(e, format!("Coordinates HUD {NEEDS_PORT}."));
+    assert_eq!(
+        e,
+        format!("Coordinates HUD {}.", crate::brand::text(NEEDS_PORT))
+    );
     let done = put(&index, true, &home).unwrap();
     assert_eq!(done[0].file, "horizon-mods/coords_hud.hmod");
     assert_eq!(done[0].skipped, [format!("its code ({NEEDS_PORT})")]);
@@ -291,7 +305,7 @@ fn registry_versions_run_when_made_for_this_game() {
     );
     // A WebAssembly mod is never picked: it needs a native port.
     let hud = versions("coords_hud");
-    assert_eq!(hud[0].blocked.as_deref(), Some(NEEDS_PORT));
+    assert_eq!(hud[0].blocked.as_deref(), Some(crate::brand::text(NEEDS_PORT).as_ref()));
     assert!(pick(Kind::Mod, &hud, false).is_none());
 }
 
@@ -323,13 +337,19 @@ fn versions_for_a_newer_horizon_are_not_installed() {
     let e = newest(&index, p, Some(0)).unwrap_err();
     assert_eq!(
         e,
-        "Coordinates HUD needs a newer Horizon than the game you play: update it first."
+        format!(
+            "Coordinates HUD {}: update it first.",
+            crate::brand::text(NEEDS_NEWER)
+        )
     );
     assert!(newest(&index, p, Some(1)).is_ok());
     assert!(newest(&index, p, None).is_ok());
     // In the browser, a WebAssembly mod needs a native port first.
     let v = version_of(&index, p, &p.versions[0], Some(0));
-    assert_eq!(v.blocked.as_deref(), Some(NEEDS_PORT));
+    assert_eq!(
+        v.blocked.as_deref(),
+        Some(crate::brand::text(NEEDS_PORT).as_ref())
+    );
 }
 
 #[test]

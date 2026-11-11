@@ -79,20 +79,37 @@ pub(crate) fn quote(path: &Path) -> String {
 
 /// The launcher's entry, starting the binary at `exe`.
 pub fn launcher_entry(exe: &Path) -> String {
+    launcher_entry_in(data_home().as_deref(), exe)
+}
+
+fn launcher_entry_in(data: Option<&Path>, exe: &Path) -> String {
+    let icon = match (crate::brand::yoake(), data) {
+        (true, Some(data)) => data
+            .join("icons/hicolor/256x256/apps/yoake.png")
+            .display()
+            .to_string(),
+        _ => "horizon".to_string(),
+    };
     format!(
         "[Desktop Entry]\n\
          Type=Application\n\
-         Name=Horizon\n\
+         Name={launcher}\n\
          GenericName=Game launcher\n\
-         Comment=Install, prepare and play Horizon, Minecraft: Java Edition {minecraft} rewritten in Rust\n\
+         Comment=Install, prepare and play {brand}, Minecraft: Java Edition {minecraft} rewritten in Rust\n\
          Exec={}\n\
          TryExec={}\n\
-         Icon=horizon\n\
+         Icon={icon}\n\
          Terminal=false\n\
          Categories=Game;\n\
          StartupWMClass=horizon-launcher\n",
         quote(exe),
         exe.display(),
+        launcher = if crate::brand::yoake() {
+            crate::brand::launcher_name()
+        } else {
+            crate::brand::name()
+        },
+        brand = crate::brand::name(),
         minecraft = horizon_core::VANILLA_VERSION,
     )
 }
@@ -102,7 +119,7 @@ fn files(data: &Path, exe: &Path) -> Vec<(PathBuf, Vec<u8>)> {
     let mut out = vec![
         (
             data.join("applications").join(LAUNCHER_ENTRY),
-            launcher_entry(exe).into_bytes(),
+            launcher_entry_in(Some(data), exe).into_bytes(),
         ),
         (
             data.join("applications").join(GAME_ENTRY),
@@ -121,6 +138,12 @@ fn files(data: &Path, exe: &Path) -> Vec<(PathBuf, Vec<u8>)> {
                 .join("apps")
                 .join(name),
             bytes.to_vec(),
+        ));
+    }
+    if crate::brand::yoake() {
+        out.push((
+            data.join("icons/hicolor/256x256/apps/yoake.png"),
+            include_bytes!("../../packaging/icons/yoake-256.png").to_vec(),
         ));
     }
     out
@@ -262,7 +285,14 @@ mod tests {
         let entry = launcher_entry(Path::new("/home/a b/Horizon \"x\"/horizon-launcher"));
         assert!(entry.contains("Exec=\"/home/a b/Horizon \\\"x\\\"/horizon-launcher\"\n"));
         assert!(entry.contains("TryExec=/home/a b/Horizon \"x\"/horizon-launcher\n"));
-        assert!(entry.contains("Icon=horizon\n"));
+        let expected_icon = match (crate::brand::yoake(), data_home()) {
+            (true, Some(data)) => data
+                .join("icons/hicolor/256x256/apps/yoake.png")
+                .display()
+                .to_string(),
+            _ => "horizon".to_string(),
+        };
+        assert!(entry.contains(&format!("Icon={expected_icon}\n")));
     }
 
     #[test]
@@ -273,6 +303,8 @@ mod tests {
         assert!(!install_in(&data, Path::new("/opt/a/horizon-launcher")).unwrap());
         let png = data.join("icons/hicolor/48x48/apps/horizon.png");
         assert!(fs::read(&png).unwrap().starts_with(b"\x89PNG"));
+        let yoake_png = data.join("icons/hicolor/256x256/apps/yoake.png");
+        assert_eq!(yoake_png.exists(), crate::brand::yoake());
         assert!(data
             .join("icons/hicolor/scalable/apps/horizon.svg")
             .exists());
@@ -282,6 +314,7 @@ mod tests {
         remove_in(&data).unwrap();
         assert!(!data.join("applications").join(LAUNCHER_ENTRY).exists());
         assert!(!png.exists());
+        assert!(!yoake_png.exists());
         remove_in(&data).unwrap();
         let _ = fs::remove_dir_all(&data);
     }

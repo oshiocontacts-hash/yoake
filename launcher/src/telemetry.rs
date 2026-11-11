@@ -45,9 +45,27 @@ pub const NEVER: &str = "Never sent: your account name or UUID, world names, ser
 pub const PING_NAME: &str = "\"I'm playing\" ping";
 pub const PING: &str = "While you play, the game sends an anonymous \"I'm playing\" ping once a minute, so the launcher can show how many people play Horizon right now. It holds: a random number made when the game starts and forgotten when it closes, the Horizon version, your OS (Linux, macOS or Windows), and whether you have a world open to LAN or friends. It doesn't hold: your account, your install ID, world or server names, or anything you do in the game, and the server doesn't keep your IP address. It is sent whatever the switches say.";
 
+pub fn endpoint() -> Option<String> {
+    if crate::brand::yoake() {
+        None
+    } else {
+        horizon_telemetry::endpoint()
+    }
+}
+
+pub fn protect_command(cmd: &mut std::process::Command) {
+    protect_command_for_brand(cmd, crate::brand::yoake());
+}
+
+fn protect_command_for_brand(cmd: &mut std::process::Command, yoake: bool) {
+    if yoake {
+        cmd.env("HORIZON_TELEMETRY_URL", "off");
+    }
+}
+
 /// How many play Horizon now (exact), if the server says.
 pub fn playing_now() -> Option<u64> {
-    let endpoint = horizon_telemetry::endpoint()?;
+    let endpoint = endpoint()?;
     horizon_telemetry::live::fetch(&endpoint)
         .ok()
         .map(|count| count.playing)
@@ -56,6 +74,9 @@ pub fn playing_now() -> Option<u64> {
 /// The page with the count over time and its peaks, on the website `links.json` names; None when
 /// it names none.
 pub fn stats_url(website: &str) -> Option<String> {
+    if crate::brand::yoake() {
+        return None;
+    }
     let site = website.trim().trim_end_matches('/');
     site.starts_with("https://")
         .then(|| format!("{site}/stats"))
@@ -64,7 +85,7 @@ pub fn stats_url(website: &str) -> Option<String> {
 /// Sends [`playing_now`] to the window as `Msg::Playing` now and every minute, on its own
 /// thread. Nothing at all when sending is turned off.
 pub fn watch_playing(tx: std::sync::mpsc::Sender<backend::Msg>) {
-    if horizon_telemetry::endpoint().is_none() {
+    if endpoint().is_none() {
         return;
     }
     std::thread::spawn(move || {
@@ -95,6 +116,9 @@ fn official_server() -> String {
 /// Multiplayer list sends it (through the address's SRV record), with a 3-second timeout. None
 /// when it doesn't answer or there is no official server.
 pub fn official_players(address: &str) -> Option<u64> {
+    if crate::brand::yoake() {
+        return None;
+    }
     let (host, port) = horizon_telemetry::server_status::split_address(address)?;
     let (host, port) = horizon_protocol::server_redirect(&host, port);
     horizon_telemetry::server_status::players_at(
@@ -110,7 +134,7 @@ pub fn official_players(address: &str) -> Option<u64> {
 /// its own thread. Nothing when `HORIZON_TELEMETRY_URL=off` (tests and automated runs) turns the
 /// live count off too.
 pub fn watch_official(tx: std::sync::mpsc::Sender<backend::Msg>) {
-    if horizon_telemetry::endpoint().is_none() {
+    if endpoint().is_none() {
         return;
     }
     std::thread::spawn(move || {
@@ -149,10 +173,17 @@ pub fn preview() -> (String, String) {
     let home = home();
     let waiting = outbox::retain_allowed(&home).len();
     if waiting > 0 {
-        let what = format!(
-            "{waiting} item{} waiting to be sent, exactly as they will leave (compressed):",
-            if waiting == 1 { "" } else { "s" }
-        );
+        let what = if crate::brand::yoake() {
+            format!(
+                "{waiting} queued item{}; sending is disabled in this build:",
+                if waiting == 1 { "" } else { "s" }
+            )
+        } else {
+            format!(
+                "{waiting} item{} waiting to be sent, exactly as they will leave (compressed):",
+                if waiting == 1 { "" } else { "s" }
+            )
+        };
         return (what, upload::preview(&home));
     }
     let system = with_example_gpu(System::detect_in(Some(&home)));
@@ -223,10 +254,16 @@ pub fn with_example_gpu(mut system: System) -> System {
 /// items go, and the install gets a new ID. If the server can't be reached the ID is kept, so
 /// the deletion can be asked again.
 pub fn delete_my_data() -> Result<String, String> {
+    if crate::brand::yoake() {
+        return Err(
+            "Deleting previously sent data is unavailable while telemetry is disabled; no local data was changed."
+                .into(),
+        );
+    }
     let home = home();
     let mut consent = Consent::load(&home);
     outbox::clear(&home).map_err(|e| e.to_string())?;
-    let remote = match horizon_telemetry::endpoint() {
+    let remote = match endpoint() {
         _ if consent.install_id.is_empty() => "Nothing was ever sent from here.",
         None => {
             "Sending is turned off here (HORIZON_TELEMETRY_URL=off), so the server was not asked."
@@ -291,6 +328,9 @@ pub fn bug_report(text: &str, with_log: bool) -> Result<Item, String> {
 
 /// An error unless the player allows `kind`.
 pub fn ensure_allowed(kind: Kind) -> Result<(), String> {
+    if crate::brand::yoake() {
+        return Err("Sending is disabled in this build.".into());
+    }
     if consent().allows(kind) {
         return Ok(());
     }
@@ -308,7 +348,7 @@ pub fn submit(item: &Item) -> Result<String, String> {
     }
     Ok(match send() {
         Flush::Sent { .. } => "Sent. Thank you.".into(),
-        Flush::Nothing if horizon_telemetry::endpoint().is_none() => {
+        Flush::Nothing if endpoint().is_none() => {
             "Kept; sending is turned off here (HORIZON_TELEMETRY_URL=off).".into()
         }
         _ => "Kept; it will be sent the next time the launcher starts.".into(),
@@ -335,7 +375,7 @@ pub fn label(kind: Kind) -> &'static str {
 
 /// Sends what is waiting, if there is a server and the player allows it.
 pub fn send() -> Flush {
-    match horizon_telemetry::endpoint() {
+    match endpoint() {
         Some(url) => upload::flush(&home(), &url),
         None => Flush::Nothing,
     }
@@ -356,8 +396,12 @@ pub fn status_json() -> serde_json::Value {
         "choices": consent.choices,
         "install_id": consent.install_id,
         "waiting": outbox::pending(&home()).len(),
-        "server": horizon_telemetry::endpoint(),
-        "ping": PING,
+        "server": endpoint(),
+        "ping": if crate::brand::yoake() {
+            "Live telemetry is disabled in this build."
+        } else {
+            PING
+        },
     })
 }
 
@@ -408,11 +452,34 @@ pub fn set(kinds: &[Kind], on: bool) -> Result<Consent, String> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn yoake_overrides_instance_telemetry_environment() {
+        for yoake in [false, true] {
+            let mut cmd = std::process::Command::new("game");
+            cmd.env("HORIZON_TELEMETRY_URL", "https://example.invalid");
+            protect_command_for_brand(&mut cmd, yoake);
+            let value = cmd
+                .get_envs()
+                .find(|(key, _)| *key == "HORIZON_TELEMETRY_URL")
+                .and_then(|(_, value)| value);
+            let expected = if yoake {
+                "off"
+            } else {
+                "https://example.invalid"
+            };
+            assert_eq!(value, Some(std::ffi::OsStr::new(expected)));
+        }
+    }
+
     /// The official server's count through its SRV record, from the live server (network):
     /// `cargo test --lib official_count -- --ignored`. Its port 25565 is another server.
     #[test]
     #[ignore = "asks the live official server"]
     fn official_count_follows_the_srv_record() {
+        if crate::brand::yoake() {
+            assert_eq!(official_players(crate::server_list::OFFICIAL_ADDRESS), None);
+            return;
+        }
         let (host, port) =
             horizon_protocol::server_redirect(crate::server_list::OFFICIAL_ADDRESS, 25565);
         assert_eq!(
@@ -425,6 +492,10 @@ mod tests {
 
     #[test]
     fn the_stats_page_is_on_the_website() {
+        if crate::brand::yoake() {
+            assert_eq!(stats_url("https://playhorizon.dev"), None);
+            return;
+        }
         assert_eq!(
             stats_url("https://playhorizon.dev").as_deref(),
             Some("https://playhorizon.dev/stats")

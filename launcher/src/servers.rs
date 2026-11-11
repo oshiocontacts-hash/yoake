@@ -186,12 +186,14 @@ pub fn game_files_ready() -> bool {
 pub fn can_host(tag: &str) -> Result<(), String> {
     if !backend::version_dir(tag).join(PROGRAM).is_file() {
         return Err(format!(
-            "Horizon {tag} has no server program. Install a newer version on the Versions page."
+            "{} {tag} has no server program. Install a newer version on the Versions page.",
+            crate::brand::name()
         ));
     }
     if !backend::is_prepared(tag) {
         return Err(format!(
-            "Horizon {tag} isn't prepared yet: press Prepare on the Play page (it uses your own Minecraft {})",
+            "{} {tag} isn't prepared yet: press Prepare on the Play page (it uses your own Minecraft {})",
+            crate::brand::name(),
             backend::game_version(tag)
         ));
     }
@@ -402,6 +404,9 @@ pub fn command(dir: &Path, args: &[&str]) -> Result<Command, String> {
     )?;
     let mut cmd = crate::process::command(program);
     cmd.arg("--dir").arg(dir).args(args);
+    if crate::brand::yoake() {
+        cmd.env("HORIZON_TELEMETRY_URL", "off");
+    }
     if require_owner && args.first() == Some(&"init") {
         cmd.env("HORIZON_ONLINE", "true");
     }
@@ -729,9 +734,15 @@ pub fn create(spec: &NewServer, tag: Option<&str>, log: &dyn Fn(String)) -> Resu
     }
     if program().is_none() || !game_files_ready() {
         let tag = tag.ok_or_else(|| {
-            Problem::plain("Install a Horizon version first (Versions page), then prepare it.")
+            Problem::plain(format!(
+                "Install a {} version first (Versions page), then prepare it.",
+                crate::brand::name()
+            ))
         })?;
-        log(format!("Setting up the server programs from Horizon {tag}"));
+        log(format!(
+            "Setting up the server programs from {} {tag}",
+            crate::brand::name()
+        ));
         set_up(tag).map_err(|e| {
             if e.contains("prepared") {
                 Problem {

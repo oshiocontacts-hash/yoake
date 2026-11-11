@@ -261,9 +261,16 @@ impl Launcher {
     pub(super) fn glass_multiplayer(&mut self, cx: &mut Context<Self>) -> Option<Div> {
         let t = self.theme;
         let instance = self.selected_instance()?;
-        let (home, name) = (instance.home.clone(), instance.name.clone());
+        let (home, name) = (instance.home.clone(), instance.display_name().to_owned());
         self.load_servers(home);
-        let list = self.multiplayer.list.clone();
+        let list: Vec<_> = self
+            .multiplayer
+            .list
+            .clone()
+            .into_iter()
+            .enumerate()
+            .filter(|(_, (server, _))| self.server_visible(server))
+            .collect();
         let adding = self.multiplayer.adding;
         let mut body = div().flex().flex_col();
         if list.is_empty() && !adding {
@@ -322,8 +329,8 @@ impl Launcher {
                     )),
             );
         }
-        let pictures = list.iter().any(|(_, icon)| icon.is_some());
-        for (i, (server, icon)) in list.into_iter().enumerate() {
+        let pictures = list.iter().any(|(_, (_, icon))| icon.is_some());
+        for (i, (server, icon)) in list {
             body = body.child(self.glass_server_row(i, server, icon, pictures, cx));
         }
         Some(body)

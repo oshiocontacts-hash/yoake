@@ -105,6 +105,7 @@ impl Tool {
         for arg in self.command.get_arguments().filter(|a| shown(a)) {
             let id = arg.get_id().as_str();
             let mut help = arg.get_help().map(ToString::to_string).unwrap_or_default();
+            help = horizon_launcher::brand::text(&help).into_owned();
             let defaults: Vec<String> = arg
                 .get_default_values()
                 .iter()
@@ -154,6 +155,7 @@ impl Tool {
             .get_about()
             .map(ToString::to_string)
             .unwrap_or_default();
+        let about = horizon_launcher::brand::text(&about);
         let mut tool = json!({
             "name": self.name,
             "description": format!("{about}. CLI: horizon-launcher {}", self.words()),

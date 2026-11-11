@@ -443,7 +443,7 @@ impl Launcher {
         let (tx, search) = (m.tx.clone(), m.search);
         std::thread::spawn(move || {
             let result = browser::source(source)
-                .ok_or_else(|| format!("{} isn't set up.", source.label()))
+                .ok_or_else(|| format!("{} isn't set up.", source.display_label()))
                 .and_then(|s| s.search(&query));
             let about: HashMap<String, Vec<String>> = match (&result, source) {
                 (Ok(found), SourceId::Horizon) => found
@@ -549,7 +549,7 @@ impl Launcher {
                     s.spawn(|| {
                         while let Some(p) = queue.lock().ok().and_then(|mut q| q.next()) {
                             let result = browser::source(p.source)
-                                .ok_or_else(|| format!("{} isn't set up.", p.source.label()))
+                                .ok_or_else(|| format!("{} isn't set up.", p.source.display_label()))
                                 .and_then(|source| {
                                     java::check_project(&home, &*source, &p, everything, &|_| {})
                                 });
@@ -684,7 +684,7 @@ impl Launcher {
         }
         self.mods.native_notice = None;
         self.mods.message = None;
-        self.mods.busy = Some((id.clone(), format!("Asking {}…", source.label()), 0.));
+        self.mods.busy = Some((id.clone(), format!("Asking {}…", source.display_label()), 0.));
         self.mods.updates.remove(&(source, id.clone()));
         let everything = self.mods.everything || self.mods.browse.filters.other_version();
         // A modpack is ported for the selected version as soon as it is imported.
@@ -697,7 +697,7 @@ impl Launcher {
         let java = self.mods.java.clone();
         let instance = self
             .selected_instance()
-            .map_or_else(|| "Horizon".to_string(), |i| i.name.clone());
+            .map_or_else(|| horizon_launcher::brand::name().to_string(), |i| i.display_name().to_string());
         let world = self.mods.world.clone().and_then(|path| {
             let (_, name) = self.mods.worlds.iter().find(|(p, _)| *p == path)?;
             Some((path, name.clone()))
@@ -712,7 +712,7 @@ impl Launcher {
             };
             let mut modpack = false;
             let result = browser::source(source)
-                .ok_or_else(|| format!("{} isn't set up.", source.label()))
+                .ok_or_else(|| format!("{} isn't set up.", source.display_label()))
                 .and_then(|source| {
                     let p = match known {
                         Some(p) => p,
@@ -1012,12 +1012,12 @@ impl Launcher {
     fn mods_target_line(&self, cx: &mut Context<Self>) -> Option<Div> {
         let instance = self.selected_instance()?;
         if self.mods.kind == PackKind::DataPack {
-            return Some(self.mods_world_picker(&instance.name.clone(), cx));
+            return Some(self.mods_world_picker(instance.display_name(), cx));
         }
         if self.mods.kind == PackKind::Modpack {
             return None;
         }
-        let name = [("instance", instance.name.as_str())];
+        let name = [("instance", instance.display_name())];
         Some(text(theme::CAPTION).text_color(self.theme.muted).child(
             if self.instances.list.len() < 2 {
                 trf("Installs into {instance}.", &name)
@@ -1205,7 +1205,7 @@ impl Launcher {
                 && entries
                     .iter()
                     .any(|e| native_status::is_native_file(&e.file));
-        let instance = self.selected_instance().map(|i| i.name.clone());
+        let instance = self.selected_instance().map(|i| i.display_name().to_string());
         let row = |i: usize| {
             if i >= entries.len() {
                 return self.native_mod_row(&native_entries[i - entries.len()], busy, cx);
@@ -1322,7 +1322,7 @@ impl Launcher {
                         .map(|v| format!("{} · ", tr(v)))
                         .unwrap_or_default(),
                     e.number,
-                    trf("from {source}", &[("source", e.source.label())]),
+                    trf("from {source}", &[("source", e.source.display_label())]),
                     if e.dependency {
                         format!(", {}", tr("needed by another pack"))
                     } else {
@@ -1336,9 +1336,10 @@ impl Launcher {
                         .child(trf("Installed in {instance}", &[("instance", name)]))
                 }))
                 .children(e.skipped.iter().map(|s| {
+                    let item = horizon::display_skipped(s);
                     div()
                         .text_color(t.ink_soft)
-                        .child(trf("Not ported: {item}", &[("item", s)]))
+                        .child(trf("Not ported: {item}", &[("item", &item)]))
                 }))
                 .child(div().font_family(theme::MONO).child(trf(
                     "checked: {checksum}",
@@ -1436,7 +1437,7 @@ impl Launcher {
         let mine = self.native_for.as_deref() == Some(instance.id.as_str());
         let step = self.native_step.as_ref().filter(|_| mine);
         let error = self.native_error.as_ref().filter(|_| mine);
-        let name = [("instance", instance.name.as_str())];
+        let name = [("instance", instance.display_name())];
         let line = |s: String| div().child(s);
         let (status, badge) = match (step, error, state) {
             (Some(step), _, _) => (
@@ -1487,7 +1488,7 @@ impl Launcher {
                 .and_then(|id| self.instances.list.iter().find(|i| i.id == id));
             detail = detail.child(div().text_color(t.muted).child(trf(
                 "{instance} is building: one build at a time.",
-                &[("instance", other.map_or("", |i| i.name.as_str()))],
+                &[("instance", other.map_or("", |i| i.display_name()))],
             )));
         }
         let mismatch = self
@@ -1634,7 +1635,7 @@ impl Launcher {
                 &t,
             ));
             let page_url = p.page.clone();
-            if !page_url.is_empty() {
+            if !page_url.is_empty() && horizon_launcher::brand::show_url(&page_url) {
                 right = right.child(
                     button(
                         SharedString::from(format!("mods-page-{}", p.id)),
@@ -1676,10 +1677,15 @@ impl Launcher {
             }
             let mut by = Vec::new();
             if !p.author.is_empty() {
-                by.push(trf("by {author}", &[("author", &p.author)]));
+                let author = if p.source == SourceId::Horizon {
+                    horizon::display_author(&p.id, &p.author)
+                } else {
+                    p.author.as_str()
+                };
+                by.push(trf("by {author}", &[("author", author)]));
             }
             by.push(trf("{count} downloads", &[("count", &count(p.downloads))]));
-            by.push(trf("from {source}", &[("source", p.source.label())]));
+            by.push(trf("from {source}", &[("source", p.source.display_label())]));
             if !p.license.is_empty() {
                 by.push(p.license.clone());
             }
@@ -1696,7 +1702,11 @@ impl Launcher {
                 .children(
                     support
                         .reason()
-                        .map(|r| div().text_color(t.ink_soft).child(r.to_string())),
+                        .map(|r| {
+                            div().text_color(t.ink_soft).child(
+                                horizon_launcher::browser::display_reason(r).into_owned(),
+                            )
+                        }),
                 )
                 .children(
                     m.about

@@ -1345,6 +1345,7 @@ impl Launcher {
                         if yoake {
                             cmd.env("HORIZON_HOME", &instance_home);
                         }
+                        horizon_launcher::telemetry::protect_command(&mut cmd);
                         self.client_home = cmd.get_current_dir().map(|d| d.to_path_buf());
                         match backend::spawn(Job::Client, cmd, self.tx.clone()) {
                             Ok(r) => {
@@ -1548,11 +1549,11 @@ impl Launcher {
                                 .and_then(|since| backend::crash_report_since(&home, since));
                             if error.is_some() && report.is_none() && self.switched_to_dx12() {
                                 self.client_error = Some(
-                                    "Horizon's Vulkan renderer crashed while starting on this \
+                                    horizon_launcher::brand::text("Horizon's Vulkan renderer crashed while starting on this \
                                      graphics card, so the game now uses DirectX 12. Press Play \
                                      to start it again. Video Settings > Graphics API switches \
-                                     back."
-                                        .into(),
+                                     back.")
+                                        .into_owned(),
                                 );
                             } else if error.is_some() || report.is_some() {
                                 let summary = report
@@ -1632,7 +1633,10 @@ impl Launcher {
         for home in homes {
             match backend::switch_to_dx12(&home) {
                 Ok(changed) => switched |= changed,
-                Err(e) => eprintln!("Horizon launcher: could not switch to DirectX 12: {e}"),
+                Err(e) => eprintln!(
+                    "{}: could not switch to DirectX 12: {e}",
+                    horizon_launcher::brand::text("Horizon launcher")
+                ),
             }
         }
         switched
@@ -3151,7 +3155,7 @@ impl Launcher {
                 .child(
                     shell::text(theme::night::TITLE, shell::c(n.ink))
                         .font_family(theme::DISPLAY_FONT)
-                        .child("Horizon"),
+                        .child(horizon_launcher::brand::name()),
                 )
         });
         shell::sidebar_plate(&t)
@@ -3696,7 +3700,7 @@ impl Launcher {
                 }),
         );
         let discord = self.links.discord.clone();
-        if !discord.is_empty() {
+        if !yoake_page::enabled() && !discord.is_empty() {
             actions = actions.child(
                 button("crash-discord", "Report on Discord", Kind::Secondary, &t)
                     .bg(t.plate)
@@ -3985,7 +3989,13 @@ impl Launcher {
                     .child(group("AI", "terminal"))
                     .child(self.no_ai_row(n + 6, cx))
                     .child(group("About", "info-box"))
-                    .child(index_row(n + 7, "Horizon", Some(plain(&horizon)), horizon_action, &t))
+                    .child(index_row(
+                        n + 7,
+                        horizon_launcher::brand::name(),
+                        Some(plain(&horizon)),
+                        horizon_action,
+                        &t,
+                    ))
                     .child(index_row(
                         n + 8,
                         tr("Launcher"),
@@ -4051,7 +4061,9 @@ impl Launcher {
                         ),
                 )
             })
-            .child(self.collection_section(cx))
+            .when(!horizon_launcher::brand::yoake(), |view| {
+                view.child(self.collection_section(cx))
+            })
             .children(self.agents_section(cx))
             .children(self.dev_options_section(cx))
     }
@@ -5345,6 +5357,11 @@ impl Render for Launcher {
             // The wordmark arrives letter by letter, then gives way to the launcher; a click or
             // a key skips ahead.
             let gone = 1. - ease_out_cubic(reveal / 0.6);
+            let letters = if horizon_launcher::brand::yoake() {
+                "YOAKE"
+            } else {
+                "HORIZON"
+            };
             let word = div()
                 .flex()
                 .font_family(theme::PIXEL)
@@ -5352,7 +5369,7 @@ impl Render for Launcher {
                 .line_height(px(theme::WORDMARK.px * 0.5))
                 .font_weight(FontWeight::BOLD)
                 .text_color(t.ink)
-                .children("HORIZON".chars().enumerate().map(|(i, c)| {
+                .children(letters.chars().enumerate().map(|(i, c)| {
                     let at = held - i as f32 * theme::STAGGER.as_secs_f32() * 1.5;
                     let p = ease_out_cubic(at / theme::ENTER.as_secs_f32());
                     div()
@@ -5496,8 +5513,11 @@ fn key_bindings() -> Vec<KeyBinding> {
 fn menus() -> Vec<Menu> {
     vec![
         Menu {
-            name: "Horizon Launcher".into(),
-            items: vec![MenuItem::action("Quit Horizon Launcher", Quit)],
+            name: horizon_launcher::brand::launcher_name().into(),
+            items: vec![MenuItem::action(
+                horizon_launcher::brand::text("Quit Horizon Launcher").into_owned(),
+                Quit,
+            )],
             disabled: false,
         },
         Menu {
@@ -5732,10 +5752,11 @@ mod tests {
     #[test]
     fn the_app_menu_has_quit() {
         let menus = super::menus();
-        assert_eq!(menus[0].name, "Horizon Launcher");
+        assert_eq!(menus[0].name, horizon_launcher::brand::launcher_name());
         assert!(matches!(
             &menus[0].items[0],
-            gpui::MenuItem::Action { name, .. } if name == "Quit Horizon Launcher"
+            gpui::MenuItem::Action { name, .. }
+                if name == horizon_launcher::brand::text("Quit Horizon Launcher").as_ref()
         ));
     }
 

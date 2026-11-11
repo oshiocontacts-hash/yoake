@@ -165,7 +165,8 @@ fn desktop_link() -> Option<PathBuf> {
 }
 
 fn write_link(path: &Path, exe: &Path) -> io::Result<()> {
-    shortcut::write_windows_link(path, exe, "", APP_NAME).map_err(io::Error::other)
+    shortcut::write_windows_link(path, exe, "", crate::brand::launcher_name())
+        .map_err(io::Error::other)
 }
 
 /// Whether the shortcut file names `exe` (its path, as the Shell Link keeps it, in UTF-16).
@@ -321,7 +322,9 @@ fn remove_all(path: &Path, left: &mut Vec<String>) {
 pub fn uninstall(remove_data: bool, progress: impl Fn(Step, f32)) -> Result<Vec<String>, String> {
     clean_temp();
     let dir = registered()
-        .ok_or("Horizon Launcher is not installed for this account.")?
+        .ok_or_else(|| {
+            format!("{} is not installed for this account.", crate::brand::launcher_name())
+        })?
         .dir;
     let exe = dir.join(BINARY);
     let own = backend::exe_path().to_path_buf();

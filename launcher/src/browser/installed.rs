@@ -131,21 +131,27 @@ fn add(
         return Err(format!("{}'s dependencies go too deep.", project.title));
     }
     if let Support::No(why) = project.support() {
-        return Err(format!("{} doesn't run in Horizon: {why}", project.title));
+        return Err(format!(
+            "{} doesn't run in {}: {}",
+            project.title,
+            crate::brand::name(),
+            super::display_reason(&why),
+        ));
     }
     let versions = source.versions(&project)?;
     let Some(version) = pick(project.kind, &versions, everything).cloned() else {
         return Err(match versions.iter().find_map(|v| v.blocked.clone()) {
             Some(why) => format!("{} can't be installed from here: {why}", project.title),
-            None => format!("{} has no version Horizon runs.", project.title),
+            None => format!("{} has no version {} runs.", project.title, crate::brand::name()),
         });
     };
     for id in &version.required {
         let needed = source.project(id).map_err(|_| {
             format!(
-                "{} needs {id} on {}, which isn't a pack Horizon loads (a Java mod?).",
+                "{} needs {id} on {}, which isn't a pack {} loads (a Java mod?).",
                 project.title,
-                source.id().label()
+                source.id().display_label(),
+                crate::brand::name()
             )
         })?;
         if needed.kind.folder().is_none() {
@@ -363,10 +369,11 @@ pub fn install_datapack(
         let coverage = crate::datapacks::coverage(&zip)?;
         if coverage.read.is_empty() {
             return Err(format!(
-                "{} would change nothing in Horizon yet: it has no functions, predicates or item \
-                 modifiers, and Horizon doesn't read its {} yet.",
+                "{} would change nothing in {brand} yet: it has no functions, predicates or item \
+                 modifiers, and {brand} doesn't read its {} yet.",
                 project.title,
-                coverage.not_read()
+                coverage.not_read(),
+                brand = crate::brand::name()
             ));
         }
         let pack = crate::datapacks::add(world, &zip)?;

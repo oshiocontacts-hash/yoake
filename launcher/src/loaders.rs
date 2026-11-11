@@ -200,7 +200,11 @@ pub fn install(
     log: &dyn Fn(String),
 ) -> Result<String, String> {
     if matches!(loader.kind, Kind::Forge | Kind::NeoForge) {
-        return Err(format!("Horizon can't install {} yet.", loader.kind.name()));
+        return Err(format!(
+            "{} can't install {} yet.",
+            crate::brand::name(),
+            loader.kind.name()
+        ));
     }
     let name = loader.kind.name();
     let url = format!(

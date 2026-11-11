@@ -203,7 +203,7 @@ impl Source for Modrinth {
 
     fn search(&self, query: &Query) -> Result<Vec<Project>, String> {
         if query.kind == Kind::Shader {
-            return Err(super::SHADERS_ON_HORIZON.into());
+            return Err(crate::brand::text(super::SHADERS_ON_HORIZON).into_owned());
         }
         let found = get(&search_url(query))?;
         Ok(found["hits"]
@@ -220,7 +220,8 @@ impl Source for Modrinth {
 
     fn project(&self, id: &str) -> Result<Project, String> {
         let p = get(&format!("{API}/project/{}", encode(id)))?;
-        parse_project(&p).ok_or_else(|| format!("Modrinth: {id} is not a pack Horizon loads."))
+        parse_project(&p)
+            .ok_or_else(|| format!("Modrinth: {id} is not a pack {} loads.", crate::brand::name()))
     }
 
     fn versions(&self, project: &Project) -> Result<Vec<Version>, String> {
