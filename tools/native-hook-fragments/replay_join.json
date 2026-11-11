@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "request_join_replay",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_request_join_replay",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "offline replay entry through an owned memory pipe, returning to the requesting mod screen.",
+  "doc_summary": "offline replay entry and owner-screen restoration; API @API:replay_join@."
+}

@@ -239,6 +239,7 @@ mod native_item_energy;
 mod native_item_fluids;
 mod native_item_slot;
 pub(crate) mod native_lan;
+mod native_local_player;
 mod native_level_refs;
 mod native_lifecycle;
 mod native_living_refs;
@@ -459,12 +460,14 @@ pub use native_explosions::NativeBlast;
 pub use native_falling::NativeFalling;
 pub use native_hooks::{NativeClock, NativeShake};
 pub use native_item_energy::ItemEnergyBuffer;
+pub use native_local_player::LocalPlayerSnapshot;
 pub use native_mannequin::NativeMannequinPose;
 pub use native_mob_draw::{NativeMobRender, NativePlayerRender};
 pub use native_mob_player::{NativePlayerAppearance, NativePlayerModel};
 pub use native_server::NativeExperienceOrb;
 pub use native_world_columns::NativeColumnBlocks;
 pub use native_world_edit::{NativeBlockEdit, NativeBlockRun, NativeHeightmap};
+pub use remote::SnapshotReport;
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
@@ -7571,7 +7574,11 @@ impl Game<'_> {
         self.tick_command_extras();
         self.native_tick();
         self.tell_native_now();
-        self.tick_world(running)
+        self.tick_world(running)?;
+        if self.options.execution_role.is_client() {
+            self.native_local_player_tick_end();
+        }
+        Ok(())
     }
     /// What the tick runs after the local player's own update: effects, the
     /// world's entities and blocks, and the network hub.
@@ -19570,6 +19577,10 @@ enum LoaderMsg {
 }
 
 enum PendingWorldEntry {
+    Replay {
+        title: String,
+        name: String,
+    },
     Local {
         folder: String,
         name: Option<String>,
@@ -19651,6 +19662,11 @@ impl Game<'_> {
             self.reload_packs();
         }
         match self.pending_entry.take() {
+            Some(PendingWorldEntry::Replay { title, name }) => {
+                if let Err(error) = self.connect_replay(&title, &name) {
+                    self.leave_server(Some(error.to_string()))?;
+                }
+            }
             Some(PendingWorldEntry::Local {
                 folder,
                 name,

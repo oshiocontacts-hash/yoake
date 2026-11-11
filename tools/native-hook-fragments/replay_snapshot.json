@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "snapshot_client_world",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_snapshot_client_world",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "synchronous client-world replay checkpoints using the client's chunks and optional packet retention.",
+  "doc_summary": "game-thread replay snapshots with packet counts and explicit missing-state reports; API @API:replay_snapshot@."
+}

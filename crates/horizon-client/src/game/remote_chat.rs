@@ -148,6 +148,9 @@ fn random_uuid() -> u128 {
 impl Game<'_> {
     /// handleLogin: a new session state and signature cache, and prepareKeyPair.
     pub(super) fn remote_chat_login(&mut self) {
+        if self.native_session.is_replay() {
+            return;
+        }
         if let Some(r) = self.remote.as_mut() {
             r.secure_chat = SecureChat::default();
             r.signatures = Default::default();
@@ -162,6 +165,9 @@ impl Game<'_> {
     /// ClientPacketListener.tick's key refresh (shouldRefreshKeyPair), then
     /// setKeyPair with whatever key pair is ready.
     pub(super) fn tick_chat_session(&mut self) {
+        if self.native_session.is_replay() {
+            return;
+        }
         // shouldRefreshKeyPair is asked only once there is a chat session; a
         // first key pair arrives through the join's prepareKeyPair.
         if self

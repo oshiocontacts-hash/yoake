@@ -87,6 +87,38 @@ impl NetCapture {
 /// connection (`TransferState`), so a proxy's backend switch keeps them.
 pub type Cookies = Arc<Mutex<HashMap<String, Vec<u8>>>>;
 
+static SNAPSHOT_REQUESTED: AtomicBool = AtomicBool::new(false);
+
+pub fn request_snapshot_retention() {
+    SNAPSHOT_REQUESTED.store(true, Ordering::Relaxed);
+}
+
+fn retain_snapshot_configuration(listening: bool, requested: bool) -> bool {
+    listening || requested
+}
+
+#[derive(Default)]
+pub struct SnapshotConfiguration {
+    pub packets: Vec<cfg::Clientbound>,
+    pub complete: bool,
+}
+
+impl SnapshotConfiguration {
+    fn remember(&mut self, packet: &cfg::Clientbound) {
+        if matches!(
+            packet,
+            cfg::Clientbound::RegistryData(_)
+                | cfg::Clientbound::UpdateTags(_)
+                | cfg::Clientbound::UpdateEnabledFeatures(_)
+                | cfg::Clientbound::ResetChat(_)
+        ) || matches!(packet, cfg::Clientbound::CustomPayload(payload)
+            if payload.channel == crate::content_identity::CHANNEL)
+        {
+            self.packets.push(packet.clone());
+        }
+    }
+}
+
 /// What the network thread reports to the game.
 pub enum Event {
     /// Progress text for the connecting screen.
@@ -101,6 +133,7 @@ pub enum Event {
     FarTerrain(crate::lod_net::Offer),
     /// ClientConfigurationPacketListenerImpl.handleEnabledFeatures.
     Features(Vec<String>),
+    SnapshotConfiguration(SnapshotConfiguration),
     /// Configuration finished: the play state begins with these registries.
     Joined {
         registries: Arc<Dynamic>,
@@ -160,6 +193,7 @@ pub struct Session {
     /// with `writer` locked, as the packet that switches is sent.
     configuring: Arc<AtomicBool>,
     capture_item_tags: bool,
+    replay: bool,
     thread: Option<JoinHandle<()>>,
     pub address: String,
     pub name: String,
@@ -193,6 +227,7 @@ impl Session {
             resources,
             false,
             capture_item_tags,
+            false,
         )
     }
     /// `ClientHandshakePacketListenerImpl.handleHello`: LAN entries can continue
@@ -218,6 +253,7 @@ impl Session {
             resources,
             true,
             capture_item_tags,
+            false,
         )
     }
     /// `ConnectScreen.startConnecting` for a `transfer`: the cookies the
@@ -243,6 +279,7 @@ impl Session {
             resources,
             false,
             capture_item_tags,
+            false,
         )
     }
     /// Join an integrated server through memory (`Connection.connectToLocalServer`).
@@ -265,6 +302,30 @@ impl Session {
             resources,
             false,
             capture_item_tags,
+            false,
+        )
+    }
+    /// Join an offline replay. Encryption requests and outgoing chat are refused.
+    pub fn connect_replay(
+        pipe: horizon_protocol::connection::Pipe,
+        name: &str,
+        info: cfg::ClientInformation,
+        lang: Arc<Language>,
+        resources: PathBuf,
+        capture_item_tags: bool,
+    ) -> Self {
+        Self::start(
+            "replay",
+            name,
+            None,
+            info,
+            lang,
+            Some(pipe),
+            None,
+            resources,
+            false,
+            capture_item_tags,
+            true,
         )
     }
     fn start(
@@ -278,6 +339,7 @@ impl Session {
         resources: PathBuf,
         lan: bool,
         capture_item_tags: bool,
+        replay: bool,
     ) -> Self {
         let (send, events) = channel();
         #[cfg(feature = "dev-capture")]
@@ -317,6 +379,7 @@ impl Session {
                     lan,
                     capture_item_tags,
                     net_capture.as_ref(),
+                    replay,
                 );
                 thread_far.cancel();
                 let from_server = result.is_ok();
@@ -342,6 +405,7 @@ impl Session {
             writer,
             configuring,
             capture_item_tags,
+            replay,
             thread,
             address: address.to_owned(),
             name: name.to_owned(),
@@ -402,6 +466,17 @@ impl Session {
     /// acknowledgement; one that did would reach the server as a
     /// configuration packet, and Velocity drops such a client.
     pub fn send(&self, packet: play::Serverbound) {
+        if self.replay
+            && matches!(
+                packet,
+                play::Serverbound::Chat(_)
+                    | play::Serverbound::ChatCommand(_)
+                    | play::Serverbound::ChatCommandSigned(_)
+                    | play::Serverbound::ChatSessionUpdate(_)
+            )
+        {
+            return;
+        }
         if self.debug
             && !matches!(
                 packet,
@@ -752,6 +827,7 @@ fn run(
     lan: bool,
     capture_item_tags: bool,
     net_capture: Option<&NetCapture>,
+    replay: bool,
 ) -> Result<Reason, Reason> {
     let (host, port, mut c) = if let Some(pipe) = local {
         (address.to_owned(), 0, Connection::local(pipe))
@@ -826,6 +902,9 @@ fn run(
                 return Ok(Reason::component(&p.reason_json, lang));
             }
             login::Clientbound::Hello(hello) => {
+                if replay {
+                    return Err(Reason::plain("Replay connections cannot enable encryption"));
+                }
                 status(send, &tr(lang, "connect.authorizing"));
                 let key = RsaPublicKey::from_der(&hello.public_key)
                     .map_err(|err| Reason::plain(format!("Protocol error: {err}")))?;
@@ -885,7 +964,7 @@ fn run(
             // ClientHandshakePacketListenerImpl.handleRequestCookie: the
             // cookies a transfer carried over (none on a plain join).
             login::Clientbound::CookieRequest(q) => {
-                let payload = cookies.lock().unwrap().get(&q.key).cloned();
+                let payload = if replay { None } else { cookies.lock().unwrap().get(&q.key).cloned() };
                 c.send(
                     &login::Serverbound::CookieResponse(login::CookieResponse {
                         key: q.key,
@@ -923,6 +1002,7 @@ fn run(
         resources,
         capture_item_tags,
         net_capture,
+        replay,
     )?;
     let _ = send.send(Event::Joined {
         registries: Arc::new(registries),
@@ -940,6 +1020,7 @@ fn run(
         resources,
         capture_item_tags,
         net_capture,
+        replay,
         #[cfg(feature = "dev-capture")]
         capture_fences,
     )
@@ -956,6 +1037,7 @@ fn receive_play(
     resources: &Path,
     capture_item_tags: bool,
     net_capture: Option<&NetCapture>,
+    replay: bool,
     #[cfg(feature = "dev-capture")] capture_fences: Option<CaptureFences>,
 ) -> Result<Reason, Reason> {
     loop {
@@ -983,6 +1065,12 @@ fn receive_play(
                 let _ = w.send(&p.encode());
             }
         };
+        if replay && matches!(&packet,
+            play::Clientbound::ResourcePackPush(_) | play::Clientbound::ResourcePackPop(_)
+            | play::Clientbound::ServerLinks(_) | play::Clientbound::Transfer(_)
+            | play::Clientbound::ShowDialog(_) | play::Clientbound::ClearDialog(_)) {
+            continue;
+        }
         match packet {
             play::Clientbound::KeepAlive(k) => reply(play::Serverbound::KeepAlive(k)),
             play::Clientbound::BundleDelimiter(_) => {}
@@ -1008,20 +1096,23 @@ fn receive_play(
                     resources,
                     capture_item_tags,
                     net_capture,
+                    replay,
                 )?;
                 let _ = send.send(Event::Reconfigured(Arc::new(registries)));
             }
             // ClientCommonPacketListenerImpl.handleRequestCookie: the stored
             // cookie (or none) goes straight back.
             play::Clientbound::CookieRequest(q) => {
-                let payload = cookies.lock().unwrap().get(&q.key).cloned();
+                let payload = if replay { None } else { cookies.lock().unwrap().get(&q.key).cloned() };
                 reply(play::Serverbound::CookieResponse(cfg::CookieResponse {
                     key: q.key,
                     payload,
                 }));
             }
             play::Clientbound::StoreCookie(p) => {
-                cookies.lock().unwrap().insert(p.key, p.payload);
+                if !replay {
+                    cookies.lock().unwrap().insert(p.key, p.payload);
+                }
             }
             play::Clientbound::ServerLinks(p) => {
                 let _ = send.send(Event::ServerLinks(p.links));
@@ -1076,8 +1167,17 @@ fn configure(
     resources: &Path,
     capture_item_tags: bool,
     net_capture: Option<&NetCapture>,
+    replay: bool,
 ) -> Result<Dynamic, Reason> {
     let mut registries = Dynamic::default();
+    let mut snapshot = retain_snapshot_configuration(
+        net_capture.is_some(),
+        SNAPSHOT_REQUESTED.load(Ordering::Relaxed),
+    )
+    .then(|| SnapshotConfiguration {
+        complete: true,
+        ..Default::default()
+    });
     let mut content_verified = false;
     let mut horizon_peer = false;
     let mut native_check = horizon_protocol::mod_list::native::Negotiation::default();
@@ -1096,9 +1196,35 @@ fn configure(
         if let Some(capture) = net_capture {
             capture.frame(NetState::Configuration, id, &payload);
         }
-        match cfg::Clientbound::decode(id, &payload)
-            .map_err(|e| Reason::plain(connection_lost(e, lang)))?
+        let packet = cfg::Clientbound::decode(id, &payload)
+            .map_err(|e| Reason::plain(connection_lost(e, lang)))?;
+        if snapshot.is_none()
+            && retain_snapshot_configuration(
+                net_capture.is_some(),
+                SNAPSHOT_REQUESTED.load(Ordering::Relaxed),
+            )
         {
+            snapshot = Some(SnapshotConfiguration::default());
+        }
+        if let Some(snapshot) = &mut snapshot {
+            snapshot.remember(&packet);
+        }
+        if replay {
+            match &packet {
+                cfg::Clientbound::CodeOfConduct(_) => {
+                    reply(cfg::Serverbound::AcceptCodeOfConduct(Empty))?;
+                    continue;
+                }
+                cfg::Clientbound::CustomPayload(payload)
+                    if payload.channel != crate::content_identity::CHANNEL => continue,
+                cfg::Clientbound::ResourcePackPush(_)
+                | cfg::Clientbound::ResourcePackPop(_) | cfg::Clientbound::ServerLinks(_)
+                | cfg::Clientbound::Transfer(_) | cfg::Clientbound::ShowDialog(_)
+                | cfg::Clientbound::ClearDialog(_) | cfg::Clientbound::StoreCookie(_) => continue,
+                _ => {}
+            }
+        }
+        match packet {
             cfg::Clientbound::KeepAlive(k) => reply(cfg::Serverbound::KeepAlive(k))?,
             cfg::Clientbound::CustomPayload(p) if p.channel == crate::content_identity::CHANNEL => {
                 let hash = crate::content_identity::identity(resources)
@@ -1200,7 +1326,7 @@ fn configure(
                 let _ = send.send(Event::ClearDialog);
             }
             cfg::Clientbound::CookieRequest(q) => {
-                let payload = cookies.lock().unwrap().get(&q.key).cloned();
+                let payload = if replay { None } else { cookies.lock().unwrap().get(&q.key).cloned() };
                 reply(cfg::Serverbound::CookieResponse(cfg::CookieResponse {
                     key: q.key,
                     payload,
@@ -1227,6 +1353,9 @@ fn configure(
                 w.send(&cfg::Serverbound::FinishConfiguration(Empty).encode())
                     .map_err(|e| Reason::plain(connection_lost(e, lang)))?;
                 configuring.store(false, Ordering::Relaxed);
+                if let Some(snapshot) = snapshot {
+                    let _ = send.send(Event::SnapshotConfiguration(snapshot));
+                }
                 return Ok(registries);
             }
             _ => {}
@@ -1442,6 +1571,56 @@ mod tests {
     use super::*;
 
     #[test]
+    fn snapshot_configuration_retention_is_disabled_without_a_listener_or_request() {
+        assert!(!retain_snapshot_configuration(false, false));
+        assert!(retain_snapshot_configuration(true, false));
+        assert!(retain_snapshot_configuration(false, true));
+        assert!(retain_snapshot_configuration(true, true));
+        let mut allocated = false;
+        let snapshot = retain_snapshot_configuration(false, false).then(|| {
+            allocated = true;
+            SnapshotConfiguration::default()
+        });
+        assert!(!allocated);
+        assert!(snapshot.is_none());
+    }
+
+    #[test]
+    fn snapshot_configuration_keeps_state_but_not_handshake_services() {
+        let remembered = [
+            cfg::Clientbound::RegistryData(cfg::RegistryData {
+                registry: "test:registry".into(),
+                entries: vec![cfg::RegistryEntry { id: "test:entry".into(), data: None }],
+            }),
+            cfg::Clientbound::UpdateTags(cfg::UpdateTags { registries: Vec::new() }),
+            cfg::Clientbound::UpdateEnabledFeatures(cfg::UpdateEnabledFeatures {
+                features: vec!["minecraft:vanilla".into()],
+            }),
+            cfg::Clientbound::ResetChat(Empty),
+            cfg::Clientbound::CustomPayload(cfg::CustomPayload {
+                channel: crate::content_identity::CHANNEL.into(),
+                data: vec![1, 2, 3],
+            }),
+        ];
+        let mut snapshot = SnapshotConfiguration::default();
+        for packet in &remembered {
+            snapshot.remember(packet);
+        }
+        for packet in [
+            cfg::Clientbound::KeepAlive(cfg::KeepAlive { id: 9 }),
+            cfg::Clientbound::CustomPayload(cfg::CustomPayload {
+                channel: "minecraft:brand".into(),
+                data: vec![4, 5, 6],
+            }),
+            cfg::Clientbound::FinishConfiguration(Empty),
+        ] {
+            snapshot.remember(&packet);
+        }
+        assert_eq!(snapshot.packets, remembered);
+        assert!(!snapshot.complete);
+    }
+
+    #[test]
     fn capture_is_opt_in_and_delivers_borrowed_frames_and_end() {
         static FRAMES: Mutex<Vec<(NetState, i32, Vec<u8>, u64)>> = Mutex::new(Vec::new());
         static ENDS: Mutex<Vec<(u64, String)>> = Mutex::new(Vec::new());
@@ -1517,6 +1696,7 @@ mod tests {
                     Path::new(""),
                     false,
                     capture.as_ref(),
+                    false,
                 )
             });
             let mut server = Connection::local(server);
@@ -1753,6 +1933,7 @@ mod tests {
                 Path::new("."),
                 false,
                 None,
+                false,
                 #[cfg(feature = "dev-capture")]
                 None,
             ));
@@ -1801,6 +1982,7 @@ mod tests {
                     Path::new("."),
                     capture_item_tags,
                     None,
+                    false,
                     #[cfg(feature = "dev-capture")]
                     None,
                 )
@@ -1920,6 +2102,7 @@ mod tests {
                 &root,
                 false,
                 None,
+                false,
             )
         });
         let mut server = Connection::local(server);
@@ -1985,6 +2168,7 @@ mod tests {
                     Path::new(""),
                     false,
                     None,
+                    false,
                 )
             });
             let mut server = Connection::local(server);
@@ -2105,6 +2289,7 @@ mod tests {
                 writer: writer.clone(),
                 configuring: Arc::new(AtomicBool::new(false)),
                 capture_item_tags: false,
+                replay: false,
                 thread: Some(thread),
                 address: "local".into(),
                 name: "TestPlayer".into(),
@@ -2163,6 +2348,7 @@ mod tests {
                 Path::new("."),
                 false,
                 None,
+                false,
                 #[cfg(feature = "dev-capture")]
                 None,
             )
@@ -2211,6 +2397,7 @@ mod tests {
             writer: Arc::new(Mutex::new(Some(writer))),
             configuring: Arc::new(AtomicBool::new(false)),
             capture_item_tags: false,
+            replay: false,
             thread: None,
             address: "local".into(),
             name: "Player".into(),
@@ -2233,6 +2420,7 @@ mod tests {
                 Path::new("."),
                 false,
                 None,
+                false,
                 #[cfg(feature = "dev-capture")]
                 None,
             )
@@ -2285,6 +2473,7 @@ mod tests {
                 Path::new("."),
                 false,
                 None,
+                false,
                 #[cfg(feature = "dev-capture")]
                 None,
             )
@@ -2352,6 +2541,137 @@ mod tests {
         receive_brand(&payload, &send);
         assert!(events.try_recv().is_err());
     }
+
+    #[test]
+    fn offline_replay_pipe_enters_play_and_closes() {
+        let (client, producer) = horizon_protocol::connection::Pipe::pair();
+        let session = Session::connect_replay(
+            client,
+            "ReplayViewer",
+            cfg::ClientInformation::new(8),
+            Arc::new(Language::new()),
+            PathBuf::new(),
+            false,
+        );
+        let mut producer = Connection::local(producer);
+        producer
+            .reader
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        producer.recv().unwrap();
+        let (id, body) = producer.recv().unwrap();
+        assert!(matches!(
+            login::Serverbound::decode(id, &body).unwrap(),
+            login::Serverbound::Hello(hello) if hello.name == "ReplayViewer"
+        ));
+        producer
+            .send(
+                &login::Clientbound::LoginFinished(login::LoginFinished {
+                    profile: login::GameProfile {
+                        uuid: horizon_protocol::crypto::offline_uuid("ReplayViewer"),
+                        name: "ReplayViewer".into(),
+                        properties: Vec::new(),
+                    },
+                    session: 1,
+                })
+                .encode(),
+            )
+            .unwrap();
+        let (id, body) = producer.recv().unwrap();
+        assert!(matches!(
+            login::Serverbound::decode(id, &body).unwrap(),
+            login::Serverbound::LoginAcknowledged(_)
+        ));
+        producer
+            .send(
+                &cfg::Clientbound::RegistryData(cfg::RegistryData {
+                    registry: "minecraft:worldgen/biome".into(),
+                    entries: Vec::new(),
+                })
+                .encode(),
+            )
+            .unwrap();
+        producer
+            .send(&cfg::Clientbound::FinishConfiguration(Empty).encode())
+            .unwrap();
+        loop {
+            let (id, body) = producer.recv().unwrap();
+            if matches!(
+                cfg::Serverbound::decode(id, &body).unwrap(),
+                cfg::Serverbound::FinishConfiguration(_)
+            ) {
+                break;
+            }
+        }
+        let login = play::Clientbound::Login(play::Login {
+            player_id: 1,
+            hardcore: false,
+            levels: vec!["minecraft:overworld".into()],
+            max_players: 1,
+            chunk_radius: 8,
+            simulation_distance: 8,
+            reduced_debug_info: false,
+            show_death_screen: true,
+            limited_crafting: false,
+            spawn: play::SpawnInfo {
+                dimension_type: 0,
+                dimension: "minecraft:overworld".into(),
+                seed: 0,
+                game_type: 0,
+                previous_game_type: None,
+                debug: false,
+                flat: false,
+                last_death: None,
+                portal_cooldown: 0,
+                sea_level: 63,
+            },
+            online_mode: false,
+            enforces_secure_chat: false,
+        });
+        producer.send(&login.encode()).unwrap();
+        let builtin = horizon_protocol::registry::Builtin::parse("{}").unwrap();
+        let encoder = crate::lan::chunks::ChunkEncoder::new(
+            [(Arc::<str>::from("minecraft:air"), false)],
+            &builtin,
+            &[],
+            &[],
+        );
+        let column = crate::chunk::Chunk::empty(0, 0);
+        let chunk = play::Clientbound::LevelChunkWithLight(
+            encoder.encode(&column, &HashMap::new()),
+        );
+        producer.send(&chunk.encode()).unwrap();
+        loop {
+            match session.events.recv_timeout(Duration::from_secs(5)).unwrap() {
+                Event::Status(_) | Event::SnapshotConfiguration(_) => continue,
+                Event::Joined { .. } => break,
+                _ => panic!("unexpected replay login event"),
+            }
+        }
+        assert!(matches!(
+            session.events.recv_timeout(Duration::from_secs(5)).unwrap(),
+            Event::Packet(packet) if *packet == login
+        ));
+        assert!(matches!(
+            session.events.recv_timeout(Duration::from_secs(5)).unwrap(),
+            Event::Packet(packet) if *packet == chunk
+        ));
+        session.send(play::Serverbound::ChatCommand(play::ChatCommand {
+            command: "say must not be sent".into(),
+        }));
+        session.send(play::Serverbound::KeepAlive(cfg::KeepAlive { id: 17 }));
+        let (id, body) = producer.recv().unwrap();
+        assert!(matches!(
+            play::Serverbound::decode(id, &body).unwrap(),
+            play::Serverbound::KeepAlive(cfg::KeepAlive { id: 17 })
+        ));
+        drop(producer);
+        assert!(matches!(
+            session.events.recv_timeout(Duration::from_secs(5)).unwrap(),
+            Event::Disconnected { .. }
+        ));
+    }
+
     /// No account never joins; the signed-in rule is compared with the real
     /// client login listener by test_lan_auth_parity.py.
     #[test]

@@ -6,8 +6,12 @@
 //! clicks). The player still moves with the local physics, as the vanilla
 //! client predicts its own movement; the server stays authoritative for
 //! everything else.
+mod native_snapshot;
+
+pub use native_snapshot::SnapshotReport;
+
 use super::remote_chunks::{ChunkDecoder, ChunkFormat, Next};
-use super::{Dim, Game, Mining, Screen};
+use super::{Dim, Game, Mining, PendingWorldEntry, Screen};
 use horizon_client::first_person::{Hand, SwingAnimation};
 use horizon_client::{
     Result,
@@ -450,6 +454,7 @@ enum OwnProfile {
 
 pub(super) struct Remote {
     pub session: Session,
+    snapshot: Option<native_snapshot::SnapshotState>,
     pub brand: String,
     /// This connection's configured feature flags, carried through reconfiguration.
     pub(super) features: Vec<String>,
@@ -549,7 +554,7 @@ pub(super) struct Remote {
     /// `LocalPlayer.flashOnSetHealth`: set by the first health the server
     /// sends; from then on a drop starts the hurt animation.
     flash_on_set_health: bool,
-    game_mode: i32,
+    pub(super) game_mode: i32,
     pub chat: Vec<(String, Instant)>,
     /// Lines received since joining, for the control socket's events.
     pub chat_received: u64,
@@ -826,6 +831,22 @@ impl Game<'_> {
     ) -> Result<()> {
         self.join_server("local", name, Some(pipe), None, false)
     }
+
+    pub(super) fn connect_replay(&mut self, title: &str, name: &str) -> Result<()> {
+        if self.defer_world_entry(PendingWorldEntry::Replay {
+            title: title.to_owned(),
+            name: name.to_owned(),
+        })? {
+            return Ok(());
+        }
+        self.join_world_rest()?;
+        let pipe = self
+            .native_session
+            .take_replay_pipe()
+            .ok_or("Replay pipe is no longer available")?;
+        self.join_server("replay", name, Some(pipe), None, false)
+    }
+
     fn join_server(
         &mut self,
         address: &str,
@@ -835,6 +856,7 @@ impl Game<'_> {
         lan: bool,
     ) -> Result<()> {
         let single_player = local.is_some();
+        let replay = self.native_session.is_replay();
         let mut capture_item_tags = false;
         self.native_client_item_tags_listened(&mut capture_item_tags);
         self.reset_tutorial();
@@ -842,7 +864,7 @@ impl Game<'_> {
         // A server's own biomes come over the connection; the last local
         // world's packed table must not name its ids. The window's own
         // server thread keeps the one it just set.
-        if local.is_none() {
+        if local.is_none() || replay {
             self.world_biomes = None;
             self.world_biomes_base = None;
         }
@@ -861,7 +883,7 @@ impl Game<'_> {
             );
         }
         // A signed-in account always plays under its own name.
-        let auth = self.auth();
+        let auth = if replay { None } else { self.auth() };
         let name = auth.as_ref().map_or(name, |a| a.name.as_str());
         let user = auth.as_ref().map_or_else(
             || {
@@ -874,14 +896,21 @@ impl Game<'_> {
         );
         self.server_packs_connect(local.is_none().then_some(address), user);
         let session = match local {
-            Some(pipe) => Session::connect_local(
-                pipe,
-                name,
-                info.clone(),
-                lang.clone(),
-                root.clone(),
-                capture_item_tags,
-            ),
+            Some(pipe) => {
+                let connect = if replay {
+                    Session::connect_replay
+                } else {
+                    Session::connect_local
+                };
+                connect(
+                    pipe,
+                    name,
+                    info.clone(),
+                    lang.clone(),
+                    root.clone(),
+                    capture_item_tags,
+                )
+            }
             None => {
                 self.extras_connecting(address, name, lan);
                 match cookies {
@@ -982,7 +1011,7 @@ impl Game<'_> {
         // Minecraft.services() has the keys wherever the game is played, single player's own
         // server included: its guests' chat keys are checked against them.
         let services_keys = Arc::new(std::sync::Mutex::new(ServicesKeys::Pending));
-        if !cfg!(test) || !single_player {
+        if !replay && (!cfg!(test) || !single_player) {
             let slot = services_keys.clone();
             let _ = std::thread::Builder::new()
                 .name("Services keys".into())
@@ -1001,6 +1030,7 @@ impl Game<'_> {
         }
         self.remote = Some(Remote {
             session,
+            snapshot: None,
             brand: "unknown".into(),
             features: vec!["minecraft:vanilla".into()],
             quiet_commands: false,
@@ -1144,6 +1174,7 @@ impl Game<'_> {
             return self.begin_closing_save(false).map(|_| false);
         }
         *self.native_mob_player_cache.get_mut() = None;
+        let replay_owner = self.native_session.take_replay_owner();
         self.native_session_left();
         self.clear_native_local_sounds();
         self.clear_native_streams();
@@ -1235,6 +1266,11 @@ impl Game<'_> {
         self.title = Some(title);
         self.capture(false);
         self.native_session.finish_leave();
+        if super::native_session::restore_replay_screen(replay_owner.as_deref(), |owner| {
+            self.native_mod_screen_open_anywhere(owner);
+        }) {
+            return Ok(true);
+        }
         let mode = match reason {
             Some(reason) => {
                 if self.native_disconnect_claimed(&reason, key, from_server) {
@@ -1360,7 +1396,7 @@ impl Game<'_> {
     /// A stack to the server (`SetCreativeModeSlot`): the same component
     /// patch a Horizon server sends its clients, with the registries' ids, so
     /// the server's echo doesn't hand back a bare item.
-    fn to_network(&self, s: &Option<ItemStack>) -> Option<Stack> {
+    pub(super) fn to_network(&self, s: &Option<ItemStack>) -> Option<Stack> {
         let r = self.remote.as_ref()?;
         // A stack as the server sent it, only its count changed: its own
         // components go back, as a vanilla client keeps them.
@@ -1845,6 +1881,19 @@ impl Game<'_> {
                     continue;
                 }
             };
+            if self.native_session.is_replay()
+                && matches!(
+                    &event,
+                    Event::Transfer { .. }
+                        | Event::PackPush(_)
+                        | Event::PackPop(_)
+                        | Event::ServerLinks(_)
+                        | Event::ShowDialog(_)
+                        | Event::CodeOfConduct(_)
+                )
+            {
+                continue;
+            }
             match event {
                 Event::Status(s) => {
                     if let Some(r) = self.remote.as_mut() {
@@ -1875,6 +1924,14 @@ impl Game<'_> {
                 Event::Features(features) => {
                     if let Some(remote) = &mut self.remote {
                         remote.features = features;
+                    }
+                }
+                Event::SnapshotConfiguration(configuration) => {
+                    if let Some(remote) = &mut self.remote {
+                        remote
+                            .snapshot
+                            .get_or_insert_with(Default::default)
+                            .configure(configuration);
                     }
                 }
                 Event::Brand(brand) => {
@@ -1985,6 +2042,10 @@ impl Game<'_> {
                     from_server,
                 } => {
                     log::info!("Horizon: disconnected: {reason}");
+                    if self.native_session.is_replay() {
+                        self.leave_server_with_context(Some(reason), key.as_deref(), from_server)?;
+                        return Ok(());
+                    }
                     // ClientboundTransferPacket left a target: connect there
                     // instead of showing the disconnect, the stored cookies
                     // carried over (ClientCommonPacketListenerImpl.
@@ -3074,6 +3135,9 @@ impl Game<'_> {
     }
 
     fn handle_packet(&mut self, packet: C) -> Result<()> {
+        if let Some(snapshot) = self.remote.as_mut().and_then(|remote| remote.snapshot.as_mut()) {
+            snapshot.observe(&packet);
+        }
         match packet {
             // ClientCommonPacketListenerImpl.handlePing runs on the game
             // thread, after all preceding packets (especially teleports).
@@ -5874,6 +5938,7 @@ impl Game<'_> {
         // The rockets boosting this player tick after it, also while it waits
         // for chunks.
         self.tick_own_rockets();
+        self.native_local_player_tick_end();
         // Client mods tick on any server, single player's own included.
         self.native_tick();
         self.tell_native_now();
@@ -9103,6 +9168,9 @@ impl Game<'_> {
     /// session (game/remote_chat.rs). The Chat option's Hidden and System
     /// levels keep chat out and Hidden keeps the commands out (ChatAbilities).
     pub(super) fn send_chat(&mut self, message: &str) {
+        if self.native_session.is_replay() {
+            return;
+        }
         let message = message.trim();
         if message.is_empty() || !self.chat_abilities().allows(message) {
             return;
