@@ -561,6 +561,7 @@ fn fixture_frame(hud: &HudBatch) -> Frame<'_> {
     Frame {
         eye: glam::DVec3::ZERO,
         eye_rotation: [0.0; 2],
+        roll: 0.0,
         first_person: true,
         shadow_scene_revision: (0, 0),
         shadow_cache: false,

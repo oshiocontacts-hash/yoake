@@ -1097,7 +1097,7 @@ pub fn frame_inputs(
     shadow: Option<&horizon_shaders::Shadow>,
 ) -> FrameInputs {
     let aspect = size[0] as f32 / size[1].max(1) as f32;
-    let view = crate::camera::view_matrix(frame.yaw, frame.pitch);
+    let view = crate::camera::view_matrix_with_roll(frame.yaw, frame.pitch, frame.roll);
     let projection = super::world_projection(frame.fov_degrees, aspect, frame.depth_far)
         * frame.bob
         * frame.spin;

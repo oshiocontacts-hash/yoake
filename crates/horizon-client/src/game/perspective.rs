@@ -303,6 +303,16 @@ impl Game<'_> {
                 (!hit.miss).then_some([hit.hit.location.x, hit.hit.location.y, hit.hit.location.z])
             },
         );
+        if self.native_camera_override_listened {
+            let mut camera = None;
+            self.native_camera_override(partial, &mut camera);
+            let camera = camera.filter(|camera| camera.is_valid());
+            if let Some(camera) = camera {
+                view.position = camera.position;
+                view.set_rotation_roll(camera.yaw, camera.pitch, camera.roll);
+            }
+            self.native_camera_override_frame = camera;
+        }
         self.view = view;
         Some((
             glam::DVec3::from_array(view.position),

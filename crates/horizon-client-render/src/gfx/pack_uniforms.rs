@@ -437,7 +437,9 @@ impl FrameUniforms {
         let aspect = size[0] as f32 / size[1].max(1) as f32;
         // Packs take gbufferProjection for a plain perspective (they invert only its perspective
         // terms): the view bob and the nausea spin belong to the model-view, as GL drew them.
-        let view = frame.bob * frame.spin * crate::camera::view_matrix(frame.yaw, frame.pitch);
+        let view = frame.bob
+            * frame.spin
+            * crate::camera::view_matrix_with_roll(frame.yaw, frame.pitch, frame.roll);
         let projection = Mat4::perspective_rh_gl(
             frame.fov_degrees.to_radians(),
             aspect,
@@ -1337,6 +1339,7 @@ mod initial_history_tests {
         Frame {
             eye: glam::DVec3::ZERO,
             eye_rotation: [0.0; 2],
+            roll: 0.0,
             first_person: true,
             shadow_scene_revision: (0, 0),
             shadow_cache: false,

@@ -4055,6 +4055,55 @@ The following catalog hooks are not in the trait yet:
 
 The client `tooltip_color` hook changes the background and top and bottom border gradient colours as mutable ARGB `u32` values; it does not change text colours. It covers solid-fill item tooltips (including creative, recipe book, chat, trading and bundle-selected item names), screen text boxes, and native panel tooltips. The stack is `None` for text-only boxes, including recipe-book item lines where the stack is discarded before drawing. Sprite-based screen tooltips (including options and title screens) use a separate renderer and are not covered; no texture hook is offered.
 
+# Replay network frame capture
+
+API @API:replay_net_frames@ adds the native targets `net_frames_listened(&mut bool)`,
+`net_frame_received(&NetFrameReceived<'_>)`, and `net_session_ended(u64, &str)`.
+Their generated `Hooks` methods receive typed events: set `event.listened` to true
+to subscribe, inspect the borrowed `event.frame`, and use `event.session` and
+`event.reason` on session end. All callbacks run on `horizon-net`. The subscription
+callback runs once per connection, before any frames are delivered.
+Frames arrive in receive order in login, configuration, and play, including later
+reconfiguration. They contain the post-decryption, post-decompression, adapted
+state, packet ID, borrowed body, monotonic timestamp, and connection session ID.
+Copy the body during the callback to retain it, and queue work rather than blocking
+the network thread. The end callback supplies the same session ID and a reason,
+including when a connection fails before joining. Outgoing packets are not captured.
+When the flag remains false, frames are neither copied nor timestamped or dispatched.
+Far-terrain offers and tiles received as custom payloads use the same capture path.
+
+# Replay camera override
+
+API @API:replay_camera_override@ adds `camera_override_listened(&mut bool)` and
+`camera_override(partial_tick: f32, camera: &mut Option<CameraOverride>)`. These
+are native target signatures; the generated `Hooks` methods receive typed events.
+Set `event.listened` to true at game initialization to receive per-frame camera
+callbacks. Set `*event.camera` to `Some(CameraOverride { position, yaw, pitch,
+roll, fov })`, or leave it unchanged to use the normal camera. Position is in world
+coordinates; angles and vertical FOV are in degrees. Coordinates and angles must be
+finite and the FOV must be strictly between 0 and 180 degrees, or the override is
+ignored. It changes the rendered view, not the player eye or spectator position.
+While an override is active, view bob and spin do not alter the chosen camera.
+The listener decision is made once per game instance, so a mod that may need an
+override later must subscribe at initialization.
+
+# Replay HUD visibility
+
+API @API:replay_hud_visibility@ adds `set_hud_hidden(hidden: bool)` on the window's
+`Host`. It hides the ordinary HUD, including mod HUD layers, without changing the
+player's F1 setting. Setting it to `false` restores the F1-controlled visibility.
+Open screens, the focused chat, sleep and debug overlays remain available. The
+first-person hand is independent; use the existing `native_render_hand` hook to
+hide it. Mods that hide the HUD should restore it when leaving replay or unloading.
+
+# Replay session planning
+
+Replay joining is not implemented yet. A replay mod can create the intended
+transport with `horizon_protocol::connection::Pipe::pair()`: it retains one end
+for producing the replay stream and will pass the other to the future replay
+join API. The two ends are interchangeable. Creating a pipe alone does not join
+a world or change the current screen.
+
 # Camera and collision reads
 
 The `native_camera()` helper returns the most recently extracted world frame's camera, or none before one exists. Its position, interpolated eye height, partial tick, angles, final FOV, near/far planes and dimension accompany column-major view and projection matrices. The view is camera-relative and includes bob and spin; projection uses reversed Z. Earlier callbacks in a frame can see the previous frame. `native_block_collision(pos)` returns block-local `[min_x, min_y, min_z, max_x, max_y, max_z]` boxes with an empty collision context; unloaded blocks and collision errors give no boxes.

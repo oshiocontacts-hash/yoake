@@ -229,7 +229,8 @@ mod native_entity_refs;
 mod native_explosions;
 mod native_falling;
 mod native_gui_textures;
-mod native_hooks;
+mod native_hud_visibility;
+pub(crate) mod native_hooks;
 mod native_inventories;
 mod native_inventory_rules;
 pub(crate) mod native_inventory_screen;
@@ -2784,6 +2785,7 @@ struct Game<'a> {
     dim: Dim,
     world_root: PathBuf,
     native_client_state: native_client_state::ClientState,
+    native_hud_visibility: native_hud_visibility::HudVisibility,
     native_session_joins: native_account::NativeSessionJoins,
     native_session: native_session::NativeSession,
     /// The world's data packs' content tables, when it has packs (`None`
@@ -2846,6 +2848,8 @@ struct Game<'a> {
     /// The camera the last frame drew from (position, yaw, pitch, fov), for the locator bar.
     locator_camera: Option<([f64; 3], f32, f32, f32)>,
     native_camera_frame: Option<horizon_client::mod_api::NativeCamera>,
+    native_camera_override_listened: bool,
+    native_camera_override_frame: Option<horizon_client::mod_api::CameraOverride>,
     /// `LocalPlayer.postEffects`: the chains the server has the screen run
     /// (`ClientboundPostEffectsPacket`), in order.
     post_effects: Vec<String>,
@@ -8492,7 +8496,7 @@ impl Game<'_> {
         // the sleep overlay, debug screen and open screens still draw.
         let spectator = self.spectator();
         let (wi, hi) = (w as i32, h as i32);
-        let show_hud = !self.ui.hide_gui;
+        let show_hud = self.native_hud_visibility.visible(self.ui.hide_gui);
         // max(Hud.leftHeight, Hud.rightHeight) after the bars: the item name and
         // the action bar sit above it.
         let mut bar_height = 39;
@@ -8749,9 +8753,11 @@ impl Game<'_> {
                     self.update_remote_skins();
                 }
             }
-        } else {
+        } else if !self.native_hud_visibility.hidden() {
             self.draw_chat(&mut batch);
             self.draw_tab_list(&mut batch);
+        } else if self.screen == Screen::Chat {
+            self.draw_chat(&mut batch);
         }
         // Screen.extractBlurredBackground blurs the world and HUD, while the
         // screen's background, widgets, toasts and debug overlay stay sharp.
@@ -15711,6 +15717,8 @@ impl Game<'_> {
         // player's own model stay smooth while the level is frozen.
         let camera_alpha = self.clock.camera_fraction();
         let view = self.camera_view(camera_alpha as f32);
+        let camera_override = view.and(self.native_camera_override_frame);
+        let roll = camera_override.map_or(0.0, |camera| camera.roll);
         let eye = view.map(|_| {
             (
                 glam::DVec3::from_array(self.view.eye),
@@ -15829,14 +15837,14 @@ impl Game<'_> {
         } else {
             Vec::new()
         };
-        let view = horizon_client::camera::view_matrix(view_yaw, view_pitch);
+        let view = horizon_client::camera::view_matrix_with_roll(view_yaw, view_pitch, roll);
         let at = camera.to_array();
         // GameRenderer.render3dHud: the debug crosshair, first person with the HUD shown.
         let mut crosshair = horizon_client::gizmos::Gizmos::default();
         if debug_crosshair_drawn(
             self.debug_crosshair(),
             self.camera_type.first_person(),
-            self.ui.hide_gui,
+            self.ui.hide_gui || self.native_hud_visibility.hidden(),
             self.shows_panorama(),
         ) {
             let scale = HudBatch::new(size).scale;
@@ -15853,7 +15861,9 @@ impl Game<'_> {
         // does not open menus for spectators, so those never show it. An open
         // screen does not hide it: vanilla checks the HUD and the game mode, not the screen.
         let adventure = self.mode == horizon_client::command::args::GameMode::Adventure;
-        let outline = if !self.ui.hide_gui && (self.may_build() || adventure) {
+        let outline = if self.native_hud_visibility.visible(self.ui.hide_gui)
+            && (self.may_build() || adventure)
+        {
             self.pick()
                 .filter(|h| {
                     self.may_build()
@@ -15930,17 +15940,19 @@ impl Game<'_> {
         };
         let fov_degrees = if title {
             85.0
+        } else if let Some(camera) = camera_override {
+            camera.fov
         } else {
             self.fov_degrees(camera_alpha as f32, camera.to_array())
         };
         self.locator_camera =
             (!title).then_some((camera.to_array(), view_yaw, view_pitch, fov_degrees));
-        let bob = if title {
+        let bob = if title || camera_override.is_some() {
             glam::Mat4::IDENTITY
         } else {
             self.bob_matrix(camera_alpha as f32)
         };
-        let spin = if title {
+        let spin = if title || camera_override.is_some() {
             glam::Mat4::IDENTITY
         } else {
             self.spinning_matrix(camera_alpha as f32)
@@ -15964,7 +15976,7 @@ impl Game<'_> {
                 fov_degrees,
                 near: 0.05,
                 far: depth_far,
-                view: (bob * spin * horizon_client::camera::view_matrix(yaw, pitch))
+                view: (bob * spin * horizon_client::camera::view_matrix_with_roll(yaw, pitch, roll))
                     .to_cols_array(),
                 projection: glam::Mat4::perspective_rh(
                     fov_degrees.to_radians(),
@@ -15976,10 +15988,15 @@ impl Game<'_> {
                 dimension: self.dim.id().to_string(),
             }
         });
+        let cull_pose = if roll == 0.0 {
+            bob * spin
+        } else {
+            bob * spin * glam::Mat4::from_rotation_z(-roll.to_radians())
+        };
         self.view_frustum = self
             .renderer
             .as_ref()
-            .map(|r| r.camera_frustum(fov_degrees, yaw, pitch, bob * spin, depth_far));
+            .map(|r| r.camera_frustum(fov_degrees, yaw, pitch, cull_pose, depth_far));
         // Keep the buffer local while builders need mutable access to the game.
         let mut entities = std::mem::take(&mut self.entity_vertices);
         entities.clear();
@@ -16034,7 +16051,7 @@ impl Game<'_> {
         // GameRenderer.render3dHud: the screen effects after the hand, in
         // its pass (the hand pass draws with `bob * view`).
         if !title {
-            let view = bob * horizon_client::camera::view_matrix(yaw, pitch);
+            let view = bob * horizon_client::camera::view_matrix_with_roll(yaw, pitch, roll);
             let aspect = size[0] as f32 / size[1].max(1) as f32;
             self.item_activation_geometry(camera_alpha as f32, view, aspect, &mut hand);
         }
@@ -16086,6 +16103,7 @@ impl Game<'_> {
             camera,
             yaw,
             pitch,
+            roll,
             fov_degrees,
             eye: eye.filter(|_| !title).map_or(camera, |e| e.0),
             eye_rotation: eye.filter(|_| !title).map_or([yaw, pitch], |e| e.1),
@@ -18931,6 +18949,8 @@ impl<'a> Game<'a> {
             &gui.atlas.sprites,
             &gui.atlas.translucent,
         );
+        let mut native_camera_override_listened = false;
+        Self::native_camera_override_listened(&mut native_camera_override_listened);
         Ok(Game {
             world_biomes: None,
             world_biomes_base: None,
@@ -19187,6 +19207,7 @@ impl<'a> Game<'a> {
             dim: Dim::Overworld,
             world_root: PathBuf::new(),
             native_client_state: Default::default(),
+            native_hud_visibility: Default::default(),
             native_session_joins: Default::default(),
             native_session: Default::default(),
             world_flat: false,
@@ -19223,6 +19244,8 @@ impl<'a> Game<'a> {
             waypoints: Default::default(),
             locator_camera: None,
             native_camera_frame: None,
+            native_camera_override_listened,
+            native_camera_override_frame: None,
             post_effects: Vec::new(),
             spectated_post_effect: None,
             experience_display: Default::default(),
@@ -20794,6 +20817,7 @@ fn loading_frame(hud: &HudBatch) -> Frame<'_> {
         camera: glam::DVec3::new(0.5, 100.0, 0.5),
         yaw: 0.0,
         pitch: 10.0,
+        roll: 0.0,
         fov_degrees: 85.0,
         eye: glam::DVec3::new(0.5, 100.0, 0.5),
         eye_rotation: [0.0, 10.0],

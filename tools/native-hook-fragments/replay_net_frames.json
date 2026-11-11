@@ -1,0 +1,24 @@
+{
+  "hooks": [
+    {
+      "name": "net_frames_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_net_frames_listened",
+      "side": "client",
+      "mod_api": { "contract": "listen" }
+    },
+    {
+      "name": "net_frame_received",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_net_frame_received",
+      "side": "client",
+      "mod_api": { "contract": "listen" }
+    },
+    {
+      "name": "net_session_ended",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_net_session_ended",
+      "side": "client",
+      "mod_api": { "contract": "listen" }
+    }
+  ],
+  "rust_summary": "opt-in, borrowed clientbound frames and connection endings on the network thread.",
+  "doc_summary": "opt-in clientbound network frames and session endings on the network thread; bundles declare API @API:replay_net_frames@."
+}

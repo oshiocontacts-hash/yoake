@@ -1802,6 +1802,13 @@ mod tests {
             ),
             ("& str", "& 'a str", false, true, false),
             (
+                "& NetFrameReceived < '_ >",
+                "& 'a NetFrameReceived < 'a >",
+                false,
+                true,
+                false,
+            ),
+            (
                 "& mut Vec < (& 'static str , u32) >",
                 "& 'a mut Vec < (& 'static str , u32) >",
                 false,

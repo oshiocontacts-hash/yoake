@@ -603,6 +603,7 @@ pub struct Frame<'a> {
     pub camera: DVec3,
     pub yaw: f32,
     pub pitch: f32,
+    pub roll: f32,
     pub fov_degrees: f32,
     /// The camera entity's eye and view rotation (yaw, pitch): the camera's own except in a
     /// third-person view.
@@ -6012,12 +6013,16 @@ impl Renderer {
     }
     /// The views `render` draws `frame` from.
     pub fn views(&self, frame: &Frame) -> ViewSet {
-        ViewSet::single(self.screen_view(
+        let mut view = self.screen_view(
             frame.fov_degrees,
             frame.yaw,
             frame.pitch,
             frame.depth_far,
-        ))
+        );
+        if frame.roll != 0.0 {
+            view.view = Mat4::from_rotation_z(-frame.roll.to_radians()) * view.view;
+        }
+        ViewSet::single(view)
     }
     /// The view frustum `render` will cull with, for culling geometry built
     /// before the frame (entities, block entities) the same way.
