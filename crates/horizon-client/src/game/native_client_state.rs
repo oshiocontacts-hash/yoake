@@ -68,6 +68,7 @@ pub(super) struct ClientState {
 impl ClientState {
     pub(super) fn enter(&mut self, entry: &PendingWorldEntry) {
         match entry {
+            PendingWorldEntry::Replay { title, .. } => self.enter_replay(title),
             PendingWorldEntry::Local { folder, .. } => self.enter_singleplayer(folder),
             PendingWorldEntry::Server { address, lan, .. } => {
                 self.pending_world = Some(server_world(address, *lan));
@@ -206,6 +207,23 @@ mod tests {
                 folder: "WebScreen World".to_owned(),
             })
         );
+    }
+
+    #[test]
+    fn replay_key_becomes_visible_only_after_a_level_is_loaded() {
+        let mut state = ClientState::default();
+        state.enter(&PendingWorldEntry::Replay {
+            title: "Fixture".into(),
+            name: "ReplayViewer".into(),
+        });
+        assert_eq!(state.world_key(true, false), None);
+        state.level_loaded();
+        assert_eq!(
+            state.world_key(true, false),
+            Some(NativeClientWorld::Replay { title: "Fixture".into() })
+        );
+        state.level_unloaded();
+        assert_eq!(state.world_key(true, false), None);
     }
 
     #[test]

@@ -44,6 +44,7 @@ pub use crate::game::{
 };
 pub use crate::game::{NativeBlast, NativeDamage, NativeDamageActor, NativeDamageKind};
 pub use crate::game::{NativeChatRecipients, NativeCrosshairEntity};
+pub use crate::game::{LocalPlayerSnapshot, SnapshotReport};
 pub use crate::gfx::native_render::{
     BlockSpriteArrays, RenderHooks, RenderNeeds, RenderNeedsEvent, WorldDrawn, WorldDrawnEvent,
     wgpu,
@@ -67,6 +68,7 @@ pub use crate::native_audio_stream::{
 };
 pub use crate::native_mic::NativeMicId;
 pub use crate::particles::{ParticleOptions, ParticleType};
+pub use crate::pose::Pose as PlayerPose;
 pub use crate::recipe_book::RecipeBookCategory;
 pub use crate::text::Text;
 /// The matrix type of the equipment-draw hooks, re-exported so mods need no own glam.
@@ -77,7 +79,9 @@ pub use horizon_core::{
     position::BlockPos,
     random::{LegacyRandom, RandomSource},
 };
+pub use horizon_protocol::{connection::Pipe, item::Stack};
 pub use horizon_world::consumable::UseAnimation;
+pub use horizon_world::identifier::Identifier;
 pub use horizon_world::player_inventory::EquipmentSlot;
 pub use horizon_world::{
     attachments::{

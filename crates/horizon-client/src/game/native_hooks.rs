@@ -898,11 +898,12 @@ use horizon_client::mod_api::{
     RecipeBookCategory, ServerTickPhase, WorldPhase,
 };
 use horizon_client::mod_api::{AttachmentResult, Attachments, Holder, Suggestion};
+use horizon_client::mod_api::{LocalPlayerSnapshot, NetState, SnapshotReport};
 pub(crate) use horizon_client::mod_api::{
     NativeBlockRim, NativeColoredLight, NativeLootDrops, NativeMinimap, NativeMod,
     NativePanelEvent, NativeScreen, NativeScreenView, NativeStack, NativeZoom,
 };
-use horizon_client::mod_api::{NativeChatRecipients, NativeCrosshairEntity};
+use horizon_client::mod_api::{NativeChatRecipients, NativeCrosshairEntity, Pipe};
 use horizon_client::{
     atlas_sources::qualified,
     biome::{BiomeColors, SpawnEntry},
@@ -2151,6 +2152,11 @@ pub(crate) fn net_session_ended(session: u64, reason: &str) {
 
 /// The hook points. Each does nothing in Horizon.
 impl Game<'_> {
+    /// Read the completed client-player tick. API @API:replay_local_player@.
+    pub(super) fn native_local_player_tick_end(&mut self) {
+        mod_api::dispatch_local_player_tick_end(self, mod_api::mods());
+    }
+
     /// Request per-frame camera overrides. API @API:replay_camera_override@.
     pub(super) fn native_camera_override_listened(listened: &mut bool) {
         mod_api::dispatch_camera_override_listened(mod_api::mods(), listened);
@@ -9253,6 +9259,24 @@ impl Game<'_> {
     /// Queue a leave from a loaded playing session. API @API:client_session_requests@.
     pub(super) fn native_request_leave(&mut self) -> bool {
         super::native_session::request_leave(self)
+    }
+
+    /// Join an offline memory-pipe replay from its owner's mod screen. API @API:replay_join@.
+    pub(super) fn native_request_join_replay(&mut self, pipe: Pipe, title: &str) -> bool {
+        super::native_session::request_join_replay(self, pipe, title)
+    }
+
+    /// Read detached player state on the game thread. API @API:replay_local_player@.
+    pub(super) fn native_local_player_snapshot(&self) -> Option<LocalPlayerSnapshot> {
+        self.local_player_snapshot()
+    }
+
+    /// Write a synchronous replay checkpoint on the game thread. API @API:replay_snapshot@.
+    pub(super) fn native_snapshot_client_world(
+        &mut self,
+        out: &mut dyn FnMut(NetState, i32, &[u8]),
+    ) -> SnapshotReport {
+        self.snapshot_client_world(out)
     }
 
     /// Read public account identity without credentials. API @API:client_account@.

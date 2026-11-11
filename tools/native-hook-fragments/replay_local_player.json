@@ -1,0 +1,20 @@
+{
+  "hooks": [
+    {
+      "name": "local_player_tick_end",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_local_player_tick_end",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": { "contract": "listen" }
+    }
+  ],
+  "helpers": [
+    {
+      "name": "local_player_snapshot",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_local_player_snapshot",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "on-demand local-player state after the client player and its model have ticked.",
+  "doc_summary": "read-only network-shaped local player snapshots for replay and avatar mods; API @API:replay_local_player@."
+}

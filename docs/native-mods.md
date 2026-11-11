@@ -3921,6 +3921,74 @@ dispatch_use_item_on(&mut Stone, &mods, &stack, [0, 64, 0], [0, 1, 0], &mut clai
 assert!(claimed);
 ```
 
+### Local player snapshots (replay and avatar mods)
+
+API `@API:replay_local_player@` exposes
+`local_player_snapshot() -> Option<LocalPlayerSnapshot>` and the client-only
+`local_player_tick_end` callback. The integrated path calls this after
+`tick_world` (including the player's hand and model update); the remote path
+calls it after `tick_remote_level` and the player's rockets. Use this callback,
+not `tick`, for a consistent post-player view on both paths. It is a placeholder
+until the lead regenerates the hook catalog. With no subscriber it does nothing;
+there is no per-tick snapshot cache or equipment conversion.
+
+The detached snapshot includes identity, position and all four rotations, pose,
+movement flags, newly started swings and elapsed use ticks/hands, vehicle, skin parts, handedness,
+dimension and game mode. It also includes water/eye-water, flight, health,
+optional maximum health and food for Kigurumi's local-player view. `PlayerPose`
+is the exported pose enum. Equipment uses `mod_api::Stack` in main/off/head/chest/
+legs/feet order, with connection registry ids and component patches. `Hand`,
+`Identifier`, `LocalPlayerSnapshot` and `Stack` are exported from `mod_api`.
+
+This is a game-thread, on-demand read. It returns `None` without a loaded client
+world/player/identity, or if integrated registry data cannot be read. Integrated
+equipment conversion may load/cache the world's synchronized registry data on
+the first call; remote conversion preserves received component patches. The
+helper does not tick the player or change inventory, animation or input state.
+`swing` is `Some((hand, 1))` only at the first post-player tick of a swing;
+subsequent animation ticks return `None` rather than restarting it every tick.
+
+### Client-world replay checkpoints
+
+API `@API:replay_snapshot@` exposes
+`snapshot_client_world(out: &mut dyn FnMut(NetState, i32, &[u8])) -> SnapshotReport`.
+Call it on the game thread, normally in `local_player_tick_end`. The callback
+receives the decoded packet id and body (without framing or compression), in
+login, configuration, then play order. The body is borrowed only during that
+callback; copy it to retain it. `SnapshotReport`, `NetState` and the packet-shaped
+`Stack` are exported from `mod_api`; `written` counts callback invocations and
+`missing: Vec<String>` describes omissions rather than promising a complete save.
+
+Configuration and entity/player metadata retention is opt-in: an RH-1
+`net_frame_received` listener enables it at configuration entry, or the first
+RH-9 call arms it for subsequent connections. To obtain a complete remembered
+configuration, prime RH-9 before joining (the call returns zero packets and a
+no-world explanation). With neither consumer there is no retained packet
+allocation or copy. A first call made inside an existing world reconstructs the
+available registries, item/dialog tags and features, and uses replay defaults
+for login-only fields it cannot recover; these limitations are reported.
+
+Both integrated pipe sessions and remote sessions use the client's chunk
+storage, block entities and light through `ChunkEncoder::encode`, not the
+integrated-server world encoder. The checkpoint writes offline login and
+configuration, play login, player info, loaded chunks/light, remembered entity
+spawns/data/attributes/equipment/passengers, weather, clocks, border, and the
+local position/velocity, health, experience, abilities, inventory and held slot.
+Secure chat sessions are deliberately not reproduced. Replay producers still
+answer the normal handshake acknowledgements; see `request_join_replay` below.
+
+Check `missing` before using a checkpoint as a seek target. Entity spawns and
+metadata that predate retention cannot all be recovered; effects, transient
+animations/interpolation history, scoreboard/teams/boss bars, maps/recipes/
+advancements/commands, open non-inventory menus and arbitrary custom payload
+state are not serialized. A missing abilities packet, clock id or passenger
+list is reported as well. Inactive clocks keep their last received values.
+The legacy non-pipe world path reports unsupported registry/login state.
+Nothing is saved to disk. This is synchronous and allocates/encodes every
+loaded chunk and retained entity in one call: expect a game-thread stall and
+memory proportional to the world state; do not invoke it every tick. It is a
+checkpoint plus subsequent RH-1 frames, not a replacement for those frames.
+
 ### Adding a hook
 
 A new hook needs its fragment in `tools/native-hook-fragments/` with its `mod_api` entry (for example
@@ -4096,13 +4164,27 @@ Open screens, the focused chat, sleep and debug overlays remain available. The
 first-person hand is independent; use the existing `native_render_hand` hook to
 hide it. Mods that hide the HUD should restore it when leaving replay or unloading.
 
-# Replay session planning
+# Replay joining
 
-Replay joining is not implemented yet. A replay mod can create the intended
-transport with `horizon_protocol::connection::Pipe::pair()`: it retains one end
-for producing the replay stream and will pass the other to the future replay
-join API. The two ends are interchangeable. Creating a pipe alone does not join
-a world or change the current screen.
+API @API:replay_join@ adds `request_join_replay(pipe: Pipe, title: &str) -> bool`
+to the client `Host`. `mod_api::Pipe` is the protocol's owned, bidirectional
+in-memory transport implementing `Read + Write`. Create interchangeable ends
+with `let (client, producer) = Pipe::pair()`, move `producer` onto the mod's
+worker thread, and pass `client` while the requesting mod's title screen is open.
+The worker must consume the client's handshake, login and configuration replies
+while writing framed protocol packets (the protocol `Connection::local` adapter
+is convenient). `true` queues entry; it does not mean login has finished. Busy,
+non-client, in-world, or non-mod-screen requests return `false` and drop the pipe.
+
+The connection is offline, refuses encryption and locally discards outgoing chat
+and chat commands. It does not use account authentication, profile-key fetching,
+server-list entries, multiplayer warnings, transfers, or remote resource packs.
+It has no integrated server and never saves the replay world. Once a level loads,
+`client_world_key()` returns `NativeClientWorld::Replay { title }`. Pause-menu
+disconnect and producer EOF perform ordinary level cleanup, then reopen the
+requesting owner's screen through `mod_screen_open_anywhere`, without reconnect
+UI. The mod must remain installed and its screen must be eligible to open.
+Creating a pipe alone does not join a world or change the screen.
 
 # Camera and collision reads
 

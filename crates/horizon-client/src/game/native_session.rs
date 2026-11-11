@@ -13,6 +13,7 @@ struct Connection {
 enum Request {
     OpenWorld(String),
     Connect(String),
+    Replay(String),
     Leave,
 }
 
@@ -20,6 +21,7 @@ enum Request {
 struct RequestContext {
     client: bool,
     title: bool,
+    mod_screen: bool,
     playing: bool,
     busy: bool,
 }
@@ -30,6 +32,7 @@ impl RequestContext {
             && !self.busy
             && match request {
                 Request::OpenWorld(_) | Request::Connect(_) => self.title,
+                Request::Replay(_) => self.title && self.mod_screen,
                 Request::Leave => self.playing,
             }
     }
@@ -42,9 +45,23 @@ pub(super) struct NativeSession {
     leaving: bool,
     pending: Option<Request>,
     shutting_down: bool,
+    replay_pipe: Option<horizon_protocol::connection::Pipe>,
+    replay_owner: Option<String>,
 }
 
 impl NativeSession {
+    pub(super) fn is_replay(&self) -> bool {
+        self.replay_owner.is_some()
+    }
+
+    pub(super) fn take_replay_pipe(&mut self) -> Option<horizon_protocol::connection::Pipe> {
+        self.replay_pipe.take()
+    }
+
+    pub(super) fn take_replay_owner(&mut self) -> Option<String> {
+        self.replay_owner.take()
+    }
+
     pub(super) fn connecting(&mut self, single_player: bool, address: Option<&str>) {
         self.destination = Some(Connection {
             single_player,
@@ -67,6 +84,8 @@ impl NativeSession {
     fn left(&mut self) -> bool {
         self.destination = None;
         self.pending = None;
+        self.replay_pipe = None;
+        self.replay_owner = None;
         self.leaving = true;
         std::mem::take(&mut self.logged_in)
     }
@@ -89,7 +108,15 @@ impl NativeSession {
 
     fn take_request(&mut self, context: RequestContext) -> Option<Request> {
         let request = self.pending.take()?;
-        (!self.leaving && !self.shutting_down && context.accepts(&request)).then_some(request)
+        if !self.leaving && !self.shutting_down && context.accepts(&request) {
+            Some(request)
+        } else {
+            if matches!(request, Request::Replay(_)) {
+                self.replay_pipe = None;
+                self.replay_owner = None;
+            }
+            None
+        }
     }
 
     fn shutdown(&mut self) -> Option<bool> {
@@ -120,6 +147,14 @@ fn disconnect_claimed(
     claimed
 }
 
+pub(super) fn restore_replay_screen(owner: Option<&str>, open: impl FnOnce(&str)) -> bool {
+    let Some(owner) = owner else {
+        return false;
+    };
+    open(owner);
+    true
+}
+
 // CHECK: Integrate the hook wrappers, exports, and frame/shutdown call sites before stamping.
 impl Game<'_> {
     fn native_request_context(&self) -> RequestContext {
@@ -132,6 +167,7 @@ impl Game<'_> {
             || self.pending_save.is_some();
         RequestContext {
             client: self.options.execution_role.is_client(),
+            mod_screen: self.native_mod_screen().is_some(),
             title: self.title.as_ref().is_some_and(|title| {
                 matches!(
                     &title.mode,
@@ -188,9 +224,17 @@ impl Game<'_> {
                 let name = self.options.player_name();
                 self.connect_server_with_options(&address, &name, None, false)
             }
+            Request::Replay(title) => {
+                let name = self.options.player_name();
+                self.connect_replay(&title, &name)
+            }
             Request::Leave => self.close_world(),
         };
         if let Err(error) = result {
+            if self.native_session.is_replay() {
+                let _ = self.leave_server(Some(error.to_string()));
+                return;
+            }
             if let Some(title) = &mut self.title {
                 title.failed(error.to_string());
             }
@@ -272,6 +316,35 @@ pub(super) fn request_leave(game: &mut Game<'_>) -> bool {
     game.native_session.enqueue(Request::Leave, context)
 }
 
+pub(super) fn request_join_replay(
+    game: &mut Game<'_>,
+    pipe: horizon_protocol::connection::Pipe,
+    title: &str,
+) -> bool {
+    let context = game.native_request_context();
+    if !context.client || !context.title || !context.mod_screen {
+        return false;
+    }
+    let Some(owner) = game.native_mod_screen().map(str::to_owned) else {
+        return false;
+    };
+    if !horizon_protocol::mod_list::native::local()
+        .iter()
+        .any(|entry| entry.id == owner)
+    {
+        return false;
+    }
+    if !game
+        .native_session
+        .enqueue(Request::Replay(title.to_owned()), context)
+    {
+        return false;
+    }
+    game.native_session.replay_pipe = Some(pipe);
+    game.native_session.replay_owner = Some(owner);
+    true
+}
+
 pub(super) fn dispatch_client_shutdown(game: &mut Game<'_>) {
     if !game.options.execution_role.is_client() {
         return;
@@ -304,7 +377,70 @@ mod tests {
     }
 
     #[test]
+    fn replay_requires_the_owners_mod_screen_and_retains_it_until_leave() {
+        let mut session = NativeSession::default();
+        assert!(!session.is_replay());
+        assert!(!session.enqueue(
+            Request::Replay("Fixture".into()),
+            title_context()
+        ));
+        let context = RequestContext {
+            mod_screen: true,
+            ..title_context()
+        };
+        assert!(session.enqueue(Request::Replay("Fixture".into()), context));
+        let (pipe, producer) = horizon_protocol::connection::Pipe::pair();
+        session.replay_pipe = Some(pipe);
+        session.replay_owner = Some("replay".into());
+        assert_eq!(
+            session.take_request(context),
+            Some(Request::Replay("Fixture".into()))
+        );
+        let mut client = super::super::native_client_state::ClientState::default();
+        client.enter_replay("Fixture");
+        client.level_loaded();
+        assert_eq!(
+            client.world_key(true, false),
+            Some(super::super::NativeClientWorld::Replay {
+                title: "Fixture".into(),
+            })
+        );
+        session.connecting(true, None);
+        assert!(session.is_replay());
+        assert!(session.take_replay_pipe().is_some());
+        assert!(session.ready().is_some());
+        let owner = session.take_replay_owner();
+        let mut opened = None;
+        assert!(restore_replay_screen(owner.as_deref(), |id| {
+            opened = Some(id.to_owned());
+        }));
+        assert_eq!(opened.as_deref(), Some("replay"));
+        assert!(session.left());
+        session.finish_leave();
+        assert!(!session.is_replay());
+        client.level_unloaded();
+        assert_eq!(client.world_key(true, false), None);
+        drop(producer);
+    }
+
+    #[test]
+    fn invalidated_replay_request_releases_its_pipe_and_owner() {
+        let (pipe, producer) = horizon_protocol::connection::Pipe::pair();
+        let mut session = NativeSession {
+            pending: Some(Request::Replay("Fixture".into())),
+            replay_pipe: Some(pipe),
+            replay_owner: Some("replay".into()),
+            ..Default::default()
+        };
+        assert_eq!(session.take_request(playing_context()), None);
+        assert!(!session.is_replay());
+        assert!(session.take_replay_pipe().is_none());
+        drop(producer);
+    }
+
+    #[test]
     fn no_mod_keeps_disconnect_unclaimed_and_has_no_requests() {
+        assert!(!restore_replay_screen(None, |_| panic!("unexpected screen")));
         assert!(!disconnect_claimed(
             "Disconnected",
             None,
