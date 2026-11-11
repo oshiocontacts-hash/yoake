@@ -428,6 +428,72 @@ fn draw_quads_with(
     }
 }
 
+pub fn draw_native(
+    vertices: &[crate::mesher::Vertex],
+    batch: &mut HudBatch,
+    x: f32,
+    y: f32,
+    oversized: bool,
+    lights: (Vec3, Vec3),
+    glint: Option<&Glint>,
+) {
+    let quads: Vec<_> = vertices
+        .chunks_exact(4)
+        .map(|vertices| {
+            let mut color = vertices[0].color;
+            let normal = vertices[0].normal;
+            if normal[3] == 127 {
+                let normal = Vec3::new(
+                    f32::from(normal[0]),
+                    f32::from(normal[1]),
+                    f32::from(normal[2]),
+                ) / 127.0;
+                let light = crate::block_entity_render::diffuse(normal, lights);
+                let channel = |shift: u32| (((color >> shift & 0xff) as f32 * light) as u32) << shift;
+                color = color & 0xff00_0000 | channel(0) | channel(8) | channel(16);
+            }
+            ItemQuad {
+                pos: std::array::from_fn(|index| Vec3::from_array(vertices[index].pos)),
+                uv: std::array::from_fn(|index| vertices[index].uv),
+                foil_uv: std::array::from_fn(|index| vertices[index].uv),
+                normal: Vec3::ZERO,
+                color,
+                foil: Foil::None,
+                light_emission: 0,
+                cull_back: false,
+                translucent: false,
+                oit: false,
+            }
+        })
+        .collect();
+    let rect = if oversized {
+        [f32::NEG_INFINITY, f32::NEG_INFINITY, f32::INFINITY, f32::INFINITY]
+    } else {
+        [x, y, x + 16.0, y + 16.0]
+    };
+    for face in depth::sort(&quads) {
+        let color = quads[face.quad].color;
+        let points: Vec<_> = face
+            .corners
+            .iter()
+            .map(|vertex| Point {
+                p: vertex.pos.truncate(),
+                uv: vertex.uv,
+                glint_uv: vertex.glint_uv,
+            })
+            .collect();
+        for index in 1..points.len().saturating_sub(1) {
+            let fan = clip_triangle([points[0], points[index], points[index + 1]], rect);
+            if fan.len() >= 3 {
+                emit(batch, &fan, |_| color, None);
+                if glint.is_some() {
+                    emit(batch, &fan, |_| color, glint);
+                }
+            }
+        }
+    }
+}
+
 /// `PictureInPictureRenderer.prepare` for the loom's 20x40 result rectangle
 /// at `(x0, y0)` (`translate(w / 2, h)`, `scale(16, 16, -16)`, one texel per
 /// GUI pixel), then `GuiBannerResultRenderer.renderToTexture`'s

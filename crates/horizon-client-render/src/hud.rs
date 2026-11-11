@@ -543,10 +543,8 @@ fn walked_minecraft_texture(name: &str) -> bool {
         .any(|folder| name.starts_with(folder) && name.as_bytes().get(folder.len()) == Some(&b'/'))
 }
 
-/// Sprites the atlas definitions (`atlases/*.json`) add beyond the texture
-/// files already packed: generated ones (`paletted_permutations` such as the
-/// armour trim sprites, `unstitch` regions) and files listed under another id,
-/// such as other namespaces' item textures; and the animated ones' names.
+/// Sprites added by atlas definitions and content-mod item textures beyond the
+/// files already packed, along with the animated ones' names.
 fn atlas_sprites(root: &Path, packed: &[PackedImage]) -> (Vec<PackedImage>, Vec<String>) {
     use crate::atlas_sources::{self, SpriteOrigin};
     let have: std::collections::HashSet<&str> = packed.iter().map(|i| i.0.as_str()).collect();
@@ -587,6 +585,27 @@ fn atlas_sprites(root: &Path, packed: &[PackedImage]) -> (Vec<PackedImage>, Vec<
             names[slot].1.push((order, origin));
             order += 1;
         }
+    }
+    let content_namespaces: HashSet<String> = horizon_items::content_namespaces::namespaces(root)
+        .into_iter()
+        .collect();
+    for texture in &textures {
+        let Some((namespace, path)) = texture.split_once(':') else {
+            continue;
+        };
+        if namespace == "minecraft"
+            || !content_namespaces.contains(namespace)
+            || !path.starts_with("item/")
+            || have.contains(texture.as_str())
+        {
+            continue;
+        }
+        let slot = *slots.entry(texture.clone()).or_insert_with(|| {
+            names.push((texture.clone(), Vec::new()));
+            names.len() - 1
+        });
+        names[slot].1.push((order, SpriteOrigin::File(texture.clone())));
+        order += 1;
     }
     let load = |texture: &str, directory: &str| {
         decode(&atlas_sources::texture_path(root, texture, directory)).ok()
@@ -3442,7 +3461,7 @@ mod tests {
         atlas.pixels[at..at + 4].try_into().unwrap()
     }
     #[test]
-    fn content_mod_entity_textures_pack_under_their_namespace() {
+    fn content_mod_item_and_entity_textures_pack_under_their_namespace() {
         let root = std::env::temp_dir().join(format!("horizon-atlas-equip-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let equipment = root.join("assets/gems/textures/entity/equipment/humanoid");
@@ -3472,8 +3491,80 @@ mod tests {
         let rect = atlas.sprites["gems:entity/machine/cog"];
         assert_eq!(rect.texels((atlas.width, atlas.height)), (32, 32));
         assert_eq!(texel_at(&atlas, rect, 0, 0), [0, 0, 200, 255]);
-        // Only entity textures: the mods' others reach the atlas through atlas definitions.
+        let rect = atlas.sprites["gems:item/ruby"];
+        assert_eq!(texel_at(&atlas, rect, 0, 0), [0, 200, 0, 255]);
+        fs::remove_dir_all(&root).unwrap();
+    }
+    #[test]
+    fn item_textures_without_content_namespace_are_not_implicitly_packed() {
+        let root = std::env::temp_dir()
+            .join(format!("horizon-atlas-unowned-item-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let item = root.join("assets/gems/textures/item");
+        fs::create_dir_all(&item).unwrap();
+        write_strip(&item.join("ruby.png"), 16, 16, &[[0, 200, 0, 255]], None);
+
+        let atlas = HudAtlas::build(&root).unwrap();
         assert!(!atlas.sprites.contains_key("gems:item/ruby"));
+        fs::remove_dir_all(&root).unwrap();
+    }
+    #[test]
+    fn content_mod_item_fallback_preserves_declared_sprite_precedence() {
+        let root = std::env::temp_dir()
+            .join(format!("horizon-atlas-item-priority-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let atlases = root.join("assets/minecraft/atlases");
+        let item = root.join("assets/gems/textures/item");
+        fs::create_dir_all(&atlases).unwrap();
+        fs::create_dir_all(&item).unwrap();
+        fs::write(
+            root.join(horizon_items::content_namespaces::MARKER),
+            br#"["gems"]"#,
+        )
+        .unwrap();
+        fs::write(
+            atlases.join("items.json"),
+            r#"{"sources":[{"type":"single","resource":"gems:item/source","sprite":"gems:item/ruby"}]}"#,
+        )
+        .unwrap();
+        write_strip(&item.join("source.png"), 16, 16, &[[200, 0, 0, 255]], None);
+        write_strip(&item.join("ruby.png"), 16, 16, &[[0, 200, 0, 255]], None);
+
+        let atlas = HudAtlas::build(&root).unwrap();
+        let rect = atlas.sprites["gems:item/ruby"];
+        assert_eq!(texel_at(&atlas, rect, 0, 0), [200, 0, 0, 255]);
+        fs::remove_dir_all(&root).unwrap();
+    }
+    #[test]
+    fn content_mod_nested_item_texture_keeps_its_animation() {
+        let root = std::env::temp_dir()
+            .join(format!("horizon-atlas-mod-animated-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let item = root.join("assets/gems/textures/item/nested");
+        fs::create_dir_all(&item).unwrap();
+        fs::write(
+            root.join(horizon_items::content_namespaces::MARKER),
+            br#"["gems"]"#,
+        )
+        .unwrap();
+        write_strip(
+            &item.join("ruby.png"),
+            16,
+            32,
+            &[[0, 200, 0, 255], [200, 0, 0, 255]],
+            Some(r#"{"animation":{"frametime":3}}"#),
+        );
+
+        let atlas = HudAtlas::build(&root).unwrap();
+        let rect = atlas.sprites["gems:item/nested/ruby"];
+        assert_eq!(rect.texels((atlas.width, atlas.height)), (16, 16));
+        assert_eq!(texel_at(&atlas, rect, 0, 0), [0, 200, 0, 255]);
+        let (_, animation) = atlas
+            .sprite_animations
+            .iter()
+            .find(|(sprite, _)| sprite.u0 == rect.u0 && sprite.v0 == rect.v0)
+            .unwrap();
+        assert_eq!(animation.frame_count(), 2);
         fs::remove_dir_all(&root).unwrap();
     }
     /// OptiFine random entity variants outside `textures/` pack under the names

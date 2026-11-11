@@ -372,24 +372,55 @@ impl Game<'_> {
         if state.hdr_tier > 0 && self.renderer.as_ref().is_some_and(|r| r.hdr_on()) {
             state.hdr_light = self.luminance().of(&stack.item);
         }
+        if self.native_item_render_claimed(&stack.item) {
+            state.native_stack = Some(std::sync::Arc::new(stack.clone()));
+            state.native_owner = owner.cloned().map(std::sync::Arc::new);
+            state.native_offhand = matches!(hand, CitHand::Off);
+        }
         state
     }
     /// `GuiGraphics.renderItem(player, level, stack, x, y, 0)`.
     pub(super) fn draw_item_model(&self, batch: &mut HudBatch, stack: &ItemStack, x: f32, y: f32) {
         let owner = self.player_owner(Some(stack));
         let state = self.resolve_item(stack, DisplayContext::Gui, Some(&owner), 0);
-        item_render::gui::draw(
-            &state,
-            &self.pack.item_renderer,
-            &self.gui.atlas.sprites,
-            &self.item_host(),
-            batch,
-            x,
-            y,
-            self.glint_frame.millis / 1000.0,
-            self.glint_frame.speed,
-            self.glint_frame.alpha,
-        );
+        let native = state.native_stack.as_ref().and_then(|_| {
+            let pose = glam::Mat4::from_translation(glam::Vec3::new(x + 8.0, y + 8.0, 0.0))
+                * glam::Mat4::from_scale(glam::Vec3::new(16.0, -16.0, 16.0));
+            let lights = if state.uses_block_light() {
+                item_render::gui::items_3d_lights()
+            } else {
+                item_render::gui::items_flat_lights()
+            };
+            self.native_item_geometry(&state, pose, 0x00f0_00f0, lights)
+                .map(|(drawn, vertices)| (drawn, vertices, lights))
+        });
+        if super::native_item_render::keeps_vanilla(native.as_ref().map(|(drawn, _, _)| *drawn)) {
+            item_render::gui::draw(
+                &state,
+                &self.pack.item_renderer,
+                &self.gui.atlas.sprites,
+                &self.item_host(),
+                batch,
+                x,
+                y,
+                self.glint_frame.millis / 1000.0,
+                self.glint_frame.speed,
+                self.glint_frame.alpha,
+            );
+        }
+        if let Some((_, vertices, lights)) = native {
+            let glint = self.has_foil(stack).then(|| self.glint_frame.glint(8.0)).flatten();
+            batch.glint_alpha = self.glint_frame.alpha;
+            item_render::gui::draw_native(
+                &vertices,
+                batch,
+                x,
+                y,
+                state.oversized_in_gui,
+                lights,
+                glint.as_ref(),
+            );
+        }
     }
     /// The glint clock, options and sprite for this frame: read once per
     /// frame, not per item (`GameRenderer.extractOptions`).
@@ -435,20 +466,27 @@ impl Game<'_> {
         lights: (glam::Vec3, glam::Vec3),
         out: &mut Vec<Vertex>,
     ) {
-        let mut sink = WorldSink {
-            out,
-            light: item_hdr_light(state, light),
-            lights: (state.hdr_light == 0).then_some(lights),
-            glint: self.glint(),
-            tier: state.hdr_tier,
-        };
-        state.submit(
-            &self.pack.item_renderer,
-            &self.gui.atlas.sprites,
-            &self.item_host(),
-            pose,
-            &mut sink,
-        );
+        let native = self.native_item_geometry(state, pose, item_hdr_light(state, light), lights);
+        if super::native_item_render::keeps_vanilla(native.as_ref().map(|(drawn, _)| *drawn)) {
+            let mut sink = WorldSink {
+                out,
+                light: item_hdr_light(state, light),
+                lights: (state.hdr_light == 0).then_some(lights),
+                glint: self.glint(),
+                tier: state.hdr_tier,
+            };
+            state.submit(
+                &self.pack.item_renderer,
+                &self.gui.atlas.sprites,
+                &self.item_host(),
+                pose,
+                &mut sink,
+            );
+        }
+        if let Some((_, mut vertices)) = native {
+            self.native_item_glint(state, &mut vertices);
+            out.extend(vertices);
+        }
     }
     /// [`Self::submit_item_world`] without the level's diffuse shading.
     pub(super) fn submit_item_unlit(
@@ -458,20 +496,50 @@ impl Game<'_> {
         light: u32,
         out: &mut Vec<Vertex>,
     ) {
-        let mut sink = WorldSink {
-            out,
-            light: item_hdr_light(state, light),
-            lights: None,
-            glint: self.glint(),
-            tier: state.hdr_tier,
+        let lights = diffuse_lights(self.dim == Dim::Nether);
+        let native = self.native_item_geometry(state, pose, item_hdr_light(state, light), lights);
+        if super::native_item_render::keeps_vanilla(native.as_ref().map(|(drawn, _)| *drawn)) {
+            let mut sink = WorldSink {
+                out,
+                light: item_hdr_light(state, light),
+                lights: None,
+                glint: self.glint(),
+                tier: state.hdr_tier,
+            };
+            state.submit(
+                &self.pack.item_renderer,
+                &self.gui.atlas.sprites,
+                &self.item_host(),
+                pose,
+                &mut sink,
+            );
+        }
+        if let Some((_, mut vertices)) = native {
+            self.native_item_glint(state, &mut vertices);
+            out.extend(vertices);
+        }
+    }
+    fn native_item_glint(&self, state: &ItemRenderState, vertices: &mut [Vertex]) {
+        let Some(stack) = state.native_stack.as_ref() else {
+            return;
         };
-        state.submit(
-            &self.pack.item_renderer,
-            &self.gui.atlas.sprites,
-            &self.item_host(),
-            pose,
-            &mut sink,
-        );
+        if !self.has_foil(stack) {
+            return;
+        }
+        let Some(glint) = self.glint() else {
+            return;
+        };
+        for vertex in vertices {
+            let overlay = match vertex.layer & 0xffff {
+                0 => 7,
+                horizon_client::gfx::TRANSLUCENT_ITEM_OVERLAY => {
+                    horizon_client::gfx::TRANSLUCENT_GLINT_ITEM_OVERLAY
+                }
+                _ => continue,
+            };
+            vertex.layer = (vertex.layer & !0xffff) | overlay;
+            vertex.glint_uv = glint.uv(vertex.uv);
+        }
     }
     /// [`Self::submit_item_lit`] of `state` under each of `poses` on the GPU path: the mark
     /// before its draws and their bounds, or `None` (nothing drawn) when the state cannot
@@ -506,6 +574,9 @@ impl Game<'_> {
         lights: (glam::Vec3, glam::Vec3),
         skin: &mut horizon_client::mobs::skin::Skin,
     ) -> bool {
+        if state.native_stack.is_some() {
+            return false;
+        }
         let sink = (
             item_hdr_light(state, light),
             (state.hdr_light == 0).then_some(lights),

@@ -199,6 +199,10 @@ pub struct LayerRender {
 #[derive(Clone, Debug)]
 pub struct ItemRenderState {
     pub display: DisplayContext,
+    pub native_stack: Option<Arc<crate::items::ItemStack>>,
+    pub native_owner: Option<Arc<OwnerState>>,
+    pub native_offhand: bool,
+    pub native_item_display: bool,
     pub layers: Vec<LayerRender>,
     pub oversized_in_gui: bool,
     pub animated: bool,
@@ -212,7 +216,7 @@ pub struct ItemRenderState {
 }
 impl ItemRenderState {
     pub fn is_empty(&self) -> bool {
-        self.layers.is_empty()
+        self.layers.is_empty() && self.native_stack.is_none()
     }
     /// `usesBlockLight` of the first layer (GUI lighting choice).
     pub fn uses_block_light(&self) -> bool {
@@ -886,6 +890,10 @@ impl ItemRenderer {
             .collect();
         ItemRenderState {
             display,
+            native_stack: None,
+            native_owner: None,
+            native_offhand: false,
+            native_item_display: false,
             layers,
             oversized_in_gui: resolved.oversized_in_gui,
             animated,

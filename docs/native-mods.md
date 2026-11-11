@@ -45,6 +45,70 @@ Use `"property": "example:charged"` with both `on_true` and `on_false` in the it
 `minecraft:condition` node. Custom special model renderers are not supplied by this hook.
 Bundles need `"hooks": @API:item_model_property@` once this pending hook is stamped.
 
+## Items that draw themselves
+
+Client mods can supply geometry for selected items through three hooks:
+
+```rust,ignore
+native_item_render_listened(listened: &mut bool)
+native_item_render_claims(item: &str, claimed: &mut bool)
+native_item_render(stack: &NativeItemRenderStack, context: NativeItemContext,
+    holder: Option<NativeItemHolder>, draw: &mut NativeItemDraw, drawn: &mut bool)
+```
+
+Set `listened` when the mod uses this facility, then set `claimed` for each item ID it handles.
+Answers are cached per ID and cleared on resource reload or when listeners change. Without a
+listener, the claim check does not allocate or look up an item ID. `drawn` starts false: leave it
+false to keep the vanilla item model beneath the submitted geometry, or set it true to replace the
+model. GUI count, durability, and cooldown decorations are drawn separately. Native geometry gets
+the normal glint layer when the stack has foil, but its glint coordinates are an approximation.
+
+`NativeItemRenderStack` is the existing `ItemStack`: it exposes the item ID, count, damage, and
+`extra` stack data. `NativeItemContext` distinguishes `FirstPersonRight`, `FirstPersonLeft`,
+`ThirdPersonRight`, `ThirdPersonLeft`, `Gui`, `Ground`, `Fixed`, `Head`, `ItemDisplay`, `OnShelf`,
+and `None`. Item displays use `ItemDisplay` regardless of their selected model transform.
+`NativeItemHolder` is optional; when available it carries `is_local_player`, `offhand`,
+`using_item`, `use_ticks`, and `partial_tick`. Its `entity_id` and `swing_progress` are currently
+unavailable. `NativeItemDraw` is the block-entity draw interface: its pose stack and the host's
+`draw_quad`, `draw_cube`, `draw_block`, and `draw_item` helpers are shared with block-entity
+renderers. A nested `draw_item` uses the vanilla item model, without recursively invoking this hook.
+GUI geometry goes through the 3D-in-slot renderer and is clipped to the slot unless the model is
+marked oversized. The helpers use the client atlas, including content-mod item and block sprites.
+Filled maps rendered in item frames and the superflat setup screen use separate rendering paths
+and do not invoke this hook. Geometry submitted through an otherwise unlit item path currently
+receives diffuse lighting, and GUI conversion does not preserve every world-material property.
+
+For animation, `draw.game_time` is a monotonic client tick count and `draw.partial` is the current
+partial tick. Both pause with the client. For example, with `example:item/spinner` in the atlas:
+
+```rust,ignore
+fn item_render_listened(&self, _host: &dyn Host, event: &mut ItemRenderListenedEvent) {
+    event.listened = true;
+}
+
+fn item_render_claims(&self, _host: &dyn Host, event: &mut ItemRenderClaimsEvent<'_>) {
+    if event.item == "example:spinner" {
+        event.claimed = true;
+    }
+}
+
+fn item_render(&self, host: &dyn Host, event: &mut ItemRenderEvent<'_>) {
+    if event.stack.item.as_ref() != "example:spinner" {
+        return;
+    }
+    let face = CubeFace { sprite: "example:item/spinner", uv: None };
+    let angle = (event.draw.game_time as f32 + event.draw.partial) * 9.0;
+    event.draw.push();
+    event.draw.translate([-0.5, -0.5, -0.5]);
+    event.draw.rotate_about([0.0, 1.0, 0.0], angle, [0.5, 0.5, 0.5]);
+    event.drawn = host.draw_cube(event.draw, [0.0; 3], [16.0; 3], [Some(face); 6], 0xFF_FFFF);
+    event.draw.pop();
+}
+```
+
+`Host`, the event types, `CubeFace`, and the item types are exported by `horizon_client::mod_api`.
+Bundles need `"hooks": @API:item_render@` once the new hooks are stamped.
+
 ## Item frame rendering
 
 `native_render_item_in_frame(entity_id, pos, stack, canceled)` runs before a visible item frame draws its item or map, including glow and invisible frames. Set `canceled` to hide the item without hiding the frame. Bundles need "hooks": @API:render_item_in_frame@.
@@ -823,8 +887,10 @@ its chunk faded in), with the copy the server sent (`native_block_entity_update_
 under `draw`'s pose stack (`push`, `pop`, `translate`, `rotate_about`, `scale`, in blocks from the block's corner, as
 vanilla's `PoseStack`): `native_draw_quad` (four corners and a sprite's UVs), `native_draw_cube` (a model element's box,
 its faces baked as a model's are; `CubeFace` is in `super::native_block_entity_draw`) and `native_draw_block` (a block
-state's model, as `submitBlockModel`: a moving part is often a block of the mod's own). Sprites are the atlas's:
-`<ns>:block/...` and `block/...`, and a content mod's `assets/<ns>/textures/entity/` as `<ns>:entity/...`. Culling uses the bounds
+state's model, as `submitBlockModel`: a moving part is often a block of the mod's own). Sprites are the shared atlas's:
+`<ns>:block/...` and `block/...`, and a content mod's `assets/<ns>/textures/entity/` and `textures/item/` as
+`<ns>:entity/...` and `<ns>:item/...`. Item textures are included even without an atlas definition; a declared
+sprite takes precedence. Culling uses the bounds
 `native_block_entity_render_bounding_box` gives (NeoForge's `getRenderBoundingBox`): the block with a block of margin
 unless the mod widens them, or never culled when a bound is infinite. Both run every frame for every one in view: keep
 them cheap. Bundles that use them need `"hooks": 71`.
