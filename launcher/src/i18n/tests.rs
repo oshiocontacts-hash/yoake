@@ -157,6 +157,34 @@ fn every_language_has_every_string_the_code_asks_for() {
 }
 
 #[test]
+fn every_language_has_yoake_launcher_update_strings() {
+    let keys = [
+        "Update launcher",
+        "View on portal",
+        "Check for launcher updates",
+        "Downloading launcher update...",
+        "The game keeps running while the launcher restarts.",
+    ];
+    for language in Language::ALL
+        .into_iter()
+        .filter(|language| *language != Language::English)
+    {
+        let table: HashMap<String, String> = serde_json::from_str(language.source())
+            .unwrap_or_else(|error| panic!("lang/{}.json: {error}", language.code()));
+        for key in keys {
+            let translation = table
+                .get(key)
+                .unwrap_or_else(|| panic!("lang/{}.json lacks {key}", language.code()));
+            if language == Language::Japanese {
+                assert_ne!(translation, key, "lang/{}.json", language.code());
+            } else {
+                assert_eq!(translation, key, "lang/{}.json", language.code());
+            }
+        }
+    }
+}
+
+#[test]
 fn the_system_language_is_the_first_one_the_launcher_has() {
     assert_eq!(Language::pick(["pl-PL", "en-US"]), Language::Polish);
     assert_eq!(Language::pick(["ja-JP", "en-US"]), Language::Japanese);

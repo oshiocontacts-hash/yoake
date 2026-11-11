@@ -95,6 +95,10 @@ impl FeedConfig {
             _ => Err(FeedError::Configuration),
         }
     }
+
+    pub(crate) fn public_keys(&self) -> &[PublicKey] {
+        &self.keys
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -368,6 +372,20 @@ pub trait FeedTransport: Send + Sync {
         authorization: Option<&str>,
         limit: usize,
     ) -> Result<Vec<u8>, FeedError>;
+
+    fn open(
+        &self,
+        url: &str,
+        authorization: Option<&str>,
+        limit: u64,
+    ) -> Result<Box<dyn Read + Send>, FeedError> {
+        let limit = usize::try_from(limit).map_err(|_| FeedError::TooLarge)?;
+        Ok(Box::new(io::Cursor::new(self.get(
+            url,
+            authorization,
+            limit,
+        )?)))
+    }
 }
 
 pub struct HttpTransport;
@@ -379,6 +397,23 @@ impl FeedTransport for HttpTransport {
         authorization: Option<&str>,
         limit: usize,
     ) -> Result<Vec<u8>, FeedError> {
+        let mut bytes = Vec::new();
+        self.open(url, authorization, limit as u64)?
+            .take(limit as u64 + 1)
+            .read_to_end(&mut bytes)
+            .map_err(|_| FeedError::Network)?;
+        if bytes.len() > limit {
+            return Err(FeedError::TooLarge);
+        }
+        Ok(bytes)
+    }
+
+    fn open(
+        &self,
+        url: &str,
+        authorization: Option<&str>,
+        _limit: u64,
+    ) -> Result<Box<dyn Read + Send>, FeedError> {
         let builder = ureq::AgentBuilder::new()
             .redirects(0)
             .timeout_connect(Duration::from_secs(15))
@@ -396,16 +431,7 @@ impl FeedTransport for HttpTransport {
         if !(200..300).contains(&response.status()) {
             return Err(status_error(response.status()));
         }
-        let mut bytes = Vec::new();
-        response
-            .into_reader()
-            .take(limit as u64 + 1)
-            .read_to_end(&mut bytes)
-            .map_err(|_| FeedError::Network)?;
-        if bytes.len() > limit {
-            return Err(FeedError::TooLarge);
-        }
-        Ok(bytes)
+        Ok(response.into_reader())
     }
 }
 

@@ -1,9 +1,9 @@
 //! horizon-release-sign: checks a release's signed checksums, and makes new keys
 //! (docs/release-flow.md, "Signed checksums"). Release signing uses tools/ci/sign_release.sh;
-//! the `sign` command is restricted to Yoake indexes.
+//! the `sign` command is restricted to Yoake indexes and launcher releases.
 //!
 //!     horizon-release-sign verify --tag v2026.10.19 [--key <base64>] [--publishing] <folder>
-//!     horizon-release-sign sign --tag yoake-index-v1 --key-file <file> <folder>
+//!     horizon-release-sign sign --tag <yoake-index-v1|yoake-launcher-version> --key-file <file> <folder>
 //!     horizon-release-sign keygen --public-out key.pub | gh secret set RELEASE_SIGNING_KEY --env release
 //!
 //! `verify` checks SHA256SUMS.sig and every file SHA256SUMS lists with the keys built in from
@@ -24,7 +24,7 @@ fn main() -> ExitCode {
         Some("keygen") => keygen(&args[1..]),
         _ => Err(
             "usage: horizon-release-sign verify --tag <tag> [--key <base64>]... [--publishing] \
-             <folder> | sign --tag yoake-index-v1 --key-file <file> <folder> | \
+             <folder> | sign --tag <yoake-index-v1|yoake-launcher-version> --key-file <file> <folder> | \
              keygen --public-out <file>"
                 .into(),
         ),
@@ -40,8 +40,8 @@ fn main() -> ExitCode {
 
 fn sign_folder(args: &[String]) -> Result<(), String> {
     let (tags, rest) = options(args, "--tag");
-    if tags.len() != 1 || tags[0] != "yoake-index-v1" {
-        return Err("sign requires --tag yoake-index-v1".into());
+    if tags.len() != 1 || !allowed_signing_tag(&tags[0]) {
+        return Err("sign requires a Yoake index or launcher release tag".into());
     }
     let (paths, rest) = options(&rest, "--key-file");
     if paths.len() != 1 || rest.len() != 1 {
@@ -60,6 +60,82 @@ fn sign_folder(args: &[String]) -> Result<(), String> {
         .map_err(|e| format!("{SIGNATURE}: {e}"))?;
     println!("{}", key.public_base64());
     Ok(())
+}
+
+fn allowed_signing_tag(tag: &str) -> bool {
+    if tag == "yoake-index-v1" {
+        return true;
+    }
+    let Some(version) = tag.strip_prefix("yoake-launcher-") else {
+        return false;
+    };
+    if version.is_empty() {
+        return false;
+    }
+    let mut build_parts = version.split('+');
+    let without_build = build_parts.next().unwrap_or_default();
+    if let Some(build) = build_parts.next() {
+        if !valid_identifiers(build, false) || build_parts.next().is_some() {
+            return false;
+        }
+    }
+    let (core, prerelease) = without_build
+        .split_once('-')
+        .map_or((without_build, None), |(core, pre)| (core, Some(pre)));
+    if prerelease.is_some_and(|pre| !valid_identifiers(pre, true)) {
+        return false;
+    }
+    let parts: Vec<_> = core.split('.').collect();
+    parts.len() == 3
+        && parts.iter().all(|part| {
+            !part.is_empty()
+                && part.bytes().all(|byte| byte.is_ascii_digit())
+                && (part.len() == 1 || !part.starts_with('0'))
+                && part.parse::<u64>().is_ok()
+        })
+}
+
+fn valid_identifiers(value: &str, prerelease: bool) -> bool {
+    value.split('.').all(|part| {
+        !part.is_empty()
+            && part
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+            && (!prerelease
+                || part.len() == 1
+                || !part.bytes().all(|byte| byte.is_ascii_digit())
+                || !part.starts_with('0'))
+    })
+}
+
+#[cfg(test)]
+mod signing_tag_tests {
+    use super::allowed_signing_tag;
+
+    #[test]
+    fn permits_only_yoake_index_and_launcher_semver_tags() {
+        for tag in [
+            "yoake-index-v1",
+            "yoake-launcher-0.2.0",
+            "yoake-launcher-1.2.3-rc.1+build.42",
+            "yoake-launcher-1.2.3-this-is-a-long-but-valid-prerelease",
+        ] {
+            assert!(allowed_signing_tag(tag), "{tag}");
+        }
+        for tag in [
+            "v1.2.3",
+            "yoake-index-v2",
+            "yoake-launcher-",
+            "yoake-launcher-1.2",
+            "yoake-launcher-01.2.3",
+            "yoake-launcher-1.2.3-01",
+            "yoake-launcher-1.2.3+",
+            "yoake-launcher-1.2.3+one+two",
+            "yoake-launcher-1.2.3/other",
+        ] {
+            assert!(!allowed_signing_tag(tag), "{tag}");
+        }
+    }
 }
 
 /// The values of every `--name value` in `args`, and the other arguments.
