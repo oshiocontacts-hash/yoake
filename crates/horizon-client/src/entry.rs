@@ -194,6 +194,15 @@ fn run(mods: crate::mod_api::Mods) {
     {
         log::warn!("Native client hooks already installed; keeping the first callbacks");
     }
+    if crate::native_client_hooks::install_net(crate::native_client_hooks::NativeNetHooks {
+        listened: crate::game::native_hooks::net_frames_listened,
+        frame: crate::game::native_hooks::net_frame_received,
+        ended: crate::game::native_hooks::net_session_ended,
+    })
+    .is_err()
+    {
+        log::warn!("Native network hooks already installed; keeping the first callbacks");
+    }
     raise_open_file_limit();
     if let Err(error) = game::run_with() {
         // A bad command line is the caller's mistake, not a crash: no report.

@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "set_hud_hidden",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_set_hud_hidden",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "a client HUD visibility helper (`set_hud_hidden`).",
+  "doc_summary": "`set_hud_hidden(hidden)` hides or restores the window's HUD without changing the F1 setting. The first-person hand remains controlled separately by `native_render_hand`. Requires native hooks API @API:replay_hud_visibility@."
+}

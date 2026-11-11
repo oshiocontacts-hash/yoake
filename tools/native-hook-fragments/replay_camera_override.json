@@ -1,0 +1,19 @@
+{
+  "hooks": [
+    {
+      "name": "camera_override_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_camera_override_listened",
+      "side": "client",
+      "mod_api": { "contract": "collect", "out": "listened" }
+    },
+    {
+      "name": "camera_override",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_camera_override",
+      "side": "client",
+      "mod_api": { "contract": "collect", "out": "camera" }
+    }
+  ],
+  "helpers": [],
+  "rust_summary": "a per-frame camera override (`camera_override`).",
+  "doc_summary": "`camera_override` selects a world-frame position, yaw, pitch, roll, and vertical field of view without moving the spectator or changing the player eye. Requires native hooks API @API:replay_camera_override@."
+}

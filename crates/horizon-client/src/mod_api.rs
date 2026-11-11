@@ -61,6 +61,7 @@ pub use crate::mobs::native_control::{
     NativeMobPathOptions,
 };
 pub use crate::music::{Music, MusicLayer};
+pub use crate::net::{NetFrameReceived, NetState};
 pub use crate::native_audio_stream::{
     NativeAudioStreamId, NativeAudioStreamLimits, NativeStreamAnchor,
 };
@@ -136,6 +137,28 @@ pub struct NativeCamera {
     /// Reversed-Z projection matrix in column-major order.
     pub projection: [f32; 16],
     pub dimension: String,
+}
+
+/// A mod-selected camera for one rendered world frame. Angles and FOV are in degrees.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CameraOverride {
+    pub position: [f64; 3],
+    pub yaw: f32,
+    pub pitch: f32,
+    pub roll: f32,
+    pub fov: f32,
+}
+
+impl CameraOverride {
+    pub fn is_valid(&self) -> bool {
+        self.position.iter().all(|coordinate| coordinate.is_finite())
+            && self.yaw.is_finite()
+            && self.pitch.is_finite()
+            && self.roll.is_finite()
+            && self.fov.is_finite()
+            && self.fov > 0.0
+            && self.fov < 180.0
+    }
 }
 
 /// A dispenser hook's answer: the slot's remainder (None empties it) and the

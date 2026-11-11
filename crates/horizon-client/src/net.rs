@@ -25,12 +25,61 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Arc, Mutex,
-        atomic::{AtomicBool, AtomicU32, Ordering},
+        atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering},
         mpsc::{Receiver, Sender, channel},
     },
     thread::JoinHandle,
-    time::Duration,
+    time::{Duration, Instant},
 };
+
+/// The protocol state in which a clientbound frame was received.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NetState {
+    Login,
+    Configuration,
+    Play,
+}
+
+/// A borrowed, already adapted clientbound frame. Copy `body` to retain it.
+pub struct NetFrameReceived<'a> {
+    pub state: NetState,
+    pub id: i32,
+    pub body: &'a [u8],
+    pub at: Instant,
+    pub session: u64,
+}
+
+struct NetCapture {
+    hooks: &'static crate::native_client_hooks::NativeNetHooks,
+    session: u64,
+}
+
+static NEXT_CAPTURE_SESSION: AtomicU64 = AtomicU64::new(0);
+
+impl NetCapture {
+    fn new(hooks: &'static crate::native_client_hooks::NativeNetHooks) -> Option<Self> {
+        let mut listened = false;
+        (hooks.listened)(&mut listened);
+        listened.then(|| Self {
+            hooks,
+            session: NEXT_CAPTURE_SESSION.fetch_add(1, Ordering::Relaxed),
+        })
+    }
+
+    fn frame(&self, state: NetState, id: i32, body: &[u8]) {
+        (self.hooks.frame)(&NetFrameReceived {
+            state,
+            id,
+            body,
+            at: Instant::now(),
+            session: self.session,
+        });
+    }
+
+    fn ended(&self, reason: &str) {
+        (self.hooks.ended)(self.session, reason);
+    }
+}
 
 /// `CommonListenerCookie.serverCookies`: cookies the server asked the client
 /// to store (`ClientboundStoreCookiePacket`), answered to
@@ -249,6 +298,7 @@ impl Session {
         let thread = std::thread::Builder::new()
             .name("horizon-net".into())
             .spawn(move || {
+                let net_capture = crate::native_client_hooks::net_hooks().and_then(NetCapture::new);
                 let result = run(
                     local,
                     &address_owned,
@@ -266,10 +316,14 @@ impl Session {
                     &resources,
                     lan,
                     capture_item_tags,
+                    net_capture.as_ref(),
                 );
                 thread_far.cancel();
                 let from_server = result.is_ok();
                 let why = result.unwrap_or_else(|e| e);
+                if let Some(capture) = &net_capture {
+                    capture.ended(&why.text);
+                }
                 if let Some(w) = thread_writer.lock().unwrap().take() {
                     w.shutdown();
                 }
@@ -697,6 +751,7 @@ fn run(
     resources: &Path,
     lan: bool,
     capture_item_tags: bool,
+    net_capture: Option<&NetCapture>,
 ) -> Result<Reason, Reason> {
     let (host, port, mut c) = if let Some(pipe) = local {
         (address.to_owned(), 0, Connection::local(pipe))
@@ -757,6 +812,9 @@ fn run(
     .map_err(e)?;
     let profile = loop {
         let (id, payload) = c.recv().map_err(e)?;
+        if let Some(capture) = net_capture {
+            capture.frame(NetState::Login, id, &payload);
+        }
         match login::Clientbound::decode(id, &payload).map_err(e)? {
             login::Clientbound::Compression(p) => c.set_compression(p.threshold),
             login::Clientbound::LoginFinished(p) => {
@@ -864,6 +922,7 @@ fn run(
         cookies,
         resources,
         capture_item_tags,
+        net_capture,
     )?;
     let _ = send.send(Event::Joined {
         registries: Arc::new(registries),
@@ -880,6 +939,7 @@ fn run(
         far,
         resources,
         capture_item_tags,
+        net_capture,
         #[cfg(feature = "dev-capture")]
         capture_fences,
     )
@@ -895,12 +955,16 @@ fn receive_play(
     far: &crate::lod_net::Inbox,
     resources: &Path,
     capture_item_tags: bool,
+    net_capture: Option<&NetCapture>,
     #[cfg(feature = "dev-capture")] capture_fences: Option<CaptureFences>,
 ) -> Result<Reason, Reason> {
     loop {
         let (id, payload) = reader
             .recv()
             .map_err(|e| Reason::plain(connection_lost(e, lang)))?;
+        if let Some(capture) = net_capture {
+            capture.frame(NetState::Play, id, &payload);
+        }
         let packet = match play::Clientbound::decode(id, &payload) {
             Ok(p) => p,
             Err(err) => {
@@ -943,6 +1007,7 @@ fn receive_play(
                     cookies,
                     resources,
                     capture_item_tags,
+                    net_capture,
                 )?;
                 let _ = send.send(Event::Reconfigured(Arc::new(registries)));
             }
@@ -1010,6 +1075,7 @@ fn configure(
     cookies: &Cookies,
     resources: &Path,
     capture_item_tags: bool,
+    net_capture: Option<&NetCapture>,
 ) -> Result<Dynamic, Reason> {
     let mut registries = Dynamic::default();
     let mut content_verified = false;
@@ -1027,6 +1093,9 @@ fn configure(
         let (id, payload) = reader
             .recv()
             .map_err(|e| Reason::plain(connection_lost(e, lang)))?;
+        if let Some(capture) = net_capture {
+            capture.frame(NetState::Configuration, id, &payload);
+        }
         match cfg::Clientbound::decode(id, &payload)
             .map_err(|e| Reason::plain(connection_lost(e, lang)))?
         {
@@ -1372,6 +1441,126 @@ fn continues_after_failed_join(lan: bool, signed_in: bool) -> bool {
 mod tests {
     use super::*;
 
+    #[test]
+    fn capture_is_opt_in_and_delivers_borrowed_frames_and_end() {
+        static FRAMES: Mutex<Vec<(NetState, i32, Vec<u8>, u64)>> = Mutex::new(Vec::new());
+        static ENDS: Mutex<Vec<(u64, String)>> = Mutex::new(Vec::new());
+        fn decline(_: &mut bool) {}
+        fn accept(listened: &mut bool) {
+            *listened = true;
+        }
+        fn frame(frame: &NetFrameReceived<'_>) {
+            FRAMES.lock().unwrap().push((frame.state, frame.id, frame.body.to_vec(), frame.session));
+        }
+        fn ended(session: u64, reason: &str) {
+            ENDS.lock().unwrap().push((session, reason.to_owned()));
+        }
+        static DISABLED: crate::native_client_hooks::NativeNetHooks =
+            crate::native_client_hooks::NativeNetHooks { listened: decline, frame, ended };
+        static ENABLED: crate::native_client_hooks::NativeNetHooks =
+            crate::native_client_hooks::NativeNetHooks { listened: accept, frame, ended };
+
+        assert!(NetCapture::new(&DISABLED).is_none());
+        assert!(FRAMES.lock().unwrap().is_empty());
+        assert!(ENDS.lock().unwrap().is_empty());
+        let capture = NetCapture::new(&ENABLED).unwrap();
+        let body = [1, 2, 3];
+        capture.frame(NetState::Play, 42, &body);
+        capture.ended("closed");
+        assert_eq!(*FRAMES.lock().unwrap(), [(NetState::Play, 42, body.to_vec(), capture.session)]);
+        assert_eq!(*ENDS.lock().unwrap(), [(capture.session, "closed".to_owned())]);
+        assert_eq!(body, [1, 2, 3]);
+    }
+
+    #[test]
+    fn configuration_capture_is_opt_in_and_preserves_packet_handling() {
+        static FRAMES: Mutex<Vec<(NetState, i32, Vec<u8>)>> = Mutex::new(Vec::new());
+        fn decline(_: &mut bool) {}
+        fn accept(listened: &mut bool) {
+            *listened = true;
+        }
+        fn frame(frame: &NetFrameReceived<'_>) {
+            FRAMES
+                .lock()
+                .unwrap()
+                .push((frame.state, frame.id, frame.body.to_vec()));
+        }
+        fn ended(_: u64, _: &str) {}
+        static DISABLED: crate::native_client_hooks::NativeNetHooks =
+            crate::native_client_hooks::NativeNetHooks {
+                listened: decline,
+                frame,
+                ended,
+            };
+        static ENABLED: crate::native_client_hooks::NativeNetHooks =
+            crate::native_client_hooks::NativeNetHooks {
+                listened: accept,
+                frame,
+                ended,
+            };
+
+        for (hooks, enabled) in [(&DISABLED, false), (&ENABLED, true)] {
+            let capture = NetCapture::new(hooks);
+            assert_eq!(capture.is_some(), enabled);
+            let (client, server) = horizon_protocol::connection::Pipe::pair();
+            let (mut reader, writer) = Connection::local(client).split();
+            let writer = Mutex::new(Some(writer));
+            let thread = std::thread::spawn(move || {
+                let (send, _events) = channel();
+                configure(
+                    &mut reader,
+                    &writer,
+                    &AtomicBool::new(true),
+                    &Language::new(),
+                    &send,
+                    &Cookies::default(),
+                    Path::new(""),
+                    false,
+                    capture.as_ref(),
+                )
+            });
+            let mut server = Connection::local(server);
+            server
+                .reader
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            server
+                .send(&cfg::Clientbound::Ping(cfg::Ping { id: 17 }).encode())
+                .unwrap();
+            let (id, body) = server.recv().unwrap();
+            assert_eq!(
+                cfg::Serverbound::decode(id, &body).unwrap(),
+                cfg::Serverbound::Pong(cfg::Ping { id: 17 })
+            );
+            server
+                .send(&cfg::Clientbound::FinishConfiguration(Empty).encode())
+                .unwrap();
+            let (id, body) = server.recv().unwrap();
+            assert_eq!(
+                cfg::Serverbound::decode(id, &body).unwrap(),
+                cfg::Serverbound::FinishConfiguration(Empty)
+            );
+            assert!(thread.join().unwrap().is_ok());
+
+            let frames = std::mem::take(&mut *FRAMES.lock().unwrap());
+            if enabled {
+                assert_eq!(frames.len(), 2);
+                assert_eq!(frames[0].0, NetState::Configuration);
+                assert_eq!(
+                    cfg::Clientbound::decode(frames[0].1, &frames[0].2).unwrap(),
+                    cfg::Clientbound::Ping(cfg::Ping { id: 17 })
+                );
+                assert_eq!(frames[1].0, NetState::Configuration);
+                assert_eq!(
+                    cfg::Clientbound::decode(frames[1].1, &frames[1].2).unwrap(),
+                    cfg::Clientbound::FinishConfiguration(Empty)
+                );
+            } else {
+                assert!(frames.is_empty());
+            }
+        }
+    }
+
     /// Launchers find the last server joined in `latest.log` by vanilla's line.
     #[test]
     fn the_connecting_line_is_vanillas() {
@@ -1563,6 +1752,7 @@ mod tests {
                 &crate::lod_net::Inbox::default(),
                 Path::new("."),
                 false,
+                None,
                 #[cfg(feature = "dev-capture")]
                 None,
             ));
@@ -1610,6 +1800,7 @@ mod tests {
                     &crate::lod_net::Inbox::default(),
                     Path::new("."),
                     capture_item_tags,
+                    None,
                     #[cfg(feature = "dev-capture")]
                     None,
                 )
@@ -1728,6 +1919,7 @@ mod tests {
                 &Cookies::default(),
                 &root,
                 false,
+                None,
             )
         });
         let mut server = Connection::local(server);
@@ -1792,6 +1984,7 @@ mod tests {
                     &Cookies::default(),
                     Path::new(""),
                     false,
+                    None,
                 )
             });
             let mut server = Connection::local(server);
@@ -1969,6 +2162,7 @@ mod tests {
                 &crate::lod_net::Inbox::default(),
                 Path::new("."),
                 false,
+                None,
                 #[cfg(feature = "dev-capture")]
                 None,
             )
@@ -2038,6 +2232,7 @@ mod tests {
                 &crate::lod_net::Inbox::default(),
                 Path::new("."),
                 false,
+                None,
                 #[cfg(feature = "dev-capture")]
                 None,
             )
@@ -2089,6 +2284,7 @@ mod tests {
                 &crate::lod_net::Inbox::default(),
                 Path::new("."),
                 false,
+                None,
                 #[cfg(feature = "dev-capture")]
                 None,
             )

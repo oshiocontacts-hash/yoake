@@ -18,6 +18,24 @@ pub struct NativeClientHooks {
 
 static HOOKS: OnceLock<NativeClientHooks> = OnceLock::new();
 
+/// Network callbacks installed before any connection is started.
+pub struct NativeNetHooks {
+    pub listened: fn(&mut bool),
+    pub frame: fn(&crate::net::NetFrameReceived<'_>),
+    pub ended: fn(u64, &str),
+}
+
+static NET_HOOKS: OnceLock<NativeNetHooks> = OnceLock::new();
+
+/// Install the network callbacks once; a second installation keeps the first.
+pub fn install_net(hooks: NativeNetHooks) -> Result<(), NativeNetHooks> {
+    NET_HOOKS.set(hooks)
+}
+
+pub(crate) fn net_hooks() -> Option<&'static NativeNetHooks> {
+    NET_HOOKS.get()
+}
+
 /// Install the process-wide callbacks once; a second installation keeps the first.
 pub fn install(hooks: NativeClientHooks) -> Result<(), NativeClientHooks> {
     HOOKS.set(hooks)

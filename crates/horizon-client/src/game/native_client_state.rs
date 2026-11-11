@@ -15,6 +15,9 @@ pub enum NativeClientWorld {
     LanGuest {
         address: String,
     },
+    Replay {
+        title: String,
+    },
     /// A friend connection, without exposing its secret invite address.
     Friend,
 }
@@ -81,6 +84,12 @@ impl ClientState {
                     folder: folder.to_owned(),
                 }),
         );
+    }
+
+    pub(super) fn enter_replay(&mut self, title: &str) {
+        self.pending_world = Some(Some(NativeClientWorld::Replay {
+            title: title.to_owned(),
+        }));
     }
 
     pub(super) fn enter_shared(&mut self, host: &Self) {
@@ -260,6 +269,22 @@ mod tests {
                 address: "192.168.1.8:41234".to_owned(),
             })
         );
+    }
+
+    #[test]
+    fn replay_identity_follows_client_level_lifetime() {
+        let mut state = ClientState::default();
+        state.enter_replay("Demo replay");
+        assert_eq!(state.world_key(true, false), None);
+        state.level_loaded();
+        assert_eq!(
+            state.world_key(true, false),
+            Some(NativeClientWorld::Replay {
+                title: "Demo replay".to_owned(),
+            })
+        );
+        state.level_unloaded();
+        assert_eq!(state.world_key(true, false), None);
     }
 
     #[test]

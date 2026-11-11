@@ -888,13 +888,14 @@ use super::{
 };
 use horizon_assets::item_model::StackView;
 use horizon_client::mod_api::{
-    self, BlockHit, EntityRef, LanOperationStatus, LanTicket, MouseButtons, NameTagLine,
-    NativeAttributeOperation, NativeAudioStreamId, NativeAudioStreamLimits, NativeCamera,
-    NativeCommand, NativeDispensed, NativeGameMode, NativeInventoryContext, NativeInventoryLayout,
-    NativeLanPublish, NativeLifecycleContext, NativeMicId, NativeMobControlMode,
-    NativeMobNavigation, NativeMobPath, NativeMobPathOptions, NativeNoteBlockChange,
-    NativeServerPlayer, NativeServerPlayerMotion, NativeSoundError, NativeStreamAnchor,
-    NativeTeleportStatus, NativeTeleportTicket, RecipeBookCategory, ServerTickPhase, WorldPhase,
+    self, BlockHit, CameraOverride, EntityRef, LanOperationStatus, LanTicket, MouseButtons,
+    NameTagLine, NativeAttributeOperation, NativeAudioStreamId, NativeAudioStreamLimits,
+    NativeCamera, NativeCommand, NativeDispensed, NativeGameMode, NativeInventoryContext,
+    NativeInventoryLayout, NativeLanPublish, NativeLifecycleContext, NativeMicId,
+    NativeMobControlMode, NativeMobNavigation, NativeMobPath, NativeMobPathOptions,
+    NativeNoteBlockChange, NativeServerPlayer, NativeServerPlayerMotion, NativeSoundError,
+    NativeStreamAnchor, NativeTeleportStatus, NativeTeleportTicket, NetFrameReceived,
+    RecipeBookCategory, ServerTickPhase, WorldPhase,
 };
 use horizon_client::mod_api::{AttachmentResult, Attachments, Holder, Suggestion};
 pub(crate) use horizon_client::mod_api::{
@@ -2136,8 +2137,49 @@ fn chars_to_type(text: &str, canceled: impl FnMut(char) -> bool) -> Option<Strin
     (!text.is_empty()).then_some(text)
 }
 
+pub(crate) fn net_frames_listened(listened: &mut bool) {
+    Game::native_net_frames_listened(listened);
+}
+
+pub(crate) fn net_frame_received(frame: &NetFrameReceived<'_>) {
+    Game::native_net_frame_received(frame);
+}
+
+pub(crate) fn net_session_ended(session: u64, reason: &str) {
+    Game::native_net_session_ended(session, reason);
+}
+
 /// The hook points. Each does nothing in Horizon.
 impl Game<'_> {
+    /// Request per-frame camera overrides. API @API:replay_camera_override@.
+    pub(super) fn native_camera_override_listened(listened: &mut bool) {
+        mod_api::dispatch_camera_override_listened(mod_api::mods(), listened);
+    }
+
+    /// Select a world camera for this frame. API @API:replay_camera_override@.
+    pub(super) fn native_camera_override(
+        &mut self,
+        partial_tick: f32,
+        camera: &mut Option<CameraOverride>,
+    ) {
+        mod_api::dispatch_camera_override(self, mod_api::mods(), partial_tick, camera);
+    }
+
+    /// Request network frame callbacks for this connection. API @API:replay_net_frames@.
+    pub(super) fn native_net_frames_listened(listened: &mut bool) {
+        mod_api::dispatch_net_frames_listened(mod_api::mods(), listened);
+    }
+
+    /// Observe a decoded network frame on the network thread. API @API:replay_net_frames@.
+    pub(super) fn native_net_frame_received(frame: &NetFrameReceived<'_>) {
+        mod_api::dispatch_net_frame_received(mod_api::mods(), frame);
+    }
+
+    /// Observe the end of a captured network session. API @API:replay_net_frames@.
+    pub(super) fn native_net_session_ended(session: u64, reason: &str) {
+        mod_api::dispatch_net_session_ended(mod_api::mods(), session, reason);
+    }
+
     /// Whether a native mod uses the inventory layout hook. API @API:inventory_screen_layout@.
     pub(super) fn native_inventory_screen_layout_listened(&self, listened: &mut bool) {
         super::native_inventory_screen::dispatch_inventory_screen_layout_listened(self, listened);
@@ -9172,6 +9214,11 @@ impl Game<'_> {
             self.sign_edit.is_some(),
             self.book.is_some(),
         )
+    }
+
+    /// Hide or restore the window's HUD without changing F1 or the hand. API @API:replay_hud_visibility@.
+    pub(super) fn native_set_hud_hidden(&mut self, hidden: bool) {
+        self.native_hud_visibility.set_hidden(hidden);
     }
 
     /// The loaded client's destination, without a full save path or friend invite.

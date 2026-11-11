@@ -295,6 +295,16 @@ pub fn view_matrix(yaw: f32, pitch: f32) -> glam::Mat4 {
     glam::Mat4::from_quat(glam::Quat::from_xyzw(-q.x, -q.y, -q.z, q.w))
 }
 
+/// Camera-relative view including a rotation around the camera's forward axis.
+pub fn view_matrix_with_roll(yaw: f32, pitch: f32, roll: f32) -> glam::Mat4 {
+    let view = view_matrix(yaw, pitch);
+    if roll == 0.0 {
+        view
+    } else {
+        glam::Mat4::from_rotation_z(-roll.to_radians()) * view
+    }
+}
+
 /// `CameraType`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum CameraType {
@@ -502,6 +512,19 @@ impl Camera {
         self.x_rot = x_rot;
         self.y_rot = y_rot;
         self.rotation = Quat::rotation_yxz(PI - y_rot * DEG_TO_RAD, -x_rot * DEG_TO_RAD, 0.0);
+        self.forwards = self.rotation.transform([0.0, 0.0, -1.0]);
+        self.up = self.rotation.transform([0.0, 1.0, 0.0]);
+        self.left = self.rotation.transform([-1.0, 0.0, 0.0]);
+    }
+
+    pub fn set_rotation_roll(&mut self, y_rot: f32, x_rot: f32, roll: f32) {
+        self.x_rot = x_rot;
+        self.y_rot = y_rot;
+        self.rotation = Quat::rotation_yxz(
+            PI - y_rot * DEG_TO_RAD,
+            -x_rot * DEG_TO_RAD,
+            roll * DEG_TO_RAD,
+        );
         self.forwards = self.rotation.transform([0.0, 0.0, -1.0]);
         self.up = self.rotation.transform([0.0, 1.0, 0.0]);
         self.left = self.rotation.transform([-1.0, 0.0, 0.0]);
@@ -925,6 +948,19 @@ pub fn spinning_effect_matrix(intensity: f32, angle_degrees: f32) -> glam::Mat4 
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn camera_roll_preserves_the_default_view_and_rotates_an_override() {
+        let baseline = super::view_matrix(25.0, -10.0);
+        assert_eq!(super::view_matrix_with_roll(25.0, -10.0, 0.0), baseline);
+        assert_ne!(super::view_matrix_with_roll(25.0, -10.0, 30.0), baseline);
+        let mut camera = super::Camera::default();
+        camera.eye = [1.0, 2.0, 3.0];
+        camera.eye_rotation = [4.0, 5.0];
+        camera.set_rotation_roll(25.0, -10.0, 30.0);
+        assert_eq!(camera.eye, [1.0, 2.0, 3.0]);
+        assert_eq!(camera.eye_rotation, [4.0, 5.0]);
+    }
+
     #[test]
     fn near_plane_bounds_sit_half_a_near_distance_ahead_of_the_eye() {
         // Facing +Z (yaw 0): the zero-to-one culling projection puts NDC
