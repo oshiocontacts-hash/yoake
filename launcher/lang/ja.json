@@ -1,4 +1,9 @@
 {
+  "Update launcher": "アップデート",
+  "View on portal": "ポータルで見る",
+  "Check for launcher updates": "アップデートを確認",
+  "Downloading launcher update...": "ランチャーをダウンロードしています…",
+  "The game keeps running while the launcher restarts.": "ゲームはそのまま実行され、ランチャーだけが再起動します。",
   "Home": "ホーム",
   "Mods": "Mods",
   "Servers": "サーバー",
@@ -1024,7 +1029,6 @@
   "About / licences": "このランチャーとライセンス",
   "Yoake Launcher is built on Horizon (licence below)": "Yoake Launcher は Horizon をもとに作られています（ライセンスは以下のとおりです）",
   "A new launcher ({version}) is available.": "新しいランチャー ({version}) があります",
-  "Open launcher page": "ランチャーのページを開く",
   "Waiting to prepare the game…": "ゲームの準備を待っています…",
   "Select the pack and press Play again.": "パックを選んで、もう一度プレイを押してください。",
   "The pack is ready to play.": "パックの準備ができました。",

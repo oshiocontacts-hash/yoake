@@ -2,7 +2,6 @@ use crate::yoake_auth::YoakeAuth;
 use crate::yoake_feed::FeedTransport;
 use semver::Version;
 use serde::Deserialize;
-use url::Url;
 
 const MAX_RESPONSE_BYTES: usize = 64 * 1024;
 
@@ -15,51 +14,60 @@ struct LatestLauncher {
     published_at: String,
 }
 
+#[cfg(test)]
 pub(super) fn check(
     portal: &str,
     auth: &dyn YoakeAuth,
     transport: &dyn FeedTransport,
     current: &str,
 ) -> Option<(String, String)> {
-    let mut root = Url::parse(portal).ok()?;
-    if root.scheme() != "https"
-        || root.host_str().is_none()
-        || !root.username().is_empty()
-        || root.password().is_some()
-        || root.query().is_some()
-        || root.fragment().is_some()
-    {
-        return None;
-    }
-    if !root.path().ends_with('/') {
-        root.set_path(&format!("{}/", root.path()));
-    }
-    let endpoint = root.join("yoake/launcher/latest.json").ok()?;
-    let page = root.join("launcher").ok()?;
-    if endpoint.origin() != root.origin() || page.origin() != root.origin() {
-        return None;
-    }
-    let authorization = auth.authorization().ok()??;
+    check_result(portal, auth, transport, current)
+        .ok()
+        .flatten()
+}
+
+pub(super) fn check_result(
+    portal: &str,
+    auth: &dyn YoakeAuth,
+    transport: &dyn FeedTransport,
+    current: &str,
+) -> Result<Option<(String, String)>, String> {
+    let invalid = || "The portal's launcher update information is invalid.".to_string();
+    let root = crate::yoake_self_update::portal_root(portal)?;
+    let endpoint = crate::yoake_self_update::endpoint(&root, "yoake/launcher/latest.json")?;
+    let page = crate::yoake_self_update::endpoint(&root, "launcher")?;
+    let authorization = auth
+        .authorization()
+        .map_err(|_| "Cannot read the portal sign-in. Please sign in again.")?
+        .ok_or("Please sign in to the portal before checking for updates.")?;
     let bytes = transport
         .get(endpoint.as_str(), Some(&authorization), MAX_RESPONSE_BYTES)
-        .ok()?;
+        .map_err(crate::yoake_self_update::transport_error)?;
     if bytes.len() > MAX_RESPONSE_BYTES {
-        return None;
+        return Err(invalid());
     }
-    let latest: LatestLauncher = serde_json::from_slice(&bytes).ok()?;
+    let latest: LatestLauncher = serde_json::from_slice(&bytes).map_err(|_| invalid())?;
     if latest.file.is_empty()
         || latest.sha256.len() != 64
         || !latest.sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
         || latest.size == 0
         || latest.published_at.is_empty()
     {
-        return None;
+        return Err(invalid());
     }
-    let version = Version::parse(&latest.version).ok()?;
-    if version.cmp_precedence(&Version::parse(current).ok()?) != std::cmp::Ordering::Greater {
-        return None;
+    let version = Version::parse(&latest.version).map_err(|_| invalid())?;
+    let installed = Version::parse(current).map_err(|_| "This launcher's version is invalid.")?;
+    if version.cmp_precedence(&installed) != std::cmp::Ordering::Greater {
+        return Ok(None);
     }
-    Some((latest.version, page.to_string()))
+    Ok(Some((latest.version, page.to_string())))
+}
+
+pub(super) fn portal_page(portal: &str) -> Option<String> {
+    let root = crate::yoake_self_update::portal_root(portal).ok()?;
+    crate::yoake_self_update::endpoint(&root, "launcher")
+        .ok()
+        .map(|url| url.to_string())
 }
 
 #[cfg(test)]
@@ -89,10 +97,10 @@ mod tests {
             authorization: Option<&str>,
             _limit: usize,
         ) -> Result<Vec<u8>, FeedError> {
-            self.requests.lock().unwrap().push((
-                url.to_string(),
-                authorization.map(str::to_string),
-            ));
+            self.requests
+                .lock()
+                .unwrap()
+                .push((url.to_string(), authorization.map(str::to_string)));
             self.result.clone()
         }
     }

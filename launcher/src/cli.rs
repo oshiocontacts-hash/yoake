@@ -1188,7 +1188,9 @@ fn release_json(r: &Release) -> serde_json::Value {
 }
 
 fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
-    if matches!(command, Cmd::Versions { .. } | Cmd::Update { .. }) {
+    if matches!(command, Cmd::Versions { .. })
+        || matches!(command, Cmd::Update { .. }) && !horizon_launcher::brand::yoake()
+    {
         for (tag, from) in backend::reuse_prepared_everywhere() {
             if !as_json {
                 eprintln!("Prepared {tag} with the resources of {from}.");
@@ -1771,10 +1773,16 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             settings.save()?;
             if remove {
                 horizon_launcher::desktop::remove()?;
-                println!("Removed {} from the applications menu.", horizon_launcher::brand::name());
+                println!(
+                    "Removed {} from the applications menu.",
+                    horizon_launcher::brand::name()
+                );
             } else {
                 horizon_launcher::desktop::install(backend::exe_path())?;
-                println!("{} is in the applications menu.", horizon_launcher::brand::name());
+                println!(
+                    "{} is in the applications menu.",
+                    horizon_launcher::brand::name()
+                );
             }
         }
         Cmd::Worlds { action } => worlds(
@@ -1899,6 +1907,9 @@ fn rust(action: RustCmd, as_json: bool) -> Result<(), String> {
 }
 
 fn update(check: bool, as_json: bool) -> Result<(), String> {
+    if horizon_launcher::brand::yoake() {
+        return yoake_launcher_update(check, as_json);
+    }
     let updates = backend::check_updates()?;
     if as_json && check {
         json(serde_json::json!({
@@ -1910,7 +1921,11 @@ fn update(check: bool, as_json: bool) -> Result<(), String> {
     }
     match &updates.horizon {
         None => println!("{}: up to date.", horizon_launcher::brand::name()),
-        Some(r) if check => println!("{}: {} is available.", horizon_launcher::brand::name(), r.tag),
+        Some(r) if check => println!(
+            "{}: {} is available.",
+            horizon_launcher::brand::name(),
+            r.tag
+        ),
         Some(r) => {
             let tag =
                 backend::install_tag(&r.tag, true, progress(format!("Installing {}", r.tag)))?;
@@ -1934,6 +1949,49 @@ fn update(check: bool, as_json: bool) -> Result<(), String> {
             }
         }
     }
+    Ok(())
+}
+
+fn yoake_launcher_update(check: bool, as_json: bool) -> Result<(), String> {
+    let portal =
+        option_env!("YOAKE_PORTAL_URL").ok_or("The portal is not configured in this launcher.")?;
+    let current = env!("CARGO_PKG_VERSION");
+    let data_dir = backend::data_dir();
+    let auth = crate::yoake_auth::TokenFileAuth::new(&data_dir);
+    let transport = crate::yoake_feed::HttpTransport;
+    let latest = crate::yoake_launcher_update::check_result(portal, &auth, &transport, current)?;
+    if check && as_json {
+        json(serde_json::json!({
+            "launcher": latest.as_ref().map(|(version, _)| version),
+            "launcher_current": current,
+        }));
+        return Ok(());
+    }
+    let Some((version, _)) = latest else {
+        println!("Launcher: {current} is up to date.");
+        return Ok(());
+    };
+    if check {
+        println!("Launcher: {version} is available (this is {current}).");
+        return Ok(());
+    }
+    let config = crate::yoake_feed::FeedConfig::compiled()
+        .map_err(|_| "The launcher's trusted release keys are invalid.")?
+        .ok_or("This launcher has no trusted Yoake release keys.")?;
+    let state = std::sync::atomic::AtomicU8::new(0);
+    let mut report = progress(format!("Updating the launcher to {version}"));
+    crate::yoake_self_update::install(
+        portal,
+        &auth,
+        &transport,
+        config.public_keys(),
+        current,
+        &version,
+        &data_dir,
+        &state,
+        &mut report,
+    )?;
+    println!("Launcher: updated to {version}. Restart the launcher to use it.");
     Ok(())
 }
 
@@ -2195,7 +2253,10 @@ fn data(action: DataCmd, as_json: bool) -> Result<(), String> {
                 println!("{name}: {}", if on { "on" } else { "off" });
             }
             if horizon_launcher::brand::yoake() {
-                println!("Queued items (not sent by this build): {}", status["waiting"]);
+                println!(
+                    "Queued items (not sent by this build): {}",
+                    status["waiting"]
+                );
             } else {
                 println!("Waiting to be sent: {}", status["waiting"]);
             }
@@ -2736,7 +2797,11 @@ fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
             }
             for e in chosen {
                 let Some(source) = horizon_launcher::browser::source(e.source) else {
-                    println!("{}: {} isn't available here.", e.title, e.source.display_label());
+                    println!(
+                        "{}: {} isn't available here.",
+                        e.title,
+                        e.source.display_label()
+                    );
                     continue;
                 };
                 let newer = match &java {
@@ -3317,7 +3382,8 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
                     let p = horizon_launcher::packs::add(&i.home, &file)?;
                     println!(
                         "Added {} to {}: turn it on with horizon-launcher packs on",
-                        p.title, i.display_name()
+                        p.title,
+                        i.display_name()
                     );
                 }
                 Dropped::DataPack => {

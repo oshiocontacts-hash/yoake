@@ -1,4 +1,9 @@
 {
+  "Update launcher": "Update launcher",
+  "View on portal": "View on portal",
+  "Check for launcher updates": "Check for launcher updates",
+  "Downloading launcher update...": "Downloading launcher update...",
+  "The game keeps running while the launcher restarts.": "The game keeps running while the launcher restarts.",
   "Building {name}'s post-build step": "Сборка шага после сборки мода {name}",
   "In use": "Используется",
   "Prepare": "Подготовить",
@@ -1024,7 +1029,6 @@
   "About / licences": "About / licences",
   "Yoake Launcher is built on Horizon (licence below)": "Yoake Launcher is built on Horizon (licence below)",
   "A new launcher ({version}) is available.": "A new launcher ({version}) is available.",
-  "Open launcher page": "Open launcher page",
   "Waiting to prepare the game…": "Waiting to prepare the game…",
   "Select the pack and press Play again.": "Select the pack and press Play again.",
   "The pack is ready to play.": "The pack is ready to play.",

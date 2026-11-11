@@ -5,7 +5,10 @@
 use super::*;
 use std::path::PathBuf;
 use std::sync::mpsc;
-use std::sync::{Arc, atomic::AtomicBool};
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, AtomicU8},
+};
 use yoake_feed::{FeedClient, FeedError, ParsedFeedIndex, VerifiedFeed};
 use yoake_install::{InstallError, InstallEvent, InstallTask};
 
@@ -22,14 +25,28 @@ enum BaseEvent {
     Finished(Result<String, String>),
 }
 
+struct LauncherTask {
+    events: mpsc::Receiver<LauncherEvent>,
+    state: Arc<AtomicU8>,
+}
+
+enum LauncherEvent {
+    Progress(f32),
+    Finished(Result<(), String>),
+}
+
 /// What the page keeps between frames.
 pub(super) struct YoakePage {
     /// The verified feed, once fetched, or why it could not be.
     catalog: Option<Result<VerifiedFeed, FeedError>>,
     catalog_task: Option<mpsc::Receiver<Result<VerifiedFeed, FeedError>>>,
     launcher_update: Option<(String, String)>,
-    launcher_update_task: Option<mpsc::Receiver<Option<(String, String)>>>,
+    launcher_update_task: Option<mpsc::Receiver<(bool, Result<Option<(String, String)>, String>)>>,
     launcher_update_checked: bool,
+    launcher_job: Option<LauncherTask>,
+    launcher_progress: f32,
+    launcher_ready: bool,
+    launcher_error: Option<String>,
     /// The install, update or rollback running now, and the instance it works on.
     job: Option<(PathBuf, InstallTask)>,
     base: Option<BaseTask>,
@@ -53,6 +70,10 @@ impl YoakePage {
             launcher_update: None,
             launcher_update_task: None,
             launcher_update_checked: false,
+            launcher_job: None,
+            launcher_progress: 0.,
+            launcher_ready: false,
+            launcher_error: None,
             job: None,
             base: None,
             progress: None,
@@ -70,29 +91,44 @@ impl YoakePage {
         page
     }
 
-    fn check_launcher_update(&mut self, force: bool) {
-        if self.launcher_update_task.is_some() || (!force && self.launcher_update_checked) {
+    pub(super) fn check_launcher_update(&mut self, force: bool) {
+        if self.launcher_job.is_some()
+            || self.launcher_ready
+            || self.launcher_update_task.is_some()
+            || (!force && self.launcher_update_checked)
+        {
             return;
         }
         let Some(portal) = option_env!("YOAKE_PORTAL_URL") else {
+            if force {
+                self.launcher_error = Some("This launcher has no portal configured.".into());
+            }
             return;
         };
         if !signed_in() {
             self.launcher_update = None;
             self.launcher_update_checked = false;
+            if force {
+                self.launcher_error =
+                    Some("Please sign in to the portal before checking for updates.".into());
+            }
             return;
         }
         self.launcher_update_checked = true;
+        if force {
+            self.launcher_error = None;
+            self.note = None;
+        }
         let (tx, rx) = mpsc::channel();
         std::thread::spawn(move || {
             let auth = yoake_auth::TokenFileAuth::new(&backend::data_dir());
-            let result = yoake_launcher_update::check(
+            let result = yoake_launcher_update::check_result(
                 portal,
                 &auth,
                 &yoake_feed::HttpTransport,
                 env!("CARGO_PKG_VERSION"),
             );
-            let _ = tx.send(result);
+            let _ = tx.send((force, result));
         });
         self.launcher_update_task = Some(rx);
     }
@@ -214,6 +250,46 @@ fn newest(pack: &yoake_feed::PackV2) -> Option<&yoake_feed::PackVersionV2> {
 }
 
 impl Launcher {
+    fn begin_launcher_update(&mut self) {
+        let Some((version, _)) = self.yoake.launcher_update.clone() else {
+            return;
+        };
+        if self.yoake.launcher_job.is_some() || self.yoake.launcher_ready {
+            return;
+        }
+        let (tx, rx) = mpsc::channel();
+        let state = Arc::new(AtomicU8::new(0));
+        let worker_state = Arc::clone(&state);
+        std::thread::spawn(move || {
+            let result = (|| {
+                let portal = option_env!("YOAKE_PORTAL_URL")
+                    .ok_or("This launcher has no portal configured.")?;
+                let config = yoake_feed::FeedConfig::compiled()
+                    .map_err(|_| "The launcher verification keys are invalid.")?
+                    .ok_or("This launcher has no verification keys configured.")?;
+                let data_dir = backend::data_dir();
+                let auth = yoake_auth::TokenFileAuth::new(&data_dir);
+                yoake_self_update::install(
+                    portal,
+                    &auth,
+                    &yoake_feed::HttpTransport,
+                    config.public_keys(),
+                    env!("CARGO_PKG_VERSION"),
+                    &version,
+                    &data_dir,
+                    &worker_state,
+                    &mut |progress| {
+                        let _ = tx.send(LauncherEvent::Progress(progress));
+                    },
+                )
+            })();
+            let _ = tx.send(LauncherEvent::Finished(result));
+        });
+        self.yoake.launcher_job = Some(LauncherTask { events: rx, state });
+        self.yoake.launcher_progress = 0.;
+        self.yoake.launcher_error = None;
+    }
+
     /// Fetches the feed in the background (Refresh, sign-in, opening the page).
     pub(super) fn yoake_refresh(&mut self) {
         self.yoake.check_launcher_update(false);
@@ -231,15 +307,67 @@ impl Launcher {
     /// The page's background work: the feed and the running job. True when something changed.
     pub(super) fn drain_yoake_page(&mut self) -> bool {
         let mut changed = false;
+        let mut launcher_finished = None;
+        if let Some(job) = &self.yoake.launcher_job {
+            loop {
+                match job.events.try_recv() {
+                    Ok(LauncherEvent::Progress(progress)) => {
+                        self.yoake.launcher_progress = progress;
+                        changed = true;
+                    }
+                    Ok(LauncherEvent::Finished(result)) => {
+                        launcher_finished = Some(result);
+                        break;
+                    }
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        launcher_finished =
+                            Some(Err("The launcher update stopped unexpectedly.".into()));
+                        break;
+                    }
+                    Err(mpsc::TryRecvError::Empty) => break,
+                }
+            }
+        }
+        if let Some(result) = launcher_finished {
+            self.yoake.launcher_job = None;
+            match result {
+                Ok(()) => self.yoake.launcher_ready = true,
+                Err(error) => self.yoake.launcher_error = Some(error),
+            }
+            changed = true;
+        }
         if let Some(rx) = &self.yoake.launcher_update_task {
             match rx.try_recv() {
-                Ok(result) => {
-                    self.yoake.launcher_update = if signed_in() { result } else { None };
+                Ok((force, result)) => {
+                    if self.yoake.launcher_job.is_none()
+                        && !self.yoake.launcher_ready
+                        && signed_in()
+                    {
+                        match result {
+                            Ok(update) => {
+                                if force && update.is_none() {
+                                    self.yoake.note = Some((
+                                        true,
+                                        trf("{id} is up to date.", &[("id", "Yoake")]),
+                                    ));
+                                }
+                                self.yoake.launcher_update = update;
+                                self.yoake.launcher_error = None;
+                            }
+                            Err(error) => {
+                                self.yoake.launcher_update = None;
+                                self.yoake.launcher_error = Some(error);
+                            }
+                        }
+                    }
                     self.yoake.launcher_update_task = None;
                     changed = true;
                 }
                 Err(mpsc::TryRecvError::Disconnected) => {
                     self.yoake.launcher_update_task = None;
+                    self.yoake.launcher_error =
+                        Some("The launcher update check stopped unexpectedly.".into());
+                    changed = true;
                 }
                 Err(mpsc::TryRecvError::Empty) => {}
             }
@@ -470,10 +598,8 @@ impl Launcher {
         if base.preparing.is_some() {
             if let Some((done, total)) = horizon_launcher::mojang::progress() {
                 let fraction = done as f32 / total.max(1) as f32;
-                self.yoake.progress = Some((
-                    fraction.min(1.),
-                    tr("Preparing game files…").to_string(),
-                ));
+                self.yoake.progress =
+                    Some((fraction.min(1.), tr("Preparing game files…").to_string()));
                 return true;
             }
             return false;
@@ -494,7 +620,7 @@ impl Launcher {
                     }
                     Err(mpsc::TryRecvError::Disconnected) => {
                         finished = Some(Err(
-                            tr("Could not install the game version. Try again.").to_string(),
+                            tr("Could not install the game version. Try again.").to_string()
                         ));
                         break;
                     }
@@ -571,27 +697,108 @@ impl Launcher {
             "The group's modpacks. Sign in once; packs install and update from here.",
             &t,
         ));
-        if let Some((version, url)) = self.yoake.launcher_update.clone().filter(|_| signed_in()) {
-            page = page.child(
-                plate(&t)
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .gap(px(12.))
-                    .p(px(16.))
+        if let Some((version, url)) = self.yoake.launcher_update.clone().filter(|_| {
+            signed_in()
+                || self.yoake.launcher_job.is_some()
+                || self.yoake.launcher_ready
+                || self.yoake.launcher_error.is_some()
+        }) {
+            let mut banner = plate(&t).flex().flex_col().gap(px(12.)).p(px(16.)).child(
+                text(theme::UI).text_color(t.ink).child(trf(
+                    "A new launcher ({version}) is available.",
+                    &[("version", &version)],
+                )),
+            );
+            if self.yoake.launcher_job.is_some() {
+                banner = banner
                     .child(
-                        text(theme::UI).text_color(t.ink).child(trf(
-                            "A new launcher ({version}) is available.",
-                            &[("version", &version)],
-                        )),
+                        text(theme::UI)
+                            .text_color(t.muted)
+                            .child(tr("Downloading launcher update...")),
+                    )
+                    .child(crate::glass_ui::bar(
+                        self.yoake.launcher_progress,
+                        self.look.accent_soft,
+                    ))
+                    .child(
+                        button("yoake-launcher-cancel", "Cancel", Kind::Secondary, &t).on_click(
+                            cx.listener(|this, _: &ClickEvent, _, cx| {
+                                if let Some(job) = &this.yoake.launcher_job {
+                                    let _ = job.state.compare_exchange(
+                                        0,
+                                        1,
+                                        Ordering::AcqRel,
+                                        Ordering::Acquire,
+                                    );
+                                }
+                                cx.notify();
+                            }),
+                        ),
+                    );
+            } else if self.yoake.launcher_ready {
+                banner = banner
+                    .child(
+                        text(theme::UI)
+                            .text_color(t.muted)
+                            .child(tr("The game keeps running while the launcher restarts.")),
                     )
                     .child(
-                        button("yoake-launcher-download", "Open launcher page", Kind::Secondary, &t)
-                            .on_click(cx.listener(move |_, _: &ClickEvent, _, cx| {
-                                cx.open_url(&url);
-                            })),
+                        button(
+                            "yoake-launcher-restart",
+                            "Restart to update",
+                            Kind::Primary,
+                            &t,
+                        )
+                        .on_click(cx.listener(
+                            |this, _: &ClickEvent, _, cx| {
+                                this.yoake.launcher_error = Some(backend::restart());
+                                cx.notify();
+                            },
+                        )),
+                    );
+            } else {
+                banner = banner.child(
+                    button(
+                        "yoake-launcher-update",
+                        "Update launcher",
+                        Kind::Primary,
+                        &t,
+                    )
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                        this.begin_launcher_update();
+                        cx.notify();
+                    })),
+                );
+            }
+            if let Some(error) = &self.yoake.launcher_error {
+                banner = banner.child(text(theme::UI).text_color(t.danger).child(error.clone()));
+            }
+            page = page.child(banner.child(
+                button("yoake-launcher-portal", "View on portal", Kind::Ghost, &t).on_click(
+                    cx.listener(move |_, _: &ClickEvent, _, cx| {
+                        cx.open_url(&url);
+                    }),
+                ),
+            ));
+        } else if let Some(error) = &self.yoake.launcher_error {
+            let mut banner = plate(&t)
+                .flex()
+                .flex_col()
+                .gap(px(12.))
+                .p(px(16.))
+                .child(text(theme::UI).text_color(t.danger).child(error.clone()));
+            if let Some(url) =
+                option_env!("YOAKE_PORTAL_URL").and_then(yoake_launcher_update::portal_page)
+            {
+                banner = banner.child(
+                    button("yoake-launcher-portal", "View on portal", Kind::Ghost, &t).on_click(
+                        cx.listener(move |_, _: &ClickEvent, _, cx| {
+                            cx.open_url(&url);
+                        }),
                     ),
-            );
+                );
+            }
+            page = page.child(banner);
         }
         page = page.child(self.yoake_account(cx));
         if let Some((done, file)) = self.yoake.progress.clone() {
@@ -736,7 +943,13 @@ impl Launcher {
                         Err(_) => Some(yoake_login::LoginEvent::StorageError),
                     };
                     this.yoake.catalog = None;
-                    this.yoake.launcher_update = None;
+                    if let Some(job) = &this.yoake.launcher_job {
+                        let _ =
+                            job.state
+                                .compare_exchange(0, 1, Ordering::AcqRel, Ordering::Acquire);
+                    } else if !this.yoake.launcher_ready {
+                        this.yoake.launcher_update = None;
+                    }
                     this.yoake.launcher_update_task = None;
                     this.yoake.launcher_update_checked = false;
                     this.check_yoake_updates();

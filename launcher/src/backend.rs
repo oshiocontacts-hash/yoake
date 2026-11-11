@@ -1582,7 +1582,10 @@ fn download_for_owner(
         &mut accounts,
     );
     if let Err(e) = accounts.save() {
-        log(format!("{}: the accounts are not saved: {e}", crate::brand::name()));
+        log(format!(
+            "{}: the accounts are not saved: {e}",
+            crate::brand::name()
+        ));
     }
     download_for(pins, dir, pass, !accounts.accounts.is_empty(), fetch, log)
 }
@@ -2888,11 +2891,10 @@ fn launcher_asset_running_from(appimage: bool) -> Option<&'static str> {
     }
 }
 
-/// Development builds, `HORIZON_LAUNCHER_NO_SELF_UPDATE` and Yoake builds (a pack feed compiled in:
-/// upstream's launcher would drop the feed and the portal sign-in) never replace themselves.
+/// Upstream self-update is disabled for development and Yoake builds and when explicitly disabled.
 pub fn self_update_allowed() -> bool {
     !cfg!(debug_assertions)
-        && option_env!("YOAKE_COMPILED_FEED_URL").is_none()
+        && !account::owner_required()
         && std::env::var_os("HORIZON_LAUNCHER_NO_SELF_UPDATE").is_none()
 }
 
@@ -2906,7 +2908,7 @@ fn parse_version_output(out: &str) -> Option<&str> {
 
 /// The version of the launcher binary now at `path`, which is not this process's once another
 /// update (the command line, another window) has replaced the file.
-fn installed_launcher_version(path: &Path) -> Option<String> {
+pub fn installed_launcher_version(path: &Path) -> Option<String> {
     let mut cmd = crate::process::command(path);
     cmd.arg("--version")
         .stdin(Stdio::null())
@@ -2920,7 +2922,7 @@ fn installed_launcher_version(path: &Path) -> Option<String> {
 /// binary is, and Linux answers "<path> (deleted)" once the file has been replaced, so a second
 /// update in the same run failed with "No such file or directory".
 #[cfg(unix)]
-fn replace_binary(new: &Path, exe: &Path) -> std::io::Result<()> {
+pub fn replace_binary(new: &Path, exe: &Path) -> std::io::Result<()> {
     use std::os::unix::fs::PermissionsExt;
     let dir = exe.parent().ok_or_else(|| {
         std::io::Error::new(std::io::ErrorKind::NotFound, "the launcher has no folder")
@@ -2944,7 +2946,7 @@ fn replace_binary(new: &Path, exe: &Path) -> std::io::Result<()> {
 /// the original through a hidden `cmd.exe`, which Microsoft Defender quarantines as
 /// Trojan:Script/Wacatac (#3175).
 #[cfg(not(unix))]
-fn replace_binary(new: &Path, exe: &Path) -> std::io::Result<()> {
+pub fn replace_binary(new: &Path, exe: &Path) -> std::io::Result<()> {
     use std::sync::atomic::{AtomicU32, Ordering};
     // A second update in the same run moves the first one's binary aside too.
     static MOVED: AtomicU32 = AtomicU32::new(0);
