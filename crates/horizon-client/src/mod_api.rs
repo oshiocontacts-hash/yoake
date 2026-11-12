@@ -21,9 +21,14 @@ pub use crate::extras::Corner;
 pub use crate::extras_hud::Corners;
 pub use crate::first_person::Hand;
 pub use crate::fog::{FogData, FogType};
+pub use crate::game::native_block_behaviors::{
+    BlockBehavior, NativeBlockBehavior, NativeBlockContact, NativeBlockUse, NativeInteractionResult,
+};
 pub use crate::game::native_block_entity_draw::{BlockEntityDraw, CubeFace};
+pub use crate::game::native_data_menus::{MenuBehavior, NativeMenuBehavior};
 pub use crate::game::native_deferred::{LanOperationStatus, LanTicket};
 pub use crate::game::native_entity_query::NativeEntityInfo;
+pub use crate::game::native_item_behaviors::{ItemBehavior, NativeItemBehavior, NativeItemUse};
 pub use crate::game::native_item_render::{
     NativeItemContext, NativeItemDraw, NativeItemHolder, NativeItemRenderStack,
 };
@@ -68,6 +73,7 @@ pub use crate::native_audio_stream::{
     NativeAudioStreamId, NativeAudioStreamLimits, NativeStreamAnchor,
 };
 pub use crate::native_mic::NativeMicId;
+pub use crate::native_inventory::ItemHandler;
 pub use crate::particles::{ParticleOptions, ParticleType};
 pub use crate::pose::Pose as PlayerPose;
 pub use crate::recipe_book::RecipeBookCategory;
@@ -76,7 +82,7 @@ pub use crate::text::Text;
 pub use glam::Mat4;
 pub use horizon_assets::item_model::{DisplayContext, StackView};
 pub use horizon_core::{
-    geometry::Direction,
+    geometry::{Direction, VoxelShape},
     position::BlockPos,
     random::{LegacyRandom, RandomSource},
 };
@@ -88,9 +94,12 @@ pub use horizon_world::{
     attachments::{
         AttachmentCodec, AttachmentError, AttachmentHost, AttachmentType, Attachments, Holder,
     },
+    collision_context::{CollisionContext, CollisionEntity, CollisionItem},
+    entity_obstruction::EntityIdentity,
     fluid::FluidState,
     level::{BlockId, Dimension as LevelDimension, PlacementContext},
     loot::{LootStack, NativeLootContext},
+    native_block_shapes::BlockShapeKind,
     nbt::{Compound, Tag},
     registry::BlockStateId,
 };
@@ -248,6 +257,8 @@ pub struct NativeScreenView<'a> {
     /// None when the server gave none, on a screen the client opened, and
     /// while playing.
     pub title: Option<&'a Text>,
+    /// The server's opening buffer for a data menu (@API:menu_behaviors@).
+    pub extra: &'a [u8],
     /// The screen's container panel in GUI pixels, `[x, y, width, height]`;
     /// the whole window for a screen with none. The panel is where the game
     /// draws the window: 176 wide for most, wider for the merchant and the
@@ -278,6 +289,7 @@ impl NativeScreenView<'_> {
             id,
             menu: None,
             title: None,
+            extra: &[],
             rect: [0.0; 4],
             slots: 0,
             mouse: [0.0; 2],

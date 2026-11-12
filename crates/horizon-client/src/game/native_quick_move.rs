@@ -51,7 +51,7 @@ pub(super) fn quick_move_slot(
 /// mods wrote there, and their other changes to the block's items stay;
 /// otherwise the block's items are as they were before the call (`before`),
 /// so nothing a mod moved without taking the click is kept twice.
-fn settle(
+pub(super) fn settle(
     at: MenuSlot,
     handled: bool,
     stack: ItemStack,

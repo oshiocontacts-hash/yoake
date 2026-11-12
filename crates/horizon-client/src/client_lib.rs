@@ -89,6 +89,7 @@ pub mod landing;
 pub mod locator_bar;
 pub mod lod_net;
 pub mod menu;
+pub mod native_inventory;
 pub mod merchant;
 pub mod mobs;
 pub mod mod_content;

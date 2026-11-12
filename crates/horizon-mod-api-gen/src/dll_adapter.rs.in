@@ -1,0 +1,41 @@
+impl crate::mod_api::Hooks for DllMod {
+    fn tick(&self, host: &mut dyn Host, _event: &mut TickEvent) {
+        if let Some(callback) = self.hooks.client_tick {
+            if host.window() {
+                self.invoke(host, None, |instance, handle| unsafe {
+                    callback(instance, handle, &abi::TickEvent { reserved: 0 })
+                });
+            }
+        }
+    }
+
+    fn key(&self, host: &mut dyn Host, event: &mut KeyEvent<'_>) {
+        if let Some(callback) = self.hooks.key_input {
+            self.invoke(host, None, |instance, handle| unsafe {
+                callback(instance, handle, &abi::KeyEvent {
+                    key: abi::StrView::new(event.key),
+                    pressed: u32::from(event.pressed),
+                })
+            });
+        }
+    }
+
+    fn hud(&self, host: &mut dyn Host, event: &mut HudEvent<'_>) {
+        if let Some(callback) = self.hooks.hud {
+            self.invoke(host, Some(&mut *event.batch), |instance, handle| unsafe {
+                callback(instance, handle, &abi::HudEvent { batch: hud_handle(handle) })
+            });
+        }
+    }
+
+    fn net_from_server(&self, host: &mut dyn Host, event: &mut NetFromServerEvent<'_>) {
+        if let Some(callback) = self.hooks.mod_net_receive {
+            self.invoke(host, None, |instance, handle| unsafe {
+                callback(instance, handle, &abi::NetEvent {
+                    channel: abi::StrView::new(event.channel),
+                    data: abi::ByteView::new(event.data),
+                })
+            });
+        }
+    }
+}

@@ -448,8 +448,9 @@ impl Game<'_> {
             }
             self.update_dedicated_streaming();
             self.update_world();
-            result = horizon_client::block_contact::in_level(
-                (self.serving.is_some() || self.options.dedicated.is_some()).then_some(dim.id()),
+            result = horizon_client::block_contact::in_world(
+                dim.id(),
+                self.serving.is_some() || self.options.dedicated.is_some(),
                 || {
                     if paused {
                         self.tick_lan(true);

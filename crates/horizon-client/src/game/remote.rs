@@ -11,13 +11,16 @@ mod native_snapshot;
 pub use native_snapshot::SnapshotReport;
 
 use super::remote_chunks::{ChunkDecoder, ChunkFormat, Next};
-use super::{Dim, Game, Mining, PendingWorldEntry, Screen};
+use super::{
+    Dim, Game, Mining, PendingWorldEntry, Screen, native_block_behaviors, native_item_behaviors,
+};
 use horizon_client::first_person::{Hand, SwingAnimation};
+use horizon_client::mod_api::{BlockPos, FluidState, PlacementContext};
 use horizon_client::{
     Result,
     blocks::Fluid,
     chunk::Chunk,
-    containers::{BlockEntity, Furnace, FurnaceKind},
+    containers::{self, BlockEntity, Furnace, FurnaceKind},
     entities::{Experience, ExperienceOrb, ItemEntity},
     hud::HudBatch,
     items::ItemStack,
@@ -530,6 +533,10 @@ pub(super) struct Remote {
     pub(super) craft_result: Option<ItemStack>,
     /// The open menu's title as the server named it, with its styles.
     pub(super) menu_title: Option<horizon_client::text::Text>,
+    pub(super) menu_extra: Vec<u8>,
+    pub(super) menu_handler: Option<Arc<dyn horizon_client::native_inventory::ItemHandler>>,
+    pub(super) menu_handler_type: Option<String>,
+    pub(super) pending_menu: Option<horizon_client::native_inventory::MenuOpening>,
     state_id: i32,
     use_target: Option<[i32; 3]>,
     entities: HashMap<i32, Tracked>,
@@ -1075,6 +1082,10 @@ impl Game<'_> {
             menu: None,
             craft_result: None,
             menu_title: None,
+            menu_extra: Vec::new(),
+            menu_handler: None,
+            menu_handler_type: None,
+            pending_menu: None,
             state_id: 0,
             use_target: None,
             entities: HashMap::new(),
@@ -1173,6 +1184,7 @@ impl Game<'_> {
         if reason.is_none() && self.integrated.as_ref().is_some_and(|s| !s.stopped()) {
             return self.begin_closing_save(false).map(|_| false);
         }
+        self.close_remote_data_menu();
         *self.native_mob_player_cache.get_mut() = None;
         self.finish_native_fixed_frames();
         let replay_owner = self.native_session.take_replay_owner();
@@ -3058,6 +3070,16 @@ impl Game<'_> {
         let Some(internal) = Self::menu_slot(&menu, slot) else {
             return;
         };
+        if super::native_data_menus::enabled()
+            && let Some(handler) = self
+                .remote
+                .as_ref()
+                .and_then(|remote| remote.menu_handler.as_ref())
+            && let Ok(slot) = usize::try_from(slot)
+            && slot < handler.slots()
+        {
+            handler.set_stack(slot, item.clone());
+        }
         if internal == 200 {
             // ClientboundContainerSetSlotPacket for the open menu's slot 0: the
             // server's result of its own recipes (a world's data packs' too).
@@ -3156,6 +3178,14 @@ impl Game<'_> {
                 }
             }
             // A native mod's server half to its client half.
+            C::CustomPayload(p)
+                if super::native_data_menus::enabled()
+                    && p.channel == horizon_client::native_inventory::MENU_CHANNEL =>
+            {
+                if let Some(remote) = self.remote.as_mut() {
+                    remote.pending_menu = horizon_client::native_inventory::MenuOpening::decode(&p.data);
+                }
+            }
             C::CustomPayload(p) if p.channel == horizon_protocol::mod_net::CHANNEL => {
                 self.remote_native_net(&p.data);
             }
@@ -6335,6 +6365,9 @@ impl Game<'_> {
         }
         // The player's own model (third person, the inventory's preview).
         self.tick_player_model();
+        if native_item_behaviors::enabled() {
+            self.item_behavior_inventory_ticks();
+        }
         if !dead {
             self.remote_tick_using();
         }
@@ -7371,6 +7404,12 @@ impl Game<'_> {
             // startDestroyBlock: BlockState.attack on the client, so a redstone
             // ore's dust (RedStoneOreBlock.attack) comes before the break.
             self.redstone_ore_particles(hit.pos);
+            if native_block_behaviors::enabled()
+                && let Some(behavior) =
+                    native_block_behaviors::lookup(self.pack.assets.registry, state)
+            {
+                behavior.attack(self, BlockPos::new(hit.pos[0], hit.pos[1], hit.pos[2]), state);
+            }
             if progress >= 1.0 {
                 // startDestroyBlock: instant survival breaks have no destroy delay.
                 if !debug_stick {
@@ -7561,7 +7600,7 @@ impl Game<'_> {
                 secondary: sneaking,
             }));
             if passes {
-                return false;
+                return self.remote_item_behavior_entity(hand, hit.id);
             }
             // Minecart.interact resets the passenger's easing baseline on
             // a successful boarding click, not on SetPassengers (commands
@@ -7605,8 +7644,26 @@ impl Game<'_> {
                 self.with_hand(hand, Game::swing_arm);
                 return true;
             }
+            return self.remote_item_behavior_entity(hand, id);
         }
         false
+    }
+
+    fn remote_item_behavior_entity(&mut self, hand: Hand, id: i32) -> bool {
+        if !native_item_behaviors::enabled() {
+            return false;
+        }
+        let Some(entity) = self.level_entity(id) else {
+            return false;
+        };
+        let kind = self.target_type(entity);
+        self.with_hand(hand, |game| {
+            let Some(stack) = game.held().cloned() else {
+                return false;
+            };
+            let result = game.item_behavior_entity(&stack, id as u32, &kind);
+            game.behavior_interaction(result)
+        })
     }
 
     /// `Minecraft.startUseItem`'s block turn for `hand`: a use that swung drops
@@ -7742,8 +7799,39 @@ impl Game<'_> {
             if let Some(r) = self.remote.as_mut() {
                 r.use_target = Some(hit.pos);
             }
+            if native_block_behaviors::enabled()
+                && !(self.keys.contains(&KeyCode::ShiftLeft)
+                    && (self.stack_in(self.selected).is_some() || self.offhand.is_some()))
+            {
+                let handled = self.with_hand(hand, |game| {
+                    let result = game.block_behavior_use(hit.pos, hit.point, hit.face);
+                    game.behavior_interaction(result)
+                });
+                if handled {
+                    return true;
+                }
+            }
             if shelf_reacts {
                 return true;
+            }
+            if !reacts
+                && native_item_behaviors::enabled()
+                && let Some(stack) = held.as_ref()
+            {
+                let info = self.items().get(&stack.item);
+                let group = horizon_client::cooldowns::group(
+                    stack,
+                    info.and_then(|info| info.use_cooldown.as_ref()),
+                );
+                if !self.cooldowns.is_on_cooldown(&group) {
+                    let handled = self.with_hand(hand, |game| {
+                        let result = game.item_behavior_use(stack, Some(&hit), true);
+                        game.behavior_interaction(result)
+                    });
+                    if handled {
+                        return true;
+                    }
+                }
             }
             if reacts {
                 self.predict_use(&changes, seq);
@@ -8283,6 +8371,14 @@ impl Game<'_> {
         let group = horizon_client::cooldowns::group(&held, info.use_cooldown.as_ref());
         if self.cooldowns.is_on_cooldown(&group) {
             return false;
+        }
+        if native_item_behaviors::enabled()
+            && self.with_hand(hand, |game| {
+                let result = game.item_behavior_use(&held, None, false);
+                game.behavior_interaction(result)
+            })
+        {
+            return true;
         }
         // a mod's item used over time starts here too, as the server starts it.
         if self.with_hand(hand, |g| g.start_mod_use(&held)) {
@@ -9313,6 +9409,17 @@ impl Game<'_> {
             .iter()
             .map(|&(slot, button, input)| (slot, button, input, Vec::new(), self.carried.clone()))
             .collect();
+        if super::native_data_menus::enabled()
+            && let [(slot, button, Input::QuickMove)] = clicks.as_slice()
+            && self.inv_clicks.quick_crafting().is_none()
+            && let Some(changed) = self.remote_data_quick_move(*slot, *button)
+        {
+            self.send_clicks(
+                container,
+                vec![(*slot, *button, Input::QuickMove, changed, self.carried.clone())],
+            );
+            return true;
+        }
         let mut threw = false;
         // The engine's slot indices are the menu's own, as on the network.
         self.menu_session(|m, env, _| {
@@ -9331,6 +9438,47 @@ impl Game<'_> {
             self.swing_hand(Hand::Main, SwingAnimation::DEFAULT);
         }
         true
+    }
+    fn remote_data_quick_move(
+        &mut self,
+        slot: i16,
+        button: i32,
+    ) -> Option<Vec<(i16, Option<ItemStack>)>> {
+        let menu_type = containers::mod_menu_type(&self.remote_menu().1)?;
+        let inventory = self.remote.as_ref()?.menu_handler.clone()?;
+        let before = horizon_client::native_inventory::snapshot(inventory.as_ref());
+        let at = super::native_quick_move::quick_move_slot(
+            1,
+            button,
+            i32::from(slot),
+            before.len(),
+            &[],
+        )?;
+        let player_before = self.inventory.clone();
+        if !self.apply_data_quick_move(
+            at,
+            slot as usize,
+            horizon_client::menu::Kind::Mod(menu_type),
+            &before,
+            inventory.as_ref(),
+        ) {
+            return None;
+        }
+        let after = horizon_client::native_inventory::snapshot(inventory.as_ref());
+        let mut changed = Vec::new();
+        for (index, stack) in after.iter().enumerate() {
+            if before[index] != *stack {
+                changed.push((index as i16, stack.clone()));
+            }
+            *self.slot_mut(300 + index) = stack.clone();
+        }
+        for (index, stack) in self.inventory.iter().take(36).enumerate() {
+            if player_before[index] != *stack {
+                let internal = if index < 9 { 27 + index } else { index - 9 };
+                changed.push(((before.len() + internal) as i16, stack.clone()));
+            }
+        }
+        Some(changed)
     }
     /// A Shift double click on a server (`AbstractContainerScreen.mouseReleased`):
     /// a predicted QUICK_MOVE for every slot the engine moves, each sent.
@@ -9471,6 +9619,7 @@ impl Game<'_> {
         self.remote_close_local();
     }
     fn remote_close_local(&mut self) {
+        self.close_remote_data_menu();
         // `Gui.setScreen` clears the focus of the screen it takes down: the
         // container's keyboard focus must not outlive it (a Tab bound to the
         // inventory moves the focus and closes the container in one press).
@@ -9480,6 +9629,7 @@ impl Game<'_> {
             r.menu = None;
             r.menu_title = None;
             r.craft_result = None;
+            r.pending_menu = None;
         }
         self.mount_menu_reset();
         // The client's menu has no level access: what it holds is the server's.
@@ -9570,6 +9720,13 @@ impl Game<'_> {
                     .map(str::to_owned)
             })
             .unwrap_or_default();
+        if !self.prepare_remote_data_menu(p.container, &menu) {
+            self.send(S::ContainerClose(play::ContainerClose {
+                container: p.container,
+            }));
+            self.remote_close_local();
+            return;
+        }
         let target = self
             .remote
             .as_mut()
@@ -9643,6 +9800,7 @@ impl Game<'_> {
             // mod's screen places.
             _ if mod_type.is_some() => Some(BlockEntity::Mod(Box::new(
                 horizon_client::containers::ModBlockEntityFields {
+                    id: menu.clone(),
                     items: vec![None; mod_type.map_or(0, |t| t.slots)],
                     ..Default::default()
                 }
@@ -9686,6 +9844,7 @@ impl Game<'_> {
             // A mod menu type shows through its mod's screen only: without one
             // (`MenuScreens.create` finds no screen) the window closes again.
             if self.mod_screen.is_none() && mod_type.is_some() {
+                self.close_remote_data_menu();
                 self.world.block_entities.remove(&key);
                 self.container = None;
                 if let Some(r) = self.remote.as_mut() {
@@ -9718,11 +9877,21 @@ impl Game<'_> {
     }
     /// The type of the menu a server opened (`MenuType`'s id).
     pub(super) fn remote_menu_type(&self) -> Option<&str> {
+        if let Some(menu) = self.local_data_menu() {
+            return Some(menu.kind.id);
+        }
         Some(self.remote.as_ref()?.menu.as_ref()?.1.as_str())
     }
     /// The title the server gave the menu it opened.
     pub(super) fn remote_menu_title(&self) -> Option<horizon_client::text::Text> {
-        self.remote.as_ref()?.menu_title.clone()
+        self.data_menu_title().cloned()
+    }
+
+    pub(super) fn data_menu_title(&self) -> Option<&horizon_client::text::Text> {
+        if let Some(menu) = self.local_data_menu() {
+            return Some(&menu.title);
+        }
+        self.remote.as_ref()?.menu_title.as_ref()
     }
     /// A language change reaches the server-sent components too: their titles
     /// are resolved when the packet arrives, with the session's language.
@@ -10320,6 +10489,17 @@ impl horizon_world::level::LevelAccess for DryLevel<'_> {
         state: BlockStateId,
     ) -> Option<bool> {
         self.base.is_valid_bonemeal_target(pos, state)
+    }
+    #[allow(clippy::option_option)]
+    fn before_state_for_placement(
+        &self,
+        state: BlockStateId,
+        context: &PlacementContext,
+        fluid: FluidState,
+        answer: &mut Option<Option<BlockStateId>>,
+    ) {
+        self.base
+            .before_state_for_placement(state, context, fluid, answer);
     }
     fn game_time(&self) -> i64 {
         self.base.game_time()

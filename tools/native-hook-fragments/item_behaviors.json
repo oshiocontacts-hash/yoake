@@ -1,0 +1,12 @@
+{
+  "hooks": [
+    {
+      "name": "item_behaviors",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_item_behaviors",
+      "mod_api": { "contract": "collect", "out": "behaviors" }
+    }
+  ],
+  "rust_summary": "Reusable per-id mod item behavior implementations.",
+  "doc_summary": "Per-id item behavior objects are collected once at startup. @API:item_behaviors@.",
+  "comments": ["crates/horizon-client/src/game/native_hooks.rs", "docs/native-mods.md"]
+}

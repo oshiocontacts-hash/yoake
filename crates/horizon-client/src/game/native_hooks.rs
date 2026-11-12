@@ -902,8 +902,9 @@ use horizon_client::mod_api::{
     FixedFrame, FrameAdvance, LocalPlayerSnapshot, NativeAudioMixBatch, NetState, SnapshotReport,
 };
 pub(crate) use horizon_client::mod_api::{
-    NativeBlockRim, NativeColoredLight, NativeLootDrops, NativeMinimap, NativeMod,
-    NativePanelEvent, NativeScreen, NativeScreenView, NativeStack, NativeZoom,
+    NativeBlockBehavior, NativeBlockRim, NativeColoredLight, NativeItemBehavior, NativeLootDrops,
+    NativeMenuBehavior, NativeMinimap, NativeMod, NativePanelEvent, NativeScreen, NativeScreenView,
+    NativeStack, NativeZoom,
 };
 use horizon_client::mod_api::{NativeChatRecipients, NativeCrosshairEntity, Pipe};
 use horizon_client::{
@@ -957,6 +958,7 @@ pub(super) struct ObservedScreen {
     id: &'static str,
     menu: Option<String>,
     title: Option<Text>,
+    extra: Vec<u8>,
     inventory_context: Option<NativeInventoryContext>,
     rect: [f32; 4],
     slots: usize,
@@ -970,6 +972,7 @@ impl ObservedScreen {
             id: self.id,
             menu: self.menu.as_deref(),
             title: self.title.as_ref(),
+            extra: &self.extra,
             rect: self.rect,
             slots: self.slots,
             mouse: self.mouse,
@@ -1094,6 +1097,7 @@ impl Game<'_> {
             id,
             menu: None,
             title: None,
+            extra: &[],
             rect: [0.0, 0.0, batch.width, batch.height],
             slots: 0,
             mouse: self.native_cursor(),
@@ -1111,6 +1115,7 @@ impl Game<'_> {
             id: view.id,
             menu: view.menu.map(str::to_owned),
             title: view.title.cloned(),
+            extra: view.extra.to_vec(),
             rect: view.rect,
             slots: view.slots,
             mouse: view.mouse,
@@ -2154,6 +2159,21 @@ pub(crate) fn net_session_ended(session: u64, reason: &str) {
 
 /// The hook points. Each does nothing in Horizon.
 impl Game<'_> {
+    /// Per-id block implementations; an empty collection installs no dispatch. @API:block_behaviors@.
+    pub(super) fn native_block_behaviors(behaviors: &mut Vec<NativeBlockBehavior>) {
+        mod_api::dispatch_block_behaviors(mod_api::mods(), behaviors);
+    }
+
+    /// Per-id item implementations; empty means no item dispatch. @API:item_behaviors@.
+    pub(super) fn native_item_behaviors(behaviors: &mut Vec<NativeItemBehavior>) {
+        mod_api::dispatch_item_behaviors(mod_api::mods(), behaviors);
+    }
+
+    /// Factories and validity checks for mod-owned menus. @API:menu_behaviors@.
+    pub(super) fn native_menu_behaviors(behaviors: &mut Vec<NativeMenuBehavior>) {
+        mod_api::dispatch_menu_behaviors(mod_api::mods(), behaviors);
+    }
+
     /// Enable final-mix copies only when observed. API @API:replay_audio_mix@.
     pub(super) fn native_audio_mix_ready_listened(listened: &mut bool) {
         mod_api::dispatch_audio_mix_ready_listened(mod_api::mods(), listened);
@@ -3678,7 +3698,8 @@ impl Game<'_> {
         NativeScreenView {
             id: screen.id(),
             menu: self.remote_menu_type().filter(|m| !m.is_empty()),
-            title: self.remote.as_ref().and_then(|r| r.menu_title.as_ref()),
+            title: self.data_menu_title(),
+            extra: self.remote_menu_extra(),
             rect: self.screen_rect(batch, screen),
             slots: self.slot_count(),
             mouse: self.native_cursor(),
@@ -3697,6 +3718,7 @@ impl Game<'_> {
             id: title.mode.id(),
             menu: None,
             title: None,
+            extra: &[],
             rect: [0.0, 0.0, batch.width, batch.height],
             slots: 0,
             mouse: self.native_cursor(),
@@ -3938,6 +3960,8 @@ impl Game<'_> {
     /// it keeps moving the same item. The player's state is swapped in, so
     /// `native_acting_player` names them; `entity` is out of the world
     /// during the call, as in `native_menu_button`.
+    /// Mod-owned data menus also call this on the predicting client,
+    /// using a temporary entity whose id is the menu type.
     /// API 309.
     pub(super) fn native_menu_quick_move(
         &mut self,
@@ -4047,7 +4071,7 @@ impl Game<'_> {
     /// The player's state is swapped in for the call, as for
     /// `native_perform_command`, so `native_acting_player`, `native_tell` and
     /// the item helpers reach them. Not heard: a menu a mod opens
-    /// (`native_open_menu`), the inventory screen, and the editors (sign,
+    /// (`native_open_chest_menu` or `native_open_menu`), the inventory screen, and the editors (sign,
     /// book, command block). Server-side, for every player of the world.
     /// 176.
     pub(super) fn native_container_opened(
@@ -6379,7 +6403,7 @@ impl Game<'_> {
     ) {
         mod_api::dispatch_player_level_change(self, mod_api::mods(), player, name, from, to);
     }
-    /// A click in a menu a mod opened (`native_open_menu`), which moved
+    /// A click in a read-only menu a mod opened (`native_open_chest_menu`), which moved
     /// nothing: the menu's `slot` (its own first, then the player's
     /// inventory, `native_menu_inventory_slot`; -999 outside), the `button`
     /// and the click's `mode` (`ClickType`'s id) of the player `uuid`.
@@ -9978,6 +10002,12 @@ impl Game<'_> {
             explosion,
             used: false,
         };
+        if let Some(behavior) =
+            super::native_block_behaviors::lookup(self.pack.assets.registry, state)
+            && let Some(replacement) = behavior.drops(self, &context)
+        {
+            *drops = replacement;
+        }
         self.native_loot_drops(&context, drops);
         drops.retain(|stack| stack.count > 0 && &*stack.item != "minecraft:air");
     }
@@ -10076,7 +10106,12 @@ impl Game<'_> {
     pub(super) fn native_hurt_enemy_event(&mut self, stack: &ItemStack, index: usize) {
         let mob = &self.mobs[index];
         let kind = ["minecraft:", mob.kind.id.trim_start_matches("minecraft:")].concat();
-        self.native_hurt_enemy(stack, mob.id, &kind);
+        let entity = mob.id;
+        if let Some(behavior) = super::native_item_behaviors::lookup(stack) {
+            let client_side = !self.native_authoritative();
+            behavior.attack_hit(self, stack, entity, &kind, client_side);
+        }
+        self.native_hurt_enemy(stack, entity, &kind);
     }
     /// `Inventory.tick` for the acting player: each carried stack goes through
     /// `native_inventory_tick`.
@@ -10097,11 +10132,41 @@ impl Game<'_> {
         if self.native_carried_slot(slot).is_none_or(|s| s.is_none()) {
             return;
         }
+        if super::native_item_behaviors::enabled() {
+            self.item_behavior_slot_tick(slot, selected);
+        }
         self.native_inventory_tick(slot, selected);
         if let Some(stack) = self.native_carried_slot(slot)
             && stack.as_ref().is_some_and(|s| s.count == 0)
         {
             *stack = None;
+        }
+    }
+    pub(super) fn item_behavior_inventory_ticks(&mut self) {
+        if self.player.is_none() {
+            return;
+        }
+        for slot in 0..self.inventory.len() {
+            self.item_behavior_slot_tick(slot as i32, slot == self.selected);
+        }
+        for slot in 0..self.armor.len() {
+            self.item_behavior_slot_tick(103 - slot as i32, false);
+        }
+        self.item_behavior_slot_tick(-106, false);
+    }
+    fn item_behavior_slot_tick(&mut self, slot: i32, selected: bool) {
+        if let Some(stack) = self
+            .native_carried_slot(slot)
+            .and_then(|stack| stack.clone())
+            && let Some(behavior) = super::native_item_behaviors::lookup(&stack)
+        {
+            let client_side = !self.native_authoritative();
+            behavior.inventory_tick(self, &stack, slot, selected, client_side);
+            if let Some(stack) = self.native_carried_slot(slot)
+                && stack.as_ref().is_some_and(|stack| stack.count == 0)
+            {
+                *stack = None;
+            }
         }
     }
     /// The slot a player's carried stack is in, by `native_inventory_tick`'s
@@ -10305,6 +10370,11 @@ impl Game<'_> {
     }
     /// The menu type of the mod container at `key`, if it has one.
     pub(super) fn mod_menu_at(&self, key: Pos) -> Option<&'static str> {
+        if key == super::native_data_menus::LOCAL_MENU_KEY
+            && let Some(menu) = self.local_data_menu()
+        {
+            return Some(menu.kind.id);
+        }
         let state = self.world.block(key.0, key.1, key.2).0;
         let c = self.world.block_entities.mod_container(state)?;
         mod_menu(c.menu.as_deref()?).map(|(menu, _)| menu)
@@ -10341,6 +10411,20 @@ impl Game<'_> {
         menu: &str,
     ) {
         self.mod_screen = None;
+        if super::native_data_menus::enabled() && super::native_data_menus::lookup(menu).is_some() {
+            let mut screen = None;
+            self.native_screen(menu, &mut screen);
+            if let Some(screen) = screen {
+                self.mod_screen = Some(OpenNativeScreen {
+                    key,
+                    window,
+                    block: menu.into(),
+                    screen,
+                    data: Vec::new(),
+                });
+                return;
+            }
+        }
         let Some(t) = target else {
             return;
         };

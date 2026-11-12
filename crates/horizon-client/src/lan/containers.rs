@@ -8,7 +8,7 @@ use crate::{containers::BlockEntity, items::ItemStack, world::World};
 use horizon_core::random::RandomSource;
 use horizon_protocol::{
     item::Hashed,
-    packets::play::{self, Clientbound as C},
+    packets::{configuration as cfg, play::{self, Clientbound as C}},
 };
 use horizon_world::nbt::Tag;
 use std::collections::HashMap;
@@ -326,6 +326,58 @@ impl Hub {
             mod_type: None,
         });
         self.send_menu_content(i, items);
+        Some(window)
+    }
+
+    pub fn open_data_menu(
+        &mut self,
+        conn: u32,
+        menu_type: &'static crate::containers::ModMenuType,
+        title: Tag,
+        items: Vec<Option<ItemStack>>,
+        extra: &[u8],
+    ) -> Option<i32> {
+        let kind = self.sync.builtin.get("minecraft:menu")?.id(menu_type.id)?;
+        let index = self.guests.iter().position(|guest| guest.conn == conn)?;
+        if items.len() != menu_type.slots
+            || !crate::containers::menu_reaches(&self.guests[index].brand, menu_type.id)
+        {
+            return None;
+        }
+        let window = self.guests[index].next_window % 100 + 1;
+        let data = crate::native_inventory::MenuOpening {
+            window,
+            menu_type: menu_type.id.into(),
+            extra: extra.to_vec(),
+        }
+        .encode()?;
+        self.close_container_at(index);
+        let guest = &mut self.guests[index];
+        guest.native_menu = items.clone();
+        guest.next_window = window;
+        guest.send(&C::CustomPayload(cfg::CustomPayload {
+            channel: crate::native_inventory::MENU_CHANNEL.into(),
+            data,
+        }));
+        guest.send(&C::OpenScreen(play::OpenScreen {
+            container: window,
+            menu: kind,
+            title,
+        }));
+        guest.menu = Some(Menu {
+            window,
+            kind,
+            pos: None,
+            slots: Slots::Native,
+            size: menu_type.slots,
+            state: 0,
+            sent: Vec::new(),
+            drag: None,
+            sent_data: Vec::new(),
+            hidden: Vec::new(),
+            mod_type: Some(menu_type),
+        });
+        self.send_menu_content(index, items);
         Some(window)
     }
 

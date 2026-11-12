@@ -279,6 +279,7 @@ impl Game<'_> {
         {
             let view = item_render::stack_view(stack);
             let mut duration = use_duration(&self.pack.item_renderer.models.components(&view));
+            super::native_item_behaviors::duration(stack, &mut duration);
             self.native_use_duration(stack, &mut duration);
             owner.using_this_item = true;
             owner.use_duration = duration;

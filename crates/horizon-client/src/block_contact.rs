@@ -1,4 +1,4 @@
-//! Synchronous mod-block contacts from the server's simulation code.
+//! Synchronous mod-block contacts from client and server simulation code.
 use horizon_core::position::BlockPos;
 use horizon_world::registry::BlockStateId;
 use std::{
@@ -26,6 +26,7 @@ pub enum Event<'a> {
 }
 
 pub static HOOK: OnceLock<fn(&str, Event<'_>, &mut f32)> = OnceLock::new();
+pub static BEHAVIOR_HOOK: OnceLock<fn(&str, bool, Event<'_>)> = OnceLock::new();
 /// Whether the loaded blocks hold one outside `minecraft:` (a content mod's).
 /// Without one no contact can dispatch, so the item and projectile sweeps
 /// skip their per-tick work: every item and thrown thing on a server would
@@ -37,19 +38,27 @@ pub fn set_mod_blocks(any: bool) {
     MOD_BLOCKS.store(any, Ordering::Relaxed);
 }
 thread_local! {
-    static LEVEL: Cell<Option<&'static str>> = const { Cell::new(None) };
+    static LEVEL: Cell<Option<(&'static str, bool)>> = const { Cell::new(None) };
 }
 
 /// Scope authority to this thread and restore it even on an error or panic.
 /// Nested guest actions may temporarily enter a different dimension.
 pub fn in_level<R>(dimension: Option<&'static str>, f: impl FnOnce() -> R) -> R {
-    struct Restore(Option<&'static str>);
+    in_world_scope(dimension.map(|dimension| (dimension, false)), f)
+}
+
+pub fn in_world<R>(dimension: &'static str, authoritative: bool, f: impl FnOnce() -> R) -> R {
+    in_world_scope(Some((dimension, !authoritative)), f)
+}
+
+fn in_world_scope<R>(scope: Option<(&'static str, bool)>, f: impl FnOnce() -> R) -> R {
+    struct Restore(Option<(&'static str, bool)>);
     impl Drop for Restore {
         fn drop(&mut self) {
             LEVEL.set(self.0);
         }
     }
-    let _restore = Restore(LEVEL.replace(dimension));
+    let _restore = Restore(LEVEL.replace(scope));
     f()
 }
 
@@ -70,7 +79,12 @@ fn dispatch(event: Event<'_>, damage: &mut f32) {
     if contact.block.starts_with("minecraft:") {
         return;
     }
-    if let Some(dimension) = LEVEL.get()
+    if let Some((dimension, client_side)) = LEVEL.get()
+        && let Some(hook) = BEHAVIOR_HOOK.get()
+    {
+        hook(dimension, client_side, event);
+    }
+    if let Some((dimension, false)) = LEVEL.get()
         && let Some(hook) = HOOK.get()
     {
         let original = *damage;
@@ -91,7 +105,10 @@ pub fn swept_inside<'a>(
     bounds: horizon_core::geometry::Aabb,
     mut block: impl FnMut(BlockPos) -> (BlockStateId, &'a str),
 ) {
-    if !MOD_BLOCKS.load(Ordering::Relaxed) || LEVEL.get().is_none() || HOOK.get().is_none() {
+    if !MOD_BLOCKS.load(Ordering::Relaxed)
+        || LEVEL.get().is_none()
+        || (HOOK.get().is_none() && BEHAVIOR_HOOK.get().is_none())
+    {
         return;
     }
     let bounds = bounds.deflate(horizon_core::geometry::Vec3::new(1e-5, 1e-5, 1e-5));

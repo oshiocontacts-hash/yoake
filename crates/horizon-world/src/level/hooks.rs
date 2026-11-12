@@ -30,6 +30,19 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     ) {
         self.level
             .observe_neighbor_changed(pos, state, changed, moved);
+        let mut state = state;
+        let mut handled = false;
+        self.level.before_neighbor_changed(
+            self.ticks,
+            pos,
+            &mut state,
+            changed,
+            moved,
+            &mut handled,
+        );
+        if handled {
+            return;
+        }
         let b = self.b;
         let block = b.block(state);
         let chain = &b.data(state).chain;
