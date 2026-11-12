@@ -36,13 +36,13 @@ impl YoakeMod for Hello {
     }
 
     fn key_input(&mut self, host: &mut Host<'_>, key: &str, pressed: bool) {
-        if key != "key.keyboard.f8" {
+        if key != "key.keyboard.f6" {
             return;
         }
         if pressed && !self.key_down {
             self.visible = !self.visible;
             let _ = host.set_setting("visible", if self.visible { "true" } else { "false" });
-            let _ = host.feedback(if self.visible { "[F8] +" } else { "[F8] -" });
+            let _ = host.feedback(if self.visible { "[F6] +" } else { "[F6] -" });
             if self.in_world {
                 let _ = host.mod_net_send("dll-hello:echo", b"hello from the startup DLL");
             }
@@ -54,7 +54,7 @@ impl YoakeMod for Hello {
         if !self.visible {
             return;
         }
-        let line = format!("dll-hello #{} [F8]", self.ticks);
+        let line = format!("dll-hello #{} [F6]", self.ticks);
         let _ = host.hud_rect(&batch, [6.0, 6.0, 260.0, 18.0], 0x78000000);
         let _ = host.hud_text(&batch, &line, [10.0, 11.0], 0xffffff, true);
     }
