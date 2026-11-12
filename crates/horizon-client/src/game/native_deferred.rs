@@ -155,7 +155,7 @@ impl DeferredRequests {
             && self.shared.permission_refresh.swap(false, Ordering::AcqRel)
     }
 
-    fn take_mod_screen(&self) -> Option<usize> {
+    pub(super) fn take_mod_screen(&self) -> Option<usize> {
         if self.shared.mod_screen.load(Ordering::Acquire) == 0 {
             return None;
         }
