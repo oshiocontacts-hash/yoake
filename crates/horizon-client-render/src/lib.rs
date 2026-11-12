@@ -20,9 +20,7 @@ pub mod border_render;
 pub mod breaking;
 pub mod brewing;
 pub mod camera;
-#[cfg(feature = "dev-capture")]
 mod capture_time;
-#[cfg(feature = "dev-capture")]
 pub use capture_time::AnimationInstant;
 pub mod chat;
 pub mod chunk;
@@ -70,6 +68,8 @@ pub mod mod_list;
 pub mod model_library;
 pub mod models;
 pub mod multiline_edit;
+pub mod native_audio_mix;
+mod native_audio_output;
 pub mod native_audio_stream;
 pub mod native_emissive;
 pub mod native_mic;

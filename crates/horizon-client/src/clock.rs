@@ -381,6 +381,33 @@ impl FixedStep {
         self.timer.update_pause_state(self.pause);
     }
 
+    pub fn native_frame_time(
+        &mut self,
+        origin: &Self,
+        elapsed: std::time::Duration,
+        partial_tick: f32,
+        frame_ticks: f32,
+    ) -> Result<(), &'static str> {
+        if !partial_tick.is_finite()
+            || !(0.0..1.0).contains(&partial_tick)
+            || !frame_ticks.is_finite()
+            || frame_ticks < 0.0
+        {
+            return Err("invalid fixed-frame time");
+        }
+        self.now = origin
+            .now
+            .checked_add(elapsed)
+            .filter(|now| now.as_nanos() <= i64::MAX as u128)
+            .ok_or("fixed-frame simulation time overflows")?;
+        self.pause = false;
+        self.timer = Timer::new(20.0, self.now_ms());
+        self.timer.delta_tick_residual = partial_tick;
+        self.timer.delta_ticks = frame_ticks;
+        self.timer.realtime_delta_ticks = frame_ticks;
+        Ok(())
+    }
+
     #[cfg(feature = "dev-capture")]
     pub fn capture_set_time(
         &mut self,

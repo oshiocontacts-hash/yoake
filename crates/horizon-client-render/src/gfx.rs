@@ -120,8 +120,8 @@ fn translucent_split(batching: bool, flat_draws: bool, terrain: bool, shadow: bo
 
 mod animate;
 mod arena;
-#[cfg(feature = "dev-capture")]
 pub mod capture;
+mod native_fixed;
 pub mod compositor;
 mod cull;
 mod end_sky;
@@ -1141,8 +1141,8 @@ pub struct Renderer {
     readback: readback::Readback,
     #[cfg(feature = "dev-capture")]
     capture: capture::CaptureHandle,
-    #[cfg(feature = "dev-capture")]
     capture_time: Option<capture::PresentationTime>,
+    native_fixed: Option<native_fixed::Output>,
     pub info: wgpu::AdapterInfo,
     pub suspended: bool,
     /// Consecutive frames whose surface acquisition failed validation. The
@@ -4210,8 +4210,8 @@ impl Renderer {
             readback: readback::Readback::default(),
             #[cfg(feature = "dev-capture")]
             capture: capture::CaptureHandle::new([size.width, size.height]),
-            #[cfg(feature = "dev-capture")]
             capture_time: None,
+            native_fixed: None,
             info,
             suspended: !drawable_size(size.width, size.height, max_side),
             acquire_validation_failures: 0,
@@ -4440,7 +4440,6 @@ impl Renderer {
         self.capture.clone()
     }
 
-    #[cfg(feature = "dev-capture")]
     pub fn set_capture_presentation_time(&mut self, time: Option<std::time::Duration>) {
         if time.is_none() && self.capture_time.is_none() {
             return;
@@ -4485,7 +4484,6 @@ impl Renderer {
     }
 
     fn animation_now(&self) -> Instant {
-        #[cfg(feature = "dev-capture")]
         if let Some(clock) = self.capture_time {
             return clock.now();
         }
@@ -4495,6 +4493,10 @@ impl Renderer {
     /// Follows the window to `width` x `height`. A size the swapchain can't take
     /// ([`drawable_size`]) keeps the last one and draws nothing until the next.
     pub fn resize(&mut self, width: u32, height: u32) {
+        if let Some(output) = &mut self.native_fixed {
+            output.window_size = Some([width, height]);
+            return;
+        }
         #[cfg(feature = "dev-capture")]
         self.capture.resize([width, height]);
         let max = self.device.limits().max_texture_dimension_2d;
@@ -6176,7 +6178,6 @@ impl Renderer {
     /// and halved for each time it ran out of video memory.
     fn screenshot_size(&self) -> Option<[u32; 2]> {
         let request = self.screenshot.as_ref()?;
-        #[cfg(feature = "dev-capture")]
         if self.capture_time.is_some() {
             return None;
         }
@@ -6313,7 +6314,6 @@ impl Renderer {
             && self.native.as_ref().is_none_or(|n| n.post.is_none())
             && (self.surface.is_none()
                 || self.config.usage.contains(wgpu::TextureUsages::COPY_DST));
-        #[cfg(feature = "dev-capture")]
         let fg = fg && self.capture_time.is_none();
         if !fg {
             self.frame_gen.stop();
@@ -6385,6 +6385,8 @@ impl Renderer {
         #[cfg(feature = "dev-capture")]
         let needs_readback =
             needs_readback || (self.capture_time.is_some() && self.capture.pending());
+        let needs_readback = needs_readback
+            || self.native_fixed.as_ref().is_some_and(|output| output.capture.pending());
         let target_texture = match (&surface_frame, &mut self.hdr) {
             _ if let Some((real, _)) = &fg_frames => real.clone(),
             (Some(_), Some(hdr)) => hdr.frame(&self.device, size),
@@ -8001,7 +8003,6 @@ impl Renderer {
                 .size()
                 .filter(|_| scaled.is_some())
                 .unwrap_or([self.config.width, self.config.height]);
-            #[cfg(feature = "dev-capture")]
             native
                 .frame
                 .set_capture_presentation_time(self.capture_time);
@@ -9117,14 +9118,11 @@ impl Renderer {
                 previous_camera: previous.map(|(_, camera)| camera),
                 camera: frame.camera,
                 frame_index: {
-                    #[cfg(feature = "dev-capture")]
                     if let Some(clock) = self.capture_time {
                         clock.frame() as u64
                     } else {
                         self.native_pre_post_frame
                     }
-                    #[cfg(not(feature = "dev-capture"))]
-                    self.native_pre_post_frame
                 },
                 sun_direction: sun,
                 sky: &frame.sky,
@@ -9248,7 +9246,6 @@ impl Renderer {
                 indices: self.indices.clone(),
                 quads: cloud_quads,
             }));
-            #[cfg(feature = "dev-capture")]
             post.set_capture_presentation_time(self.capture_time);
             post.run(
                 &self.device,
@@ -9405,6 +9402,9 @@ impl Renderer {
         } else {
             None
         };
+        let native_readback = self.native_fixed.as_ref().and_then(|output| {
+            output.capture.copy(&self.device, &mut encoder, shown_texture)
+        });
         self.uploads.finish(&encoder);
         if has_section_copies {
             self.section_copy_bytes = 0;
@@ -9439,6 +9439,7 @@ impl Renderer {
         // thread), the first frame's startup log, VSync's frame callback, a reconfigure.
         // Frame generation presents its own frames (`frame_gen.present` below).
         let can_defer = readback.is_none()
+            && native_readback.is_none()
             && fg_frames.is_none()
             && hdr_readback.is_none()
             && checks.is_none()
@@ -9494,6 +9495,11 @@ impl Renderer {
             self.first_frame = FirstFrame::Drawn;
         }
         let submission = crate::spans::time("submit", || self.queue.submit([commands]));
+        if let Some(readback) = native_readback
+            && let Some(output) = &self.native_fixed
+        {
+            output.capture.submitted(readback);
+        }
         #[cfg(feature = "dev-capture")]
         if let Some(readback) = capture_readback {
             self.capture.submitted(readback);

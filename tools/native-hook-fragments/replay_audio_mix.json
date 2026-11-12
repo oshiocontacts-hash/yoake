@@ -1,0 +1,26 @@
+{
+  "hooks": [
+    {
+      "name": "audio_mix_ready_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_audio_mix_ready_listened",
+      "side": "client",
+      "mod_api": { "contract": "collect", "out": "listened" }
+    },
+    {
+      "name": "audio_mix_ready",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_audio_mix_ready",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": { "contract": "listen" }
+    }
+  ],
+  "helpers": [
+    {
+      "name": "audio_mix_drain",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_audio_mix_drain",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "bounded copy-only final audio output and fixed-step 48 kHz stereo capture.",
+  "doc_summary": "game-thread PCM drains with independent mod cursors and explicit overrun counts; API @API:replay_audio_mix@."
+}

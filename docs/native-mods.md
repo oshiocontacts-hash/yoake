@@ -4189,3 +4189,111 @@ Creating a pipe alone does not join a world or change the screen.
 # Camera and collision reads
 
 The `native_camera()` helper returns the most recently extracted world frame's camera, or none before one exists. Its position, interpolated eye height, partial tick, angles, final FOV, near/far planes and dimension accompany column-major view and projection matrices. The view is camera-relative and includes bob and spin; projection uses reversed Z. Earlier callbacks in a frame can see the previous frame. `native_block_collision(pos)` returns block-local `[min_x, min_y, min_z, max_x, max_y, max_z]` boxes with an empty collision context; unloaded blocks and collision errors give no boxes.
+
+# Fixed-step replay frames (RH-6)
+
+API @API:replay_fixed_frames@ exposes
+`request_fixed_step_frames(fps: u32, size: (u32, u32), hud: bool) -> bool`
+and `end_fixed_step_frames()`. A request requires an installed mod, a loaded
+replay client, no other capture, 1–1000 fps and a nonzero SDR target no larger
+than 3840×2160 or the GPU's texture limit. Failure leaves ordinary output alone.
+The offscreen target is independent of the window; resizing the window during
+capture is applied when output returns. HDR output is rejected, not silently
+converted. The hand remains enabled unless the existing hand hook hides it.
+
+`fixed_frame(&FixedFrame) -> FrameAdvance` supplies a zero-based index, fps,
+target size, HUD flag, nominal elapsed time and the default rational 20 Hz
+cadence. `FrameAdvance { ticks, partial_tick }` runs that many additional ticks
+then interpolates in `[0, 1)`. Simulation, shader and visual UI clocks advance
+by that time, not readback/encoder wait time. Invalid or backwards time aborts
+capture; ending from a callback is safe, including ending and restarting.
+The ordinary window pacing and frame generation paths are bypassed.
+
+`fixed_frame_pixels(index: u64, rgba: &[u8], size: (u32, u32))` receives tightly
+packed, top-to-bottom RGBA8 via the existing `CaptureReadback`. Copy bytes before
+returning if an encoder retains them. GPU mapping waits on the game thread,
+never an audio callback. End, disconnect, replay EOF or shutdown restores the
+previous target and pacing; visual time resumes continuously. `dev-capture`
+remains a separate, mutually exclusive PNG/integrated-server workflow.
+With no request there is no target allocation, readback, tick override or hook
+call; optional-clock checks retain wall time. Headless unit tests cover cadence,
+custom advances, inactive state, restart isolation and target limits; they do
+not exercise a GPU or a window.
+
+# Final audio mix copy (RH-7)
+
+API @API:replay_audio_mix@ adds `audio_mix_ready_listened(listened: &mut bool)`,
+`audio_mix_ready()` and `audio_mix_drain() -> NativeAudioMixBatch`. Set the flag
+at initialization. Without it there is only the optional-tap check: no ring,
+PCM copy, drain notification or additional worker. Notifications run on the
+client game thread, never on the audio callback. Drain from that callback or
+another client hook; each calling mod has its own cursor.
+
+Real-time chunks are copies of the final post-limiter, pre-device-conversion
+interleaved `f32` PCM, with the actual output rate and channel count. They do
+not modify playback. The 64-slot ring preallocates 4096 samples per slot (1 MiB
+of sample storage); the producer only tries the lock and copies. It never waits
+for a consumer, allocates sample buffers or dispatches mod code. Contention or
+overrun drops copies, not audible samples. `sequence`, `first_frame` and
+`dropped_chunks` make gaps observable. Drain allocates owned chunks on the
+game thread after releasing the engine mixer lock.
+
+With RH-6 and the flag enabled, playback is instead driven synchronously by the
+synthetic clock at 48 kHz stereo. The device callback outputs silence without
+advancing voices; no encoder wait time enters the mix. Sample boundaries use
+the nearest 48 kHz frame (800 samples per channel at 60 fps). Chunks carry the
+RH-6 `frame_index`; drain on `audio_mix_ready` or `fixed_frame_pixels` to associate
+them with images. Export preparation first waits on the game thread for existing
+decoder jobs to attach, with the device already silent. New sound decoding is
+synchronous on the game thread in this
+mode, including normally streamed sounds. Ending RH-6 restores device playback
+and its original availability. Fixed audio rejects shared/splitscreen outputs;
+ordinary real-time copies may include all players sharing the mixer. A slow
+consumer or a very large single frame advance can still overrun the bounded
+ring. Headless tests use an in-memory mixer, including inactive bitwise parity,
+copy identity, consumer contention, overrun and synthetic silent-device output.
+
+# Player scoreboard team
+
+Fragment @API:player_team@ adds `player_team(uuid: u128) -> Option<String>`.
+This is a **client-side, game-thread read**, not a server-authority query. It
+returns the internal team identifier, never its formatted display name. In a
+remote connection or replay, the UUID must be the local profile, a known
+player-list profile, or a tracked player entity whose profile name was retained.
+Membership is exactly the scoreboard state received so far; it is valid only
+after the profile and team packets have arrived. In an integrated local world,
+the local UUID and placed LAN guests resolve against the same local scoreboard.
+Title/loading/disconnected states, a non-client role, unknown UUIDs and players
+without a team return `None`.
+
+There is no background lookup, cache, polling, packet change or per-frame work.
+Without mods the helper short-circuits before resolving a profile. Headless
+tests cover that short-circuit and real scoreboard membership changes, unknown
+profiles, removal and the distinction between an internal and display name.
+
+# Audio output device
+
+Fragment @API:audio_output_device@ adds `audio_output_devices() -> Vec<String>`
+and `audio_output_select(device: Option<&str>) -> Result<(), String>`. These are
+client game-thread helpers, available on the title screen as well as in a world.
+Names are the engine backend's deduplicated output names; enumeration occurs
+only when explicitly requested. No mod means no enumeration, stream reopen,
+extra device polling or stored preference.
+
+`Some(name)` opens that exact enumerated name; an unknown, empty or unopenable
+name returns an error rather than silently selecting a different named device.
+`None` requests the system default, using the engine's existing fallback to
+another working output if the default cannot open. Builds without `audio`,
+disabled output, shared/splitscreen outputs and fixed-step rendering reject
+selection. Enumeration returns an empty list when output is disabled or absent.
+
+Successful selection replaces the stream and stops sounds, as device-loss reload
+does. Both paths use the same stream-replacement operation and device backend;
+ordinary device-loss recovery retains the temporary requested name and its
+existing fallback/reappearance policy. Opening failure keeps the old stream
+and preference. A native override does not rewrite `soundDevice` or any file;
+unrelated settings application preserves it. An explicit change to the vanilla
+device option supersedes it. Persisting and restoring a mod's preference is the
+mod's job. Headless fake-backend tests cover inactive no-work, enumeration,
+named/default selection, failed selection and reuse of the device-loss
+replacement path without losing the override.

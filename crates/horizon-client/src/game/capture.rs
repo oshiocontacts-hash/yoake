@@ -406,7 +406,7 @@ impl Game<'_> {
         frames: u64,
         reply: Sender<String>,
     ) -> Result<(), String> {
-        if self.frame_capture.active {
+        if self.frame_capture.active || self.native_frames.active() {
             return Err("capture already active".into());
         }
         if self.options.control.is_none() {
@@ -458,6 +458,7 @@ impl Game<'_> {
             output.abort();
             return Err(reason);
         }
+        self.native_frames.clear_resumed();
         self.capture_flight_begin();
         self.frame_capture.presentation = Some(origin);
         self.frame_capture.active = true;

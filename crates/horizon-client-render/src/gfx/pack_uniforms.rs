@@ -285,7 +285,6 @@ pub struct FrameUniforms {
     start: std::time::Instant,
     last: Option<std::time::Instant>,
     frame: u32,
-    #[cfg(feature = "dev-capture")]
     capture_time: Option<super::capture::PresentationTime>,
     previous: Option<(glam::DVec3, Mat4, Mat4)>,
     wetness: f32,
@@ -305,7 +304,6 @@ impl Default for FrameUniforms {
             start: std::time::Instant::now(),
             last: None,
             frame: 0,
-            #[cfg(feature = "dev-capture")]
             capture_time: None,
             previous: None,
             wetness: 0.0,
@@ -409,7 +407,6 @@ fn smooth(value: f32, target: f32, half_life: f32, dt: f32) -> f32 {
 }
 
 impl FrameUniforms {
-    #[cfg(feature = "dev-capture")]
     pub(super) fn set_capture_presentation_time(
         &mut self,
         time: Option<super::capture::PresentationTime>,
@@ -422,14 +419,10 @@ impl FrameUniforms {
 
     /// This frame's values for a render size of `size` pixels.
     pub fn update(&mut self, frame: &Frame, inputs: &PackInputs, size: [u32; 2]) {
-        #[cfg(not(feature = "dev-capture"))]
-        let now = std::time::Instant::now();
-        #[cfg(feature = "dev-capture")]
         let now = self
             .capture_time
             .map_or_else(std::time::Instant::now, |clock| clock.now());
         let dt = self.last.map_or(0.0, |l| (now - l).as_secs_f32());
-        #[cfg(feature = "dev-capture")]
         let dt = self
             .capture_time
             .map_or(dt, |clock| clock.delta().as_secs_f32());
@@ -516,15 +509,11 @@ impl FrameUniforms {
         let (shadow_view, shadow_projection) = shadow_camera(light, frame.camera, &self.shadow);
         let day_time = inputs.day_time.rem_euclid(24000) as i32;
         let world_day = inputs.day_time.div_euclid(24000);
-        #[cfg(not(feature = "dev-capture"))]
-        let seconds = (now - self.start).as_secs_f32() % 3600.0;
-        #[cfg(feature = "dev-capture")]
         let seconds = self.capture_time.map_or_else(
             || (now - self.start).as_secs_f32() % 3600.0,
             |clock| clock.elapsed().as_secs_f32() % 3600.0,
         );
         let counter = self.frame;
-        #[cfg(feature = "dev-capture")]
         let counter = self
             .capture_time
             .map_or(counter, |clock| clock.frame() % 720_720);
@@ -947,7 +936,6 @@ mod initial_history_tests {
         }
     }
 
-    #[cfg(feature = "dev-capture")]
     #[test]
     fn capture_presentation_time_drives_shader_pack_time() {
         use super::super::capture::PresentationTime;

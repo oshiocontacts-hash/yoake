@@ -3921,7 +3921,6 @@ impl PackPost {
         hasher.finish()
     }
 
-    #[cfg(feature = "dev-capture")]
     pub(super) fn set_capture_presentation_time(
         &mut self,
         time: Option<super::capture::PresentationTime>,

@@ -10,6 +10,7 @@ pub use crate::audio::{
     NativePlaybackHandle, NativeSoundError, NativeSoundHandle, NativeSoundLimits,
     NativeSoundRegistration, NativeSoundTarget,
 };
+pub use crate::native_audio_mix::{NativeAudioMixBatch, NativeAudioMixChunk};
 pub use crate::biome::{BiomeColors, SpawnEntry};
 pub use crate::block_sprites::{BlockSprites, FaceSprite, SpriteRef};
 pub use crate::camera::{CameraEntity, FovPlayer};
@@ -44,7 +45,7 @@ pub use crate::game::{
 };
 pub use crate::game::{NativeBlast, NativeDamage, NativeDamageActor, NativeDamageKind};
 pub use crate::game::{NativeChatRecipients, NativeCrosshairEntity};
-pub use crate::game::{LocalPlayerSnapshot, SnapshotReport};
+pub use crate::game::{FixedFrame, FrameAdvance, LocalPlayerSnapshot, SnapshotReport};
 pub use crate::gfx::native_render::{
     BlockSpriteArrays, RenderHooks, RenderNeeds, RenderNeedsEvent, WorldDrawn, WorldDrawnEvent,
     wgpu,

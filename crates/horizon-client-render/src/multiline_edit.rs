@@ -2,7 +2,6 @@
 //! frame and scroll bar): a text area that wraps its text to the box, with a
 //! caret and selection that move by line, a character limit, a line limit and
 //! a scroll bar. Indices count characters, as `EditBox`'s do.
-#[cfg(feature = "dev-capture")]
 use crate::capture_time::AnimationInstant as Instant;
 use crate::{
     clipboard::{Clipboard, EditShortcut, filter_text},
@@ -11,8 +10,6 @@ use crate::{
     text::Style,
     ui::{self, Scroll, java_whitespace},
 };
-#[cfg(not(feature = "dev-capture"))]
-use std::time::Instant;
 use winit::keyboard::KeyCode;
 
 /// `AbstractTextAreaWidget.INNER_PADDING`.

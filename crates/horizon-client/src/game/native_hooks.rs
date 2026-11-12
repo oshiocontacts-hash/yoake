@@ -898,7 +898,9 @@ use horizon_client::mod_api::{
     RecipeBookCategory, ServerTickPhase, WorldPhase,
 };
 use horizon_client::mod_api::{AttachmentResult, Attachments, Holder, Suggestion};
-use horizon_client::mod_api::{LocalPlayerSnapshot, NetState, SnapshotReport};
+use horizon_client::mod_api::{
+    FixedFrame, FrameAdvance, LocalPlayerSnapshot, NativeAudioMixBatch, NetState, SnapshotReport,
+};
 pub(crate) use horizon_client::mod_api::{
     NativeBlockRim, NativeColoredLight, NativeLootDrops, NativeMinimap, NativeMod,
     NativePanelEvent, NativeScreen, NativeScreenView, NativeStack, NativeZoom,
@@ -2152,6 +2154,26 @@ pub(crate) fn net_session_ended(session: u64, reason: &str) {
 
 /// The hook points. Each does nothing in Horizon.
 impl Game<'_> {
+    /// Enable final-mix copies only when observed. API @API:replay_audio_mix@.
+    pub(super) fn native_audio_mix_ready_listened(listened: &mut bool) {
+        mod_api::dispatch_audio_mix_ready_listened(mod_api::mods(), listened);
+    }
+
+    /// Drain the bounded final-mix ring on this game thread. API @API:replay_audio_mix@.
+    pub(super) fn native_audio_mix_ready(&mut self) {
+        mod_api::dispatch_audio_mix_ready(self, mod_api::mods());
+    }
+
+    /// Choose the ticks and interpolation for an offline frame. API @API:replay_fixed_frames@.
+    pub(super) fn native_fixed_frame(&mut self, frame: &FixedFrame, advance: &mut FrameAdvance) {
+        mod_api::dispatch_fixed_frame(self, mod_api::mods(), frame, advance);
+    }
+
+    /// Consume borrowed, tightly packed top-to-bottom RGBA8 pixels. API @API:replay_fixed_frames@.
+    pub(super) fn native_fixed_frame_pixels(&mut self, index: u64, rgba: &[u8], size: (u32, u32)) {
+        mod_api::dispatch_fixed_frame_pixels(self, mod_api::mods(), index, rgba, size);
+    }
+
     /// Read the completed client-player tick. API @API:replay_local_player@.
     pub(super) fn native_local_player_tick_end(&mut self) {
         mod_api::dispatch_local_player_tick_end(self, mod_api::mods());
@@ -9227,6 +9249,53 @@ impl Game<'_> {
         self.native_hud_visibility.set_hidden(hidden);
     }
 
+    /// Start offline rendering in a loaded replay client. API @API:replay_fixed_frames@.
+    pub(super) fn native_request_fixed_step_frames(
+        &mut self,
+        fps: u32,
+        size: (u32, u32),
+        hud: bool,
+    ) -> bool {
+        self.begin_native_fixed_frames(fps, size, hud)
+    }
+
+    /// Restore the window and wall pacing; safe when already stopped. API @API:replay_fixed_frames@.
+    pub(super) fn native_end_fixed_step_frames(&mut self) {
+        self.finish_native_fixed_frames();
+    }
+
+    /// Independent per-mod drain of post-limiter PCM. API @API:replay_audio_mix@.
+    pub(super) fn native_audio_mix_drain(&mut self) -> NativeAudioMixBatch {
+        let Some(owner) = mod_api::local_sound_caller() else {
+            return NativeAudioMixBatch::default();
+        };
+        let Some(cursors) = &mut self.native_mix_cursors else {
+            return NativeAudioMixBatch::default();
+        };
+        self.audio
+            .drain_native_mix(cursors.entry(owner).or_default())
+    }
+
+    /// Enumerate client output names on demand. API @API:audio_output_device@.
+    pub(super) fn native_audio_output_devices(&self) -> Vec<String> {
+        let enabled = !mod_api::mods().is_empty() && self.options.execution_role.is_client();
+        self.audio.native_output_devices(enabled)
+    }
+
+    /// Reopen the client output without saving a setting. API @API:audio_output_device@.
+    pub(super) fn native_audio_output_select(
+        &mut self,
+        device: Option<&str>,
+    ) -> Result<(), String> {
+        let enabled = !mod_api::mods().is_empty() && self.options.execution_role.is_client();
+        if enabled && self.native_frames.active() {
+            return Err("cannot change the audio output during fixed-step rendering".into());
+        }
+        self.audio
+            .native_output_select(enabled, device)
+            .map_err(|error| error.to_string())
+    }
+
     /// The loaded client's destination, without a full save path or friend invite.
     /// None on title, before a level loads, or on a server. API @API:client_state_reads@.
     pub(super) fn native_client_world_key(&self) -> Option<NativeClientWorld> {
@@ -9269,6 +9338,11 @@ impl Game<'_> {
     /// Read detached player state on the game thread. API @API:replay_local_player@.
     pub(super) fn native_local_player_snapshot(&self) -> Option<LocalPlayerSnapshot> {
         self.local_player_snapshot()
+    }
+
+    /// Read a known client's internal scoreboard team name. API @API:player_team@.
+    pub(super) fn native_player_team(&self, uuid: u128) -> Option<String> {
+        self.native_player_team_impl(uuid)
     }
 
     /// Write a synchronous replay checkpoint on the game thread. API @API:replay_snapshot@.

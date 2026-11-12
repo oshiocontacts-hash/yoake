@@ -1,0 +1,17 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "audio_output_devices",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_audio_output_devices",
+      "mod_api": {}
+    },
+    {
+      "name": "audio_output_select",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_audio_output_select",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "on-demand client output enumeration and temporary output-stream selection.",
+  "doc_summary": "Enumerate output names, reopen a named output or the system default, and leave preference storage to the mod; API @API:audio_output_device@."
+}
