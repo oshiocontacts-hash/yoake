@@ -1,7 +1,7 @@
 //! Nodes and properties of other namespaces (a mod's, NeoForge's) decode to the closest vanilla behaviour.
 use super::{
-    ItemModelNode, ModelLeaf, Result, TintSource, get, ident, identifier, list, object,
-    optional_transformation,
+    get, ident, identifier, list, object, optional_transformation, ItemModelNode, ModelLeaf,
+    Result, TintSource,
 };
 use crate::{json::error as err, math::Mat4};
 use serde_json::{Map, Value};

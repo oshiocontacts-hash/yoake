@@ -574,27 +574,12 @@ fn read_ticks(
 }
 fn fluid_name(kind: u32) -> Option<String> {
     use horizon_world::fluid::FluidKind;
-    let fluid = *FluidKind::ALL.get(kind as usize)?;
-    Some(
-        match fluid {
-            FluidKind::Empty => return None,
-            FluidKind::FlowingWater => "minecraft:flowing_water",
-            FluidKind::Water => "minecraft:water",
-            FluidKind::FlowingLava => "minecraft:flowing_lava",
-            FluidKind::Lava => "minecraft:lava",
-        }
-        .to_owned(),
-    )
+    let fluid = FluidKind::from_wire_id(kind)?;
+    (fluid != FluidKind::Empty).then(|| fluid.name().to_owned())
 }
 fn fluid_id(name: &str) -> Option<u32> {
     use horizon_world::fluid::FluidKind;
-    Some(match name {
-        "minecraft:flowing_water" => FluidKind::FlowingWater,
-        "minecraft:water" => FluidKind::Water,
-        "minecraft:flowing_lava" => FluidKind::FlowingLava,
-        "minecraft:lava" => FluidKind::Lava,
-        _ => return None,
-    } as u32)
+    FluidKind::from_name(name).map(|kind| u32::from(kind.wire_id()))
 }
 
 pub use horizon_items::item_nbt::{

@@ -17,13 +17,106 @@ switch. The first install shows a trust notice, and every build waits behind a r
 after a review (its later releases are checked by machine); and they play in a game of their own, built for the
 instance they are installed in.
 
-## Conditional item model properties
+## Sided content capabilities
+
+Register `NativeCapabilityProvider { target, kind, provider }` through
+`native_capability_providers(providers)`. Targets are exact `Block`, `BlockEntity`,
+or `Item` IDs; duplicate target/kind pairs are rejected. A block-entity provider
+takes precedence over its block provider. `CapabilityProvider::provide` receives
+the side, position or full component-bearing item stack, and the server `Host`.
+Return `None` for an unavailable face. Bundles need @API:capability_providers@.
+
+`Host::query_capability(position, side, kind)` and
+`query_item_capability(stack, kind)` are server-only. `Capability::Items` reuses
+S3b's `ItemHandler`; `Capability::Fluids` holds a `FluidHandler` with tank count,
+per-tank capacity/contents and simulate-capable `fill`/`drain`. `FluidStorage`
+is a reusable, mutex-backed implementation; amounts and capacities use the same
+units chosen by the provider (bucket convention: 1000). Fluid IDs are preserved,
+including custom fluids, and different fluids never mix within a tank.
+
+`Capability::Energy` authorizes the existing block/item energy buffers, not a
+second energy store. Use `capability_energy`, `capability_energy_insert`,
+`capability_energy_extract`, `capability_item_energy`, and
+`capability_item_energy_transfer`; simulation never changes those buffers or the
+source item. Item transfers return the changed stack for the caller to install.
+
+Hoppers query the receiving face before the normal block/entity-container search
+and the bottom face before extraction; droppers query their destination face.
+An available handler owns that transfer, even when full. Without any registered
+provider, the query returns at its single registry-presence check before block,
+entity, side or stack work. Item handlers must honor simulation, stack limits
+and exact `set_stack` restoration; transfers are serialized on the server thread.
+Provider objects should return handles bound to the queried position/stack rather
+than accidentally sharing one inventory across all blocks of an ID.
+
+## Custom fluid families
+
+Collect `NativeFluidDefinition` values in `native_fluids(fluids)` before resource
+tables load. Each family declares namespaced source/flowing fluid IDs, separate
+still/flowing block IDs, a bucket item, still/flow texture IDs, RGB tint,
+`viscosity` (1..8 level loss per horizontal step), `tick_rate` (ticks), emitted
+`light` (0..15), `can_drown`, and `FluidMotion::{Water,Lava,None}`. All bindings
+must be mod namespaced; duplicate bindings and invalid ranges fail startup.
+Bundles need @API:fluids@. Register the blocks/items through the existing content
+registries too; both blocks need a `level` property covering 0..15.
+
+Custom fluids share `FluidState`, legacy block bindings, scheduled liquid ticks,
+wall/slope tests, bucket placement/pickup, and the neighbor-derived flow renderer.
+They do not become vanilla water or lava: source conversion and water/lava
+reactions remain vanilla-only. Motion selects existing water/lava swimming and
+drag; drowning is independent. The renderer adds the supplied sprites to its
+existing atlas and uses the same translucent fluid mesh, tint and light path.
+World/block caches hydrate custom liquid facts after loading, without changing
+the vanilla cache format. Custom liquid states inherit the existing liquid
+collision/physics facts rather than a solid content-block template's facts.
+Saves encode fluid tick identities by names.
+
+`FluidStorage` and `FluidHandler` preserve custom fluid IDs unchanged. Item fluid
+helpers recognize the registered bucket as 1000 units, so a mod can drain its
+bucket into a capability tank and return the empty bucket. An empty registration
+leaves the catalog absent; vanilla IDs, masks, timings and textures stay intact.
+All peers must run the same fluid registrations, as with the existing native
+block/item registries. Missing block levels or textures are resource errors,
+not silently substituted water.
+
+## Versioned mod recipe types
+
+Collect `NativeRecipeType { id, version, category, codec }` in
+`native_recipe_types(types)` (@API:recipe_types@). IDs and category IDs must be
+outside `minecraft:`, versions are positive integers, and a category's
+`recipe_type` must equal the registration ID. The category uses the existing
+validated `RecipeBookCategory` icon/category path, without unlocking recipes.
+
+Data-pack JSON contains `"type": "example:press"` and an exact `"version"`.
+`NativeRecipeCodec::decode` validates and decodes it once per load/reload;
+`matches` receives full `ItemStack` inputs, including component patches;
+`assemble` returns full result stacks. A version mismatch or codec failure
+rejects that recipe-table load. Unregistered custom types remain opaque JSON as
+before. Codecs must be deterministic, bounded, side-effect-free, and identical
+on server and client; they do not consume inventory or receive a mutable host.
+
+`recipes_matching(type, input)` (@API:recipes_matching@) is server-only and
+returns matching recipe identities plus assembled outputs. `recipe_list(type)`
+(@API:recipe_list@) and `recipe_display(type, id)` (@API:recipe_display@) are
+read-only views suitable for a JEI-like panel. Displays contain alternative
+stacks for each input slot and output stacks. Reuse `native_panel_*` to draw
+those stacks. These helpers reuse `native_recipes_of_type`, not another table.
+
+Registered types automatically join the existing `native_datapack_sync` /
+`horizon:recipe_content` synchronization. Original JSON, not process-local
+decoded data, travels over that existing channel and is decoded on the client.
+An empty registration leaves the registry absent: helper calls return before
+table access and recipe loading performs only the registry-presence check.
+
+## Dynamic item presentation
+
+### Model properties and per-stack tints
 
 A client mod supplies its own namespaced `minecraft:condition` property by implementing
 `Hooks::item_model_property`. This hook is the registration: match your property name, answer
 through `value`, and leave other names untouched. The resolver calls it when choosing a branch,
 not when loading resources. It defaults to false without a provider and skips dispatch entirely
-when no trait mods are loaded. Vanilla properties do not enter the hook.
+when no trait mods are loaded. Vanilla properties do not enter any presentation hook.
 
 ```rust,ignore
 fn item_model_property(
@@ -32,20 +125,34 @@ fn item_model_property(
     event: &mut ItemModelPropertyEvent<'_>,
 ) {
     if event.property == "example:charged" {
-        event.value = event.stack.patch.get("example:charged").and_then(Option::as_ref)
+        event.value = event.components.get("example:charged")
             .and_then(serde_json::Value::as_bool) == Some(true);
     }
 }
 ```
 
-`Host`, `ItemModelPropertyEvent`, and `StackView` are exported by `horizon_client::mod_api`. The stack is borrowed,
-including for nested bundle items: `item`, `count`, explicit component `patch` (not merged
-defaults), and the runtime bundle selection. Listeners run in mod order; later answers win.
+`Host`, `ItemModelPropertyEvent`, `Components`, `ItemModelContext`, and `StackView` are
+exported by `horizon_client::mod_api`. The stack is borrowed, including for nested bundle
+items: `item`, `count`, explicit component `patch`, and the runtime bundle selection.
+Every presentation hook also receives the merged `components` (item defaults plus stack
+patch, with removals applied) and the resolver's `context` (display, owner, level and seed).
+Listeners run in mod order; later answers win.
 Use `"property": "example:charged"` with both `on_true` and `on_false` in the item's
 `minecraft:condition` node. Custom special model renderers are not supplied by this hook.
-Bundles need `"hooks": @API:item_model_property@` once this pending hook is stamped.
+Bundles need `"hooks": @API:item_model_property@`.
 
-## Items that draw themselves
+`native_item_model_number(property, stack, components, context, value)` handles foreign
+`minecraft:range_dispatch` properties, such as fill level or a component-backed bar. Its
+default is 0; non-finite answers become 0 before threshold selection.
+`native_item_model_select(property, stack, components, context, value)` handles foreign
+`minecraft:select` properties, such as a mode string; `None` selects the fallback.
+`native_item_tint(source, stack, components, context, color)` handles foreign tint types
+on each model layer; -1 keeps the layer untinted. Return packed tint colors as `i32`,
+as with vanilla tint sources. These hooks use @API:item_presentation@. Without loaded
+mods, each host entry returns at its one flag check; vanilla properties and tint types
+keep their existing resolver branches and never dispatch these hooks.
+
+### Items that draw themselves
 
 Client mods can supply geometry for selected items through three hooks:
 
@@ -53,7 +160,8 @@ Client mods can supply geometry for selected items through three hooks:
 native_item_render_listened(listened: &mut bool)
 native_item_render_claims(item: &str, claimed: &mut bool)
 native_item_render(stack: &NativeItemRenderStack, context: NativeItemContext,
-    holder: Option<NativeItemHolder>, draw: &mut NativeItemDraw, drawn: &mut bool)
+    holder: Option<NativeItemHolder>, presentation: &NativeItemRenderContext<'_>,
+    draw: &mut NativeItemDraw, drawn: &mut bool)
 ```
 
 Set `listened` when the mod uses this facility, then set `claimed` for each item ID it handles.
@@ -64,7 +172,10 @@ model. GUI count, durability, and cooldown decorations are drawn separately. Nat
 the normal glint layer when the stack has foil, but its glint coordinates are an approximation.
 
 `NativeItemRenderStack` is the existing `ItemStack`: it exposes the item ID, count, damage, and
-`extra` stack data. `NativeItemContext` distinguishes `FirstPersonRight`, `FirstPersonLeft`,
+`extra` stack data. `NativeItemRenderContext` borrows the same merged `components` used by
+the model resolver and includes `partial_tick`, `game_time`, and packed `light`. It is built
+only for claimed stacks; the no-mod listener refresh exits before collecting listeners.
+`NativeItemContext` distinguishes `FirstPersonRight`, `FirstPersonLeft`,
 `ThirdPersonRight`, `ThirdPersonLeft`, `Gui`, `Ground`, `Fixed`, `Head`, `ItemDisplay`, `OnShelf`,
 and `None`. Item displays use `ItemDisplay` regardless of their selected model transform.
 `NativeItemHolder` is optional; when available it carries `is_local_player`, `offhand`,
@@ -107,7 +218,7 @@ fn item_render(&self, host: &dyn Host, event: &mut ItemRenderEvent<'_>) {
 ```
 
 `Host`, the event types, `CubeFace`, and the item types are exported by `horizon_client::mod_api`.
-Bundles need `"hooks": @API:item_render@` once the new hooks are stamped.
+Bundles need `"hooks": @API:item_render@`.
 
 ## Item frame rendering
 
@@ -4420,7 +4531,7 @@ mod's job. Headless fake-backend tests cover inactive no-work, enumeration,
 named/default selection, failed selection and reuse of the device-loss
 replacement path without losing the override.
 
-# DLL mods (phase 1)
+# DLL mods (phase 2)
 
 The Windows client can load version-specific native DLLs once at startup. They
 run after all static mods, in `YOAKE_DLL_MODS` order. Supply absolute `.dll`
@@ -4456,23 +4567,84 @@ New slots require an explicit ABI revision, not automatic export of all helpers.
 | 2 | `key_input` | `key` | listen |
 | 3 | `hud` | `hud` | listen |
 | 4 | `mod_net_receive` | `net_from_server` | listen |
+| 5 | `frame` | `frame` | listen |
+| 6 | `local_player_tick_end` | `local_player_tick_end` | listen |
+| 7 | `net_frames_listened` | `net_frames_listened` | listen |
+| 8 | `net_frame_received` | `net_frame_received` | listen |
+| 9 | `net_session_ended` | `net_session_ended` | listen |
+| 10 | `gui_layer_pre` | `gui_layer_pre` | cancel |
+| 11 | `gui_layer_post` | `gui_layer_post` | listen |
+| 12 | `screen_render_post` | `screen_render_post` | listen |
+| 13 | `screen_key_pressed_pre` | `screen_key_pressed_pre` | cancel |
+| 14 | `screen_char_typed_pre` | `screen_char_typed_pre` | cancel |
+| 15 | `screen_mouse_button_pressed_pre` | `screen_mouse_button_pressed_pre` | cancel |
+| 16 | `screen_mouse_button_released_pre` | `screen_mouse_button_released_pre` | cancel |
+| 17 | `screen_mouse_scrolled_pre` | `screen_mouse_scrolled_pre` | cancel |
+| 18 | `settings` | `settings` | collect |
+| 19 | `settings_click` | `settings_click` | listen |
 
-All phase-one DLL slots are listeners. Generated static forwarders preserve
-every existing hook, including unoffered hooks, and the existing listen/order,
-cancel/skips-later-mods, replace/first-wins and collect/in-order contracts.
-Unmarked hooks have no DLL slot.
+Hook ids 1 through 4 keep their phase-one meanings. A DLL `Cancel` from any
+offered pre-hook skips later mods just like a static mod's `Cancel`.
+`net_frames_listened` is a sticky OR: a later DLL cannot clear an earlier
+listener's request. Settings labels append in dispatch order through a bounded
+C callback. Generated static forwarders preserve every existing hook, including
+unoffered hooks, and the existing listen/order, cancel/skips-later-mods,
+replace/first-wins and collect/in-order contracts. Unmarked hooks have no DLL
+slot; this subset does not introduce a DLL replacement hook.
 
 `HostTableV1` service ids 1 through 8 are, respectively, `log`, `feedback`,
 `client_world_key`, `hud_text`, `hud_rect`, `mod_net_send`, `setting_get`,
-`setting_set`. Capability bit `id - 1` identifies each service. HUD support is
-literal UTF-8 text and rectangles only. Messages carry a UTF-8 channel and
-borrowed bytes, without string conversion of payloads. Settings are namespaced
-by the validated descriptor id; a DLL cannot choose another mod's namespace.
+`setting_set`. Phase two appends these services without renumbering them:
+
+| Service id | Slot |
+| --- | --- |
+| 9 | `text_width` |
+| 10 | `local_player_snapshot` |
+| 11 | `snapshot_client_world` |
+| 12 | `playing` |
+| 13 | `instance_dir` |
+| 14 | `account` |
+| 15 | `mod_screen_open` |
+| 16 | `mod_screen_close` |
+| 17 | `mod_screen` |
+| 18 | `mod_screen_open_anywhere` |
+| 19 | `gui_texture` |
+| 20 | `batch_len` |
+| 21 | `batch_scale_since` |
+| 22 | `batch_clip_since` |
+| 23 | `batch_tint_since` |
+| 24 | `gui_texture_create` |
+| 25 | `gui_texture_release` |
+
+Capability bit `id - 1` identifies each service. Messages carry a UTF-8 channel
+and borrowed bytes, without string conversion of payloads. Settings are
+namespaced by the validated descriptor id; a DLL cannot choose another mod's
+namespace. Batch operations use callback-relative vertex offsets and cannot
+modify geometry emitted by an earlier mod. Texture handles belong to the
+creating DLL and remain valid until release or that mod is disabled; they do
+not expose a GPU object or provide texture-pixel upload in this phase.
 
 The engine-free `horizon-mod-abi` build emits `abi_generated.rs` and
 `yoake_mod_abi.h` into Cargo `OUT_DIR`; do not commit generated files. Both
-describe ABI version 1, stable ids, C-layout types/tables and the `extern "C"`
+describe ABI version 2, stable ids, C-layout types/tables and the `extern "C"`
 entry `yoake_mod_entry(abi_version, host_table) -> const ModDescriptor *`.
+`HostTableV1`, `HookTableV1` and `ModDescriptor` retain their source names;
+`HostTableV2`, `HookTableV2` and `ModDescriptorV2` are aliases, not a promise of
+binary compatibility with phase one. ABI version 1 DLLs are refused.
+
+The C-layout `NetFrameReceived` contains protocol state, packet id, borrowed
+body bytes, a process-monotonic nanosecond timestamp and session id.
+`LocalPlayerSnapshot` mirrors the recorder's player state, including position,
+angles, pose/flags, swing/use state, six protocol-encoded equipment slots,
+vehicle, skin parts, dimension, game mode, health and food. UUIDs use 16
+big-endian bytes; optional vehicle/max-health values have explicit flag bits.
+Screen views carry the id, rectangle, mouse position and partial tick; input
+events carry key/character/button/scroll data and modifier bits as applicable.
+World snapshots synchronously invoke an `extern "C"` frame callback with a user
+pointer, state, packet id and borrowed bytes, then report written frames and
+missing state through a `SnapshotReport` callback. The SDK copies query results
+into owned Rust values and contains callback panics before resuming them inside
+the mod's outer panic boundary.
 
 Every table/descriptor header must match ABI version, exact structure size and
 schema hash before its remaining fields are read. Descriptors also pin the
@@ -4482,7 +4654,7 @@ the same `HORIZON_VERSION`/`HORIZON_NIGHTLY` overrides for host and mod. The sou
 fingerprint covers the root manifest and source/manifests/catalogs under
 `crates/`. It is a compatibility guard, **not** a cryptographic signature or a
 binary/toolchain/dependency-lock attestation. Build client and mod from the same
-checkout and target. Phase one does not promise a cross-release SDK.
+checkout and target. Phase two does not promise a cross-release SDK.
 
 ## Ownership and SDK
 
@@ -4490,8 +4662,8 @@ The ABI crate documents the full safety/ownership contract:
 
 - Only integer ids plus a generation identify engine capabilities; engine
   pointers never leave the host. Host/HUD handles expire when their callback
-  returns, reject other threads and re-entry, and HUD handles work only in their
-  own HUD callback.
+  returns, reject other threads and re-entry, and batch handles work only in
+  the drawing callback that supplied them (HUD, GUI layer or screen render).
 - `ByteView`/`StrView` borrow readable memory for one call. Strings are UTF-8,
   without terminators. Copy anything retained beyond the call.
 - Output buffers belong to the caller. Callees report the required byte length,
@@ -4503,6 +4675,9 @@ The ABI crate documents the full safety/ownership contract:
 - Host services execute synchronously on the dispatch thread; logging is also
   available during creation/destruction. A host-service panic disables the
   calling DLL even if it ignores the returned error.
+- Screen callbacks retain the native read-only host contract: queries and
+  drawing work, while mutating services return `UNSUPPORTED`. Network-frame
+  observation callbacks do not receive a host handle.
 
 `horizon-mod-sdk` has only the ABI crate as a runtime dependency. Implement
 `YoakeMod` for a `Default + Send + 'static` type and use `yoake_mod!(MyMod)` to
@@ -4513,25 +4688,104 @@ are caught and logged; a failed DLL does not stop later mods. The existing
 setting setter cannot report persistence errors: ABI `OK` confirms acceptance
 by that helper, not durable storage.
 
-## Prototype and headless checks
+`HudBatch` exposes `len`, `scale_since`, `clip_since` and `tint_since`, alongside
+`Host::fill`, `text`, `text_width` and texture creation/draw/release. This is the
+surface needed to adapt `yoake-ui::horizon::execute` without exposing the native
+vertex vector. Use `len` instead of direct vertex length and `tint_since` instead
+of editing vertex alpha; resolve UI texture ids to SDK-owned texture handles.
+
+## Building a DLL
+
+Use the same checkout and target as the client. A minimal SDK mod has a
+`Cargo.toml` like this (adjust the path from the mod's directory):
+
+```toml
+[package]
+name = "my-yoake-dll"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+horizon-mod-sdk = { path = "../../crates/horizon-mod-sdk" }
+```
+
+Its `src/lib.rs` implements only the hooks it needs:
+
+```rust
+use horizon_mod_sdk::{Host, YoakeMod, yoake_mod};
+
+#[derive(Default)]
+struct MyMod;
+
+impl YoakeMod for MyMod {
+    const ID: &'static str = "my-yoake-dll";
+    const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
+    fn client_tick(&mut self, host: &mut Host<'_>) {
+        let _ = host.feedback("Hello from a DLL");
+    }
+}
+
+yoake_mod!(MyMod);
+```
+
+Build with `cargo build -p my-yoake-dll --target x86_64-pc-windows-msvc` after
+adding the crate as a workspace member, or use its standalone manifest. Supply
+the resulting absolute DLL path through `YOAKE_DLL_MODS`; development loading
+also requires exactly `YOAKE_DLL_MODS_UNSIGNED=1`. Do not use `panic=abort` if
+you need the SDK's per-mod unwind isolation.
+
+## Examples and headless checks
 
 `examples/dll-hello` is a `cdylib` using only the SDK. It draws a tick-count HUD
-line over a rectangle, toggles with F8, restores/persists `visible`, and echoes
+line over a rectangle, toggles with F6, restores/persists `visible`, and echoes
 received bytes on `dll-hello:echo`. A cooperating server mod must send that
 channel; this prototype does not add server DLL loading.
+
+`examples/dll-net-echo` requests incoming vanilla frame observation, copies the
+borrowed bytes, draws its last packet and cancels Escape only on its own screen
+id. Its alternate `yoake_mod_entry_wrong_abi` export deliberately returns a bad
+header so the Windows headless test can exercise refusal before descriptor
+body access; it is not a second normal mod entry point.
 
 Headless suites cover ABI layout/header/view/buffer rules, fake-host SDK round
 trips and lifecycle panics, plus the production loader through in-process
 function tables: validation, unsigned/missing-entry refusal, static-then-DLL
 order, existing dispatch contracts, isolated hook/host panics, stale/wrong-thread
-handles, HUD phases and the zero-DLL fast path. They do not exercise actual
-Windows DLL loading. With a permitted Rust toolchain, intended checks are:
+handles, GUI/screen phases and the zero-DLL fast path. Phase-two tests cover
+snapshot/player/account queries, owned copies, callback panics, all six cancel
+slots, settings collection and callback-relative geometry. On Windows the
+same production loader also loads both real example DLLs with the unsigned
+opt-in, dispatches tick/HUD/network/cancel hooks, checks their effects, refuses
+unsigned loading without the flag and refuses the wrong-ABI export.
+
+The real-DLL tests locate existing artifacts rather than recursively invoking
+Cargo. Build both examples first, from the same checkout/target as the tests.
+They search debug/release outputs under `CARGO_TARGET_DIR` (default `target`),
+including the build target triple. Set absolute `YOAKE_TEST_DLL_HELLO` and
+`YOAKE_TEST_DLL_NET_ECHO` paths for other artifact layouts. Missing artifacts
+fail with build instructions rather than silently skipping. With a permitted
+Windows Rust toolchain, intended checks from the workspace root are:
 
 ```text
-cargo test -p horizon-mod-abi -p horizon-mod-sdk -p horizon-mod-api-gen -p horizon-mod-api-gen-tests
-cargo build -p yoake-dll-hello --target x86_64-pc-windows-msvc
+cargo build -p yoake-dll-hello -p yoake-dll-net-echo --target x86_64-pc-windows-msvc
+cargo test -p horizon-mod-abi -p horizon-mod-sdk -p horizon-mod-api-gen -p horizon-mod-api-gen-tests --target x86_64-pc-windows-msvc
 ```
 
-No build, test, formatter or game was run in the restricted S1b environment.
-Real Windows loading, generated C-header compilation and signing remain
-integration checks for a toolchain-enabled environment.
+No build, test, formatter or game was run in the restricted S1c environment.
+Execution of the real Windows tests, generated C-header compilation and
+signing remain integration checks for a toolchain-enabled environment.
+
+## Replay DLL plan
+
+This phase does not modify `mods/replay` or `mods/yoake-ui`. The replay session
+will build a separate `cdylib` variant from the recorder using `horizon-mod-sdk`:
+replace its native `Hooks` implementation with `YoakeMod`, map the player and
+world-snapshot callbacks to SDK-owned data, and adapt the UI executor to
+`HudBatch`/SDK texture handles. Keep the existing static build available and
+verify recording/playback parity before choosing the DLL variant. This is an
+ABI prerequisite, not a claim that the current recorder compiles unchanged as
+a DLL or that replay DLL parity has already been tested.

@@ -500,6 +500,30 @@ impl BlockFacts {
                     .ok_or("missing block behaviour class chain")?,
             });
         }
+        if !horizon_world::fluid::custom::definitions().is_empty() {
+            for ((_, state), facts) in registry.iter().zip(&mut states) {
+                let Some(kind) = horizon_world::fluid::custom::block(&state.name) else {
+                    continue;
+                };
+                let Some(definition) = horizon_world::fluid::custom::definition(kind) else {
+                    continue;
+                };
+                let fluid = horizon_world::fluid::FluidState::from_block(state)?;
+                facts.emission = definition.light;
+                facts.fluid = match definition.motion {
+                    horizon_world::fluid::custom::FluidMotion::Water => Fluid::Water,
+                    horizon_world::fluid::custom::FluidMotion::Lava => Fluid::Lava,
+                    horizon_world::fluid::custom::FluidMotion::None => Fluid::None,
+                };
+                facts.fluid_level = fluid.amount();
+                facts.fluid_falling = fluid.falling();
+                facts.render_shape = RenderShape::Invisible;
+                facts.legacy_solid = false;
+                facts.solid_render = false;
+                facts.full_collision = false;
+                facts.replaceable = true;
+            }
+        }
         let extra = callback(entries)?;
         Ok((
             Self {

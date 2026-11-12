@@ -1763,7 +1763,7 @@ impl Behaviours {
         while let Ok(Some(tick)) = ticks.fluids.next_tick() {
             let mut sim = self.sim(level, ticks);
             let fluid = self.fluid(sim.state(tick.pos)).kind();
-            if TickTypeId(fluid as u32) == tick.kind {
+            if TickTypeId(u32::from(fluid.wire_id())) == tick.kind {
                 sim.fluid_tick(tick.pos);
             }
         }
@@ -1812,7 +1812,7 @@ impl Behaviours {
             };
             let mut sim = self.sim(level, ticks);
             let fluid = self.fluid(sim.state(tick.pos)).kind();
-            if TickTypeId(fluid as u32) == tick.kind {
+            if TickTypeId(u32::from(fluid.wire_id())) == tick.kind {
                 sim.fluid_tick(tick.pos);
             }
         } else {

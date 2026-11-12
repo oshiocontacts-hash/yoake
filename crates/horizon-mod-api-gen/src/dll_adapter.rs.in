@@ -38,4 +38,186 @@ impl crate::mod_api::Hooks for DllMod {
             });
         }
     }
+
+    fn frame(&self, host: &mut dyn Host, event: &mut FrameEvent) {
+        if let Some(callback) = self.hooks.frame {
+            self.invoke(host, None, |instance, handle| unsafe {
+                callback(instance, handle, &abi::FrameEvent {
+                    elapsed_ns: event.elapsed.as_nanos().min(u64::MAX as u128) as u64,
+                })
+            });
+        }
+    }
+
+    fn local_player_tick_end(&self, host: &mut dyn Host, _event: &mut LocalPlayerTickEndEvent) {
+        if let Some(callback) = self.hooks.local_player_tick_end {
+            self.invoke(host, None, |instance, handle| unsafe {
+                callback(instance, handle, &abi::TickEvent { reserved: 0 })
+            });
+        }
+    }
+
+    fn net_frames_listened(&self, event: &mut NetFramesListenedEvent) {
+        if let Some(callback) = self.hooks.net_frames_listened {
+            let mut listened = u32::from(event.listened);
+            self.invoke_with(HostAccess::None, None, false, |instance, handle| {
+                let result = unsafe {
+                    callback(instance, handle, &abi::NetFramesListenedEvent { listened: &mut listened })
+                };
+                if listened > 1 { abi::HookResult::failed(abi::Status::INVALID) } else { result }
+            });
+            event.listened |= listened == 1;
+        }
+    }
+
+    fn net_frame_received(&self, event: &mut NetFrameReceivedEvent<'_>) {
+        if let Some(callback) = self.hooks.net_frame_received {
+            let frame = event.frame;
+            self.invoke_with(HostAccess::None, None, false, |instance, handle| unsafe {
+                callback(instance, handle, &abi::NetFrameReceived {
+                    state: net_state(frame.state),
+                    packet_id: frame.id,
+                    body: abi::ByteView::new(frame.body),
+                    monotonic_ns: frame_time(frame.at),
+                    session: frame.session,
+                })
+            });
+        }
+    }
+
+    fn net_session_ended(&self, event: &mut NetSessionEndedEvent<'_>) {
+        if let Some(callback) = self.hooks.net_session_ended {
+            self.invoke_with(HostAccess::None, None, false, |instance, handle| unsafe {
+                callback(instance, handle, &abi::NetSessionEndedEvent {
+                    session: event.session,
+                    reason: abi::StrView::new(event.reason),
+                })
+            });
+        }
+    }
+
+    fn gui_layer_pre(&self, host: &mut dyn Host, event: &mut GuiLayerPreEvent<'_>) -> Flow {
+        let Some(callback) = self.hooks.gui_layer_pre else { return Flow::Continue };
+        self.invoke_with(HostAccess::Write(host), Some(&mut *event.batch), true, |instance, handle| unsafe {
+            callback(instance, handle, &abi::GuiLayerEvent {
+                layer: abi::StrView::new(event.layer), batch: hud_handle(handle),
+            })
+        })
+    }
+
+    fn gui_layer_post(&self, host: &mut dyn Host, event: &mut GuiLayerPostEvent<'_>) {
+        if let Some(callback) = self.hooks.gui_layer_post {
+            self.invoke(host, Some(&mut *event.batch), |instance, handle| unsafe {
+                callback(instance, handle, &abi::GuiLayerEvent {
+                    layer: abi::StrView::new(event.layer), batch: hud_handle(handle),
+                })
+            });
+        }
+    }
+
+    fn screen_render_post(&self, host: &dyn Host, event: &mut ScreenRenderPostEvent<'_>) {
+        if let Some(callback) = self.hooks.screen_render_post {
+            let screen = dll_screen_view(event.screen);
+            self.invoke_with(HostAccess::Read(host), Some(&mut *event.batch), false, |instance, handle| unsafe {
+                callback(instance, handle, &abi::ScreenRenderEvent { screen, batch: hud_handle(handle) })
+            });
+        }
+    }
+
+    fn screen_key_pressed_pre(&self, host: &dyn Host, event: &mut ScreenKeyPressedPreEvent<'_>) -> Flow {
+        let Some(callback) = self.hooks.screen_key_pressed_pre else { return Flow::Continue };
+        let input = abi::ScreenKeyEvent {
+            screen: dll_screen_view(event.screen), key: abi::StrView::new(event.key),
+            repeat: u32::from(event.repeat), modifiers: event.modifiers,
+        };
+        self.invoke_with(HostAccess::Read(host), None, true, |instance, handle| unsafe {
+            callback(instance, handle, &input)
+        })
+    }
+
+    fn screen_char_typed_pre(&self, host: &dyn Host, event: &mut ScreenCharTypedPreEvent<'_>) -> Flow {
+        let Some(callback) = self.hooks.screen_char_typed_pre else { return Flow::Continue };
+        let input = abi::ScreenCharEvent {
+            screen: dll_screen_view(event.screen), character: event.c as u32, modifiers: event.modifiers,
+        };
+        self.invoke_with(HostAccess::Read(host), None, true, |instance, handle| unsafe {
+            callback(instance, handle, &input)
+        })
+    }
+
+    fn screen_mouse_button_pressed_pre(&self, host: &dyn Host, event: &mut ScreenMouseButtonPressedPreEvent<'_>) -> Flow {
+        let Some(callback) = self.hooks.screen_mouse_button_pressed_pre else { return Flow::Continue };
+        let input = abi::ScreenMouseButtonEvent {
+            screen: dll_screen_view(event.screen), button: event.button, modifiers: event.modifiers,
+        };
+        self.invoke_with(HostAccess::Read(host), None, true, |instance, handle| unsafe {
+            callback(instance, handle, &input)
+        })
+    }
+
+    fn screen_mouse_button_released_pre(&self, host: &dyn Host, event: &mut ScreenMouseButtonReleasedPreEvent<'_>) -> Flow {
+        let Some(callback) = self.hooks.screen_mouse_button_released_pre else { return Flow::Continue };
+        let input = abi::ScreenMouseButtonEvent {
+            screen: dll_screen_view(event.screen), button: event.button, modifiers: event.modifiers,
+        };
+        self.invoke_with(HostAccess::Read(host), None, true, |instance, handle| unsafe {
+            callback(instance, handle, &input)
+        })
+    }
+
+    fn screen_mouse_scrolled_pre(&self, host: &dyn Host, event: &mut ScreenMouseScrolledPreEvent<'_>) -> Flow {
+        let Some(callback) = self.hooks.screen_mouse_scrolled_pre else { return Flow::Continue };
+        let input = abi::ScreenScrollEvent {
+            screen: dll_screen_view(event.screen), scroll: event.scroll, modifiers: event.modifiers,
+        };
+        self.invoke_with(HostAccess::Read(host), None, true, |instance, handle| unsafe {
+            callback(instance, handle, &input)
+        })
+    }
+
+    fn settings(&self, host: &mut dyn Host, event: &mut SettingsEvent<'_>) {
+        if let Some(callback) = self.hooks.settings {
+            let mut buttons = Vec::<String>::new();
+            self.invoke(host, None, |instance, handle| unsafe {
+                callback(instance, handle, &abi::SettingsEvent {
+                    mod_id: abi::StrView::new(event.mod_id), push: Some(dll_settings_push),
+                    user: (&mut buttons as *mut Vec<String>).cast(),
+                })
+            });
+            event.buttons.extend(buttons);
+        }
+    }
+
+    fn settings_click(&self, host: &mut dyn Host, event: &mut SettingsClickEvent<'_>) {
+        if let Some(callback) = self.hooks.settings_click {
+            self.invoke(host, None, |instance, handle| unsafe {
+                callback(instance, handle, &abi::SettingsClickEvent {
+                    mod_id: abi::StrView::new(event.mod_id), button: event.button,
+                })
+            });
+        }
+    }
+}
+
+fn dll_screen_view(screen: &NativeScreenView<'_>) -> abi::ScreenView {
+    abi::ScreenView {
+        id: abi::StrView::new(screen.id),
+        rect: abi::Rect { x: screen.rect[0], y: screen.rect[1], width: screen.rect[2], height: screen.rect[3] },
+        mouse: abi::Point { x: screen.mouse[0], y: screen.mouse[1] },
+        partial_tick: screen.partial_tick,
+    }
+}
+
+unsafe extern "C" fn dll_settings_push(user: *mut c_void, label: abi::StrView) -> abi::Status {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        if user.is_null() || !user.cast::<Vec<String>>().is_aligned() { return abi::Status::INVALID; }
+        let Ok(label) = (unsafe { label.as_str(4096) }) else { return abi::Status::INVALID };
+        let buttons = unsafe { &mut *user.cast::<Vec<String>>() };
+        if buttons.len() >= abi::MAX_SETTINGS_BUTTONS { return abi::Status::INVALID; }
+        buttons.push(label.to_owned());
+        abi::Status::OK
+    })) {
+        Ok(status) => status,
+        Err(_) => abi::Status::PANIC,
+    }
 }

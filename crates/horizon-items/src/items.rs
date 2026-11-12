@@ -2188,6 +2188,11 @@ pub fn bucket_contents(
             "minecraft:item.bucket.empty_sulfur_cube",
             Some("sulfur_cube"),
         ),
+        _ if horizon_world::fluid::custom::bucket(item).is_some() => (
+            C::Fluid(horizon_world::fluid::custom::bucket(item)?),
+            "minecraft:item.bucket.empty",
+            None,
+        ),
         _ => return None,
     })
 }

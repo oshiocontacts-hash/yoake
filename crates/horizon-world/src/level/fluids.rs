@@ -28,18 +28,10 @@ fn is_water(kind: FluidKind) -> bool {
     matches!(kind, FluidKind::Water | FluidKind::FlowingWater)
 }
 fn source_of(kind: FluidKind) -> FluidKind {
-    if is_water(kind) {
-        FluidKind::Water
-    } else {
-        FluidKind::Lava
-    }
+    kind.source()
 }
 fn flowing_of(kind: FluidKind) -> FluidKind {
-    if is_water(kind) {
-        FluidKind::FlowingWater
-    } else {
-        FluidKind::FlowingLava
-    }
+    kind.flowing()
 }
 
 /// `FlowingFluid.SpreadContext`: per-spread caches keyed by horizontal offset.
@@ -109,6 +101,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     }
     /// `Fluid.getTickDelay`.
     pub(crate) fn fluid_tick_delay(&self, kind: FluidKind) -> i32 {
+        if let Some(definition) = crate::fluid::custom::definition(kind) {
+            return definition.tick_rate as i32;
+        }
         match kind {
             FluidKind::Empty => 0,
             FluidKind::Water | FluidKind::FlowingWater => 5,
@@ -122,6 +117,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
     }
     fn drop_off(&self, kind: FluidKind) -> i32 {
+        if let Some(definition) = crate::fluid::custom::definition(kind) {
+            return i32::from(definition.viscosity);
+        }
         if is_water(kind) || self.fast_lava() {
             1
         } else {
@@ -129,6 +127,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
     }
     fn slope_find_distance(&self, kind: FluidKind) -> i32 {
+        if let Some(definition) = crate::fluid::custom::definition(kind) {
+            return (4 / i32::from(definition.viscosity)).max(1);
+        }
         if is_water(kind) || self.fast_lava() {
             4
         } else {
@@ -136,6 +137,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
     }
     fn can_convert_to_source(&self, kind: FluidKind) -> bool {
+        if crate::fluid::custom::definition(kind).is_some() {
+            return false;
+        }
         let rules = self.level.game_rules();
         if is_water(kind) {
             rules.water_source_conversion
@@ -166,6 +170,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             FluidKind::Water | FluidKind::FlowingWater => {
                 direction == Direction::Down && !is_water(other)
             }
+            FluidKind::Custom(_) | FluidKind::FlowingCustom(_) => false,
             _ => self.fluid_height(fluid, pos) >= 0.444_444_45 && is_water(other),
         }
     }
@@ -375,18 +380,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
         let above_state = self.above_state(pos);
         let above_fluid = b.fluid(above_state);
-        if above_fluid.kind() != FluidKind::Empty
+        let above = above_fluid.kind() != FluidKind::Empty
             && above_fluid.kind().same_family(kind)
-            && self.can_pass_through_wall(Direction::Up, state, above_state)
-        {
-            return FluidState::new(flowing_of(kind), 8, true);
-        }
-        let amount = highest - self.drop_off(kind);
-        if amount <= 0 {
-            FluidState::EMPTY
-        } else {
-            FluidState::new(flowing_of(kind), amount as u8, false)
-        }
+            && self.can_pass_through_wall(Direction::Up, state, above_state);
+        crate::fluid::spread_state(kind, highest as u8, above, self.drop_off(kind) as u8)
     }
     fn is_water_hole(&self, kind: FluidKind, top: BlockStateId, bottom: BlockStateId) -> bool {
         if !self.can_pass_through_wall(Direction::Down, top, bottom) {
@@ -543,7 +540,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         {
             return;
         }
-        if !is_water(kind)
+        if kind.same_family(FluidKind::Lava)
             && direction == Direction::Down
             && b.is_water_fluid(self.fluid_at(pos).kind())
         {
@@ -557,7 +554,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             self.place_liquid(pos, state, target, false);
         } else {
             if !b.is_air(state) {
-                if is_water(kind) {
+                if !kind.same_family(FluidKind::Lava) {
                     self.drop_resources(state, pos);
                 } else {
                     self.level_event(1501, pos, 0);
@@ -626,6 +623,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     FluidKind::Water | FluidKind::FlowingWater => "water",
                     FluidKind::Lava | FluidKind::FlowingLava => "lava",
                     FluidKind::Empty => return,
+                    FluidKind::Custom(_) | FluidKind::FlowingCustom(_) => kind.source().name(),
                 };
                 if !self.level.allow_fluid_level_change(
                     pos,
@@ -657,7 +655,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         new: FluidState,
     ) -> i32 {
         let delay = self.fluid_tick_delay(kind);
-        if is_water(kind) {
+        if is_water(kind) || crate::fluid::custom::definition(kind).is_some() {
             return delay;
         }
         if old.kind() != FluidKind::Empty

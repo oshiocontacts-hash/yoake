@@ -7,8 +7,8 @@
 //! Baked geometry lives in [`crate::item_bake`]; this module decides *which*
 //! model, tints, foil and transformation each layer gets.
 use crate::{
-    json::{DecodeError, error as err},
-    math::{Mat4, normalize_quaternion, quaternion_from_axis_angle},
+    json::{error as err, DecodeError},
+    math::{normalize_quaternion, quaternion_from_axis_angle, Mat4},
 };
 use serde_json::{Map, Value};
 use std::{
@@ -348,7 +348,11 @@ fn optional_transformation(m: &Map<String, Value>) -> Result<Option<Mat4>> {
 fn channel(v: f32) -> i32 {
     let scaled = v * 255.0;
     let i = scaled as i32;
-    if (i as f32) > scaled { i - 1 } else { i }
+    if (i as f32) > scaled {
+        i - 1
+    } else {
+        i
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -473,11 +477,6 @@ impl ItemModelNode {
                 on_true: Box::new(Self::decode(required(m, "on_true")?)?),
                 on_false: Box::new(Self::decode(required(m, "on_false")?)?),
             },
-            "minecraft:select" if foreign::property_is_foreign(m)? => {
-                // No case can match a property Horizon cannot read.
-                let fallback = get(m, "fallback").map(Self::decode).transpose()?;
-                foreign::wrap(fallback.unwrap_or(Self::Empty), optional_transformation(m)?)
-            }
             "minecraft:select" => {
                 let transformation = optional_transformation(m)?;
                 let property = SelectProperty::decode(m)?;
@@ -485,7 +484,7 @@ impl ItemModelNode {
                     .iter()
                     .map(|c| SwitchCase::decode(&property, c))
                     .collect::<Result<Vec<_>>>()?;
-                if cases.is_empty() {
+                if cases.is_empty() && !matches!(&property, SelectProperty::Custom(_)) {
                     return Err(err("empty case list"));
                 }
                 let mut seen: Vec<&Value> = Vec::new();
@@ -505,7 +504,6 @@ impl ItemModelNode {
                 }
             }
             "minecraft:range_dispatch" => {
-                let foreign_property = foreign::property_is_foreign(m)?;
                 let mut entries = list(required(m, "entries")?)?
                     .iter()
                     .map(|e| {
@@ -518,17 +516,6 @@ impl ItemModelNode {
                     .collect::<Result<Vec<_>>>()?;
                 // `Comparator.comparingDouble`: Double.compare, a total order.
                 entries.sort_by(|a, b| f64::from(a.0).total_cmp(&f64::from(b.0)));
-                if foreign_property {
-                    // A property Horizon cannot read is 0.
-                    let fallback = get(m, "fallback").map(Self::decode).transpose()?;
-                    let chosen = last_index_less_or_equal(&entries, 0.0)
-                        .map(|i| entries.swap_remove(i).1)
-                        .or(fallback);
-                    return Ok(foreign::wrap(
-                        chosen.unwrap_or(Self::Empty),
-                        optional_transformation(m)?,
-                    ));
-                }
                 Self::RangeDispatch {
                     transformation: optional_transformation(m)?,
                     property: NumericProperty::decode(m)?,
@@ -611,6 +598,7 @@ impl SwitchCase {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TintSource {
+    Custom(String),
     Constant(i32),
     CustomModelData { index: i32, default: i32 },
     Dye(i32),
@@ -645,8 +633,7 @@ impl TintSource {
             "minecraft:firework" => Self::Firework(default()?),
             "minecraft:potion" => Self::Potion(default()?),
             "minecraft:team" => Self::Team(default()?),
-            // A mod's own tint source, which its Java code computes: untinted here.
-            other if foreign::is_foreign(other) => Self::Constant(-1),
+            other if foreign::is_foreign(other) => Self::Custom(other.to_owned()),
             _ => return Err(err("unknown item tint source")),
         })
     }
@@ -705,6 +692,7 @@ impl ConditionProperty {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum SelectProperty {
+    Custom(String),
     CustomModelData(i32),
     MainHand,
     ChargeType,
@@ -741,6 +729,7 @@ impl SelectProperty {
             "minecraft:context_entity_type" => Self::ContextEntityType,
             "minecraft:context_dimension" => Self::ContextDimension,
             "minecraft:component" => Self::Component(component_type(required(m, "component")?)?),
+            other if foreign::is_foreign(other) => Self::Custom(other.to_owned()),
             _ => return Err(err("unknown select property")),
         })
     }
@@ -766,7 +755,7 @@ impl SelectProperty {
                 DisplayContext::by_name(&s).ok_or_else(|| err("invalid display context"))?;
                 Value::String(s)
             }
-            Self::Component(_) => v.clone(),
+            Self::Component(_) | Self::Custom(_) => v.clone(),
         })
     }
 }
@@ -809,7 +798,11 @@ impl Wobbler {
         self.rotation = positive_modulo(self.rotation + self.delta_rotation, 1.0);
     }
     pub fn value(&self, wobble: bool) -> f32 {
-        if wobble { self.rotation } else { self.target }
+        if wobble {
+            self.rotation
+        } else {
+            self.target
+        }
     }
 }
 /// `Mth.positiveModulo(float, float)`.
@@ -832,6 +825,7 @@ impl PartialEq for NeedleState {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum NumericProperty {
+    Custom(String),
     BundleFullness,
     Compass {
         wobble: bool,
@@ -904,6 +898,7 @@ impl NumericProperty {
             "minecraft:count" => Self::Count {
                 normalize: normalize()?,
             },
+            other if foreign::is_foreign(other) => Self::Custom(other.to_owned()),
             _ => return Err(err("unknown range dispatch property")),
         })
     }
@@ -992,8 +987,41 @@ pub struct Context<'a> {
 /// Host services the resolver cannot derive from data alone.
 pub trait ItemEnv {
     /// A mod's namespaced conditional property, false when no mod supplies it.
-    fn item_model_property(&self, _property: &str, _stack: &StackView) -> bool {
+    fn item_model_property(
+        &self,
+        _property: &str,
+        _stack: &StackView,
+        _components: &Components,
+        _context: &Context<'_>,
+    ) -> bool {
         false
+    }
+    fn item_model_number(
+        &self,
+        _property: &str,
+        _stack: &StackView,
+        _components: &Components,
+        _context: &Context<'_>,
+    ) -> f32 {
+        0.0
+    }
+    fn item_model_select(
+        &self,
+        _property: &str,
+        _stack: &StackView,
+        _components: &Components,
+        _context: &Context<'_>,
+    ) -> Option<Value> {
+        None
+    }
+    fn item_tint(
+        &self,
+        _source: &str,
+        _stack: &StackView,
+        _components: &Components,
+        _context: &Context<'_>,
+    ) -> i32 {
+        -1
     }
     /// `PotionContents.getColorOr` for the potion/effects part: the mixed
     /// effect colour, or `None` when the contents have no visible effects.
@@ -1199,7 +1227,11 @@ impl Resolve<'_> {
             .and_then(|v| int(v).ok())
             .unwrap_or(0);
         // `Mth.clamp(int, 0, max)`
-        if d < 0 { 0 } else { d.min(self.max_damage()) }
+        if d < 0 {
+            0
+        } else {
+            d.min(self.max_damage())
+        }
     }
     fn max_stack_size(&self) -> i32 {
         self.component("minecraft:max_stack_size")
@@ -1280,6 +1312,9 @@ impl Resolve<'_> {
                 match (chosen, fallback) {
                     (Some(m), _) => self.node(out, m, &child),
                     (None, Some(f)) => self.node(out, f, &child),
+                    // A mod's own property nobody answered draws nothing, as before mods could
+                    // answer it (vanilla properties keep the missing model).
+                    (None, None) if matches!(property, SelectProperty::Custom(_)) => {}
                     (None, None) => self.missing(out, &child),
                 }
             }
@@ -1300,6 +1335,7 @@ impl Resolve<'_> {
                 match (chosen, fallback) {
                     (Some(m), _) => self.node(out, m, &child),
                     (None, Some(f)) => self.node(out, f, &child),
+                    (None, None) if matches!(property, NumericProperty::Custom(_)) => {}
                     (None, None) => self.missing(out, &child),
                 }
             }
@@ -1349,7 +1385,8 @@ impl Resolve<'_> {
         let owner = self.ctx.owner;
         match property {
             ConditionProperty::Custom(property) => {
-                self.env.item_model_property(property, self.stack)
+                self.env
+                    .item_model_property(property, self.stack, self.components, self.ctx)
             }
             ConditionProperty::CustomModelData(i) => {
                 self.component("minecraft:custom_model_data")
@@ -1394,6 +1431,10 @@ impl Resolve<'_> {
     fn select_value(&self, property: &SelectProperty) -> Option<Value> {
         let owner = self.ctx.owner;
         match property {
+            SelectProperty::Custom(property) => {
+                self.env
+                    .item_model_select(property, self.stack, self.components, self.ctx)
+            }
             SelectProperty::CustomModelData(i) => self
                 .component("minecraft:custom_model_data")
                 .and_then(|d| custom_data_at(d, "strings", *i))
@@ -1455,6 +1496,10 @@ impl Resolve<'_> {
     fn numeric(&self, property: &NumericProperty) -> f32 {
         let owner = self.ctx.owner;
         match property {
+            NumericProperty::Custom(property) => {
+                self.env
+                    .item_model_number(property, self.stack, self.components, self.ctx)
+            }
             NumericProperty::BundleFullness => {
                 self.env.bundle_fullness(self.stack, self.components)
             }
@@ -1613,6 +1658,10 @@ impl Resolve<'_> {
     }
     fn tint(&self, source: &TintSource) -> i32 {
         match source {
+            TintSource::Custom(source) => {
+                self.env
+                    .item_tint(source, self.stack, self.components, self.ctx)
+            }
             TintSource::Constant(v) => *v,
             TintSource::CustomModelData { index, default } => self
                 .component("minecraft:custom_model_data")
@@ -1671,7 +1720,11 @@ impl Resolve<'_> {
 
 /// `Mth.clamp(float, min, max)` with `Math.min`'s NaN propagation.
 fn clamp(v: f32, min: f32, max: f32) -> f32 {
-    if v < min { min } else { java_min(v, max) }
+    if v < min {
+        min
+    } else {
+        java_min(v, max)
+    }
 }
 fn java_min(a: f32, b: f32) -> f32 {
     if a.is_nan() {
@@ -1679,7 +1732,11 @@ fn java_min(a: f32, b: f32) -> f32 {
     } else if b.is_nan() {
         b
     } else if a == 0.0 && b == 0.0 {
-        if a.is_sign_negative() { a } else { b }
+        if a.is_sign_negative() {
+            a
+        } else {
+            b
+        }
     } else if a < b {
         a
     } else {
@@ -1771,5 +1828,7 @@ fn binary_search(a: &[f32], key: f32) -> std::result::Result<usize, usize> {
 
 #[cfg(test)]
 mod foreign_tests;
+#[cfg(test)]
+mod presentation_tests;
 #[cfg(test)]
 mod tests;

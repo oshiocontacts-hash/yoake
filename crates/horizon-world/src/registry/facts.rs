@@ -5,8 +5,8 @@ use crate::{
     chunk::{BlockProperties, BlockState},
 };
 use serde::{
-    Deserialize, Deserializer,
     de::{self, IgnoredAny, MapAccess, SeqAccess, Visitor},
+    Deserialize, Deserializer,
 };
 use std::{cell::RefCell, collections::BTreeMap, fmt};
 
@@ -152,10 +152,10 @@ impl<'de> Deserialize<'de> for State {
 #[cfg(test)]
 mod tests {
     use crate::{
-        DATA_VERSION,
         chunk::BlockState,
         nbt::Tag,
         registry::{BlockRegistry, BlockStateId},
+        DATA_VERSION,
     };
     use serde_json::Value;
     use std::path::Path;

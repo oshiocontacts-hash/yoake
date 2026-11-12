@@ -16,7 +16,15 @@ pub use crate::block_sprites::{BlockSprites, FaceSprite, SpriteRef};
 pub use crate::camera::{CameraEntity, FovPlayer};
 pub use crate::command::Suggestion;
 pub use crate::containers::{ModBlockEntity, ModContainer, ModEnergyBuffer, ModFluidTanks};
+pub use crate::game::native_capabilities::{
+    Capability, CapabilityContext, CapabilityEnergy, CapabilityKind, CapabilityProvider,
+    CapabilityTarget, FluidHandler, FluidStack, FluidStorage, FluidTank, NativeCapabilityProvider,
+};
 pub use crate::crafting::{CustomRecipe, Ingredient};
+pub use crate::native_recipe_types::{
+    NativeRecipeCodec, NativeRecipeDisplay, NativeRecipeEntry, NativeRecipeMatch, NativeRecipeType,
+};
+pub use horizon_world::fluid::custom::{FluidDefinition as NativeFluidDefinition, FluidMotion};
 pub use crate::extras::Corner;
 pub use crate::extras_hud::Corners;
 pub use crate::first_person::Hand;
@@ -30,7 +38,8 @@ pub use crate::game::native_deferred::{LanOperationStatus, LanTicket};
 pub use crate::game::native_entity_query::NativeEntityInfo;
 pub use crate::game::native_item_behaviors::{ItemBehavior, NativeItemBehavior, NativeItemUse};
 pub use crate::game::native_item_render::{
-    NativeItemContext, NativeItemDraw, NativeItemHolder, NativeItemRenderStack,
+    NativeItemContext, NativeItemDraw, NativeItemHolder, NativeItemRenderContext,
+    NativeItemRenderStack,
 };
 pub use crate::game::native_inventory_screen::{NativeInventoryContext, NativeInventoryLayout};
 pub use crate::game::native_lan::NativeLanPublish;
@@ -80,7 +89,9 @@ pub use crate::recipe_book::RecipeBookCategory;
 pub use crate::text::Text;
 /// The matrix type of the equipment-draw hooks, re-exported so mods need no own glam.
 pub use glam::Mat4;
-pub use horizon_assets::item_model::{DisplayContext, StackView};
+pub use horizon_assets::item_model::{
+    Components, Context as ItemModelContext, DisplayContext, StackView,
+};
 pub use horizon_core::{
     geometry::{Direction, VoxelShape},
     position::BlockPos,
@@ -104,7 +115,8 @@ pub use horizon_world::{
     registry::BlockStateId,
 };
 pub use serde_json;
-use serde_json::{Map, Value};
+pub use serde_json::Value;
+use serde_json::Map;
 use std::time::Duration;
 /// The window events `input_key` hands over (`winit::event::KeyEvent`) and their key types.
 pub use winit;

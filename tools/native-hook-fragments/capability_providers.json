@@ -1,0 +1,21 @@
+{
+  "hooks": [
+    {
+      "name": "capability_providers",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_capability_providers",
+      "mod_api": { "contract": "collect", "out": "providers" }
+    }
+  ],
+  "helpers": [
+    { "name": "query_capability", "target": "horizon_client::game::native_capabilities::Game<'_>::native_query_capability", "mod_api": {} },
+    { "name": "query_item_capability", "target": "horizon_client::game::native_capabilities::Game<'_>::native_query_item_capability", "mod_api": {} },
+    { "name": "capability_energy", "target": "horizon_client::game::native_capabilities::Game<'_>::native_capability_energy", "mod_api": {} },
+    { "name": "capability_energy_insert", "target": "horizon_client::game::native_capabilities::Game<'_>::native_capability_energy_insert", "mod_api": {} },
+    { "name": "capability_energy_extract", "target": "horizon_client::game::native_capabilities::Game<'_>::native_capability_energy_extract", "mod_api": {} },
+    { "name": "capability_item_energy", "target": "horizon_client::game::native_capabilities::Game<'_>::native_capability_item_energy", "mod_api": {} },
+    { "name": "capability_item_energy_transfer", "target": "horizon_client::game::native_capabilities::Game<'_>::native_capability_item_energy_transfer", "mod_api": {} }
+  ],
+  "rust_summary": "Sided block, block-entity and component-aware item capabilities.",
+  "doc_summary": "Register item, fluid and existing energy-buffer providers. @API:capability_providers@.",
+  "comments": ["crates/horizon-client/src/game/native_hooks.rs", "docs/native-mods.md"]
+}

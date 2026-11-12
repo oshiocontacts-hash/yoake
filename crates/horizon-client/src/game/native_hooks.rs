@@ -879,14 +879,10 @@ use super::{
     execution_role::ExecutionRole,
     maps::{NativeMapDecoration, NativeMapInfo},
     native_block_entity_draw::BlockEntityDraw,
-    native_item_render::{
-        NativeItemContext, NativeItemDraw, NativeItemHolder, NativeItemRenderStack,
-    },
     native_mob_draw::{NativeMobRender, NativePlayerRender},
     native_mob_player::NativePlayerAppearance,
     native_panel_recipes::RecipePage,
 };
-use horizon_assets::item_model::StackView;
 use horizon_client::mod_api::{
     self, BlockHit, CameraOverride, EntityRef, LanOperationStatus, LanTicket, MouseButtons,
     NameTagLine, NativeAttributeOperation, NativeAudioStreamId, NativeAudioStreamLimits,
@@ -899,6 +895,10 @@ use horizon_client::mod_api::{
 };
 use horizon_client::mod_api::{AttachmentResult, Attachments, Holder, Suggestion};
 use horizon_client::mod_api::{
+    Components, ItemModelContext, NativeItemContext, NativeItemDraw, NativeItemHolder,
+    NativeItemRenderContext, NativeItemRenderStack, StackView, Value,
+};
+use horizon_client::mod_api::{
     FixedFrame, FrameAdvance, LocalPlayerSnapshot, NativeAudioMixBatch, NetState, SnapshotReport,
 };
 pub(crate) use horizon_client::mod_api::{
@@ -906,6 +906,7 @@ pub(crate) use horizon_client::mod_api::{
     NativeMenuBehavior, NativeMinimap, NativeMod, NativePanelEvent, NativeScreen, NativeScreenView,
     NativeStack, NativeZoom,
 };
+use horizon_client::mod_api::{NativeCapabilityProvider, NativeFluidDefinition, NativeRecipeType};
 use horizon_client::mod_api::{NativeChatRecipients, NativeCrosshairEntity, Pipe};
 use horizon_client::{
     atlas_sources::qualified,
@@ -2159,6 +2160,21 @@ pub(crate) fn net_session_ended(session: u64, reason: &str) {
 
 /// The hook points. Each does nothing in Horizon.
 impl Game<'_> {
+    /// Capability providers, collected once; empty installs nothing. @API:capability_providers@.
+    pub(super) fn native_capability_providers(providers: &mut Vec<NativeCapabilityProvider>) {
+        mod_api::dispatch_capability_providers(mod_api::mods(), providers);
+    }
+
+    /// Custom fluid families, collected before loading world and render tables. @API:fluids@.
+    pub(super) fn native_fluids(fluids: &mut Vec<NativeFluidDefinition>) {
+        mod_api::dispatch_fluids(mod_api::mods(), fluids);
+    }
+
+    /// Versioned JSON codecs, matching, assembly and book categories. @API:recipe_types@.
+    pub(super) fn native_recipe_types(types: &mut Vec<NativeRecipeType>) {
+        mod_api::dispatch_recipe_types(mod_api::mods(), types);
+    }
+
     /// Per-id block implementations; an empty collection installs no dispatch. @API:block_behaviors@.
     pub(super) fn native_block_behaviors(behaviors: &mut Vec<NativeBlockBehavior>) {
         mod_api::dispatch_block_behaviors(mod_api::mods(), behaviors);
@@ -2317,13 +2333,81 @@ impl Game<'_> {
     /// Client-side evaluation of a mod's namespaced conditional item model property.
     /// Set value only for a property your mod owns; unhandled properties stay false.
     /// The borrowed stack is the one being resolved, including nested bundle items.
+    /// @API:item_model_property@.
     pub(super) fn native_item_model_property(
         &self,
         property: &str,
         stack: &StackView,
+        components: &Components,
+        context: &ItemModelContext<'_>,
         value: &mut bool,
     ) {
-        mod_api::dispatch_item_model_property(self, mod_api::mods(), property, stack, value);
+        mod_api::dispatch_item_model_property(
+            self,
+            mod_api::mods(),
+            property,
+            stack,
+            components,
+            context,
+            value,
+        );
+    }
+    /// @API:item_presentation@.
+    pub(super) fn native_item_model_number(
+        &self,
+        property: &str,
+        stack: &StackView,
+        components: &Components,
+        context: &ItemModelContext<'_>,
+        value: &mut f32,
+    ) {
+        mod_api::dispatch_item_model_number(
+            self,
+            mod_api::mods(),
+            property,
+            stack,
+            components,
+            context,
+            value,
+        );
+    }
+    /// @API:item_presentation@.
+    pub(super) fn native_item_model_select(
+        &self,
+        property: &str,
+        stack: &StackView,
+        components: &Components,
+        context: &ItemModelContext<'_>,
+        value: &mut Option<Value>,
+    ) {
+        mod_api::dispatch_item_model_select(
+            self,
+            mod_api::mods(),
+            property,
+            stack,
+            components,
+            context,
+            value,
+        );
+    }
+    /// @API:item_presentation@.
+    pub(super) fn native_item_tint(
+        &self,
+        source: &str,
+        stack: &StackView,
+        components: &Components,
+        context: &ItemModelContext<'_>,
+        color: &mut i32,
+    ) {
+        mod_api::dispatch_item_tint(
+            self,
+            mod_api::mods(),
+            source,
+            stack,
+            components,
+            context,
+            color,
+        );
     }
     /// The frame rate this window is about to be held to: Max Framerate after the
     /// inactivity throttle and Battery Mode (260 is unlimited). `focused` is whether the
@@ -6504,23 +6588,36 @@ impl Game<'_> {
         );
     }
 
+    /// @API:item_render@.
     pub(super) fn native_item_render_listened(&self, listened: &mut bool) {
         mod_api::dispatch_item_render_listened(self, mod_api::mods(), listened);
     }
 
+    /// @API:item_render@.
     pub(super) fn native_item_render_claims(&self, item: &str, claimed: &mut bool) {
         mod_api::dispatch_item_render_claims(self, mod_api::mods(), item, claimed);
     }
 
+    /// @API:item_render@.
     pub(super) fn native_item_render(
         &self,
         stack: &NativeItemRenderStack,
         context: NativeItemContext,
         holder: Option<NativeItemHolder>,
+        presentation: &NativeItemRenderContext<'_>,
         draw: &mut NativeItemDraw,
         drawn: &mut bool,
     ) {
-        mod_api::dispatch_item_render(self, mod_api::mods(), stack, context, holder, draw, drawn);
+        mod_api::dispatch_item_render(
+            self,
+            mod_api::mods(),
+            stack,
+            context,
+            holder,
+            presentation,
+            draw,
+            drawn,
+        );
     }
 
     /// Collect fixed interest once after native mods have been loaded.

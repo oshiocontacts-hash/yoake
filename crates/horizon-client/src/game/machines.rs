@@ -15,6 +15,7 @@ use horizon_client::{
     world::World,
 };
 use horizon_core::{geometry::Direction, position::BlockPos, random::RandomSource};
+use horizon_client::mod_api::{Capability, CapabilityKind, ItemHandler};
 use horizon_world::{
     level::{Behaviours, LevelAccess},
     registry::BlockStateId,
@@ -860,13 +861,30 @@ impl Game<'_> {
     /// a container entity there (`getContainerAt`).
     fn hopper_eject(&mut self, pos: Pos, hopper: &View) -> bool {
         let state = self.world.block(pos.0, pos.1, pos.2);
-        let c = self.containers();
-        let Some(facing) = c.prop(state, "facing").and_then(dir_from_name) else {
+        let Some(facing) = self.containers().prop(state, "facing").and_then(dir_from_name) else {
             return false;
         };
         let front = offset(pos, facing);
         let face = facing.opposite();
-        if let Some(target) = c.view(front, false) {
+        if let Some(handler) = self.capability_item_handler(front, face) {
+            for slot in 0..hopper.len() {
+                let Some(stack) = self.containers().get(hopper, slot).cloned() else {
+                    continue;
+                };
+                if self.capability_move_canceled(pos, front, &stack) {
+                    continue;
+                }
+                let Some(one) = self.take_one(hopper, slot) else {
+                    continue;
+                };
+                match super::native_capabilities::insert_item(handler.as_ref(), one, false) {
+                    None => return true,
+                    Some(rest) => self.put_back(hopper, slot, rest),
+                }
+            }
+            return false;
+        }
+        if let Some(target) = self.containers().view(front, false) {
             self.native_hopper_inventory_search(
                 [pos.0, pos.1, pos.2],
                 Some([front.0, front.1, front.2]),
@@ -996,6 +1014,33 @@ impl Game<'_> {
     /// there, from a container entity whose box meets the one around `at`
     /// (`getSourceContainerOrHandler`). `None` when there is no container.
     fn suck_from_container(&mut self, above: Pos, at: [f64; 3], hopper: &View) -> Option<bool> {
+        if let Some(handler) = self.capability_item_handler(above, Direction::Down) {
+            for slot in 0..handler.slots() {
+                let Some(one) = handler.extract(slot, 1, true) else {
+                    continue;
+                };
+                let containers = self.containers();
+                let room = (0..hopper.len()).any(|destination| {
+                    containers.can_place(hopper, destination, &one)
+                        && containers.get(hopper, destination).is_none_or(|stack| {
+                            stack.same_item_same_components(&one)
+                                && stack.count < containers.max_stack(stack)
+                        })
+                });
+                if !room || self.capability_move_canceled(above, hopper.parts[0].0, &one) {
+                    continue;
+                }
+                let before = handler.get_stack(slot);
+                let Some(extracted) = handler.extract(slot, 1, false) else {
+                    continue;
+                };
+                if self.add_item(None, hopper, extracted, None).is_none() {
+                    return Some(true);
+                }
+                handler.set_stack(slot, before);
+            }
+            return Some(false);
+        }
         let c = self.containers();
         let Some(source) = c.view(above, false) else {
             let id = self.entity_container_at(at)?;
@@ -1326,25 +1371,41 @@ impl Game<'_> {
         };
         let target = offset(key, facing);
         let remaining = if dropper {
-            match self.containers().view(target, false) {
-                None => self.dispense_default(key, facing, stack),
-                Some(into) => {
-                    let one = ItemStack {
-                        count: 1,
-                        ..stack.clone()
-                    };
-                    if self
-                        .add_item(None, &into, one, Some(facing.opposite()))
-                        .is_none()
-                    {
-                        self.view_changed(&into);
-                        Some(ItemStack {
-                            count: stack.count - 1,
-                            ..stack
-                        })
-                        .filter(|s| s.count > 0)
-                    } else {
-                        Some(stack)
+            if let Some(handler) = self.capability_item_handler(target, facing.opposite()) {
+                let one = ItemStack {
+                    count: 1,
+                    ..stack.clone()
+                };
+                if super::native_capabilities::insert_item(handler.as_ref(), one, false).is_none() {
+                    Some(ItemStack {
+                        count: stack.count - 1,
+                        ..stack
+                    })
+                    .filter(|stack| stack.count > 0)
+                } else {
+                    Some(stack)
+                }
+            } else {
+                match self.containers().view(target, false) {
+                    None => self.dispense_default(key, facing, stack),
+                    Some(into) => {
+                        let one = ItemStack {
+                            count: 1,
+                            ..stack.clone()
+                        };
+                        if self
+                            .add_item(None, &into, one, Some(facing.opposite()))
+                            .is_none()
+                        {
+                            self.view_changed(&into);
+                            Some(ItemStack {
+                                count: stack.count - 1,
+                                ..stack
+                            })
+                            .filter(|s| s.count > 0)
+                        } else {
+                            Some(stack)
+                        }
                     }
                 }
             }
@@ -1356,6 +1417,35 @@ impl Game<'_> {
         }
         self.container_changed(key);
         Ok(())
+    }
+
+    fn capability_item_handler(
+        &mut self,
+        position: Pos,
+        side: Direction,
+    ) -> Option<Arc<dyn ItemHandler>> {
+        match self.native_query_capability(
+            BlockPos::new(position.0, position.1, position.2),
+            Some(side),
+            CapabilityKind::Items,
+        )? {
+            Capability::Items(handler) => Some(handler),
+            _ => None,
+        }
+    }
+
+    fn capability_move_canceled(&self, source: Pos, destination: Pos, stack: &ItemStack) -> bool {
+        if horizon_client::mod_api::mods().is_empty() {
+            return false;
+        }
+        let mut cancel = false;
+        self.native_inventory_move_item(
+            [source.0, source.1, source.2],
+            [destination.0, destination.1, destination.2],
+            &stack.item,
+            &mut cancel,
+        );
+        cancel
     }
 }
 

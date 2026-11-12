@@ -583,6 +583,7 @@ pub struct MeshTables {
     water_overlay: u16,
     lava_still: u16,
     lava_flow: u16,
+    custom_fluid_sprites: Vec<(u16, u16)>,
     animated_layers: Vec<bool>,
 }
 fn stem_color(age: u8) -> u32 {
@@ -757,6 +758,10 @@ impl MeshTables {
             water_overlay: layer("minecraft:block/water_overlay")?,
             lava_still: layer("minecraft:block/lava_still")?,
             lava_flow: layer("minecraft:block/lava_flow")?,
+            custom_fluid_sprites: horizon_world::fluid::custom::definitions()
+                .iter()
+                .map(|fluid| Ok((layer(&fluid.still_texture)?, layer(&fluid.flowing_texture)?)))
+                .collect::<crate::Result<Vec<_>>>()?,
             animated_layers,
         })
     }

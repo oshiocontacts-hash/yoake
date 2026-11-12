@@ -14,11 +14,19 @@ use super::{
 };
 use horizon_client::{
     crafting::{Ingredient, recipe_id},
-    items::ItemStack,
     recipe_book::{Category, Display},
     stations::Smithing,
 };
+use horizon_client::mod_api::{
+    ItemStack, NativeRecipeDisplay, NativeRecipeEntry, NativeRecipeMatch, NativeRecipeType,
+};
 use std::{collections::HashMap, sync::Arc};
+
+pub(super) fn register() -> std::io::Result<()> {
+    let mut types = Vec::<NativeRecipeType>::new();
+    Game::native_recipe_types(&mut types);
+    horizon_client::native_recipe_types::install(types)
+}
 
 /// The tables, made once, and the recipe book's known displays with the
 /// book's version they are of.
@@ -99,12 +107,49 @@ fn recipe(id: String, kind: RecipeKind) -> Recipe {
 }
 
 impl Game<'_> {
+    /// Match and assemble registered recipes on the server. @API:recipes_matching@.
+    pub(super) fn native_recipes_matching(
+        &self,
+        kind: &str,
+        input: &[ItemStack],
+    ) -> Vec<NativeRecipeMatch> {
+        if !horizon_client::native_recipe_types::registered() || !self.native_simulates() {
+            return Vec::new();
+        }
+        horizon_client::native_recipe_types::recipes_matching(
+            kind,
+            input,
+            self.native_recipes_of_type(kind),
+        )
+    }
+
+    /// Read-only recipe identities from the current synchronized table. @API:recipe_list@.
+    pub(super) fn native_recipe_list(&self, kind: &str) -> Vec<NativeRecipeEntry> {
+        if !horizon_client::native_recipe_types::registered() {
+            return Vec::new();
+        }
+        horizon_client::native_recipe_types::recipe_list(kind, self.native_recipes_of_type(kind))
+    }
+
+    /// Display alternatives and outputs without crafting or mutating inventory. @API:recipe_display@.
+    pub(super) fn native_recipe_display(&self, kind: &str, id: &str) -> Option<NativeRecipeDisplay> {
+        if !horizon_client::native_recipe_types::registered() {
+            return None;
+        }
+        let recipe = self
+            .native_recipes_of_type(kind)
+            .iter()
+            .find(|recipe| recipe.id == id)?;
+        horizon_client::native_recipe_types::recipe_display(kind, recipe)
+    }
+
     pub(super) fn registered_recipe_book_category(
         &mut self,
         kind: &str,
     ) -> Option<horizon_client::recipe_book::RecipeBookCategory> {
         if self.recipe_tables.categories.is_none() {
             let mut declarations = Vec::new();
+            horizon_client::native_recipe_types::append_categories(&mut declarations);
             self.native_recipe_book_categories(&mut declarations);
             self.recipe_tables.categories = Some(horizon_client::recipe_book::mod_categories(
                 declarations,
@@ -381,6 +426,7 @@ impl Game<'_> {
         use horizon_client::lan::recipes;
         let mut types = Vec::new();
         self.native_datapack_sync(&mut types);
+        horizon_client::native_recipe_types::append_sync_types(&mut types);
         types.sort();
         types.dedup();
         let sources = if types.is_empty() {

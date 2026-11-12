@@ -1285,6 +1285,7 @@ pub struct CustomRecipe {
     /// `<namespace>:<path>`, its place under `data/<namespace>/recipe/`.
     pub id: String,
     pub json: Arc<Value>,
+    pub decoded: Option<Arc<Value>>,
 }
 /// An item stack as a recipe's `result` names it (`ItemStackTemplate`); none
 /// with no `id` or a count outside 1 to 99.
@@ -1502,11 +1503,13 @@ impl Recipes {
                     format!("minecraft:{name}")
                 };
                 let kind = kind.to_owned();
+                let decoded = crate::native_recipe_types::decode(&kind, &v)
+                    .map_err(|error| std::io::Error::other(format!("recipe {id}: {error}")))?;
                 let json = Arc::new(v);
                 custom
                     .entry(kind)
                     .or_default()
-                    .push(CustomRecipe { id, json });
+                    .push(CustomRecipe { id, json, decoded });
                 continue;
             }
             let text = |k: &str| v[k].as_str().unwrap_or("").to_owned();

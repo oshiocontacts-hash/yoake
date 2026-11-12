@@ -3,9 +3,9 @@
 mod facts;
 mod json;
 pub(crate) mod snapshot;
-use crate::{DATA_VERSION, chunk::BlockState, compression::invalid, nbt::Tag};
-pub use json::BlockStateJsonCodec;
+use crate::{chunk::BlockState, compression::invalid, nbt::Tag, DATA_VERSION};
 pub(crate) use json::java_integer;
+pub use json::BlockStateJsonCodec;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     hash::{DefaultHasher, Hash, Hasher},
@@ -140,6 +140,13 @@ impl BlockRegistry {
     }
     pub fn is_empty(&self) -> bool {
         self.states.is_empty()
+    }
+    /// Every state with its id, in id order.
+    pub fn iter(&self) -> impl Iterator<Item = (BlockStateId, &BlockState)> {
+        self.states
+            .iter()
+            .enumerate()
+            .map(|(index, state)| (BlockStateId(index as u32), state))
     }
     pub fn state(&self, id: BlockStateId) -> Option<&BlockState> {
         self.states.get(id.0 as usize)

@@ -107,6 +107,7 @@ impl Default for PlayerFluids {
     }
 }
 fn is_tagged(kind: FluidKind, tag: FluidTagId) -> bool {
+    let kind = kind.motion_kind();
     if tag == WATER {
         matches!(kind, FluidKind::Water | FluidKind::FlowingWater)
     } else {

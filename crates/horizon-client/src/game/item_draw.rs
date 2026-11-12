@@ -14,6 +14,7 @@ use horizon_client::{
     item_render::{self, ItemRenderState, SpecialHost, WorldSink},
     items::ItemStack,
     mesher::Vertex,
+    mod_api::ItemModelContext,
 };
 use serde_json::Value;
 use std::{cell::RefCell, collections::HashMap};
@@ -23,14 +24,69 @@ pub(super) struct Env<'a, 'g> {
     game: &'a Game<'g>,
 }
 impl ItemEnv for Env<'_, '_> {
-    fn item_model_property(&self, property: &str, stack: &StackView) -> bool {
+    fn item_model_property(
+        &self,
+        property: &str,
+        stack: &StackView,
+        components: &Components,
+        context: &ItemModelContext<'_>,
+    ) -> bool {
         if horizon_client::mod_api::mods().is_empty() {
             return false;
         }
         let mut value = false;
         self.game
-            .native_item_model_property(property, stack, &mut value);
+            .native_item_model_property(property, stack, components, context, &mut value);
         value
+    }
+    fn item_model_number(
+        &self,
+        property: &str,
+        stack: &StackView,
+        components: &Components,
+        context: &ItemModelContext<'_>,
+    ) -> f32 {
+        if horizon_client::mod_api::mods().is_empty() {
+            return 0.0;
+        }
+        let mut value = 0.0;
+        self.game
+            .native_item_model_number(property, stack, components, context, &mut value);
+        if value.is_finite() {
+            value
+        } else {
+            0.0
+        }
+    }
+    fn item_model_select(
+        &self,
+        property: &str,
+        stack: &StackView,
+        components: &Components,
+        context: &ItemModelContext<'_>,
+    ) -> Option<Value> {
+        if horizon_client::mod_api::mods().is_empty() {
+            return None;
+        }
+        let mut value = None;
+        self.game
+            .native_item_model_select(property, stack, components, context, &mut value);
+        value
+    }
+    fn item_tint(
+        &self,
+        source: &str,
+        stack: &StackView,
+        components: &Components,
+        context: &ItemModelContext<'_>,
+    ) -> i32 {
+        if horizon_client::mod_api::mods().is_empty() {
+            return -1;
+        }
+        let mut color = -1;
+        self.game
+            .native_item_tint(source, stack, components, context, &mut color);
+        color
     }
     fn enchantment_in_tag(&self, enchantment: &str, tag: &str) -> bool {
         self.game.stations().enchantments.in_tag(tag, enchantment)

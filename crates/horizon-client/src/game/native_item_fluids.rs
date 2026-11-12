@@ -39,6 +39,8 @@ const BUCKETS: [(&str, &str); 2] = [
 
 fn is_fluid(name: &str) -> bool {
     BUCKETS.iter().any(|(fluid, _)| *fluid == name)
+        || horizon_world::fluid::FluidKind::from_name(name)
+            .is_some_and(|kind| horizon_world::fluid::custom::definition(kind).is_some())
 }
 
 /// The contents a mod container's stack keeps in its `custom_data`: none and
@@ -114,6 +116,13 @@ fn contents(stack: &ItemStack, capacity: Option<i32>) -> Option<NativeItemFluid>
             capacity: BUCKET,
         });
     }
+    if let Some(kind) = horizon_world::fluid::custom::bucket(&stack.item) {
+        return Some(NativeItemFluid {
+            fluid: Some(kind.name().to_owned()),
+            amount: BUCKET,
+            capacity: BUCKET,
+        });
+    }
     let capacity = capacity?;
     let (fluid, amount) = read_tank(stack);
     Some(NativeItemFluid {
@@ -139,7 +148,10 @@ fn fill_one(
     }
     if &*stack.item == "minecraft:bucket" {
         // All or nothing: a bucket takes a whole bucket.
-        let full = BUCKETS.iter().find(|(f, _)| *f == fluid)?.1;
+        let full = BUCKETS.iter().find(|(kind, _)| *kind == fluid).map(|(_, item)| *item)
+            .or_else(|| horizon_world::fluid::FluidKind::from_name(fluid)
+                .and_then(horizon_world::fluid::custom::definition)
+                .map(|definition| definition.bucket.as_str()))?;
         return Some(if amount >= BUCKET {
             (BUCKET, bucket(full))
         } else {
@@ -168,7 +180,9 @@ fn drain_one(
     if max <= 0 {
         return None;
     }
-    if capacity.is_none() || BUCKETS.iter().any(|(_, full)| *full == &*stack.item) {
+    if capacity.is_none() || BUCKETS.iter().any(|(_, full)| *full == &*stack.item)
+        || horizon_world::fluid::custom::bucket(&stack.item).is_some()
+    {
         // A full bucket gives its whole bucket or nothing.
         return (max >= BUCKET).then(|| (fluid, BUCKET, bucket("minecraft:bucket")));
     }

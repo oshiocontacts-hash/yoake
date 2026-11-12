@@ -675,12 +675,44 @@ fn cached(
     root: &Path,
     build: impl FnOnce() -> io::Result<Behaviours>,
 ) -> io::Result<Behaviours> {
-    if let Some(behaviours) = cache::load(registry, root) {
+    if let Some(mut behaviours) = cache::load(registry, root) {
+        apply_custom_fluids(registry, &mut behaviours)?;
         return Ok(behaviours);
     }
-    let behaviours = build()?;
+    let mut behaviours = build()?;
     cache::store(registry, root, &behaviours);
+    apply_custom_fluids(registry, &mut behaviours)?;
     Ok(behaviours)
+}
+
+fn apply_custom_fluids(registry: &BlockRegistry, behaviours: &mut Behaviours) -> io::Result<()> {
+    if crate::fluid::custom::definitions().is_empty() {
+        return Ok(());
+    }
+    let liquid_block = behaviours
+        .table
+        .block_by_name("minecraft:water")
+        .ok_or_else(|| invalid("missing liquid physics template"))?;
+    let liquid_state = behaviours.table.default_state(liquid_block);
+    let liquid_facts = behaviours.facts[liquid_state.0 as usize];
+    let liquid_data = behaviours.blocks[liquid_block.0 as usize].clone();
+    for (state_id, state) in registry.iter() {
+        let Some(kind) = crate::fluid::custom::block(&state.name) else {
+            continue;
+        };
+        let fluid = FluidState::from_block(state)?;
+        let facts = &mut behaviours.facts[state_id.0 as usize];
+        *facts = liquid_facts;
+        facts.fluid = fluid;
+        facts.emission = crate::fluid::custom::definition(kind).unwrap().light;
+        let block_id = behaviours.table.block(state_id);
+        let data = &mut behaviours.blocks[block_id.0 as usize];
+        let item = data.item.clone();
+        *data = liquid_data.clone();
+        data.item = item;
+        data.schedule_fluid_ticks = true;
+    }
+    Ok(())
 }
 
 fn load_uncached(registry: &BlockRegistry, root: &Path) -> io::Result<Behaviours> {
@@ -814,7 +846,12 @@ fn build_with_gameplay<G: GameplayStateSource>(
             .map_err(|e| invalid(e.to_string()))?;
     }
     let fluid_built = fluid_definitions
-        .build(|name, _| FluidKind::from_name(name).map(|kind| kind as u8))
+        .build(|name, _| {
+            FluidKind::ALL
+                .into_iter()
+                .find(|kind| kind.name() == name)
+                .map(|kind| kind.wire_id() as u8)
+        })
         .map_err(|e| invalid(e.to_string()))?;
     let fluid_mask = |name: &str| -> u8 {
         fluid_built

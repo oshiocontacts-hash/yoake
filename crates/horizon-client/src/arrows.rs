@@ -1269,7 +1269,7 @@ impl Ticker<'_, '_, '_, '_> {
             }
             if inside_fluid {
                 effects.advance(step);
-                match fluid.kind() {
+                match fluid.kind().motion_kind() {
                     // WaterFluid.entityInside.
                     FluidKind::Water | FluidKind::FlowingWater => effects.apply(Effect::Extinguish),
                     // LavaFluid.entityInside (lavaHurt does nothing to arrows).
@@ -1277,7 +1277,7 @@ impl Ticker<'_, '_, '_, '_> {
                         effects.apply(Effect::ClearFreeze);
                         effects.apply(Effect::LavaIgnite);
                     }
-                    FluidKind::Empty => {}
+                    FluidKind::Empty | FluidKind::Custom(_) | FluidKind::FlowingCustom(_) => {}
                 }
             }
         }

@@ -232,12 +232,17 @@ pub(super) fn tesselate(
         return;
     }
     let water = matches!(kind, FluidKind::Water | FluidKind::FlowingWater);
-    let tint = if water {
+    let custom = horizon_world::fluid::custom::definition(kind);
+    let tint = if let Some(fluid) = custom {
+        fluid.tint
+    } else if water {
         water_color & 0xFF_FFFF
     } else {
         0xFF_FFFF
     };
-    let emission = if water {
+    let emission = if let Some(fluid) = custom {
+        crate::mesher::hdr_tier(&fluid.id, fluid.light)
+    } else if water {
         0
     } else {
         crate::mesher::hdr_tier("lava", 15)
@@ -310,7 +315,14 @@ pub(super) fn tesselate(
             lighting::coords(pad, at(above), above),
         ))
     };
-    let (still, flow, overlay) = if water {
+    let (still, flow, overlay) = if let FluidKind::Custom(index)
+    | FluidKind::FlowingCustom(index) = kind
+    {
+        let Some(&(still, flow)) = tables.custom_fluid_sprites.get(usize::from(index)) else {
+            return;
+        };
+        (still, flow, None)
+    } else if water {
         (
             tables.water_still,
             tables.water_flow,
@@ -319,7 +331,7 @@ pub(super) fn tesselate(
     } else {
         (tables.lava_still, tables.lava_flow, None)
     };
-    let target = if water {
+    let target = if water || custom.is_some() {
         &mut out.translucent
     } else {
         &mut out.solid

@@ -36,6 +36,7 @@ members = [
     "crates/horizon-mod-abi",
     "crates/horizon-mod-sdk",
     "examples/dll-hello",
+    "examples/dll-net-echo",
     "crates/cargo-horizon-mod",
     "crates/horizon-port-pack",
     "crates/horizon-shaders",

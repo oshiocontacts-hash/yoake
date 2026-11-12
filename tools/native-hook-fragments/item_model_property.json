@@ -9,6 +9,7 @@
       }
     }
   ],
-  "rust_summary": "per-stack conditional item model properties (`native_item_model_property`).",
+  "comments": ["crates/horizon-client/src/game/native_hooks.rs", "docs/native-mods.md"],
+  "rust_summary": "Component-aware per-stack conditional item model properties.",
   "doc_summary": "per-stack conditional item model properties (`native_item_model_property`). Bundles need \"hooks\": @API:item_model_property@."
 }

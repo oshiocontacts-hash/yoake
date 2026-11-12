@@ -19,10 +19,11 @@
       "mod_api": { "contract": "collect", "out": "drawn" }
     }
   ],
-  "rust_summary": "Native item rendering with cached item claims",
+  "rust_summary": "Component-aware native item rendering with cached item claims",
   "doc_summary": "Custom item rendering: @API:item_render@",
   "comments": [
     "crates/horizon-client/src/game/native_hooks.rs",
-    "crates/horizon-client/src/game/native_item_render.rs"
+    "crates/horizon-client/src/game/native_item_render.rs",
+    "docs/native-mods.md"
   ]
 }

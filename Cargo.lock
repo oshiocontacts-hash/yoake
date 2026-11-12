@@ -1612,6 +1612,7 @@ dependencies = [
  "horizon-mod-abi",
  "horizon-mod-api-gen",
  "horizon-mod-sdk",
+ "horizon-protocol",
  "libloading",
  "log",
  "serde_json",
@@ -5242,6 +5243,13 @@ dependencies = [
 
 [[package]]
 name = "yoake-dll-hello"
+version = "0.1.0"
+dependencies = [
+ "horizon-mod-sdk",
+]
+
+[[package]]
+name = "yoake-dll-net-echo"
 version = "0.1.0"
 dependencies = [
  "horizon-mod-sdk",

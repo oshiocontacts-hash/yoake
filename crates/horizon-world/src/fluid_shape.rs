@@ -31,9 +31,12 @@ impl FluidShapeCache {
         if state.kind() == FluidKind::Empty {
             return Ok(VoxelShape::empty());
         }
-        let index = state.kind() as usize * 18
+        let index = state.kind().wire_id() as usize * 18
             + usize::from(state.falling()) * 9
             + usize::from(state.amount());
+        if index >= self.shapes.len() {
+            self.shapes.resize(index + 1, None);
+        }
         if let Some(shape) = &self.shapes[index] {
             return Ok(shape.clone());
         }
