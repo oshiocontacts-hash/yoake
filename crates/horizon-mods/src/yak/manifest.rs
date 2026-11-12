@@ -1,0 +1,365 @@
+use semver::{Version, VersionReq};
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
+use std::str::FromStr;
+use url::Url;
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+pub enum Target {
+    #[serde(rename = "windows-x64")]
+    WindowsX64,
+    #[serde(rename = "linux-x64")]
+    LinuxX64,
+    #[serde(rename = "macos-arm64")]
+    MacosArm64,
+    #[serde(rename = "macos-x64")]
+    MacosX64,
+}
+
+impl Target {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::WindowsX64 => "windows-x64",
+            Self::LinuxX64 => "linux-x64",
+            Self::MacosArm64 => "macos-arm64",
+            Self::MacosX64 => "macos-x64",
+        }
+    }
+
+    pub fn library_filename(self, library: &str) -> String {
+        match self {
+            Self::WindowsX64 => format!("{library}.dll"),
+            Self::LinuxX64 => format!("lib{library}.so"),
+            Self::MacosArm64 | Self::MacosX64 => format!("lib{library}.dylib"),
+        }
+    }
+
+    pub fn host() -> Result<Self, String> {
+        match (std::env::consts::OS, std::env::consts::ARCH) {
+            ("windows", "x86_64") => Ok(Self::WindowsX64),
+            ("linux", "x86_64") => Ok(Self::LinuxX64),
+            ("macos", "aarch64") => Ok(Self::MacosArm64),
+            ("macos", "x86_64") => Ok(Self::MacosX64),
+            _ => Err("this host has no YAK v1 binary target".into()),
+        }
+    }
+}
+
+impl fmt::Display for Target {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+impl FromStr for Target {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, String> {
+        match value {
+            "windows-x64" => Ok(Self::WindowsX64),
+            "linux-x64" => Ok(Self::LinuxX64),
+            "macos-arm64" => Ok(Self::MacosArm64),
+            "macos-x64" => Ok(Self::MacosX64),
+            _ => Err(format!("unsupported YAK target: {value}")),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Manifest {
+    pub format: u32,
+    pub id: String,
+    pub version: Version,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name_ja: Option<String>,
+    pub authors: Vec<String>,
+    pub description: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub license: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub homepage: Option<String>,
+    pub yoake: Yoake,
+    pub side: Side,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub dependencies: BTreeMap<String, VersionReq>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub optional: BTreeMap<String, VersionReq>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub conflicts: BTreeMap<String, VersionReq>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bin: Option<Bin>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shaders: Vec<Shader>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub services: Vec<Service>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Yoake {
+    pub version: VersionReq,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Side {
+    pub client: bool,
+    pub server: bool,
+    pub required_on_join: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Bin {
+    pub library: String,
+    pub targets: Vec<Target>,
+    pub engine: String,
+    pub abi: u32,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Shader {
+    pub id: String,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub options: BTreeMap<String, ShaderOption>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ShaderOption {
+    pub values: Vec<OptionValue>,
+    pub default: OptionValue,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label_ja: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum OptionValue {
+    Boolean(bool),
+    Integer(i64),
+    Float(f64),
+    Text(String),
+}
+
+impl OptionValue {
+    fn kind(&self) -> u8 {
+        match self {
+            Self::Boolean(_) => 0,
+            Self::Integer(_) => 1,
+            Self::Float(_) => 2,
+            Self::Text(_) => 3,
+        }
+    }
+
+    fn validate(&self) -> Result<(), String> {
+        match self {
+            Self::Float(value) if !value.is_finite() => Err("shader numbers must be finite".into()),
+            Self::Text(value) => text(value, "shader option value", 1024),
+            _ => Ok(()),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Service {
+    pub id: String,
+    pub name: String,
+    pub required: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help_url: Option<String>,
+}
+
+impl Manifest {
+    pub fn read(path: &Path) -> Result<Self, String> {
+        horizon_release_sign::yak::check_plain_path(path)?;
+        let metadata = std::fs::symlink_metadata(path)
+            .map_err(|error| format!("{}: {error}", path.display()))?;
+        let limit = horizon_release_sign::yak::MAX_MANIFEST_SIZE;
+        if !metadata.is_file() || metadata.len() > limit {
+            return Err("yak.toml must be a regular file no larger than 1 MiB".into());
+        }
+        let file = File::open(path).map_err(|error| format!("yak.toml: {error}"))?;
+        if !file.metadata().map_err(|error| error.to_string())?.is_file() {
+            return Err("yak.toml is not a regular file".into());
+        }
+        let mut source = String::new();
+        file.take(limit + 1).read_to_string(&mut source)
+            .map_err(|error| format!("yak.toml: {error}"))?;
+        Self::parse(&source)
+    }
+
+    pub fn parse(source: &str) -> Result<Self, String> {
+        if source.len() as u64 > horizon_release_sign::yak::MAX_MANIFEST_SIZE {
+            return Err("yak.toml exceeds 1 MiB".into());
+        }
+        let document: toml::Value = toml::from_str(source).map_err(|error| format!("yak.toml: {error}"))?;
+        if let Some(services) = document.get("services") {
+            reject_secrets(services)?;
+        }
+        let manifest: Self = toml::from_str(source).map_err(|error| format!("yak.toml: {error}"))?;
+        manifest.validate()?;
+        Ok(manifest)
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        if self.format != 1 {
+            return Err(format!("unsupported YAK format {}", self.format));
+        }
+        identifier(&self.id)?;
+        text(&self.name, "name", 256)?;
+        text(&self.description, "description", 16384)?;
+        if self.authors.is_empty() || self.authors.len() > 128 {
+            return Err("authors must contain 1..128 names".into());
+        }
+        for author in &self.authors {
+            text(author, "author", 256)?;
+        }
+        for (field, value) in [("name_ja", &self.name_ja), ("license", &self.license)] {
+            if let Some(value) = value {
+                text(value, field, 256)?;
+            }
+        }
+        if let Some(homepage) = &self.homepage {
+            web_url(homepage, false)?;
+        }
+        if !self.side.client && !self.side.server {
+            return Err("at least one side must be enabled".into());
+        }
+        for requirements in [&self.dependencies, &self.optional, &self.conflicts] {
+            if requirements.len() > 1024 {
+                return Err("too many dependency constraints".into());
+            }
+            for id in requirements.keys() {
+                identifier(id)?;
+                if id == &self.id {
+                    return Err("a mod cannot depend on or conflict with itself".into());
+                }
+            }
+        }
+        if self.dependencies.keys().any(|id| self.optional.contains_key(id)) {
+            return Err("a dependency cannot be both required and optional".into());
+        }
+        if let Some(bin) = &self.bin {
+            if bin.library.is_empty() || bin.library.len() > 64
+                || !bin.library.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-') {
+                return Err("bin.library must be a plain library basename".into());
+            }
+            if bin.targets.is_empty() || bin.targets.len() != bin.targets.iter().collect::<BTreeSet<_>>().len() {
+                return Err("bin.targets must contain unique supported targets".into());
+            }
+            text(&bin.engine, "bin.engine", 256)?;
+            Version::parse(&bin.engine).map_err(|error| format!("bin.engine fingerprint: {error}"))?;
+            if bin.abi == 0 {
+                return Err("bin.abi must be positive".into());
+            }
+        }
+        if self.shaders.len() > 128 || self.services.len() > 128 {
+            return Err("too many shaders or services".into());
+        }
+        let mut ids = BTreeSet::new();
+        for shader in &self.shaders {
+            identifier(&shader.id)?;
+            text(&shader.name, "shader name", 256)?;
+            if !ids.insert(&shader.id) {
+                return Err(format!("duplicate shader {}", shader.id));
+            }
+            if shader.options.len() > 256 {
+                return Err("too many shader options".into());
+            }
+            for (name, option) in &shader.options {
+                text(name, "shader option name", 128)?;
+                if option.values.is_empty() || option.values.len() > 256 {
+                    return Err("shader options require 1..256 allowed values".into());
+                }
+                option.default.validate()?;
+                for (position, value) in option.values.iter().enumerate() {
+                    value.validate()?;
+                    if value.kind() != option.default.kind() || option.values[..position].contains(value) {
+                        return Err("shader option values must be unique and have the default's type".into());
+                    }
+                }
+                if !option.values.contains(&option.default) {
+                    return Err("shader option default must be an allowed value".into());
+                }
+                if let Some(label) = &option.label_ja {
+                    text(label, "shader option label_ja", 256)?;
+                }
+            }
+        }
+        ids.clear();
+        for service in &self.services {
+            identifier(&service.id)?;
+            text(&service.name, "service name", 256)?;
+            if !ids.insert(&service.id) {
+                return Err(format!("duplicate service {}", service.id));
+            }
+            if let Some(url) = &service.default_url {
+                web_url(url, false)?;
+            }
+            if let Some(url) = &service.help_url {
+                web_url(url, false)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+pub(crate) fn identifier(value: &str) -> Result<(), String> {
+    if !(3..=48).contains(&value.len())
+        || !value.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_' || byte == b'-') {
+        return Err(format!("invalid YAK identifier: {value}"));
+    }
+    Ok(())
+}
+
+fn text(value: &str, field: &str, limit: usize) -> Result<(), String> {
+    if value.trim().is_empty() || value.len() > limit || value.chars().any(|character| character.is_control() && character != '\n' && character != '\t') {
+        return Err(format!("{field} is empty, too long, or contains control characters"));
+    }
+    Ok(())
+}
+
+pub(crate) fn web_url(value: &str, https_only: bool) -> Result<Url, String> {
+    if value.len() > 4096 {
+        return Err("URL is too long".into());
+    }
+    let url = Url::parse(value).map_err(|error| format!("invalid URL: {error}"))?;
+    if !(url.scheme() == "https" || (!https_only && url.scheme() == "http")) || url.host_str().is_none()
+        || !url.username().is_empty() || url.password().is_some() || url.query().is_some() || url.fragment().is_some() {
+        return Err("URLs must be HTTP(S), with a host and no credentials, query, or fragment".into());
+    }
+    Ok(url)
+}
+
+fn reject_secrets(value: &toml::Value) -> Result<(), String> {
+    match value {
+        toml::Value::Table(table) => {
+            for (key, value) in table {
+                let normalized: String = key.chars().filter(|character| character.is_ascii_alphanumeric()).flat_map(char::to_lowercase).collect();
+                if normalized == "key" || ["secret", "token", "password", "passwd", "passphrase", "credential", "authorization", "apikey", "privatekey", "accesskey", "bearer"].iter().any(|part| normalized.contains(*part)) {
+                    return Err(format!("secret-like service field is forbidden: {key}"));
+                }
+                reject_secrets(value)?;
+            }
+        }
+        toml::Value::Array(values) => {
+            for value in values {
+                reject_secrets(value)?;
+            }
+        }
+        _ => (),
+    }
+    Ok(())
+}

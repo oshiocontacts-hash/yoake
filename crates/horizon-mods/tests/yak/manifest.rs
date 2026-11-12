@@ -1,0 +1,117 @@
+use super::support::{DATA, Temp, program};
+use horizon_mods::yak::{Manifest, OptionValue, Target};
+
+#[test]
+fn manifest_reads_only_bounded_regular_files() {
+    let temp = Temp::new();
+    temp.write("yak.toml", DATA.as_bytes());
+    assert_eq!(Manifest::read(&temp.join("yak.toml")).unwrap().id, "sample-mod");
+    assert!(Manifest::read(&temp.0).is_err());
+    let file = std::fs::File::create(temp.join("large.toml")).unwrap();
+    file.set_len(1024 * 1024 + 1).unwrap();
+    assert!(Manifest::read(&temp.join("large.toml")).is_err());
+}
+
+#[test]
+fn complete_manifest_and_typed_shader_options() {
+    let text = [program(), r#"
+[dependencies]
+base-mod = "^0.1"
+[optional]
+map-mod = ">=1, <2"
+[conflicts]
+other-mod = "*"
+[[shaders]]
+id = "kage"
+name = "Kage"
+[shaders.options.shadow_map]
+values = [1024, 2048]
+default = 2048
+label_ja = "影の解像度"
+[shaders.options.enabled]
+values = [false, true]
+default = true
+[shaders.options.exposure]
+values = [0.5, 1.0]
+default = 1.0
+[shaders.options.quality]
+values = ["low", "high"]
+default = "high"
+[[services]]
+id = "mimic-brain"
+name = "Mimic Brain"
+required = false
+default_url = "http://127.0.0.1:8790"
+help_url = "https://example.test/help"
+"#.to_owned()].concat();
+    let manifest = Manifest::parse(&text).unwrap();
+    assert_eq!(manifest.name_ja.as_deref(), Some("サンプル"));
+    assert_eq!(manifest.shaders[0].options["shadow_map"].default, OptionValue::Integer(2048));
+    assert_eq!(manifest.services[0].default_url.as_deref(), Some("http://127.0.0.1:8790"));
+    assert_eq!(manifest.bin.unwrap().targets, [Target::WindowsX64, Target::LinuxX64]);
+}
+
+#[test]
+fn invalid_fields_versions_and_targets_are_rejected() {
+    for (old, new) in [
+        ("format = 1", "format = 2"),
+        ("sample-mod", "../escape"),
+        ("sample-mod", "ABc"),
+        ("0.3.1", "not-semver"),
+        (">=0.3, <0.4", "banana"),
+        ("authors = [\"Test author\"]", "authors = []"),
+        ("client = true\nserver = true", "client = false\nserver = false"),
+        ("format = 1", "format = 1\nunknown = true"),
+    ] {
+        assert!(Manifest::parse(&DATA.replace(old, new)).is_err(), "{new}");
+    }
+    for (old, new) in [
+        ("library = \"sample\"", "library = \"../sample\""),
+        ("windows-x64", "windows-arm64"),
+        ("linux-x64", "windows-x64"),
+        ("abi = 2", "abi = 0"),
+        ("0.3.1+build.test", "unversioned"),
+    ] {
+        assert!(Manifest::parse(&program().replace(old, new)).is_err(), "{new}");
+    }
+    assert!(Manifest::parse(&format!("{DATA}\n[dependencies]\nsample-mod = '*'\n")).is_err());
+    assert!(Manifest::parse(&format!("{DATA}\n[dependencies]\nbase-mod = '*'\n[optional]\nbase-mod = '*'\n")).is_err());
+}
+
+#[test]
+fn shader_options_require_homogeneous_unique_finite_values_and_a_member_default() {
+    for options in [
+        "values = []\ndefault = 1",
+        "values = [1, 1]\ndefault = 1",
+        "values = [1, 'high']\ndefault = 1",
+        "values = [1, 2]\ndefault = 3",
+        "values = [1, 2]\ndefault = 1.0",
+        "values = [nan]\ndefault = nan",
+        "values = [inf]\ndefault = inf",
+    ] {
+        let text = format!("{DATA}\n[[shaders]]\nid = 'kage'\nname = 'Kage'\n[shaders.options.test]\n{options}\n");
+        assert!(Manifest::parse(&text).is_err(), "{options}");
+    }
+}
+
+#[test]
+fn secret_like_service_keys_are_rejected_without_echoing_values() {
+    for field in ["api_key", "apiKey", "token", "access-token", "password", "secret", "private_key", "credentials", "authorization", "key"] {
+        let text = format!("{DATA}\n[[services]]\nid = 'brain'\nname = 'Brain'\nrequired = false\ndefault_url = 'http://127.0.0.1:8790'\n{field} = 'sensitive-test-value'\n");
+        let error = Manifest::parse(&text).unwrap_err();
+        assert!(error.to_lowercase().contains("secret"), "{field}: {error}");
+        assert!(!error.contains("sensitive-test-value"));
+    }
+    for nested in ["settings = { auth = { bearer_token = 'hidden' } }", "settings = [{ password = 'hidden' }]"] {
+        let text = format!("{DATA}\n[[services]]\nid = 'brain'\nname = 'Brain'\nrequired = false\ndefault_url = 'http://localhost:8790'\n{nested}\n");
+        assert!(Manifest::parse(&text).unwrap_err().to_lowercase().contains("secret"));
+    }
+}
+
+#[test]
+fn service_urls_cannot_embed_credentials_or_secrets() {
+    for url in ["http://user:pass@localhost/", "https://example.test/?token=hidden", "http://localhost/#secret", "file:///private", "http://"] {
+        let text = format!("{DATA}\n[[services]]\nid = 'brain'\nname = 'Brain'\nrequired = false\ndefault_url = '{url}'\n");
+        assert!(Manifest::parse(&text).is_err(), "{url}");
+    }
+}

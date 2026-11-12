@@ -10,6 +10,13 @@ description = "Signed release checksums: release.yml signs SHA256SUMS, the launc
 # Ed25519 and SHA-256, already in every build through rustls (ureq's TLS): no new crypto code.
 ring = "0.17"
 base64 = "0.22"
+serde = { version = "1", features = ["derive"], optional = true }
+toml = { version = "1.1.6", optional = true }
+zip = { version = "9.1.3", default-features = false, features = ["deflate"], optional = true }
+
+[features]
+default = ["yak"]
+yak = ["dep:serde", "dep:toml", "dep:zip"]
 
 [lints]
 workspace = true

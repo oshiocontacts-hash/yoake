@@ -10,9 +10,12 @@
 //! - `check <file> [--json]`: what the registry checks of a submission
 //!   (`.hmod`, `.hnmod`, `.hpack`, resource pack `.zip`, `.hshader`).
 //! - `registry build|review|check|list`: the registry repository's CI.
+//! - `pack [folder] [--bin <target>=<path>]`: an unsigned Yoake `.yak`.
+//! - `yak verify <file> [--key <public key>]`: validate a Yoake package.
 use horizon_mods::{Capability, Content, Manifest, Package, manifest::MANIFEST};
 mod check;
 mod registry;
+mod yak;
 
 use std::{
     path::{Path, PathBuf},
@@ -33,7 +36,9 @@ fn main() -> ExitCode {
         Some("run") => run(&args[1..]),
         Some("check") => check(&args[1..]),
         Some("registry") => registry::main(&args[1..]),
-        _ => Err("usage: cargo horizon-mod new <path> [--name \"Name\"] [--template content|native [--horizon <commit>]] | build | run [--game <horizon-client>] [-- <game args>] | check <file> [--kind <kind>] [--key <public key> --signature <file.minisig>] [--json] | registry build|review|check|list".into()),
+        Some("pack") => yak::pack(&args[1..]),
+        Some("yak") => yak::main(&args[1..]),
+        _ => Err("usage: cargo horizon-mod new <path> [--name \"Name\"] [--template content|native [--horizon <commit>]] | build | run [--game <horizon-client>] [-- <game args>] | check <file> [--kind <kind>] [--key <public key> --signature <file.minisig>] [--json] | registry build|review|check|list | pack [folder] [--bin <target>=<path>] | yak verify <file> [--key <public key>]".into()),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,

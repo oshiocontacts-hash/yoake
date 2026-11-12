@@ -16,6 +16,14 @@
 use base64::{Engine, engine::general_purpose::STANDARD};
 use ring::signature::{ED25519, Ed25519KeyPair, KeyPair, UnparsedPublicKey};
 
+#[cfg(feature = "yak")]
+pub mod yak;
+
+/// Yoake's archive checksum-list signing domain.
+pub const YOAKE_YAK_V1: &str = "yoake-yak-v1";
+/// Yoake's detached mod catalog signing domain.
+pub const YOAKE_MODS_V1: &str = "yoake-mods-v1";
+
 /// The checksum list's asset name.
 pub const SUMS: &str = "SHA256SUMS";
 /// Its signatures' asset name.
@@ -87,13 +95,25 @@ pub fn verify(
     signature: &str,
     keys: &[PublicKey],
 ) -> Result<Vec<(String, String)>, String> {
+    verify_bytes(tag, sums, signature, keys)?;
+    let text = std::str::from_utf8(sums).map_err(|_| format!("{SUMS} is not text"))?;
+    parse_sums(text)
+}
+
+/// Verifies exact payload bytes, without interpreting them as release checksums.
+pub fn verify_bytes(
+    tag: &str,
+    payload: &[u8],
+    signature: &str,
+    keys: &[PublicKey],
+) -> Result<(), String> {
     if keys.is_empty() {
         return Err(
             "This build has no release key built in, so it can't check downloads: none are installed."
                 .into(),
         );
     }
-    let message = message(tag, sums);
+    let message = message(tag, payload);
     let signed = signature
         .lines()
         .filter_map(|line| STANDARD.decode(line.trim()).ok())
@@ -110,8 +130,7 @@ pub fn verify(
              The download may have been tampered with: please report it on Discord or GitHub."
         ));
     }
-    let text = std::str::from_utf8(sums).map_err(|_| format!("{SUMS} is not text"))?;
-    parse_sums(text)
+    Ok(())
 }
 
 /// The channel nightly builds are signed for (nightly-build.yml): their message is
