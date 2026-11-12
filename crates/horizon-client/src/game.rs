@@ -8057,7 +8057,7 @@ impl Game<'_> {
             && !self.is_published()
             && self.title.is_none()
             && ((self.screen == Screen::Mod
-                && self.native_title_mod_screen_return == Some(Screen::Options))
+                && native_title_screen::mod_screen_pauses(self.native_title_mod_screen_return))
                 || matches!(
                     self.screen,
                     Screen::Paused

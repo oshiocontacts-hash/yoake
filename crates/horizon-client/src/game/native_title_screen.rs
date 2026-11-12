@@ -8,7 +8,7 @@ use winit::{
 
 impl Game<'_> {
     pub(super) fn mod_screen_open_anywhere(&mut self, mod_id: &str) -> bool {
-        if self.title.is_none() && self.screen != Screen::Options {
+        if uses_world_mod_screen_opener(self.screen, self.title.is_some()) {
             return self.native_mod_screen_open(mod_id);
         }
         if self.screen == Screen::Mod {
@@ -35,15 +35,20 @@ impl Game<'_> {
                 .pack_screen
                 .as_ref()
                 .is_some_and(|screen| screen.confirming());
-        if !title_can_open(self.screen, blocked) {
+        let from_settings = self.screen == Screen::Options;
+        if !open_menu_mod_screen(
+            &mut self.screen,
+            &mut self.native_title_mod_screen_return,
+            &mut self.native_mod_screen,
+            mod_id,
+            self.title.is_some(),
+            blocked,
+        ) {
             return false;
         }
-        if self.screen == Screen::Options {
+        if from_settings {
             self.native_settings_menu = Some(self.pad.menu.suspend_for_mod_screen());
         }
-        self.native_title_mod_screen_return = Some(self.screen);
-        self.native_mod_screen = Some(mod_id.to_owned());
-        self.screen = Screen::Mod;
         self.keys.clear();
         self.left = false;
         self.right = false;
@@ -172,8 +177,35 @@ fn title_mode_blocks(screen: Screen, title_restricted: bool) -> bool {
     screen != Screen::Options && title_restricted
 }
 
-fn title_can_open(screen: Screen, blocked: bool) -> bool {
-    !blocked && matches!(screen, Screen::Playing | Screen::Options)
+fn uses_world_mod_screen_opener(screen: Screen, title_open: bool) -> bool {
+    !title_open && !matches!(screen, Screen::Options | Screen::Paused)
+}
+
+fn menu_can_open(screen: Screen, title_open: bool, blocked: bool) -> bool {
+    !blocked
+        && (matches!(screen, Screen::Playing | Screen::Options)
+            || (!title_open && screen == Screen::Paused))
+}
+
+fn open_menu_mod_screen(
+    screen: &mut Screen,
+    return_screen: &mut Option<Screen>,
+    owner: &mut Option<String>,
+    mod_id: &str,
+    title_open: bool,
+    blocked: bool,
+) -> bool {
+    if !menu_can_open(*screen, title_open, blocked) {
+        return false;
+    }
+    *return_screen = Some(*screen);
+    *owner = Some(mod_id.to_owned());
+    *screen = Screen::Mod;
+    true
+}
+
+pub(super) fn mod_screen_pauses(return_screen: Option<Screen>) -> bool {
+    matches!(return_screen, Some(Screen::Options | Screen::Paused))
 }
 
 pub(super) fn settings_suspended(screen: Screen, return_screen: Option<Screen>) -> bool {
@@ -238,6 +270,7 @@ fn scroll_delta(delta: &MouseScrollDelta, discrete: bool, sensitivity: f32) -> [
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::game::native_deferred::DeferredRequests;
     use winit::{dpi::PhysicalSize, event::DeviceId};
 
     #[test]
@@ -282,12 +315,51 @@ mod tests {
         assert!(!title_mode_blocks(Screen::Options, true));
         assert!(title_mode_blocks(Screen::Playing, true));
         assert!(!title_mode_blocks(Screen::Playing, false));
-        assert!(title_can_open(Screen::Playing, false));
-        assert!(title_can_open(Screen::Options, false));
-        assert!(!title_can_open(Screen::Playing, true));
-        assert!(!title_can_open(Screen::Options, true));
-        assert!(!title_can_open(Screen::Inventory, false));
-        assert!(!title_can_open(Screen::Mod, false));
+        assert!(uses_world_mod_screen_opener(Screen::Playing, false));
+        assert!(uses_world_mod_screen_opener(Screen::Inventory, false));
+        assert!(!uses_world_mod_screen_opener(Screen::Options, false));
+        assert!(!uses_world_mod_screen_opener(Screen::Paused, false));
+        assert!(!uses_world_mod_screen_opener(Screen::Playing, true));
+        assert!(menu_can_open(Screen::Playing, true, false));
+        assert!(menu_can_open(Screen::Options, false, false));
+        assert!(menu_can_open(Screen::Paused, false, false));
+        assert!(!menu_can_open(Screen::Paused, true, false));
+        assert!(!menu_can_open(Screen::Paused, false, true));
+        assert!(!menu_can_open(Screen::Playing, true, true));
+        assert!(!menu_can_open(Screen::Options, false, true));
+        assert!(!menu_can_open(Screen::Inventory, false, false));
+        assert!(!menu_can_open(Screen::Mod, false, false));
+    }
+
+    #[test]
+    fn deferred_pause_menu_request_opens_and_keeps_singleplayer_paused() {
+        let requests = DeferredRequests::default();
+        let mut screen = Screen::Paused;
+        let mut return_screen = None;
+        let mut owner = None;
+
+        assert!(requests.request_mod_screen(Some(0)));
+        assert_eq!(requests.take_mod_screen(), Some(0));
+        assert!(!uses_world_mod_screen_opener(screen, false));
+        assert!(open_menu_mod_screen(
+            &mut screen,
+            &mut return_screen,
+            &mut owner,
+            "nestgate",
+            false,
+            false,
+        ));
+        assert!(screen == Screen::Mod);
+        assert_eq!(owner.as_deref(), Some("nestgate"));
+        assert!(mod_screen_pauses(return_screen));
+        assert!(mod_screen_pauses(Some(Screen::Options)));
+        assert!(!mod_screen_pauses(Some(Screen::Playing)));
+        assert!(!mod_screen_pauses(None));
+        assert!(matches!(
+            close_destination(screen, false, return_screen),
+            Some((Screen::Paused, false))
+        ));
+        assert_eq!(requests.take_mod_screen(), None);
     }
 
     #[test]

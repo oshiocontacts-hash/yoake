@@ -2797,7 +2797,7 @@ a fresh vanilla press attempt. Bundles need the `hooks` field set to @API:mouse_
 `fn native_mod_screen_open_anywhere(&mut self, mod_id: &str) -> bool`
 
 Opens the mod-owned screen over ordinary title menus, settings, and in a world. Outside settings,
-the world path retains `native_mod_screen_open` behavior.
+the world path retains `native_mod_screen_open` behavior, except over pause: closing restores the pause menu, and an unpublished single-player world remains paused.
 
 Over the title, the screen uses the existing screen render, key, character, mouse, drag, scroll, and IME-commit hooks.
 Underlying title widgets receive no input. An uncancelled Escape restores the previous title screen without grabbing
