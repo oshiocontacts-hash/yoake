@@ -16,6 +16,7 @@ thread_local! {
 }
 
 const HANDLE: Handle = Handle { id: 1, generation: 7 };
+const PHASE_ONE_SERVICES: u64 = (1 << 8) - 1;
 
 fn reset() { STATE.with(|state| *state.borrow_mut() = State::default()); }
 
@@ -70,7 +71,7 @@ unsafe extern "C" fn set(_handle: Handle, _key: StrView, value: StrView) -> Stat
 fn table() -> HostTableV1 {
     HostTableV1 {
         header: abi::TableHeader::for_type::<HostTableV1>(),
-        services: abi::ALL_SERVICES,
+        services: PHASE_ONE_SERVICES,
         log: Some(log),
         feedback: Some(feedback),
         client_world_key: Some(world),
@@ -79,6 +80,7 @@ fn table() -> HostTableV1 {
         mod_net_send: Some(send),
         setting_get: Some(get),
         setting_set: Some(set),
+        ..Default::default()
     }
 }
 
@@ -88,6 +90,7 @@ struct RoundTrip;
 impl YoakeMod for RoundTrip {
     const ID: &'static str = "round-trip";
     const VERSION: &'static str = "1";
+    const REQUIRED_SERVICES: u64 = PHASE_ONE_SERVICES;
 
     fn client_tick(&mut self, host: &mut Host<'_>) {
         assert_eq!(host.setting("key"), Ok(None));
@@ -166,6 +169,7 @@ struct Panics;
 impl YoakeMod for Panics {
     const ID: &'static str = "panics";
     const VERSION: &'static str = "1";
+    const REQUIRED_SERVICES: u64 = PHASE_ONE_SERVICES;
     fn client_tick(&mut self, _host: &mut Host<'_>) { panic!("test DLL panic"); }
 }
 
@@ -224,6 +228,7 @@ impl Default for ConstructorPanic {
 impl YoakeMod for ConstructorPanic {
     const ID: &'static str = "constructor-panic";
     const VERSION: &'static str = "1";
+    const REQUIRED_SERVICES: u64 = PHASE_ONE_SERVICES;
 }
 
 #[derive(Default)]
@@ -236,6 +241,7 @@ impl Drop for DestructorPanic {
 impl YoakeMod for DestructorPanic {
     const ID: &'static str = "destructor-panic";
     const VERSION: &'static str = "1";
+    const REQUIRED_SERVICES: u64 = PHASE_ONE_SERVICES;
 }
 
 #[test]

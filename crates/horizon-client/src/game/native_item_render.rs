@@ -5,11 +5,20 @@ use glam::{Mat4, Vec3};
 use horizon_assets::item_model::DisplayContext;
 use horizon_client::item_render::ItemRenderState;
 use horizon_client::mesher::Vertex;
+use horizon_client::mod_api::Components;
 
 use super::{Game, native_block_entity_draw::BlockEntityDraw};
 
 pub type NativeItemRenderStack = horizon_client::items::ItemStack;
 pub type NativeItemDraw = BlockEntityDraw;
+
+#[derive(Clone, Copy, Debug)]
+pub struct NativeItemRenderContext<'a> {
+    pub components: &'a Components,
+    pub partial_tick: f32,
+    pub game_time: i64,
+    pub light: u32,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NativeItemContext {
@@ -125,6 +134,9 @@ fn dispatch_item(
 
 impl Game<'_> {
     pub(super) fn refresh_native_item_render(&self, reload: bool) {
+        if horizon_client::mod_api::mods().is_empty() {
+            return;
+        }
         let mut listened = false;
         self.native_item_render_listened(&mut listened);
         self.native_item_claims.refresh(listened, reload);
@@ -164,6 +176,14 @@ impl Game<'_> {
             owner.position.map(|coordinate| coordinate.floor() as i32)
         });
         let pose = pose * state.layers.first().map_or(Mat4::IDENTITY, |layer| layer.matrix);
+        let stack_view = horizon_client::item_render::stack_view(stack);
+        let components = self.pack.item_renderer.models.components(&stack_view);
+        let presentation = NativeItemRenderContext {
+            components: &components,
+            partial_tick: partial,
+            game_time: self.native_item_ticks,
+            light,
+        };
         let mut draw = NativeItemDraw::posed(
             partial,
             self.native_item_ticks,
@@ -175,7 +195,9 @@ impl Game<'_> {
         );
         let drawn = dispatch_item(
             NativeItemContext::from_display(state.display, state.native_item_display),
-            |context, drawn| self.native_item_render(stack, context, holder, &mut draw, drawn),
+            |context, drawn| {
+                self.native_item_render(stack, context, holder, &presentation, &mut draw, drawn)
+            },
         );
         Some((drawn, draw.into_vertices()))
     }

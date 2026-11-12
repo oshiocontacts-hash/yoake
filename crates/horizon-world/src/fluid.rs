@@ -6,15 +6,17 @@ use crate::{
     registry::{BlockRegistry, BlockStateId},
 };
 use std::io;
+pub mod custom;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
 pub enum FluidKind {
     Empty,
     FlowingWater,
     Water,
     FlowingLava,
     Lava,
+    Custom(u8),
+    FlowingCustom(u8),
 }
 impl FluidKind {
     pub const ALL: [Self; 5] = [
@@ -24,19 +26,33 @@ impl FluidKind {
         Self::FlowingLava,
         Self::Lava,
     ];
-    pub const fn name(self) -> &'static str {
+    pub fn name(self) -> &'static str {
         match self {
             Self::Empty => "minecraft:empty",
             Self::FlowingWater => "minecraft:flowing_water",
             Self::Water => "minecraft:water",
             Self::FlowingLava => "minecraft:flowing_lava",
             Self::Lava => "minecraft:lava",
+            Self::Custom(_) => custom::definition(self).map_or("minecraft:empty", |fluid| &fluid.id),
+            Self::FlowingCustom(_) => {
+                custom::definition(self).map_or("minecraft:empty", |fluid| &fluid.flowing_id)
+            }
         }
     }
     pub fn from_name(name: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|kind| kind.name() == name)
+        Self::ALL
+            .into_iter()
+            .find(|kind| kind.name() == name)
+            .or_else(|| custom::named(name))
     }
     pub const fn same_family(self, other: Self) -> bool {
+        if let (
+            Self::Custom(left) | Self::FlowingCustom(left),
+            Self::Custom(right) | Self::FlowingCustom(right),
+        ) = (self, other)
+        {
+            return left == right;
+        }
         matches!(
             (self, other),
             (Self::Empty, Self::Empty)
@@ -51,7 +67,60 @@ impl FluidKind {
         )
     }
     pub const fn mask(self) -> u8 {
-        1 << self as u8
+        match self {
+            Self::Custom(_) | Self::FlowingCustom(_) => 0,
+            _ => 1 << self.wire_id(),
+        }
+    }
+    pub const fn wire_id(self) -> u32 {
+        match self {
+            Self::Empty => 0,
+            Self::FlowingWater => 1,
+            Self::Water => 2,
+            Self::FlowingLava => 3,
+            Self::Lava => 4,
+            Self::Custom(index) => 5 + index as u32 * 2,
+            Self::FlowingCustom(index) => 6 + index as u32 * 2,
+        }
+    }
+    pub fn from_wire_id(id: u32) -> Option<Self> {
+        if id < 5 {
+            return Self::ALL.get(id as usize).copied();
+        }
+        let index = u8::try_from((id - 5) / 2).ok()?;
+        custom::definitions().get(usize::from(index))?;
+        Some(if (id - 5) % 2 == 0 {
+            Self::Custom(index)
+        } else {
+            Self::FlowingCustom(index)
+        })
+    }
+    pub const fn source(self) -> Self {
+        match self {
+            Self::FlowingWater => Self::Water,
+            Self::FlowingLava => Self::Lava,
+            Self::FlowingCustom(index) => Self::Custom(index),
+            source => source,
+        }
+    }
+    pub const fn flowing(self) -> Self {
+        match self {
+            Self::Water => Self::FlowingWater,
+            Self::Lava => Self::FlowingLava,
+            Self::Custom(index) => Self::FlowingCustom(index),
+            flowing => flowing,
+        }
+    }
+    pub fn motion_kind(self) -> Self {
+        match custom::definition(self).map(|fluid| fluid.motion) {
+            Some(custom::FluidMotion::Water) => Self::Water,
+            Some(custom::FluidMotion::Lava) => Self::Lava,
+            Some(custom::FluidMotion::None) => Self::Empty,
+            None => self,
+        }
+    }
+    pub fn can_drown(self) -> bool {
+        custom::definition(self).map_or(self.same_family(Self::Water), |fluid| fluid.can_drown)
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -59,6 +128,17 @@ pub struct FluidState {
     kind: FluidKind,
     amount: u8,
     falling: bool,
+}
+pub fn spread_state(kind: FluidKind, highest: u8, above: bool, drop_off: u8) -> FluidState {
+    if above {
+        return FluidState::new(kind.flowing(), 8, true);
+    }
+    let amount = highest.saturating_sub(drop_off);
+    if amount == 0 {
+        FluidState::EMPTY
+    } else {
+        FluidState::new(kind.flowing(), amount, false)
+    }
 }
 impl FluidState {
     /// Native fluid states require an object; properties decode leniently.
@@ -83,7 +163,7 @@ impl FluidState {
         if kind == FluidKind::Empty {
             return Ok(Self::EMPTY);
         }
-        let flowing = matches!(kind, FluidKind::FlowingWater | FluidKind::FlowingLava);
+        let flowing = kind != kind.source();
         let mut state = Self {
             kind,
             amount: if flowing { 1 } else { 8 },
@@ -158,7 +238,10 @@ impl FluidState {
         self.falling
     }
     pub const fn is_source(self) -> bool {
-        matches!(self.kind, FluidKind::Water | FluidKind::Lava)
+        matches!(
+            self.kind,
+            FluidKind::Water | FluidKind::Lava | FluidKind::Custom(_)
+        )
     }
     pub const fn is_full(self) -> bool {
         self.amount == 8
@@ -195,6 +278,19 @@ impl FluidState {
         f32::from(self.amount) / 9.0
     }
     pub fn from_block(state: &BlockState) -> io::Result<Self> {
+        if let Some(kind) = custom::block(&state.name) {
+            let level = state
+                .properties
+                .get("level")
+                .and_then(|value| value.parse::<u8>().ok())
+                .filter(|level| *level < 16)
+                .ok_or_else(|| invalid("custom fluid needs level 0..15"))?;
+            return Ok(Self::new(
+                if level == 0 { kind.source() } else { kind.flowing() },
+                if level == 0 || level >= 8 { 8 } else { 8 - level },
+                level >= 8,
+            ));
+        }
         let water = state.name == "minecraft:water";
         if water || state.name == "minecraft:lava" {
             let level = state
@@ -279,6 +375,7 @@ pub struct FluidBlockBindings {
     air: BlockStateId,
     water: [BlockStateId; 16],
     lava: [BlockStateId; 16],
+    custom: Vec<([BlockStateId; 16], [BlockStateId; 16])>,
 }
 impl FluidBlockBindings {
     pub fn new(registry: &BlockRegistry) -> io::Result<Self> {
@@ -302,6 +399,10 @@ impl FluidBlockBindings {
                 .ok_or_else(|| invalid("missing air block"))?,
             water: levels("minecraft:water")?,
             lava: levels("minecraft:lava")?,
+            custom: custom::definitions()
+                .iter()
+                .map(|fluid| Ok((levels(&fluid.still_block)?, levels(&fluid.flowing_block)?)))
+                .collect::<io::Result<_>>()?,
         })
     }
     pub fn block(&self, state: FluidState) -> BlockStateId {
@@ -313,10 +414,101 @@ impl FluidBlockBindings {
         } else {
             8 - state.amount.min(8) + if state.falling { 8 } else { 0 }
         } as usize;
+        if let FluidKind::Custom(index) | FluidKind::FlowingCustom(index) = state.kind {
+            let Some((source, flowing)) = self.custom.get(usize::from(index)) else {
+                return self.air;
+            };
+            return if state.is_source() {
+                source[0]
+            } else {
+                flowing[level]
+            };
+        }
         if state.kind.same_family(FluidKind::Water) {
             self.water[level]
         } else {
             self.lava[level]
         }
+    }
+}
+
+#[cfg(test)]
+mod custom_tests {
+    use super::*;
+    use crate::fluid_flow::{FluidFlowWorld, flow_at};
+    use horizon_core::{geometry::Direction, position::BlockPos};
+    use std::{collections::HashMap, convert::Infallible};
+
+    #[derive(Default)]
+    struct FlowWorld {
+        fluids: HashMap<BlockPos, FluidState>,
+        reads: usize,
+    }
+
+    impl FluidFlowWorld for FlowWorld {
+        type Error = Infallible;
+        type Block = ();
+        fn fluid(&mut self, position: BlockPos) -> Result<FluidState, Infallible> {
+            self.reads += 1;
+            Ok(self
+                .fluids
+                .get(&position)
+                .copied()
+                .unwrap_or(FluidState::EMPTY))
+        }
+        fn block(&mut self, _position: BlockPos) -> Result<(), Infallible> {
+            Ok(())
+        }
+        fn blocks_fluid_flow(&self, _state: ()) -> bool {
+            true
+        }
+        fn is_ice_class(&self, _state: ()) -> bool {
+            false
+        }
+        fn is_face_sturdy(
+            &mut self,
+            _state: (),
+            _position: BlockPos,
+            _direction: Direction,
+        ) -> Result<bool, Infallible> {
+            Ok(false)
+        }
+    }
+
+    #[test]
+    fn no_fluid_does_no_neighbor_work() {
+        let mut world = FlowWorld::default();
+        assert_eq!(
+            flow_at(&mut world, FluidState::EMPTY, BlockPos::new(0, 0, 0)).unwrap(),
+            horizon_core::geometry::Vec3::ZERO
+        );
+        assert_eq!(world.reads, 0);
+        assert_eq!(FluidKind::Water.wire_id(), 2);
+        assert_eq!(FluidKind::Lava.wire_id(), 4);
+        assert_eq!(spread_state(FluidKind::Water, 8, false, 1).amount(), 7);
+    }
+
+    #[test]
+    fn custom_placement_spread_and_current_share_fluid_identity() {
+        let source = FluidState::new(FluidKind::Custom(0), 8, false);
+        let bindings = FluidBlockBindings {
+            air: BlockStateId(0),
+            water: [BlockStateId(1); 16],
+            lava: [BlockStateId(2); 16],
+            custom: vec![([BlockStateId(3); 16], [BlockStateId(4); 16])],
+        };
+        let side = spread_state(source.kind(), 8, false, 2);
+        let below = spread_state(source.kind(), 0, true, 2);
+        assert_eq!(bindings.block(source), BlockStateId(3));
+        assert_eq!(bindings.block(side), BlockStateId(4));
+        assert_eq!(side.amount(), 6);
+        assert!(below.falling());
+        assert!(source.kind().same_family(side.kind()));
+        let position = BlockPos::new(0, 0, 0);
+        let mut world = FlowWorld::default();
+        world.fluids.insert(position.offset(1, 0, 0), side);
+        let current = flow_at(&mut world, source, position).unwrap();
+        assert!(current.x > 0.0);
+        assert_eq!(current.z, 0.0);
     }
 }

@@ -45,6 +45,21 @@ fn service_signature(kind: &str) -> Result<(&'static str, &'static str), String>
         "net" => ("Handle, StrView, ByteView, *mut OutputBuffer", "YoakeHandle, YoakeStrView, YoakeByteView, YoakeOutputBuffer *"),
         "get" => ("Handle, StrView, *mut OutputBuffer", "YoakeHandle, YoakeStrView, YoakeOutputBuffer *"),
         "set" => ("Handle, StrView, StrView", "YoakeHandle, YoakeStrView, YoakeStrView"),
+        "width" => ("Handle, StrView, *mut f32", "YoakeHandle, YoakeStrView, float *"),
+        "player" => ("Handle, PlayerCallback, *mut core::ffi::c_void", "YoakeHandle, YoakePlayerCallback, void *"),
+        "snapshot" => ("Handle, SnapshotFrameCallback, SnapshotReportCallback, *mut core::ffi::c_void", "YoakeHandle, YoakeSnapshotFrameCallback, YoakeSnapshotReportCallback, void *"),
+        "bool" => ("Handle, *mut u32", "YoakeHandle, uint32_t *"),
+        "output" => ("Handle, *mut OutputBuffer", "YoakeHandle, YoakeOutputBuffer *"),
+        "account" => ("Handle, AccountCallback, *mut core::ffi::c_void", "YoakeHandle, YoakeAccountCallback, void *"),
+        "screen_open" => ("Handle, StrView, *mut u32", "YoakeHandle, YoakeStrView, uint32_t *"),
+        "screen_close" => ("Handle, StrView", "YoakeHandle, YoakeStrView"),
+        "texture" => ("Handle, Handle, Handle, Rect, Rect, u32, *const GuiNineSlice, *mut u32", "YoakeHandle, YoakeHandle, YoakeHandle, YoakeRect, YoakeRect, uint32_t, const YoakeGuiNineSlice *, uint32_t *"),
+        "internal_len" => ("Handle, Handle, *mut usize", "YoakeHandle, YoakeHandle, size_t *"),
+        "internal_scale" => ("Handle, Handle, usize, Point, Point", "YoakeHandle, YoakeHandle, size_t, YoakePoint, YoakePoint"),
+        "internal_clip" => ("Handle, Handle, usize, Rect", "YoakeHandle, YoakeHandle, size_t, YoakeRect"),
+        "internal_tint" => ("Handle, Handle, usize, f32", "YoakeHandle, YoakeHandle, size_t, float"),
+        "texture_create" => ("Handle, u32, u32, u32, u32, *mut Handle", "YoakeHandle, uint32_t, uint32_t, uint32_t, uint32_t, YoakeHandle *"),
+        "internal_release" => ("Handle, Handle", "YoakeHandle, YoakeHandle"),
         other => return Err(format!("unknown ABI service kind {other}")),
     })
 }
@@ -111,7 +126,7 @@ fn selected_schema(root: &Path, subset: &Subset) -> Result<String, String> {
     let mut schema = include_str!("../abi-subset.json").to_owned();
     for (source, names) in [
         (generated.hooks, subset.hooks.iter().filter(|hook| hook.abi).map(|hook| hook.name.as_str()).collect::<Vec<_>>()),
-        (generated.host, subset.services.iter().filter(|service| service.abi && service.kind != "log").map(|service| service.name.as_str()).chain(["window"]).collect::<Vec<_>>()),
+        (generated.host, subset.services.iter().filter(|service| service.abi && service.kind != "log" && !service.kind.starts_with("internal_")).map(|service| service.name.as_str()).chain(["window"]).collect::<Vec<_>>()),
     ] {
         let parsed = syn::parse_file(&source).map_err(|error| error.to_string())?;
         for name in names {
@@ -138,8 +153,8 @@ fn selected_schema(root: &Path, subset: &Subset) -> Result<String, String> {
 pub fn generate_abi(root: &Path, out_dir: &Path) -> Result<(), String> {
     super::build::track(root)?;
     let subset = subset()?;
-    if subset.abi_version != 1 {
-        return Err("this generator implements ABI version 1 only".into());
+    if subset.abi_version != 2 {
+        return Err("this generator implements ABI version 2 only".into());
     }
     let mut hook_ids = HashSet::new();
     let mut service_ids = HashSet::new();
@@ -159,22 +174,28 @@ pub fn generate_abi(root: &Path, out_dir: &Path) -> Result<(), String> {
     for name in ["HORIZON_VERSION", "HORIZON_NIGHTLY"] {
         println!("cargo:rerun-if-env-changed={name}");
     }
-    let mut rust = format!("pub const ABI_VERSION: u32 = 1;\npub const SCHEMA_HASH: u64 = {schema_hash};\npub const BUILD_FINGERPRINT: u64 = {build_fingerprint};\npub const YOAKE_VERSION: &str = {version:?};\npub const YOAKE_NIGHTLY: &str = {nightly:?};\npub const TARGET: &str = {target:?};\n");
+    let mut rust = format!("pub const ABI_VERSION: u32 = 2;\npub const SCHEMA_HASH: u64 = {schema_hash};\npub const BUILD_FINGERPRINT: u64 = {build_fingerprint};\npub const YOAKE_VERSION: &str = {version:?};\npub const YOAKE_NIGHTLY: &str = {nightly:?};\npub const TARGET: &str = {target:?};\n");
     let mut header = include_str!("abi_header.h").to_owned();
-    header.push_str(&format!("\n#define YOAKE_ABI_VERSION 1u\n#define YOAKE_SCHEMA_HASH UINT64_C({schema_hash})\n#define YOAKE_BUILD_FINGERPRINT UINT64_C({build_fingerprint})\n#define YOAKE_VERSION {version:?}\n#define YOAKE_NIGHTLY {nightly:?}\n#define YOAKE_TARGET {target:?}\n"));
+    header.push_str(&format!("\n#define YOAKE_ABI_VERSION 2u\n#define YOAKE_SCHEMA_HASH UINT64_C({schema_hash})\n#define YOAKE_BUILD_FINGERPRINT UINT64_C({build_fingerprint})\n#define YOAKE_VERSION {version:?}\n#define YOAKE_NIGHTLY {nightly:?}\n#define YOAKE_TARGET {target:?}\n"));
     let mut hooks = String::from("#[repr(C)]\n#[derive(Clone, Copy, Default)]\npub struct HookTableV1 { pub header: TableHeader,");
     let mut c_hooks = String::from("typedef struct YoakeHookTableV1 { YoakeTableHeader header;\n");
     let mut hook_info = Vec::new();
     for hook in subset.hooks.iter().filter(|hook| hook.abi) {
-        if hook.id == 0 || !hook_ids.insert(hook.id) || hook.contract != "listen" {
-            return Err("phase 1 requires unique nonzero hook ids and listen adapters".into());
+        if hook.id == 0 || !hook_ids.insert(hook.id) {
+            return Err("ABI hooks require unique nonzero ids".into());
         }
+        let contract = match hook.contract.as_str() {
+            "listen" => "Listen",
+            "cancel" => "Cancel",
+            "collect" => "Collect",
+            other => return Err(format!("unsupported DLL hook contract {other}")),
+        };
         let constant = format!("HOOK_{}", hook.slot.to_uppercase());
         rust.push_str(&format!("pub const {constant}: u32 = {};\n", hook.id));
         header.push_str(&format!("#define YOAKE_{constant} {}u\n", hook.id));
         hooks.push_str(&format!(r#"pub {}: Option<unsafe extern "C" fn(*mut core::ffi::c_void, Handle, *const {}) -> HookResult>,"#, hook.slot, hook.event));
         c_hooks.push_str(&format!("YoakeHookResult (*{})(void *, YoakeHandle, const Yoake{} *);\n", hook.slot, hook.event));
-        hook_info.push(format!("({}, {:?}, Contract::Listen)", hook.id, hook.name));
+        hook_info.push(format!("({}, {:?}, Contract::{contract})", hook.id, hook.name));
     }
     hooks.push_str("}\n");
     c_hooks.push_str("} YoakeHookTableV1;\n");
@@ -183,9 +204,10 @@ pub fn generate_abi(root: &Path, out_dir: &Path) -> Result<(), String> {
     let mut host = String::from("#[repr(C)]\n#[derive(Clone, Copy, Default)]\npub struct HostTableV1 { pub header: TableHeader, pub services: u64,");
     let mut c_host = String::from("typedef struct YoakeHostTableV1 { YoakeTableHeader header; uint64_t services;\n");
     let mut all_services = 0u64;
+    let mut presence = Vec::new();
     for service in subset.services.iter().filter(|service| service.abi) {
         if service.id == 0 || service.id > 64 || !service_ids.insert(service.id) {
-            return Err("phase 1 requires unique service ids in 1..=64".into());
+            return Err("ABI services require unique ids in 1..=64".into());
         }
         let slot = service.slot.as_deref().unwrap_or(&service.name);
         let mask = 1u64 << (service.id - 1);
@@ -194,15 +216,19 @@ pub fn generate_abi(root: &Path, out_dir: &Path) -> Result<(), String> {
         header.push_str(&format!("#define YOAKE_SERVICE_{} UINT64_C({mask})\n", slot.to_uppercase()));
         let (signature, c_signature) = service_signature(&service.kind)?;
         host.push_str(&format!(r#"pub {slot}: Option<unsafe extern "C" fn({signature}) -> Status>,"#));
+        presence.push(format!("(self.services & {mask} != 0) == self.{slot}.is_some()"));
         c_host.push_str(&format!("YoakeStatus (*{slot})({c_signature});\n"));
     }
     host.push_str("}\n");
     c_host.push_str("} YoakeHostTableV1;\n");
     rust.push_str(&host);
+    rust.push_str(&format!("impl HostTableV1 {{ pub fn valid_services(&self) -> bool {{ self.services & !ALL_SERVICES == 0 && {} }} }}\n", presence.join(" && ")));
+    rust.push_str("pub type HookTableV2 = HookTableV1;\npub type HostTableV2 = HostTableV1;\n");
     rust.push_str(&format!("pub const ALL_SERVICES: u64 = {all_services};\n"));
     header.push_str(&c_hooks);
     header.push_str(&c_host);
-    header.push_str("typedef struct YoakeModDescriptor { YoakeTableHeader header; uint64_t build_fingerprint; YoakeStrView yoake_version, nightly, target, id, version; uint64_t required_services; uint32_t side, flags; const YoakeHookTableV1 *hooks; YoakeStatus (*create)(const YoakeHostTableV1 *, YoakeHandle, void **); YoakeStatus (*destroy)(void *); } YoakeModDescriptor;\nconst YoakeModDescriptor *yoake_mod_entry(uint32_t abi_version, const YoakeHostTableV1 *host);\n#ifdef __cplusplus\n}\n#endif\n#endif\n");
+    header.push_str("typedef YoakeHookTableV1 YoakeHookTableV2;\ntypedef YoakeHostTableV1 YoakeHostTableV2;\n");
+    header.push_str("typedef struct YoakeModDescriptor { YoakeTableHeader header; uint64_t build_fingerprint; YoakeStrView yoake_version, nightly, target, id, version; uint64_t required_services; uint32_t side, flags; const YoakeHookTableV1 *hooks; YoakeStatus (*create)(const YoakeHostTableV1 *, YoakeHandle, void **); YoakeStatus (*destroy)(void *); } YoakeModDescriptor;\ntypedef YoakeModDescriptor YoakeModDescriptorV2;\nconst YoakeModDescriptor *yoake_mod_entry(uint32_t abi_version, const YoakeHostTableV1 *host);\n#ifdef __cplusplus\n}\n#endif\n#endif\n");
     syn::parse_file(&rust).map_err(|error| error.to_string())?;
     fs::write(out_dir.join("abi_generated.rs"), rust).map_err(|error| error.to_string())?;
     fs::write(out_dir.join("yoake_mod_abi.h"), header).map_err(|error| error.to_string())?;
@@ -255,16 +281,26 @@ version = "0.2.3"
     #[test]
     fn subset_ids_are_frozen_not_catalog_positions() {
         let subset = super::subset().unwrap();
-        assert_eq!(subset.hooks.iter().map(|hook| (hook.id, hook.slot.as_str())).collect::<Vec<_>>(), [(1, "client_tick"), (2, "key_input"), (3, "hud"), (4, "mod_net_receive")]);
-        assert!(subset.hooks.iter().all(|hook| hook.abi && hook.contract == "listen"));
+        assert_eq!(subset.abi_version, 2);
+        assert_eq!(subset.hooks.len(), 19);
+        assert_eq!(subset.hooks.iter().take(4).map(|hook| (hook.id, hook.slot.as_str())).collect::<Vec<_>>(), [(1, "client_tick"), (2, "key_input"), (3, "hud"), (4, "mod_net_receive")]);
+        assert_eq!(subset.hooks.iter().map(|hook| hook.id).collect::<Vec<_>>(), (1..=19).collect::<Vec<_>>());
+        assert!(subset.hooks.iter().all(|hook| hook.abi));
+        assert_eq!(subset.hooks.iter().filter(|hook| hook.contract == "cancel").count(), 6);
+        assert_eq!(subset.hooks.iter().find(|hook| hook.name == "settings").unwrap().contract, "collect");
+        assert_eq!(subset.services.len(), 25);
+        assert_eq!(subset.services.iter().map(|service| service.id).collect::<Vec<_>>(), (1..=25).collect::<Vec<_>>());
+        assert_eq!(subset.services.iter().take(8).map(|service| service.slot.as_deref().unwrap_or(&service.name)).collect::<Vec<_>>(), ["log", "feedback", "client_world_key", "hud_text", "hud_rect", "mod_net_send", "setting_get", "setting_set"]);
         assert!(subset.services.iter().all(|service| service.abi));
     }
 
     #[test]
     fn static_forwarder_preserves_return_and_arguments() {
-        let source = "pub trait Hooks: Send + Sync { fn tick(&self, host: &mut dyn Host, event: &mut TickEvent) {} fn key(&self, event: &mut KeyEvent) {} fn hud(&self) {} fn net_from_server(&self) {} fn replace(&self, value: &str) -> Option<String> { None } }";
+        let source = include_str!("../dispatch-tests/tests/support/dll_host.rs");
         let result = super::generate_dll_adapters(source).unwrap();
         syn::parse_file(&result).unwrap();
-        assert!(result.contains("self.original[self.index].replace(value)"));
+        assert!(result.contains("self.original[self.index].replace()"));
+        assert!(result.contains("self.original[self.index].screen_key_pressed_pre(_host,_event)"));
+        assert!(result.contains("-> Flow"));
     }
 }

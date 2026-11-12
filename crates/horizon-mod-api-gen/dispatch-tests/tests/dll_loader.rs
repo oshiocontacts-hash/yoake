@@ -2,6 +2,10 @@ use horizon_mod_abi as abi;
 use horizon_mod_sdk::{Host, HudBatch, WorldKey, YoakeMod, exports};
 use std::sync::Arc;
 
+extern crate self as wgpu;
+
+pub enum TextureFormat { Rgba8Unorm, Bgra8Unorm, Rgba16Float }
+
 #[path = "support/dll_host.rs"]
 mod mod_api;
 
@@ -20,17 +24,18 @@ pub struct NativeMod {
 #[path = "../../../horizon-client/src/dll_mods.rs"]
 mod dll_mods;
 
+#[path = "support/dll_phase2.rs"]
+mod phase2;
+
+#[cfg(windows)]
+#[path = "support/dll_windows.rs"]
+mod windows;
+
 unsafe extern "C" fn entry<Mod: YoakeMod>(
     version: u32,
     host: *const abi::HostTableV1,
 ) -> *const abi::ModDescriptor {
-    let hooks = Box::leak(Box::new(abi::HookTableV1 {
-        header: abi::TableHeader::for_type::<abi::HookTableV1>(),
-        client_tick: Some(exports::client_tick::<Mod>),
-        key_input: Some(exports::key_input::<Mod>),
-        hud: Some(exports::hud::<Mod>),
-        mod_net_receive: Some(exports::mod_net_receive::<Mod>),
-    }));
+    let hooks = Box::leak(Box::new(exports::hooks::<Mod>()));
     let descriptor = Box::leak(Box::new(exports::DescriptorStorage(abi::ModDescriptor {
         header: abi::TableHeader::for_type::<abi::ModDescriptor>(),
         build_fingerprint: abi::BUILD_FINGERPRINT,

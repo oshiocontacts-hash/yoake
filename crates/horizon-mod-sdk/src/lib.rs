@@ -6,6 +6,10 @@ pub use horizon_mod_abi as abi;
 use abi::{Handle, HookResult, HostTableV1, Status, StrView};
 use std::{ffi::c_void, marker::PhantomData, panic::AssertUnwindSafe, rc::Rc};
 
+mod phase2;
+mod hook_exports;
+pub use phase2::{Account, Flow, GuiNineSlice, GuiTexture, LocalPlayerSnapshot, NetFrameReceived, NetState, ScreenView, SettingsButtons, SnapshotReport};
+
 pub trait YoakeMod: Default + Send + 'static {
     const ID: &'static str;
     const VERSION: &'static str;
@@ -15,6 +19,21 @@ pub trait YoakeMod: Default + Send + 'static {
     fn key_input(&mut self, _host: &mut Host<'_>, _key: &str, _pressed: bool) {}
     fn hud(&mut self, _host: &mut Host<'_>, _batch: HudBatch<'_>) {}
     fn mod_net_receive(&mut self, _host: &mut Host<'_>, _channel: &str, _data: &[u8]) {}
+    fn frame(&mut self, _host: &mut Host<'_>, _elapsed: std::time::Duration) {}
+    fn local_player_tick_end(&mut self, _host: &mut Host<'_>) {}
+    fn net_frames_listened(&mut self, _listened: &mut bool) {}
+    fn net_frame_received(&mut self, _frame: NetFrameReceived<'_>) {}
+    fn net_session_ended(&mut self, _session: u64, _reason: &str) {}
+    fn gui_layer_pre(&mut self, _host: &mut Host<'_>, _layer: &str, _batch: HudBatch<'_>) -> Flow { Flow::Continue }
+    fn gui_layer_post(&mut self, _host: &mut Host<'_>, _layer: &str, _batch: HudBatch<'_>) {}
+    fn screen_render_post(&mut self, _host: &mut Host<'_>, _screen: ScreenView<'_>, _batch: HudBatch<'_>) {}
+    fn screen_key_pressed_pre(&mut self, _host: &mut Host<'_>, _screen: ScreenView<'_>, _key: &str, _repeat: bool, _modifiers: u32) -> Flow { Flow::Continue }
+    fn screen_char_typed_pre(&mut self, _host: &mut Host<'_>, _screen: ScreenView<'_>, _character: char, _modifiers: u32) -> Flow { Flow::Continue }
+    fn screen_mouse_button_pressed_pre(&mut self, _host: &mut Host<'_>, _screen: ScreenView<'_>, _button: i32, _modifiers: u32) -> Flow { Flow::Continue }
+    fn screen_mouse_button_released_pre(&mut self, _host: &mut Host<'_>, _screen: ScreenView<'_>, _button: i32, _modifiers: u32) -> Flow { Flow::Continue }
+    fn screen_mouse_scrolled_pre(&mut self, _host: &mut Host<'_>, _screen: ScreenView<'_>, _scroll: [f64; 2], _modifiers: u32) -> Flow { Flow::Continue }
+    fn settings(&mut self, _host: &mut Host<'_>, _mod_id: &str, _buttons: &mut SettingsButtons<'_>) {}
+    fn settings_click(&mut self, _host: &mut Host<'_>, _mod_id: &str, _button: usize) {}
 }
 
 pub struct Host<'call> {
@@ -26,6 +45,8 @@ pub struct Host<'call> {
 
 pub struct HudBatch<'call> {
     handle: Handle,
+    host: Handle,
+    table: HostTableV1,
     lifetime: PhantomData<&'call mut ()>,
     thread: PhantomData<Rc<()>>,
 }
@@ -136,6 +157,7 @@ impl Host<'_> {
 
 #[doc(hidden)]
 pub mod exports {
+    pub use crate::hook_exports::hooks;
     use super::*;
 
     pub struct DescriptorStorage(pub abi::ModDescriptor);
@@ -174,22 +196,8 @@ pub mod exports {
             return Err(Status::INVALID);
         }
         let table = unsafe { table.read() };
-        if table.services & !abi::ALL_SERVICES != 0 {
-            return Err(Status::UNSUPPORTED);
-        }
-        for (mask, present) in [
-            (abi::SERVICE_LOG, table.log.is_some()),
-            (abi::SERVICE_FEEDBACK, table.feedback.is_some()),
-            (abi::SERVICE_CLIENT_WORLD_KEY, table.client_world_key.is_some()),
-            (abi::SERVICE_HUD_TEXT, table.hud_text.is_some()),
-            (abi::SERVICE_HUD_RECT, table.hud_rect.is_some()),
-            (abi::SERVICE_MOD_NET_SEND, table.mod_net_send.is_some()),
-            (abi::SERVICE_SETTING_GET, table.setting_get.is_some()),
-            (abi::SERVICE_SETTING_SET, table.setting_set.is_some()),
-        ] {
-            if (table.services & mask != 0) != present {
-                return Err(Status::INVALID);
-            }
+        if !table.valid_services() {
+            return Err(Status::INVALID);
         }
         Ok(table)
     }
@@ -237,7 +245,11 @@ pub mod exports {
         }
     }
 
-    unsafe fn invoke<Mod: YoakeMod>(instance: *mut c_void, handle: Handle, operation: impl FnOnce(&mut Mod, &mut Host<'_>) -> Result<(), Status>) -> HookResult {
+    pub(super) unsafe fn invoke<Mod: YoakeMod>(instance: *mut c_void, handle: Handle, operation: impl FnOnce(&mut Mod, &mut Host<'_>) -> Result<(), Status>) -> HookResult {
+        unsafe { invoke_flow::<Mod>(instance, handle, |value, host| operation(value, host).map(|()| Flow::Continue)) }
+    }
+
+    pub(super) unsafe fn invoke_flow<Mod: YoakeMod>(instance: *mut c_void, handle: Handle, operation: impl FnOnce(&mut Mod, &mut Host<'_>) -> Result<Flow, Status>) -> HookResult {
         let instance = instance.cast::<Instance<Mod>>();
         if instance.is_null() || !instance.is_aligned() || !handle.is_valid() {
             return HookResult::failed(Status::INVALID);
@@ -251,7 +263,7 @@ pub mod exports {
             operation(&mut instance.value, &mut host)
         });
         match result {
-            Ok(Ok(())) => HookResult::OK,
+            Ok(Ok(flow)) => HookResult { status: Status::OK, flow: flow as u32 },
             Ok(Err(status)) => HookResult::failed(status),
             Err(()) => {
                 instance.disabled = true;
@@ -261,7 +273,7 @@ pub mod exports {
         }
     }
 
-    unsafe fn event<'call, Event>(event: *const Event) -> Result<&'call Event, Status> {
+    pub(super) unsafe fn event<'call, Event>(event: *const Event) -> Result<&'call Event, Status> {
         if event.is_null() || !event.is_aligned() {
             return Err(Status::INVALID);
         }
@@ -295,7 +307,7 @@ pub mod exports {
         unsafe { invoke::<Mod>(instance, handle, |value, host| {
             let input = event(input)?;
             if !input.batch.is_valid() { return Err(Status::INVALID) }
-            value.hud(host, HudBatch { handle: input.batch, lifetime: PhantomData, thread: PhantomData });
+            value.hud(host, HudBatch { handle: input.batch, host: handle, table: host.table, lifetime: PhantomData, thread: PhantomData });
             Ok(())
         }) }
     }
@@ -335,13 +347,7 @@ macro_rules! yoake_mod {
             abi_version: u32,
             host_table: *const $crate::abi::HostTableV1,
         ) -> *const $crate::abi::ModDescriptor {
-            static HOOKS: $crate::abi::HookTableV1 = $crate::abi::HookTableV1 {
-                header: $crate::abi::TableHeader::for_type::<$crate::abi::HookTableV1>(),
-                client_tick: Some($crate::exports::client_tick::<$mod_type>),
-                key_input: Some($crate::exports::key_input::<$mod_type>),
-                hud: Some($crate::exports::hud::<$mod_type>),
-                mod_net_receive: Some($crate::exports::mod_net_receive::<$mod_type>),
-            };
+            static HOOKS: $crate::abi::HookTableV1 = $crate::exports::hooks::<$mod_type>();
             static DESCRIPTOR: $crate::exports::DescriptorStorage = $crate::exports::DescriptorStorage($crate::abi::ModDescriptor {
                 header: $crate::abi::TableHeader::for_type::<$crate::abi::ModDescriptor>(),
                 build_fingerprint: $crate::abi::BUILD_FINGERPRINT,

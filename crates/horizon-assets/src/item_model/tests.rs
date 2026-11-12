@@ -24,7 +24,7 @@ fn a_mods_tint_source_is_untinted_and_an_unknown_vanilla_one_fails() {
     let tint = |json: &str| TintSource::decode(&serde_json::from_str(json).unwrap());
     assert_eq!(
         tint(r#"{"type":"ae2:storage_cell_state"}"#).unwrap(),
-        TintSource::Constant(-1)
+        TintSource::Custom("ae2:storage_cell_state".into())
     );
     assert!(tint(r#"{"type":"minecraft:nonsense"}"#).is_err());
 }
@@ -33,9 +33,15 @@ fn a_mods_tint_source_is_untinted_and_an_unknown_vanilla_one_fails() {
 fn custom_condition_is_evaluated_per_stack_at_branch_selection() {
     struct Env;
     impl ItemEnv for Env {
-        fn item_model_property(&self, property: &str, stack: &StackView) -> bool {
+        fn item_model_property(
+            &self,
+            property: &str,
+            stack: &StackView,
+            components: &Components,
+            _context: &Context<'_>,
+        ) -> bool {
             assert_eq!(property, "example:charged");
-            stack.count > 1 && stack.patch.get("example:charged") == Some(&Some(Value::Bool(true)))
+            stack.count > 1 && components.get("example:charged") == Some(&Value::Bool(true))
         }
     }
     let definition = ClientItem::from_json(

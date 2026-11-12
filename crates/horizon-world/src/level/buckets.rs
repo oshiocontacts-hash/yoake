@@ -46,6 +46,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 FluidKind::Water | FluidKind::FlowingWater => "minecraft:water_bucket",
                 FluidKind::Lava | FluidKind::FlowingLava => "minecraft:lava_bucket",
                 FluidKind::Empty => return None,
+                kind => crate::fluid::custom::definition(kind)?.bucket.as_str(),
             }
         } else if b.implements(state, Interface::SimpleWaterlogged)
             && b.table.has(state, b.props.waterlogged)
@@ -144,15 +145,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         if may_replace && !b.instance_of(state, Class::Liquid) {
             self.destroy_block(pos, true, super::flags::UPDATE_LIMIT);
         }
-        let source = FluidState::new(
-            if water {
-                FluidKind::Water
-            } else {
-                FluidKind::Lava
-            },
-            8,
-            false,
-        );
+        let source = FluidState::new(fluid.source(), 8, false);
         let legacy: BlockStateId = b.legacy_block(source);
         if !self.set_block(pos, legacy, super::flags::UPDATE_ALL_IMMEDIATE)
             && !self.fluid_at(pos).is_source()

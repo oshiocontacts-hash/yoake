@@ -1,10 +1,25 @@
 {
-  "abi_version": 1,
+  "abi_version": 2,
   "hooks": [
     {"name": "tick", "abi": true, "id": 1, "slot": "client_tick", "event": "TickEvent", "contract": "listen"},
     {"name": "key", "abi": true, "id": 2, "slot": "key_input", "event": "KeyEvent", "contract": "listen"},
     {"name": "hud", "abi": true, "id": 3, "slot": "hud", "event": "HudEvent", "contract": "listen"},
-    {"name": "net_from_server", "abi": true, "id": 4, "slot": "mod_net_receive", "event": "NetEvent", "contract": "listen"}
+    {"name": "net_from_server", "abi": true, "id": 4, "slot": "mod_net_receive", "event": "NetEvent", "contract": "listen"},
+    {"name": "frame", "abi": true, "id": 5, "slot": "frame", "event": "FrameEvent", "contract": "listen"},
+    {"name": "local_player_tick_end", "abi": true, "id": 6, "slot": "local_player_tick_end", "event": "TickEvent", "contract": "listen"},
+    {"name": "net_frames_listened", "abi": true, "id": 7, "slot": "net_frames_listened", "event": "NetFramesListenedEvent", "contract": "listen"},
+    {"name": "net_frame_received", "abi": true, "id": 8, "slot": "net_frame_received", "event": "NetFrameReceived", "contract": "listen"},
+    {"name": "net_session_ended", "abi": true, "id": 9, "slot": "net_session_ended", "event": "NetSessionEndedEvent", "contract": "listen"},
+    {"name": "gui_layer_pre", "abi": true, "id": 10, "slot": "gui_layer_pre", "event": "GuiLayerEvent", "contract": "cancel"},
+    {"name": "gui_layer_post", "abi": true, "id": 11, "slot": "gui_layer_post", "event": "GuiLayerEvent", "contract": "listen"},
+    {"name": "screen_render_post", "abi": true, "id": 12, "slot": "screen_render_post", "event": "ScreenRenderEvent", "contract": "listen"},
+    {"name": "screen_key_pressed_pre", "abi": true, "id": 13, "slot": "screen_key_pressed_pre", "event": "ScreenKeyEvent", "contract": "cancel"},
+    {"name": "screen_char_typed_pre", "abi": true, "id": 14, "slot": "screen_char_typed_pre", "event": "ScreenCharEvent", "contract": "cancel"},
+    {"name": "screen_mouse_button_pressed_pre", "abi": true, "id": 15, "slot": "screen_mouse_button_pressed_pre", "event": "ScreenMouseButtonEvent", "contract": "cancel"},
+    {"name": "screen_mouse_button_released_pre", "abi": true, "id": 16, "slot": "screen_mouse_button_released_pre", "event": "ScreenMouseButtonEvent", "contract": "cancel"},
+    {"name": "screen_mouse_scrolled_pre", "abi": true, "id": 17, "slot": "screen_mouse_scrolled_pre", "event": "ScreenScrollEvent", "contract": "cancel"},
+    {"name": "settings", "abi": true, "id": 18, "slot": "settings", "event": "SettingsEvent", "contract": "collect"},
+    {"name": "settings_click", "abi": true, "id": 19, "slot": "settings_click", "event": "SettingsClickEvent", "contract": "listen"}
   ],
   "services": [
     {"name": "log", "abi": true, "id": 1, "kind": "log"},
@@ -14,6 +29,23 @@
     {"name": "fill", "abi": true, "id": 5, "kind": "rect", "slot": "hud_rect"},
     {"name": "net_send_to_server", "abi": true, "id": 6, "kind": "net", "slot": "mod_net_send"},
     {"name": "setting", "abi": true, "id": 7, "kind": "get", "slot": "setting_get"},
-    {"name": "set_setting", "abi": true, "id": 8, "kind": "set", "slot": "setting_set"}
+    {"name": "set_setting", "abi": true, "id": 8, "kind": "set", "slot": "setting_set"},
+    {"name": "text_width", "abi": true, "id": 9, "kind": "width"},
+    {"name": "local_player_snapshot", "abi": true, "id": 10, "kind": "player"},
+    {"name": "snapshot_client_world", "abi": true, "id": 11, "kind": "snapshot"},
+    {"name": "playing", "abi": true, "id": 12, "kind": "bool"},
+    {"name": "instance_dir", "abi": true, "id": 13, "kind": "output"},
+    {"name": "account", "abi": true, "id": 14, "kind": "account"},
+    {"name": "mod_screen_open", "abi": true, "id": 15, "kind": "screen_open"},
+    {"name": "mod_screen_close", "abi": true, "id": 16, "kind": "screen_close"},
+    {"name": "mod_screen", "abi": true, "id": 17, "kind": "output"},
+    {"name": "mod_screen_open_anywhere", "abi": true, "id": 18, "kind": "screen_open"},
+    {"name": "gui_texture", "abi": true, "id": 19, "kind": "texture"},
+    {"name": "batch_len", "abi": true, "id": 20, "kind": "internal_len"},
+    {"name": "batch_scale_since", "abi": true, "id": 21, "kind": "internal_scale"},
+    {"name": "batch_clip_since", "abi": true, "id": 22, "kind": "internal_clip"},
+    {"name": "batch_tint_since", "abi": true, "id": 23, "kind": "internal_tint"},
+    {"name": "gui_texture_create", "abi": true, "id": 24, "kind": "texture_create"},
+    {"name": "gui_texture_release", "abi": true, "id": 25, "kind": "internal_release"}
   ]
 }

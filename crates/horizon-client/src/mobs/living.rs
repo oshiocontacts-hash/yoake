@@ -130,6 +130,20 @@ pub fn wrap(a: f32) -> f32 {
 impl MobWorld<'_> {
     /// FluidState.getHeight: a full block under the same fluid, else amount / 9.
     pub fn fluid_height(&self, x: i32, y: i32, z: i32) -> (Fluid, f64) {
+        if !horizon_world::fluid::custom::definitions().is_empty() {
+            let state = self.world.block(x, y, z);
+            let fluid = self.fluid_tables.fluid(state);
+            if horizon_world::fluid::custom::definition(fluid.kind()).is_some() {
+                let motion = self.facts.get(state).fluid;
+                let above = self.fluid_tables.fluid(self.world.block(x, y + 1, z));
+                let height = if fluid.kind().same_family(above.kind()) {
+                    1.0
+                } else {
+                    f64::from(fluid.own_height())
+                };
+                return (motion, height);
+            }
+        }
         let f = self.facts.get(self.world.block(x, y, z));
         if f.fluid == Fluid::None {
             return (Fluid::None, 0.0);
@@ -219,6 +233,21 @@ impl MobWorld<'_> {
                 out.eye_in_water = true;
             }
         }
+        if !horizon_world::fluid::custom::definitions().is_empty() {
+            let eye_block_y = eye_y.floor() as i32;
+            let fluid = self.fluid_tables.fluid(self.world.block(ex, eye_block_y, ez));
+            if let Some(definition) = horizon_world::fluid::custom::definition(fluid.kind()) {
+                let above = self
+                    .fluid_tables
+                    .fluid(self.world.block(ex, eye_block_y + 1, ez));
+                let height = if fluid.kind().same_family(above.kind()) {
+                    1.0
+                } else {
+                    f64::from(fluid.own_height())
+                };
+                out.eye_in_water = definition.can_drown && eye_y <= f64::from(eye_block_y) + height;
+            }
+        }
         out
     }
     /// Entity.updateFluidHeightAndDoFluidPushing's currents over the deflated
@@ -235,10 +264,11 @@ impl MobWorld<'_> {
                 for z in lo.z.floor() as i32..=(hi.z.ceil() as i32 - 1) {
                     let p = BlockPos::new(x, y, z);
                     let state = self.fluid_tables.fluid(self.world.block(x, y, z));
-                    let current = match state.kind() {
+                    let current = match state.kind().motion_kind() {
                         FluidKind::Empty => continue,
                         FluidKind::Water | FluidKind::FlowingWater => &mut water,
                         FluidKind::Lava | FluidKind::FlowingLava => &mut lava,
+                        _ => continue,
                     };
                     let surface = f64::from(y) + self.fluid_height(x, y, z).1;
                     if surface < lo.y {

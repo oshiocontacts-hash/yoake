@@ -1,0 +1,10 @@
+{
+  "hooks": [
+    { "name": "item_model_number", "target": "horizon_client::game::native_hooks::Game<'_>::native_item_model_number", "side": "client", "mod_api": { "contract": "collect", "out": "value" } },
+    { "name": "item_model_select", "target": "horizon_client::game::native_hooks::Game<'_>::native_item_model_select", "side": "client", "mod_api": { "contract": "collect", "out": "value" } },
+    { "name": "item_tint", "target": "horizon_client::game::native_hooks::Game<'_>::native_item_tint", "side": "client", "mod_api": { "contract": "collect", "out": "color" } }
+  ],
+  "rust_summary": "Component-aware numeric and select model properties and per-stack tint layers.",
+  "doc_summary": "Dynamic item presentation: @API:item_presentation@.",
+  "comments": ["crates/horizon-client/src/game/native_hooks.rs", "docs/native-mods.md"]
+}

@@ -1,0 +1,12 @@
+{
+  "hooks": [
+    {
+      "name": "fluids",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_fluids",
+      "mod_api": { "contract": "collect", "out": "fluids" }
+    }
+  ],
+  "rust_summary": "Custom fluid families share the existing flow, buckets and renderer.",
+  "doc_summary": "Register fluid identities, block and bucket bindings, physical properties and sprites. @API:fluids@.",
+  "comments": ["crates/horizon-client/src/game/native_hooks.rs", "docs/native-mods.md"]
+}

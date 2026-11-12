@@ -209,6 +209,8 @@ mod native_avatar_equipment;
 mod native_biome_colors;
 pub mod native_block_entity_draw;
 pub mod native_block_behaviors;
+pub mod native_capabilities;
+mod native_fluids;
 pub mod native_item_behaviors;
 pub mod native_data_menus;
 pub mod native_item_render;
@@ -21868,6 +21870,9 @@ pub fn run_with() -> Result<()> {
     native_block_behaviors::register()?;
     native_item_behaviors::register()?;
     native_data_menus::register()?;
+    native_capabilities::register()?;
+    native_fluids::register()?;
+    native_recipes::register()?;
     mods::register_standalone_models();
     let mut early_settings = Settings::load(&Game::options_path());
     // Minecraft.<init>: read the last start's flag, then mark this one as not

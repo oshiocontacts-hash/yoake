@@ -57,7 +57,20 @@ impl MotionWorld<'_, '_, '_> {
             .registry
             .state(self.block(eye))
             .is_some_and(|state| state.name == "minecraft:bubble_column");
-        let submerged = self.player.is_eye_in_fluid(WATER) && !bubble_column;
+        let mut submerged = self.player.is_eye_in_fluid(WATER) && !bubble_column;
+        if !horizon_world::fluid::custom::definitions().is_empty() {
+            let fluid = self.resources.fluids.fluid(self.block(eye));
+            if horizon_world::fluid::custom::definition(fluid.kind()).is_some() {
+                let above = self.resources.fluids.fluid(self.block(eye.offset(0, 1, 0)));
+                let height = if fluid.kind().same_family(above.kind()) {
+                    1.0
+                } else {
+                    f64::from(fluid.own_height())
+                };
+                let eye_y = self.player.position.y + f64::from(self.player.dimensions.eye_height);
+                submerged = fluid.kind().can_drown() && eye_y <= f64::from(eye.y) + height;
+            }
+        }
         let drowns = submerged
             && !self.player.status.water_breathing
             && !self.player.status.breath_of_the_nautilus

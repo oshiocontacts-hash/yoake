@@ -12,6 +12,12 @@ mod tests {
     struct StackView {
         count: i32,
     }
+    struct Components {
+        amount: u32,
+    }
+    struct ItemModelContext<'a> {
+        tick: &'a u32,
+    }
     struct BlockEntityDraw(Vec<u32>);
     #[allow(dead_code)]
     mod stubs {
@@ -119,10 +125,17 @@ mod tests {
         pub(super) struct NativeItemBehavior;
         #[derive(Clone)]
         pub(super) struct NativeMenuBehavior;
+        #[derive(Clone)]
+        pub(super) struct NativeCapabilityProvider;
+        #[derive(Clone)]
+        pub(super) struct NativeFluidDefinition;
+        #[derive(Clone)]
+        pub(super) struct NativeRecipeType;
         pub(super) struct NativeItemRenderStack;
         pub(super) struct NativeItemContext;
         pub(super) struct NativeItemHolder;
         pub(super) struct NativeItemDraw;
+        pub(super) struct NativeItemRenderContext<'a>(pub &'a ());
         #[derive(Clone, Copy, Debug, Default, PartialEq)]
         pub(super) struct CameraOverride;
         #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -746,18 +759,25 @@ mod tests {
         impl Hooks for Property {
             fn item_model_property(&self, _: &dyn Host, event: &mut ItemModelPropertyEvent<'_>) {
                 if event.property == "example:charged" {
-                    event.value = event.stack.count > 1;
+                    event.value = event.stack.count > 1
+                        && event.components.amount > 0
+                        && *event.context.tick == 42;
                 }
             }
         }
         let mods: Vec<Box<dyn Hooks>> = vec![Box::new(Property)];
         let host = TestHost;
+        let components = Components { amount: 750 };
+        let tick = 42;
+        let context = ItemModelContext { tick: &tick };
         let mut value = false;
         dispatch_item_model_property(
             &host,
             &mods,
             "example:charged",
             &StackView { count: 2 },
+            &components,
+            &context,
             &mut value,
         );
         assert!(value);
@@ -766,6 +786,8 @@ mod tests {
             &mods,
             "other:property",
             &StackView { count: 1 },
+            &components,
+            &context,
             &mut value,
         );
         assert!(value);
@@ -774,6 +796,8 @@ mod tests {
             &mods,
             "example:charged",
             &StackView { count: 1 },
+            &components,
+            &context,
             &mut value,
         );
         assert!(!value);
@@ -782,6 +806,8 @@ mod tests {
             &[],
             "example:charged",
             &StackView { count: 2 },
+            &components,
+            &context,
             &mut value,
         );
         assert!(!value);

@@ -1,0 +1,13 @@
+{
+  "hooks": [
+    { "name": "recipe_types", "target": "horizon_client::game::native_hooks::Game<'_>::native_recipe_types", "mod_api": { "contract": "collect", "out": "types" } }
+  ],
+  "helpers": [
+    { "name": "recipes_matching", "target": "horizon_client::game::native_recipes::Game<'_>::native_recipes_matching", "mod_api": {} },
+    { "name": "recipe_list", "target": "horizon_client::game::native_recipes::Game<'_>::native_recipe_list", "mod_api": {} },
+    { "name": "recipe_display", "target": "horizon_client::game::native_recipes::Game<'_>::native_recipe_display", "mod_api": {} }
+  ],
+  "rust_summary": "Versioned, component-aware mod recipe codecs and read-only displays.",
+  "doc_summary": "Register JSON recipe types, reuse recipe-content sync, match server inputs and list client displays. @API:recipe_types@.",
+  "comments": ["crates/horizon-client/src/game/native_hooks.rs", "docs/native-mods.md"]
+}

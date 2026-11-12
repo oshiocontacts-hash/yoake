@@ -10,6 +10,37 @@ fn model_id(n: &ItemModelNode) -> &str {
     }
 }
 
+fn resolved_model(node: ItemModelNode) -> Option<String> {
+    let mut models = ItemModels::default();
+    models.definitions.insert(
+        "example:item".into(),
+        ClientItem {
+            model: node,
+            hand_animation_on_swap: true,
+            oversized_in_gui: false,
+            swap_animation_scale: 1.0,
+        },
+    );
+    models.prototypes.insert(
+        "example:item".into(),
+        BTreeMap::from([(
+            "minecraft:item_model".into(),
+            Value::String("example:item".into()),
+        )]),
+    );
+    let context = Context {
+        display: DisplayContext::Gui,
+        owner: None,
+        level: None,
+        seed: 0,
+    };
+    let resolved = models.resolve(&StackView::new("example:item", 1), &context, &NoEnv);
+    resolved.layers.first().map(|layer| match &layer.content {
+        LayerContent::Model { model } => model.clone(),
+        other => panic!("not a model: {other:?}"),
+    })
+}
+
 #[test]
 fn node_with_a_model_id_draws_that_model() {
     let n = node(r#"{"type":"mod:thing","model":"mod:item/thing","tints":[{"type":"mod:tint"}]}"#)
@@ -18,7 +49,7 @@ fn node_with_a_model_id_draws_that_model() {
     let ItemModelNode::Model(leaf) = n else {
         unreachable!()
     };
-    assert_eq!(leaf.tints, vec![TintSource::Constant(-1)]);
+    assert_eq!(leaf.tints, vec![TintSource::Custom("mod:tint".into())]);
     let n = node(r#"{"type":"mod:thing","base_model":"mod:item/base"}"#).unwrap();
     assert_eq!(model_id(&n), "mod:item/base");
     let n = node(r#"{"type":"mod:thing","on_model":"mod:item/a"}"#).unwrap();
@@ -115,9 +146,9 @@ fn select_property_takes_the_fallback_or_nothing() {
             "fallback":{"type":"minecraft:model","model":"a:other"}}"#,
     )
     .unwrap();
-    assert_eq!(model_id(&n), "a:other");
+    assert_eq!(resolved_model(n).as_deref(), Some("a:other"));
     let n = node(r#"{"type":"minecraft:select","property":"mod:level","cases":[]}"#).unwrap();
-    assert!(matches!(n, ItemModelNode::Empty));
+    assert_eq!(resolved_model(n), None);
 }
 
 #[test]
@@ -134,7 +165,7 @@ fn range_property_reads_zero() {
         .unwrap()
     };
     let n = make(&[entry(0.2, "a:one"), entry(0.4, "a:two")], fallback);
-    assert_eq!(model_id(&n), "a:fb");
+    assert_eq!(resolved_model(n).as_deref(), Some("a:fb"));
     let n = make(
         &[
             entry(0.0, "a:zero"),
@@ -143,9 +174,9 @@ fn range_property_reads_zero() {
         ],
         fallback,
     );
-    assert_eq!(model_id(&n), "a:zero");
+    assert_eq!(resolved_model(n).as_deref(), Some("a:zero"));
     let n = make(&[entry(0.2, "a:one")], "");
-    assert!(matches!(n, ItemModelNode::Empty));
+    assert_eq!(resolved_model(n), None);
 }
 
 #[test]
