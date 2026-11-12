@@ -1191,6 +1191,7 @@ impl Game<'_> {
         self.native_session_left();
         self.clear_native_local_sounds();
         self.clear_native_streams();
+        self.client_map_clear_level();
         self.finish_perf();
         if reason.is_none() {
             // Leaving on purpose: nothing for auto-reconnect to retry.
@@ -1968,6 +1969,7 @@ impl Game<'_> {
                     }
                 }
                 Event::Reconfiguring => {
+                    self.client_map_clear_level();
                     // handleConfigurationStart: the held-back chat shows, then
                     // clearClientLevel opens ServerReconfigScreen over no level.
                     self.flush_chat_queue();
@@ -2258,6 +2260,7 @@ impl Game<'_> {
             .as_ref()
             .map(|d| (d.dimension.clone(), d.pos));
         if !same {
+            self.client_map_clear_level();
             // A new ClientLevel: Minecraft.setLevel stops every sound.
             self.stop_sounds_for_new_level();
             let mut streaming = Streaming::new(
@@ -2364,6 +2367,11 @@ impl Game<'_> {
             return;
         }
         let freed = self.streaming.forget_columns(&mut self.world, gone);
+        if self.native_client_map.track_unloads {
+            for chunk in &freed {
+                self.client_map_chunk_unloaded([chunk.x, chunk.z]);
+            }
+        }
         if let Some(lod) = &mut self.lod {
             for chunk in &freed {
                 lod.observe(chunk.clone(), self.res.facts());
@@ -2596,6 +2604,7 @@ impl Game<'_> {
         if self.world.loaded(pos[0], pos[2])
             && self.world.set(pos[0], pos[1], pos[2], state).is_ok()
         {
+            self.native_client_map.block_changed(pos, previous, state);
             self.sync_block_entity((pos[0], pos[1], pos[2]), Some(previous), state);
             // LevelChunk.setBlockState removes the block entity of a block
             // that changes: the moving piston the client's moveBlocks made
@@ -2631,6 +2640,7 @@ impl Game<'_> {
     fn spawn_entity(&mut self, id: i32, kind: &str, position: [f64; 3], rotation: [f32; 3]) {
         self.invalidate_native_local_sound_entity(id);
         let [yaw, pitch, head] = rotation;
+        self.native_client_map.spawn(id, yaw);
         let at = Vec3::new(position[0], position[1], position[2]);
         let mob_type = if kind == "minecraft:player" {
             self.remote.as_ref().and_then(|r| r.player_type.clone())
@@ -2695,6 +2705,7 @@ impl Game<'_> {
         on_ground: bool,
         packet: MovePacket,
     ) {
+        self.native_client_map.rotate(id, rotation);
         // The dragon is drawn from its own state (game/dragon.rs), which
         // tick_remote_dragon eases to the server's moves through `lerps`. Its
         // copy in the mob list draws nothing: given the move, it kept the
@@ -2917,6 +2928,7 @@ impl Game<'_> {
         self.turn_remote_projectile(id, rotation);
     }
     fn remove_entity(&mut self, id: i32) {
+        self.native_client_map.remove(id);
         self.invalidate_native_local_sound_entity(id);
         // Entity.setRemoved detaches every passenger, even when no empty
         // SetPassengers packet preceded the vehicle's removal. Otherwise
@@ -3655,6 +3667,7 @@ impl Game<'_> {
                 if let Some((_, _, Value::Byte(flags))) = p.values.iter().find(|v| v.0 == 0)
                     && let Some(r) = self.remote.as_mut()
                 {
+                    self.native_client_map.flags(p.id, *flags as u8);
                     if flags & 0x40 != 0 {
                         r.glowing.insert(p.id);
                     } else {
@@ -5966,6 +5979,7 @@ impl Game<'_> {
     pub(super) fn tick_remote(&mut self) -> Result<()> {
         self.native_net.to_server = 0;
         self.tick_remote_level()?;
+        self.client_map_tick();
         // The rockets boosting this player tick after it, also while it waits
         // for chunks.
         self.tick_own_rockets();
@@ -7511,6 +7525,7 @@ impl Game<'_> {
         // The server's block update follows (waterlogged blocks leave water).
         let air = self.world.air;
         if self.world.set(pos[0], pos[1], pos[2], air).is_ok() {
+            self.native_client_map.block_changed(pos, state, air);
             self.world.block_entities.remove(&(pos[0], pos[1], pos[2]));
         }
         self.mining = None;
@@ -10133,6 +10148,93 @@ impl Game<'_> {
             .filter(|(_, uuid)| **uuid != r.profile)
             .filter_map(|(id, uuid)| Some((*id as u32, r.level_player_name(*id, uuid)?.to_owned())))
             .collect()
+    }
+    pub(super) fn client_map_dimension(&self) -> Option<&str> {
+        self.remote.as_ref()?.heard_level.as_deref()
+    }
+
+    pub(super) fn client_map_known_entities(&self) -> Vec<super::native_client_map::KnownEntity> {
+        use horizon_client::mod_api::NativeClientEntity;
+
+        use super::native_client_map::{KnownEntity, visible_to};
+
+        let Some(remote) = self.remote.as_ref() else {
+            return Vec::new();
+        };
+        let viewer_team = self.player_team();
+        let viewer_spectator = self.spectator();
+        let mobs: HashMap<_, _> = self.mobs.iter().map(|mob| (mob.id, mob)).collect();
+        let mut known = Vec::with_capacity(remote.entities.len() + 1);
+        for (&id, tracked) in &remote.entities {
+            if id == remote.entity_id {
+                continue;
+            }
+            let mob = mobs.get(&(id as u32)).copied();
+            let pose = self.native_client_map.pose(id);
+            let profile = remote
+                .level_players
+                .get(&id)
+                .and_then(|uuid| Some((*uuid, remote.level_player_name(id, uuid)?.to_owned())));
+            let team = match &profile {
+                Some((_, name)) => self.score.board.players_team(name),
+                None => mob.map_or_else(
+                    || self.mob_team(id as u32),
+                    |mob| self.mob_team_of(mob),
+                ),
+            };
+            let spectator = profile
+                .as_ref()
+                .and_then(|(uuid, _)| remote.tab_players.get(uuid))
+                .map_or_else(
+                    || mob.is_some_and(|mob| mob.extra.spectator),
+                    |player| player.game_mode == SPECTATOR,
+                );
+            let invisible = pose.invisible
+                || mob.is_some_and(|mob| mob.invisible || mob.has_effect("minecraft:invisibility"));
+            let glowing =
+                remote.glowing.contains(&id) || mob.is_some_and(|mob| mob.is_currently_glowing());
+            known.push(KnownEntity {
+                entity: NativeClientEntity {
+                    id: id as u32,
+                    kind: tracked.kind.clone(),
+                    pos: mob.map_or(tracked.position, |mob| {
+                        [mob.position.x, mob.position.y, mob.position.z]
+                    }),
+                    yaw: mob.map_or(pose.yaw, |mob| mob.yaw),
+                },
+                profile,
+                visible: visible_to(
+                    team,
+                    viewer_team,
+                    viewer_spectator,
+                    spectator,
+                    invisible,
+                    glowing,
+                ),
+            });
+        }
+        if let Some(player) = &self.player {
+            known.push(KnownEntity {
+                entity: NativeClientEntity {
+                    id: remote.entity_id as u32,
+                    kind: "minecraft:player".to_owned(),
+                    pos: [player.position.x, player.position.y, player.position.z],
+                    yaw: self.yaw,
+                },
+                profile: remote
+                    .known_player_profile(remote.profile)
+                    .map(|name| (remote.profile, name.to_owned())),
+                visible: visible_to(
+                    viewer_team,
+                    viewer_team,
+                    viewer_spectator,
+                    player.spectator,
+                    self.own_invisible(),
+                    remote.glowing.contains(&remote.entity_id),
+                ),
+            });
+        }
+        known
     }
     /// `ClientClockManager.tick`: the clock moves on by the game time that
     /// passed since its last tick, at its rate. A game time the server sets

@@ -4222,6 +4222,112 @@ state swapped in. Keep persistent contents in mod-owned storage, not the session
 Regenerate hook artifacts from the fragment before compiling bundles against
 this API.
 
+### Client map data
+
+API `@API:client_map_data@` exposes read-only data from the client world belonging
+to this window. Singleplayer's in-memory connection, LAN and remote servers use
+the same path. These helpers never query the authoritative server world, load a
+chunk or send a packet. They are usable from client frame and tick hooks.
+Import their types from `horizon_client::mod_api`:
+
+```rust,ignore
+enum NativeMapLayer {
+    Surface,
+    Below(i32),
+}
+
+struct NativeMapTile {
+    color: [u8; 256],
+    height: [i16; 256],
+    depth: [u8; 256],
+}
+
+struct NativeClientPlayer {
+    uuid: u128,
+    name: String,
+    pos: [f64; 3],
+    yaw: f32,
+    dimension: String,
+}
+
+struct NativeClientEntity {
+    id: u32,
+    kind: String,
+    pos: [f64; 3],
+    yaw: f32,
+}
+
+map_columns(chunk: [i32; 2], layer: NativeMapLayer) -> Option<NativeMapTile>
+map_colors() -> [u32; 64]
+client_players() -> Vec<NativeClientPlayer>
+client_entities_in(center: [f64; 3], radius: f32) -> Vec<NativeClientEntity>
+```
+
+`map_columns` scans only an already loaded column. Its arrays have the built-in
+minimap's unshaded scan values at index `z * 16 + x`: `color` is a MapColor ID,
+with `0x80` set for a cut wall, `height` is the selected block Y and `depth` is
+the contiguous fluid depth, saturating at 255. `Surface` selects the surface;
+`Below(head_y)` uses the minimap's below-head selection and cut-wall rules,
+including its existing bottom-boundary behavior. A zero color is empty.
+`map_colors` returns the same `0xRRGGBB` table the minimap uses, padded to 64
+entries with zeros for reserved IDs 62 and 63. Mask off `0x80` before indexing;
+apply shading in the mod if desired.
+
+Each mod has 64 tile attempts per window redraw, shared by all of its client
+hooks. The budget resets at the beginning of the redraw, before client ticks
+and frame hooks; multiple ticks within that redraw share it. Unloaded-column
+attempts count too. After the limit, the helper returns `None` without scanning.
+It also returns `None` for an unloaded chunk, no active client level or a call
+without an attributed native mod. A level change does not replenish the budget.
+
+Client chunk notifications are separate from the existing server-oriented
+`chunk_load` hook, whose behavior is unchanged:
+
+```rust,ignore
+client_chunk_load_listened(listened: &mut bool)
+client_chunk_unload_listened(listened: &mut bool)
+client_chunks_changed_listened(listened: &mut bool)
+client_chunk_load(dimension: &str, chunk: [i32; 2])
+client_chunk_unload(dimension: &str, chunk: [i32; 2])
+client_chunks_changed(dimension: &str, chunks: &[[i32; 2]])
+```
+
+Set `listened` to true in the corresponding listened hook for every notification
+used by the mod. These flags are collected once when the window is constructed.
+Load fires after a newly resident chunk is installed. Replacement chunk data
+marks a change but does not fire another load. Unload fires after a normal
+chunk eviction, or before discarding the old world during level teardown.
+Dimensions are resource-location strings such as `minecraft:overworld`.
+
+Changed notifications run once at the end of each client tick with at most 4096
+deduplicated chunk coordinates, sorted lexicographically. Empty batches are
+valid. Sources include accepted block and section updates, replacement or new
+chunk data, predicted client block edits and client block-entity/piston writes.
+Unchanged block writes do not add a change. Beyond 4096 distinct pending chunks,
+new coordinates are dropped until the next tick. An unloaded chunk is removed
+from the pending batch; level teardown discards the old batch. Chunk-change
+tracking exists only while a mod listens for changed notifications.
+
+`client_players` joins tracked player positions to the profiles the client knows
+from its tab list or retained player names, including the local player when its
+profile is known. A tab-list row without a tracked position is not returned.
+Results are sorted and deduplicated by UUID and carry the current client
+dimension. `client_entities_in` includes tracked players and other entities,
+sorted by entity ID, with resource-location kinds such as `minecraft:zombie`.
+Positions are current client positions, not server queries; yaw is in degrees.
+
+Both lists respect client spectator visibility, team friendly-invisibility
+rules and visible glowing outlines. An invisible entity not visible to this
+viewer is omitted. This is not a frustum or line-of-sight query.
+The entity query uses an inclusive three-dimensional sphere around entity
+origins, clamps finite radii to 64 blocks and returns an empty list for negative
+or non-finite radii or non-finite centers. Missing client levels return empty
+lists. Without mods, guarded paths do not scan tiles, enumerate entities,
+allocate tracking entries or dispatch these notifications.
+
+The fragment is `tools/native-hook-fragments/client_map_data.json`. Regenerate
+hook artifacts as described next before compiling bundles against this API.
+
 ### Adding a hook
 
 A new hook needs its fragment in `tools/native-hook-fragments/` with its `mod_api` entry (for example
