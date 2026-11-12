@@ -1,6 +1,6 @@
 //! horizon-release-sign: checks a release's signed checksums, and makes new keys
 //! (docs/release-flow.md, "Signed checksums"). Release signing uses tools/ci/sign_release.sh;
-//! the `sign` command is restricted to Yoake indexes and launcher releases.
+//! the `sign` command is restricted to Yoake indexes, YAKs, catalogs and launcher releases.
 //!
 //!     horizon-release-sign verify --tag v2026.10.19 [--key <base64>] [--publishing] <folder>
 //!     horizon-release-sign sign --tag <yoake-index-v1|yoake-launcher-version> --key-file <file> <folder>
@@ -16,6 +16,9 @@ use std::io::{IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+#[cfg(feature = "yak")]
+mod yak_cli;
+
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let result = match args.first().map(String::as_str) {
@@ -24,7 +27,7 @@ fn main() -> ExitCode {
         Some("keygen") => keygen(&args[1..]),
         _ => Err(
             "usage: horizon-release-sign verify --tag <tag> [--key <base64>]... [--publishing] \
-             <folder> | sign --tag <yoake-index-v1|yoake-launcher-version> --key-file <file> <folder> | \
+             <folder-or-file> | sign --tag <yoake-index-v1|yoake-index-v2|yoake-yak-v1|yoake-mods-v1|yoake-launcher-version> --key-file <file> <folder-or-file> | \
              keygen --public-out <file>"
                 .into(),
         ),
@@ -41,14 +44,24 @@ fn main() -> ExitCode {
 fn sign_folder(args: &[String]) -> Result<(), String> {
     let (tags, rest) = options(args, "--tag");
     if tags.len() != 1 || !allowed_signing_tag(&tags[0]) {
-        return Err("sign requires a Yoake index or launcher release tag".into());
+        return Err("sign requires a Yoake index, YAK, catalog or launcher release tag".into());
     }
     let (paths, rest) = options(&rest, "--key-file");
-    if paths.len() != 1 || rest.len() != 1 {
-        return Err("sign needs one --key-file and folder".into());
+    if paths.len() != 1 || rest.len() != 1 || rest[0].starts_with("--") {
+        return Err("sign needs one --key-file and folder or file".into());
     }
     let key = std::fs::read_to_string(&paths[0]).map_err(|e| format!("key: {e}"))?;
     let key = SigningKey::from_base64(&key)?;
+    if matches!(tags[0].as_str(), "yoake-yak-v1" | "yoake-mods-v1") {
+        #[cfg(feature = "yak")]
+        {
+            yak_cli::sign(&tags[0], Path::new(&rest[0]), &key)?;
+            println!("{}", key.public_base64());
+            return Ok(());
+        }
+        #[cfg(not(feature = "yak"))]
+        return Err("YAK/catalog signing requires the yak feature".into());
+    }
     let folder = Path::new(&rest[0]);
     let sums = std::fs::read(folder.join(SUMS)).map_err(|e| format!("{SUMS}: {e}"))?;
     let mut signature = std::fs::OpenOptions::new()
@@ -63,7 +76,7 @@ fn sign_folder(args: &[String]) -> Result<(), String> {
 }
 
 fn allowed_signing_tag(tag: &str) -> bool {
-    if tag == "yoake-index-v1" {
+    if matches!(tag, "yoake-index-v1" | "yoake-index-v2" | "yoake-yak-v1" | "yoake-mods-v1") {
         return true;
     }
     let Some(version) = tag.strip_prefix("yoake-launcher-") else {
@@ -113,9 +126,12 @@ mod signing_tag_tests {
     use super::allowed_signing_tag;
 
     #[test]
-    fn permits_only_yoake_index_and_launcher_semver_tags() {
+    fn permits_only_yoake_domains_and_launcher_semver_tags() {
         for tag in [
             "yoake-index-v1",
+            "yoake-index-v2",
+            "yoake-yak-v1",
+            "yoake-mods-v1",
             "yoake-launcher-0.2.0",
             "yoake-launcher-1.2.3-rc.1+build.42",
             "yoake-launcher-1.2.3-this-is-a-long-but-valid-prerelease",
@@ -124,7 +140,9 @@ mod signing_tag_tests {
         }
         for tag in [
             "v1.2.3",
-            "yoake-index-v2",
+            "yoake-index-v3",
+            "yoake-yak-v2",
+            "yoake-mods-v2",
             "yoake-launcher-",
             "yoake-launcher-1.2",
             "yoake-launcher-01.2.3",
@@ -189,6 +207,15 @@ fn check_folder(args: &[String]) -> Result<(), String> {
     } else {
         parse_keys(&keys.join("\n"))?
     };
+    if matches!(tag.as_str(), "yoake-yak-v1" | "yoake-mods-v1") {
+        if publishing || rest.len() != 1 {
+            return Err("YAK/catalog verify needs one file and does not allow --publishing".into());
+        }
+        #[cfg(feature = "yak")]
+        return yak_cli::verify(&tag, &folder, &keys);
+        #[cfg(not(feature = "yak"))]
+        return Err("YAK/catalog verification requires the yak feature".into());
+    }
     let sums = std::fs::read(folder.join(SUMS)).map_err(|e| format!("{SUMS}: {e}"))?;
     let listed = match std::fs::read_to_string(folder.join(SIGNATURE)) {
         Ok(signature) if !keys.is_empty() => verify(&tag, &sums, &signature, &keys)?,

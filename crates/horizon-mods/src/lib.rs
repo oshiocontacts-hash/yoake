@@ -7,6 +7,8 @@ pub mod content;
 pub mod index;
 pub mod manifest;
 pub mod modpack;
+#[cfg(feature = "yak")]
+pub mod yak;
 
 pub use content::Content;
 pub use manifest::{Capability, Manifest, Package, Side, find};
