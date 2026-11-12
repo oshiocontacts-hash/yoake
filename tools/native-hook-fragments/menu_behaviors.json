@@ -1,0 +1,19 @@
+{
+  "hooks": [
+    {
+      "name": "menu_behaviors",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_menu_behaviors",
+      "mod_api": { "contract": "collect", "out": "behaviors" }
+    }
+  ],
+  "helpers": [
+    {
+      "name": "open_chest_menu",
+      "target": "horizon_client::game::native_menus::Game<'_>::native_open_chest_menu",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "Mod-owned menu sessions with opening data and predicted item-handler transactions; open_menu now takes a menu type and extra bytes, and open_chest_menu retains the read-only chest helper.",
+  "doc_summary": "Reusable menu factories, opening buffers, item handlers and validity checks. @API:menu_behaviors@.",
+  "comments": ["crates/horizon-client/src/game/native_hooks.rs", "crates/horizon-client/src/game/native_menus.rs", "docs/native-mods.md"]
+}

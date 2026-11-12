@@ -266,6 +266,9 @@ impl Game<'_> {
     /// The block entities of the open container in menu order, with their
     /// sizes: a double chest is its right half then its left half.
     pub(super) fn container_parts(&self) -> Vec<((i32, i32, i32), usize)> {
+        if let Some(menu) = self.local_data_menu() {
+            return vec![(super::native_data_menus::LOCAL_MENU_KEY, menu.kind.slots)];
+        }
         let Some(key) = self.container else {
             return Vec::new();
         };
@@ -283,7 +286,7 @@ impl Game<'_> {
     /// the player's eyes are out of reach of any of its blocks (a 4-block buffer).
     pub(super) fn tick_container_reach(&mut self) {
         // A server's menu ends when the server closes it.
-        if self.remote.is_some() {
+        if self.remote.is_some() || self.local_data_menu().is_some() {
             return;
         }
         let Some(eye) = self.eye_position() else {
@@ -331,6 +334,16 @@ impl Game<'_> {
     }
     /// Container slot `n` (menu slot `300 + n`).
     pub(super) fn container_slot_mut(&mut self, mut n: usize) -> &mut Option<ItemStack> {
+        if self.local_data_menu().is_some() {
+            return self
+                .native_local_data_menu
+                .as_mut()
+                .unwrap()
+                .entity
+                .slots_mut()
+                .get_mut(n)
+                .unwrap_or(&mut self.scratch_slot);
+        }
         let mut target = None;
         for (pos, size) in self.container_parts() {
             if n < size {

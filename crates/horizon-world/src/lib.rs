@@ -81,6 +81,7 @@ pub mod json_folder;
 pub mod lazy_json;
 pub mod level;
 pub mod liquid_collision;
+pub mod native_block_shapes;
 pub mod live_attribute_updates;
 pub mod living_air;
 pub mod living_damage;

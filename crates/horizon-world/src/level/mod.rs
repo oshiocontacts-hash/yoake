@@ -406,6 +406,18 @@ pub trait LevelAccess {
         _moved: bool,
     ) {
     }
+    /// Override a neighbor change before template behavior. Refresh `state`
+    /// after a write when returning control to the template behavior.
+    fn before_neighbor_changed(
+        &mut self,
+        _ticks: &mut Ticks,
+        _pos: BlockPos,
+        _state: &mut BlockStateId,
+        _changed: BlockId,
+        _moved: bool,
+        _handled: &mut bool,
+    ) {
+    }
     /// `BlockState.randomTick` from `ServerLevel.tickChunk`, before the block
     /// handles it. The level may change the block (`Behaviours::set_block`
     /// with `ticks`); setting `handled` skips the block's own random tick. A
@@ -872,7 +884,8 @@ impl Behaviours {
         self.has_flag(state, data::state_flags::REPLACEABLE)
     }
     pub fn is_randomly_ticking(&self, state: BlockStateId) -> bool {
-        self.has_flag(state, data::state_flags::RANDOM_TICKS)
+        crate::native_block_shapes::randomly_ticking(|| self.table.name(state))
+            || self.has_flag(state, data::state_flags::RANDOM_TICKS)
     }
     /// `isFaceSturdy(level, pos, direction, FULL)` from the empty-level cache.
     pub fn is_face_sturdy(&self, state: BlockStateId, direction: Direction) -> bool {

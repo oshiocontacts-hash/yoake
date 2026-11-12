@@ -47,6 +47,9 @@ impl Game<'_> {
             });
             return Ok(());
         }
+        if self.remote.is_some() {
+            self.close_remote_data_menu();
+        }
         if let Some(integrated) = &self.integrated {
             integrated.request_stop();
             self.pending_save = Some(ClosingSave {

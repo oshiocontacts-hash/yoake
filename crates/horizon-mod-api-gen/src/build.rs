@@ -21,10 +21,12 @@ pub fn generate(root: &Path, out_dir: &Path, target: Target) -> Result<(), Strin
             } else {
                 generated.hooks
             };
+            let adapters = super::abi::generate_dll_adapters(&hooks)?;
             vec![
                 ("mod_api_generated.rs", hooks),
                 ("mod_api_generated_host.rs", generated.host),
                 ("mod_api_host_generated.rs", generated.implementation),
+                ("dll_mod_adapters.rs", adapters),
             ]
         }
     };

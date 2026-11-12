@@ -1337,6 +1337,7 @@ dependencies = [
  "horizon-friends",
  "horizon-hdr",
  "horizon-items",
+ "horizon-mod-abi",
  "horizon-mod-api-gen",
  "horizon-mods",
  "horizon-narrator",
@@ -1349,6 +1350,7 @@ dependencies = [
  "horizon-theme",
  "horizon-threads",
  "horizon-world",
+ "libloading",
  "log",
  "miniz_oxide 0.8.9",
  "naga",
@@ -1585,6 +1587,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "horizon-mod-abi"
+version = "0.1.0"
+dependencies = [
+ "horizon-mod-api-gen",
+]
+
+[[package]]
 name = "horizon-mod-api-gen"
 version = "0.1.0"
 dependencies = [
@@ -1600,9 +1609,19 @@ name = "horizon-mod-api-gen-tests"
 version = "0.1.0"
 dependencies = [
  "glam",
+ "horizon-mod-abi",
  "horizon-mod-api-gen",
+ "horizon-mod-sdk",
+ "libloading",
  "log",
  "serde_json",
+]
+
+[[package]]
+name = "horizon-mod-sdk"
+version = "0.1.0"
+dependencies = [
+ "horizon-mod-abi",
 ]
 
 [[package]]
@@ -5219,6 +5238,13 @@ checksum = "b5f6765e852b9b4dc8e2a76843e4d64d1cea8e79bcde0b6901aea8e7c7f08282"
 dependencies = [
  "bit-vec",
  "time",
+]
+
+[[package]]
+name = "yoake-dll-hello"
+version = "0.1.0"
+dependencies = [
+ "horizon-mod-sdk",
 ]
 
 [[package]]

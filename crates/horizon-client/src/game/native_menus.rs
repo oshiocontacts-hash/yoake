@@ -109,7 +109,7 @@ fn exchange(
 /// `native_menu_clicked` or `native_server_tick`).
 #[allow(dead_code)]
 impl Game<'_> {
-    fn native_conn(&self, uuid: u128) -> Option<u32> {
+    pub(super) fn native_conn(&self, uuid: u128) -> Option<u32> {
         let host = self.lan.as_ref()?;
         let g = host
             .hub
@@ -121,7 +121,7 @@ impl Game<'_> {
     /// Opens a chest menu of `rows` rows (1 to 6) titled `title` for the
     /// player, showing `items` (by slot, padded with empty ones), in place of
     /// the menu they had open: its window id.
-    pub(super) fn native_open_menu(
+    pub(super) fn native_open_chest_menu(
         &mut self,
         uuid: u128,
         rows: u8,
@@ -138,17 +138,53 @@ impl Game<'_> {
         self.lan = Some(host);
         window
     }
+    /// Queues a mod-owned menu for a server player. @API:menu_behaviors@.
+    pub(super) fn native_open_menu(
+        &mut self,
+        player: u128,
+        menu_type: &str,
+        title: Text,
+        extra: &[u8],
+    ) -> bool {
+        self.request_data_menu(player, menu_type, title, extra)
+    }
     /// Replaces what the player's open native menu shows; sent with the
     /// tick's container sync.
     pub(super) fn native_set_menu_items(&mut self, uuid: u128, items: Vec<Option<ItemStack>>) {
         if let Some(conn) = self.native_conn(uuid)
             && let Some(host) = self.lan.as_mut()
         {
+            if let Some(session) = host.play.get(&conn).and_then(|play| play.data_menu.as_ref()) {
+                if !horizon_client::native_inventory::replace(session.inventory_for_update(), &items) {
+                    return;
+                }
+            }
             host.hub.set_native_menu(conn, items);
         }
     }
     /// Closes the player's native menu (a `native_menu_closed` follows).
     pub(super) fn native_close_menu(&mut self, uuid: u128) {
+        if super::native_data_menus::enabled()
+            && self.local_data_menu().is_some()
+            && self.native_acting_id() == uuid
+        {
+            self.close_container();
+            self.screen = super::Screen::Playing;
+            self.capture(true);
+            return;
+        }
+        if super::native_data_menus::enabled()
+            && let Some(conn) = self.native_conn(uuid)
+            && self.lan.as_ref().is_some_and(|host| {
+                host.play.get(&conn).is_some_and(|play| play.data_menu.is_some())
+            })
+            && let Some(mut host) = self.lan.take()
+        {
+            host.hub.close_container(conn);
+            self.guest_close_all(&mut host, conn);
+            self.lan = Some(host);
+            return;
+        }
         if let Some(conn) = self.native_conn(uuid)
             && let Some(host) = self.lan.as_mut()
             && host
@@ -279,6 +315,7 @@ impl Game<'_> {
     /// replaced: what each player has open is compared with what the mods last
     /// heard. A menu opened and closed again inside one tick is not heard.
     pub(super) fn tick_player_menus(&mut self, host: &mut LanHost) {
+        self.tick_data_menus(host);
         let conns: Vec<u32> = host
             .hub
             .guests
@@ -324,6 +361,7 @@ impl Game<'_> {
     /// (`ServerPlayer.doCloseContainer`): the mods hear it, if they heard it
     /// open.
     pub(super) fn player_menu_closing(&mut self, host: &mut LanHost, conn: u32) {
+        self.close_data_menu(host, conn);
         let heard = host.play.get_mut(&conn).and_then(|p| p.menu_heard.take());
         if let Some(old) = heard {
             self.player_menu_closed(host, conn, old);
@@ -352,7 +390,7 @@ impl Game<'_> {
 
     /// Runs a player hook with the guest's state in place, or as it is when
     /// the guest has no body to swap in.
-    fn player_hook(&mut self, host: &mut LanHost, conn: u32, f: impl FnOnce(&mut Self)) {
+    pub(super) fn player_hook(&mut self, host: &mut LanHost, conn: u32, f: impl FnOnce(&mut Self)) {
         let mut f = Some(f);
         if self.lan_acting != Some(conn) {
             self.as_guest(host, conn, |g| {
@@ -370,6 +408,7 @@ impl Game<'_> {
     /// told to the mods with the hub back in `self.lan`, no player's state
     /// swapped in.
     pub(super) fn run_native_menu_events(&mut self) {
+        self.flush_data_menus();
         loop {
             let Some(host) = self.lan.as_mut() else {
                 return;

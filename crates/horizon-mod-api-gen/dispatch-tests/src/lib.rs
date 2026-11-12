@@ -112,6 +112,24 @@ mod tests {
         pub(super) struct ServerTickPhase;
         #[derive(Clone, Copy)]
         pub(super) struct WorldPhase;
+        // R1/R2 replay hooks and S3b content behaviours.
+        #[derive(Clone)]
+        pub(super) struct NativeBlockBehavior;
+        #[derive(Clone)]
+        pub(super) struct NativeItemBehavior;
+        #[derive(Clone)]
+        pub(super) struct NativeMenuBehavior;
+        pub(super) struct NativeItemRenderStack;
+        pub(super) struct NativeItemContext;
+        pub(super) struct NativeItemHolder;
+        pub(super) struct NativeItemDraw;
+        #[derive(Clone, Copy, Debug, Default, PartialEq)]
+        pub(super) struct CameraOverride;
+        #[derive(Clone, Copy, Debug, Default, PartialEq)]
+        pub(super) struct FixedFrame;
+        #[derive(Clone, Copy, Debug, Default, PartialEq)]
+        pub(super) struct FrameAdvance;
+        pub(super) struct NetFrameReceived<'a>(pub &'a ());
     }
     use serde_json::{Map, Value};
     use stubs::*;

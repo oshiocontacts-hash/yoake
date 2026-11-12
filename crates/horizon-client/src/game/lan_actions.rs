@@ -97,6 +97,7 @@ pub(super) struct GuestPlay {
     pub(super) merchant: Option<super::lan_trading::GuestMerchant>,
     /// The inventory menu and the crafting table the guest crafts in.
     pub(super) crafting: super::lan_crafting::GuestCrafting,
+    pub(super) data_menu: Option<super::native_data_menus::Session>,
     /// The workstation menu the guest has open (game/lan_stations.rs).
     pub(super) station: Option<super::lan_stations::GuestStation>,
     /// The mount inventory the guest has open (game/lan_mount_menu.rs).
@@ -2351,6 +2352,7 @@ impl Game<'_> {
                 }
             }
             // AbstractContainerMenu.quickMoveStack of a mod container: the mods first.
+            S::ContainerClick(p) if self.lan_data_menu_click(host, conn, &p) => {}
             S::ContainerClick(p) if self.lan_mod_quick_move(host, conn, &p) => {}
             S::ContainerClick(p) if self.lan_merchant_click(host, conn, &p) => {}
             S::ContainerClick(p) if self.lan_inventory_click(host, conn, &p) => {}
@@ -2460,6 +2462,14 @@ impl Game<'_> {
                 self.drop_guest_items(host, gi, drops);
             }
             S::ContainerClose(p) => {
+                if host
+                    .play
+                    .get(&conn)
+                    .and_then(|play| play.data_menu.as_ref())
+                    .is_some_and(|session| session.window == p.container)
+                {
+                    self.close_data_menu(host, conn);
+                }
                 // A vehicle's menu closed: its slots go back to the vehicle
                 // (`ContainerEntity`), and a chest boat's `stopOpen` fires
                 // CONTAINER_CLOSE with the player as the source.

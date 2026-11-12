@@ -6,6 +6,7 @@ use crate::{
     collision_context::CollisionContext,
     dynamic_support::{DynamicSupport, DynamicSupportError, DynamicSupportWorld},
     liquid_collision::{LiquidCollision, LiquidCollisionWorld},
+    native_block_shapes::{self, BlockShapeKind},
     piston_shape::PistonBlockBindings,
     powder_snow_collision::{PowderSnowWorld, powder_snow_collision_shape},
     registry::{BlockRegistry, BlockStateId},
@@ -97,7 +98,8 @@ impl<'r> BlockCollisionRegistry<'r> {
         for index in 0..cached.registry().len() {
             let id = BlockStateId(index as u32);
             let state = cached.registry().state(id).unwrap();
-            let large = cached.cached_shape(id)?.is_none_or(|shape| {
+            let mod_shape = native_block_shapes::claims(&state.name);
+            let large = mod_shape || cached.cached_shape(id)?.is_none_or(|shape| {
                 Axis::ALL
                     .into_iter()
                     .any(|axis| shape.min(axis) < 0.0 || shape.max(axis) > 1.0)
@@ -110,7 +112,7 @@ impl<'r> BlockCollisionRegistry<'r> {
                 contextual.insert(id, ContextualRule::PowderSnow);
             }
             // No contextual rule and an empty cached shape: empty everywhere.
-            let empty = !contextual.contains_key(&id)
+            let empty = !mod_shape && !contextual.contains_key(&id)
                 && cached.cached_shape(id)?.is_some_and(VoxelShape::is_empty);
             scan_flags.push(
                 u8::from(large)
@@ -178,6 +180,22 @@ impl<'r> BlockCollisionRegistry<'r> {
         state: BlockStateId,
         position: [i32; 3],
     ) -> Result<VoxelShape, CollisionQueryError<W::Error>> {
+        if let Some(shape) = native_block_shapes::shape_without_context(
+            self.registry(),
+            state,
+            position,
+        ) {
+            return Ok(shape);
+        }
+        self.vanilla_collision_shape(world, state, position)
+    }
+
+    fn vanilla_collision_shape<W: DynamicCollisionWorld>(
+        &self,
+        world: &mut W,
+        state: BlockStateId,
+        position: [i32; 3],
+    ) -> Result<VoxelShape, CollisionQueryError<W::Error>> {
         if let Some(shape) = self
             .cached
             .cached_shape(state)
@@ -208,6 +226,11 @@ impl<'r> BlockCollisionRegistry<'r> {
             + LiquidCollisionWorld<Error = E>
             + PowderSnowWorld<Error = E>,
     {
+        if let Some(shape) = native_block_shapes::shape(
+            self.registry(), state, position, context, BlockShapeKind::Collision,
+        ) {
+            return Ok(shape);
+        }
         // Most states have no contextual rule: their flag spares the lookup.
         let contextual = self
             .scan_flags
@@ -222,7 +245,7 @@ impl<'r> BlockCollisionRegistry<'r> {
                 powder_snow_collision_shape(world, position, context)
                     .map_err(CollisionQueryError::Context)
             }
-            None => self.collision_shape(world, state, [position.x, position.y, position.z]),
+            None => self.vanilla_collision_shape(world, state, [position.x, position.y, position.z]),
         }
     }
 }

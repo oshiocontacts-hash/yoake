@@ -55,6 +55,7 @@ impl Game<'_> {
                 _ => 0,
             },
         };
+        super::native_item_behaviors::duration(stack, &mut duration);
         self.native_use_duration(stack, &mut duration);
         duration
     }
@@ -121,6 +122,7 @@ impl Game<'_> {
         let mut result = self.held().cloned();
         let before = result.clone();
         let hand = self.hand;
+        self.item_behavior_finish(stack, &mut result);
         self.native_living_entity_use_item_finish(stack, None, hand, 0, &mut result);
         if result != before {
             *self.held_mut() = result.filter(|s| s.count > 0);

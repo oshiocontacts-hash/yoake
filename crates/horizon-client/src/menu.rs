@@ -274,6 +274,7 @@ const OFFHAND: usize = 40;
 
 #[derive(Clone)]
 pub struct Menu {
+    pub item_handler: Option<Arc<dyn crate::native_inventory::ItemHandler>>,
     kind: Kind,
     slots: Vec<Slot>,
     containers: [Vec<Option<ItemStack>>; 4],
@@ -779,6 +780,7 @@ impl Menu {
             enchant_button: None,
             may_build: true,
             mount: None,
+            item_handler: None,
         }
         .with_initial_data()
     }
@@ -1407,6 +1409,17 @@ impl Menu {
     fn may_pickup(&self, env: &Env, s: usize) -> bool {
         match self.slots[s].role {
             Role::Inert | Role::Hidden => false,
+            Role::Mod | Role::ModResult if self.item_handler.is_some() => {
+                self.slot(s).is_none_or(|stack| {
+                    self.item_handler
+                        .as_ref()
+                        .unwrap()
+                        .extract(self.slots[s].index, 1, true)
+                        .is_some_and(|removed| {
+                            removed.count == 1 && same_item(&removed, stack)
+                        })
+                })
+            }
             // AnvilMenu.mayPickup: the levels to pay, and a price.
             Role::CombineResult if self.kind == Kind::Anvil => {
                 (self.creative || self.levels >= self.data[0]) && self.data[0] > 0
@@ -1498,6 +1511,23 @@ impl Menu {
         let mut max_stack = CONTAINER_MAX;
         let index = self.slots[s].index;
         native_menu_slot_rules(t.id, index, stack, &mut may_place, &mut max_stack);
+        if let Some(handler) = &self.item_handler {
+            may_place &= handler.may_place(index, stack);
+            max_stack = max_stack
+                .min(handler.slot_limit(index))
+                .min(handler.stack_limit(stack));
+            if self.slot(s).is_none_or(|current| same_item(current, stack)) {
+                let count = self.slot(s).map_or(0, |current| current.count);
+                let remainder = handler.insert(index, stack.clone(), true);
+                let accepted = stack
+                    .count
+                    .saturating_sub(remainder.as_ref().map_or(0, |stack| stack.count));
+                max_stack = max_stack.min(count.saturating_add(accepted));
+            }
+            if max_stack == 0 {
+                return (false, 0);
+            }
+        }
         (may_place, max_stack.clamp(1, CONTAINER_MAX))
     }
 
@@ -1598,6 +1628,20 @@ impl Menu {
     /// `Slot.remove`: the container's `removeItem`.
     fn remove(&mut self, env: &Env, s: usize, amount: u32) -> Option<ItemStack> {
         let slot = self.slots[s];
+        let amount = if matches!(slot.role, Role::Mod | Role::ModResult) {
+            match &self.item_handler {
+                Some(handler) => {
+                    let count = handler.extract(slot.index, amount, true)?.count.min(amount);
+                    if count == 0 {
+                        return None;
+                    }
+                    count
+                }
+                None => amount,
+            }
+        } else {
+            amount
+        };
         // ResultContainer.removeItem takes the whole stack; the loom's result
         // is a SimpleContainer slot and splits.
         if slot.container == RESULT && slot.role != Role::LoomResult {
@@ -2664,6 +2708,25 @@ impl Menu {
         button: i32,
         input: Input,
     ) -> Result<(), &'static str> {
+        let Some(handler) = self.item_handler.clone() else {
+            return self.click_impl(env, slot_index, button, input);
+        };
+        let before = self.clone();
+        let outcome = self.click_impl(env, slot_index, button, input);
+        if outcome.is_err() || !crate::native_inventory::store(self, handler.as_ref()) {
+            *self = before;
+            self.reset_quick_craft();
+        }
+        outcome
+    }
+
+    fn click_impl(
+        &mut self,
+        env: &Env,
+        slot_index: i32,
+        button: i32,
+        input: Input,
+    ) -> Result<(), &'static str> {
         let size = self.slots.len() as i32;
         let in_range = |i: i32| (0..size).contains(&i);
         if input == Input::QuickCraft {
@@ -2704,7 +2767,7 @@ impl Menu {
                         let s = self.quick_slots[0] as i32;
                         let ty = self.quick_type;
                         self.reset_quick_craft();
-                        return self.click(env, s, ty, Input::Pickup);
+                        return self.click_impl(env, s, ty, Input::Pickup);
                     }
                     let mut source = self.carried.clone().expect("checked");
                     let mut remaining = source.count as i64;
@@ -3038,7 +3101,7 @@ impl Menu {
                 && self.slots[t].container == container
                 && self.quick_replace(t, moved, env)
             {
-                self.click(env, t as i32, 0, Input::QuickMove)?;
+                self.click_impl(env, t as i32, 0, Input::QuickMove)?;
                 each(self, t);
             }
         }

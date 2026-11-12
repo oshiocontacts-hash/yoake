@@ -176,6 +176,8 @@ pub fn is_damageable(items: &Items, stack: &ItemStack) -> bool {
 fn max_damage(items: &Items, stack: &ItemStack) -> i32 {
     items.get(&stack.item).map_or(0, |i| i.max_damage as i32)
 }
+pub static ITEM_REPAIR: std::sync::OnceLock<fn(&ItemStack, &ItemStack) -> Option<bool>> = std::sync::OnceLock::new();
+
 /// `ItemStack.isValidRepairItem`.
 pub fn is_valid_repair_item(
     e: &Enchantments,
@@ -183,6 +185,9 @@ pub fn is_valid_repair_item(
     stack: &ItemStack,
     material: &ItemStack,
 ) -> bool {
+    if let Some(answer) = ITEM_REPAIR.get().and_then(|repair| repair(stack, material)) {
+        return answer;
+    }
     e.props(&stack.item)
         .is_some_and(|p| Enchantments::item_in(items, &p.repairable, &material.item))
 }

@@ -2110,7 +2110,7 @@ API `@API:player_ops2@` adds server-tick helpers for player health, inventory, t
   (`minecraft:generic_9x3`, `minecraft:merchant`...), `pos` the block it belongs to, none for a villager, a mount or a
   vehicle's chest. Heard after the checks that refuse the menu (a locked chest), before the open menu closes. Set
   `cancel` and nothing opens. The player's state is swapped in, so `native_acting_player`, `native_tell` and the item
-  helpers reach them. Menus a mod opens (`native_open_menu`) are not heard.
+  helpers reach them. Menus a mod opens (`native_open_menu` or `native_open_chest_menu`) are not heard.
 - **`native_creative_slot(player, name, slot, item, count, cancel)`**: a creative-mode player sets a slot from the creative
   screen (`slot` is the inventory menu's slot; below 0 is a stack thrown out of the screen), with the `item` (`minecraft:air`
   for an emptied slot) and `count`. Heard after vanilla's checks, before the slot changes. Set `cancel` and the packet is
@@ -3280,7 +3280,7 @@ one custom payload channel `horizon:mod_net`. A vanilla client never gets them, 
 API 10, `crates/horizon-client/src/game/native_menus.rs`: menus a server mod builds from ordinary items, which a
 stock client shows as a chest (`generic_9x1` to `generic_9x6`); nothing is installed on the player's side.
 
-- `native_open_menu(uuid, rows, title, items)` opens one in place of the player's open menu (its window id);
+- `native_open_chest_menu(uuid, rows, title, items)` opens one in place of the player's open menu (its window id);
   `native_set_menu_items(uuid, items)` changes what it shows; `native_close_menu(uuid)` closes it.
 - **No click moves anything.** Each reaches `native_menu_clicked(uuid, window, slot, button, mode)`, and the client
   is sent the menu, its inventory and its cursor as they were. `slot` counts the menu's own slots first, then the
@@ -3650,9 +3650,10 @@ inventory, and how a machine sends fuel to its fuel slot and ores to its input.
 Not asked for an empty slot, a slot the mod's screen hides, another click type, a spectator or a dead player, a menu
 no longer valid, or a shift-click during a drag (it only ends the drag, as in vanilla). It is asked once per click, where vanilla asks `quickMoveStack` again while the same item keeps moving: move
 all you want in one call. The clicking player's state is swapped in (`native_acting_player` names them), and `entity`
-is out of the world during the call, as in `native_menu_button`. Only a server's players (single player's server
-thread, LAN guests, a dedicated server) shift-click this way; a native mod's own menus (`native_open_menu`) get their
-clicks already.
+is out of the world during the call, as in `native_menu_button`. Block-backed menus call this only for a server's
+players (single player's server thread, LAN guests, a dedicated server). Read-only chest menus
+(`native_open_chest_menu`) get their clicks through `native_menu_clicked`; mod-owned data menus
+reuse this quick-move hook, as described below.
 
 ### Items' default components
 
@@ -3989,6 +3990,127 @@ loaded chunk and retained entity in one call: expect a game-thread stall and
 memory proportional to the world state; do not invoke it every tick. It is a
 checkpoint plus subsequent RH-1 frames, not a replacement for those frames.
 
+### Reusable block behavior objects
+
+`@API:block_behaviors@` collects `NativeBlockBehavior { id, behavior }` once at
+startup. `behavior: Arc<dyn BlockBehavior>` is shared by every state of that block
+id. Claim an already registered, canonical, non-`minecraft:` id; malformed ids
+and duplicate behavior claims are rejected. An empty collection installs no
+behavior dispatch or shape provider.
+
+`BlockBehavior` covers `use_block`, `attack`, `neighbor_changed`, `random_tick`,
+`scheduled_tick`, `entity_inside`, `step_on`, `placement_state`, `shape`,
+`is_signal_source`, weak/strong `signal`, `has_comparator_output`,
+`comparator_output`, and `drops`. Return `true` from `randomly_ticking` to opt a
+block into the existing random-tick selection. Tick callbacks receive the
+current level's `LevelWriteHost`; returning `true` consumes that tick. Placement,
+shape, signal and comparator answers are optional: `None` preserves the template
+behavior. `placement_state` can return `Some(None)` to refuse placement. Shapes
+use block-local coordinates and distinguish outline from collision. Signals
+and comparator values pass through the existing 0..15 clamp.
+
+Use contexts include the hand, held stack, block state, full `BlockHit` and
+client-side flag. `NativeInteractionResult::Pass` continues vanilla handling;
+`Success` consumes and swings, `Consume` consumes without swinging, and `Fail`
+refuses the use. Client prediction and authoritative use share this path.
+Contacts carry dimension, side, entity id/kind, state and position; they are
+synchronous notifications, not a second simulation or a mutable world handle.
+Ticks and drops run only at their existing authoritative call sites.
+
+Existing `native_update_shape`, survival hooks and block-entity factories remain
+the extension points for those operations. `drops` replaces the collected drops
+before the existing `native_loot_drops` event. Existing neighbor, placement and
+signal hooks still run when applicable; optional behavior answers do not remove
+the global event API. The lead must regenerate hook artifacts from the new
+fragment before compiling a bundle against this API.
+
+### Reusable item behavior objects
+
+`@API:item_behaviors@` collects `NativeItemBehavior { id, behavior }`, with one
+`Arc<dyn ItemBehavior>` per claimed mod item id. Registration rejects malformed,
+vanilla and duplicate claims. Use an item registered by the existing content API.
+An empty collection installs neither item dispatch nor a repair provider.
+
+`ItemBehavior` provides `use_item`, `use_on`, `use_on_entity`, `use_duration`,
+`use_animation`, `finish_using`, `inventory_tick`, `attack_hit`, `mine_block`,
+`can_repair`, and `bar`. Use callbacks receive the stack, hand, side and optional
+full block hit or entity id/kind, and return `NativeInteractionResult`. Entity
+use follows the entity's own interaction. Inventory ticks keep the existing
+carried-slot numbering, including armor and offhand. Mining may return `true` to
+replace the template's tool-wear handling. Side information is supplied where a
+mutable host is available; world mutations belong on the authoritative side.
+
+Optional duration/animation, repair and bar answers preserve vanilla/template
+handling when absent. Bar answers distinguish no override from hiding the bar;
+width is clamped to 0..13 and color to RGB. Positive use duration reuses the
+existing mod-item countdown and finish path, including client prediction and
+server completion. `finish_using` can replace or clear the resulting hand stack.
+
+The existing `native_use_item`, `native_use_item_on`,
+`native_interact_entity`, use-item lifecycle events, `native_inventory_tick`,
+`native_hurt_enemy`, `native_use_animation` and `native_item_bar` remain in their
+existing pipelines. Server inventory callbacks reuse the existing slot loop;
+remote clients run a behavior-only slot loop only when item behaviors are
+registered, without firing the server's legacy inventory event. No alternate
+consumption timer is introduced. Regenerate hook artifacts from the fragment
+before compiling bundles against this API.
+
+### Mod-owned menus with opening data
+
+`@API:menu_behaviors@` collects `NativeMenuBehavior { id, behavior }`, one
+`Arc<dyn MenuBehavior>` per mod menu type registered through the existing
+`native_menu_types` content API. Malformed, vanilla and duplicate claims are
+rejected. Empty registration leaves menu dispatch disabled: no opening-buffer
+decoding, factory calls, validity checks or handler transactions for vanilla menus.
+
+`open_menu(player: u128, menu_type: &str, title: Text, extra: &[u8]) -> bool`
+is a server `Host` helper (`native_open_menu` on `Game`). It accepts a queued
+request, not a guarantee that the screen opened: the player must still be alive
+and connected when the request is flushed. The client must advertise the mod
+menu type. Opening data is limited to 65,536 bytes, inventories to 256 slots and
+the queue to 64 pending requests. The old read-only chest helper is now named
+`open_chest_menu`; it retains its rows/title/items signature and click events.
+
+`MenuBehavior::create(host, player, extra, client_side)` returns an
+`Option<Arc<dyn ItemHandler>>`. Authoritative openings, including an integrated
+local screen sharing its server handler, pass `false`. Remote clients pass
+`true` with the same opening bytes and must return independent storage for
+prediction, not the authoritative server inventory. The handler's
+slot count must equal the declared menu type's count; refusal or mismatch closes
+the attempted opening. The bounded `horizon:menu_open` payload precedes
+`OpenScreen` and its initial contents; malformed or mismatched openings never
+reach a factory. `NativeScreenView::extra` and the observed screen's `extra`
+expose the bytes to the client screen throughout its lifetime.
+
+`ItemHandler` supplies `slots`, `get_stack`, `set_stack`, `insert`, `extract`,
+`slot_limit`, `stack_limit` and `may_place`. Default insert/extract implementations
+respect components and limits; `simulate = true` must not mutate storage or
+components. A handler may store stacks directly in a backpack item's container
+component; each accepted click writes through it, and closing a menu never
+clears that storage. `set_stack` must restore exact snapshots, including on
+rollback. Serialize storage access during clicks; external side effects cannot
+be rolled back by the menu engine.
+
+Server clicks and client prediction use the same vanilla `Menu::click` engine,
+including the player's inventory and cursor. Handler admission/extraction and
+the existing `native_menu_slot_rules` are combined, not replaced. A rejected
+transaction restores handler slots, inventory, cursor and drag state; normal
+server container synchronization corrects prediction. Shift-click first reuses
+`native_menu_quick_move`, passing a temporary `ModBlockEntity` with the menu type
+as its id and `[i32::MIN, 0, 0]` as its non-world position. If unhandled it falls
+back to the normal menu engine. Data menus invoke this hook on the predicting
+client as well as the server, so their implementations must be deterministic
+and must not require server-only `Host` operations. Existing block-backed
+menus keep their server-only hook dispatch.
+
+`MenuBehavior::still_valid(host, player, inventory)` is checked on the server
+before clicks and each tick; `false` closes the session. `closed` releases the
+factory's handle on replacement, explicit close, invalidation and disconnect,
+and on the client when its screen closes. Server callbacks run with the player's
+state swapped in. Keep persistent contents in mod-owned storage, not the session.
+Regenerate hook artifacts from the fragment before compiling bundles against
+this API.
+
 ### Adding a hook
 
 A new hook needs its fragment in `tools/native-hook-fragments/` with its `mod_api` entry (for example
@@ -4297,3 +4419,119 @@ device option supersedes it. Persisting and restoring a mod's preference is the
 mod's job. Headless fake-backend tests cover inactive no-work, enumeration,
 named/default selection, failed selection and reuse of the device-loss
 replacement path without losing the override.
+
+# DLL mods (phase 1)
+
+The Windows client can load version-specific native DLLs once at startup. They
+run after all static mods, in `YOAKE_DLL_MODS` order. Supply absolute `.dll`
+paths separated by the platform path-list separator (`;` on Windows). Libraries
+stay mapped until process exit; replacing a DLL requires a restart. There is no
+hot reload or Rust trait object across the boundary. Mixins remain build-time.
+
+Signature verification is **not implemented yet**. The loader's `verify()` seam
+rejects every DLL by default. Only for development, set
+`YOAKE_DLL_MODS_UNSIGNED=1` to permit unsigned native code. This is not a sandbox:
+a DLL can execute arbitrary native code. SDK callbacks contain Rust unwinding
+panics, not access violations, undefined behaviour or `panic=abort`. Phase 3 must
+verify the exact bytes subsequently loaded before removing that refusal.
+
+An absent/empty path list returns the original `Mods` and identity slices without
+adapters or per-hook DLL work. Rejected DLLs are logged and skipped. Accepted
+descriptors add owned id/version strings as client-side `horizon:native_mods`
+identities; bounded, process-lifetime storage bridges the existing static
+identity API. Duplicate paths/ids are rejected; combined identities are capped
+at 128.
+
+## Generated boundary
+
+`crates/horizon-mod-api-gen/abi-subset.json` is the generator-owned opt-in catalog
+overlay. Only entries marked `"abi": true` are offered; generation checks each
+hook/helper against the fragment-generated API and its hook contract against
+the catalog. This separate overlay avoids concurrent edits to shared fragments.
+New slots require an explicit ABI revision, not automatic export of all helpers.
+
+| Hook id | C/Rust table slot | Existing hook | Contract |
+| --- | --- | --- | --- |
+| 1 | `client_tick` | `tick` (client window only) | listen |
+| 2 | `key_input` | `key` | listen |
+| 3 | `hud` | `hud` | listen |
+| 4 | `mod_net_receive` | `net_from_server` | listen |
+
+All phase-one DLL slots are listeners. Generated static forwarders preserve
+every existing hook, including unoffered hooks, and the existing listen/order,
+cancel/skips-later-mods, replace/first-wins and collect/in-order contracts.
+Unmarked hooks have no DLL slot.
+
+`HostTableV1` service ids 1 through 8 are, respectively, `log`, `feedback`,
+`client_world_key`, `hud_text`, `hud_rect`, `mod_net_send`, `setting_get`,
+`setting_set`. Capability bit `id - 1` identifies each service. HUD support is
+literal UTF-8 text and rectangles only. Messages carry a UTF-8 channel and
+borrowed bytes, without string conversion of payloads. Settings are namespaced
+by the validated descriptor id; a DLL cannot choose another mod's namespace.
+
+The engine-free `horizon-mod-abi` build emits `abi_generated.rs` and
+`yoake_mod_abi.h` into Cargo `OUT_DIR`; do not commit generated files. Both
+describe ABI version 1, stable ids, C-layout types/tables and the `extern "C"`
+entry `yoake_mod_entry(abi_version, host_table) -> const ModDescriptor *`.
+
+Every table/descriptor header must match ABI version, exact structure size and
+schema hash before its remaining fields are read. Descriptors also pin the
+Yoake release, nightly marker, compilation target and build fingerprint. The
+release defaults to `horizon-core`'s package version; release builders must use
+the same `HORIZON_VERSION`/`HORIZON_NIGHTLY` overrides for host and mod. The source
+fingerprint covers the root manifest and source/manifests/catalogs under
+`crates/`. It is a compatibility guard, **not** a cryptographic signature or a
+binary/toolchain/dependency-lock attestation. Build client and mod from the same
+checkout and target. Phase one does not promise a cross-release SDK.
+
+## Ownership and SDK
+
+The ABI crate documents the full safety/ownership contract:
+
+- Only integer ids plus a generation identify engine capabilities; engine
+  pointers never leave the host. Host/HUD handles expire when their callback
+  returns, reject other threads and re-entry, and HUD handles work only in their
+  own HUD callback.
+- `ByteView`/`StrView` borrow readable memory for one call. Strings are UTF-8,
+  without terminators. Copy anything retained beyond the call.
+- Output buffers belong to the caller. Callees report the required byte length,
+  return `BUFFER_TOO_SMALL` without partial writes, and never free/reallocate
+  them. Read-only SDK queries can retry with a larger buffer; network sends
+  never retry their side effect.
+- Descriptor strings/tables stay immutable/readable while the DLL is mapped.
+  The DLL alone allocates and destroys its opaque mod instance.
+- Host services execute synchronously on the dispatch thread; logging is also
+  available during creation/destruction. A host-service panic disables the
+  calling DLL even if it ignores the returned error.
+
+`horizon-mod-sdk` has only the ABI crate as a runtime dependency. Implement
+`YoakeMod` for a `Default + Send + 'static` type and use `yoake_mod!(MyMod)` to
+export its descriptor, lifecycle and panic-contained callbacks. `Host` and
+`HudBatch` are borrowed, non-sendable facades, not engine objects. Construction
+is lazy at the first offered hook. Constructor/hook/destructor unwinding panics
+are caught and logged; a failed DLL does not stop later mods. The existing
+setting setter cannot report persistence errors: ABI `OK` confirms acceptance
+by that helper, not durable storage.
+
+## Prototype and headless checks
+
+`examples/dll-hello` is a `cdylib` using only the SDK. It draws a tick-count HUD
+line over a rectangle, toggles with F8, restores/persists `visible`, and echoes
+received bytes on `dll-hello:echo`. A cooperating server mod must send that
+channel; this prototype does not add server DLL loading.
+
+Headless suites cover ABI layout/header/view/buffer rules, fake-host SDK round
+trips and lifecycle panics, plus the production loader through in-process
+function tables: validation, unsigned/missing-entry refusal, static-then-DLL
+order, existing dispatch contracts, isolated hook/host panics, stale/wrong-thread
+handles, HUD phases and the zero-DLL fast path. They do not exercise actual
+Windows DLL loading. With a permitted Rust toolchain, intended checks are:
+
+```text
+cargo test -p horizon-mod-abi -p horizon-mod-sdk -p horizon-mod-api-gen -p horizon-mod-api-gen-tests
+cargo build -p yoake-dll-hello --target x86_64-pc-windows-msvc
+```
+
+No build, test, formatter or game was run in the restricted S1b environment.
+Real Windows loading, generated C-header compilation and signing remain
+integration checks for a toolchain-enabled environment.

@@ -9,6 +9,9 @@ use std::{
 };
 use syn::{FnArg, ImplItem, Item, Pat, Type, visit::Visit, visit_mut::VisitMut};
 
+mod abi;
+pub use abi::{generate_abi, generate_dll_adapters};
+
 fn impl_functions(item: syn::ItemImpl) -> impl Iterator<Item = syn::ItemFn> {
     item.items.into_iter().filter_map(|item| match item {
         ImplItem::Fn(method) => Some(syn::ItemFn {

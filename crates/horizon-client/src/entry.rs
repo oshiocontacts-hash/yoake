@@ -1,6 +1,12 @@
 //! Startup shared by the gameplay library and its executable.
 use crate::{crash, game, logging, ram_limit};
 
+// The only unsafe code in this crate: loading signed DLL mods and calling them through the C ABI
+// (`docs/native-mods.md` "DLL mods"). Every block there carries its SAFETY note.
+#[allow(unsafe_code)]
+#[path = "dll_mods.rs"]
+mod dll_mods;
+
 pub use horizon_protocol::mod_list::{Side as NativeSide, native::Mod as NativeMod};
 
 /// Start the game. The executable supplies the allocator and retains the mod API marker.
@@ -14,6 +20,10 @@ pub fn main_with(mods: crate::mod_api::Mods) {
     if !mods.is_empty() {
         eprintln!("Native hooks without identities; the multiplayer mod check can't see them");
     }
+    let (mods, identities) = dll_mods::extend(mods, &[]);
+    if !identities.is_empty() {
+        horizon_protocol::mod_list::native::install(identities).expect("Invalid native mod identities");
+    }
     run(mods);
 }
 
@@ -23,6 +33,7 @@ pub fn main_with_native(mods: crate::mod_api::Mods, identities: &'static [Native
         identities.len() >= mods.len(),
         "Missing native mod identities"
     );
+    let (mods, identities) = dll_mods::extend(mods, identities);
     horizon_protocol::mod_list::native::install(identities).expect("Invalid native mod identities");
     run(mods);
 }

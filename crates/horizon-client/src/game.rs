@@ -208,6 +208,9 @@ mod native_audio;
 mod native_avatar_equipment;
 mod native_biome_colors;
 pub mod native_block_entity_draw;
+pub mod native_block_behaviors;
+pub mod native_item_behaviors;
+pub mod native_data_menus;
 pub mod native_item_render;
 mod native_block_sprites;
 mod native_chat;
@@ -1209,6 +1212,33 @@ impl LevelAccess for GameLevel<'_> {
             self.native_neighbor_changed(self.dimension, pos, state, changed, moved);
         }
     }
+    fn before_neighbor_changed(
+        &mut self,
+        ticks: &mut Ticks,
+        pos: BlockPos,
+        state: &mut BlockStateId,
+        changed: horizon_world::level::BlockId,
+        moved: bool,
+        handled: &mut bool,
+    ) {
+        let Some(behavior) = native_block_behaviors::lookup(self.registry, *state) else {
+            return;
+        };
+        let revision = self.world.revision;
+        *handled = behavior.neighbor_changed(
+            &mut mod_api_host::LevelTicks {
+                level: &mut *self,
+                ticks,
+            },
+            pos,
+            *state,
+            changed,
+            moved,
+        );
+        if !*handled && self.world.revision != revision {
+            *state = self.block_state(pos);
+        }
+    }
     fn allow_spread(
         &self,
         kind: horizon_world::level::Spread,
@@ -1362,6 +1392,11 @@ impl LevelAccess for GameLevel<'_> {
     }
     fn adjust_signal_source(&self, state: BlockStateId, vanilla: bool) -> bool {
         let mut source = vanilla;
+        if let Some(value) = native_block_behaviors::lookup(self.registry, state)
+            .and_then(|behavior| behavior.is_signal_source(self, state))
+        {
+            source = value;
+        }
         if self.native_authoritative {
             self.native_is_signal_source(state, &mut source);
         }
@@ -1376,6 +1411,11 @@ impl LevelAccess for GameLevel<'_> {
         vanilla: i32,
     ) -> i32 {
         let mut signal = vanilla;
+        if let Some(value) = native_block_behaviors::lookup(self.registry, state)
+            .and_then(|behavior| behavior.signal(self, pos, state, direction.opposite(), direct))
+        {
+            signal = value;
+        }
         if self.native_authoritative {
             let face = direction.opposite();
             self.native_block_signal(self.dimension, pos, state, face, direct, &mut signal);
@@ -1384,6 +1424,11 @@ impl LevelAccess for GameLevel<'_> {
     }
     fn adjust_has_analog_output(&self, state: BlockStateId, vanilla: bool) -> bool {
         let mut output = vanilla;
+        if let Some(value) = native_block_behaviors::lookup(self.registry, state)
+            .and_then(|behavior| behavior.has_comparator_output(self, state))
+        {
+            output = value;
+        }
         if self.native_authoritative {
             self.native_has_analog_output(state, &mut output);
         }
@@ -1397,6 +1442,11 @@ impl LevelAccess for GameLevel<'_> {
         vanilla: i32,
     ) -> i32 {
         let mut output = vanilla;
+        if let Some(value) = native_block_behaviors::lookup(self.registry, state)
+            .and_then(|behavior| behavior.comparator_output(self, pos, state, direction))
+        {
+            output = value;
+        }
         if self.native_authoritative {
             self.native_analog_output(self.dimension, pos, state, direction, &mut output);
         }
@@ -1412,7 +1462,10 @@ impl LevelAccess for GameLevel<'_> {
         if self.native_authoritative {
             // Any block the hook writes moves the world's revision on.
             let revision = self.world.revision;
-            self.native_random_tick(ticks, self.dimension, pos, *state, handled);
+            *handled |= self.behavior_tick(ticks, pos, *state, true);
+            if !*handled {
+                self.native_random_tick(ticks, self.dimension, pos, *state, handled);
+            }
             if !*handled && self.world.revision != revision {
                 *state = self.block_state(pos);
             }
@@ -1428,7 +1481,10 @@ impl LevelAccess for GameLevel<'_> {
         if self.native_authoritative {
             // Any block the hook writes moves the world's revision on.
             let revision = self.world.revision;
-            self.native_tick_block(ticks, self.dimension, pos, *state, handled);
+            *handled |= self.behavior_tick(ticks, pos, *state, false);
+            if !*handled {
+                self.native_tick_block(ticks, self.dimension, pos, *state, handled);
+            }
             if !*handled && self.world.revision != revision {
                 *state = self.block_state(pos);
             }
@@ -1465,7 +1521,10 @@ impl LevelAccess for GameLevel<'_> {
         fluid: FluidState,
         answer: &mut Option<Option<BlockStateId>>,
     ) {
-        if self.native_authoritative {
+        if let Some(behavior) = native_block_behaviors::lookup(self.registry, state) {
+            *answer = behavior.placement_state(self, state, context, fluid);
+        }
+        if answer.is_none() && self.native_authoritative {
             self.native_state_for_placement(self.dimension, state, context, fluid, answer);
         }
     }
@@ -3200,6 +3259,8 @@ struct Game<'a> {
     /// pitch): `level.playSound(player, ...)` leaves the guest out, whose
     /// own client plays it.
     guest_player_sounds: Vec<(String, [f64; 3], f32, f32)>,
+    native_data_menu_requests: Vec<native_data_menus::OpenRequest>,
+    native_local_data_menu: Option<native_data_menus::LocalSession>,
     /// `broadcastToAdmins` lines a guest's command queued, sent once it
     /// returns: the line, whether operators get it and whether the console
     /// logs it.
@@ -3460,6 +3521,9 @@ impl Game<'_> {
     /// A block's outline boxes in world space (`getShape` plus the random offset).
     fn outline_boxes(&self, pos: [i32; 3]) -> Vec<[f64; 6]> {
         let state = self.world.block(pos[0], pos[1], pos[2]);
+        if let Some(boxes) = self.block_behavior_outline(pos, state) {
+            return boxes;
+        }
         if let Some(b) = self.context_outline(pos, state) {
             return vec![std::array::from_fn(|i| f64::from(pos[i % 3]) + b[i])];
         }
@@ -4681,6 +4745,12 @@ impl Game<'_> {
         self.process_level_events()
     }
     fn attack_block(&mut self, pos: [i32; 3]) -> Result<()> {
+        if native_block_behaviors::enabled() {
+            let state = self.world.block(pos[0], pos[1], pos[2]);
+            if let Some(behavior) = native_block_behaviors::lookup(self.pack.assets.registry, state) {
+                behavior.attack(self, BlockPos::new(pos[0], pos[1], pos[2]), state);
+            }
+        }
         let note = self.with_level(|b, level, ticks| {
             b.attack_block(level, ticks, BlockPos::new(pos[0], pos[1], pos[2]))
         });
@@ -5996,10 +6066,28 @@ impl Game<'_> {
     /// mined the block `name`: an item with a `tool` component counts as used
     /// and loses its `damage_per_block` on a block that doesn't break
     /// instantly (`ShearsItem`: on any block but fire).
-    fn mine_block_with_held(&mut self, name: &str, hardness: f32) {
+    fn mine_block_with_held(
+        &mut self,
+        position: [i32; 3],
+        state: BlockStateId,
+        name: &str,
+        hardness: f32,
+    ) {
         let Some(stack) = self.inventory[self.selected].clone() else {
             return;
         };
+        if let Some(behavior) = native_item_behaviors::lookup(&stack) {
+            let client_side = !self.native_authoritative();
+            if behavior.mine_block(
+                self,
+                &stack,
+                BlockPos::new(position[0], position[1], position[2]),
+                state,
+                client_side,
+            ) {
+                return;
+            }
+        }
         let Some((per_block, max)) = self
             .res
             .items()
@@ -6117,7 +6205,7 @@ impl Game<'_> {
         });
         if removed && !creative {
             let held = self.held().cloned();
-            self.mine_block_with_held(&facts.name, facts.hardness);
+            self.mine_block_with_held(pos, state, &facts.name, facts.hardness);
             let harvest = !facts.requires_tool
                 || self
                     .res
@@ -6305,14 +6393,27 @@ impl Game<'_> {
                 return Ok(true);
             }
         }
-        Ok(self.interact_frame(target)
+        let handled = self.interact_frame(target)
             || self.interact_armor_stand(target)
             || self.interact_cushion(target)
             || self.interact_boat(target)
             || self.interact_cart(target)
             || self.interact_mob(target)?
             // A guest's Interact naming a knot's id goes to `use_knot` before this.
-            || target.is_none() && self.interact_knot())
+            || target.is_none() && self.interact_knot();
+        if handled {
+            return Ok(true);
+        }
+        if native_item_behaviors::enabled()
+            && let Some(id) = named
+            && let Some(entity) = self.level_entity(id)
+            && let Some(stack) = self.held().cloned()
+        {
+            let kind = self.target_type(entity);
+            let result = self.item_behavior_entity(&stack, id as u32, &kind);
+            return Ok(self.behavior_interaction(result));
+        }
+        Ok(false)
     }
     /// `ItemStack.applyAfterUseComponentSideEffects`: a used stack with a
     /// `use_cooldown` component starts its entry (`UseCooldown.apply`). A
@@ -6376,6 +6477,10 @@ impl Game<'_> {
         if !(sneaking && hands_full)
             && let Some(hit) = block_hit
         {
+            let result = self.block_behavior_use(hit.pos, hit.point, hit.face);
+            if self.behavior_interaction(result) {
+                return Ok(true);
+            }
             let held = self.held().cloned();
             if self.use_lectern(hit.pos, held.as_ref()) {
                 self.swing_arm();
@@ -6576,6 +6681,10 @@ impl Game<'_> {
         // aimed at had its turn, and the item is off cooldown. A guest's
         // UseItemOn reaches only useOn, its UseItem only use.
         let on_block = matches!(self.guest_use, Some(GuestUse::OnBlock(_)));
+        let result = self.item_behavior_use(&stack, block_hit, on_block);
+        if self.behavior_interaction(result) {
+            return Ok(true);
+        }
         let mut claimed = false;
         if let Some(hit) = block_hit {
             self.native_use_item_on(&stack, hit.pos, hit.face, &mut claimed);
@@ -7584,6 +7693,10 @@ impl Game<'_> {
         if self.options.execution_role.is_client() {
             self.native_local_player_tick_end();
         }
+        if native_data_menus::enabled() {
+            self.flush_data_menus();
+            self.tick_local_data_menu();
+        }
         Ok(())
     }
     /// What the tick runs after the local player's own update: effects, the
@@ -8342,6 +8455,7 @@ impl Game<'_> {
             .map(|c| c.bar())
             .unwrap_or_else(|| hud_overlays::damage_bar(stack.damage as i32, max_damage));
         // Client-only: a mod may replace or hide the bar vanilla just chose.
+        native_item_behaviors::bar(stack, &mut bar);
         self.native_item_bar(stack, &mut bar);
         let decorations = hud_overlays::ItemDecorations {
             count: stack.count,
@@ -8899,6 +9013,9 @@ impl Game<'_> {
     }
     /// Slot ids: 0..36 player inventory, 100..109 crafting grid, 200 result.
     fn container_kind(&self) -> Option<&BlockEntity> {
+        if let Some(menu) = self.local_data_menu() {
+            return Some(&menu.entity);
+        }
         self.container
             .and_then(|k| self.world.block_entities.get(&k))
     }
@@ -9477,6 +9594,10 @@ impl Game<'_> {
         }
         self.craft_size = 2;
         self.craft_table = None;
+        if self.local_data_menu().is_some() {
+            self.close_local_data_menu();
+            return;
+        }
         if let Some(key) = self.container.take() {
             // A cart's or chest boat's items go back to it.
             self.close_cart_container(key);
@@ -9609,6 +9730,18 @@ impl Game<'_> {
             // On a server the clicks are the server's: predicted and sent.
             return self.remote_menu_ops(ops);
         }
+        if native_data_menus::enabled() && self.local_data_menu().is_some() {
+            self.tick_local_data_menu();
+            if self.local_data_menu().is_none() {
+                return false;
+            }
+            if let [(Some(slot), button, Input::QuickMove)] = ops
+                && self.inv_clicks.quick_crafting().is_none()
+                && self.local_data_quick_move(*slot, *button)
+            {
+                return true;
+            }
+        }
         if let [(Some(slot), button, input)] = ops {
             self.crafter_slot_clicked(*slot, *button, *input);
         }
@@ -9695,6 +9828,7 @@ impl Game<'_> {
         ) -> Option<bool>,
     ) -> bool {
         use horizon_client::menu::{Env, Kind, Menu};
+        self.sync_local_data_menu();
         #[derive(Clone, Copy)]
         struct Map {
             container: usize,
@@ -9873,6 +10007,16 @@ impl Game<'_> {
                         (kind, size)
                     }
                     Some(BlockEntity::Brewing(_)) => (Kind::Brewing, 5),
+                    Some(BlockEntity::Mod(entity)) => {
+                        let menu_type = self
+                            .remote_menu_type()
+                            .or_else(|| self.container.and_then(|key| self.mod_menu_at(key)))
+                            .unwrap_or(&entity.id);
+                        let Some(kind) = horizon_client::containers::mod_menu_type(menu_type) else {
+                            return false;
+                        };
+                        (Kind::Mod(kind), kind.slots)
+                    }
                     Some(BlockEntity::Furnace(f)) => (
                         Kind::Furnace(
                             match f.kind.recipe_type().trim_start_matches("minecraft:") {
@@ -9926,6 +10070,9 @@ impl Game<'_> {
             None => game_of.iter().position(|x| *x == Some(g)),
         };
         let mut menu = Menu::new(kind);
+        if native_data_menus::enabled() && matches!(kind, Kind::Mod(_)) {
+            menu.item_handler = self.data_menu_handler();
+        }
         if matches!(kind, Kind::Mount(_)) {
             menu.mount = self.mount_menu_entity();
         }
@@ -12626,6 +12773,9 @@ impl Game<'_> {
         if self.title.is_some() || self.saved_for_exit {
             return Ok(());
         }
+        if self.remote.is_some() {
+            self.close_remote_data_menu();
+        }
         if let Some(server) = self.integrated.take() {
             // The server thread saves the world.
             server.stop()?;
@@ -14234,6 +14384,7 @@ impl Game<'_> {
                         .map_or(horizon_world::consumable::UseAnimation::None, |c| {
                             horizon_client::first_person::consumable_animation(c)
                         });
+                    native_item_behaviors::animation(&stack, &mut animation);
                     self.native_use_animation(&stack, &mut animation);
                     item_use::use_pose(
                         animation,
@@ -15904,6 +16055,16 @@ impl Game<'_> {
                         [0.0; 3]
                     };
                     let p = h.pos.map(f64::from);
+                    if let Some(boxes) = self.block_behavior_outline(h.pos, state) {
+                        return boxes.iter().flat_map(|bounds| {
+                            horizon_client::blocks::cube_edges().iter().map(move |edge| {
+                                std::array::from_fn(|index| {
+                                    let axis = index % 3;
+                                    bounds[axis] + edge[index] * (bounds[axis + 3] - bounds[axis])
+                                })
+                            }).collect::<Vec<_>>()
+                        }).collect();
+                    }
                     if let Some(b) = self.context_outline(h.pos, state) {
                         return horizon_client::blocks::cube_edges()
                             .iter()
@@ -19442,6 +19603,8 @@ impl<'a> Game<'a> {
             guest_entity_events: Vec::new(),
             guest_equipment_breaks: Vec::new(),
             guest_player_sounds: Vec::new(),
+            native_data_menu_requests: Vec::new(),
+            native_local_data_menu: None,
             lan_acting_name: None,
             lan_acting_uuid: None,
             tnt_refused: None,
@@ -21702,6 +21865,9 @@ pub fn run_with() -> Result<()> {
         }
     }
     mods::register_components(&vanilla_root)?;
+    native_block_behaviors::register()?;
+    native_item_behaviors::register()?;
+    native_data_menus::register()?;
     mods::register_standalone_models();
     let mut early_settings = Settings::load(&Game::options_path());
     // Minecraft.<init>: read the last start's flag, then mark this one as not
