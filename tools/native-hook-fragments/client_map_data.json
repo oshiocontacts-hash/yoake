@@ -1,0 +1,67 @@
+{
+  "hooks": [
+    {
+      "name": "client_chunk_load_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_client_chunk_load_listened",
+      "side": "client",
+      "mod_api": { "contract": "collect", "out": "listened" }
+    },
+    {
+      "name": "client_chunk_unload_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_client_chunk_unload_listened",
+      "side": "client",
+      "mod_api": { "contract": "collect", "out": "listened" }
+    },
+    {
+      "name": "client_chunks_changed_listened",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_client_chunks_changed_listened",
+      "side": "client",
+      "mod_api": { "contract": "collect", "out": "listened" }
+    },
+    {
+      "name": "client_chunk_load",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_client_chunk_load",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": { "contract": "listen" }
+    },
+    {
+      "name": "client_chunk_unload",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_client_chunk_unload",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": { "contract": "listen" }
+    },
+    {
+      "name": "client_chunks_changed",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_client_chunks_changed",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": { "contract": "listen" }
+    }
+  ],
+  "helpers": [
+    {
+      "name": "map_columns",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_map_columns",
+      "mod_api": {}
+    },
+    {
+      "name": "map_colors",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_map_colors",
+      "mod_api": {}
+    },
+    {
+      "name": "client_players",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_client_players",
+      "mod_api": {}
+    },
+    {
+      "name": "client_entities_in",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_client_entities_in",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "read-only window-world map columns, chunk notifications, and visible entity snapshots.",
+  "doc_summary": "bounded minimap tiles and loaded client-world changes on integrated, LAN, and remote connections; API @API:client_map_data@."
+}

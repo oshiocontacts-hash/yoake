@@ -36,6 +36,9 @@ pub use crate::game::native_block_entity_draw::{BlockEntityDraw, CubeFace};
 pub use crate::game::native_data_menus::{MenuBehavior, NativeMenuBehavior};
 pub use crate::game::native_deferred::{LanOperationStatus, LanTicket};
 pub use crate::game::native_entity_query::NativeEntityInfo;
+pub use crate::game::native_client_map::{
+    NativeClientEntity, NativeClientPlayer, NativeMapLayer, NativeMapTile,
+};
 pub use crate::game::native_item_behaviors::{ItemBehavior, NativeItemBehavior, NativeItemUse};
 pub use crate::game::native_item_render::{
     NativeItemContext, NativeItemDraw, NativeItemHolder, NativeItemRenderContext,

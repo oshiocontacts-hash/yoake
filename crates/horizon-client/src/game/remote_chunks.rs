@@ -286,8 +286,9 @@ impl Game<'_> {
             }
         };
         let (x, z) = (p.x, p.z);
+        let newly_loaded = !self.world.chunks.contains_key(&(x, z));
         // A column sent again while it is resident (a bulk edit): only what changed is lit and meshed again.
-        if self.world.chunks.contains_key(&(x, z)) {
+        if !newly_loaded {
             horizon_client::spans::time("replace_remote", || {
                 self.streaming.replace_remote(&mut self.world, chunk)
             });
@@ -317,6 +318,7 @@ impl Game<'_> {
                 _ => true,
             });
         }
+        self.client_map_chunk_received([x, z], newly_loaded);
     }
 
     /// `ClientPacketListener.handleChunksBiomes`: each loaded column takes

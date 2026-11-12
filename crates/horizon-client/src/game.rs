@@ -219,6 +219,7 @@ mod native_chat;
 mod native_claimed_items;
 mod native_client_items;
 mod native_client_state;
+pub mod native_client_map;
 mod native_components;
 mod native_cooldowns;
 mod native_criteria;
@@ -1037,6 +1038,7 @@ struct GameLevel<'w> {
     /// `Level.isClientSide`: a client's copy of the level (a guest of a LAN
     /// world, a window on its server thread, a dedicated server's client).
     client_side: bool,
+    native_client_map: &'w mut native_client_map::ClientMapState,
     /// Only the integrated or dedicated server dispatches native observations.
     native_authoritative: bool,
     native_player: Option<u128>,
@@ -1738,6 +1740,8 @@ impl LevelAccess for GameLevel<'_> {
         }
         let previous = self.world.block(pos.x, pos.y, pos.z);
         self.world.set(pos.x, pos.y, pos.z, state).ok()?;
+        self.native_client_map
+            .block_changed([pos.x, pos.y, pos.z], previous, state);
         Some(previous)
     }
     fn is_loaded(&self, pos: BlockPos) -> bool {
@@ -3049,6 +3053,7 @@ struct Game<'a> {
     native_lifecycle: native_lifecycle::NativeLifecycle,
     native_mannequins: native_mannequin::NativeMannequins,
     native_entity_queries: native_entity_query::QueryBudgets,
+    native_client_map: native_client_map::ClientMapState,
     native_server_physics_budgets: native_server_physics::PhysicsBudgets,
     native_player_ops: native_player_ops::PlayerOpsState,
     native_damage_budgets: native_damage::DamageBudgets,
@@ -4694,6 +4699,7 @@ impl Game<'_> {
             lid_openers: &mut self.lid_openers,
             open_containers: &open_containers,
             client_side: self.remote.is_some(),
+            native_client_map: &mut self.native_client_map,
             native_authoritative,
             native_player: self.lan_acting_uuid,
             debug: self.world_debug,
@@ -17439,6 +17445,7 @@ impl Game<'_> {
             return;
         }
         if matches!(&event, WindowEvent::RedrawRequested) {
+            self.native_client_map.begin_frame();
             self.native_drain_lan_requests();
             self.native_drain_clipboard();
             self.native_drain_mod_screen_request();
@@ -19121,6 +19128,14 @@ impl<'a> Game<'a> {
         Self::native_camera_override_listened(&mut native_camera_override_listened);
         let mut audio_mix_listened = false;
         Self::native_audio_mix_ready_listened(&mut audio_mix_listened);
+        let map_enabled = !horizon_client::mod_api::mods().is_empty() && options.execution_role.is_client();
+        let mut map_listeners = native_client_map::Listeners::default();
+        if map_enabled {
+            Self::native_client_chunk_load_listened(&mut map_listeners.load);
+            Self::native_client_chunk_unload_listened(&mut map_listeners.unload);
+            Self::native_client_chunks_changed_listened(&mut map_listeners.changed);
+        }
+        let native_client_map = native_client_map::ClientMapState::new(map_enabled, map_listeners);
         let native_mix_cursors = if audio_mix_listened && options.execution_role.is_client() {
             audio.enable_native_mix();
             Some(HashMap::new())
@@ -19519,6 +19534,7 @@ impl<'a> Game<'a> {
             native_lifecycle: Default::default(),
             native_mannequins: Default::default(),
             native_entity_queries: Default::default(),
+            native_client_map,
             native_server_physics_budgets: Default::default(),
             native_player_ops: Default::default(),
             native_damage_budgets: Default::default(),

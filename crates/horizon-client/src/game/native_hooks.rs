@@ -908,6 +908,9 @@ pub(crate) use horizon_client::mod_api::{
 };
 use horizon_client::mod_api::{NativeCapabilityProvider, NativeFluidDefinition, NativeRecipeType};
 use horizon_client::mod_api::{NativeChatRecipients, NativeCrosshairEntity, Pipe};
+use horizon_client::mod_api::{
+    NativeClientEntity, NativeClientPlayer, NativeMapLayer, NativeMapTile,
+};
 use horizon_client::{
     atlas_sources::qualified,
     biome::{BiomeColors, SpawnEntry},
@@ -2160,6 +2163,36 @@ pub(crate) fn net_session_ended(session: u64, reason: &str) {
 
 /// The hook points. Each does nothing in Horizon.
 impl Game<'_> {
+    /// Enable window-client load notifications. API @API:client_map_data@.
+    pub(super) fn native_client_chunk_load_listened(listened: &mut bool) {
+        mod_api::dispatch_client_chunk_load_listened(mod_api::mods(), listened);
+    }
+
+    /// Enable window-client unload notifications. API @API:client_map_data@.
+    pub(super) fn native_client_chunk_unload_listened(listened: &mut bool) {
+        mod_api::dispatch_client_chunk_unload_listened(mod_api::mods(), listened);
+    }
+
+    /// Enable bounded, deduplicated client tick changes. API @API:client_map_data@.
+    pub(super) fn native_client_chunks_changed_listened(listened: &mut bool) {
+        mod_api::dispatch_client_chunks_changed_listened(mod_api::mods(), listened);
+    }
+
+    /// A newly resident chunk of the window's level, after installation. API @API:client_map_data@.
+    pub(super) fn native_client_chunk_load(&mut self, dimension: &str, chunk: [i32; 2]) {
+        mod_api::dispatch_client_chunk_load(self, mod_api::mods(), dimension, chunk);
+    }
+
+    /// A chunk left the window's level, including level teardown. API @API:client_map_data@.
+    pub(super) fn native_client_chunk_unload(&mut self, dimension: &str, chunk: [i32; 2]) {
+        mod_api::dispatch_client_chunk_unload(self, mod_api::mods(), dimension, chunk);
+    }
+
+    /// Once per client tick, at most 4096 changed chunks; empty batches are valid. API @API:client_map_data@.
+    pub(super) fn native_client_chunks_changed(&mut self, dimension: &str, chunks: &[[i32; 2]]) {
+        mod_api::dispatch_client_chunks_changed(self, mod_api::mods(), dimension, chunks);
+    }
+
     /// Capability providers, collected once; empty installs nothing. @API:capability_providers@.
     pub(super) fn native_capability_providers(providers: &mut Vec<NativeCapabilityProvider>) {
         mod_api::dispatch_capability_providers(mod_api::mods(), providers);
@@ -9459,6 +9492,34 @@ impl Game<'_> {
     /// Read detached player state on the game thread. API @API:replay_local_player@.
     pub(super) fn native_local_player_snapshot(&self) -> Option<LocalPlayerSnapshot> {
         self.local_player_snapshot()
+    }
+
+    /// Raw minimap columns; at most 64 attempts per mod per redraw. API @API:client_map_data@.
+    pub(super) fn native_map_columns(
+        &mut self,
+        chunk: [i32; 2],
+        layer: NativeMapLayer,
+    ) -> Option<NativeMapTile> {
+        self.client_map_columns(chunk, layer)
+    }
+
+    /// RGB values used by the built-in minimap, without shading. API @API:client_map_data@.
+    pub(super) fn native_map_colors(&self) -> [u32; 64] {
+        self.client_map_colors()
+    }
+
+    /// Visible tracked players with known profiles, including the local player. API @API:client_map_data@.
+    pub(super) fn native_client_players(&self) -> Vec<NativeClientPlayer> {
+        self.client_map_players()
+    }
+
+    /// Visible tracked entity origins in a sphere, capped at 64 blocks. API @API:client_map_data@.
+    pub(super) fn native_client_entities_in(
+        &self,
+        center: [f64; 3],
+        radius: f32,
+    ) -> Vec<NativeClientEntity> {
+        self.client_map_entities_in(center, radius)
     }
 
     /// Read a known client's internal scoreboard team name. API @API:player_team@.
