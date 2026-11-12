@@ -4,6 +4,8 @@
 //! rolloff 1), looping, relative flag and source state, Ogg/Vorbis decoding
 //! (streams on a worker thread) and OpenAL Soft's stereo panning.
 use crate::Result;
+use crate::native_audio_mix::{DecodeGuard, MixTap, NativeAudioMixBatch, PendingDecodes};
+use crate::native_audio_output::{OutputChoice, reopen_output};
 use crate::native_audio_stream::{
     NativeAudioStreamId, NativeAudioStreamLimits, NativeAudioStreams, StreamVoice,
 };
@@ -830,6 +832,7 @@ struct Mixer {
     world_names: Vec<String>,
     streams: Option<HashMap<NativeAudioStreamId, StreamVoice>>,
     streaming_enabled: Arc<AtomicBool>,
+    native_mix: Option<Arc<MixTap>>,
     limiter_peak: f32,
     /// The output device the stream was opened on (`Library.currentDeviceName`).
     #[cfg(feature = "audio")]
@@ -872,8 +875,10 @@ pub struct MixerBackend {
     cache: Arc<Mutex<SoundCache>>,
     /// The decoder thread for static sounds, started with the first one.
     decoder: Option<std::sync::mpsc::Sender<Decode>>,
+    pending_decodes: Option<Arc<PendingDecodes>>,
     next: ChannelId,
     live: bool,
+    native_offline: bool,
     /// Whose channels these are (`Channel::owner`).
     owner: u8,
     world: u32,
@@ -962,6 +967,7 @@ struct Decode {
     file: PathBuf,
     channel: ChannelId,
     looping: bool,
+    _pending: Option<DecodeGuard>,
 }
 /// Give a channel waiting on its sound the decoded samples and start it, as
 /// the buffer future attaching and playing the source. A source stopped or
@@ -987,6 +993,7 @@ type Stream = std::convert::Infallible;
 pub struct Audio {
     _stream: Option<Stream>,
     device_name: String,
+    native_output: OutputChoice,
     pub engine: SoundEngine,
     backend: MixerBackend,
     /// Record `Heard` sounds (the subtitle overlay is listening).
@@ -1011,6 +1018,7 @@ pub struct Audio {
     preview: crate::sound_preview::SoundPreview,
     local_sounds: Option<LocalSounds>,
     native_streams: Option<NativeAudioStreams>,
+    offline_mix: Option<OfflineMix>,
     /// `SoundEngine.lastSeenDevices`: the system default output last seen.
     #[cfg(feature = "audio")]
     default_seen: Option<String>,
@@ -1025,6 +1033,12 @@ pub struct Audio {
     /// Ticks since the output devices were last looked at (`DeviceTracker.tick`).
     #[cfg(feature = "audio")]
     device_ticks: u32,
+}
+struct OfflineMix {
+    frames: u64,
+    scratch: Vec<f32>,
+    live: bool,
+    loaded: bool,
 }
 fn decode(path: &Path) -> Option<(Vec<f32>, u32)> {
     use symphonia::core::{
@@ -1210,10 +1224,12 @@ impl Backend for MixerBackend {
         if !looping && self.duplicate(channel, (namespace, &path)) {
             return;
         }
-        if sound.stream {
+        let pending = self.pending_decodes.as_ref().map(PendingDecodes::begin);
+        if sound.stream && !self.native_offline {
             // A streamed sound loops by restarting its stream.
             let mixer = self.mixer.clone();
             std::thread::spawn(move || {
+                let _pending = pending;
                 let samples = decode(&file).map(|(s, r)| (Arc::new(s), r));
                 attach(&mixer, channel, samples, looping);
             });
@@ -1222,6 +1238,14 @@ impl Backend for MixerBackend {
         let key = format!("{namespace}:{path}");
         let cached = self.cache.lock().ok().and_then(|mut c| c.get(&key));
         if let Some(samples) = cached {
+            attach(&self.mixer, channel, samples, looping);
+            return;
+        }
+        if self.native_offline {
+            let samples = decode(&file).map(|(samples, rate)| (Arc::new(samples), rate));
+            if let Ok(mut cache) = self.cache.lock() {
+                cache.insert(key, samples.clone());
+            }
             attach(&self.mixer, channel, samples, looping);
             return;
         }
@@ -1252,6 +1276,7 @@ impl Backend for MixerBackend {
             file,
             channel,
             looping,
+            _pending: pending,
         });
     }
     /// `alSourceStop`: any state becomes stopped, an initial source too (a
@@ -1778,6 +1803,20 @@ fn cards_changed(seen: Option<&str>, cards: Option<&str>) -> bool {
     }
 }
 #[cfg(any(feature = "audio", test))]
+fn mix_output(mixer: &mut Mixer, data: &mut [f32], channels: usize, rate: u32) {
+    if let Some(tap) = mixer.native_mix.clone() {
+        if tap.offline.load(Ordering::Acquire) {
+            data.fill(0.0);
+            return;
+        }
+        mix(mixer, data, channels, rate);
+        tap.record(data, channels, rate, None);
+    } else {
+        mix(mixer, data, channels, rate);
+    }
+}
+
+#[cfg(any(feature = "audio", test))]
 fn mix_stream_output<T>(
     mixer: &Mutex<Mixer>,
     data: &mut [T],
@@ -1789,7 +1828,7 @@ fn mix_stream_output<T>(
     for output in data.chunks_mut(scratch.len()) {
         let scratch = &mut scratch[..output.len()];
         if let Ok(mut mixer) = mixer.lock() {
-            mix(&mut mixer, scratch, channels, rate);
+            mix_output(&mut mixer, scratch, channels, rate);
         } else {
             scratch.fill(0.0);
         }
@@ -1832,7 +1871,7 @@ fn build_stream<T: cpal::SizedSample + cpal::FromSample<f32>>(
             }
             scratch.resize(data.len(), 0.0);
             if let Ok(mut mixer) = mixer.lock() {
-                mix(&mut mixer, &mut scratch, channels, rate);
+                mix_output(&mut mixer, &mut scratch, channels, rate);
             } else {
                 scratch.fill(0.0);
             }
@@ -1878,6 +1917,102 @@ pub fn output_devices() -> Vec<String> {
 }
 
 impl Audio {
+    /// Allocate the copy ring only for a listened RH-7 hook.
+    pub fn enable_native_mix(&mut self) {
+        let mut mixer = self
+            .backend
+            .mixer
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let tap = mixer.native_mix.get_or_insert_with(|| Arc::new(MixTap::new()));
+        self.backend.pending_decodes = Some(tap.decodes.clone());
+    }
+
+    /// Drain on the game thread, without holding the mixer during sample allocation.
+    pub fn drain_native_mix(&self, cursor: &mut u64) -> NativeAudioMixBatch {
+        let tap = self
+            .backend
+            .mixer
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .native_mix
+            .clone();
+        tap.map_or_else(NativeAudioMixBatch::default, |tap| tap.drain(cursor))
+    }
+
+    /// Freeze device playback and mix synchronously at 48 kHz stereo during RH-6.
+    pub fn begin_fixed_audio_mix(&mut self) -> std::result::Result<(), &'static str> {
+        let mixer = self
+            .backend
+            .mixer
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let Some(tap) = &mixer.native_mix else {
+            return Ok(());
+        };
+        if self.backend.owner != 0 || self.backend.shares.load(Ordering::Relaxed) != 0 {
+            return Err("fixed audio requires an unshared primary output");
+        }
+        if self.offline_mix.is_some() {
+            return Err("fixed audio is already active");
+        }
+        tap.offline.store(true, Ordering::Release);
+        let pending = tap.decodes.clone();
+        drop(mixer);
+        pending.wait();
+        self.offline_mix = Some(OfflineMix {
+            frames: 0,
+            scratch: vec![0.0; 2048],
+            live: self.backend.live,
+            loaded: self.engine.loaded,
+        });
+        self.backend.live = true;
+        self.backend.native_offline = true;
+        self.engine.loaded = true;
+        Ok(())
+    }
+
+    /// Mix exactly the new sample frames up to the synthetic presentation time.
+    pub fn fixed_audio_until(&mut self, elapsed: std::time::Duration, frame_index: u64) {
+        let Some(offline) = &mut self.offline_mix else {
+            return;
+        };
+        let target = ((elapsed.as_nanos() * 48_000 + 500_000_000) / 1_000_000_000)
+            .min(u64::MAX as u128) as u64;
+        while offline.frames < target {
+            let frames = (target - offline.frames).min(1024) as usize;
+            let samples = &mut offline.scratch[..frames * 2];
+            let mut mixer = self
+                .backend
+                .mixer
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            mix(&mut mixer, samples, 2, 48_000);
+            if let Some(tap) = &mixer.native_mix {
+                tap.record(samples, 2, 48_000, Some(frame_index));
+            }
+            offline.frames += frames as u64;
+        }
+    }
+
+    /// Resume the original device and availability without persisting any choice.
+    pub fn end_fixed_audio_mix(&mut self) {
+        let Some(offline) = self.offline_mix.take() else {
+            return;
+        };
+        let mixer = self
+            .backend
+            .mixer
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        self.backend.native_offline = false;
+        self.backend.live = offline.live;
+        self.engine.loaded = offline.loaded;
+        if let Some(tap) = &mixer.native_mix {
+            tap.offline.store(false, Ordering::Release);
+        }
+    }
+
     pub fn audio_stream_limits(&self) -> NativeAudioStreamLimits {
         NativeAudioStreamLimits::default()
     }
@@ -2390,7 +2525,35 @@ impl Audio {
     /// The output device asked for (`soundDevice`), empty for the system's default; the
     /// default plays when that one can't be opened, as in vanilla.
     pub fn device(&self) -> &str {
-        &self.device_name
+        self.native_output.configured(&self.device_name)
+    }
+
+    pub fn native_output_devices(&self, enabled: bool) -> Vec<String> {
+        crate::native_audio_output::devices(enabled, output_devices)
+    }
+
+    pub fn native_output_select(&mut self, enabled: bool, device: Option<&str>) -> Result<()> {
+        if !enabled {
+            return Err("audio output selection requires an installed client mod".into());
+        }
+        if self.backend.native_offline {
+            return Err("cannot change the audio output during fixed-step rendering".into());
+        }
+        if self.backend.owner != 0 || self.backend.shares.load(Ordering::Relaxed) != 0 {
+            return Err("cannot change a shared/splitscreen audio output".into());
+        }
+        let mixer = self.backend.mixer.clone();
+        self.native_output.select(
+            true,
+            &mut self._stream,
+            &mut self.device_name,
+            device,
+            |target| Self::open_selected(mixer, target),
+        )?;
+        self.stop_all();
+        self.backend.live = true;
+        self.engine.loaded = true;
+        Ok(())
     }
     fn with_output(root: &Path, output: bool, target_device: &str) -> Self {
         let registry = SoundRegistry::load(root);
@@ -2434,14 +2597,17 @@ impl Audio {
         Self {
             _stream: stream,
             device_name: target_device.to_owned(),
+            native_output: OutputChoice::default(),
             engine,
             backend: MixerBackend {
                 mixer,
                 root: root.to_owned(),
                 cache: Arc::default(),
                 decoder: None,
+                pending_decodes: None,
                 next: 0,
                 live,
+                native_offline: false,
                 owner: 0,
                 world: 0,
                 shares: Arc::default(),
@@ -2458,6 +2624,7 @@ impl Audio {
             preview: Default::default(),
             local_sounds: None,
             native_streams: None,
+            offline_mix: None,
             #[cfg(feature = "audio")]
             default_seen: if live { default_output_name() } else { None },
             #[cfg(feature = "audio")]
@@ -2506,14 +2673,46 @@ impl Audio {
         }
         Self::open(mixer)
     }
+    #[cfg(not(feature = "audio"))]
+    fn open_selected(_: Arc<Mutex<Mixer>>, _: &str) -> Result<Stream> {
+        Err("this build has no sound output (built without the `audio` feature)".into())
+    }
+    #[cfg(feature = "audio")]
+    fn open_selected(mixer: Arc<Mutex<Mixer>>, target: &str) -> Result<Stream> {
+        if target.is_empty() {
+            return Self::open(mixer);
+        }
+        if let Some(reason) = output_disabled(|name| std::env::var_os(name)) {
+            return Err(reason.into());
+        }
+        let host = cpal::default_host();
+        let devices = host
+            .output_devices()
+            .map_err(|error| format!("could not list audio outputs: {error}"))?;
+        for device in devices {
+            let name = device.name().unwrap_or_else(|_| "unnamed device".into());
+            if name == target {
+                return open_device(&device, mixer).map(|(stream, _)| stream);
+            }
+        }
+        Err(format!("audio output device is unavailable: {target}").into())
+    }
     #[cfg(feature = "audio")]
     pub fn set_device(&mut self, name: &str) -> Result<()> {
+        self.reopen_device(name)?;
+        self.native_output.clear();
+        Ok(())
+    }
+    #[cfg(feature = "audio")]
+    fn reopen_device(&mut self, name: &str) -> Result<()> {
         if !self.backend.live && self._stream.is_none() && !self.engine.loaded {
             self.device_name = name.to_owned();
             return Ok(());
         }
-        self._stream = Some(Self::open_named(self.backend.mixer.clone(), name)?);
-        self.device_name = name.to_owned();
+        let mixer = self.backend.mixer.clone();
+        reopen_output(&mut self._stream, &mut self.device_name, name, |target| {
+            Self::open_named(mixer, target)
+        })?;
         self.backend.live = true;
         self.engine.loaded = true;
         Ok(())
@@ -2521,6 +2720,7 @@ impl Audio {
     #[cfg(not(feature = "audio"))]
     pub fn set_device(&mut self, name: &str) -> Result<()> {
         self.device_name = name.to_owned();
+        self.native_output.clear();
         Ok(())
     }
     #[cfg(feature = "audio")]
@@ -2596,15 +2796,18 @@ impl Audio {
         Self {
             _stream: None,
             device_name: self.device_name.clone(),
+            native_output: OutputChoice::default(),
             engine,
             backend: MixerBackend {
                 mixer: self.backend.mixer.clone(),
                 root: self.backend.root.clone(),
                 cache: self.backend.cache.clone(),
                 decoder: None,
+                pending_decodes: None,
                 next: (SHARED_CHANNELS.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1)
                     << 40,
                 live: self.backend.live,
+                native_offline: false,
                 owner,
                 world: self.backend.world,
                 shares: self.backend.shares.clone(),
@@ -2621,6 +2824,7 @@ impl Audio {
             preview: Default::default(),
             local_sounds: None,
             native_streams: None,
+            offline_mix: None,
             // The device belongs to the first player's output, which looks after it.
             #[cfg(feature = "audio")]
             default_seen: self.default_seen.clone(),
@@ -2729,11 +2933,11 @@ impl Audio {
     pub fn tick(&mut self, paused: bool, ctx: &TickContext) {
         #[cfg(feature = "audio")]
         {
-            if self.should_change_device() {
+            if !self.backend.native_offline && self.should_change_device() {
                 // SoundEngine.reload: stop every sound, open the output again.
                 self.stop_all();
                 let device = self.device_name.clone();
-                if let Err(e) = self.set_device(&device) {
+                if let Err(e) = self.reopen_device(&device) {
                     log::warn!("Horizon: could not reopen the audio output: {e}");
                 }
             }
@@ -3131,7 +3335,7 @@ mod tests {
                     for _ in 0..8 {
                         let mut actual = vec![1.0; 67 * channels];
                         let mut expected = actual.clone();
-                        mix(&mut mixer, &mut actual, channels, rate);
+                        mix_output(&mut mixer, &mut actual, channels, rate);
                         legacy_mix(&mut legacy, &mut expected, channels, rate);
                         assert_eq!(
                             actual
@@ -3153,10 +3357,120 @@ mod tests {
                         }
                     }
                     assert!(mixer.streams.is_none());
+                    assert!(mixer.native_mix.is_none());
                     assert!(!mixer.streaming_enabled.load(Ordering::Acquire));
                 }
             }
         }
+    }
+
+    #[test]
+    fn listened_mix_copies_final_output_without_changing_playback() {
+        let tap = Arc::new(MixTap::new());
+        let mut listened = Mixer {
+            native_mix: Some(tap.clone()),
+            ..Mixer::default()
+        };
+        listened.channels.insert(0, pcm_test_channel([0.0; 3]));
+        let mut ordinary = Mixer {
+            channels: listened.channels.clone(),
+            ..Mixer::default()
+        };
+        let mut actual = [0.0; 128];
+        let mut expected = actual;
+        mix_output(&mut listened, &mut actual, 2, 44_100);
+        mix(&mut ordinary, &mut expected, 2, 44_100);
+        assert_eq!(actual, expected);
+        assert!(actual.iter().any(|sample| *sample != 0.0));
+        assert_eq!(listened.channels[&0].position, ordinary.channels[&0].position);
+        let mut cursor = 0;
+        let batch = tap.drain(&mut cursor);
+        assert_eq!(batch.dropped_chunks, 0);
+        assert_eq!(batch.chunks.len(), 1);
+        assert_eq!(batch.chunks[0].samples, actual);
+        assert_eq!(batch.chunks[0].sample_rate, 44_100);
+        assert_eq!(batch.chunks[0].channels, 2);
+        assert_eq!(batch.chunks[0].frame_index, None);
+    }
+
+    #[test]
+    fn unlistened_fixed_audio_does_not_allocate_or_advance() {
+        let mut audio = Audio::silent(Path::new("/nonexistent/horizon-test-assets"));
+        audio
+            .backend
+            .mixer
+            .lock()
+            .unwrap()
+            .channels
+            .insert(0, pcm_test_channel([0.0; 3]));
+        audio.begin_fixed_audio_mix().unwrap();
+        audio.fixed_audio_until(std::time::Duration::from_secs(1), 60);
+        assert!(audio.offline_mix.is_none());
+        let mixer = audio.backend.mixer.lock().unwrap();
+        assert!(mixer.native_mix.is_none());
+        assert_eq!(mixer.channels[&0].position, 0.0);
+        assert!(!audio.backend.live);
+        assert!(!audio.engine.loaded);
+    }
+
+    #[test]
+    fn fixed_audio_uses_synthetic_intervals_and_silences_the_device() {
+        let mut audio = Audio::silent(Path::new("/nonexistent/horizon-test-assets"));
+        let mut channel = pcm_test_channel([0.0; 3]);
+        channel.looping = true;
+        audio.backend.mixer.lock().unwrap().channels.insert(0, channel);
+        audio.enable_native_mix();
+        audio.begin_fixed_audio_mix().unwrap();
+        let mut output = [1.0; 128];
+        mix_output(
+            &mut audio.backend.mixer.lock().unwrap(),
+            &mut output,
+            2,
+            44_100,
+        );
+        assert_eq!(output, [0.0; 128]);
+        assert_eq!(audio.backend.mixer.lock().unwrap().channels[&0].position, 0.0);
+        let mut cursor = 0;
+        let mut sample_frames = 0;
+        for index in 1..=60 {
+            audio.fixed_audio_until(
+                std::time::Duration::from_nanos(index * 1_000_000_000 / 60),
+                index,
+            );
+            let batch = audio.drain_native_mix(&mut cursor);
+            assert_eq!(batch.dropped_chunks, 0);
+            assert_eq!(
+                batch
+                    .chunks
+                    .iter()
+                    .map(|chunk| chunk.samples.len())
+                    .sum::<usize>(),
+                1600
+            );
+            for chunk in batch.chunks {
+                assert_eq!(chunk.sample_rate, 48_000);
+                assert_eq!(chunk.channels, 2);
+                assert_eq!(chunk.frame_index, Some(index));
+                sample_frames += chunk.samples.len() / 2;
+            }
+        }
+        assert_eq!(sample_frames, 48_000);
+        audio.end_fixed_audio_mix();
+        assert!(!audio.backend.native_offline);
+        assert!(!audio.backend.live);
+        assert!(!audio.engine.loaded);
+        assert!(
+            !audio
+                .backend
+                .mixer
+                .lock()
+                .unwrap()
+                .native_mix
+                .as_ref()
+                .unwrap()
+                .offline
+                .load(Ordering::Acquire)
+        );
     }
 
     #[test]
@@ -4188,8 +4502,10 @@ mod tests {
             root: PathBuf::new(),
             cache: Arc::default(),
             decoder: None,
+            pending_decodes: None,
             next: (u64::from(owner)) << 40,
             live: true,
+            native_offline: false,
             owner,
             world: 0,
             shares: shares.clone(),

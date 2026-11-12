@@ -1174,6 +1174,7 @@ impl Game<'_> {
             return self.begin_closing_save(false).map(|_| false);
         }
         *self.native_mob_player_cache.get_mut() = None;
+        self.finish_native_fixed_frames();
         let replay_owner = self.native_session.take_replay_owner();
         self.native_session_left();
         self.clear_native_local_sounds();
@@ -10625,6 +10626,15 @@ impl Remote {
     /// The local player's profile UUID.
     pub(super) fn profile(&self) -> u128 {
         self.profile
+    }
+    pub(super) fn known_player_profile(&self, uuid: u128) -> Option<&str> {
+        if uuid == self.profile {
+            return (!self.profile_name.is_empty()).then_some(self.profile_name.as_str());
+        }
+        self.players.get(&uuid).map(String::as_str).or_else(|| {
+            let entity = self.player_entity(uuid)?;
+            self.level_player_name(entity as i32, &uuid)
+        })
     }
     /// The entity id of a player in the level, by profile UUID.
     pub(super) fn player_entity(&self, uuid: u128) -> Option<u32> {

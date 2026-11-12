@@ -19,10 +19,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-#[cfg(feature = "dev-capture")]
 pub(super) type UiInstant = horizon_client_render::AnimationInstant;
-#[cfg(not(feature = "dev-capture"))]
-pub(super) type UiInstant = std::time::Instant;
 
 /// The tree the chat parses and completes with: `Remote::chat_tree`, which is
 /// a server's, once it has sent one (ClientPacketListener.commands), else the

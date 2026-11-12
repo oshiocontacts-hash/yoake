@@ -1,0 +1,31 @@
+{
+  "hooks": [
+    {
+      "name": "fixed_frame",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_fixed_frame",
+      "side": "client",
+      "mod_api": { "contract": "collect", "out": "advance" }
+    },
+    {
+      "name": "fixed_frame_pixels",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_fixed_frame_pixels",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": { "contract": "listen" }
+    }
+  ],
+  "helpers": [
+    {
+      "name": "request_fixed_step_frames",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_request_fixed_step_frames",
+      "mod_api": {}
+    },
+    {
+      "name": "end_fixed_step_frames",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_end_fixed_step_frames",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "fixed-step offline replay frames with borrowed RGBA readback.",
+  "doc_summary": "mod-directed ticks and partial ticks, independent SDR output up to 4K; API @API:replay_fixed_frames@."
+}

@@ -431,10 +431,7 @@ impl Game<'_> {
     /// The glint clock, options and sprite for this frame: read once per
     /// frame, not per item (`GameRenderer.extractOptions`).
     pub(super) fn capture_glint_frame(&self) -> item_render::GlintFrame {
-        #[cfg(feature = "dev-capture")]
-        let elapsed = self.capture_presentation_time();
-        #[cfg(not(feature = "dev-capture"))]
-        let elapsed = self.started.elapsed();
+        let elapsed = self.native_presentation_time();
         item_render::GlintFrame {
             millis: elapsed.as_secs_f32() * 1000.0,
             speed: self.settings.file.double("glintSpeed") as f32,

@@ -228,6 +228,7 @@ pub mod native_entity_query;
 mod native_entity_refs;
 mod native_explosions;
 mod native_falling;
+mod native_frames;
 mod native_gui_textures;
 mod native_hud_visibility;
 pub(crate) mod native_hooks;
@@ -245,6 +246,7 @@ mod native_lifecycle;
 mod native_living_refs;
 mod native_mannequin;
 mod native_menus;
+mod native_mix;
 mod native_mob_draw;
 mod native_mob_navigation;
 mod native_mob_player;
@@ -268,6 +270,7 @@ pub(crate) mod native_server_physics;
 mod native_session;
 mod native_shaders;
 mod native_streams;
+mod native_team;
 mod native_ticks;
 mod native_title_screen;
 mod native_visuals;
@@ -458,6 +461,7 @@ pub use native_damage::{NativeDamage, NativeDamageActor, NativeDamageKind};
 pub use native_data_maps::NativeDataMapType;
 pub use native_explosions::NativeBlast;
 pub use native_falling::NativeFalling;
+pub use native_frames::{FixedFrame, FrameAdvance};
 pub use native_hooks::{NativeClock, NativeShake};
 pub use native_item_energy::ItemEnergyBuffer;
 pub use native_local_player::LocalPlayerSnapshot;
@@ -2560,6 +2564,7 @@ struct Game<'a> {
     started: Instant,
     #[cfg(feature = "dev-capture")]
     frame_capture: capture::CaptureState,
+    native_frames: native_frames::NativeFrames,
     /// `SpectatorGui`: the menu a spectator opens with the hotbar keys.
     spectator_gui: horizon_client::spectator_menu::SpectatorGui,
     previous: Instant,
@@ -2987,6 +2992,7 @@ struct Game<'a> {
     native_player_ops: native_player_ops::PlayerOpsState,
     native_damage_budgets: native_damage::DamageBudgets,
     native_audio: Option<native_audio::NativeAudio>,
+    native_mix_cursors: Option<HashMap<usize, u64>>,
     native_streams: Option<native_streams::NativeStreams>,
     /// Native mods' messages waiting (`game/native_net.rs`).
     native_net: native_net::NativeNet,
@@ -7919,10 +7925,7 @@ impl Game<'_> {
     /// an active window, as it cannot grab the real one.
     fn apply_mouse_look(&mut self) {
         let look = self.look_options();
-        #[cfg(feature = "dev-capture")]
-        let time = self.capture_presentation_time().as_secs_f64();
-        #[cfg(not(feature = "dev-capture"))]
-        let time = self.started.elapsed().as_secs_f64();
+        let time = self.native_presentation_time().as_secs_f64();
         let pointer = self.captured || self.agent_pointer;
         let grabbed = pointer && self.screen == Screen::Playing && self.player.is_some();
         let active = self.focused || self.agent_pointer;
@@ -8503,7 +8506,8 @@ impl Game<'_> {
         // the sleep overlay, debug screen and open screens still draw.
         let spectator = self.spectator();
         let (wi, hi) = (w as i32, h as i32);
-        let show_hud = self.native_hud_visibility.visible(self.ui.hide_gui);
+        let show_hud = self.native_hud_visibility.visible(self.ui.hide_gui)
+            && self.native_frames.hud_visible();
         // max(Hud.leftHeight, Hud.rightHeight) after the bars: the item name and
         // the action bar sit above it.
         let mut bar_height = 39;
@@ -8629,8 +8633,7 @@ impl Game<'_> {
                     hud_layout::paint(batch, &g.gui.atlas, &draws);
                 }
             });
-            #[cfg(feature = "dev-capture")]
-            let capture_millis = self.capture_presentation_time().as_millis() as i64;
+            let presentation_millis = self.native_presentation_time().as_millis() as i64;
             if !self.creative
                 && !spectator
                 && let Some(p) = &mut self.player
@@ -8650,16 +8653,7 @@ impl Game<'_> {
                 let under_water = p.is_eye_in_fluid(horizon_client::motion::WATER);
                 let inputs = hud_layout::HealthInputs {
                     tick: self.ticks as i32,
-                    millis: {
-                        #[cfg(feature = "dev-capture")]
-                        {
-                            capture_millis
-                        }
-                        #[cfg(not(feature = "dev-capture"))]
-                        {
-                            self.started.elapsed().as_millis() as i64
-                        }
-                    },
+                    millis: presentation_millis,
                     health: p.health.health(),
                     max_health: p.attribute("minecraft:max_health").unwrap_or(20.0) as f32,
                     absorption: p.health.absorption(),
@@ -8760,7 +8754,7 @@ impl Game<'_> {
                     self.update_remote_skins();
                 }
             }
-        } else if !self.native_hud_visibility.hidden() {
+        } else if !self.native_hud_visibility.hidden() && self.native_frames.hud_visible() {
             self.draw_chat(&mut batch);
             self.draw_tab_list(&mut batch);
         } else if self.screen == Screen::Chat {
@@ -12616,6 +12610,7 @@ impl Game<'_> {
     }
 
     pub(super) fn save_for_exit(&mut self) -> Result<()> {
+        self.finish_native_fixed_frames();
         #[cfg(feature = "dev-capture")]
         self.capture_shutdown();
         // Native application termination can bypass CloseRequested. Finish any
@@ -15851,7 +15846,9 @@ impl Game<'_> {
         if debug_crosshair_drawn(
             self.debug_crosshair(),
             self.camera_type.first_person(),
-            self.ui.hide_gui || self.native_hud_visibility.hidden(),
+            self.ui.hide_gui
+                || self.native_hud_visibility.hidden()
+                || !self.native_frames.hud_visible(),
             self.shows_panorama(),
         ) {
             let scale = HudBatch::new(size).scale;
@@ -15869,6 +15866,7 @@ impl Game<'_> {
         // screen does not hide it: vanilla checks the HUD and the game mode, not the screen.
         let adventure = self.mode == horizon_client::command::args::GameMode::Adventure;
         let outline = if self.native_hud_visibility.visible(self.ui.hide_gui)
+            && self.native_frames.hud_visible()
             && (self.may_build() || adventure)
         {
             self.pick()
@@ -15931,10 +15929,7 @@ impl Game<'_> {
         let title = self.shows_panorama();
         let (yaw, pitch) = if title {
             // PanoramaRenderer: the title cube spins at 0.1 degrees per tick, pitched 10 degrees.
-            #[cfg(feature = "dev-capture")]
-            let time = self.capture_presentation_time().as_secs_f32();
-            #[cfg(not(feature = "dev-capture"))]
-            let time = self.started.elapsed().as_secs_f32();
+            let time = self.native_presentation_time().as_secs_f32();
             (
                 self.panorama_rotation.update(
                     time,
@@ -16396,10 +16391,7 @@ impl Game<'_> {
         {
             return None;
         }
-        #[cfg(feature = "dev-capture")]
-        let millis = self.capture_presentation_time().as_millis() as i64;
-        #[cfg(not(feature = "dev-capture"))]
-        let millis = self.started.elapsed().as_millis() as i64;
+        let millis = self.native_presentation_time().as_millis() as i64;
         Some(horizon_client::gfx::BorderDraw {
             vertices: self.border_renderer.vertices,
             rebuilt: self.border_renderer.take_rebuilt(),
@@ -18528,6 +18520,10 @@ impl Game<'_> {
                     if self.capture_redraw() {
                         return Ok(());
                     }
+                    if self.native_frames.active() {
+                        self.native_fixed_redraw()?;
+                        return Ok(());
+                    }
                     horizon_client::spans::time("recover_device", || self.recover_device())?;
                     self.observe_fullscreen();
                     self.sync_ime();
@@ -18791,6 +18787,7 @@ impl Game<'_> {
     pub(super) fn idle(&mut self, event_loop: &dyn EventLoopCtl) {
         crate::mod_guard::maintenance();
         self.maintain_native_streams();
+        self.notify_native_audio_mix();
         for notice in crate::mod_guard::take_notices(false) {
             self.system_message(crate::mod_guard::notice_text(&notice.id, notice.hook));
         }
@@ -18848,6 +18845,7 @@ impl Game<'_> {
         let real_time_input = !self.frame_capture.active();
         #[cfg(not(feature = "dev-capture"))]
         let real_time_input = true;
+        let real_time_input = real_time_input && !self.native_frames.active();
         if real_time_input {
             horizon_client::spans::time("pads", || self.poll_pads(event_loop));
             self.pause_if_inactive();
@@ -18858,7 +18856,7 @@ impl Game<'_> {
             }
         }
         if let Some(w) = &self.window {
-            if self.options.offscreen {
+            if self.options.offscreen || self.native_frames.active() {
                 // Offscreen frames don't wait for the window to be drawn: an
                 // occluded window (a locked macOS session) gets no redraws.
                 let id = w.id();
@@ -18918,7 +18916,7 @@ impl<'a> Game<'a> {
         gui: UiResources,
         options: Options,
         settings: Settings,
-        audio: Audio,
+        mut audio: Audio,
         prepared: Option<GameCpuResources>,
     ) -> Result<Self> {
         let root = options.resources.clone();
@@ -18958,6 +18956,14 @@ impl<'a> Game<'a> {
         );
         let mut native_camera_override_listened = false;
         Self::native_camera_override_listened(&mut native_camera_override_listened);
+        let mut audio_mix_listened = false;
+        Self::native_audio_mix_ready_listened(&mut audio_mix_listened);
+        let native_mix_cursors = if audio_mix_listened && options.execution_role.is_client() {
+            audio.enable_native_mix();
+            Some(HashMap::new())
+        } else {
+            None
+        };
         Ok(Game {
             world_biomes: None,
             world_biomes_base: None,
@@ -19081,6 +19087,7 @@ impl<'a> Game<'a> {
             started: now,
             #[cfg(feature = "dev-capture")]
             frame_capture: capture::CaptureState::default(),
+            native_frames: Default::default(),
             spectator_gui: Default::default(),
             previous: now,
             frame_end: now,
@@ -19353,6 +19360,7 @@ impl<'a> Game<'a> {
             native_player_ops: Default::default(),
             native_damage_budgets: Default::default(),
             native_audio: None,
+            native_mix_cursors,
             native_streams: None,
             native_net: Default::default(),
             native_server_ops: Default::default(),

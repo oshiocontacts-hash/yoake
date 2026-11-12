@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "player_team",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_player_team",
+      "mod_api": {}
+    }
+  ],
+  "rust_summary": "read-only client scoreboard team names for known player UUIDs.",
+  "doc_summary": "Resolve a known player's internal scoreboard team name in a loaded client world; API @API:player_team@."
+}

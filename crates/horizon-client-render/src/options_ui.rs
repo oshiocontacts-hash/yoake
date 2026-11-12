@@ -3,10 +3,6 @@
 //! Language and Resource Packs, laid out like vanilla's HeaderAndFooter /
 //! OptionsList screens and drawn with the shared widgets.
 use std::time::Instant;
-#[cfg(not(feature = "dev-capture"))]
-use std::time::Instant as AnimationInstant;
-
-#[cfg(feature = "dev-capture")]
 use crate::capture_time::AnimationInstant;
 
 pub use crate::settings::Opt;

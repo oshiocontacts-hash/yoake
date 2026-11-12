@@ -1,14 +1,11 @@
 //! Shared GUI widgets drawn as HUD quads: nine-slice sprites (gui.scaling
 //! metadata), buttons, sliders, tiled menu backgrounds, separators and the
 //! EditBox text field with vanilla cursor, selection and scrolling.
-#[cfg(feature = "dev-capture")]
 use crate::capture_time::AnimationInstant;
 use crate::{
     hud::{HudAtlas, HudBatch, Rect, rgba},
     text::Text,
 };
-#[cfg(not(feature = "dev-capture"))]
-use std::time::Instant as AnimationInstant;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -1179,10 +1176,7 @@ impl Caret {
         };
         [edit.x, edit.y, edit.width, edit.height] = rect;
         edit.focused = focused;
-        #[cfg(feature = "dev-capture")]
         let previous_focus = edit.focused_at.wall();
-        #[cfg(not(feature = "dev-capture"))]
-        let previous_focus = edit.focused_at;
         if previous_focus < focused_at {
             edit.focused_at = focused_at.into();
         }
