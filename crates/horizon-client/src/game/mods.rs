@@ -14,6 +14,7 @@ pub(super) struct ModsState {
     pub(super) dev: Vec<PathBuf>,
     /// The WebAssembly mods found that no longer run, for the one-time notice.
     stopped: Vec<String>,
+    pub(super) yak_toast: Option<horizon_client::toasts::SystemToast>,
 }
 
 /// Freeze native component IDs before reading content or opening a connection.
@@ -73,7 +74,7 @@ pub(super) fn content_root(
     dev: &[std::path::PathBuf],
 ) -> std::path::PathBuf {
     use horizon_client::mod_content::{self, ContentMod};
-    use horizon_mods::{Capability, Content, Package};
+    use horizon_mods::{Capability, Content};
     let here = std::env::current_dir().unwrap_or_default();
     let mut paths = horizon_mods::find(&here.join(mod_list::DIR));
     paths.retain(|p| !dev.contains(p));
@@ -83,12 +84,10 @@ pub(super) fn content_root(
     // The first load's list stays (`set_local`): a reload does not hash the files again.
     let announce = !horizon_protocol::mod_list::is_set();
     let mut announced = Vec::new();
-    for path in &paths {
-        let Ok(package) = Package::read(path) else {
-            continue;
-        };
+    for (path, package, from_yak) in crate::yak_mods::content_packages(paths, crate::yak_mods::entries()) {
+        let path = &path;
         let m = &package.manifest;
-        let on = enabled.contains(&m.id) || dev.contains(path);
+        let on = from_yak || enabled.contains(&m.id) || dev.contains(path);
         if !on
             || !m.capabilities.contains(&Capability::Registries)
             || mods.iter().any(|c| c.id == m.id)
@@ -389,6 +388,7 @@ impl Game<'_> {
             .collect();
         // A mod with a native version built in says so instead, and isn't news.
         self.list_native_mods();
+        crate::yak_mods::populate_rows(&mut self.settings.mods.installed, STOPPED);
         let built = std::env::current_exe()
             .ok()
             .and_then(|exe| std::fs::read_to_string(exe.with_file_name(BUILD_INFO)).ok())

@@ -1,8 +1,9 @@
 # Yoake `.yak` packages and catalog
 
-Level: preview. Package format 1; catalog schema 1. This is the library/tooling stage of
-the workspace's `docs/yak-format.md`, not game loading or launcher integration.
-The implementation is `horizon_mods::yak` (feature `yak`). It is separate from
+Level: preview. Package format 1; catalog schema 1. The package library and client
+installed-package loader implement the workspace's `docs/yak-format.md`; launcher
+installation is a separate integration. The library is `horizon_mods::yak`
+(feature `yak`). It is separate from
 [Horizon's upstream registry](mod-index.md), whose JSON and minisign format do not change.
 
 ## Distribution and trust
@@ -15,11 +16,12 @@ Portal origin selection and the proposed `/api/launcher/check` access gate belon
 the launcher/portal, not this offline library. The library validates the HTTPS path,
 but does not pin an origin, make requests, follow redirects, or store credentials.
 
-The initial rollout signs **the catalog only**. Individual packages may be unsigned:
-a verified catalog authenticates each complete archive through its exact byte size
-and SHA-256. Embedded package signatures are supported for later use and are
-verified whenever present; their embedded public key is never a trust anchor.
-Callers supply pinned Ed25519 public keys, including any explicitly approved rotation keys.
+A verified catalog authenticates each complete archive through its exact byte size
+and SHA-256. Individual data-only packages may be unsigned. The client additionally
+requires an embedded package signature before executing an installed native library,
+unless explicitly running in unsigned development mode. A signature's embedded
+public key is never a trust anchor: callers use pinned Ed25519 public keys, including
+any explicitly approved rotation keys.
 
 Recommended consumer sequence:
 
@@ -141,15 +143,17 @@ ascending byte order and emit one line per file, ending every line with LF:
 
 Explicit ZIP directory entries do not enter the list. Paths are not rewritten or
 Unicode-normalized. `canonical_hashes` and `Archive::canonical_hash_list` implement
-this shared representation. The `SIGNATURE` member is UTF-8 TOML:
+this shared representation. The implemented `SIGNATURE` member is UTF-8 JSON:
 
-```toml
-signer = "<base64 public key>"
-signature = "<base64 Ed25519 signature>"
-
-[files]
-"yak.toml" = "<lowercase SHA-256>"
-"content/example.toml" = "<lowercase SHA-256>"
+```json
+{
+  "signer": "<base64 public key>",
+  "signature": "<base64 Ed25519 signature>",
+  "files": {
+    "yak.toml": "<lowercase SHA-256>",
+    "content/example.toml": "<lowercase SHA-256>"
+  }
+}
 ```
 
 The `files` map must equal the computed map exactly: no missing, additional, or
@@ -180,6 +184,9 @@ Extraction retains `yak.toml`, `LICENSE`/`README.md` when present, common `conte
 without flattening the target directory. An embedded `SIGNATURE` is retained as
 provenance, but still describes the **original complete archive**, not this subset.
 Do not repack or verify a target view as if it were a standalone signed archive.
+`verify_installed` authenticates that original map and then freshly hashes the
+manifest and requested installed files against it; absent other-target binaries
+do not invalidate the authenticated map.
 
 The destination must not exist. Extraction builds a random sibling temporary
 directory, checks/rehashes while copying, and renames it into place only on success.
@@ -189,6 +196,75 @@ the destination parent and source paths: these checks are not a sandbox against 
 adversary concurrently replacing directories. Packing also refuses an existing
 output and publishes via a same-filesystem hard link; filesystems without hard-link
 support report an error rather than silently overwriting.
+
+## Client startup: `yoake-mods.txt`
+
+The launcher installs each target view at
+`<game dir>/yoake-mods/<id>/<version>/`, retains its original `SIGNATURE`, and keeps
+the complete archive under `yoake-mods/.cache/`. The game reads only the installed
+view, not the cache or catalog. The launcher writes `<game dir>/yoake-mods.txt`:
+
+```text
+# One package ID and canonical semver per line, in load order.
+example_data 1.0.0
+example_program 2.1.0 # trailing comments are allowed
+```
+
+Whitespace separates exactly two fields. Blank lines and `#` comments are ignored;
+duplicate IDs, path-like IDs, malformed versions, and more than 128 entries are
+rejected individually. A missing list returns before package/build/key discovery:
+the existing `horizon-mods/`, `shaderpacks/`, and development DLL paths are unchanged.
+Each listed directory must contain `yak.toml` with the same ID/version. Symlinks,
+Windows reparse points, special files, and oversized trees are refused. No launcher,
+download, dependency resolver, or build runs in the client; the list is already the
+selected load order.
+
+Each entry checks its Yoake semver requirement and client side. A `[bin]` entry also
+requires this build's exact engine string, ABI, and host target. The client engine
+string is `YOAKE_VERSION+build.<16 lowercase hexadecimal BUILD_FINGERPRINT digits>`.
+A rejected entry is logged and skipped independently, with a consumable bilingual
+notice on the title screen; a native verification/load failure also appears as a
+problem on its Mods row. Notices are not repeated after dismissal or expiry.
+
+### Content and trust status
+
+`content/` is an unpacked `.hmod`: it contains `horizon-mod.toml` and uses the same
+package reader, capability rules, content merging, and existing WASM restriction as
+`horizon-mods/`. Its inner ID/version must equal the outer manifest. A listed YAK
+content package is enabled by the list. When both sources supply that content ID,
+the YAK copy wins and the legacy copy is skipped with a log line. The Mods page has
+one row for the YAK, labelled `.yak` and either verified or unsigned/unverified.
+Unsigned data and shaders may load; this never authorizes native execution.
+
+The client and the launcher share `horizon_mods::yak::trusted_keys()`: Yoake's signing keys
+compiled in at build time from `YOAKE_COMPILED_PUBLIC_KEYS` (`;`-separated), the same keys
+the launcher pins for its own updates. A build without them trusts no key, so native
+verification fails closed. Never trust a key embedded in a package.
+
+Immediately before native loading, the client rechecks the tree, rereads the
+manifest, reruns compatibility, hashes the selected DLL and `yak.toml`, and verifies
+their hashes against the pinned-key-authenticated `SIGNATURE` map. Only the exact
+environment value `YOAKE_DLL_MODS_UNSIGNED=1` bypasses missing/invalid/untrusted
+signatures or checksum failures for development. It does not bypass path safety,
+identity, compatibility, or missing-library checks. Installation directories must
+remain immutable through loading: path checks and hashing do not prevent a
+concurrent writer replacing bytes before the operating system maps a library.
+Native code is not sandboxed.
+
+### Shader packs and declared options
+
+Every `[[shaders]]` entry maps `shaders/<pack-id>/` to a picker entry titled
+`<name> (.yak)`. Native Horizon packs and classic packs use their existing loaders.
+Manifest `[shaders.options.<name>]` choices expose their ordered `values`, `default`,
+and `label_ja` in Shader Options. Native `shadow_map` must select an integer power of
+two from 256 through 8192 and requires the pack's `[shadow]`; it updates
+`[shadow].resolution` before pack validation and render inputs are built. Other
+pack-declared shader constants retain their existing binding behavior.
+
+The stable picker key is `yak-<package-id length>-<package-id>-<pack-id>`. Selection
+and option indices are stored with the existing shader settings; each YAK's options
+file is `<game dir>/shaderpacks/<picker key>.txt`, outside the signed installation.
+The signed pack and manifest are never rewritten when options change.
 
 ## Library entry points
 
@@ -208,6 +284,9 @@ dependencies. The signing crate's default `yak` feature enables archive tooling;
 - `check_data_compatibility` checks the Yoake semver requirement;
   `check_compatibility` additionally requires an exact engine fingerprint (including
   build metadata), ABI, and target for programs. Neither function loads code.
+- `check_installed_tree`, `check_plain_path`, `hash_installed_file`, and
+  `verify_installed` provide bounded, no-symlink installed-view checks and subset
+  integrity verification. `trusted_keys` is the shared fail-closed Yoake key set.
 - `resolve` checks an already selected set, including required/present optional
   dependency ranges, conflicts, duplicates, and cycles. Successful order is
   dependency-first, ID-sorted within each ready level. It does not select versions

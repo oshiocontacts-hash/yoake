@@ -55,13 +55,11 @@ impl Game<'_> {
         let Some(renderer) = &mut self.renderer else {
             return;
         };
-        let result = Pack::read(path).map_err(|e| vec![e]).and_then(|pack| {
+        let result = Pack::read(path).map_err(|e| vec![e]).and_then(|mut pack| {
+            let constants = crate::yak_mods::shaders::native_parameters(path, &mut pack)
+                .map_err(|error| vec![error])?;
             let report = check(&pack)
                 .map_err(|p| p.iter().map(ToString::to_string).collect::<Vec<String>>())?;
-            // The player's values (the pack's Shader Options page), else the defaults.
-            let options = &pack.manifest.options;
-            let values = horizon_client::shader_pack_list::load_values(path, options);
-            let constants = options.iter().map(|o| o.id.clone()).zip(values).collect();
             let sprites = || {
                 let layers = self.pack.render.sprite_layers.iter();
                 layers.map(|(name, layer)| (name.as_str(), *layer))
@@ -98,7 +96,7 @@ impl Game<'_> {
                 }
             }
             let labels = renderer
-                .set_native_shader_pack(Some((report, constants, tags, materials, lights)))
+                .set_native_shader_pack(Some((report, constants.into_iter().collect(), tags, materials, lights)))
                 .map_err(|e| vec![e])?;
             Ok((pack.manifest, labels, translucent))
         });
@@ -162,7 +160,7 @@ fn fingerprint(path: &Path) -> Option<u64> {
     let mut hasher = std::hash::DefaultHasher::new();
     walk(path, &mut hasher)?;
     // The player's option values, when there are any.
-    let values = horizon_client::shader_pack_list::values_path(path);
+    let values = crate::yak_mods::shaders::values_path(path);
     let _ = walk(&values, &mut hasher);
     Some(hasher.finish())
 }

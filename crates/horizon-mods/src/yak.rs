@@ -2,11 +2,13 @@
 
 mod catalog;
 mod compatibility;
+mod installed;
 mod manifest;
 mod pack;
 
 pub use catalog::{CATALOG_PATH, Catalog, CatalogEntry, CatalogVersion, MAX_CATALOG_SIZE};
 pub use compatibility::{CompatibilityIssue, Environment, Resolution, ResolutionIssue, check_compatibility, check_data_compatibility, resolve};
+pub use installed::{check_installed_tree, check_plain_path, hash_installed_file, trusted_keys, verify_installed};
 pub use horizon_release_sign::{PublicKey, parse_keys};
 pub use horizon_release_sign::yak::{Entry, MAX_ARCHIVE_SIZE, MAX_COMPRESSION_RATIO, MAX_ENTRIES, MAX_FILE_SIZE, MAX_TOTAL_SIZE, Signature, canonical_hashes};
 pub use manifest::{Bin, Manifest, OptionValue, Service, Shader, ShaderOption, Side, Target, Yoake};

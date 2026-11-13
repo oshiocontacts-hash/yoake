@@ -4639,25 +4639,35 @@ replacement path without losing the override.
 
 # DLL mods (phase 2)
 
-The Windows client can load version-specific native DLLs once at startup. They
-run after all static mods, in `YOAKE_DLL_MODS` order. Supply absolute `.dll`
-paths separated by the platform path-list separator (`;` on Windows). Libraries
-stay mapped until process exit; replacing a DLL requires a restart. There is no
-hot reload or Rust trait object across the boundary. Mixins remain build-time.
+The client loads version-specific native libraries once at startup, after static
+mods. Windows development DLLs run first in `YOAKE_DLL_MODS` order: supply absolute
+`.dll` paths separated by `;`. Installed `.yak` libraries follow in
+`yoake-mods.txt` order from `yoake-mods/<id>/<version>/bin/<target>/`; their platform
+library names and host target come from `yak.toml`. Libraries stay mapped until
+process exit; replacing one requires a restart. There is no hot reload or Rust
+trait object across the boundary. Mixins remain build-time.
 
-Signature verification is **not implemented yet**. The loader's `verify()` seam
-rejects every DLL by default. Only for development, set
-`YOAKE_DLL_MODS_UNSIGNED=1` to permit unsigned native code. This is not a sandbox:
-a DLL can execute arbitrary native code. SDK callbacks contain Rust unwinding
-panics, not access violations, undefined behaviour or `panic=abort`. Phase 3 must
-verify the exact bytes subsequently loaded before removing that refusal.
+The installed-package path rechecks build/ABI/target compatibility and freshly
+hashes `yak.toml` and the selected library against the retained original
+`SIGNATURE`, authenticated with the shared pinned `yoake-yak-v1` key set. See
+[Yoake package loading](api/yoake-mods.md#client-startup-yoake-modstxt). The
+authoritative production public key is not yet supplied, so the shared key set is
+currently empty and signed native loading fails closed. The environment-only
+development path retains its default-refusing verification seam. Only the exact
+`YOAKE_DLL_MODS_UNSIGNED=1` setting permits unsigned/mismatched native bytes; it
+never disables compatibility or path checks. Installations must remain immutable
+between verification and OS loading. This is not a sandbox: native libraries can
+execute arbitrary code. SDK callbacks contain Rust unwinding panics, not access
+violations, undefined behaviour or `panic=abort`.
 
-An absent/empty path list returns the original `Mods` and identity slices without
-adapters or per-hook DLL work. Rejected DLLs are logged and skipped. Accepted
-descriptors add owned id/version strings as client-side `horizon:native_mods`
-identities; bounded, process-lifetime storage bridges the existing static
-identity API. Duplicate paths/ids are rejected; combined identities are capped
-at 128.
+With no environment paths and no installed YAK binary, the original `Mods` and
+identity slices are returned without adapters or per-hook native work. Rejected
+libraries are logged and skipped; YAK failures get a one-time bilingual title
+notice. Accepted YAK libraries marked `required_on_join` advertise
+`id@version#sha256` in `horizon:native_mods`; other native libraries retain
+client-side id/version identities. Bounded, process-lifetime storage bridges the
+existing static identity API. Duplicate paths/ids are rejected; combined identities
+are capped at 128.
 
 ## Generated boundary
 
