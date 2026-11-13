@@ -1,3 +1,22 @@
+# Yoake fork: read this first
+
+This repository is **Yoake**, a private fork of Horizon (MIT) for the ゆにぽっぷ group, owned by
+`oshiocontacts-hash`. The Horizon rules below still describe the code, with these overrides:
+
+- **Upstream process does not apply here.** No `/claim`, no upstream issues or PRs, no release labels, no
+  "Ludovic" lines. Work on a branch of this repo and open a pull request **here** (into `main`); never
+  push to `main` directly. The owner reviews, runs the Windows checks and merges.
+- **Vanilla first.** Anything Yoake adds must not change vanilla behaviour when no mod is installed.
+- **Never commit** Mojang files, decompiled code or prepared resources (`.local/`), signing keys, or
+  `YOAKE_*` build values (feed/portal URLs, public keys, Microsoft client id). Ask the owner for them.
+- **Signatures**: anything that needs the Yoake signing key (official `.yak`, feed, launcher releases)
+  goes through the owner. Never weaken a signature, identity, fingerprint or ABI check.
+- **Unknowns** go in a 要確認 list in the PR, never guesses.
+- Yoake specifics: DLL mods `crates/horizon-client/src/dll_mods.rs` + `crates/horizon-mod-abi`/`-sdk`;
+  `.yak` in `crates/horizon-mods/src/yak/`; the Yoake launcher in `launcher/` (brand `src/brand.rs`,
+  mods page `src/yoake_mods_page*`). macOS work starts at [docs/yoake-mac.md](docs/yoake-mac.md).
+- Commits end with a `Co-Authored-By:` line for the agent that wrote them.
+
 # Horizon: a map for agents
 
 Minecraft: Java Edition 26.3 rewritten in Rust (wgpu). Vanilla is the specification wherever it has the
