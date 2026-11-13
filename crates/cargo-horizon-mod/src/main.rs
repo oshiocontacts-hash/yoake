@@ -38,7 +38,27 @@ fn main() -> ExitCode {
         Some("registry") => registry::main(&args[1..]),
         Some("pack") => yak::pack(&args[1..]),
         Some("yak") => yak::main(&args[1..]),
-        _ => Err("usage: cargo horizon-mod new <path> [--name \"Name\"] [--template content|native [--horizon <commit>]] | build | run [--game <horizon-client>] [-- <game args>] | check <file> [--kind <kind>] [--key <public key> --signature <file.minisig>] [--json] | registry build|review|check|list | pack [folder] [--bin <target>=<path>] | yak verify <file> [--key <public key>]".into()),
+        Some("identity") => {
+            // What a DLL mod built from this checkout (same HORIZON_VERSION/HORIZON_NIGHTLY) must
+            // name in yak.toml's [bin], and what a feed's base `yoake` entry carries.
+            let engine = format!(
+                "{}+build.{:016x}",
+                horizon_mod_abi::YOAKE_VERSION,
+                horizon_mod_abi::BUILD_FINGERPRINT
+            );
+            let target = horizon_mods::yak::Target::host().map(|target| target.to_string()).ok();
+            println!(
+                "{}",
+                serde_json::json!({
+                    "version": horizon_mod_abi::YOAKE_VERSION,
+                    "engine": engine,
+                    "abi": horizon_mod_abi::ABI_VERSION,
+                    "target": target,
+                })
+            );
+            Ok(())
+        }
+        _ => Err("usage: cargo horizon-mod new <path> [--name \"Name\"] [--template content|native [--horizon <commit>]] | build | run [--game <horizon-client>] [-- <game args>] | check <file> [--kind <kind>] [--key <public key> --signature <file.minisig>] [--json] | registry build|review|check|list | pack [folder] [--bin <target>=<path>] | yak verify <file> [--key <public key>] | identity".into()),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
