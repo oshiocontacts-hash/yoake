@@ -88,37 +88,6 @@ fn package_version(manifest: &str) -> Result<String, String> {
     Err("horizon-core must declare a literal package version".into())
 }
 
-fn engine_fingerprint(root: &Path) -> Result<u64, String> {
-    fn visit(root: &Path, path: &Path, hash: &mut u64) -> Result<(), String> {
-        println!("cargo:rerun-if-changed={}", path.display());
-        let mut entries = fs::read_dir(path)
-            .map_err(|error| error.to_string())?
-            .map(|entry| entry.map(|entry| entry.path()).map_err(|error| error.to_string()))
-            .collect::<Result<Vec<_>, _>>()?;
-        entries.sort();
-        for path in entries {
-            if fs::symlink_metadata(&path).map_err(|error| error.to_string())?.file_type().is_symlink() {
-                continue;
-            }
-            if path.is_dir() {
-                if !matches!(path.file_name().and_then(|name| name.to_str()), Some("target" | ".git" | ".local")) {
-                    visit(root, &path, hash)?;
-                }
-            } else if path.extension().is_some_and(|extension| extension == "rs" || extension == "toml" || extension == "json" || extension == "in" || extension == "h") {
-                println!("cargo:rerun-if-changed={}", path.display());
-                let name = path.strip_prefix(root).map_err(|error| error.to_string())?.to_string_lossy().replace('\\', "/");
-                fingerprint(hash, name.as_bytes());
-                fingerprint(hash, &fs::read(&path).map_err(|error| error.to_string())?);
-            }
-        }
-        Ok(())
-    }
-    let mut hash = 0xcbf29ce484222325;
-    fingerprint(&mut hash, &fs::read(root.join("Cargo.toml")).map_err(|error| error.to_string())?);
-    visit(root, &root.join("crates"), &mut hash)?;
-    Ok(hash)
-}
-
 fn selected_schema(root: &Path, subset: &Subset) -> Result<String, String> {
     let generated = super::sources(root, super::FillMode::Require)?;
     let hooks: serde_json::Value = serde_json::from_str(&fs::read_to_string(root.join("native-hooks.json")).map_err(|error| error.to_string())?).map_err(|error| error.to_string())?;
@@ -163,15 +132,26 @@ pub fn generate_abi(root: &Path, out_dir: &Path) -> Result<(), String> {
     schema.push_str(include_str!("abi_header.h"));
     let mut schema_hash = 0xcbf29ce484222325;
     fingerprint(&mut schema_hash, schema.as_bytes());
-    let build_fingerprint = engine_fingerprint(root)?;
     let target = std::env::var("TARGET").map_err(|error| error.to_string())?;
-    let version = match std::env::var("HORIZON_VERSION").ok().filter(|version| !version.is_empty()) {
+    // The Yoake release (the feed's base version): YOAKE_VERSION for a Yoake release build, else
+    // the Horizon release, else horizon-core's crate version for a build from source.
+    let version = match ["YOAKE_VERSION", "HORIZON_VERSION"]
+        .into_iter()
+        .find_map(|name| std::env::var(name).ok().filter(|version| !version.is_empty()))
+    {
         Some(version) => version,
         None => package_version(&fs::read_to_string(root.join("crates/horizon-core/Cargo.toml"))
             .map_err(|error| error.to_string())?)?,
     };
     let nightly = std::env::var("HORIZON_NIGHTLY").unwrap_or_default();
-    for name in ["HORIZON_VERSION", "HORIZON_NIGHTLY"] {
+    // What a DLL must match: the Yoake release and the shape of the ABI it was built against.
+    // Not a hash of the whole engine source: an unrelated engine edit (or a stale build script
+    // in another workspace) must not turn every DLL mod away while the ABI is unchanged.
+    let mut build_fingerprint = 0xcbf29ce484222325;
+    fingerprint(&mut build_fingerprint, version.as_bytes());
+    fingerprint(&mut build_fingerprint, nightly.as_bytes());
+    fingerprint(&mut build_fingerprint, &schema_hash.to_le_bytes());
+    for name in ["YOAKE_VERSION", "HORIZON_VERSION", "HORIZON_NIGHTLY"] {
         println!("cargo:rerun-if-env-changed={name}");
     }
     let mut rust = format!("pub const ABI_VERSION: u32 = 2;\npub const SCHEMA_HASH: u64 = {schema_hash};\npub const BUILD_FINGERPRINT: u64 = {build_fingerprint};\npub const YOAKE_VERSION: &str = {version:?};\npub const YOAKE_NIGHTLY: &str = {nightly:?};\npub const TARGET: &str = {target:?};\n");

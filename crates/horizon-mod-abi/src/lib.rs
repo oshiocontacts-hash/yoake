@@ -19,9 +19,9 @@
 //! host before returning to engine dispatch.
 //!
 //! Read and validate the fixed TableHeader prefix before any larger table. V2
-//! requires exact sizes, schema, target, release/nightly strings and engine source
-//! fingerprint; it does not promise compatibility across engine versions or
-//! architectures. The fingerprint detects mismatches, not tampering or signatures.
+//! requires exact sizes, schema, target, release/nightly strings and the build
+//! fingerprint (release + nightly + ABI schema hash); it does not promise compatibility
+//! across releases or architectures. The fingerprint detects mismatches, not tampering.
 //! Descriptor and hook table memory must remain immutable for the library's whole
 //! lifetime. `create` transfers a mod-owned opaque instance to the host; only that
 //! mod's `destroy` may free it. The host serializes calls to each instance and

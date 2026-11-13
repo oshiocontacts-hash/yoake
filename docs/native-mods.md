@@ -4766,11 +4766,13 @@ Every table/descriptor header must match ABI version, exact structure size and
 schema hash before its remaining fields are read. Descriptors also pin the
 Yoake release, nightly marker, compilation target and build fingerprint. The
 release defaults to `horizon-core`'s package version; release builders must use
-the same `HORIZON_VERSION`/`HORIZON_NIGHTLY` overrides for host and mod. The source
-fingerprint covers the root manifest and source/manifests/catalogs under
-`crates/`. It is a compatibility guard, **not** a cryptographic signature or a
-binary/toolchain/dependency-lock attestation. Build client and mod from the same
-checkout and target. Phase two does not promise a cross-release SDK.
+the same `HORIZON_VERSION`/`HORIZON_NIGHTLY` overrides for host and mod. The build
+fingerprint is derived from the release, the nightly marker and the ABI schema hash
+(the generated subset, `horizon-mod-abi` and the C header), not from the whole engine
+source: a DLL keeps loading across engine changes that leave the ABI and the release
+unchanged, and any ABI change or new release turns it away. It is a compatibility
+guard, **not** a cryptographic signature (that is the `.yak` SIGNATURE). Phase two does
+not promise a cross-release SDK.
 
 ## Ownership and SDK
 
