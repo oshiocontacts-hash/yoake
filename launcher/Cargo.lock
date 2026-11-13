@@ -2762,13 +2762,16 @@ dependencies = [
 name = "horizon-mods"
 version = "0.1.0"
 dependencies = [
+ "horizon-release-sign",
  "horizon-shader-api",
  "log",
  "minisign-verify",
+ "semver",
  "serde",
  "serde_json",
  "sha2",
  "toml 1.1.8+spec-1.1.0",
+ "url",
  "wasmparser",
  "zip",
 ]
@@ -2820,6 +2823,9 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "ring",
+ "serde",
+ "toml 1.1.8+spec-1.1.0",
+ "zip",
 ]
 
 [[package]]

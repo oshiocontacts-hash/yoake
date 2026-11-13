@@ -333,6 +333,11 @@ impl Launcher {
 
     /// The Mods tab: its buttons (beside the tabs) and the list.
     pub(super) fn instance_mods_tab(&mut self, cx: &mut Context<Self>) -> (Div, Div) {
+        if self.selected_instance().is_some_and(|instance| {
+            instance.java.is_none() && yoake_install::has_manifest_or_pending(&instance.home)
+        }) {
+            return self.yak_mods_tab(cx);
+        }
         let t = self.theme;
         let n = t.night;
         let busy = self.mods.busy.is_some();
