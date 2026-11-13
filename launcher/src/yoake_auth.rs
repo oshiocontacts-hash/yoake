@@ -1,8 +1,8 @@
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::Mutex;
 
 const MAX_TOKEN_BYTES: u64 = 8192;
 static CREDENTIAL_LOCK: Mutex<()> = Mutex::new(());
@@ -92,11 +92,11 @@ pub fn save_credentials(
     save_credentials_locked(data_dir, token, account)
 }
 
-pub(crate) fn credential_epoch() -> u64 {
+pub fn credential_epoch() -> u64 {
     CREDENTIAL_EPOCH.load(Ordering::Acquire)
 }
 
-pub(crate) fn save_credentials_if_current(
+pub fn save_credentials_if_current(
     data_dir: &Path,
     token: &str,
     account: &YoakeAccount,

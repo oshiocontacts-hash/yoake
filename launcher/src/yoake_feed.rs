@@ -1,12 +1,12 @@
 use crate::yoake_auth::{AuthError, TokenFileAuth, YoakeAuth};
-use horizon_release_sign::{PublicKey, parse_keys, sha256_hex, verify};
+use horizon_release_sign::{parse_keys, sha256_hex, verify, PublicKey};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 use url::Url;
 
@@ -96,7 +96,7 @@ impl FeedConfig {
         }
     }
 
-    pub(crate) fn public_keys(&self) -> &[PublicKey] {
+    pub fn public_keys(&self) -> &[PublicKey] {
         &self.keys
     }
 }
@@ -196,6 +196,8 @@ pub struct FeedIndexV2 {
 pub struct BaseVersionV2 {
     pub version: String,
     pub horizon_release: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub yoake: Option<YoakeBuildIdentity>,
     pub research_lock_sha256: String,
     pub prepared_format: String,
     /// Native mods compiled into this base exe. They always run, so a pack
@@ -204,6 +206,30 @@ pub struct BaseVersionV2 {
     pub native_mods: Vec<String>,
     #[serde(deserialize_with = "deserialize_targets")]
     pub targets: BTreeMap<String, BaseTargetV2>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct YoakeBuildIdentity {
+    pub version: String,
+    pub engine: String,
+    pub abi: u32,
+}
+
+impl YoakeBuildIdentity {
+    pub fn is_valid(&self) -> bool {
+        semver::Version::parse(&self.version).is_ok()
+            && self.abi != 0
+            && self
+                .engine
+                .strip_prefix(&format!("{}+build.", self.version))
+                .is_some_and(|fingerprint| {
+                    fingerprint.len() == 16
+                        && fingerprint
+                            .bytes()
+                            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+                })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -418,7 +444,7 @@ impl FeedTransport for HttpTransport {
             .redirects(0)
             .timeout_connect(Duration::from_secs(15))
             .timeout_read(Duration::from_secs(30));
-        let agent = horizon_launcher::proxy::agent(builder, url).build();
+        let agent = crate::proxy::agent(builder, url).build();
         let mut request = agent.get(url);
         if let Some(authorization) = authorization {
             request = request.set("Authorization", authorization);
@@ -451,7 +477,7 @@ pub struct FeedClient {
 }
 
 impl FeedClient {
-    pub(crate) fn install_connection(&self) -> (Url, Arc<dyn YoakeAuth>, PathBuf) {
+    pub fn install_connection(&self) -> (Url, Arc<dyn YoakeAuth>, PathBuf) {
         (
             self.config.root.clone(),
             Arc::clone(&self.auth),
@@ -463,7 +489,7 @@ impl FeedClient {
         let Some(config) = FeedConfig::compiled()? else {
             return Ok(None);
         };
-        let data_dir = horizon_launcher::backend::data_dir();
+        let data_dir = crate::backend::data_dir();
         Ok(Some(Self::new(config, data_dir)))
     }
 
@@ -797,6 +823,10 @@ pub(crate) fn validate_index_v2(index: &FeedIndexV2) -> Result<(), FeedError> {
                 .insert(base.version.to_ascii_lowercase(), base)
                 .is_some()
             || !safe_component(&base.horizon_release)
+            || base
+                .yoake
+                .as_ref()
+                .is_some_and(|identity| !identity.is_valid())
             || !safe_component(&base.prepared_format)
             || !valid_digest(&base.research_lock_sha256)
             || base.targets.is_empty()
@@ -1018,8 +1048,8 @@ pub fn validate_existing_path(root: &Path, destination: &str) -> Result<(), Feed
 #[cfg(test)]
 mod tests {
     use super::*;
-    use horizon_release_sign::{SigningKey, sums_file};
-    use serde_json::{Value, json};
+    use horizon_release_sign::{sums_file, SigningKey};
+    use serde_json::{json, Value};
     use std::sync::Mutex;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -1179,6 +1209,22 @@ mod tests {
 
     fn pack_file_v2(index: &mut Value) -> &mut Value {
         &mut index["packs"][0]["versions"][0]["targets"]["windows-x86_64"]["files"][0]
+    }
+
+    #[test]
+    fn schema_two_build_identity_is_optional_but_validated_when_present() {
+        let legacy: FeedIndexV2 = serde_json::from_value(index_v2(42)).unwrap();
+        assert!(legacy.bases[0].yoake.is_none());
+        assert!(validate_index_v2(&legacy).is_ok());
+        let mut index = index_v2(42);
+        index["bases"][0]["yoake"] = json!({
+            "version": "1.0.0", "engine": "1.0.0+build.0123456789abcdef", "abi": 2
+        });
+        let valid: FeedIndexV2 = serde_json::from_value(index.clone()).unwrap();
+        assert!(validate_index_v2(&valid).is_ok());
+        index["bases"][0]["yoake"]["engine"] = json!("26.3");
+        let invalid: FeedIndexV2 = serde_json::from_value(index).unwrap();
+        assert!(validate_index_v2(&invalid).is_err());
     }
 
     #[test]
@@ -1465,11 +1511,9 @@ mod tests {
         assert_eq!(fixture.client.fetch_object(object).unwrap(), icon.to_vec());
         let requests = fixture.transport.requests.lock().unwrap();
         assert_eq!(requests.len(), 5);
-        assert!(
-            requests
-                .iter()
-                .all(|(_, header)| header.as_deref() == Some("Bearer test-token"))
-        );
+        assert!(requests
+            .iter()
+            .all(|(_, header)| header.as_deref() == Some("Bearer test-token")));
         drop(requests);
         fixture.transport.respond(
             &format!("objects/sha256/{}", object.sha256),
@@ -1581,8 +1625,8 @@ mod tests {
             "dir/name ",
         ] {
             let mut document = index(42);
-            document["packs"][0]["versions"][0]["targets"]["windows-x86_64"]["files"][0]["destination"] =
-                json!(destination);
+            document["packs"][0]["versions"][0]["targets"]["windows-x86_64"]["files"][0]
+                ["destination"] = json!(destination);
             fixture.publish(42, &document, DOMAIN);
             assert_eq!(
                 fixture.client.fetch_feed().unwrap_err(),
@@ -1635,15 +1679,13 @@ mod tests {
         let fixture = Fixture::new(None);
         fixture.publish(42, &index(42), DOMAIN);
         fixture.client.fetch_feed().unwrap();
-        assert!(
-            fixture
-                .transport
-                .requests
-                .lock()
-                .unwrap()
-                .iter()
-                .all(|(_, header)| header.is_none())
-        );
+        assert!(fixture
+            .transport
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|(_, header)| header.is_none()));
     }
 
     #[test]

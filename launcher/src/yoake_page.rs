@@ -6,8 +6,8 @@ use super::*;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::{
-    Arc,
     atomic::{AtomicBool, AtomicU8},
+    Arc,
 };
 use yoake_feed::{FeedClient, FeedError, ParsedFeedIndex, VerifiedFeed};
 use yoake_install::{InstallError, InstallEvent, InstallTask};
@@ -292,6 +292,7 @@ impl Launcher {
 
     /// Fetches the feed in the background (Refresh, sign-in, opening the page).
     pub(super) fn yoake_refresh(&mut self) {
+        self.refresh_yak_catalog();
         self.yoake.check_launcher_update(false);
         let Ok(Some(client)) = FeedClient::configured() else {
             return;

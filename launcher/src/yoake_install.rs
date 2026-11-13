@@ -12,7 +12,7 @@ use std::fs::File;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use url::Url;
@@ -329,7 +329,7 @@ impl ObjectSource for HttpObjectSource {
             .redirects(0)
             .timeout_connect(Duration::from_secs(15))
             .timeout_read(Duration::from_secs(30));
-        let agent = horizon_launcher::proxy::agent(builder, url.as_str()).build();
+        let agent = crate::proxy::agent(builder, url.as_str()).build();
         let mut request = agent.get(url.as_str());
         if let Some(authorization) = self
             .auth
@@ -522,20 +522,18 @@ fn download_objects(
     let cache = plan.data_dir.join("yoake-cache").join("objects");
     thread::scope(|scope| {
         for _ in 0..2 {
-            scope.spawn(|| {
-                loop {
-                    if stop.load(Ordering::SeqCst) {
-                        break;
-                    }
-                    let file = queue.lock().expect("download queue poisoned").pop_front();
-                    let Some(file) = file else { break };
-                    if let Err(error) =
-                        cache_object(&cache, &file, source, cancelled, &done, total, events)
-                    {
-                        stop.store(true, Ordering::SeqCst);
-                        errors.lock().expect("download errors poisoned").push(error);
-                        break;
-                    }
+            scope.spawn(|| loop {
+                if stop.load(Ordering::SeqCst) {
+                    break;
+                }
+                let file = queue.lock().expect("download queue poisoned").pop_front();
+                let Some(file) = file else { break };
+                if let Err(error) =
+                    cache_object(&cache, &file, source, cancelled, &done, total, events)
+                {
+                    stop.store(true, Ordering::SeqCst);
+                    errors.lock().expect("download errors poisoned").push(error);
+                    break;
                 }
             });
         }
@@ -832,7 +830,7 @@ pub struct LaunchProgram {
     pub resource_tag: String,
 }
 
-pub(crate) fn has_manifest_or_pending(instance: &Path) -> bool {
+pub fn has_manifest_or_pending(instance: &Path) -> bool {
     [
         instance.join(MANIFEST),
         instance.join(STAGING).join(JOURNAL),
@@ -1203,10 +1201,7 @@ pub fn start_rollback(
             client.install_connection().2,
             Arc::new(HttpObjectSource::from_feed_client(client)),
         ),
-        None => (
-            horizon_launcher::backend::data_dir(),
-            Arc::new(CacheOnlySource),
-        ),
+        None => (crate::backend::data_dir(), Arc::new(CacheOnlySource)),
     };
     start_rollback_with_source(
         feed,
@@ -1422,7 +1417,7 @@ fn select<'a>(
         .ok_or(InstallError::VersionNotFound)
 }
 
-pub(crate) fn launcher_version(value: &str) -> Result<Version, InstallError> {
+pub fn launcher_version(value: &str) -> Result<Version, InstallError> {
     if let Ok(version) = Version::parse(value) {
         return Ok(version);
     }
@@ -1468,7 +1463,7 @@ pub fn plan_install(
         pack_id,
         pack_version,
         instance_dir,
-        &horizon_launcher::backend::data_dir(),
+        &crate::backend::data_dir(),
         &current_target()?,
         env!("CARGO_PKG_VERSION"),
     )

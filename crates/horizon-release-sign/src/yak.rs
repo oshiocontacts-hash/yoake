@@ -444,6 +444,11 @@ pub fn check_plain_path(path: &Path) -> Result<(), String> {
             return Err("filesystem paths must not contain ..".into());
         }
         checked.push(component.as_os_str());
+        // The drive or share prefix and the root are not links themselves, and Windows answers a
+        // bare verbatim prefix (`\\?\C:`) with "Incorrect function": check from the first folder on.
+        if !matches!(component, Component::Normal(_)) {
+            continue;
+        }
         match std::fs::symlink_metadata(&checked) {
             Ok(metadata) if is_link(&metadata) => return Err(format!("{} is a link or reparse point", checked.display())),
             Ok(_) => (),
@@ -512,6 +517,9 @@ pub fn atomic_directory(path: &Path, write: impl FnOnce(&Path) -> Result<(), Str
         return Err("YAK extraction destination already exists".into());
     }
     let parent = path.parent().filter(|parent| !parent.as_os_str().is_empty()).unwrap_or(Path::new("."));
+    // `yoake-mods/<id>/` may not exist yet for a mod's first version.
+    std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    check_plain_path(parent)?;
     let temporary_path = temporary_path(parent)?;
     std::fs::create_dir(&temporary_path).map_err(|error| error.to_string())?;
     let temporary = Cleanup(temporary_path, true);
