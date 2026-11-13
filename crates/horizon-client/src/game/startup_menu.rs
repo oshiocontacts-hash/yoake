@@ -27,6 +27,7 @@ pub(super) struct StartupMenu {
     selection: AppendSelection,
     /// The narrator's `NARRATOR_TOGGLE` toast, handed to the game with the title.
     narrator_toast: Option<horizon_client::toasts::SystemToast>,
+    yak_toast: Option<horizon_client::toasts::SystemToast>,
     /// The screens' narration, handed to the game with the title (which
     /// stays the screen already opened).
     narration: horizon_client::screen_narrator::ScreenNarrator,
@@ -122,6 +123,7 @@ impl StartupMenu {
         game.text_selection = std::mem::take(&mut self.selection);
         game.perf = std::mem::take(&mut self.perf);
         game.narrator_toast = self.narrator_toast.take();
+        game.mods.yak_toast = self.yak_toast.take();
         game.narration = std::mem::take(&mut self.narration);
         // Preserve an existing resource-error screen opened by start_game.
         if self.options_open {
@@ -560,7 +562,7 @@ impl Loading {
                 }
                 Event::ListShaderPacks => {
                     self.settings.shader_packs =
-                        horizon_client::shader_pack_list::scan(&Game::shader_packs_dir());
+                        crate::yak_mods::shaders::scan(&Game::shader_packs_dir());
                 }
                 Event::ShaderPack => self.save_menu_settings(),
                 Event::OpenShaderOptions => {
@@ -577,7 +579,7 @@ impl Loading {
                 }
                 Event::NativePackOptions(i) => {
                     if let Some(pack) = self.settings.shader_packs.get(i) {
-                        pack.save_values(&Game::shader_packs_dir());
+                        crate::yak_mods::shaders::save_values(pack, &Game::shader_packs_dir());
                     }
                 }
                 Event::OpenShaderPackFolder => {
@@ -1219,6 +1221,21 @@ impl Loading {
             batch,
             false,
         );
+        if self.menu.title.is_some() {
+            if self.menu.yak_toast.is_none() {
+                self.menu.yak_toast = crate::yak_mods::next_notice();
+            }
+            let narrator_slot = self.menu.narrator_toast.as_ref().and_then(|toast| toast.slot)
+                .map_or(0, |slot| 1 << slot);
+            super::narrator::draw_toast(
+                &mut self.menu.yak_toast,
+                u32::from(title_toast) | narrator_slot,
+                f64::from(self.settings.notification_display_time),
+                &gui.atlas,
+                batch,
+                false,
+            );
+        }
     }
 
     pub(super) fn restart_menu_resources(&mut self) -> Result<()> {

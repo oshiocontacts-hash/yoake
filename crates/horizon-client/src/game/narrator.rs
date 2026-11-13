@@ -287,6 +287,24 @@ impl Game<'_> {
             self.audio
                 .play(&format!("minecraft:{event}"), None, 1.0, 1.0);
         }
+        if self.title.is_some() {
+            if self.mods.yak_toast.is_none() {
+                self.mods.yak_toast = crate::yak_mods::next_notice();
+            }
+            let narrator_slot = self.narrator_toast.as_ref().and_then(|toast| toast.slot)
+                .map_or(0, |slot| 1 << slot);
+            if let Some(show) = draw_toast(
+                &mut self.mods.yak_toast,
+                used | narrator_slot,
+                multiplier,
+                &self.gui.atlas,
+                batch,
+                self.ui.hide_gui,
+            ) {
+                let event = if show { "ui.toast.in" } else { "ui.toast.out" };
+                self.audio.play(&format!("minecraft:{event}"), None, 1.0, 1.0);
+            }
+        }
     }
 }
 

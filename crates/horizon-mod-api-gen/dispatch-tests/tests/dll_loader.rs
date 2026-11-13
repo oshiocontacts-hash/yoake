@@ -12,6 +12,7 @@ mod mod_api;
 #[derive(Clone, Copy)]
 pub enum NativeSide {
     Client,
+    Both,
 }
 
 #[derive(Clone, Copy)]
@@ -20,6 +21,9 @@ pub struct NativeMod {
     pub version: &'static str,
     pub side: NativeSide,
 }
+
+#[path = "support/yak_stub.rs"]
+mod yak_mods;
 
 #[path = "../../../horizon-client/src/dll_mods.rs"]
 mod dll_mods;

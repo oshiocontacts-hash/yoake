@@ -18,9 +18,11 @@ use std::collections::{BTreeMap, HashMap};
 /// The values the player chose for pack `name`'s options (`shaderpacks/<name>.txt`).
 fn chosen_shader_options(name: &str) -> BTreeMap<String, String> {
     let file = Game::shader_packs_dir().join(horizon_shaders::chosen_file(name));
-    std::fs::read_to_string(file)
+    let mut chosen = std::fs::read_to_string(file)
         .map(|text| horizon_shaders::parse_chosen(&text))
-        .unwrap_or_default()
+        .unwrap_or_default();
+    crate::yak_mods::shaders::classic_chosen(name, &mut chosen);
+    chosen
 }
 
 /// Pack `name`'s options, screens and names in `language`, with the values the player chose.
@@ -29,18 +31,19 @@ pub(super) fn read_shader_options(
     language: &str,
     macros: &Macros,
 ) -> Option<ShaderOptions> {
-    let pack = match Pack::open(&Game::shader_packs_dir().join(name)) {
+    let pack = match Pack::open(&crate::yak_mods::shaders::path(name, &Game::shader_packs_dir())) {
         Ok(pack) => pack,
         Err(e) => {
             log::warn!("shader pack {name}: {e}");
             return None;
         }
     };
-    let options = horizon_shaders::options(&pack);
-    let lang = horizon_shaders::Lang::load(&pack, language);
+    let mut options = horizon_shaders::options(&pack);
+    let declared = crate::yak_mods::shaders::classic_options(name, &mut options);
+    let lang = crate::yak_mods::shaders::classic_lang(name, &pack, language);
     let chosen = chosen_shader_options(name);
     let pack = pack.with_chosen(chosen.clone());
-    let text = pack.read_text("shaders.properties").unwrap_or_default();
+    let text = if declared { String::new() } else { pack.read_text("shaders.properties").unwrap_or_default() };
     let properties = Properties::parse(&text, &horizon_shaders::with_options(&pack, macros));
     let screens = horizon_shaders::Screens::parse(&properties, &options);
     Some(ShaderOptions::new(
@@ -54,6 +57,10 @@ pub(super) fn read_shader_options(
 
 /// Saves the values chosen on the Shader Options page; none chosen removes the file.
 pub(super) fn write_shader_options(options: &ShaderOptions) {
+    if let Err(error) = crate::yak_mods::shaders::prepare_classic_save(&options.pack, &Game::shader_packs_dir()) {
+        log::warn!("YAK shader options: {error}");
+        return;
+    }
     let file = Game::shader_packs_dir().join(horizon_shaders::chosen_file(&options.pack));
     let saved = if options.chosen.is_empty() {
         std::fs::remove_file(&file).or_else(|e| match e.kind() {
@@ -84,7 +91,7 @@ fn picked_pack(settings: &horizon_client::settings::Settings) -> &str {
 /// (`Renderer::new`).
 pub(super) fn picked_pack_draws_flat(settings: &horizon_client::settings::Settings) -> bool {
     let picked = picked_pack(settings);
-    !picked.is_empty() && pack_draws_flat(&Game::shader_packs_dir().join(picked))
+    !picked.is_empty() && pack_draws_flat(&crate::yak_mods::shaders::path(picked, &Game::shader_packs_dir()))
 }
 
 /// Whether the pack at `path` has passes that draw the terrain flat where the device can,
@@ -117,7 +124,7 @@ pub(super) fn picks_native_pack(settings: &horizon_client::settings::Settings) -
         &settings.mods,
     );
     !picked.is_empty()
-        && horizon_shader_api::package::is_pack(&Game::shader_packs_dir().join(picked))
+        && horizon_shader_api::package::is_pack(&crate::yak_mods::shaders::path(picked, &Game::shader_packs_dir()))
 }
 
 /// The ids a pack gives entities and block entities (4.1, 5.3), for the spans of the entity
@@ -184,7 +191,7 @@ impl Game<'_> {
             Dim::Nether => -1,
             Dim::End => 1,
         };
-        let path = Self::shader_packs_dir().join(&name);
+        let path = crate::yak_mods::shaders::path(&name, &Self::shader_packs_dir());
         if horizon_shader_api::package::is_pack(&path) {
             // One of Horizon's own packs (game/native_shaders.rs).
             self.tick_native_shader_pack(&path);

@@ -21,15 +21,13 @@ static GENERATION: AtomicU64 = AtomicU64::new(1);
 #[derive(Debug, PartialEq, Eq)]
 enum LoadError {
     Unsigned,
-    #[cfg_attr(windows, allow(dead_code))]
+    #[cfg_attr(any(windows, unix), allow(dead_code))]
     Platform,
     MissingEntry,
     Invalid(&'static str),
     Io(String),
 }
 
-/// TODO(phase 3): authenticate the file and pin its bytes before executing it.
-/// Until signing exists, only the explicit developer override can pass this gate.
 fn verify(_path: &Path, allow_unsigned: bool) -> Result<(), LoadError> {
     if allow_unsigned { Ok(()) } else { Err(LoadError::Unsigned) }
 }
@@ -37,6 +35,7 @@ fn verify(_path: &Path, allow_unsigned: bool) -> Result<(), LoadError> {
 struct Metadata {
     id: String,
     version: String,
+    required_digest: Option<String>,
     hooks: abi::HookTableV1,
     create: unsafe extern "C" fn(*const abi::HostTableV1, abi::Handle, *mut *mut c_void) -> abi::Status,
     destroy: unsafe extern "C" fn(*mut c_void) -> abi::Status,
@@ -96,18 +95,19 @@ unsafe fn descriptor(pointer: *const abi::ModDescriptor) -> Result<Metadata, Loa
     Ok(Metadata {
         id,
         version: unsafe { identity(value.version)? },
+        required_digest: None,
         hooks: unsafe { value.hooks.read() },
         create: value.create.ok_or(LoadError::Invalid("missing create"))?,
         destroy: value.destroy.ok_or(LoadError::Invalid("missing destroy"))?,
     })
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, unix))]
 fn load(path: &Path, allow_unsigned: bool) -> Result<Metadata, LoadError> {
     load_symbol(path, allow_unsigned, b"yoake_mod_entry\0")
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, unix))]
 fn load_symbol(path: &Path, allow_unsigned: bool, symbol: &[u8]) -> Result<Metadata, LoadError> {
     verify(path, allow_unsigned)?;
     let library = unsafe { libloading::Library::new(path) }.map_err(|error| LoadError::Io(error.to_string()))?;
@@ -118,14 +118,53 @@ fn load_symbol(path: &Path, allow_unsigned: bool, symbol: &[u8]) -> Result<Metad
     Ok(metadata)
 }
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, unix)))]
 fn load(path: &Path, allow_unsigned: bool) -> Result<Metadata, LoadError> {
     verify(path, allow_unsigned)?;
     Err(LoadError::Platform)
 }
 
 pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mods, &'static [super::NativeMod]) {
-    extend_paths(mods, identities, std::env::var_os("YOAKE_DLL_MODS").as_deref(), std::env::var_os("YOAKE_DLL_MODS_UNSIGNED").as_deref() == Some(OsStr::new("1")))
+    crate::yak_mods::initialize();
+    let allow_unsigned = std::env::var_os("YOAKE_DLL_MODS_UNSIGNED").as_deref() == Some(OsStr::new("1"));
+    let (mods, identities) = extend_paths(mods, identities, std::env::var_os("YOAKE_DLL_MODS").as_deref(), allow_unsigned);
+    extend_yaks(mods, identities, crate::yak_mods::entries(), allow_unsigned)
+}
+
+fn extend_yaks(mods: Mods, identities: &'static [super::NativeMod], entries: &[crate::yak_mods::Installed], allow_unsigned: bool) -> (Mods, &'static [super::NativeMod]) {
+    if !entries.iter().any(|entry| entry.manifest.bin.is_some()) { return (mods, identities); }
+    let build = match crate::yak_mods::Build::current() {
+        Ok(build) => build,
+        Err(reason) => {
+            for entry in entries.iter().filter(|entry| entry.manifest.bin.is_some()) {
+                crate::yak_mods::refuse_binary(entry, &reason);
+            }
+            return (mods, identities);
+        }
+    };
+    let keys = horizon_mods::yak::trusted_keys();
+    let mut names: std::collections::HashSet<String> = identities.iter().map(|identity| identity.id.to_owned()).collect();
+    let mut accepted = Vec::new();
+    for entry in entries.iter().filter(|entry| entry.manifest.bin.is_some()) {
+        let result = (|| {
+            if identities.len() + accepted.len() >= MAX_MODS || names.contains(&entry.manifest.id) {
+                return Err("duplicate or too many native identities".to_owned());
+            }
+            let (path, digest) = crate::yak_mods::binary_preflight(entry, &build, &keys, allow_unsigned)?;
+            let mut metadata = load(&path, true).map_err(|error| format!("{error:?}"))?;
+            if metadata.id != entry.manifest.id || metadata.version != entry.manifest.version.to_string() {
+                return Err("DLL descriptor identity differs from yak.toml".to_owned());
+            }
+            metadata.required_digest = entry.manifest.side.required_on_join.then_some(digest);
+            names.insert(metadata.id.clone());
+            Ok(metadata)
+        })();
+        match result {
+            Ok(metadata) => accepted.push(metadata),
+            Err(reason) => crate::yak_mods::refuse_binary(entry, &reason),
+        }
+    }
+    append(mods, identities, accepted)
 }
 
 fn extend_paths(mods: Mods, identities: &'static [super::NativeMod], paths: Option<&OsStr>, allow_unsigned: bool) -> (Mods, &'static [super::NativeMod]) {
@@ -145,6 +184,9 @@ fn extend_paths(mods: Mods, identities: &'static [super::NativeMod], paths: Opti
             let path = path.canonicalize().map_err(|error| LoadError::Io(error.to_string()))?;
             if !files.insert(path.clone()) {
                 return Err(LoadError::Invalid("duplicate DLL path"));
+            }
+            if !cfg!(windows) {
+                return Err(LoadError::Platform);
             }
             let metadata = load(&path, allow_unsigned)?;
             if !names.insert(metadata.id.clone()) {
@@ -168,11 +210,19 @@ fn append(mods: Mods, identities: &'static [super::NativeMod], accepted: Vec<Met
     let mut owned = identities.to_vec();
     for metadata in accepted {
         let id: &'static str = Box::leak(metadata.id.clone().into_boxed_str());
-        let version: &'static str = Box::leak(metadata.version.clone().into_boxed_str());
-        owned.push(super::NativeMod { id, version, side: super::NativeSide::Client });
+        let (version, side) = native_identity(&metadata.version, metadata.required_digest.as_deref());
+        let version: &'static str = Box::leak(version.into_boxed_str());
+        owned.push(super::NativeMod { id, version, side });
         combined.push(Box::new(DllMod::new(metadata, combined.len() as u64 + 1)));
     }
     (Arc::from(combined), Box::leak(owned.into_boxed_slice()))
+}
+
+fn native_identity(version: &str, digest: Option<&str>) -> (String, super::NativeSide) {
+    match digest {
+        Some(digest) => (format!("{version}#{digest}"), super::NativeSide::Both),
+        None => (version.to_owned(), super::NativeSide::Client),
+    }
 }
 
 struct StaticMod {
@@ -811,6 +861,26 @@ mod tests {
             assert!(Arc::ptr_eq(&mods, &result));
             assert!(std::ptr::eq(identities, result_ids));
         }
+    }
+
+    #[test]
+    fn absent_installed_binaries_preserve_the_original_arc_and_identities() {
+        let mods: Mods = Arc::from(Vec::<Box<dyn Hooks>>::new());
+        let identities: &'static [super::super::NativeMod] = &[];
+        let (result, result_ids) = extend_yaks(mods.clone(), identities, &[], false);
+        assert!(Arc::ptr_eq(&mods, &result));
+        assert!(std::ptr::eq(identities, result_ids));
+    }
+
+    #[test]
+    fn required_yak_identity_includes_the_verified_binary_digest() {
+        let digest = "ab".repeat(32);
+        let (version, side) = native_identity("1.2.3", Some(&digest));
+        assert_eq!(version, format!("1.2.3#{digest}"));
+        assert!(matches!(side, super::super::NativeSide::Both));
+        let (version, side) = native_identity("1.2.3", None);
+        assert_eq!(version, "1.2.3");
+        assert!(matches!(side, super::super::NativeSide::Client));
     }
 
     #[test]

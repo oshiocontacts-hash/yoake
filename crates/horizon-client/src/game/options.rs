@@ -399,7 +399,7 @@ impl Game<'_> {
                 }
                 Event::ListShaderPacks => {
                     self.settings.shader_packs =
-                        horizon_client::shader_pack_list::scan(&Self::shader_packs_dir());
+                        crate::yak_mods::shaders::scan(&Self::shader_packs_dir());
                 }
                 // Saved; the next frame's `shader_pack_inputs` loads the pick.
                 Event::ShaderPack => self.settings.save(&Self::options_path()),
@@ -407,7 +407,7 @@ impl Game<'_> {
                 Event::ShaderOptions => self.save_shader_options(),
                 Event::NativePackOptions(i) => {
                     if let Some(pack) = self.settings.shader_packs.get(i) {
-                        pack.save_values(&Self::shader_packs_dir());
+                        crate::yak_mods::shaders::save_values(pack, &Self::shader_packs_dir());
                     }
                 }
                 Event::OpenShaderPackFolder => {

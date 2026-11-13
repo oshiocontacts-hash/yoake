@@ -83,6 +83,7 @@ fn run(mods: crate::mod_api::Mods) {
         );
         // The log's first line names the build, so a bug report that carries the log says which one it was.
         log::info!("Horizon {}", crash::version());
+        crate::yak_mods::log_startup();
         crash::install(home.clone(), side);
         ram_limit::start(&home, side);
     }
