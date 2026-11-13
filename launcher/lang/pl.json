@@ -1,4 +1,9 @@
 {
+  "Test your own DLL mods (developer mode)": "Testuj własne mody DLL (tryb programisty)",
+  "Lets you install and run unsigned .yak files that contain DLLs from your own PC. Do not use it for mods you got from someone else.": "Umożliwia instalowanie i uruchamianie niepodpisanych plików .yak zawierających DLL z własnego komputera. Nie używaj tej opcji do modów otrzymanych od innych osób.",
+  "Turn on": "Włącz",
+  "Cancel activation": "Anuluj",
+  "Developer mode": "Tryb programisty",
   "Update launcher": "Update launcher",
   "View on portal": "View on portal",
   "Check for launcher updates": "Check for launcher updates",

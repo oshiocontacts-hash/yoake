@@ -249,13 +249,35 @@ impl Fixture {
     }
 
     pub(super) fn apply(&self, plan: InstallPlan, confirmed: bool) -> Result<(), Error> {
+        self.apply_with_dev(plan, confirmed, false)
+    }
+
+    pub(super) fn apply_with_dev(
+        &self,
+        plan: InstallPlan,
+        confirmed: bool,
+        dev_unsigned_dll: bool,
+    ) -> Result<(), Error> {
         self.client
-            .apply_for(plan, confirmed, self.environment.clone())
+            .apply_for(plan, confirmed, self.environment.clone(), dev_unsigned_dll)
     }
 
     pub(super) fn local(&self, path: &Path) -> Result<InstallPlan, Error> {
-        self.client
-            .local_for(&self.home, path, None, self.environment.clone())
+        self.local_with_dev(path, false)
+    }
+
+    pub(super) fn local_with_dev(
+        &self,
+        path: &Path,
+        dev_unsigned_dll: bool,
+    ) -> Result<InstallPlan, Error> {
+        self.client.local_for(
+            &self.home,
+            path,
+            None,
+            self.environment.clone(),
+            dev_unsigned_dll,
+        )
     }
 
     pub(super) fn list(&self) -> String {

@@ -246,9 +246,10 @@ impl Launcher {
         let path = paths.into_iter().next().unwrap();
         let catalog = self.yak_mods.catalog.clone();
         let selected = home.clone();
+        let dev_unsigned_dll = self.settings.dev_unsigned_dll;
         self.yak_operation(home, move |client| {
             client
-                .plan_local(&selected, &path, catalog.as_ref())
+                .plan_local(&selected, &path, catalog.as_ref(), dev_unsigned_dll)
                 .map(Outcome::Plan)
         });
     }

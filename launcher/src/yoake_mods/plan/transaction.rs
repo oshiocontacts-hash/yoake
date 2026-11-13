@@ -63,12 +63,22 @@ impl Client {
         store::finish_remove(home, &manifest)
     }
 
-    pub fn apply(&self, plan: InstallPlan, confirmed: bool) -> Result<(), Error> {
+    pub fn apply(
+        &self,
+        plan: InstallPlan,
+        confirmed: bool,
+        dev_unsigned_dll: bool,
+    ) -> Result<(), Error> {
         let environment = InstanceEnvironment::read(&plan.home)?;
-        self.apply_for(plan, confirmed, environment)
+        self.apply_for(plan, confirmed, environment, dev_unsigned_dll)
     }
 
-    fn check_archive(&self, path: &Path, candidate: &Candidate) -> Result<(), Error> {
+    fn check_archive(
+        &self,
+        path: &Path,
+        candidate: &Candidate,
+        dev_unsigned_dll: bool,
+    ) -> Result<(), Error> {
         let archive = match &candidate.source {
             Source::Catalog(version, proof) => {
                 self.verify(proof.clone(), false)?;
@@ -83,9 +93,11 @@ impl Client {
         if matches!(candidate.source, Source::Local { signed: true, .. }) && !signed {
             return Err(Error::UnsignedProgram);
         }
-        // A program (bin/) always carries its own Yoake signature, from the catalog too: the game
-        // checks the DLL against it before loading (docs/yak-format.md §5).
-        if archive.manifest().bin.is_some() && !signed {
+        if archive.manifest().bin.is_some()
+            && !signed
+            && !(dev_unsigned_dll
+                && matches!(candidate.source, Source::Local { signed: false, .. }))
+        {
             return Err(Error::UnsignedProgram);
         }
         if !same_manifest(archive.manifest(), &candidate.manifest) {
@@ -94,7 +106,12 @@ impl Client {
         Ok(())
     }
 
-    fn cache_candidate(&self, home: &Path, candidate: &Candidate) -> Result<Record, Error> {
+    fn cache_candidate(
+        &self,
+        home: &Path,
+        candidate: &Candidate,
+        dev_unsigned_dll: bool,
+    ) -> Result<Record, Error> {
         let (hash, size, origin) = match &candidate.source {
             Source::Installed(record) => return Ok(record.clone()),
             Source::Catalog(version, proof) => {
@@ -181,7 +198,7 @@ impl Client {
             }
             saved.map_err(Error::Storage)?;
         }
-        self.check_archive(&destination, candidate)?;
+        self.check_archive(&destination, candidate, dev_unsigned_dll)?;
         Ok(Record {
             manifest: candidate.manifest.clone(),
             sha256: hash,
@@ -194,6 +211,7 @@ impl Client {
         plan: InstallPlan,
         confirmed: bool,
         environment: InstanceEnvironment,
+        dev_unsigned_dll: bool,
     ) -> Result<(), Error> {
         if !confirmed {
             return Err(Error::ConfirmationRequired);
@@ -207,7 +225,7 @@ impl Client {
         let mut created = Vec::new();
         for candidate in &plan.chosen {
             environment.check(&candidate.manifest)?;
-            let record = self.cache_candidate(&plan.home, candidate)?;
+            let record = self.cache_candidate(&plan.home, candidate, dev_unsigned_dll)?;
             let destination = store::directory(&plan.home, &record.manifest);
             store::plain(&destination)?;
             if destination.try_exists()? {

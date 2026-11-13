@@ -1,4 +1,9 @@
 {
+  "Test your own DLL mods (developer mode)": "직접 만든 DLL 모드 테스트 (개발자 모드)",
+  "Lets you install and run unsigned .yak files that contain DLLs from your own PC. Do not use it for mods you got from someone else.": "내 PC에 있는 DLL이 포함된 서명되지 않은 .yak 파일을 설치하고 실행할 수 있습니다. 다른 사람에게 받은 모드에는 사용하지 마세요.",
+  "Turn on": "켜기",
+  "Cancel activation": "취소",
+  "Developer mode": "개발자 모드",
   "Update launcher": "Update launcher",
   "View on portal": "View on portal",
   "Check for launcher updates": "Check for launcher updates",

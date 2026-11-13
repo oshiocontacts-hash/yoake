@@ -308,5 +308,5 @@ pub fn install_set(instance: &Path, requested: &[(String, String)]) -> Result<()
     let client = Client::configured()?;
     let catalog = client.refresh()?;
     let plan = client.plan_set(instance, &catalog, requested)?;
-    client.apply(plan, true)
+    client.apply(plan, true, false)
 }

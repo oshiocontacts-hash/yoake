@@ -1,4 +1,9 @@
 {
+  "Test your own DLL mods (developer mode)": "Uji mod DLL buatan sendiri (mode pengembang)",
+  "Lets you install and run unsigned .yak files that contain DLLs from your own PC. Do not use it for mods you got from someone else.": "Memungkinkan Anda memasang dan menjalankan berkas .yak tanpa tanda tangan yang berisi DLL dari PC sendiri. Jangan gunakan untuk mod yang Anda dapatkan dari orang lain.",
+  "Turn on": "Aktifkan",
+  "Cancel activation": "Batal",
+  "Developer mode": "Mode pengembang",
   "Update launcher": "Update launcher",
   "View on portal": "View on portal",
   "Check for launcher updates": "Check for launcher updates",
