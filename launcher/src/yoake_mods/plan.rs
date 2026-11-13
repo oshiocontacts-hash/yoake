@@ -18,6 +18,7 @@ pub struct Installed {
 pub struct InstallPlan {
     pub changes: Vec<Manifest>,
     pub unsigned: bool,
+    pub unsigned_program: bool,
     home: PathBuf,
     environment: InstanceEnvironment,
     snapshot: String,
@@ -107,7 +108,10 @@ impl Client {
             if matches!(record.origin, Origin::Signed) && !signed {
                 return Err(Error::UnsignedProgram);
             }
-            if archive.manifest().bin.is_some() && !signed {
+            if archive.manifest().bin.is_some()
+                && !signed
+                && !matches!(record.origin, Origin::UnsignedData)
+            {
                 return Err(Error::UnsignedProgram);
             }
             if !same_manifest(archive.manifest(), &record.manifest) {
@@ -221,8 +225,15 @@ impl Client {
         home: &Path,
         path: &Path,
         catalog: Option<&VerifiedCatalog>,
+        dev_unsigned_dll: bool,
     ) -> Result<InstallPlan, Error> {
-        self.local_for(home, path, catalog, InstanceEnvironment::read(home)?)
+        self.local_for(
+            home,
+            path,
+            catalog,
+            InstanceEnvironment::read(home)?,
+            dev_unsigned_dll,
+        )
     }
 
     fn local_for(
@@ -231,6 +242,7 @@ impl Client {
         path: &Path,
         catalog: Option<&VerifiedCatalog>,
         environment: InstanceEnvironment,
+        dev_unsigned_dll: bool,
     ) -> Result<InstallPlan, Error> {
         if !path
             .extension()
@@ -245,7 +257,7 @@ impl Client {
             .verify_signature(&self.keys)
             .map_err(Error::Invalid)?
             .is_some();
-        if archive.manifest().bin.is_some() && !signed {
+        if archive.manifest().bin.is_some() && !signed && !dev_unsigned_dll {
             return Err(Error::UnsignedProgram);
         }
         let manifest = archive.manifest().clone();
@@ -298,9 +310,14 @@ impl Client {
         let unsigned = chosen
             .iter()
             .any(|candidate| matches!(candidate.source, Source::Local { signed: false, .. }));
+        let unsigned_program = chosen.iter().any(|candidate| {
+            matches!(candidate.source, Source::Local { signed: false, .. })
+                && candidate.manifest.bin.is_some()
+        });
         Ok(InstallPlan {
             changes,
             unsigned,
+            unsigned_program,
             home: home.to_path_buf(),
             environment,
             snapshot,

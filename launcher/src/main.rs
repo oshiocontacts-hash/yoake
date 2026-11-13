@@ -338,6 +338,7 @@ struct Launcher {
     /// (`dev_options`) for this run.
     dev_clicks: u8,
     dev_options: bool,
+    dev_unsigned_dll_confirmation: bool,
     /// The game is waiting for its session (a token renewal), or a Java instance for its files
     /// and Java (`start_java`), before it starts.
     starting_client: Option<String>,
@@ -645,6 +646,7 @@ impl Launcher {
             owner_screen_open: false,
             dev_clicks: 0,
             dev_options: false,
+            dev_unsigned_dll_confirmation: false,
             starting_client: None,
             starting_yoake_home: None,
             play_when_prepared: None,
@@ -3134,15 +3136,28 @@ impl Launcher {
             ));
         }
         foot = foot.child(
-            shell::text(theme::night::CAPTION, shell::c(n.muted))
-                .id("launcher-version")
+            div()
+                .flex()
+                .flex_wrap()
+                .items_center()
+                .gap(px(8.))
                 .px(px(8.))
                 .pt(px(6.))
-                .child(trf("Launcher {version}", &[("version", backend::VERSION)]))
-                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                    this.version_clicked();
-                    cx.notify();
-                })),
+                .child(
+                    shell::text(theme::night::CAPTION, shell::c(n.muted))
+                        .id("launcher-version")
+                        .child(trf("Launcher {version}", &[("version", backend::VERSION)]))
+                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                            this.version_clicked();
+                            cx.notify();
+                        })),
+                )
+                .when(self.settings.dev_unsigned_dll, |row| {
+                    row.child(
+                        shell::text(theme::night::CAPTION, shell::c(n.warn))
+                            .child(tr("Developer mode")),
+                    )
+                }),
         );
         // Custom title bars carry the mark and name already.
         let brand = (!titlebar::draws_brand(window)).then(|| {

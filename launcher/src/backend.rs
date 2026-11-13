@@ -2369,11 +2369,20 @@ pub fn client_command(tag: &str) -> Command {
     client_command_for_program(tag, &client_program(tag))
 }
 
+fn set_unsigned_dll_env(command: &mut Command, enabled: bool) {
+    if enabled {
+        command.env("YOAKE_DLL_MODS_UNSIGNED", "1");
+    } else {
+        command.env_remove("YOAKE_DLL_MODS_UNSIGNED");
+    }
+}
+
 pub fn client_command_for_program(tag: &str, program: &Path) -> Command {
     let home = game_home();
     let _ = fs::create_dir_all(&home);
     let mut cmd = Command::new(program);
     cmd.current_dir(home).arg("--resources").arg(resources(tag));
+    set_unsigned_dll_env(&mut cmd, Settings::load().dev_unsigned_dll);
     if crate::brand::yoake() {
         cmd.env("HORIZON_TELEMETRY_URL", "off");
     }
@@ -3505,6 +3514,8 @@ pub struct Settings {
     /// comes from the player's own install. Off by default, and absent from the file while off.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub dev_offline: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub dev_unsigned_dll: bool,
 }
 
 impl Settings {
@@ -3597,6 +3608,36 @@ mod java_tests;
 mod tests {
     use super::*;
     use std::cmp::Ordering::*;
+
+    #[test]
+    fn old_settings_disable_unsigned_dlls() {
+        let settings = Settings::parse(r#"{"dev_offline":true}"#);
+        assert!(settings.dev_offline);
+        assert!(!settings.dev_unsigned_dll);
+    }
+
+    #[test]
+    fn unsigned_dll_environment_is_explicitly_set_or_removed() {
+        use std::ffi::OsStr;
+
+        let mut command = Command::new("horizon-client");
+        set_unsigned_dll_env(&mut command, true);
+        assert_eq!(
+            command
+                .get_envs()
+                .find(|(key, _)| *key == OsStr::new("YOAKE_DLL_MODS_UNSIGNED"))
+                .map(|(_, value)| value),
+            Some(Some(OsStr::new("1")))
+        );
+        set_unsigned_dll_env(&mut command, false);
+        assert_eq!(
+            command
+                .get_envs()
+                .find(|(key, _)| *key == OsStr::new("YOAKE_DLL_MODS_UNSIGNED"))
+                .map(|(_, value)| value),
+            Some(None)
+        );
+    }
 
     #[test]
     fn yoake_install_cancellation_is_honored() {

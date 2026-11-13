@@ -1,4 +1,9 @@
 {
+  "Test your own DLL mods (developer mode)": "测试自己制作的 DLL 模组（开发者模式）",
+  "Lets you install and run unsigned .yak files that contain DLLs from your own PC. Do not use it for mods you got from someone else.": "允许安装并运行来自自己电脑、包含 DLL 的未签名 .yak 文件。请勿将此功能用于从他人处获得的模组。",
+  "Turn on": "开启",
+  "Cancel activation": "取消",
+  "Developer mode": "开发者模式",
   "Update launcher": "Update launcher",
   "View on portal": "View on portal",
   "Check for launcher updates": "Check for launcher updates",

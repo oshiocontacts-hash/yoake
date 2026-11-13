@@ -1,4 +1,9 @@
 {
+  "Test your own DLL mods (developer mode)": "अपने DLL मॉड आज़माएँ (डेवलपर मोड)",
+  "Lets you install and run unsigned .yak files that contain DLLs from your own PC. Do not use it for mods you got from someone else.": "अपने PC पर मौजूद DLL वाली अहस्ताक्षरित .yak फ़ाइलें इंस्टॉल और चलाने देता है। किसी और से मिले मॉड के लिए इसका उपयोग न करें।",
+  "Turn on": "चालू करें",
+  "Cancel activation": "रद्द करें",
+  "Developer mode": "डेवलपर मोड",
   "Update launcher": "Update launcher",
   "View on portal": "View on portal",
   "Check for launcher updates": "Check for launcher updates",

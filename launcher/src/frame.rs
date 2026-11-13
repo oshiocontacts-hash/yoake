@@ -503,15 +503,28 @@ impl Launcher {
             ));
         }
         foot = foot.child(links).child(
-            ui::text(12., FontWeight::NORMAL, ink::DIM)
-                .id("launcher-version")
+            div()
+                .flex()
+                .flex_wrap()
+                .items_center()
+                .gap(px(8.))
                 .px(px(8.))
                 .pt(px(8.))
-                .child(trf("Launcher {version}", &[("version", backend::VERSION)]))
-                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                    this.version_clicked();
-                    cx.notify();
-                })),
+                .child(
+                    ui::text(12., FontWeight::NORMAL, ink::DIM)
+                        .id("launcher-version")
+                        .child(trf("Launcher {version}", &[("version", backend::VERSION)]))
+                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                            this.version_clicked();
+                            cx.notify();
+                        })),
+                )
+                .when(self.settings.dev_unsigned_dll, |row| {
+                    row.child(
+                        shell::text(theme::night::CAPTION, shell::c(t.night.warn))
+                            .child(tr("Developer mode")),
+                    )
+                }),
         );
 
         crate::glass::plate(radius::PANEL)

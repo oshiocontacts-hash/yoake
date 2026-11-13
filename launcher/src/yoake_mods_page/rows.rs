@@ -403,9 +403,12 @@ impl Launcher {
                 .child(self.yak_services(manifest, "preview", cx));
         }
         if plan.unsigned {
-            preview = preview.child(shell::text(night::UI, c(theme.night.warn)).child(tr(
-                "Unsigned data-only mod. Install only if you trust its source.",
-            )));
+            let warning = if plan.unsigned_program {
+                tr("Lets you install and run unsigned .yak files that contain DLLs from your own PC. Do not use it for mods you got from someone else.")
+            } else {
+                tr("Unsigned data-only mod. Install only if you trust its source.")
+            };
+            preview = preview.child(shell::text(night::UI, c(theme.night.warn)).child(warning));
         }
         preview.child(
             div()
@@ -417,8 +420,11 @@ impl Launcher {
                         .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                             if let Some(plan) = this.yak_mods.preview.take() {
                                 if let Some(home) = this.yak_mods.home.clone() {
+                                    let dev_unsigned_dll = this.settings.dev_unsigned_dll;
                                     this.yak_operation(home, move |client| {
-                                        client.apply(plan, true).map(|()| Outcome::Done)
+                                        client
+                                            .apply(plan, true, dev_unsigned_dll)
+                                            .map(|()| Outcome::Done)
                                     });
                                 }
                             }
