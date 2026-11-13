@@ -47,9 +47,24 @@ static BANNER: LazyLock<Arc<Image>> = LazyLock::new(|| {
     ))
 });
 
+fn render_for_brand<T>(yoake: bool, render: impl FnOnce() -> T) -> Option<T> {
+    if yoake {
+        None
+    } else {
+        Some(render())
+    }
+}
+
 /// The banner `width` logical pixels wide, under its label. Hovering lifts it a little and turns the
 /// label to ink. The narrowest window (960) leaves the page 648 pixels, so the Servers one always fits.
 pub fn banner(id: &'static str, width: f32, t: &Theme) -> Stateful<Div> {
+    render_for_brand(horizon_launcher::brand::yoake(), || {
+        banner_content(id, width, t)
+    })
+    .unwrap_or_else(|| div().id(id))
+}
+
+fn banner_content(id: &'static str, width: f32, t: &Theme) -> Stateful<Div> {
     let t = *t;
     let el = div()
         .id(id)
@@ -173,6 +188,13 @@ fn rgba(hex: u32, alpha: f32) -> Rgba {
 /// the launcher so they stay sharp and follow its language. `compact` puts the characters beside a
 /// shorter text, for windows too short for the tall card. Hovering lifts it a little.
 pub fn card(id: &'static str, width: f32, compact: bool, t: &Theme) -> Stateful<Div> {
+    render_for_brand(horizon_launcher::brand::yoake(), || {
+        card_content(id, width, compact, t)
+    })
+    .unwrap_or_else(|| div().id(id))
+}
+
+fn card_content(id: &'static str, width: f32, compact: bool, t: &Theme) -> Stateful<Div> {
     let t = *t;
     let label = crate::text(crate::theme::MICRO)
         .text_color(t.muted)
@@ -306,7 +328,21 @@ pub fn card(id: &'static str, width: f32, compact: bool, t: &Theme) -> Stateful<
 
 #[cfg(test)]
 mod tests {
-    use super::{ART_HEIGHT, ART_WIDTH, HEIGHT, LOGO_HEIGHT, LOGO_WIDTH, WIDTH};
+    use super::{render_for_brand, ART_HEIGHT, ART_WIDTH, HEIGHT, LOGO_HEIGHT, LOGO_WIDTH, WIDTH};
+
+    #[test]
+    fn partner_content_is_skipped_for_yoake() {
+        let rendered = std::cell::Cell::new(false);
+        let content = || {
+            rendered.set(true);
+            "partner"
+        };
+
+        assert_eq!(render_for_brand(true, content), None);
+        assert!(!rendered.get());
+        assert_eq!(render_for_brand(false, content), Some("partner"));
+        assert!(rendered.get());
+    }
 
     /// Each bundled picture decodes as a WebP of the size the code lays it out at.
     #[test]
