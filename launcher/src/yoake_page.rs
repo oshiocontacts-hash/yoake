@@ -229,6 +229,7 @@ pub(super) fn install_text(error: &InstallError) -> String {
 
 fn feed_text(error: &FeedError) -> String {
     match error {
+        FeedError::NeedsUpdate => tr("This Yoake feed needs a newer Yoake — update from the Microsoft Store / download page").to_string(),
         FeedError::NeedsLogin | FeedError::Authentication(_) | FeedError::HttpStatus(401 | 403) => {
             tr("Sign in to see the packs.").to_string()
         }
@@ -379,7 +380,15 @@ impl Launcher {
         if let Some(rx) = &self.yoake.catalog_task {
             match rx.try_recv() {
                 Ok(result) => {
-                    self.yoake.catalog = Some(result);
+                    if matches!(&result, Err(FeedError::NeedsUpdate)) {
+                        if let Some(Ok(feed)) = &mut self.yoake.catalog {
+                            feed.needs_update = true;
+                        } else {
+                            self.yoake.catalog = Some(result);
+                        }
+                    } else {
+                        self.yoake.catalog = Some(result);
+                    }
                     self.yoake.catalog_task = None;
                     changed = true;
                 }
@@ -649,24 +658,57 @@ impl Launcher {
     }
 
     /// Installs `version` of pack `id` into a new instance named after the pack.
-    fn yoake_install_new(&mut self, id: String, name: String, version: String) {
+    pub(super) fn yoake_install_new(
+        &mut self,
+        id: String,
+        name: String,
+        version: String,
+    ) -> Option<PathBuf> {
         let (Ok(Some(client)), Some(Ok(feed))) = (FeedClient::configured(), &self.yoake.catalog)
         else {
-            return;
+            return None;
         };
         let instance = match instances::create(&name, None) {
             Ok(instance) => instance,
             Err(e) => {
                 self.yoake.note = Some((false, e));
-                return;
+                return None;
             }
         };
         let home = instance.home.clone();
         let task = yoake_install::start_install(&client, feed.clone(), id, version, home.clone());
-        self.yoake.job = Some((home, task));
+        self.yoake.job = Some((home.clone(), task));
         self.yoake.progress = Some((0., String::new()));
         self.yoake.note = None;
         self.reload_instances();
+        Some(home)
+    }
+
+    /// Each pack of the feed with its newest build's built-in mods, for the configuration builder.
+    pub(super) fn yoake_bases(&self) -> Vec<yoake_configs_page::BaseInfo> {
+        let Some(Ok(feed)) = &self.yoake.catalog else {
+            return Vec::new();
+        };
+        let ParsedFeedIndex::V2(index) = &feed.index else {
+            return Vec::new();
+        };
+        index
+            .packs
+            .iter()
+            .filter_map(|pack| {
+                let version = newest(pack)?;
+                let base = index
+                    .bases
+                    .iter()
+                    .find(|base| base.version == version.base_version)?;
+                Some(yoake_configs_page::BaseInfo {
+                    pack_id: pack.id.clone(),
+                    name: pack.name.clone(),
+                    version: version.version.clone(),
+                    native_mods: base.native_mods.clone(),
+                })
+            })
+            .collect()
     }
 
     /// Updates the instance in `home` to `version` of its pack.
@@ -852,7 +894,82 @@ impl Launcher {
                     .child(note.clone()),
             );
         }
-        page.child(self.yoake_packs(cx))
+        if let Some(Ok(feed)) = &self.yoake.catalog {
+            if feed.needs_update {
+                page = page.child(
+                    text(theme::UI)
+                        .text_color(t.danger)
+                        .child(feed_text(&FeedError::NeedsUpdate)),
+                );
+            }
+            if let Some(presentation) = &feed.presentation {
+                let language = i18n::current().code();
+                if !presentation.news.is_empty() {
+                    let mut news = div().flex().flex_col().gap(px(12.)).child(
+                        text(theme::UI).text_color(t.ink).child(tr("News")),
+                    );
+                    for (number, item) in presentation.news.iter().enumerate() {
+                        let mut row = plate(&t)
+                            .flex()
+                            .flex_col()
+                            .gap(px(8.))
+                            .p(px(16.))
+                            .child(text(theme::UI).text_color(t.muted).child(item.date.clone()))
+                            .child(
+                                text(theme::UI)
+                                    .text_color(t.ink)
+                                    .child(yoake_feed::localized(&item.title, language).to_string()),
+                            )
+                            .child(
+                                text(theme::UI)
+                                    .text_color(t.muted)
+                                    .child(yoake_feed::localized(&item.body, language).to_string()),
+                            );
+                        if let Some(url) = &item.link {
+                            let url = url.clone();
+                            row = row.child(
+                                button(
+                                    SharedString::from(format!("yoake-news-link-{number}")),
+                                    "Open link",
+                                    Kind::Ghost,
+                                    &t,
+                                )
+                                .on_click(cx.listener(move |_, _: &ClickEvent, _, cx| {
+                                    cx.open_url(&url);
+                                })),
+                            );
+                        }
+                        news = news.child(row);
+                    }
+                    page = page.child(news);
+                }
+                if !presentation.links.is_empty() {
+                    let mut links = div()
+                        .flex()
+                        .flex_col()
+                        .gap(px(8.))
+                        .child(text(theme::UI).text_color(t.ink).child(tr("Links")));
+                    for (number, link) in presentation.links.iter().enumerate() {
+                        let url = link.url.clone();
+                        links = links.child(
+                            button_label(
+                                SharedString::from(format!("yoake-presentation-link-{number}")),
+                                yoake_feed::localized(&link.label, language).to_string(),
+                                Kind::Ghost,
+                                &t,
+                            )
+                            .on_click(cx.listener(move |_, _: &ClickEvent, _, cx| {
+                                cx.open_url(&url);
+                            })),
+                        );
+                    }
+                    page = page.child(links);
+                }
+            }
+        }
+        let packs = self.yoake_packs(cx);
+        let configs = self.yoake_configs_section(window, cx);
+        page.child(packs).child(configs)
     }
 
     /// Who is signed in, or the two ways to sign in.
@@ -1213,48 +1330,65 @@ impl Launcher {
             })
             .collect();
         let busy = self.yoake_busy();
-        for (n, pack) in index.packs.iter().enumerate() {
-            let Some(latest) = newest(pack) else {
-                continue;
-            };
-            let mut detail = div()
-                .flex()
-                .flex_col()
-                .gap(px(2.))
-                .child(trf("Newest {version}", &[("version", &latest.version)]));
-            if !latest.description.is_empty() {
-                detail = detail.child(latest.description.clone());
+        let presentation = self
+            .yoake
+            .catalog
+            .as_ref()
+            .and_then(|catalog| catalog.as_ref().ok().and_then(|feed| feed.presentation.as_ref()));
+        let groups = yoake_feed::pack_groups(&index.packs, presentation);
+        let grouped = groups.iter().any(|(category, _)| category.is_some());
+        for (category, packs) in groups {
+            if grouped {
+                let label = category
+                    .map(|category| {
+                        yoake_feed::localized(&category.label, i18n::current().code()).to_string()
+                    })
+                    .unwrap_or_else(|| tr("Other").to_string());
+                col = col.child(text(theme::UI).text_color(t.muted).mt(px(12.)).child(label));
             }
-            let install = button(
-                SharedString::from(format!("yoake-install-{n}")),
-                "Install",
-                Kind::Primary,
-                &t,
-            );
-            let install = if busy {
-                disabled(install)
-            } else {
-                let (id, name, version) =
-                    (pack.id.clone(), pack.name.clone(), latest.version.clone());
-                install.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                    this.yoake_install_new(id.clone(), name.clone(), version.clone());
-                    cx.notify();
-                }))
-            };
-            let mine: Vec<_> = installed
-                .iter()
-                .filter(|(_, p)| p.pack_id == pack.id)
-                .collect();
-            col = col.child(index_row(
-                n,
-                pack.name.clone(),
-                Some(detail.into_any_element()),
-                mine.is_empty().then(|| install.into_any_element()),
-                &t,
-            ));
-            for (m, (instance, installed)) in mine.into_iter().enumerate() {
-                col =
-                    col.child(self.yoake_instance_row(n * 100 + m, pack, instance, installed, cx));
+            for (n, pack) in packs {
+                let Some(latest) = newest(pack) else {
+                    continue;
+                };
+                let mut detail = div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(2.))
+                    .child(trf("Newest {version}", &[("version", &latest.version)]));
+                if !latest.description.is_empty() {
+                    detail = detail.child(latest.description.clone());
+                }
+                let install = button(
+                    SharedString::from(format!("yoake-install-{n}")),
+                    "Install",
+                    Kind::Primary,
+                    &t,
+                );
+                let install = if busy {
+                    disabled(install)
+                } else {
+                    let (id, name, version) =
+                        (pack.id.clone(), pack.name.clone(), latest.version.clone());
+                    install.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        this.yoake_install_new(id.clone(), name.clone(), version.clone());
+                        cx.notify();
+                    }))
+                };
+                let mine: Vec<_> = installed
+                    .iter()
+                    .filter(|(_, p)| p.pack_id == pack.id)
+                    .collect();
+                col = col.child(index_row(
+                    n,
+                    pack.name.clone(),
+                    Some(detail.into_any_element()),
+                    mine.is_empty().then(|| install.into_any_element()),
+                    &t,
+                ));
+                for (m, (instance, installed)) in mine.into_iter().enumerate() {
+                    col = col
+                        .child(self.yoake_instance_row(n * 100 + m, pack, instance, installed, cx));
+                }
             }
         }
         col

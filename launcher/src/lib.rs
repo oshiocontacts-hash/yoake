@@ -50,6 +50,7 @@ pub mod themes;
 pub mod wardrobe;
 pub mod worlds;
 pub mod yoake_auth;
+pub mod yoake_configs;
 pub mod yoake_feed;
 pub mod yoake_install;
 pub mod yoake_mods;

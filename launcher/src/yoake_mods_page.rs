@@ -31,6 +31,13 @@ pub(super) struct State {
     last_refresh: Option<Instant>,
 }
 
+impl State {
+    /// The ids of the .yak mods installed in the selected Yoake instance.
+    pub(super) fn installed_ids(&self) -> Vec<String> {
+        self.rows.iter().map(|row| row.manifest.id.clone()).collect()
+    }
+}
+
 fn message(error: &Error) -> String {
     match error {
         Error::Feed(yoake_feed::FeedError::NeedsLogin | yoake_feed::FeedError::HttpStatus(401)) => {

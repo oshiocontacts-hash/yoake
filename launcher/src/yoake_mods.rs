@@ -291,6 +291,61 @@ impl Client {
     }
 }
 
+impl Client {
+    /// The signed built-in mods catalog (`yoake/mods/builtin/index.json`). A server without one
+    /// (HTTP 404) simply has no built-in entries; a network failure falls back to the last
+    /// verified copy.
+    pub fn refresh_builtin(&self) -> Result<Option<crate::yoake_configs::BuiltinCatalog>, Error> {
+        use crate::yoake_configs::{BUILTIN_PATH, BuiltinCatalog, MAX_BUILTIN};
+        if self.keys.is_empty() {
+            return Err(FeedError::Configuration.into());
+        }
+        let auth = self.authorization()?;
+        let verify = |proof: &Proof| {
+            BuiltinCatalog::parse_verified(proof.json.as_bytes(), &proof.signature, &self.keys)
+                .map_err(|error| Error::Invalid(error.to_string()))
+        };
+        let fetch = || -> Result<Option<(BuiltinCatalog, Proof)>, Error> {
+            let url = self
+                .root
+                .join(BUILTIN_PATH)
+                .map_err(|_| FeedError::Configuration)?;
+            let json = match self.http.get(url.as_str(), Some(&auth), MAX_BUILTIN) {
+                Ok(json) => json,
+                Err(FeedError::HttpStatus(404)) => return Ok(None),
+                Err(error) => return Err(error.into()),
+            };
+            let signature = self.http.get(&format!("{url}.sig"), Some(&auth), 4096)?;
+            if json.len() > MAX_BUILTIN || signature.len() > 4096 {
+                return Err(FeedError::TooLarge.into());
+            }
+            let proof = Proof {
+                json: String::from_utf8(json).map_err(|_| FeedError::Malformed)?,
+                signature: String::from_utf8(signature).map_err(|_| FeedError::Malformed)?,
+            };
+            Ok(Some((verify(&proof)?, proof)))
+        };
+        let cache = self.data.join("yoake-builtin-catalog.json");
+        match fetch() {
+            Ok(Some((catalog, proof))) => {
+                store::write_json(&cache, &proof)?;
+                Ok(Some(catalog))
+            }
+            Ok(None) => Ok(None),
+            Err(Error::Feed(FeedError::HttpStatus(401))) => Err(FeedError::NeedsLogin.into()),
+            Err(error @ Error::Feed(FeedError::Network | FeedError::HttpStatus(500..=599))) => {
+                store::plain(&cache)?;
+                if !cache.try_exists()? {
+                    return Err(error);
+                }
+                let proof: Proof = store::read_json(&cache)?;
+                Ok(Some(verify(&proof)?))
+            }
+            Err(error) => Err(error),
+        }
+    }
+}
+
 pub fn installed_yak_mods(instance: &Path) -> Result<Vec<(String, String)>, Error> {
     Ok(Client::configured()?
         .installed(instance)?

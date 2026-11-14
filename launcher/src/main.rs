@@ -71,6 +71,7 @@ mod wardrobe_page;
 mod while_playing;
 mod worlds_page;
 pub use horizon_launcher::{yoake_auth, yoake_feed, yoake_install, yoake_update};
+mod yoake_configs_page;
 mod yoake_launcher_update;
 pub mod yoake_login;
 mod yoake_mods_page;
@@ -405,6 +406,7 @@ struct Launcher {
     /// The selected instance's mods, for Home's Mods tab (`instance_mods.rs`).
     instance_mods: instance_mods::InstanceMods,
     yak_mods: yoake_mods_page::State,
+    yoake_configs: yoake_configs_page::State,
     /// Modrinth projects' icon URLs (`instance_mods.rs`).
     project_icons: instance_mods::ProjectIcons,
     play_pressed: Option<Instant>,
@@ -679,6 +681,7 @@ impl Launcher {
             client_since: None,
             instance_mods: Default::default(),
             yak_mods: Default::default(),
+            yoake_configs: yoake_configs_page::State::new(cx),
             project_icons: Default::default(),
             play_pressed: None,
             bench: perf::Bench::from_env(),
@@ -1026,6 +1029,7 @@ impl Launcher {
         }
         changed |= self.drain_yoake_page();
         changed |= self.drain_yak_mods();
+        changed |= self.drain_yoake_configs();
         let mut update_finished = false;
         if let Some(task) = &self.yoake_update_task {
             loop {
@@ -2325,9 +2329,18 @@ fn button(
     kind: Kind,
     t: &Theme,
 ) -> Stateful<Div> {
+    let label: SharedString = label.into();
+    button_label(id, tr(&label).to_string(), kind, t)
+}
+
+fn button_label(
+    id: impl Into<SharedString>,
+    label: impl Into<SharedString>,
+    kind: Kind,
+    t: &Theme,
+) -> Stateful<Div> {
     let id: SharedString = id.into();
     let label: SharedString = label.into();
-    let label = SharedString::from(tr(&label).to_string());
     let t = *t;
     let hover = match kind {
         Kind::Primary => t.on_face.opacity(0.10),
