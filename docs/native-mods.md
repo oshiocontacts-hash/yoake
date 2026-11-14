@@ -2848,7 +2848,8 @@ items are left out (NeoForge's `RenderLivingEvent.Pre`, cancelled); its name tag
   `None` for remote players), `health` and `max_health`, `food_level` (`None` for remote players), and `right_arm_pose` /
   `left_arm_pose` (`EMPTY`, `ITEM`, `BLOCK`, `BOW_AND_ARROW`, `CROSSBOW_HOLD`, `CROSSBOW_CHARGE`, `THROW_SPEAR`, `TOOT_HORN`,
   `SPYGLASS`, `SPEAR`, `BRUSH`) for the physical arms, from the same decision Horizon's humanoid model uses. Unavailable data
-  is `None`, never an invented zero.
+  is `None`, never an invented zero. `scale` is the player's `minecraft:scale` attribute (`Mob::model_scale`, 1.0 by default),
+  for local and remote players alike; the draw pose does not include it, so a mod multiplies its model by it.
 - Tests of an external trait mod can enable the non-default `test-support` feature on their `horizon-client` dev-dependency:
   `BlockEntityDraw::for_test(pose, light)`, `NativeMobRender::for_test(id, kind)`, `NativePlayerRender::for_test(name, local)`,
   `PlayerSubmitEvent::for_test` and `MobLayerEvent::for_test` build synthetic render events with neutral fields. They do not
