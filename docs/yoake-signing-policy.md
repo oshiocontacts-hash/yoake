@@ -42,6 +42,11 @@ What the user asks for, and where it goes:
 Yoake builds do not send usage data or crash reports: the upstream Horizon
 telemetry is turned off in the Yoake brand (`launcher/src/telemetry.rs`).
 
+## Uninstall
+
+- Microsoft Store edition: Settings → Apps → Installed apps → Yoake → Uninstall.
+- Portable edition (`YoakeLauncher.exe`): close Yoake and delete the launcher file and the Yoake data folder (the launcher can open it for you). Nothing is installed system-wide and no system settings are changed.
+
 ## Upstream
 
 Yoake is a fork of [Horizon](https://github.com/horizon-rust/horizon) (MIT).
