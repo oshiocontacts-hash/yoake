@@ -92,6 +92,9 @@ impl YoakePage {
     }
 
     pub(super) fn check_launcher_update(&mut self, force: bool) {
+        if horizon_launcher::brand::store_distribution() {
+            return;
+        }
         if self.launcher_job.is_some()
             || self.launcher_ready
             || self.launcher_update_task.is_some()
@@ -698,6 +701,13 @@ impl Launcher {
             "The group's modpacks. Sign in once; packs install and update from here.",
             &t,
         ));
+        if horizon_launcher::brand::store_distribution() {
+            page = page.child(
+                text(theme::UI)
+                    .text_color(t.muted)
+                    .child(tr("The Microsoft Store updates Yoake.")),
+            );
+        }
         if let Some((version, url)) = self.yoake.launcher_update.clone().filter(|_| {
             signed_in()
                 || self.yoake.launcher_job.is_some()

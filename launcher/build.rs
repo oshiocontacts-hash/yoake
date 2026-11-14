@@ -5,6 +5,8 @@ fn main() {
     println!("cargo:rerun-if-env-changed=YOAKE_PUBLIC_KEYS_FILE");
     println!("cargo:rerun-if-env-changed=YOAKE_FEED_SOURCE_ID");
     println!("cargo:rerun-if-env-changed=YOAKE_PORTAL_URL");
+    println!("cargo:rerun-if-env-changed=YOAKE_DISTRIBUTION");
+    println!("cargo:rerun-if-env-changed=YOAKE_VERSION");
     let feed_url = std::env::var("YOAKE_FEED_URL").ok();
     let yoake = feed_url.is_some() || std::env::var_os("YOAKE_PORTAL_URL").is_some();
     let keys_path = std::env::var("YOAKE_PUBLIC_KEYS_FILE").ok();

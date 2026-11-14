@@ -102,3 +102,119 @@ jobs:
 
       # TODO(SignPath): pass steps.unsigned.outputs.artifact-id to the SignPath
       # action once the owner supplies the organization and project settings.
+
+  msix:
+    needs: build
+    runs-on: windows-latest
+    env:
+      YOAKE_DISTRIBUTION: store
+      YOAKE_VERSION: ${{ vars.YOAKE_VERSION }}
+      YOAKE_FEED_URL: ${{ vars.YOAKE_FEED_URL }}
+      YOAKE_PORTAL_URL: ${{ vars.YOAKE_PORTAL_URL }}
+      YOAKE_FEED_SOURCE_ID: ${{ vars.YOAKE_FEED_SOURCE_ID }}
+      HORIZON_MSA_CLIENT_ID: ${{ vars.HORIZON_MSA_CLIENT_ID }}
+      YOAKE_PUBLIC_KEYS: ${{ vars.YOAKE_PUBLIC_KEYS }}
+      HORIZON_VERSION: ${{ vars.YOAKE_VERSION }}
+      HORIZON_LAUNCHER_VERSION: ${{ vars.YOAKE_VERSION }}
+      YOAKE_MSIX_IDENTITY_NAME: ${{ vars.YOAKE_MSIX_IDENTITY_NAME }}
+      YOAKE_MSIX_PUBLISHER: ${{ vars.YOAKE_MSIX_PUBLISHER }}
+      YOAKE_MSIX_PUBLISHER_DISPLAY_NAME: ${{ vars.YOAKE_MSIX_PUBLISHER_DISPLAY_NAME }}
+      RUSTFLAGS: -C target-feature=+crt-static
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Store configuration
+        shell: pwsh
+        run: |
+          $required = @(
+            'YOAKE_MSIX_IDENTITY_NAME', 'YOAKE_MSIX_PUBLISHER',
+            'YOAKE_MSIX_PUBLISHER_DISPLAY_NAME', 'YOAKE_VERSION',
+            'YOAKE_FEED_URL', 'YOAKE_PORTAL_URL', 'YOAKE_FEED_SOURCE_ID',
+            'HORIZON_MSA_CLIENT_ID', 'YOAKE_PUBLIC_KEYS'
+          )
+          $missing = @($required | Where-Object {
+            [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_))
+          })
+          if ($missing.Count -gt 0) {
+            throw "Missing required MSIX repository variables: $($missing -join ', '). Set the identity fields from Partner Center Product identity."
+          }
+          if ($env:YOAKE_VERSION -notmatch '^\d+\.\d+\.\d+$') {
+            throw 'YOAKE_VERSION must be a three-part numeric version (a.b.c) for MSIX.'
+          }
+          foreach ($part in $env:YOAKE_VERSION.Split('.')) {
+            [uint64]$number = 0
+            if (-not [uint64]::TryParse($part, [ref]$number) -or $number -gt 65535) {
+              throw 'Each YOAKE_VERSION component must be between 0 and 65535 for MSIX.'
+            }
+          }
+          $keys = @($env:YOAKE_PUBLIC_KEYS -split '\r?\n|\r' | ForEach-Object {
+            $_.Trim()
+          } | Where-Object { $_ -and -not $_.StartsWith('#') })
+          if ($keys.Count -eq 0) {
+            throw 'YOAKE_PUBLIC_KEYS must contain at least one public key line.'
+          }
+          $keyFile = Join-Path $env:RUNNER_TEMP 'yoake-public-keys.txt'
+          $utf8 = [Text.UTF8Encoding]::new($false)
+          [IO.File]::WriteAllText($keyFile, $env:YOAKE_PUBLIC_KEYS, $utf8)
+          [IO.File]::AppendAllText(
+            $env:GITHUB_ENV,
+            "YOAKE_PUBLIC_KEYS_FILE=$keyFile`nYOAKE_COMPILED_PUBLIC_KEYS=$($keys -join ';')`nYOAKE_MSIX_VERSION=$($env:YOAKE_VERSION).0`n",
+            $utf8
+          )
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Locate Windows SDK tools
+        shell: pwsh
+        run: |
+          $sdkBin = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
+          foreach ($tool in @('fxc.exe', 'makeappx.exe')) {
+            if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
+              $found = Get-ChildItem -Path $sdkBin -Filter $tool -File -Recurse |
+                Where-Object { $_.Directory.Name -eq 'x64' } |
+                Sort-Object FullName -Descending |
+                Select-Object -First 1
+              if (-not $found) {
+                throw "$tool was not found in the Windows SDK."
+              }
+              $found.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            }
+          }
+
+      - name: Build Store launcher
+        run: cargo build --release --locked --manifest-path launcher/Cargo.toml
+
+      - name: Build plain game client
+        run: cargo build --release --locked -p horizon-client --bin horizon-client
+
+      - name: Generate Store logos
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check Pillow
+          if ($LASTEXITCODE -ne 0) { throw 'Installing Pillow failed.' }
+          $stage = Join-Path $env:RUNNER_TEMP 'yoake-msix-staging'
+          python packaging/msix/make_logos.py packaging/icons/yoake-256.png (Join-Path $stage 'Assets')
+          if ($LASTEXITCODE -ne 0) { throw 'Generating MSIX logos failed.' }
+
+      - name: Pack unsigned MSIX
+        shell: pwsh
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP 'yoake-msix-staging'
+          Copy-Item -LiteralPath 'launcher/target/release/horizon-launcher.exe' -Destination (Join-Path $stage 'YoakeLauncher.exe')
+          Copy-Item -LiteralPath 'target/release/horizon-client.exe' -Destination (Join-Path $stage 'yoake.exe')
+          $manifest = Get-Content -LiteralPath 'packaging/msix/AppxManifest.xml.in' -Raw
+          $manifest = $manifest.Replace('@IDENTITY_NAME@', [Security.SecurityElement]::Escape($env:YOAKE_MSIX_IDENTITY_NAME))
+          $manifest = $manifest.Replace('@PUBLISHER@', [Security.SecurityElement]::Escape($env:YOAKE_MSIX_PUBLISHER))
+          $manifest = $manifest.Replace('@PUBLISHER_DISPLAY_NAME@', [Security.SecurityElement]::Escape($env:YOAKE_MSIX_PUBLISHER_DISPLAY_NAME))
+          $manifest = $manifest.Replace('@VERSION@', $env:YOAKE_MSIX_VERSION)
+          [IO.File]::WriteAllText((Join-Path $stage 'AppxManifest.xml'), $manifest, [Text.UTF8Encoding]::new($false))
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          & makeappx.exe pack /d $stage /p "dist/Yoake-$($env:YOAKE_VERSION)-x64.msix" /o
+          if ($LASTEXITCODE -ne 0) { throw 'makeappx.exe failed to create the MSIX package.' }
+
+      - name: Upload unsigned Store package
+        uses: actions/upload-artifact@v4
+        with:
+          name: yoake-msix
+          path: dist/*.msix
+          if-no-files-found: error

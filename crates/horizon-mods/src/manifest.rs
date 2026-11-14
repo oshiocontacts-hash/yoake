@@ -398,7 +398,10 @@ impl Package {
             put(WASM, wasm)?;
         }
         for (name, bytes) in files {
-            crate::content::check_path(name)?;
+            // A license or readme text file travels in the package and is ignored on load.
+            if !crate::content::is_ignored_notice(name) {
+                crate::content::check_path(name)?;
+            }
             put(name, bytes)?;
         }
         Ok(zip.finish().map_err(err)?.into_inner())

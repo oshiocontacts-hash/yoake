@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::ffi::OsStr;
 use std::fmt;
 use std::fs::File;
-use std::io::{self, Read, Write};
+use std::io::{self, Read, Seek, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
@@ -296,6 +296,22 @@ pub trait ObjectSource: Send + Sync {
     fn open(&self, sha256: &str) -> Result<Box<dyn Read + Send>, InstallError>;
 }
 
+struct BundledObjectSource<'a> {
+    fallback: &'a dyn ObjectSource,
+    bundle: Option<(PathBuf, String, u64)>,
+}
+
+impl ObjectSource for BundledObjectSource<'_> {
+    fn open(&self, sha256: &str) -> Result<Box<dyn Read + Send>, InstallError> {
+        if let Some((path, hash, _)) = &self.bundle {
+            if hash == sha256 {
+                return Ok(Box::new(File::open(path)?));
+            }
+        }
+        self.fallback.open(sha256)
+    }
+}
+
 struct CacheOnlySource;
 
 impl ObjectSource for CacheOnlySource {
@@ -390,8 +406,67 @@ fn object_matches(file: File, sha256: &str, size: u64) -> Result<bool, InstallEr
     Ok(file_hash(file)? == sha256)
 }
 
+fn bundled_file(
+    base: &yoake_feed::BaseVersionV2,
+    target: &str,
+    path: &Path,
+    version: Option<&str>,
+) -> Option<(PathBuf, String, u64)> {
+    if target != "windows-x86_64" || !base.native_mods.is_empty() {
+        return None;
+    }
+    let base_version = base
+        .yoake
+        .as_ref()
+        .map_or(base.version.as_str(), |identity| identity.version.as_str());
+    if version? != base_version {
+        return None;
+    }
+    let [file] = base.targets.get(target)?.files.as_slice() else {
+        return None;
+    };
+    if !object_matches(File::open(path).ok()?, &file.sha256, file.size).ok()? {
+        return None;
+    }
+    Some((path.to_path_buf(), file.sha256.clone(), file.size))
+}
+
+fn store_bundle(base: &yoake_feed::BaseVersionV2, target: &str) -> Option<(PathBuf, String, u64)> {
+    if !cfg!(windows) || !crate::brand::store_distribution() {
+        return None;
+    }
+    let path = std::env::current_exe().ok()?.parent()?.join("yoake.exe");
+    bundled_file(base, target, &path, option_env!("YOAKE_VERSION"))
+}
+
+fn planned_bundle(plan: &InstallPlan) -> Option<(PathBuf, String, u64)> {
+    let base = plan
+        .rollback_index
+        .bases
+        .iter()
+        .find(|base| base.version == plan.base_version)?;
+    store_bundle(base, &plan.target)
+}
+
+fn log_store_fallback(data_dir: &Path, base_version: &str, action: &str) {
+    let message = format!(
+        "Yoake Store: no matching signed bundled engine for base {base_version}; {action}"
+    );
+    eprintln!("{message}");
+    let result = (|| -> io::Result<()> {
+        let directory = Dir::open(&data_dir.join("logs"), true)?;
+        let mut log = directory.lock_file(OsStr::new("yoake-store.log"))?;
+        log.seek(io::SeekFrom::End(0))?;
+        writeln!(log, "{message}")
+    })();
+    if let Err(error) = result {
+        eprintln!("Yoake Store: unable to write fallback log: {error}");
+    }
+}
+
 fn missing_objects(plan: &InstallPlan) -> Result<(u64, bool), InstallError> {
     let cache = plan.data_dir.join("yoake-cache").join("objects");
+    let bundle = planned_bundle(plan);
     let mut objects = BTreeMap::new();
     for file in plan
         .files
@@ -407,6 +482,12 @@ fn missing_objects(plan: &InstallPlan) -> Result<(u64, bool), InstallError> {
     let mut total = 0_u64;
     let mut missing = false;
     for (sha256, size) in objects {
+        if bundle
+            .as_ref()
+            .is_some_and(|(_, hash, bundle_size)| hash == sha256 && *bundle_size == size)
+        {
+            continue;
+        }
         let valid = match read_file(&cache, sha256)? {
             Some(file) => object_matches(file, sha256, size)?,
             None => false,
@@ -499,6 +580,18 @@ fn download_objects(
     cancelled: &AtomicBool,
     events: &mpsc::Sender<InstallEvent>,
 ) -> Result<(), InstallError> {
+    let bundle = planned_bundle(plan);
+    if crate::brand::store_distribution() && bundle.is_none() {
+        log_store_fallback(
+            &plan.data_dir,
+            &plan.base_version,
+            "using the existing cached or downloaded engine",
+        );
+    }
+    let source = BundledObjectSource {
+        fallback: source,
+        bundle,
+    };
     let mut unique: BTreeMap<String, PlannedFile> = BTreeMap::new();
     for file in plan
         .files
@@ -529,7 +622,7 @@ fn download_objects(
                 let file = queue.lock().expect("download queue poisoned").pop_front();
                 let Some(file) = file else { break };
                 if let Err(error) =
-                    cache_object(&cache, &file, source, cancelled, &done, total, events)
+                    cache_object(&cache, &file, &source, cancelled, &done, total, events)
                 {
                     stop.store(true, Ordering::SeqCst);
                     errors.lock().expect("download errors poisoned").push(error);
@@ -891,6 +984,22 @@ pub fn prepare_launch(
     let [base_file] = target.files.as_slice() else {
         return Err(InstallError::InvalidMetadata);
     };
+    if let Some((executable, _, _)) = store_bundle(base, &manifest.target) {
+        if !crate::yoake_feed::same_native_mods(&version.enabled_native_mods, &base.native_mods) {
+            return Err(InstallError::UnsupportedNativeMods);
+        }
+        return Ok(Some(LaunchProgram {
+            executable,
+            resource_tag: base.horizon_release.clone(),
+        }));
+    }
+    if crate::brand::store_distribution() {
+        log_store_fallback(
+            data_dir,
+            &manifest.base_version,
+            "launching the existing installed engine",
+        );
+    }
     let base_dir = data_dir.join("yoake-bases").join(&manifest.base_version);
     let file = read_file(&base_dir, &base_file.destination)?.ok_or(InstallError::MissingBase)?;
     if !object_matches(file, &base_file.sha256, base_file.size)? {

@@ -304,6 +304,8 @@ pub struct Guest {
     /// `ServerPlayer.lastKnownClientMovement`: the last move accepted from
     /// their client, zero after a client tick without one.
     pub known_movement: [f64; 3],
+    /// A native mod's attack hit box for this player (width, height; `lan::attack_hitbox`).
+    pub attack_hitbox: Option<(f32, f32)>,
     pub dead: bool,
     /// `LivingEntity.deathTime`: ticks since the guest died.
     pub death_time: u32,
@@ -473,6 +475,7 @@ impl Guest {
             moves: Vec::new(),
             moves_from_ground: false,
             known_movement: [0.0; 3],
+            attack_hitbox: None,
             dead: false,
             death_time: 0,
             placed: false,

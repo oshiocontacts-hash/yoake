@@ -92,6 +92,72 @@ fn feed_with_content_mods(version: &str, content_mods: &[&str]) -> VerifiedFeed 
     verified
 }
 
+#[test]
+fn bundled_engine_requires_matching_plain_base() {
+    let root = TestDirectory::new();
+    let executable = root.0.join("yoake.exe");
+    fs::write(&executable, b"base").unwrap();
+    let mut verified = feed("1", Vec::new());
+    let ParsedFeedIndex::V2(index) = &mut verified.index else {
+        panic!("expected a schema 2 feed");
+    };
+    let base = &mut index.bases[0];
+    base.native_mods.clear();
+
+    assert_eq!(
+        bundled_file(base, "windows-x86_64", &executable, Some("1")),
+        Some((executable.clone(), hash(b"base"), 4))
+    );
+    assert!(bundled_file(base, "windows-x86_64", &executable, Some("2")).is_none());
+    assert!(bundled_file(base, "windows-x86_64", &executable, None).is_none());
+    assert!(bundled_file(base, "linux-x86_64", &executable, Some("1")).is_none());
+
+    base.native_mods.push("native".to_owned());
+    assert!(bundled_file(base, "windows-x86_64", &executable, Some("1")).is_none());
+    base.native_mods.clear();
+
+    let target = base.targets.get_mut("windows-x86_64").unwrap();
+    let extra_file = target.files[0].clone();
+    target.files.push(extra_file);
+    assert!(bundled_file(base, "windows-x86_64", &executable, Some("1")).is_none());
+    let _ = base.targets.get_mut("windows-x86_64").unwrap().files.pop();
+
+    fs::write(&executable, b"fake").unwrap();
+    assert!(bundled_file(base, "windows-x86_64", &executable, Some("1")).is_none());
+    fs::write(&executable, b"other length").unwrap();
+    assert!(bundled_file(base, "windows-x86_64", &executable, Some("1")).is_none());
+}
+
+#[test]
+fn bundled_source_uses_fallback_for_other_objects() {
+    let root = TestDirectory::new();
+    let executable = root.0.join("yoake.exe");
+    fs::write(&executable, b"base").unwrap();
+    let fallback = DirectorySource::new(&root.0.join("objects"), &[b"pack"]);
+    let source = BundledObjectSource {
+        fallback: &fallback,
+        bundle: Some((executable, hash(b"base"), 4)),
+    };
+
+    let mut bytes = Vec::new();
+    source
+        .open(&hash(b"base"))
+        .unwrap()
+        .read_to_end(&mut bytes)
+        .unwrap();
+    assert_eq!(bytes.as_slice(), b"base");
+    assert!(fallback.calls.lock().unwrap().is_empty());
+
+    bytes.clear();
+    source
+        .open(&hash(b"pack"))
+        .unwrap()
+        .read_to_end(&mut bytes)
+        .unwrap();
+    assert_eq!(bytes.as_slice(), b"pack");
+    assert_eq!(*fallback.calls.lock().unwrap(), vec![hash(b"pack")]);
+}
+
 fn plan(
     feed: &VerifiedFeed,
     version: &str,

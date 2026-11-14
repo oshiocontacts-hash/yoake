@@ -332,7 +332,7 @@ replaces the original only after success. Catalog signing writes `index.json.sig
 and refuses to overwrite an existing sidecar. The release signer validates the ZIP
 container or bounded input bytes, not the complete semantic manifest/catalog schema:
 producers must also use the full `horizon_mods::yak` validation before publishing.
-Keep the production key in `C:\YoakePrivate` and supply it through `--key-file` on
+Keep the production key in a private folder outside any repository and supply it through `--key-file` on
 the signing machine; never place it in a mod, catalog, repository, or test fixture.
 Tests generate disposable Ed25519 test keys instead.
 

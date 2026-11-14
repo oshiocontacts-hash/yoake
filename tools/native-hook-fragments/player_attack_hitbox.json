@@ -1,0 +1,13 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "set_player_attack_hitbox", "target": "horizon_client::game::native_attack_hitbox::Game<'_>::native_set_player_attack_hitbox"},
+    {"name": "clear_player_attack_hitbox", "target": "horizon_client::game::native_attack_hitbox::Game<'_>::native_clear_player_attack_hitbox"}
+  ],
+  "rust_summary": "a player's attack hit box, separate from its collision box (`native_set_player_attack_hitbox`, `native_clear_player_attack_hitbox`).",
+  "doc_summary": "On the authoritative server tick, `native_set_player_attack_hitbox(uuid, width, height)` gives a player a hit box that starts at their feet, is centred on them and is `width` wide and `height` tall (positive, at most 1024), separate from the box the world collides with; `native_clear_player_attack_hitbox(uuid)` puts the ordinary box back. The server's attack and interaction reach check uses it for that player as a target, and Horizon clients are told on the `horizon:attack_hitbox` payload so their crosshair picks the player by it (`attack_entity` targeting included); a vanilla client keeps the ordinary box. Each helper answers false for a player who is not on the server and is limited to 512 calls per mod per tick. Nothing changes unless a mod sets a box. Bundles need fragment @API:player_attack_hitbox@.",
+  "comments": [
+    "crates/horizon-client/src/game/native_attack_hitbox.rs",
+    "crates/horizon-client/src/lan/attack_hitbox.rs"
+  ]
+}

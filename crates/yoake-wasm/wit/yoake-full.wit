@@ -1303,6 +1303,7 @@ interface engine-types {
         food-level: option<s32>,
         right-arm-pose: string,
         left-arm-pose: string,
+        scale: f32,
     }
 
     record native-recipe-type {

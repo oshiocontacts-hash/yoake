@@ -1127,6 +1127,20 @@ fn apply_permission_hook(vanilla: u8, hook: impl FnOnce(&mut u8)) -> u8 {
 }
 
 impl Hub {
+    /// The permission level to report for `guest` to the mods (`NativeServerPlayer.permission`):
+    /// the level the server holds for them, and for the integrated server's owner at least their
+    /// entry in the operator list, which the Allow Commands switch writes first. The same level
+    /// their commands run at.
+    pub fn reported_permission(&self, guest: &Guest) -> u8 {
+        if self.singleplayer_owner == Some(guest.uuid) {
+            guest
+                .permission
+                .max(self.ops.get(&guest.uuid).copied().unwrap_or(0).min(4))
+        } else {
+            guest.permission
+        }
+    }
+
     /// The permission level a player gets: an integrated server gives every
     /// guest the game masters' level when commands are allowed
     /// (IntegratedServer.setGuestCommandAccess); a dedicated server its
@@ -1211,6 +1225,8 @@ impl Hub {
             }
         }
         self.guests[i].placed = true;
+        // A mod's attack hit boxes, for a Horizon client's crosshair.
+        self.send_attack_hitboxes_to(conn);
         self.resend_teleport(i, None);
         let g = &self.guests[i];
         g.send(&C::ServerData(play::ServerData {
@@ -1941,6 +1957,7 @@ impl Hub {
         if !g.placed {
             return g;
         }
+        self.forget_attack_hitbox(&g);
         // `PlayerList.remove`: the entities it tracked stop (`removePairing`).
         g.tracker.clear();
         take_tracking(
@@ -4500,6 +4517,95 @@ mod tests {
 
         hub.resend_changed_permissions();
         assert!(rx.try_recv().is_err());
+    }
+
+    /// What mods are told of a player's level: the owner's operator-list entry counts even
+    /// when the guest's stored level has not caught up with it.
+    #[test]
+    fn the_owners_reported_permission_follows_the_operator_list() {
+        let (mut hub, _rx) = hub_with_a_guest();
+        hub.guests[0].permission = 0;
+        assert_eq!(hub.reported_permission(&hub.guests[0]), 0);
+        hub.ops.insert(1, 4);
+        // An ordinary player is only what the server holds for them.
+        assert_eq!(hub.reported_permission(&hub.guests[0]), 0);
+        hub.singleplayer_owner = Some(1);
+        assert_eq!(hub.reported_permission(&hub.guests[0]), 4);
+        hub.guests[0].permission = 2;
+        hub.ops.insert(1, 0);
+        assert_eq!(hub.reported_permission(&hub.guests[0]), 2);
+    }
+
+    /// A mod's attack hit box is the box the player is attacked in, and only a Horizon client is
+    /// told of it (and of its removal).
+    #[test]
+    fn an_attack_hit_box_replaces_the_players_box_and_reaches_horizon_clients_only() {
+        use crate::lan::attack_hitbox;
+        let (mut hub, vanilla_rx) = hub_with_a_guest();
+        let (mut horizon, horizon_rx) = {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let mut guest = Guest::new(
+                crate::lan::Joined {
+                    conn: 2,
+                    uuid: 2,
+                    name: "Alex".into(),
+                    properties: Vec::new(),
+                    info: horizon_protocol::packets::configuration::ClientInformation::new(8),
+                    brand: "horizon".into(),
+                    sender: crate::lan::PlayerSender::new(tx, std::sync::Arc::default()),
+                    latency: std::sync::Arc::new(std::sync::atomic::AtomicI32::new(0)),
+                    address: "127.0.0.1:25566".parse().unwrap(),
+                },
+                2,
+                [0.5, 64.0, 0.5],
+                8,
+            );
+            guest.placed = true;
+            guest.dimension = "minecraft:overworld".into();
+            (guest, rx)
+        };
+        horizon.placed = true;
+        hub.guests.push(horizon);
+        let normal = hub.guests[0].attack_bounds();
+        assert_eq!(normal, hub.guests[0].bounds());
+        assert!(hub.set_attack_hitbox(1, Some((6.0, 18.0))));
+        let b = hub.guests[0].attack_bounds();
+        assert_eq!(b.min_position(), Vec3::new(-2.5, 64.0, -2.5));
+        assert_eq!(b.max_position(), Vec3::new(3.5, 82.0, 3.5));
+        // Another player is not affected, and an unknown one is not here.
+        assert_eq!(hub.guests[1].attack_bounds(), hub.guests[1].bounds());
+        assert!(!hub.set_attack_hitbox(99, Some((1.0, 1.0))));
+        let payload = |rx: &std::sync::mpsc::Receiver<crate::lan::Out>| {
+            let mut found = Vec::new();
+            for out in rx.try_iter() {
+                let crate::lan::Out::Packet(body) = out else {
+                    continue;
+                };
+                let mut reader = horizon_protocol::buf::Reader::new(&body);
+                let id = reader.varint().unwrap();
+                if let C::CustomPayload(p) = C::decode(id, reader.rest()).unwrap()
+                    && p.channel == attack_hitbox::CHANNEL
+                {
+                    found.push(attack_hitbox::decode(&p.data).unwrap());
+                }
+            }
+            found
+        };
+        assert_eq!(payload(&horizon_rx), [(1, Some((6.0, 18.0)))]);
+        assert!(payload(&vanilla_rx).is_empty());
+        // The same box again says nothing; clearing puts the ordinary box back.
+        assert!(hub.set_attack_hitbox(1, Some((6.0, 18.0))));
+        assert!(payload(&horizon_rx).is_empty());
+        assert!(hub.set_attack_hitbox(1, None));
+        assert_eq!(hub.guests[0].attack_bounds(), normal);
+        assert_eq!(payload(&horizon_rx), [(1, None)]);
+        // A client placed later is sent the boxes that are set.
+        assert!(hub.set_attack_hitbox(1, Some((2.0, 3.0))));
+        payload(&horizon_rx);
+        hub.send_attack_hitboxes_to(2);
+        assert_eq!(payload(&horizon_rx), [(1, Some((2.0, 3.0)))]);
+        hub.send_attack_hitboxes_to(1);
+        assert!(payload(&vanilla_rx).is_empty());
     }
 
     /// `handlePlayerCommand` START_RIDING_JUMP (3) and STOP_RIDING_JUMP (4): the
