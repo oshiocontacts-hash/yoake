@@ -1,0 +1,28 @@
+[package]
+name = "yoake-wasm-full-demo"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+description = "Full-catalog demo: a client module (HUD commands, hides the hotbar) and a server module (/wasmping)"
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+# Build once per world and keep both files:
+#   cargo build --release --target wasm32-wasip2 --features client   -> the client-full module
+#   cargo build --release --target wasm32-wasip2 --features server   -> the server-full module
+client = []
+server = []
+
+[dependencies]
+yoake-wasm-sdk = { path = "../..", features = ["full"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+panic = "abort"
+
+[workspace]

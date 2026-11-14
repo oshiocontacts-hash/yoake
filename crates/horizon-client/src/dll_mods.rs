@@ -220,7 +220,12 @@ fn append(mods: Mods, identities: &'static [super::NativeMod], accepted: Vec<Met
 
 pub(super) fn native_identity(version: &str, digest: Option<&str>) -> (String, super::NativeSide) {
     match digest {
-        Some(digest) => (format!("{version}#{digest}"), super::NativeSide::Both),
+        Some(digest) => {
+            // The identity text is limited to 64 characters (`mod_list::MAX_TEXT`): the digest is cut to
+            // what fits after the version, which still leaves 128 bits or more for a usual version.
+            let room = 64usize.saturating_sub(version.chars().count() + 1).clamp(8, digest.len());
+            (format!("{version}#{}", &digest[..room]), super::NativeSide::Both)
+        }
         None => (version.to_owned(), super::NativeSide::Client),
     }
 }
@@ -876,7 +881,8 @@ mod tests {
     fn required_yak_identity_includes_the_verified_binary_digest() {
         let digest = "ab".repeat(32);
         let (version, side) = native_identity("1.2.3", Some(&digest));
-        assert_eq!(version, format!("1.2.3#{digest}"));
+        assert_eq!(version, format!("1.2.3#{}", &digest[..58]));
+        assert!(version.chars().count() <= 64);
         assert!(matches!(side, super::super::NativeSide::Both));
         let (version, side) = native_identity("1.2.3", None);
         assert_eq!(version, "1.2.3");

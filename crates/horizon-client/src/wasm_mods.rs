@@ -9,6 +9,9 @@
 //! when one changes on disk, swaps in a fresh instance at the next frame or tick on the main thread.
 //! `YOAKE_WASM_DEV_DIR` names a folder of raw `<id>.wasm` components that are loaded the same way.
 
+#[path = "wasm_mods/full.rs"]
+mod full;
+
 use super::dll_mods::{frame_time, native_identity, safe_component, StaticMod};
 use crate::mod_api::*;
 use horizon_mod_abi as abi;
@@ -99,6 +102,8 @@ struct Source {
     version: String,
     sha256: Option<String>,
     required_on_join: bool,
+    /// The module targets `client-full` rather than `client-mod`.
+    full: bool,
     bytes: Vec<u8>,
     /// Watched for hot reload (developer mode and not signed).
     watch: Option<PathBuf>,
@@ -122,7 +127,7 @@ fn dev_sources() -> Vec<Source> {
         }
         match read_bounded(&path) {
             Ok(bytes) => sources.push(Source {
-                id: id.replace('.', "-"), version: "0.0.0-dev".into(), sha256: None, required_on_join: false,
+                id: id.replace('.', "-"), version: "0.0.0-dev".into(), sha256: None, required_on_join: false, full: false,
                 bytes, watch: Some(path),
             }),
             Err(error) => emit(format!("wasm: dev module {} skipped: {error}", path.display())),
@@ -140,62 +145,141 @@ fn read_bounded(path: &std::path::Path) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
+/// One package's modules once accepted: its hook objects, its client module's world and the
+/// identity the multiplayer check sees.
+struct Accepted {
+    id: String,
+    version: String,
+    /// The module's SHA-256 when the package is required on join.
+    digest: Option<String>,
+    hooks: Vec<Box<dyn Hooks>>,
+    client_full: Option<yoake_wasm::ClientFullMod>,
+    server_full: Option<yoake_wasm::ServerFullMod>,
+    worlds: Vec<&'static str>,
+}
+
 pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mods, &'static [super::NativeMod]) {
     let developer = crate::yak_mods::unsigned_allowed();
+    // A dedicated server has no client: its client modules only give the package's identity.
+    let dedicated = std::env::args().any(|argument| argument == "--dedicated");
     let mut sources: Vec<Source> = crate::yak_mods::wasm_client_mods().into_iter().map(|module| Source {
         id: module.mod_id,
         version: module.version.to_string(),
         sha256: Some(module.sha256),
         required_on_join: module.required_on_join,
+        full: module.full,
         bytes: module.bytes,
         watch: (developer && !module.signed).then_some(module.path),
     }).collect();
     if developer { sources.extend(dev_sources()); }
-    if sources.is_empty() {
+    let servers = crate::yak_mods::wasm_mods(crate::yak_mods::WasmSide::Server);
+    if sources.is_empty() && servers.is_empty() {
         emit("wasm: no mods (engine not started)".into());
         return (mods, identities);
     }
 
     let mut names: HashSet<String> = identities.iter().map(|identity| identity.id.to_owned()).collect();
-    let mut accepted: Vec<(WasmMod, Option<String>)> = Vec::new();
+    let mut accepted: Vec<Accepted> = Vec::new();
     let mut watches = Vec::new();
     for source in sources {
         if identities.len() + accepted.len() >= MAX_MODS || !names.insert(source.id.clone()) {
             emit(format!("wasm: mod {} skipped: duplicate or too many native identities", source.id));
             continue;
         }
-        let module = {
-            let mut sandbox = sandbox().lock().unwrap_or_else(|error| error.into_inner());
-            ClientMod::instantiate(&mut sandbox, source.id.clone(), &source.bytes, Box::new(GameHost::new(&source.id)))
+        let digest = source.required_on_join.then(|| source.sha256.clone()).flatten();
+        let mut package = Accepted {
+            id: source.id.clone(), version: source.version.clone(), digest,
+            hooks: Vec::new(), client_full: None, server_full: None, worlds: Vec::new(),
         };
-        match module {
-            Ok(module) => {
-                emit(format!("wasm: mod {} {} loaded", source.id, source.version));
-                let reload = source.watch.as_ref().map(|path| {
-                    let reload = Arc::new(Reload::default());
-                    watches.push(Watch::new(path.clone(), Arc::clone(&reload)));
-                    reload
-                });
-                let digest = source.required_on_join.then(|| source.sha256.clone()).flatten();
-                accepted.push((WasmMod::new(source.id, source.version, module, reload), digest));
-            }
-            Err(error) => emit(format!("wasm: mod {} not loaded: {error}", source.id)),
+        if dedicated {
+            accepted.push(package);
+            continue;
         }
+        if source.full {
+            match full::load_client(&full::ModuleSource { id: &source.id, bytes: &source.bytes }) {
+                Ok(module) => {
+                    package.client_full = Some(module);
+                    package.worlds.push("client-full");
+                }
+                Err(error) => {
+                    emit(format!("wasm: mod {} not loaded: {error}", source.id));
+                    names.remove(&source.id);
+                    continue;
+                }
+            }
+        } else {
+            let module = {
+                let mut sandbox = sandbox().lock().unwrap_or_else(|error| error.into_inner());
+                ClientMod::instantiate(&mut sandbox, source.id.clone(), &source.bytes, Box::new(GameHost::new(&source.id)))
+            };
+            match module {
+                Ok(module) => {
+                    let reload = source.watch.as_ref().map(|path| {
+                        let reload = Arc::new(Reload::default());
+                        watches.push(Watch::new(path.clone(), Arc::clone(&reload)));
+                        reload
+                    });
+                    package.hooks.push(Box::new(WasmMod::new(source.id.clone(), source.version.clone(), module, reload)));
+                    package.worlds.push("client-mod");
+                }
+                Err(error) => {
+                    emit(format!("wasm: mod {} not loaded: {error}", source.id));
+                    names.remove(&source.id);
+                    continue;
+                }
+            }
+        }
+        accepted.push(package);
+    }
+    for server in servers {
+        let position = accepted.iter().position(|package| package.id == server.mod_id);
+        if position.is_none() && (identities.len() + accepted.len() >= MAX_MODS || !names.insert(server.mod_id.clone())) {
+            emit(format!("wasm: mod {} skipped: duplicate or too many native identities", server.mod_id));
+            continue;
+        }
+        let digest = server.required_on_join.then(|| server.sha256.clone());
+        let mut package = match position {
+            Some(position) => accepted.swap_remove(position),
+            None => Accepted {
+                id: server.mod_id.clone(), version: server.version.to_string(), digest,
+                hooks: Vec::new(), client_full: None, server_full: None, worlds: Vec::new(),
+            },
+        };
+        match full::load_server(&full::ModuleSource { id: &server.mod_id, bytes: &server.bytes }) {
+            Ok(module) => {
+                package.server_full = Some(module);
+                package.worlds.push("server-full");
+            }
+            Err(error) => emit(format!("wasm: mod {} server module not loaded: {error}", server.mod_id)),
+        }
+        // A package that only had a server module and lost it has nothing to run.
+        if position.is_some() || package.server_full.is_some() { accepted.push(package); } else { names.remove(&server.mod_id); }
     }
     if !watches.is_empty() { spawn_watcher(watches); }
     if accepted.is_empty() { return (mods, identities); }
-    emit(format!("wasm: {} mod(s), engine started", accepted.len()));
+    let running = accepted.iter().filter(|package| !package.worlds.is_empty()).count();
+    if running == 0 {
+        emit("wasm: no mods (engine not started)".into());
+    } else {
+        emit(format!("wasm: {running} mod(s), engine started"));
+    }
 
     let mut combined: Vec<Box<dyn Hooks>> = (0..mods.len())
         .map(|index| Box::new(StaticMod { original: mods.clone(), index }) as Box<dyn Hooks>)
         .collect();
     let mut owned = identities.to_vec();
-    for (module, digest) in accepted {
-        let id: &'static str = Box::leak(module.id.clone().into_boxed_str());
-        let (version, side) = native_identity(&module.version, digest.as_deref());
+    for mut package in accepted {
+        if package.client_full.is_some() || package.server_full.is_some() {
+            package.hooks.push(Box::new(full::FullMod::new(package.id.clone(), package.client_full.take(), package.server_full.take())));
+        }
+        if !package.worlds.is_empty() {
+            emit(format!("wasm: mod {} {} loaded ({})", package.id, package.version, package.worlds.join(", ")));
+        }
+        let id: &'static str = Box::leak(package.id.clone().into_boxed_str());
+        let (version, side) = native_identity(&package.version, package.digest.as_deref());
         let version: &'static str = Box::leak(version.into_boxed_str());
         owned.push(super::NativeMod { id, version, side });
-        combined.push(Box::new(module));
+        combined.extend(package.hooks);
     }
     (Arc::from(combined), Box::leak(owned.into_boxed_slice()))
 }

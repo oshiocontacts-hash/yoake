@@ -2,8 +2,12 @@ use quote::ToTokens;
 use serde::Deserialize;
 use std::{collections::HashSet, fs, path::Path};
 
+mod sdk_full;
+mod wasm_adapters;
 mod wit;
 mod wit_full;
+pub use sdk_full::{SdkFull, generate_sdk_full};
+pub use wasm_adapters::{WasmAdapters, generate_full_hook_names, generate_wasm_adapters};
 pub use wit::generate_wit;
 pub use wit_full::{FullWit, generate_full_wit};
 
@@ -278,6 +282,37 @@ mod tests {
             .join("../yoake-wasm/src/hook_names.rs");
         let committed = std::fs::read_to_string(path).unwrap();
         assert_eq!(generated, committed.replace("\r\n", "\n"));
+    }
+
+    #[test]
+    fn full_hook_names_match_the_catalog() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let generated = super::generate_full_hook_names(&root).unwrap();
+        let path = root.join("crates/yoake-wasm/src/full_hook_names.rs");
+        if std::env::var_os("YOAKE_UPDATE_WIT").is_some() {
+            std::fs::write(&path, &generated).unwrap();
+        }
+        let committed = std::fs::read_to_string(path).unwrap();
+        assert_eq!(generated, committed.replace("\r\n", "\n"), "regenerate with YOAKE_UPDATE_WIT=1");
+    }
+
+    #[test]
+    fn guest_sdk_full_bindings_match_the_catalog() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let generated = super::generate_sdk_full(&root).unwrap();
+        for (file, text) in [
+            ("full_client_generated.rs", &generated.client),
+            ("full_server_generated.rs", &generated.server),
+            ("full_hooks_generated.rs", &generated.hooks),
+        ] {
+            let path = root.join("crates/yoake-wasm-sdk/src").join(file);
+            if std::env::var_os("YOAKE_UPDATE_WIT").is_some() {
+                std::fs::write(&path, text).unwrap();
+            }
+            let committed = std::fs::read_to_string(&path).unwrap_or_default();
+            assert_eq!(*text, committed.replace("\r\n", "\n"), "{file}: regenerate with YOAKE_UPDATE_WIT=1");
+            syn::parse_file(text).unwrap_or_else(|e| panic!("{file}: {e}"));
+        }
     }
 
     #[test]

@@ -32,6 +32,9 @@ mod heap;
 
 pub mod nbt;
 
+#[cfg(feature = "full")]
+pub mod full;
+
 /// Everything a `#![no_std]` mod usually needs from `alloc`.
 pub mod prelude {
     pub use alloc::{boxed::Box, format, string::{String, ToString}, vec, vec::Vec};

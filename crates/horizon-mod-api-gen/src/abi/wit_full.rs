@@ -24,7 +24,9 @@ use std::rc::Rc;
 use syn::{FnArg, GenericArgument, Item, Pat, PathArguments, Type};
 
 mod types;
-use types::{Carrier, Effect, ITEM_STACK_DOC, JSON_DOC, NBT_DOC, TABLE, TEXT_DOC, effect_of};
+pub(crate) mod shape;
+use shape::{ListKind, MapKind, NamedDef, RustPath, Shape, StrKind, VCase, WrapKind};
+use types::{Carrier, EFFECTS, Effect, ITEM_STACK_DOC, JSON_DOC, NBT_DOC, TABLE, TEXT_DOC, effect_of};
 
 const SERVER_DRAFT: &str = include_str!("../../abi-subset-server.json");
 
@@ -59,7 +61,7 @@ const MAX_NAMED_FIELDS: usize = 40;
 // Identifiers
 
 /// WIT kebab-case: words never start with a digit; keywords are escaped with `%`.
-fn kebab(name: &str) -> String {
+pub(crate) fn kebab(name: &str) -> String {
     let name = name.strip_prefix("r#").unwrap_or(name);
     let chars: Vec<char> = name.chars().collect();
     let mut words: Vec<String> = Vec::new();
@@ -437,6 +439,31 @@ impl TypeIndex {
                     by_crate = by_module;
                 }
             }
+            // A re-export (`use crate::extras::Corner` where `extras` is a dependency's module) is
+            // a dependency's type, not a same-named type of this crate in another module.
+            let module_matches = |file: &PathBuf| {
+                self.origins.get(file).is_some_and(|(_, module)| {
+                    *module == middle
+                        || module.starts_with(&format!("{middle}::"))
+                        || middle.starts_with(&format!("{module}::"))
+                })
+            };
+            let own_module_fits = middle.is_empty() || by_crate.iter().any(|(file, _)| module_matches(file));
+            if !by_crate.is_empty() && own_module_fits {
+                return choose(by_crate);
+            }
+            if !by_crate.is_empty() && !middle.is_empty() {
+                let dependencies = self.dependencies(&from.krate);
+                let by_dependency: Vec<Candidate> = found
+                    .iter()
+                    .filter(|(file, _)| self.crate_of(file).is_some_and(|k| dependencies.contains(k)) && module_matches(file))
+                    .cloned()
+                    .collect();
+                if !by_dependency.is_empty() {
+                    return choose(by_dependency);
+                }
+                return choose(by_crate);
+            }
             if !by_crate.is_empty() {
                 return choose(by_crate);
             }
@@ -491,6 +518,8 @@ struct Mapped {
     direct: BTreeSet<String>,
     /// Handles here and inside every named type used.
     closure: BTreeSet<String>,
+    /// How values cross the boundary, for the generated WASM adapters.
+    shape: Shape,
 }
 
 impl Mapped {
@@ -498,11 +527,17 @@ impl Mapped {
         Self { wit: wit.into(), ..Self::default() }
     }
 
+    fn shaped(mut self, shape: Shape) -> Self {
+        self.shape = shape;
+        self
+    }
+
     fn handle(label: String) -> Self {
         Self {
             wit: "u64".into(),
             direct: BTreeSet::from([label.clone()]),
             closure: BTreeSet::from([label]),
+            shape: Shape::Handle,
             ..Self::default()
         }
     }
@@ -536,6 +571,8 @@ struct Mapper {
     reserved: HashSet<String>,
     /// Why a path type became a handle, for the report: label -> reason.
     reasons: BTreeMap<String, String>,
+    /// Generated record, enum and variant types by WIT name, for the WASM adapters.
+    defs: BTreeMap<String, NamedDef>,
 }
 
 const SCALARS: &[(&str, &str)] = &[
@@ -638,16 +675,28 @@ impl Mapper {
                     // A live mutable object, not a value.
                     self.handle(ty, "mutable reference to a live object")
                 } else {
-                    self.map(&reference.elem)
+                    let inner = self.map(&reference.elem);
+                    let kind = match &reference.lifetime {
+                        Some(lifetime) if lifetime.ident == "static" => WrapKind::StaticRef,
+                        _ => WrapKind::Ref,
+                    };
+                    let shape = Shape::Wrap(Box::new(inner.shape.clone()), kind);
+                    inner.shaped(shape)
                 }
             }
             Type::Slice(slice) => {
                 let inner = self.map(&slice.elem);
-                Mapped::wrap(format!("list<{}>", inner.wit), vec![inner])
+                let shape = Shape::List(Box::new(inner.shape.clone()), ListKind::Slice);
+                Mapped::wrap(format!("list<{}>", inner.wit), vec![inner]).shaped(shape)
             }
             Type::Array(array) => {
                 let inner = self.map(&array.elem);
-                Mapped::wrap(format!("list<{}>", inner.wit), vec![inner])
+                let len = {
+                    use quote::ToTokens;
+                    array.len.to_token_stream().to_string()
+                };
+                let shape = Shape::List(Box::new(inner.shape.clone()), ListKind::Array(len));
+                Mapped::wrap(format!("list<{}>", inner.wit), vec![inner]).shaped(shape)
             }
             Type::Tuple(tuple) => {
                 if tuple.elems.is_empty() {
@@ -655,7 +704,8 @@ impl Mapper {
                 }
                 let inner: Vec<_> = tuple.elems.iter().map(|elem| self.map(elem)).collect();
                 let wit = format!("tuple<{}>", inner.iter().map(|m| m.wit.as_str()).collect::<Vec<_>>().join(", "));
-                Mapped::wrap(wit, inner)
+                let shape = Shape::Tuple(inner.iter().map(|m| m.shape.clone()).collect());
+                Mapped::wrap(wit, inner).shaped(shape)
             }
             Type::Path(path) => self.map_path(ty, path),
             Type::TraitObject(_) => self.handle(ty, "trait object"),
@@ -676,46 +726,88 @@ impl Mapper {
         let name = last.ident.to_string();
         let args = type_args(&last.arguments);
         if let Some(wit) = scalar(ty) {
-            return Mapped::plain(wit);
+            let rust = SCALARS.iter().find(|(r, _)| *r == name).map(|(r, _)| *r).unwrap_or("u64");
+            return Mapped::plain(wit).shaped(Shape::Scalar { rust });
         }
         if matches!(name.as_str(), "u128" | "i128") && args.is_empty() {
             // 16 bytes in big-endian order, like the UUIDs of the frozen client ABI.
-            return Mapped::plain("list<u8>");
+            return Mapped::plain("list<u8>").shaped(Shape::Wide { signed: name == "i128" });
         }
         if args.is_empty()
             && (self.context.last().and_then(|c| c.parsed.imports.get(&name)).is_some_and(|p| p.first().is_some_and(|f| f == "glam"))
                 || (path.path.segments.len() > 1 && path.path.segments.first().is_some_and(|s| s.ident == "glam")))
             && let Some(wit) = glam(&name)
         {
-            return Mapped::plain(&wit);
+            let count = wit.matches(',').count() + 1;
+            return Mapped::plain(&wit).shaped(Shape::Glam { rust: format!("glam::{name}"), count });
+        }
+        if name == "Duration" && args.is_empty() && self.comes_from(path, &name, &["time", "std", "core"]) {
+            // `std::time::Duration` as nanoseconds, like the frozen client world's `frame`.
+            return Mapped::plain("u64").shaped(Shape::Duration);
+        }
+        if name == "Map" && args.len() == 2 && self.comes_from(path, &name, &["serde_json"]) {
+            self.declare("json", JSON_DOC);
+            return Mapped { wit: "json".into(), uses: BTreeSet::from(["json".to_owned()]), shape: Shape::JsonMap, ..Mapped::default() };
         }
         match (name.as_str(), args.as_slice()) {
-            ("String" | "str" | "PathBuf" | "Path" | "OsString" | "Uuid", []) => {
-                return Mapped::plain("string");
+            ("String" | "str" | "Uuid", []) => {
+                return Mapped::plain("string").shaped(Shape::Str(StrKind::Text));
             }
-            ("Box", [inner]) => return self.map(inner),
+            ("PathBuf" | "Path" | "OsString", []) => {
+                return Mapped::plain("string").shaped(Shape::Str(StrKind::Path));
+            }
+            ("Box", [inner]) => {
+                let inner = self.map(inner);
+                let shape = Shape::Wrap(Box::new(inner.shape.clone()), WrapKind::Box);
+                return inner.shaped(shape);
+            }
             ("Option", [inner]) => {
                 let inner = self.map(inner);
-                return Mapped::wrap(format!("option<{}>", inner.wit), vec![inner]);
+                let shape = Shape::Option(Box::new(inner.shape.clone()));
+                return Mapped::wrap(format!("option<{}>", inner.wit), vec![inner]).shaped(shape);
             }
             ("Vec" | "VecDeque" | "HashSet" | "BTreeSet" | "BinaryHeap", [inner]) => {
                 let inner = self.map(inner);
-                return Mapped::wrap(format!("list<{}>", inner.wit), vec![inner]);
+                let kind = match name.as_str() {
+                    "Vec" => ListKind::Vec,
+                    "VecDeque" => ListKind::VecDeque,
+                    "HashSet" => ListKind::HashSet,
+                    "BTreeSet" => ListKind::BTreeSet,
+                    _ => ListKind::BinaryHeap,
+                };
+                let shape = Shape::List(Box::new(inner.shape.clone()), kind);
+                return Mapped::wrap(format!("list<{}>", inner.wit), vec![inner]).shaped(shape);
             }
-            ("Cow", [inner]) => return self.map(inner),
+            ("Cow", [inner]) => {
+                let inner = self.map(inner);
+                let shape = Shape::Wrap(Box::new(inner.shape.clone()), WrapKind::Cow);
+                return inner.shaped(shape);
+            }
             ("HashMap" | "BTreeMap" | "FxHashMap" | "IndexMap", [key, value, ..]) => {
                 let key = self.map(key);
                 let value = self.map(value);
                 let wit = format!("list<tuple<{}, {}>>", key.wit, value.wit);
-                return Mapped::wrap(wit, vec![key, value]);
+                let kind = match name.as_str() {
+                    "HashMap" => MapKind::HashMap,
+                    "BTreeMap" => MapKind::BTreeMap,
+                    _ => MapKind::Other,
+                };
+                let shape = Shape::Map(Box::new(key.shape.clone()), Box::new(value.shape.clone()), kind);
+                return Mapped::wrap(wit, vec![key, value]).shaped(shape);
             }
             ("Result", [ok, err]) => {
                 let (ok, err) = (self.map(ok), self.map(err));
                 let wit = format!("result<{}, {}>", ok.wit, err.wit);
-                return Mapped::wrap(wit, vec![ok, err]);
+                let shape = Shape::Result(Box::new(ok.shape.clone()), Box::new(err.shape.clone()));
+                return Mapped::wrap(wit, vec![ok, err]).shaped(shape);
             }
             // Shared immutable data is read as its value.
-            ("Rc" | "Arc", [inner]) => return self.map(inner),
+            ("Rc" | "Arc", [inner]) => {
+                let inner = self.map(inner);
+                let kind = if name == "Rc" { WrapKind::Rc } else { WrapKind::Arc };
+                let shape = Shape::Wrap(Box::new(inner.shape.clone()), kind);
+                return inner.shaped(shape);
+            }
             ("RefCell" | "Cell" | "Mutex" | "RwLock" | "PhantomData" | "Instant" | "Rc" | "Arc", _) => {
                 return self.handle(ty, "shared or runtime-only type");
             }
@@ -762,7 +854,7 @@ impl Mapper {
                 return None;
             }
         }
-        let referenced = |wit: &str| Mapped { wit: wit.to_owned(), uses: BTreeSet::from([wit.to_owned()]), ..Mapped::default() };
+        let referenced = |wit: &str, shape: Shape| Mapped { wit: wit.to_owned(), uses: BTreeSet::from([wit.to_owned()]), shape, ..Mapped::default() };
         Some(match row.carrier {
             Carrier::Alias(alias) => {
                 let doc = match alias {
@@ -771,12 +863,18 @@ impl Mapper {
                     _ => JSON_DOC,
                 };
                 self.declare(alias, doc);
-                referenced(alias)
+                let shape = match (alias, name) {
+                    ("nbt", "Compound") => Shape::Compound,
+                    ("nbt", _) => Shape::Tag,
+                    ("text-json", _) => Shape::Text,
+                    _ => Shape::Json,
+                };
+                referenced(alias, shape)
             }
             Carrier::Record(record) => {
                 self.declare("nbt", NBT_DOC);
                 self.declare(record, ITEM_STACK_DOC);
-                referenced(record)
+                referenced(record, Shape::Item)
             }
             Carrier::Struct(target) => {
                 let ty: Type = syn::parse_str(target).ok()?;
@@ -785,7 +883,9 @@ impl Mapper {
                 self.context.push(inside);
                 let mapped = self.named(&ty, target);
                 self.context.pop();
-                mapped
+                // The engine object derefs to the record: it is read through it, never rebuilt.
+                let shape = Shape::Wrap(Box::new(mapped.shape.clone()), WrapKind::Ref);
+                mapped.shaped(shape)
             }
         })
     }
@@ -801,7 +901,7 @@ impl Mapper {
             self.named.entry((*name).to_owned()).or_insert_with(|| Named { declaration: declaration.to_owned() });
             self.names.insert((*name).to_owned());
         }
-        Mapped { wit: format!("list<{}>", effect.wit), uses: BTreeSet::from([effect.wit.to_owned()]), ..Mapped::default() }
+        Mapped { wit: format!("list<{}>", effect.wit), uses: BTreeSet::from([effect.wit.to_owned()]), shape: Shape::Unsupported, ..Mapped::default() }
     }
 
     /// The generated named type for the workspace type `name`, or a handle.
@@ -824,7 +924,7 @@ impl Mapper {
         let inside = self.index.context(&file);
         self.context.push(inside);
         self.building.push(key.clone());
-        let mapped = self.build(ty, name, &def);
+        let mapped = self.build(ty, name, &def, &file);
         self.building.pop();
         self.context.pop();
         self.by_rust.insert(key, mapped.clone());
@@ -843,7 +943,7 @@ impl Mapper {
         self.named.insert(wit_name.clone(), Named { declaration: text });
         let mut set = BTreeSet::new();
         set.insert(wit_name.clone());
-        Mapped { wit: escape(&wit_name), uses: set, direct: BTreeSet::new(), closure }
+        Mapped { wit: escape(&wit_name), uses: set, direct: BTreeSet::new(), closure, shape: Shape::Named(wit_name) }
     }
 
     fn fresh_name(&mut self, rust: &str) -> String {
@@ -854,7 +954,20 @@ impl Mapper {
         unique(base, &mut self.names)
     }
 
-    fn build(&mut self, ty: &Type, name: &str, def: &Def) -> Mapped {
+    fn rust_path(&self, file: &Path, name: &str, written: &str, generics: &syn::Generics, attrs: &[syn::Attribute]) -> RustPath {
+        let (krate, module) = self.index.origins.get(file).cloned().unwrap_or_default();
+        RustPath {
+            file: file.to_owned(),
+            krate,
+            module,
+            name: written.to_owned(),
+            alias: name.to_owned(),
+            lifetimes: generics.lifetimes().count(),
+            non_exhaustive: attrs.iter().any(|attr| attr.path().is_ident("non_exhaustive")),
+        }
+    }
+
+    fn build(&mut self, ty: &Type, name: &str, def: &Def, file: &Path) -> Mapped {
         match def {
             Def::Alias(item) => {
                 if item.generics.params.iter().any(|p| !matches!(p, syn::GenericParam::Lifetime(_))) {
@@ -863,8 +976,14 @@ impl Mapper {
                 let target = (*item.ty).clone();
                 self.map(&target)
             }
-            Def::Struct(item) => self.build_struct(ty, name, item),
-            Def::Enum(item) => self.build_enum(ty, name, item),
+            Def::Struct(item) => {
+                let path = self.rust_path(file, name, &item.ident.to_string(), &item.generics, &item.attrs);
+                self.build_struct(ty, name, item, path)
+            }
+            Def::Enum(item) => {
+                let path = self.rust_path(file, name, &item.ident.to_string(), &item.generics, &item.attrs);
+                self.build_enum(ty, name, item, path)
+            }
         }
     }
 
@@ -872,7 +991,7 @@ impl Mapper {
         generics.params.iter().any(|p| !matches!(p, syn::GenericParam::Lifetime(_)))
     }
 
-    fn build_struct(&mut self, ty: &Type, name: &str, item: &syn::ItemStruct) -> Mapped {
+    fn build_struct(&mut self, ty: &Type, name: &str, item: &syn::ItemStruct, path: RustPath) -> Mapped {
         if Self::generic(&item.generics) {
             return self.handle(ty, "generic type");
         }
@@ -880,12 +999,16 @@ impl Mapper {
             syn::Fields::Unit => {
                 let wit_name = self.fresh_name(name);
                 let text = format!("    enum {} {{\n        unit,\n    }}\n", escape(&wit_name));
+                self.defs.insert(wit_name.clone(), NamedDef::Unit { wit: wit_name.clone(), rust: path, braced: false });
                 self.reference((wit_name, text), Vec::new())
             }
             syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
                 // A newtype is its inner value.
-                let inner = fields.unnamed[0].ty.clone();
-                self.map(&inner)
+                let public = !matches!(fields.unnamed[0].vis, syn::Visibility::Inherited);
+                let inner_ty = fields.unnamed[0].ty.clone();
+                let inner = self.map(&inner_ty);
+                let shape = Shape::Newtype { rust: path, inner: Box::new(inner.shape.clone()), public };
+                inner.shaped(shape)
             }
             fields => {
                 let list: Vec<&syn::Field> = fields.iter().collect();
@@ -895,6 +1018,7 @@ impl Mapper {
                 if list.iter().any(|f| matches!(f.vis, syn::Visibility::Inherited)) {
                     return self.handle(ty, "struct with private fields");
                 }
+                let tuple = matches!(fields, syn::Fields::Unnamed(_));
                 let list: Vec<&syn::Field> = list
                     .into_iter()
                     .filter(|f| !matches!(&f.ty, Type::Path(p) if p.path.segments.last().is_some_and(|s| s.ident == "PhantomData")))
@@ -902,11 +1026,13 @@ impl Mapper {
                 if list.is_empty() {
                     let wit_name = self.fresh_name(name);
                     let text = format!("    enum {} {{\n        unit,\n    }}\n", escape(&wit_name));
+                    self.defs.insert(wit_name.clone(), NamedDef::Unit { wit: wit_name.clone(), rust: path, braced: !tuple });
                     return self.reference((wit_name, text), Vec::new());
                 }
                 let wit_name = self.fresh_name(name);
                 let mut used = HashSet::new();
                 let mut inner = Vec::new();
+                let mut shaped = Vec::new();
                 let mut text = format!("    record {} {{\n", escape(&wit_name));
                 for (index, field) in list.iter().enumerate() {
                     let field_name = match &field.ident {
@@ -914,20 +1040,26 @@ impl Mapper {
                         None => format!("f{index}"),
                     };
                     let mapped = self.map(&field.ty);
-                    let field_name = unique(kebab(&field_name), &mut used);
+                    let wit_field = unique(kebab(&field_name), &mut used);
                     for handle in &mapped.direct {
                         text.push_str(&format!("        /// opaque engine handle ({handle})\n"));
                     }
-                    text.push_str(&format!("        {}: {},\n", escape(&field_name), mapped.wit));
+                    text.push_str(&format!("        {}: {},\n", escape(&wit_field), mapped.wit));
+                    let rust_field = match &field.ident {
+                        Some(ident) => ident.to_string(),
+                        None => index.to_string(),
+                    };
+                    shaped.push(shape::Field { rust: rust_field, wit: wit_field, shape: mapped.shape.clone() });
                     inner.push(mapped);
                 }
                 text.push_str("    }\n");
+                self.defs.insert(wit_name.clone(), NamedDef::Record { wit: wit_name.clone(), rust: path, fields: shaped, tuple });
                 self.reference((wit_name, text), inner)
             }
         }
     }
 
-    fn build_enum(&mut self, ty: &Type, name: &str, item: &syn::ItemEnum) -> Mapped {
+    fn build_enum(&mut self, ty: &Type, name: &str, item: &syn::ItemEnum, path: RustPath) -> Mapped {
         if Self::generic(&item.generics) {
             return self.handle(ty, "generic type");
         }
@@ -941,42 +1073,51 @@ impl Mapper {
         let mut text;
         if all_unit {
             text = format!("    enum {} {{\n", escape(&wit_name));
+            let mut cases = Vec::new();
             for variant in &item.variants {
                 let case = unique(kebab(&variant.ident.to_string()), &mut used);
                 text.push_str(&format!("        {},\n", escape(&case)));
+                cases.push((variant.ident.to_string(), case));
             }
+            self.defs.insert(wit_name.clone(), NamedDef::UnitEnum { wit: wit_name.clone(), rust: path, cases });
         } else {
             text = format!("    variant {} {{\n", escape(&wit_name));
+            let mut cases = Vec::new();
             for variant in &item.variants {
                 let case = unique(kebab(&variant.ident.to_string()), &mut used);
-                let payload = match &variant.fields {
-                    syn::Fields::Unit => None,
+                let (payload, vcase) = match &variant.fields {
+                    syn::Fields::Unit => (None, VCase::Unit),
                     syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
                         let mapped = self.map(&fields.unnamed[0].ty);
-                        Some(mapped)
+                        let shape = mapped.shape.clone();
+                        (Some(mapped), VCase::Single(shape))
                     }
                     syn::Fields::Unnamed(fields) => {
                         let parts: Vec<_> = fields.unnamed.iter().map(|f| self.map(&f.ty)).collect();
                         let wit = format!("tuple<{}>", parts.iter().map(|m| m.wit.as_str()).collect::<Vec<_>>().join(", "));
-                        Some(Mapped::wrap(wit, parts))
+                        let shapes = parts.iter().map(|m| m.shape.clone()).collect();
+                        (Some(Mapped::wrap(wit, parts)), VCase::Tuple(shapes))
                     }
                     syn::Fields::Named(fields) => {
                         // A struct variant gets its own record.
                         let record = self.fresh_name(&format!("{name}-{}", variant.ident));
                         let mut field_names = HashSet::new();
                         let mut parts = Vec::new();
+                        let mut shaped = Vec::new();
                         let mut body = format!("    record {} {{\n", escape(&record));
                         for field in &fields.named {
                             let mapped = self.map(&field.ty);
-                            let field_name = unique(kebab(&field.ident.as_ref().unwrap().to_string()), &mut field_names);
+                            let rust_field = field.ident.as_ref().unwrap().to_string();
+                            let wit_field = unique(kebab(&rust_field), &mut field_names);
                             for handle in &mapped.direct {
                                 body.push_str(&format!("        /// opaque engine handle ({handle})\n"));
                             }
-                            body.push_str(&format!("        {}: {},\n", escape(&field_name), mapped.wit));
+                            body.push_str(&format!("        {}: {},\n", escape(&wit_field), mapped.wit));
+                            shaped.push(shape::Field { rust: rust_field, wit: wit_field, shape: mapped.shape.clone() });
                             parts.push(mapped);
                         }
                         if parts.is_empty() {
-                            None
+                            (None, VCase::Unit)
                         } else {
                             body.push_str("    }\n");
                             let mut closure = BTreeSet::new();
@@ -987,10 +1128,12 @@ impl Mapper {
                             }
                             self.named.insert(record.clone(), Named { declaration: body });
                             uses.insert(record.clone());
-                            Some(Mapped { wit: escape(&record), uses, direct: BTreeSet::new(), closure })
+                            let mapped = Mapped { wit: escape(&record), uses, direct: BTreeSet::new(), closure, shape: Shape::Named(record.clone()) };
+                            (Some(mapped), VCase::Struct { record, fields: shaped })
                         }
                     }
                 };
+                cases.push((variant.ident.to_string(), case.clone(), vcase));
                 match payload {
                     Some(mapped) => {
                         for handle in &mapped.direct {
@@ -1002,6 +1145,7 @@ impl Mapper {
                     None => text.push_str(&format!("        {},\n", escape(&case))),
                 }
             }
+            self.defs.insert(wit_name.clone(), NamedDef::Variant { wit: wit_name.clone(), rust: path, cases });
         }
         text.push_str("    }\n");
         self.reference((wit_name, text), inner)
@@ -1183,12 +1327,82 @@ pub struct FullWit {
     pub with_handles: usize,
     /// Handle rust type -> number of hooks that have it, most common first.
     pub handle_types: Vec<(String, usize)>,
+    /// How each hook's values and answer cross the boundary, in catalog order.
+    pub(crate) plans: Vec<HookPlan>,
+    /// The generated records, enums and variants.
+    pub(crate) defs: BTreeMap<String, NamedDef>,
 }
 
 struct Rendered {
     /// The doc comment and function line.
     text: String,
     uses: BTreeSet<String>,
+    plan: HookPlan,
+}
+
+/// One WIT parameter of a hook function.
+#[derive(Clone, Debug)]
+pub(crate) struct ParamPlan {
+    /// The event field (and native parameter) it comes from.
+    pub field: String,
+    /// The WIT parameter name (kebab, not escaped).
+    pub name: String,
+    pub wit: String,
+    pub shape: Shape,
+}
+
+/// What a hook's answer is, beyond commands and changed values.
+#[derive(Clone, Debug)]
+pub(crate) enum Main {
+    None,
+    Cancel,
+    /// `option<T>` of the answer; the shape is the Rust answer type (an `Option`).
+    Replace(Shape),
+    /// The collected value: `list<..>` is returned whole, anything else as `option<..>`.
+    Collect { field: String, shape: Shape, list: bool, scalar: bool },
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct EffectPlan {
+    pub field: String,
+    pub effect: usize,
+    /// The field of the outcome record that carries its commands.
+    pub wit_field: String,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ExtraPlan {
+    pub field: String,
+    /// A `&mut` scalar, copied into the event by value (so assigned back by value).
+    pub scalar: bool,
+    pub shape: Shape,
+    pub wit_field: String,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum ResultForm {
+    None,
+    /// The answer is the whole result.
+    Direct,
+    /// The result is the command list of the only effect.
+    Commands,
+    /// An outcome record with this WIT name.
+    Outcome(String),
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct HookPlan {
+    pub name: String,
+    pub side: Side,
+    pub contract: String,
+    pub params: Vec<ParamPlan>,
+    pub main: Main,
+    pub effects: Vec<EffectPlan>,
+    pub extras: Vec<ExtraPlan>,
+    pub result: ResultForm,
+    /// The WIT result type (the command list, the answer or the outcome record), if any.
+    pub result_wit: Option<String>,
+    pub unsupported: Vec<String>,
 }
 
 fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -> Rendered {
@@ -1204,6 +1418,10 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
     let mut all_handles: BTreeSet<String> = BTreeSet::new();
     // Live draw objects: (param, command list type).
     let mut effects: Vec<(String, Mapped)> = Vec::new();
+    let mut plan_params: Vec<ParamPlan> = Vec::new();
+    let mut plan_effects: Vec<EffectPlan> = Vec::new();
+    let mut plan_extras: Vec<ExtraPlan> = Vec::new();
+    let mut plan_main = Main::None;
 
     let record_handles = |name: &str, mapped: &Mapped, handle_params: &mut Vec<HandleParam>, all: &mut BTreeSet<String>| {
         if !mapped.closure.is_empty() {
@@ -1225,6 +1443,8 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
                 entry.partial = true;
             }
             uses.extend(mapped.uses.iter().cloned());
+            let index = EFFECTS.iter().position(|candidate| std::ptr::eq(candidate, effect)).expect("effect is in the table");
+            plan_effects.push(EffectPlan { field: name.clone(), effect: index, wit_field: String::new() });
             effects.push((wit_name, mapped));
             continue;
         }
@@ -1237,12 +1457,14 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
             Some(elem) if scalar(elem).is_some() => {
                 let mapped = mapper.map(elem);
                 extras.push((wit_name.clone(), mapped.clone()));
+                plan_extras.push(ExtraPlan { field: name.clone(), scalar: true, shape: mapped.shape.clone(), wit_field: String::new() });
                 mapped
             }
             Some(elem) => {
                 let mapped = mapper.map(elem);
                 if mapped.closure.is_empty() {
                     extras.push((wit_name.clone(), mapped.clone()));
+                    plan_extras.push(ExtraPlan { field: name.clone(), scalar: false, shape: mapped.shape.clone(), wit_field: String::new() });
                     mapped
                 } else {
                     mapper.map(ty)
@@ -1256,6 +1478,7 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
         record_handles(&wit_name, &mapped, &mut handle_params, &mut all_handles);
         uses.extend(mapped.uses.iter().cloned());
         params.push(format!("{}: {}", escape(&wit_name), mapped.wit));
+        plan_params.push(ParamPlan { field: name.clone(), name: wit_name.clone(), wit: mapped.wit.clone(), shape: mapped.shape.clone() });
     }
 
     // The contract's answer.
@@ -1264,6 +1487,7 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
         ("listen", _) => {}
         ("cancel", _) => {
             main_field = Some(("cancel", "bool".into()));
+            plan_main = Main::Cancel;
             notes.push("Returns true to cancel (take) the event; the first mod that cancels wins.".into());
         }
         ("replace", Some((name, ty))) => {
@@ -1276,6 +1500,7 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
             uses.extend(mapped.uses.iter().cloned());
             let wit = if mapped.wit.starts_with("option<") { mapped.wit.clone() } else { format!("option<{}>", mapped.wit) };
             main_field = Some(("value", wit));
+            plan_main = Main::Replace(mapped.shape.clone());
             notes.push(format!("Returns Some to set `{name}` (None keeps it); the first mod that answers wins."));
         }
         ("collect", Some((name, ty))) => {
@@ -1289,7 +1514,10 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
             // The current aggregate goes in, the mod's version comes back.
             let param = unique(kebab(name), &mut used_params);
             params.push(format!("{}: {}", escape(&param), mapped.wit));
+            plan_params.push(ParamPlan { field: name.clone(), name: param.clone(), wit: mapped.wit.clone(), shape: mapped.shape.clone() });
             let is_list = mapped.wit.starts_with("list<");
+            let scalar_out = matches!(ty, Type::Reference(reference) if scalar(&reference.elem).is_some());
+            plan_main = Main::Collect { field: name.clone(), shape: mapped.shape.clone(), list: is_list, scalar: scalar_out };
             let wit = if is_list { mapped.wit.clone() } else { format!("option<{}>", mapped.wit) };
             main_field = Some(("value", wit));
             notes.push(if is_list {
@@ -1303,10 +1531,15 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
 
     // Extra mutable values turn the answer into an outcome record.
     let wit_name = kebab(&hook.name);
+    let mut result_form = ResultForm::None;
     let result = if extras.is_empty() && effects.is_empty() {
+        if main_field.is_some() {
+            result_form = ResultForm::Direct;
+        }
         main_field.map(|(_, wit)| wit)
     } else if extras.is_empty() && effects.len() == 1 && main_field.is_none() {
         notes.push("Returns the commands to apply.".into());
+        result_form = ResultForm::Commands;
         Some(effects[0].1.wit.clone())
     } else {
         let record = format!("{wit_name}-outcome");
@@ -1318,13 +1551,15 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
             text.push_str(&format!("        {field}: {wit},\n"));
         }
         let single = effects.len() == 1;
-        for (name, mapped) in &effects {
+        for (index, (name, mapped)) in effects.iter().enumerate() {
             let field = if single { unique("commands".into(), &mut used) } else { unique(format!("{name}-commands"), &mut used) };
             text.push_str(&format!("        /// Commands to apply to `{name}`, in order.\n"));
             text.push_str(&format!("        {}: {},\n", escape(&field), mapped.wit));
+            plan_effects[index].wit_field = field;
         }
-        for (name, mapped) in &extras {
+        for (index, (name, mapped)) in extras.iter().enumerate() {
             let field = unique(name.clone(), &mut used);
+            plan_extras[index].wit_field = field.clone();
             for handle in &mapped.direct {
                 text.push_str(&format!("        /// opaque engine handle ({handle})\n"));
             }
@@ -1338,6 +1573,7 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
         mapper.named.insert(record.clone(), Named { declaration: text });
         mapper.names.insert(record.clone());
         uses.insert(record.clone());
+        result_form = ResultForm::Outcome(record.clone());
         if !extras.is_empty() {
             notes.push(format!("Also returns the changed values of {}.", extras.iter().map(|(n, _)| format!("`{n}`")).collect::<Vec<_>>().join(", ")));
         }
@@ -1353,13 +1589,26 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
     for note in notes {
         doc.push_str(&format!("    /// {note}\n"));
     }
+    let result_wit = result.clone();
     let result = result.map(|r| format!(" -> {r}")).unwrap_or_default();
     let text = format!("{doc}    {}: func({}){result};\n", ident(&hook.name), params.join(", "));
     handle_params.sort_by(|a, b| a.param.cmp(&b.param));
     handle_params.dedup_by(|a, b| a.param == b.param);
     entry.fully_typed = all_handles.is_empty() && !entry.partial;
     entry.handle_params = handle_params;
-    Rendered { text, uses }
+    let plan = HookPlan {
+        name: hook.name.clone(),
+        side: hook.side,
+        contract: hook.contract.clone(),
+        params: plan_params,
+        main: plan_main,
+        effects: plan_effects,
+        extras: plan_extras,
+        result: result_form,
+        result_wit,
+        unsupported: Vec::new(),
+    };
+    Rendered { text, uses, plan }
 }
 
 fn use_line(names: &BTreeSet<String>) -> String {
@@ -1426,6 +1675,7 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
     let mut server = (String::new(), BTreeSet::new());
     let (mut client_count, mut server_count) = (0, 0);
     let mut handle_counts: BTreeMap<String, usize> = BTreeMap::new();
+    let mut plans = Vec::new();
     for hook in &hooks {
         let mut entry = CoverageEntry {
             name: hook.name.clone(),
@@ -1438,6 +1688,7 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
             handle_params: Vec::new(),
         };
         let rendered = render_hook(&mut mapper, hook, &mut entry);
+        plans.push(rendered.plan.clone());
         let mut hook_handles = BTreeSet::new();
         for param in &entry.handle_params {
             hook_handles.extend(param.rust_types.iter().cloned());
@@ -1543,6 +1794,8 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
         partial,
         with_handles: coverage.with_handles,
         handle_types,
+        plans,
+        defs: mapper.defs,
     })
 }
 

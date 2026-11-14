@@ -1,12 +1,12 @@
 {
   "generated_by": "horizon-mod-api-gen",
   "hook_count": 471,
-  "fully_typed": 442,
+  "fully_typed": 443,
   "partial": 13,
-  "with_handles": 16,
+  "with_handles": 15,
   "client_hooks": 207,
   "server_hooks": 378,
-  "named_types": 223,
+  "named_types": 220,
   "handle_types": [
     {
       "rust_type": "LootEntity",
@@ -47,11 +47,6 @@
       "rust_type": "Item",
       "hooks": 1,
       "reason": "ambiguous definition"
-    },
-    {
-      "rust_type": "Map",
-      "hooks": 1,
-      "reason": "ambiguous definition, or defined by generated code"
     },
     {
       "rust_type": "Queue",
@@ -1163,17 +1158,10 @@
       "side": "server",
       "side_source": "path",
       "contract": "collect",
-      "fully_typed": false,
+      "fully_typed": true,
       "partial": false,
       "partial_notes": [],
-      "handle_params": [
-        {
-          "param": "components",
-          "rust_types": [
-            "Map"
-          ]
-        }
-      ]
+      "handle_params": []
     },
     {
       "name": "screen_mouse_button_pressed_pre",

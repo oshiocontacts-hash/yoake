@@ -11,7 +11,8 @@ use syn::{FnArg, ImplItem, Item, Pat, Type, visit::Visit, visit_mut::VisitMut};
 
 mod abi;
 pub use abi::{
-    FullWit, generate_abi, generate_dll_adapters, generate_full_wit, generate_wasm_hook_names,
+    FullWit, WasmAdapters, generate_abi, generate_dll_adapters, generate_full_hook_names, generate_full_wit,
+    generate_sdk_full, generate_wasm_adapters, generate_wasm_hook_names, SdkFull,
     generate_wit,
 };
 

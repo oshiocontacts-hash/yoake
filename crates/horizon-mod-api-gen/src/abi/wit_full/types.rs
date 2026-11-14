@@ -325,7 +325,7 @@ const CORNER_COMMAND: &str = r#"    /// What a mod does to the HUD corner layout
     }
 "#;
 
-pub(super) const EFFECTS: &[Effect] = &[
+pub(crate) static EFFECTS: &[Effect] = &[
     Effect {
         rust: &["HudBatch"],
         wit: "hud-command",
