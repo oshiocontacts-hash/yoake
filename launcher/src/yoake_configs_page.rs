@@ -20,7 +20,8 @@ pub(super) struct BaseInfo {
     pub native_mods: Vec<String>,
 }
 
-type Fetched = (Vec<CatalogMod>, Option<String>);
+/// The merged catalog, why the `.yak` half is missing, and what is wrong with the built-in half.
+type Fetched = (Vec<CatalogMod>, Option<String>, Option<String>);
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Field {
@@ -35,7 +36,14 @@ pub(super) struct State {
     epoch: u64,
     /// Why the `.yak` half of the catalog is missing (the built-in half may still be there).
     notice: Option<String>,
+    /// A problem with the built-in half (the last verified copy, if any, is still listed).
+    builtin_notice: Option<String>,
     error: Option<String>,
+    /// Local Yoake instances as (name, base pack id), read off the UI thread and refreshed on change.
+    installed: Vec<(String, String)>,
+    installed_task: Option<Receiver<Vec<(String, String)>>>,
+    installed_at: Option<Instant>,
+    installed_dirty: bool,
     picked: BTreeSet<String>,
     selected: BTreeSet<String>,
     auto_added: BTreeSet<String>,
@@ -65,7 +73,12 @@ impl State {
             last_refresh: None,
             epoch: 0,
             notice: None,
+            builtin_notice: None,
             error: None,
+            installed: Vec::new(),
+            installed_task: None,
+            installed_at: None,
+            installed_dirty: true,
             picked: BTreeSet::new(),
             selected: BTreeSet::new(),
             auto_added: BTreeSet::new(),
@@ -77,7 +90,7 @@ impl State {
             pending: None,
             yak_task: None,
             name: line_edit::LineEdit::new(String::new(), 48, 22),
-            code: line_edit::LineEdit::new(String::new(), 2048, 22),
+            code: line_edit::LineEdit::new(String::new(), yoake_configs::MAX_CODE_INPUT, 22),
             name_focus: cx.focus_handle(),
             code_focus: cx.focus_handle(),
             name_focused: false,
@@ -104,6 +117,14 @@ fn problem_text(problem: &Problem) -> String {
         Problem::SettingsNotShareable(id) => {
             trf("{id} has no settings that can be shared.", &[("id", id)])
         }
+        Problem::DependencyVersion {
+            id,
+            needs,
+            requirement,
+        } => trf(
+            "{id} needs {needs} {requirement}, which the chosen version does not match.",
+            &[("id", id), ("needs", needs), ("requirement", requirement)],
+        ),
     }
 }
 
@@ -145,20 +166,15 @@ impl Launcher {
         };
         let (sender, receiver) = mpsc::channel();
         std::thread::spawn(move || {
+            // The two halves are independent: a problem with one never hides the other.
             let builtin = client.refresh_builtin();
-            let yak = client.refresh();
-            let result = match (builtin, yak) {
-                (Err(error), _) => Err(error.to_string()),
-                (Ok(builtin), Ok(yak)) => {
-                    Ok((yoake_configs::merge(builtin.as_ref(), Some(&yak.catalog)), None))
-                }
-                // The built-in list does not need the .yak catalog: show it, say what is missing.
-                (Ok(builtin), Err(error)) => Ok((
-                    yoake_configs::merge(builtin.as_ref(), None),
-                    Some(error.to_string()),
-                )),
+            let (yak, notice) = match client.refresh() {
+                Ok(yak) => (Some(yak.catalog), None),
+                Err(error) => (None, Some(error.to_string())),
             };
-            let _ = sender.send(result);
+            let builtin_notice = builtin.problem.as_ref().map(ToString::to_string);
+            let catalog = yoake_configs::merge(builtin.catalog.as_ref(), yak.as_ref());
+            let _ = sender.send(Ok((catalog, notice, builtin_notice)));
         });
         self.yoake_configs.task = Some(receiver);
     }
@@ -183,9 +199,11 @@ impl Launcher {
         }
         if let Some(receiver) = self.yoake_configs.task.take() {
             match receiver.try_recv() {
-                Ok(Ok((catalog, notice))) => {
+                Ok(Ok((catalog, notice, builtin_notice))) => {
                     self.yoake_configs.catalog = catalog;
                     self.yoake_configs.notice = notice;
+                    self.yoake_configs.builtin_notice = builtin_notice;
+                    self.yoake_configs.installed_dirty = true;
                     self.yoake_configs.error = None;
                     changed = true;
                 }
@@ -199,6 +217,41 @@ impl Launcher {
                         Some(tr("The mod operation stopped unexpectedly.").to_string());
                     changed = true;
                 }
+            }
+        }
+        // The local instances, read on a worker thread: on a change and every few seconds.
+        if self.yoake_configs.installed_task.is_none()
+            && (self.yoake_configs.installed_dirty
+                || self
+                    .yoake_configs
+                    .installed_at
+                    .is_none_or(|time| time.elapsed() >= Duration::from_secs(10)))
+        {
+            self.yoake_configs.installed_dirty = false;
+            self.yoake_configs.installed_at = Some(Instant::now());
+            let (sender, receiver) = mpsc::channel();
+            std::thread::spawn(move || {
+                let list = instances::list()
+                    .into_iter()
+                    .filter_map(|instance| {
+                        let pack = yoake_install::read_manifest(&instance.home).ok().flatten()?;
+                        Some((instance.name, pack.pack_id))
+                    })
+                    .collect();
+                let _ = sender.send(list);
+            });
+            self.yoake_configs.installed_task = Some(receiver);
+        }
+        if let Some(receiver) = self.yoake_configs.installed_task.take() {
+            match receiver.try_recv() {
+                Ok(list) => {
+                    if self.yoake_configs.installed != list {
+                        self.yoake_configs.installed = list;
+                        changed = true;
+                    }
+                }
+                Err(mpsc::TryRecvError::Empty) => self.yoake_configs.installed_task = Some(receiver),
+                Err(mpsc::TryRecvError::Disconnected) => {}
             }
         }
         if let Some((home, set)) = self.yoake_configs.pending.clone() {
@@ -349,6 +402,7 @@ impl Launcher {
         };
         if let Some(home) = self.yoake_install_new(base.pack_id, preview.name.clone(), base.version)
         {
+            self.yoake_configs.installed_dirty = true;
             self.yoake_configs.pending = Some((home, preview.yak_set()));
             self.yoake_configs.note = None;
         }
@@ -474,6 +528,13 @@ impl Launcher {
         if let Some(error) = &self.yoake_configs.error {
             col = col.child(text(theme::UI).text_color(t.danger).child(error.clone()));
         }
+        if let Some(notice) = &self.yoake_configs.builtin_notice {
+            col = col.child(
+                text(theme::CAPTION)
+                    .text_color(t.muted)
+                    .child(trf("Built-in mods: {reason}", &[("reason", notice)])),
+            );
+        }
         if let Some(notice) = &self.yoake_configs.notice {
             col = col.child(
                 text(theme::CAPTION)
@@ -491,16 +552,17 @@ impl Launcher {
             );
         }
         // Where each built-in mod is installed: the local Yoake instances whose build has it.
-        let installed: Vec<(String, Vec<String>)> = instances::list()
-            .into_iter()
-            .filter_map(|instance| {
-                let pack = yoake_install::read_manifest(&instance.home).ok().flatten()?;
+        let installed: Vec<(String, Vec<String>)> = self
+            .yoake_configs
+            .installed
+            .iter()
+            .map(|(name, pack_id)| {
                 let native = bases
                     .iter()
-                    .find(|base| base.pack_id == pack.pack_id)
+                    .find(|base| &base.pack_id == pack_id)
                     .map(|base| base.native_mods.clone())
                     .unwrap_or_default();
-                Some((instance.name, native))
+                (name.clone(), native)
             })
             .collect();
         let yak_installed: BTreeSet<String> = self

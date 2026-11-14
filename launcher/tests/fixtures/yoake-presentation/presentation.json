@@ -1,0 +1,1 @@
+{"categories":[{"id":"featured","label":{"en":"Featured"},"order":1,"packs":["example"]}],"feature_flags":{"future_flag":true},"links":[{"label":{"en":"Help"},"url":"https://example.com/help"}],"news":[{"body":{"en":"Hello"},"date":"2026-11-14","id":"welcome","link":"https://example.com/news","title":{"en":"Welcome","ja":"ようこそ"}}],"schema":"1.0"}

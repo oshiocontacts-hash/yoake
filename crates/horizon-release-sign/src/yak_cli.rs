@@ -1,4 +1,6 @@
-use horizon_release_sign::{PublicKey, SigningKey, YOAKE_MODS_V1, YOAKE_YAK_V1, verify_bytes, yak};
+use horizon_release_sign::{
+    PublicKey, SigningKey, YOAKE_BUILTIN_V1, YOAKE_MODS_V1, YOAKE_YAK_V1, verify_bytes, yak,
+};
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -8,10 +10,10 @@ const MAX_CATALOG_SIZE: u64 = 16 * 1024 * 1024;
 pub fn sign(tag: &str, path: &Path, key: &SigningKey) -> Result<(), String> {
     match tag {
         YOAKE_YAK_V1 => yak::sign_file(path, key),
-        YOAKE_MODS_V1 => {
+        YOAKE_MODS_V1 | YOAKE_BUILTIN_V1 => {
             let signature_path = catalog_signature_path(path)?;
             let bytes = read_bounded(path, MAX_CATALOG_SIZE)?;
-            let signature = key.sign(YOAKE_MODS_V1, &bytes);
+            let signature = key.sign(tag, &bytes);
             yak::atomic_write(&signature_path, false, |file| {
                 writeln!(file, "{signature}").map_err(|error| error.to_string())
             })
@@ -29,12 +31,12 @@ pub fn verify(tag: &str, path: &Path, keys: &[PublicKey]) -> Result<(), String> 
             println!("{}: {} files, embedded signature verified", path.display(), archive.entries().len());
             Ok(())
         }
-        YOAKE_MODS_V1 => {
+        YOAKE_MODS_V1 | YOAKE_BUILTIN_V1 => {
             let signature_path = catalog_signature_path(path)?;
             let bytes = read_bounded(path, MAX_CATALOG_SIZE)?;
             let signature = read_bounded(&signature_path, 4096)?;
             let signature = std::str::from_utf8(&signature).map_err(|_| "catalog signature is not UTF-8")?;
-            verify_bytes(YOAKE_MODS_V1, &bytes, signature, keys)?;
+            verify_bytes(tag, &bytes, signature, keys)?;
             println!("{}: detached catalog signature verified", path.display());
             Ok(())
         }
@@ -44,7 +46,7 @@ pub fn verify(tag: &str, path: &Path, keys: &[PublicKey]) -> Result<(), String> 
 
 fn catalog_signature_path(path: &Path) -> Result<PathBuf, String> {
     if path.file_name().and_then(|name| name.to_str()) != Some("index.json") {
-        return Err("yoake-mods-v1 expects an index.json file".into());
+        return Err("a catalog tag expects an index.json file".into());
     }
     Ok(path.with_file_name("index.json.sig"))
 }

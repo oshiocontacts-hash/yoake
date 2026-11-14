@@ -11,6 +11,8 @@ use url::Url;
 
 mod plan;
 mod store;
+#[cfg(test)]
+mod builtin_tests;
 pub use plan::{InstallPlan, Installed};
 
 #[derive(Debug)]
@@ -277,7 +279,6 @@ impl Client {
                 store::write_json(&cache, &catalog.proof)?;
                 Ok(catalog)
             }
-            Err(Error::Feed(FeedError::HttpStatus(401))) => Err(FeedError::NeedsLogin.into()),
             Err(error @ Error::Feed(FeedError::Network | FeedError::HttpStatus(500..=599))) => {
                 store::plain(&cache)?;
                 if !cache.try_exists()? {
@@ -291,57 +292,121 @@ impl Client {
     }
 }
 
+/// What the built-in catalog refresh found. A problem never hides a catalog that is still good: the
+/// last verified copy is returned with it, and the `.yak` catalog is independent of all of this.
+pub struct BuiltinRefresh {
+    pub catalog: Option<crate::yoake_configs::BuiltinCatalog>,
+    pub problem: Option<Error>,
+}
+
+/// The built-in catalog as it is published: the exact catalog text and its signature in one file,
+/// so an upload (one rename) can never pair a catalog with another one's signature.
+#[derive(Deserialize)]
+struct BuiltinEnvelope {
+    json: String,
+    signature: String,
+}
+
 impl Client {
-    /// The signed built-in mods catalog (`yoake/mods/builtin/index.json`). A server without one
-    /// (HTTP 404) simply has no built-in entries; a network failure falls back to the last
-    /// verified copy.
-    pub fn refresh_builtin(&self) -> Result<Option<crate::yoake_configs::BuiltinCatalog>, Error> {
-        use crate::yoake_configs::{BUILTIN_PATH, BuiltinCatalog, MAX_BUILTIN};
-        if self.keys.is_empty() {
-            return Err(FeedError::Configuration.into());
+    fn verify_builtin(
+        &self,
+        proof: &Proof,
+    ) -> Result<crate::yoake_configs::BuiltinCatalog, Error> {
+        use crate::yoake_configs::{BuiltinCatalog, Error as ConfigError};
+        BuiltinCatalog::parse_verified(proof.json.as_bytes(), &proof.signature, &self.keys)
+            .map_err(|error| match error {
+                ConfigError::NeedsUpdate => Error::Incompatible(error.to_string()),
+                other => Error::Invalid(other.to_string()),
+            })
+    }
+
+    /// The last verified copy, if there is one.
+    fn cached_builtin(
+        &self,
+        cache: &Path,
+    ) -> Option<(crate::yoake_configs::BuiltinCatalog, Proof)> {
+        store::plain(cache).ok()?;
+        if !cache.try_exists().ok()? {
+            return None;
         }
+        let proof: Proof = store::read_json(cache).ok()?;
+        let catalog = self.verify_builtin(&proof).ok()?;
+        Some((catalog, proof))
+    }
+
+    fn fetch_builtin(
+        &self,
+    ) -> Result<Option<(crate::yoake_configs::BuiltinCatalog, Proof)>, Error> {
+        use crate::yoake_configs::{BUILTIN_PATH, MAX_BUILTIN};
         let auth = self.authorization()?;
-        let verify = |proof: &Proof| {
-            BuiltinCatalog::parse_verified(proof.json.as_bytes(), &proof.signature, &self.keys)
-                .map_err(|error| Error::Invalid(error.to_string()))
+        let url = self
+            .root
+            .join(BUILTIN_PATH)
+            .map_err(|_| FeedError::Configuration)?;
+        let limit = 2 * MAX_BUILTIN + 8192;
+        let bytes = match self.http.get(url.as_str(), Some(&auth), limit) {
+            Ok(bytes) => bytes,
+            Err(FeedError::HttpStatus(404)) => return Ok(None),
+            Err(error) => return Err(error.into()),
         };
-        let fetch = || -> Result<Option<(BuiltinCatalog, Proof)>, Error> {
-            let url = self
-                .root
-                .join(BUILTIN_PATH)
-                .map_err(|_| FeedError::Configuration)?;
-            let json = match self.http.get(url.as_str(), Some(&auth), MAX_BUILTIN) {
-                Ok(json) => json,
-                Err(FeedError::HttpStatus(404)) => return Ok(None),
-                Err(error) => return Err(error.into()),
-            };
-            let signature = self.http.get(&format!("{url}.sig"), Some(&auth), 4096)?;
-            if json.len() > MAX_BUILTIN || signature.len() > 4096 {
-                return Err(FeedError::TooLarge.into());
-            }
-            let proof = Proof {
-                json: String::from_utf8(json).map_err(|_| FeedError::Malformed)?,
-                signature: String::from_utf8(signature).map_err(|_| FeedError::Malformed)?,
-            };
-            Ok(Some((verify(&proof)?, proof)))
+        if bytes.len() > limit {
+            return Err(FeedError::TooLarge.into());
+        }
+        let envelope: BuiltinEnvelope =
+            serde_json::from_slice(&bytes).map_err(|_| FeedError::Malformed)?;
+        let proof = Proof {
+            json: envelope.json,
+            signature: envelope.signature,
         };
+        Ok(Some((self.verify_builtin(&proof)?, proof)))
+    }
+
+    /// The signed built-in mods catalog (`yoake/mods/builtin/signed.json`). A server without one
+    /// (HTTP 404) simply has no built-in entries. The catalog never goes backwards: one older
+    /// than the cached copy is refused. Every failure keeps the last verified copy.
+    pub fn refresh_builtin(&self) -> BuiltinRefresh {
+        if self.keys.is_empty() {
+            return BuiltinRefresh {
+                catalog: None,
+                problem: Some(FeedError::Configuration.into()),
+            };
+        }
         let cache = self.data.join("yoake-builtin-catalog.json");
-        match fetch() {
+        let cached = self.cached_builtin(&cache);
+        let last_good = |problem: Option<Error>| BuiltinRefresh {
+            catalog: cached.as_ref().map(|(catalog, _)| catalog.clone()),
+            problem,
+        };
+        match self.fetch_builtin() {
             Ok(Some((catalog, proof))) => {
-                store::write_json(&cache, &proof)?;
-                Ok(Some(catalog))
-            }
-            Ok(None) => Ok(None),
-            Err(Error::Feed(FeedError::HttpStatus(401))) => Err(FeedError::NeedsLogin.into()),
-            Err(error @ Error::Feed(FeedError::Network | FeedError::HttpStatus(500..=599))) => {
-                store::plain(&cache)?;
-                if !cache.try_exists()? {
-                    return Err(error);
+                if cached
+                    .as_ref()
+                    .is_some_and(|(old, _)| catalog.generated < old.generated)
+                {
+                    return last_good(Some(FeedError::Replay.into()));
                 }
-                let proof: Proof = store::read_json(&cache)?;
-                Ok(Some(verify(&proof)?))
+                if let Err(error) = store::write_json(&cache, &proof) {
+                    return BuiltinRefresh {
+                        catalog: Some(catalog),
+                        problem: Some(error),
+                    };
+                }
+                BuiltinRefresh {
+                    catalog: Some(catalog),
+                    problem: None,
+                }
             }
-            Err(error) => Err(error),
+            Ok(None) => BuiltinRefresh {
+                catalog: None,
+                problem: None,
+            },
+            // offline: the last copy is as good as it was
+            Err(Error::Feed(FeedError::Network | FeedError::HttpStatus(500..=599)))
+                if cached.is_some() =>
+            {
+                last_good(None)
+            }
+            Err(error) => last_good(Some(error)),
         }
     }
 }

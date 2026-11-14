@@ -15,7 +15,9 @@ const MAX_POINTER: usize = 16 * 1024;
 const MAX_INDEX: usize = 1024 * 1024;
 const MAX_SUMS: usize = 16 * 1024;
 const MAX_SIGNATURE: usize = 8 * 1024;
-const MAX_STATE: usize = 16 * MAX_INDEX + 8 * (MAX_SUMS + MAX_SIGNATURE);
+/// The high-water file keeps the exact shape and size cap that every released launcher reads.
+const MAX_STATE: usize = MAX_POINTER;
+const MAX_SNAPSHOT: usize = 16 * MAX_INDEX + 8 * (MAX_SUMS + MAX_SIGNATURE);
 const MAX_ICON: u64 = 8 * 1024 * 1024;
 const MAX_FILE: u64 = 8 * 1024 * 1024 * 1024;
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
@@ -408,35 +410,42 @@ pub fn pack_groups<'a>(
     groups
 }
 
-fn valid_https_url(value: &str) -> bool {
-    Url::parse(value).is_ok_and(|url| {
-        url.scheme() == "https"
-            && url.host_str().is_some()
-            && url.username().is_empty()
-            && url.password().is_none()
-    })
+/// The validated URL in its serialised form. That is what gets opened, never the raw string.
+fn https_url(value: &str) -> Option<String> {
+    Url::parse(value)
+        .ok()
+        .filter(|url| {
+            url.scheme() == "https"
+                && url.host_str().is_some()
+                && url.username().is_empty()
+                && url.password().is_none()
+        })
+        .map(String::from)
 }
 
 fn parse_presentation(bytes: &[u8]) -> Result<Presentation, FeedError> {
     let schema: Schema = serde_json::from_slice(bytes).map_err(|_| FeedError::Malformed)?;
     schema.check(1)?;
-    let presentation: Presentation =
+    let mut presentation: Presentation =
         serde_json::from_slice(bytes).map_err(|_| FeedError::Malformed)?;
     let mut news_ids = BTreeSet::new();
-    for item in &presentation.news {
+    for item in &mut presentation.news {
         insert_unique(&mut news_ids, &item.id)?;
+        if let Some(link) = &mut item.link {
+            *link = https_url(link).ok_or(FeedError::Malformed)?;
+        }
         if item.date.is_empty()
             || item.title.get("en").is_none_or(String::is_empty)
             || item.body.get("en").is_none_or(String::is_empty)
-            || item.link.as_ref().is_some_and(|url| !valid_https_url(url))
         {
             return Err(FeedError::Malformed);
         }
     }
-    for link in &presentation.links {
-        if link.label.get("en").is_none_or(String::is_empty) || !valid_https_url(&link.url) {
+    for link in &mut presentation.links {
+        if link.label.get("en").is_none_or(String::is_empty) {
             return Err(FeedError::Malformed);
         }
+        link.url = https_url(&link.url).ok_or(FeedError::Malformed)?;
     }
     let mut category_ids = BTreeSet::new();
     for category in &presentation.categories {
@@ -458,8 +467,9 @@ pub struct FeedProof {
 
 /// `presentation.json` with its own signed checksum file. It lives next to the index but is not
 /// listed in the index's `SHA256SUMS`, so launchers that only know the index keep working.
+/// `presentation.sums` lists the verified index (`index.json`) and `presentation.json`, so a
+/// presentation only ever belongs to the one signed index it was published with.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct PresentationProof {
     pub json: String,
     pub sums: String,
@@ -469,6 +479,7 @@ pub struct PresentationProof {
 fn verify_presentation(
     config: &FeedConfig,
     proof: &PresentationProof,
+    index_sha256: &str,
 ) -> Result<Presentation, FeedError> {
     if proof.json.len() > MAX_INDEX
         || proof.sums.len() > MAX_SUMS
@@ -478,26 +489,21 @@ fn verify_presentation(
     }
     let entries = verify(DOMAIN, proof.sums.as_bytes(), &proof.signature, &config.keys)
         .map_err(|_| FeedError::BadSignature)?;
-    if entries.len() != 1 || entries[0].0 != "presentation.json" {
+    let [(first_name, first), (second_name, second)] = entries.as_slice() else {
         return Err(FeedError::Malformed);
+    };
+    let (index, presentation) = match (first_name.as_str(), second_name.as_str()) {
+        ("index.json", "presentation.json") => (first, second),
+        ("presentation.json", "index.json") => (second, first),
+        _ => return Err(FeedError::Malformed),
+    };
+    if index != index_sha256 {
+        return Err(FeedError::WrongSource);
     }
-    if entries[0].1 != sha256_hex(proof.json.as_bytes()) {
+    if *presentation != sha256_hex(proof.json.as_bytes()) {
         return Err(FeedError::HashMismatch);
     }
     parse_presentation(proof.json.as_bytes())
-}
-
-/// What the high-water mark remembers about one published sequence: the index sums plus the
-/// presentation sums when there are any.
-fn state_digest(sums: &str, presentation: Option<&PresentationProof>) -> String {
-    let mut text = sums.to_owned();
-    if let Some(presentation) = presentation {
-        text.push_str("
-presentation
-");
-        text.push_str(&presentation.sums);
-    }
-    sha256_hex(text.as_bytes())
 }
 
 pub fn verify_saved_feed(proof: &FeedProof) -> Result<VerifiedFeed, FeedError> {
@@ -614,11 +620,7 @@ fn index_identity(index: &ParsedFeedIndex) -> (&str, u64) {
     }
 }
 
-fn parse_verified_feed(
-    config: &FeedConfig,
-    proof: FeedProof,
-    presentation_proof: Option<&PresentationProof>,
-) -> Result<VerifiedFeed, FeedError> {
+fn parse_verified_feed(config: &FeedConfig, proof: FeedProof) -> Result<VerifiedFeed, FeedError> {
     if proof.index_json.len() > MAX_INDEX
         || proof.sums.len() > MAX_SUMS
         || proof.signature.len() > MAX_SIGNATURE
@@ -655,14 +657,11 @@ fn parse_verified_feed(
     {
         return Err(FeedError::WrongSource);
     }
-    let presentation = presentation_proof
-        .map(|proof| verify_presentation(config, proof))
-        .transpose()?;
     Ok(VerifiedFeed {
         index,
         index_sha256,
         proof: Some(proof),
-        presentation,
+        presentation: None,
         needs_update: false,
     })
 }
@@ -673,22 +672,25 @@ struct Pointer {
     sequence: u64,
 }
 
+/// Exactly the three fields (and the 16 KiB cap) of the released launchers' high-water file, so a
+/// downgrade or a second build (Store next to portable) keeps reading it.
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct HighWater {
     source_id: String,
     sequence: u64,
     index_sha256: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    sums_sha256: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    snapshot: Option<CachedFeed>,
 }
 
+/// The last compatible signed feed, in a file of its own (`<feed id>.snapshot.json`) that
+/// released launchers never open. Unknown fields are ignored.
 #[derive(Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-struct CachedFeed {
+struct Snapshot {
+    source_id: String,
+    sequence: u64,
+    index_sha256: String,
     proof: FeedProof,
+    #[serde(default)]
     presentation: Option<PresentationProof>,
 }
 
@@ -873,47 +875,65 @@ impl FeedClient {
         if identity.sequence != pointer.sequence || identity.source_id != pointer.source_id {
             return Err(FeedError::WrongSource);
         }
-        let sums_text = std::str::from_utf8(&sums).map_err(|_| FeedError::Malformed)?;
         let schema: Schema = serde_json::from_slice(&bytes).map_err(|_| FeedError::Malformed)?;
         match schema.check(2) {
             Ok(_) => {}
-            Err(FeedError::NeedsUpdate) => {
-                return self.cached(&pointer, &index_sha256, &state_digest(sums_text, None));
-            }
+            Err(FeedError::NeedsUpdate) => return self.cached(&pointer, &index_sha256),
             Err(error) => return Err(error),
         }
-        let presentation = self.fetch_presentation(&prefix)?;
-        let sums_sha256 = state_digest(sums_text, presentation.as_ref());
         let proof = FeedProof {
             index_json: String::from_utf8(bytes).map_err(|_| FeedError::Malformed)?,
             sums: String::from_utf8(sums).map_err(|_| FeedError::Malformed)?,
             signature: signature.to_owned(),
         };
-        match parse_verified_feed(&self.config, proof, presentation.as_ref()) {
-            Ok(feed) => {
-                self.remember(&feed, presentation, &sums_sha256)?;
-                Ok(feed)
-            }
-            Err(FeedError::NeedsUpdate) => self.cached(&pointer, &index_sha256, &sums_sha256),
-            Err(error) => Err(error),
-        }
-    }
-
-    /// The optional signed presentation of one index folder. A folder without one (HTTP 404) is
-    /// today's feed; any other failure is an error rather than a silently dropped document.
-    fn fetch_presentation(&self, prefix: &str) -> Result<Option<PresentationProof>, FeedError> {
-        let sums = match self.resource(&format!("{prefix}presentation.sums"), MAX_SUMS) {
-            Ok(sums) => sums,
-            Err(FeedError::HttpStatus(404)) => return Ok(None),
+        let mut feed = match parse_verified_feed(&self.config, proof) {
+            Ok(feed) => feed,
+            Err(FeedError::NeedsUpdate) => return self.cached(&pointer, &index_sha256),
             Err(error) => return Err(error),
         };
+        // The presentation is optional: whatever goes wrong with it (missing, unreachable,
+        // unsigned, for another index, from a newer schema) must not take the pack feed down.
+        let presentation = match self.fetch_presentation(&prefix, &index_sha256) {
+            Ok(found) => Some(found),
+            Err(error) => {
+                feed.needs_update |= error == FeedError::NeedsUpdate;
+                self.last_good_presentation(&index_sha256)
+            }
+        };
+        let presentation_proof = presentation.as_ref().map(|(proof, _)| proof.clone());
+        feed.presentation = presentation.map(|(_, document)| document);
+        self.remember(&feed, presentation_proof)?;
+        Ok(feed)
+    }
+
+    /// The optional signed presentation of one index folder, bound to `index_sha256`.
+    fn fetch_presentation(
+        &self,
+        prefix: &str,
+        index_sha256: &str,
+    ) -> Result<(PresentationProof, Presentation), FeedError> {
+        let sums = self.resource(&format!("{prefix}presentation.sums"), MAX_SUMS)?;
         let signature = self.resource(&format!("{prefix}presentation.sums.sig"), MAX_SIGNATURE)?;
         let json = self.resource(&format!("{prefix}presentation.json"), MAX_INDEX)?;
-        Ok(Some(PresentationProof {
+        let proof = PresentationProof {
             json: String::from_utf8(json).map_err(|_| FeedError::Malformed)?,
             sums: String::from_utf8(sums).map_err(|_| FeedError::Malformed)?,
             signature: String::from_utf8(signature).map_err(|_| FeedError::BadSignature)?,
-        }))
+        };
+        let document = verify_presentation(&self.config, &proof, index_sha256)?;
+        Ok((proof, document))
+    }
+
+    /// The presentation saved with the same signed index, verified again.
+    fn last_good_presentation(&self, index_sha256: &str) -> Option<(PresentationProof, Presentation)> {
+        let (state_path, _, _lock) = self.lock_state().ok()?;
+        let snapshot = Self::read_snapshot(&state_path)?;
+        if snapshot.index_sha256 != index_sha256 {
+            return None;
+        }
+        let proof = snapshot.presentation?;
+        let document = verify_presentation(&self.config, &proof, index_sha256).ok()?;
+        Some((proof, document))
     }
 
     // CHECK: L3 needs a streaming verifier for objects larger than the icon limit.
@@ -947,28 +967,46 @@ impl FeedClient {
         Ok((state_path, feed_id, lock))
     }
 
-    fn read_state(path: &Path) -> Result<Option<HighWater>, FeedError> {
+    fn snapshot_path(state_path: &Path) -> PathBuf {
+        state_path.with_extension("snapshot.json")
+    }
+
+    fn read_bounded(path: &Path, limit: usize) -> Result<Option<Vec<u8>>, FeedError> {
         match fs::File::open(path) {
             Ok(file) => {
                 let mut contents = Vec::new();
-                file.take(MAX_STATE as u64 + 1)
+                file.take(limit as u64 + 1)
                     .read_to_end(&mut contents)
                     .map_err(|_| FeedError::Storage)?;
-                if contents.len() > MAX_STATE {
+                if contents.len() > limit {
                     return Err(FeedError::Storage);
                 }
-                let previous: HighWater =
-                    serde_json::from_slice(&contents).map_err(|_| FeedError::Storage)?;
-                if !valid_digest(&previous.index_sha256)
-                    || previous.sums_sha256.as_ref().is_some_and(|hash| !valid_digest(hash))
-                {
-                    return Err(FeedError::Storage);
-                }
-                Ok(Some(previous))
+                Ok(Some(contents))
             }
             Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
             Err(_) => Err(FeedError::Storage),
         }
+    }
+
+    fn read_state(path: &Path) -> Result<Option<HighWater>, FeedError> {
+        let Some(contents) = Self::read_bounded(path, MAX_STATE)? else {
+            return Ok(None);
+        };
+        let previous: HighWater =
+            serde_json::from_slice(&contents).map_err(|_| FeedError::Storage)?;
+        if !valid_digest(&previous.index_sha256) {
+            return Err(FeedError::Storage);
+        }
+        Ok(Some(previous))
+    }
+
+    /// The saved snapshot, if there is a usable one. It is only a convenience, so every problem
+    /// reads as "none".
+    fn read_snapshot(state_path: &Path) -> Option<Snapshot> {
+        let contents = Self::read_bounded(&Self::snapshot_path(state_path), MAX_SNAPSHOT)
+            .ok()??;
+        let snapshot: Snapshot = serde_json::from_slice(&contents).ok()?;
+        valid_digest(&snapshot.index_sha256).then_some(snapshot)
     }
 
     fn check_high_water(
@@ -976,48 +1014,44 @@ impl FeedClient {
         source_id: &str,
         sequence: u64,
         digest: &str,
-        sums_digest: &str,
     ) -> Result<(), FeedError> {
         if previous.source_id != source_id {
             return Err(FeedError::WrongSource);
         }
         if sequence < previous.sequence
-            || (sequence == previous.sequence
-                && (digest != previous.index_sha256
-                    || previous.sums_sha256.as_deref().is_some_and(|hash| hash != sums_digest)))
+            || (sequence == previous.sequence && digest != previous.index_sha256)
         {
             return Err(FeedError::Replay);
         }
         Ok(())
     }
 
-    fn cached(
-        &self,
-        pointer: &Pointer,
-        digest: &str,
-        sums_digest: &str,
-    ) -> Result<VerifiedFeed, FeedError> {
+    /// The last compatible feed, for an index this launcher cannot read.
+    fn cached(&self, pointer: &Pointer, digest: &str) -> Result<VerifiedFeed, FeedError> {
         let (path, _, _lock) = self.lock_state()?;
         let previous = Self::read_state(&path)?.ok_or(FeedError::NeedsUpdate)?;
-        Self::check_high_water(&previous, &pointer.source_id, pointer.sequence, digest, sums_digest)?;
-        let snapshot = previous.snapshot.ok_or(FeedError::NeedsUpdate)?;
-        if previous.sums_sha256.as_deref()
-            != Some(state_digest(&snapshot.proof.sums, snapshot.presentation.as_ref()).as_str())
+        Self::check_high_water(&previous, &pointer.source_id, pointer.sequence, digest)?;
+        let snapshot = Self::read_snapshot(&path).ok_or(FeedError::NeedsUpdate)?;
+        // A released launcher may have moved the high-water mark past the snapshot; it can
+        // never be ahead of it.
+        if snapshot.source_id != previous.source_id
+            || snapshot.sequence > previous.sequence
+            || (snapshot.sequence == previous.sequence
+                && snapshot.index_sha256 != previous.index_sha256)
         {
             return Err(FeedError::Storage);
         }
-        let mut feed = parse_verified_feed(
-            &self.config,
-            snapshot.proof,
-            snapshot.presentation.as_ref(),
-        )?;
+        let mut feed = parse_verified_feed(&self.config, snapshot.proof)?;
         let (source_id, sequence) = index_identity(&feed.index);
-        if source_id != previous.source_id
-            || sequence != previous.sequence
-            || feed.index_sha256 != previous.index_sha256
+        if source_id != snapshot.source_id
+            || sequence != snapshot.sequence
+            || feed.index_sha256 != snapshot.index_sha256
         {
             return Err(FeedError::Storage);
         }
+        feed.presentation = snapshot
+            .presentation
+            .and_then(|proof| verify_presentation(&self.config, &proof, &feed.index_sha256).ok());
         feed.needs_update = true;
         Ok(feed)
     }
@@ -1026,31 +1060,44 @@ impl FeedClient {
         &self,
         feed: &VerifiedFeed,
         presentation: Option<PresentationProof>,
-        sums_digest: &str,
     ) -> Result<(), FeedError> {
         let (state_path, feed_id, _lock) = self.lock_state()?;
         let (source_id, sequence) = index_identity(&feed.index);
-        if let Some(previous) = Self::read_state(&state_path)? {
-            Self::check_high_water(&previous, source_id, sequence, &feed.index_sha256, sums_digest)?;
-            if sequence == previous.sequence && previous.snapshot.is_some() {
-                return Ok(());
-            }
+        let previous = Self::read_state(&state_path)?;
+        if let Some(previous) = &previous {
+            Self::check_high_water(previous, source_id, sequence, &feed.index_sha256)?;
         }
-        let state = HighWater {
+        if previous.as_ref().is_none_or(|previous| sequence > previous.sequence) {
+            let state = HighWater {
+                source_id: source_id.to_owned(),
+                sequence,
+                index_sha256: feed.index_sha256.clone(),
+            };
+            let contents = serde_json::to_vec(&state).map_err(|_| FeedError::Storage)?;
+            Self::write_atomic(&state_path, &feed_id, &contents)?;
+        }
+        let snapshot = Snapshot {
             source_id: source_id.to_owned(),
             sequence,
             index_sha256: feed.index_sha256.clone(),
-            sums_sha256: Some(sums_digest.to_owned()),
-            snapshot: Some(CachedFeed {
-                proof: feed.proof.clone().ok_or(FeedError::Storage)?,
-                presentation,
-            }),
+            proof: feed.proof.clone().ok_or(FeedError::Storage)?,
+            presentation,
         };
-        let contents = serde_json::to_vec(&state).map_err(|_| FeedError::Storage)?;
-        if contents.len() > MAX_STATE {
+        let contents = serde_json::to_vec(&snapshot).map_err(|_| FeedError::Storage)?;
+        if contents.len() > MAX_SNAPSHOT {
             return Err(FeedError::Storage);
         }
-        let temp_path = state_path.with_file_name(format!(
+        let snapshot_path = Self::snapshot_path(&state_path);
+        if Self::read_bounded(&snapshot_path, MAX_SNAPSHOT).ok().flatten().as_deref()
+            != Some(contents.as_slice())
+        {
+            Self::write_atomic(&snapshot_path, &feed_id, &contents)?;
+        }
+        Ok(())
+    }
+
+    fn write_atomic(path: &Path, feed_id: &str, contents: &[u8]) -> Result<(), FeedError> {
+        let temp_path = path.with_file_name(format!(
             "{feed_id}.{}.{}.tmp",
             std::process::id(),
             NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
@@ -1060,10 +1107,10 @@ impl FeedClient {
                 .write(true)
                 .create_new(true)
                 .open(&temp_path)?;
-            file.write_all(&contents)?;
+            file.write_all(contents)?;
             file.sync_all()?;
             drop(file);
-            fs::rename(&temp_path, &state_path)
+            fs::rename(&temp_path, path)
         })();
         if result.is_err() {
             let _ = fs::remove_file(&temp_path);
@@ -1552,8 +1599,16 @@ mod tests {
 
         fn publish_with_presentation(&self, sequence: u64, index: &Value, presentation: &Value) {
             self.publish(sequence, index, DOMAIN);
+            self.sign_presentation(sequence, &index_sha(index), presentation);
+        }
+
+        /// Signs `presentation.sums` over `<index sha>  index.json` and the presentation itself.
+        fn sign_presentation(&self, sequence: u64, index_sha: &str, presentation: &Value) {
             let presentation = serde_json::to_vec(presentation).unwrap();
-            let sums = sums_file(&[("presentation.json".to_owned(), sha256_hex(&presentation))]);
+            let sums = sums_file(&[
+                ("index.json".to_owned(), index_sha.to_owned()),
+                ("presentation.json".to_owned(), sha256_hex(&presentation)),
+            ]);
             let signature = self.key.sign(DOMAIN, sums.as_bytes());
             let prefix = format!("indexes/{sequence:06}");
             self.transport
@@ -1565,6 +1620,23 @@ mod tests {
             self.transport
                 .respond(&format!("{prefix}/presentation.json"), Ok(presentation));
         }
+
+        fn restart(&self) -> FeedClient {
+            FeedClient::with_components(
+                self.client.config.clone(),
+                Arc::new(FixedAuth(None)),
+                self.transport.clone(),
+                self.root.clone(),
+            )
+        }
+
+        fn response(&self, path: &str) -> Result<Vec<u8>, FeedError> {
+            self.transport.responses.lock().unwrap()[&format!("https://feed.test/{path}")].clone()
+        }
+    }
+
+    fn index_sha(index: &Value) -> String {
+        sha256_hex(&serde_json::to_vec(index).unwrap())
     }
 
     impl Drop for Fixture {
@@ -1706,38 +1778,46 @@ mod tests {
     }
 
     #[test]
-    fn incompatible_documents_restore_the_last_signed_snapshot_after_restart() {
-        for incompatible in [
-            "index major",
-            "index feature",
-            "presentation major",
-            "presentation feature",
-        ] {
+    fn incompatible_index_restores_the_last_signed_snapshot_after_restart() {
+        for incompatible in ["index major", "index feature"] {
             let fixture = Fixture::new(None);
             fixture.publish_with_presentation(42, &index_v2(42), &presentation());
             fixture.client.fetch_feed().unwrap();
             let mut index = index_v2(43);
-            let mut new_presentation = presentation();
             match incompatible {
                 "index major" => index["schema"] = json!("3.0"),
                 "index feature" => index["critical_features"] = json!(["future-index-feature"]),
-                "presentation major" => new_presentation["schema"] = json!("2.0"),
-                "presentation feature" => {
-                    new_presentation["critical_features"] = json!(["future-presentation-feature"])
-                }
                 _ => unreachable!(),
             }
-            fixture.publish_with_presentation(43, &index, &new_presentation);
-            let restarted = FeedClient::with_components(
-                fixture.client.config.clone(),
-                Arc::new(FixedAuth(None)),
-                fixture.transport.clone(),
-                fixture.root.clone(),
-            );
-            let feed = restarted.fetch_feed().unwrap();
+            fixture.publish_with_presentation(43, &index, &presentation());
+            let feed = fixture.restart().fetch_feed().unwrap();
             assert!(feed.needs_update, "{incompatible}");
             assert_eq!(index_identity(&feed.index).1, 42, "{incompatible}");
             assert_eq!(localized(&feed.presentation.unwrap().news[0].title, "en"), "Welcome");
+        }
+    }
+
+    #[test]
+    fn incompatible_presentation_keeps_the_new_index_and_asks_for_an_update() {
+        for incompatible in ["presentation major", "presentation feature"] {
+            let fixture = Fixture::new(None);
+            fixture.publish_with_presentation(42, &index_v2(42), &presentation());
+            fixture.client.fetch_feed().unwrap();
+            let mut new_presentation = presentation();
+            match incompatible {
+                "presentation major" => new_presentation["schema"] = json!("2.0"),
+                _ => {
+                    new_presentation["critical_features"] = json!(["future-presentation-feature"])
+                }
+            }
+            fixture.publish_with_presentation(43, &index_v2(43), &new_presentation);
+            let feed = fixture.restart().fetch_feed().unwrap();
+            assert!(feed.needs_update, "{incompatible}");
+            assert_eq!(index_identity(&feed.index).1, 43, "{incompatible}");
+            assert!(feed.presentation.is_none(), "{incompatible}");
+            // the pack index moved on: the high-water mark is 43
+            fixture.publish(42, &index_v2(42), DOMAIN);
+            assert_eq!(fixture.client.fetch_feed().unwrap_err(), FeedError::Replay);
         }
     }
 
@@ -1785,17 +1865,212 @@ mod tests {
     }
 
     #[test]
-    fn presentation_is_authenticated_and_cannot_change_at_the_same_sequence() {
+    fn presentation_problems_never_fail_the_pack_feed() {
+        let cases = [
+            "network",
+            "server error",
+            "forbidden",
+            "tampered",
+            "bad signature",
+            "invalid document",
+            "other index",
+            "not utf-8",
+        ];
+        for name in cases {
+            let fixture = Fixture::new(None);
+            fixture.publish_with_presentation(42, &index_v2(42), &presentation());
+            let t = &fixture.transport;
+            match name {
+                "network" => t.respond("indexes/000042/presentation.json", Err(FeedError::Network)),
+                "server error" => t.respond(
+                    "indexes/000042/presentation.sums",
+                    Err(FeedError::HttpStatus(503)),
+                ),
+                "forbidden" => {
+                    t.respond("indexes/000042/presentation.sums.sig", Err(status_error(403)))
+                }
+                "tampered" => t.respond("indexes/000042/presentation.json", Ok(b"{}".to_vec())),
+                "bad signature" => {
+                    t.respond("indexes/000042/presentation.sums.sig", Ok(b"nope".to_vec()))
+                }
+                "invalid document" => {
+                    let mut document = presentation();
+                    document["links"][0]["url"] = json!("http://yoake.example/help");
+                    fixture.sign_presentation(42, &index_sha(&index_v2(42)), &document);
+                }
+                "other index" => fixture.sign_presentation(42, &"0".repeat(64), &presentation()),
+                _ => t.respond("indexes/000042/presentation.json", Ok(vec![0xff, 0xfe])),
+            }
+            let feed = fixture
+                .client
+                .fetch_feed()
+                .unwrap_or_else(|error| panic!("{name}: {error:?}"));
+            assert!(feed.presentation.is_none(), "{name}");
+            assert!(!feed.needs_update, "{name}");
+        }
+    }
+
+    #[test]
+    fn a_transient_presentation_failure_keeps_the_last_good_one_and_never_replays() {
         let fixture = Fixture::new(None);
         fixture.publish_with_presentation(42, &index_v2(42), &presentation());
-        fixture.transport.respond("indexes/000042/presentation.json", Ok(b"{}".to_vec()));
-        assert!(matches!(fixture.client.fetch_feed(), Err(FeedError::HashMismatch)));
-        fixture.publish_with_presentation(42, &index_v2(42), &presentation());
         fixture.client.fetch_feed().unwrap();
+        for failure in [
+            Err(FeedError::HttpStatus(404)),
+            Err(FeedError::Network),
+            Err(FeedError::HttpStatus(500)),
+            Err(status_error(403)),
+        ] {
+            fixture
+                .transport
+                .respond("indexes/000042/presentation.sums", failure);
+            let feed = fixture.restart().fetch_feed().unwrap();
+            assert_eq!(localized(&feed.presentation.unwrap().news[0].title, "en"), "Welcome");
+        }
+        // a different signed presentation for the same index is only ever a presentation
         let mut changed = presentation();
         changed["news"][0]["title"]["en"] = json!("Changed");
-        fixture.publish_with_presentation(42, &index_v2(42), &changed);
-        assert!(matches!(fixture.client.fetch_feed(), Err(FeedError::Replay)));
+        fixture.sign_presentation(42, &index_sha(&index_v2(42)), &changed);
+        let feed = fixture.client.fetch_feed().unwrap();
+        assert_eq!(localized(&feed.presentation.unwrap().news[0].title, "en"), "Changed");
+        // the pack index itself is still replay-protected
+        let mut equivocation = index_v2(42);
+        equivocation["packs"][0]["name"] = json!("Another pack name");
+        fixture.publish(42, &equivocation, DOMAIN);
+        assert_eq!(fixture.client.fetch_feed().unwrap_err(), FeedError::Replay);
+    }
+
+    #[test]
+    fn a_presentation_is_bound_to_the_signed_index() {
+        let fixture = Fixture::new(None);
+        fixture.publish_with_presentation(41, &index_v2(41), &presentation());
+        let old_sums = fixture.response("indexes/000041/presentation.sums");
+        let old_signature = fixture.response("indexes/000041/presentation.sums.sig");
+        // the sequence 41 presentation files copied into the sequence 42 folder
+        fixture.publish_with_presentation(42, &index_v2(42), &presentation());
+        fixture.transport.respond("indexes/000042/presentation.sums", old_sums);
+        fixture.transport.respond("indexes/000042/presentation.sums.sig", old_signature);
+        assert!(fixture.client.fetch_feed().unwrap().presentation.is_none());
+
+        // a signed presentation.sums without the index line
+        let fixture = Fixture::new(None);
+        fixture.publish_with_presentation(42, &index_v2(42), &presentation());
+        let document = serde_json::to_vec(&presentation()).unwrap();
+        let only = sums_file(&[("presentation.json".to_owned(), sha256_hex(&document))]);
+        fixture
+            .transport
+            .respond("indexes/000042/presentation.sums", Ok(only.clone().into_bytes()));
+        fixture.transport.respond(
+            "indexes/000042/presentation.sums.sig",
+            Ok(fixture.key.sign(DOMAIN, only.as_bytes()).into_bytes()),
+        );
+        assert!(fixture.client.fetch_feed().unwrap().presentation.is_none());
+        // the index SHA256SUMS is not a presentation.sums either
+        fixture
+            .transport
+            .respond("indexes/000042/presentation.sums", fixture.response("indexes/000042/SHA256SUMS"));
+        fixture.transport.respond(
+            "indexes/000042/presentation.sums.sig",
+            fixture.response("indexes/000042/SHA256SUMS.sig"),
+        );
+        assert!(fixture.client.fetch_feed().unwrap().presentation.is_none());
+        // and a presentation.sums can never stand in for the index SHA256SUMS
+        let sums = sums_file(&[
+            ("index.json".to_owned(), index_sha(&index_v2(42))),
+            ("presentation.json".to_owned(), sha256_hex(&document)),
+        ]);
+        let signature = fixture.key.sign(DOMAIN, sums.as_bytes());
+        let entries = verify(DOMAIN, sums.as_bytes(), &signature, &fixture.client.config.keys).unwrap();
+        assert_eq!(signed_digests(&entries), Err(FeedError::Malformed));
+    }
+
+    #[test]
+    fn presentation_urls_are_opened_in_their_validated_form() {
+        let mut document = presentation();
+        document["links"][0]["url"] = json!("https://Yoake.Example/he lp?x=1");
+        document["news"][0]["link"] = json!("https://yoake.example");
+        let parsed = parse_presentation(&serde_json::to_vec(&document).unwrap()).unwrap();
+        assert_eq!(parsed.links[0].url, "https://yoake.example/he%20lp?x=1");
+        assert_eq!(parsed.news[0].link.as_deref(), Some("https://yoake.example/"));
+    }
+
+    /// The high-water file as the released launchers define it (copied from the parent commit).
+    mod released {
+        #[derive(serde::Deserialize, serde::Serialize)]
+        #[serde(deny_unknown_fields)]
+        pub struct HighWater {
+            pub source_id: String,
+            pub sequence: u64,
+            pub index_sha256: String,
+        }
+        pub const MAX_POINTER: usize = 16 * 1024;
+    }
+
+    #[test]
+    fn the_state_file_stays_readable_by_released_launchers_and_the_new_one_reads_theirs() {
+        let fixture = Fixture::new(None);
+        fixture.publish_with_presentation(42, &index_v2(42), &presentation());
+        let feed = fixture.client.fetch_feed().unwrap();
+        let directory = fixture.root.join("yoake-feeds");
+        let feed_id = sha256_hex(fixture.client.config.root.as_str().as_bytes());
+        let state = fs::read(directory.join(format!("{feed_id}.json"))).unwrap();
+        assert!(state.len() < released::MAX_POINTER);
+        let old: released::HighWater = serde_json::from_slice(&state).unwrap();
+        assert_eq!((old.source_id.as_str(), old.sequence), ("yoake-official", 42));
+        assert_eq!(old.index_sha256, feed.index_sha256);
+        assert_eq!(state, serde_json::to_vec(&old).unwrap(), "byte-identical to the released shape");
+        let mut names: Vec<String> = fs::read_dir(&directory)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        let mut expected = vec![
+            format!("{feed_id}.json"),
+            format!("{feed_id}.lock"),
+            format!("{feed_id}.snapshot.json"),
+        ];
+        expected.sort();
+        assert_eq!(names, expected);
+
+        // a released launcher (side by side or after a downgrade) takes sequence 43 and writes its
+        // own three-field file; the new launcher keeps working and keeps its snapshot
+        let mut incompatible = index_v2(44);
+        incompatible["schema"] = json!("3.0");
+        let moved = released::HighWater {
+            source_id: "yoake-official".into(),
+            sequence: 44,
+            index_sha256: index_sha(&incompatible),
+        };
+        fs::write(directory.join(format!("{feed_id}.json")), serde_json::to_vec(&moved).unwrap())
+            .unwrap();
+        fixture.publish(44, &incompatible, DOMAIN);
+        let feed = fixture.restart().fetch_feed().unwrap();
+        assert!(feed.needs_update);
+        assert_eq!(index_identity(&feed.index).1, 42, "snapshot older than the high-water mark");
+        fixture.publish_with_presentation(45, &index_v2(45), &presentation());
+        let feed = fixture.restart().fetch_feed().unwrap();
+        assert!(!feed.needs_update);
+        assert_eq!(index_identity(&feed.index).1, 45);
+        let old: released::HighWater =
+            serde_json::from_slice(&fs::read(directory.join(format!("{feed_id}.json"))).unwrap())
+                .unwrap();
+        assert_eq!(old.sequence, 45);
+    }
+
+    #[test]
+    fn an_unreadable_snapshot_is_not_fatal() {
+        let fixture = Fixture::new(None);
+        fixture.publish(42, &index_v2(42), DOMAIN);
+        fixture.client.fetch_feed().unwrap();
+        let feed_id = sha256_hex(fixture.client.config.root.as_str().as_bytes());
+        let snapshot = fixture.root.join(format!("yoake-feeds/{feed_id}.snapshot.json"));
+        fs::write(&snapshot, b"garbage").unwrap();
+        fixture.client.fetch_feed().unwrap();
+        let mut future = index_v2(43);
+        future["schema"] = json!("3.0");
+        fixture.publish(43, &future, DOMAIN);
+        fs::write(&snapshot, b"garbage").unwrap();
+        assert_eq!(fixture.client.fetch_feed().unwrap_err(), FeedError::NeedsUpdate);
     }
 
     #[test]
@@ -1891,6 +2166,41 @@ mod tests {
             index.packs[0].versions[0].targets["windows-x86_64"].files[0].destination,
             "config/test.toml"
         );
+    }
+
+    #[test]
+    fn accepts_a_python_signed_presentation_bound_to_its_index() {
+        let mut fixture = Fixture::new(None);
+        fixture.client.config.keys = parse_keys(include_str!(
+            "../tests/fixtures/yoake-presentation/test-only-public-key.b64"
+        ))
+        .unwrap();
+        fixture.transport.respond(
+            "current.json",
+            Ok(br#"{"source_id":"yoake-official","sequence":42}"#.to_vec()),
+        );
+        let files: [(&str, &[u8]); 6] = [
+            ("index.json", include_bytes!("../tests/fixtures/yoake-presentation/index.json")),
+            ("SHA256SUMS", include_bytes!("../tests/fixtures/yoake-presentation/SHA256SUMS")),
+            ("SHA256SUMS.sig", include_bytes!("../tests/fixtures/yoake-presentation/SHA256SUMS.sig")),
+            ("presentation.json", include_bytes!("../tests/fixtures/yoake-presentation/presentation.json")),
+            ("presentation.sums", include_bytes!("../tests/fixtures/yoake-presentation/presentation.sums")),
+            (
+                "presentation.sums.sig",
+                include_bytes!("../tests/fixtures/yoake-presentation/presentation.sums.sig"),
+            ),
+        ];
+        for (name, bytes) in files {
+            fixture
+                .transport
+                .respond(&format!("indexes/000042/{name}"), Ok(bytes.to_vec()));
+        }
+        let feed = fixture.client.fetch_feed().unwrap();
+        let presentation = feed.presentation.as_ref().expect("the Python presentation verifies");
+        assert_eq!(localized(&presentation.news[0].title, "ja"), "ようこそ");
+        assert_eq!(presentation.news[0].link.as_deref(), Some("https://example.com/news"));
+        assert_eq!(presentation.categories[0].packs, ["example"]);
+        assert!(!feed.needs_update);
     }
 
     #[test]
