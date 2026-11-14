@@ -2904,6 +2904,7 @@ fn launcher_asset_running_from(appimage: bool) -> Option<&'static str> {
 pub fn self_update_allowed() -> bool {
     !cfg!(debug_assertions)
         && !account::owner_required()
+        && !crate::brand::store_distribution()
         && std::env::var_os("HORIZON_LAUNCHER_NO_SELF_UPDATE").is_none()
 }
 
@@ -2994,6 +2995,9 @@ pub fn replace_binary(new: &Path, exe: &Path) -> std::io::Result<()> {
 /// background; one that stays in use (another launcher window) goes on a later start.
 #[cfg(windows)]
 pub fn remove_replaced_binaries() {
+    if crate::brand::store_distribution() {
+        return;
+    }
     let exe = exe_path();
     let (Some(dir), Some(name)) = (exe.parent(), exe.file_name()) else {
         return;
@@ -3076,6 +3080,9 @@ fn replace_bundle(_new: &Path, _app: &Path) -> Result<(), String> {
 /// working; `restart` starts the new one. When the file there already is that release or
 /// a newer one (updated from the command line or another window), there is nothing to do.
 pub fn self_update(release: &Release, progress: impl Fn(f32)) -> Result<(), String> {
+    if crate::brand::store_distribution() {
+        return Err(crate::i18n::tr("The Microsoft Store updates Yoake.").to_owned());
+    }
     let (url, size) = release
         .asset
         .clone()

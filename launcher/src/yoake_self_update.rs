@@ -213,6 +213,9 @@ pub(super) fn install(
     state: &AtomicU8,
     progress: &mut dyn FnMut(f32),
 ) -> Result<(), String> {
+    if horizon_launcher::brand::store_distribution() {
+        return Err(horizon_launcher::i18n::tr("The Microsoft Store updates Yoake.").to_owned());
+    }
     if !cfg!(windows) {
         return Err("The portal currently provides a Windows launcher update only.".into());
     }

@@ -4,6 +4,10 @@ pub fn yoake() -> bool {
     crate::account::owner_required()
 }
 
+pub fn store_distribution() -> bool {
+    option_env!("YOAKE_DISTRIBUTION") == Some("store")
+}
+
 pub fn name() -> &'static str {
     if yoake() {
         "Yoake"

@@ -28,6 +28,8 @@ Each release is approved by hand in SignPath before it is signed.
 
 ## Privacy
 
+See the [Yoake privacy policy](yoake-privacy.md) for the Store listing and local data details.
+
 This program will not transfer any information to other networked systems
 unless specifically requested by the user or the person installing or operating it.
 

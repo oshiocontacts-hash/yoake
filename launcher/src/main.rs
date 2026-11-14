@@ -3892,6 +3892,11 @@ impl Launcher {
                 None => backend::VERSION.to_string(),
             },
         };
+        let launcher = if horizon_launcher::brand::store_distribution() {
+            tr("The Microsoft Store updates Yoake.").to_string()
+        } else {
+            launcher
+        };
         let launcher_action = match &self.self_update {
             SelfUpdate::Ready(_) => Some(
                 button("restart-settings", "Restart", Kind::Secondary, &t)
@@ -3911,6 +3916,8 @@ impl Launcher {
                     .into_any_element(),
             ),
         };
+        let launcher_action =
+            launcher_action.filter(|_| !horizon_launcher::brand::store_distribution());
         let mono = |s: String| div().font_family(theme::MONO).child(s).into_any_element();
         let plain = |s: &str| div().child(tr(s).to_string()).into_any_element();
         let (accounts, n) = self.account_rows(cx);
@@ -4071,12 +4078,14 @@ impl Launcher {
                         .child(text(theme::UI).text_color(t.ink).child(tr(
                             "Yoake Launcher is built on Horizon (licence below)",
                         )))
-                        .child(button("yoake-check-launcher", "Check for launcher updates", Kind::Secondary, &t)
-                            .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                                this.yoake.check_launcher_update(true);
-                                this.go(Page::Yoake);
-                                cx.notify();
-                            })))
+                        .when(!horizon_launcher::brand::store_distribution(), |card| {
+                            card.child(button("yoake-check-launcher", "Check for launcher updates", Kind::Secondary, &t)
+                                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                                    this.yoake.check_launcher_update(true);
+                                    this.go(Page::Yoake);
+                                    cx.notify();
+                                })))
+                        })
                         .child(
                             text(theme::UI)
                                 .text_color(t.muted)

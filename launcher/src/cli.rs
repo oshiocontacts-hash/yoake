@@ -3420,11 +3420,16 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             };
             let out = match out {
                 Some(out) => out,
-                None => export::free_path(
-                    &std::env::current_dir().map_err(|e| e.to_string())?,
-                    &i.name,
-                    format,
-                ),
+                None => {
+                    let directory = if horizon_launcher::brand::store_distribution() {
+                        let directory = backend::data_dir();
+                        std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+                        directory
+                    } else {
+                        std::env::current_dir().map_err(|error| error.to_string())?
+                    };
+                    export::free_path(&directory, &i.name, format)
+                }
             };
             let done = export::export(&i.home, &i.name, format, &worlds, &linked, &out)?;
             if as_json {
