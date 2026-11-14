@@ -5,12 +5,18 @@ use std::{
     rc::Rc,
 };
 
+#[yoake_state::yoake_state(read_only)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Details {
+    #[yoake_state(read_only)]
     pub duration: i32,
+    #[yoake_state(read_only)]
     pub amplifier: i32,
+    #[yoake_state(read_only)]
     pub ambient: bool,
+    #[yoake_state(read_only)]
     pub visible: bool,
+    #[yoake_state(read_only)]
     pub show_icon: bool,
 }
 #[derive(Clone, Copy, Debug, Default)]

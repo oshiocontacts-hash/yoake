@@ -29,11 +29,15 @@ const MAX_CHARGE: i32 = 1000;
 const MAX_CURSOR_DISTANCE: i32 = 1024;
 
 /// One `SculkSpreader.ChargeCursor`.
+#[yoake_state::yoake_state(read_only)]
 #[derive(Clone, Debug, PartialEq)]
 pub struct ChargeCursor {
     pub pos: BlockPos,
+    #[yoake_state(read_only)]
     pub charge: i32,
+    #[yoake_state(read_only)]
     pub update_delay: i32,
+    #[yoake_state(read_only)]
     pub decay_delay: i32,
     /// The faces of the block the cursor last moved onto, if any.
     pub facings: Option<Vec<Direction>>,

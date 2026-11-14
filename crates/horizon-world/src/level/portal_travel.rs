@@ -22,11 +22,16 @@ pub struct FoundRectangle {
 }
 
 /// The world border's extent (`getMinX` .. `getMaxX`, `getMinZ` .. `getMaxZ`).
+#[yoake_state::yoake_state(read_only)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BorderBounds {
+    #[yoake_state(read_only)]
     pub min_x: f64,
+    #[yoake_state(read_only)]
     pub min_z: f64,
+    #[yoake_state(read_only)]
     pub max_x: f64,
+    #[yoake_state(read_only)]
     pub max_z: f64,
 }
 impl BorderBounds {

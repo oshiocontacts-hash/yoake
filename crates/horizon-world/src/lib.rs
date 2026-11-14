@@ -147,6 +147,7 @@ pub mod player_equipment;
 
 pub mod living_use_flags;
 pub mod status_effect;
+pub mod yoake_state_catalog;
 pub mod stepped_interpolation;
 pub mod synced_values;
 

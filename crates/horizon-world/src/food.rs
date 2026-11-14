@@ -6,11 +6,16 @@ pub enum Difficulty {
     Normal,
     Hard,
 }
+#[yoake_state::yoake_state(read_only)]
 #[derive(Clone, Copy, Debug)]
 pub struct FoodData {
+    #[yoake_state(read_only)]
     pub food: i32,
+    #[yoake_state(read_only)]
     pub saturation: f32,
+    #[yoake_state(read_only)]
     pub exhaustion: f32,
+    #[yoake_state(read_only)]
     pub timer: i32,
 }
 impl Default for FoodData {

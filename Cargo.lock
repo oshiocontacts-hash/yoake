@@ -1733,6 +1733,7 @@ dependencies = [
  "ureq",
  "wgpu",
  "winit",
+ "yoake-state",
  "zip",
 ]
 
@@ -2121,6 +2122,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "xxhash-rust",
+ "yoake-state",
 ]
 
 [[package]]
@@ -6096,6 +6098,22 @@ name = "yoake-dll-net-echo"
 version = "0.1.0"
 dependencies = [
  "horizon-mod-sdk",
+]
+
+[[package]]
+name = "yoake-state"
+version = "0.1.0"
+dependencies = [
+ "yoake-state-macro",
+]
+
+[[package]]
+name = "yoake-state-macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]

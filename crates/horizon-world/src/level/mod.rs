@@ -175,18 +175,29 @@ pub enum Dimension {
 }
 
 /// Game rules consulted by block behaviour (vanilla defaults).
+#[yoake_state::yoake_state(read_only)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct GameRules {
+    #[yoake_state(read_only)]
     pub water_source_conversion: bool,
+    #[yoake_state(read_only)]
     pub lava_source_conversion: bool,
+    #[yoake_state(read_only)]
     pub random_tick_speed: i32,
+    #[yoake_state(read_only)]
     pub block_drops: bool,
+    #[yoake_state(read_only)]
     pub mob_griefing: bool,
+    #[yoake_state(read_only)]
     pub max_snow_accumulation_height: i32,
+    #[yoake_state(read_only)]
     pub spawn_mobs: bool,
+    #[yoake_state(read_only)]
     pub spawn_monsters: bool,
     /// `fire_spread_radius_around_player`: -1 spreads everywhere.
+    #[yoake_state(read_only)]
     pub fire_spread_radius_around_player: i32,
+    #[yoake_state(read_only)]
     pub spread_vines: bool,
 }
 impl Default for GameRules {
