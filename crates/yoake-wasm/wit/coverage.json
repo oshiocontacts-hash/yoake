@@ -1,0 +1,5014 @@
+{
+  "generated_by": "horizon-mod-api-gen",
+  "hook_count": 471,
+  "fully_typed": 363,
+  "with_handles": 108,
+  "client_hooks": 207,
+  "server_hooks": 378,
+  "named_types": 192,
+  "handle_types": [
+    {
+      "rust_type": "Compound",
+      "hooks": 56,
+      "reason": "recursive type"
+    },
+    {
+      "rust_type": "Tag",
+      "hooks": 56,
+      "reason": "recursive type"
+    },
+    {
+      "rust_type": "ItemStack",
+      "hooks": 52,
+      "reason": "recursive type"
+    },
+    {
+      "rust_type": "Text",
+      "hooks": 14,
+      "reason": "struct with private fields"
+    },
+    {
+      "rust_type": "Value",
+      "hooks": 10,
+      "reason": "ambiguous definition"
+    },
+    {
+      "rust_type": "&mut HudBatch",
+      "hooks": 9,
+      "reason": "mutable reference to a live object"
+    },
+    {
+      "rust_type": "&mut BlockEntityDraw",
+      "hooks": 4,
+      "reason": "mutable reference to a live object"
+    },
+    {
+      "rust_type": "&mut ModBlockEntity",
+      "hooks": 4,
+      "reason": "mutable reference to a live object"
+    },
+    {
+      "rust_type": "&mut Option",
+      "hooks": 3,
+      "reason": "mutable reference to a live object"
+    },
+    {
+      "rust_type": "ModBlockEntity",
+      "hooks": 3,
+      "reason": "struct with private fields"
+    },
+    {
+      "rust_type": "LootEntity",
+      "hooks": 2,
+      "reason": "recursive type"
+    },
+    {
+      "rust_type": "&mut Corners",
+      "hooks": 1,
+      "reason": "mutable reference to a live object"
+    },
+    {
+      "rust_type": "&mut DVec3",
+      "hooks": 1,
+      "reason": "mutable reference to a live object"
+    },
+    {
+      "rust_type": "&mut HandDrawn",
+      "hooks": 1,
+      "reason": "mutable reference to a live object"
+    },
+    {
+      "rust_type": "&mut ItemStack",
+      "hooks": 1,
+      "reason": "mutable reference to a live object"
+    },
+    {
+      "rust_type": "&mut NativeItemDraw",
+      "hooks": 1,
+      "reason": "mutable reference to a live object"
+    },
+    {
+      "rust_type": "&mut OverlayDrawn",
+      "hooks": 1,
+      "reason": "mutable reference to a live object"
+    },
+    {
+      "rust_type": "&mut Text",
+      "hooks": 1,
+      "reason": "mutable reference to a live object"
+    },
+    {
+      "rust_type": "&mut Vec",
+      "hooks": 1,
+      "reason": "mutable reference to a live object"
+    },
+    {
+      "rust_type": "&mut WorldDrawn",
+      "hooks": 1,
+      "reason": "mutable reference to a live object"
+    },
+    {
+      "rust_type": "&mut WorldPrePost",
+      "hooks": 1,
+      "reason": "mutable reference to a live object"
+    },
+    {
+      "rust_type": "* const u8",
+      "hooks": 1,
+      "reason": "raw pointer"
+    },
+    {
+      "rust_type": "Block",
+      "hooks": 1,
+      "reason": "ambiguous definition"
+    },
+    {
+      "rust_type": "Device",
+      "hooks": 1,
+      "reason": "not found in workspace sources"
+    },
+    {
+      "rust_type": "DeviceLostReason",
+      "hooks": 1,
+      "reason": "not found in workspace sources"
+    },
+    {
+      "rust_type": "FluidState",
+      "hooks": 1,
+      "reason": "struct with private fields"
+    },
+    {
+      "rust_type": "Instant",
+      "hooks": 1,
+      "reason": "shared or runtime-only type"
+    },
+    {
+      "rust_type": "Item",
+      "hooks": 1,
+      "reason": "ambiguous definition"
+    },
+    {
+      "rust_type": "Map",
+      "hooks": 1,
+      "reason": "ambiguous definition, or defined by generated code"
+    },
+    {
+      "rust_type": "Queue",
+      "hooks": 1,
+      "reason": "struct with private fields"
+    },
+    {
+      "rust_type": "dyn BlockBehavior",
+      "hooks": 1,
+      "reason": "trait object"
+    },
+    {
+      "rust_type": "dyn CapabilityProvider",
+      "hooks": 1,
+      "reason": "trait object"
+    },
+    {
+      "rust_type": "dyn ItemBehavior",
+      "hooks": 1,
+      "reason": "trait object"
+    },
+    {
+      "rust_type": "dyn MenuBehavior",
+      "hooks": 1,
+      "reason": "trait object"
+    },
+    {
+      "rust_type": "dyn NativeRecipeCodec",
+      "hooks": 1,
+      "reason": "trait object"
+    }
+  ],
+  "hooks": [
+    {
+      "name": "frame",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "tick",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "visuals",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "emissive",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "world_lifecycle",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "server_about_to_start",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "server_stopping",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "server_tick",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "level_tick_pre",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "level_tick_post",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_changed",
+      "side": "server",
+      "side_source": "path",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "neighbor_changed",
+      "side": "server",
+      "side_source": "path",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "random_tick",
+      "side": "server",
+      "side_source": "path",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "tick_block",
+      "side": "server",
+      "side_source": "path",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "update_shape",
+      "side": "server",
+      "side_source": "path",
+      "contract": "replace",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "hud",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "batch",
+          "rust_types": [
+            "&mut HudBatch"
+          ]
+        },
+        {
+          "param": "corners",
+          "rust_types": [
+            "&mut Corners"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "key",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "wheel",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "command",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "commands",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "zoom",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "replace",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "minimap",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "replace",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "mods",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "settings",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "settings_click",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "panel_event",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_entity",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "replace",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "entity",
+          "rust_types": [
+            "Compound",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "block_entity_ticks",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_entity_tick",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "entity",
+          "rust_types": [
+            "&mut ModBlockEntity"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "block_entity_update_tag",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "replace",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "entity",
+          "rust_types": [
+            "ModBlockEntity"
+          ]
+        },
+        {
+          "param": "tag",
+          "rust_types": [
+            "Compound",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "block_entity_container",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "replace",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "screen",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "replace",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "screen_draw",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "batch",
+          "rust_types": [
+            "&mut HudBatch"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "screen_click",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "replace",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "screen_tooltip",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "menu_button",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "entity",
+          "rust_types": [
+            "&mut ModBlockEntity"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "register_commands",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "perform_command",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "menu_clicked",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "menu_closed",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "tooltip",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "lines",
+          "rust_types": [
+            "Text"
+          ]
+        },
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "use_item_on",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "use_item",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "destroy_block",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "place_block",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "right_click_block",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_spread",
+      "side": "server",
+      "side_source": "path",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "piston_move",
+      "side": "server",
+      "side_source": "path",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "explosion_detonate",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "fill_bucket",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "attack_entity",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "net_from_client",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "net_from_server",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_died",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "mob_spawned",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "mob_killed",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "item_dropped",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "item_picked_up",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "hurt_enemy",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "inventory_tick",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "on_equip",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "new",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "block_signal",
+      "side": "server",
+      "side_source": "path",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "is_signal_source",
+      "side": "server",
+      "side_source": "path",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "health_hud",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "replace",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "draws",
+          "rust_types": [
+            "Text"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "interact_entity",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "left_click_block",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_tick",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_join_level",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "living_incoming_damage",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "menu_button_v2",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "carried",
+          "rust_types": [
+            "&mut Option"
+          ]
+        },
+        {
+          "param": "entity",
+          "rust_types": [
+            "&mut ModBlockEntity"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "entity_leave_level",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_entity_fluids",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "replace",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "should_apply_effect_tick_this_tick",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "apply_effect_tick",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "on_effect_added",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "mob_effect_added",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "chunk_load",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "chunk_unload",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_logged_in",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_logged_out",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "world_drawn",
+      "side": "client",
+      "side_source": "path",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "world",
+          "rust_types": [
+            "&mut WorldDrawn"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "render_needs",
+      "side": "client",
+      "side_source": "path",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "item_bar",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "has_analog_output",
+      "side": "server",
+      "side_source": "path",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "analog_output",
+      "side": "server",
+      "side_source": "path",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "component_types",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "dispense_item",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "replace",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "answer",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        },
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "tooltip_component",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "replace",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "tooltip_component_draw",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "batch",
+          "rust_types": [
+            "&mut HudBatch"
+          ]
+        },
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "can_survive",
+      "side": "server",
+      "side_source": "path",
+      "contract": "replace",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "may_place_on",
+      "side": "server",
+      "side_source": "path",
+      "contract": "replace",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_entity_submit",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "draw",
+          "rust_types": [
+            "&mut BlockEntityDraw"
+          ]
+        },
+        {
+          "param": "entity",
+          "rust_types": [
+            "ModBlockEntity"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "block_entity_render_bounding_box",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "entity",
+          "rust_types": [
+            "ModBlockEntity"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "is_valid_bonemeal_target",
+      "side": "server",
+      "side_source": "path",
+      "contract": "replace",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "is_bonemeal_success",
+      "side": "server",
+      "side_source": "path",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "perform_bonemeal",
+      "side": "server",
+      "side_source": "path",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_step_on",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_entity_inside",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_fall_on",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "consume_effect",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "data",
+          "rust_types": [
+            "Value"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "loot_table_load",
+      "side": "server",
+      "side_source": "path",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "table",
+          "rust_types": [
+            "Value"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "loot_drops",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "context",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        },
+        {
+          "param": "drops",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "state_for_placement",
+      "side": "server",
+      "side_source": "path",
+      "contract": "replace",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "fluid",
+          "rust_types": [
+            "FluidState"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "enchant_effect",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "data",
+          "rust_types": [
+            "Value"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "screen_render_post",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "batch",
+          "rust_types": [
+            "&mut HudBatch"
+          ]
+        },
+        {
+          "param": "screen",
+          "rust_types": [
+            "Text"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "modify_default_components",
+      "side": "server",
+      "side_source": "path",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "components",
+          "rust_types": [
+            "Map"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "screen_mouse_button_pressed_pre",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "screen",
+          "rust_types": [
+            "Text"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "screen_mouse_button_released_pre",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "screen",
+          "rust_types": [
+            "Text"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "camera_shake",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "shader_params",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_highlight",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "render_hand",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "client_resources_reloaded",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "item_decorations",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "batch",
+          "rust_types": [
+            "&mut HudBatch"
+          ]
+        },
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "use_duration",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "use_animation",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "can_eat",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "living_entity_use_item_start",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "living_entity_use_item_finish",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "result",
+          "rust_types": [
+            "&mut Option"
+          ]
+        },
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "screen_mouse_scrolled_pre",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "screen",
+          "rust_types": [
+            "Text"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "player_command",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "replies",
+          "rust_types": [
+            "&mut Vec"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "perform_console_command",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "screen_key_pressed_pre",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "screen",
+          "rust_types": [
+            "Text"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "screen_char_typed_pre",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "screen",
+          "rust_types": [
+            "Text"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "data_pack_files",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "biome_colors",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "server_data_loaded",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "compute_fov",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "mob_submit",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "draw",
+          "rust_types": [
+            "&mut BlockEntityDraw"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "camera_distance",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "compute_fog_color",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "mouse_button_pre",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "mouse_button_post",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_respawned",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "render_fog",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "screen_key_released_pre",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "screen",
+          "rust_types": [
+            "Text"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "music",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "music_layers",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "datapack_sync",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "recipes_received",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "input_key",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "event",
+          "rust_types": [
+            "* const u8"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mouse_scrolling",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "screen_mouse_dragged_pre",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "screen",
+          "rust_types": [
+            "Text"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mod_container_viewers",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "living_knockback",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "experience_orb_can_merge",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "experience_orb_merge",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "menu_slot_rules",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "living_entity_use_item_tick",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "on_use_tick",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "living_entity_use_item_stop",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "release_using",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "loot_function",
+      "side": "server",
+      "side_source": "path",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "ctx",
+          "rust_types": [
+            "Compound",
+            "LootEntity",
+            "Tag",
+            "Value"
+          ]
+        },
+        {
+          "param": "data",
+          "rust_types": [
+            "Value"
+          ]
+        },
+        {
+          "param": "stack",
+          "rust_types": [
+            "Value"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "loot_condition",
+      "side": "server",
+      "side_source": "path",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "ctx",
+          "rust_types": [
+            "Compound",
+            "LootEntity",
+            "Tag",
+            "Value"
+          ]
+        },
+        {
+          "param": "data",
+          "rust_types": [
+            "Value"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "level_load",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "level_unload",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "client_level_load",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "client_level_unload",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "hears_projectile_impacts",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "projectile_impact",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_mount",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "interaction_key",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "gui_layer_pre",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "batch",
+          "rust_types": [
+            "&mut HudBatch"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "gui_layer_post",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "batch",
+          "rust_types": [
+            "&mut HudBatch"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "map_decorations",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_start_tracking",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_stop_tracking",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_entity_energy",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "replace",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "data_map_types",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "living_breathe",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "blocks",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "blocks",
+          "rust_types": [
+            "Block"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "items",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "items",
+          "rust_types": [
+            "Item"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "entity_tick_pre",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_tick_post",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_tick_listened",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "item_fluid_tank",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "replace",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "living_equipment_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "from",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        },
+        {
+          "param": "to",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "living_equipment_listened",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_submit",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "draw",
+          "rust_types": [
+            "&mut BlockEntityDraw"
+          ]
+        },
+        {
+          "param": "who",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mob_layer",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "draw",
+          "rust_types": [
+            "&mut BlockEntityDraw"
+          ]
+        },
+        {
+          "param": "who",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "player_render_listened",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "sign_changed",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "standalone_models",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_container_open",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_container_close",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_toggle_flight",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "anvil_damaged",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "arrow_loose",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "beacon_state_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "bell_ring",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_break_progress_update",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_burn",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_cook",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_damage_abort",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_dispense_armor",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_exp",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_fade",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_failed_dispense",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_form",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_ignite",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_lock_check",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_receive_game",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_shear_entity",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "brewing_complete",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "brewing_fuel",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "brewing_start",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "broadcast_message",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "line",
+          "rust_types": [
+            "&mut Text"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "campfire_start",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "cauldron_level_changed",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "chorus_fruit_teleport",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "compost_item",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "crafter_craft",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "creeper_ignite",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "creeper_power",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "critical_hit",
+      "side": "both",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "difficulty_changed",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "dragon_egg_form",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "enchant_item",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "item",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ender_pearl_teleport",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entities_load",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entities_unload",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_break_door",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_breed",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_change_block",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_drop_item",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_enter_block",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_enter_love_mode",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_portal",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_pose_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_shoot_bow",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_tame",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_teleport",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_toggle_glide",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_transform",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "entity_unleash",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "exp_bottle",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "experience_orb_pickup_listened",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "experience_orb_pickup",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "mending_repair",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "explosion_prime",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "fire_odds",
+      "side": "server",
+      "side_source": "path",
+      "contract": "replace",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "smoke_source",
+      "side": "server",
+      "side_source": "path",
+      "contract": "replace",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "firework_explode",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "fluid_level_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "framerate_limit",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "furnace_burn",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "furnace_extract",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "furnace_smelt",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "furnace_start_smelt",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "game_event",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "hopper_inventory_search",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "hopper_pickup_item",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "ingredient",
+      "side": "client",
+      "side_source": "path",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "inventory_block_start",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "inventory_move_item",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "item_crafted",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "item_despawn",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "item_energy_buffer",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "replace",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "item_expire",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "item_spawn",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "leaves_decay",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "lightning_strike",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "menu_quick_move",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "entity",
+          "rust_types": [
+            "&mut ModBlockEntity"
+          ]
+        },
+        {
+          "param": "stack",
+          "rust_types": [
+            "&mut ItemStack"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "moisture_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "anvil_craft_post",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "craft",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "anvil_craft_pre",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "craft",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "armor_stand_manipulate",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "bucket_empty",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "container_opened",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "creative_slot",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "food_level_changed",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "hanging_break",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "hanging_place",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "item_damaged",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_changed_dimension",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_clone",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_commands_sent",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_destroy_item",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_fish",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_flower_pot_manipulate",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_game_mode_changed",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_insert_lectern_book",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_item_frame_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_item_mend",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_lectern_page_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_load_from_file",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_login",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "reason",
+          "rust_types": [
+            "&mut Option"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "player_save_to_file",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_sprint",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_swap_hands",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_take_lectern_book",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_teleported",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_totem",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "resource_pack_status",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "spawn_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "tnt_primed",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "vehicle_create",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "vehicle_damage",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "vehicle_destroy",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "vehicle_moved",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "world_border_bounds_changed",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "world_border_center_changed",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "world_game_rule_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "note_play",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_advancement_criterion_grant",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_advancement_done",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_advancement_progress",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_arm_swing",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_attack_cooldown_reset",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_bed_enter",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_bed_leave",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_bucket_entity",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_bundle_item_select",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_change_beacon_effect",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_change_main_hand",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_client_loaded_world",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_deep_sleep",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_edit_book",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_egg_throw",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_elytra_boost",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_exp_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_exp_cooldown_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_input",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_item_cooldown",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_item_held",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_jump",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_kicked",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_launch_projectile",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_level_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_locale_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_loom_pattern_select",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_map_filled",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_name_entity",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_open_sign",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_pick_item",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_pickup_arrow",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_portal",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_ready_arrow",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_recipe_book_click",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_recipe_book_settings_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_recipe_discovered",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_riptide",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_shear_entity",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_shield_disable",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_spawn_point_set",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_stat_award",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_stonecutter_recipe_select",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_stop_spectating_entity",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_stop_using_item",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_swap_with_equipment_slot",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_teleport_end_gateway",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_toggle_entity_age_lock",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_toggle_sneak",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_trade",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_unleash_entity",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_velocity",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "portal_create",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "potion_splash",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "prepare_anvil",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "replace",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "result",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "prepare_grindstone",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "replace",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "result",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "prepare_hopper_transfer",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "prepare_item_craft",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "replace",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "result",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "prepare_item_enchant",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "prepare_smithing",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "replace",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "result",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "projectile_launch",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "raid_spawn_wave",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "raid_state_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "sculk_bloom",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "sleep_finished_time",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "sponge_absorb",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "tab_complete",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "target_hit",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "thunder_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "time_skip",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "trade_select",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "trade_with_villager",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "offer",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "vault_change_state",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "vault_loot",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "weather_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "whitelist_state_update",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "world_border_bounds_change_finish",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "world_saved",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "living_drown",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "living_fall",
+      "side": "both",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "living_heal",
+      "side": "both",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "living_jump",
+      "side": "both",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "arrow_nock",
+      "side": "both",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "bow",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "baby_entity_spawn",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "block_behaviors",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "behaviors",
+          "rust_types": [
+            "dyn BlockBehavior"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "can_player_sleep",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "capability_providers",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "providers",
+          "rust_types": [
+            "dyn CapabilityProvider"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "client_logged_in",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "client_logged_out",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "client_disconnected",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "client_item_tags_listened",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "client_chunk_load_listened",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "client_chunk_unload_listened",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "client_chunks_changed_listened",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "client_chunk_load",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "client_chunk_unload",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "client_chunks_changed",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "client_shutdown",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "compute_fov_modifier",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "equipment_render_stacks_listened",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "equipment_render_stacks",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stacks",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "explosion_knockback",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "fluids",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "hand_drawn",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "hand",
+          "rust_types": [
+            "&mut HandDrawn"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ingredient_test",
+      "side": "client",
+      "side_source": "path",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "inventory_background_pre_listened",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "inventory_background_pre",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "batch",
+          "rust_types": [
+            "&mut HudBatch"
+          ]
+        },
+        {
+          "param": "screen",
+          "rust_types": [
+            "Text"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "inventory_screen_layout_listened",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "inventory_screen_layout",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "inventory_slot_rules_listened",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "inventory_slot_rules",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "item_behaviors",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "behaviors",
+          "rust_types": [
+            "dyn ItemBehavior"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "item_container",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "replace",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "item_model_property",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "components",
+          "rust_types": [
+            "Value"
+          ]
+        },
+        {
+          "param": "stack",
+          "rust_types": [
+            "Value"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "item_model_number",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "components",
+          "rust_types": [
+            "Value"
+          ]
+        },
+        {
+          "param": "stack",
+          "rust_types": [
+            "Value"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "item_model_select",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "components",
+          "rust_types": [
+            "Value"
+          ]
+        },
+        {
+          "param": "stack",
+          "rust_types": [
+            "Value"
+          ]
+        },
+        {
+          "param": "value",
+          "rust_types": [
+            "Value"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "item_tint",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "components",
+          "rust_types": [
+            "Value"
+          ]
+        },
+        {
+          "param": "stack",
+          "rust_types": [
+            "Value"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "item_render_listened",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "item_render_claims",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "item_render",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "draw",
+          "rust_types": [
+            "&mut NativeItemDraw"
+          ]
+        },
+        {
+          "param": "presentation",
+          "rust_types": [
+            "Value"
+          ]
+        },
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "item_slot_cooldown",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "batch",
+          "rust_types": [
+            "&mut HudBatch"
+          ]
+        },
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "item_slot_cooldown_listened",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "living_conversion_post",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "living_conversion_pre",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "living_death",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "living_get_projectile",
+      "side": "both",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "projectile",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        },
+        {
+          "param": "weapon",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "living_incoming_damage_v2",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "weapon",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "living_knockback_v2",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "attacker-main",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        },
+        {
+          "param": "attacker-off",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "menu_behaviors",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "behaviors",
+          "rust_types": [
+            "dyn MenuBehavior"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mob_split",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "mouse_buttons_listened",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "mouse_buttons",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "movement_input",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "name_tag_lines_listened",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "name_tag_lines",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "note_block_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "potential_spawns",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "village_siege",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "overlay_drawn",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "overlay",
+          "rust_types": [
+            "&mut OverlayDrawn"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "player_permission_level",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "player_xp_change",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "recipe_book_categories",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "recipe_types",
+      "side": "both",
+      "side_source": "undecidable",
+      "contract": "collect",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "types",
+          "rust_types": [
+            "dyn NativeRecipeCodec"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "render_device_lost",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "reason",
+          "rust_types": [
+            "DeviceLostReason"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "render_device_ready",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "device",
+          "rust_types": [
+            "Device"
+          ]
+        },
+        {
+          "param": "queue",
+          "rust_types": [
+            "Queue"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "render_hand_pose",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "render_item_in_frame",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "render_name_tag",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "render_name_tag_position_listened",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "render_name_tag_position",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "anchor",
+          "rust_types": [
+            "&mut DVec3"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "audio_mix_ready_listened",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "audio_mix_ready",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "camera_override_listened",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "camera_override",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "fixed_frame",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "fixed_frame_pixels",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "local_player_tick_end",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "net_frames_listened",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "net_frame_received",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "frame",
+          "rust_types": [
+            "Instant"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "net_session_ended",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "screen_closing",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "screen",
+          "rust_types": [
+            "Text"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "screen_init_post",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "screen",
+          "rust_types": [
+            "Text"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "screen_opening",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "screen",
+          "rust_types": [
+            "Text"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "server_chat_listened",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "server_chat",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "handle_params": []
+    },
+    {
+      "name": "tooltip_color",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "stack",
+          "rust_types": [
+            "Compound",
+            "ItemStack",
+            "Tag"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "world_pre_post",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": false,
+      "handle_params": [
+        {
+          "param": "world",
+          "rust_types": [
+            "&mut WorldPrePost"
+          ]
+        }
+      ]
+    }
+  ]
+}

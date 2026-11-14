@@ -3,7 +3,9 @@ use serde::Deserialize;
 use std::{collections::HashSet, fs, path::Path};
 
 mod wit;
+mod wit_full;
 pub use wit::generate_wit;
+pub use wit_full::{FullWit, generate_full_wit};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
