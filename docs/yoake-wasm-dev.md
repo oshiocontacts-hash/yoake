@@ -1,5 +1,7 @@
 # Writing a Yoake WebAssembly mod
 
+> **Build the engine with `YOAKE_VERSION=0.2.0`.** A source build without it reports version 0.1.0, and the game then refuses `.yak` packages whose `[yoake] version` range is `">=0.2, <1.0"` ("incompatible build"). The `.yak` id and version must also match the id and version in its `content/horizon-mod.toml`.
+
 A Yoake wasm mod is a WebAssembly **component** (`wasm32-wasip2`) for the WIT world
 `yoake:mods/client-mod@1.0.0` (`crates/yoake-wasm/wit/yoake-mod.wit`). The guest SDK is
 `crates/yoake-wasm-sdk`; a complete example is `crates/yoake-wasm-sdk/examples/hello`.
