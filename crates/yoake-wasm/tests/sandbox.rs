@@ -150,7 +150,7 @@ fn import_outside_yoake_is_rejected() {
 #[test]
 fn wrong_imported_interface_major_is_rejected() {
     let bytes = component(
-        "package yoake:mod@2.0.0; interface host { use-it: func(); } world client-mod { import host; }",
+        "package yoake:mods@2.0.0; interface host { use-it: func(); } world client-mod { import host; }",
     );
     let error = match Sandbox::new().compile(&bytes) {
         Ok(_) => panic!("incompatible interface was accepted"),
@@ -165,7 +165,7 @@ fn wrong_imported_interface_major_is_rejected() {
 #[test]
 fn oversized_initial_memory_is_rejected() {
     let bytes = component_with(
-        "package yoake:mod@1.0.0; world client-mod { export tick: func(value: list<u8>); }",
+        "package yoake:mods@1.0.0; world client-mod { export tick: func(value: list<u8>); }",
         |module| replace_section(&module, 5, &[1, 0, 0x81, 0x08]),
     );
     let compiled = Sandbox::new().compile(&bytes).unwrap();
@@ -175,7 +175,7 @@ fn oversized_initial_memory_is_rejected() {
 #[test]
 fn infinite_loop_is_stopped_and_disabled() {
     let bytes = component_with(
-        "package yoake:mod@1.0.0; world client-mod { export tick: func(); }",
+        "package yoake:mods@1.0.0; world client-mod { export tick: func(); }",
         |module| replace_tick_body(module, &[0, 0x03, 0x40, 0x0c, 0, 0x0b, 0x0b]),
     );
     let compiled = Sandbox::new().compile(&bytes).unwrap();
@@ -192,7 +192,7 @@ fn infinite_loop_is_stopped_and_disabled() {
 #[test]
 fn successful_guest_call_keeps_the_instance_enabled() {
     let bytes = component_with(
-        "package yoake:mod@1.0.0; world client-mod { export tick: func(); }",
+        "package yoake:mods@1.0.0; world client-mod { export tick: func(); }",
         |module| replace_tick_body(module, &[0, 0x0b]),
     );
     let compiled = Sandbox::new().compile(&bytes).unwrap();
@@ -209,7 +209,7 @@ fn successful_guest_call_keeps_the_instance_enabled() {
 
 #[test]
 fn guest_trap_disables_only_its_instance() {
-    let bytes = component("package yoake:mod@1.0.0; world client-mod { export tick: func(); }");
+    let bytes = component("package yoake:mods@1.0.0; world client-mod { export tick: func(); }");
     let mut sandbox = Sandbox::new();
     let compiled = sandbox.compile(&bytes).unwrap();
     assert!(sandbox.engine_started());

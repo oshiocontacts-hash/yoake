@@ -125,7 +125,7 @@ pub struct Bin {
     pub abi: u32,
 }
 
-/// Highest `yoake:mod` WebAssembly interface (major, minor) this build understands.
+/// Highest `yoake:mods` WebAssembly interface (major, minor) this build understands.
 pub const SUPPORTED_WASM_INTERFACE: (u32, u32) = (1, 0);
 /// Largest accepted `.wasm` module, in bytes.
 pub const MAX_WASM_SIZE: u64 = 32 * 1024 * 1024;
@@ -141,7 +141,7 @@ pub struct Wasm {
 }
 
 impl Wasm {
-    /// Declared `(major, minor)` of the `yoake:mod` interface.
+    /// Declared `(major, minor)` of the `yoake:mods` interface.
     pub fn interface_version(&self) -> Result<(u32, u32), String> {
         let (major, minor) = self.interface.split_once('.')
             .ok_or("wasm.interface must be major.minor, for example 1.0")?;
