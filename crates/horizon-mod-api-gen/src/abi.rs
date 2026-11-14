@@ -2,6 +2,9 @@ use quote::ToTokens;
 use serde::Deserialize;
 use std::{collections::HashSet, fs, path::Path};
 
+mod wit;
+pub use wit::generate_wit;
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Subset {
