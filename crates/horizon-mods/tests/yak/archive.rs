@@ -285,3 +285,44 @@ fn filesystem_links_are_not_followed() {
     assert!(archive.extract_target(&temp.join("linked/view"), Target::WindowsX64, &[]).is_err());
     assert!(!real.join("view").exists());
 }
+
+const WASM_MANIFEST: &str = "\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/sample.wasm\"\n";
+const FAKE_WASM: &[u8] = b"\0asm\x01\0\0\0";
+
+#[test]
+fn wasm_module_packs_and_round_trips() {
+    let temp = Temp::new();
+    temp.write("mod/yak.toml", [DATA, WASM_MANIFEST].concat());
+    temp.write("mod/bin/wasm/sample.wasm", FAKE_WASM);
+    temp.write("mod/bin/wasm/unlisted.wasm", FAKE_WASM);
+    let output = temp.join("sample.yak");
+    let summary = pack_directory(&temp.join("mod"), &output, &BTreeMap::new()).unwrap();
+    assert_eq!(summary.files, 2);
+    let mut archive = Archive::new(File::open(&output).unwrap()).unwrap();
+    assert_eq!(archive.manifest().wasm.as_ref().unwrap().client.as_deref(), Some("bin/wasm/sample.wasm"));
+    assert_eq!(archive.files(&Part::Wasm).count(), 1);
+    let view = temp.join("view");
+    archive.extract_target(&view, Target::LinuxX64, &[]).unwrap();
+    assert_eq!(fs::read(view.join("bin/wasm/sample.wasm")).unwrap(), FAKE_WASM);
+    assert!(!view.join("bin/wasm/unlisted.wasm").exists());
+}
+
+#[test]
+fn packing_fails_when_the_declared_wasm_file_is_missing() {
+    let temp = Temp::new();
+    temp.write("mod/yak.toml", [DATA, WASM_MANIFEST].concat());
+    assert!(pack_directory(&temp.join("mod"), &temp.join("sample.yak"), &BTreeMap::new()).is_err());
+}
+
+#[test]
+fn archive_wasm_files_must_exist_be_declared_and_fit() {
+    let manifest = [DATA, WASM_MANIFEST].concat();
+    assert!(Archive::new(Cursor::new(stored(&[("yak.toml", manifest.as_bytes()), ("bin/wasm/sample.wasm", FAKE_WASM)]))).is_ok());
+    reject(stored(&[("yak.toml", manifest.as_bytes())]));
+    reject(stored(&[("yak.toml", manifest.as_bytes()), ("bin/wasm/sample.wasm", FAKE_WASM), ("bin/wasm/other.wasm", FAKE_WASM)]));
+    reject(stored(&[("yak.toml", DATA.as_bytes()), ("bin/wasm/sample.wasm", FAKE_WASM)]));
+    let big = vec![0u8; 32 * 1024 * 1024 + 1];
+    reject(stored(&[("yak.toml", manifest.as_bytes()), ("bin/wasm/sample.wasm", &big)]));
+    let limit = vec![0u8; 32 * 1024 * 1024];
+    assert!(Archive::new(Cursor::new(stored(&[("yak.toml", manifest.as_bytes()), ("bin/wasm/sample.wasm", &limit)]))).is_ok());
+}

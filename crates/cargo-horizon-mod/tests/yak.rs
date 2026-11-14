@@ -78,3 +78,19 @@ fn bad_options_and_unknown_targets_fail_without_publishing() {
         assert!(!temp.archive().exists());
     }
 }
+
+#[test]
+fn wasm_modules_are_packed_from_bin_wasm() {
+    let temp = Temp::new();
+    let manifest = format!("{MANIFEST}\n[wasm]\ninterface = '1.0'\nclient = 'bin/wasm/sample.wasm'\n");
+    fs::write(temp.0.join("yak.toml"), manifest).unwrap();
+    assert!(!temp.tool(&["horizon-mod", "pack"]).status.success());
+    fs::create_dir_all(temp.0.join("bin/wasm")).unwrap();
+    fs::write(temp.0.join("bin/wasm/sample.wasm"), b"\0asm\x01\0\0\0").unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_cargo-horizon-mod"))
+        .current_dir(&temp.0).env("PATH", "").args(["horizon-mod", "pack"]).output().unwrap();
+    success(output);
+    let archive = Archive::new(File::open(temp.archive()).unwrap()).unwrap();
+    assert!(archive.hashes().contains_key("bin/wasm/sample.wasm"));
+    success(temp.tool(&["horizon-mod", "yak", "verify", temp.archive().to_str().unwrap()]));
+}

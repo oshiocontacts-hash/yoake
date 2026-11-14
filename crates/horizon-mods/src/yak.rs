@@ -11,7 +11,7 @@ pub use compatibility::{CompatibilityIssue, Environment, Resolution, ResolutionI
 pub use installed::{check_installed_tree, check_plain_path, hash_installed_file, trusted_keys, verify_installed};
 pub use horizon_release_sign::{PublicKey, parse_keys};
 pub use horizon_release_sign::yak::{Entry, MAX_ARCHIVE_SIZE, MAX_COMPRESSION_RATIO, MAX_ENTRIES, MAX_FILE_SIZE, MAX_TOTAL_SIZE, Signature, canonical_hashes};
-pub use manifest::{Bin, Manifest, OptionValue, Service, Shader, ShaderOption, Side, Target, Yoake};
+pub use manifest::{Bin, Manifest, OptionValue, Service, Shader, ShaderOption, Side, Target, Wasm, Yoake, MAX_WASM_SIZE, SUPPORTED_WASM_INTERFACE};
 pub use pack::pack_directory;
 pub use semver::{Version, VersionReq};
 
@@ -25,6 +25,7 @@ use std::path::Path;
 pub enum Part {
     Manifest,
     Bin(Target),
+    Wasm,
     Content,
     Assets,
     Shaders(String),
@@ -65,6 +66,15 @@ impl<Reader: Read + Seek> Archive<Reader> {
                 let library = format!("bin/{target}/{}", target.library_filename(&bin.library));
                 if !parts.contains_key(&library) {
                     return Err(format!("missing declared binary: {library}"));
+                }
+            }
+        }
+        if let Some(wasm) = &manifest.wasm {
+            for (side, path) in wasm.modules() {
+                let entry = container.entries().iter().find(|entry| entry.name == path)
+                    .ok_or_else(|| format!("missing declared wasm {side} module: {path}"))?;
+                if entry.size > MAX_WASM_SIZE {
+                    return Err(format!("wasm {side} module {path} exceeds 32 MiB"));
                 }
             }
         }
@@ -175,6 +185,13 @@ fn classify(name: &str, manifest: &Manifest) -> Result<Part, String> {
         "content" => Ok(Part::Content),
         "assets" => Ok(Part::Assets),
         "config" => Ok(Part::Config),
+        "bin" if rest.starts_with("wasm/") => {
+            let wasm = manifest.wasm.as_ref().ok_or("bin/wasm files require [wasm]")?;
+            if !wasm.modules().iter().any(|(_, path)| *path == name) {
+                return Err(format!("undeclared wasm module: {name}"));
+            }
+            Ok(Part::Wasm)
+        }
         "bin" => {
             let (target, _) = rest.split_once('/').ok_or("bin files need a target directory")?;
             let target: Target = target.parse()?;
