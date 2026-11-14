@@ -13,6 +13,23 @@ fn manifest_reads_only_bounded_regular_files() {
 }
 
 #[test]
+fn mixin_manifests_are_validated_and_rejected_until_supported() {
+    let hash = "a".repeat(64);
+    let site = format!("game::tick#{hash}");
+    let parse = |targets: &str, wasm: &str| {
+        Manifest::parse(&format!("{DATA}\n{wasm}\n[mixin]\ntargets = [{targets}]\n"))
+    };
+    let wasm = "[wasm]\ninterface = '1.1'\nclient = 'bin/wasm/a.wasm'";
+    assert!(parse(&format!("'{site}'"), wasm).unwrap_err().contains("not supported"));
+    assert!(parse(&format!("'{site}'"), "").unwrap_err().contains("requires a [wasm]"));
+    assert!(parse("'game::tick'", wasm).unwrap_err().contains("signature hash"));
+    assert!(parse("'game::tick#BAD'", wasm).unwrap_err().contains("invalid mixin"));
+    assert!(parse(&format!("'{site}', '{site}'"), wasm).unwrap_err().contains("unique"));
+    assert!(parse("", wasm).unwrap_err().contains("1..1024"));
+    assert!(Manifest::parse(DATA).unwrap().mixin.is_none());
+}
+
+#[test]
 fn complete_manifest_and_typed_shader_options() {
     let text = [program(), r#"
 [dependencies]

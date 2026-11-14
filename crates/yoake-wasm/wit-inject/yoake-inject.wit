@@ -1,0 +1,51 @@
+package yoake:mods@1.1.0;
+
+interface inject {
+    record record-entry {
+        key: string,
+        node: u32,
+    }
+
+    variant value-node {
+        unit,
+        boolean(bool),
+        signed(s64),
+        unsigned(u64),
+        float(f64),
+        text(string),
+        bytes(list<u8>),
+        sequence(list<u32>),
+        object(list<record-entry>),
+    }
+
+    record value-tree {
+        root: u32,
+        nodes: list<value-node>,
+    }
+
+    variant value {
+        unit,
+        boolean(bool),
+        signed(s64),
+        unsigned(u64),
+        float(f64),
+        text(string),
+        bytes(list<u8>),
+        sequence(value-tree),
+        object(value-tree),
+    }
+
+    variant head-outcome {
+        proceed,
+        replace-arguments(list<value>),
+        cancel(value),
+    }
+
+    inject-head: func(site: string, args: list<value>) -> head-outcome;
+    inject-return: func(site: string, ret: value) -> option<value>;
+    inject-overwrite: func(site: string, args: list<value>) -> value;
+}
+
+world inject-mod {
+    export inject;
+}

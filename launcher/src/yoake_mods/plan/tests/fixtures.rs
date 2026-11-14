@@ -149,6 +149,8 @@ impl Fixture {
             bin: None,
             shaders: Vec::new(),
             services: Vec::new(),
+            wasm: None,
+            mixin: None,
         }
     }
 

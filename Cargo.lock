@@ -1889,6 +1889,7 @@ dependencies = [
  "serde_json",
  "syn 2.0.119",
  "wit-parser",
+ "yoake-inject-spec",
 ]
 
 [[package]]
@@ -6097,6 +6098,37 @@ version = "0.1.0"
 dependencies = [
  "horizon-mod-sdk",
 ]
+
+[[package]]
+name = "yoake-inject-macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+ "yoake-inject-spec",
+]
+
+[[package]]
+name = "yoake-inject-rt"
+version = "0.1.0"
+dependencies = [
+ "yoake-inject-macro",
+ "yoake-value",
+]
+
+[[package]]
+name = "yoake-inject-spec"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "sha2",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "yoake-value"
+version = "0.1.0"
 
 [[package]]
 name = "yoake-wasm"

@@ -1,0 +1,12 @@
+[package]
+name = "yoake-inject-spec"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+proc-macro2 = "1"
+sha2 = "0.10"
+syn = { version = "2", features = ["full"] }

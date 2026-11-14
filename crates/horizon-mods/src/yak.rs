@@ -11,7 +11,7 @@ pub use compatibility::{CompatibilityIssue, Environment, Resolution, ResolutionI
 pub use installed::{check_installed_tree, check_plain_path, hash_installed_file, trusted_keys, verify_installed};
 pub use horizon_release_sign::{PublicKey, parse_keys};
 pub use horizon_release_sign::yak::{Entry, MAX_ARCHIVE_SIZE, MAX_COMPRESSION_RATIO, MAX_ENTRIES, MAX_FILE_SIZE, MAX_TOTAL_SIZE, Signature, canonical_hashes};
-pub use manifest::{Bin, Manifest, OptionValue, Service, Shader, ShaderOption, Side, Target, Wasm, Yoake, MAX_WASM_SIZE, SUPPORTED_WASM_INTERFACE};
+pub use manifest::{Bin, Manifest, Mixin, OptionValue, Service, Shader, ShaderOption, Side, Target, Wasm, Yoake, MAX_WASM_SIZE, SUPPORTED_WASM_INTERFACE};
 pub use pack::pack_directory;
 pub use semver::{Version, VersionReq};
 

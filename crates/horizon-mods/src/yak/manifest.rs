@@ -96,6 +96,8 @@ pub struct Manifest {
     pub bin: Option<Bin>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub wasm: Option<Wasm>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mixin: Option<Mixin>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub shaders: Vec<Shader>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -123,6 +125,12 @@ pub struct Bin {
     pub targets: Vec<Target>,
     pub engine: String,
     pub abi: u32,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Mixin {
+    pub targets: Vec<String>,
 }
 
 /// Highest `yoake:mods` WebAssembly interface (major, minor) this build understands.
@@ -369,6 +377,28 @@ impl Manifest {
             if bin.abi == 0 {
                 return Err("bin.abi must be positive".into());
             }
+        }
+        if let Some(mixin) = &self.mixin {
+            if mixin.targets.is_empty() || mixin.targets.len() > 1024 {
+                return Err("mixin.targets must contain 1..1024 site IDs".into());
+            }
+            let mut targets = BTreeSet::new();
+            for target in &mixin.targets {
+                let Some((path, hash)) = target.split_once('#') else {
+                    return Err("mixin target must include a signature hash".into());
+                };
+                if path.is_empty() || target.len() > 1024 || hash.len() != 64
+                    || !hash.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) {
+                    return Err("invalid mixin target or signature hash".into());
+                }
+                if !targets.insert(target) {
+                    return Err("mixin.targets must be unique".into());
+                }
+            }
+            if self.wasm.is_none() {
+                return Err("mixin requires a [wasm] module".into());
+            }
+            return Err("mixin injection is not supported in this build".into());
         }
         if let Some(wasm) = &self.wasm {
             if self.bin.is_some() {
