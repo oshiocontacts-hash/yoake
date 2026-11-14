@@ -378,3 +378,36 @@ fn unsupported_shadow_sizes_are_refused_before_pack_check() {
     let mut pack = sample_pack();
     assert!(shaders::apply_parameters(&mut pack, &entry.manifest.shaders[0], &fixture.0.join("preference")).is_err());
 }
+
+fn wasm_entry(fixture: &Fixture) -> Installed {
+    let entry = fixture.install(&(data("sample_mod") + "\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/sample.wasm\"\n"));
+    fixture.write(&entry.root.join("bin/wasm/sample.wasm"), b"\0asm\x01\0\0\0");
+    entry
+}
+
+#[test]
+fn wasm_resolution_is_empty_without_wasm_entries() {
+    let fixture = Fixture::new();
+    let entry = fixture.binary();
+    assert!(wasm_mods_from(&[entry], WasmSide::Client, &[], true).is_empty());
+    assert!(wasm_mods_from(&[], WasmSide::Client, &[], true).is_empty());
+}
+
+#[test]
+fn signed_wasm_is_resolved_and_unsigned_needs_the_developer_flag() {
+    let fixture = Fixture::new();
+    let entry = wasm_entry(&fixture);
+    assert!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[], false).is_empty());
+    let found = wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[], true);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].mod_id, "sample_mod");
+    assert_eq!(found[0].version, Version::parse("1.2.3").unwrap());
+    assert_eq!(found[0].bytes, b"\0asm\x01\0\0\0");
+    assert_eq!(found[0].sha256, yak::hash_installed_file(&entry.root, "bin/wasm/sample.wasm").unwrap());
+    assert!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Server, &[], true).is_empty());
+    let (key, _) = SigningKey::generate().unwrap();
+    fixture.sign(&entry, &key);
+    assert_eq!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[key.public()], false).len(), 1);
+    fixture.write(&entry.root.join("bin/wasm/sample.wasm"), b"tampered");
+    assert!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[key.public()], false).is_empty());
+}

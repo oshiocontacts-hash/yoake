@@ -94,6 +94,8 @@ pub struct Manifest {
     pub conflicts: BTreeMap<String, VersionReq>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bin: Option<Bin>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wasm: Option<Wasm>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub shaders: Vec<Shader>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -121,6 +123,67 @@ pub struct Bin {
     pub targets: Vec<Target>,
     pub engine: String,
     pub abi: u32,
+}
+
+/// Highest `yoake:mod` WebAssembly interface (major, minor) this build understands.
+pub const SUPPORTED_WASM_INTERFACE: (u32, u32) = (1, 0);
+/// Largest accepted `.wasm` module, in bytes.
+pub const MAX_WASM_SIZE: u64 = 32 * 1024 * 1024;
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Wasm {
+    pub interface: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub server: Option<String>,
+}
+
+impl Wasm {
+    /// Declared `(major, minor)` of the `yoake:mod` interface.
+    pub fn interface_version(&self) -> Result<(u32, u32), String> {
+        let (major, minor) = self.interface.split_once('.')
+            .ok_or("wasm.interface must be major.minor, for example 1.0")?;
+        let number = |part: &str| -> Result<u32, String> {
+            if part.is_empty() || part.len() > 6 || !part.bytes().all(|byte| byte.is_ascii_digit()) {
+                return Err("wasm.interface must be major.minor, for example 1.0".into());
+            }
+            part.parse().map_err(|_| "wasm.interface must be major.minor, for example 1.0".to_owned())
+        };
+        Ok((number(major)?, number(minor)?))
+    }
+
+    /// Declared module paths with their side label, client first.
+    pub fn modules(&self) -> Vec<(&'static str, &str)> {
+        let mut modules = Vec::new();
+        if let Some(path) = &self.client { modules.push(("client", path.as_str())); }
+        if let Some(path) = &self.server { modules.push(("server", path.as_str())); }
+        modules
+    }
+
+    fn validate(&self) -> Result<(), String> {
+        let (major, minor) = self.interface_version()?;
+        if major != SUPPORTED_WASM_INTERFACE.0 {
+            return Err(format!("unsupported wasm interface major version {major} (this build supports {}.x)", SUPPORTED_WASM_INTERFACE.0));
+        }
+        if minor > SUPPORTED_WASM_INTERFACE.1 {
+            return Err(format!("wasm interface {major}.{minor} is newer than the supported {}.{}", SUPPORTED_WASM_INTERFACE.0, SUPPORTED_WASM_INTERFACE.1));
+        }
+        let modules = self.modules();
+        if modules.is_empty() {
+            return Err("[wasm] needs at least one of client or server".into());
+        }
+        for (side, path) in &modules {
+            horizon_release_sign::yak::check_path(path, false).map_err(|error| format!("wasm.{side}: {error}"))?;
+            let name = path.strip_prefix("bin/wasm/")
+                .filter(|name| !name.is_empty() && !name.contains('/') && name.ends_with(".wasm") && name.len() > ".wasm".len());
+            if name.is_none() {
+                return Err(format!("wasm.{side} must be a file directly under bin/wasm/ ending in .wasm"));
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -264,6 +327,12 @@ impl Manifest {
             if bin.abi == 0 {
                 return Err("bin.abi must be positive".into());
             }
+        }
+        if let Some(wasm) = &self.wasm {
+            if self.bin.is_some() {
+                return Err("a package may contain native code ([bin]) or WebAssembly ([wasm]), not both".into());
+            }
+            wasm.validate()?;
         }
         if self.shaders.len() > 128 || self.services.len() > 128 {
             return Err("too many shaders or services".into());

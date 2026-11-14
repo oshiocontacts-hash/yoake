@@ -42,6 +42,11 @@ pub fn pack_directory(root: &Path, output: &Path, binaries: &BTreeMap<Target, Pa
     } else if !binaries.is_empty() {
         return Err("--bin requires [bin] in yak.toml".into());
     }
+    if let Some(wasm) = &manifest.wasm {
+        for (_, name) in wasm.modules() {
+            collect(&root.join(name), name, &mut sources)?;
+        }
+    }
     let total: u64 = sources.values().map(|(_, size)| size).sum();
     if total > MAX_TOTAL_SIZE {
         return Err("YAK uncompressed total exceeds 1 GiB".into());

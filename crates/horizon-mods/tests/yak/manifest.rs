@@ -115,3 +115,49 @@ fn service_urls_cannot_embed_credentials_or_secrets() {
         assert!(Manifest::parse(&text).is_err(), "{url}");
     }
 }
+
+fn with_wasm(section: &str) -> String {
+    [DATA, section].concat()
+}
+
+#[test]
+fn wasm_section_is_optional_and_parses() {
+    assert!(Manifest::parse(DATA).unwrap().wasm.is_none());
+    let manifest = Manifest::parse(&with_wasm("\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/sample.wasm\"\nserver = \"bin/wasm/server.wasm\"\n")).unwrap();
+    let wasm = manifest.wasm.unwrap();
+    assert_eq!(wasm.interface_version().unwrap(), (1, 0));
+    assert_eq!(wasm.modules(), [("client", "bin/wasm/sample.wasm"), ("server", "bin/wasm/server.wasm")]);
+    assert!(Manifest::parse(&with_wasm("\n[wasm]\ninterface = \"1.0\"\nserver = \"bin/wasm/s.wasm\"\n")).is_ok());
+}
+
+#[test]
+fn wasm_interface_versions_are_checked() {
+    let parse = |interface: &str| Manifest::parse(&with_wasm(&format!("\n[wasm]\ninterface = \"{interface}\"\nclient = \"bin/wasm/a.wasm\"\n")));
+    assert!(parse("1.0").is_ok());
+    assert!(parse("2.0").unwrap_err().contains("major"));
+    assert!(parse("0.9").unwrap_err().contains("major"));
+    assert!(parse("1.1").unwrap_err().contains("newer"));
+    for bad in ["1", "1.", ".0", "1.x", "1.0.0", "", "-1.0", "1. 0"] {
+        assert!(parse(bad).is_err(), "{bad:?}");
+    }
+    assert!(Manifest::parse(&with_wasm("\n[wasm]\nclient = \"bin/wasm/a.wasm\"\n")).is_err());
+}
+
+#[test]
+fn wasm_needs_a_module_and_safe_paths_under_bin_wasm() {
+    assert!(Manifest::parse(&with_wasm("\n[wasm]\ninterface = \"1.0\"\n")).unwrap_err().contains("at least one"));
+    for path in ["bin/wasm/../a.wasm", "../bin/wasm/a.wasm", "/bin/wasm/a.wasm", "bin/wasm/a.dll", "bin/wasm/.wasm", "bin/wasm/", "bin/a.wasm", "content/a.wasm",
+        "bin/wasm/sub/a.wasm", "bin\\wasm\\a.wasm", "a.wasm", ""] {
+        let text = with_wasm(&format!("\n[wasm]\ninterface = \"1.0\"\nclient = \"{}\"\n", path.replace(char::from(92), "\\\\")));
+        assert!(Manifest::parse(&text).is_err(), "client {path:?}");
+        let text = with_wasm(&format!("\n[wasm]\ninterface = \"1.0\"\nserver = \"{}\"\n", path.replace(char::from(92), "\\\\")));
+        assert!(Manifest::parse(&text).is_err(), "server {path:?}");
+    }
+    assert!(Manifest::parse(&with_wasm("\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/a.wasm\"\nextra = 1\n")).is_err());
+}
+
+#[test]
+fn native_and_wasm_code_cannot_share_a_package() {
+    let text = [program(), "\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/a.wasm\"\n".to_owned()].concat();
+    assert!(Manifest::parse(&text).unwrap_err().contains("not both"));
+}
