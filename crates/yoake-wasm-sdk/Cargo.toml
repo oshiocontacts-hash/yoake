@@ -1,0 +1,25 @@
+[package]
+name = "yoake-wasm-sdk"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+description = "Guest SDK for Yoake WebAssembly client mods (wasm32-wasip2)"
+
+[features]
+default = ["runtime"]
+# Global allocator + panic handler for the #![no_std] guest.
+runtime = []
+
+[dependencies]
+# default features off: `std` makes wasip2 guests import wasi:cli/io/clocks.
+wit-bindgen = { version = "=0.57.1", default-features = false, features = ["realloc"] }
+
+# wit-bindgen 0.57.1's macro emits `yoake::mod::...` unescaped for the package `yoake:mod`,
+# so the bindings are generated in build.rs (same generator) and the keyword is escaped.
+[build-dependencies]
+wit-bindgen-core = "=0.57.1"
+wit-bindgen-rust = "=0.57.1"
+
+# Guest crate: built on its own for wasm32-wasip2, never by the host workspace.
+[workspace]
