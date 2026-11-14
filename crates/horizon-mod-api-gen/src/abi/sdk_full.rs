@@ -134,6 +134,9 @@ fn world_text(full: &FullWit, client: bool) -> String {
     let _ = writeln!(text, "/// The type must be `Default`; one instance lives for the whole session.");
     let _ = writeln!(text, "#[allow(unused_variables)]\npub trait {trait_name}: Default + 'static {{");
     text.push_str("    /// Hook names (see [`hook`]) the host should call. Runs once, from `init`.\n    fn subscriptions() -> &'static [&'static str] {\n        &[]\n    }\n    /// Called once right before the subscription list is returned.\n    fn init(&mut self) {}\n");
+    if !client {
+        text.push_str("    /// Another package's `mod_call` reaches this: `caller` is its package id, `method` and `payload` are the two\n    /// packages' own protocol (up to 1 MiB each way). The default refuses every call.\n    fn handle_call(&mut self, caller: String, method: String, payload: Vec<u8>) -> Result<Vec<u8>, String> {\n        Err(String::from(\"this package does not handle calls\"))\n    }\n");
+    }
     for plan in &plans {
         let params: Vec<String> =
             plan.params.iter().map(|p| format!("{}: {}", snake(&p.name), guest_type(&p.wit))).collect();
@@ -151,7 +154,11 @@ fn world_text(full: &FullWit, client: bool) -> String {
     let _ = writeln!(text, "            impl $crate::full::{bindings}::bindings::Guest for Shim {{");
     text.push_str("                fn init() -> $crate::__private::Vec<$crate::__private::String> {\n                    $crate::rt::install::<$ty>(<$ty as ::core::default::Default>::default());\n                    $crate::rt::with::<$ty, _>(|m| m.init());\n");
     let _ = writeln!(text, "                    <$ty as $crate::full::{bindings}::{trait_name}>::subscriptions().iter().map(|s| $crate::__private::ToString::to_string(*s)).collect()");
-    text.push_str("                }\n            }\n\n            #[allow(unused_variables)]\n            impl HooksGuest for Shim {\n");
+    text.push_str("                }\n");
+    if !client {
+        text.push_str("                fn handle_call(caller: $crate::__private::String, method: $crate::__private::String, payload: $crate::__private::Vec<u8>) -> ::core::result::Result<$crate::__private::Vec<u8>, $crate::__private::String> {\n                    $crate::rt::with::<$ty, _>(|m| m.handle_call(caller, method, payload)).expect(\"mod instance\")\n                }\n");
+    }
+    text.push_str("            }\n\n            #[allow(unused_variables)]\n            impl HooksGuest for Shim {\n");
     for plan in &plans {
         let params: Vec<String> = plan.params.iter().enumerate().map(|(i, p)| format!("a{i}: {}", guest_type(&p.wit))).collect();
         let args: Vec<String> = (0..plan.params.len()).map(|i| format!("a{i}")).collect();

@@ -1642,7 +1642,7 @@ fn draft_services() -> Result<String, String> {
     }
     types = types.trim_end().to_owned();
     types.push_str("\n}\n\n");
-    let mut services = String::from("/// Draft server services (value types only): see `abi-subset-server.json`.\ninterface server-services {\n");
+    let mut services = String::from("/// Server services (value types only), listed in `abi-subset-server.json`.\ninterface server-services {\n");
     services.push_str(&format!("    use server-types.{{{}}};\n\n", names.iter().map(|n| escape(n)).collect::<Vec<_>>().join(", ")));
     let type_names: HashSet<String> = names.iter().map(|n| kebab(n)).collect();
     for service in draft["services"].as_array().ok_or("draft services missing")? {
@@ -1752,7 +1752,11 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
             wit.push_str(&format!("    import {import};\n"));
         }
         wit.push_str(&format!("    export {side}-hooks;\n"));
-        wit.push_str("    /// Returns catalog hook names with underscores, such as `net_frames_listened`.\n    export init: func() -> list<string>;\n}\n");
+        wit.push_str("    /// Returns catalog hook names with underscores, such as `net_frames_listened`.\n    export init: func() -> list<string>;\n");
+        if side == "server" {
+            wit.push_str("    /// Called by another package's `mod-call` service: `caller` is the calling package's id, `method` and `payload` are the\n    /// caller's own protocol (payload at most 1 MiB, the answer too). An `Err` reaches the caller as its `mod-call` error.\n    export handle-call: func(caller: string, method: string, payload: list<u8>) -> result<list<u8>, string>;\n");
+        }
+        wit.push_str("}\n");
         if side == "client" {
             wit.push('\n');
         }

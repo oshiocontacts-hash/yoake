@@ -72,4 +72,86 @@ pub mod server {
     use crate::prelude::*;
 
     include!("full_server_generated.rs");
+
+    /// Friendlier wrappers over the server services (the raw ones are in [`services`]): plain
+    /// arguments instead of records, `Err` strings as the host gives them. Every service of the
+    /// host is validated host-side; these only save typing.
+    pub mod ext {
+        use super::{services, types};
+        use crate::prelude::*;
+
+        /// An item stack with default components.
+        pub fn item(id: &str, count: u32) -> types::ItemStack {
+            types::ItemStack { item: id.to_owned(), count, components: Vec::new() }
+        }
+
+        pub fn block_pos(x: i32, y: i32, z: i32) -> types::BlockPos {
+            types::BlockPos { x, y, z }
+        }
+
+        pub fn vec3(x: f64, y: f64, z: f64) -> types::Vec3 {
+            types::Vec3 { x, y, z }
+        }
+
+        /// Breaks a block as the player with their tool: drops, durability, experience, statistics, events.
+        pub fn break_block_as(dimension: &str, player: &str, at: (i32, i32, i32)) -> Result<bool, String> {
+            services::break_block_as(dimension, player, block_pos(at.0, at.1, at.2))
+        }
+
+        /// Gives `count` of an item (default components); the number that did not fit.
+        pub fn give(player: &str, id: &str, count: u32) -> Result<u32, String> {
+            let left = services::give_items(&[item(id, count)], player)?;
+            Ok(left.iter().map(|stack| stack.count).sum())
+        }
+
+        /// Takes exactly `count` of an item from the player (any components), all or nothing.
+        pub fn take(player: &str, id: &str, count: u32) -> Result<bool, String> {
+            services::inventory_apply(
+                &types::InventoryChange { operation: types::InventoryOperation::Clear, item: id.to_owned(), count, components: None },
+                player,
+            )
+        }
+
+        /// Takes exactly this stack (item, count and components) from the player, all or nothing.
+        pub fn take_exact(player: &str, stack: &types::ItemStack) -> Result<bool, String> {
+            services::inventory_apply(
+                &types::InventoryChange {
+                    operation: types::InventoryOperation::Clear,
+                    item: stack.item.clone(),
+                    count: stack.count,
+                    components: Some(stack.components.clone()),
+                },
+                player,
+            )
+        }
+
+        /// Every slot of the container at the position (both halves of a double chest).
+        pub fn container(dimension: &str, at: (i32, i32, i32)) -> Result<Vec<Option<types::ItemStack>>, String> {
+            services::container_slots(dimension, block_pos(at.0, at.1, at.2))
+        }
+
+        /// Rearranges the container: the same items in other slots (the host checks the totals).
+        pub fn set_container(dimension: &str, at: (i32, i32, i32), slots: &[Option<types::ItemStack>]) -> Result<(), String> {
+            services::container_set_slots(dimension, block_pos(at.0, at.1, at.2), slots)
+        }
+
+        /// A transient `add-value` attribute modifier.
+        pub fn add_attribute(player: &str, attribute: &str, id: &str, amount: f64) -> Result<(), String> {
+            services::player_attribute_modifier_add(amount, attribute, id, types::AttributeOperation::AddValue, player)
+        }
+
+        /// Calls another package's `handle_call`.
+        pub fn call(target: &str, method: &str, payload: &[u8]) -> Result<Vec<u8>, String> {
+            services::mod_call(method, payload, target)
+        }
+
+        /// This package's own per-world storage.
+        pub fn store_get(key: &str) -> Result<Option<Vec<u8>>, String> {
+            services::world_storage_read(key)
+        }
+
+        pub fn store_put(key: &str, data: &[u8]) -> Result<(), String> {
+            services::world_storage_write(data, key)
+        }
+    }
 }

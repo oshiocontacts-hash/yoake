@@ -131,6 +131,10 @@ client module fails to load does not run its server module either.
   one module in a 50 ms window may use 10 ms (client) or 25 ms (server) of it;
   further calls in the window are skipped (a skipped hook answers its fallback) and counted, and a module
   that overruns in 20 windows in a row is disabled. `init` has 250 ms.
+* Time spent inside a server service (the game breaking a block, reading a container, another package's
+  `handle-call`) is the game's, not the guest's: it extends the call's deadline (by at most 400 ms in all)
+  and does not count against the aggregate budget; the guest's own work stays bounded by fuel and the
+  clock, and the native helpers allow 512 to 1024 calls per mod and server tick.
 * A hook that finds its module busy (re-entered from the module's own service call) answers its fallback
   and is counted; the first drop is logged.
 * A guest's answers are checked before they touch the game: floats must be finite, strings at most
@@ -177,10 +181,30 @@ feature, `client` and `server`).
   Skipped: `texture`, `highlight`, textured quads.
 * Model commands: push/pop/translate/rotate/scale/light/keep, quad, block. Skipped: cube, model, item.
 * Corner reservations: applied. Frame-stage commands (`world-drawn`, `hand-drawn`, ...): not applied yet.
-* Server services forwarded: `acting_player`, `server_players`, `tell`, `action_bar`, `player_set_health`,
-  `player_title`, `bossbar_create`, `run_command` (permission, see above), `block`, `block_property`,
-  `net_send_to_player`, `world_dir`, `config_dir` (paths are relative to the game folder, never absolute).
-  Every other service answers `Err("unsupported")` (or none/false).
+* Server services: all 84 of `server-services` (`crates/horizon-mod-api-gen/abi-subset-server.json`) answer,
+  except four (below). Each validates its arguments (finite numbers, sizes, registry ids, UUIDs) and fails
+  closed (an `Err` changes nothing). Mods are trusted inside the game: they may change other players'
+  inventories, break blocks and move items. The one hard line is the PC: storage is a per-package folder, commands
+  are gated and denylisted, paths are relative to the game folder. `status` is `forwarded` (a native host
+  service existed), `new` (the native host service was added for this; native mods may use it too: fragment
+  `tools/native-hook-fragments/wasm_services.json`, `docs/native-mods.md` "Server helpers for WebAssembly services")
+  or `deferred`. The SDK's `full::server::ext` has plain-argument wrappers for the common ones.
+
+  | Services | Status |
+  | --- | --- |
+  | `acting-player`, `server-players` (now with `sneaking`), `integrated-owner`, `held` (whole stack), `player-stacks`, `player-teleport`, `player-set-health`, `player-set-gamemode`, `player-clear-inventory`, `player-effect-give/clear`, `player-attribute-modifier-remove`, `tell`, `action-bar`, `player-title`, `player-clear-title`, `player-play-sound`, `bossbar-*` (7), `block`, `block-property`, `set-block-property`, `block-collision`, `edit-blocks`, `block-entity-sync`, `spawn-mannequin`, `remove-spawned-entity`, `net-send-to-player`, `world-dir`, `config-dir`, `entities-in`, `clip`, `run-command` (`service.commands`, denylist) | forwarded |
+  | `player-attribute-modifier-add`, `hurt-entity`, `server-player-motion`, `set-server-player-velocity`, `set-player-attack-hitbox`, `clear-player-attack-hitbox`, `world-border`, `set-world-border`, `open-menu`, `menu-set-items`, `menu-close` | forwarded (native service of the engine) |
+  | `world-control` (time, game rule, force-load), `team-apply`, `particle-spawn` | forwarded as typed changes written as the game's own commands (every word validated; no `service.commands` needed) |
+  | `world-storage-read/write`, `config-read/write` (per package folder `yoake-wasm/<id>`, keys of letters, digits `_ . -`, 1 MiB a value, 256 keys, 32 MiB), `asset-read` (`data/<key>` of the game's resources), `qa-mode-enabled` (false), `qa-record` (debug log) | forwarded (WASM layer) |
+  | `play-sound-at` | new (WASM layer: every player in earshot) |
+  | `break-block-as` (the game's own player break: drops with Fortune/Silk Touch, tool damage, XP, stats, mod events), `player-sneaking` (guests, the LAN host and single player's owner), `container-slots`, `container-set-slots` (same items, totals verified; plain containers, both halves of a double chest), `containers-in`, `player-set-slots` (36 main slots, totals verified), `block-tags`, `item-tags`, `block-tool-requirement`, `can-harvest`, `attribute-get`, `item-entities-in`, `item-entity-move`, `item-entity-pickup`, `give-items` (remainder returned), `inventory-apply` (exact: id + count + components, all or nothing; `give` needs room for all), `advancement-progress`, `advancement-grant`, `entity-vitals-of` | new |
+  | `mod-call` | new: `target-mod`, `method`, `payload` (1 MiB); the callee exports `handle-call(caller, method, payload)` of the `server-full` world; no call into a caller that is waiting (it is busy), at most 4 nested, never to itself |
+  | `block-entity-read`, `block-entity-patch-call` | still missing: a block-entity hook returns its new state directly (no native service to forward) |
+  | `range-override-set/clear` | deferred (Nestgate voice, W5) |
+
+  `handle-call` is a new export of the `server-full` world: a module built before it cannot be loaded by
+  this host (rebuild with the SDK). A service called from a read-only hook (the hook has no `&mut` host)
+  answers `Err("unsupported: ...")`; the services that change the game need a hook that may.
 * A guest that subscribes to a hook with no adapter is refused at load (`UNWIRED` in the generated code;
   `crates/horizon-client/src/wasm_mods/full_adapters_report.txt` lists them and the partial ones).
 * The adapters (`full_adapters.rs`) are generated by `horizon-mod-api-gen` and **committed**, like the WIT.

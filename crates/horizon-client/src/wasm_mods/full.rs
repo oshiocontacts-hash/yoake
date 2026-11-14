@@ -15,6 +15,7 @@
 //! applied), and counted: the first drop of a module is logged.
 
 use super::*;
+use super::server_services::{ServerSlot, register_endpoint};
 use crate::gfx::native_render::*;
 use horizon_client_core::text::Text;
 use horizon_items::items::ItemStack;
@@ -43,15 +44,15 @@ fn on_server_thread() -> bool {
 
 const MASK_WORDS: usize = 8;
 
-struct SideState<M> {
-    module: Option<M>,
+pub(super) struct SideState<M> {
+    pub(super) module: Option<M>,
     reported: bool,
 }
 
 pub(super) struct FullMod {
     id: String,
     client: Mutex<SideState<ClientFullMod>>,
-    server: Mutex<SideState<ServerFullMod>>,
+    server: Arc<ServerSlot>,
     /// One bit per catalog hook, per side: the guest subscribed and has not been disabled.
     masks: [[AtomicU64; MASK_WORDS]; 2],
     /// Hooks dropped because the module was busy, per side.
@@ -61,8 +62,6 @@ pub(super) struct FullMod {
     render_wanted: bool,
     /// What starts the server module afresh at each world start.
     server_source: Option<ServerSource>,
-    /// The server module ran a hook since it was created.
-    server_dirty: std::sync::atomic::AtomicBool,
 }
 
 /// The bytes of a server module and its grants, kept so every world starts with a fresh instance.
@@ -112,15 +111,16 @@ impl FullMod {
             None => mask_of(|_| false),
         };
         let render_wanted = RENDER_HOOKS.iter().any(|hook| client_mask[hook / 64].load(Ordering::Relaxed) >> (hook % 64) & 1 != 0);
+        let server = Arc::new(ServerSlot { state: Mutex::new(SideState { module: server, reported: false }), dirty: std::sync::atomic::AtomicBool::new(false) });
+        register_endpoint(&id, &server);
         Self {
             id,
             client: Mutex::new(SideState { module: client, reported: false }),
-            server: Mutex::new(SideState { module: server, reported: false }),
+            server,
             masks: [client_mask, server_mask],
             dropped: [AtomicU64::new(0), AtomicU64::new(0)],
             render_wanted,
             server_source: None,
-            server_dirty: std::sync::atomic::AtomicBool::new(false),
         }
     }
 
@@ -155,8 +155,8 @@ impl FullMod {
     /// a time and a guest keeps its state in its instance): called as a world's server starts.
     fn reset_server(&self) {
         let Some(source) = &self.server_source else { return };
-        if !self.server_dirty.swap(false, Ordering::Relaxed) { return; }
-        let Ok(mut state) = self.server.try_lock() else { return };
+        if !self.server.dirty.swap(false, Ordering::Relaxed) { return; }
+        let Ok(mut state) = self.server.state.try_lock() else { return };
         match load_server(&source.module()) {
             Ok(module) => {
                 for (word, fresh) in self.masks[Side::Server as usize].iter().zip(mask_of(|name| module.subscribed(name))) {
@@ -229,7 +229,7 @@ impl FullMod {
         batch: Option<&'call mut HudBatch>,
         call: impl FnOnce(&mut ServerFullMod) -> Option<R>,
     ) -> Option<R> {
-        let mut state = match self.server.try_lock() {
+        let mut state = match self.server.state.try_lock() {
             Ok(state) => state,
             Err(TryLockError::WouldBlock) => {
                 self.busy(Side::Server, hook);
@@ -242,7 +242,7 @@ impl FullMod {
             }
         };
         let module = state.module.as_mut()?;
-        self.server_dirty.store(true, Ordering::Relaxed);
+        self.server.dirty.store(true, Ordering::Relaxed);
         let batch_start = batch.as_deref().map_or(0, |batch| batch.vertices.len());
         let mut invocation = Invocation { host, batch, batch_start };
         let result = {
@@ -367,7 +367,7 @@ fn json_map_from(json: &str) -> Option<serde_json::Map<String, serde_json::Value
     }
 }
 
-fn item_w(stack: &ItemStack) -> et::ItemStack {
+pub(super) fn item_w(stack: &ItemStack) -> et::ItemStack {
     match convert::item_to_wire(stack) {
         Ok(wire) => et::ItemStack { id: wire.id, count: wire.count, components: wire.components },
         Err(_) => et::ItemStack { id: String::new(), count: 0, components: Vec::new() },
@@ -398,7 +398,7 @@ fn bounded_string(text: String) -> Option<String> {
 }
 
 /// Whether `id` is a syntactically valid `namespace:path` resource location of reasonable length.
-fn valid_item_id(id: &str) -> bool {
+pub(super) fn valid_item_id(id: &str) -> bool {
     let Some((namespace, path)) = id.split_once(':') else { return false };
     id.len() <= MAX_ITEM_ID
         && !namespace.is_empty()
@@ -425,7 +425,7 @@ fn valid_block_state(id: u32) -> bool {
     id < horizon_client_render::chunk::block_state_limit()
 }
 
-fn item_from(stack: &et::ItemStack) -> Option<ItemStack> {
+pub(super) fn item_from(stack: &et::ItemStack) -> Option<ItemStack> {
     if !valid_item_stack(&stack.id, stack.count, stack.components.len()) {
         return None;
     }
@@ -639,10 +639,10 @@ pub(super) fn apply_frame_stage(commands: &[et::FrameCommand]) {
 
 /// The server services a full-catalog module may call, forwarded to the game's native services. The
 /// ones the game has no counterpart for answer "unsupported" (see `docs/yoake-wasm-dev.md`).
-struct GameServerHost {
-    id: String,
+pub(super) struct GameServerHost {
+    pub(super) id: String,
     /// The package declared `service.commands`.
-    commands: bool,
+    pub(super) commands: bool,
 }
 
 /// Commands no guest may run, whatever it declared: they open connections, change what the server
@@ -655,7 +655,7 @@ const DENIED_COMMANDS: &[&str] = &[
 /// Whether a guest may run `line`: it declared `service.commands`, the line is plain text, and no
 /// command in it (a command after `run` of `execute`, `return run`... counts) is one of
 /// [`DENIED_COMMANDS`].
-fn command_gate(line: &str, declared: bool) -> Result<(), String> {
+pub(super) fn command_gate(line: &str, declared: bool) -> Result<(), String> {
     if !declared {
         return Err("denied: the package does not declare service.commands".into());
     }
@@ -688,7 +688,7 @@ fn command_gate(line: &str, declared: bool) -> Result<(), String> {
 
 /// A path as the guest may see it: relative to the game folder (the server's working directory), or
 /// just its last component when it lies elsewhere. Absolute paths carry the user's account name.
-fn game_relative(path: &std::path::Path) -> Option<String> {
+pub(super) fn game_relative(path: &std::path::Path) -> Option<String> {
     let relative = std::env::current_dir()
         .ok()
         .and_then(|game| path.strip_prefix(game).ok().map(std::path::Path::to_path_buf))
@@ -697,12 +697,12 @@ fn game_relative(path: &std::path::Path) -> Option<String> {
     Some(if text.is_empty() { ".".to_owned() } else { text })
 }
 
-fn uuid_text(uuid: u128) -> String {
+pub(super) fn uuid_text(uuid: u128) -> String {
     let hex = format!("{uuid:032x}");
     format!("{}-{}-{}-{}-{}", &hex[0..8], &hex[8..12], &hex[12..16], &hex[16..20], &hex[20..32])
 }
 
-fn parse_uuid(text: &str) -> Result<u128, String> {
+pub(super) fn parse_uuid(text: &str) -> Result<u128, String> {
     let digits: String = text.chars().filter(|c| *c != '-').collect();
     if digits.len() != 32 {
         return Err(format!("not a player UUID: {text}"));
@@ -710,7 +710,7 @@ fn parse_uuid(text: &str) -> Result<u128, String> {
     u128::from_str_radix(&digits, 16).map_err(|_| format!("not a player UUID: {text}"))
 }
 
-fn st_player(player: &NativeServerPlayer) -> st::Player {
+pub(super) fn st_player_with(player: &NativeServerPlayer, sneaking: bool) -> st::Player {
     st::Player {
         dimension: player.dimension.clone(),
         game_mode: player.game_mode,
@@ -719,20 +719,21 @@ fn st_player(player: &NativeServerPlayer) -> st::Player {
         permission_level: player.permission,
         pitch: player.pitch,
         position: st::Vec3 { x: player.position[0], y: player.position[1], z: player.position[2] },
+        sneaking,
         uuid: uuid_text(player.uuid),
         yaw: player.yaw,
     }
 }
 
-fn server_service<R>(operation: impl FnOnce(&mut dyn Host) -> Result<R, String>) -> Result<R, String> {
+pub(super) fn server_service<R>(operation: impl FnOnce(&mut dyn Host) -> Result<R, String>) -> Result<R, String> {
     service(|invocation| {
-        let Some(host) = invocation.host.write() else { return Ok(Err("unsupported: not inside a server hook".to_owned())) };
+        let Some(host) = invocation.host.write() else { return Ok(Err("unsupported: this hook may not change the game (a read-only hook), or this is not inside a server hook".to_owned())) };
         Ok(operation(host))
     })
     .map_err(|error| format!("{error:?}"))?
 }
 
-fn read_service<R>(operation: impl FnOnce(&dyn Host) -> Result<R, String>) -> Result<R, String> {
+pub(super) fn read_service<R>(operation: impl FnOnce(&dyn Host) -> Result<R, String>) -> Result<R, String> {
     service(|invocation| {
         let Some(host) = invocation.host.read() else { return Ok(Err("unsupported: not inside a server hook".to_owned())) };
         Ok(operation(host))
@@ -740,100 +741,21 @@ fn read_service<R>(operation: impl FnOnce(&dyn Host) -> Result<R, String>) -> Re
     .map_err(|error| format!("{error:?}"))?
 }
 
-fn checked(done: bool, what: &str) -> Result<(), String> {
+pub(super) fn checked(done: bool, what: &str) -> Result<(), String> {
     if done { Ok(()) } else { Err(format!("{what} did not apply")) }
 }
 
-fn message_text(message: &str) -> Result<Text, String> {
+pub(super) fn message_text(message: &str) -> Result<Text, String> {
     if message.len() > abi::MAX_TEXT_BYTES {
         return Err("message too long".into());
     }
     Ok(Text::literal(message))
 }
 
-impl ServerHost for GameServerHost {
-    fn log(&mut self, target: &str, message: &str) -> Result<(), w::HostError> {
-        let clean = |text: &str| -> String {
-            text.chars().take(MAX_LOG_CHARS).map(|c| if c.is_control() { ' ' } else { c }).collect()
-        };
-        emit(format!("wasm mod {} [{}]: {}", self.id, clean(target), clean(message)));
-        Ok(())
-    }
-
-    fn acting_player(&mut self) -> Option<st::Player> {
-        read_service(|host| Ok(host.acting_player())).ok().flatten().map(|player| st_player(&player))
-    }
-
-    fn server_players(&mut self) -> Result<Vec<st::Player>, String> {
-        read_service(|host| Ok(host.server_players().iter().map(st_player).collect()))
-    }
-
-    fn tell(&mut self, message: String, player: String) -> Result<(), String> {
-        let (uuid, text) = (parse_uuid(&player)?, message_text(&message)?);
-        server_service(|host| checked(host.tell(uuid, text), "tell"))
-    }
-
-    fn action_bar(&mut self, message: String, player: String) -> Result<(), String> {
-        let (uuid, text) = (parse_uuid(&player)?, message_text(&message)?);
-        server_service(|host| checked(host.action_bar(uuid, text), "action bar"))
-    }
-
-    fn player_set_health(&mut self, health: f32, player: String) -> Result<(), String> {
-        let uuid = parse_uuid(&player)?;
-        server_service(|host| checked(host.player_set_health(uuid, health), "set health"))
-    }
-
-    fn player_title(&mut self, fade_in: i32, fade_out: i32, player: String, stay: i32, subtitle: Option<String>, title: Option<String>) -> Result<(), String> {
-        let uuid = parse_uuid(&player)?;
-        server_service(|host| {
-            checked(host.player_title(uuid, title.as_deref(), subtitle.as_deref(), fade_in, stay, fade_out), "title")
-        })
-    }
-
-    fn bossbar_create(&mut self, bar: String, name: String) -> Result<(), String> {
-        server_service(|host| checked(host.bossbar_create(&bar, &name), "boss bar"))
-    }
-
-    fn run_command(&mut self, command: String) -> Result<bool, String> {
-        command_gate(&command, self.commands)?;
-        // The guest's line goes to the game's own commands, never to another mod's command hook.
-        let _guest = crate::mod_api::guest_command_scope();
-        server_service(|host| Ok(host.run_command(&command)))
-    }
-
-    fn block(&mut self, position: st::BlockPos) -> Result<String, String> {
-        read_service(|host| Ok(host.block([position.x, position.y, position.z])))
-    }
-
-    fn block_property(&mut self, position: st::BlockPos, property: String) -> Result<Option<String>, String> {
-        read_service(|host| Ok(host.block_property([position.x, position.y, position.z], &property)))
-    }
-
-    fn net_send_to_player(&mut self, channel: String, payload: Vec<u8>, player: String) -> Result<(), String> {
-        let uuid = parse_uuid(&player)?;
-        if channel.len() > 256 || payload.len() > abi::MAX_DATA_BYTES {
-            return Err("packet too large".into());
-        }
-        server_service(|host| host.net_send_to_player(uuid, &channel, &payload))
-    }
-
-    fn world_dir(&mut self) -> Option<String> {
-        read_service(|host| Ok(host.world_dir())).ok().flatten().and_then(|path| game_relative(&path))
-    }
-
-    fn config_dir(&mut self) -> Result<String, String> {
-        read_service(|host| host.config_dir()).and_then(|path| game_relative(&path).ok_or_else(|| "path is not text".to_owned()))
-    }
-
-    fn qa_mode_enabled(&mut self) -> bool {
-        false
-    }
-}
-
-/// The server services this build forwards (the rest answer "unsupported").
-pub(super) const FORWARDED_SERVER_SERVICES: &[&str] = &[
-    "acting_player", "server_players", "tell", "action_bar", "player_set_health", "player_title",
-    "bossbar_create", "run_command", "block", "block_property", "net_send_to_player", "world_dir", "config_dir",
+/// The server services that answer "unsupported" in this build (see `docs/yoake-wasm-dev.md`); every other
+/// service of `server-services` is forwarded (`server_services.rs`).
+pub(super) const UNSUPPORTED_SERVER_SERVICES: &[&str] = &[
+    "block_entity_read", "block_entity_patch_call", "range_override_set", "range_override_clear",
 ];
 
 // ---------------------------------------------------------------------------------------------
@@ -899,8 +821,12 @@ mod tests {
     }
 
     fn module(kind: &str) -> Option<Vec<u8>> {
-        use yoake_wasm::test_guests::{FULL_DEMO_CLIENT, FULL_DEMO_SERVER, load};
-        load(if kind == "server" { &FULL_DEMO_SERVER } else { &FULL_DEMO_CLIENT })
+        use yoake_wasm::test_guests::{FULL_DEMO_CLIENT, FULL_DEMO_PEER, FULL_DEMO_SERVER, load};
+        load(match kind {
+            "server" => &FULL_DEMO_SERVER,
+            "peer" => &FULL_DEMO_PEER,
+            _ => &FULL_DEMO_CLIENT,
+        })
     }
 
     fn client() -> Option<FullMod> {
@@ -988,7 +914,7 @@ mod tests {
         }).unwrap();
         let (taken, other_continues, commands, told) = handle.join().unwrap();
         assert!(taken && other_continues);
-        assert_eq!(commands.iter().map(|c| c.usage.as_str()).collect::<Vec<_>>(), ["wasmping"]);
+        assert_eq!(commands.iter().map(|c| c.usage.as_str()).collect::<Vec<_>>(), ["wasmping", "wasmsvc"]);
         assert_eq!(told.len(), 1);
         assert!(told[0].starts_with("112233445566778899aabbccddeeff00:pong #1"), "{told:?}");
         // On a thread that did not enter the server scope a hook of the shared code does not reach the server module.
@@ -1076,6 +1002,30 @@ mod tests {
         assert!(told[0].1[0].ends_with("pong #1 from the full-demo WASM server module"), "{told:?}");
         assert!(told[1].1[0].contains("pong #1 "), "the second world began with a fresh instance: {told:?}");
         assert!(told[1].1[1].contains("pong #2 "), "{told:?}");
+    }
+
+    #[test]
+    fn mod_call_reaches_the_peers_handle_call_and_never_re_enters_a_waiting_caller() {
+        let Some(peer_bytes) = module("peer") else { return };
+        let Some(demo_bytes) = module("server") else { return };
+        let peer = load_server(&ModuleSource { id: "w2-peer", bytes: &peer_bytes, commands: false }).expect("peer loads");
+        let peer = FullMod::new("w2-peer".into(), None, Some(peer));
+        let demo = load_server(&ModuleSource { id: "w2-caller", bytes: &demo_bytes, commands: false }).expect("caller loads");
+        let _demo = FullMod::new("w2-caller".into(), None, Some(demo));
+        let mut host = FakeHost::default();
+        let mut invocation = Invocation { host: HostAccess::Write(&mut host), batch: None, batch_start: 0 };
+        let _scope = Scope::enter(&mut invocation);
+        let answer = super::server_services::call_mod("w2-caller", "w2-peer", "echo", b"hi").expect("the peer answers");
+        assert_eq!(String::from_utf8(answer).unwrap(), "w2-caller said: hi");
+        let counted = super::server_services::call_mod("w2-caller", "w2-peer", "count", b"").unwrap();
+        assert_eq!(String::from_utf8(counted).unwrap(), "2 call(s) so far");
+        // The peer's own error comes back as the caller's error.
+        assert!(super::server_services::call_mod("w2-caller", "w2-peer", "nope", b"").unwrap_err().contains("unknown method"));
+        // A callee that is busy (waiting, mid-hook) is refused, not waited for.
+        let held = peer.server.state.lock().unwrap();
+        assert!(super::server_services::call_mod("w2-caller", "w2-peer", "echo", b"x").unwrap_err().contains("busy"));
+        drop(held);
+        assert!(super::server_services::call_mod("w2-caller", "w2-peer", "echo", b"x").is_ok());
     }
 
     #[test]

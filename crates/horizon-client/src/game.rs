@@ -285,6 +285,7 @@ mod native_sky_tint;
 mod native_world_border;
 mod native_world_columns;
 mod native_world_edit;
+mod native_wasm_services;
 mod native_world_read;
 mod natural_spawning;
 mod nautili;

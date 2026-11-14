@@ -3134,6 +3134,41 @@ progress), as for the `/worldborder` command. Mods that listen to border changes
 through this helper. Each helper allows 512 calls per mod per server tick. Bundles need the `hooks` field set to
 @API:world_border_state@.
 
+
+### @API:wasm_services@ `wasm_services`
+
+Server helpers the WebAssembly services of `server-full` (`docs/yoake-wasm-dev.md`) are built on; native mods may call
+them too, on the authoritative server tick. Each helper that acts allows 1024 calls per mod per server tick, and
+nothing changes unless a mod calls it.
+
+* `native_break_block_as(dimension, uuid, pos)` breaks the block as that player does with the tool in their hand,
+  through the game's own player break: drops with Fortune and Silk Touch, tool damage, experience, statistics, the
+  mods' destroy hooks (a mod that breaks from its own destroy hook is re-entered: guard against it). `Ok(false)` when the
+  game refuses (protected spawn, adventure mode, a canceled break) or the block is air; `Err` for a player who is not
+  on the server, another dimension than theirs or an unloaded position.
+* `native_player_sneaking(uuid)`: a guest's flag, or the owner's held sneak key (the LAN host and single player).
+* `native_block_tags(block)`, `native_item_tags(item)`, `native_block_tool_requirement(block)` (hardness, whether a
+  tool is required, the `minecraft:mineable/*` tags and the `minecraft:needs_*_tool` tier tag) and
+  `native_can_harvest(block, tool)`.
+* `native_attribute_get(uuid, attribute)`: the base and the modified value of a player's attribute.
+* `native_item_entities_in(dimension, center, radius)`, `native_item_entity_move(dimension, id, position, velocity)` and
+  `native_item_entity_pickup(dimension, id, uuid)` (what fits goes into their inventory, the rest stays dropped).
+* `native_advancement_progress(uuid, advancement)` and `native_advancement_grant(uuid, advancement)` (every remaining
+  criterion, rewards and toast as for `/advancement grant`).
+* `native_entity_vitals(dimension, id)`: health, max health, armor and absorption of a player or a mob.
+* `native_held_stack()`: the acting player's main-hand stack, components included.
+* `native_player_set_slots(uuid, slots)`: the player's 36 main slots, which must hold exactly the same items
+  (totals per item and components are checked) with no stack past its limit.
+* `native_inventory_apply(uuid, give, stack, exact)`: gives or clears exactly `stack.count`, all or nothing. A give
+  needs room for all of it; a clear takes from the main slots and the off hand and, with `exact`, matches the
+  components (damage, name, enchantments) too.
+* `native_container_all_slots(dimension, pos)`, `native_container_replace_slots(dimension, pos, slots)` and
+  `native_containers_near(dimension, center, radius)`: every slot of a container (both halves of a double chest,
+  in the game's order), the same items rearranged (totals verified; chests, barrels, hoppers, shulker boxes and mod
+  containers only; no shulker box inside a shulker box) and the containers within 64 blocks (a double chest once).
+
+Bundles need the `hooks` field set to @API:wasm_services@.
+
 ### @API:sky_tint@ `sky_tint`
 
 `native_set_sky_tint(color, strength)` (client) draws the sky dome and the cloud layer of the next frame built

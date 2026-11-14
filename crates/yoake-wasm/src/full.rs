@@ -118,7 +118,11 @@ macro_rules! server_services {
         impl server_world::yoake::mods::server_services::Host for ServerContext {
             $(
                 fn $name(&mut self, $($arg: $ty),*) -> $ret {
-                    self.host.$name($($arg),*)
+                    // The game's time in the service is not the guest's (see `HOST_TIME`).
+                    let began = std::time::Instant::now();
+                    let answer = self.host.$name($($arg),*);
+                    crate::add_host_time(began.elapsed());
+                    answer
                 }
             )*
         }
@@ -188,6 +192,37 @@ server_services! {
     range_override_clear(owner: String) -> Result<(), String> = unsupported();
     qa_mode_enabled() -> bool = false;
     qa_record(event: String, json: String) -> Result<(), String> = unsupported();
+    break_block_as(dimension: String, player: String, position: st::BlockPos) -> Result<bool, String> = unsupported();
+    player_sneaking(player: String) -> Result<bool, String> = unsupported();
+    container_slots(dimension: String, position: st::BlockPos) -> Result<Vec<Option<st::ItemStack>>, String> = unsupported();
+    container_set_slots(dimension: String, position: st::BlockPos, slots: Vec<Option<st::ItemStack>>) -> Result<(), String> = unsupported();
+    containers_in(center: st::Vec3, dimension: String, radius: f64) -> Result<Vec<st::ContainerRef>, String> = unsupported();
+    player_set_slots(player: String, slots: Vec<Option<st::ItemStack>>) -> Result<(), String> = unsupported();
+    block_tags(block: String) -> Result<Vec<String>, String> = unsupported();
+    item_tags(item: String) -> Result<Vec<String>, String> = unsupported();
+    block_tool_requirement(block: String) -> Result<st::ToolRequirement, String> = unsupported();
+    can_harvest(block: String, tool: Option<st::ItemStack>) -> Result<bool, String> = unsupported();
+    player_attribute_modifier_add(amount: f64, attribute: String, modifier: String, operation: st::AttributeOperation, player: String) -> Result<(), String> = unsupported();
+    attribute_get(attribute: String, player: String) -> Result<st::AttributeValue, String> = unsupported();
+    open_menu(extra: Vec<u8>, menu_type: String, player: String, title: String) -> Result<bool, String> = unsupported();
+    menu_set_items(items: Vec<Option<st::ItemStack>>, player: String) -> Result<(), String> = unsupported();
+    menu_close(player: String) -> Result<(), String> = unsupported();
+    item_entities_in(center: st::Vec3, dimension: String, radius: f64) -> Result<Vec<st::ItemEntity>, String> = unsupported();
+    item_entity_move(dimension: String, entity: u32, position: st::Vec3, velocity: st::Vec3) -> Result<bool, String> = unsupported();
+    item_entity_pickup(dimension: String, entity: u32, player: String) -> Result<bool, String> = unsupported();
+    give_items(items: Vec<st::ItemStack>, player: String) -> Result<Vec<st::ItemStack>, String> = unsupported();
+    advancement_progress(advancement: String, player: String) -> Result<st::AdvancementState, String> = unsupported();
+    advancement_grant(advancement: String, player: String) -> Result<bool, String> = unsupported();
+    entity_vitals_of(dimension: String, entity: u32) -> Result<st::EntityVitals, String> = unsupported();
+    hurt_entity(amount: f32, attacker: Option<String>, damage: st::DamageKind, dimension: String, entity: u32) -> Result<bool, String> = unsupported();
+    server_player_motion(player: String) -> Result<st::PlayerMotion, String> = unsupported();
+    set_server_player_velocity(dimension: String, player: String, velocity: st::Vec3) -> Result<bool, String> = unsupported();
+    play_sound_at(category: String, dimension: String, pitch: f32, position: st::Vec3, sound: String, volume: f32) -> Result<u32, String> = unsupported();
+    set_player_attack_hitbox(height: f32, player: String, width: f32) -> Result<bool, String> = unsupported();
+    clear_player_attack_hitbox(player: String) -> Result<bool, String> = unsupported();
+    world_border(dimension: String) -> Result<st::WorldBorderState, String> = unsupported();
+    set_world_border(center_x: f64, center_z: f64, dimension: String, lerp_ticks: Option<u64>, size: f64, target_size: Option<f64>) -> Result<(), String> = unsupported();
+    mod_call(method: String, payload: Vec<u8>, target_mod: String) -> Result<Vec<u8>, String> = unsupported();
 }
 
 pub struct ServerContext {
@@ -262,6 +297,20 @@ impl ServerFullMod {
 
     pub fn is_disabled(&self) -> bool {
         self.raw.is_disabled()
+    }
+
+    /// Calls the module's `handle-call` export (another package's `mod-call`). `None` when the
+    /// module is disabled, trapped or ran out of its limits on this call (it is then disabled).
+    pub fn handle_call(&mut self, caller: &str, method: &str, payload: &[u8]) -> Option<Result<Vec<u8>, String>> {
+        if self.raw.is_disabled() {
+            return None;
+        }
+        let exports = &self.exports;
+        let result = self.raw.call("handle_call", |store, _| {
+            exports.call_handle_call(store, caller, method, payload).map_err(|error| format!("{error:#}"))
+        });
+        flush_output(&mut self.raw, |host, line| host.log_output(line));
+        result
     }
 
     /// Like [`ClientFullMod::dispatch`], for a server-side hook.

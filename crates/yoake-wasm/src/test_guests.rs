@@ -26,6 +26,10 @@ pub const FULL_DEMO_CLIENT: Guest =
 pub const FULL_DEMO_SERVER: Guest =
     Guest { name: "full-demo-server", example: "full-demo", features: "server", artifact: "yoake_wasm_full_demo.wasm" };
 
+/// The second package of the `mod-call` tests: only answers `handle-call`.
+pub const FULL_DEMO_PEER: Guest =
+    Guest { name: "full-demo-peer", example: "full-demo", features: "peer", artifact: "yoake_wasm_full_demo.wasm" };
+
 static BUILD: Mutex<()> = Mutex::new(());
 
 fn workspace() -> PathBuf {
