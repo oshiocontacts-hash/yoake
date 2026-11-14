@@ -2848,7 +2848,8 @@ items are left out (NeoForge's `RenderLivingEvent.Pre`, cancelled); its name tag
   `None` for remote players), `health` and `max_health`, `food_level` (`None` for remote players), and `right_arm_pose` /
   `left_arm_pose` (`EMPTY`, `ITEM`, `BLOCK`, `BOW_AND_ARROW`, `CROSSBOW_HOLD`, `CROSSBOW_CHARGE`, `THROW_SPEAR`, `TOOT_HORN`,
   `SPYGLASS`, `SPEAR`, `BRUSH`) for the physical arms, from the same decision Horizon's humanoid model uses. Unavailable data
-  is `None`, never an invented zero.
+  is `None`, never an invented zero. `scale` is the player's `minecraft:scale` attribute (`Mob::model_scale`, 1.0 by default),
+  for local and remote players alike; the draw pose does not include it, so a mod multiplies its model by it.
 - Tests of an external trait mod can enable the non-default `test-support` feature on their `horizon-client` dev-dependency:
   `BlockEntityDraw::for_test(pose, light)`, `NativeMobRender::for_test(id, kind)`, `NativePlayerRender::for_test(name, local)`,
   `PlayerSubmitEvent::for_test` and `MobLayerEvent::for_test` build synthetic render events with neutral fields. They do not
@@ -3093,6 +3094,54 @@ existing server motion-packet path, including its handling of pending hurt synch
 horizontal-collision value is the bit from the player's last accepted movement packet. Each helper
 allows 512 calls per mod per server tick. Bundles need the `hooks` field set to
 @API:server_player_motion@.
+
+A player with no body in the server's record yet (the integrated server's owner, until their first turn
+has run) is read from what the record keeps of them: the last movement their client reported as the velocity and
+the fall distance they were saved with. Setting their velocity then only tells their client.
+
+The `permission` of the players `native_server_players` lists and of `native_acting_player` is the level their
+commands run at; for the integrated server's owner it is never below their operator-list entry (4 while the world
+allows commands).
+
+### @API:player_attack_hitbox@ `player_attack_hitbox`
+
+`native_set_player_attack_hitbox(uuid, width, height)` (server) gives a player a hit box that starts at
+their feet, is centred on them and is `width` wide and `height` tall (positive, at most 1024), separate from the
+box the world collides with: a goremu-sized player can fit through a door and still be hit at their full size.
+`native_clear_player_attack_hitbox(uuid)` puts the ordinary box back. Both answer `Ok(false)` for a player who is
+not on the server. The box is the one other players' attacks and interactions are reach-checked against on the
+server (`handleAttack`/`handleInteract`'s range check), and the one a Horizon client's crosshair, its
+`attack_entity` targeting and a spear's attack range pick that player by. It reaches the clients on the
+clientbound custom payload `horizon:attack_hitbox` (an `i32` entity id and two `f32`s, 12 bytes; a size of 0 or
+less clears it), sent to every Horizon client when it is set or cleared and to a client that joins later; a
+vanilla client is sent nothing and keeps the ordinary box. A box lasts until it is cleared or the player leaves, and
+nothing changes for a player no mod has given one. Arrows, explosions and other things that hit the player's
+collision box are not changed. Each helper allows 512 calls per mod per server tick. Bundles need the `hooks`
+field set to @API:player_attack_hitbox@.
+
+### @API:world_border_state@ `world_border_state`
+
+`native_world_border(dimension)` returns a `NativeWorldBorderState`: the border's `center` (`[x, z]`), `size`,
+`target_size` and `remaining_ticks` of a move in progress (0 when still).
+`native_set_world_border(dimension, center, size, lerp)` sets the centre and either the size at once
+(`lerp` `None`) or, with `Some((target, ticks))`, a move from `size` to `target` over `ticks` server ticks
+(`WorldBorder.lerpSizeBetween`, as `/worldborder set <size> <time>` does). Vanilla's limits apply: sizes 1 to
+59999968, centres within 29999984 of the origin, 1 or more ticks; nothing changes on an error. Horizon keeps one
+border for the whole server, so `dimension` (`minecraft:overworld`, `minecraft:the_nether` or
+`minecraft:the_end`) only has to be a real one and every dimension answers with the same border. Players hear the
+change at the end of the tick through vanilla's own border packets (a new centre, a new size or a size move in
+progress), as for the `/worldborder` command. Mods that listen to border changes are not told of a change made
+through this helper. Each helper allows 512 calls per mod per server tick. Bundles need the `hooks` field set to
+@API:world_border_state@.
+
+### @API:sky_tint@ `sky_tint`
+
+`native_set_sky_tint(color, strength)` (client) draws the sky dome and the cloud layer of the next frame built
+`strength` (0 to 1, clamped) of the way from their colour to `color` (RGB, 0 to 1, clamped). It tints nothing else:
+the fog, terrain, water, lighting and the sunrise keep their colours, and the clouds keep their alpha. Call it on
+every frame the tint should show; a frame it is not called on is drawn as vanilla draws it, so a mod that stops
+calling stops the tint. A call made after a frame's sky was built shows on the following frame, once. It answers an
+error on a server and for values that are not numbers. Bundles need the `hooks` field set to @API:sky_tint@.
 
 ### @API:player_latency@ `player_latency`
 

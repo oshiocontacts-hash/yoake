@@ -453,6 +453,19 @@ pub struct NativeServerPlayer {
     pub pitch: f32,
 }
 
+/// The world border as a server mod reads it (`native_world_border`, API @API:world_border_state@).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct NativeWorldBorderState {
+    /// The centre, `[x, z]`.
+    pub center: [f64; 2],
+    /// The size now: the side of the square, in blocks.
+    pub size: f64,
+    /// The size the border is moving to; the same as `size` when it is still.
+    pub target_size: f64,
+    /// Server ticks left of the move to `target_size`, 0 when still.
+    pub remaining_ticks: u64,
+}
+
 /// A command a native mod adds, as one usage: words, then arguments
 /// `<name:kind>`, optional ones last in brackets `[name:kind]`:
 /// `pay <player:player> <amount:integer>`, `balance [player:player]`,

@@ -171,6 +171,10 @@ pub struct NativePlayerRender<'a> {
     pub right_arm_pose: &'static str,
     /// The vanilla model's physical left-arm pose, as an uppercase pose name.
     pub left_arm_pose: &'static str,
+    /// `LivingEntity.getScale`: the player's `minecraft:scale` attribute (1.0 unless a server or
+    /// `/attribute` changed it). The draw's pose does not include it; a mod that wants its model to
+    /// follow the hitbox multiplies by it.
+    pub scale: f32,
 }
 
 impl<'a> NativePlayerRender<'a> {
@@ -208,6 +212,7 @@ impl<'a> NativePlayerRender<'a> {
             food_level: None,
             right_arm_pose: "EMPTY",
             left_arm_pose: "EMPTY",
+            scale: 1.0,
         }
     }
 
@@ -278,6 +283,7 @@ impl<'a> NativePlayerRender<'a> {
             food_level: None,
             right_arm_pose: arm_pose_name(humanoid.right),
             left_arm_pose: arm_pose_name(humanoid.left),
+            scale: mob.model_scale(),
         }
     }
 }

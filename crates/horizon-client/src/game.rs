@@ -280,6 +280,9 @@ mod native_team;
 mod native_ticks;
 mod native_title_screen;
 mod native_visuals;
+mod native_attack_hitbox;
+mod native_sky_tint;
+mod native_world_border;
 mod native_world_columns;
 mod native_world_edit;
 mod native_world_read;
@@ -3224,6 +3227,11 @@ struct Game<'a> {
     /// have each chest open.
     lid_openers: HashMap<(i32, i32, i32), i32>,
     lan_acting: Option<u32>,
+    /// A client's copy of the attack hit boxes a server's mods set (entity id to width and
+    /// height, `lan::attack_hitbox`), for the crosshair.
+    attack_hitboxes: HashMap<i32, (f32, f32)>,
+    /// A native mod's sky tint for the next sky drawn (`native_set_sky_tint`).
+    native_sky_tint: Option<native_sky_tint::Tint>,
     /// A guest's `/save-all`: saved once their turn ends (`run_guest_command`),
     /// when their own state is back in their record.
     save_after_guest_turn: bool,
@@ -11782,7 +11790,7 @@ impl Game<'_> {
             if m.removed || Some(m.id) == self.riding || Some(m.id) == self.remote_camera_id() {
                 continue;
             }
-            if let Some(t) = ray_box(eye, dir, reach, m.bounds())
+            if let Some(t) = ray_box(eye, dir, reach, self.pick_bounds(m))
                 && best.is_none_or(|b| t < b.1)
             {
                 best = Some((i, t));
@@ -15975,6 +15983,8 @@ impl Game<'_> {
                 std::array::from_fn(|i| sky.sky_color[i] + (flash[i] - sky.sky_color[i]) * 0.22);
             sky.sky_light_factor = 1.0;
         }
+        // A native mod's tint of the sky dome and the clouds, for this frame only.
+        self.native_tint_sky(&mut sky);
         // FishingHookRenderer's line, then DebugRenderer: chunk borders and
         // hitboxes (F3+G, F3+B).
         let mut lines = self.fishing_line(alpha, size);
@@ -19612,6 +19622,8 @@ impl<'a> Game<'a> {
             lan_global_events: Vec::new(),
             lid_openers: HashMap::new(),
             lan_acting: None,
+            attack_hitboxes: HashMap::new(),
+            native_sky_tint: None,
             save_after_guest_turn: false,
             player_attachments: Default::default(),
             guest_attachments: HashMap::new(),

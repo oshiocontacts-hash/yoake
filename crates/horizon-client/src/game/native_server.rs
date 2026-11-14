@@ -212,7 +212,7 @@ impl Game<'_> {
             .map(|g| NativeServerPlayer {
                 uuid: g.uuid,
                 name: g.name.clone(),
-                permission: g.permission,
+                permission: host.hub.reported_permission(g),
                 dimension: g.dimension.clone(),
                 position: g.position,
                 game_mode: g.game_mode,
@@ -983,7 +983,9 @@ impl Game<'_> {
         let player = NativeServerPlayer {
             uuid: g.uuid,
             name: g.name.clone(),
-            permission,
+            // The level the player's commands run at (the owner's console is 4), never less than
+            // the one the server reports for them.
+            permission: permission.max(host.hub.reported_permission(g)),
             dimension: g.dimension.clone(),
             position: g.position,
             game_mode: g.game_mode,

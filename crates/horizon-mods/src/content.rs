@@ -48,6 +48,29 @@ pub fn check_path(name: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// A plain license or readme text file that a content mod may carry anywhere under
+/// `assets/` or `data/` (`assets/<ns>/LICENSE.txt`, `data/README.md`, `NOTICE`...): the game
+/// ignores it instead of refusing the mod. A file named `LICENSE*`, `LICENCE*`, `COPYING*`,
+/// `README*` or `NOTICE*` (any case) with no extension or a `.txt`, `.md` or `.rst` one is always
+/// such a file; any other `.txt` or `.md` file is one only where it could not be a resource (not a
+/// plain path, or not inside a namespace), so a mod's own text resources such as
+/// `assets/<id>/texts/splashes.txt` still load.
+pub fn is_ignored_notice(name: &str) -> bool {
+    if !(name.starts_with("assets/") || name.starts_with("data/")) {
+        return false;
+    }
+    let base = name.rsplit('/').next().unwrap_or(name).to_ascii_lowercase();
+    let (stem, extension) = base.split_once('.').unwrap_or((&base, ""));
+    let named = ["license", "licence", "copying", "readme", "notice"]
+        .iter()
+        .any(|word| {
+            stem == *word || stem.strip_prefix(word).is_some_and(|rest| rest.starts_with('-'))
+        });
+    (named && matches!(extension, "" | "txt" | "md" | "rst"))
+        || ((base.ends_with(".txt") || base.ends_with(".md"))
+            && (check_path(name).is_err() || name.split('/').count() < 3))
+}
+
 /// A vanilla identifier, `minecraft:path`.
 /// `Identifier.isValidNamespace` and `isValidPath` on an id with both parts
 /// given: `[a-z0-9_.-]`, and `/` in the path too.
@@ -513,6 +536,9 @@ impl Content {
         let mut files = Vec::with_capacity(sized.len());
         let mut total = 0u64;
         for (name, size) in sized {
+            if is_ignored_notice(&name) {
+                continue;
+            }
             check_path(&name)?;
             if size > MAX_FILE {
                 return Err(format!("{name} is over {} MiB", MAX_FILE >> 20));
@@ -1292,6 +1318,31 @@ capabilities = ["registries"]
         let files: &[(&str, &[u8])] = &[("data/ruby/horizon/block/cable.json", cable)];
         let e = hmod("bare-tag", MANIFEST_TEXT, files).unwrap_err();
         assert!(e.contains("#namespace:path"), "{e}");
+    }
+
+    #[test]
+    fn license_and_readme_text_files_are_ignored_not_refused() {
+        let files: &[(&str, &[u8])] = &[
+            ("data/ruby/horizon/item/ruby.json", ITEM),
+            ("assets/ruby/LICENSE.txt", b"MIT"),
+            ("assets/ruby/textures/LICENSE-ART.TXT", b"CC"),
+            ("assets/LICENSE", b"MIT"),
+            ("data/README.md", b"hi"),
+            ("data/ruby/NOTICE", b"n"),
+            ("data/ruby/Credits.TXT", b"c"),
+        ];
+        let content = hmod("licenses", MANIFEST_TEXT, files).unwrap();
+        assert_eq!(content.files, ["data/ruby/horizon/item/ruby.json"]);
+        // A resource that merely ends in .txt inside the namespace is still a file of the mod.
+        let own: &[(&str, &[u8])] = &[("assets/ruby/texts/splashes.txt", b"s")];
+        assert_eq!(
+            hmod("licenses2", MANIFEST_TEXT, own).unwrap().files,
+            ["assets/ruby/texts/splashes.txt"]
+        );
+        assert!(is_ignored_notice("assets/ruby/license.txt"));
+        assert!(!is_ignored_notice("assets/ruby/texts/splashes.txt"));
+        assert!(!is_ignored_notice("assets/ruby/models/license_plate.json"));
+        assert!(!is_ignored_notice("config/LICENSE.txt"));
     }
 
     #[test]
