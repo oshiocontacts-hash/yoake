@@ -77,6 +77,16 @@ impl ClientContext {
     }
 }
 
+impl ClientContext {
+    pub(crate) fn log_output(&mut self, line: &crate::OutputLine) {
+        let target = match line.stream {
+            crate::OutputStream::Stdout => "stdout",
+            crate::OutputStream::Stderr => "stderr",
+        };
+        let _ = self.host.log(target, &line.text);
+    }
+}
+
 impl Drop for ClientContext {
     fn drop(&mut self) {
         for (_, texture) in self.textures.drain() {

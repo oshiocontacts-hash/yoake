@@ -9,7 +9,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-yoake-wasm-sdk = { path = "../.." }
+yoake-wasm-sdk = { path = "../..", default-features = false, features = ["runtime"] }
 
 [profile.release]
 opt-level = "s"

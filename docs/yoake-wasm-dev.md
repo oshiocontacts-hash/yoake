@@ -41,17 +41,28 @@ export_mod!(Hello);
 
 - Implement `Mod` (all hooks default to no-ops) and list every hook you override in
   `subscriptions()` using the `hook::*` constants. The host only calls subscribed hooks.
-- **Mods must be `#![no_std]`.** A std-based wasip2 guest imports `wasi:cli/*`, `wasi:io/*` and
-  `wasi:clocks/*`, which the host does not provide. The SDK is `no_std` + `alloc` and ships its own
-  allocator and panic handler (feature `runtime`, default on); `yoake_wasm_sdk::prelude` re-exports
-  `String`, `Vec`, `Box`, `format!`, `vec!`. A panic traps the instance.
+- **Normal `std` works** (SDK feature `std`, on by default): `println!`/`eprintln!` go to the mod's
+  log (one line per newline, long lines cut, bounded per call), `std::time::{Instant, SystemTime}`,
+  `HashMap`, threads-free code, random (`HashMap`'s hasher) all work. The host links exactly this
+  WASI preview 2 subset: `wasi:cli/{stdin,stdout,stderr,environment,exit,terminal-*}`,
+  `wasi:clocks/{monotonic-clock,wall-clock}`, `wasi:random/*`, `wasi:io/*` and
+  `wasi:filesystem/{types,preopens}`. stdin is empty, the environment and the arguments are empty,
+  `std::process::exit` traps the mod (only that mod is disabled), the filesystem has **no
+  preopened directory** (every `std::fs` call fails; the interfaces are linked only because `std`
+  imports them) and there are **no sockets** (a component that imports `wasi:sockets/*`, or any
+  other interface outside `yoake:mods/*` and the list above, is rejected at load). The example is
+  `crates/yoake-wasm-sdk/examples/hello-std`.
+- For the smallest modules turn `std` off (`default-features = false, features = ["runtime"]`) and
+  write `#![no_std]`: the SDK ships its own allocator and panic handler (feature `runtime`) and
+  `yoake_wasm_sdk::prelude` re-exports `String`, `Vec`, `Box`, `format!`, `vec!`. A panic traps
+  the instance. See `examples/hello`.
 - Host calls: `log`, `feedback`, `hud::{text, rect, text_width}`, `settings::{get, set}`,
   `net_send`, `local_player`, `playing`, `world_key`, `snapshot_world`, `instance_dir`,
   `account`, `screen::*`. All return `Result<_, HostError>` (`net_send`: `SendError`).
 - The generated bindings come from `build.rs` (wit-bindgen 0.57.1's proc macro does not escape the
   package name `mod`).
 
-Check the imports of a build (should be `yoake:mods/*` only):
+Check the imports of a build (`yoake:mods/*` and, for `std` mods, the WASI subset):
 `wasm-tools component wit target/wasm32-wasip2/release/yoake_wasm_hello.wasm`.
 
 ## Packaging in a `.yak`
@@ -65,4 +76,14 @@ interface = "1.0"
 ```
 
 `interface = "1.0"` is the `yoake:mods` major.minor the component was built against; the host
-rejects components that import anything outside `yoake:mods/*`.
+rejects components that import anything outside `yoake:mods/*` and the WASI subset above.
+
+## Developer mode: hot reload
+
+With `YOAKE_DLL_MODS_UNSIGNED=1` the game polls every unsigned wasm module of an installed `.yak`
+once a second and, when the file changed (and stayed unchanged for a whole poll), builds a fresh
+instance and swaps it in at the next frame or tick. A new build that fails to load keeps the old
+instance running (one warning in the log). `YOAKE_WASM_DEV_DIR=<folder>` additionally loads every
+`<id>.wasm` in the folder as a mod (no `.yak` needed) and reloads it the same way. Both are off
+without the flag. The startup log has one line saying `wasm: no mods (engine not started)` or
+`wasm: N mod(s), engine started`.

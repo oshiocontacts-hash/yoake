@@ -1,5 +1,5 @@
 [workspace]
-exclude = ["launcher", "crates/horizon-telemetry-server", "crates/horizon-mod-registry", "third_party/wgpu-hal", "third_party/naga", "third_party/libmimalloc-sys", "crates/yoake-wasm-sdk", "crates/yoake-wasm-sdk/examples/hello"]
+exclude = ["launcher", "crates/horizon-telemetry-server", "crates/horizon-mod-registry", "third_party/wgpu-hal", "third_party/naga", "third_party/libmimalloc-sys", "crates/yoake-wasm-sdk", "crates/yoake-wasm-sdk/examples/hello", "crates/yoake-wasm-sdk/examples/hello-std"]
 members = [
     "crates/horizon-core",
     "crates/horizon-dualsense",

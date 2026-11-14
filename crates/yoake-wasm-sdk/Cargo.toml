@@ -7,12 +7,15 @@ publish = false
 description = "Guest SDK for Yoake WebAssembly client mods (wasm32-wasip2)"
 
 [features]
-default = ["runtime"]
-# Global allocator + panic handler for the #![no_std] guest.
+default = ["std", "runtime"]
+# Normal Rust `std` guests (wasi:cli, wasi:io, wasi:clocks, wasi:random, stdout/stderr go to the mod's
+# log). Turn it off (`default-features = false, features = ["runtime"]`) for a `#![no_std]` mod.
+std = []
+# Global allocator + panic handler for the #![no_std] guest; ignored with `std`.
 runtime = []
 
 [dependencies]
-# default features off: `std` makes wasip2 guests import wasi:cli/io/clocks.
+# default features off: the SDK decides about std itself.
 wit-bindgen = { version = "=0.57.1", default-features = false, features = ["realloc", "macros"] }
 
 # Guest crate: built on its own for wasm32-wasip2, never by the host workspace.

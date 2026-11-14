@@ -218,16 +218,16 @@ fn append(mods: Mods, identities: &'static [super::NativeMod], accepted: Vec<Met
     (Arc::from(combined), Box::leak(owned.into_boxed_slice()))
 }
 
-fn native_identity(version: &str, digest: Option<&str>) -> (String, super::NativeSide) {
+pub(super) fn native_identity(version: &str, digest: Option<&str>) -> (String, super::NativeSide) {
     match digest {
         Some(digest) => (format!("{version}#{digest}"), super::NativeSide::Both),
         None => (version.to_owned(), super::NativeSide::Client),
     }
 }
 
-struct StaticMod {
-    original: Mods,
-    index: usize,
+pub(super) struct StaticMod {
+    pub(super) original: Mods,
+    pub(super) index: usize,
 }
 
 struct InstanceState {
@@ -414,7 +414,7 @@ unsafe fn output_buffer<'call>(output: *mut abi::OutputBuffer) -> Result<&'call 
     Ok(output)
 }
 
-fn safe_component(value: &str) -> bool {
+pub(super) fn safe_component(value: &str) -> bool {
     if value.is_empty() || value.len() > 64 || value.ends_with('.')
         || !value.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
     {
@@ -540,7 +540,7 @@ fn net_state(state: NetState) -> u32 {
     match state { NetState::Login => abi::NET_LOGIN, NetState::Configuration => abi::NET_CONFIGURATION, NetState::Play => abi::NET_PLAY }
 }
 
-fn frame_time(at: Instant) -> u64 {
+pub(super) fn frame_time(at: Instant) -> u64 {
     static ORIGIN: OnceLock<Instant> = OnceLock::new();
     at.checked_duration_since(*ORIGIN.get_or_init(|| at)).unwrap_or_default().as_nanos().min(u128::from(u64::MAX)) as u64
 }

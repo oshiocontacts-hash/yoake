@@ -3,13 +3,15 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
-use wasmtime::component::{Component, Instance, Linker};
+use wasmtime::component::{Component, Instance, Linker, ResourceTable};
 use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder};
+use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
 mod client;
 mod host;
 mod hook_names;
 mod subscriptions;
+mod wasi;
 
 pub mod bindings {
     wasmtime::component::bindgen!({
@@ -22,6 +24,7 @@ pub use client::{ClientMod, LoadError};
 pub use host::ClientHost;
 
 pub use subscriptions::Subscriptions;
+pub use wasi::{OutputLine, OutputStream, WASI_IMPORT_INTERFACES};
 
 pub const MEMORY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
 const CLIENT_HOOK_BUDGET_MILLIS: u64 = 2;
@@ -72,6 +75,13 @@ impl Sandbox {
 }
 
 fn check_import(name: &str) -> Result<(), String> {
+    if let Some(wasi) = name.strip_prefix("wasi:") {
+        return if wasi::allowed_import(wasi) {
+            Ok(())
+        } else {
+            Err(format!("forbidden component import: {name}"))
+        };
+    }
     let Some(import) = name.strip_prefix("yoake:mods/") else {
         return Err(format!("forbidden component import: {name}"));
     };
@@ -148,6 +158,15 @@ impl Drop for RuntimeEngine {
 pub struct HostState<T> {
     pub host: T,
     limits: StoreLimits,
+    wasi: WasiCtx,
+    table: ResourceTable,
+    output: wasi::Output,
+}
+
+impl<T: Send> WasiView for HostState<T> {
+    fn ctx(&mut self) -> WasiCtxView<'_> {
+        WasiCtxView { ctx: &mut self.wasi, table: &mut self.table }
+    }
 }
 
 pub struct CompiledComponent {
@@ -156,20 +175,30 @@ pub struct CompiledComponent {
 }
 
 impl CompiledComponent {
-    pub fn instantiate<T: 'static>(
+    pub fn instantiate<T: 'static + Send>(
         self,
         id: impl Into<String>,
         host: T,
         configure: impl FnOnce(&mut Linker<HostState<T>>) -> Result<(), String>,
     ) -> Result<ModInstance<T>, String> {
         let mut linker = Linker::new(&self.runtime.engine);
+        wasi::add_to_linker(&mut linker).map_err(|error| error.to_string())?;
         configure(&mut linker)?;
         let limits = StoreLimitsBuilder::new()
             .memory_size(MEMORY_LIMIT_BYTES)
             .memories(1)
             .instances(16)
             .build();
-        let mut store = Store::new(&self.runtime.engine, HostState { host, limits });
+        let output = wasi::Output::default();
+        let wasi = WasiCtxBuilder::new()
+            .stdout(output.stdout())
+            .stderr(output.stderr())
+            .allow_tcp(false)
+            .allow_udp(false)
+            .allow_ip_name_lookup(false)
+            .build();
+        let state = HostState { host, limits, wasi, table: ResourceTable::new(), output };
+        let mut store = Store::new(&self.runtime.engine, state);
         store.limiter(|state| &mut state.limits);
         store.set_fuel(FUEL_PER_CALL).map_err(|error| error.to_string())?;
         store.set_epoch_deadline(EPOCH_DEADLINE);
@@ -197,6 +226,12 @@ pub struct ModInstance<T: 'static> {
 impl<T: 'static> ModInstance<T> {
     pub fn is_disabled(&self) -> bool {
         self.disabled
+    }
+
+    /// Complete lines the guest wrote to its WASI stdout and stderr since the last drain.
+    /// A partial trailing line stays buffered until it is finished (or grows too long).
+    pub fn drain_output(&mut self) -> Vec<OutputLine> {
+        self.store.data().output.drain()
     }
 
     pub fn call<R>(

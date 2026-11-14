@@ -43,6 +43,8 @@ horizon-friends = { path = "../horizon-friends" }
 horizon-narrator = { path = "../horizon-narrator" }
 # Horizon mods: sandboxed WebAssembly components, off unless installed and turned on (docs/mods.md).
 # Their runtime is the `mods` feature.
+# Sandboxed WebAssembly client mods of .yak files; runs nothing unless one is installed (docs/yoake-wasm.md).
+yoake-wasm = { path = "../yoake-wasm" }
 horizon-mods = { path = "../horizon-mods", default-features = false, features = ["index", "yak"] }
 wgpu = { version = "30.0.1", default-features = false, features = ["std", "parking_lot", "vulkan", "metal", "wgsl", "naga-ir"] }
 winit = "0.30.13"
