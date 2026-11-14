@@ -1,3 +1,8 @@
+> **This is Yoake**, a fork of [Horizon](https://github.com/horizon-rust/horizon) (MIT) with a mod hook layer, `.yak` mod packages and the Yoake launcher.
+> It is not the official Horizon repository: report Horizon issues upstream.
+> Builds: [`.github/workflows/yoake-windows.yml`](.github/workflows/yoake-windows.yml) ([docs/yoake-ci.md](docs/yoake-ci.md)) ·
+> Code signing: [docs/yoake-signing-policy.md](docs/yoake-signing-policy.md) · Agents: read the top of [AGENTS.md](AGENTS.md) first.
+
 <p align="center">
   <img src="docs/media/banner.webp" alt="The Horizon website: the game you know, rebuilt in Rust" width="100%">
 </p>
