@@ -159,6 +159,15 @@ mod server {
         let visits = ext::store_get("visits").ok().flatten().and_then(|b| b.first().copied()).unwrap_or(0) + 1;
         out.push(step("world-storage-write", ext::store_put("visits", &[visits])));
         out.push(step("world-storage-read", ext::store_get("visits")));
+        // Data attachments: a persistent, synced, copy-on-death value on the player, and one on the level.
+        out.push(step("attachment-define player", ext::attachment_define("full-demo:coins", "player", true, true, true)));
+        out.push(step("attachment-get player before", ext::attachment_get("full-demo:coins", "player", uuid)));
+        out.push(step("attachment-set player", ext::attachment_set("full-demo:coins", "player", uuid, &[visits, 7])));
+        out.push(step("attachment-get player after", ext::attachment_get("full-demo:coins", "player", uuid)));
+        out.push(step("attachment-define level", ext::attachment_define("full-demo:epoch", "level", true, false, false)));
+        out.push(step("attachment-set level", ext::attachment_set("full-demo:epoch", "level", "", b"w2b")));
+        out.push(step("attachment-get level", ext::attachment_get("full-demo:epoch", "level", "")));
+        out.push(step("attachment-define wrong owner (must be ERR)", ext::attachment_define("other:x", "player", true, false, false)));
         // Give, then take exactly (all or nothing).
         out.push(step("give-items cobblestone x5 (left over)", ext::give(uuid, "minecraft:cobblestone", 5)));
         out.push(step("inventory-apply take 60 (all or nothing, must be false)", ext::take(uuid, "minecraft:cobblestone", 60)));

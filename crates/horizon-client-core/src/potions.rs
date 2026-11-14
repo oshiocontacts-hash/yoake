@@ -103,6 +103,33 @@ pub fn register_mod_effects(effects: impl IntoIterator<Item = (String, u32, Cate
         .collect();
     MOD_EFFECTS.set(defs).is_ok()
 }
+/// One attribute modifier a content mod's effect adds at amplifier 0:
+/// (effect, attribute, modifier id, amount, operation). Each level multiplies
+/// the amount (`amplifier + 1`), as vanilla's effects do.
+pub type ModEffectModifier = (&'static str, &'static str, &'static str, f64, &'static str);
+static MOD_EFFECT_MODIFIERS: OnceLock<Vec<ModEffectModifier>> = OnceLock::new();
+/// Registers the content mods' effect attribute modifiers (set once, like the effects).
+pub fn register_mod_effect_modifiers(
+    modifiers: impl IntoIterator<Item = (String, String, String, f64, String)>,
+) -> bool {
+    let leak = |s: String| -> &'static str { Box::leak(s.into_boxed_str()) };
+    let list = modifiers
+        .into_iter()
+        .map(|(e, a, i, amount, op)| (leak(e), leak(a), leak(i), amount, leak(op)))
+        .collect();
+    MOD_EFFECT_MODIFIERS.set(list).is_ok()
+}
+/// Every modifier a content mod's effect adds: (attribute, id, amount, operation).
+pub fn mod_effect_modifiers(
+    effect: &str,
+) -> impl Iterator<Item = (&'static str, &'static str, f64, &'static str)> + '_ {
+    MOD_EFFECT_MODIFIERS
+        .get()
+        .into_iter()
+        .flatten()
+        .filter(move |m| m.0 == effect)
+        .map(|m| (m.1, m.2, m.3, m.4))
+}
 /// The content mods' effects, in registry order.
 pub fn mod_effects() -> &'static [EffectDef] {
     MOD_EFFECTS.get().map_or(&[], Vec::as_slice)

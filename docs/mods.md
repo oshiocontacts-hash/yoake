@@ -286,9 +286,30 @@ category (`beneficial`, `harmful` or `neutral`) and its RGB colour (0 to `0xFFFF
 It is the effect `<id>:<name>`: `/effect give @s ruby:glow 30` gives it, saves and mobs keep it, and it reaches LAN and
 dedicated server players who run the same mods (its network id follows vanilla's). Its name is the translation
 `effect.<id>.<name>` from the mod's `assets/<id>/lang/`, its icon `assets/<id>/textures/mob_effect/<name>.png` (18x18,
-as vanilla's; without one it draws as the missing texture). It does nothing on its own yet: no tick behaviour and no
-attribute modifiers. A world opened without the mod drops the effect from its players and mobs. Clients join a server
+as vanilla's; without one it draws as the missing texture). It has no tick behaviour of its own yet (a WebAssembly mod may add it).
+Attribute modifiers are below. A world opened without the mod drops the effect from its players and mobs. Clients join a server
 only with the same mods' effects, as with its blocks.
+
+An effect may also list `attributes`, modifiers it adds while it lasts, each scaled by `amplifier + 1` like vanilla's
+speed or strength: `attribute` (a vanilla attribute id; `minecraft:` may be left out), `amount` (at amplifier 0) and
+`operation` (`add_value` by default, `add_multiplied_base`, `add_multiplied_total`). An unknown operation or a non-finite
+amount is refused when the mod loads. The modifiers apply to the player and are removed with the effect; the modifier id
+is `<effect id>/<attribute with . for :>`.
+
+```json
+{ "category": "beneficial", "color": 255,
+  "attributes": [{ "attribute": "minecraft:movement_speed", "amount": 0.2, "operation": "add_multiplied_total" }] }
+```
+
+### Data attachments of WebAssembly mods
+
+A `server-full` module declares data it keeps on players, entities, block entities, chunks and the level with the
+services `attachment-define(id, kind, persistent, synced, copy-on-death)`, `attachment-get`, `attachment-set` and
+`attachment-remove` (SDK: `full::server::ext::attachment_*`). `id` is `<package id>:<name>`; `kind` is `player`, `entity`,
+`block-entity`, `chunk` or `level`; the holder is a player UUID, a decimal entity id, `x,y,z`, `cx,cz` or empty for the
+level. A value is opaque bytes (64 KiB at most). `persistent` saves it with the holder (`horizon:attachments`),
+`synced` sends it to the clients that see the holder, `copy-on-death` carries it to the respawned player. Defining the
+same id twice with the same policy is fine; a different policy or another package's namespace is refused.
 
 A mod entity type is declared in `data/<id>/horizon/entity_type/<name>.json`. It copies a vanilla type: for now only
 `minecraft:snowball`, a thrown item projectile. `item` is one of the mod's own items (one type per item), and `damage`
@@ -366,6 +387,10 @@ MiB each and 512 MiB in all. A mod whose content is refused is left out, with th
 this content into its block and item tables (`horizon_client::mod_content`, [modpacks.md](modpacks.md)). A tag entry
 naming an id nobody registers (a block a port left out, another mod's item) is dropped, so the rest of the tag still
 loads; vanilla would drop the whole tag.
+
+Recipe and loot-table files in an owned namespace must be JSON objects. Content loading checks their JSON syntax
+and reports the offending path, but does not validate the recipe or loot schema or resolve references at this stage;
+the game's existing recipe and loot parsers determine which vanilla formats are supported.
 
 Tags merge as a data pack's do. Every mod's file for one tag (vanilla's `data/minecraft/tags/`, the convention
 `data/c/tags/`, or another mod's) adds its values after vanilla's and the mods' before it, in load order. A file with

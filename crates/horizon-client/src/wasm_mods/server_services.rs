@@ -891,6 +891,22 @@ impl ServerHost for GameServerHost {
         call_mod(&self.id, &target_mod, &method, &payload)
     }
 
+    fn attachment_define(&mut self, copy_on_death: bool, id: String, kind: String, persistent: bool, synced: bool) -> Result<(), String> {
+        self.attachment_define_impl(&id, &kind, persistent, synced, copy_on_death)
+    }
+
+    fn attachment_get(&mut self, holder: String, id: String, kind: String) -> Result<Option<Vec<u8>>, String> {
+        self.attachment_get_impl(&id, &kind, &holder)
+    }
+
+    fn attachment_set(&mut self, data: Vec<u8>, holder: String, id: String, kind: String) -> Result<(), String> {
+        self.attachment_set_impl(&id, &kind, &holder, &data)
+    }
+
+    fn attachment_remove(&mut self, holder: String, id: String, kind: String) -> Result<bool, String> {
+        self.attachment_remove_impl(&id, &kind, &holder)
+    }
+
     // ---- diagnostics and what is not forwarded ------------------------------------------------
 
     fn qa_mode_enabled(&mut self) -> bool {
@@ -1116,5 +1132,213 @@ mod tests {
         assert!(registry_id("Stone;stop").is_err());
         assert!(sound_category("hostile").is_ok());
         assert!(sound_category("loud").is_err());
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Data attachments (W2-B): opaque bytes a package keeps on players, entities, block entities,
+// chunks and the level. Persistence, sync to clients and copy-on-death are the engine's own
+// (`Attachments`); the definition's policy decides which apply.
+// ---------------------------------------------------------------------------------------------
+
+/// Largest value of an attachment.
+const MAX_ATTACHMENT_BYTES: usize = 64 << 10;
+/// Most definitions one package may declare.
+const MAX_ATTACHMENT_TYPES: usize = 256;
+
+static ATTACHMENT_TYPES: Mutex<Option<horizon_world::attachments::DynamicAttachmentRegistry>> = Mutex::new(None);
+static ATTACHMENT_COUNTS: Mutex<Vec<(String, usize)>> = Mutex::new(Vec::new());
+
+fn attachment_scope(kind: &str) -> Result<horizon_world::attachments::AttachmentScope, String> {
+    use horizon_world::attachments::AttachmentScope as S;
+    Ok(match kind {
+        "player" => S::Player,
+        "entity" => S::Entity,
+        "block-entity" => S::BlockEntity,
+        "chunk" => S::Chunk,
+        "level" => S::Level,
+        _ => return Err("an attachment kind is player, entity, block-entity, chunk or level".into()),
+    })
+}
+
+fn attachment_holder(kind: &str, holder: &str) -> Result<horizon_world::attachments::Holder, String> {
+    use horizon_world::attachments::Holder;
+    let numbers = |count: usize| -> Result<Vec<i32>, String> {
+        let parts: Vec<i32> = holder.split(',').map(|p| p.trim().parse::<i32>()).collect::<Result<_, _>>().map_err(|_| "not a coordinate list".to_owned())?;
+        if parts.len() == count { Ok(parts) } else { Err(format!("a {kind} holder is {count} comma-separated numbers")) }
+    };
+    Ok(match kind {
+        "player" => Holder::Player(parse_uuid(holder)?),
+        "entity" => Holder::Entity(holder.trim().parse::<u32>().map_err(|_| "an entity holder is its decimal id".to_owned())?),
+        "block-entity" => {
+            let n = numbers(3)?;
+            Holder::BlockEntity([n[0], n[1], n[2]])
+        }
+        "chunk" => {
+            let n = numbers(2)?;
+            Holder::Chunk([n[0], n[1]])
+        }
+        "level" => Holder::Level,
+        _ => return Err("an attachment kind is player, entity, block-entity, chunk or level".into()),
+    })
+}
+
+fn attachment_error(error: horizon_world::attachments::AttachmentError) -> String {
+    format!("attachment: {error:?}")
+}
+
+fn attachment_type(owner: &str, id: &str) -> Result<horizon_world::attachments::DynamicAttachmentType, String> {
+    let registry = ATTACHMENT_TYPES.lock().map_err(|_| "attachment registry poisoned".to_owned())?;
+    registry
+        .as_ref()
+        .and_then(|r| r.get(owner, id))
+        .cloned()
+        .ok_or_else(|| format!("attachment {id:.64} is not defined by this package (call attachment-define first)"))
+}
+
+/// Registers a definition for `owner`; the same definition twice is accepted (both sides define it).
+pub(super) fn define_attachment(
+    owner: &str,
+    id: &str,
+    kind: &str,
+    persistent: bool,
+    synced: bool,
+    copy_on_death: bool,
+) -> Result<(), String> {
+    use horizon_world::attachments::{AttachmentError, DynamicAttachmentPolicy, DynamicAttachmentRegistry};
+    let policy = DynamicAttachmentPolicy { scope: attachment_scope(kind)?, persistent, synced, copy_on_death };
+    let mut registry = ATTACHMENT_TYPES.lock().map_err(|_| "attachment registry poisoned".to_owned())?;
+    let registry = registry.get_or_insert_with(DynamicAttachmentRegistry::default);
+    if let Some(existing) = registry.get(owner, id) {
+        return if existing.policy() == policy { Ok(()) } else { Err("attachment already defined with another policy".into()) };
+    }
+    let mut counts = ATTACHMENT_COUNTS.lock().map_err(|_| "attachment registry poisoned".to_owned())?;
+    let slot = match counts.iter().position(|(o, _)| o == owner) {
+        Some(i) => i,
+        None => {
+            counts.push((owner.to_owned(), 0));
+            counts.len() - 1
+        }
+    };
+    if counts[slot].1 >= MAX_ATTACHMENT_TYPES {
+        return Err("a package defines at most 256 attachments".into());
+    }
+    registry.define(owner, id, policy).map_err(|e| match e {
+        AttachmentError::WrongOwner => "an attachment id starts with the package id and a colon".to_owned(),
+        other => attachment_error(other),
+    })?;
+    counts[slot].1 += 1;
+    Ok(())
+}
+
+fn attachment_compound(data: &[u8]) -> Result<horizon_world::nbt::Compound, String> {
+    use horizon_world::nbt::{Compound, Tag};
+    if data.len() > MAX_ATTACHMENT_BYTES {
+        return Err("an attachment value is at most 64 KiB".into());
+    }
+    let mut compound = Compound::new();
+    compound.insert("b".into(), Tag::ByteArray(data.to_vec()));
+    Ok(compound)
+}
+
+fn attachment_bytes(compound: &horizon_world::nbt::Compound) -> Option<Vec<u8>> {
+    match compound.get(&"b".into()) {
+        Some(horizon_world::nbt::Tag::ByteArray(bytes)) => Some(bytes.clone()),
+        _ => None,
+    }
+}
+
+impl GameServerHost {
+    fn attachment_define_impl(&mut self, id: &str, kind: &str, persistent: bool, synced: bool, copy_on_death: bool) -> Result<(), String> {
+        define_attachment(&self.id, id, kind, persistent, synced, copy_on_death)
+    }
+
+    fn attachment_get_impl(&mut self, id: &str, kind: &str, holder: &str) -> Result<Option<Vec<u8>>, String> {
+        let ty = attachment_type(&self.id, id)?;
+        let holder = attachment_holder(kind, holder)?;
+        server_service(|host| ty.get(host, holder).map_err(attachment_error)).map(|v| v.and_then(|c| attachment_bytes(&c)))
+    }
+
+    fn attachment_set_impl(&mut self, id: &str, kind: &str, holder: &str, data: &[u8]) -> Result<(), String> {
+        let ty = attachment_type(&self.id, id)?;
+        let holder = attachment_holder(kind, holder)?;
+        let value = attachment_compound(data)?;
+        server_service(|host| ty.set(host, holder, value).map_err(attachment_error))
+    }
+
+    fn attachment_remove_impl(&mut self, id: &str, kind: &str, holder: &str) -> Result<bool, String> {
+        let ty = attachment_type(&self.id, id)?;
+        let holder = attachment_holder(kind, holder)?;
+        server_service(|host| ty.remove(host, holder).map_err(attachment_error)).map(|v| v.is_some())
+    }
+}
+
+#[cfg(test)]
+mod attachment_tests {
+    use super::*;
+    use horizon_world::attachments::{AttachmentError, AttachmentHost, Attachments, Holder};
+
+    struct One(Attachments);
+    impl AttachmentHost for One {
+        fn attachments(&mut self, _: Holder) -> Result<&mut Attachments, AttachmentError> {
+            Ok(&mut self.0)
+        }
+    }
+
+    #[test]
+    fn holders_parse_and_bad_ones_are_refused() {
+        assert_eq!(attachment_holder("entity", "42").unwrap(), Holder::Entity(42));
+        assert_eq!(attachment_holder("block-entity", "1, -2,3").unwrap(), Holder::BlockEntity([1, -2, 3]));
+        assert_eq!(attachment_holder("chunk", "4,5").unwrap(), Holder::Chunk([4, 5]));
+        assert_eq!(attachment_holder("level", "").unwrap(), Holder::Level);
+        assert!(attachment_holder("entity", "x").is_err());
+        assert!(attachment_holder("chunk", "1,2,3").is_err());
+        assert!(attachment_holder("planet", "").is_err());
+    }
+
+    #[test]
+    fn definitions_are_owned_idempotent_and_policy_checked() {
+        assert!(define_attachment("wa1", "wa1:coins", "player", true, true, true).is_ok());
+        assert!(define_attachment("wa1", "wa1:coins", "player", true, true, true).is_ok());
+        assert!(define_attachment("wa1", "wa1:coins", "player", false, true, true).is_err());
+        assert!(define_attachment("wa1", "other:coins", "player", true, false, false).is_err());
+        assert!(attachment_type("wa2", "wa1:coins").is_err());
+    }
+
+    #[test]
+    fn values_survive_save_and_load_and_respawn_copy() {
+        define_attachment("wa3", "wa3:kept", "player", true, false, true).unwrap();
+        define_attachment("wa3", "wa3:temp", "player", false, false, false).unwrap();
+        let (kept, temp) = (attachment_type("wa3", "wa3:kept").unwrap(), attachment_type("wa3", "wa3:temp").unwrap());
+        let mut host = One(Attachments::default());
+        let holder = Holder::Player(7);
+        kept.set(&mut host, holder, attachment_compound(&[1, 2, 3]).unwrap()).unwrap();
+        temp.set(&mut host, holder, attachment_compound(&[9]).unwrap()).unwrap();
+        // save, then load into a fresh holder
+        let mut loaded = One(Attachments::from_nbt(host.0.to_nbt()));
+        let value = kept.get(&mut loaded, holder).unwrap().unwrap();
+        assert_eq!(attachment_bytes(&value), Some(vec![1, 2, 3]));
+        assert!(temp.get(&mut loaded, holder).unwrap().is_none(), "non-persistent data is not saved");
+        // copy on death keeps only opted-in values
+        let mut copy = One(host.0.copy_on_death().unwrap());
+        assert!(kept.get(&mut copy, holder).unwrap().is_some());
+        assert!(temp.get(&mut copy, holder).unwrap().is_none());
+        assert!(attachment_compound(&vec![0u8; MAX_ATTACHMENT_BYTES + 1]).is_err());
+        assert!(kept.remove(&mut loaded, holder).unwrap().is_some());
+    }
+
+    #[test]
+    fn synced_changes_are_queued_for_clients() {
+        define_attachment("wa4", "wa4:shown", "entity", true, true, false).unwrap();
+        let shown = attachment_type("wa4", "wa4:shown").unwrap();
+        let mut host = One(Attachments::default());
+        shown.set(&mut host, Holder::Entity(1), attachment_compound(&[5]).unwrap()).unwrap();
+        let changes = host.0.take_sync_changes();
+        assert_eq!(changes.len(), 1);
+        assert!(changes[0].value.is_some());
+        let mut client = Attachments::default();
+        client.apply_sync(changes.into_iter().next().unwrap());
+        let mut client = One(client);
+        assert_eq!(attachment_bytes(&shown.get(&mut client, Holder::Entity(1)).unwrap().unwrap()), Some(vec![5]));
     }
 }

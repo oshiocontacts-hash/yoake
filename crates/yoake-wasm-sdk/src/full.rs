@@ -153,5 +153,27 @@ pub mod server {
         pub fn store_put(key: &str, data: &[u8]) -> Result<(), String> {
             services::world_storage_write(data, key)
         }
+
+        /// Declares a data attachment of this package (`id` starts with the package id and a colon;
+        /// `kind` is `player`, `entity`, `block-entity`, `chunk` or `level`). Call it in `init` or a hook;
+        /// defining it again with the same policy is fine.
+        pub fn attachment_define(id: &str, kind: &str, persistent: bool, synced: bool, copy_on_death: bool) -> Result<(), String> {
+            services::attachment_define(copy_on_death, id, kind, persistent, synced)
+        }
+
+        /// Reads an attachment's bytes. `holder`: a player UUID, an entity id, `x,y,z`, `cx,cz`, or `""` for the level.
+        pub fn attachment_get(id: &str, kind: &str, holder: &str) -> Result<Option<Vec<u8>>, String> {
+            services::attachment_get(holder, id, kind)
+        }
+
+        /// Stores bytes (at most 64 KiB) on a holder; synced attachments reach the clients that see it.
+        pub fn attachment_set(id: &str, kind: &str, holder: &str, data: &[u8]) -> Result<(), String> {
+            services::attachment_set(data, holder, id, kind)
+        }
+
+        /// Removes the value; true when there was one.
+        pub fn attachment_remove(id: &str, kind: &str, holder: &str) -> Result<bool, String> {
+            services::attachment_remove(holder, id, kind)
+        }
     }
 }

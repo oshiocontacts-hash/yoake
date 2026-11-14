@@ -25,6 +25,14 @@ pub enum AttachmentError {
     InvalidCopyPolicy,
     /// Syncing to clients requires a serializer.
     InvalidSyncPolicy,
+    /// The identifier is not a valid namespaced identifier.
+    InvalidId,
+    /// A mod attempted to define another mod's identifier.
+    WrongOwner,
+    /// A definition already exists for this identifier.
+    DuplicateType,
+    /// The holder does not match the declared scope.
+    ScopeMismatch,
 }
 
 /// NBT key reserved for server-owned attachment maps.
@@ -53,6 +61,176 @@ pub enum Holder {
 /// Object-safe access to the current server's holders.
 pub trait AttachmentHost {
     fn attachments(&mut self, holder: Holder) -> Result<&mut Attachments, AttachmentError>;
+}
+
+/// Holder kinds supported by dynamically declared attachments.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AttachmentScope {
+    Player,
+    Entity,
+    BlockEntity,
+    Chunk,
+    Level,
+}
+
+impl AttachmentScope {
+    fn matches(self, holder: Holder) -> bool {
+        matches!(
+            (self, holder),
+            (Self::Player, Holder::Player(_))
+                | (Self::Entity, Holder::Entity(_))
+                | (Self::BlockEntity, Holder::BlockEntity(_))
+                | (Self::Chunk, Holder::Chunk(_))
+                | (Self::Level, Holder::Level)
+        )
+    }
+}
+
+/// Storage and delivery policy for a dynamic attachment.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DynamicAttachmentPolicy {
+    pub scope: AttachmentScope,
+    pub persistent: bool,
+    pub synced: bool,
+    pub copy_on_death: bool,
+}
+
+/// An NBT attachment definition whose identifier is known only at runtime.
+#[derive(Clone, Debug)]
+pub struct DynamicAttachmentType {
+    namespace: String,
+    name: String,
+    scope: AttachmentScope,
+    persistent: bool,
+    synced: bool,
+    copy_on_death: bool,
+}
+
+/// Definitions are unique within a registry and confined to their owner's namespace.
+#[derive(Default)]
+pub struct DynamicAttachmentRegistry {
+    types: BTreeMap<(String, String), DynamicAttachmentType>,
+}
+
+impl DynamicAttachmentRegistry {
+    /// Register an identifier for the trusted mod owner supplied by the host.
+    pub fn define(
+        &mut self,
+        owner: &str,
+        id: &str,
+        policy: DynamicAttachmentPolicy,
+    ) -> Result<DynamicAttachmentType, AttachmentError> {
+        let (namespace, name) = id.split_once(':').ok_or(AttachmentError::InvalidId)?;
+        let valid = |byte: u8| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"_.-".contains(&byte)
+        };
+        if namespace.is_empty()
+            || !namespace.bytes().all(valid)
+            || name.is_empty()
+            || !name.bytes().all(|byte| valid(byte) || byte == b'/')
+            || name
+                .split('/')
+                .any(|part| part.is_empty() || part == "." || part == "..")
+        {
+            return Err(AttachmentError::InvalidId);
+        }
+        if namespace != owner {
+            return Err(AttachmentError::WrongOwner);
+        }
+        let key = (namespace.to_owned(), name.to_owned());
+        if self.types.contains_key(&key) {
+            return Err(AttachmentError::DuplicateType);
+        }
+        let definition = DynamicAttachmentType {
+            namespace: key.0.clone(),
+            name: key.1.clone(),
+            scope: policy.scope,
+            persistent: policy.persistent,
+            synced: policy.synced,
+            copy_on_death: policy.copy_on_death,
+        };
+        self.types.insert(key, definition.clone());
+        Ok(definition)
+    }
+
+    /// Look up one of the owner's definitions by its namespaced identifier.
+    pub fn get(&self, owner: &str, id: &str) -> Option<&DynamicAttachmentType> {
+        let (namespace, name) = id.split_once(':')?;
+        if namespace != owner {
+            return None;
+        }
+        self.types.get(&(namespace.to_owned(), name.to_owned()))
+    }
+
+    /// Apply current policies to saved values before exposing or copying a holder.
+    pub fn reconcile<H: AttachmentHost + ?Sized>(
+        &self,
+        host: &mut H,
+        holder: Holder,
+    ) -> Result<(), AttachmentError> {
+        let attachments = host.attachments(holder)?;
+        for definition in self.types.values() {
+            if definition.scope.matches(holder) {
+                attachments.get_dynamic(definition)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl DynamicAttachmentType {
+    /// The storage and delivery policy this type was defined with.
+    pub fn policy(&self) -> DynamicAttachmentPolicy {
+        DynamicAttachmentPolicy {
+            scope: self.scope,
+            persistent: self.persistent,
+            synced: self.synced,
+            copy_on_death: self.copy_on_death,
+        }
+    }
+
+    fn key(&self) -> (JavaString, JavaString) {
+        (self.namespace.as_str().into(), self.name.as_str().into())
+    }
+
+    fn holder<'a, H: AttachmentHost + ?Sized>(
+        &self,
+        host: &'a mut H,
+        holder: Holder,
+    ) -> Result<&'a mut Attachments, AttachmentError> {
+        if !self.scope.matches(holder) {
+            return Err(AttachmentError::ScopeMismatch);
+        }
+        host.attachments(holder)
+    }
+
+    /// Read an existing NBT value without inserting a default.
+    pub fn get<H: AttachmentHost + ?Sized>(
+        &self,
+        host: &mut H,
+        holder: Holder,
+    ) -> Result<Option<Compound>, AttachmentError> {
+        self.holder(host, holder)?.get_dynamic(self)
+    }
+
+    /// Replace an NBT value and queue it for sync if requested.
+    pub fn set<H: AttachmentHost + ?Sized>(
+        &self,
+        host: &mut H,
+        holder: Holder,
+        value: Compound,
+    ) -> Result<(), AttachmentError> {
+        self.holder(host, holder)?.set_dynamic(self, value)
+    }
+
+    /// Remove an existing NBT value and queue a synced removal if requested.
+    pub fn remove<H: AttachmentHost + ?Sized>(
+        &self,
+        host: &mut H,
+        holder: Holder,
+    ) -> Result<Option<Compound>, AttachmentError> {
+        self.holder(host, holder)?.remove_dynamic(self)
+    }
 }
 
 /// The optional on-disk representation of an attachment.
@@ -202,9 +380,32 @@ fn raw_value(raw: &Compound) -> Option<&Compound> {
     }
 }
 
+#[derive(Clone)]
+struct DynamicValue {
+    value: Compound,
+    persistent: bool,
+    synced: bool,
+    copy_on_death: bool,
+}
+
+impl DynamicValue {
+    fn envelope(&self) -> Compound {
+        let mut result = Compound::new();
+        result.insert("value".into(), Tag::Compound(self.value.clone()));
+        if self.copy_on_death {
+            result.insert("copy_on_death".into(), Tag::Byte(1));
+        }
+        if self.synced {
+            result.insert("sync".into(), Tag::Byte(1));
+        }
+        result
+    }
+}
+
 enum Entry {
     Raw(Compound),
     Decoded(Box<dyn Value>),
+    Dynamic(DynamicValue),
 }
 impl Entry {
     /// The encoded value, as clients receive it.
@@ -212,12 +413,14 @@ impl Entry {
         match self {
             Self::Raw(raw) => raw_value(raw),
             Self::Decoded(value) => value.encoded(),
+            Self::Dynamic(value) => Some(&value.value),
         }
     }
     fn is_synced(&self) -> bool {
         match self {
             Self::Raw(raw) => matches!(raw.get(&"sync".into()), Some(Tag::Byte(1))),
             Self::Decoded(value) => value.sync(),
+            Self::Dynamic(value) => value.synced,
         }
     }
 }
@@ -226,6 +429,7 @@ impl Clone for Entry {
         match self {
             Self::Raw(value) => Self::Raw(value.clone()),
             Self::Decoded(value) => Self::Decoded(value.clone_box()),
+            Self::Dynamic(value) => Self::Dynamic(value.clone()),
         }
     }
 }
@@ -275,6 +479,7 @@ impl Attachments {
             let value = match entry {
                 Entry::Raw(value) => Some(value.clone()),
                 Entry::Decoded(value) => envelope(value.as_ref()),
+                Entry::Dynamic(value) => value.persistent.then(|| value.envelope()),
             };
             if let Some(value) = value {
                 let tag = raw
@@ -292,6 +497,13 @@ impl Attachments {
     pub fn copy_on_death(&self) -> Result<Self, AttachmentError> {
         let mut copy = Self::default();
         for (key, entry) in &self.entries {
+            if let Entry::Dynamic(value) = entry {
+                if value.copy_on_death {
+                    copy.entries
+                        .insert(key.clone(), Entry::Dynamic(value.clone()));
+                }
+                continue;
+            }
             let encoded = match entry {
                 Entry::Raw(raw)
                     if matches!(raw.get(&"copy_on_death".into()), Some(Tag::Byte(1))) =>
@@ -309,6 +521,80 @@ impl Attachments {
         }
         Ok(copy)
     }
+
+    fn get_dynamic(
+        &mut self,
+        ty: &DynamicAttachmentType,
+    ) -> Result<Option<Compound>, AttachmentError> {
+        let key = ty.key();
+        if self
+            .raw
+            .get(&key.0)
+            .is_some_and(|tag| !matches!(tag, Tag::Compound(_)))
+        {
+            return Err(AttachmentError::InvalidNamespace);
+        }
+        let value = match self.entries.get(&key) {
+            Some(Entry::Raw(raw)) => raw_value(raw).ok_or(AttachmentError::Decode)?.clone(),
+            Some(Entry::Decoded(_)) => return Err(AttachmentError::TypeMismatch),
+            Some(Entry::Dynamic(value)) => value.value.clone(),
+            None => {
+                if self.raw.get(&key.0).is_some_and(
+                    |tag| matches!(tag, Tag::Compound(names) if names.contains_key(&key.1)),
+                ) {
+                    return Err(AttachmentError::Decode);
+                }
+                return Ok(None);
+            }
+        };
+        self.insert_dynamic(ty, value.clone());
+        Ok(Some(value))
+    }
+
+    fn insert_dynamic(&mut self, ty: &DynamicAttachmentType, value: Compound) {
+        let key = ty.key();
+        self.entries.insert(
+            key.clone(),
+            Entry::Dynamic(DynamicValue {
+                value,
+                persistent: ty.persistent,
+                synced: ty.synced,
+                copy_on_death: ty.copy_on_death,
+            }),
+        );
+        if let Some(Tag::Compound(names)) = self.raw.get_mut(&key.0) {
+            names.remove(&key.1);
+        }
+    }
+
+    fn set_dynamic(
+        &mut self,
+        ty: &DynamicAttachmentType,
+        value: Compound,
+    ) -> Result<(), AttachmentError> {
+        self.get_dynamic(ty)?;
+        self.insert_dynamic(ty, value);
+        if ty.synced {
+            self.pending.insert(ty.key());
+        }
+        Ok(())
+    }
+
+    fn remove_dynamic(
+        &mut self,
+        ty: &DynamicAttachmentType,
+    ) -> Result<Option<Compound>, AttachmentError> {
+        let value = self.get_dynamic(ty)?;
+        if value.is_some() {
+            let key = ty.key();
+            self.entries.remove(&key);
+            if ty.synced {
+                self.pending.insert(key);
+            }
+        }
+        Ok(value)
+    }
+
     /// Whether a value is stored, saved or set, without decoding or inserting it.
     pub fn has<T: Clone + Send + Sync + 'static>(&self, ty: &AttachmentType<T>) -> bool {
         self.entries
@@ -340,6 +626,7 @@ impl Attachments {
                     .map(Some)
                     .ok_or(AttachmentError::TypeMismatch);
             }
+            Some(Entry::Dynamic(_)) => return Err(AttachmentError::TypeMismatch),
             None => return Ok(None),
         };
         self.insert_decoded(ty, value.clone())?;
@@ -379,6 +666,12 @@ impl Attachments {
         {
             return Err(AttachmentError::TypeMismatch);
         }
+        if matches!(
+            self.entries.get(&(ty.namespace.into(), ty.name.into())),
+            Some(Entry::Dynamic(_))
+        ) {
+            return Err(AttachmentError::TypeMismatch);
+        }
         self.insert_decoded(ty, value)?;
         if ty.sync {
             self.pending.insert((ty.namespace.into(), ty.name.into()));
@@ -394,6 +687,12 @@ impl Attachments {
         &mut self,
         ty: &AttachmentType<T>,
     ) -> Result<Option<T>, AttachmentError> {
+        if matches!(
+            self.entries.get(&(ty.namespace.into(), ty.name.into())),
+            Some(Entry::Dynamic(_))
+        ) {
+            return Err(AttachmentError::TypeMismatch);
+        }
         if !self.has(ty) {
             return Ok(None);
         }
@@ -472,6 +771,9 @@ impl Attachments {
     /// Client side: keep what the server sent, decoded by the next `get`.
     pub fn apply_sync(&mut self, change: AttachmentSync) {
         let key = (change.namespace, change.name);
+        if let Some(Tag::Compound(names)) = self.raw.get_mut(&key.0) {
+            names.remove(&key.1);
+        }
         match change.value {
             Some(value) => {
                 let raw = [("value".into(), Tag::Compound(value))].into();
@@ -487,6 +789,256 @@ impl Attachments {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct DynamicHost(Attachments);
+
+    impl AttachmentHost for DynamicHost {
+        fn attachments(&mut self, _: Holder) -> Result<&mut Attachments, AttachmentError> {
+            Ok(&mut self.0)
+        }
+    }
+
+    fn dynamic_policy(scope: AttachmentScope) -> DynamicAttachmentPolicy {
+        DynamicAttachmentPolicy {
+            scope,
+            persistent: true,
+            synced: false,
+            copy_on_death: false,
+        }
+    }
+
+    #[test]
+    fn dynamic_definitions_check_owner_identifier_and_holder_scope() {
+        let mut registry = DynamicAttachmentRegistry::default();
+        let policy = dynamic_policy(AttachmentScope::Player);
+        let definition = registry
+            .define("test", "test:stats/health", policy)
+            .unwrap();
+        assert!(registry.get("test", "test:stats/health").is_some());
+        assert!(registry.get("other", "test:stats/health").is_none());
+        assert!(matches!(
+            registry.define("test", "test:stats/health", policy),
+            Err(AttachmentError::DuplicateType)
+        ));
+        assert!(matches!(
+            registry.define("other", "test:value", policy),
+            Err(AttachmentError::WrongOwner)
+        ));
+        for invalid in [
+            "test",
+            "test:",
+            "test:../value",
+            "test:has space",
+            "Test:value",
+        ] {
+            assert!(matches!(
+                registry.define("test", invalid, policy),
+                Err(AttachmentError::InvalidId)
+            ));
+        }
+        let mut host = DynamicHost(Attachments::default());
+        assert_eq!(definition.get(&mut host, Holder::Player(1)), Ok(None));
+        assert_eq!(
+            definition.get(&mut host, Holder::Entity(1)),
+            Err(AttachmentError::ScopeMismatch)
+        );
+    }
+
+    #[test]
+    fn dynamic_flags_independently_control_persistence_copy_and_sync() {
+        for persistent in [false, true] {
+            for synced in [false, true] {
+                for copy_on_death in [false, true] {
+                    let mut registry = DynamicAttachmentRegistry::default();
+                    let definition = registry
+                        .define(
+                            "test",
+                            "test:data",
+                            DynamicAttachmentPolicy {
+                                scope: AttachmentScope::Player,
+                                persistent,
+                                synced,
+                                copy_on_death,
+                            },
+                        )
+                        .unwrap();
+                    let mut host = DynamicHost(Attachments::default());
+                    let value = encode(&42).unwrap();
+                    definition
+                        .set(&mut host, Holder::Player(1), value.clone())
+                        .unwrap();
+                    assert_eq!(
+                        definition.get(&mut host, Holder::Player(1)),
+                        Ok(Some(value.clone()))
+                    );
+                    let change_count = if synced { 1 } else { 0 };
+                    assert_eq!(host.0.synced().len(), change_count);
+                    assert_eq!(host.0.take_sync_changes().len(), change_count);
+                    let mut loaded = DynamicHost(Attachments::from_nbt(host.0.to_nbt()));
+                    assert_eq!(
+                        definition.get(&mut loaded, Holder::Player(1)),
+                        Ok(persistent.then(|| value.clone()))
+                    );
+                    let mut copied_loaded = DynamicHost(loaded.0.copy_on_death().unwrap());
+                    assert_eq!(
+                        definition.get(&mut copied_loaded, Holder::Player(2)),
+                        Ok((persistent && copy_on_death).then(|| value.clone()))
+                    );
+                    let mut copied = DynamicHost(host.0.copy_on_death().unwrap());
+                    assert_eq!(
+                        definition.get(&mut copied, Holder::Player(2)),
+                        Ok(copy_on_death.then(|| value.clone()))
+                    );
+                    assert_eq!(
+                        definition.remove(&mut host, Holder::Player(1)),
+                        Ok(Some(value))
+                    );
+                    let changes = host.0.take_sync_changes();
+                    assert_eq!(changes.len(), change_count);
+                    if synced {
+                        assert!(changes[0].value.is_none());
+                    }
+                    assert_eq!(definition.get(&mut host, Holder::Player(1)), Ok(None));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn dynamic_reconcile_applies_current_policy_to_saved_values() {
+        let holder = Holder::Player(1);
+        let mut original = DynamicAttachmentRegistry::default();
+        let definition = original
+            .define(
+                "test",
+                "test:profile",
+                DynamicAttachmentPolicy {
+                    scope: AttachmentScope::Player,
+                    persistent: true,
+                    synced: true,
+                    copy_on_death: true,
+                },
+            )
+            .unwrap();
+        let mut host = DynamicHost(Attachments::default());
+        definition.set(&mut host, holder, encode(&42).unwrap()).unwrap();
+        let mut loaded = DynamicHost(Attachments::from_nbt(host.0.to_nbt()));
+
+        let mut current = DynamicAttachmentRegistry::default();
+        let current_definition = current
+            .define(
+                "test",
+                "test:profile",
+                DynamicAttachmentPolicy {
+                    scope: AttachmentScope::Player,
+                    persistent: true,
+                    synced: false,
+                    copy_on_death: false,
+                },
+            )
+            .unwrap();
+        current.reconcile(&mut loaded, holder).unwrap();
+        assert!(loaded.0.synced().is_empty());
+        let mut copied = DynamicHost(loaded.0.copy_on_death().unwrap());
+        assert_eq!(current_definition.get(&mut copied, holder), Ok(None));
+        assert_eq!(
+            current_definition.get(&mut loaded, holder),
+            Ok(Some(encode(&42).unwrap()))
+        );
+
+        let mut transient = DynamicAttachmentRegistry::default();
+        let transient_definition = transient
+            .define(
+                "test",
+                "test:profile",
+                DynamicAttachmentPolicy {
+                    scope: AttachmentScope::Player,
+                    persistent: false,
+                    synced: false,
+                    copy_on_death: false,
+                },
+            )
+            .unwrap();
+        transient.reconcile(&mut loaded, holder).unwrap();
+        let mut reloaded = DynamicHost(Attachments::from_nbt(loaded.0.to_nbt()));
+        assert_eq!(transient_definition.get(&mut reloaded, holder), Ok(None));
+    }
+
+    #[test]
+    fn dynamic_sync_delivers_snapshots_updates_and_removals() {
+        let mut registry = DynamicAttachmentRegistry::default();
+        let definition = registry
+            .define(
+                "test",
+                "test:entity_data",
+                DynamicAttachmentPolicy {
+                    scope: AttachmentScope::Entity,
+                    persistent: true,
+                    synced: true,
+                    copy_on_death: false,
+                },
+            )
+            .unwrap();
+        let holder = Holder::Entity(7);
+        let mut server = DynamicHost(Attachments::default());
+        let mut client = DynamicHost(Attachments::default());
+        definition.set(&mut server, holder, encode(&1).unwrap()).unwrap();
+        let mut reloaded_client = DynamicHost(Attachments::from_nbt(server.0.to_nbt()));
+        for change in server.0.synced() {
+            client.0.apply_sync(change);
+        }
+        assert_eq!(definition.get(&mut client, holder), Ok(Some(encode(&1).unwrap())));
+        server.0.take_sync_changes();
+        definition.set(&mut server, holder, encode(&2).unwrap()).unwrap();
+        for change in server.0.take_sync_changes() {
+            client.0.apply_sync(change);
+        }
+        assert_eq!(definition.get(&mut client, holder), Ok(Some(encode(&2).unwrap())));
+        definition.remove(&mut server, holder).unwrap();
+        for change in server.0.take_sync_changes() {
+            reloaded_client.0.apply_sync(change.clone());
+            client.0.apply_sync(change);
+        }
+        assert_eq!(definition.get(&mut client, holder), Ok(None));
+        let mut saved_client = DynamicHost(Attachments::from_nbt(reloaded_client.0.to_nbt()));
+        assert_eq!(definition.get(&mut saved_client, holder), Ok(None));
+    }
+
+    #[test]
+    fn dynamic_values_reject_typed_collisions_and_preserve_malformed_data() {
+        let mut registry = DynamicAttachmentRegistry::default();
+        let definition = registry
+            .define("test", "test:counter", dynamic_policy(AttachmentScope::Level))
+            .unwrap();
+        let mut host = DynamicHost(Attachments::default());
+        host.0.set(&COUNTER, 1).unwrap();
+        assert_eq!(
+            definition.get(&mut host, Holder::Level),
+            Err(AttachmentError::TypeMismatch)
+        );
+        assert_eq!(
+            definition.set(&mut host, Holder::Level, encode(&2).unwrap()),
+            Err(AttachmentError::TypeMismatch)
+        );
+        assert_eq!(host.0.get(&COUNTER), Ok(1));
+        let mut host = DynamicHost(Attachments::default());
+        definition
+            .set(&mut host, Holder::Level, encode(&2).unwrap())
+            .unwrap();
+        assert_eq!(host.0.get(&COUNTER), Err(AttachmentError::TypeMismatch));
+        assert_eq!(host.0.remove(&COUNTER), Err(AttachmentError::TypeMismatch));
+        let raw: Compound = [(
+            "test".into(),
+            Tag::Compound([("counter".into(), Tag::Int(5))].into()),
+        )]
+        .into();
+        let mut host = DynamicHost(Attachments::from_nbt(raw.clone()));
+        assert_eq!(
+            definition.set(&mut host, Holder::Level, encode(&3).unwrap()),
+            Err(AttachmentError::Decode)
+        );
+        assert_eq!(host.0.to_nbt(), raw);
+    }
 
     fn encode(n: &i32) -> Result<Compound, AttachmentError> {
         Ok([(JavaString::from("value"), Tag::Int(*n))].into())

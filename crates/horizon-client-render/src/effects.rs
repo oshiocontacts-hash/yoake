@@ -378,6 +378,11 @@ impl PlayerEffects {
             if let Some((a, id, amount, op)) = effect_modifier(e.id) {
                 out.push((a, id, amount * f64::from(e.amplifier + 1), op));
             }
+            if potions::is_mod_effect(e.id) {
+                for (a, id, amount, op) in potions::mod_effect_modifiers(e.id) {
+                    out.push((a, id, amount * f64::from(e.amplifier + 1), op));
+                }
+            }
         }
         out
     }

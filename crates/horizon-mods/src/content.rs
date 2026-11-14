@@ -382,15 +382,36 @@ pub enum EffectCategory {
 }
 
 /// A mob effect the mod adds: what `new MobEffect(category, color)` takes.
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct MobEffect {
     /// `<mod id>:<path>`.
     #[serde(skip)]
     pub id: String,
     pub category: EffectCategory,
-    /// RGB, `0x000000` to `0xFFFFFF`.
+    /// RGB, `0x000000` to `0xFFFFFF`; the colour of its particles and potion.
     pub color: u32,
+    /// Attribute modifiers the effect adds while it lasts, scaled by
+    /// `amplifier + 1` (`MobEffect.addAttributeModifier`).
+    #[serde(default)]
+    pub attributes: Vec<EffectAttribute>,
+}
+
+/// One attribute modifier of a mob effect.
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct EffectAttribute {
+    /// A vanilla attribute id, `minecraft:movement_speed` or a bare name.
+    pub attribute: String,
+    /// The amount at amplifier 0.
+    pub amount: f64,
+    /// `add_value`, `add_multiplied_base` or `add_multiplied_total`.
+    #[serde(default = "add_value")]
+    pub operation: String,
+}
+
+fn add_value() -> String {
+    "add_value".to_owned()
 }
 
 /// the vanilla entity types a mod's type may copy: thrown item
@@ -697,6 +718,7 @@ impl Content {
         let mut tabs = Vec::new();
         let mut types = Vec::new();
         let mut menus = Vec::new();
+        let mut data_json = Vec::new();
         for name in &self.files {
             let mut parts = name.splitn(3, '/');
             let (top, namespace, rest) = (
@@ -715,6 +737,13 @@ impl Content {
                 return Err(format!(
                     "{name}: a mod adds files in its own namespaces ({top}/{id}/ and those listed in namespaces), to vanilla and convention (c) tags, or to vanilla's atlases"
                 ));
+            }
+            if top == "data"
+                && owned
+                && (rest.starts_with("recipe/") || rest.starts_with("loot_table/"))
+                && rest.ends_with(".json")
+            {
+                data_json.push(name.clone());
             }
             if !own && top == "data" && rest.starts_with("horizon/") {
                 return Err(format!(
@@ -750,6 +779,16 @@ impl Content {
                 return Err(format!(
                     "{name}: data/{id}/horizon/ holds block/, item/, mob_effect/, creative_tab/, entity_type/ and menu/*.json only"
                 ));
+            }
+        }
+        if !data_json.is_empty() {
+            let mut reader = self.reader()?;
+            for name in data_json {
+                let value: serde_json::Value = serde_json::from_slice(&reader.read(&name)?)
+                    .map_err(|e| format!("{name}: {e}"))?;
+                if !value.is_object() {
+                    return Err(format!("{name}: expected a JSON object"));
+                }
             }
         }
         let mut ids = BTreeSet::new();
@@ -816,6 +855,20 @@ impl Content {
                 serde_json::from_slice(&self.file(&name)?).map_err(|e| format!("{name}: {e}"))?;
             if file.color > 0xFF_FFFF {
                 return Err(format!("{name}: color is RGB, 0 to 16777215 (0xFFFFFF)"));
+            }
+            for a in &file.attributes {
+                if !matches!(
+                    a.operation.as_str(),
+                    "add_value" | "add_multiplied_base" | "add_multiplied_total"
+                ) {
+                    return Err(format!(
+                        "{name}: operation {:?} is add_value, add_multiplied_base or add_multiplied_total",
+                        a.operation
+                    ));
+                }
+                if !a.amount.is_finite() || a.attribute.is_empty() {
+                    return Err(format!("{name}: an attribute needs a name and a finite amount"));
+                }
             }
             self.effects.push(MobEffect { id: effect, ..file });
         }
@@ -1514,6 +1567,24 @@ capabilities = ["registries"]
     }
 
     #[test]
+    fn mob_effects_take_attribute_modifiers() {
+        let files: &[(&str, &[u8])] = &[(
+            "data/ruby/horizon/mob_effect/swift.json",
+            br#"{"category": "beneficial", "color": 255, "attributes": [{"attribute": "minecraft:movement_speed", "amount": 0.2, "operation": "add_multiplied_total"}, {"attribute": "minecraft:max_health", "amount": 2}]}"#,
+        )];
+        let content = hmod("effect-attrs", MANIFEST_TEXT, files).unwrap();
+        let attrs = &content.effects[0].attributes;
+        assert_eq!(attrs.len(), 2);
+        assert_eq!(attrs[1].operation, "add_value");
+        let bad: &[(&str, &[u8])] = &[(
+            "data/ruby/horizon/mob_effect/bad.json",
+            br#"{"category": "neutral", "color": 1, "attributes": [{"attribute": "movement_speed", "amount": 1, "operation": "mul"}]}"#,
+        )];
+        let e = hmod("effect-operation", MANIFEST_TEXT, bad).unwrap_err();
+        assert!(e.contains("operation"), "{e}");
+    }
+
+    #[test]
     fn menu_types_take_slots_data_slots_and_results() {
         let files: &[(&str, &[u8])] = &[
             (
@@ -2088,6 +2159,26 @@ capabilities = ["registries"]
         // A namespace it does not list is still outside.
         let other: &[(&str, &[u8])] = &[("data/other/structure/a.nbt", b"nbt")];
         assert!(hmod("listed-other", &manifest, other).is_err());
+    }
+
+    #[test]
+    fn recipe_and_loot_json_are_checked_in_owned_namespaces() {
+        let manifest = format!("{MANIFEST_TEXT}namespaces = ['kaisyn']\n");
+        let valid: &[(&str, &[u8])] = &[
+            ("data/ruby/recipe/tools/gem.json", br#"{"type":"minecraft:crafting_shapeless"}"#),
+            ("data/kaisyn/loot_table/chests/gems.json", br#"{"pools":[]}"#),
+        ];
+        assert!(hmod("valid-data-json", &manifest, valid).is_ok());
+
+        let invalid: &[(&str, &[u8], &str)] = &[
+            ("data/ruby/recipe/broken.json", b"{", "EOF"),
+            ("data/kaisyn/loot_table/blocks/ore.json", b"[]", "expected a JSON object"),
+        ];
+        for &(path, bytes, reason) in invalid {
+            let error = hmod("invalid-data-json", &manifest, &[(path, bytes)]).unwrap_err();
+            assert!(error.contains(path), "{error}");
+            assert!(error.contains(reason), "{error}");
+        }
     }
 
     #[test]
