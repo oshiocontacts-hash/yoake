@@ -161,3 +161,26 @@ fn native_and_wasm_code_cannot_share_a_package() {
     let text = [program(), "\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/a.wasm\"\n".to_owned()].concat();
     assert!(Manifest::parse(&text).unwrap_err().contains("not both"));
 }
+
+#[test]
+fn wasm_permissions_are_known_and_need_a_server_module() {
+    let parse = |extra: &str| Manifest::parse(&with_wasm(&format!("
+[wasm]
+interface = \"1.0\"
+client = \"bin/wasm/a.wasm\"
+server = \"bin/wasm/s.wasm\"
+{extra}")));
+    let manifest = parse("permissions = [\"service.commands\"]
+").unwrap();
+    assert!(manifest.wasm.as_ref().unwrap().has_permission("service.commands"));
+    assert!(!parse("").unwrap().wasm.unwrap().has_permission("service.commands"));
+    assert!(parse("permissions = [\"service.everything\"]
+").unwrap_err().contains("unknown wasm permission"));
+    let client_only = with_wasm("
+[wasm]
+interface = \"1.0\"
+client = \"bin/wasm/a.wasm\"
+permissions = [\"service.commands\"]
+");
+    assert!(Manifest::parse(&client_only).unwrap_err().contains("server module"));
+}

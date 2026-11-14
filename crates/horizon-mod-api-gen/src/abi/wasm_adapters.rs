@@ -346,11 +346,14 @@ impl<'a> Emitter<'a> {
     fn from_wit(&mut self, shape: &Shape, v: &str) -> Res<String> {
         Ok(match shape {
             Shape::Unsupported => return Err("a type with no WIT mapping".into()),
+            // The answer's own validator: a guest's float must be finite, a string and a list bounded.
             Shape::Scalar { rust } => match *rust {
                 "usize" | "isize" => format!("Some({v} as {rust})"),
+                "f32" => format!("finite_f32({v})"),
+                "f64" => format!("finite_f64({v})"),
                 _ => format!("Some({v})"),
             },
-            Shape::Str(StrKind::Text) => format!("Some({v})"),
+            Shape::Str(StrKind::Text) => format!("bounded_string({v})"),
             Shape::Str(StrKind::Path) => format!("Some(std::path::PathBuf::from({v}))"),
             Shape::Wide { signed } => {
                 let ty = if *signed { "i128" } else { "u128" };
@@ -358,7 +361,12 @@ impl<'a> Emitter<'a> {
             }
             Shape::Glam { rust, count } => {
                 let parts = (0..*count).map(|i| format!("t.{i}")).collect::<Vec<_>>().join(", ");
-                format!("{{ let t = {v}; Some({rust}::from_array([{parts}])) }}")
+                let name = rust.strip_prefix("glam::").unwrap_or(rust);
+                if ["Vec", "DVec", "Quat", "DQuat"].iter().any(|prefix| name.starts_with(prefix)) {
+                    format!("{{ let t = {v}; Some({rust}::from_array([{parts}])).filter(|g| g.is_finite()) }}")
+                } else {
+                    format!("{{ let t = {v}; Some({rust}::from_array([{parts}])) }}")
+                }
             }
             Shape::Handle => return Err("an opaque handle cannot be answered".into()),
             Shape::Tag => format!("nbt_tag_from(&{v})"),
@@ -385,7 +393,7 @@ impl<'a> Emitter<'a> {
                     ListKind::Array(_) => "Vec<_>".to_owned(),
                     ListKind::Slice => return Err("a slice cannot be answered".into()),
                 };
-                let base = format!("{v}.into_iter().map(|{x}| {conv}).collect::<Option<{collect}>>()");
+                let base = format!("{v}.into_iter().map(|{x}| {conv}).collect::<Option<{collect}>>().filter(|list| list.len() <= MAX_ANSWER_LIST)");
                 match kind {
                     ListKind::Array(_) => format!("{base}.and_then(|l| l.try_into().ok())"),
                     _ => base,
@@ -414,7 +422,7 @@ impl<'a> Emitter<'a> {
                     MapKind::BTreeMap => "std::collections::BTreeMap<_, _>",
                     MapKind::Other => return Err("an unsupported map type cannot be answered".into()),
                 };
-                format!("{v}.into_iter().map(|({k}, {x})| Some((({key})?, ({value})?))).collect::<Option<{collect}>>()")
+                format!("{v}.into_iter().map(|({k}, {x})| Some((({key})?, ({value})?))).collect::<Option<{collect}>>().filter(|map| map.len() <= MAX_ANSWER_LIST)")
             }
             Shape::Wrap(inner, kind) => {
                 let inner = self.from_wit(inner, v)?;
@@ -423,7 +431,7 @@ impl<'a> Emitter<'a> {
                     WrapKind::Rc => format!("({inner}).map(std::rc::Rc::new)"),
                     WrapKind::Arc => format!("({inner}).map(std::sync::Arc::new)"),
                     WrapKind::Cow => format!("({inner}).map(std::borrow::Cow::Owned)"),
-                    WrapKind::StaticRef => format!("({inner}).map(leak_static)"),
+                    WrapKind::StaticRef => format!("({inner}).and_then(leak_static)"),
                     WrapKind::Ref => return Err("a borrowed value cannot be answered".into()),
                 }
             }
@@ -439,7 +447,10 @@ impl<'a> Emitter<'a> {
                     return Err("a type with lifetimes cannot be answered".into());
                 }
                 let inner = self.from_wit(inner, v)?;
-                if *public {
+                if *public && rust.name == "BlockStateId" {
+                    // A block state the registry does not have must never reach the world.
+                    format!("({inner}).map({}).filter(|state| valid_block_state(state.0))", rust_path(rust, self.exports))
+                } else if *public {
                     format!("({inner}).map({})", rust_path(rust, self.exports))
                 } else if let Some((_, _, new)) = NEWTYPE_ACCESS.iter().find(|(name, _, _)| *name == rust.name) {
                     format!("({inner}).map({}::{new})", rust_path(rust, self.exports))
@@ -707,6 +718,9 @@ struct Built {
     method: String,
 }
 
+/// The client mod's guest call, skipped (never made with an empty stand-in) when an NBT argument
+/// failed to encode.
+
 /// An event field is `&mut` of a non-scalar (a live object or an aggregate) rather than a value.
 fn field_is_mut_ref(ty: &syn::Type) -> bool {
     matches!(ty, syn::Type::Reference(reference) if reference.mutability.is_some())
@@ -735,6 +749,11 @@ fn build_hook(
     let ret = method.ret.clone();
     // The answer's default and how a guest's answer is folded in.
     let mut body = String::new();
+    if plan.name == "server_about_to_start" {
+        // The server runs one world at a time and a guest keeps its state in its instance: each
+        // world's server starts with a fresh one (nothing happens before the first hook ran).
+        body.push_str("self.reset_server(); ");
+    }
     let (default, out_kind) = match (plan.contract.as_str(), ret.as_deref()) {
         ("cancel", Some(r)) if r.trim() == "Flow" => ("Flow::Continue".to_owned(), "cancel"),
         ("replace", Some(_)) => ("None".to_owned(), "replace"),
@@ -804,7 +823,7 @@ fn build_hook(
         let call = format!("call_{}", ident(&super::wit_full::kebab(name)));
         let _ = write!(
             block,
-            "let r = self.with_{side}({ordinal_const}, {access}, {batch}, |g| g.dispatch({name:?}, |e, s| e.yoake_mods_{side}_hooks().{call}(s{args}))); "
+            "let r = if take_encode_failure() {{ note_encode_skip({ordinal_const}); None }} else {{ self.with_{side}({ordinal_const}, {access}, {batch}, |g| g.dispatch({name:?}, |e, s| e.yoake_mods_{side}_hooks().{call}(s{args}))) }}; "
         );
         // The answer.
         let host_ref = match method.host {
@@ -1011,6 +1030,7 @@ pub(crate) fn adapters_for(full: &FullWit, hooks_source: &str, render_source: &s
     let mut emitter = Emitter { defs: &full.defs, exports, helpers: String::new(), forward: BTreeMap::new(), reverse: BTreeMap::new(), update: BTreeMap::new(), depth: 0, notes: Vec::new() };
     let mut hooks_impl = String::new();
     let mut render_impl = String::new();
+    let mut render_ordinals: Vec<usize> = Vec::new();
     let mut wired = Vec::new();
     let mut partial = Vec::new();
     let mut unsupported = Vec::new();
@@ -1040,6 +1060,7 @@ pub(crate) fn adapters_for(full: &FullWit, hooks_source: &str, render_source: &s
                     partial.push((plan.name.clone(), emitter.notes.join("; ")));
                 }
                 if method.in_render {
+                    render_ordinals.push(ordinal);
                     render_impl.push_str(&built.method);
                 } else {
                     hooks_impl.push_str(&built.method);
@@ -1054,9 +1075,11 @@ pub(crate) fn adapters_for(full: &FullWit, hooks_source: &str, render_source: &s
     let _ = writeln!(code, "pub(crate) const HOOK_COUNT: usize = {};", full.plans.len());
     let unwired = unsupported.iter().map(|(name, _)| format!("{name:?}")).collect::<Vec<_>>().join(", ");
     let _ = writeln!(code, "/// Hooks with no adapter: a guest that subscribes to one is refused at load.\npub(crate) const UNWIRED: &[&str] = &[{unwired}];");
+    let render_list = render_ordinals.iter().map(|ordinal| ordinal.to_string()).collect::<Vec<_>>().join(", ");
+    let _ = writeln!(code, "/// The ordinals of the hooks of the render pass: a package takes part in it only when its client module subscribed to one.\npub(crate) const RENDER_HOOKS: &[usize] = &[{render_list}];");
     code.push_str(&helpers);
     let _ = writeln!(code, "impl Hooks for FullMod {{");
-    code.push_str("fn render(&self) -> Option<&dyn RenderHooks> { Some(self) }\n");
+    code.push_str("fn render(&self) -> Option<&dyn RenderHooks> { if self.render_wanted() { Some(self) } else { None } }\n");
     code.push_str(&hooks_impl);
     code.push_str("}\n");
     let _ = writeln!(code, "impl RenderHooks for FullMod {{");
@@ -1064,6 +1087,12 @@ pub(crate) fn adapters_for(full: &FullWit, hooks_source: &str, render_source: &s
     code.push_str("}\n");
     syn::parse_file(&code).map_err(|e| format!("generated WASM adapters: {e}"))?;
     Ok(WasmAdapters { code, wired, unsupported, partial, hooks: names })
+}
+
+/// The adapters of the workspace as the generator's tests and the committed file see them.
+#[cfg(test)]
+pub(super) fn generated_for_tests() -> WasmAdapters {
+    tests::generated()
 }
 
 #[cfg(test)]

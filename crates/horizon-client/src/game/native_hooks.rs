@@ -10961,6 +10961,10 @@ impl Game<'_> {
     }
     /// A native mod's command.
     pub(super) fn client_mod_command(&mut self, command: &str) -> bool {
+        // A WebAssembly guest's command never runs another mod's command hook.
+        if crate::mod_api::in_guest_command() {
+            return false;
+        }
         let mut ran = false;
         self.native_command(command, &mut ran);
         ran

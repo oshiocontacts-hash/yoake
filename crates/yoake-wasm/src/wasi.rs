@@ -2,7 +2,10 @@
 //!
 //! Provided: stdout and stderr (collected for the mod's log), an empty stdin, an empty
 //! environment, no arguments, wall and monotonic clocks, random, and `exit` (which traps the
-//! mod). The filesystem interfaces are linked (std imports them unconditionally) but the guest
+//! mod). A guest can never block a host thread: the monotonic clock's `subscribe-duration` and
+//! `subscribe-instant` are our own ([`BoundedClock`]): a wait that is not already (nearly) due
+//! traps the mod instead of making `pollable.block()` or `thread::sleep` sleep the host thread, and
+//! every other pollable a guest can hold (the output streams, the empty stdin) is always ready. The filesystem interfaces are linked (std imports them unconditionally) but the guest
 //! has **no preopened directory**, so there is nothing it can open. Sockets are neither
 //! importable nor linked.
 
@@ -13,8 +16,11 @@ use std::task::{Context, Poll};
 
 use bytes::Bytes;
 use tokio::io::AsyncWrite;
-use wasmtime::component::Linker;
+use wasmtime::component::{HasData, Linker, Resource};
 use wasmtime_wasi::async_trait;
+use wasmtime_wasi::clocks::WasiClocksCtxView;
+use wasmtime_wasi::p2::bindings::clocks::monotonic_clock;
+use wasmtime_wasi::p2::{DynPollable, subscribe};
 use wasmtime_wasi::cli::{IsTerminal, StdoutStream};
 use wasmtime_wasi::p2::{OutputStream as P2OutputStream, Pollable, StreamResult};
 use wasmtime_wasi::WasiView;
@@ -47,6 +53,58 @@ pub const WASI_IMPORT_INTERFACES: &[&str] = &[
 pub(crate) fn allowed_import(name: &str) -> bool {
     let Some((interface, version)) = name.rsplit_once('@') else { return false };
     version.starts_with("0.2.") && WASI_IMPORT_INTERFACES.contains(&interface)
+}
+
+/// The longest wait a guest may subscribe to; a longer one traps the mod (nothing sleeps).
+pub(crate) const MAX_CLOCK_WAIT_NANOS: u64 = 2_000_000;
+
+/// A pollable that is always ready: the only kind of clock pollable a guest can get.
+struct Ready;
+
+#[async_trait]
+impl Pollable for Ready {
+    async fn ready(&mut self) {}
+}
+
+/// `HasData` of the bounded `wasi:clocks/monotonic-clock`.
+struct BoundedClock;
+
+impl HasData for BoundedClock {
+    type Data<'a> = BoundedClockView<'a>;
+}
+
+struct BoundedClockView<'a>(WasiClocksCtxView<'a>);
+
+impl BoundedClockView<'_> {
+    fn wait(&mut self, nanos: u64) -> wasmtime::Result<Resource<DynPollable>> {
+        if nanos > MAX_CLOCK_WAIT_NANOS {
+            wasmtime::bail!(
+                "the mod waited {} ms on a clock; waiting is not allowed (a hook must not block)",
+                nanos / 1_000_000
+            );
+        }
+        let ready = self.0.table.push(Ready)?;
+        subscribe(self.0.table, ready)
+    }
+}
+
+impl monotonic_clock::Host for BoundedClockView<'_> {
+    fn now(&mut self) -> wasmtime::Result<monotonic_clock::Instant> {
+        monotonic_clock::Host::now(&mut self.0)
+    }
+
+    fn resolution(&mut self) -> wasmtime::Result<monotonic_clock::Instant> {
+        monotonic_clock::Host::resolution(&mut self.0)
+    }
+
+    fn subscribe_instant(&mut self, when: monotonic_clock::Instant) -> wasmtime::Result<Resource<DynPollable>> {
+        let now = monotonic_clock::Host::now(&mut self.0)?;
+        self.wait(when.saturating_sub(now))
+    }
+
+    fn subscribe_duration(&mut self, duration: monotonic_clock::Duration) -> wasmtime::Result<Resource<DynPollable>> {
+        self.wait(duration)
+    }
 }
 
 const MAX_PENDING_BYTES: usize = 64 * 1024;
@@ -188,9 +246,14 @@ pub(crate) fn add_to_linker<T: WasiView>(linker: &mut Linker<T>) -> wasmtime::Re
     use wasmtime_wasi::filesystem::{WasiFilesystem, WasiFilesystemView as _};
     use wasmtime_wasi::p2::bindings::{cli, filesystem, random, sync};
     use wasmtime_wasi::random::WasiRandom;
+    use wasmtime_wasi::clocks::WasiClocksView as _;
 
     // io (sync), clocks, random, stdin/stdout/stderr: the `wasi:http/proxy` subset of WASI.
     wasmtime_wasi::p2::add_to_linker_proxy_interfaces_sync(linker)?;
+    // Replace the stock monotonic clock (whose pollables really sleep) with the bounded one.
+    linker.allow_shadowing(true);
+    monotonic_clock::add_to_linker::<T, BoundedClock>(linker, |t| BoundedClockView(t.clocks()))?;
+    linker.allow_shadowing(false);
     random::insecure::add_to_linker::<T, WasiRandom>(linker, |t| t.ctx().ctx.random())?;
     random::insecure_seed::add_to_linker::<T, WasiRandom>(linker, |t| t.ctx().ctx.random())?;
     cli::exit::add_to_linker::<T, WasiCli>(linker, T::cli)?;

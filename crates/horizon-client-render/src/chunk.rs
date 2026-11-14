@@ -225,6 +225,17 @@ pub const BIOME_STRATEGY: Strategy = Strategy::biomes(8);
 /// (what vanilla servers and clients send), more when content mods add states
 /// past 65,536 (docs/modpacks.md). Set once, before the first chunk.
 static BLOCK_BITS: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(16);
+/// How many states the registry has (0 until a registry is set).
+static BLOCK_STATES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// Block-state ids below this value exist: the registry's size once set, else what the palette's
+/// width can hold.
+pub fn block_state_limit() -> u32 {
+    match BLOCK_STATES.load(std::sync::atomic::Ordering::Relaxed) {
+        0 => 1u32.checked_shl(u32::from(BLOCK_BITS.load(std::sync::atomic::Ordering::Relaxed))).unwrap_or(u32::MAX),
+        count => count,
+    }
+}
 
 /// Block states are `PalettedContainer`s over the registry: vanilla's 16-bit
 /// global palette, wider with enough content mods.
@@ -250,6 +261,7 @@ pub fn free_columns<T: Send + 'static>(columns: T, count: usize) {
 pub fn set_block_states(states: usize) {
     let bits = horizon_core::paletted::ceil_log2(states).max(16);
     BLOCK_BITS.store(bits, std::sync::atomic::Ordering::Relaxed);
+    BLOCK_STATES.store(u32::try_from(states).unwrap_or(u32::MAX), std::sync::atomic::Ordering::Relaxed);
     forget_shared();
 }
 

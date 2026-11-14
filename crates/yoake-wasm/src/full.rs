@@ -59,7 +59,7 @@ impl ClientFullMod {
             .map_err(LoadError::new)?;
         let exports = client_world::ClientFull::new(&mut raw.store, &raw.instance)
             .map_err(|error| LoadError::new(error.to_string()))?;
-        let names = raw.call("init", |store, _| exports.call_init(store).map_err(|error| error.to_string()));
+        let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
         flush_output(&mut raw, |host, line| host.log_output(line));
         let names = names.ok_or_else(|| LoadError::new("mod init trapped or timed out"))?;
         let subscriptions = Subscriptions::for_full_world(FullWorld::Client, names, unwired).map_err(LoadError::new)?;
@@ -89,7 +89,7 @@ impl ClientFullMod {
             return None;
         }
         let exports = &self.exports;
-        let result = self.raw.call(hook, |store, _| call(exports, store).map_err(|error| error.to_string()));
+        let result = self.raw.call(hook, |store, _| call(exports, store).map_err(|error| format!("{error:#}")));
         flush_output(&mut self.raw, |host, line| host.log_output(line));
         result
     }
@@ -245,7 +245,7 @@ impl ServerFullMod {
             .map_err(LoadError::new)?;
         let exports = server_world::ServerFull::new(&mut raw.store, &raw.instance)
             .map_err(|error| LoadError::new(error.to_string()))?;
-        let names = raw.call("init", |store, _| exports.call_init(store).map_err(|error| error.to_string()));
+        let names = raw.call_init(crate::TimeLimits::SERVER, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
         flush_output(&mut raw, |host, line| host.log_output(line));
         let names = names.ok_or_else(|| LoadError::new("mod init trapped or timed out"))?;
         let subscriptions = Subscriptions::for_full_world(FullWorld::Server, names, unwired).map_err(LoadError::new)?;
@@ -274,7 +274,7 @@ impl ServerFullMod {
             return None;
         }
         let exports = &self.exports;
-        let result = self.raw.call(hook, |store, _| call(exports, store).map_err(|error| error.to_string()));
+        let result = self.raw.call(hook, |store, _| call(exports, store).map_err(|error| format!("{error:#}")));
         flush_output(&mut self.raw, |host, line| host.log_output(line));
         result
     }

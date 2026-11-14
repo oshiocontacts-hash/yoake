@@ -411,3 +411,36 @@ fn signed_wasm_is_resolved_and_unsigned_needs_the_developer_flag() {
     fixture.write(&entry.root.join("bin/wasm/sample.wasm"), b"tampered");
     assert!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[key.public()], false).is_empty());
 }
+
+fn server_wasm_source(permissions: &str) -> String {
+    data("server_mod").replace("client = true\nserver = true", "client = false\nserver = true")
+        + &format!("\n[wasm]\ninterface = \"1.0\"\nserver = \"bin/wasm/server.wasm\"\n{permissions}")
+}
+
+#[test]
+fn a_dedicated_server_loads_the_packages_of_its_game_folder_and_a_client_skips_server_only_ones() {
+    let fixture = Fixture::new();
+    let entry = fixture.install(&server_wasm_source(""));
+    fixture.write(&entry.root.join("bin/wasm/server.wasm"), b"\0asm\x01\0\0\0");
+    fixture.list("server_mod 1.2.3\n");
+    let client = Runtime::read_as(&fixture.0, &build(), &[], false);
+    assert!(client.entries.is_empty());
+    assert!(client.startup_log.iter().any(|line| line.contains("server-only")), "{:?}", client.startup_log);
+    let server = Runtime::read_as(&fixture.0, &build(), &[], true);
+    assert_eq!(server.entries.len(), 1, "{:?}", server.startup_log);
+    let found = wasm_mods_from(&server.entries, WasmSide::Server, &[], true);
+    assert_eq!(found.len(), 1);
+    assert!(found[0].full && !found[0].commands);
+    // The client side of that package has no module.
+    assert!(wasm_mods_from(&server.entries, WasmSide::Client, &[], true).is_empty());
+}
+
+#[test]
+fn the_commands_permission_reaches_the_server_module() {
+    let fixture = Fixture::new();
+    let entry = fixture.install(&server_wasm_source("permissions = [\"service.commands\"]\n"));
+    fixture.write(&entry.root.join("bin/wasm/server.wasm"), b"\0asm\x01\0\0\0");
+    let found = wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Server, &[], true);
+    assert_eq!(found.len(), 1);
+    assert!(found[0].commands);
+}

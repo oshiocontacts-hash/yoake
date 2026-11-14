@@ -36,6 +36,13 @@ impl Mod for HelloStd {
         if pressed && key == "EXIT" {
             std::process::exit(3);
         }
+        // The sandbox answers a clock wait of more than a couple of milliseconds with a trap.
+        if pressed && key == "SLEEP" {
+            std::thread::sleep(std::time::Duration::from_secs(10));
+        }
+        if pressed && key == "NAP" {
+            std::thread::sleep(std::time::Duration::from_micros(500));
+        }
     }
 
     fn tick(&mut self) {

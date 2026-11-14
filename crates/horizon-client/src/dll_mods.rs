@@ -133,6 +133,8 @@ pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mo
 
 fn extend_yaks(mods: Mods, identities: &'static [super::NativeMod], entries: &[crate::yak_mods::Installed], allow_unsigned: bool) -> (Mods, &'static [super::NativeMod]) {
     if !entries.iter().any(|entry| entry.manifest.bin.is_some()) { return (mods, identities); }
+    // A dedicated server has no client: native libraries are client code.
+    if crate::yak_mods::dedicated() { return (mods, identities); }
     let build = match crate::yak_mods::Build::current() {
         Ok(build) => build,
         Err(reason) => {
@@ -218,15 +220,24 @@ fn append(mods: Mods, identities: &'static [super::NativeMod], accepted: Vec<Met
     (Arc::from(combined), Box::leak(owned.into_boxed_slice()))
 }
 
+/// The identity text is limited to 64 characters (`mod_list::MAX_TEXT`): a required package shows at
+/// most this many characters of its version, then `#` and 32 hex digits (128 bits) of
+/// `sha256(version, 0, digest)`, so the text fits for any version and still covers all of it.
+const IDENTITY_VERSION_CHARS: usize = 31;
+
 pub(super) fn native_identity(version: &str, digest: Option<&str>) -> (String, super::NativeSide) {
     match digest {
         Some(digest) => {
-            // The identity text is limited to 64 characters (`mod_list::MAX_TEXT`): the digest is cut to
-            // what fits after the version, which still leaves 128 bits or more for a usual version.
-            let room = 64usize.saturating_sub(version.chars().count() + 1).clamp(8, digest.len());
-            (format!("{version}#{}", &digest[..room]), super::NativeSide::Both)
+            use sha2::{Digest, Sha256};
+            let mut hasher = Sha256::new();
+            hasher.update(version.as_bytes());
+            hasher.update([0]);
+            hasher.update(digest.as_bytes());
+            let tag: String = hasher.finalize().iter().take(16).map(|byte| format!("{byte:02x}")).collect();
+            let shown: String = version.chars().take(IDENTITY_VERSION_CHARS).collect();
+            (format!("{shown}#{tag}"), super::NativeSide::Both)
         }
-        None => (version.to_owned(), super::NativeSide::Client),
+        None => (version.chars().take(64).collect(), super::NativeSide::Client),
     }
 }
 
@@ -881,12 +892,37 @@ mod tests {
     fn required_yak_identity_includes_the_verified_binary_digest() {
         let digest = "ab".repeat(32);
         let (version, side) = native_identity("1.2.3", Some(&digest));
-        assert_eq!(version, format!("1.2.3#{}", &digest[..58]));
-        assert!(version.chars().count() <= 64);
+        assert!(version.starts_with("1.2.3#"), "{version}");
+        assert_eq!(version.chars().count(), "1.2.3#".len() + 32);
         assert!(matches!(side, super::super::NativeSide::Both));
+        // The digest and the whole version both count.
+        assert_ne!(version, native_identity("1.2.3", Some(&"cd".repeat(32))).0);
+        assert_ne!(version, native_identity("1.2.4", Some(&digest)).0);
         let (version, side) = native_identity("1.2.3", None);
         assert_eq!(version, "1.2.3");
         assert!(matches!(side, super::super::NativeSide::Client));
+    }
+
+    #[test]
+    fn identities_of_any_version_length_fit_the_wire_limit() {
+        let digest = "ab".repeat(32);
+        for length in [1usize, 31, 32, 55, 56, 64, 65, 200, 5000] {
+            let version = format!("1.0.0-{}", "x".repeat(length));
+            for digest in [Some(digest.as_str()), None] {
+                let (text, _) = native_identity(&version, digest);
+                assert!(text.chars().count() <= 64, "{length}: {}", text.len());
+                // And it survives the identity list's encoder and decoder unchanged.
+                let entry = horizon_protocol::mod_list::Entry {
+                    id: "mod".into(), version: text.clone(), side: horizon_protocol::mod_list::Side::Both, sha256: None,
+                };
+                let decoded = horizon_protocol::mod_list::decode(&horizon_protocol::mod_list::encode(&[entry])).unwrap();
+                assert_eq!(decoded[0].version, text);
+            }
+        }
+        // Two long versions that differ only past the shown prefix keep different identities.
+        let a = native_identity(&format!("1.0.0-{}a", "x".repeat(60)), Some(&digest)).0;
+        let b = native_identity(&format!("1.0.0-{}b", "x".repeat(60)), Some(&digest)).0;
+        assert_ne!(a, b);
     }
 
     #[test]

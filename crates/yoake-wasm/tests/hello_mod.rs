@@ -3,9 +3,6 @@ use std::sync::{Arc, Mutex};
 use yoake_wasm::bindings::yoake::mods::types::{HostError, Point};
 use yoake_wasm::{ClientHost, ClientMod, Sandbox};
 
-const HELLO: &str =
-    "C:/Users/USER/NestgateHorizon/target-wasm/wasm32-wasip2/release/yoake_wasm_hello.wasm";
-
 #[derive(Default, Clone)]
 struct Calls(Arc<Mutex<Vec<String>>>);
 
@@ -25,10 +22,7 @@ impl ClientHost for FakeHost {
 
 #[test]
 fn built_hello_example_loads_and_draws() {
-    let Ok(bytes) = std::fs::read(HELLO) else {
-        eprintln!("skipped: {HELLO} is not built");
-        return;
-    };
+    let Some(bytes) = yoake_wasm::test_guests::load(&yoake_wasm::test_guests::HELLO) else { return };
     let calls = Calls::default();
     let mut guest =
         ClientMod::instantiate(&mut Sandbox::new(), "hello", &bytes, Box::new(FakeHost(calls.clone())))

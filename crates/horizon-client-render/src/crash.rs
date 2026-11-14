@@ -767,6 +767,12 @@ pub mod mod_guard {
 
     pub struct ThreadScope(ModThread);
 
+    /// The mod thread kind this thread was entered as (the client's unless a server loop entered
+    /// [`ModThread::Server`] through [`enter_thread`]).
+    pub fn current_thread() -> ModThread {
+        THREAD.with(Cell::get)
+    }
+
     pub fn enter_thread(thread: ModThread) -> ThreadScope {
         ThreadScope(THREAD.with(|current| current.replace(thread)))
     }

@@ -142,7 +142,14 @@ pub struct Wasm {
     /// `client-full` (every client-side catalog hook). The server module always targets `server-full`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub world: Option<String>,
+    /// Powers beyond the safe set that the package asks for; an installer shows them. Today only
+    /// `service.commands` (the server module may run server commands: the dangerous ones stay denied).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub permissions: Vec<String>,
 }
+
+/// The `[wasm] permissions` this build knows.
+pub const WASM_PERMISSIONS: [&str; 1] = ["service.commands"];
 
 /// The WIT worlds a client module may target.
 pub const CLIENT_WASM_WORLDS: [&str; 2] = ["client-mod", "client-full"];
@@ -151,6 +158,11 @@ pub const CLIENT_WASM_WORLDS: [&str; 2] = ["client-mod", "client-full"];
 impl Wasm {
     pub fn client_full(&self) -> bool {
         self.world.as_deref() == Some("client-full")
+    }
+
+    /// Whether the package asked for `permission` (see [`WASM_PERMISSIONS`]).
+    pub fn has_permission(&self, permission: &str) -> bool {
+        self.permissions.iter().any(|asked| asked == permission)
     }
 }
 
@@ -191,6 +203,14 @@ impl Wasm {
             if self.client.is_none() {
                 return Err("wasm.world applies to the client module; declare wasm.client".into());
             }
+        }
+        for permission in &self.permissions {
+            if !WASM_PERMISSIONS.contains(&permission.as_str()) {
+                return Err(format!("unknown wasm permission {permission:?} (known: {})", WASM_PERMISSIONS.join(", ")));
+            }
+        }
+        if self.permissions.iter().any(|permission| permission == "service.commands") && self.server.is_none() {
+            return Err("wasm permission service.commands applies to the server module; declare wasm.server".into());
         }
         let modules = self.modules();
         if modules.is_empty() {
