@@ -28,6 +28,8 @@ extern crate alloc;
 #[cfg(feature = "runtime")]
 mod heap;
 
+pub mod nbt;
+
 /// Everything a `#![no_std]` mod usually needs from `alloc`.
 pub mod prelude {
     pub use alloc::{boxed::Box, format, string::{String, ToString}, vec, vec::Vec};

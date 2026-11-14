@@ -12,7 +12,8 @@
 //! Type rule: primitives, strings, lists, options, tuples and results map directly; plain structs
 //! and enums found in the workspace sources become records, enums and variants (recursively,
 //! deduplicated by name). Anything else (live engine objects, trait objects, generics,
-//! encapsulated structs, recursion) becomes a `u64` opaque handle.
+//! encapsulated structs, recursion) becomes a `u64` opaque handle, except the engine types of the
+//! table in `types.rs` (NBT, item stacks, text, JSON, mod block entities, `&mut` draw objects).
 use serde::Serialize;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
@@ -21,6 +22,9 @@ use std::{
 };
 use std::rc::Rc;
 use syn::{FnArg, GenericArgument, Item, Pat, PathArguments, Type};
+
+mod types;
+use types::{Carrier, Effect, ITEM_STACK_DOC, JSON_DOC, NBT_DOC, TABLE, TEXT_DOC, effect_of};
 
 const SERVER_DRAFT: &str = include_str!("../../abi-subset-server.json");
 
@@ -679,7 +683,8 @@ impl Mapper {
             return Mapped::plain("list<u8>");
         }
         if args.is_empty()
-            && self.context.last().and_then(|c| c.parsed.imports.get(&name)).is_some_and(|p| p.first().is_some_and(|f| f == "glam"))
+            && (self.context.last().and_then(|c| c.parsed.imports.get(&name)).is_some_and(|p| p.first().is_some_and(|f| f == "glam"))
+                || (path.path.segments.len() > 1 && path.path.segments.first().is_some_and(|s| s.ident == "glam")))
             && let Some(wit) = glam(&name)
         {
             return Mapped::plain(&wit);
@@ -716,7 +721,87 @@ impl Mapper {
             }
             _ => {}
         }
+        if args.is_empty()
+            && let Some(mapped) = self.table(path, &name)
+        {
+            return mapped;
+        }
         self.named(ty, &name)
+    }
+
+    /// Whether `name`, as written in `path` or imported by the current file, comes from one of
+    /// the `origin` modules or crates.
+    fn comes_from(&self, path: &syn::TypePath, name: &str, origin: &[&str]) -> bool {
+        if origin.is_empty() {
+            return true;
+        }
+        let written = path.path.segments.iter().map(|s| s.ident.to_string());
+        let imported = self
+            .context
+            .last()
+            .and_then(|c| c.parsed.imports.get(name))
+            .into_iter()
+            .flat_map(|p| p.iter().cloned());
+        written.chain(imported).any(|segment| origin.iter().any(|o| segment == *o))
+    }
+
+    fn declare(&mut self, name: &str, declaration: &str) {
+        self.named.entry(name.to_owned()).or_insert_with(|| Named { declaration: declaration.to_owned() });
+        self.names.insert(name.to_owned());
+    }
+
+    /// The type-table carrier for `name`, when it is the engine's type of that name.
+    fn table(&mut self, path: &syn::TypePath, name: &str) -> Option<Mapped> {
+        let row = TABLE.iter().find(|row| row.rust == name)?;
+        if !self.comes_from(path, name, row.origin) {
+            // No hint in the file (a type of the same crate): the definition decides.
+            let from = self.context.last().cloned()?;
+            let (file, _) = self.index.resolve(name, &from).ok()?;
+            let krate = self.index.crate_of(&file)?;
+            if !matches!(krate, "horizon-world" | "horizon-items" | "horizon-client-core") {
+                return None;
+            }
+        }
+        let referenced = |wit: &str| Mapped { wit: wit.to_owned(), uses: BTreeSet::from([wit.to_owned()]), ..Mapped::default() };
+        Some(match row.carrier {
+            Carrier::Alias(alias) => {
+                let doc = match alias {
+                    "nbt" => NBT_DOC,
+                    "text-json" => TEXT_DOC,
+                    _ => JSON_DOC,
+                };
+                self.declare(alias, doc);
+                referenced(alias)
+            }
+            Carrier::Record(record) => {
+                self.declare("nbt", NBT_DOC);
+                self.declare(record, ITEM_STACK_DOC);
+                referenced(record)
+            }
+            Carrier::Struct(target) => {
+                let ty: Type = syn::parse_str(target).ok()?;
+                let file = self.index.files.get(target)?.first()?.clone();
+                let inside = self.index.context(&file);
+                self.context.push(inside);
+                let mapped = self.named(&ty, target);
+                self.context.pop();
+                mapped
+            }
+        })
+    }
+
+    /// Declares the commands of `effect` and returns the list type that carries them.
+    fn effect(&mut self, effect: &Effect) -> Mapped {
+        self.declare("nbt", NBT_DOC);
+        self.declare("text-json", TEXT_DOC);
+        self.declare("item-stack", ITEM_STACK_DOC);
+        for (index, name) in effect.names.iter().enumerate() {
+            // The declaration is one text block shared by the names; it is stored once under the first.
+            let declaration = if index == 0 { effect.declaration } else { "" };
+            self.named.entry((*name).to_owned()).or_insert_with(|| Named { declaration: declaration.to_owned() });
+            self.names.insert((*name).to_owned());
+        }
+        Mapped { wit: format!("list<{}>", effect.wit), uses: BTreeSet::from([effect.wit.to_owned()]), ..Mapped::default() }
     }
 
     /// The generated named type for the workspace type `name`, or a handle.
@@ -1057,7 +1142,11 @@ struct CoverageEntry {
     side: Side,
     side_source: &'static str,
     contract: String,
+    /// No handles and nothing left out.
     fully_typed: bool,
+    /// Typed, but some engine methods have no command (see `partial_notes`).
+    partial: bool,
+    partial_notes: Vec<String>,
     handle_params: Vec<HandleParam>,
 }
 
@@ -1073,6 +1162,7 @@ struct Coverage {
     generated_by: &'static str,
     hook_count: usize,
     fully_typed: usize,
+    partial: usize,
     with_handles: usize,
     client_hooks: usize,
     server_hooks: usize,
@@ -1089,6 +1179,7 @@ pub struct FullWit {
     pub client_hooks: usize,
     pub server_hooks: usize,
     pub fully_typed: usize,
+    pub partial: usize,
     pub with_handles: usize,
     /// Handle rust type -> number of hooks that have it, most common first.
     pub handle_types: Vec<(String, usize)>,
@@ -1111,6 +1202,8 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
     let mut notes = Vec::new();
     let mut handle_params: Vec<HandleParam> = Vec::new();
     let mut all_handles: BTreeSet<String> = BTreeSet::new();
+    // Live draw objects: (param, command list type).
+    let mut effects: Vec<(String, Mapped)> = Vec::new();
 
     let record_handles = |name: &str, mapped: &Mapped, handle_params: &mut Vec<HandleParam>, all: &mut BTreeSet<String>| {
         if !mapped.closure.is_empty() {
@@ -1121,6 +1214,20 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
 
     for (name, ty) in &hook.params {
         let wit_name = unique(kebab(name), &mut used_params);
+        if let Some(effect) = effect_of(ty) {
+            let mapped = mapper.effect(effect);
+            notes.push(format!("`{wit_name}` is applied by the host: return `{}` commands for it.", effect.wit));
+            if let Some(note) = effect.partial {
+                let note = note.to_owned();
+                if !entry.partial_notes.contains(&note) {
+                    entry.partial_notes.push(note);
+                }
+                entry.partial = true;
+            }
+            uses.extend(mapped.uses.iter().cloned());
+            effects.push((wit_name, mapped));
+            continue;
+        }
         // `&mut` values the hook may change: scalars always, other types when fully typed.
         let mutable_elem = match ty {
             Type::Reference(reference) if reference.mutability.is_some() => Some(&*reference.elem),
@@ -1196,8 +1303,11 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
 
     // Extra mutable values turn the answer into an outcome record.
     let wit_name = kebab(&hook.name);
-    let result = if extras.is_empty() {
+    let result = if extras.is_empty() && effects.is_empty() {
         main_field.map(|(_, wit)| wit)
+    } else if extras.is_empty() && effects.len() == 1 && main_field.is_none() {
+        notes.push("Returns the commands to apply.".into());
+        Some(effects[0].1.wit.clone())
     } else {
         let record = format!("{wit_name}-outcome");
         let record = if mapper.reserved.contains(&record) { format!("{record}-type") } else { record };
@@ -1206,6 +1316,12 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
         if let Some((field, wit)) = &main_field {
             used.insert((*field).to_owned());
             text.push_str(&format!("        {field}: {wit},\n"));
+        }
+        let single = effects.len() == 1;
+        for (name, mapped) in &effects {
+            let field = if single { unique("commands".into(), &mut used) } else { unique(format!("{name}-commands"), &mut used) };
+            text.push_str(&format!("        /// Commands to apply to `{name}`, in order.\n"));
+            text.push_str(&format!("        {}: {},\n", escape(&field), mapped.wit));
         }
         for (name, mapped) in &extras {
             let field = unique(name.clone(), &mut used);
@@ -1216,15 +1332,15 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
             text.push_str(&format!("        {}: option<{}>,\n", escape(&field), mapped.wit));
         }
         text.push_str("    }\n");
-        let mut closure = BTreeSet::new();
         for (_, mapped) in &extras {
-            closure.extend(mapped.closure.iter().cloned());
             uses.extend(mapped.uses.iter().cloned());
         }
         mapper.named.insert(record.clone(), Named { declaration: text });
         mapper.names.insert(record.clone());
         uses.insert(record.clone());
-        notes.push(format!("Also returns the changed values of {}.", extras.iter().map(|(n, _)| format!("`{n}`")).collect::<Vec<_>>().join(", ")));
+        if !extras.is_empty() {
+            notes.push(format!("Also returns the changed values of {}.", extras.iter().map(|(n, _)| format!("`{n}`")).collect::<Vec<_>>().join(", ")));
+        }
         Some(escape(&record))
     };
 
@@ -1241,7 +1357,7 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
     let text = format!("{doc}    {}: func({}){result};\n", ident(&hook.name), params.join(", "));
     handle_params.sort_by(|a, b| a.param.cmp(&b.param));
     handle_params.dedup_by(|a, b| a.param == b.param);
-    entry.fully_typed = all_handles.is_empty();
+    entry.fully_typed = all_handles.is_empty() && !entry.partial;
     entry.handle_params = handle_params;
     Rendered { text, uses }
 }
@@ -1317,6 +1433,8 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
             side_source: hook.side_source,
             contract: hook.contract.clone(),
             fully_typed: true,
+            partial: false,
+            partial_notes: Vec::new(),
             handle_params: Vec::new(),
         };
         let rendered = render_hook(&mut mapper, hook, &mut entry);
@@ -1345,13 +1463,15 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
     wit.push_str("// Side rule: an explicit catalog side wins; else the Rust target path decides\n");
     wit.push_str("// (render/lib crates are client, world/server crates and GameLevel hooks are server);\n");
     wit.push_str("// the remaining Game hooks run on both and appear in both interfaces.\n");
-    wit.push_str("// Types: plain Rust structs/enums become records/enums/variants; anything else is a\n");
-    wit.push_str("// `u64` opaque engine handle (documented per field). See coverage.json.\n");
+    wit.push_str("// Types: plain Rust structs/enums become records/enums/variants; NBT is `nbt` (network\n");
+    wit.push_str("// bytes), item stacks `item-stack`, text `text-json`, JSON values `json`; `&mut` draw objects\n");
+    wit.push_str("// become command lists the guest returns; anything else is a `u64` opaque engine handle\n");
+    wit.push_str("// (documented per field). See coverage.json.\n");
     wit.push_str("\n");
 
     wit.push_str("interface engine-types {\n");
     let mut first = true;
-    for (_, named) in &mapper.named {
+    for (_, named) in mapper.named.iter().filter(|(_, named)| !named.declaration.is_empty()) {
         if !first {
             wit.push('\n');
         }
@@ -1388,6 +1508,7 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
     }
 
     let fully_typed = entries.iter().filter(|e| e.fully_typed).count();
+    let partial = entries.iter().filter(|e| e.partial && e.handle_params.is_empty()).count();
     let mut handle_types: Vec<(String, usize)> = handle_counts.into_iter().collect();
     handle_types.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
     let handle_report = handle_types
@@ -1402,7 +1523,8 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
         generated_by: "horizon-mod-api-gen",
         hook_count: entries.len(),
         fully_typed,
-        with_handles: entries.len() - fully_typed,
+        partial,
+        with_handles: entries.iter().filter(|e| !e.handle_params.is_empty()).count(),
         client_hooks: client_count,
         server_hooks: server_count,
         named_types: mapper.named.len(),
@@ -1418,6 +1540,7 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
         client_hooks: client_count,
         server_hooks: server_count,
         fully_typed,
+        partial,
         with_handles: coverage.with_handles,
         handle_types,
     })
@@ -1484,7 +1607,7 @@ mod tests {
         let report: serde_json::Value = serde_json::from_str(&generated.coverage_json).unwrap();
         assert_eq!(report["hooks"].as_array().unwrap().len(), fragments.len());
         assert_eq!(
-            generated.fully_typed + generated.with_handles,
+            generated.fully_typed + generated.partial + generated.with_handles,
             generated.hook_count
         );
         for hook in &fragments {

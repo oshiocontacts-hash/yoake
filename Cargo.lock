@@ -5944,6 +5944,10 @@ dependencies = [
 name = "yoake-wasm"
 version = "0.1.0"
 dependencies = [
+ "horizon-client-core",
+ "horizon-items",
+ "horizon-world",
+ "serde_json",
  "wasmtime",
  "wit-component",
  "wit-parser",
