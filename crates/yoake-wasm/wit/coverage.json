@@ -1,116 +1,17 @@
 {
   "generated_by": "horizon-mod-api-gen",
   "hook_count": 471,
-  "fully_typed": 363,
-  "with_handles": 108,
+  "fully_typed": 442,
+  "partial": 13,
+  "with_handles": 16,
   "client_hooks": 207,
   "server_hooks": 378,
-  "named_types": 192,
+  "named_types": 223,
   "handle_types": [
-    {
-      "rust_type": "Compound",
-      "hooks": 56,
-      "reason": "recursive type"
-    },
-    {
-      "rust_type": "Tag",
-      "hooks": 56,
-      "reason": "recursive type"
-    },
-    {
-      "rust_type": "ItemStack",
-      "hooks": 52,
-      "reason": "recursive type"
-    },
-    {
-      "rust_type": "Text",
-      "hooks": 14,
-      "reason": "struct with private fields"
-    },
-    {
-      "rust_type": "Value",
-      "hooks": 10,
-      "reason": "ambiguous definition"
-    },
-    {
-      "rust_type": "&mut HudBatch",
-      "hooks": 9,
-      "reason": "mutable reference to a live object"
-    },
-    {
-      "rust_type": "&mut BlockEntityDraw",
-      "hooks": 4,
-      "reason": "mutable reference to a live object"
-    },
-    {
-      "rust_type": "&mut ModBlockEntity",
-      "hooks": 4,
-      "reason": "mutable reference to a live object"
-    },
-    {
-      "rust_type": "&mut Option",
-      "hooks": 3,
-      "reason": "mutable reference to a live object"
-    },
-    {
-      "rust_type": "ModBlockEntity",
-      "hooks": 3,
-      "reason": "struct with private fields"
-    },
     {
       "rust_type": "LootEntity",
       "hooks": 2,
       "reason": "recursive type"
-    },
-    {
-      "rust_type": "&mut Corners",
-      "hooks": 1,
-      "reason": "mutable reference to a live object"
-    },
-    {
-      "rust_type": "&mut DVec3",
-      "hooks": 1,
-      "reason": "mutable reference to a live object"
-    },
-    {
-      "rust_type": "&mut HandDrawn",
-      "hooks": 1,
-      "reason": "mutable reference to a live object"
-    },
-    {
-      "rust_type": "&mut ItemStack",
-      "hooks": 1,
-      "reason": "mutable reference to a live object"
-    },
-    {
-      "rust_type": "&mut NativeItemDraw",
-      "hooks": 1,
-      "reason": "mutable reference to a live object"
-    },
-    {
-      "rust_type": "&mut OverlayDrawn",
-      "hooks": 1,
-      "reason": "mutable reference to a live object"
-    },
-    {
-      "rust_type": "&mut Text",
-      "hooks": 1,
-      "reason": "mutable reference to a live object"
-    },
-    {
-      "rust_type": "&mut Vec",
-      "hooks": 1,
-      "reason": "mutable reference to a live object"
-    },
-    {
-      "rust_type": "&mut WorldDrawn",
-      "hooks": 1,
-      "reason": "mutable reference to a live object"
-    },
-    {
-      "rust_type": "&mut WorldPrePost",
-      "hooks": 1,
-      "reason": "mutable reference to a live object"
     },
     {
       "rust_type": "* const u8",
@@ -158,6 +59,11 @@
       "reason": "struct with private fields"
     },
     {
+      "rust_type": "Value",
+      "hooks": 1,
+      "reason": "ambiguous definition"
+    },
+    {
       "rust_type": "dyn BlockBehavior",
       "hooks": 1,
       "reason": "trait object"
@@ -190,6 +96,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -198,6 +106,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -206,6 +116,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -214,6 +126,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -222,6 +136,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -230,6 +146,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -238,6 +156,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -246,6 +166,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -254,6 +176,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -262,6 +186,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -270,6 +196,8 @@
       "side_source": "path",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -278,6 +206,8 @@
       "side_source": "path",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -286,6 +216,8 @@
       "side_source": "path",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -294,6 +226,8 @@
       "side_source": "path",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -302,6 +236,8 @@
       "side_source": "path",
       "contract": "replace",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -310,20 +246,12 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "batch",
-          "rust_types": [
-            "&mut HudBatch"
-          ]
-        },
-        {
-          "param": "corners",
-          "rust_types": [
-            "&mut Corners"
-          ]
-        }
-      ]
+      "partial": true,
+      "partial_notes": [
+        "HudBatch: quad_3d, depth_since, mark_carried, raise_carried and the depth/end-portal blends have no command",
+        "Corners: the placed position is not returned to the guest; a panel is reserved, and drawn with hud-command at a position the guest computes"
+      ],
+      "handle_params": []
     },
     {
       "name": "key",
@@ -331,6 +259,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -339,6 +269,8 @@
       "side_source": "undecidable",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -347,6 +279,8 @@
       "side_source": "undecidable",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -355,6 +289,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -363,6 +299,8 @@
       "side_source": "undecidable",
       "contract": "replace",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -371,6 +309,8 @@
       "side_source": "undecidable",
       "contract": "replace",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -379,6 +319,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -387,6 +329,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -395,6 +339,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -403,6 +349,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -410,16 +358,10 @@
       "side": "both",
       "side_source": "undecidable",
       "contract": "replace",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "entity",
-          "rust_types": [
-            "Compound",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "block_entity_ticks",
@@ -427,6 +369,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -434,37 +378,20 @@
       "side": "both",
       "side_source": "undecidable",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "entity",
-          "rust_types": [
-            "&mut ModBlockEntity"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "block_entity_update_tag",
       "side": "both",
       "side_source": "undecidable",
       "contract": "replace",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "entity",
-          "rust_types": [
-            "ModBlockEntity"
-          ]
-        },
-        {
-          "param": "tag",
-          "rust_types": [
-            "Compound",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "block_entity_container",
@@ -472,6 +399,8 @@
       "side_source": "undecidable",
       "contract": "replace",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -480,6 +409,8 @@
       "side_source": "undecidable",
       "contract": "replace",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -488,14 +419,11 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "batch",
-          "rust_types": [
-            "&mut HudBatch"
-          ]
-        }
-      ]
+      "partial": true,
+      "partial_notes": [
+        "HudBatch: quad_3d, depth_since, mark_carried, raise_carried and the depth/end-portal blends have no command"
+      ],
+      "handle_params": []
     },
     {
       "name": "screen_click",
@@ -503,6 +431,8 @@
       "side_source": "undecidable",
       "contract": "replace",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -511,6 +441,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -518,15 +450,10 @@
       "side": "both",
       "side_source": "undecidable",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "entity",
-          "rust_types": [
-            "&mut ModBlockEntity"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "register_commands",
@@ -534,6 +461,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -542,6 +471,8 @@
       "side_source": "undecidable",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -550,6 +481,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -558,6 +491,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -565,57 +500,30 @@
       "side": "both",
       "side_source": "undecidable",
       "contract": "collect",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "lines",
-          "rust_types": [
-            "Text"
-          ]
-        },
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "use_item_on",
       "side": "both",
       "side_source": "undecidable",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "use_item",
       "side": "both",
       "side_source": "undecidable",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "destroy_block",
@@ -623,6 +531,8 @@
       "side_source": "undecidable",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -630,17 +540,10 @@
       "side": "both",
       "side_source": "undecidable",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "right_click_block",
@@ -648,6 +551,8 @@
       "side_source": "undecidable",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -656,6 +561,8 @@
       "side_source": "path",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -664,6 +571,8 @@
       "side_source": "path",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -672,6 +581,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -679,17 +590,10 @@
       "side": "both",
       "side_source": "undecidable",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "attack_entity",
@@ -697,6 +601,8 @@
       "side_source": "undecidable",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -705,6 +611,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -713,6 +621,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -721,6 +631,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -729,6 +641,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -737,6 +651,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -745,6 +661,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -753,6 +671,8 @@
       "side_source": "undecidable",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -760,17 +680,10 @@
       "side": "both",
       "side_source": "undecidable",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "inventory_tick",
@@ -778,6 +691,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -785,17 +700,10 @@
       "side": "both",
       "side_source": "undecidable",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "new",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "block_signal",
@@ -803,6 +711,8 @@
       "side_source": "path",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -811,6 +721,8 @@
       "side_source": "path",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -818,32 +730,20 @@
       "side": "both",
       "side_source": "undecidable",
       "contract": "replace",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "draws",
-          "rust_types": [
-            "Text"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "interact_entity",
       "side": "both",
       "side_source": "undecidable",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "left_click_block",
@@ -851,6 +751,8 @@
       "side_source": "undecidable",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -859,6 +761,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -867,6 +771,8 @@
       "side_source": "undecidable",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -875,6 +781,8 @@
       "side_source": "undecidable",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -882,21 +790,10 @@
       "side": "both",
       "side_source": "undecidable",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "carried",
-          "rust_types": [
-            "&mut Option"
-          ]
-        },
-        {
-          "param": "entity",
-          "rust_types": [
-            "&mut ModBlockEntity"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "entity_leave_level",
@@ -904,6 +801,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -912,6 +811,8 @@
       "side_source": "undecidable",
       "contract": "replace",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -920,6 +821,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -928,6 +831,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -936,6 +841,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -944,6 +851,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -952,6 +861,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -960,6 +871,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -968,6 +881,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -976,6 +891,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -984,14 +901,11 @@
       "side_source": "path",
       "contract": "listen",
       "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "world",
-          "rust_types": [
-            "&mut WorldDrawn"
-          ]
-        }
-      ]
+      "partial": true,
+      "partial_notes": [
+        "WorldDrawn, HandDrawn, WorldPrePost, OverlayDrawn: wgpu device, encoder and depth access is deliberately not exposed; only whole-frame fills, tints and vignettes"
+      ],
+      "handle_params": []
     },
     {
       "name": "render_needs",
@@ -999,6 +913,8 @@
       "side_source": "path",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1006,17 +922,10 @@
       "side": "both",
       "side_source": "undecidable",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "has_analog_output",
@@ -1024,6 +933,8 @@
       "side_source": "path",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1032,6 +943,8 @@
       "side_source": "path",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1040,6 +953,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1047,42 +962,20 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "replace",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "answer",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        },
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "tooltip_component",
       "side": "client",
       "side_source": "explicit",
       "contract": "replace",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "tooltip_component_draw",
@@ -1090,22 +983,11 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "batch",
-          "rust_types": [
-            "&mut HudBatch"
-          ]
-        },
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "partial": true,
+      "partial_notes": [
+        "HudBatch: quad_3d, depth_since, mark_carried, raise_carried and the depth/end-portal blends have no command"
+      ],
+      "handle_params": []
     },
     {
       "name": "can_survive",
@@ -1113,6 +995,8 @@
       "side_source": "path",
       "contract": "replace",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1121,6 +1005,8 @@
       "side_source": "path",
       "contract": "replace",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1128,36 +1014,20 @@
       "side": "both",
       "side_source": "undecidable",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "draw",
-          "rust_types": [
-            "&mut BlockEntityDraw"
-          ]
-        },
-        {
-          "param": "entity",
-          "rust_types": [
-            "ModBlockEntity"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "block_entity_render_bounding_box",
       "side": "both",
       "side_source": "undecidable",
       "contract": "collect",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "entity",
-          "rust_types": [
-            "ModBlockEntity"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "is_valid_bonemeal_target",
@@ -1165,6 +1035,8 @@
       "side_source": "path",
       "contract": "replace",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1173,6 +1045,8 @@
       "side_source": "path",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1181,6 +1055,8 @@
       "side_source": "path",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1189,6 +1065,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1197,6 +1075,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1205,6 +1085,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1212,55 +1094,30 @@
       "side": "both",
       "side_source": "undecidable",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "data",
-          "rust_types": [
-            "Value"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "loot_table_load",
       "side": "server",
       "side_source": "path",
       "contract": "collect",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "table",
-          "rust_types": [
-            "Value"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "loot_drops",
       "side": "both",
       "side_source": "undecidable",
       "contract": "collect",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "context",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        },
-        {
-          "param": "drops",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "state_for_placement",
@@ -1268,6 +1125,8 @@
       "side_source": "path",
       "contract": "replace",
       "fully_typed": false,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": [
         {
           "param": "fluid",
@@ -1282,15 +1141,10 @@
       "side": "both",
       "side_source": "undecidable",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "data",
-          "rust_types": [
-            "Value"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "screen_render_post",
@@ -1298,20 +1152,11 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "batch",
-          "rust_types": [
-            "&mut HudBatch"
-          ]
-        },
-        {
-          "param": "screen",
-          "rust_types": [
-            "Text"
-          ]
-        }
-      ]
+      "partial": true,
+      "partial_notes": [
+        "HudBatch: quad_3d, depth_since, mark_carried, raise_carried and the depth/end-portal blends have no command"
+      ],
+      "handle_params": []
     },
     {
       "name": "modify_default_components",
@@ -1319,6 +1164,8 @@
       "side_source": "path",
       "contract": "collect",
       "fully_typed": false,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": [
         {
           "param": "components",
@@ -1333,30 +1180,20 @@
       "side": "both",
       "side_source": "undecidable",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "screen",
-          "rust_types": [
-            "Text"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "screen_mouse_button_released_pre",
       "side": "both",
       "side_source": "undecidable",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "screen",
-          "rust_types": [
-            "Text"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "camera_shake",
@@ -1364,6 +1201,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1372,6 +1211,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1380,6 +1221,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1387,17 +1230,10 @@
       "side": "client",
       "side_source": "explicit",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "client_resources_reloaded",
@@ -1405,6 +1241,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1413,143 +1251,81 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "batch",
-          "rust_types": [
-            "&mut HudBatch"
-          ]
-        },
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "partial": true,
+      "partial_notes": [
+        "HudBatch: quad_3d, depth_since, mark_carried, raise_carried and the depth/end-portal blends have no command"
+      ],
+      "handle_params": []
     },
     {
       "name": "use_duration",
       "side": "both",
       "side_source": "undecidable",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "use_animation",
       "side": "client",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "can_eat",
       "side": "both",
       "side_source": "undecidable",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "living_entity_use_item_start",
       "side": "both",
       "side_source": "undecidable",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "living_entity_use_item_finish",
       "side": "server",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "result",
-          "rust_types": [
-            "&mut Option"
-          ]
-        },
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "screen_mouse_scrolled_pre",
       "side": "both",
       "side_source": "undecidable",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "screen",
-          "rust_types": [
-            "Text"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "player_command",
       "side": "server",
       "side_source": "explicit",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "replies",
-          "rust_types": [
-            "&mut Vec"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "perform_console_command",
@@ -1557,6 +1333,8 @@
       "side_source": "undecidable",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1564,30 +1342,20 @@
       "side": "both",
       "side_source": "undecidable",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "screen",
-          "rust_types": [
-            "Text"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "screen_char_typed_pre",
       "side": "both",
       "side_source": "undecidable",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "screen",
-          "rust_types": [
-            "Text"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "data_pack_files",
@@ -1595,6 +1363,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1603,6 +1373,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1611,6 +1383,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1619,6 +1393,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1626,15 +1402,10 @@
       "side": "client",
       "side_source": "explicit",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "draw",
-          "rust_types": [
-            "&mut BlockEntityDraw"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "camera_distance",
@@ -1642,6 +1413,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1650,6 +1423,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1658,6 +1433,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1666,6 +1443,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1674,6 +1453,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1682,6 +1463,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1689,15 +1472,10 @@
       "side": "client",
       "side_source": "explicit",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "screen",
-          "rust_types": [
-            "Text"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "music",
@@ -1705,6 +1483,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1713,6 +1493,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1721,6 +1503,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1729,6 +1513,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1737,6 +1523,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": false,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": [
         {
           "param": "event",
@@ -1752,6 +1540,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1759,15 +1549,10 @@
       "side": "client",
       "side_source": "explicit",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "screen",
-          "rust_types": [
-            "Text"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "mod_container_viewers",
@@ -1775,6 +1560,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1783,6 +1570,8 @@
       "side_source": "undecidable",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1791,6 +1580,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1799,6 +1590,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1806,85 +1599,50 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "living_entity_use_item_tick",
       "side": "both",
       "side_source": "undecidable",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "on_use_tick",
       "side": "both",
       "side_source": "undecidable",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "living_entity_use_item_stop",
       "side": "both",
       "side_source": "undecidable",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "release_using",
       "side": "both",
       "side_source": "undecidable",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "loot_function",
@@ -1892,26 +1650,13 @@
       "side_source": "path",
       "contract": "collect",
       "fully_typed": false,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": [
         {
           "param": "ctx",
           "rust_types": [
-            "Compound",
-            "LootEntity",
-            "Tag",
-            "Value"
-          ]
-        },
-        {
-          "param": "data",
-          "rust_types": [
-            "Value"
-          ]
-        },
-        {
-          "param": "stack",
-          "rust_types": [
-            "Value"
+            "LootEntity"
           ]
         }
       ]
@@ -1922,20 +1667,13 @@
       "side_source": "path",
       "contract": "collect",
       "fully_typed": false,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": [
         {
           "param": "ctx",
           "rust_types": [
-            "Compound",
-            "LootEntity",
-            "Tag",
-            "Value"
-          ]
-        },
-        {
-          "param": "data",
-          "rust_types": [
-            "Value"
+            "LootEntity"
           ]
         }
       ]
@@ -1946,6 +1684,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1954,6 +1694,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1962,6 +1704,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1970,6 +1714,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1978,6 +1724,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1986,6 +1734,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -1994,6 +1744,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2002,6 +1754,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2010,14 +1764,11 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "batch",
-          "rust_types": [
-            "&mut HudBatch"
-          ]
-        }
-      ]
+      "partial": true,
+      "partial_notes": [
+        "HudBatch: quad_3d, depth_since, mark_carried, raise_carried and the depth/end-portal blends have no command"
+      ],
+      "handle_params": []
     },
     {
       "name": "gui_layer_post",
@@ -2025,14 +1776,11 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "batch",
-          "rust_types": [
-            "&mut HudBatch"
-          ]
-        }
-      ]
+      "partial": true,
+      "partial_notes": [
+        "HudBatch: quad_3d, depth_since, mark_carried, raise_carried and the depth/end-portal blends have no command"
+      ],
+      "handle_params": []
     },
     {
       "name": "map_decorations",
@@ -2040,6 +1788,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2048,6 +1798,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2056,6 +1808,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2064,6 +1818,8 @@
       "side_source": "explicit",
       "contract": "replace",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2072,6 +1828,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2080,6 +1838,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2088,6 +1848,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": false,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": [
         {
           "param": "blocks",
@@ -2103,6 +1865,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": false,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": [
         {
           "param": "items",
@@ -2118,6 +1882,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2126,6 +1892,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2134,6 +1902,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2142,6 +1912,8 @@
       "side_source": "undecidable",
       "contract": "replace",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2149,25 +1921,10 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "from",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        },
-        {
-          "param": "to",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "living_equipment_listened",
@@ -2175,6 +1932,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2182,46 +1941,20 @@
       "side": "client",
       "side_source": "explicit",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "draw",
-          "rust_types": [
-            "&mut BlockEntityDraw"
-          ]
-        },
-        {
-          "param": "who",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "mob_layer",
       "side": "client",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "draw",
-          "rust_types": [
-            "&mut BlockEntityDraw"
-          ]
-        },
-        {
-          "param": "who",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "player_render_listened",
@@ -2229,6 +1962,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2237,6 +1972,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2245,6 +1982,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2253,6 +1992,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2261,6 +2002,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2269,6 +2012,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2277,6 +2022,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2284,17 +2031,10 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "beacon_state_change",
@@ -2302,6 +2042,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2310,6 +2052,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2318,6 +2062,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2326,6 +2072,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2334,6 +2082,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2342,6 +2092,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2350,6 +2102,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2358,6 +2112,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2366,6 +2122,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2374,6 +2132,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2382,6 +2142,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2390,6 +2152,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2398,6 +2162,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2406,6 +2172,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2414,6 +2182,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2422,6 +2192,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2430,6 +2202,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2438,6 +2212,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2445,15 +2221,10 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "line",
-          "rust_types": [
-            "&mut Text"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "campfire_start",
@@ -2461,6 +2232,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2469,6 +2242,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2477,6 +2252,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2485,6 +2262,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2493,6 +2272,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2501,6 +2282,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2509,6 +2292,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2517,6 +2302,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2525,6 +2312,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2533,6 +2322,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2540,17 +2331,10 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "item",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "ender_pearl_teleport",
@@ -2558,6 +2342,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2566,6 +2352,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2574,6 +2362,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2582,6 +2372,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2590,6 +2382,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2598,6 +2392,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2606,6 +2402,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2614,6 +2412,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2622,6 +2422,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2630,6 +2432,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2638,6 +2442,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2646,6 +2452,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2654,6 +2462,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2662,6 +2472,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2670,6 +2482,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2678,6 +2492,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2686,6 +2502,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2694,6 +2512,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2702,6 +2522,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2710,6 +2532,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2717,17 +2541,10 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "explosion_prime",
@@ -2735,6 +2552,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2743,6 +2562,8 @@
       "side_source": "path",
       "contract": "replace",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2751,6 +2572,8 @@
       "side_source": "path",
       "contract": "replace",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2759,6 +2582,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2767,6 +2592,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2775,6 +2602,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2783,6 +2612,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2791,6 +2622,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2799,6 +2632,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2807,6 +2642,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2815,6 +2652,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2823,6 +2662,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2831,6 +2672,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2839,6 +2682,8 @@
       "side_source": "path",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2847,6 +2692,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2855,6 +2702,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2862,17 +2711,10 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "item_despawn",
@@ -2880,6 +2722,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2888,6 +2732,8 @@
       "side_source": "undecidable",
       "contract": "replace",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2895,17 +2741,10 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "item_spawn",
@@ -2913,6 +2752,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2921,6 +2762,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2929,6 +2772,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2936,21 +2781,10 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "entity",
-          "rust_types": [
-            "&mut ModBlockEntity"
-          ]
-        },
-        {
-          "param": "stack",
-          "rust_types": [
-            "&mut ItemStack"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "moisture_change",
@@ -2958,6 +2792,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -2965,34 +2801,20 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "craft",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "anvil_craft_pre",
       "side": "server",
       "side_source": "explicit",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "craft",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "armor_stand_manipulate",
@@ -3000,6 +2822,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3008,6 +2832,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3016,6 +2842,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3024,6 +2852,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3032,6 +2862,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3040,6 +2872,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3048,6 +2882,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3056,6 +2892,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3064,6 +2902,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3072,6 +2912,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3080,6 +2922,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3088,6 +2932,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3096,6 +2942,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3104,6 +2952,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3112,6 +2962,8 @@
       "side_source": "undecidable",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3120,6 +2972,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3128,6 +2982,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3136,6 +2992,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3144,6 +3002,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3152,6 +3012,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3159,15 +3021,10 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "reason",
-          "rust_types": [
-            "&mut Option"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "player_save_to_file",
@@ -3175,6 +3032,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3183,6 +3042,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3191,6 +3052,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3199,6 +3062,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3207,6 +3072,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3215,6 +3082,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3223,6 +3092,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3231,6 +3102,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3239,6 +3112,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3247,6 +3122,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3255,6 +3132,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3263,6 +3142,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3271,6 +3152,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3279,6 +3162,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3287,6 +3172,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3295,6 +3182,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3303,6 +3192,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3311,6 +3202,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3319,6 +3212,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3327,6 +3222,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3335,6 +3232,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3343,6 +3242,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3351,6 +3252,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3359,6 +3262,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3367,6 +3272,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3375,6 +3282,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3383,6 +3292,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3391,6 +3302,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3399,6 +3312,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3407,6 +3322,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3415,6 +3332,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3423,6 +3342,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3431,6 +3352,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3439,6 +3362,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3447,6 +3372,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3455,6 +3382,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3463,6 +3392,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3471,6 +3402,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3479,6 +3412,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3487,6 +3422,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3495,6 +3432,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3503,6 +3442,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3511,6 +3452,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3519,6 +3462,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3527,6 +3472,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3535,6 +3482,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3543,6 +3492,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3551,6 +3502,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3559,6 +3512,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3567,6 +3522,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3575,6 +3532,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3583,6 +3542,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3591,6 +3552,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3599,6 +3562,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3607,6 +3572,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3615,6 +3582,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3623,6 +3592,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3631,6 +3602,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3639,6 +3612,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3647,6 +3622,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3655,6 +3632,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3663,6 +3642,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3671,6 +3652,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3679,6 +3662,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3687,6 +3672,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3695,6 +3682,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3703,6 +3692,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3711,6 +3702,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3719,6 +3712,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3727,6 +3722,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3735,6 +3732,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3742,34 +3741,20 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "replace",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "result",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "prepare_grindstone",
       "side": "server",
       "side_source": "explicit",
       "contract": "replace",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "result",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "prepare_hopper_transfer",
@@ -3777,6 +3762,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3784,17 +3771,10 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "replace",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "result",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "prepare_item_enchant",
@@ -3802,6 +3782,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3809,17 +3791,10 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "replace",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "result",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "projectile_launch",
@@ -3827,6 +3802,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3835,6 +3812,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3843,6 +3822,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3851,6 +3832,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3859,6 +3842,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3867,6 +3852,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3875,6 +3862,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3883,6 +3872,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3891,6 +3882,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3899,6 +3892,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3907,6 +3902,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3914,17 +3911,10 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "offer",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "vault_change_state",
@@ -3932,6 +3922,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3940,6 +3932,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3948,6 +3942,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3956,6 +3952,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3964,6 +3962,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3972,6 +3972,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3980,6 +3982,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3988,6 +3992,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -3996,6 +4002,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4004,6 +4012,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4011,17 +4021,10 @@
       "side": "both",
       "side_source": "explicit",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "bow",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "baby_entity_spawn",
@@ -4029,6 +4032,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4037,6 +4042,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": false,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": [
         {
           "param": "behaviors",
@@ -4052,6 +4059,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4060,6 +4069,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": false,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": [
         {
           "param": "providers",
@@ -4075,6 +4086,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4083,6 +4096,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4091,6 +4106,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4099,6 +4116,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4107,6 +4126,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4115,6 +4136,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4123,6 +4146,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4131,6 +4156,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4139,6 +4166,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4147,6 +4176,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4155,6 +4186,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4163,6 +4196,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4171,6 +4206,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4178,17 +4215,10 @@
       "side": "client",
       "side_source": "explicit",
       "contract": "collect",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stacks",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "explosion_knockback",
@@ -4196,6 +4226,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4204,6 +4236,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4212,31 +4246,21 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "hand",
-          "rust_types": [
-            "&mut HandDrawn"
-          ]
-        }
-      ]
+      "partial": true,
+      "partial_notes": [
+        "WorldDrawn, HandDrawn, WorldPrePost, OverlayDrawn: wgpu device, encoder and depth access is deliberately not exposed; only whole-frame fills, tints and vignettes"
+      ],
+      "handle_params": []
     },
     {
       "name": "ingredient_test",
       "side": "client",
       "side_source": "path",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "inventory_background_pre_listened",
@@ -4244,6 +4268,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4252,20 +4278,11 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "batch",
-          "rust_types": [
-            "&mut HudBatch"
-          ]
-        },
-        {
-          "param": "screen",
-          "rust_types": [
-            "Text"
-          ]
-        }
-      ]
+      "partial": true,
+      "partial_notes": [
+        "HudBatch: quad_3d, depth_since, mark_carried, raise_carried and the depth/end-portal blends have no command"
+      ],
+      "handle_params": []
     },
     {
       "name": "inventory_screen_layout_listened",
@@ -4273,6 +4290,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4281,6 +4300,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4289,6 +4310,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4296,17 +4319,10 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "item_behaviors",
@@ -4314,6 +4330,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": false,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": [
         {
           "param": "behaviors",
@@ -4329,6 +4347,8 @@
       "side_source": "undecidable",
       "contract": "replace",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4336,42 +4356,20 @@
       "side": "client",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "components",
-          "rust_types": [
-            "Value"
-          ]
-        },
-        {
-          "param": "stack",
-          "rust_types": [
-            "Value"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "item_model_number",
       "side": "client",
       "side_source": "explicit",
       "contract": "collect",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "components",
-          "rust_types": [
-            "Value"
-          ]
-        },
-        {
-          "param": "stack",
-          "rust_types": [
-            "Value"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "item_model_select",
@@ -4379,19 +4377,9 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": false,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": [
-        {
-          "param": "components",
-          "rust_types": [
-            "Value"
-          ]
-        },
-        {
-          "param": "stack",
-          "rust_types": [
-            "Value"
-          ]
-        },
         {
           "param": "value",
           "rust_types": [
@@ -4405,21 +4393,10 @@
       "side": "client",
       "side_source": "explicit",
       "contract": "collect",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "components",
-          "rust_types": [
-            "Value"
-          ]
-        },
-        {
-          "param": "stack",
-          "rust_types": [
-            "Value"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "item_render_listened",
@@ -4427,6 +4404,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4435,6 +4414,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4442,29 +4423,10 @@
       "side": "client",
       "side_source": "explicit",
       "contract": "collect",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "draw",
-          "rust_types": [
-            "&mut NativeItemDraw"
-          ]
-        },
-        {
-          "param": "presentation",
-          "rust_types": [
-            "Value"
-          ]
-        },
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "item_slot_cooldown",
@@ -4472,22 +4434,11 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "batch",
-          "rust_types": [
-            "&mut HudBatch"
-          ]
-        },
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "partial": true,
+      "partial_notes": [
+        "HudBatch: quad_3d, depth_since, mark_carried, raise_carried and the depth/end-portal blends have no command"
+      ],
+      "handle_params": []
     },
     {
       "name": "item_slot_cooldown_listened",
@@ -4495,6 +4446,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4503,6 +4456,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4511,6 +4466,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4519,6 +4476,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4526,67 +4485,30 @@
       "side": "both",
       "side_source": "explicit",
       "contract": "collect",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "projectile",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        },
-        {
-          "param": "weapon",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "living_incoming_damage_v2",
       "side": "server",
       "side_source": "explicit",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "weapon",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "living_knockback_v2",
       "side": "server",
       "side_source": "explicit",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "attacker-main",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        },
-        {
-          "param": "attacker-off",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "menu_behaviors",
@@ -4594,6 +4516,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": false,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": [
         {
           "param": "behaviors",
@@ -4609,6 +4533,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4617,6 +4543,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4625,6 +4553,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4633,6 +4563,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4641,6 +4573,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4649,6 +4583,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4657,6 +4593,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4665,6 +4603,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4673,6 +4613,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4681,14 +4623,11 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "overlay",
-          "rust_types": [
-            "&mut OverlayDrawn"
-          ]
-        }
-      ]
+      "partial": true,
+      "partial_notes": [
+        "WorldDrawn, HandDrawn, WorldPrePost, OverlayDrawn: wgpu device, encoder and depth access is deliberately not exposed; only whole-frame fills, tints and vignettes"
+      ],
+      "handle_params": []
     },
     {
       "name": "player_permission_level",
@@ -4696,6 +4635,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4704,6 +4645,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4712,6 +4655,8 @@
       "side_source": "undecidable",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4720,6 +4665,8 @@
       "side_source": "undecidable",
       "contract": "collect",
       "fully_typed": false,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": [
         {
           "param": "types",
@@ -4735,6 +4682,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": false,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": [
         {
           "param": "reason",
@@ -4750,6 +4699,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": false,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": [
         {
           "param": "device",
@@ -4770,34 +4721,20 @@
       "side": "client",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "render_item_in_frame",
       "side": "client",
       "side_source": "explicit",
       "contract": "cancel",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "render_name_tag",
@@ -4805,6 +4742,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4813,6 +4752,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4820,15 +4761,10 @@
       "side": "client",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "anchor",
-          "rust_types": [
-            "&mut DVec3"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "audio_mix_ready_listened",
@@ -4836,6 +4772,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4844,6 +4782,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4852,6 +4792,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4860,6 +4802,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4868,6 +4812,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4876,6 +4822,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4884,6 +4832,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4892,6 +4842,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4900,6 +4852,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": false,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": [
         {
           "param": "frame",
@@ -4915,6 +4869,8 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4922,45 +4878,30 @@
       "side": "client",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "screen",
-          "rust_types": [
-            "Text"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "screen_init_post",
       "side": "client",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "screen",
-          "rust_types": [
-            "Text"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "screen_opening",
       "side": "client",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "screen",
-          "rust_types": [
-            "Text"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "server_chat_listened",
@@ -4968,6 +4909,8 @@
       "side_source": "explicit",
       "contract": "collect",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4976,6 +4919,8 @@
       "side_source": "explicit",
       "contract": "cancel",
       "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {
@@ -4983,17 +4928,10 @@
       "side": "client",
       "side_source": "explicit",
       "contract": "listen",
-      "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "stack",
-          "rust_types": [
-            "Compound",
-            "ItemStack",
-            "Tag"
-          ]
-        }
-      ]
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "world_pre_post",
@@ -5001,14 +4939,11 @@
       "side_source": "explicit",
       "contract": "listen",
       "fully_typed": false,
-      "handle_params": [
-        {
-          "param": "world",
-          "rust_types": [
-            "&mut WorldPrePost"
-          ]
-        }
-      ]
+      "partial": true,
+      "partial_notes": [
+        "WorldDrawn, HandDrawn, WorldPrePost, OverlayDrawn: wgpu device, encoder and depth access is deliberately not exposed; only whole-frame fills, tints and vignettes"
+      ],
+      "handle_params": []
     }
   ]
 }

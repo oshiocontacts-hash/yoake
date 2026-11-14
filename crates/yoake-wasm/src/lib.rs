@@ -7,6 +7,7 @@ use wasmtime::component::{Component, Instance, Linker};
 use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder};
 
 mod client;
+mod convert;
 mod full_bindings;
 mod host;
 mod hook_names;

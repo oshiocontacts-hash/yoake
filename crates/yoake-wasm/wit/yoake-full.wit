@@ -5,8 +5,10 @@ package yoake:mods@1.0.0;
 // Side rule: an explicit catalog side wins; else the Rust target path decides
 // (render/lib crates are client, world/server crates and GameLevel hooks are server);
 // the remaining Game hooks run on both and appear in both interfaces.
-// Types: plain Rust structs/enums become records/enums/variants; anything else is a
-// `u64` opaque engine handle (documented per field). See coverage.json.
+// Types: plain Rust structs/enums become records/enums/variants; NBT is `nbt` (network
+// bytes), item stacks `item-stack`, text `text-json`, JSON values `json`; `&mut` draw objects
+// become command lists the guest returns; anything else is a `u64` opaque engine handle
+// (documented per field). See coverage.json.
 
 interface engine-types {
     record anvil-craft {
@@ -26,11 +28,6 @@ interface engine-types {
         charge: option<s32>,
     }
 
-    record banner-layer {
-        pattern: string,
-        color: string,
-    }
-
     record biome-colors-outcome {
         /// The new `colors`, or none to leave it unchanged.
         colors: option<biome-colors-type>,
@@ -48,6 +45,11 @@ interface engine-types {
         vignette,
         nausea,
         crosshair,
+    }
+
+    record block-entity-tick-outcome {
+        /// The new `entity`, or none to leave it unchanged.
+        entity: option<mod-block-entity-fields>,
     }
 
     record block-entity-ticks-outcome {
@@ -71,22 +73,10 @@ interface engine-types {
         signal: option<s32>,
     }
 
-    record block-sprite-arrays {
-        /// opaque engine handle (TextureView)
-        views: list<u64>,
-        split: u32,
-        size: u32,
-        /// opaque engine handle (Sampler)
-        nearest: u64,
-        /// opaque engine handle (Sampler)
-        filtered: u64,
-    }
-
-    record buffer {
-        format: format,
-        clear: bool,
-        clear-color: option<list<f32>>,
-        mipmap: bool,
+    record broadcast-message-outcome {
+        cancel: bool,
+        /// The new `line`, or none to leave it unchanged.
+        line: option<text-json>,
     }
 
     record camera-distance-outcome {
@@ -168,6 +158,25 @@ interface engine-types {
         glint-uv: list<f32>,
     }
 
+    /// What a mod does to the HUD corner layout (`Corners`).
+    variant corner-command {
+        /// `Corners::place`: reserve a box in a corner, so the next panels sit past it.
+        reserve(corner-box),
+    }
+
+    enum hud-corner {
+        top-left,
+        top-right,
+        bottom-left,
+        bottom-right,
+    }
+
+    record corner-box {
+        corner: hud-corner,
+        width: f32,
+        height: f32,
+    }
+
     record critical-hit-outcome {
         /// The new `critical`, or none to leave it unchanged.
         critical: option<bool>,
@@ -184,7 +193,7 @@ interface engine-types {
         east,
     }
 
-    enum display-context {
+    enum display-context-n2 {
         none,
         third-person-left-hand,
         third-person-right-hand,
@@ -211,16 +220,6 @@ interface engine-types {
         damage: option<f32>,
     }
 
-    record entity-span {
-        start: u32,
-        stage: u32,
-        id: s32,
-        translucent: bool,
-        hidden: bool,
-        player: bool,
-        emissive: bool,
-    }
-
     record experience-orb-can-merge-outcome {
         /// The new `can-merge`, or none to leave it unchanged.
         can-merge: option<bool>,
@@ -240,22 +239,6 @@ interface engine-types {
         zoom: u8,
         search-radius: s32,
         skip-existing-chunks: bool,
-    }
-
-    record firework-explosion {
-        shape: firework-shape,
-        colors: list<u32>,
-        fade: list<u32>,
-        trail: bool,
-        twinkle: bool,
-    }
-
-    enum firework-shape {
-        small-ball,
-        large-ball,
-        star,
-        creeper,
-        burst,
     }
 
     record fixed-frame-type {
@@ -296,12 +279,6 @@ interface engine-types {
         to: option<s32>,
     }
 
-    record format {
-        channels: u8,
-        bits: u8,
-        kind: kind,
-    }
-
     record fov-player {
         flying: bool,
         walking-speed: f32,
@@ -312,6 +289,29 @@ interface engine-types {
     record frame-advance {
         ticks: u32,
         partial-tick: f32,
+    }
+
+    /// What a mod draws over a frame stage (`WorldDrawn`, `HandDrawn`, `WorldPrePost`,
+    /// `OverlayDrawn`), applied in order. Raw GPU access (device, encoder, depth) is not offered
+    /// to WASM mods: these are whole-frame image operations the host performs on the stage's
+    /// colour target.
+    variant frame-command {
+        /// Fills a rectangle of the target.
+        fill-rect(frame-fill),
+        /// Blends 0xAARRGGBB over the whole target.
+        tint(u32),
+        /// Darkens the edges: 0 is none, 1 is a full vignette.
+        vignette(f32),
+    }
+
+    record frame-fill {
+        /// In pixels of the target.
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+        /// 0xAARRGGBB.
+        color: u32,
     }
 
     record framerate-limit-outcome {
@@ -386,40 +386,22 @@ interface engine-types {
     }
 
     record gui-draw-text {
-        /// opaque engine handle (Text)
-        text: u64,
+        text: text-json,
         x: s32,
         y: s32,
         color: u32,
         shadow: bool,
     }
 
+    record gui-layer-pre-outcome {
+        cancel: bool,
+        /// Commands to apply to `batch`, in order.
+        commands: list<hud-command>,
+    }
+
     enum hand {
         main,
         off,
-    }
-
-    record hand-drawn-type {
-        /// opaque engine handle (Device)
-        device: u64,
-        /// opaque engine handle (Queue)
-        queue: u64,
-        /// opaque engine handle (&mut CommandEncoder)
-        encoder: u64,
-        /// opaque engine handle (Texture)
-        color: u64,
-        /// opaque engine handle (TextureView)
-        color-view: u64,
-        /// opaque engine handle (TextureFormat)
-        color-format: u64,
-        size: list<u32>,
-        /// opaque engine handle (Vertex)
-        hand: list<u64>,
-        view-proj: mat4,
-        camera: tuple<f64, f64, f64>,
-        /// opaque engine handle (Texture)
-        atlas: option<u64>,
-        quad-indices: buffer,
     }
 
     record health-inputs {
@@ -449,6 +431,146 @@ interface engine-types {
         frozen,
     }
 
+    /// What a mod draws into the GUI batch (`HudBatch`), applied in order. GUI pixels; colours are
+    /// 0xAARRGGBB, except text, whose alpha is its default colour's.
+    variant hud-command {
+        /// `HudBatch::text_styled`.
+        text(hud-text),
+        /// `HudBatch::fill`.
+        rect(hud-rect),
+        /// `HudBatch::fill_gradient`.
+        gradient(hud-gradient),
+        /// `HudBatch::fill_quad` for a flat colour, `HudBatch::quad` with a sprite.
+        quad(hud-quad),
+        /// `HudBatch::sprite`, `sprite_scaled`, `sprite_part` and `sprite_region`.
+        sprite(hud-sprite),
+        /// An item drawn as in an inventory slot.
+        item(hud-item),
+        /// A texture registered through the native GUI textures, by id.
+        texture(hud-texture),
+        /// `HudBatch::text_highlight`.
+        highlight(hud-highlight),
+        /// Starts a run that `end-clip` cuts to the rectangle (`HudBatch::clip_since`).
+        begin-clip(hud-bounds),
+        end-clip,
+        /// Starts a run that `end-scale` scales about a point (`HudBatch::scale_since`).
+        begin-scale(hud-scale),
+        end-scale,
+        /// Starts a run drawn with a blend mode until `end-blend` (`HudBatch::blend_since`).
+        begin-blend(hud-blend),
+        end-blend,
+    }
+
+    record hud-text {
+        text: text-json,
+        x: f32,
+        y: f32,
+        color: u32,
+        shadow: bool,
+    }
+
+    record hud-rect {
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        color: u32,
+    }
+
+    record hud-gradient {
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        top: u32,
+        bottom: u32,
+    }
+
+    record hud-quad {
+        /// The four corners in order round the shape.
+        corners: list<tuple<f32, f32>>,
+        /// A sprite id, or none for a flat colour.
+        sprite: option<string>,
+        /// UVs of the corners, 0 to 1 over the sprite; none takes the sprite's own corners.
+        uv: option<list<tuple<f32, f32>>>,
+        color: u32,
+    }
+
+    record hud-sprite {
+        name: string,
+        x: f32,
+        y: f32,
+        /// The size drawn; none draws the sprite as large as it is.
+        size: option<tuple<f32, f32>>,
+        color: u32,
+        /// Draw only this fraction of the width, from the left.
+        fraction: option<f32>,
+        /// Draw only this region (x, y, width, height) of a texture of the given size.
+        region: option<hud-region>,
+    }
+
+    record hud-region {
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        texture-width: f32,
+        texture-height: f32,
+    }
+
+    record hud-item {
+        stack: item-stack,
+        x: f32,
+        y: f32,
+        /// Also draw the count and the damage bar.
+        decorations: bool,
+    }
+
+    record hud-texture {
+        id: string,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        color: u32,
+    }
+
+    record hud-highlight {
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        invert-text: bool,
+    }
+
+    record hud-bounds {
+        x0: f32,
+        y0: f32,
+        x1: f32,
+        y1: f32,
+    }
+
+    record hud-scale {
+        center-x: f32,
+        center-y: f32,
+        scale-x: f32,
+        scale-y: f32,
+    }
+
+    enum hud-blend {
+        alpha,
+        invert,
+        additive,
+        vignette,
+    }
+
+    record hud-outcome {
+        /// Commands to apply to `batch`, in order.
+        batch-commands: list<hud-command>,
+        /// Commands to apply to `corners`, in order.
+        corners-commands: list<corner-command>,
+    }
+
     record ingredient-test-outcome {
         /// The new `accept`, or none to leave it unchanged.
         accept: option<bool>,
@@ -458,6 +580,12 @@ interface engine-types {
         cancel: bool,
         /// The new `swing-hand`, or none to leave it unchanged.
         swing-hand: option<bool>,
+    }
+
+    record inventory-background-pre-outcome {
+        cancel: bool,
+        /// Commands to apply to `batch`, in order.
+        commands: list<hud-command>,
     }
 
     record inventory-screen-layout-outcome {
@@ -497,7 +625,7 @@ interface engine-types {
     }
 
     record item-model-context {
-        display: display-context,
+        display: display-context-n2,
         owner: option<owner-state>,
         level: option<level-state>,
         seed: s32,
@@ -508,24 +636,33 @@ interface engine-types {
         value: option<bool>,
     }
 
-    record item-stack {
-        item: string,
-        count: u32,
-        damage: u32,
-        extra: option<stack-data>,
+    record item-render-outcome {
+        value: option<bool>,
+        /// Commands to apply to `draw`, in order.
+        commands: list<model-command>,
     }
+
+    record item-slot-cooldown-outcome {
+        cancel: bool,
+        /// Commands to apply to `batch`, in order.
+        commands: list<hud-command>,
+    }
+
+    /// An item stack: item id, count and the data components (damage, enchantments, custom name,
+    /// bundle and container contents...) as an `nbt` compound, the way Horizon writes them to the
+    /// network and to disk. An empty `components` list means no components.
+    record item-stack {
+        id: string,
+        count: u32,
+        components: nbt,
+    }
+
+    /// A JSON document as text. Stand-in for `serde_json::Value`.
+    type json = string;
 
     record key-event {
         key: str-view,
         pressed: u32,
-    }
-
-    enum kind {
-        unorm,
-        snorm,
-        float,
-        int,
-        uint,
     }
 
     enum level-dimension {
@@ -565,6 +702,11 @@ interface engine-types {
         is-drowning: option<bool>,
         /// The new `damage-amount`, or none to leave it unchanged.
         damage-amount: option<f32>,
+    }
+
+    record living-entity-use-item-finish-outcome {
+        /// The new `result`, or none to leave it unchanged.
+        %result: option<option<item-stack>>,
     }
 
     record living-entity-use-item-start-outcome {
@@ -657,10 +799,8 @@ interface engine-types {
         exploration: option<exploration-map>,
         ominous-amplifier: option<s32>,
         stew-effects: list<tuple<string, s32>>,
-        /// opaque engine handle (Value)
-        names: list<tuple<string, u64>>,
-        /// opaque engine handle (Value)
-        components: list<tuple<string, u64>>,
+        names: list<tuple<string, json>>,
+        components: list<tuple<string, json>>,
     }
 
     variant %map {
@@ -677,14 +817,29 @@ interface engine-types {
         cells: list<tuple<u8, u8>>,
     }
 
-    record mat4 {
-        m: list<f32>,
-        properties: u8,
-    }
-
     record mending-repair-outcome {
         /// The new `repair`, or none to leave it unchanged.
         repair: option<u32>,
+    }
+
+    record menu-button-outcome {
+        /// The new `entity`, or none to leave it unchanged.
+        entity: option<mod-block-entity-fields>,
+    }
+
+    record menu-button-v2-outcome {
+        /// The new `entity`, or none to leave it unchanged.
+        entity: option<mod-block-entity-fields>,
+        /// The new `carried`, or none to leave it unchanged.
+        carried: option<option<item-stack>>,
+    }
+
+    record menu-quick-move-outcome {
+        cancel: bool,
+        /// The new `entity`, or none to leave it unchanged.
+        entity: option<mod-block-entity-fields>,
+        /// The new `stack`, or none to leave it unchanged.
+        stack: option<item-stack>,
     }
 
     record menu-slot-rules-outcome {
@@ -713,6 +868,19 @@ interface engine-types {
         count: option<u32>,
     }
 
+    record mob-submit-outcome {
+        cancel: bool,
+        /// Commands to apply to `draw`, in order.
+        commands: list<model-command>,
+    }
+
+    record mod-block-entity-fields {
+        id: string,
+        nbt: nbt,
+        items: list<option<item-stack>>,
+        data: list<s32>,
+    }
+
     record mod-container {
         slots: u64,
         faces: list<list<u64>>,
@@ -734,6 +902,94 @@ interface engine-types {
         faces: list<list<u64>>,
         inputs: list<u64>,
         outputs: list<u64>,
+    }
+
+    /// What a mod draws with a pose stack (`BlockEntityDraw`: block entities, mobs, players and
+    /// items), applied in order. Blocks, +X east, +Y up, +Z south; colours 0xRRGGBB.
+    variant model-command {
+        /// `BlockEntityDraw::push`.
+        push,
+        /// `BlockEntityDraw::pop`.
+        pop,
+        /// `BlockEntityDraw::translate`, in blocks.
+        translate(tuple<f32, f32, f32>),
+        /// `BlockEntityDraw::rotate-about`.
+        rotate-about(model-rotation),
+        /// `BlockEntityDraw::scale`.
+        scale(tuple<f32, f32, f32>),
+        /// Sets `BlockEntityDraw::light` for what is drawn next (16 times sky light in bits 0..8,
+        /// 16 times block light in bits 8..16).
+        set-light(u32),
+        /// `BlockEntityDraw::keep`: the block is drawn the same again until its state changes.
+        keep,
+        /// `native_draw_quad`.
+        quad(model-quad),
+        /// `native_draw_cube`.
+        cube(model-cube),
+        /// `native_draw_block`.
+        block(model-block),
+        /// `native_draw_model`: a standalone model by id.
+        model(model-standalone),
+        /// `native_draw_item`.
+        item(model-item),
+    }
+
+    record model-rotation {
+        axis: tuple<f32, f32, f32>,
+        degrees: f32,
+        pivot: tuple<f32, f32, f32>,
+    }
+
+    record model-quad {
+        sprite: string,
+        /// Four corners in blocks, in a model face's order.
+        corners: list<tuple<f32, f32, f32>>,
+        /// u0, v0, u1, v1 in texels of 16 per side.
+        uv: list<f32>,
+        tint: u32,
+    }
+
+    record model-cube-face {
+        sprite: string,
+        uv: option<list<f32>>,
+    }
+
+    record model-cube {
+        min: tuple<f32, f32, f32>,
+        max: tuple<f32, f32, f32>,
+        /// Down, up, north, south, west, east; none leaves a face out.
+        faces: list<option<model-cube-face>>,
+        tint: u32,
+    }
+
+    record model-block {
+        block: string,
+        properties: list<tuple<string, string>>,
+    }
+
+    record model-standalone {
+        model: string,
+        tint: u32,
+    }
+
+    enum display-context {
+        none,
+        third-person-left-hand,
+        third-person-right-hand,
+        first-person-left-hand,
+        first-person-right-hand,
+        head,
+        gui,
+        ground,
+        fixed,
+        on-shelf,
+    }
+
+    record model-item {
+        stack: item-stack,
+        display: display-context,
+        owner-yaw: option<f32>,
+        seed: s32,
     }
 
     record mouse-buttons-outcome {
@@ -890,8 +1146,7 @@ interface engine-types {
     }
 
     record native-item-render-context {
-        /// opaque engine handle (Value)
-        components: list<tuple<string, u64>>,
+        components: list<tuple<string, json>>,
         partial-tick: f32,
         game-time: s64,
         light: u32,
@@ -937,7 +1192,7 @@ interface engine-types {
 
     record native-loot-place {
         origin: option<list<f64>>,
-        block-entity: option<tag>,
+        block-entity: option<nbt>,
         level: option<native-loot-level>,
     }
 
@@ -1090,8 +1345,7 @@ interface engine-types {
     record native-screen-view {
         id: string,
         menu: option<string>,
-        /// opaque engine handle (Text)
-        title: option<u64>,
+        title: option<text-json>,
         extra: list<u8>,
         rect: list<f32>,
         slots: u64,
@@ -1131,6 +1385,11 @@ interface engine-types {
         turn: f32,
     }
 
+    /// A binary NBT value in Horizon's network encoding: one tag id byte, then that tag's payload
+    /// (no root name), big-endian, strings as Java modified UTF-8. A compound is tag id 10.
+    /// Stand-in for the recursive `Tag` and `Compound`; the guest SDK has a parser and writer.
+    type nbt = list<u8>;
+
     record net-frame-received-type {
         state: net-state,
         id: s32,
@@ -1155,23 +1414,6 @@ interface engine-types {
         cancel: bool,
         /// The new `new-note`, or none to leave it unchanged.
         new-note: option<s32>,
-    }
-
-    record overlay-drawn-type {
-        /// opaque engine handle (Device)
-        device: u64,
-        /// opaque engine handle (Queue)
-        queue: u64,
-        /// opaque engine handle (&mut CommandEncoder)
-        encoder: u64,
-        /// opaque engine handle (Texture)
-        color: u64,
-        /// opaque engine handle (TextureView)
-        color-view: u64,
-        /// opaque engine handle (TextureFormat)
-        color-format: u64,
-        size: list<u32>,
-        gui-scale: f32,
     }
 
     record owner-state {
@@ -1206,14 +1448,32 @@ interface engine-types {
         replace-clicked: bool,
     }
 
+    record player-command-outcome {
+        cancel: bool,
+        /// The new `replies`, or none to leave it unchanged.
+        replies: option<list<text-json>>,
+    }
+
     record player-exp-change-outcome {
         /// The new `amount`, or none to leave it unchanged.
         amount: option<s32>,
     }
 
+    record player-login-outcome {
+        cancel: bool,
+        /// The new `reason`, or none to leave it unchanged.
+        reason: option<option<text-json>>,
+    }
+
     record player-permission-level-outcome {
         /// The new `level`, or none to leave it unchanged.
         level: option<u8>,
+    }
+
+    record player-submit-outcome {
+        cancel: bool,
+        /// Commands to apply to `draw`, in order.
+        commands: list<model-command>,
     }
 
     record player-xp-change-outcome {
@@ -1289,6 +1549,11 @@ interface engine-types {
         text: option<option<string>>,
     }
 
+    record render-name-tag-position-outcome {
+        /// The new `anchor`, or none to leave it unchanged.
+        anchor: option<tuple<f64, f64, f64>>,
+    }
+
     record render-needs-type {
         entity-spans: bool,
         world-depth: bool,
@@ -1348,45 +1613,10 @@ interface engine-types {
         constant: bool,
     }
 
-    record stack-data {
-        enchantments: list<tuple<string, u32>>,
-        stored-enchantments: list<tuple<string, u32>>,
-        repair-cost: u32,
-        custom-name: option<tag>,
-        potion: option<string>,
-        potion-extra: list<tuple<string, tag>>,
-        trim: option<tuple<string, string>>,
-        /// opaque engine handle (ItemStack)
-        container: list<tuple<u8, u64>>,
-        /// opaque engine handle (ItemStack)
-        charged: list<u64>,
-        fireworks: option<tuple<u8, list<firework-explosion>>>,
-        map-id: option<s32>,
-        writable-pages: list<string>,
-        written: option<written-book>,
-        banner-patterns: list<banner-layer>,
-        base-color: option<string>,
-        ominous-banner: bool,
-        ominous-amplifier: option<u8>,
-        dyed-color: option<s32>,
-        firework-explosion: option<firework-explosion>,
-        /// opaque engine handle (ItemStack)
-        pot-decorations: option<list<option<u64>>>,
-        /// opaque engine handle (ItemStack)
-        bundle-contents: list<u64>,
-        bundle-selected: s32,
-        stew-effects: list<tuple<string, s32>>,
-        map-post-processing: option<u8>,
-        other: list<tuple<string, tag>>,
-        /// opaque engine handle (ItemStack)
-        wire: option<tuple<u64, list<u8>>>,
-    }
-
     record stack-view {
         item: string,
         count: s32,
-        /// opaque engine handle (Value)
-        patch: list<tuple<string, option<u64>>>,
+        patch: list<tuple<string, option<json>>>,
         bundle-selected: s32,
     }
 
@@ -1403,23 +1633,8 @@ interface engine-types {
         int-value: option<s32>,
     }
 
-    variant tag {
-        end,
-        byte(s8),
-        short(s16),
-        int(s32),
-        long(s64),
-        float(u32),
-        double(u64),
-        byte-array(list<u8>),
-        %string(list<u16>),
-        /// opaque engine handle (Tag)
-        %list(list<u64>),
-        /// opaque engine handle (Compound)
-        compound(u64),
-        int-array(list<s32>),
-        long-array(list<s64>),
-    }
+    /// A text component as vanilla's JSON (`ComponentSerialization`). Stand-in for `Text`.
+    type text-json = string;
 
     record tooltip-color-outcome {
         /// The new `background`, or none to leave it unchanged.
@@ -1480,81 +1695,11 @@ interface engine-types {
         lights: option<list<native-colored-light>>,
     }
 
-    record world-drawn-type {
-        /// opaque engine handle (Device)
-        device: u64,
-        /// opaque engine handle (Queue)
-        queue: u64,
-        /// opaque engine handle (&mut CommandEncoder)
-        encoder: u64,
-        /// opaque engine handle (Texture)
-        color: u64,
-        /// opaque engine handle (TextureView)
-        color-view: u64,
-        /// opaque engine handle (TextureFormat)
-        color-format: u64,
-        size: list<u32>,
-        /// opaque engine handle (TextureView)
-        depth: u64,
-        depth-size: list<u32>,
-        view-proj: mat4,
-        jittered: mat4,
-        camera: tuple<f64, f64, f64>,
-        /// opaque engine handle (Vertex)
-        entities: list<u64>,
-        spans: list<entity-span>,
-        motion: list<tuple<u32, u64>>,
-        /// opaque engine handle (Texture)
-        atlas: option<u64>,
-        quad-indices: buffer,
-        block-sprites: block-sprite-arrays,
-    }
-
     enum world-phase {
         world-open-ready,
         world-open-failed,
         world-close-final,
         world-close-failed,
-    }
-
-    record world-pre-post-type {
-        /// opaque engine handle (Device)
-        device: u64,
-        /// opaque engine handle (Queue)
-        queue: u64,
-        /// opaque engine handle (&mut CommandEncoder)
-        encoder: u64,
-        /// opaque engine handle (Texture)
-        color: u64,
-        /// opaque engine handle (TextureView)
-        color-view: u64,
-        /// opaque engine handle (TextureFormat)
-        color-format: u64,
-        size: list<u32>,
-        /// opaque engine handle (Texture)
-        depth: u64,
-        /// opaque engine handle (TextureView)
-        depth-view: u64,
-        view-proj: mat4,
-        jittered: mat4,
-        previous-view-proj: option<mat4>,
-        previous-camera: option<tuple<f64, f64, f64>>,
-        camera: tuple<f64, f64, f64>,
-        frame-index: u64,
-        sun-direction: tuple<f32, f32, f32>,
-        /// opaque engine handle (Sky)
-        sky: u64,
-        fog-color: list<f32>,
-        fog: list<f32>,
-        block-sprites: block-sprite-arrays,
-    }
-
-    record written-book {
-        title: string,
-        author: string,
-        generation: u8,
-        pages: list<string>,
-        page-tags: list<tag>,
     }
 }
 
@@ -1785,7 +1930,7 @@ interface server-services {
 
 /// Hooks that run in the client.
 interface client-hooks {
-    use engine-types.{apply-effect-tick-outcome, biome-colors-outcome, biome-colors-type, block-entity-ticks-outcome, camera-distance-outcome, camera-entity, camera-override-type, camera-shake-outcome, can-eat-outcome, compute-fog-color-outcome, compute-fov-modifier-outcome, compute-fov-outcome, critical-hit-outcome, duration, fixed-frame-type, fog-data, fog-type, fov-player, frame-advance, framerate-limit-outcome, gui-draw, hand, health-inputs, ingredient-test-outcome, interaction-key-outcome, inventory-screen-layout-outcome, item-bar-outcome, item-energy-buffer-type, item-model-context, item-model-property-outcome, item-stack, key-event, living-entity-use-item-start-outcome, living-entity-use-item-tick-outcome, living-fall-outcome, living-heal-outcome, living-incoming-damage-outcome, living-knockback-outcome, %map, mod-container, mod-fluid-tanks, mouse-buttons-outcome, mouse-buttons-type, movement-input-outcome, music-layer, music-outcome, music-type, name-tag-line, native-block-behavior, native-block-rim, native-capability-provider, native-colored-light, native-command, native-fluid-definition, native-inventory-layout, native-item-behavior, native-item-context, native-item-holder, native-item-render-context, native-lifecycle-context, native-loot-drops, native-map-decoration, native-map-info, native-menu-behavior, native-minimap, native-mob-render, native-mod, native-panel-event, native-player-render, native-recipe-type, native-screen, native-screen-view, native-server-player, native-shake, native-zoom, net-frame-received-type, net-frames-listened-outcome, recipe-book-categories-outcome, recipe-book-category, release-using-outcome, render-fog-outcome, render-hand-pose-outcome, render-name-tag-outcome, render-needs-type, server-tick-phase, shader-params-outcome, should-apply-effect-tick-this-tick-outcome, stack-view, tag, tooltip-color-outcome, use-animation-outcome, use-animation-type, use-duration-outcome, visuals-outcome, world-phase};
+    use engine-types.{apply-effect-tick-outcome, biome-colors-outcome, biome-colors-type, block-entity-tick-outcome, block-entity-ticks-outcome, camera-distance-outcome, camera-entity, camera-override-type, camera-shake-outcome, can-eat-outcome, compute-fog-color-outcome, compute-fov-modifier-outcome, compute-fov-outcome, corner-command, critical-hit-outcome, duration, fixed-frame-type, fog-data, fog-type, fov-player, frame-advance, frame-command, framerate-limit-outcome, gui-draw, gui-layer-pre-outcome, hand, health-inputs, hud-command, hud-outcome, ingredient-test-outcome, interaction-key-outcome, inventory-background-pre-outcome, inventory-screen-layout-outcome, item-bar-outcome, item-energy-buffer-type, item-model-context, item-model-property-outcome, item-render-outcome, item-slot-cooldown-outcome, item-stack, json, key-event, living-entity-use-item-start-outcome, living-entity-use-item-tick-outcome, living-fall-outcome, living-heal-outcome, living-incoming-damage-outcome, living-knockback-outcome, %map, menu-button-outcome, menu-button-v2-outcome, mob-submit-outcome, mod-block-entity-fields, mod-container, mod-fluid-tanks, model-command, mouse-buttons-outcome, mouse-buttons-type, movement-input-outcome, music-layer, music-outcome, music-type, name-tag-line, native-block-behavior, native-block-rim, native-capability-provider, native-colored-light, native-command, native-fluid-definition, native-inventory-layout, native-item-behavior, native-item-context, native-item-holder, native-item-render-context, native-lifecycle-context, native-loot-drops, native-map-decoration, native-map-info, native-menu-behavior, native-minimap, native-mob-render, native-mod, native-panel-event, native-player-render, native-recipe-type, native-screen, native-screen-view, native-server-player, native-shake, native-zoom, nbt, net-frame-received-type, net-frames-listened-outcome, player-submit-outcome, recipe-book-categories-outcome, recipe-book-category, release-using-outcome, render-fog-outcome, render-hand-pose-outcome, render-name-tag-outcome, render-name-tag-position-outcome, render-needs-type, server-tick-phase, shader-params-outcome, should-apply-effect-tick-this-tick-outcome, stack-view, text-json, tooltip-color-outcome, use-animation-outcome, use-animation-type, use-duration-outcome, visuals-outcome, world-phase};
 
     /// Once a frame, in a world or not, after Horizon's extras.
     frame: func(elapsed: duration);
@@ -1824,9 +1969,9 @@ interface client-hooks {
     /// `native_fill` and `native_text`. Skip a corner `native_corner_shown`
     /// says is taken.
     ///
-    /// `batch` is an opaque engine handle (&mut HudBatch).
-    /// `corners` is an opaque engine handle (&mut Corners).
-    hud: func(batch: u64, corners: u64);
+    /// `batch` is applied by the host: return `hud-command` commands for it.
+    /// `corners` is applied by the host: return `corner-command` commands for it.
+    hud: func() -> hud-outcome;
     /// A key or mouse button went down or up, by its vanilla name
     /// (`key.keyboard.z`, `key.mouse.left`): keys on any screen (check
     /// `native_playing`), mouse buttons while playing. Repeats are left out.
@@ -1882,7 +2027,7 @@ interface client-hooks {
     /// block entity of its own (a chest, a furnace...), or the block got none.
     ///
     /// Returns Some to set `entity` (None keeps it); the first mod that answers wins.
-    block-entity: func(block: string) -> option<tuple<string, list<tuple<list<u16>, tag>>>>;
+    block-entity: func(block: string) -> option<tuple<string, nbt>>;
     /// Whether block `block`'s block entity ticks (`EntityBlock.getTicker`):
     /// set `ticks` when it is yours. Asked for each of the block's states
     /// when a world opens. API 15.
@@ -1901,8 +2046,8 @@ interface client-hooks {
     /// what `native_block_entity_update_tag` gives when its chunk is sent or
     /// its block changes. API 17.
     ///
-    /// `entity` is an opaque engine handle (&mut ModBlockEntity).
-    block-entity-tick: func(pos: list<s32>, entity: u64);
+    /// Also returns the changed values of `entity`.
+    block-entity-tick: func(pos: list<s32>, entity: mod-block-entity-fields) -> block-entity-tick-outcome;
     /// What clients get of the block entity at `pos` when its `id` is
     /// yours (`BlockEntity.getUpdateTag`): set `tag` to it, read from
     /// `entity` alone. Asked on the server whenever a chunk holding it is
@@ -1911,9 +2056,8 @@ interface client-hooks {
     /// entity (made by `native_block_entity` there) merges it into its `nbt`.
     /// Leave it unset to send nothing. API 45.
     ///
-    /// `entity` is an opaque engine handle (ModBlockEntity).
     /// Returns Some to set `tag` (None keeps it); the first mod that answers wins.
-    block-entity-update-tag: func(pos: list<s32>, entity: u64) -> option<list<tuple<list<u16>, tag>>>;
+    block-entity-update-tag: func(pos: list<s32>, entity: mod-block-entity-fields) -> option<nbt>;
     /// Block `block`'s block entity has item slots (a `WorldlyContainer`):
     /// set `container` when the block is yours. Asked once for each mod
     /// block when the ticking table is built; at most 256 slots, and slot
@@ -1941,8 +2085,9 @@ interface client-hooks {
     /// values arrive, so read it with `get`. Draw with `native_sprite`, `native_fill` and
     /// `native_text`. API 19.
     ///
-    /// `batch` is an opaque engine handle (&mut HudBatch).
-    screen-draw: func(block: string, data: list<s32>, batch: u64, origin: list<f32>);
+    /// `batch` is applied by the host: return `hud-command` commands for it.
+    /// Returns the commands to apply.
+    screen-draw: func(block: string, data: list<s32>, origin: list<f32>) -> list<hud-command>;
     /// A left or right (`right`) press at `at` (GUI pixels from the screen's
     /// top left, so outside it too) on block `block`'s screen, a mod's, over
     /// no slot: set `button` to a menu button id when it is on one of yours.
@@ -1962,8 +2107,8 @@ interface client-hooks {
     /// change `entity` when its id is yours. It is out of the world during
     /// the call, as in `native_block_entity_tick`. API 20.
     ///
-    /// `entity` is an opaque engine handle (&mut ModBlockEntity).
-    menu-button: func(pos: list<s32>, entity: u64, id: s32);
+    /// Also returns the changed values of `entity`.
+    menu-button: func(pos: list<s32>, entity: mod-block-entity-fields, id: s32) -> menu-button-outcome;
     /// The commands native mods add to the server's command tree: push
     /// yours. Asked once when a world opens to players (a dedicated
     /// server, a LAN host, single player's server thread); every player's
@@ -2001,7 +2146,7 @@ interface client-hooks {
     /// hides. API 12.
     ///
     /// Collect: `lines` is the aggregate so far; return the aggregate you want.
-    tooltip: func(stack: item-stack, lines: list<tuple<u64, u32>>) -> list<tuple<u64, u32>>;
+    tooltip: func(stack: item-stack, lines: list<tuple<text-json, u32>>) -> list<tuple<text-json, u32>>;
     /// A player uses `stack` (right click) with `self.hand` on the block at
     /// `pos`, `face` the face clicked (`[0, 1, 0]` is the top), once the
     /// block itself let the click through (a chest still opens): where
@@ -2211,9 +2356,8 @@ interface client-hooks {
     /// moment, same `pos`/`entity`/`id`; change `carried` when its id is
     /// yours. On the server. API 51.
     ///
-    /// `entity` is an opaque engine handle (&mut ModBlockEntity).
-    /// `carried` is an opaque engine handle (&mut Option).
-    menu-button-v2: func(pos: list<s32>, entity: u64, id: s32, carried: u64);
+    /// Also returns the changed values of `entity`, `carried`.
+    menu-button-v2: func(pos: list<s32>, entity: mod-block-entity-fields, id: s32, carried: option<item-stack>) -> menu-button-v2-outcome;
     /// An entity leaves the server level `dimension` (NeoForge's
     /// `EntityLeaveLevelEvent`): vanilla's `onTrackingEnd`, when it is removed
     /// for any reason (picked up, merged, despawned, burnt, blown up, killed,
@@ -2297,8 +2441,9 @@ interface client-hooks {
     player-logged-out: func(player: list<u8>, name: string);
     /// The world is drawn (see [`WorldDrawn`]). Not called on the title screen's panorama.
     ///
-    /// `world` is an opaque engine handle (&mut WorldDrawn).
-    world-drawn: func(%world: u64);
+    /// `world` is applied by the host: return `frame-command` commands for it.
+    /// Returns the commands to apply.
+    world-drawn: func() -> list<frame-command>;
     /// Asked as a frame is built and drawn: set what your mod needs.
     ///
     /// Collect: `needs` is the current value; return Some to change it (None keeps it).
@@ -2325,8 +2470,9 @@ interface client-hooks {
     /// Stack is the component's data. Use native_sprite/native_fill/native_text;
     /// size is the measurement returned by native_tooltip_component this frame.
     ///
-    /// `batch` is an opaque engine handle (&mut HudBatch).
-    tooltip-component-draw: func(stack: item-stack, batch: u64, origin: list<f32>, size: list<f32>);
+    /// `batch` is applied by the host: return `hud-command` commands for it.
+    /// Returns the commands to apply.
+    tooltip-component-draw: func(stack: item-stack, origin: list<f32>, size: list<f32>) -> list<hud-command>;
     /// Draw the mod block entity at `pos`, of block `block`
     /// (`mymod:machine`), on this client: once a frame while it is in view
     /// (vanilla's `BlockEntityRenderer.submit`: within 64 blocks, its chunk
@@ -2340,9 +2486,9 @@ interface client-hooks {
     /// block's lower north-west corner, in blocks; `draw` also has the partial
     /// tick, the game time and the block's light. API 71.
     ///
-    /// `entity` is an opaque engine handle (ModBlockEntity).
-    /// `draw` is an opaque engine handle (&mut BlockEntityDraw).
-    block-entity-submit: func(pos: list<s32>, block: string, state: u32, entity: u64, draw: u64);
+    /// `draw` is applied by the host: return `model-command` commands for it.
+    /// Returns the commands to apply.
+    block-entity-submit: func(pos: list<s32>, block: string, state: u32, entity: mod-block-entity-fields) -> list<model-command>;
     /// Where the mod block entity at `pos` draws, for culling
     /// (NeoForge's `getRenderBoundingBox`): `bounds` is min x, y, z then max
     /// x, y, z, in blocks from the block's lower north-west corner. It starts
@@ -2351,18 +2497,15 @@ interface client-hooks {
     /// set an infinite value for one never culled. Asked once a frame for each
     /// within 64 blocks whose chunk is drawn. API 71.
     ///
-    /// `entity` is an opaque engine handle (ModBlockEntity).
     /// Collect: `bounds` is the aggregate so far; return the aggregate you want.
-    block-entity-render-bounding-box: func(pos: list<s32>, block: string, state: u32, entity: u64, bounds: list<f32>) -> list<f32>;
+    block-entity-render-bounding-box: func(pos: list<s32>, block: string, state: u32, entity: mod-block-entity-fields, bounds: list<f32>) -> list<f32>;
     /// A consumable's effect of a mod's own kind: the item's `on_consume_effects`
     /// entry is of a type in a namespace of its own, and the loader kept it
     /// for this call. The kind and the JSON the file wrote are here; the acting
     /// player is the one consuming, and the game's own effects,
     /// sounds, teleports and drops are open. An unclaimed kind does
     /// nothing. API 74.
-    ///
-    /// `data` is an opaque engine handle (Value).
-    consume-effect: func(kind: string, data: u64);
+    consume-effect: func(kind: string, data: json);
     /// A block broke or a mob died, and `drops` are the items about to drop, in
     /// the order they drop: what the loot tables rolled (after
     /// `native_loot_table_load`'s changes), and for a mob what it wore, held or
@@ -2393,9 +2536,7 @@ interface client-hooks {
     /// such entry is told once a hit, and once for each mob a sweep lands on.
     /// A hit on a player, and an entry inside `minecraft:all_of`, aren't told
     /// yet. An unclaimed kind does nothing. API 77.
-    ///
-    /// `data` is an opaque engine handle (Value).
-    enchant-effect: func(enchantment: string, kind: string, data: u64, level: u32, victim: u32);
+    enchant-effect: func(enchantment: string, kind: string, data: json, level: u32, victim: u32);
     /// The open screen has drawn itself and its tooltips (`Screen.render`,
     /// the point of `ScreenEvent.Render.Post`): draw over it with
     /// `native_fill`, `native_sprite` and `native_text`, `screen.rect` being
@@ -2414,8 +2555,9 @@ interface client-hooks {
     /// their `rect` (API 326), and no dialog or prompt over them.
     /// API 78.
     ///
-    /// `batch` is an opaque engine handle (&mut HudBatch).
-    screen-render-post: func(batch: u64, screen: native-screen-view);
+    /// `batch` is applied by the host: return `hud-command` commands for it.
+    /// Returns the commands to apply.
+    screen-render-post: func(screen: native-screen-view) -> list<hud-command>;
     /// A mouse button went down over the open screen
     /// (`ScreenEvent.MouseButtonPressed.Pre`, vanilla's
     /// `Screen.mouseClicked`): `screen` is the screen it is, `screen.mouse`
@@ -2495,8 +2637,9 @@ interface client-hooks {
     /// Runs wherever the shared item-decoration path is used (hotbar, menus, tooltips,
     /// and the other screens that draw item icons: advancements, beacon, stats, trading).
     ///
-    /// `batch` is an opaque engine handle (&mut HudBatch).
-    item-decorations: func(stack: item-stack, x: f32, y: f32, batch: u64);
+    /// `batch` is applied by the host: return `hud-command` commands for it.
+    /// Returns the commands to apply.
+    item-decorations: func(stack: item-stack, x: f32, y: f32) -> list<hud-command>;
     /// `Item.getUseDuration` of `stack`, in ticks: `duration` arrives with
     /// vanilla's (a consumable's time, 72000 for a shield, a spear, a bow,
     /// 0 for an item with no use over time). A mod's own item (outside
@@ -2695,9 +2838,9 @@ interface client-hooks {
     /// A mob is drawn afresh each frame: `draw.keep()` does nothing here.
     /// API 110.
     ///
-    /// `draw` is an opaque engine handle (&mut BlockEntityDraw).
+    /// `draw` is applied by the host: return `model-command` commands for it.
     /// Returns true to cancel (take) the event; the first mod that cancels wins.
-    mob-submit: func(mob: native-mob-render, draw: u64) -> bool;
+    mob-submit: func(mob: native-mob-render) -> mob-submit-outcome;
     /// Final scaled third-person camera distance, before visual-shape collision clipping.
     /// `entity` includes its living scale/distance and optional mount scale/distance.
     /// Only finite requests in 0..=1024 blocks replace the vanilla distance.
@@ -2909,15 +3052,16 @@ interface client-hooks {
     /// `RegisterGuiLayersEvent`: a mod keeps its own list of what it draws
     /// above or below which layer. API 139.
     ///
-    /// `batch` is an opaque engine handle (&mut HudBatch).
+    /// `batch` is applied by the host: return `hud-command` commands for it.
     /// Returns true to cancel (take) the event; the first mod that cancels wins.
-    gui-layer-pre: func(layer: string, batch: u64) -> bool;
+    gui-layer-pre: func(layer: string) -> gui-layer-pre-outcome;
     /// After one of vanilla's HUD layers (or after the layer a mod hid), with
     /// the ids of `native_gui_layer_pre`: draw here to put something above
     /// the layer (`RenderGuiLayerEvent.Post`). API 139.
     ///
-    /// `batch` is an opaque engine handle (&mut HudBatch).
-    gui-layer-post: func(layer: string, batch: u64);
+    /// `batch` is applied by the host: return `hud-command` commands for it.
+    /// Returns the commands to apply.
+    gui-layer-post: func(layer: string) -> list<hud-command>;
     /// Icons a mod puts on map `map` each time it is drawn: held, in an
     /// item frame or on the cartography table's screen (a map's pixels are
     /// its own; nothing is saved in the map). Push `NativeMapDecoration`s
@@ -2983,9 +3127,9 @@ interface client-hooks {
     /// at the player's feet, turned with the body. The name tag, shadow,
     /// flames and glowing outline draw as before. API 149.
     ///
-    /// `draw` is an opaque engine handle (&mut BlockEntityDraw).
+    /// `draw` is applied by the host: return `model-command` commands for it.
     /// Returns true to cancel (take) the event; the first mod that cancels wins.
-    player-submit: func(player: native-mob-render, who: native-player-render, draw: u64) -> bool;
+    player-submit: func(player: native-mob-render, who: native-player-render) -> player-submit-outcome;
     /// A layer on every mob and player in view, once a frame after its
     /// vanilla model and layers (`EntityRenderersEvent.AddLayers`, with
     /// `RenderLivingEvent.Post` and `RenderPlayerEvent.Post`): add geometry
@@ -2996,8 +3140,9 @@ interface client-hooks {
     /// `native_player_submit`) nor for a mob that isn't drawn at all.
     /// API 149.
     ///
-    /// `draw` is an opaque engine handle (&mut BlockEntityDraw).
-    mob-layer: func(mob: native-mob-render, who: option<native-player-render>, draw: u64);
+    /// `draw` is applied by the host: return `model-command` commands for it.
+    /// Returns the commands to apply.
+    mob-layer: func(mob: native-mob-render, who: option<native-player-render>) -> list<model-command>;
     /// Whether a mod listens to `native_player_submit` or `native_mob_layer`: a
     /// mod that hooks either hooks this one too and sets `listened` (HEAD,
     /// `*listened = true`). Without it the game poses no player or mob for
@@ -3163,8 +3308,9 @@ interface client-hooks {
     /// The first-person hand is drawn (see [`HandDrawn`]), on every frame [`native_world_drawn`]
     /// runs, with no hand too. API @API:hand_drawn@.
     ///
-    /// `hand` is an opaque engine handle (&mut HandDrawn).
-    hand-drawn: func(hand: u64);
+    /// `hand` is applied by the host: return `frame-command` commands for it.
+    /// Returns the commands to apply.
+    hand-drawn: func() -> list<frame-command>;
     /// A mod's own ingredient kind, matching a concrete stack at craft time:
     /// the ingredient's `test` calls here with the kind, its JSON and the
     /// stack being matched, `accept` already true (the load-time list named
@@ -3180,9 +3326,9 @@ interface client-hooks {
     inventory-background-pre-listened: func(listened: bool) -> option<bool>;
     /// Draw before the inventory background. API @API:inventory_background_pre@.
     ///
-    /// `batch` is an opaque engine handle (&mut HudBatch).
+    /// `batch` is applied by the host: return `hud-command` commands for it.
     /// Returns true to cancel (take) the event; the first mod that cancels wins.
-    inventory-background-pre: func(batch: u64, screen: native-screen-view) -> bool;
+    inventory-background-pre: func(screen: native-screen-view) -> inventory-background-pre-outcome;
     /// Whether a native mod uses the inventory layout hook. API @API:inventory_screen_layout@.
     ///
     /// Collect: `listened` is the current value; return Some to change it (None keeps it).
@@ -3212,24 +3358,20 @@ interface client-hooks {
     /// The borrowed stack is the one being resolved, including nested bundle items.
     /// @API:item_model_property@.
     ///
-    /// `components` is an opaque engine handle (Value).
     /// Also returns the changed values of `value`.
-    item-model-property: func(property: string, stack: stack-view, components: list<tuple<string, u64>>, context: item-model-context, value: bool) -> item-model-property-outcome;
+    item-model-property: func(property: string, stack: stack-view, components: list<tuple<string, json>>, context: item-model-context, value: bool) -> item-model-property-outcome;
     /// @API:item_presentation@.
     ///
-    /// `components` is an opaque engine handle (Value).
     /// Collect: `value` is the current value; return Some to change it (None keeps it).
-    item-model-number: func(property: string, stack: stack-view, components: list<tuple<string, u64>>, context: item-model-context, value: f32) -> option<f32>;
+    item-model-number: func(property: string, stack: stack-view, components: list<tuple<string, json>>, context: item-model-context, value: f32) -> option<f32>;
     /// @API:item_presentation@.
     ///
-    /// `components` is an opaque engine handle (Value).
     /// Collect: `value` is the current value; return Some to change it (None keeps it).
-    item-model-select: func(property: string, stack: stack-view, components: list<tuple<string, u64>>, context: item-model-context, value: option<u64>) -> option<option<u64>>;
+    item-model-select: func(property: string, stack: stack-view, components: list<tuple<string, json>>, context: item-model-context, value: option<u64>) -> option<option<u64>>;
     /// @API:item_presentation@.
     ///
-    /// `components` is an opaque engine handle (Value).
     /// Collect: `color` is the current value; return Some to change it (None keeps it).
-    item-tint: func(source: string, stack: stack-view, components: list<tuple<string, u64>>, context: item-model-context, color: s32) -> option<s32>;
+    item-tint: func(source: string, stack: stack-view, components: list<tuple<string, json>>, context: item-model-context, color: s32) -> option<s32>;
     /// @API:item_render@.
     ///
     /// Collect: `listened` is the current value; return Some to change it (None keeps it).
@@ -3240,15 +3382,15 @@ interface client-hooks {
     item-render-claims: func(item: string, claimed: bool) -> option<bool>;
     /// @API:item_render@.
     ///
-    /// `draw` is an opaque engine handle (&mut NativeItemDraw).
+    /// `draw` is applied by the host: return `model-command` commands for it.
     /// Collect: `drawn` is the current value; return Some to change it (None keeps it).
-    item-render: func(stack: item-stack, context: native-item-context, holder: option<native-item-holder>, presentation: native-item-render-context, draw: u64, drawn: bool) -> option<bool>;
+    item-render: func(stack: item-stack, context: native-item-context, holder: option<native-item-holder>, presentation: native-item-render-context, drawn: bool) -> item-render-outcome;
     /// Draw in GUI coordinates after the bar and before the shade and count.
     /// Cancel suppresses only the vanilla cooldown shade. @API:item_slot_cooldown@.
     ///
-    /// `batch` is an opaque engine handle (&mut HudBatch).
+    /// `batch` is applied by the host: return `hud-command` commands for it.
     /// Returns true to cancel (take) the event; the first mod that cancels wins.
-    item-slot-cooldown: func(batch: u64, stack: item-stack, rect: list<f32>, cooldown: option<tuple<f32, f32>>, partial-tick: f32) -> bool;
+    item-slot-cooldown: func(stack: item-stack, rect: list<f32>, cooldown: option<tuple<f32, f32>>, partial-tick: f32) -> item-slot-cooldown-outcome;
     /// Collect fixed interest once after native mods have been loaded.
     /// @API:item_slot_cooldown@.
     ///
@@ -3290,8 +3432,9 @@ interface client-hooks {
     /// The final HUD/screen batch is drawn (see [`OverlayDrawn`]). Only called when
     /// [`RenderNeeds::overlay`] is set, on real and generated overlay frames. API @API:overlay_drawn@.
     ///
-    /// `overlay` is an opaque engine handle (&mut OverlayDrawn).
-    overlay-drawn: func(overlay: u64);
+    /// `overlay` is applied by the host: return `frame-command` commands for it.
+    /// Returns the commands to apply.
+    overlay-drawn: func() -> list<frame-command>;
     /// Declare categories for custom recipe types, with registered item icons.
     /// Asked lazily once per recipe table by `native_recipe_book_category`.
     /// Invalid declarations are logged and skipped; the first valid category
@@ -3339,8 +3482,8 @@ interface client-hooks {
     /// Camera-relative world-block anchor, shared by the name and score lines.
     /// API @API:render_name_tag_position@.
     ///
-    /// `anchor` is an opaque engine handle (&mut DVec3).
-    render-name-tag-position: func(entity-id: u32, kind: string, anchor: u64);
+    /// Also returns the changed values of `anchor`.
+    render-name-tag-position: func(entity-id: u32, kind: string, anchor: tuple<f64, f64, f64>) -> render-name-tag-position-outcome;
     /// Enable final-mix copies only when observed. API @API:replay_audio_mix@.
     ///
     /// Collect: `listened` is the current value; return Some to change it (None keeps it).
@@ -3385,13 +3528,14 @@ interface client-hooks {
     /// The world is drawn, before every finishing branch (see [`WorldPrePost`]). Only called
     /// when [`RenderNeeds::pre_post`] is set, never on the title panorama. API @API:world_pre_post@.
     ///
-    /// `world` is an opaque engine handle (&mut WorldPrePost).
-    world-pre-post: func(%world: u64);
+    /// `world` is applied by the host: return `frame-command` commands for it.
+    /// Returns the commands to apply.
+    world-pre-post: func() -> list<frame-command>;
 }
 
 /// Hooks that run in the server (integrated or dedicated).
 interface server-hooks {
-    use engine-types.{anvil-craft, apply-effect-tick-outcome, arrow-loose-outcome, block-entity-ticks-outcome, block-exp-outcome, block-pos, block-signal-outcome, camera-shake-outcome, can-eat-outcome, can-player-sleep-outcome, chorus-fruit-teleport-outcome, critical-hit-outcome, direction, duration, ender-pearl-teleport-outcome, experience-orb-can-merge-outcome, experience-orb-pickup-outcome, food-level-changed-outcome, gui-draw, hand, health-inputs, is-signal-source-outcome, item-bar-outcome, item-damaged-outcome, item-energy-buffer-type, item-expire-outcome, item-stack, level-dimension, living-breathe-outcome, living-drown-outcome, living-entity-use-item-start-outcome, living-entity-use-item-tick-outcome, living-fall-outcome, living-heal-outcome, living-incoming-damage-outcome, living-incoming-damage-v2-outcome, living-knockback-outcome, living-knockback-v2-outcome, loot-stack, mending-repair-outcome, menu-slot-rules-outcome, merchant-offer, mob-split-outcome, mod-container, mod-energy-buffer, mod-fluid-tanks, native-block-behavior, native-block-rim, native-capability-provider, native-chat-recipients, native-colored-light, native-command, native-data-map-type, native-fluid-definition, native-item-behavior, native-lifecycle-context, native-loot-context, native-loot-drops, native-menu-behavior, native-minimap, native-mod, native-note-block-change, native-panel-event, native-recipe-type, native-screen, native-screen-view, native-server-player, native-shake, native-zoom, note-block-change-outcome, placement-context, player-exp-change-outcome, player-permission-level-outcome, player-xp-change-outcome, potential-spawns-outcome, prepare-anvil-outcome, prepare-item-enchant-outcome, recipe-book-categories-outcome, recipe-book-category, release-using-outcome, server-chat-outcome, server-tick-phase, shader-params-outcome, should-apply-effect-tick-this-tick-outcome, sign-changed-outcome, sleep-finished-time-outcome, spawn-entry, suggestion, tag, use-duration-outcome, vehicle-damage-outcome, visuals-outcome, world-phase};
+    use engine-types.{anvil-craft, apply-effect-tick-outcome, arrow-loose-outcome, block-entity-tick-outcome, block-entity-ticks-outcome, block-exp-outcome, block-pos, block-signal-outcome, broadcast-message-outcome, camera-shake-outcome, can-eat-outcome, can-player-sleep-outcome, chorus-fruit-teleport-outcome, corner-command, critical-hit-outcome, direction, duration, ender-pearl-teleport-outcome, experience-orb-can-merge-outcome, experience-orb-pickup-outcome, food-level-changed-outcome, gui-draw, hand, health-inputs, hud-command, hud-outcome, is-signal-source-outcome, item-bar-outcome, item-damaged-outcome, item-energy-buffer-type, item-expire-outcome, item-stack, json, level-dimension, living-breathe-outcome, living-drown-outcome, living-entity-use-item-finish-outcome, living-entity-use-item-start-outcome, living-entity-use-item-tick-outcome, living-fall-outcome, living-heal-outcome, living-incoming-damage-outcome, living-incoming-damage-v2-outcome, living-knockback-outcome, living-knockback-v2-outcome, loot-stack, mending-repair-outcome, menu-button-outcome, menu-button-v2-outcome, menu-quick-move-outcome, menu-slot-rules-outcome, merchant-offer, mob-split-outcome, mod-block-entity-fields, mod-container, mod-energy-buffer, mod-fluid-tanks, model-command, native-block-behavior, native-block-rim, native-capability-provider, native-chat-recipients, native-colored-light, native-command, native-data-map-type, native-fluid-definition, native-item-behavior, native-lifecycle-context, native-loot-context, native-loot-drops, native-menu-behavior, native-minimap, native-mod, native-note-block-change, native-panel-event, native-recipe-type, native-screen, native-screen-view, native-server-player, native-shake, native-zoom, nbt, note-block-change-outcome, placement-context, player-command-outcome, player-exp-change-outcome, player-login-outcome, player-permission-level-outcome, player-xp-change-outcome, potential-spawns-outcome, prepare-anvil-outcome, prepare-item-enchant-outcome, recipe-book-categories-outcome, recipe-book-category, release-using-outcome, server-chat-outcome, server-tick-phase, shader-params-outcome, should-apply-effect-tick-this-tick-outcome, sign-changed-outcome, sleep-finished-time-outcome, spawn-entry, suggestion, text-json, use-duration-outcome, vehicle-damage-outcome, visuals-outcome, world-phase};
 
     /// Once a frame, in a world or not, after Horizon's extras.
     frame: func(elapsed: duration);
@@ -3489,9 +3633,9 @@ interface server-hooks {
     /// `native_fill` and `native_text`. Skip a corner `native_corner_shown`
     /// says is taken.
     ///
-    /// `batch` is an opaque engine handle (&mut HudBatch).
-    /// `corners` is an opaque engine handle (&mut Corners).
-    hud: func(batch: u64, corners: u64);
+    /// `batch` is applied by the host: return `hud-command` commands for it.
+    /// `corners` is applied by the host: return `corner-command` commands for it.
+    hud: func() -> hud-outcome;
     /// A key or mouse button went down or up, by its vanilla name
     /// (`key.keyboard.z`, `key.mouse.left`): keys on any screen (check
     /// `native_playing`), mouse buttons while playing. Repeats are left out.
@@ -3547,7 +3691,7 @@ interface server-hooks {
     /// block entity of its own (a chest, a furnace...), or the block got none.
     ///
     /// Returns Some to set `entity` (None keeps it); the first mod that answers wins.
-    block-entity: func(block: string) -> option<tuple<string, list<tuple<list<u16>, tag>>>>;
+    block-entity: func(block: string) -> option<tuple<string, nbt>>;
     /// Whether block `block`'s block entity ticks (`EntityBlock.getTicker`):
     /// set `ticks` when it is yours. Asked for each of the block's states
     /// when a world opens. API 15.
@@ -3566,8 +3710,8 @@ interface server-hooks {
     /// what `native_block_entity_update_tag` gives when its chunk is sent or
     /// its block changes. API 17.
     ///
-    /// `entity` is an opaque engine handle (&mut ModBlockEntity).
-    block-entity-tick: func(pos: list<s32>, entity: u64);
+    /// Also returns the changed values of `entity`.
+    block-entity-tick: func(pos: list<s32>, entity: mod-block-entity-fields) -> block-entity-tick-outcome;
     /// What clients get of the block entity at `pos` when its `id` is
     /// yours (`BlockEntity.getUpdateTag`): set `tag` to it, read from
     /// `entity` alone. Asked on the server whenever a chunk holding it is
@@ -3576,9 +3720,8 @@ interface server-hooks {
     /// entity (made by `native_block_entity` there) merges it into its `nbt`.
     /// Leave it unset to send nothing. API 45.
     ///
-    /// `entity` is an opaque engine handle (ModBlockEntity).
     /// Returns Some to set `tag` (None keeps it); the first mod that answers wins.
-    block-entity-update-tag: func(pos: list<s32>, entity: u64) -> option<list<tuple<list<u16>, tag>>>;
+    block-entity-update-tag: func(pos: list<s32>, entity: mod-block-entity-fields) -> option<nbt>;
     /// Block `block`'s block entity has item slots (a `WorldlyContainer`):
     /// set `container` when the block is yours. Asked once for each mod
     /// block when the ticking table is built; at most 256 slots, and slot
@@ -3606,8 +3749,9 @@ interface server-hooks {
     /// values arrive, so read it with `get`. Draw with `native_sprite`, `native_fill` and
     /// `native_text`. API 19.
     ///
-    /// `batch` is an opaque engine handle (&mut HudBatch).
-    screen-draw: func(block: string, data: list<s32>, batch: u64, origin: list<f32>);
+    /// `batch` is applied by the host: return `hud-command` commands for it.
+    /// Returns the commands to apply.
+    screen-draw: func(block: string, data: list<s32>, origin: list<f32>) -> list<hud-command>;
     /// A left or right (`right`) press at `at` (GUI pixels from the screen's
     /// top left, so outside it too) on block `block`'s screen, a mod's, over
     /// no slot: set `button` to a menu button id when it is on one of yours.
@@ -3627,8 +3771,8 @@ interface server-hooks {
     /// change `entity` when its id is yours. It is out of the world during
     /// the call, as in `native_block_entity_tick`. API 20.
     ///
-    /// `entity` is an opaque engine handle (&mut ModBlockEntity).
-    menu-button: func(pos: list<s32>, entity: u64, id: s32);
+    /// Also returns the changed values of `entity`.
+    menu-button: func(pos: list<s32>, entity: mod-block-entity-fields, id: s32) -> menu-button-outcome;
     /// The commands native mods add to the server's command tree: push
     /// yours. Asked once when a world opens to players (a dedicated
     /// server, a LAN host, single player's server thread); every player's
@@ -3666,7 +3810,7 @@ interface server-hooks {
     /// hides. API 12.
     ///
     /// Collect: `lines` is the aggregate so far; return the aggregate you want.
-    tooltip: func(stack: item-stack, lines: list<tuple<u64, u32>>) -> list<tuple<u64, u32>>;
+    tooltip: func(stack: item-stack, lines: list<tuple<text-json, u32>>) -> list<tuple<text-json, u32>>;
     /// A player uses `stack` (right click) with `self.hand` on the block at
     /// `pos`, `face` the face clicked (`[0, 1, 0]` is the top), once the
     /// block itself let the click through (a chest still opens): where
@@ -3912,9 +4056,8 @@ interface server-hooks {
     /// moment, same `pos`/`entity`/`id`; change `carried` when its id is
     /// yours. On the server. API 51.
     ///
-    /// `entity` is an opaque engine handle (&mut ModBlockEntity).
-    /// `carried` is an opaque engine handle (&mut Option).
-    menu-button-v2: func(pos: list<s32>, entity: u64, id: s32, carried: u64);
+    /// Also returns the changed values of `entity`, `carried`.
+    menu-button-v2: func(pos: list<s32>, entity: mod-block-entity-fields, id: s32, carried: option<item-stack>) -> menu-button-v2-outcome;
     /// An entity leaves the server level `dimension` (NeoForge's
     /// `EntityLeaveLevelEvent`): vanilla's `onTrackingEnd`, when it is removed
     /// for any reason (picked up, merged, despawned, burnt, blown up, killed,
@@ -4077,9 +4220,9 @@ interface server-hooks {
     /// block's lower north-west corner, in blocks; `draw` also has the partial
     /// tick, the game time and the block's light. API 71.
     ///
-    /// `entity` is an opaque engine handle (ModBlockEntity).
-    /// `draw` is an opaque engine handle (&mut BlockEntityDraw).
-    block-entity-submit: func(pos: list<s32>, block: string, state: u32, entity: u64, draw: u64);
+    /// `draw` is applied by the host: return `model-command` commands for it.
+    /// Returns the commands to apply.
+    block-entity-submit: func(pos: list<s32>, block: string, state: u32, entity: mod-block-entity-fields) -> list<model-command>;
     /// Where the mod block entity at `pos` draws, for culling
     /// (NeoForge's `getRenderBoundingBox`): `bounds` is min x, y, z then max
     /// x, y, z, in blocks from the block's lower north-west corner. It starts
@@ -4088,9 +4231,8 @@ interface server-hooks {
     /// set an infinite value for one never culled. Asked once a frame for each
     /// within 64 blocks whose chunk is drawn. API 71.
     ///
-    /// `entity` is an opaque engine handle (ModBlockEntity).
     /// Collect: `bounds` is the aggregate so far; return the aggregate you want.
-    block-entity-render-bounding-box: func(pos: list<s32>, block: string, state: u32, entity: u64, bounds: list<f32>) -> list<f32>;
+    block-entity-render-bounding-box: func(pos: list<s32>, block: string, state: u32, entity: mod-block-entity-fields, bounds: list<f32>) -> list<f32>;
     /// A block nothing in Horizon knows a `BonemealableBlock` for is about to
     /// take bone meal: vanilla's `BonemealableBlock.isValidBonemealTarget`,
     /// `state` the block's own state at `pos`. Answer `valid` for your own
@@ -4142,9 +4284,7 @@ interface server-hooks {
     /// player is the one consuming, and the game's own effects,
     /// sounds, teleports and drops are open. An unclaimed kind does
     /// nothing. API 74.
-    ///
-    /// `data` is an opaque engine handle (Value).
-    consume-effect: func(kind: string, data: u64);
+    consume-effect: func(kind: string, data: json);
     /// A native mod's hook point (docs/native-mods.md), listed in `native-hooks.json` with the game's:
     /// the loot table `id` (`minecraft:chests/simple_dungeon`, `minecraft:blocks/stone`,
     /// `minecraft:entities/zombie`) as it loads, its JSON after the data packs', before anything
@@ -4158,7 +4298,7 @@ interface server-hooks {
     /// 75.
     ///
     /// Collect: `table` is the current value; return Some to change it (None keeps it).
-    loot-table-load: func(id: string, table: u64) -> option<u64>;
+    loot-table-load: func(id: string, table: json) -> option<json>;
     /// A block broke or a mob died, and `drops` are the items about to drop, in
     /// the order they drop: what the loot tables rolled (after
     /// `native_loot_table_load`'s changes), and for a mob what it wore, held or
@@ -4213,9 +4353,7 @@ interface server-hooks {
     /// such entry is told once a hit, and once for each mob a sweep lands on.
     /// A hit on a player, and an entry inside `minecraft:all_of`, aren't told
     /// yet. An unclaimed kind does nothing. API 77.
-    ///
-    /// `data` is an opaque engine handle (Value).
-    enchant-effect: func(enchantment: string, kind: string, data: u64, level: u32, victim: u32);
+    enchant-effect: func(enchantment: string, kind: string, data: json, level: u32, victim: u32);
     /// The open screen has drawn itself and its tooltips (`Screen.render`,
     /// the point of `ScreenEvent.Render.Post`): draw over it with
     /// `native_fill`, `native_sprite` and `native_text`, `screen.rect` being
@@ -4234,8 +4372,9 @@ interface server-hooks {
     /// their `rect` (API 326), and no dialog or prompt over them.
     /// API 78.
     ///
-    /// `batch` is an opaque engine handle (&mut HudBatch).
-    screen-render-post: func(batch: u64, screen: native-screen-view);
+    /// `batch` is applied by the host: return `hud-command` commands for it.
+    /// Returns the commands to apply.
+    screen-render-post: func(screen: native-screen-view) -> list<hud-command>;
     /// Hook point for native mods (docs/native-mods.md, listed in `native-hooks.json`
     /// with those of `horizon-client/src/game/native_hooks.rs`): `components` holds
     /// `item`'s default components in `items.json`'s form (`"minecraft:max_stack_size": 16`,
@@ -4355,8 +4494,8 @@ interface server-hooks {
     /// consumables, potions, spyglasses and mods' items. Server-side, for every player
     /// of the world (the helpers read the acting one). API 90.
     ///
-    /// `result` is an opaque engine handle (&mut Option).
-    living-entity-use-item-finish: func(stack: item-stack, entity: option<s32>, hand: hand, duration: s32, %result: u64);
+    /// Also returns the changed values of `result`.
+    living-entity-use-item-finish: func(stack: item-stack, entity: option<s32>, hand: hand, duration: s32, %result: option<item-stack>) -> living-entity-use-item-finish-outcome;
     /// The wheel turned over the open screen (`ScreenEvent.MouseScrolled.Pre`,
     /// vanilla's `Screen.mouseScrolled`): `screen` is the screen it is,
     /// `screen.mouse` where the pointer is (so there is no position of its
@@ -4397,9 +4536,9 @@ interface server-hooks {
     /// server refuses before reading it (unsigned chat arguments, the chat
     /// rate limit) never reaches it. 95.
     ///
-    /// `replies` is an opaque engine handle (&mut Vec).
     /// Returns true to cancel (take) the event; the first mod that cancels wins.
-    player-command: func(player: list<u8>, name: string, command: string, replies: u64) -> bool;
+    /// Also returns the changed values of `replies`.
+    player-command: func(player: list<u8>, name: string, command: string, replies: list<text-json>) -> player-command-outcome;
     /// A command a mod registered, typed on the dedicated server's console
     /// or sent through `horizon-server console`
     /// (`DedicatedServer.handleConsoleInputs`), without its slash: set `ran`
@@ -4644,17 +4783,15 @@ interface server-hooks {
     /// The kind, the JSON, the context and the stack to change are here.
     /// API 133.
     ///
-    /// `data` is an opaque engine handle (Value).
     /// Collect: `stack` is the current value; return Some to change it (None keeps it).
-    loot-function: func(kind: string, data: u64, ctx: native-loot-context, stack: loot-stack) -> option<loot-stack>;
+    loot-function: func(kind: string, data: json, ctx: native-loot-context, stack: loot-stack) -> option<loot-stack>;
     /// A loot condition of a mod's own kind: the entry named a `type` in a
     /// namespace outside `minecraft:`. The kind, the JSON, the context and
     /// whether it holds are here (`holds` starts `false`; a mod that claims
     /// the kind sets it). API 133.
     ///
-    /// `data` is an opaque engine handle (Value).
     /// Collect: `holds` is the current value; return Some to change it (None keeps it).
-    loot-condition: func(kind: string, data: u64, ctx: native-loot-context, holds: bool) -> option<bool>;
+    loot-condition: func(kind: string, data: json, ctx: native-loot-context, holds: bool) -> option<bool>;
     /// `dimension`'s level opened on the server (NeoForge's `LevelEvent.Load`,
     /// posted in `MinecraftServer.createLevels`): before any of its chunks
     /// (`native_chunk_load`), so a mod sets up what it keeps for the level
@@ -5028,9 +5165,9 @@ interface server-hooks {
     /// A server broadcast line is about to be logged and sent. Change `line`
     /// or set `cancel` to drop it. 201.
     ///
-    /// `line` is an opaque engine handle (&mut Text).
     /// Returns true to cancel (take) the event; the first mod that cancels wins.
-    broadcast-message: func(line: u64) -> bool;
+    /// Also returns the changed values of `line`.
+    broadcast-message: func(line: text-json) -> broadcast-message-outcome;
     /// An item was placed on a campfire at `pos` and began cooking. 202.
     campfire-start: func(pos: list<s32>, item: string);
     /// On an authoritative server, a cauldron at `pos` is about to change
@@ -5326,10 +5463,9 @@ interface server-hooks {
     /// using a temporary entity whose id is the menu type.
     /// API 309.
     ///
-    /// `entity` is an opaque engine handle (&mut ModBlockEntity).
-    /// `stack` is an opaque engine handle (&mut ItemStack).
     /// Returns true to cancel (take) the event; the first mod that cancels wins.
-    menu-quick-move: func(pos: list<s32>, entity: u64, container-slots: u64, slot: u64, stack: u64) -> bool;
+    /// Also returns the changed values of `entity`, `stack`.
+    menu-quick-move: func(pos: list<s32>, entity: mod-block-entity-fields, container-slots: u64, slot: u64, stack: item-stack) -> menu-quick-move-outcome;
     /// Farmland at `pos` is about to change moisture from `from` to `to`.
     /// Set `cancel` to keep its old moisture. Server-side.
     /// 237.
@@ -5596,9 +5732,9 @@ interface server-hooks {
     /// the proxy's forwarding) refuse earlier, on the connection, and this
     /// hook does not hear those players. 172.
     ///
-    /// `reason` is an opaque engine handle (&mut Option).
     /// Returns true to cancel (take) the event; the first mod that cancels wins.
-    player-login: func(player: list<u8>, name: string, reason: u64) -> bool;
+    /// Also returns the changed values of `reason`.
+    player-login: func(player: list<u8>, name: string, reason: option<text-json>) -> player-login-outcome;
     /// A player was saved to the world's store (NeoForge's
     /// `PlayerEvent.SaveToFile`, `PlayerList.save`): when they leave or the
     /// world closes, when a dedicated or integrated server saves its guests,
