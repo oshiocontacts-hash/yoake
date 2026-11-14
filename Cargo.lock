@@ -6103,6 +6103,10 @@ name = "yoake-wasm"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "horizon-client-core",
+ "horizon-items",
+ "horizon-world",
+ "serde_json",
  "tokio",
  "wasmtime",
  "wasmtime-wasi",

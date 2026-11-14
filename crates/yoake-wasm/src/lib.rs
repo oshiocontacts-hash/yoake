@@ -8,6 +8,8 @@ use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
 mod client;
+mod convert;
+mod full_bindings;
 mod host;
 mod hook_names;
 mod subscriptions;
