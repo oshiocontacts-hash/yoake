@@ -11,6 +11,12 @@ use crate::{bindings, ClientHost, HostState, ModInstance, Sandbox, Subscriptions
 #[derive(Debug)]
 pub struct LoadError(String);
 
+impl LoadError {
+    pub(crate) fn new(message: impl Into<String>) -> Self {
+        Self(message.into())
+    }
+}
+
 impl fmt::Display for LoadError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(&self.0)

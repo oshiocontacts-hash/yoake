@@ -22,7 +22,20 @@ pub fn generate(root: &Path, out_dir: &Path, target: Target) -> Result<(), Strin
                 generated.hooks
             };
             let adapters = super::abi::generate_dll_adapters(&hooks)?;
+            // The WASM adapters read type definitions from every crate, so any source change counts.
+            println!("cargo:rerun-if-changed={}", root.join("crates").display());
+            println!("cargo:rerun-if-changed={}", root.join("crates/horizon-mod-api-gen/wasm-adapter-denylist.json").display());
+            let wasm = super::abi::generate_wasm_adapters(root, &hooks, &generated.render)?;
+            let mut report = String::new();
+            for (name, reason) in &wasm.unsupported {
+                report.push_str(&format!("unsupported {name}: {reason}\n"));
+            }
+            for (name, note) in &wasm.partial {
+                report.push_str(&format!("partial {name}: {note}\n"));
+            }
+            fs::write(out_dir.join("wasm_full_report.txt"), report).map_err(|e| e.to_string())?;
             vec![
+                ("wasm_full_adapters.rs", wasm.code),
                 ("mod_api_generated.rs", hooks),
                 ("mod_api_generated_host.rs", generated.host),
                 ("mod_api_host_generated.rs", generated.implementation),

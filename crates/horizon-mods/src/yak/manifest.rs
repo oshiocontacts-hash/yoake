@@ -138,6 +138,20 @@ pub struct Wasm {
     pub client: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub server: Option<String>,
+    /// The WIT world of the client module: `client-mod` (the frozen 19 hooks, the default) or
+    /// `client-full` (every client-side catalog hook). The server module always targets `server-full`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub world: Option<String>,
+}
+
+/// The WIT worlds a client module may target.
+pub const CLIENT_WASM_WORLDS: [&str; 2] = ["client-mod", "client-full"];
+
+/// Whether `[wasm] world` selects the full-catalog client world.
+impl Wasm {
+    pub fn client_full(&self) -> bool {
+        self.world.as_deref() == Some("client-full")
+    }
 }
 
 impl Wasm {
@@ -169,6 +183,14 @@ impl Wasm {
         }
         if minor > SUPPORTED_WASM_INTERFACE.1 {
             return Err(format!("wasm interface {major}.{minor} is newer than the supported {}.{}", SUPPORTED_WASM_INTERFACE.0, SUPPORTED_WASM_INTERFACE.1));
+        }
+        if let Some(world) = &self.world {
+            if !CLIENT_WASM_WORLDS.contains(&world.as_str()) {
+                return Err(format!("wasm.world must be \"client-mod\" or \"client-full\", not {world:?}"));
+            }
+            if self.client.is_none() {
+                return Err("wasm.world applies to the client module; declare wasm.client".into());
+            }
         }
         let modules = self.modules();
         if modules.is_empty() {

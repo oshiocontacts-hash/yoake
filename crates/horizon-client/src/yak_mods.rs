@@ -281,6 +281,8 @@ pub(crate) struct WasmMod {
     pub(crate) sha256: String,
     pub(crate) bytes: Vec<u8>,
     pub(crate) side: WasmSide,
+    /// The module targets a full-catalog world (`client-full`, or any server module).
+    pub(crate) full: bool,
     pub(crate) required_on_join: bool,
     /// The installed file the bytes were read from (watched for hot reload in developer mode).
     pub(crate) path: PathBuf,
@@ -297,8 +299,7 @@ pub(crate) fn wasm_client_mods() -> Vec<WasmMod> {
     wasm_mods(WasmSide::Client)
 }
 
-/// Server-side modules are only resolved, never loaded yet (reserved for a later stage).
-#[allow(dead_code)]
+/// Modules of the enabled .yak files for one side.
 pub(crate) fn wasm_mods(side: WasmSide) -> Vec<WasmMod> {
     let entries = entries();
     if !entries.iter().any(|entry| entry.manifest.wasm.is_some()) { return Vec::new(); }
@@ -316,6 +317,7 @@ pub(crate) fn wasm_mods_from(installed: &[Installed], side: WasmSide, keys: &[Pu
                 mod_id: entry.manifest.id.clone(),
                 version: entry.manifest.version.clone(),
                 sha256, bytes, side,
+                full: side == WasmSide::Server || wasm.client_full(),
                 required_on_join: entry.manifest.side.required_on_join,
                 path: entry.root.join(path),
                 signed,

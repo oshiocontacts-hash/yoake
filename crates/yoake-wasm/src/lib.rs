@@ -8,8 +8,10 @@ use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
 mod client;
-mod convert;
-mod full_bindings;
+pub mod convert;
+mod full;
+mod full_hook_names;
+pub mod full_bindings;
 mod host;
 mod hook_names;
 mod subscriptions;
@@ -23,7 +25,10 @@ pub mod bindings {
 }
 
 pub use client::{ClientMod, LoadError};
-pub use host::ClientHost;
+pub use full::{ClientFullMod, SERVER_SERVICES, ServerFullMod, ServerHost, server_types};
+pub use host::{ClientContext, ClientHost};
+pub use full_hook_names::{FULL_HOOKS as FULL_HOOK_LIST, HookSide};
+pub use subscriptions::FullWorld;
 
 pub use subscriptions::Subscriptions;
 pub use wasi::{OutputLine, OutputStream, WASI_IMPORT_INTERFACES};

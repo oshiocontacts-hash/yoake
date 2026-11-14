@@ -89,3 +89,65 @@ instance running (one warning in the log). `YOAKE_WASM_DEV_DIR=<folder>` additio
 `<id>.wasm` in the folder as a mod (no `.yak` needed) and reloads it the same way. Both are off
 without the flag. The startup log has one line saying `wasm: no mods (engine not started)` or
 `wasm: N mod(s), engine started`.
+
+## Full-catalog mods (`client-full`, `server-full`)
+
+The frozen `client-mod` world has 19 hooks. Two more worlds of `crates/yoake-wasm/wit/yoake-full.wit` cover
+every hook of the native catalog (`coverage.json` says how typed each one is):
+
+| world | exports | runs |
+|---|---|---|
+| `client-full` | every client-side and shared hook | in the client (the render thread) |
+| `server-full` | every server-side and shared hook + `server-services` imports | in the integrated server (host) and in the dedicated server |
+
+A hook of the game's shared code (`both` in the catalog) goes to the client module when it runs on the
+client thread and to the server module when it runs on the server thread.
+
+### Choosing the world in `yak.toml`
+
+```toml
+[wasm]
+interface = "1.0"
+client = "bin/wasm/demo-client.wasm"   # world client-mod (default) ...
+world  = "client-full"                  # ... or the full client world
+server = "bin/wasm/demo-server.wasm"   # always server-full
+```
+
+Both modules of a package share one identity (id, version, sha256 of the client module, else of the
+server module). A package with `required_on_join = true` must match on host and guest.
+A dedicated server (`--dedicated`) loads only server modules. Hot reload covers `client-mod` modules only.
+
+### Writing one (SDK feature `full`)
+
+```toml
+yoake-wasm-sdk = { path = "...", features = ["full"] }
+```
+
+```rust
+use yoake_wasm_sdk::full::{hook, server::{ServerMod, et, services}};
+#[derive(Default)] struct M;
+impl ServerMod for M {
+    fn subscriptions() -> &'static [&'static str] { &[hook::PERFORM_COMMAND] }
+    fn perform_command(&mut self, player: et::NativeServerPlayer, command: String) -> bool { /* true = take it */ false }
+}
+yoake_wasm_sdk::export_server_full!(M);
+```
+
+`yoake_wasm_sdk::full::client::ClientMod` / `export_client_full!` are the client twins. Contracts: cancel returns
+`bool` (or `cancel` in an outcome record); replace returns an option; collect gets the aggregate and returns
+it; `&mut` draw objects (`HudBatch`, `BlockEntityDraw`, `Corners`) become command lists you return; other
+`&mut` values come back as `option` fields of the outcome. Engine objects that cannot be copied are `u64`
+handles, valid only during the call. Example: `crates/yoake-wasm-sdk/examples/full-demo` (build once per
+feature, `client` and `server`).
+
+### What the host applies / does not
+
+* HUD commands: text (plain), rect, gradient (strips), flat quads, sprites, items, clip/scale/blend runs.
+  Skipped: `texture`, `highlight`, textured quads.
+* Model commands: push/pop/translate/rotate/scale/light/keep, quad, block. Skipped: cube, model, item.
+* Corner reservations: applied. Frame-stage commands (`world-drawn`, `hand-drawn`, ...): not applied yet.
+* Server services forwarded: `acting_player`, `server_players`, `tell`, `action_bar`, `player_set_health`,
+  `player_title`, `bossbar_create`, `run_command`, `block`, `block_property`, `net_send_to_player`,
+  `world_dir`, `config_dir`. Every other service answers `Err("unsupported")` (or none/false).
+* A guest that subscribes to a hook with no adapter is refused at load (`UNWIRED` in the generated code;
+  `wasm_full_report.txt` in the build's `OUT_DIR` lists them and the partial ones).

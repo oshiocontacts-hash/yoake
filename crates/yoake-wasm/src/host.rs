@@ -63,7 +63,7 @@ pub trait ClientHost: Send {
     fn gui_texture_drop(&mut self, _texture: u64) {}
 }
 
-pub(crate) struct ClientContext {
+pub struct ClientContext {
     id: String,
     host: Box<dyn ClientHost>,
     textures: HashMap<u32, u64>,
@@ -78,7 +78,7 @@ impl ClientContext {
 }
 
 impl ClientContext {
-    pub(crate) fn log_output(&mut self, line: &crate::OutputLine) {
+    pub fn log_output(&mut self, line: &crate::OutputLine) {
         let target = match line.stream {
             crate::OutputStream::Stdout => "stdout",
             crate::OutputStream::Stderr => "stderr",
