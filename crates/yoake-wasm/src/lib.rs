@@ -4,6 +4,11 @@ use std::time::Duration;
 use wasmtime::component::{Component, Instance, Linker};
 use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder};
 
+mod hook_names;
+mod subscriptions;
+
+pub use subscriptions::Subscriptions;
+
 pub const MEMORY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
 const CLIENT_HOOK_BUDGET_MILLIS: u64 = 2;
 const EPOCH_INTERVAL_MILLIS: u64 = 1;
