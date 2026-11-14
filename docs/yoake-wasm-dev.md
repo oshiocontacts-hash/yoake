@@ -47,7 +47,9 @@ export_mod!(Hello);
   WASI preview 2 subset: `wasi:cli/{stdin,stdout,stderr,environment,exit,terminal-*}`,
   `wasi:clocks/{monotonic-clock,wall-clock}`, `wasi:random/*`, `wasi:io/*` and
   `wasi:filesystem/{types,preopens}`. stdin is empty, the environment and the arguments are empty,
-  `std::process::exit` traps the mod (only that mod is disabled), the filesystem has **no
+  `std::process::exit` traps the mod (only that mod is disabled), the clock never blocks the host:
+  `thread::sleep` and `pollable.block()` on a clock wait of more than 2 ms trap the mod (shorter waits
+  return at once), the filesystem has **no
   preopened directory** (every `std::fs` call fails; the interfaces are linked only because `std`
   imports them) and there are **no sockets** (a component that imports `wasi:sockets/*`, or any
   other interface outside `yoake:mods/*` and the list above, is rejected at load). The example is
@@ -113,7 +115,38 @@ server = "bin/wasm/demo-server.wasm"   # always server-full
 
 Both modules of a package share one identity (id, version, sha256 of the client module, else of the
 server module). A package with `required_on_join = true` must match on host and guest.
-A dedicated server (`--dedicated`) loads only server modules. Hot reload covers `client-mod` modules only.
+A dedicated server (`--dedicated`) loads only server modules, from the packages listed in the
+`yoake-mods.txt` of its `--game-dir` (a server-only package is fine there). Hot reload covers
+`client-mod` modules only: a full module is loaded once per run. The server runs one world at a time
+and a guest keeps its state in its instance, so each world's server starts with a fresh instance of the
+server module (it runs `init` again when `server_about_to_start` fires for a later world). A package whose
+client module fails to load does not run its server module either.
+
+#### Limits every module runs under
+
+* Memory 64 MiB, 1 memory, 8 tables of at most 65,536 elements, 16 instances; no threads.
+* A hook call may run 20 ms (client) or 25 ms (server) of wall-clock time, checked every millisecond
+  (a trap, fuel or time, disables the module; the limit is not tighter because a busy machine can pause
+  a thread for a scheduler quantum, and a tight wall-clock limit disabled healthy mods); a call also has 10 million units of fuel, which bounds its CPU time first. All the calls of
+  one module in a 50 ms window may use 10 ms (client) or 25 ms (server) of it;
+  further calls in the window are skipped (a skipped hook answers its fallback) and counted, and a module
+  that overruns in 20 windows in a row is disabled. `init` has 250 ms.
+* A hook that finds its module busy (re-entered from the module's own service call) answers its fallback
+  and is counted; the first drop is logged.
+* A guest's answers are checked before they touch the game: floats must be finite, strings at most
+  64 KiB, lists at most 65,536 elements, item stacks need a registered item id and a count between 1 and
+  the item's stack limit, block states must exist, an NBT argument that cannot be encoded skips the hook,
+  and the strings the engine must keep for the whole run (command names) are limited to 4096 strings of
+  256 bytes and 256 KiB in total.
+
+#### Permissions
+
+`[wasm] permissions = ["service.commands"]` lets the server module call `run_command` (the package
+installer/launcher should show it; the load log also says it). Without it `run_command` answers an
+error. Even with it a command line goes to the game's own commands only (never to another mod's command
+hook) and `transfer`, `fetchprofile`, `publish`, `unpublish`, `debug`, `jfr`, `perf`, `stop`, `save-off`,
+`save-on`, `op`, `deop`, `whitelist`, `ban`, `ban-ip`, `pardon`, `pardon-ip`, `setidletimeout`, `test`,
+`compute` and `pregen` are refused, also after `run` in `execute` and `return`.
 
 ### Writing one (SDK feature `full`)
 
@@ -145,7 +178,15 @@ feature, `client` and `server`).
 * Model commands: push/pop/translate/rotate/scale/light/keep, quad, block. Skipped: cube, model, item.
 * Corner reservations: applied. Frame-stage commands (`world-drawn`, `hand-drawn`, ...): not applied yet.
 * Server services forwarded: `acting_player`, `server_players`, `tell`, `action_bar`, `player_set_health`,
-  `player_title`, `bossbar_create`, `run_command`, `block`, `block_property`, `net_send_to_player`,
-  `world_dir`, `config_dir`. Every other service answers `Err("unsupported")` (or none/false).
+  `player_title`, `bossbar_create`, `run_command` (permission, see above), `block`, `block_property`,
+  `net_send_to_player`, `world_dir`, `config_dir` (paths are relative to the game folder, never absolute).
+  Every other service answers `Err("unsupported")` (or none/false).
 * A guest that subscribes to a hook with no adapter is refused at load (`UNWIRED` in the generated code;
-  `wasm_full_report.txt` in the build's `OUT_DIR` lists them and the partial ones).
+  `crates/horizon-client/src/wasm_mods/full_adapters_report.txt` lists them and the partial ones).
+* The adapters (`full_adapters.rs`) are generated by `horizon-mod-api-gen` and **committed**, like the WIT.
+  After a catalog or generator change run `YOAKE_UPDATE_WIT=1 cargo test -p horizon-mod-api-gen --lib`
+  (a test fails when the committed file is out of date). The game's build does not generate them.
+* A package takes part in the render pass only when its client module subscribed to a render-stage hook.
+* The guest examples used by the tests are built by `yoake_wasm::test_guests` (feature `test-guests`) into
+  `YOAKE_WASM_TARGET_DIR`, else a `target-wasm` folder next to the repository, else `target/wasm-guests`.
+  With `YOAKE_CI=1` (or `CI`) a guest that cannot be built fails its test instead of skipping.

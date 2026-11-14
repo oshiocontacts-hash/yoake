@@ -1,12 +1,9 @@
-//! The full-catalog worlds with the `full-demo` guest (built per world into
-//! `target-wasm/.../full_demo_{client,server}.wasm`).
+//! The full-catalog worlds with the `full-demo` guest (built per world by `yoake_wasm::test_guests`).
 
 use std::sync::{Arc, Mutex};
 
 use yoake_wasm::full_bindings::client::yoake::mods::engine_types as et;
 use yoake_wasm::{ClientFullMod, ClientHost, FullWorld, HookSide, Sandbox, ServerFullMod, ServerHost, Subscriptions};
-
-const DIR: &str = "C:/Users/USER/NestgateHorizon/target-wasm/wasm32-wasip2/release/";
 
 #[derive(Default, Clone)]
 struct Log(Arc<Mutex<Vec<String>>>);
@@ -32,11 +29,8 @@ impl ClientHost for Client {
 }
 
 fn read(name: &str) -> Option<Vec<u8>> {
-    let bytes = std::fs::read(format!("{DIR}{name}")).ok();
-    if bytes.is_none() {
-        eprintln!("skipped: {name} is not built");
-    }
-    bytes
+    use yoake_wasm::test_guests::{FULL_DEMO_CLIENT, FULL_DEMO_SERVER, load};
+    load(if name.contains("server") { &FULL_DEMO_SERVER } else { &FULL_DEMO_CLIENT })
 }
 
 #[test]
@@ -45,9 +39,10 @@ fn server_guest_subscribes_registers_a_command_and_answers_perform_command() {
     let log = Log::default();
     let mut guest = ServerFullMod::instantiate(&mut Sandbox::new(), "demo", &bytes, Box::new(Server(log.clone())), &[]).unwrap();
     assert!(guest.subscribed("perform_command") && guest.subscribed("register_commands"));
-    assert!(!guest.subscribed("server_tick"));
+    assert!(guest.subscribed("server_tick"), "the demo subscribes to server_tick");
+    assert!(!guest.subscribed("level_tick_pre"));
     // Unsubscribed hooks are never called.
-    assert_eq!(guest.dispatch("server_tick", |_, _| Ok(())), None);
+    assert_eq!(guest.dispatch("level_tick_pre", |_, _| Ok(())), None);
     let commands = guest
         .dispatch("register_commands", |e, s| {
             e.yoake_mods_server_hooks().call_register_commands(s, &[])

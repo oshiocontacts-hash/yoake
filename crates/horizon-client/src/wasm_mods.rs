@@ -155,13 +155,15 @@ struct Accepted {
     hooks: Vec<Box<dyn Hooks>>,
     client_full: Option<yoake_wasm::ClientFullMod>,
     server_full: Option<yoake_wasm::ServerFullMod>,
+    /// The server module's bytes and its `service.commands` grant, kept to start each world afresh.
+    server_source: Option<full::ServerSource>,
     worlds: Vec<&'static str>,
 }
 
 pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mods, &'static [super::NativeMod]) {
     let developer = crate::yak_mods::unsigned_allowed();
     // A dedicated server has no client: its client modules only give the package's identity.
-    let dedicated = std::env::args().any(|argument| argument == "--dedicated");
+    let dedicated = crate::yak_mods::dedicated();
     let mut sources: Vec<Source> = crate::yak_mods::wasm_client_mods().into_iter().map(|module| Source {
         id: module.mod_id,
         version: module.version.to_string(),
@@ -180,6 +182,9 @@ pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mo
 
     let mut names: HashSet<String> = identities.iter().map(|identity| identity.id.to_owned()).collect();
     let mut accepted: Vec<Accepted> = Vec::new();
+    // Packages whose client module did not load: their server module does not run either, so the
+    // package never takes another module's digest as its identity.
+    let mut client_failed: HashSet<String> = HashSet::new();
     let mut watches = Vec::new();
     for source in sources {
         if identities.len() + accepted.len() >= MAX_MODS || !names.insert(source.id.clone()) {
@@ -189,14 +194,14 @@ pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mo
         let digest = source.required_on_join.then(|| source.sha256.clone()).flatten();
         let mut package = Accepted {
             id: source.id.clone(), version: source.version.clone(), digest,
-            hooks: Vec::new(), client_full: None, server_full: None, worlds: Vec::new(),
+            hooks: Vec::new(), client_full: None, server_full: None, server_source: None, worlds: Vec::new(),
         };
         if dedicated {
             accepted.push(package);
             continue;
         }
         if source.full {
-            match full::load_client(&full::ModuleSource { id: &source.id, bytes: &source.bytes }) {
+            match full::load_client(&full::ModuleSource { id: &source.id, bytes: &source.bytes, commands: false }) {
                 Ok(module) => {
                     package.client_full = Some(module);
                     package.worlds.push("client-full");
@@ -204,6 +209,7 @@ pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mo
                 Err(error) => {
                     emit(format!("wasm: mod {} not loaded: {error}", source.id));
                     names.remove(&source.id);
+                    client_failed.insert(source.id.clone());
                     continue;
                 }
             }
@@ -225,6 +231,7 @@ pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mo
                 Err(error) => {
                     emit(format!("wasm: mod {} not loaded: {error}", source.id));
                     names.remove(&source.id);
+                    client_failed.insert(source.id.clone());
                     continue;
                 }
             }
@@ -232,6 +239,10 @@ pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mo
         accepted.push(package);
     }
     for server in servers {
+        if client_failed.contains(&server.mod_id) {
+            emit(format!("wasm: mod {} server module skipped: its client module did not load", server.mod_id));
+            continue;
+        }
         let position = accepted.iter().position(|package| package.id == server.mod_id);
         if position.is_none() && (identities.len() + accepted.len() >= MAX_MODS || !names.insert(server.mod_id.clone())) {
             emit(format!("wasm: mod {} skipped: duplicate or too many native identities", server.mod_id));
@@ -242,12 +253,17 @@ pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mo
             Some(position) => accepted.swap_remove(position),
             None => Accepted {
                 id: server.mod_id.clone(), version: server.version.to_string(), digest,
-                hooks: Vec::new(), client_full: None, server_full: None, worlds: Vec::new(),
+                hooks: Vec::new(), client_full: None, server_full: None, server_source: None, worlds: Vec::new(),
             },
         };
-        match full::load_server(&full::ModuleSource { id: &server.mod_id, bytes: &server.bytes }) {
+        let source = full::ServerSource::new(&server.mod_id, server.bytes.clone(), server.commands);
+        match full::load_server(&source.module()) {
             Ok(module) => {
+                if server.commands {
+                    emit(format!("wasm: mod {} may run server commands (service.commands; the dangerous ones stay denied)", server.mod_id));
+                }
                 package.server_full = Some(module);
+                package.server_source = Some(source);
                 package.worlds.push("server-full");
             }
             Err(error) => emit(format!("wasm: mod {} server module not loaded: {error}", server.mod_id)),
@@ -270,7 +286,9 @@ pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mo
     let mut owned = identities.to_vec();
     for mut package in accepted {
         if package.client_full.is_some() || package.server_full.is_some() {
-            package.hooks.push(Box::new(full::FullMod::new(package.id.clone(), package.client_full.take(), package.server_full.take())));
+            let mut full_mod = full::FullMod::new(package.id.clone(), package.client_full.take(), package.server_full.take());
+            if let Some(source) = package.server_source.take() { full_mod = full_mod.with_server_source(source); }
+            package.hooks.push(Box::new(full_mod));
         }
         if !package.worlds.is_empty() {
             emit(format!("wasm: mod {} {} loaded ({})", package.id, package.version, package.worlds.join(", ")));

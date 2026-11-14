@@ -2,14 +2,17 @@
 //!
 //! One [`FullMod`] per `.yak` holds the module instances of that package (a client one and a server one,
 //! each optional) and implements every hook of the catalog the generator could wire. The hook methods
-//! are generated into `OUT_DIR/wasm_full_adapters.rs` and included below: each converts the native
+//! are generated into the committed `full_adapters.rs` (included below): each converts the native
 //! event to the WIT values, calls the guest only if it subscribed (one atomic load otherwise), and
 //! applies the answer per the hook's contract. Nothing here exists, and no hook of the game is wrapped,
 //! unless a `.yak` with such a module is installed.
 //!
 //! A hook of the game's shared code runs on the client thread or the server thread; the thread decides
-//! which module gets it. The two modules have their own locks, so a client hook never waits for the
-//! server thread.
+//! which module gets it, by the explicit server-thread scope the server loops enter
+//! (`crate::mod_guard::enter_thread`), not by the thread's name. The two modules have their own locks,
+//! so a client hook never waits for the server thread. A hook that finds its module busy (a re-entry,
+//! or the other thread holding the lock) is dropped with the hook's documented fallback (no answer
+//! applied), and counted: the first drop of a module is logged.
 
 use super::*;
 use crate::gfx::native_render::*;
@@ -28,20 +31,10 @@ pub(super) enum Side {
     Server = 1,
 }
 
-thread_local! {
-    static SERVER_THREAD: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
-}
-
-/// Whether the current thread is a (dedicated or integrated) server thread.
+/// Whether the current thread runs a (dedicated or integrated) server loop: the loop entered the
+/// server scope (`mod_guard::enter_thread(ModThread::Server)`).
 fn on_server_thread() -> bool {
-    SERVER_THREAD.with(|cached| match cached.get() {
-        Some(answer) => answer,
-        None => {
-            let answer = std::thread::current().name() == Some("Server thread");
-            cached.set(Some(answer));
-            answer
-        }
-    })
+    crate::mod_guard::current_thread() == crate::mod_guard::ModThread::Server
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -61,6 +54,32 @@ pub(super) struct FullMod {
     server: Mutex<SideState<ServerFullMod>>,
     /// One bit per catalog hook, per side: the guest subscribed and has not been disabled.
     masks: [[AtomicU64; MASK_WORDS]; 2],
+    /// Hooks dropped because the module was busy, per side.
+    dropped: [AtomicU64; 2],
+    /// The client module subscribed to a render hook: only then does this mod take part in the
+    /// render pass (`Hooks::render`), so a package without one costs the frame nothing.
+    render_wanted: bool,
+    /// What starts the server module afresh at each world start.
+    server_source: Option<ServerSource>,
+    /// The server module ran a hook since it was created.
+    server_dirty: std::sync::atomic::AtomicBool,
+}
+
+/// The bytes of a server module and its grants, kept so every world starts with a fresh instance.
+pub(super) struct ServerSource {
+    id: String,
+    bytes: Arc<Vec<u8>>,
+    commands: bool,
+}
+
+impl ServerSource {
+    pub(super) fn new(id: &str, bytes: Vec<u8>, commands: bool) -> Self {
+        Self { id: id.to_owned(), bytes: Arc::new(bytes), commands }
+    }
+
+    pub(super) fn module(&self) -> ModuleSource<'_> {
+        ModuleSource { id: &self.id, bytes: &self.bytes, commands: self.commands }
+    }
 }
 
 use std::sync::atomic::AtomicU64;
@@ -75,6 +94,13 @@ fn mask_of(subscribed: impl Fn(&str) -> bool) -> [AtomicU64; MASK_WORDS] {
     words
 }
 
+fn side_name(side: Side) -> &'static str {
+    match side {
+        Side::Client => "client",
+        Side::Server => "server",
+    }
+}
+
 impl FullMod {
     pub(super) fn new(id: String, client: Option<ClientFullMod>, server: Option<ServerFullMod>) -> Self {
         let client_mask = match &client {
@@ -85,11 +111,66 @@ impl FullMod {
             Some(module) => mask_of(|name| module.subscribed(name)),
             None => mask_of(|_| false),
         };
+        let render_wanted = RENDER_HOOKS.iter().any(|hook| client_mask[hook / 64].load(Ordering::Relaxed) >> (hook % 64) & 1 != 0);
         Self {
             id,
             client: Mutex::new(SideState { module: client, reported: false }),
             server: Mutex::new(SideState { module: server, reported: false }),
             masks: [client_mask, server_mask],
+            dropped: [AtomicU64::new(0), AtomicU64::new(0)],
+            render_wanted,
+            server_source: None,
+            server_dirty: std::sync::atomic::AtomicBool::new(false),
+        }
+    }
+
+    pub(super) fn with_server_source(mut self, source: ServerSource) -> Self {
+        self.server_source = Some(source);
+        self
+    }
+
+    /// Whether this package takes part in the render pass.
+    fn render_wanted(&self) -> bool {
+        self.render_wanted
+    }
+
+    /// How many hooks of `side` were dropped because the module was busy.
+    #[allow(dead_code)]
+    pub(super) fn dropped_hooks(&self, side: Side) -> u64 {
+        self.dropped[side as usize].load(Ordering::Relaxed)
+    }
+
+    /// A hook found the module busy: its answer is the hook's fallback, and the drop is counted.
+    fn busy(&self, side: Side, hook: usize) {
+        if self.dropped[side as usize].fetch_add(1, Ordering::Relaxed) == 0 {
+            let name = yoake_wasm::FULL_HOOK_LIST.get(hook).map_or("?", |(name, _)| *name);
+            log::warn!(
+                "wasm mod {} ({}): hook {name} dropped, the module was busy or re-entered; the hook's fallback applies (further drops are only counted)",
+                self.id, side_name(side)
+            );
+        }
+    }
+
+    /// Starts the server module afresh when it already served a world (the server runs one world at
+    /// a time and a guest keeps its state in its instance): called as a world's server starts.
+    fn reset_server(&self) {
+        let Some(source) = &self.server_source else { return };
+        if !self.server_dirty.swap(false, Ordering::Relaxed) { return; }
+        let Ok(mut state) = self.server.try_lock() else { return };
+        match load_server(&source.module()) {
+            Ok(module) => {
+                for (word, fresh) in self.masks[Side::Server as usize].iter().zip(mask_of(|name| module.subscribed(name))) {
+                    word.store(fresh.load(Ordering::Relaxed), Ordering::Relaxed);
+                }
+                state.module = Some(module);
+                state.reported = false;
+                log::info!("wasm mod {} (server): started afresh for the new world", self.id);
+            }
+            Err(error) => {
+                state.module = None;
+                self.disable(Side::Server);
+                log::error!("wasm mod {} (server) could not start afresh and is off: {error}", self.id);
+            }
         }
     }
 
@@ -114,7 +195,10 @@ impl FullMod {
     ) -> Option<R> {
         let mut state = match self.client.try_lock() {
             Ok(state) => state,
-            Err(TryLockError::WouldBlock) => return None,
+            Err(TryLockError::WouldBlock) => {
+                self.busy(Side::Client, hook);
+                return None;
+            }
             Err(TryLockError::Poisoned(_)) => {
                 self.disable(Side::Client);
                 log::error!("wasm mod {} disabled: poisoned client instance", self.id);
@@ -122,7 +206,6 @@ impl FullMod {
             }
         };
         let module = state.module.as_mut()?;
-        let _ = hook;
         let batch_start = batch.as_deref().map_or(0, |batch| batch.vertices.len());
         let mut invocation = Invocation { host, batch, batch_start };
         let result = {
@@ -148,7 +231,10 @@ impl FullMod {
     ) -> Option<R> {
         let mut state = match self.server.try_lock() {
             Ok(state) => state,
-            Err(TryLockError::WouldBlock) => return None,
+            Err(TryLockError::WouldBlock) => {
+                self.busy(Side::Server, hook);
+                return None;
+            }
             Err(TryLockError::Poisoned(_)) => {
                 self.disable(Side::Server);
                 log::error!("wasm mod {} disabled: poisoned server instance", self.id);
@@ -156,7 +242,7 @@ impl FullMod {
             }
         };
         let module = state.module.as_mut()?;
-        let _ = hook;
+        self.server_dirty.store(true, Ordering::Relaxed);
         let batch_start = batch.as_deref().map_or(0, |batch| batch.vertices.len());
         let mut invocation = Invocation { host, batch, batch_start };
         let result = {
@@ -212,12 +298,38 @@ fn next_handle() -> u64 {
     HANDLES.fetch_add(1, Ordering::Relaxed)
 }
 
+thread_local! {
+    /// An encoding of a hook's arguments failed on this thread: the hook is skipped, never called
+    /// with an empty stand-in value.
+    static ENCODE_FAILED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Whether an argument of the hook being built failed to encode (and clears the mark).
+fn take_encode_failure() -> bool {
+    ENCODE_FAILED.with(|failed| failed.replace(false))
+}
+
+/// Counted, logged once: a hook skipped for an argument that would not encode.
+fn note_encode_skip(hook: usize) {
+    static SKIPPED: AtomicU64 = AtomicU64::new(0);
+    if SKIPPED.fetch_add(1, Ordering::Relaxed) == 0 {
+        let name = yoake_wasm::FULL_HOOK_LIST.get(hook).map_or("?", |(name, _)| *name);
+        log::warn!("wasm: hook {name} skipped, an NBT argument did not encode (further skips are only counted)");
+    }
+}
+
 fn nbt_tag(tag: &Tag) -> Vec<u8> {
-    convert::tag_to_nbt(tag).unwrap_or_default()
+    convert::tag_to_nbt(tag).unwrap_or_else(|_| {
+        ENCODE_FAILED.with(|failed| failed.set(true));
+        Vec::new()
+    })
 }
 
 fn nbt_compound(compound: &Compound) -> Vec<u8> {
-    convert::compound_to_nbt(compound).unwrap_or_default()
+    convert::compound_to_nbt(compound).unwrap_or_else(|_| {
+        ENCODE_FAILED.with(|failed| failed.set(true));
+        Vec::new()
+    })
 }
 
 fn nbt_tag_from(bytes: &[u8]) -> Option<Tag> {
@@ -262,7 +374,61 @@ fn item_w(stack: &ItemStack) -> et::ItemStack {
     }
 }
 
+/// Largest string a guest's answer may carry, in bytes.
+const MAX_ANSWER_STRING: usize = 64 * 1024;
+/// Most elements of a list or map a guest's answer may carry.
+const MAX_ANSWER_LIST: usize = 65_536;
+/// Longest item id, and largest component blob, of a guest's item stack.
+const MAX_ITEM_ID: usize = 256;
+const MAX_ITEM_COMPONENTS: usize = 64 * 1024;
+/// The most any stack may hold (vanilla's `max_stack_size` component tops out here); a registered
+/// item's own limit applies when the item table is known.
+const MAX_STACK_COUNT: u32 = 99;
+
+fn finite_f32(value: f32) -> Option<f32> {
+    value.is_finite().then_some(value)
+}
+
+fn finite_f64(value: f64) -> Option<f64> {
+    value.is_finite().then_some(value)
+}
+
+fn bounded_string(text: String) -> Option<String> {
+    (text.len() <= MAX_ANSWER_STRING).then_some(text)
+}
+
+/// Whether `id` is a syntactically valid `namespace:path` resource location of reasonable length.
+fn valid_item_id(id: &str) -> bool {
+    let Some((namespace, path)) = id.split_once(':') else { return false };
+    id.len() <= MAX_ITEM_ID
+        && !namespace.is_empty()
+        && !path.is_empty()
+        && namespace.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'-' | b'.'))
+        && path.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'-' | b'.' | b'/'))
+}
+
+/// A guest's item stack is only accepted when its id is a registered item (when the table is
+/// known) and its count is between 1 and the item's stack limit.
+fn valid_item_stack(id: &str, count: u32, components: usize) -> bool {
+    if !valid_item_id(id) || components > MAX_ITEM_COMPONENTS || count == 0 {
+        return false;
+    }
+    match horizon_items::items::published_stack_limit(id) {
+        Some(None) => false,
+        Some(Some(limit)) => count <= limit,
+        None => count <= MAX_STACK_COUNT,
+    }
+}
+
+/// A block state id the registry has (a guest's answer may name no other).
+fn valid_block_state(id: u32) -> bool {
+    id < horizon_client_render::chunk::block_state_limit()
+}
+
 fn item_from(stack: &et::ItemStack) -> Option<ItemStack> {
+    if !valid_item_stack(&stack.id, stack.count, stack.components.len()) {
+        return None;
+    }
     convert::item_from_wire(&convert::WireItemStack {
         id: stack.id.clone(),
         count: stack.count,
@@ -271,18 +437,32 @@ fn item_from(stack: &et::ItemStack) -> Option<ItemStack> {
     .ok()
 }
 
+/// Longest string, most strings and most bytes in all that a guest can make the process keep.
+const LEAK_MAX_LEN: usize = 256;
+const LEAK_MAX_COUNT: usize = 4096;
+const LEAK_MAX_BYTES: usize = 256 * 1024;
+
 /// A string that lives for the rest of the process, deduplicated (for answers the engine keeps as
-/// `&'static str`, such as command names).
-fn leak_static(text: String) -> &'static str {
-    static POOL: Mutex<Option<HashSet<&'static str>>> = Mutex::new(None);
-    let mut pool = POOL.lock().unwrap_or_else(|error| error.into_inner());
-    let pool = pool.get_or_insert_with(HashSet::new);
-    if let Some(existing) = pool.get(text.as_str()) {
-        return existing;
+/// `&'static str`, such as command names). Bounded: a string of printable characters up to 256
+/// bytes, at most 4096 distinct strings and 256 KiB in all; anything past that is refused (and the
+/// guest's answer with it).
+fn leak_static(text: String) -> Option<&'static str> {
+    static POOL: Mutex<Option<(HashSet<&'static str>, usize)>> = Mutex::new(None);
+    if text.len() > LEAK_MAX_LEN || text.chars().any(char::is_control) {
+        return None;
     }
+    let mut pool = POOL.lock().unwrap_or_else(|error| error.into_inner());
+    let (set, bytes) = pool.get_or_insert_with(|| (HashSet::new(), 0));
+    if let Some(existing) = set.get(text.as_str()) {
+        return Some(existing);
+    }
+    if set.len() >= LEAK_MAX_COUNT || *bytes + text.len() > LEAK_MAX_BYTES {
+        return None;
+    }
+    *bytes += text.len();
     let leaked: &'static str = Box::leak(text.into_boxed_str());
-    pool.insert(leaked);
-    leaked
+    set.insert(leaked);
+    Some(leaked)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -461,6 +641,60 @@ pub(super) fn apply_frame_stage(commands: &[et::FrameCommand]) {
 /// ones the game has no counterpart for answer "unsupported" (see `docs/yoake-wasm-dev.md`).
 struct GameServerHost {
     id: String,
+    /// The package declared `service.commands`.
+    commands: bool,
+}
+
+/// Commands no guest may run, whatever it declared: they open connections, change what the server
+/// is or who runs it, or write outside the world and the game folder's own files.
+const DENIED_COMMANDS: &[&str] = &[
+    "transfer", "fetchprofile", "publish", "unpublish", "debug", "jfr", "perf", "stop", "save-off", "save-on",
+    "op", "deop", "whitelist", "ban", "ban-ip", "pardon", "pardon-ip", "setidletimeout", "test", "compute", "pregen",
+];
+
+/// Whether a guest may run `line`: it declared `service.commands`, the line is plain text, and no
+/// command in it (a command after `run` of `execute`, `return run`... counts) is one of
+/// [`DENIED_COMMANDS`].
+fn command_gate(line: &str, declared: bool) -> Result<(), String> {
+    if !declared {
+        return Err("denied: the package does not declare service.commands".into());
+    }
+    if line.len() > abi::MAX_TEXT_BYTES {
+        return Err("command too long".into());
+    }
+    if line.chars().any(char::is_control) {
+        return Err("denied: a command is one line of plain text".into());
+    }
+    fn check(line: &str, depth: usize) -> Result<(), String> {
+        if depth > 16 {
+            return Err("denied: commands nested too deep".into());
+        }
+        let tokens: Vec<&str> = line.split_whitespace().collect();
+        let Some(first) = tokens.first() else { return Err("denied: empty command".into()) };
+        let name = first.trim_start_matches('/');
+        let name = name.strip_prefix("minecraft:").unwrap_or(name).to_ascii_lowercase();
+        if DENIED_COMMANDS.contains(&name.as_str()) {
+            return Err(format!("denied: /{name} is not available to WebAssembly mods"));
+        }
+        for (index, token) in tokens.iter().enumerate() {
+            if *token == "run" && index + 1 < tokens.len() {
+                check(&tokens[index + 1..].join(" "), depth + 1)?;
+            }
+        }
+        Ok(())
+    }
+    check(line, 0)
+}
+
+/// A path as the guest may see it: relative to the game folder (the server's working directory), or
+/// just its last component when it lies elsewhere. Absolute paths carry the user's account name.
+fn game_relative(path: &std::path::Path) -> Option<String> {
+    let relative = std::env::current_dir()
+        .ok()
+        .and_then(|game| path.strip_prefix(game).ok().map(std::path::Path::to_path_buf))
+        .or_else(|| path.file_name().map(std::path::PathBuf::from))?;
+    let text = relative.to_str()?.replace('\\', "/");
+    Some(if text.is_empty() { ".".to_owned() } else { text })
 }
 
 fn uuid_text(uuid: u128) -> String {
@@ -561,9 +795,9 @@ impl ServerHost for GameServerHost {
     }
 
     fn run_command(&mut self, command: String) -> Result<bool, String> {
-        if command.len() > abi::MAX_TEXT_BYTES {
-            return Err("command too long".into());
-        }
+        command_gate(&command, self.commands)?;
+        // The guest's line goes to the game's own commands, never to another mod's command hook.
+        let _guest = crate::mod_api::guest_command_scope();
         server_service(|host| Ok(host.run_command(&command)))
     }
 
@@ -584,12 +818,11 @@ impl ServerHost for GameServerHost {
     }
 
     fn world_dir(&mut self) -> Option<String> {
-        read_service(|host| Ok(host.world_dir())).ok().flatten().and_then(|path| path.to_str().map(str::to_owned))
+        read_service(|host| Ok(host.world_dir())).ok().flatten().and_then(|path| game_relative(&path))
     }
 
     fn config_dir(&mut self) -> Result<String, String> {
-        read_service(|host| host.config_dir())
-            .and_then(|path| path.to_str().map(str::to_owned).ok_or_else(|| "path is not text".to_owned()))
+        read_service(|host| host.config_dir()).and_then(|path| game_relative(&path).ok_or_else(|| "path is not text".to_owned()))
     }
 
     fn qa_mode_enabled(&mut self) -> bool {
@@ -611,17 +844,22 @@ pub(super) const FORWARDED_SERVER_SERVICES: &[&str] = &[
 pub(super) struct ModuleSource<'a> {
     pub id: &'a str,
     pub bytes: &'a [u8],
+    /// The package declared `service.commands` (server module).
+    pub commands: bool,
 }
 
 pub(super) fn load_client(source: &ModuleSource<'_>) -> Result<ClientFullMod, String> {
+    // A full module's `ItemStack` answers are checked against the item table, so it is published.
+    horizon_items::items::publish_registry_for_checks();
     let mut sandbox = sandbox().lock().unwrap_or_else(|error| error.into_inner());
     ClientFullMod::instantiate(&mut sandbox, source.id, source.bytes, Box::new(GameHost::new(source.id)), UNWIRED)
         .map_err(|error| error.to_string())
 }
 
 pub(super) fn load_server(source: &ModuleSource<'_>) -> Result<ServerFullMod, String> {
+    horizon_items::items::publish_registry_for_checks();
     let mut sandbox = sandbox().lock().unwrap_or_else(|error| error.into_inner());
-    ServerFullMod::instantiate(&mut sandbox, source.id, source.bytes, Box::new(GameServerHost { id: source.id.to_owned() }), UNWIRED)
+    ServerFullMod::instantiate(&mut sandbox, source.id, source.bytes, Box::new(GameServerHost { id: source.id.to_owned(), commands: source.commands }), UNWIRED)
         .map_err(|error| error.to_string())
 }
 
@@ -630,14 +868,14 @@ pub(super) fn wired_hooks() -> usize {
     HOOK_COUNT - UNWIRED.len()
 }
 
-include!(concat!(env!("OUT_DIR"), "/wasm_full_adapters.rs"));
+// Generated by `horizon-mod-api-gen` and committed (`cargo test -p horizon-mod-api-gen --lib
+// committed_wasm_adapters` checks it is current; YOAKE_UPDATE_WIT=1 rewrites it).
+include!("full_adapters.rs");
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::cell::RefCell;
-
-    const DIR: &str = "C:/Users/USER/NestgateHorizon/target-wasm/wasm32-wasip2/release/";
 
     #[derive(Default)]
     struct FakeHost {
@@ -661,14 +899,13 @@ mod tests {
     }
 
     fn module(kind: &str) -> Option<Vec<u8>> {
-        let bytes = std::fs::read(format!("{DIR}full_demo_{kind}.wasm")).ok();
-        if bytes.is_none() { eprintln!("skipped: full_demo_{kind}.wasm is not built"); }
-        bytes
+        use yoake_wasm::test_guests::{FULL_DEMO_CLIENT, FULL_DEMO_SERVER, load};
+        load(if kind == "server" { &FULL_DEMO_SERVER } else { &FULL_DEMO_CLIENT })
     }
 
     fn client() -> Option<FullMod> {
         let bytes = module("client")?;
-        let client = load_client(&ModuleSource { id: "demo", bytes: &bytes }).expect("client-full loads");
+        let client = load_client(&ModuleSource { id: "demo", bytes: &bytes, commands: false }).expect("client-full loads");
         Some(FullMod::new("demo".into(), Some(client), None))
     }
 
@@ -731,10 +968,12 @@ mod tests {
     #[test]
     fn a_server_guest_runs_server_tick_and_perform_command_on_the_server_thread() {
         let Some(bytes) = module("server") else { return };
-        let server = load_server(&ModuleSource { id: "demo", bytes: &bytes }).expect("server-full loads");
+        let server = load_server(&ModuleSource { id: "demo", bytes: &bytes, commands: false }).expect("server-full loads");
         let mod_ = Arc::new(FullMod::new("demo".into(), None, Some(server)));
         let runner = Arc::clone(&mod_);
-        let handle = std::thread::Builder::new().name("Server thread".into()).spawn(move || {
+        // The server loop's scope, not the thread's name, routes a shared hook to the server module.
+        let handle = std::thread::Builder::new().name("not called Server thread".into()).spawn(move || {
+            let _server = crate::mod_guard::enter_thread(crate::mod_guard::ModThread::Server);
             let mut host = FakeHost::default();
             let player = NativeServerPlayer {
                 uuid: 0x1122_3344_5566_7788_99aa_bbcc_ddee_ff00, name: "Guest".into(), permission: 0,
@@ -752,12 +991,198 @@ mod tests {
         assert_eq!(commands.iter().map(|c| c.usage.as_str()).collect::<Vec<_>>(), ["wasmping"]);
         assert_eq!(told.len(), 1);
         assert!(told[0].starts_with("112233445566778899aabbccddeeff00:pong #1"), "{told:?}");
-        // On a non-server thread a hook of the shared code does not reach the server module.
+        // On a thread that did not enter the server scope a hook of the shared code does not reach the server module.
         let mut host = FakeHost::default();
         let player = NativeServerPlayer {
             uuid: 1, name: "G".into(), permission: 0, dimension: "d".into(), position: [0.0; 3], game_mode: 0, health: 1.0, yaw: 0.0, pitch: 0.0,
         };
         // perform_command is shared code: on this thread the client slot is asked, and there is none.
         assert!(matches!(mod_.perform_command(&mut host, &mut PerformCommandEvent { player: &player, command: "wasmping" }), Flow::Continue));
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Review fixes
+
+    #[test]
+    fn a_thread_named_server_thread_is_not_the_server_without_the_scope() {
+        let Some(bytes) = module("server") else { return };
+        let server = load_server(&ModuleSource { id: "demo", bytes: &bytes, commands: false }).expect("server-full loads");
+        let mod_ = Arc::new(FullMod::new("demo".into(), None, Some(server)));
+        let runner = Arc::clone(&mod_);
+        let flow = std::thread::Builder::new().name("Server thread".into()).spawn(move || {
+            let mut host = FakeHost::default();
+            let player = NativeServerPlayer {
+                uuid: 1, name: "G".into(), permission: 0, dimension: "d".into(), position: [0.0; 3], game_mode: 0, health: 1.0, yaw: 0.0, pitch: 0.0,
+            };
+            matches!(runner.perform_command(&mut host, &mut PerformCommandEvent { player: &player, command: "wasmping" }), Flow::Continue)
+        }).unwrap().join().unwrap();
+        assert!(flow, "the thread's name alone must not route a hook to the server module");
+    }
+
+    #[test]
+    fn a_busy_module_drops_the_hook_with_its_fallback_and_counts_it() {
+        let Some(mod_) = client() else { return };
+        let mut host = FakeHost::default();
+        let mut batch = HudBatch::new([854, 480]);
+        // Hold the client module's lock, as a re-entry from a guest's own service call would.
+        let held = mod_.client.lock().unwrap();
+        let mut hotbar = GuiLayerPreEvent { layer: "hotbar", batch: &mut batch };
+        assert!(matches!(mod_.gui_layer_pre(&mut host, &mut hotbar), Flow::Continue), "the fallback is no answer");
+        let mut hotbar = GuiLayerPreEvent { layer: "hotbar", batch: &mut batch };
+        assert!(matches!(mod_.gui_layer_pre(&mut host, &mut hotbar), Flow::Continue));
+        drop(held);
+        assert_eq!(mod_.dropped_hooks(Side::Client), 2);
+        // Not busy any more: the guest answers again.
+        let mut hotbar = GuiLayerPreEvent { layer: "hotbar", batch: &mut batch };
+        assert!(matches!(mod_.gui_layer_pre(&mut host, &mut hotbar), Flow::Cancel));
+        assert_eq!(mod_.dropped_hooks(Side::Client), 2);
+    }
+
+    #[test]
+    fn a_package_without_a_render_hook_stays_out_of_the_render_pass() {
+        let Some(server_bytes) = module("server") else { return };
+        let server = load_server(&ModuleSource { id: "demo", bytes: &server_bytes, commands: false }).unwrap();
+        let server_only = FullMod::new("demo".into(), None, Some(server));
+        assert!(server_only.render().is_none(), "a server-only package has nothing to draw");
+        let Some(mod_) = client() else { return };
+        // The demo's client module subscribes to hud and gui layers, not to a render-stage hook.
+        let wants_render = RENDER_HOOKS.iter().any(|hook| mod_.wants(Side::Client, *hook));
+        assert_eq!(mod_.render().is_some(), wants_render);
+    }
+
+    #[test]
+    fn the_server_module_starts_afresh_for_each_world() {
+        let Some(bytes) = module("server") else { return };
+        let source = ServerSource::new("demo", bytes, false);
+        let server = load_server(&source.module()).unwrap();
+        let mod_ = Arc::new(FullMod::new("demo".into(), None, Some(server)).with_server_source(source));
+        let runner = Arc::clone(&mod_);
+        let told = std::thread::spawn(move || {
+            let _server = crate::mod_guard::enter_thread(crate::mod_guard::ModThread::Server);
+            let player = NativeServerPlayer {
+                uuid: 7, name: "G".into(), permission: 0, dimension: "d".into(), position: [0.0; 3], game_mode: 0, health: 1.0, yaw: 0.0, pitch: 0.0,
+            };
+            let mut lines = Vec::new();
+            for world in 0..2 {
+                // A world's server starts: the guest's counter starts at zero in each.
+                runner.reset_server();
+                let mut host = FakeHost::default();
+                runner.perform_command(&mut host, &mut PerformCommandEvent { player: &player, command: "wasmping" });
+                runner.perform_command(&mut host, &mut PerformCommandEvent { player: &player, command: "wasmping" });
+                lines.push((world, host.told.borrow().clone()));
+            }
+            lines
+        }).join().unwrap();
+        assert!(told[0].1[0].ends_with("pong #1 from the full-demo WASM server module"), "{told:?}");
+        assert!(told[1].1[0].contains("pong #1 "), "the second world began with a fresh instance: {told:?}");
+        assert!(told[1].1[1].contains("pong #2 "), "{told:?}");
+    }
+
+    #[test]
+    fn guest_commands_are_gated_by_permission_and_a_denylist() {
+        assert!(command_gate("say hi", false).unwrap_err().contains("service.commands"));
+        assert!(command_gate("say hi", true).is_ok());
+        assert!(command_gate("/give @a minecraft:stone", true).is_ok());
+        for denied in [
+            "transfer example.com 25565", "fetchprofile name Steve", "publish", "unpublish", "debug start", "jfr start", "perf start",
+            "stop", "save-off", "op Steve", "whitelist add Steve", "ban Steve", "/stop", "STOP", "minecraft:stop",
+            "execute as @a run stop", "execute as @a at @s run execute if entity @e run transfer a 1", "return run stop",
+        ] {
+            assert!(command_gate(denied, true).is_err(), "{denied}");
+        }
+        // Not a command at all, or no longer a single line.
+        assert!(command_gate("say hi\nstop", true).is_err());
+        assert!(command_gate("", true).is_err());
+        assert!(command_gate(&"a".repeat(abi::MAX_TEXT_BYTES + 1), true).is_err());
+        // The host refuses before it touches any service.
+        let mut host = GameServerHost { id: "m".into(), commands: false };
+        assert!(host.run_command("say hi".into()).unwrap_err().contains("service.commands"));
+        let mut host = GameServerHost { id: "m".into(), commands: true };
+        assert!(host.run_command("stop".into()).unwrap_err().contains("not available"));
+    }
+
+    #[test]
+    fn a_guest_command_never_reaches_another_mods_command_hook() {
+        assert!(!crate::mod_api::in_guest_command());
+        {
+            let _scope = crate::mod_api::guest_command_scope();
+            assert!(crate::mod_api::in_guest_command());
+            {
+                let _inner = crate::mod_api::guest_command_scope();
+            }
+            assert!(crate::mod_api::in_guest_command(), "scopes nest");
+        }
+        assert!(!crate::mod_api::in_guest_command());
+    }
+
+    #[test]
+    fn guest_visible_paths_are_relative_to_the_game_folder() {
+        let game = std::env::current_dir().unwrap();
+        assert_eq!(game_relative(&game.join("world")).as_deref(), Some("world"));
+        assert_eq!(game_relative(&game.join("config").join("mods")).as_deref(), Some("config/mods"));
+        assert_eq!(game_relative(&game).as_deref(), Some("."));
+        // Elsewhere: only the last component, never the account's folder.
+        let elsewhere = std::path::Path::new("C:/Users/Someone/Documents/server/world");
+        let shown = game_relative(elsewhere).unwrap();
+        assert!(!shown.contains("Someone") && !shown.contains(':'), "{shown}");
+    }
+
+    #[test]
+    fn guest_answers_are_checked_for_meaning() {
+        // Item stacks: syntax, count, size.
+        let stack = |id: &str, count: u32| et::ItemStack { id: id.into(), count, components: Vec::new() };
+        assert!(item_from(&stack("minecraft:stone", 1)).is_some());
+        assert!(item_from(&stack("minecraft:stone", 0)).is_none());
+        assert!(item_from(&stack("minecraft:stone", MAX_STACK_COUNT + 1)).is_none());
+        assert!(item_from(&stack("", 1)).is_none());
+        assert!(item_from(&stack("stone", 1)).is_none());
+        assert!(item_from(&stack("Minecraft:Stone", 1)).is_none());
+        assert!(item_from(&stack(&format!("minecraft:{}", "a".repeat(MAX_ITEM_ID)), 1)).is_none());
+        let big = et::ItemStack { id: "minecraft:stone".into(), count: 1, components: vec![0; MAX_ITEM_COMPONENTS + 1] };
+        assert!(item_from(&big).is_none());
+        // Floats and lengths.
+        assert_eq!(finite_f32(1.5), Some(1.5));
+        assert!(finite_f32(f32::NAN).is_none() && finite_f32(f32::INFINITY).is_none());
+        assert!(finite_f64(f64::NEG_INFINITY).is_none());
+        assert!(bounded_string("x".repeat(MAX_ANSWER_STRING)).is_some());
+        assert!(bounded_string("x".repeat(MAX_ANSWER_STRING + 1)).is_none());
+        // Block states: the registry's range.
+        assert!(valid_block_state(0));
+        assert!(!valid_block_state(u32::MAX));
+    }
+
+    #[test]
+    fn leaked_strings_are_capped_in_size_count_and_total() {
+        assert_eq!(leak_static("wasmping".into()), Some("wasmping"));
+        assert!(std::ptr::eq(leak_static("wasmping".into()).unwrap(), leak_static("wasmping".into()).unwrap()), "deduplicated");
+        assert!(leak_static("x".repeat(LEAK_MAX_LEN + 1)).is_none());
+        assert!(leak_static("bad\nline".into()).is_none());
+        // A guest cannot make the process keep more than the pool allows.
+        let mut accepted = 0;
+        for index in 0..(LEAK_MAX_COUNT + 100) {
+            if leak_static(format!("guest-string-{index}")).is_some() {
+                accepted += 1;
+            }
+        }
+        assert!(accepted <= LEAK_MAX_COUNT, "{accepted}");
+        assert!(leak_static("one-more-new-string".into()).is_none());
+    }
+
+    #[test]
+    fn a_failed_encoding_skips_the_hook_instead_of_sending_an_empty_value() {
+        assert!(!take_encode_failure());
+        // NBT nested past the encoder's depth limit does not encode.
+        let mut deep = Tag::Int(1);
+        for _ in 0..600 {
+            deep = Tag::List(vec![deep]);
+        }
+        let bytes = nbt_tag(&deep);
+        if bytes.is_empty() {
+            assert!(take_encode_failure());
+            assert!(!take_encode_failure(), "the mark is cleared once read");
+        } else {
+            // This build's encoder accepts the depth: the mark must stay clear.
+            assert!(!take_encode_failure());
+        }
     }
 }

@@ -100,6 +100,11 @@ impl Runtime {
     }
 
     fn read(game: &Path, build: &Build, keys: &[PublicKey]) -> Self {
+        Self::read_as(game, build, keys, dedicated())
+    }
+
+    /// `read` for a client (`dedicated` false) or a dedicated server.
+    fn read_as(game: &Path, build: &Build, keys: &[PublicKey], dedicated: bool) -> Self {
         let mut runtime = Self::default();
         let file = match File::open(game.join("yoake-mods.txt")) {
             Ok(file) => file,
@@ -141,7 +146,8 @@ impl Runtime {
                     return Err("list and manifest identity differ".into());
                 }
                 build.check(&manifest)?;
-                if !manifest.side.client { return Err("server-only YAK".into()); }
+                // A dedicated server has no client: a server-only package is its whole business.
+                if !manifest.side.client && !(dedicated && manifest.side.server) { return Err("server-only YAK".into()); }
                 let content = root.join("content");
                 let (content, content_wasm) = if content.is_dir() {
                     let package = Package::read(&content)?;
@@ -164,6 +170,11 @@ impl Runtime {
         }
         runtime
     }
+}
+
+/// Whether this process is a dedicated server (`--dedicated`): no client, no DLL mods.
+pub(crate) fn dedicated() -> bool {
+    std::env::args().skip(1).any(|argument| argument == "--dedicated")
 }
 
 fn safe_id(id: &str) -> bool {
@@ -194,7 +205,7 @@ fn installed_files(root: &Path) -> Result<Vec<String>, String> {
 pub(crate) fn initialize() {
     if RUNTIME.get().is_some() { return; }
     let args: Vec<_> = std::env::args().skip(1).collect();
-    if args.iter().any(|argument| matches!(argument.as_str(), "--help" | "-h" | "--launch-api" | "--dedicated")) {
+    if args.iter().any(|argument| matches!(argument.as_str(), "--help" | "-h" | "--launch-api")) {
         return;
     }
     let game = args.windows(2).rev().find(|pair| matches!(pair[0].as_str(), "--game-dir" | "--gameDir"))
@@ -284,6 +295,8 @@ pub(crate) struct WasmMod {
     /// The module targets a full-catalog world (`client-full`, or any server module).
     pub(crate) full: bool,
     pub(crate) required_on_join: bool,
+    /// The package asked for `service.commands` (server module only).
+    pub(crate) commands: bool,
     /// The installed file the bytes were read from (watched for hot reload in developer mode).
     pub(crate) path: PathBuf,
     /// Whether the .yak carries a valid signature from a trusted key.
@@ -319,6 +332,7 @@ pub(crate) fn wasm_mods_from(installed: &[Installed], side: WasmSide, keys: &[Pu
                 sha256, bytes, side,
                 full: side == WasmSide::Server || wasm.client_full(),
                 required_on_join: entry.manifest.side.required_on_join,
+                commands: side == WasmSide::Server && wasm.has_permission("service.commands"),
                 path: entry.root.join(path),
                 signed,
             }),

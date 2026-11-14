@@ -13,6 +13,32 @@ use std::{
     sync::Arc,
 };
 
+/// The loaded item table's ids with their stack limits, published for host-side checks of item
+/// stacks that come from untrusted code (WebAssembly mods). Nothing is built unless
+/// [`publish_registry_for_checks`] was called, so a game without such a mod pays nothing.
+static PUBLISHED: std::sync::RwLock<Option<Arc<HashMap<Arc<str>, u32>>>> = std::sync::RwLock::new(None);
+static PUBLISH_WANTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Asks the item loader to publish its ids and stack limits from now on.
+pub fn publish_registry_for_checks() {
+    PUBLISH_WANTED.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+fn publish_registry(items: &HashMap<Arc<str>, ItemInfo>) {
+    if !PUBLISH_WANTED.load(std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
+    let table: HashMap<Arc<str>, u32> = items.iter().map(|(id, info)| (id.clone(), info.max_stack.max(1))).collect();
+    *PUBLISHED.write().unwrap_or_else(|error| error.into_inner()) = Some(Arc::new(table));
+}
+
+/// The stack limit of a registered item: `None` before any table was published (nothing is known),
+/// `Some(None)` for an id that is not registered, `Some(Some(limit))` otherwise.
+pub fn published_stack_limit(id: &str) -> Option<Option<u32>> {
+    let table = PUBLISHED.read().unwrap_or_else(|error| error.into_inner());
+    table.as_ref().map(|table| table.get(id).copied())
+}
+
 /// A fire starter's use sound: `SoundEvents.FIRECHARGE_USE` or
 /// `FLINTANDSTEEL_USE`.
 pub fn fire_starter_sound(fire_charge: bool) -> &'static str {
@@ -929,6 +955,7 @@ impl Items {
         let loot = horizon_world::loot::shared_tables(root, overlay)?;
         let registry_order = registry_order(root, &order);
         set_villager_food(&items);
+        publish_registry(&items);
         Ok(Self {
             items,
             order,

@@ -53,7 +53,7 @@ impl ClientMod {
             .map_err(LoadError)?;
         let exports = bindings::ClientMod::new(&mut raw.store, &raw.instance)
             .map_err(|error| LoadError(error.to_string()))?;
-        let names = raw.call("init", |store, _| exports.call_init(store).map_err(|error| error.to_string()));
+        let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
         flush_output(&mut raw);
         let names = names.ok_or_else(|| LoadError("mod init trapped or timed out".into()))?;
         let subscriptions = Subscriptions::from_hook_names(names).map_err(LoadError)?;
@@ -228,7 +228,7 @@ impl ClientMod {
             return None;
         }
         let exports = &self.exports;
-        let result = self.raw.call(hook, |store, _| call(exports, store).map_err(|error| error.to_string()));
+        let result = self.raw.call(hook, |store, _| call(exports, store).map_err(|error| format!("{error:#}")));
         flush_output(&mut self.raw);
         result
     }

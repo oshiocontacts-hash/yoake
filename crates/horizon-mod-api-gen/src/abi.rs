@@ -297,6 +297,35 @@ mod tests {
     }
 
     #[test]
+    fn committed_wasm_adapters_match_the_catalog() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let generated = super::wasm_adapters::generated_for_tests();
+        let path = root.join("crates/horizon-client/src/wasm_mods/full_adapters.rs");
+        if std::env::var_os("YOAKE_UPDATE_WIT").is_some() {
+            std::fs::write(&path, &generated.code).unwrap();
+        }
+        let committed = std::fs::read_to_string(&path).unwrap_or_default();
+        assert!(
+            generated.code == committed.replace("\r\n", "\n"),
+            "full_adapters.rs is out of date: regenerate with YOAKE_UPDATE_WIT=1 cargo test -p horizon-mod-api-gen --lib committed_wasm_adapters"
+        );
+        // What the generator could not wire stays visible next to the code.
+        let mut report = String::new();
+        for (name, reason) in &generated.unsupported {
+            report.push_str(&format!("unsupported {name}: {reason}\n"));
+        }
+        for (name, note) in &generated.partial {
+            report.push_str(&format!("partial {name}: {note}\n"));
+        }
+        let report_path = root.join("crates/horizon-client/src/wasm_mods/full_adapters_report.txt");
+        if std::env::var_os("YOAKE_UPDATE_WIT").is_some() {
+            std::fs::write(&report_path, &report).unwrap();
+        }
+        let committed = std::fs::read_to_string(&report_path).unwrap_or_default();
+        assert_eq!(report, committed.replace("\r\n", "\n"), "regenerate with YOAKE_UPDATE_WIT=1");
+    }
+
+    #[test]
     fn guest_sdk_full_bindings_match_the_catalog() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let generated = super::generate_sdk_full(&root).unwrap();
