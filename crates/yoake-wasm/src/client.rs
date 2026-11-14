@@ -47,9 +47,9 @@ impl ClientMod {
             .map_err(LoadError)?;
         let exports = bindings::ClientMod::new(&mut raw.store, &raw.instance)
             .map_err(|error| LoadError(error.to_string()))?;
-        let names = raw
-            .call("init", |store, _| exports.call_init(store).map_err(|error| error.to_string()))
-            .ok_or_else(|| LoadError("mod init trapped or timed out".into()))?;
+        let names = raw.call("init", |store, _| exports.call_init(store).map_err(|error| error.to_string()));
+        flush_output(&mut raw);
+        let names = names.ok_or_else(|| LoadError("mod init trapped or timed out".into()))?;
         let subscriptions = Subscriptions::from_hook_names(names).map_err(LoadError)?;
         Ok(Self { raw, exports, subscriptions })
     }
@@ -191,16 +191,25 @@ impl ClientMod {
 
     pub fn settings(&mut self) -> Option<Vec<String>> {
         let id = self.raw.id.clone();
+        self.settings_for(&id)
+    }
+
+    /// The `settings` hook for the settings page of `mod_id` (any mod's page, as for a DLL mod).
+    pub fn settings_for(&mut self, mod_id: &str) -> Option<Vec<String>> {
         self.dispatch("settings", |exports, store| {
-            exports.yoake_mods_hooks().call_settings(store, &id)
+            exports.yoake_mods_hooks().call_settings(store, mod_id)
         })
         .map(limit_settings)
     }
 
     pub fn settings_click(&mut self, button: u64) -> Option<()> {
         let id = self.raw.id.clone();
+        self.settings_click_for(&id, button)
+    }
+
+    pub fn settings_click_for(&mut self, mod_id: &str, button: u64) -> Option<()> {
         self.dispatch("settings_click", |exports, store| {
-            exports.yoake_mods_hooks().call_settings_click(store, &id, button)
+            exports.yoake_mods_hooks().call_settings_click(store, mod_id, button)
         })
     }
 
@@ -213,7 +222,16 @@ impl ClientMod {
             return None;
         }
         let exports = &self.exports;
-        self.raw.call(hook, |store, _| call(exports, store).map_err(|error| error.to_string()))
+        let result = self.raw.call(hook, |store, _| call(exports, store).map_err(|error| error.to_string()));
+        flush_output(&mut self.raw);
+        result
+    }
+}
+
+/// Forwards what the guest printed through WASI stdout/stderr to the host log, line by line.
+fn flush_output(raw: &mut ModInstance<ClientContext>) {
+    for line in raw.drain_output() {
+        raw.store.data_mut().host.log_output(&line);
     }
 }
 

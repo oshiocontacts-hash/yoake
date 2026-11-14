@@ -13,19 +13,21 @@
 //! export_mod!(Hello);
 //! ```
 //!
-//! The SDK is `#![no_std]` + `alloc`: a std-based wasip2 guest imports `wasi:cli/*`, `wasi:io/*`
-//! and `wasi:clocks/*`, which the Yoake host does not provide. Mods must be `#![no_std]` too and
-//! use [`prelude`] for `String`, `Vec`, `format!` and `vec!`. The SDK supplies the global
-//! allocator and the panic handler (feature `runtime`, on by default).
+//! With the default feature `std` a mod is a normal Rust `std` crate (`println!`, `std::time`,
+//! `HashMap`, ...): the host provides a sandboxed WASI preview 2 subset (stdout/stderr go to the
+//! mod's log, clocks, random; no filesystem, no sockets, no environment). For the smallest
+//! modules turn `std` off and write `#![no_std]`: use [`prelude`] for `String`, `Vec`,
+//! `format!` and `vec!`; the SDK then supplies the global allocator and the panic handler
+//! (feature `runtime`, on by default).
 //!
 //! Subscriptions are explicit: list the `hook::*` names of every hook you override in
 //! [`Mod::subscriptions`]. The host only calls subscribed hooks; the rest stay no-ops.
 
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
 
-#[cfg(feature = "runtime")]
+#[cfg(all(feature = "runtime", not(feature = "std")))]
 mod heap;
 
 /// Everything a `#![no_std]` mod usually needs from `alloc`.
@@ -143,6 +145,7 @@ pub mod rt {
     static SLOT: Slot = Slot(RefCell::new(None));
 
     /// Canonical-ABI allocator entry point (std-based guests get this from std; we are no_std).
+    #[cfg_attr(feature = "std", allow(dead_code))]
     ///
     /// # Safety
     /// Called by the component runtime with a pointer previously returned by this function.
@@ -179,6 +182,26 @@ pub mod rt {
     }
 }
 
+/// `std` guests get `cabi_realloc` from std; `no_std` guests export the SDK's.
+#[doc(hidden)]
+#[cfg(feature = "std")]
+#[macro_export]
+macro_rules! __export_realloc {
+    () => {};
+}
+
+#[doc(hidden)]
+#[cfg(not(feature = "std"))]
+#[macro_export]
+macro_rules! __export_realloc {
+    () => {
+        #[unsafe(export_name = "cabi_realloc")]
+        unsafe extern "C" fn cabi_realloc(p: *mut u8, o: usize, a: usize, n: usize) -> *mut u8 {
+            unsafe { $crate::rt::cabi_realloc(p, o, a, n) }
+        }
+    };
+}
+
 /// Wires a [`Mod`] type to the component exports (`init` and `hooks`).
 #[macro_export]
 macro_rules! export_mod {
@@ -188,10 +211,7 @@ macro_rules! export_mod {
             use $crate::bindings::exports::yoake::mods::hooks as h;
             use $crate::bindings::exports::yoake::mods::hooks::Guest as HooksGuest;
 
-            #[unsafe(export_name = "cabi_realloc")]
-            unsafe extern "C" fn cabi_realloc(p: *mut u8, o: usize, a: usize, n: usize) -> *mut u8 {
-                unsafe { $crate::rt::cabi_realloc(p, o, a, n) }
-            }
+            $crate::__export_realloc!();
 
             struct Shim;
 

@@ -282,14 +282,17 @@ pub(crate) struct WasmMod {
     pub(crate) bytes: Vec<u8>,
     pub(crate) side: WasmSide,
     pub(crate) required_on_join: bool,
+    /// The installed file the bytes were read from (watched for hot reload in developer mode).
+    pub(crate) path: PathBuf,
+    /// Whether the .yak carries a valid signature from a trusted key.
+    pub(crate) signed: bool,
 }
 
-fn unsigned_allowed() -> bool {
+pub(crate) fn unsigned_allowed() -> bool {
     std::env::var_os("YOAKE_DLL_MODS_UNSIGNED").as_deref() == Some(std::ffi::OsStr::new("1"))
 }
 
 /// Client-side WebAssembly modules of the enabled .yak files; empty when there are none.
-#[allow(dead_code)]
 pub(crate) fn wasm_client_mods() -> Vec<WasmMod> {
     wasm_mods(WasmSide::Client)
 }
@@ -309,11 +312,13 @@ pub(crate) fn wasm_mods_from(installed: &[Installed], side: WasmSide, keys: &[Pu
         let path = match side { WasmSide::Client => &wasm.client, WasmSide::Server => &wasm.server };
         let Some(path) = path else { continue };
         match wasm_preflight(entry, path, side, keys, allow_unsigned) {
-            Ok((bytes, sha256)) => mods.push(WasmMod {
+            Ok((bytes, sha256, signed)) => mods.push(WasmMod {
                 mod_id: entry.manifest.id.clone(),
                 version: entry.manifest.version.clone(),
                 sha256, bytes, side,
                 required_on_join: entry.manifest.side.required_on_join,
+                path: entry.root.join(path),
+                signed,
             }),
             Err(reason) => {
                 log::warn!("YAK {} wasm module refused: {reason}", entry.manifest.id);
@@ -324,7 +329,7 @@ pub(crate) fn wasm_mods_from(installed: &[Installed], side: WasmSide, keys: &[Pu
     mods
 }
 
-fn wasm_preflight(entry: &Installed, name: &str, side: WasmSide, keys: &[PublicKey], allow_unsigned: bool) -> Result<(Vec<u8>, String), String> {
+fn wasm_preflight(entry: &Installed, name: &str, side: WasmSide, keys: &[PublicKey], allow_unsigned: bool) -> Result<(Vec<u8>, String, bool), String> {
     yak::check_installed_tree(&entry.root)?;
     let manifest = Manifest::read(&entry.root.join("yak.toml"))?;
     if manifest.id != entry.manifest.id || manifest.version != entry.manifest.version
@@ -349,14 +354,16 @@ fn wasm_preflight(entry: &Installed, name: &str, side: WasmSide, keys: &[PublicK
     file.take(yak::MAX_WASM_SIZE + 1).read_to_end(&mut bytes).map_err(|error| error.to_string())?;
     if bytes.len() as u64 > yak::MAX_WASM_SIZE { return Err("wasm module exceeds 32 MiB".into()); }
     let digest: String = <sha2::Sha256 as sha2::Digest>::digest(&bytes).iter().map(|byte| format!("{byte:02x}")).collect();
+    let mut signed = true;
     if let Err(error) = yak::verify_installed(&entry.root, &[name], keys) {
         if !allow_unsigned { return Err(error); }
+        signed = false;
         log::warn!("YAK {}: developer unsigned override: {error}", manifest.id);
     }
     if yak::hash_installed_file(&entry.root, name)? != digest {
         return Err("wasm module changed while loading".into());
     }
-    Ok((bytes, digest))
+    Ok((bytes, digest, signed))
 }
 
 pub(crate) fn content_packages(paths: Vec<PathBuf>, installed: &[Installed]) -> Vec<(PathBuf, Package, bool)> {

@@ -7,6 +7,12 @@ use crate::{crash, game, logging, ram_limit};
 #[path = "dll_mods.rs"]
 mod dll_mods;
 
+// Sandboxed WebAssembly mods (`docs/yoake-wasm.md`). Unsafe only for the thread-local pointer to the
+// current hook's host access (same pattern as dll_mods); nothing here runs without an installed wasm mod.
+#[allow(unsafe_code)]
+#[path = "wasm_mods.rs"]
+mod wasm_mods;
+
 pub use horizon_protocol::mod_list::{Side as NativeSide, native::Mod as NativeMod};
 
 /// Start the game. The executable supplies the allocator and retains the mod API marker.
@@ -21,6 +27,7 @@ pub fn main_with(mods: crate::mod_api::Mods) {
         eprintln!("Native hooks without identities; the multiplayer mod check can't see them");
     }
     let (mods, identities) = dll_mods::extend(mods, &[]);
+    let (mods, identities) = wasm_mods::extend(mods, identities);
     if !identities.is_empty() {
         horizon_protocol::mod_list::native::install(identities).expect("Invalid native mod identities");
     }
@@ -34,6 +41,7 @@ pub fn main_with_native(mods: crate::mod_api::Mods, identities: &'static [Native
         "Missing native mod identities"
     );
     let (mods, identities) = dll_mods::extend(mods, identities);
+    let (mods, identities) = wasm_mods::extend(mods, identities);
     horizon_protocol::mod_list::native::install(identities).expect("Invalid native mod identities");
     run(mods);
 }
@@ -84,6 +92,7 @@ fn run(mods: crate::mod_api::Mods) {
         // The log's first line names the build, so a bug report that carries the log says which one it was.
         log::info!("Horizon {}", crash::version());
         crate::yak_mods::log_startup();
+        wasm_mods::log_startup();
         crash::install(home.clone(), side);
         ram_limit::start(&home, side);
     }
