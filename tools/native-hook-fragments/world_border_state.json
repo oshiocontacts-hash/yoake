@@ -1,0 +1,13 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "world_border", "target": "horizon_client::game::native_world_border::Game<'_>::native_world_border"},
+    {"name": "set_world_border", "target": "horizon_client::game::native_world_border::Game<'_>::native_set_world_border"}
+  ],
+  "rust_summary": "reading and setting the world border (`native_world_border`, `native_set_world_border`).",
+  "doc_summary": "On the authoritative server tick, `native_world_border(dimension)` returns the border's centre, size, target size and the ticks left of a move, and `native_set_world_border(dimension, center, size, lerp)` sets the centre and either the size at once or, with `lerp` `(target, ticks)`, a move from `size` to `target` over `ticks` server ticks (`WorldBorder.lerpSizeBetween`). Horizon keeps one border for the whole server, so every dimension names the same one. Vanilla's limits apply (sizes 1 to 59999968, centres within 29999984) and nothing changes on an error. Players are told through vanilla's border packets at the end of the tick; mods listening to border changes are not. Each helper is limited to 512 calls per mod per tick. Bundles need fragment @API:world_border_state@.",
+  "comments": [
+    "crates/horizon-client/src/game/native_world_border.rs",
+    "crates/horizon-client/src/mod_api.rs"
+  ]
+}

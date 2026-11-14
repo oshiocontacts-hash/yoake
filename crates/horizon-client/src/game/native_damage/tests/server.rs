@@ -563,3 +563,125 @@ fn player_appearance_is_unavailable_outside_the_attached_server_tick() {
         assert!(game.native_player_appearance(GUEST).is_none());
     });
 }
+
+fn clientbound(receiver: &Receiver<Out>) -> Vec<play::Clientbound> {
+    let mut packets = Vec::new();
+    for outbound in receiver.try_iter() {
+        let bodies = match outbound {
+            Out::Packet(packet) => vec![packet],
+            Out::Packets(packets) => packets,
+            _ => continue,
+        };
+        for bytes in bodies {
+            let mut reader = Reader::new(&bytes);
+            let packet_id = reader.varint().unwrap();
+            packets.push(play::Clientbound::decode(packet_id, reader.rest()).unwrap());
+        }
+    }
+    packets
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn the_owner_has_a_server_motion_with_or_without_a_body_in_the_record() {
+    with_server(|game, _, _| {
+        let owner = game.native_server_player_motion_impl(OWNER).unwrap();
+        assert_eq!(owner.position, [5.0, 64.0, 5.0]);
+        // The record gives the body back only after a turn: the owner is still readable.
+        let host = game.lan.as_mut().unwrap();
+        let record = host
+            .hub
+            .guests
+            .iter_mut()
+            .find(|guest| guest.uuid == OWNER)
+            .unwrap();
+        record.motion = None;
+        record.known_movement = [0.5, 0.0, -0.5];
+        let owner = game.native_server_player_motion_impl(OWNER).unwrap();
+        assert_eq!(owner.velocity, [0.5, 0.0, -0.5]);
+        assert_eq!(
+            game.native_set_server_player_velocity_impl(&game.dim.id().to_owned(), OWNER, [1.0; 3]),
+            Ok(true)
+        );
+    });
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn an_attack_hitbox_is_the_box_a_guest_is_attacked_in_and_reaches_horizon_clients() {
+    with_server(|game, owner_packets, _| {
+        let ordinary = {
+            let host = game.lan.as_ref().unwrap();
+            game.guest_target_box(host, 0, GUEST_ID as i32).unwrap()
+        };
+        // The owner's connection speaks for a Horizon client.
+        game.lan.as_mut().unwrap().hub.guests[0].brand = "horizon".into();
+        assert_eq!(
+            game.native_set_player_attack_hitbox(GUEST, 6.0, 18.0),
+            Ok(true)
+        );
+        let tall = {
+            let host = game.lan.as_ref().unwrap();
+            game.guest_target_box(host, 0, GUEST_ID as i32).unwrap()
+        };
+        assert_ne!(tall, ordinary);
+        assert_eq!(tall.max_position().y - tall.min_position().y, 18.0);
+        assert_eq!(tall.max_position().x - tall.min_position().x, 6.0);
+        assert!(clientbound(&owner_packets).iter().any(|packet| matches!(
+            packet,
+            play::Clientbound::CustomPayload(p)
+                if p.channel == horizon_client::lan::attack_hitbox::CHANNEL
+        )));
+        assert!(
+            game.native_set_player_attack_hitbox(GUEST, 0.0, 18.0)
+                .is_err()
+        );
+        assert_eq!(game.native_clear_player_attack_hitbox(GUEST), Ok(true));
+        let host = game.lan.as_ref().unwrap();
+        assert_eq!(game.guest_target_box(host, 0, GUEST_ID as i32).unwrap(), ordinary);
+        assert_eq!(game.native_clear_player_attack_hitbox(404), Ok(false));
+    });
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn the_world_border_is_read_and_set_with_vanillas_packets() {
+    with_server(|game, _, guest_packets| {
+        let dimension = game.dim.id().to_owned();
+        // The first sync only records what the players were told.
+        let mut host = game.lan.take().unwrap();
+        game.lan_sync_border(&mut host);
+        game.lan = Some(host);
+        clientbound(&guest_packets);
+        let before = game.native_world_border(&dimension).unwrap();
+        assert_eq!(before.remaining_ticks, 0);
+        assert!(game.native_world_border("minecraft:nowhere").is_err());
+        assert_eq!(
+            game.native_set_world_border(&dimension, [5.0, 6.0], 80.0, Some((20.0, 100))),
+            Ok(())
+        );
+        let after = game.native_world_border(&dimension).unwrap();
+        assert_eq!(
+            (after.center, after.size, after.target_size, after.remaining_ticks),
+            ([5.0, 6.0], 80.0, 20.0, 100)
+        );
+        let mut host = game.lan.take().unwrap();
+        game.lan_sync_border(&mut host);
+        game.lan = Some(host);
+        let packets = clientbound(&guest_packets);
+        assert!(packets.iter().any(|packet| matches!(
+            packet,
+            play::Clientbound::SetBorderCenter(p) if (p.x, p.z) == (5.0, 6.0)
+        )));
+        assert!(packets.iter().any(|packet| matches!(
+            packet,
+            play::Clientbound::SetBorderLerpSize(p)
+                if (p.old_size, p.new_size, p.lerp_time) == (80.0, 20.0, 100)
+        )));
+        assert!(
+            game.native_set_world_border(&dimension, [0.0, 0.0], 0.0, None)
+                .is_err()
+        );
+        assert_eq!(game.native_world_border(&dimension).unwrap(), after);
+    });
+}

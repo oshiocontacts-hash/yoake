@@ -387,6 +387,8 @@ impl Game<'_> {
             &mut self.ui.registries.permission,
             host.hub.guests[i].permission,
         );
+        // What the mods are told of their level (`native_acting_player`).
+        let reported_permission = host.hub.reported_permission(&host.hub.guests[i]);
         let fresh = host.hub.guests[i].motion.is_none();
         if fresh {
             let p = Vec3::new(
@@ -580,7 +582,7 @@ impl Game<'_> {
             self.lan_acting.replace(conn),
             self.lan_acting_name.replace(g.name.clone()),
             self.lan_acting_uuid.replace(g.uuid),
-            self.lan_acting_permission.replace(g.permission),
+            self.lan_acting_permission.replace(reported_permission),
             self.lan_acting_entity.replace(g.entity_id as u32),
         );
         let packets = std::mem::take(&mut self.guest_packets);
@@ -3047,7 +3049,8 @@ impl Game<'_> {
             .iter()
             .find(|g| g.entity_id == id && g.conn != conn && host.hub.here(g))
         {
-            return Some(g.bounds());
+            // A mod's attack hit box (`lan::attack_hitbox`), else the box they stand in.
+            return Some(g.attack_bounds());
         }
         if let Some(m) = self.mobs.iter().find(|m| m.id as i32 == id) {
             return Some(m.bounds());
