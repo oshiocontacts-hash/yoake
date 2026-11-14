@@ -1,0 +1,11 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "set_sky_tint", "target": "horizon_client::game::native_sky_tint::Game<'_>::native_set_sky_tint"}
+  ],
+  "rust_summary": "tinting the sky dome and the clouds for a frame (`native_set_sky_tint`).",
+  "doc_summary": "On a client, `native_set_sky_tint(color, strength)` draws the sky dome and the cloud layer `strength` (0 to 1) of the way from their colour to `color` (RGB, 0 to 1) in the next frame built. Call it every frame the tint should show: a frame it is not called on is drawn as vanilla draws it. Fog, terrain, water and the other stages are not tinted. Bundles need fragment @API:sky_tint@.",
+  "comments": [
+    "crates/horizon-client/src/game/native_sky_tint.rs"
+  ]
+}

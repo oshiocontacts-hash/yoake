@@ -339,6 +339,12 @@ The fence: files go in the mod's own namespaces (`assets/<id>/`,
 share (`data/c/tags/`), and sources added to vanilla's atlases
 (`assets/minecraft/atlases/`), which follow vanilla's own as a reload appends them.
 Templates and `sounds` name vanilla blocks; unknown keys are refused.
+Plain license and readme text files may ride along anywhere under `assets/` and `data/`
+(`assets/<id>/LICENSE.txt`, `data/README.md`, `NOTICE`, `COPYING`, a `LICENSE-ART.TXT`): the game ignores them
+instead of refusing the mod, and `cargo horizon-mod build` packs them. A file named `LICENSE*`, `LICENCE*`,
+`COPYING*`, `README*` or `NOTICE*` (any case, no extension or `.txt`, `.md`, `.rst`) is always one; any other
+`.txt` or `.md` file is one only where it could not be a resource (not a plain lower-case path, or outside a
+namespace folder), so a mod's own text resources such as `assets/<id>/texts/splashes.txt` still load.
 
 Some Java mods ship their files under other names than their mod id (Towns and Towers, mod id `t_and_t`, under
 `kaisyn` and `towns_and_towers`). A content mod lists those in its manifest:

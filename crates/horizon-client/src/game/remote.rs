@@ -3201,6 +3201,10 @@ impl Game<'_> {
             C::CustomPayload(p) if p.channel == horizon_protocol::mod_net::CHANNEL => {
                 self.remote_native_net(&p.data);
             }
+            // The attack hit boxes a server's mods gave players, for the crosshair.
+            C::CustomPayload(p) if p.channel == horizon_client::lan::attack_hitbox::CHANNEL => {
+                self.remote_attack_hitbox(&p.data);
+            }
             // The synced attachments of a holder the server shows the window.
             C::CustomPayload(p) if p.channel == horizon_protocol::attachment_sync::CHANNEL => {
                 self.remote_attachment_sync(&p.data);
@@ -3216,6 +3220,7 @@ impl Game<'_> {
             }
             C::Login(p) => {
                 self.test_highlights.clear();
+                self.attack_hitboxes.clear();
                 self.forget_synced_recipes();
                 self.level.hardcore = p.hardcore;
                 // handleLogin: startWaitingForNewLevel with Reason.OTHER, which

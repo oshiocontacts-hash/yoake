@@ -270,7 +270,7 @@ impl Game<'_> {
         let camera = self.remote_camera_id();
         let boxes: Vec<(usize, Aabb)> = (self.mobs.iter().enumerate())
             .filter(|(_, m)| !m.removed && Some(m.id) != self.riding && Some(m.id) != camera)
-            .map(|(i, m)| (i, m.bounds()))
+            .map(|(i, m)| (i, self.pick_bounds(m)))
             .collect();
         let clip = |from: Vec3, to: Vec3| {
             let length = from.distance_squared(to).sqrt();

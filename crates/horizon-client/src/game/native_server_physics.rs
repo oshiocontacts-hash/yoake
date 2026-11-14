@@ -5,6 +5,7 @@ use std::sync::atomic::Ordering;
 use horizon_client::{
     arrows::clip_block_segment,
     collisions::SceneCollisions,
+    lan::guest::Guest,
     mod_api::{NativeTickId, NativeWorldEpoch},
     world::World,
 };
@@ -38,14 +39,20 @@ pub struct NativeServerPlayerMotion {
     pub fall_distance: f64,
 }
 
+/// The helpers that share the 512 calls per mod and server tick (each its own budget).
 #[derive(Clone, Copy)]
-enum Operation {
+pub(super) enum Operation {
     Clip,
     Box,
     PlayerMotion,
     SetPlayerVelocity,
     PlayerLatency,
+    PlayerHitbox,
+    WorldBorder,
+    SetWorldBorder,
 }
+
+const OPERATIONS: usize = 8;
 
 impl Operation {
     fn index(self) -> usize {
@@ -55,13 +62,16 @@ impl Operation {
             Self::PlayerMotion => 2,
             Self::SetPlayerVelocity => 3,
             Self::PlayerLatency => 4,
+            Self::PlayerHitbox => 5,
+            Self::WorldBorder => 6,
+            Self::SetWorldBorder => 7,
         }
     }
 }
 
 struct PhysicsUsage {
     mod_index: usize,
-    calls: [u16; 5],
+    calls: [u16; OPERATIONS],
 }
 
 #[derive(Default)]
@@ -90,7 +100,7 @@ impl PhysicsBudgets {
             None => {
                 self.mods.push(PhysicsUsage {
                     mod_index,
-                    calls: [0; 5],
+                    calls: [0; OPERATIONS],
                 });
                 self.mods.len() - 1
             }
@@ -130,6 +140,28 @@ fn replace_velocity(current: &mut Vec3, sync_velocity: bool, replacement: Vec3) 
     (!sync_velocity).then_some(replacement)
 }
 
+/// A guest's motion as a mod reads it. A body in the record gives its velocity and fall
+/// distance; a player whose body is not in it (the integrated server's owner before their first
+/// turn, or whose turn has not given the record back) is read from what the record keeps of
+/// them: the last movement their client reported and the fall distance they were saved with.
+fn guest_motion(guest: &Guest) -> NativeServerPlayerMotion {
+    let (velocity, fall_distance) = match guest.motion.as_deref() {
+        Some(motion) => (motion.velocity.components(), motion.fall_distance),
+        None => (
+            guest.known_movement,
+            guest.loaded_body.as_ref().map_or(0.0, |body| body.fall_distance),
+        ),
+    };
+    // CHECK: Verify the collision flag lifetime across teleports, passengers, and rejected moves.
+    NativeServerPlayerMotion {
+        position: guest.position,
+        velocity,
+        on_ground: guest.on_ground,
+        horizontal_collision: guest.native_horizontal_collision,
+        fall_distance,
+    }
+}
+
 fn direction(normal: [i32; 3]) -> Result<Direction, String> {
     Direction::ALL
         .into_iter()
@@ -156,7 +188,11 @@ where
 }
 
 impl Game<'_> {
-    fn native_physics_reserve(&mut self, operation: Operation, write: bool) -> Result<(), String> {
+    pub(super) fn native_physics_reserve(
+        &mut self,
+        operation: Operation,
+        write: bool,
+    ) -> Result<(), String> {
         require_server_context(
             self.options.execution_role,
             self.remote.is_some(),
@@ -245,18 +281,7 @@ impl Game<'_> {
             .iter()
             .find(|guest| guest.uuid == uuid && guest.placed && host.play.contains_key(&guest.conn))
             .ok_or("native player is disconnected or not ready")?;
-        let motion = guest
-            .motion
-            .as_deref()
-            .ok_or("native player motion is unavailable")?;
-        // CHECK: Verify the collision flag lifetime across teleports, passengers, and rejected moves.
-        Ok(NativeServerPlayerMotion {
-            position: guest.position,
-            velocity: motion.velocity.components(),
-            on_ground: guest.on_ground,
-            horizontal_collision: guest.native_horizontal_collision,
-            fall_distance: motion.fall_distance,
-        })
+        Ok(guest_motion(guest))
     }
 
     pub(super) fn native_set_server_player_velocity_impl(
@@ -289,9 +314,15 @@ impl Game<'_> {
             })
             .map(|guest| guest.conn);
         let changed = conn.and_then(|conn| {
-            let motion = host.hub.guest_mut(conn)?.motion.as_deref_mut()?;
-            let sent =
-                replace_velocity(&mut motion.velocity, motion.health.sync_velocity, velocity);
+            let guest = host.hub.guest_mut(conn)?;
+            let sent = match guest.motion.as_deref_mut() {
+                Some(motion) => {
+                    replace_velocity(&mut motion.velocity, motion.health.sync_velocity, velocity)
+                }
+                // No body in the record (the owner, before their first turn): their client
+                // is told, and takes it from there.
+                None => Some(velocity),
+            };
             Some((conn, sent))
         });
         if let Some((conn, sent)) = changed {
@@ -408,6 +439,51 @@ mod tests {
         assert!(budgets.reserve(next, 1, Operation::Clip).is_ok());
         let next_world = (NativeWorldEpoch::new(2), NativeTickId::new(2));
         assert!(budgets.reserve(next_world, 1, Operation::Box).is_ok());
+    }
+
+    fn guest() -> Guest {
+        use horizon_client::lan::{Joined, PlayerSender};
+        use horizon_protocol::packets::configuration::ClientInformation;
+        let (sender, _receiver) = std::sync::mpsc::channel();
+        Guest::new(
+            Joined {
+                conn: 1,
+                uuid: 7,
+                name: "Owner".into(),
+                properties: Vec::new(),
+                info: ClientInformation::new(8),
+                brand: "horizon".into(),
+                sender: PlayerSender::new(sender, Default::default()),
+                latency: Default::default(),
+                address: "127.0.0.1:25565".parse().unwrap(),
+            },
+            1,
+            [1.0, 64.0, 2.0],
+            8,
+        )
+    }
+
+    /// The LAN host's own player has no body in the record before their first turn; a mod still
+    /// reads their motion (it was an error, "native player motion is unavailable").
+    #[test]
+    fn a_player_without_a_body_in_the_record_still_has_a_motion() {
+        let mut host = guest();
+        host.on_ground = true;
+        host.native_horizontal_collision = true;
+        host.known_movement = [0.1, -0.2, 0.3];
+        host.loaded_body = Some(horizon_client::lan::guest::SavedBody {
+            fire_ticks: 0,
+            air: 300,
+            fall_distance: 2.5,
+        });
+        assert!(host.motion.is_none());
+        let motion = guest_motion(&host);
+        assert_eq!(motion.position, [1.0, 64.0, 2.0]);
+        assert_eq!(motion.velocity, [0.1, -0.2, 0.3]);
+        assert_eq!(motion.fall_distance, 2.5);
+        assert!(motion.on_ground && motion.horizontal_collision);
+        host.loaded_body = None;
+        assert_eq!(guest_motion(&host).fall_distance, 0.0);
     }
 
     #[test]
