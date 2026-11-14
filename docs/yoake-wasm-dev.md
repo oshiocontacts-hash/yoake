@@ -1,7 +1,7 @@
 # Writing a Yoake WebAssembly mod
 
 A Yoake wasm mod is a WebAssembly **component** (`wasm32-wasip2`) for the WIT world
-`yoake:mod/client-mod@1.0.0` (`crates/yoake-wasm/wit/yoake-mod.wit`). The guest SDK is
+`yoake:mods/client-mod@1.0.0` (`crates/yoake-wasm/wit/yoake-mod.wit`). The guest SDK is
 `crates/yoake-wasm-sdk`; a complete example is `crates/yoake-wasm-sdk/examples/hello`.
 
 ## Toolchain
@@ -51,7 +51,7 @@ export_mod!(Hello);
 - The generated bindings come from `build.rs` (wit-bindgen 0.57.1's proc macro does not escape the
   package name `mod`).
 
-Check the imports of a build (should be `yoake:mod/*` only):
+Check the imports of a build (should be `yoake:mods/*` only):
 `wasm-tools component wit target/wasm32-wasip2/release/yoake_wasm_hello.wasm`.
 
 ## Packaging in a `.yak`
@@ -64,5 +64,5 @@ client = "bin/wasm/hello.wasm"
 interface = "1.0"
 ```
 
-`interface = "1.0"` is the `yoake:mod` major.minor the component was built against; the host
-rejects components that import anything outside `yoake:mod/*`.
+`interface = "1.0"` is the `yoake:mods` major.minor the component was built against; the host
+rejects components that import anything outside `yoake:mods/*`.

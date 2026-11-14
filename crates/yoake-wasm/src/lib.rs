@@ -1,11 +1,25 @@
-use std::sync::{Arc, Condvar, Mutex};
+use std::collections::HashMap;
+use std::sync::atomic::AtomicUsize;
+use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use wasmtime::component::{Component, Instance, Linker};
 use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder};
 
+mod client;
+mod host;
 mod hook_names;
 mod subscriptions;
+
+pub mod bindings {
+    wasmtime::component::bindgen!({
+        path: "wit",
+        world: "client-mod",
+    });
+}
+
+pub use client::{ClientMod, LoadError};
+pub use host::ClientHost;
 
 pub use subscriptions::Subscriptions;
 
@@ -21,6 +35,7 @@ const INTERFACE_VERSION: &str = "1.0.0";
 #[derive(Default)]
 pub struct Sandbox {
     runtime: Option<Arc<RuntimeEngine>>,
+    texture_counts: HashMap<String, Weak<AtomicUsize>>,
 }
 
 impl Sandbox {
@@ -30,6 +45,16 @@ impl Sandbox {
 
     pub fn engine_started(&self) -> bool {
         self.runtime.is_some()
+    }
+
+    fn texture_count(&mut self, id: &str) -> Arc<AtomicUsize> {
+        self.texture_counts.retain(|_, count| count.strong_count() > 0);
+        if let Some(count) = self.texture_counts.get(id).and_then(Weak::upgrade) {
+            return count;
+        }
+        let count = Arc::new(AtomicUsize::new(0));
+        self.texture_counts.insert(id.to_owned(), Arc::downgrade(&count));
+        count
     }
 
     pub fn compile(&mut self, bytes: &[u8]) -> Result<CompiledComponent, String> {
@@ -47,7 +72,7 @@ impl Sandbox {
 }
 
 fn check_import(name: &str) -> Result<(), String> {
-    let Some(import) = name.strip_prefix("yoake:mod/") else {
+    let Some(import) = name.strip_prefix("yoake:mods/") else {
         return Err(format!("forbidden component import: {name}"));
     };
     let Some((interface, version)) = import.rsplit_once('@') else {
