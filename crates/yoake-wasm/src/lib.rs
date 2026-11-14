@@ -41,6 +41,23 @@ pub const TABLE_ELEMENT_LIMIT: usize = 65_536;
 /// Tables one instance may have.
 pub const TABLE_LIMIT: usize = 8;
 const EPOCH_INTERVAL: Duration = Duration::from_millis(1);
+
+thread_local! {
+    /// Wall-clock time the running call spent inside host services (the game doing what the guest asked:
+    /// breaking a block, reading a container). It is the game's time, not the guest's: it extends the
+    /// call's deadline and does not count against the aggregate budget. The guest's own work is still
+    /// bounded by fuel, and every service call burns some.
+    static HOST_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
+}
+
+/// The most host-service time that extends one call's deadline (a guest that loops over services cannot hold the
+/// server thread longer than this plus its own budget).
+pub const MAX_HOST_TIME: Duration = Duration::from_millis(400);
+
+/// Adds `spent` to the running call's host-service time (see [`HOST_TIME`]).
+pub(crate) fn add_host_time(spent: Duration) {
+    HOST_TIME.with(|time| time.set(time.get() + spent));
+}
 /// One client hook call may run this long of wall-clock time (plus one epoch tick) before it is
 /// stopped and the module disabled. A call is stopped by the clock, not by its CPU time, and a busy
 /// machine can pause a thread for a whole scheduler quantum (15.6 ms on Windows): a tighter limit
@@ -247,7 +264,7 @@ impl CompiledComponent {
         store.limiter(|state| &mut state.limits);
         store.set_fuel(FUEL_PER_CALL).map_err(|error| error.to_string())?;
         store.epoch_deadline_callback(|context| {
-            if Instant::now() >= context.data().deadline {
+            if Instant::now() >= context.data().deadline + HOST_TIME.with(std::cell::Cell::get).min(MAX_HOST_TIME) {
                 Ok(UpdateDeadline::Interrupt)
             } else {
                 Ok(UpdateDeadline::Continue(1))
@@ -376,6 +393,8 @@ impl<T: 'static> ModInstance<T> {
             return None;
         }
         self.store.data_mut().deadline = began + self.limits.call;
+        // Calls nest (a `mod-call` runs another module inside a service): each has its own host time.
+        let outer_host_time = HOST_TIME.with(|time| time.replace(Duration::ZERO));
         let result = self
             .store
             .set_fuel(self.fuel)
@@ -384,7 +403,8 @@ impl<T: 'static> ModInstance<T> {
                 self.store.set_epoch_deadline(1);
                 invoke(&mut self.store, &self.instance)
             });
-        self.window.spent += began.elapsed();
+        let host_time = HOST_TIME.with(|time| time.replace(outer_host_time));
+        self.window.spent += began.elapsed().saturating_sub(host_time);
         match result {
             Ok(value) => Some(value),
             Err(error) => {

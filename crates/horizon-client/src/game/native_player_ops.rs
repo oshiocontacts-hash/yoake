@@ -330,7 +330,7 @@ fn operation_name(operation: NativeAttributeOperation) -> &'static str {
     }
 }
 
-fn attribute_name(attribute: &str) -> Cow<'_, str> {
+pub(super) fn attribute_name(attribute: &str) -> Cow<'_, str> {
     if attribute.contains(':') {
         Cow::Borrowed(attribute)
     } else {
@@ -343,7 +343,7 @@ fn valid_identifier(id: &str) -> bool {
         .is_ok_and(|identifier| !identifier.path().is_empty())
 }
 
-fn canonical_identifier(id: &str) -> Option<String> {
+pub(super) fn canonical_identifier(id: &str) -> Option<String> {
     if id.len() > 256 {
         return None;
     }
@@ -499,7 +499,7 @@ impl Game<'_> {
         Ok(caller.index)
     }
 
-    fn native_player_target(&self, uuid: u128) -> Result<(Target, u32, Dim), String> {
+    pub(super) fn native_player_target(&self, uuid: u128) -> Result<(Target, u32, Dim), String> {
         if self.lan_acting_uuid == Some(uuid)
             && let Some(conn) = self.lan_acting
             && self.player.is_some()
@@ -523,7 +523,7 @@ impl Game<'_> {
         ))
     }
 
-    fn for_native_player<T>(
+    pub(super) fn for_native_player<T>(
         &mut self,
         target: Target,
         dimension: Dim,

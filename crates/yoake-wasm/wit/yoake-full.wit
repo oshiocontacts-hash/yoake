@@ -1303,6 +1303,7 @@ interface engine-types {
         food-level: option<s32>,
         right-arm-pose: string,
         left-arm-pose: string,
+        scale: f32,
     }
 
     record native-recipe-type {
@@ -1685,6 +1686,18 @@ interface engine-types {
 }
 
 interface server-types {
+    enum attribute-operation {
+        add-value,
+        add-multiplied-base,
+        add-multiplied-total,
+    }
+
+    enum damage-kind {
+        magic,
+        player-attack,
+        explosion,
+    }
+
     enum inventory-operation {
         give,
         clear,
@@ -1703,6 +1716,18 @@ interface server-types {
         set-game-rule,
         add-force-load,
         remove-force-load,
+    }
+
+    record advancement-state {
+        completed: list<string>,
+        done: bool,
+        known: bool,
+        remaining: list<string>,
+    }
+
+    record attribute-value {
+        base: f64,
+        value: f64,
     }
 
     record block-edit {
@@ -1764,6 +1789,13 @@ interface server-types {
         usage: string,
     }
 
+    record container-ref {
+        block: string,
+        kind: string,
+        position: block-pos,
+        slots: u32,
+    }
+
     record damage-decision {
         amount: f32,
         cancel: bool,
@@ -1779,15 +1811,29 @@ interface server-types {
         position: vec3,
     }
 
+    record entity-vitals {
+        absorption: f32,
+        armor: f32,
+        health: f32,
+        max-health: f32,
+    }
+
     record inventory-change {
-        components: option<string>,
+        components: option<list<u8>>,
         count: u32,
         item: string,
         operation: inventory-operation,
     }
 
+    record item-entity {
+        handle: u32,
+        position: vec3,
+        stack: item-stack,
+        velocity: vec3,
+    }
+
     record item-stack {
-        components: string,
+        components: list<u8>,
         count: u32,
         item: string,
     }
@@ -1816,8 +1862,17 @@ interface server-types {
         permission-level: u8,
         pitch: f32,
         position: vec3,
+        sneaking: bool,
         uuid: string,
         yaw: f32,
+    }
+
+    record player-motion {
+        fall-distance: f64,
+        horizontal-collision: bool,
+        on-ground: bool,
+        position: vec3,
+        velocity: vec3,
     }
 
     record ray-hit {
@@ -1834,10 +1889,25 @@ interface server-types {
         value: option<string>,
     }
 
+    record tool-requirement {
+        hardness: f32,
+        mineable: list<string>,
+        requires-tool: bool,
+        tier: option<string>,
+    }
+
     record vec3 {
         x: f64,
         y: f64,
         z: f64,
+    }
+
+    record world-border-state {
+        center-x: f64,
+        center-z: f64,
+        remaining-ticks: u64,
+        size: f64,
+        target-size: f64,
     }
 
     record world-control-change {
@@ -1850,9 +1920,9 @@ interface server-types {
     }
 }
 
-/// Draft server services (value types only): see `abi-subset-server.json`.
+/// Server services (value types only), listed in `abi-subset-server.json`.
 interface server-services {
-    use server-types.{inventory-operation, team-operation, world-control-operation, block-edit, block-entity-create, block-entity-patch, block-entity-state, block-pos, block-run, bounds, chat-decision, chat-recipients, command-usage, damage-decision, entity-snapshot, inventory-change, item-stack, knockback-decision, particle-request, player, ray-hit, team-change, vec3, world-control-change};
+    use server-types.{attribute-operation, damage-kind, inventory-operation, team-operation, world-control-operation, advancement-state, attribute-value, block-edit, block-entity-create, block-entity-patch, block-entity-state, block-pos, block-run, bounds, chat-decision, chat-recipients, command-usage, container-ref, damage-decision, entity-snapshot, entity-vitals, inventory-change, item-entity, item-stack, knockback-decision, particle-request, player, player-motion, ray-hit, team-change, tool-requirement, vec3, world-border-state, world-control-change};
 
     acting-player: func() -> option<player>;
     held: func() -> option<item-stack>;
@@ -1907,6 +1977,37 @@ interface server-services {
     range-override-clear: func(owner: string) -> result<_, string>;
     qa-mode-enabled: func() -> bool;
     qa-record: func(event: string, json: string) -> result<_, string>;
+    break-block-as: func(dimension: string, player: string, position: block-pos) -> result<bool, string>;
+    player-sneaking: func(player: string) -> result<bool, string>;
+    container-slots: func(dimension: string, position: block-pos) -> result<list<option<item-stack>>, string>;
+    container-set-slots: func(dimension: string, position: block-pos, slots: list<option<item-stack>>) -> result<_, string>;
+    containers-in: func(center: vec3, dimension: string, radius: f64) -> result<list<container-ref>, string>;
+    player-set-slots: func(player: string, slots: list<option<item-stack>>) -> result<_, string>;
+    block-tags: func(block: string) -> result<list<string>, string>;
+    item-tags: func(item: string) -> result<list<string>, string>;
+    block-tool-requirement: func(block: string) -> result<tool-requirement, string>;
+    can-harvest: func(block: string, tool: option<item-stack>) -> result<bool, string>;
+    player-attribute-modifier-add: func(amount: f64, attribute: string, modifier: string, operation: attribute-operation, player: string) -> result<_, string>;
+    attribute-get: func(attribute: string, player: string) -> result<attribute-value, string>;
+    open-menu: func(extra: list<u8>, menu-type: string, player: string, title: string) -> result<bool, string>;
+    menu-set-items: func(items: list<option<item-stack>>, player: string) -> result<_, string>;
+    menu-close: func(player: string) -> result<_, string>;
+    item-entities-in: func(center: vec3, dimension: string, radius: f64) -> result<list<item-entity>, string>;
+    item-entity-move: func(dimension: string, entity: u32, position: vec3, velocity: vec3) -> result<bool, string>;
+    item-entity-pickup: func(dimension: string, entity: u32, player: string) -> result<bool, string>;
+    give-items: func(items: list<item-stack>, player: string) -> result<list<item-stack>, string>;
+    advancement-progress: func(advancement: string, player: string) -> result<advancement-state, string>;
+    advancement-grant: func(advancement: string, player: string) -> result<bool, string>;
+    entity-vitals-of: func(dimension: string, entity: u32) -> result<entity-vitals, string>;
+    hurt-entity: func(amount: f32, attacker: option<string>, damage: damage-kind, dimension: string, entity: u32) -> result<bool, string>;
+    server-player-motion: func(player: string) -> result<player-motion, string>;
+    set-server-player-velocity: func(dimension: string, player: string, velocity: vec3) -> result<bool, string>;
+    play-sound-at: func(category: string, dimension: string, pitch: f32, position: vec3, sound: string, volume: f32) -> result<u32, string>;
+    set-player-attack-hitbox: func(height: f32, player: string, width: f32) -> result<bool, string>;
+    clear-player-attack-hitbox: func(player: string) -> result<bool, string>;
+    world-border: func(dimension: string) -> result<world-border-state, string>;
+    set-world-border: func(center-x: f64, center-z: f64, dimension: string, lerp-ticks: option<u64>, size: f64, target-size: option<f64>) -> result<_, string>;
+    mod-call: func(method: string, payload: list<u8>, target-mod: string) -> result<list<u8>, string>;
 }
 
 /// Hooks that run in the client.
@@ -6496,4 +6597,7 @@ world server-full {
     export server-hooks;
     /// Returns catalog hook names with underscores, such as `net_frames_listened`.
     export init: func() -> list<string>;
+    /// Called by another package's `mod-call` service: `caller` is the calling package's id, `method` and `payload` are the
+    /// caller's own protocol (payload at most 1 MiB, the answer too). An `Err` reaches the caller as its `mod-call` error.
+    export handle-call: func(caller: string, method: string, payload: list<u8>) -> result<list<u8>, string>;
 }

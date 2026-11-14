@@ -11,6 +11,8 @@
 
 #[path = "wasm_mods/full.rs"]
 mod full;
+#[path = "wasm_mods/server_services.rs"]
+mod server_services;
 
 use super::dll_mods::{frame_time, native_identity, safe_component, StaticMod};
 use crate::mod_api::*;

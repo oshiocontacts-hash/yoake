@@ -8,6 +8,7 @@ mod crafter;
 pub(in crate::game) mod native_energy;
 pub(in crate::game) mod native_fluids;
 pub(in crate::game) mod native_items;
+pub(in crate::game) mod native_wasm_containers;
 use horizon_client::{
     Result,
     containers::{BlockEntity, HOPPER_SLOTS, ModContainer},

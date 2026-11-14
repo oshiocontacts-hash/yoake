@@ -20,6 +20,15 @@ impl ServerHost for Server {
     }
 }
 
+/// A host whose `tell` takes 80 ms: more than a server hook's whole 25 ms budget.
+struct SlowServer;
+impl ServerHost for SlowServer {
+    fn tell(&mut self, _message: String, _player: String) -> Result<(), String> {
+        std::thread::sleep(std::time::Duration::from_millis(80));
+        Ok(())
+    }
+}
+
 struct Client(Log);
 impl ClientHost for Client {
     fn log(&mut self, target: &str, message: &str) -> Result<(), yoake_wasm::bindings::yoake::mods::types::HostError> {
@@ -29,8 +38,14 @@ impl ClientHost for Client {
 }
 
 fn read(name: &str) -> Option<Vec<u8>> {
-    use yoake_wasm::test_guests::{FULL_DEMO_CLIENT, FULL_DEMO_SERVER, load};
-    load(if name.contains("server") { &FULL_DEMO_SERVER } else { &FULL_DEMO_CLIENT })
+    use yoake_wasm::test_guests::{FULL_DEMO_CLIENT, FULL_DEMO_PEER, FULL_DEMO_SERVER, load};
+    load(if name.contains("peer") {
+        &FULL_DEMO_PEER
+    } else if name.contains("server") {
+        &FULL_DEMO_SERVER
+    } else {
+        &FULL_DEMO_CLIENT
+    })
 }
 
 #[test]
@@ -48,8 +63,9 @@ fn server_guest_subscribes_registers_a_command_and_answers_perform_command() {
             e.yoake_mods_server_hooks().call_register_commands(s, &[])
         })
         .unwrap();
-    assert_eq!(commands.len(), 1);
+    assert_eq!(commands.len(), 2);
     assert_eq!(commands[0].usage, "wasmping");
+    assert_eq!(commands[1].usage, "wasmsvc");
     let player = et::NativeServerPlayer {
         uuid: vec![0x11; 16], name: "Guest".into(), permission: 0, dimension: "minecraft:overworld".into(),
         position: vec![0.0; 3], game_mode: 1, health: 20.0, yaw: 0.0, pitch: 0.0,
@@ -64,6 +80,35 @@ fn server_guest_subscribes_registers_a_command_and_answers_perform_command() {
     assert!(!other);
     let lines = log.0.lock().unwrap();
     assert!(lines.iter().any(|l| l.contains("tell 11111111-1111-1111-1111-111111111111: pong #1")), "{lines:?}");
+}
+
+#[test]
+fn time_inside_a_host_service_is_not_the_guests_time() {
+    let Some(bytes) = read("full_demo_server.wasm") else { return };
+    let mut guest = ServerFullMod::instantiate(&mut Sandbox::new(), "demo", &bytes, Box::new(SlowServer), &[]).unwrap();
+    let player = et::NativeServerPlayer {
+        uuid: vec![0x11; 16], name: "Guest".into(), permission: 0, dimension: "minecraft:overworld".into(),
+        position: vec![0.0; 3], game_mode: 1, health: 20.0, yaw: 0.0, pitch: 0.0,
+    };
+    for _ in 0..3 {
+        // Each call spends 80 ms in the host's `tell`; the guest itself uses microseconds.
+        let taken = guest.dispatch("perform_command", |e, s| e.yoake_mods_server_hooks().call_perform_command(s, &player, "wasmping"));
+        assert_eq!(taken, Some(true), "a slow host service must not trap the guest");
+    }
+    assert!(!guest.is_disabled());
+}
+
+#[test]
+fn a_server_guest_answers_handle_call_and_the_default_refuses() {
+    let Some(peer) = read("full_demo_peer.wasm") else { return };
+    let mut guest = ServerFullMod::instantiate(&mut Sandbox::new(), "peer", &peer, Box::new(Server(Log::default())), &[]).unwrap();
+    assert_eq!(guest.handle_call("caller", "echo", b"hi"), Some(Ok(b"caller said: hi".to_vec())));
+    assert_eq!(guest.handle_call("caller", "count", b""), Some(Ok(b"2 call(s) so far".to_vec())));
+    assert_eq!(guest.handle_call("caller", "nope", b""), Some(Err("unknown method nope".to_owned())));
+    // A module that did not override `handle_call` refuses every call.
+    let Some(demo) = read("full_demo_server.wasm") else { return };
+    let mut guest = ServerFullMod::instantiate(&mut Sandbox::new(), "demo", &demo, Box::new(Server(Log::default())), &[]).unwrap();
+    assert_eq!(guest.handle_call("caller", "echo", b""), Some(Err("this package does not handle calls".to_owned())));
 }
 
 #[test]
