@@ -9,6 +9,9 @@ use std::{
     path::Path,
 };
 
+#[path = "social_cert_tool.rs"]
+pub mod tool;
+
 fn context(error: io::Error, action: &str, path: &Path) -> io::Error {
     io::Error::new(error.kind(), format!("can't {action} {}: {error}", path.display()))
 }
@@ -41,6 +44,17 @@ fn read_private_key(path: &Path) -> io::Result<Vec<u8>> {
     Ok(bytes)
 }
 
+pub const EXPIRY_WARNING_SECONDS: i64 = 7 * 24 * 60 * 60;
+const WARNING_LOG_INTERVAL: i64 = 60 * 60;
+
+pub fn expires_within_warning(not_after: i64, now: i64) -> bool {
+    now < not_after && not_after.saturating_sub(now) <= EXPIRY_WARNING_SECONDS
+}
+
+pub fn warning_log_due(now: i64, last: i64) -> bool {
+    now.saturating_sub(last) >= WARNING_LOG_INTERVAL
+}
+
 /// `(not_before, not_after)` of a DER certificate as Unix seconds.
 pub fn certificate_validity(der: &[u8]) -> io::Result<(i64, i64)> {
     parse_validity(der).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "social TLS certificate is not valid DER X.509"))
@@ -70,6 +84,60 @@ fn tlv(input: &[u8]) -> Option<(u8, &[u8], &[u8])> {
     };
     if rest.len() < length { return None; }
     Some((tag, &rest[..length], &rest[length..]))
+}
+
+fn tbs_certificate(der: &[u8]) -> Option<&[u8]> {
+    let (0x30, certificate, _) = tlv(der)? else { return None; };
+    let (0x30, tbs, _) = tlv(certificate)? else { return None; };
+    Some(tbs)
+}
+
+fn after_version(tbs: &[u8]) -> Option<&[u8]> {
+    let (tag, _, after) = tlv(tbs)?;
+    Some(if tag == 0xa0 { after } else { tbs })
+}
+
+fn skip_elements(mut rest: &[u8], count: usize) -> Option<&[u8]> {
+    for _ in 0..count { rest = tlv(rest)?.2; }
+    Some(rest)
+}
+
+fn encoded_element(input: &[u8]) -> Option<(&[u8], &[u8])> {
+    let rest = tlv(input)?.2;
+    Some((&input[..input.len() - rest.len()], rest))
+}
+
+/// The complete DER SubjectPublicKeyInfo, for checking a CA against its key.
+pub(crate) fn certificate_public_key(der: &[u8]) -> io::Result<&[u8]> {
+    let rest = after_version(tbs_certificate(der).ok_or_else(|| {
+        io::Error::new(io::ErrorKind::InvalidData, "social TLS certificate is not valid DER X.509")
+    })?).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "invalid certificate version"))?;
+    let rest = skip_elements(rest, 5).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "certificate has no public key"))?;
+    encoded_element(rest).map(|(key, _)| key)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "certificate has no public key"))
+}
+
+/// The extnValue of an extension, addressed by its OID's DER content bytes.
+pub(crate) fn certificate_extension<'a>(der: &'a [u8], oid: &[u8]) -> io::Result<&'a [u8]> {
+    let invalid = || io::Error::new(io::ErrorKind::InvalidData, "invalid certificate extensions");
+    let tbs = tbs_certificate(der).ok_or_else(invalid)?;
+    let mut rest = skip_elements(after_version(tbs).ok_or_else(invalid)?, 6).ok_or_else(invalid)?;
+    while !rest.is_empty() {
+        let (tag, content, after) = tlv(rest).ok_or_else(invalid)?;
+        rest = after;
+        if tag != 0xa3 { continue; }
+        let (0x30, mut extensions, _) = tlv(content).ok_or_else(invalid)? else { return Err(invalid()); };
+        while !extensions.is_empty() {
+            let (0x30, extension, after_extension) = tlv(extensions).ok_or_else(invalid)? else { return Err(invalid()); };
+            extensions = after_extension;
+            let (0x06, candidate, after_oid) = tlv(extension).ok_or_else(invalid)? else { return Err(invalid()); };
+            let (critical, _, after_critical) = tlv(after_oid).ok_or_else(invalid)?;
+            let value = if critical == 0x01 { after_critical } else { after_oid };
+            let (0x04, value, _) = tlv(value).ok_or_else(invalid)? else { return Err(invalid()); };
+            if candidate == oid { return Ok(value); }
+        }
+    }
+    Err(io::Error::new(io::ErrorKind::NotFound, "certificate extension is absent"))
 }
 
 fn parse_validity(der: &[u8]) -> Option<(i64, i64)> {

@@ -4,6 +4,8 @@ This document specifies the social transport primitives. The relay has an opt-in
 social listener, but the launcher and game do not use it yet. Social joins must
 remain unavailable until the portal, host connection handling, and end-to-end
 encryption are integrated; the existing invite-code and LAN paths remain separate.
+For certificate generation, deployment, rotation, and monitoring, see
+[Yoake social relay operations](yoake-social-ops.md).
 
 ## Portal grant
 
@@ -119,7 +121,8 @@ that needs the current uid and no crate for it is in the build. At startup the
 relay refuses a certificate that does not match the key or is outside its
 validity period, and says which. With none of the social variables set the relay
 only logs that the listener is disabled; a partial or unusable setting is
-logged with the reason. The production CA is not created or embedded yet.
+logged with the reason. The binary can create a private CA and leaf and renew
+the leaf offline; no production CA is embedded in clients yet.
 
 Messages use a four-byte big-endian length and at most 16 KiB of payload, with
 the length checked before allocation. Sockets are nonblocking and every wait is a
@@ -148,8 +151,10 @@ of the busiest net inside the busiest wide group (IPv4 /16, IPv6 /32) is dropped
 connections, even spread over many sources, cannot lock real clients out. The
 listener also caps live connection threads (2048) and closes further sockets
 unread. The relay refuses new connections while its certificate is outside its
-validity period (checked on every accept, logged once); it does not reload a
-renewed certificate, so it must be restarted after one. These limits only mean
+validity period (checked on every accept, logged once per episode). A seven-day
+expiry warning is logged at startup and on accept checks, at most once an hour.
+The relay does not reload a renewed certificate, so it must be restarted after
+one. These limits only mean
 something when clients reach the relay directly: behind a proxy or load
 balancer every client shares one address. The social listener must run without
 a proxy, or the PROXY protocol would have to be supported first (it is not).
