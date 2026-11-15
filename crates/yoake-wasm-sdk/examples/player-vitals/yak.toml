@@ -1,0 +1,20 @@
+format = 1
+id = "player-vitals"
+version = "0.1.0"
+name = "Player Vitals Demo"
+authors = ["Yoake SDK Examples"]
+description = "Server-side WebAssembly example that reports player health and story/root advancement progress."
+license = "MIT"
+
+[yoake]
+version = ">=0.1"
+
+[side]
+client = false
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.0"
+server = "bin/wasm/player-vitals.wasm"
+permissions = []
