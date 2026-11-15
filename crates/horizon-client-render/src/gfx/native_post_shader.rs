@@ -21,23 +21,41 @@ struct Cost {
     depth: u32,
 }
 
-fn calls(block: &naga::Block, output: &mut Vec<naga::Handle<naga::Function>>) {
+fn calls(
+    block: &naga::Block,
+    iterations: u64,
+    multiplier: u64,
+    output: &mut Vec<(naga::Handle<naga::Function>, u64)>,
+) -> u64 {
+    let mut maximum = multiplier;
     for statement in block.iter() {
-        match statement {
-            naga::Statement::Call { function, .. } => output.push(*function),
-            naga::Statement::Block(block) => calls(block, output),
+        let nested = match statement {
+            naga::Statement::Call { function, .. } => {
+                output.push((*function, multiplier));
+                multiplier
+            }
+            naga::Statement::Block(block) => calls(block, iterations, multiplier, output),
             naga::Statement::If { accept, reject, .. } => {
-                calls(accept, output);
-                calls(reject, output);
+                calls(accept, iterations, multiplier, output)
+                    .max(calls(reject, iterations, multiplier, output))
             }
-            naga::Statement::Switch { cases, .. } => {
-                for case in cases {
-                    calls(&case.body, output);
-                }
+            naga::Statement::Switch { cases, .. } => cases
+                .iter()
+                .map(|case| calls(&case.body, iterations, multiplier, output))
+                .max()
+                .unwrap_or(multiplier),
+            naga::Statement::Loop {
+                body, continuing, ..
+            } => {
+                let repeated = multiplier.saturating_mul(iterations);
+                calls(body, iterations, repeated, output)
+                    .max(calls(continuing, iterations, repeated, output))
             }
-            _ => {}
-        }
+            _ => multiplier,
+        };
+        maximum = maximum.max(nested);
     }
+    maximum
 }
 
 fn invocation_cost(
@@ -45,6 +63,7 @@ fn invocation_cost(
     function: &naga::Function,
     cache: &mut BTreeMap<usize, Cost>,
     ancestors: u32,
+    iterations: u64,
 ) -> Result<Cost, String> {
     if ancestors >= MAX_CALL_DEPTH {
         return Err("post shader call depth exceeds 16".into());
@@ -64,17 +83,29 @@ fn invocation_cost(
         depth: 1,
     };
     let mut callees = Vec::new();
-    calls(&function.body, &mut callees);
-    for callee in callees {
+    let multiplier = calls(&function.body, iterations, 1, &mut callees);
+    cost.expressions = cost.expressions.saturating_mul(multiplier);
+    cost.samples = cost.samples.saturating_mul(multiplier);
+    for (callee, repetitions) in callees {
         let nested = if let Some(cached) = cache.get(&callee.index()) {
             *cached
         } else {
-            let nested = invocation_cost(module, &module.functions[callee], cache, ancestors + 1)?;
+            let nested = invocation_cost(
+                module,
+                &module.functions[callee],
+                cache,
+                ancestors + 1,
+                iterations,
+            )?;
             cache.insert(callee.index(), nested);
             nested
         };
-        cost.expressions = cost.expressions.saturating_add(nested.expressions);
-        cost.samples = cost.samples.saturating_add(nested.samples);
+        cost.expressions = cost
+            .expressions
+            .saturating_add(nested.expressions.saturating_mul(repetitions));
+        cost.samples = cost
+            .samples
+            .saturating_add(nested.samples.saturating_mul(repetitions));
         cost.depth = cost.depth.max(nested.depth.saturating_add(1));
     }
     if cost.expressions > MAX_INVOCATION_COST
@@ -87,6 +118,21 @@ fn invocation_cost(
         );
     }
     Ok(cost)
+}
+
+pub(super) fn validate_cost(
+    module: &naga::Module,
+    function: &naga::Function,
+    iterations: u32,
+) -> Result<(), String> {
+    invocation_cost(
+        module,
+        function,
+        &mut BTreeMap::new(),
+        0,
+        u64::from(iterations),
+    )
+    .map(|_| ())
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -318,12 +364,7 @@ fn validate(source: &str, layout: NativePostUniformLayout) -> Result<naga::Modul
     {
         return Err("post shader type size exceeds 16384 bytes".into());
     }
-    invocation_cost(
-        &module,
-        &module.entry_points[0].function,
-        &mut BTreeMap::new(),
-        0,
-    )?;
+    validate_cost(&module, &module.entry_points[0].function, 1)?;
     let mut private_bytes = 0u64;
     for (_, variable) in module.global_variables.iter() {
         match variable.space {
