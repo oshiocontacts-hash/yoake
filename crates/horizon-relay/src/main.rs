@@ -1,7 +1,7 @@
 //! `horizon-relay`: listens on `$PORT` (7000 when unset; `RELAY_BIND` for one
 //! address), limits from the `RELAY_*` variables (docs/play-with-friends.md).
 //! Prints counts every five minutes, nothing else.
-use horizon_relay::{Config, Relay};
+use horizon_relay::{Config, Relay, social_server::SocialServer};
 use std::{net::TcpListener, time::Duration};
 
 fn main() {
@@ -39,5 +39,14 @@ fn main() {
             println!("{}", r.counts().json());
         }
     });
+    if let Some((address, server)) = SocialServer::from_env() {
+        match TcpListener::bind(address) {
+            Ok(social_listener) => {
+                println!("horizon-relay social listener on {address}");
+                std::thread::spawn(move || server.serve(social_listener));
+            }
+            Err(error) => eprintln!("horizon-relay: can't start social listener on {address}: {error}"),
+        }
+    }
     relay.serve(listener);
 }

@@ -215,6 +215,20 @@ impl<GUEST> PendingGuest<GUEST> {
         &self.verified
     }
 
+    pub fn is_expired(&self, now: Instant) -> bool {
+        let Ok(sessions) = self.relay.sessions.lock() else { return true; };
+        let Some(session) = sessions.get(self.verified.session_id()).filter(|s| s.active) else {
+            return true;
+        };
+        match session.slots.get(&self.verified.nonce()) {
+            Some(slot) if slot.id == self.slot_id => {
+                now.checked_duration_since(slot.last_activity).unwrap_or_default()
+                    >= session.limits.idle_timeout
+            }
+            _ => true,
+        }
+    }
+
     pub fn pair<HOST>(
         &mut self,
         signed: &SignedGrant,

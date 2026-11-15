@@ -33,7 +33,7 @@ impl RelayIdentity {
         Ok(Self { key })
     }
 
-    #[cfg(test)]
+    /// Deterministic identities are for tests; deployed relays load PKCS#8.
     pub fn from_seed(seed: &[u8; 32]) -> io::Result<Self> {
         let key = Ed25519KeyPair::from_seed_unchecked(seed)
             .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "invalid relay Ed25519 seed"))?;
@@ -248,6 +248,8 @@ impl<S: Read + Write> SecureChannel<S> {
             .map_err(|_| invalid("invalid FromRelay JSON message"));
         self.track(result)
     }
+
+    pub fn get_ref(&self) -> &S { &self.stream }
 
     /// Recover the stream only while the channel is error-free. The peer must
     /// have finished using encryption; raw plaintext must never be exchanged.
