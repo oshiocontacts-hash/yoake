@@ -1,6 +1,10 @@
 //! The Servers page: create a server in one dialog, then start, stop and watch it, give friends its
 //! address, manage who may join, change its settings, back it up and update it, all with buttons. Every
 //! action runs `horizon-server` or calls the running server's control API (`horizon_launcher::servers`).
+/// The page's look, in one place: true draws it in the glass look (the pixel look's helpers then
+/// give their glass form, see `GlassMode`), false as it was.
+const GLASS: bool = true;
+
 use super::line_edit::{self, Key, LineEdit};
 use super::*;
 use horizon_launcher::heads;
@@ -895,7 +899,7 @@ impl Launcher {
         width: f32,
         cx: &mut Context<Self>,
     ) -> Stateful<Div> {
-        self.field_look(f, placeholder, width, false, cx)
+        self.field_look(f, placeholder, width, glass_mode(), cx)
     }
 
     /// [`Self::field`]; `glass` puts it in the glass look's `FIELD` for a page that is in that
@@ -1166,6 +1170,7 @@ impl Launcher {
     // ----- The page -------------------------------------------------------------------------
 
     pub(super) fn servers_page(&mut self, cx: &mut Context<Self>) -> Div {
+        let _mode = GlassMode::enter(GLASS);
         let t = self.theme;
         if !self.servers.loaded {
             self.servers.list = servers::list();
@@ -1181,12 +1186,13 @@ impl Launcher {
             }
             self.servers.open = None;
         }
-        let header = page_header(
-            "Servers",
-            "Host a world for your friends on this computer. Create one, press Start, and give them \
-             the address.",
-            &t,
-        );
+        let description = "Host a world for your friends on this computer. Create one, press Start, and give them \
+             the address.";
+        let header = if GLASS {
+            glass_page_head("Servers", description)
+        } else {
+            page_header("Servers", description, &t)
+        };
         let actions = div()
             .flex()
             .items_center()
@@ -1213,7 +1219,8 @@ impl Launcher {
         let mut page = div()
             .flex()
             .flex_col()
-            .gap(px(32.))
+            .gap(px(if GLASS { 28. } else { 32. }))
+            .when(GLASS, |d| d.pt(px(36.)))
             .child(header)
             .child(actions);
         if let Some(p) = self
@@ -1253,7 +1260,12 @@ impl Launcher {
                 ))
                 .children(partner);
         }
-        let mut list = div().flex().flex_col().border_t_1().border_color(t.rule);
+        let mut list = div().flex().flex_col();
+        if GLASS {
+            list = list.p(px(8.));
+        } else {
+            list = list.border_t_1().border_color(t.rule);
+        }
         for (i, e) in self.servers.list.clone().into_iter().enumerate() {
             let status = self
                 .servers
@@ -1297,7 +1309,12 @@ impl Launcher {
                 &t,
             ));
         }
-        page.child(list).children(partner)
+        if GLASS {
+            page = page.child(glass_card().child(list.relative()));
+        } else {
+            page = page.child(list);
+        }
+        page.children(partner)
     }
 
     fn add_server_folder(&mut self, cx: &mut Context<Self>) {
@@ -1383,6 +1400,7 @@ impl Launcher {
     }
 
     fn server_dashboard(&mut self, dir: &Path, cx: &mut Context<Self>) -> Div {
+        let _mode = GlassMode::enter(GLASS);
         let t = self.theme;
         let status = self.servers.status();
         let name = self
@@ -1431,7 +1449,17 @@ impl Launcher {
                         d.child(caps(format!("· up {}", uptime(up))).text_color(t.muted))
                     }),
             )
-            .child(text(theme::DISPLAY).text_color(t.ink).child(name));
+            .child(if GLASS {
+                div()
+                    .font_family(horizon_theme::glass::DISPLAY_FONT)
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_size(px(48.))
+                    .line_height(px(52.))
+                    .text_color(t.ink)
+                    .child(name)
+            } else {
+                text(theme::DISPLAY).text_color(t.ink).child(name)
+            });
         if status.crashes > 0 {
             top = top.child(text(theme::CAPTION).text_color(t.muted).child(format!(
                     "The game crashed {} time{} and was restarted by itself{}.",
@@ -2847,6 +2875,7 @@ impl Launcher {
     // ----- The Create dialog ----------------------------------------------------------------
 
     pub(super) fn create_dialog(&mut self, cx: &mut Context<Self>) -> Option<Stateful<Div>> {
+        let _mode = GlassMode::enter(GLASS);
         let t = self.theme;
         let c = self.servers.create.as_ref()?;
         let (new_world, copy, worlds) = (c.new_world, c.copy.clone(), c.worlds.clone());
@@ -3151,17 +3180,18 @@ impl Launcher {
                 cx.notify();
             })))
         };
-        let card = plate(&t)
-            .flex()
-            .flex_col()
-            .w_full()
-            .max_w(px(640.))
-            .max_h_full()
-            .bg(t.page)
-            .border_1()
-            .border_color(t.rule)
-            .child(self.servers.create_scroll.wrap(body, &t))
-            .child(foot);
+        let card = if GLASS {
+            glass::plate(horizon_theme::glass::radius::MODAL)
+        } else {
+            plate(&t).bg(t.page).border_1().border_color(t.rule)
+        }
+        .flex()
+        .flex_col()
+        .w_full()
+        .max_w(px(640.))
+        .max_h_full()
+        .child(self.servers.create_scroll.wrap(body, &t))
+        .child(foot);
         Some(
             div()
                 .id("create-dialog")
@@ -3174,7 +3204,11 @@ impl Launcher {
                 .items_center()
                 .px(px(32.))
                 .py(px(24.))
-                .bg(t.page.opacity(0.92))
+                .bg(if GLASS {
+                    glass_ui::color(horizon_theme::glass::SCRIM).opacity(0.6)
+                } else {
+                    t.page.opacity(0.92)
+                })
                 .on_scroll(|_, _, cx| cx.stop_propagation())
                 .occlude()
                 .child(card),
