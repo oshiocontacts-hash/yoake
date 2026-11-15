@@ -109,6 +109,28 @@ abi = 2
 "#
 }
 
+#[test]
+fn unsigned_switches_scope_wasm_and_native_code_separately() {
+    let wasm_only = UnsignedSwitches::from_values(None, Some(std::ffi::OsStr::new("1")));
+    assert!(!wasm_only.dll);
+    assert!(wasm_only.wasm);
+
+    let legacy = UnsignedSwitches::from_values(Some(std::ffi::OsStr::new("1")), None);
+    assert!(legacy.dll);
+    assert!(legacy.wasm);
+
+    let disabled = UnsignedSwitches::from_values(None, None);
+    assert!(!disabled.dll);
+    assert!(!disabled.wasm);
+
+    let invalid = UnsignedSwitches::from_values(
+        Some(std::ffi::OsStr::new("true")),
+        Some(std::ffi::OsStr::new("true")),
+    );
+    assert!(!invalid.dll);
+    assert!(!invalid.wasm);
+}
+
 fn shader_source() -> String {
     data("shader_mod") + r#"
 [[shaders]]
@@ -394,17 +416,31 @@ fn wasm_resolution_is_empty_without_wasm_entries() {
 }
 
 #[test]
-fn signed_wasm_is_resolved_and_unsigned_needs_the_developer_flag() {
+fn wasm_only_unsigned_switch_loads_wasm_and_never_authorizes_native_binaries() {
     let fixture = Fixture::new();
     let entry = wasm_entry(&fixture);
     assert!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[], false).is_empty());
-    let found = wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[], true);
+    let wasm_only = UnsignedSwitches::from_values(None, Some(std::ffi::OsStr::new("1")));
+    let found = wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[], wasm_only.wasm);
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].mod_id, "sample_mod");
     assert_eq!(found[0].version, Version::parse("1.2.3").unwrap());
     assert_eq!(found[0].bytes, b"\0asm\x01\0\0\0");
     assert_eq!(found[0].sha256, yak::hash_installed_file(&entry.root, "bin/wasm/sample.wasm").unwrap());
     assert!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Server, &[], true).is_empty());
+
+    let native = fixture.install(&program().replace("sample_mod", "native_mod"));
+    fixture.write(&native.root.join("bin/windows-x64/sample.dll"), b"not an executable DLL");
+    assert!(binary_preflight(&native, &build(), &[], wasm_only.dll).is_err());
+
+    let no_switch = UnsignedSwitches::from_values(None, None);
+    assert!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[], no_switch.wasm).is_empty());
+    assert!(binary_preflight(&native, &build(), &[], no_switch.dll).is_err());
+
+    let legacy = UnsignedSwitches::from_values(Some(std::ffi::OsStr::new("1")), None);
+    assert!(binary_preflight(&native, &build(), &[], legacy.dll).is_ok());
+    assert_eq!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[], legacy.wasm).len(), 1);
+
     let (key, _) = SigningKey::generate().unwrap();
     fixture.sign(&entry, &key);
     assert_eq!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[key.public()], false).len(), 1);

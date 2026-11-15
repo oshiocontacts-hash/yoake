@@ -1,7 +1,8 @@
 //! Developer options: a Settings section nothing in the window points to. Seven clicks on the
 //! sidebar's "Launcher x.y.z" reveal it for this run; it stays shown while one of its options is
 //! on. Offline names remain unavailable in owner-required builds; testing unsigned local DLL mods
-//! requires a separate confirmation and is available in every build.
+//! requires a separate confirmation and is available in every build. Sandboxed WASM development
+//! has its own switch and never enables native code.
 use super::*;
 
 /// Clicks on the launcher's version that reveal the section.
@@ -24,6 +25,7 @@ impl Launcher {
     pub(super) fn dev_options_section(&self, cx: &mut Context<Self>) -> Option<Div> {
         if !self.dev_options
             && !self.settings.dev_unsigned_dll
+            && !self.settings.dev_unsigned_wasm
             && (account::owner_required() || !self.settings.dev_offline)
         {
             return None;
@@ -76,6 +78,24 @@ impl Launcher {
             Some(
                 div()
                     .child(tr("Lets you install and run unsigned .yak files that contain DLLs from your own PC. Do not use it for mods you got from someone else."))
+                    .into_any_element(),
+            ),
+            Some(toggle.into_any_element()),
+            &t,
+        ));
+        let toggle = switch("dev-unsigned-wasm", self.settings.dev_unsigned_wasm, &t).on_click(
+            cx.listener(|this, _: &ClickEvent, _, cx| {
+                this.settings.dev_unsigned_wasm = !this.settings.dev_unsigned_wasm;
+                this.save_settings();
+                cx.notify();
+            }),
+        );
+        section = section.child(index_row(
+            0,
+            tr("Test your own WASM mods (safe: sandboxed)"),
+            Some(
+                div()
+                    .child(tr("Lets you run unsigned WASM-only .yak mods and use YOAKE_WASM_DEV_DIR. WASM runs in a sandbox; this switch cannot load DLLs."))
                     .into_any_element(),
             ),
             Some(toggle.into_any_element()),

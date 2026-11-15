@@ -245,11 +245,19 @@ Immediately before native loading, the client rechecks the tree, rereads the
 manifest, reruns compatibility, hashes the selected DLL and `yak.toml`, and verifies
 their hashes against the pinned-key-authenticated `SIGNATURE` map. Only the exact
 environment value `YOAKE_DLL_MODS_UNSIGNED=1` bypasses missing/invalid/untrusted
-signatures or checksum failures for development. It does not bypass path safety,
-identity, compatibility, or missing-library checks. Installation directories must
-remain immutable through loading: path checks and hashing do not prevent a
-concurrent writer replacing bytes before the operating system maps a library.
-Native code is not sandboxed.
+signatures or checksum failures for native development. It does not bypass path
+safety, identity, compatibility, or missing-library checks. Installation directories
+must remain immutable through loading: path checks and hashing do not prevent a
+concurrent writer replacing bytes before the operating system maps a library. Native
+code is not sandboxed.
+
+For sandboxed WebAssembly development, the exact environment value
+`YOAKE_WASM_UNSIGNED=1` permits unsigned `.yak` packages that declare `[wasm]` and
+contain no `[bin]`, and enables `YOAKE_WASM_DEV_DIR` raw-module loading and hot reload.
+It never authorizes native libraries or DLL paths. The legacy
+`YOAKE_DLL_MODS_UNSIGNED=1` is a compatibility superset: it continues to permit
+unsigned native code and also enables unsigned WASM development. With neither switch,
+unsigned WASM modules and raw `YOAKE_WASM_DEV_DIR` modules are not loaded.
 
 ### Shader packs and declared options
 

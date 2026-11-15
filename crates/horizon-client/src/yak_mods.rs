@@ -303,8 +303,29 @@ pub(crate) struct WasmMod {
     pub(crate) signed: bool,
 }
 
-pub(crate) fn unsigned_allowed() -> bool {
-    std::env::var_os("YOAKE_DLL_MODS_UNSIGNED").as_deref() == Some(std::ffi::OsStr::new("1"))
+/// Developer switches for unsigned code. The legacy DLL switch remains a superset so existing
+/// native-mod workflows keep their previous WASM behavior.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct UnsignedSwitches {
+    pub(crate) dll: bool,
+    pub(crate) wasm: bool,
+}
+
+impl UnsignedSwitches {
+    pub(crate) fn from_env() -> Self {
+        let dll = std::env::var_os("YOAKE_DLL_MODS_UNSIGNED");
+        let wasm = std::env::var_os("YOAKE_WASM_UNSIGNED");
+        Self::from_values(dll.as_deref(), wasm.as_deref())
+    }
+
+    pub(crate) fn from_values(
+        dll: Option<&std::ffi::OsStr>,
+        wasm: Option<&std::ffi::OsStr>,
+    ) -> Self {
+        let dll = dll == Some(std::ffi::OsStr::new("1"));
+        let wasm = wasm == Some(std::ffi::OsStr::new("1"));
+        Self { dll, wasm: dll || wasm }
+    }
 }
 
 /// Client-side WebAssembly modules of the enabled .yak files; empty when there are none.
@@ -316,7 +337,7 @@ pub(crate) fn wasm_client_mods() -> Vec<WasmMod> {
 pub(crate) fn wasm_mods(side: WasmSide) -> Vec<WasmMod> {
     let entries = entries();
     if !entries.iter().any(|entry| entry.manifest.wasm.is_some()) { return Vec::new(); }
-    wasm_mods_from(entries, side, &yak::trusted_keys(), unsigned_allowed())
+    wasm_mods_from(entries, side, &yak::trusted_keys(), UnsignedSwitches::from_env().wasm)
 }
 
 pub(crate) fn wasm_mods_from(installed: &[Installed], side: WasmSide, keys: &[PublicKey], allow_unsigned: bool) -> Vec<WasmMod> {

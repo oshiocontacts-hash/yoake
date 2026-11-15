@@ -1,5 +1,7 @@
 {
   "Test your own DLL mods (developer mode)": "自作の DLL MOD を試す（開発者モード）",
+  "Test your own WASM mods (safe: sandboxed)": "自作 WASM MOD をテスト（安全：サンドボックス内）",
+  "Lets you run unsigned WASM-only .yak mods and use YOAKE_WASM_DEV_DIR. WASM runs in a sandbox; this switch cannot load DLLs.": "署名のない WASM 専用 .yak MOD を実行し、YOAKE_WASM_DEV_DIR を使えます。WASM はサンドボックス内で動作し、この設定で DLL は読み込まれません。",
   "Lets you install and run unsigned .yak files that contain DLLs from your own PC. Do not use it for mods you got from someone else.": "署名のない DLL 入りの .yak を、自分の PC から入れて動かせます。他人からもらった MOD には使わないでください。",
   "Turn on": "オンにする",
   "Cancel activation": "やめる",

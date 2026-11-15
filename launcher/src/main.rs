@@ -3152,7 +3152,7 @@ impl Launcher {
                             cx.notify();
                         })),
                 )
-                .when(self.settings.dev_unsigned_dll, |row| {
+                .when(self.settings.dev_unsigned_dll || self.settings.dev_unsigned_wasm, |row| {
                     row.child(
                         shell::text(theme::night::CAPTION, shell::c(n.warn))
                             .child(tr("Developer mode")),

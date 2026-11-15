@@ -2377,12 +2377,22 @@ fn set_unsigned_dll_env(command: &mut Command, enabled: bool) {
     }
 }
 
+fn set_unsigned_wasm_env(command: &mut Command, enabled: bool) {
+    if enabled {
+        command.env("YOAKE_WASM_UNSIGNED", "1");
+    } else {
+        command.env_remove("YOAKE_WASM_UNSIGNED");
+    }
+}
+
 pub fn client_command_for_program(tag: &str, program: &Path) -> Command {
     let home = game_home();
     let _ = fs::create_dir_all(&home);
     let mut cmd = Command::new(program);
     cmd.current_dir(home).arg("--resources").arg(resources(tag));
-    set_unsigned_dll_env(&mut cmd, Settings::load().dev_unsigned_dll);
+    let settings = Settings::load();
+    set_unsigned_dll_env(&mut cmd, settings.dev_unsigned_dll);
+    set_unsigned_wasm_env(&mut cmd, settings.dev_unsigned_wasm);
     if crate::brand::yoake() {
         cmd.env("HORIZON_TELEMETRY_URL", "off");
     }
@@ -3523,6 +3533,10 @@ pub struct Settings {
     pub dev_offline: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub dev_unsigned_dll: bool,
+    /// Enables unsigned WASM packages and YOAKE_WASM_DEV_DIR in the launched game only.
+    /// It does not permit unsigned native libraries.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub dev_unsigned_wasm: bool,
 }
 
 impl Settings {
@@ -3621,6 +3635,7 @@ mod tests {
         let settings = Settings::parse(r#"{"dev_offline":true}"#);
         assert!(settings.dev_offline);
         assert!(!settings.dev_unsigned_dll);
+        assert!(!settings.dev_unsigned_wasm);
     }
 
     #[test]
@@ -3641,6 +3656,33 @@ mod tests {
             command
                 .get_envs()
                 .find(|(key, _)| *key == OsStr::new("YOAKE_DLL_MODS_UNSIGNED"))
+                .map(|(_, value)| value),
+            Some(None)
+        );
+    }
+
+    #[test]
+    fn unsigned_wasm_environment_is_independent_and_explicitly_set_or_removed() {
+        use std::ffi::OsStr;
+
+        let mut command = Command::new("horizon-client");
+        set_unsigned_wasm_env(&mut command, true);
+        assert_eq!(
+            command
+                .get_envs()
+                .find(|(key, _)| key.to_str() == Some("YOAKE_WASM_UNSIGNED"))
+                .map(|(_, value)| value),
+            Some(Some(OsStr::new("1")))
+        );
+        assert!(command
+            .get_envs()
+            .all(|(key, _)| key.to_str() != Some("YOAKE_DLL_MODS_UNSIGNED")));
+
+        set_unsigned_wasm_env(&mut command, false);
+        assert_eq!(
+            command
+                .get_envs()
+                .find(|(key, _)| key.to_str() == Some("YOAKE_WASM_UNSIGNED"))
                 .map(|(_, value)| value),
             Some(None)
         );

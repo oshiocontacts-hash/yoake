@@ -5,8 +5,9 @@
 //! runs: no Engine, no thread, no wrapper around the existing hooks. A trap (or fuel/time/memory limit)
 //! disables only that mod, with one log line.
 //!
-//! Developer mode (`YOAKE_DLL_MODS_UNSIGNED=1`) additionally watches unsigned local wasm files and,
-//! when one changes on disk, swaps in a fresh instance at the next frame or tick on the main thread.
+//! Developer mode (`YOAKE_WASM_UNSIGNED=1`, or the legacy superset
+//! `YOAKE_DLL_MODS_UNSIGNED=1`) additionally watches unsigned local wasm files and, when one changes
+//! on disk, swaps in a fresh instance at the next frame or tick on the main thread.
 //! `YOAKE_WASM_DEV_DIR` names a folder of raw `<id>.wasm` components that are loaded the same way.
 
 #[path = "wasm_mods/full.rs"]
@@ -111,8 +112,12 @@ struct Source {
     watch: Option<PathBuf>,
 }
 
-fn dev_sources() -> Vec<Source> {
-    let Some(dir) = std::env::var_os("YOAKE_WASM_DEV_DIR").filter(|dir| !dir.is_empty()) else { return Vec::new() };
+fn dev_sources_with(
+    developer: bool,
+    dir: impl FnOnce() -> Option<std::ffi::OsString>,
+) -> Vec<Source> {
+    if !developer { return Vec::new(); }
+    let Some(dir) = dir().filter(|dir| !dir.is_empty()) else { return Vec::new() };
     let Ok(entries) = std::fs::read_dir(&dir) else {
         emit(format!("wasm: YOAKE_WASM_DEV_DIR {} cannot be read", PathBuf::from(&dir).display()));
         return Vec::new();
@@ -163,7 +168,7 @@ struct Accepted {
 }
 
 pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mods, &'static [super::NativeMod]) {
-    let developer = crate::yak_mods::unsigned_allowed();
+    let developer = crate::yak_mods::UnsignedSwitches::from_env().wasm;
     // A dedicated server has no client: its client modules only give the package's identity.
     let dedicated = crate::yak_mods::dedicated();
     let mut sources: Vec<Source> = crate::yak_mods::wasm_client_mods().into_iter().map(|module| Source {
@@ -175,7 +180,7 @@ pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mo
         bytes: module.bytes,
         watch: (developer && !module.signed).then_some(module.path),
     }).collect();
-    if developer { sources.extend(dev_sources()); }
+    sources.extend(dev_sources_with(developer, || std::env::var_os("YOAKE_WASM_DEV_DIR")));
     let servers = crate::yak_mods::wasm_mods(crate::yak_mods::WasmSide::Server);
     if sources.is_empty() && servers.is_empty() {
         emit("wasm: no mods (engine not started)".into());
@@ -1018,6 +1023,37 @@ mod tests {
         let (result, result_ids) = extend(mods.clone(), identities);
         assert!(Arc::ptr_eq(&mods, &result));
         assert!(std::ptr::eq(identities, result_ids));
+    }
+
+    #[test]
+    fn wasm_dev_directory_is_not_read_without_wasm_developer_mode() {
+        let switches = crate::yak_mods::UnsignedSwitches::from_values(None, None);
+        let disabled = dev_sources_with(switches.wasm, || panic!("disabled WASM developer mode read the path"));
+        assert!(disabled.is_empty());
+    }
+
+    #[test]
+    fn wasm_dev_directory_loads_raw_modules_when_wasm_developer_mode_is_enabled() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("yoake-wasm-dev-{}-{stamp}", std::process::id()));
+        std::fs::create_dir(&dir).unwrap();
+        let module = dir.join("hello.wasm");
+        std::fs::write(&module, b"raw wasm dev fixture").unwrap();
+
+        let switches = crate::yak_mods::UnsignedSwitches::from_values(
+            None,
+            Some(std::ffi::OsStr::new("1")),
+        );
+        let sources = dev_sources_with(switches.wasm, || Some(dir.clone().into_os_string()));
+        assert_eq!(sources.len(), 1);
+        assert_eq!(sources[0].id, "hello");
+        assert_eq!(sources[0].bytes, b"raw wasm dev fixture");
+        assert_eq!(sources[0].watch.as_deref(), Some(module.as_path()));
+
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

@@ -126,7 +126,7 @@ fn load(path: &Path, allow_unsigned: bool) -> Result<Metadata, LoadError> {
 
 pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mods, &'static [super::NativeMod]) {
     crate::yak_mods::initialize();
-    let allow_unsigned = std::env::var_os("YOAKE_DLL_MODS_UNSIGNED").as_deref() == Some(OsStr::new("1"));
+    let allow_unsigned = crate::yak_mods::UnsignedSwitches::from_env().dll;
     let (mods, identities) = extend_paths(mods, identities, std::env::var_os("YOAKE_DLL_MODS").as_deref(), allow_unsigned);
     extend_yaks(mods, identities, crate::yak_mods::entries(), allow_unsigned)
 }
@@ -866,6 +866,26 @@ mod tests {
         assert_eq!(verify(Path::new("missing.dll"), false), Err(LoadError::Unsigned));
         assert_eq!(verify(Path::new("missing.dll"), true), Ok(()));
         assert!(matches!(entry_address(None), Err(LoadError::MissingEntry)));
+    }
+
+    #[test]
+    fn wasm_only_switch_does_not_authorize_external_dll_paths() {
+        let switches = crate::yak_mods::UnsignedSwitches::from_values(
+            None,
+            Some(OsStr::new("1")),
+        );
+        assert!(switches.wasm);
+        assert!(!switches.dll);
+
+        let path = std::env::temp_dir().join("yoake-wasm-switch-must-not-load.dll");
+        assert_eq!(verify(&path, switches.dll), Err(LoadError::Unsigned));
+
+        let paths = std::env::join_paths([path]).unwrap();
+        let mods: Mods = Arc::from(Vec::<Box<dyn Hooks>>::new());
+        let identities: &'static [super::super::NativeMod] = &[];
+        let (result, result_ids) = extend_paths(mods.clone(), identities, Some(&paths), switches.dll);
+        assert!(Arc::ptr_eq(&mods, &result));
+        assert!(std::ptr::eq(identities, result_ids));
     }
 
     #[test]

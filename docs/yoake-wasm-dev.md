@@ -82,12 +82,19 @@ rejects components that import anything outside `yoake:mods/*` and the WASI subs
 
 ## Developer mode: hot reload
 
-With `YOAKE_DLL_MODS_UNSIGNED=1` the game polls every unsigned wasm module of an installed `.yak`
-once a second and, when the file changed (and stayed unchanged for a whole poll), builds a fresh
-instance and swaps it in at the next frame or tick. A new build that fails to load keeps the old
-instance running (one warning in the log). `YOAKE_WASM_DEV_DIR=<folder>` additionally loads every
-`<id>.wasm` in the folder as a mod (no `.yak` needed) and reloads it the same way. Both are off
-without the flag. The startup log has one line saying `wasm: no mods (engine not started)` or
+With `YOAKE_WASM_UNSIGNED=1`, the game can load unsigned WASM modules from `.yak` packages whose
+manifest declares `[wasm]` and has no `[bin]`. It polls each unsigned installed module once a second
+and, when the file changed (and stayed unchanged for a whole poll), builds a fresh instance and
+swaps it in at the next frame or tick. A new build that fails to load keeps the old instance running
+(one warning in the log). `YOAKE_WASM_DEV_DIR=<folder>` additionally loads every `<id>.wasm` in the
+folder as a mod (no `.yak` needed) and reloads it the same way. Both features are off unless the
+WASM switch or legacy DLL switch is exactly `1`. WASM remains sandboxed; the WASM switch does not enable or load DLL/native
+code. The launcher developer option **Test your own WASM mods (safe: sandboxed)** sets this switch
+for the launched game.
+
+The older `YOAKE_DLL_MODS_UNSIGNED=1` remains a compatibility superset: it still permits unsigned
+native DLL mods and also enables these WASM development features. Use it only for native DLL work.
+The startup log has one line saying `wasm: no mods (engine not started)` or
 `wasm: N mod(s), engine started`.
 
 ## Full-catalog mods (`client-full`, `server-full`)
