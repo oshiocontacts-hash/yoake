@@ -1,0 +1,83 @@
+name: yoake-branch-tests
+
+# Runs a chosen set of crate tests on any branch (started by hand or with `gh workflow run`).
+# Tests that need prepared vanilla data stay #[ignore]d here: GitHub-hosted runners never hold Minecraft files.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to test
+        required: true
+      packages:
+        description: Space-separated crates to test (passed as -p each)
+        required: true
+      check:
+        description: Space-separated crates to cargo-check only (optional)
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: branch-tests-${{ inputs.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      YOAKE_VERSION: ${{ vars.YOAKE_VERSION }}
+      CARGO_INCREMENTAL: '0'
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip2
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: yoake-branch-tests
+
+      - name: Locate Windows SDK shader compiler
+        shell: pwsh
+        run: |
+          if (-not (Get-Command fxc.exe -ErrorAction SilentlyContinue)) {
+            $sdkBin = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
+            $fxc = Get-ChildItem -Path $sdkBin -Filter fxc.exe -File -Recurse |
+              Where-Object { $_.Directory.Name -eq 'x64' } |
+              Sort-Object FullName -Descending |
+              Select-Object -First 1
+            if (-not $fxc) { throw 'fxc.exe was not found in the Windows SDK.' }
+            $fxc.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
+
+      - name: Check
+        if: ${{ inputs.check != '' }}
+        shell: bash
+        env:
+          CRATES: ${{ inputs.check }}
+        run: |
+          args=(); for p in $CRATES; do args+=(-p "$p"); done
+          cargo check --locked --keep-going "${args[@]}"
+
+      - name: Test
+        shell: bash
+        env:
+          CRATES: ${{ inputs.packages }}
+        run: |
+          args=(); for p in $CRATES; do args+=(-p "$p"); done
+          cargo test --locked --no-fail-fast "${args[@]}" 2>&1 | tee test-output.txt
+
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f test-output.txt ]; then
+            { echo '### Test results'; echo '```'; grep -E '^test result|FAILED|panicked' test-output.txt | head -200; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
