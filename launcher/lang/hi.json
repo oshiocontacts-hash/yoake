@@ -1,4 +1,7 @@
 {
+  "The Microsoft Store updates Yoake.": "Microsoft Store, Yoake को अपडेट करता है।",
+  "Test your own WASM mods": "अपने WASM मॉड आज़माएँ",
+  "For testing your own unsigned .yak mods. WASM runs in a sandbox, but the mod's declared permissions, including service.commands for server modules, still apply. Do not use this for mods from others.": "अपने अहस्ताक्षरित .yak मॉड का परीक्षण करने के लिए। WASM सैंडबॉक्स में चलता है, लेकिन मॉड द्वारा घोषित अनुमतियाँ, जिनमें सर्वर मॉड्यूल के लिए service.commands भी शामिल है, लागू रहती हैं। दूसरों के मॉड के लिए इसका उपयोग न करें।",
   "Test your own DLL mods (developer mode)": "अपने DLL मॉड आज़माएँ (डेवलपर मोड)",
   "Lets you install and run unsigned .yak files that contain DLLs from your own PC. Do not use it for mods you got from someone else.": "अपने PC पर मौजूद DLL वाली अहस्ताक्षरित .yak फ़ाइलें इंस्टॉल और चलाने देता है। किसी और से मिले मॉड के लिए इसका उपयोग न करें।",
   "Turn on": "चालू करें",

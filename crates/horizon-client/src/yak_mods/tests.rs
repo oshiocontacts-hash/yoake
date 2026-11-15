@@ -448,6 +448,19 @@ fn wasm_only_unsigned_switch_loads_wasm_and_never_authorizes_native_binaries() {
     assert!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[key.public()], false).is_empty());
 }
 
+#[test]
+fn wasm_unsigned_override_accepts_a_missing_signature_but_refuses_a_tampered_one() {
+    let fixture = Fixture::new();
+    let entry = wasm_entry(&fixture);
+    assert_eq!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[], true).len(), 1);
+
+    let (key, _) = SigningKey::generate().unwrap();
+    fixture.sign(&entry, &key);
+    assert_eq!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[key.public()], true).len(), 1);
+    fixture.write(&entry.root.join("bin/wasm/sample.wasm"), b"tampered after signing");
+    assert!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[key.public()], true).is_empty());
+}
+
 fn server_wasm_source(permissions: &str) -> String {
     data("server_mod").replace("client = true\nserver = true", "client = false\nserver = true")
         + &format!("\n[wasm]\ninterface = \"1.0\"\nserver = \"bin/wasm/server.wasm\"\n{permissions}")

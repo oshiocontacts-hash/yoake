@@ -252,9 +252,11 @@ concurrent writer replacing bytes before the operating system maps a library. Na
 code is not sandboxed.
 
 For sandboxed WebAssembly development, the exact environment value
-`YOAKE_WASM_UNSIGNED=1` permits unsigned `.yak` packages that declare `[wasm]` and
-contain no `[bin]`, and enables `YOAKE_WASM_DEV_DIR` raw-module loading and hot reload.
-It never authorizes native libraries or DLL paths. The legacy
+`YOAKE_WASM_UNSIGNED=1` permits `.yak` packages with no `SIGNATURE` file that declare `[wasm]`
+and contain no `[bin]`, and enables `YOAKE_WASM_DEV_DIR` raw-module loading and hot reload. A
+present signature must still be valid and match the installed files; the switch does not accept
+tampered or untrusted signatures. Sandboxed modules still receive permissions they declare,
+including `service.commands` for server modules. It never authorizes native libraries or DLL paths. The legacy
 `YOAKE_DLL_MODS_UNSIGNED=1` is a compatibility superset: it continues to permit
 unsigned native code and also enables unsigned WASM development. With neither switch,
 unsigned WASM modules and raw `YOAKE_WASM_DEV_DIR` modules are not loaded.

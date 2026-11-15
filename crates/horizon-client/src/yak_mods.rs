@@ -58,6 +58,13 @@ pub(crate) struct Installed {
     signed: bool,
 }
 
+#[cfg(test)]
+impl Installed {
+    pub(crate) fn new_for_test(root: PathBuf, manifest: Manifest) -> Self {
+        Self { root, manifest, content: None, content_wasm: false, signed: false }
+    }
+}
+
 #[derive(Default)]
 struct Runtime {
     entries: Vec<Installed>,
@@ -391,12 +398,24 @@ fn wasm_preflight(entry: &Installed, name: &str, side: WasmSide, keys: &[PublicK
     file.take(yak::MAX_WASM_SIZE + 1).read_to_end(&mut bytes).map_err(|error| error.to_string())?;
     if bytes.len() as u64 > yak::MAX_WASM_SIZE { return Err("wasm module exceeds 32 MiB".into()); }
     let digest: String = <sha2::Sha256 as sha2::Digest>::digest(&bytes).iter().map(|byte| format!("{byte:02x}")).collect();
-    let mut signed = true;
-    if let Err(error) = yak::verify_installed(&entry.root, &[name], keys) {
-        if !allow_unsigned { return Err(error); }
-        signed = false;
-        log::warn!("YAK {}: developer unsigned override: {error}", manifest.id);
-    }
+    let signed = if allow_unsigned {
+        match std::fs::symlink_metadata(entry.root.join("SIGNATURE")) {
+            Ok(_) => {
+                // The developer override is for packages with no signature. A present signature
+                // must still be trusted and match every installed file.
+                yak::verify_installed(&entry.root, &[name], keys)?;
+                true
+            }
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                log::warn!("YAK {}: developer unsigned override: no SIGNATURE file", manifest.id);
+                false
+            }
+            Err(error) => return Err(format!("SIGNATURE: {error}")),
+        }
+    } else {
+        yak::verify_installed(&entry.root, &[name], keys)?;
+        true
+    };
     if yak::hash_installed_file(&entry.root, name)? != digest {
         return Err("wasm module changed while loading".into());
     }

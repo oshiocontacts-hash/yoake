@@ -2425,11 +2425,17 @@ fn client_program(tag: &str) -> PathBuf {
 }
 
 pub fn server_command(tag: &str, folder: &Path) -> Command {
+    server_command_with_settings(tag, folder, &Settings::load())
+}
+
+fn server_command_with_settings(tag: &str, folder: &Path, settings: &Settings) -> Command {
     let mut cmd = Command::new(version_dir(tag).join(CLIENT));
     cmd.current_dir(folder)
         .arg("--resources")
         .arg(resources(tag))
         .args(["--dedicated", "--nogui"]);
+    set_unsigned_dll_env(&mut cmd, settings.dev_unsigned_dll);
+    set_unsigned_wasm_env(&mut cmd, settings.dev_unsigned_wasm);
     if crate::brand::yoake() {
         cmd.env("HORIZON_TELEMETRY_URL", "off");
     }
@@ -3686,6 +3692,39 @@ mod tests {
                 .map(|(_, value)| value),
             Some(None)
         );
+    }
+
+    #[test]
+    fn server_command_applies_both_unsigned_developer_switches() {
+        use std::ffi::OsStr;
+
+        let settings = Settings {
+            dev_unsigned_dll: true,
+            dev_unsigned_wasm: true,
+            ..Settings::default()
+        };
+        let command = server_command_with_settings("test", Path::new("server"), &settings);
+        let envs: Vec<_> = command.get_envs().collect();
+        assert!(envs.iter().any(|(key, value)| {
+            *key == OsStr::new("YOAKE_DLL_MODS_UNSIGNED") && *value == Some(OsStr::new("1"))
+        }));
+        assert!(envs.iter().any(|(key, value)| {
+            *key == OsStr::new("YOAKE_WASM_UNSIGNED") && *value == Some(OsStr::new("1"))
+        }));
+    }
+
+    #[test]
+    fn server_command_removes_unsigned_developer_switches_when_disabled() {
+        use std::ffi::OsStr;
+
+        let command = server_command_with_settings("test", Path::new("server"), &Settings::default());
+        let envs: Vec<_> = command.get_envs().collect();
+        assert!(envs.iter().any(|(key, value)| {
+            *key == OsStr::new("YOAKE_DLL_MODS_UNSIGNED") && value.is_none()
+        }));
+        assert!(envs.iter().any(|(key, value)| {
+            *key == OsStr::new("YOAKE_WASM_UNSIGNED") && value.is_none()
+        }));
     }
 
     #[test]

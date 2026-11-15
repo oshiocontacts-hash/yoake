@@ -1,4 +1,7 @@
 {
+  "The Microsoft Store updates Yoake.": "Yoake wird über den Microsoft Store aktualisiert.",
+  "Test your own WASM mods": "Eigene WASM-Mods testen",
+  "For testing your own unsigned .yak mods. WASM runs in a sandbox, but the mod's declared permissions, including service.commands for server modules, still apply. Do not use this for mods from others.": "Zum Testen deiner eigenen unsignierten .yak-Mods. WASM läuft in einer Sandbox, aber die vom Mod angegebenen Berechtigungen, einschließlich service.commands für Servermodule, gelten weiterhin. Verwende dies nicht für Mods von anderen.",
   "Test your own DLL mods (developer mode)": "Eigene DLL-Mods testen (Entwicklermodus)",
   "Lets you install and run unsigned .yak files that contain DLLs from your own PC. Do not use it for mods you got from someone else.": "Ermöglicht die Installation und Ausführung unsignierter .yak-Dateien mit DLLs von deinem eigenen PC. Verwende dies nicht für Mods, die du von anderen erhalten hast.",
   "Turn on": "Aktivieren",
