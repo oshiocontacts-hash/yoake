@@ -1215,6 +1215,7 @@ fn graphics_api_tooltip(s: &Settings) -> Text {
 
 /// `selected_key` while a native mod's key waits (`selected_native_key`).
 const NATIVE_KEY: &str = "horizon.nativeModKey";
+const MOD_KEY: &str = "horizon.registeredModKey";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Page {
@@ -1277,6 +1278,8 @@ enum Act {
     Extra(crate::extras::Item),
     Key(&'static str),
     ResetKey(&'static str),
+    ModKey(usize),
+    ResetModKey(usize),
     ResetKeys,
     /// Controller binds: wait for a button, reset one, reset all.
     PadKey(&'static str),
@@ -1519,6 +1522,7 @@ pub struct OptionsUi {
     pub selected_key: Option<&'static str>,
     /// The native mod's key waiting: (mod, key) in `mods.installed`.
     selected_native_key: Option<(usize, usize)>,
+    selected_mod_key: Option<usize>,
     /// Controller Binds: the action waiting for a pad button.
     pub selected_pad_action: Option<&'static str>,
     /// The glyphs the binds list shows (the setting, else the pad's family).
@@ -1600,6 +1604,7 @@ impl Default for OptionsUi {
             slider_value: None,
             scrollbar_drag_y: None,
             selected_key: None,
+            selected_mod_key: None,
             selected_native_key: None,
             selected_pad_action: None,
             pad_style: GlyphStyle::Xbox,
@@ -1902,7 +1907,7 @@ fn tooltip_text(s: &Settings, wd: &Widget) -> Option<Text> {
             }
             let names = conflicts
                 .iter()
-                .map(|c| lang::get(c))
+                .map(|c| lang::get(s.keys.label(c)))
                 .collect::<Vec<_>>()
                 .join(", ");
             Some(Text::translate(
@@ -1983,6 +1988,25 @@ fn narrate_widget(
                     title: bind(tr(gamepad::action_caption(action)), bound),
                     active,
                 };
+            }
+            Act::ModKey(index) => {
+                if let Some(binding) = s.keys.mod_bindings().get(*index) {
+                    n.what = What::Named {
+                        title: bind(
+                            tr(&binding.label),
+                            s.keys.get(&binding.name) != "key.keyboard.unknown",
+                        ),
+                        active,
+                    };
+                }
+            }
+            Act::ResetModKey(index) => {
+                if let Some(binding) = s.keys.mod_bindings().get(*index) {
+                    n.what = What::Named {
+                        title: t("narrator.controls.reset", &[tr(&binding.label)]),
+                        active,
+                    };
+                }
             }
             Act::ResetKey(name) => {
                 n.what = What::Named {
@@ -3101,6 +3125,93 @@ impl OptionsUi {
                     y += 20.0;
                     rows.end(&mut out, y);
                 }
+                let mut mod_mappings: Vec<_> = s
+                    .keys
+                    .mod_bindings()
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, binding)| {
+                        query.is_empty()
+                            || lang::get(&binding.label).to_lowercase().contains(&query)
+                    })
+                    .collect();
+                mod_mappings.sort_by_key(|(_, binding)| {
+                    (lang::get(&binding.category), lang::get(&binding.label))
+                });
+                let mut mod_category = None;
+                for (index, binding) in mod_mappings {
+                    if mod_category != Some(&binding.category) {
+                        mod_category = Some(&binding.category);
+                        rows.begin(&out, y);
+                        out.push(Widget {
+                            x: 0.0,
+                            y: y + 7.0,
+                            w,
+                            h: 9.0,
+                            kind: WKind::Text {
+                                text: tr(&binding.category).with_style(&Style {
+                                    bold: Some(true),
+                                    underlined: Some(true),
+                                    ..Style::default()
+                                }),
+                                color: u32::MAX,
+                                centered: true,
+                            },
+                            list: false,
+                            row: 0,
+                        });
+                        y += 20.0;
+                        rows.end(&mut out, y);
+                    }
+                    rows.begin(&out, y);
+                    out.push(Widget {
+                        x: row_left + 2.0,
+                        y: y + 6.0,
+                        w: 200.0,
+                        h: 9.0,
+                        kind: WKind::Text {
+                            text: tr(&binding.label),
+                            color: u32::MAX,
+                            centered: false,
+                        },
+                        list: false,
+                        row: 0,
+                    });
+                    let mut message = keybinds::display_name(s.keys.get(&binding.name));
+                    let conflicts = s.keys.conflicts(&binding.name);
+                    if !conflicts.is_empty() {
+                        message = Text::literal("[ ")
+                            .append(message.with_color(text::WHITE))
+                            .append(" ]")
+                            .with_color(text::YELLOW);
+                    }
+                    if self.selected_key == Some(MOD_KEY) && self.selected_mod_key == Some(index) {
+                        message = Text::literal("> ")
+                            .append(message.with_style(&Style {
+                                color: Some(text::WHITE),
+                                underlined: Some(true),
+                                ..Style::default()
+                            }))
+                            .append(" <")
+                            .with_color(text::YELLOW);
+                    }
+                    let reset_x = scrollbar_x - 60.0;
+                    out.push(button(reset_x - 80.0, y, 75.0, message, Act::ModKey(index)));
+                    let reset = button(
+                        reset_x,
+                        y,
+                        50.0,
+                        tr("controls.reset"),
+                        Act::ResetModKey(index),
+                    );
+                    out.push(if s.keys.is_default(&binding.name) {
+                        inactive(reset)
+                    } else {
+                        reset
+                    });
+                    y += 20.0;
+                    rows.end(&mut out, y);
+                }
                 content = y + self.scroll - top + 2.0;
                 out[list_start..].iter_mut().for_each(|w| w.list = true);
                 out.push(button(
@@ -4126,6 +4237,16 @@ impl OptionsUi {
                             events.push(Event::Changed);
                         }
                         Act::Key(name) => self.selected_key = Some(name),
+                        Act::ModKey(index) => {
+                            self.selected_key = Some(MOD_KEY);
+                            self.selected_mod_key = Some(index);
+                        }
+                        Act::ResetModKey(index) => {
+                            if let Some(binding) = s.keys.mod_bindings().get(index).cloned() {
+                                s.keys.set(&binding.name, &binding.default_key);
+                                events.push(Event::Changed);
+                            }
+                        }
                         Act::ResetKey(name) => {
                             s.keys.set(name, KeyBinds::default_of(name));
                             events.push(Event::Changed);
@@ -4675,6 +4796,18 @@ impl OptionsUi {
             keys.insert(key.clone(), value);
             return vec![Event::Changed];
         }
+        if name == MOD_KEY {
+            let Some(binding) = self
+                .selected_mod_key
+                .take()
+                .and_then(|index| s.keys.mod_bindings().get(index))
+                .cloned()
+            else {
+                return Vec::new();
+            };
+            s.keys.set(&binding.name, &value);
+            return vec![Event::Changed];
+        }
         if !s.extras.set_key(name, value.clone()) && !s.horizon.set_key(name, value.clone()) {
             s.keys.set(name, &value);
         }
@@ -5033,6 +5166,16 @@ impl OptionsUi {
                             events.push(Event::Changed);
                         }
                         Act::Key(name) => self.selected_key = Some(name),
+                        Act::ModKey(index) => {
+                            self.selected_key = Some(MOD_KEY);
+                            self.selected_mod_key = Some(index);
+                        }
+                        Act::ResetModKey(index) => {
+                            if let Some(binding) = s.keys.mod_bindings().get(index).cloned() {
+                                s.keys.set(&binding.name, &binding.default_key);
+                                events.push(Event::Changed);
+                            }
+                        }
                         Act::ResetKey(name) => {
                             s.keys.set(name, KeyBinds::default_of(name));
                             events.push(Event::Changed);
@@ -5945,6 +6088,103 @@ mod tests {
         assert_eq!(key_label(&mut ui, &s).unwrap().0, "R");
         let saved = crate::mod_list::ModList::parse(&s.mods.serialize());
         assert_eq!(saved.keys_of("zoom"), vec![("zoom", "key.keyboard.r")]);
+    }
+
+    #[test]
+    fn registered_mod_bindings_use_the_controls_keyboard_mouse_and_reset_flow() {
+        let atlas = atlas();
+        let mut settings = Settings::default();
+        settings
+            .keys
+            .register_mod_binding(
+                "test:open",
+                "key.keyboard.r",
+                "key.categories.test",
+                "key.test.unique_open",
+            )
+            .unwrap();
+        let mut ui = OptionsUi::default();
+        ui.show(Page::KeyBinds);
+        ui.settings_search.set_value("key.test.unique_open");
+        let size = (480.0, 240.0);
+        let binding_button = |ui: &mut OptionsUi, settings: &Settings, reset: bool| {
+            ui.layout(settings, size.0, size.1)
+                .0
+                .into_iter()
+                .find_map(|widget| match widget.kind {
+                    WKind::Button {
+                        label,
+                        act: Act::ModKey(0),
+                        ..
+                    } if !reset => Some((label.plain(), widget.x, widget.y)),
+                    WKind::Button {
+                        label,
+                        act: Act::ResetModKey(0),
+                        ..
+                    } if reset => Some((label.plain(), widget.x, widget.y)),
+                    _ => None,
+                })
+                .expect("registered mod binding in the vanilla Controls list")
+        };
+        let (label, x, y) = binding_button(&mut ui, &settings, false);
+        assert_eq!(label, "R");
+        ui.click(
+            &mut settings,
+            &atlas,
+            x + 1.0,
+            y + 1.0,
+            size,
+            [480, 240],
+            false,
+            false,
+        );
+        assert_eq!(
+            ui.key(
+                &mut settings,
+                &atlas,
+                winit::keyboard::KeyCode::KeyW,
+                Some("w")
+            ),
+            vec![Event::Changed]
+        );
+        assert_eq!(binding_button(&mut ui, &settings, false).0, "[ W ]");
+        assert_eq!(settings.keys.get("key.forward"), "key.keyboard.w");
+        let (_, x, y) = binding_button(&mut ui, &settings, false);
+        ui.click(
+            &mut settings,
+            &atlas,
+            x + 1.0,
+            y + 1.0,
+            size,
+            [480, 240],
+            false,
+            false,
+        );
+        assert_eq!(
+            ui.bind_mouse(&mut settings, winit::event::MouseButton::Other(4)),
+            vec![Event::Changed]
+        );
+        assert_eq!(settings.keys.get("key.mod.test/open"), "key.mouse.5");
+        assert!(
+            settings
+                .serialize()
+                .contains("key_key.mod.test/open:key.mouse.5\n")
+        );
+        let (_, x, y) = binding_button(&mut ui, &settings, true);
+        assert!(
+            ui.click(
+                &mut settings,
+                &atlas,
+                x + 1.0,
+                y + 1.0,
+                size,
+                [480, 240],
+                false,
+                false
+            )
+            .contains(&Event::Changed)
+        );
+        assert_eq!(binding_button(&mut ui, &settings, false).0, "R");
     }
 
     fn mode(width: i32, rate: f32) -> crate::window::VideoMode {

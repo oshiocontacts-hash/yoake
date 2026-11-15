@@ -6,7 +6,45 @@ use horizon_client::{
     mod_list::{self, Installed},
     text::Text,
 };
-use std::path::PathBuf;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::PathBuf,
+    sync::Arc,
+};
+
+pub(super) type ModOwners = BTreeMap<String, (String, String)>;
+
+pub(super) struct ContentRoot {
+    pub(super) path: PathBuf,
+    pub(super) owners: Arc<ModOwners>,
+}
+
+impl From<PathBuf> for ContentRoot {
+    fn from(path: PathBuf) -> Self {
+        Self {
+            path,
+            owners: Arc::default(),
+        }
+    }
+}
+
+fn retained_mod_owners(
+    manifests: &[horizon_mods::Manifest],
+    accepted: &BTreeSet<String>,
+) -> ModOwners {
+    manifests
+        .iter()
+        .filter(|manifest| accepted.contains(&manifest.id))
+        .flat_map(|manifest| {
+            manifest.owned_namespaces().map(move |namespace| {
+                (
+                    namespace.to_owned(),
+                    (manifest.id.clone(), manifest.name.clone()),
+                )
+            })
+        })
+        .collect()
+}
 
 #[derive(Default)]
 pub(super) struct ModsState {
@@ -72,7 +110,7 @@ pub(super) fn content_root(
     root: &std::path::Path,
     enabled: &std::collections::BTreeSet<String>,
     dev: &[std::path::PathBuf],
-) -> std::path::PathBuf {
+) -> ContentRoot {
     use horizon_client::mod_content::{self, ContentMod};
     use horizon_mods::{Capability, Content};
     let here = std::env::current_dir().unwrap_or_default();
@@ -81,6 +119,7 @@ pub(super) fn content_root(
     paths.extend(dev.iter().cloned());
     let mut known = None;
     let mut mods: Vec<ContentMod> = Vec::new();
+    let mut manifests = Vec::new();
     // The first load's list stays (`set_local`): a reload does not hash the files again.
     let announce = !horizon_protocol::mod_list::is_set();
     let mut announced = Vec::new();
@@ -115,7 +154,7 @@ pub(super) fn content_root(
                 Err(e) => {
                     log::warn!("Horizon: content mods not loaded: {e}");
                     register_mob_effects(&[]);
-                    return root.to_owned();
+                    return root.to_owned().into();
                 }
             },
         };
@@ -124,8 +163,12 @@ pub(super) fn content_root(
             content,
         };
         match mod_content::accept_mod(&mut mods, candidate, known) {
-            Ok(_) if announce => announced.push(announced_entry(m, path)),
-            Ok(_) => {}
+            Ok(_) => {
+                if announce {
+                    announced.push(announced_entry(m, path));
+                }
+                manifests.push(m.clone());
+            }
             Err(e) => log::warn!("Horizon: mod {} content not loaded: {e}", m.id),
         }
     }
@@ -163,14 +206,18 @@ pub(super) fn content_root(
             register_mob_effects(&mods);
             register_entity_types(&mods);
             register_menu_types(&mods);
-            out
+            let accepted = mods.iter().map(|entry| entry.id.clone()).collect();
+            ContentRoot {
+                path: out,
+                owners: Arc::new(retained_mod_owners(&manifests, &accepted)),
+            }
         }
         Err(e) => {
             log::warn!("Horizon: content mods not loaded: {e}");
             register_mob_effects(&[]);
             register_entity_types(&[]);
             register_menu_types(&[]);
-            root.to_owned()
+            root.to_owned().into()
         }
     }
 }
@@ -438,6 +485,33 @@ impl Game<'_> {
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn retained_content_manifests_own_their_declared_namespaces() {
+        let manifest = |id: &str, name: &str, alias: &str| {
+            horizon_mods::Manifest::parse(&format!(
+                "id = '{id}'
+name = '{name}'
+version = '1.0.0'
+api = '0.2'
+capabilities = ['registries']
+namespaces = ['{alias}']
+"
+            ))
+            .unwrap()
+        };
+        let manifests = [
+            manifest("alpine", "Alpine", "alpine_blocks"),
+            manifest("ocean", "Ocean", "ocean_blocks"),
+        ];
+        let accepted = BTreeSet::from(["alpine".to_owned()]);
+        let owners = retained_mod_owners(&manifests, &accepted);
+        let alpine = Some(&("alpine".to_owned(), "Alpine".to_owned()));
+        assert_eq!(owners.get("alpine"), alpine);
+        assert_eq!(owners.get("alpine_blocks"), alpine);
+        assert!(!owners.contains_key("ocean"));
+        assert!(!owners.contains_key("ocean_blocks"));
+    }
 
     /// Only a build whose `native-mods.json` lists a mod counts as built with mods.
     #[test]

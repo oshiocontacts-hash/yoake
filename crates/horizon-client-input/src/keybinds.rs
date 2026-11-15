@@ -269,7 +269,7 @@ pub fn mouse_name(button: MouseButton) -> String {
         MouseButton::Middle => "key.mouse.middle".into(),
         MouseButton::Back => "key.mouse.4".into(),
         MouseButton::Forward => "key.mouse.5".into(),
-        MouseButton::Other(n) => format!("key.mouse.{}", n + 1),
+        MouseButton::Other(number) => format!("key.mouse.{}", u32::from(number) + 1),
     }
 }
 pub fn mouse_button(name: &str) -> Option<MouseButton> {
@@ -308,6 +308,51 @@ pub fn learn_layout(event: &winit::event::KeyEvent) {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct KeyBinds {
     keys: BTreeMap<&'static str, String>,
+    mod_bindings: Vec<ModKeyBinding>,
+    saved_mod_keys: BTreeMap<String, String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ModKeyBinding {
+    pub id: String,
+    pub name: String,
+    pub default_key: String,
+    pub category: String,
+    pub label: String,
+    held: bool,
+}
+
+impl PartialEq for ModKeyBinding {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+            && self.name == other.name
+            && self.default_key == other.default_key
+            && self.category == other.category
+            && self.label == other.label
+    }
+}
+
+impl Eq for ModKeyBinding {}
+
+pub fn mod_mapping_name(id: &str) -> Option<String> {
+    let (namespace, path) = id.split_once(':')?;
+    let valid = |part: &str, slash: bool| {
+        !part.is_empty()
+            && part.bytes().all(|byte| {
+                byte.is_ascii_lowercase()
+                    || byte.is_ascii_digit()
+                    || b"_.-".contains(&byte)
+                    || (slash && byte == b'/')
+            })
+    };
+    (id.len() <= 256 && valid(namespace, false) && valid(path, true))
+        .then(|| format!("key.mod.{namespace}/{path}"))
+}
+
+pub fn is_mod_mapping(name: &str) -> bool {
+    name.strip_prefix("key.mod.")
+        .and_then(|tail| tail.split_once('/'))
+        .is_some_and(|(namespace, path)| mod_mapping_name(&format!("{namespace}:{path}")).is_some())
 }
 impl Default for KeyBinds {
     fn default() -> Self {
@@ -316,6 +361,8 @@ impl Default for KeyBinds {
                 .iter()
                 .map(|(n, d, _)| (*n, (*d).to_owned()))
                 .collect(),
+            mod_bindings: Vec::new(),
+            saved_mod_keys: BTreeMap::new(),
         }
     }
 }
@@ -336,6 +383,7 @@ impl KeyBinds {
     pub fn get(&self, name: &str) -> &str {
         self.keys
             .get(name)
+            .or_else(|| self.saved_mod_keys.get(name))
             .map_or("key.keyboard.unknown", String::as_str)
     }
     pub fn default_of(name: &str) -> &'static str {
@@ -345,35 +393,205 @@ impl KeyBinds {
             .map_or("key.keyboard.unknown", |m| m.1)
     }
     pub fn is_default(&self, name: &str) -> bool {
-        self.get(name) == Self::default_of(name)
+        let default = self
+            .mod_bindings
+            .iter()
+            .find(|binding| binding.name == name)
+            .map_or_else(
+                || Self::default_of(name),
+                |binding| binding.default_key.as_str(),
+            );
+        self.get(name) == default
     }
     pub fn set(&mut self, name: &str, key: &str) {
         if let Some((n, _, _)) = MAPPINGS.iter().find(|m| m.0 == name) {
             self.keys.insert(n, key.to_owned());
+        } else if let Some(binding) = self
+            .mod_bindings
+            .iter_mut()
+            .find(|binding| binding.name == name && Self::valid_mod_key(key))
+        {
+            binding.held = false;
+            self.saved_mod_keys.insert(name.to_owned(), key.to_owned());
         }
     }
-    pub fn saved(&self) -> Vec<(&'static str, String)> {
+    pub fn saved(&self) -> Vec<(&str, String)> {
         MAPPINGS
             .iter()
             .map(|(n, _, _)| (*n, self.get(n).to_owned()))
+            .chain(
+                self.saved_mod_keys
+                    .iter()
+                    .map(|(name, key)| (name.as_str(), key.clone())),
+            )
             .collect()
     }
     pub fn reset_all(&mut self) {
-        *self = Self::default();
+        self.keys = Self::default().keys;
+        for binding in &mut self.mod_bindings {
+            binding.held = false;
+            self.saved_mod_keys
+                .insert(binding.name.clone(), binding.default_key.clone());
+        }
+    }
+
+    pub fn mod_bindings(&self) -> &[ModKeyBinding] {
+        &self.mod_bindings
+    }
+
+    pub fn load_mod_key(&mut self, name: &str, key: &str) {
+        if is_mod_mapping(name)
+            && Self::valid_mod_key(key)
+            && (self.saved_mod_keys.contains_key(name) || self.saved_mod_keys.len() < 256)
+        {
+            self.saved_mod_keys.insert(name.to_owned(), key.to_owned());
+        }
+    }
+
+    fn valid_mod_key(key: &str) -> bool {
+        key == "key.keyboard.unknown"
+            || key_code(key).is_some()
+            || mouse_button(key).is_some()
+            || key.strip_prefix("key.mouse.").is_some_and(|number| {
+                number
+                    .parse::<u32>()
+                    .is_ok_and(|value| (1..=65536).contains(&value) && value.to_string() == number)
+            })
+    }
+
+    pub fn register_mod_binding(
+        &mut self,
+        id: &str,
+        default_key: &str,
+        category: &str,
+        label: &str,
+    ) -> Result<(), String> {
+        let name = mod_mapping_name(id).ok_or_else(|| "invalid key binding id".to_owned())?;
+        let owner = id.split_once(':').map(|parts| parts.0);
+        if self
+            .mod_bindings
+            .iter()
+            .filter(|binding| binding.id.split_once(':').map(|parts| parts.0) == owner)
+            .count()
+            >= 32
+            || self.mod_bindings.iter().any(|binding| binding.id == id)
+        {
+            return Err("key binding limit or duplicate id".to_owned());
+        }
+        if [category, label].iter().any(|value| {
+            value.is_empty() || value.len() > 256 || value.chars().any(char::is_control)
+        }) || !Self::valid_mod_key(default_key)
+        {
+            return Err("invalid key binding metadata or default key".to_owned());
+        }
+        if !self.saved_mod_keys.contains_key(&name) && self.saved_mod_keys.len() >= 256 {
+            let stale = self
+                .saved_mod_keys
+                .keys()
+                .find(|saved| {
+                    !self
+                        .mod_bindings
+                        .iter()
+                        .any(|binding| &binding.name == *saved)
+                })
+                .cloned()
+                .ok_or_else(|| "saved key binding limit".to_owned())?;
+            self.saved_mod_keys.remove(&stale);
+        }
+        self.saved_mod_keys
+            .entry(name.clone())
+            .or_insert_with(|| default_key.to_owned());
+        self.mod_bindings.push(ModKeyBinding {
+            id: id.to_owned(),
+            name,
+            default_key: default_key.to_owned(),
+            category: category.to_owned(),
+            label: label.to_owned(),
+            held: false,
+        });
+        Ok(())
+    }
+
+    pub fn mod_key_event(&mut self, key: &str, pressed: bool) -> Vec<String> {
+        self.mod_key_event_when(key, pressed, |_| true)
+    }
+
+    pub fn mod_key_event_when(
+        &mut self,
+        key: &str,
+        pressed: bool,
+        allowed: impl Fn(&str) -> bool,
+    ) -> Vec<String> {
+        let mut edges = Vec::new();
+        for binding in &mut self.mod_bindings {
+            if key != "key.keyboard.unknown"
+                && self
+                    .saved_mod_keys
+                    .get(&binding.name)
+                    .is_some_and(|configured| configured == key)
+            {
+                let active = pressed && allowed(&binding.id);
+                if active && !binding.held {
+                    edges.push(binding.id.clone());
+                }
+                binding.held = active;
+            }
+        }
+        edges
+    }
+
+    pub fn preserve_mod_key_state(&mut self, previous: &Self) {
+        for binding in &mut self.mod_bindings {
+            binding.held = previous.mod_bindings.iter().any(|old| {
+                old.id == binding.id
+                    && old.held
+                    && previous.get(&old.name)
+                        == self
+                            .saved_mod_keys
+                            .get(&binding.name)
+                            .map_or("key.keyboard.unknown", String::as_str)
+            });
+        }
+    }
+
+    pub fn mod_key_state(&self, id: &str) -> bool {
+        self.mod_bindings
+            .iter()
+            .any(|binding| binding.id == id && binding.held)
+    }
+
+    pub fn release_mod_keys(&mut self) {
+        for binding in &mut self.mod_bindings {
+            binding.held = false;
+        }
     }
     /// Mappings sharing `name`'s key (KeyMapping.same), for conflict marks.
-    pub fn conflicts(&self, name: &str) -> Vec<&'static str> {
+    pub fn conflicts(&self, name: &str) -> Vec<&str> {
         let key = self.get(name);
         if key == "key.keyboard.unknown" {
             return Vec::new();
         }
         MAPPINGS
             .iter()
-            .filter(|(n, _, _)| {
-                *n != name && self.get(n) == key && (!self.is_default(n) || !self.is_default(name))
+            .map(|mapping| mapping.0)
+            .chain(
+                self.mod_bindings
+                    .iter()
+                    .map(|binding| binding.name.as_str()),
+            )
+            .filter(|other| {
+                *other != name
+                    && self.get(other) == key
+                    && (!self.is_default(other) || !self.is_default(name))
             })
-            .map(|(n, _, _)| *n)
             .collect()
+    }
+
+    pub fn label<'a>(&'a self, name: &'a str) -> &'a str {
+        self.mod_bindings
+            .iter()
+            .find(|binding| binding.name == name)
+            .map_or(name, |binding| binding.label.as_str())
     }
     /// The mapping a physical input triggers (first in list order).
     pub fn mapping_for(&self, key: &str) -> Option<&'static str> {
@@ -503,6 +721,147 @@ impl KeyBinds {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mod_keys_unused_preserve_vanilla_input_and_saved_mappings() {
+        let mut keys = KeyBinds::default();
+        let expected: Vec<_> = MAPPINGS
+            .iter()
+            .map(|(name, key, _)| (*name, (*key).to_owned()))
+            .collect();
+        assert_eq!(keys.saved(), expected);
+        for (_, key, _) in MAPPINGS {
+            assert!(keys.mod_key_event(key, true).is_empty());
+            assert!(keys.mod_key_event(key, false).is_empty());
+        }
+        keys.release_mod_keys();
+        keys.reset_all();
+        assert_eq!(keys.saved(), expected);
+        assert_eq!(keys.translate_all(KeyCode::KeyW), [Ok(KeyCode::KeyW)]);
+    }
+
+    #[test]
+    fn mod_keys_keep_pending_rebinds_and_edge_state_without_vanilla_actions() {
+        let mut keys = KeyBinds::default();
+        keys.load_mod_key("key.mod.test/open", "key.mouse.4");
+        keys.register_mod_binding("test:open", "key.keyboard.r", "test.category", "test.open")
+            .unwrap();
+        assert_eq!(keys.get("key.mod.test/open"), "key.mouse.4");
+        assert_eq!(
+            keys.translate_mouse(MouseButton::Back),
+            KeyBinds::default().translate_mouse(MouseButton::Back)
+        );
+        assert_eq!(keys.mod_key_event("key.mouse.4", true), ["test:open"]);
+        assert!(keys.mod_key_state("test:open"));
+        assert!(keys.mod_key_event("key.mouse.4", true).is_empty());
+        assert!(keys.mod_key_event("key.mouse.4", false).is_empty());
+        assert!(!keys.mod_key_state("test:open"));
+        assert_eq!(keys.mod_key_event("key.mouse.4", true), ["test:open"]);
+        keys.release_mod_keys();
+        assert!(!keys.mod_key_state("test:open"));
+        keys.set("key.mod.test/open", "key.keyboard.w");
+        assert_eq!(keys.conflicts("key.forward"), ["key.mod.test/open"]);
+        assert_eq!(keys.mod_key_event("key.keyboard.w", true), ["test:open"]);
+        assert_eq!(keys.translate_all(KeyCode::KeyW), [Ok(KeyCode::KeyW)]);
+        keys.reset_all();
+        assert!(!keys.mod_key_state("test:open"));
+        assert_eq!(keys.get("key.mod.test/open"), "key.keyboard.r");
+    }
+
+    #[test]
+    fn mod_keys_validate_bound_metadata_and_ignore_unbound_inputs() {
+        let mut keys = KeyBinds::default();
+        for id in ["", "test", "Test:key", "test:key:bad", "test:\nkey"] {
+            assert!(
+                keys.register_mod_binding(id, "key.keyboard.r", "category", "label")
+                    .is_err()
+            );
+        }
+        for key in ["invalid", "key.keyboard.not-real", "key.mouse.-1"] {
+            assert!(
+                keys.register_mod_binding("test:bad", key, "category", "label")
+                    .is_err()
+            );
+        }
+        assert!(
+            keys.register_mod_binding("test:bad", "key.keyboard.r", "category\n", "label")
+                .is_err()
+        );
+        keys.load_mod_key("key.mod.test/bad", "key.keyboard.not-real");
+        assert_eq!(keys.get("key.mod.test/bad"), "key.keyboard.unknown");
+        for index in 0..32 {
+            keys.register_mod_binding(
+                &format!("test:binding{index}"),
+                "key.keyboard.unknown",
+                "category",
+                "label",
+            )
+            .unwrap();
+        }
+        assert!(keys.mod_key_event("key.keyboard.unknown", true).is_empty());
+        assert!(
+            keys.register_mod_binding("test:binding0", "key.keyboard.r", "category", "label")
+                .is_err()
+        );
+        assert!(
+            keys.register_mod_binding("test:overflow", "key.keyboard.r", "category", "label")
+                .is_err()
+        );
+        keys.register_mod_binding("other:binding", "key.keyboard.r", "category", "label")
+            .unwrap();
+    }
+
+    #[test]
+    fn mod_keys_filter_owners_track_releases_and_ignore_transient_equality() {
+        let mut keys = KeyBinds::default();
+        for id in ["first:open", "second:open"] {
+            keys.register_mod_binding(id, "key.keyboard.r", "category", "label")
+                .unwrap();
+        }
+        let idle = keys.clone();
+        assert!(
+            keys.mod_key_event_when("key.keyboard.r", true, |_| false)
+                .is_empty()
+        );
+        assert!(!keys.mod_key_state("first:open"));
+        assert_eq!(
+            keys.mod_key_event_when("key.keyboard.r", true, |id| id.starts_with("first:")),
+            ["first:open"]
+        );
+        assert!(!keys.mod_key_state("second:open"));
+        assert_eq!(idle, keys);
+        let mut restored = idle;
+        restored.preserve_mod_key_state(&keys);
+        assert!(restored.mod_key_state("first:open"));
+        assert!(
+            restored
+                .mod_key_event_when("key.keyboard.r", false, |_| false)
+                .is_empty()
+        );
+        assert!(!restored.mod_key_state("first:open"));
+    }
+
+    #[test]
+    fn mod_keys_extra_mouse_buttons_survive_saved_tables_and_evict_stale_entries() {
+        let mut keys = KeyBinds::default();
+        for index in 0..256 {
+            keys.load_mod_key(&format!("key.mod.old/key{index}"), "key.keyboard.r");
+        }
+        keys.register_mod_binding("new:open", "key.mouse.6", "category", "label")
+            .unwrap();
+        keys.set("key.mod.new/open", "key.mouse.65536");
+        keys.set("key.mod.new/open", "key.mouse.-1");
+        assert_eq!(keys.get("key.mod.new/open"), "key.mouse.65536");
+        let mut loaded = KeyBinds::default();
+        for (name, key) in keys.saved() {
+            loaded.load_mod_key(name, &key);
+        }
+        loaded
+            .register_mod_binding("new:open", "key.mouse.6", "category", "label")
+            .unwrap();
+        assert_eq!(loaded.mod_key_event("key.mouse.65536", true), ["new:open"]);
+        assert_eq!(mouse_name(MouseButton::Other(u16::MAX)), "key.mouse.65536");
+    }
     #[test]
     fn container_mouse_hotkeys_follow_slot_bindings_and_pick_item_priority() {
         for button in [MouseButton::Back, MouseButton::Forward, MouseButton::Middle] {

@@ -121,7 +121,6 @@ fn translucent_split(batching: bool, flat_draws: bool, terrain: bool, shadow: bo
 mod animate;
 mod arena;
 pub mod capture;
-mod native_fixed;
 pub mod compositor;
 mod cull;
 mod end_sky;
@@ -132,6 +131,7 @@ mod gpu_culling;
 mod hdr;
 mod hdr_icc;
 mod hdr_stats;
+mod native_fixed;
 pub use hdr::Calibration as HdrCalibration;
 pub mod block_light;
 pub mod lightning;
@@ -139,7 +139,11 @@ mod lod;
 mod native_material;
 mod native_pack;
 mod native_post;
+pub mod native_post_shader;
 pub mod native_render;
+pub mod native_services;
+#[cfg(test)]
+mod native_services_tests;
 mod native_shadow;
 mod native_sky;
 mod occlusion;
@@ -1097,6 +1101,7 @@ pub struct Renderer {
     /// Resolution scale, FXAA and TAA (Horizon settings).
     world_post: world_post::Post,
     native_pre_post_previous: Option<(Mat4, DVec3)>,
+    pub native_services: native_services::WorldServices,
     native_pre_post_frame: u64,
     /// Frame generation (Horizon setting).
     frame_gen: frame_gen::FrameGen,
@@ -4187,6 +4192,7 @@ impl Renderer {
             layout: crate::chunk::ColumnLayout::VANILLA,
             world_post,
             native_pre_post_previous: None,
+            native_services: native_services::WorldServices::default(),
             native_pre_post_frame: 0,
             frame_gen: frame_gen::FrameGen::new(),
             entity_atlas: atlas_view.clone(),
@@ -6015,12 +6021,7 @@ impl Renderer {
     }
     /// The views `render` draws `frame` from.
     pub fn views(&self, frame: &Frame) -> ViewSet {
-        let mut view = self.screen_view(
-            frame.fov_degrees,
-            frame.yaw,
-            frame.pitch,
-            frame.depth_far,
-        );
+        let mut view = self.screen_view(frame.fov_degrees, frame.yaw, frame.pitch, frame.depth_far);
         if frame.roll != 0.0 {
             view.view = Mat4::from_rotation_z(-frame.roll.to_radians()) * view.view;
         }
@@ -6386,7 +6387,10 @@ impl Renderer {
         let needs_readback =
             needs_readback || (self.capture_time.is_some() && self.capture.pending());
         let needs_readback = needs_readback
-            || self.native_fixed.as_ref().is_some_and(|output| output.capture.pending());
+            || self
+                .native_fixed
+                .as_ref()
+                .is_some_and(|output| output.capture.pending());
         let target_texture = match (&surface_frame, &mut self.hdr) {
             _ if let Some((real, _)) = &fg_frames => real.clone(),
             (Some(_), Some(hdr)) => hdr.frame(&self.device, size),
@@ -7841,6 +7845,8 @@ impl Renderer {
         let pack_post = !frame.title && self.pack_post.as_ref().is_some_and(|p| p.1.is_some());
         // One of Horizon's own packs reads the same world target.
         let native_post = !frame.title && self.native.as_ref().is_some_and(|n| n.post.is_some());
+        let mod_post = !frame.title && self.native_services.post.active();
+        let mod_draws = !frame.title && !self.native_services.draws.is_empty();
         if let Some(timer) = Self::pass_timer(&mut self.pack_post, &mut self.native)
             && timer.is_some() != self.pass_timing
         {
@@ -7849,11 +7855,12 @@ impl Renderer {
                 .then(|| pack_timing::PassTiming::new(&self.device, &self.queue))
                 .flatten();
         }
-        let pack_reads_world = pack_post || native_post;
+        let pack_reads_world = pack_post || native_post || mod_post;
         laps.lap("r_uploads");
         let render_needs = native_render::render_needs();
         // Phase 2 of occlusion culling draws over the depth, and a shader pack or TAA reads it.
         let keep_depth = pack_reads_world
+            || mod_draws
             || (taa && self.world_post.taa)
             || oit_on
             || render_needs.world_depth
@@ -7927,6 +7934,7 @@ impl Renderer {
             // Frame generation draws the hand over the real and the made frame after the world.
             && fg_frames.is_none()
             && !render_needs.pre_post
+            && !mod_draws
             && !native_render::world_drawn_hooked();
         if oit_on {
             let size = self
@@ -9106,6 +9114,7 @@ impl Renderer {
                 device: &self.device,
                 queue: &self.queue,
                 encoder: &mut encoder,
+                draws: &mut self.native_services.draws,
                 color: world_view.texture(),
                 color_view: world_view,
                 color_format: self.config.format.remove_srgb_suffix(),
@@ -9140,6 +9149,31 @@ impl Renderer {
             self.native_pre_post_frame = self.native_pre_post_frame.wrapping_add(1);
         } else if self.native_pre_post_previous.is_some() {
             self.native_pre_post_previous = None;
+        }
+        let mut native_commands = Vec::new();
+        if frame.title {
+            self.native_services.draws.clear();
+        } else if !self.native_services.draws.is_empty() || mod_post {
+            native_commands.push(encoder.finish());
+            if let Ok(Some(commands)) = self.native_services.render(
+                &self.device,
+                &self.queue,
+                world_view.texture(),
+                world_depth.texture(),
+                jittered,
+                frame.camera,
+                self.config.format.remove_srgb_suffix(),
+            ) {
+                native_commands.push(commands);
+            }
+            if mod_post {
+                native_commands.extend(
+                    self.native_services
+                        .post
+                        .render(&self.device, world_view.texture()),
+                );
+            }
+            encoder = self.device.create_command_encoder(&Default::default());
         }
         if let Some((color, depth)) = &scaled
             && pack_post
@@ -9403,7 +9437,9 @@ impl Renderer {
             None
         };
         let native_readback = self.native_fixed.as_ref().and_then(|output| {
-            output.capture.copy(&self.device, &mut encoder, shown_texture)
+            output
+                .capture
+                .copy(&self.device, &mut encoder, shown_texture)
         });
         self.uploads.finish(&encoder);
         if has_section_copies {
@@ -9438,7 +9474,8 @@ impl Renderer {
         // submission needs this one: screenshots' readbacks, the error scopes (one per
         // thread), the first frame's startup log, VSync's frame callback, a reconfigure.
         // Frame generation presents its own frames (`frame_gen.present` below).
-        let can_defer = readback.is_none()
+        let can_defer = native_commands.is_empty()
+            && readback.is_none()
             && native_readback.is_none()
             && fg_frames.is_none()
             && hdr_readback.is_none()
@@ -9494,7 +9531,10 @@ impl Renderer {
             startup_step(format_args!("submitting the first frame"));
             self.first_frame = FirstFrame::Drawn;
         }
-        let submission = crate::spans::time("submit", || self.queue.submit([commands]));
+        let submission = crate::spans::time("submit", || {
+            self.queue
+                .submit(native_commands.into_iter().chain([commands]))
+        });
         if let Some(readback) = native_readback
             && let Some(output) = &self.native_fixed
         {

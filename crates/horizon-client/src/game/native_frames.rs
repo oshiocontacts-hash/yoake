@@ -275,6 +275,7 @@ impl Game<'_> {
             renderer.set_capture_presentation_time(Some(presentation));
         }
         self.frame_ticks = delta.as_secs_f32() * 20.0;
+        let _native_crosshair_frame = super::native_crosshair::enter_frame();
         self.extras_frame(delta);
         self.extras_retry()?;
         if !self.native_frames.current(generation) {
@@ -282,7 +283,6 @@ impl Game<'_> {
         }
         let renderer = self.renderer.as_mut().ok_or_else(|| "renderer removed")?;
         renderer.request_native_fixed_pixels(frame.index)?;
-        let _native_crosshair_frame = super::native_crosshair::enter_frame();
         if !self.render()? {
             return Err("fixed-frame render did not produce a frame".into());
         }

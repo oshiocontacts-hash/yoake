@@ -89,8 +89,11 @@ impl Game<'_> {
     /// The redirectable projectile under the crosshair within the attack
     /// reach, and how far along the view it is.
     pub(super) fn redirectable_hit(&self) -> Option<(usize, f64)> {
+        self.redirectable_hit_at(self.entity_reach)
+    }
+
+    pub(super) fn redirectable_hit_at(&self, reach: f64) -> Option<(usize, f64)> {
         let (eye, dir) = self.aim()?;
-        let reach: f64 = self.entity_reach;
         self.creatures
             .projectiles
             .iter()

@@ -1930,8 +1930,11 @@ impl Game<'_> {
         true
     }
     pub(super) fn cart_hit(&self) -> Option<(usize, f64)> {
+        self.cart_hit_at(self.entity_reach)
+    }
+
+    pub(super) fn cart_hit_at(&self, reach: f64) -> Option<(usize, f64)> {
         let (eye, dir) = self.aim()?;
-        let reach: f64 = self.entity_reach;
         let mut best: Option<(usize, f64)> = None;
         for (i, c) in self.carts.iter().enumerate() {
             if Some(c.id) == self.riding {
