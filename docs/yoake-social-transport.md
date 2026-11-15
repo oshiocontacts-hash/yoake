@@ -102,29 +102,69 @@ are `waiting`, `bridged`, or `rejected`. These message types have no fields for
 direct addresses, observed addresses, or ICE candidates, and unknown fields are
 rejected.
 
-The control channel is TLS 1.3 only, implemented by rustls with ring. A client
-trusts only the caller-supplied Yoake private CA certificate and verifies the
-relay's DNS name (SNI); it does not use public WebPKI roots or a custom verifier.
-The relay's leaf certificate and private key are separate from the portal's grant
-signing key. `HORIZON_RELAY_SOCIAL_CERT` and `HORIZON_RELAY_SOCIAL_CERT_KEY` are
-paths to a DER leaf certificate and PKCS#8 key, never inline contents. On Unix,
-group/other-accessible key files are refused; Windows ACLs are managed by the
-deployer. The production CA is not created or embedded yet.
+The control channel is TLS 1.3 only, implemented by rustls with ring; the crypto
+provider is named explicitly in every config, so another provider in the
+dependency graph cannot change or break it. A client trusts only the
+caller-supplied Yoake private CA certificates and verifies the relay's DNS name
+(SNI); it does not use public WebPKI roots or a custom verifier. Several CA
+certificates may be given at once so a CA can be rotated with an overlap. The
+relay's leaf certificate (with a SAN for the relay name and the serverAuth
+extended key usage; the CA should have pathLen 0) and private key are separate
+from the portal's grant signing key. `HORIZON_RELAY_SOCIAL_CERT` and
+`HORIZON_RELAY_SOCIAL_CERT_KEY` are paths to a DER leaf certificate and PKCS#8
+key, never inline contents. The key file is opened once and checked on that
+handle: it must be a regular file and, on Unix, not group/other accessible
+(Windows ACLs are managed by the deployer). The owner is not checked, because
+that needs the current uid and no crate for it is in the build. At startup the
+relay refuses a certificate that does not match the key or is outside its
+validity period, and says which. With none of the social variables set the relay
+only logs that the listener is disabled; a partial or unusable setting is
+logged with the reason. The production CA is not created or embedded yet.
 
 Messages use a four-byte big-endian length and at most 16 KiB of payload, with
-the length checked before allocation. Handshakes and each message read/write use
-blocking sockets with deadlines. Concurrent handshakes are limited globally and
-per source IP. TCP EOF without TLS `close_notify` is an error. There is no raw
-stream accessor or plaintext fallback. The TLS exporter output for label
-`EXPORTER-yoake-social-binding-v1`, with no context, is available as an input to
-the future end-to-end layer.
+the length checked before allocation. Sockets are nonblocking and every wait is a
+loop against an `Instant` deadline, with no per-call threads and no kernel socket
+timeouts. The handshake has a deadline (4 s by default). The first control
+message must arrive within 5 s of the handshake. A whole `send_message` has a
+10 s deadline; missing it closes the channel, because bytes already handed to TLS
+are never handed over again. Waiting for a message that does not come is not an
+error, so an idle bridged connection stays open until the session's idle limit.
+TCP EOF without TLS `close_notify` is `UnexpectedEof`; a clean close is
+`ConnectionAborted`. There is no raw stream accessor or plaintext fallback.
+
+The TLS exporter output for label `EXPORTER-yoake-social-binding-v1`, with no
+context, is available as an input to the future end-to-end layer. It is
+different on every hop: the guest-relay and host-relay channels are separate TLS
+sessions, so their `channel_binding` values differ. The later end-to-end design
+must not assume both sides share it; it needs a value that both ends derive
+from their own secret.
+
+Handshake admission counts in-progress handshakes per source group (an IPv4
+address, or an IPv6 /64, after mapping IPv4-in-IPv6 back to IPv4): at most 4 per
+group, 256 in total. When the total is full the oldest in-progress handshake is
+dropped to admit the new one, so stalled connections cannot lock real clients
+out. The slot is released as soon as the handshake ends. These limits only mean
+something when clients reach the relay directly: behind a proxy or load
+balancer every client shares one address. The social listener must run without a
+proxy, or the PROXY protocol would have to be supported first (it is not).
 
 The relay state machine verifies grants and the host token before producing a
 paired forwarding handle. It decrypts one outer TLS channel and re-encrypts into
 the other while preserving per-session connection, nonce, bandwidth, and
-inactivity limits. The listener actively expires pending and idle connections and
-closes both sockets. Retired session identifiers cannot be reused during the relay
-process lifetime and count toward the configured session limit after retirement.
+inactivity limits; its locks are held only to check limits and reserve or settle
+budget, never across network I/O. Pending guests are keyed by session and
+grant nonce, and a second guest with the same grant is refused. The guest gets
+`waiting` before it can be paired. A host with a wrong token, a different grant,
+or an expired grant is rejected without disturbing the waiting guest; a host
+that arrives before the guest is rejected (hosts do not queue). Nonces are
+accepted only as 64 lowercase hexadecimal characters. Known limits: a guest that
+disconnects while waiting is noticed only at the session's idle limit; a bridged
+connection is not cut when the grant's `exp` passes (`exp` is checked only at
+admission and pairing); and there is no clock-skew allowance, so the portal and
+relay clocks must agree. The listener actively expires pending and idle
+connections and closes both sockets. Retired session identifiers cannot be
+reused during the relay process lifetime and count toward the configured session
+limit after retirement.
 
 A grant is a bearer authorization, not proof of possession of the guest's
 Minecraft account. Gameplay does not use the verified principal yet. The future

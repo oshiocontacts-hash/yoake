@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fmt;
-use std::io::{self, Read, Write};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -8,7 +7,11 @@ use horizon_friends::social::{
     GrantError, GrantVerifier, HostTokenVerifier, RegisterSession, SignedGrant, VerifiedGrant,
 };
 
-const BUFFER_BYTES: usize = 16 * 1024;
+mod forward;
+pub use forward::{Direction, ForwardError, ForwardProgress, PairedConnection};
+
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone, Copy, Debug)]
 pub struct SessionLimits {
@@ -164,17 +167,15 @@ impl SocialRelay {
         unix_time: u64,
         now: Instant,
     ) -> Result<PendingGuest<GUEST>, RelayError> {
+        // The signature comes first, without any lock, so unauthenticated callers learn
+        // nothing about sessions and the global lock never covers the crypto.
+        let checked = self.verifier.verify_signature(signed)?;
         let mut sessions = self.sessions.lock().map_err(|_| RelayError::Unavailable)?;
         let session = sessions
             .get_mut(&signed.grant.session_id)
             .filter(|session| session.active)
             .ok_or(RelayError::UnknownSession)?;
-        let verified = self.verifier.verify_at(
-            signed,
-            &signed.grant.session_id,
-            &session.host_principal,
-            unix_time,
-        )?;
+        let verified = checked.check(&signed.grant.session_id, &session.host_principal, unix_time)?;
         session.prune(unix_time, now);
         let nonce = verified.nonce();
         if session.used.contains_key(&nonce) || session.slots.contains_key(&nonce) {
@@ -215,17 +216,17 @@ impl<GUEST> PendingGuest<GUEST> {
         &self.verified
     }
 
-    pub fn is_expired(&self, now: Instant) -> bool {
-        let Ok(sessions) = self.relay.sessions.lock() else { return true; };
-        let Some(session) = sessions.get(self.verified.session_id()).filter(|s| s.active) else {
-            return true;
-        };
-        match session.slots.get(&self.verified.nonce()) {
-            Some(slot) if slot.id == self.slot_id => {
-                now.checked_duration_since(slot.last_activity).unwrap_or_default()
-                    >= session.limits.idle_timeout
-            }
-            _ => true,
+    pub fn slot_id(&self) -> u64 { self.slot_id }
+
+    pub fn is_expired(&self, now: Instant) -> bool { self.probe().is_expired(now) }
+
+    /// A cheap handle for watching this guest's slot without owning the guest.
+    pub fn probe(&self) -> SlotProbe {
+        SlotProbe {
+            relay: self.relay.clone(),
+            session_id: self.verified.session_id().to_owned(),
+            nonce: self.verified.nonce(),
+            slot_id: self.slot_id,
         }
     }
 
@@ -245,12 +246,10 @@ impl<GUEST> PendingGuest<GUEST> {
             .get_mut(self.verified.session_id())
             .filter(|session| session.active)
             .ok_or(RelayError::UnknownSession)?;
-        self.relay.verifier.verify_at(
-            signed,
-            self.verified.session_id(),
-            &session.host_principal,
-            unix_time,
-        )?;
+        // `signed == self.signed`, whose signature was verified when the guest arrived.
+        if self.verified.expires_at() <= unix_time {
+            return Err(RelayError::Grant(GrantError::Expired));
+        }
         if !session.token.verify(host_token) {
             return Err(RelayError::WrongToken);
         }
@@ -265,15 +264,7 @@ impl<GUEST> PendingGuest<GUEST> {
         slot.paired = true;
         slot.last_activity = now;
         self.armed = false;
-        Ok(PairedConnection {
-            relay: self.relay.clone(),
-            verified: self.verified.clone(),
-            slot_id: self.slot_id,
-            guest,
-            host,
-            guest_to_host: Buffer::new(),
-            host_to_guest: Buffer::new(),
-        })
+        Ok(PairedConnection::new(self.relay.clone(), self.verified.clone(), self.slot_id, guest, host))
     }
 }
 
@@ -285,139 +276,28 @@ impl<GUEST> Drop for PendingGuest<GUEST> {
     }
 }
 
-struct Buffer {
-    bytes: Vec<u8>,
-    offset: usize,
-}
-
-impl Buffer {
-    fn new() -> Self {
-        Self { bytes: Vec::new(), offset: 0 }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Direction {
-    GuestToHost,
-    HostToGuest,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ForwardProgress {
-    Transferred(usize),
-    Blocked,
-    Eof,
-}
-
-#[derive(Debug)]
-pub enum ForwardError {
-    Relay(RelayError),
-    Io(io::Error),
-}
-
-pub struct PairedConnection<GUEST, HOST> {
+pub struct SlotProbe {
     relay: SocialRelay,
-    verified: VerifiedGrant,
+    session_id: String,
+    nonce: [u8; 32],
     slot_id: u64,
-    guest: GUEST,
-    host: HOST,
-    guest_to_host: Buffer,
-    host_to_guest: Buffer,
 }
 
-impl<GUEST: Read + Write, HOST: Read + Write> PairedConnection<GUEST, HOST> {
-    pub fn verified_grant(&self) -> &VerifiedGrant {
-        &self.verified
-    }
-
-    pub fn forward_once(
-        &mut self,
-        direction: Direction,
-        now: Instant,
-    ) -> Result<ForwardProgress, ForwardError> {
-        let mut sessions = self.relay.sessions.lock().map_err(|_| ForwardError::Relay(RelayError::Unavailable))?;
-        let session = sessions
-            .get_mut(self.verified.session_id())
-            .filter(|session| session.active)
-            .ok_or(ForwardError::Relay(RelayError::UnknownSession))?;
-        let nonce = self.verified.nonce();
-        let slot = session.slots.get(&nonce)
-            .filter(|slot| slot.paired && slot.id == self.slot_id)
-            .ok_or(ForwardError::Relay(RelayError::TimedOut))?;
-        if now.checked_duration_since(slot.last_activity).unwrap_or_default() >= session.limits.idle_timeout {
-            session.slots.remove(&nonce);
-            return Err(ForwardError::Relay(RelayError::TimedOut));
-        }
-        let elapsed = now.checked_duration_since(session.last_refill).unwrap_or_default();
-        session.tokens = (session.tokens + elapsed.as_secs_f64() * session.limits.bytes_per_second as f64)
-            .min(session.limits.burst_bytes as f64);
-        session.last_refill = now.max(session.last_refill);
-        let budget = (session.tokens as usize).min(BUFFER_BYTES);
-        if budget == 0 {
-            return Ok(ForwardProgress::Blocked);
-        }
-        let progress = match direction {
-            Direction::GuestToHost => transfer(&mut self.guest, &mut self.host, &mut self.guest_to_host, budget)?,
-            Direction::HostToGuest => transfer(&mut self.host, &mut self.guest, &mut self.host_to_guest, budget)?,
-        };
-        if let ForwardProgress::Transferred(written) = progress {
-            session.tokens -= written as f64;
-            if let Some(slot) = session.slots.get_mut(&nonce) {
-                slot.last_activity = now;
+impl SlotProbe {
+    /// True once the slot is gone, retired, or idle past the limit. Takes only the sessions lock.
+    pub fn is_expired(&self, now: Instant) -> bool {
+        let Ok(sessions) = self.relay.sessions.lock() else { return true; };
+        let Some(session) = sessions.get(&self.session_id).filter(|s| s.active) else { return true; };
+        match session.slots.get(&self.nonce) {
+            Some(slot) if slot.id == self.slot_id => {
+                now.checked_duration_since(slot.last_activity).unwrap_or_default() >= session.limits.idle_timeout
             }
+            _ => true,
         }
-        Ok(progress)
     }
 }
 
-fn transfer<READER: Read, WRITER: Write>(
-    reader: &mut READER,
-    writer: &mut WRITER,
-    buffer: &mut Buffer,
-    budget: usize,
-) -> Result<ForwardProgress, ForwardError> {
-    if buffer.bytes.is_empty() {
-        buffer.bytes.resize(budget, 0);
-        match reader.read(&mut buffer.bytes) {
-            Ok(0) => {
-                buffer.bytes.clear();
-                return Ok(ForwardProgress::Eof);
-            }
-            Ok(read) => buffer.bytes.truncate(read),
-            Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
-                buffer.bytes.clear();
-                return Ok(ForwardProgress::Blocked);
-            }
-            Err(error) => {
-                buffer.bytes.clear();
-                return Err(ForwardError::Io(error));
-            }
-        }
-    }
-    let end = (buffer.offset + budget).min(buffer.bytes.len());
-    let written = match writer.write(&buffer.bytes[buffer.offset..end]) {
-        Ok(0) => return Err(ForwardError::Io(io::ErrorKind::WriteZero.into())),
-        Ok(written) => written,
-        Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
-            return Ok(ForwardProgress::Blocked);
-        }
-        Err(error) => return Err(ForwardError::Io(error)),
-    };
-    buffer.offset += written;
-    if buffer.offset == buffer.bytes.len() {
-        buffer.bytes.clear();
-        buffer.offset = 0;
-    }
-    Ok(ForwardProgress::Transferred(written))
-}
-
-impl<GUEST, HOST> Drop for PairedConnection<GUEST, HOST> {
-    fn drop(&mut self) {
-        release_slot(&self.relay, &self.verified, self.slot_id);
-    }
-}
-
-fn release_slot(relay: &SocialRelay, verified: &VerifiedGrant, slot_id: u64) {
+pub(super) fn release_slot(relay: &SocialRelay, verified: &VerifiedGrant, slot_id: u64) {
     if let Ok(mut sessions) = relay.sessions.lock() {
         if let Some(session) = sessions.get_mut(verified.session_id()) {
             if session.slots.get(&verified.nonce()).is_some_and(|slot| slot.id == slot_id) {
@@ -427,162 +307,3 @@ fn release_slot(relay: &SocialRelay, verified: &VerifiedGrant, slot_id: u64) {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use horizon_friends::social::Grant;
-    use ring::signature::Ed25519KeyPair;
-    use std::cell::RefCell;
-    use std::io::Cursor;
-    use std::rc::Rc;
-
-    struct TestStream {
-        incoming: Cursor<Vec<u8>>,
-        outgoing: Rc<RefCell<Vec<u8>>>,
-    }
-
-    impl TestStream {
-        fn new(input: &[u8]) -> (Self, Rc<RefCell<Vec<u8>>>) {
-            let outgoing = Rc::new(RefCell::new(Vec::new()));
-            (Self { incoming: Cursor::new(input.to_vec()), outgoing: outgoing.clone() }, outgoing)
-        }
-
-        fn empty() -> Self {
-            Self::new(&[]).0
-        }
-    }
-
-    impl Read for TestStream {
-        fn read(&mut self, bytes: &mut [u8]) -> io::Result<usize> {
-            self.incoming.read(bytes)
-        }
-    }
-
-    impl Write for TestStream {
-        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-            self.outgoing.borrow_mut().extend_from_slice(bytes);
-            Ok(bytes.len())
-        }
-
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
-        }
-    }
-
-    const SEED: &str = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60";
-    const PUBLIC: &str = "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a";
-
-    fn hex<const LENGTH: usize>(value: &str) -> [u8; LENGTH] {
-        let mut output = [0; LENGTH];
-        for (index, byte) in output.iter_mut().enumerate() {
-            *byte = u8::from_str_radix(&value[index * 2..index * 2 + 2], 16).unwrap();
-        }
-        output
-    }
-
-    fn signed(nonce: u8, exp: u64) -> SignedGrant {
-        let grant = Grant {
-            v: 1,
-            session_id: "session-1".into(),
-            host_principal: "member:host".into(),
-            guest_principal: "guest:alice".into(),
-            mc_profile: Some("profile-1".into()),
-            relay_only: true,
-            exp,
-            nonce: format!("{nonce:02x}").repeat(32),
-        };
-        let key = Ed25519KeyPair::from_seed_unchecked(&hex::<32>(SEED)).unwrap();
-        let signature = key.sign(&grant.signing_bytes().unwrap()).as_ref().iter()
-            .map(|byte| format!("{byte:02x}")).collect();
-        SignedGrant { grant, signature }
-    }
-
-    fn setup(max_connections: usize, idle_timeout: Duration, burst_bytes: usize, rate: u64) -> (SocialRelay, Instant) {
-        let now = Instant::now();
-        let relay = SocialRelay::new(hex::<32>(PUBLIC), 4);
-        let request = RegisterSession::relay_only("session-1".into(), "member:host".into());
-        relay.provision(&request, &"ab".repeat(32), SessionLimits {
-            max_connections,
-            max_nonces: 8,
-            bytes_per_second: rate,
-            burst_bytes,
-            idle_timeout,
-        }, now).unwrap();
-        (relay, now)
-    }
-
-    #[test]
-    fn pairing_requires_the_host_token_and_the_exact_guest_grant() {
-        let (relay, now) = setup(2, Duration::from_secs(30), 32, 32);
-        let grant = signed(1, 200);
-        let (guest, guest_output) = TestStream::new(b"hello");
-        let (host, host_output) = TestStream::new(b"welcome");
-        let mut pending = relay.begin_guest(&grant, guest, 100, now).unwrap();
-        assert_eq!(pending.verified_grant().guest_principal(), "guest:alice");
-        assert!(matches!(pending.pair(&grant, &"cd".repeat(32), TestStream::empty(), 100, now), Err(RelayError::WrongToken)));
-        assert!(matches!(pending.pair(&signed(2, 200), &"ab".repeat(32), TestStream::empty(), 100, now), Err(RelayError::PairingMismatch)));
-        let mut pair = pending.pair(&grant, &"ab".repeat(32), host, 100, now).unwrap();
-        assert_eq!(pair.verified_grant().mc_profile(), Some("profile-1"));
-        assert_eq!(pair.forward_once(Direction::GuestToHost, now).unwrap(), ForwardProgress::Transferred(5));
-        assert_eq!(pair.forward_once(Direction::HostToGuest, now).unwrap(), ForwardProgress::Transferred(7));
-        assert_eq!(host_output.borrow().as_slice(), b"hello");
-        assert_eq!(guest_output.borrow().as_slice(), b"welcome");
-    }
-
-    #[test]
-    fn connection_capacity_is_released_without_allowing_grant_replay() {
-        let (relay, now) = setup(1, Duration::from_secs(30), 32, 32);
-        let first = signed(1, 200);
-        let second = signed(2, 200);
-        let mut pending = relay.begin_guest(&first, TestStream::empty(), 100, now).unwrap();
-        assert!(matches!(relay.begin_guest(&second, TestStream::empty(), 100, now), Err(RelayError::ConnectionLimit)));
-        let pair = pending.pair(&first, &"ab".repeat(32), TestStream::empty(), 100, now).unwrap();
-        assert!(matches!(relay.begin_guest(&second, TestStream::empty(), 100, now), Err(RelayError::ConnectionLimit)));
-        drop(pair);
-        assert!(matches!(relay.begin_guest(&first, TestStream::empty(), 100, now), Err(RelayError::Grant(GrantError::Replay))));
-        assert!(relay.begin_guest(&second, TestStream::empty(), 100, now).is_ok());
-    }
-
-    #[test]
-    fn idle_pending_and_paired_connections_expire() {
-        let (relay, now) = setup(1, Duration::from_secs(5), 32, 32);
-        let first = signed(1, 200);
-        let second = signed(2, 200);
-        let mut stale = relay.begin_guest(&first, TestStream::empty(), 100, now).unwrap();
-        let later = now + Duration::from_secs(6);
-        let (guest, _) = TestStream::new(b"late");
-        let (host, host_output) = TestStream::new(&[]);
-        let mut pending = relay.begin_guest(&second, guest, 106, later).unwrap();
-        assert!(matches!(stale.pair(&first, &"ab".repeat(32), TestStream::empty(), 106, later), Err(RelayError::TimedOut)));
-        let mut pair = pending.pair(&second, &"ab".repeat(32), host, 106, later).unwrap();
-        assert!(matches!(pair.forward_once(Direction::GuestToHost, later + Duration::from_secs(5)), Err(ForwardError::Relay(RelayError::TimedOut))));
-        assert!(host_output.borrow().is_empty());
-        assert!(relay.begin_guest(&signed(3, 200), TestStream::empty(), 111, later + Duration::from_secs(5)).is_ok());
-    }
-
-    #[test]
-    fn bandwidth_budget_is_shared_across_directions() {
-        let (relay, now) = setup(1, Duration::from_secs(30), 4, 4);
-        let grant = signed(1, 200);
-        let (guest, guest_output) = TestStream::new(b"1234");
-        let (host, host_output) = TestStream::new(b"abcd");
-        let mut pending = relay.begin_guest(&grant, guest, 100, now).unwrap();
-        let mut pair = pending.pair(&grant, &"ab".repeat(32), host, 100, now).unwrap();
-        assert_eq!(pair.forward_once(Direction::GuestToHost, now).unwrap(), ForwardProgress::Transferred(4));
-        assert_eq!(pair.forward_once(Direction::HostToGuest, now).unwrap(), ForwardProgress::Blocked);
-        assert_eq!(pair.forward_once(Direction::HostToGuest, now + Duration::from_secs(1)).unwrap(), ForwardProgress::Transferred(4));
-        assert_eq!(host_output.borrow().as_slice(), b"1234");
-        assert_eq!(guest_output.borrow().as_slice(), b"abcd");
-    }
-
-    #[test]
-    fn stale_handle_cannot_remove_a_reused_slot() {
-        let (relay, now) = setup(1, Duration::from_secs(5), 32, 32);
-        let stale = relay.begin_guest(&signed(1, 105), TestStream::empty(), 100, now).unwrap();
-        let later = now + Duration::from_secs(6);
-        let fresh_grant = signed(1, 200);
-        let mut fresh = relay.begin_guest(&fresh_grant, TestStream::empty(), 106, later).unwrap();
-        drop(stale);
-        assert!(fresh.pair(&fresh_grant, &"ab".repeat(32), TestStream::empty(), 106, later).is_ok());
-    }
-}

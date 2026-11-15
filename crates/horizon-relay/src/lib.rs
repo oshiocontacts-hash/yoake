@@ -6,6 +6,7 @@
 //! State is in memory; nothing about players is logged.
 pub mod limits;
 pub mod social;
+pub mod social_cert;
 pub mod social_server;
 pub mod social_tls;
 

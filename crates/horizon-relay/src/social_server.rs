@@ -1,42 +1,50 @@
 //! Optional listener for the authenticated social control protocol.
+//!
+//! A guest registers its grant and waits; a host presenting the same grant and
+//! the session token takes the guest over and the host's thread forwards between
+//! the two channels. A bad host never disturbs a waiting guest. Documented limits:
+//! a waiting guest that disconnects is noticed only when its slot hits the idle
+//! limit, a bridged connection can outlive the grant's `exp`, and there is no
+//! clock-skew allowance on `exp`.
 use std::{
     collections::HashMap,
     io,
     net::{SocketAddr, TcpListener, TcpStream},
-    sync::{Arc, Condvar, Mutex, MutexGuard, atomic::{AtomicBool, Ordering}},
+    sync::{Arc, Mutex, MutexGuard, atomic::{AtomicBool, Ordering}},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use horizon_friends::{
-    social::{FromRelay, SignedGrant, ToRelay},
+    social::{FromRelay, SignedGrant, ToRelay, decode_hex},
     social_tls::{ChannelAcceptor, ControlChannel},
 };
-use crate::{
-    social::{Direction, ForwardProgress, PairedConnection, PendingGuest, SocialRelay},
-    social_tls::{HandshakeLimits, TlsAcceptor, read_certificate_and_key},
-};
+use crate::social::{Direction, ForwardProgress, PairedConnection, PendingGuest, SocialRelay};
+#[path = "social_server_config.rs"]
+mod config;
 #[path = "social_server_stream.rs"]
 mod stream;
 use stream::MessageStream;
 
 type Channel = Box<dyn ControlChannel>;
 type Pending = PendingGuest<MessageStream>;
-type SharedPending = Arc<(Mutex<HashMap<[u8; 32], PendingEntry>>, Condvar)>;
+type Key = (String, [u8; 32]);
+/// Waiting guests by (session id, grant nonce).
+type PendingMap = Arc<Mutex<HashMap<Key, PendingEntry>>>;
+
+const PENDING_POLL: Duration = Duration::from_millis(20);
 
 #[derive(Clone)]
 pub struct SocialServer {
     relay: SocialRelay,
     acceptor: Arc<dyn ChannelAcceptor>,
-    pending: SharedPending,
+    pending: PendingMap,
     stop: Arc<AtomicBool>,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
-enum Outcome { Waiting, Bridged, Rejected }
 struct PendingEntry {
-    pending: Option<Pending>,
+    pending: Pending,
     guest: MessageStream,
-    outcome: Outcome,
+    slot: u64,
 }
 
 impl SocialServer {
@@ -44,7 +52,7 @@ impl SocialServer {
         Self {
             relay: SocialRelay::new(portal_key, 1024),
             acceptor,
-            pending: Arc::new((Mutex::new(HashMap::new()), Condvar::new())),
+            pending: Arc::new(Mutex::new(HashMap::new())),
             stop: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -55,31 +63,24 @@ impl SocialServer {
 
     /// Missing or invalid settings disable only this independent listener.
     pub fn from_env() -> Option<(SocketAddr, Self)> {
+        let var = |name| std::env::var(name).ok();
         Self::from_options(
-            std::env::var("HORIZON_RELAY_SOCIAL_ADDR").ok(),
-            std::env::var("HORIZON_RELAY_SOCIAL_CERT").ok(),
-            std::env::var("HORIZON_RELAY_SOCIAL_CERT_KEY").ok(),
-            std::env::var("HORIZON_RELAY_PORTAL_KEY").ok(),
+            var("HORIZON_RELAY_SOCIAL_ADDR"),
+            var("HORIZON_RELAY_SOCIAL_CERT"),
+            var("HORIZON_RELAY_SOCIAL_CERT_KEY"),
+            var("HORIZON_RELAY_PORTAL_KEY"),
         )
     }
 
     pub fn from_options(address: Option<String>, cert: Option<String>, key: Option<String>, portal: Option<String>) -> Option<(SocketAddr, Self)> {
-        let address = match address.and_then(|value| value.parse().ok()) {
-            Some(address) => address,
-            None => {
-                eprintln!("horizon-relay: social listener disabled: invalid or missing HORIZON_RELAY_SOCIAL_ADDR");
-                return None;
+        match config::settings(address, cert, key, portal) {
+            Ok(Some(settings)) => Some((settings.address, Self::new(settings.portal_key, Arc::new(settings.acceptor)))),
+            Ok(None) => {
+                println!("horizon-relay: social listener disabled (not configured)");
+                None
             }
-        };
-        let configured = cert.zip(key).and_then(|(cert, key)| {
-            let (cert, key) = read_certificate_and_key(cert.as_ref(), key.as_ref()).ok()?;
-            TlsAcceptor::from_der(cert, key, HandshakeLimits::default()).ok()
-        });
-        let portal = portal.and_then(|value| decode_key(&value));
-        match (configured, portal) {
-            (Some(acceptor), Some(portal)) => Some((address, Self::new(portal, Arc::new(acceptor)))),
-            _ => {
-                eprintln!("horizon-relay: social listener disabled: invalid or missing certificate/key/portal configuration");
+            Err(reason) => {
+                eprintln!("horizon-relay: social listener disabled: {reason}");
                 None
             }
         }
@@ -117,90 +118,83 @@ impl SocialServer {
         let mut channel = self.acceptor.accept(stream)?;
         let request = channel.recv_message().and_then(|bytes| {
             serde_json::from_slice(&bytes).map_err(io::Error::other)
-        })?;
+        });
         match request {
-            ToRelay::Guest { grant } => self.guest(channel, grant),
-            ToRelay::Host { grant, token } => self.host(channel, grant, token),
+            Ok(ToRelay::Guest { grant }) => self.guest(channel, grant),
+            Ok(ToRelay::Host { grant, token }) => self.host(channel, grant, token),
+            Err(error) => {
+                channel.shutdown();
+                Err(error)
+            }
         }
     }
 
     fn guest(&self, channel: Channel, grant: SignedGrant) -> io::Result<()> {
         let stream = MessageStream::new(channel);
         let Some(key) = grant_key(&grant) else { return reject(stream); };
+        // Verifies the signature first, then reserves the slot; nothing can pair yet.
         let pending = match self.relay.begin_guest(&grant, stream.clone(), unix_time(), Instant::now()) {
             Ok(pending) => pending,
             Err(_) => return reject(stream),
         };
-        let entry = PendingEntry { pending: Some(pending), guest: stream.clone(), outcome: Outcome::Waiting };
-        let (lock, wake) = &*self.pending;
-        lock_unpoison(lock).insert(key, entry);
+        // `waiting` goes out before the entry exists, so `bridged` can never overtake it.
         if let Err(error) = stream.send_from_relay(&FromRelay::Waiting {}) {
-            lock_unpoison(lock).remove(&key);
             stream.shutdown();
             return Err(error);
         }
-        let mut guard = lock_unpoison(lock);
-        loop {
-            let expired = guard.get(&key).and_then(|entry| entry.pending.as_ref())
-                .is_some_and(|pending| pending.is_expired(Instant::now()));
-            let outcome = guard.get(&key).map(|entry| entry.outcome);
-            if expired || outcome != Some(Outcome::Waiting) {
-                guard.remove(&key);
-                drop(guard);
-                if outcome != Some(Outcome::Bridged) { stream.shutdown(); }
-                return Ok(());
+        let (probe, slot) = (pending.probe(), pending.slot_id());
+        {
+            let mut map = lock_unpoison(&self.pending);
+            if map.contains_key(&key) {
+                drop(map);
+                return reject(stream);
             }
-            guard = wake.wait_timeout(guard, Duration::from_millis(10))
-                .unwrap_or_else(|poisoned| poisoned.into_inner()).0;
+            map.insert(key.clone(), PendingEntry { pending, guest: stream.clone(), slot });
+        }
+        loop {
+            std::thread::sleep(PENDING_POLL);
+            let expired = probe.is_expired(Instant::now()); // sessions lock only
+            let mut map = lock_unpoison(&self.pending);
+            match map.get(&key) {
+                Some(entry) if entry.slot == slot => {
+                    if expired {
+                        let entry = map.remove(&key);
+                        drop(map);
+                        drop(entry);
+                        stream.shutdown();
+                        return Ok(());
+                    }
+                }
+                _ => return Ok(()), // a host took it: that thread owns the connection now
+            }
         }
     }
 
     fn host(&self, channel: Channel, grant: SignedGrant, token: String) -> io::Result<()> {
         let host = MessageStream::new(channel);
         let Some(key) = grant_key(&grant) else { return reject(host); };
-        let (lock, _) = &*self.pending;
+        // Token and grant are checked before the guest is removed: a failure leaves it waiting.
         let (result, guest) = {
-            let mut guard = lock_unpoison(lock);
-            let Some(entry) = guard.get_mut(&key).filter(|entry| entry.outcome == Outcome::Waiting) else {
-                drop(guard);
+            let mut map = lock_unpoison(&self.pending);
+            let Some(entry) = map.get_mut(&key) else {
+                drop(map);
                 return reject(host);
             };
             let guest = entry.guest.clone();
-            let mut pending = entry.pending.take().expect("waiting entry has a pending guest");
-            let result = pending.pair(&grant, &token, host.clone(), unix_time(), Instant::now());
+            let result = entry.pending.pair(&grant, &token, host.clone(), unix_time(), Instant::now());
+            let taken = if result.is_ok() { map.remove(&key) } else { None };
+            drop(map);
+            drop(taken);
             (result, guest)
         };
-        let finish = |outcome| {
-            let (lock, wake) = &*self.pending;
-            if let Some(entry) = lock_unpoison(lock).get_mut(&key) { entry.outcome = outcome; }
-            wake.notify_all();
-        };
-        match result {
-            Ok(mut pair) => {
-                let host_sent = host.send_from_relay(&FromRelay::Bridged {}).is_ok();
-                let guest_sent = guest.send_from_relay(&FromRelay::Bridged {}).is_ok();
-                let bridged = host_sent && guest_sent;
-                finish(if bridged { Outcome::Bridged } else { Outcome::Rejected });
-                if !bridged {
-                    host.shutdown();
-                    guest.shutdown();
-                    return Ok(());
-                }
-                forward(&mut pair);
-                drop(pair);
-                host.shutdown();
-                guest.shutdown();
-                Ok(())
-            }
-            Err(_) => {
-                let _ = host.send_from_relay(&FromRelay::Rejected {});
-                let _ = guest.send_from_relay(&FromRelay::Rejected {});
-                finish(Outcome::Rejected);
-                host.shutdown();
-                guest.shutdown();
-                Ok(())
-            }
-        }
+        let Ok(mut pair) = result else { return reject(host); };
+        let bridged = host.send_from_relay(&FromRelay::Bridged {}).is_ok()
+            && guest.send_from_relay(&FromRelay::Bridged {}).is_ok();
+        if bridged { forward(&mut pair); }
+        drop(pair);
+        host.shutdown();
+        guest.shutdown();
+        Ok(())
     }
 }
 
@@ -214,7 +208,7 @@ fn forward(pair: &mut PairedConnection<MessageStream, MessageStream>) {
                 Ok(ForwardProgress::Eof) | Err(_) => return,
             }
         }
-        if !active { std::thread::sleep(Duration::from_millis(2)); }
+        if !active { std::thread::sleep(Duration::from_millis(1)); }
     }
 }
 
@@ -229,12 +223,7 @@ fn lock_unpoison<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 fn unix_time() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
 }
-fn grant_key(grant: &SignedGrant) -> Option<[u8; 32]> { decode_key(&grant.grant.nonce) }
-fn decode_key(text: &str) -> Option<[u8; 32]> {
-    if text.len() != 64 { return None; }
-    let mut output = [0; 32];
-    for (index, byte) in output.iter_mut().enumerate() {
-        *byte = u8::from_str_radix(&text[index * 2..index * 2 + 2], 16).ok()?;
-    }
-    Some(output)
+/// Unverified input: only lowercase hex of the exact length gets a key.
+fn grant_key(grant: &SignedGrant) -> Option<Key> {
+    Some((grant.grant.session_id.clone(), decode_hex::<32>(&grant.grant.nonce)?))
 }

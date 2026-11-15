@@ -10,7 +10,8 @@ use horizon_relay::{
 };
 use rcgen::{BasicConstraints, CertificateParams, ExtendedKeyUsagePurpose, IsCa, Issuer, KeyPair, KeyUsagePurpose};
 use ring::signature::Ed25519KeyPair;
-use std::{net::{SocketAddr, TcpStream}, sync::Arc, time::{Duration, SystemTime, UNIX_EPOCH}};
+use rustls::{ClientConfig, ClientConnection, RootCertStore, StreamOwned, pki_types::{CertificateDer, ServerName}};
+use std::{io::ErrorKind, net::{SocketAddr, TcpStream}, sync::Arc, time::{Duration, Instant, SystemTime, UNIX_EPOCH}};
 
 pub const TOKEN: &str = "abababababababababababababababababababababababababababababababab";
 const PORTAL_SEED: &str = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60";
@@ -24,13 +25,14 @@ pub struct TestTls {
 
 pub fn tls(name: &str) -> TestTls {
     let mut ca_params = CertificateParams::new(Vec::<String>::new()).unwrap();
-    ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
+    ca_params.is_ca = IsCa::Ca(BasicConstraints::Constrained(0));
     ca_params.key_usages = vec![KeyUsagePurpose::KeyCertSign, KeyUsagePurpose::DigitalSignature];
     let ca_key = KeyPair::generate().unwrap();
     let ca = ca_params.self_signed(&ca_key).unwrap();
     let issuer = Issuer::new(ca_params, ca_key);
     let mut leaf_params = CertificateParams::new(vec![name.to_owned()]).unwrap();
     leaf_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
+    leaf_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
     let leaf_key = KeyPair::generate().unwrap();
     let cert = leaf_params.signed_by(&leaf_key, &issuer).unwrap();
     TestTls {
@@ -40,6 +42,23 @@ pub fn tls(name: &str) -> TestTls {
     }
 }
 
+/// A leaf valid only for the given years, signed by its own CA.
+pub fn tls_valid_between(name: &str, from: i32, to: i32) -> TestTls {
+    let mut ca_params = CertificateParams::new(Vec::<String>::new()).unwrap();
+    ca_params.is_ca = IsCa::Ca(BasicConstraints::Constrained(0));
+    ca_params.key_usages = vec![KeyUsagePurpose::KeyCertSign, KeyUsagePurpose::DigitalSignature];
+    let ca_key = KeyPair::generate().unwrap();
+    let ca = ca_params.self_signed(&ca_key).unwrap();
+    let issuer = Issuer::new(ca_params, ca_key);
+    let mut leaf_params = CertificateParams::new(vec![name.to_owned()]).unwrap();
+    leaf_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
+    leaf_params.not_before = rcgen::date_time_ymd(from, 1, 1);
+    leaf_params.not_after = rcgen::date_time_ymd(to, 1, 1);
+    let leaf_key = KeyPair::generate().unwrap();
+    let cert = leaf_params.signed_by(&leaf_key, &issuer).unwrap();
+    TestTls { ca: ca.der().to_vec(), cert: cert.der().to_vec(), key: leaf_key.serialize_der() }
+}
+
 pub fn portal_key() -> [u8; 32] { hex(PORTAL_PUBLIC) }
 
 pub fn provision(relay: &SocialRelay, idle: Duration) {
@@ -47,7 +66,7 @@ pub fn provision(relay: &SocialRelay, idle: Duration) {
         &RegisterSession::relay_only("session-1".into(), "member:host".into()),
         TOKEN,
         SessionLimits {
-            max_connections: 4,
+            max_connections: 64,
             max_nonces: 16,
             bytes_per_second: 1_000_000,
             burst_bytes: 64 * 1024,
@@ -71,7 +90,7 @@ pub fn setup(idle: Duration) -> (SocialServer, SocketAddr, TestTls) {
 }
 
 pub fn client(address: SocketAddr, tls: &TestTls) -> ClientChannel {
-    client_channel(TcpStream::connect(address).unwrap(), &tls.ca, "relay.test", Duration::from_secs(2)).unwrap()
+    client_channel(TcpStream::connect(address).unwrap(), &[&tls.ca], "relay.test", Duration::from_secs(2)).unwrap()
 }
 
 pub fn send_to(channel: &mut dyn ControlChannel, message: &ToRelay) {
@@ -118,6 +137,49 @@ pub fn unix_time() -> u64 {
 
 pub fn assert_rejected(channel: &mut dyn ControlChannel) {
     assert!(matches!(recv_from(channel), FromRelay::Rejected {}));
+}
+
+/// The peer closed the channel (not a client-side timeout, which is `WouldBlock`),
+/// and well before the client's own 2 s receive timeout.
+pub fn assert_peer_closed(channel: &mut dyn ControlChannel) {
+    let started = Instant::now();
+    let error = channel.recv_message().unwrap_err();
+    assert!(
+        matches!(error.kind(), ErrorKind::UnexpectedEof | ErrorKind::ConnectionAborted | ErrorKind::ConnectionReset | ErrorKind::BrokenPipe),
+        "expected a peer close, got {error:?}",
+    );
+    assert!(started.elapsed() < Duration::from_millis(1500), "close took {:?}", started.elapsed());
+}
+
+/// A raw TLS 1.3 client with the explicit crypto provider, for tests that bypass `client_channel`.
+pub fn raw_client_config(ca: &[u8]) -> Arc<ClientConfig> {
+    let mut roots = RootCertStore::empty();
+    roots.add(CertificateDer::from(ca.to_vec())).unwrap();
+    Arc::new(
+        ClientConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
+            .with_protocol_versions(&[&rustls::version::TLS13]).unwrap()
+            .with_root_certificates(roots)
+            .with_no_client_auth(),
+    )
+}
+
+pub fn raw_client(address: SocketAddr, ca: &[u8]) -> StreamOwned<ClientConnection, TcpStream> {
+    let connection = ClientConnection::new(raw_client_config(ca), ServerName::try_from("relay.test".to_owned()).unwrap()).unwrap();
+    let socket = TcpStream::connect(address).unwrap();
+    socket.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+    let mut stream = StreamOwned::new(connection, socket);
+    while stream.conn.is_handshaking() {
+        stream.conn.complete_io(&mut stream.sock).unwrap();
+    }
+    stream
+}
+
+/// A signed grant with an arbitrary nonce text (the signature is junk when the text is not valid hex).
+pub fn grant_with_nonce(nonce: &str, exp: u64) -> SignedGrant {
+    let mut grant = signed("session-1", exp, 0);
+    grant.grant.nonce = nonce.to_owned();
+    grant.signature = "00".repeat(64);
+    grant
 }
 
 fn hex<const N: usize>(text: &str) -> [u8; N] {

@@ -1,13 +1,19 @@
 use std::{
     io::{self, Read, Write},
     sync::{Arc, Mutex, MutexGuard},
+    time::Duration,
 };
 use horizon_friends::social_tls::ControlChannel;
 
 type Channel = Box<dyn ControlChannel>;
 
-/// Message adapter for `PairedConnection`. TLS sockets remain blocking with
-/// short deadlines; timed-out reads become `WouldBlock` and retain partial frames.
+/// How long one forwarding read waits before the other direction gets its turn.
+const READ_TICK: Duration = Duration::from_millis(1);
+
+/// Message adapter for `PairedConnection`. A read that finds no whole message in
+/// one tick is `WouldBlock` (partial frames stay in the channel). A write sends a
+/// whole message or fails the connection; it never reports `WouldBlock`, so bytes
+/// are never offered twice.
 #[derive(Clone)]
 pub(super) struct MessageStream {
     channel: Arc<Mutex<Channel>>,
@@ -34,9 +40,11 @@ impl MessageStream {
 
 impl Read for MessageStream {
     fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
-        loop {
-            if self.offset < self.buffer.len() { break; }
-            let message = self.lock().recv_message()?;
+        while self.offset >= self.buffer.len() {
+            // An empty message carries nothing (and `Ok(0)` would read as EOF): skip it.
+            let Some(message) = self.lock().try_recv_message(READ_TICK)? else {
+                return Err(io::ErrorKind::WouldBlock.into());
+            };
             self.buffer = message;
             self.offset = 0;
         }

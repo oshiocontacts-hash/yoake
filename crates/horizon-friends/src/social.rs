@@ -68,7 +68,8 @@ impl fmt::Display for GrantError {
 
 impl std::error::Error for GrantError {}
 
-fn decode_hex<const LENGTH: usize>(value: &str) -> Option<[u8; LENGTH]> {
+/// Lowercase hexadecimal only (`[0-9a-f]`), exact length, byte-wise so multibyte text cannot panic.
+pub fn decode_hex<const LENGTH: usize>(value: &str) -> Option<[u8; LENGTH]> {
     fn digit(value: u8) -> Option<u8> {
         match value {
             b'0'..=b'9' => Some(value - b'0'),
@@ -174,19 +175,37 @@ pub struct GrantVerifier {
 impl GrantVerifier {
     pub fn new(public_key: [u8; 32]) -> Self { Self { public_key } }
 
-    pub fn verify_at(&self, signed: &SignedGrant, session_id: &str, host_principal: &str, now: u64) -> Result<VerifiedGrant, GrantError> {
+    /// Format and Ed25519 signature only; run this before looking anything else up.
+    pub fn verify_signature<'a>(&self, signed: &'a SignedGrant) -> Result<SignatureChecked<'a>, GrantError> {
         let bytes = signed.grant.signing_bytes()?;
         let signature = decode_hex::<64>(&signed.signature).ok_or(GrantError::InvalidFormat)?;
         signature::UnparsedPublicKey::new(&signature::ED25519, self.public_key)
             .verify(&bytes, &signature)
             .map_err(|_| GrantError::InvalidSignature)?;
-        if signed.grant.exp <= now { return Err(GrantError::Expired); }
-        if signed.grant.exp - now > MAX_GRANT_LIFETIME_SECS { return Err(GrantError::LifetimeTooLong); }
-        if signed.grant.session_id != session_id { return Err(GrantError::WrongSession); }
-        if signed.grant.host_principal != host_principal { return Err(GrantError::WrongHost); }
+        Ok(SignatureChecked { signed })
+    }
+
+    pub fn verify_at(&self, signed: &SignedGrant, session_id: &str, host_principal: &str, now: u64) -> Result<VerifiedGrant, GrantError> {
+        self.verify_signature(signed)?.check(session_id, host_principal, now)
+    }
+}
+
+/// A grant whose signature has been verified; only this can produce a `VerifiedGrant`.
+pub struct SignatureChecked<'a> {
+    signed: &'a SignedGrant,
+}
+
+impl SignatureChecked<'_> {
+    /// Time, session and host claims. There is no clock-skew allowance.
+    pub fn check(&self, session_id: &str, host_principal: &str, now: u64) -> Result<VerifiedGrant, GrantError> {
+        let grant = &self.signed.grant;
+        if grant.exp <= now { return Err(GrantError::Expired); }
+        if grant.exp - now > MAX_GRANT_LIFETIME_SECS { return Err(GrantError::LifetimeTooLong); }
+        if grant.session_id != session_id { return Err(GrantError::WrongSession); }
+        if grant.host_principal != host_principal { return Err(GrantError::WrongHost); }
         Ok(VerifiedGrant {
-            grant: signed.grant.clone(),
-            nonce: decode_hex::<32>(&signed.grant.nonce).ok_or(GrantError::InvalidFormat)?,
+            grant: grant.clone(),
+            nonce: decode_hex::<32>(&grant.nonce).ok_or(GrantError::InvalidFormat)?,
         })
     }
 }
@@ -392,6 +411,18 @@ mod tests {
         altered.grant.guest_principal = "guest:mallory".into();
         assert!(matches!(verifier.verify_at(&altered, "session-1", "member:host", 1_700_000_000), Err(GrantError::InvalidSignature)));
         assert!(matches!(HostGrantVerifier::new(key, 0).authorize_at(&signed, "session-1", "member:host", 1_700_000_000), Err(GrantError::ReplayCacheFull)));
+    }
+
+    #[test]
+    fn hex_decoding_is_lowercase_ascii_only_and_cannot_panic() {
+        assert!(decode_hex::<2>("00ff").is_some());
+        assert!(decode_hex::<2>("00FF").is_none());
+        assert!(decode_hex::<2>("+f00").is_none());
+        assert!(decode_hex::<2>("0 f0").is_none());
+        assert!(decode_hex::<2>("00f").is_none());
+        // 4 bytes, but two multibyte characters: slicing by byte index would panic.
+        assert!(decode_hex::<2>("\u{e9}\u{e9}").is_none());
+        assert!(decode_hex::<32>(&"\u{e9}".repeat(32)).is_none());
     }
 
     #[test]

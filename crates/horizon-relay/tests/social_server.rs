@@ -1,18 +1,24 @@
 mod social_support;
-use horizon_friends::{social::FromRelay, social_tls::ControlChannel};
+use horizon_friends::{social::FromRelay, social_tls::{ClientChannel, ControlChannel, client_channel}};
 use horizon_relay::social_server::SocialServer;
+use rustls::{CertificateError, Error as TlsError};
 use social_support::*;
-use std::time::Duration;
+use std::{net::TcpStream, time::Duration};
+
+fn bridge(address: std::net::SocketAddr, tls: &TestTls, grant: &horizon_friends::social::SignedGrant) -> (ClientChannel, ClientChannel) {
+    let mut guest = guest(address, tls, grant);
+    assert!(matches!(recv_from(&mut guest), FromRelay::Waiting {}));
+    let mut host = host(address, tls, grant, TOKEN);
+    assert!(matches!(recv_from(&mut host), FromRelay::Bridged {}));
+    assert!(matches!(recv_from(&mut guest), FromRelay::Bridged {}));
+    (guest, host)
+}
 
 #[test]
 fn valid_guest_and_host_bridge_payloads_both_ways() {
     let (_server, address, tls) = setup(Duration::from_secs(5));
     let grant = signed("session-1", unix_time() + 60, 1);
-    let mut guest = guest(address, &tls, &grant);
-    assert!(matches!(recv_from(&mut guest), FromRelay::Waiting {}));
-    let mut host = host(address, &tls, &grant, TOKEN);
-    assert!(matches!(recv_from(&mut host), FromRelay::Bridged {}));
-    assert!(matches!(recv_from(&mut guest), FromRelay::Bridged {}));
+    let (mut guest, mut host) = bridge(address, &tls, &grant);
     guest.send_message(b"hello host").unwrap();
     assert_eq!(host.recv_message().unwrap(), b"hello host");
     host.send_message(b"hello guest").unwrap();
@@ -20,65 +26,200 @@ fn valid_guest_and_host_bridge_payloads_both_ways() {
 }
 
 #[test]
-fn wrong_host_token_is_rejected_and_closed() {
+fn data_still_flows_after_the_channels_were_idle_for_300_ms() {
+    let (_server, address, tls) = setup(Duration::from_secs(5));
+    let grant = signed("session-1", unix_time() + 60, 20);
+    let (mut guest, mut host) = bridge(address, &tls, &grant);
+    std::thread::sleep(Duration::from_millis(300));
+    guest.send_message(b"late").unwrap();
+    assert_eq!(host.recv_message().unwrap(), b"late");
+    std::thread::sleep(Duration::from_millis(300));
+    host.send_message(b"later").unwrap();
+    assert_eq!(guest.recv_message().unwrap(), b"later");
+}
+
+#[test]
+fn waiting_always_arrives_before_bridged() {
+    let (_server, address, tls) = setup(Duration::from_secs(5));
+    for nonce in 30..50 {
+        let grant = signed("session-1", unix_time() + 60, nonce);
+        let mut guest = guest(address, &tls, &grant);
+        // No wait for `waiting`: a host racing the guest is either refused or comes second.
+        let mut host = host(address, &tls, &grant, TOKEN);
+        let first = recv_from(&mut guest);
+        match recv_from(&mut host) {
+            FromRelay::Bridged {} => {
+                assert!(matches!(first, FromRelay::Waiting {}));
+                assert!(matches!(recv_from(&mut guest), FromRelay::Bridged {}));
+            }
+            other => assert!(matches!(other, FromRelay::Rejected {})),
+        }
+    }
+}
+
+#[test]
+fn wrong_host_token_is_rejected_and_the_guest_keeps_waiting() {
     let (_server, address, tls) = setup(Duration::from_secs(5));
     let grant = signed("session-1", unix_time() + 60, 2);
     let mut guest = guest(address, &tls, &grant);
     assert!(matches!(recv_from(&mut guest), FromRelay::Waiting {}));
-    let mut host = host(address, &tls, &grant, &"cd".repeat(32));
-    assert_rejected(&mut host);
-    assert!(host.recv_message().is_err());
-    assert_rejected(&mut guest);
-    assert!(guest.recv_message().is_err());
+    let mut bad = host(address, &tls, &grant, &"cd".repeat(32));
+    assert_rejected(&mut bad);
+    assert_peer_closed(&mut bad);
+    // Whoever holds only the grant cannot evict the guest.
+    assert!(guest.try_recv_message(Duration::from_millis(300)).unwrap().is_none());
+    let mut good = host(address, &tls, &grant, TOKEN);
+    assert!(matches!(recv_from(&mut good), FromRelay::Bridged {}));
+    assert!(matches!(recv_from(&mut guest), FromRelay::Bridged {}));
 }
 
 #[test]
-fn expired_grants_and_wrong_sessions_are_rejected() {
+fn a_host_with_a_different_grant_for_the_same_nonce_does_not_evict_the_guest() {
     let (_server, address, tls) = setup(Duration::from_secs(5));
-    let expired = signed("session-1", unix_time() - 1, 3);
+    let grant = signed("session-1", unix_time() + 60, 3);
+    let mut guest = guest(address, &tls, &grant);
+    assert!(matches!(recv_from(&mut guest), FromRelay::Waiting {}));
+    let mut forged = grant.clone();
+    forged.grant.guest_principal = "guest:mallory".into();
+    let mut bad = host(address, &tls, &forged, TOKEN);
+    assert_rejected(&mut bad);
+    assert!(guest.try_recv_message(Duration::from_millis(200)).unwrap().is_none());
+}
+
+#[test]
+fn expired_grants_and_wrong_sessions_are_rejected_and_closed() {
+    let (_server, address, tls) = setup(Duration::from_secs(5));
+    let expired = signed("session-1", unix_time() - 1, 4);
     let mut channel = guest(address, &tls, &expired);
     assert_rejected(&mut channel);
-    assert!(channel.recv_message().is_err());
-    let wrong = signed("session-2", unix_time() + 60, 4);
+    assert_peer_closed(&mut channel);
+    let wrong = signed("session-2", unix_time() + 60, 5);
     let mut channel = guest(address, &tls, &wrong);
     assert_rejected(&mut channel);
-    assert!(channel.recv_message().is_err());
+    assert_peer_closed(&mut channel);
 }
 
 #[test]
-fn wrong_relay_ca_fails_the_handshake() {
+fn a_grant_cannot_be_used_twice() {
+    let (_server, address, tls) = setup(Duration::from_secs(5));
+    let grant = signed("session-1", unix_time() + 60, 6);
+    let mut first = guest(address, &tls, &grant);
+    assert!(matches!(recv_from(&mut first), FromRelay::Waiting {}));
+    // While the first guest waits ...
+    let mut second = guest(address, &tls, &grant);
+    assert_rejected(&mut second);
+    assert!(first.try_recv_message(Duration::from_millis(200)).unwrap().is_none());
+    // ... and after it was bridged and closed.
+    let mut host = host(address, &tls, &grant, TOKEN);
+    assert!(matches!(recv_from(&mut host), FromRelay::Bridged {}));
+    drop((first, host));
+    let mut third = guest(address, &tls, &grant);
+    assert_rejected(&mut third);
+}
+
+#[test]
+fn two_hosts_with_the_same_grant_get_one_bridge_and_one_rejection() {
+    let (_server, address, tls) = setup(Duration::from_secs(5));
+    let grant = signed("session-1", unix_time() + 60, 7);
+    let mut guest = guest(address, &tls, &grant);
+    assert!(matches!(recv_from(&mut guest), FromRelay::Waiting {}));
+    let answers: Vec<bool> = std::thread::scope(|scope| {
+        let tasks: Vec<_> = (0..2).map(|_| scope.spawn(|| {
+            let mut channel = host(address, &tls, &grant, TOKEN);
+            matches!(recv_from(&mut channel), FromRelay::Bridged {})
+        })).collect();
+        tasks.into_iter().map(|task| task.join().unwrap()).collect()
+    });
+    assert_eq!(answers.iter().filter(|bridged| **bridged).count(), 1);
+    assert!(matches!(recv_from(&mut guest), FromRelay::Bridged {}));
+    // The relay did not panic: it still serves new grants.
+    let fresh = signed("session-1", unix_time() + 60, 8);
+    bridge(address, &tls, &fresh);
+}
+
+#[test]
+fn a_host_that_arrives_first_is_rejected_and_does_not_burn_the_grant() {
+    let (_server, address, tls) = setup(Duration::from_secs(5));
+    let grant = signed("session-1", unix_time() + 60, 9);
+    let mut early = host(address, &tls, &grant, TOKEN);
+    assert_rejected(&mut early);
+    assert_peer_closed(&mut early);
+    bridge(address, &tls, &grant);
+}
+
+#[test]
+fn malformed_nonces_are_rejected_without_panicking() {
+    let (_server, address, tls) = setup(Duration::from_secs(5));
+    let exp = unix_time() + 60;
+    let nonces = ["\u{e9}".repeat(32), "AB".repeat(32), format!("+f{}", "00".repeat(31)), "ab".repeat(31)];
+    for nonce in nonces {
+        let grant = grant_with_nonce(&nonce, exp);
+        let mut channel = guest(address, &tls, &grant);
+        assert_rejected(&mut channel);
+        let mut channel = host(address, &tls, &grant, TOKEN);
+        assert_rejected(&mut channel);
+    }
+    bridge(address, &tls, &signed("session-1", exp, 10));
+}
+
+#[test]
+fn a_grant_that_expires_between_guest_and_host_is_refused() {
+    let (_server, address, tls) = setup(Duration::from_secs(30));
+    let exp = unix_time() + 3;
+    let grant = signed("session-1", exp, 11);
+    let mut guest = guest(address, &tls, &grant);
+    assert!(matches!(recv_from(&mut guest), FromRelay::Waiting {}));
+    while unix_time() < exp {
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let mut host = host(address, &tls, &grant, TOKEN);
+    assert_rejected(&mut host);
+    assert_peer_closed(&mut host);
+}
+
+#[test]
+fn wrong_relay_ca_fails_with_a_certificate_error() {
     let (_server, address, _tls) = setup(Duration::from_secs(5));
     let other = tls("relay.test");
-    let stream = std::net::TcpStream::connect(address).unwrap();
-    let result = horizon_friends::social_tls::client_channel(
-        stream, &other.ca, "relay.test", Duration::from_secs(2),
-    );
-    assert!(result.is_err());
+    let error = client_channel(TcpStream::connect(address).unwrap(), &[&other.ca], "relay.test", Duration::from_secs(2))
+        .err().unwrap();
+    let inner = error.get_ref().and_then(|inner| inner.downcast_ref::<TlsError>());
+    assert!(matches!(inner, Some(TlsError::InvalidCertificate(CertificateError::UnknownIssuer | CertificateError::BadSignature))), "{error:?}");
+}
+
+#[test]
+fn either_of_two_trusted_cas_works_for_a_rotation_overlap() {
+    let (_server, address, tls) = setup(Duration::from_secs(5));
+    let retired = self::tls("relay.test");
+    for cas in [[&retired.ca, &tls.ca], [&tls.ca, &retired.ca]] {
+        let result = client_channel(TcpStream::connect(address).unwrap(), &cas, "relay.test", Duration::from_secs(2));
+        assert!(result.is_ok(), "{:?}", result.err());
+    }
 }
 
 #[test]
 fn pending_guest_is_closed_after_the_idle_timeout() {
     let (_server, address, tls) = setup(Duration::from_millis(100));
-    let grant = signed("session-1", unix_time() + 60, 5);
+    let grant = signed("session-1", unix_time() + 60, 12);
     let mut guest = guest(address, &tls, &grant);
     assert!(matches!(recv_from(&mut guest), FromRelay::Waiting {}));
-    assert!(guest.recv_message().is_err());
+    assert_peer_closed(&mut guest);
 }
 
 #[test]
 fn idle_bridged_pair_is_closed() {
     let (_server, address, tls) = setup(Duration::from_millis(100));
-    let grant = signed("session-1", unix_time() + 60, 6);
-    let mut guest = guest(address, &tls, &grant);
-    assert!(matches!(recv_from(&mut guest), FromRelay::Waiting {}));
-    let mut host = host(address, &tls, &grant, TOKEN);
-    assert!(matches!(recv_from(&mut host), FromRelay::Bridged {}));
-    assert!(matches!(recv_from(&mut guest), FromRelay::Bridged {}));
-    assert!(host.recv_message().is_err());
-    assert!(guest.recv_message().is_err());
+    let grant = signed("session-1", unix_time() + 60, 13);
+    let (mut guest, mut host) = bridge(address, &tls, &grant);
+    assert_peer_closed(&mut host);
+    assert_peer_closed(&mut guest);
 }
 
 #[test]
 fn no_social_configuration_does_not_start_a_listener() {
     assert!(SocialServer::from_options(None, None, None, None).is_none());
+    // Something set but unusable disables it too.
+    let key = Some("ab".repeat(32));
+    assert!(SocialServer::from_options(Some("127.0.0.1:0".into()), Some("nope.der".into()), Some("nope.key".into()), key).is_none());
+    assert!(SocialServer::from_options(Some("127.0.0.1:0".into()), None, None, Some("\u{e9}".repeat(32))).is_none());
 }
