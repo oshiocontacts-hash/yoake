@@ -133,9 +133,7 @@ mod platform {
             if !file.metadata()?.is_file() {
                 return Err(unsafe_entry());
             }
-            file.try_lock().map_err(|error| {
-                io::Error::other(format!("store is already open in another process: {error}"))
-            })?;
+            file.try_lock().map_err(io::Error::from)?;
             Ok(file)
         }
 
@@ -177,6 +175,12 @@ mod platform {
             let _existing = self.read(destination)?;
             let source = name(source)?;
             let destination = name(destination)?;
+            let directory = open_at(
+                &self.0,
+                OsStr::new("."),
+                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_CLOEXEC,
+                0,
+            )?;
             if unsafe {
                 libc::renameat(
                     self.0.as_raw_fd(),
@@ -186,7 +190,7 @@ mod platform {
                 )
             } == 0
             {
-                Ok(())
+                directory.sync_all()
             } else {
                 Err(io::Error::last_os_error())
             }
@@ -322,9 +326,7 @@ mod platform {
                 .custom_flags(OPEN_REPARSE_POINT)
                 .open(self.path.join(value))?;
             check(&file, false)?;
-            file.try_lock().map_err(|error| {
-                io::Error::other(format!("store is already open in another process: {error}"))
-            })?;
+            file.try_lock().map_err(io::Error::from)?;
             Ok(file)
         }
 

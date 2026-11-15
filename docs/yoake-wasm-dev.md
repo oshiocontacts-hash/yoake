@@ -131,10 +131,11 @@ client module fails to load does not run its server module either.
   one module in a 50 ms window may use 10 ms (client) or 25 ms (server) of it;
   further calls in the window are skipped (a skipped hook answers its fallback) and counted, and a module
   that overruns in 20 windows in a row is disabled. `init` has 250 ms.
-* Except for config and storage I/O, time spent inside a server service (the game breaking a block,
-  reading a container, another package's `handle-call`) is the game's, not the guest's: it extends the call's deadline (by at most 400 ms in all)
-  and does not count against the aggregate budget; the guest's own work stays bounded by fuel and the
-  clock, and the native helpers allow 512 to 1024 calls per mod and server tick.
+* Time spent inside a server service (the game breaking a block, reading a container, another
+  package's `handle-call`) extends the call's deadline by at most 400 ms in all, including config and
+  storage I/O. Config and storage I/O still count against the aggregate budget; other server-service
+  time is the game's, not the guest's, and is excluded. The guest's own work stays bounded by fuel
+  and the clock, and the native helpers allow 512 to 1024 calls per mod and server tick.
 * A hook that finds its module busy (re-entered from the module's own service call) answers its fallback
   and is counted; the first drop is logged.
 * A guest's answers are checked before they touch the game: floats must be finite, strings at most
@@ -342,23 +343,33 @@ All calls are confined to the current package's store:
 Each store has a 256 MiB quota, including serialized metadata and reserved pending uploads, and at most
 65,536 keys. Entries use host-generated filenames and one atomic file per key, so a mutation writes
 only that value and its metadata, not the whole store. Only keys and lengths stay resident; values and
-blob slices are read on demand. Encoded writes are limited to 64 MiB per second per mod across its
-scopes; exceeding that budget returns an error. Storage I/O time counts against the guest time budget.
+blob slices are read on demand. Encoded writes, including config writes, share a per-mod token bucket
+across scopes: 8 MiB per second sustained, with a 32 MiB burst. Exceeding that budget returns an error.
+Config and storage I/O extend the bounded per-call deadline but still count against the aggregate
+guest time budget. Store opening and migration happen when the package or world is bound, outside
+guest calls.
 Inline reads/writes and blob chunks are capped at 1 MiB. `storage-blob-begin` reserves quota and returns
 a package-owned upload ID (at most 64 outstanding), with a separate **32 MiB aggregate pending-blob
 limit per mod** across all scopes. Buffers grow lazily on write, not at begin. Writes may arrive out of order, but
 commit requires complete coverage. A failed commit retains the upload for completion or abort.
 `storage-blob-read` reads bounded slices of committed data. Uploads are not persisted and world uploads
 are discarded when changing worlds or creating, dropping, disabling or trapping a module instance.
-World binding changes only on explicit world open/close, never on a hook or config notification.
+World storage binds after the world opens, stays bound through shutdown callbacks and saving, and
+unbinds after world close or failure. Starting another world first clears the previous binding.
+Ordinary hooks and config notifications never change it.
 Put, delete and successful blob commit persist before
 reporting success. A store holds an exclusive lock for its lifetime; another process gets a clear
 error. Writes use a synced temporary file and rename; stale temporary files are removed on open.
-Reads of absent stores and opening settings do not create directories.
+On Unix, renames also sync the containing directory. Reads of absent stores and opening settings do
+not create directories. An unchanged config write creates no lock file; changed config writes briefly
+retry a busy in-process lock.
 
-On first storage open, existing `store.bin` data and legacy `<world>/yoake-wasm/<mod-id>/<key>.bin`
-or `<game>/config/yoake-wasm/<mod-id>/` entries are imported within quota, without replacing newer
-keys. A marker records completion; legacy files are left intact. Legacy `world-storage-read/write`
+At bind time, existing `store.bin` data and legacy `<world>/yoake-wasm/<mod-id>/<key>.bin`
+or `<game>/config/yoake-wasm/<mod-id>/<key>.bin` entries are imported within quota, without replacing
+newer keys. The `.bin` suffix is stripped in both cases; client stores import neither legacy source.
+Malformed or unreadable entries are skipped with warnings so healthy entries remain usable, and a
+marker records completion. Legacy files and `store.bin` are deliberately retained as recovery backups;
+the marker prevents repeated imports. Legacy `world-storage-read/write`
 and raw `config-read/write` now require `service.storage`; `config-dir` requires `service.config`.
 Those imports use the same quota, locking and no-follow rules as new stores.
 

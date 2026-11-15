@@ -49,9 +49,9 @@ thread_local! {
     /// Wall-clock time the running call spent inside host services (the game doing what the guest asked:
     /// breaking a block, reading a container). It is the game's time, not the guest's: it extends the
     /// call's deadline and does not count against the aggregate budget. The guest's own work is still
-    /// bounded by fuel, and every service call burns some. Package config, permissions and storage
-    /// I/O is excluded from this exemption and counts against the guest's time budget.
+    /// bounded by fuel, and every service call burns some.
     static HOST_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
+    static STORAGE_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
 }
 
 /// The most host-service time that extends one call's deadline (a guest that loops over services cannot hold the
@@ -61,6 +61,15 @@ pub const MAX_HOST_TIME: Duration = Duration::from_millis(400);
 /// Adds `spent` to the running call's host-service time (see [`HOST_TIME`]).
 pub(crate) fn add_host_time(spent: Duration) {
     HOST_TIME.with(|time| time.set(time.get() + spent));
+}
+
+pub(crate) fn add_storage_time(spent: Duration) {
+    STORAGE_TIME.with(|time| time.set(time.get() + spent));
+}
+
+fn deadline_extension() -> Duration {
+    (HOST_TIME.with(std::cell::Cell::get) + STORAGE_TIME.with(std::cell::Cell::get))
+        .min(MAX_HOST_TIME)
 }
 /// One client hook call may run this long of wall-clock time (plus one epoch tick) before it is
 /// stopped and the module disabled. A call is stopped by the clock, not by its CPU time, and a busy
@@ -276,7 +285,7 @@ impl CompiledComponent {
         store.limiter(|state| &mut state.limits);
         store.set_fuel(FUEL_PER_CALL).map_err(|error| error.to_string())?;
         store.epoch_deadline_callback(|context| {
-            if Instant::now() >= context.data().deadline + HOST_TIME.with(std::cell::Cell::get).min(MAX_HOST_TIME) {
+            if Instant::now() >= context.data().deadline + deadline_extension() {
                 Ok(UpdateDeadline::Interrupt)
             } else {
                 Ok(UpdateDeadline::Continue(1))
@@ -407,6 +416,7 @@ impl<T: 'static> ModInstance<T> {
         self.store.data_mut().deadline = began + self.limits.call;
         // Calls nest (a `mod-call` runs another module inside a service): each has its own host time.
         let outer_host_time = HOST_TIME.with(|time| time.replace(Duration::ZERO));
+        let outer_storage_time = STORAGE_TIME.with(|time| time.replace(Duration::ZERO));
         let result = self
             .store
             .set_fuel(self.fuel)
@@ -416,6 +426,7 @@ impl<T: 'static> ModInstance<T> {
                 invoke(&mut self.store, &self.instance)
             });
         let host_time = HOST_TIME.with(|time| time.replace(outer_host_time));
+        STORAGE_TIME.with(|time| time.set(outer_storage_time));
         self.window.spent += began.elapsed().saturating_sub(host_time);
         match result {
             Ok(value) => Some(value),
@@ -428,5 +439,70 @@ impl<T: 'static> ModInstance<T> {
                 None
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tick_component() -> Vec<u8> {
+        let mut resolve = wit_parser::Resolve::default();
+        let package = resolve
+            .push_str(
+                "test.wit",
+                "package clock:test; world client-mod { export tick: func(); }",
+            )
+            .unwrap();
+        let world = resolve
+            .select_world(&[package], Some("client-mod"))
+            .unwrap();
+        let mut module = b"\0asm\x01\0\0\0\x01\x04\x01\x60\0\0\x03\x02\x01\0\x07\x10\x01\x0ccm32p2||tick\0\0\x0a\x04\x01\x02\0\x0b".to_vec();
+        wit_component::embed_component_metadata(
+            &mut module,
+            &resolve,
+            world,
+            wit_component::StringEncoding::UTF8,
+        )
+        .unwrap();
+        wit_component::ComponentEncoder::default()
+            .module(&module)
+            .unwrap()
+            .encode()
+            .unwrap()
+    }
+
+    #[test]
+    fn storage_time_extends_both_hook_deadlines_but_remains_aggregate_charged() {
+        let mut runtime = Sandbox::new();
+        for limits in [TimeLimits::CLIENT, TimeLimits::SERVER] {
+            let mut module = runtime
+                .compile(&tick_component())
+                .unwrap()
+                .instantiate("storage-clock", (), |_| Ok(()))
+                .unwrap();
+            module.set_limits(limits);
+            let answer = module.call("tick", |store, instance| {
+                let began = Instant::now();
+                std::thread::sleep(Duration::from_millis(80));
+                add_storage_time(began.elapsed());
+                let tick = instance
+                    .get_typed_func::<(), ()>(&mut *store, "tick")
+                    .map_err(|error| error.to_string())?;
+                tick.call(&mut *store, ()).map_err(|error| error.to_string())
+            });
+            assert_eq!(answer, Some(()));
+            assert!(!module.disabled);
+            assert!(module.window.spent >= Duration::from_millis(80));
+        }
+    }
+
+    #[test]
+    fn storage_and_other_host_time_share_one_bounded_deadline_extension() {
+        let previous_host = HOST_TIME.with(|time| time.replace(Duration::from_millis(250)));
+        let previous_storage = STORAGE_TIME.with(|time| time.replace(Duration::from_millis(300)));
+        assert_eq!(deadline_extension(), Duration::from_millis(400));
+        HOST_TIME.with(|time| time.set(previous_host));
+        STORAGE_TIME.with(|time| time.set(previous_storage));
     }
 }

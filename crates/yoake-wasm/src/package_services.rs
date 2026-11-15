@@ -16,7 +16,28 @@ pub const CONFIG_CAPABILITY: &str = "service.config";
 pub const PERMISSIONS_CAPABILITY: &str = "service.permissions";
 pub const STORAGE_CAPABILITY: &str = "service.storage";
 pub const MAX_SYNC_BYTES: usize = 1024 * 1024;
-pub const MAX_WRITE_BYTES_PER_SECOND: usize = 64 * 1024 * 1024;
+pub const MAX_WRITE_BYTES_PER_SECOND: usize = 8 * 1024 * 1024;
+pub const MAX_WRITE_BURST_BYTES: usize = 32 * 1024 * 1024;
+
+struct WriteBudget {
+    checked: Instant,
+    available: f64,
+}
+
+impl WriteBudget {
+    fn charge(&mut self, bytes: usize) -> Result<(), String> {
+        let now = Instant::now();
+        self.available = (self.available
+            + now.duration_since(self.checked).as_secs_f64() * MAX_WRITE_BYTES_PER_SECOND as f64)
+            .min(MAX_WRITE_BURST_BYTES as f64);
+        self.checked = now;
+        if bytes as f64 > self.available {
+            return Err("storage write budget exceeded".into());
+        }
+        self.available -= bytes as f64;
+        Ok(())
+    }
+}
 
 struct PermissionCache {
     checked: Instant,
@@ -34,14 +55,15 @@ pub struct PackageServices {
     global: PathBuf,
     world: Option<PathBuf>,
     stores: BTreeMap<u8, DiskStorage>,
+    store_errors: BTreeMap<u8, String>,
     tickets: BTreeMap<u64, (u8, u64)>,
     next_ticket: u64,
+    ticket_owner: u64,
     changes: BTreeMap<String, Value>,
     revision: u64,
     snapshot_cache: Option<(u64, Arc<Vec<u8>>)>,
     permission_cache: Option<PermissionCache>,
-    write_window: Instant,
-    write_bytes: usize,
+    write_budget: WriteBudget,
 }
 
 impl PackageServices {
@@ -54,7 +76,7 @@ impl PackageServices {
         global: &Path,
         world: Option<&Path>,
     ) -> Result<Self, String> {
-        Ok(Self {
+        let mut services = Self {
             id: id.into(),
             capabilities: capabilities.iter().cloned().collect(),
             fields: fields.clone(),
@@ -66,15 +88,27 @@ impl PackageServices {
             global: global.into(),
             world: world.map(Path::to_path_buf),
             stores: BTreeMap::new(),
+            store_errors: BTreeMap::new(),
             tickets: BTreeMap::new(),
             next_ticket: 0,
+            ticket_owner: 0,
             changes: BTreeMap::new(),
             revision: 0,
             snapshot_cache: None,
             permission_cache: None,
-            write_window: Instant::now(),
-            write_bytes: 0,
-        })
+            write_budget: WriteBudget {
+                checked: Instant::now(),
+                available: MAX_WRITE_BURST_BYTES as f64,
+            },
+        };
+        services.prepare_store(match side {
+            ConfigRuntimeSide::Server => 1,
+            ConfigRuntimeSide::Client => 2,
+        });
+        if world.is_some() && side == ConfigRuntimeSide::Server {
+            services.prepare_store(0);
+        }
+        Ok(services)
     }
 
     pub fn require(&self, capability: &str) -> Result<(), String> {
@@ -89,8 +123,12 @@ impl PackageServices {
         if self.world.as_deref() != world {
             self.world = world.map(Path::to_path_buf);
             self.stores.remove(&0);
+            self.store_errors.remove(&0);
             self.tickets.retain(|_, (scope, _)| *scope != 0);
             self.permission_cache = None;
+            if world.is_some() && self.side == ConfigRuntimeSide::Server {
+                self.prepare_store(0);
+            }
         }
     }
 
@@ -120,11 +158,12 @@ impl PackageServices {
     }
 
     pub fn save_config(&mut self, values: &BTreeMap<String, Value>) -> Result<(), String> {
+        let budget = &mut self.write_budget;
         let changes = self
             .config
             .as_mut()
             .map_err(|error| error.clone())?
-            .set_many(values)?;
+            .set_many_with_budget(values, |bytes| budget.charge(bytes))?;
         if !changes.is_empty() {
             self.revision = self.revision.wrapping_add(1);
             for change in changes {
@@ -239,64 +278,71 @@ impl PackageServices {
         ))
     }
 
+    fn prepare_store(&mut self, scope: u8) {
+        if !self.capabilities.contains(STORAGE_CAPABILITY) {
+            return;
+        }
+        let result = match scope {
+            0 => self
+                .world
+                .as_deref()
+                .ok_or_else(|| "no world open".into())
+                .and_then(|world| DiskStorage::open(world, &self.id)),
+            1 => DiskStorage::open_scoped(&self.global, &self.id, "global"),
+            _ => DiskStorage::open_scoped(&self.global, &self.id, "client"),
+        };
+        match result {
+            Ok(store) => {
+                self.stores.insert(scope, store);
+            }
+            Err(error) => {
+                eprintln!("[yoake] storage {}: {error}", self.id);
+                self.store_errors.insert(scope, error);
+            }
+        }
+    }
+
     fn store(&mut self, scope: u8) -> Result<&mut DiskStorage, String> {
         self.require(STORAGE_CAPABILITY)?;
-        let base = match (self.side, scope) {
-            (ConfigRuntimeSide::Server, 0) => self.world.as_ref().ok_or("no world open")?,
-            (ConfigRuntimeSide::Server, 1) | (ConfigRuntimeSide::Client, 2) => &self.global,
+        match (self.side, scope) {
+            (ConfigRuntimeSide::Server, 0) if self.world.is_none() => {
+                return Err("no world open".into());
+            }
+            (ConfigRuntimeSide::Server, 0 | 1) | (ConfigRuntimeSide::Client, 2) => {}
             _ => return Err("storage scope is unavailable on this side".into()),
-        };
-        if !self.stores.contains_key(&scope) {
-            let store = match scope {
-                0 => DiskStorage::open(base, &self.id)?,
-                1 => DiskStorage::open_scoped(base, &self.id, "global")?,
-                _ => DiskStorage::open_scoped(base, &self.id, "client")?,
-            };
-            self.stores.insert(scope, store);
+        }
+        if let Some(error) = self.store_errors.get(&scope) {
+            return Err(error.clone());
         }
         self.stores
             .get_mut(&scope)
             .ok_or_else(|| "storage unavailable".into())
     }
 
-    fn has_store(&self, scope: u8, key: &str) -> Result<bool, String> {
-        self.require(STORAGE_CAPABILITY)?;
+    fn has_store(&mut self, scope: u8, key: &str) -> Result<bool, String> {
         crate::host_services::storage::validate_key(key)?;
-        let base = match scope {
-            0 if self.side == ConfigRuntimeSide::Server => {
-                self.world.as_deref().ok_or("world storage unavailable")?
-            }
-            1 if self.side == ConfigRuntimeSide::Server => self.global.as_path(),
-            2 if self.side == ConfigRuntimeSide::Client => self.global.as_path(),
-            _ => return Err("storage scope unavailable".into()),
-        };
-        Ok(self.stores.contains_key(&scope)
-            || DiskStorage::exists(
-                base,
-                &self.id,
-                match scope {
-                    1 => Some("global"),
-                    2 => Some("client"),
-                    _ => None,
-                },
-            )?)
+        self.store(scope)?;
+        Ok(true)
     }
 
     fn charge_write(&mut self, bytes: usize) -> Result<(), String> {
         self.require(STORAGE_CAPABILITY)?;
-        if self.write_window.elapsed() >= Duration::from_secs(1) {
-            self.write_window = Instant::now();
-            self.write_bytes = 0;
+        self.write_budget.charge(bytes)
+    }
+
+    pub(crate) fn claim_tickets(&mut self) -> u64 {
+        self.abort_all_tickets();
+        self.ticket_owner = self
+            .ticket_owner
+            .checked_add(1)
+            .expect("ticket owner exhausted");
+        self.ticket_owner
+    }
+
+    pub(crate) fn release_tickets(&mut self, owner: u64) {
+        if self.ticket_owner == owner {
+            self.abort_all_tickets();
         }
-        let total = self
-            .write_bytes
-            .checked_add(bytes)
-            .ok_or("storage write budget exceeded")?;
-        if total > MAX_WRITE_BYTES_PER_SECOND {
-            return Err("storage write budget exceeded".into());
-        }
-        self.write_bytes = total;
-        Ok(())
     }
 
     pub fn abort_all_tickets(&mut self) {
@@ -731,7 +777,12 @@ side = "synced"
             server.storage_get("value", StorageScope::World).unwrap(),
             None
         );
-        assert_eq!(std::fs::read_dir(&root.0).unwrap().count(), 0);
+        assert!(root.0.join("yoake-data/example/migration-v2.done").exists());
+        assert!(
+            root.0
+                .join("yoake-data/example/global/migration-v2.done")
+                .exists()
+        );
         server
             .storage_put("value", StorageScope::World, b"world")
             .unwrap();
@@ -858,6 +909,93 @@ side = "synced"
     }
 
     #[test]
+    fn stores_migrate_when_bound_before_the_first_guest_call() {
+        let root = Scratch::new();
+        let global_legacy = root.0.join("config/yoake-wasm/example");
+        std::fs::create_dir_all(&global_legacy).unwrap();
+        std::fs::write(global_legacy.join("value.bin"), b"global before bind").unwrap();
+        let mut service = PackageServices::open(
+            "example",
+            &[STORAGE_CAPABILITY.into()],
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            ConfigRuntimeSide::Server,
+            &root.0,
+            None,
+        )
+        .unwrap();
+        assert!(
+            root.0
+                .join("yoake-data/example/global/migration-v2.done")
+                .is_file()
+        );
+        std::fs::write(global_legacy.join("value.bin"), b"global after bind").unwrap();
+        assert_eq!(
+            service
+                .storage_get("value", StorageScope::Global)
+                .unwrap()
+                .unwrap(),
+            b"global before bind"
+        );
+        let world = Scratch::new();
+        let world_legacy = world.0.join("yoake-wasm/example");
+        std::fs::create_dir_all(&world_legacy).unwrap();
+        std::fs::write(world_legacy.join("value.bin"), b"world before bind").unwrap();
+        service.bind_world(Some(&world.0));
+        assert!(
+            world
+                .0
+                .join("yoake-data/example/migration-v2.done")
+                .is_file()
+        );
+        std::fs::write(world_legacy.join("value.bin"), b"world after bind").unwrap();
+        assert_eq!(
+            service
+                .storage_get("value", StorageScope::World)
+                .unwrap()
+                .unwrap(),
+            b"world before bind"
+        );
+        drop(service);
+    }
+
+    #[test]
+    fn config_writes_share_the_budget_without_the_storage_capability() {
+        let root = Scratch::new();
+        let mut service = open(&root.0, ConfigRuntimeSide::Server, &[CONFIG_CAPABILITY]);
+        service.write_budget.available = -(MAX_WRITE_BURST_BYTES as f64);
+        service.write_budget.checked = Instant::now();
+        let value = encode_value(&fields()["count"], &Value::Integer(3)).unwrap();
+        assert!(
+            service
+                .config_set("count", value)
+                .unwrap_err()
+                .contains("write budget")
+        );
+        assert_eq!(service.settings_value("count"), Some(&Value::Integer(2)));
+        service.write_budget.available = MAX_WRITE_BURST_BYTES as f64;
+        service.write_budget.checked = Instant::now();
+        let value = encode_value(&fields()["count"], &Value::Integer(3)).unwrap();
+        service.config_set("count", value).unwrap();
+        assert_eq!(service.settings_value("count"), Some(&Value::Integer(3)));
+        assert!(service.write_budget.available < MAX_WRITE_BURST_BYTES as f64);
+    }
+
+    #[test]
+    fn write_budget_allows_a_burst_and_refills_at_the_sustained_rate() {
+        let mut budget = WriteBudget {
+            checked: Instant::now(),
+            available: MAX_WRITE_BURST_BYTES as f64,
+        };
+        budget.charge(32 * 1024 * 1024).unwrap();
+        assert!(budget.charge(1024 * 1024).is_err());
+        budget.available = 0.0;
+        budget.checked = Instant::now() - Duration::from_secs(1);
+        budget.charge(8 * 1024 * 1024).unwrap();
+        assert!(budget.charge(1024 * 1024).is_err());
+    }
+
+    #[test]
     fn write_budget_rejects_a_mutation_without_losing_its_ticket() {
         let root = Scratch::new();
         let mut service = open(&root.0, ConfigRuntimeSide::Server, &[STORAGE_CAPABILITY]);
@@ -865,7 +1003,8 @@ side = "synced"
             .storage_blob_begin("blob", StorageScope::World, 4)
             .unwrap();
         service.storage_blob_write(b"data", ticket, 0).unwrap();
-        service.write_bytes = MAX_WRITE_BYTES_PER_SECOND;
+        service.write_budget.available = -(MAX_WRITE_BURST_BYTES as f64);
+        service.write_budget.checked = Instant::now();
         assert!(
             service
                 .storage_put("value", StorageScope::World, b"denied")
@@ -888,7 +1027,7 @@ side = "synced"
             service.storage_get("blob", StorageScope::World).unwrap(),
             None
         );
-        service.write_window = Instant::now() - Duration::from_secs(2);
+        service.write_budget.checked = Instant::now() - Duration::from_secs(5);
         service.storage_blob_commit(ticket).unwrap();
         assert_eq!(
             service

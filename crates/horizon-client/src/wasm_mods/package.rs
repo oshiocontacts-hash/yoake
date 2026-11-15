@@ -234,6 +234,141 @@ mod tests {
     }
 
     #[test]
+    fn world_lifecycle_binds_storage_until_close_and_never_reuses_a_folder() {
+        use crate::mod_api::{
+            Hooks, Host, HudBatch, NativeAuthority, NativeLifecycleContext, NativeTickId,
+            NativeWorldEpoch, ServerAboutToStartEvent, ServerStoppingEvent, WorldLifecycleEvent,
+            WorldPhase,
+        };
+        use yoake_wasm::host_services::storage::DiskStorage;
+
+        struct WorldHost(Option<PathBuf>);
+        impl Host for WorldHost {
+            fn window(&self) -> bool {
+                false
+            }
+            fn text(&self, _: &mut HudBatch, _: &str, _: [f32; 2], _: u32, _: bool) {}
+            fn fill(&self, _: &mut HudBatch, _: [f32; 4], _: u32) {}
+            fn world_dir(&self) -> Option<PathBuf> {
+                self.0.clone()
+            }
+        }
+
+        let root = Scratch::new();
+        let first = root.0.join("first-world");
+        let second = root.0.join("second-world");
+        std::fs::create_dir(&first).unwrap();
+        std::fs::create_dir(&second).unwrap();
+        let id = "lifecycle-storage-test";
+        let registry = SERVICES.get_or_init(Default::default);
+        let handle = registry
+            .load(id, ConfigRuntimeSide::Server, || {
+                PackageServices::open(
+                    id,
+                    &["service.storage".into()],
+                    &BTreeMap::new(),
+                    &BTreeMap::new(),
+                    ConfigRuntimeSide::Server,
+                    &root.0,
+                    None,
+                )
+            })
+            .unwrap();
+        let module = super::super::full::FullMod::new(id.into(), None, None);
+        let mut host = WorldHost(None);
+        let context = NativeLifecycleContext {
+            authority: NativeAuthority::DedicatedServer,
+            epoch: NativeWorldEpoch::new(1),
+            tick: NativeTickId::new(0),
+        };
+        module.server_about_to_start(&mut host, &mut ServerAboutToStartEvent { dedicated: true });
+        host.0 = Some(first.clone());
+        module.world_lifecycle(
+            &mut host,
+            &mut WorldLifecycleEvent {
+                context: &context,
+                phase: WorldPhase::WorldOpenReady,
+                error_text: "",
+            },
+        );
+        handle
+            .lock()
+            .unwrap()
+            .storage_put("value", StorageScope::World, b"first")
+            .unwrap();
+        module.server_stopping(&mut host, &mut ServerStoppingEvent { dedicated: true });
+        handle
+            .lock()
+            .unwrap()
+            .storage_put("final", StorageScope::World, b"saved")
+            .unwrap();
+        module.world_lifecycle(
+            &mut host,
+            &mut WorldLifecycleEvent {
+                context: &context,
+                phase: WorldPhase::WorldCloseFinal,
+                error_text: "",
+            },
+        );
+        assert!(
+            handle
+                .lock()
+                .unwrap()
+                .storage_get("value", StorageScope::World)
+                .is_err()
+        );
+        module.server_about_to_start(&mut host, &mut ServerAboutToStartEvent { dedicated: true });
+        assert!(
+            handle
+                .lock()
+                .unwrap()
+                .storage_get("value", StorageScope::World)
+                .is_err()
+        );
+        host.0 = Some(second.clone());
+        module.world_lifecycle(
+            &mut host,
+            &mut WorldLifecycleEvent {
+                context: &context,
+                phase: WorldPhase::WorldOpenReady,
+                error_text: "",
+            },
+        );
+        handle
+            .lock()
+            .unwrap()
+            .storage_put("value", StorageScope::World, b"second")
+            .unwrap();
+        module.world_lifecycle(
+            &mut host,
+            &mut WorldLifecycleEvent {
+                context: &context,
+                phase: WorldPhase::WorldCloseFailed,
+                error_text: "failed save",
+            },
+        );
+        assert!(
+            handle
+                .lock()
+                .unwrap()
+                .storage_get("value", StorageScope::World)
+                .is_err()
+        );
+        let first_store = DiskStorage::open(&first, id).unwrap();
+        let second_store = DiskStorage::open(&second, id).unwrap();
+        assert_eq!(first_store.get("value").unwrap(), Some(b"first".to_vec()));
+        assert_eq!(first_store.get("final").unwrap(), Some(b"saved".to_vec()));
+        assert_eq!(second_store.get("value").unwrap(), Some(b"second".to_vec()));
+        assert_eq!(second_store.get("final").unwrap(), None);
+        registry
+            .0
+            .lock()
+            .unwrap()
+            .handles
+            .remove(&(id.into(), true));
+    }
+
+    #[test]
     fn registry_does_not_hold_map_lock_during_open_or_handle_use() {
         let root = Scratch::new();
         let registry = Registry::default();

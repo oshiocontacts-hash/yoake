@@ -774,12 +774,15 @@ fn build_hook(
     if plan.name == "server_about_to_start" {
         // The server runs one world at a time and a guest keeps its state in its instance: each
         // world's server starts with a fresh one (nothing happens before the first hook ran).
+        body.push_str("self.reset_server(None); ");
+    }
+    if plan.name == "world_lifecycle" {
         let host = &method
             .host_param
             .as_ref()
-            .ok_or("server start requires host")?
+            .ok_or("world lifecycle requires host")?
             .0;
-        let _ = write!(body, "self.reset_server({host}.world_dir().as_deref()); ");
+        let _ = write!(body, "if event.phase == crate::mod_api::WorldPhase::WorldOpenReady && event.context.authority != crate::mod_api::NativeAuthority::RemoteClient {{ super::package::bind_world(&self.id, {host}.world_dir().as_deref()); }} ");
     }
     let (default, out_kind) = match (plan.contract.as_str(), ret.as_deref()) {
         ("cancel", Some(r)) if r.trim() == "Flow" => ("Flow::Continue".to_owned(), "cancel"),
@@ -888,8 +891,8 @@ fn build_hook(
         block.push_str("} ");
         body.push_str(&block);
     }
-    if plan.name == "server_stopping" {
-        body.push_str("super::package::bind_world(&self.id, None); ");
+    if plan.name == "world_lifecycle" {
+        body.push_str("if event.phase != crate::mod_api::WorldPhase::WorldOpenReady && event.context.authority != crate::mod_api::NativeAuthority::RemoteClient { super::package::bind_world(&self.id, None); } ");
     }
     if ret.is_some() {
         body.push_str("out");

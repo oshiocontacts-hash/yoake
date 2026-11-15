@@ -18,25 +18,29 @@ fn service_call<T>(
     handle: Result<crate::package_services::ServiceHandle, String>,
     call: impl FnOnce(&mut crate::package_services::PackageServices) -> Result<T, String>,
 ) -> Result<T, String> {
-    handle.and_then(|handle| {
+    let began = std::time::Instant::now();
+    let answer = handle.and_then(|handle| {
         let mut services = handle.lock().map_err(|_| "package service lock poisoned")?;
         call(&mut services)
-    })
+    });
+    crate::add_storage_time(began.elapsed());
+    answer
 }
 
-struct TicketGuard(Option<crate::package_services::ServiceHandle>);
+struct TicketGuard(Option<(crate::package_services::ServiceHandle, u64)>);
 
 impl TicketGuard {
     fn new(handle: Result<crate::package_services::ServiceHandle, String>) -> Self {
-        let guard = Self(handle.ok());
-        guard.abort();
-        guard
+        Self(handle.ok().and_then(|handle| {
+            let owner = handle.lock().ok()?.claim_tickets();
+            Some((handle, owner))
+        }))
     }
 
     fn abort(&self) {
-        if let Some(handle) = &self.0 {
+        if let Some((handle, owner)) = &self.0 {
             if let Ok(mut services) = handle.lock() {
-                services.abort_all_tickets();
+                services.release_tickets(*owner);
             }
         }
     }
@@ -316,6 +320,8 @@ macro_rules! server_services {
                     let answer = self.host.$name($($arg),*);
                     if !matches!(stringify!($name), "world_storage_read" | "world_storage_write" | "config_read" | "config_write" | "config_dir") {
                         crate::add_host_time(began.elapsed());
+                    } else {
+                        crate::add_storage_time(began.elapsed());
                     }
                     answer
                 }
@@ -509,18 +515,102 @@ mod tests {
         let mut context =
             ServerContext::new("example".into(), Box::new(StorageHost(services.clone())));
         let previous = crate::HOST_TIME.with(|time| time.replace(Duration::ZERO));
+        let previous_storage = crate::STORAGE_TIME.with(|time| time.replace(Duration::ZERO));
         context
             .storage_put("typed".into(), server_types::StorageScope::World, vec![1])
             .unwrap();
         assert_eq!(crate::HOST_TIME.with(|time| time.get()), Duration::ZERO);
+        let typed_storage_time = crate::STORAGE_TIME.with(|time| time.get());
+        assert!(typed_storage_time > Duration::ZERO);
         context
             .world_storage_write(vec![2], "legacy".into())
             .unwrap();
         assert_eq!(crate::HOST_TIME.with(|time| time.get()), Duration::ZERO);
+        assert!(crate::STORAGE_TIME.with(|time| time.get()) > typed_storage_time);
         context.server_players().unwrap();
         assert!(crate::HOST_TIME.with(|time| time.get()) >= Duration::from_millis(2));
         crate::HOST_TIME.with(|time| time.set(previous));
+        crate::STORAGE_TIME.with(|time| time.set(previous_storage));
         drop(context);
+        drop(services);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn hot_reload_does_not_abort_the_replacement_instances_blob_tickets() {
+        let time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::fs::canonicalize(std::env::temp_dir())
+            .unwrap()
+            .join(format!("yoake-ticket-owner-{}-{time}", std::process::id()));
+        std::fs::create_dir(&root).unwrap();
+        let services = Arc::new(Mutex::new(
+            PackageServices::open(
+                "example",
+                &[STORAGE_CAPABILITY.into()],
+                &BTreeMap::new(),
+                &BTreeMap::new(),
+                horizon_mods::yak::ConfigRuntimeSide::Server,
+                &root,
+                Some(&root),
+            )
+            .unwrap(),
+        ));
+        let old = TicketGuard::new(Ok(services.clone()));
+        let old_ticket = services
+            .lock()
+            .unwrap()
+            .storage_blob_begin("old", server_types::StorageScope::World, 4)
+            .unwrap();
+        let replacement = TicketGuard::new(Ok(services.clone()));
+        assert!(
+            services
+                .lock()
+                .unwrap()
+                .storage_blob_write(b"data", old_ticket, 0)
+                .is_err()
+        );
+        let new_ticket = services
+            .lock()
+            .unwrap()
+            .storage_blob_begin("new", server_types::StorageScope::World, 4)
+            .unwrap();
+        old.abort();
+        drop(old);
+        services
+            .lock()
+            .unwrap()
+            .storage_blob_write(b"data", new_ticket, 0)
+            .unwrap();
+        services
+            .lock()
+            .unwrap()
+            .storage_blob_commit(new_ticket)
+            .unwrap();
+        assert_eq!(
+            services
+                .lock()
+                .unwrap()
+                .storage_get("new", server_types::StorageScope::World)
+                .unwrap()
+                .unwrap(),
+            b"data"
+        );
+        let pending = services
+            .lock()
+            .unwrap()
+            .storage_blob_begin("pending", server_types::StorageScope::World, 4)
+            .unwrap();
+        drop(replacement);
+        assert!(
+            services
+                .lock()
+                .unwrap()
+                .storage_blob_write(b"data", pending, 0)
+                .is_err()
+        );
         drop(services);
         std::fs::remove_dir_all(root).unwrap();
     }

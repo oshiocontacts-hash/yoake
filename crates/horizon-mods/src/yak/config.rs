@@ -4,6 +4,7 @@ use std::ffi::OsStr;
 use std::io::{Read, Write};
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
 use toml::Value;
 
 const MAX_FIELDS: usize = 256;
@@ -522,6 +523,14 @@ impl ConfigFile {
         &mut self,
         values: &BTreeMap<String, Value>,
     ) -> Result<Vec<ConfigChange>, String> {
+        self.set_many_with_budget(values, |_| Ok(()))
+    }
+
+    pub fn set_many_with_budget(
+        &mut self,
+        values: &BTreeMap<String, Value>,
+        charge: impl FnOnce(usize) -> Result<(), String>,
+    ) -> Result<Vec<ConfigChange>, String> {
         let mut candidate = self.state.clone();
         let mut requested_change = false;
         for (name, value) in values {
@@ -538,10 +547,35 @@ impl ConfigFile {
                 .map_err(|error| error.to_string())?,
             Err(error) => return Err(error.to_string()),
         };
-        let _lock = directory
-            .lock(OsStr::new(&format!("{}.lock", self.mod_id)))
-            .map_err(|error| error.to_string())?;
-        let prefix = format!(".config-{}-", self.mod_id);
+        let (candidate, changes, encoded) = self.prepare_update(&directory, values)?;
+        if encoded.is_none() {
+            self.state = candidate;
+            return Ok(changes);
+        }
+        let lock_name = format!("{}.lock", self.mod_id);
+        let began = Instant::now();
+        let _lock = loop {
+            match directory.lock(OsStr::new(&lock_name)) {
+                Ok(lock) => break lock,
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::WouldBlock
+                        && began.elapsed() < Duration::from_millis(40) =>
+                {
+                    std::thread::sleep(Duration::from_millis(2));
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    return Err(format!("store is already open in another process: {error}"));
+                }
+                Err(error) => return Err(error.to_string()),
+            }
+        };
+        let (candidate, changes, encoded) = self.prepare_update(&directory, values)?;
+        let Some(encoded) = encoded else {
+            self.state = candidate;
+            return Ok(changes);
+        };
+        charge(encoded.len())?;
+        let prefix = format!(".config-{}.", self.mod_id);
         for entry in directory.entries().map_err(|error| error.to_string())? {
             if entry
                 .to_str()
@@ -552,9 +586,35 @@ impl ConfigFile {
                     .map_err(|error| error.to_string())?;
             }
         }
-        let mut document = read_config_file(&directory, &self.filename, &self.fields)?;
+        static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
+        let temporary = format!(
+            "{prefix}{}-{}.tmp",
+            std::process::id(),
+            NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
+        );
+        let result = (|| {
+            let mut file = directory.create(OsStr::new(&temporary))?;
+            file.write_all(encoded.as_bytes())?;
+            file.sync_all()?;
+            drop(file);
+            directory.replace(OsStr::new(&temporary), OsStr::new(&self.filename))
+        })();
+        if let Err(error) = result {
+            let _ = directory.remove(OsStr::new(&temporary));
+            return Err(error.to_string());
+        }
+        self.state = candidate;
+        Ok(changes)
+    }
+
+    fn prepare_update(
+        &self,
+        directory: &super::ServiceDirectory,
+        values: &BTreeMap<String, Value>,
+    ) -> Result<(ConfigState, Vec<ConfigChange>, Option<String>), String> {
+        let mut document = read_config_file(directory, &self.filename, &self.fields)?;
         let persisted = resolve_config(&self.fields, &document)?;
-        candidate = self.state.clone();
+        let mut candidate = self.state.clone();
         for (name, field) in &self.fields {
             if ConfigState::is_local(candidate.side, field.side) {
                 candidate
@@ -579,30 +639,11 @@ impl ConfigFile {
             })
             .collect();
         if !write_required {
-            self.state = candidate;
-            return Ok(changes);
+            return Ok((candidate, changes, None));
         }
         let encoded = toml::to_string(&document).map_err(|error| error.to_string())?;
         parse_config(&self.fields, &encoded)?;
-        static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
-        let temporary = format!(
-            "{prefix}{}-{}.tmp",
-            std::process::id(),
-            NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
-        );
-        let result = (|| {
-            let mut file = directory.create(OsStr::new(&temporary))?;
-            file.write_all(encoded.as_bytes())?;
-            file.sync_all()?;
-            drop(file);
-            directory.replace(OsStr::new(&temporary), OsStr::new(&self.filename))
-        })();
-        if let Err(error) = result {
-            let _ = directory.remove(OsStr::new(&temporary));
-            return Err(error.to_string());
-        }
-        self.state = candidate;
-        Ok(changes)
+        Ok((candidate, changes, Some(encoded)))
     }
 
     pub fn apply_synced_snapshot(
@@ -922,8 +963,12 @@ default = false
         std::fs::create_dir(root.join("config")).unwrap();
         let temporary = root
             .join("config")
-            .join(".config-sample-mod-interrupted.tmp");
+            .join(".config-sample-mod.interrupted.tmp");
+        let other_mod = root
+            .join("config")
+            .join(".config-sample-mod-other.interrupted.tmp");
         std::fs::write(&temporary, "partial").unwrap();
+        std::fs::write(&other_mod, "other mod").unwrap();
         let mut config = ConfigFile::load(
             &root,
             "sample-mod",
@@ -933,7 +978,97 @@ default = false
         .unwrap();
         config.set_local("shared", Value::Integer(5)).unwrap();
         assert!(!temporary.exists());
+        assert!(other_mod.exists());
         assert_eq!(config.state().get("shared"), Some(&Value::Integer(5)));
+        drop(config);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn unchanged_config_does_not_create_a_lock_file() {
+        let root = temporary_config_root();
+        let manifest = side_manifest();
+        let mut config = ConfigFile::load(
+            &root,
+            "sample-mod",
+            &manifest.config,
+            ConfigRuntimeSide::Server,
+        )
+        .unwrap();
+        assert!(
+            config
+                .set_local("shared", Value::Integer(3))
+                .unwrap()
+                .is_none()
+        );
+        assert!(!root.join("config").exists());
+        std::fs::create_dir(root.join("config")).unwrap();
+        std::fs::write(root.join("config/sample-mod.toml"), "shared = 3\n").unwrap();
+        assert!(
+            config
+                .set_local("shared", Value::Integer(3))
+                .unwrap()
+                .is_none()
+        );
+        assert!(!root.join("config/sample-mod.lock").exists());
+        drop(config);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn config_writes_retry_a_brief_in_process_lock() {
+        let root = temporary_config_root();
+        let manifest = side_manifest();
+        let mut config = ConfigFile::load(
+            &root,
+            "sample-mod",
+            &manifest.config,
+            ConfigRuntimeSide::Server,
+        )
+        .unwrap();
+        let base = crate::yak::ServiceDirectory::open(&root, false).unwrap();
+        let directory = base.child(OsStr::new("config"), true).unwrap();
+        let lock = directory.lock(OsStr::new("sample-mod.lock")).unwrap();
+        let release = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(5));
+            drop(lock);
+        });
+        config.set_local("shared", Value::Integer(5)).unwrap();
+        release.join().unwrap();
+        let saved: BTreeMap<String, Value> =
+            toml::from_str(&std::fs::read_to_string(root.join("config/sample-mod.toml")).unwrap())
+                .unwrap();
+        assert_eq!(saved["shared"], Value::Integer(5));
+        drop((config, directory, base));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejected_config_write_budget_preserves_disk_and_state() {
+        let root = temporary_config_root();
+        let manifest = side_manifest();
+        let mut config = ConfigFile::load(
+            &root,
+            "sample-mod",
+            &manifest.config,
+            ConfigRuntimeSide::Server,
+        )
+        .unwrap();
+        config.set_local("shared", Value::Integer(4)).unwrap();
+        let path = root.join("config/sample-mod.toml");
+        let saved = std::fs::read(&path).unwrap();
+        let error = config
+            .set_many_with_budget(
+                &BTreeMap::from([("shared".into(), Value::Integer(5))]),
+                |bytes| {
+                    assert!(bytes > 0);
+                    Err("write budget exceeded".into())
+                },
+            )
+            .unwrap_err();
+        assert_eq!(error, "write budget exceeded");
+        assert_eq!(config.state().get("shared"), Some(&Value::Integer(4)));
+        assert_eq!(std::fs::read(path).unwrap(), saved);
         drop(config);
         std::fs::remove_dir_all(root).unwrap();
     }

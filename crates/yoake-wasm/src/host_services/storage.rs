@@ -319,26 +319,6 @@ pub struct DiskStorage {
 }
 
 impl DiskStorage {
-    pub(crate) fn exists(base: &Path, mod_id: &str, scope: Option<&str>) -> Result<bool, String> {
-        let base = base.canonicalize().map_err(|error| error.to_string())?;
-        let base = Dir::open(&base, false).map_err(|error| error.to_string())?;
-        let present = |root: &str, scope: Option<&str>| {
-            let directory = base
-                .child(OsStr::new(root), false)
-                .and_then(|directory| directory.child(OsStr::new(mod_id), false))
-                .and_then(|directory| match scope {
-                    Some(scope) => directory.child(OsStr::new(scope), false),
-                    None => Ok(directory),
-                });
-            match directory {
-                Ok(_) => Ok(true),
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-                Err(error) => Err(error.to_string()),
-            }
-        };
-        Ok(present("yoake-data", scope)? || present("yoake-wasm", None)?)
-    }
-
     pub fn open(base: &Path, mod_id: &str) -> Result<Self, String> {
         Self::open_with_quota(base, mod_id, MAX_STORAGE_BYTES)
     }
@@ -381,7 +361,13 @@ impl DiskStorage {
         }
         let lock = directory
             .lock(OsStr::new("store.lock"))
-            .map_err(|error| error.to_string())?;
+            .map_err(|error| {
+                if error.kind() == std::io::ErrorKind::WouldBlock {
+                    "storage is already open".to_owned()
+                } else {
+                    error.to_string()
+                }
+            })?;
         let mut result = Self {
             directory,
             _lock: lock,
@@ -395,27 +381,32 @@ impl DiskStorage {
         {
             let name = filename.to_string_lossy();
             if name.starts_with(".store-") && name.ends_with(".tmp") {
-                result
-                    .directory
-                    .remove(&filename)
-                    .map_err(|error| error.to_string())?;
+                if let Err(error) = result.directory.remove(&filename) {
+                    eprintln!("[yoake] storage {mod_id}: skipping {name}: {error}");
+                }
             } else if name.starts_with("entry-") && name.ends_with(".bin") {
-                let mut file = result
-                    .directory
-                    .read(&filename)
-                    .map_err(|error| error.to_string())?
-                    .ok_or("storage entry disappeared")?;
-                let (key, length) = read_entry_header(&mut file, quota)?;
-                if file.metadata().map_err(|error| error.to_string())?.len()
-                    != entry_cost(&key, length) as u64
-                {
-                    return Err("invalid storage entry size".into());
+                let loaded = (|| -> Result<(), String> {
+                    let mut file = result
+                        .directory
+                        .read(&filename)
+                        .map_err(|error| error.to_string())?
+                        .ok_or("storage entry disappeared")?;
+                    let (key, length) = read_entry_header(&mut file, quota)?;
+                    if file.metadata().map_err(|error| error.to_string())?.len()
+                        != entry_cost(&key, length) as u64
+                    {
+                        return Err("invalid storage entry size".into());
+                    }
+                    result.check_size(&key, length)?;
+                    if result.entries.contains_key(&key) {
+                        return Err("duplicate storage key".into());
+                    }
+                    result.record(key, name.to_string(), length);
+                    Ok(())
+                })();
+                if let Err(error) = loaded {
+                    eprintln!("[yoake] storage {mod_id}: skipping {name}: {error}");
                 }
-                result.check_size(&key, length)?;
-                if result.entries.contains_key(&key) {
-                    return Err("duplicate storage key".into());
-                }
-                result.record(key, name.into_owned(), length);
             }
         }
         if result
@@ -424,48 +415,70 @@ impl DiskStorage {
             .map_err(|error| error.to_string())?
             .is_none()
         {
-            if let Some(mut file) = result
-                .directory
-                .read(OsStr::new("store.bin"))
-                .map_err(|error| error.to_string())?
-            {
-                let mut header = [0; HEADER_BYTES];
-                file.read_exact(&mut header)
-                    .map_err(|error| error.to_string())?;
-                let count = u32::from_le_bytes(
-                    header[5..]
-                        .try_into()
-                        .map_err(|_| "invalid storage header")?,
-                ) as usize;
-                if &header[..5] != MAGIC || count > MAX_KEYS {
-                    return Err("invalid storage header".into());
+            if scope != Some("client") {
+                if let Err(error) = result.import_store(quota) {
+                    eprintln!("[yoake] storage {mod_id}: skipping store.bin: {error}");
                 }
-                let mut keys = std::collections::BTreeSet::new();
-                for _ in 0..count {
-                    let (key, length) = read_entry_header(&mut file, quota)?;
-                    if !keys.insert(key.clone()) {
-                        return Err("duplicate storage key".into());
+                let legacy = match scope {
+                    Some("global") => base_dir
+                        .child(OsStr::new("config"), false)
+                        .and_then(|directory| directory.child(OsStr::new("yoake-wasm"), false)),
+                    _ => base_dir.child(OsStr::new("yoake-wasm"), false),
+                }
+                .and_then(|directory| directory.child(OsStr::new(mod_id), false));
+                match legacy {
+                    Ok(legacy) => {
+                        if let Err(error) = result.import_directory(&legacy, "") {
+                            eprintln!(
+                                "[yoake] storage {mod_id}: skipping legacy directory: {error}"
+                            );
+                        }
                     }
-                    result.import(&key, length, &mut file)?;
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(error) => {
+                        eprintln!("[yoake] storage {mod_id}: skipping legacy directory: {error}")
+                    }
                 }
-                let mut extra = [0];
-                if file.read(&mut extra).map_err(|error| error.to_string())? != 0 {
-                    return Err("trailing storage data".into());
-                }
-            }
-            match base_dir
-                .child(OsStr::new("yoake-wasm"), false)
-                .and_then(|directory| directory.child(OsStr::new(mod_id), false))
-            {
-                Ok(legacy) => result.import_directory(&legacy, "", scope.is_none())?,
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-                Err(error) => return Err(error.to_string()),
             }
             result.atomic_write("migration-v2.done", |file| {
                 file.write_all(b"2").map_err(|error| error.to_string())
             })?;
         }
         Ok(result)
+    }
+
+    fn import_store(&mut self, quota: usize) -> Result<(), String> {
+        let Some(mut file) = self
+            .directory
+            .read(OsStr::new("store.bin"))
+            .map_err(|error| error.to_string())?
+        else {
+            return Ok(());
+        };
+        let mut header = [0; HEADER_BYTES];
+        file.read_exact(&mut header)
+            .map_err(|error| error.to_string())?;
+        let count = u32::from_le_bytes(
+            header[5..]
+                .try_into()
+                .map_err(|_| "invalid storage header")?,
+        ) as usize;
+        if &header[..5] != MAGIC || count > MAX_KEYS {
+            return Err("invalid storage header".into());
+        }
+        let mut keys = std::collections::BTreeSet::new();
+        for _ in 0..count {
+            let (key, length) = read_entry_header(&mut file, quota)?;
+            if !keys.insert(key.clone()) {
+                return Err("duplicate storage key".into());
+            }
+            self.import(&key, length, &mut file)?;
+        }
+        let mut extra = [0];
+        if file.read(&mut extra).map_err(|error| error.to_string())? != 0 {
+            return Err("trailing storage data".into());
+        }
+        Ok(())
     }
 
     fn check_size(&self, key: &str, length: usize) -> Result<(), String> {
@@ -515,33 +528,32 @@ impl DiskStorage {
         Ok(())
     }
 
-    fn import_directory(
-        &mut self,
-        directory: &Dir,
-        prefix: &str,
-        binary_suffix: bool,
-    ) -> Result<(), String> {
+    fn import_directory(&mut self, directory: &Dir, prefix: &str) -> Result<(), String> {
         for name in directory.entries().map_err(|error| error.to_string())? {
-            let name_text = name.to_str().ok_or("invalid legacy filename")?;
-            let key = format!("{prefix}{name_text}");
-            if let Ok(child) = directory.child(&name, false) {
-                validate_key(&key).map_err(str::to_owned)?;
-                self.import_directory(&child, &format!("{key}/"), binary_suffix)?;
-            } else if let Some(mut file) =
-                directory.read(&name).map_err(|error| error.to_string())?
-            {
-                let key = if binary_suffix {
+            let imported = (|| -> Result<(), String> {
+                let name_text = name.to_str().ok_or("invalid legacy filename")?;
+                let key = format!("{prefix}{name_text}");
+                if let Ok(child) = directory.child(&name, false) {
+                    validate_key(&key).map_err(str::to_owned)?;
+                    self.import_directory(&child, &format!("{key}/"))?;
+                } else if let Some(mut file) =
+                    directory.read(&name).map_err(|error| error.to_string())?
+                {
                     let Some(key) = key.strip_suffix(".bin") else {
-                        continue;
+                        return Ok(());
                     };
-                    key
-                } else {
-                    &key
-                };
-                let length =
-                    usize::try_from(file.metadata().map_err(|error| error.to_string())?.len())
-                        .map_err(|_| "legacy value too large")?;
-                self.import(key, length, &mut file)?;
+                    let length =
+                        usize::try_from(file.metadata().map_err(|error| error.to_string())?.len())
+                            .map_err(|_| "legacy value too large")?;
+                    self.import(key, length, &mut file)?;
+                }
+                Ok(())
+            })();
+            if let Err(error) = imported {
+                eprintln!(
+                    "[yoake] storage: skipping legacy {prefix}{}: {error}",
+                    name.to_string_lossy()
+                );
             }
         }
         Ok(())
@@ -576,9 +588,11 @@ impl DiskStorage {
         let Some(entry) = self.entries.get(key) else {
             return Ok(false);
         };
-        self.directory
-            .remove(OsStr::new(&entry.filename))
-            .map_err(|error| error.to_string())?;
+        match self.directory.remove(OsStr::new(&entry.filename)) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.to_string()),
+        }
         self.storage.used -= entry_cost(key, entry.length);
         self.entries.remove(key);
         self.storage.entries.remove(key);
@@ -879,8 +893,16 @@ mod tests {
         let legacy = root.join("yoake-wasm/example/nested");
         std::fs::create_dir_all(&legacy).unwrap();
         std::fs::write(legacy.join("key.bin"), b"legacy").unwrap();
-        assert!(DiskStorage::open_with_quota(&root, "example", 12).is_err());
-        assert!(!directory.join("migration-v2.done").exists());
+        let limited = root.join("yoake-data/limited");
+        std::fs::create_dir_all(&limited).unwrap();
+        std::fs::write(limited.join("store.bin"), &encoded).unwrap();
+        std::fs::create_dir_all(root.join("yoake-wasm/limited/nested")).unwrap();
+        std::fs::write(root.join("yoake-wasm/limited/nested/key.bin"), b"legacy").unwrap();
+        let store = DiskStorage::open_with_quota(&root, "limited", 40).unwrap();
+        assert_eq!(store.get("from-store").unwrap(), Some(value.to_vec()));
+        assert_eq!(store.get("nested/key").unwrap(), None);
+        assert!(limited.join("migration-v2.done").exists());
+        drop(store);
         assert_eq!(std::fs::read(directory.join("store.bin")).unwrap(), encoded);
         let mut store = DiskStorage::open(&root, "example").unwrap();
         assert_eq!(store.get("from-store").unwrap(), Some(value.to_vec()));
@@ -894,10 +916,62 @@ mod tests {
         assert!(directory.join("migration-v2.done").exists());
         drop(store);
         let config = root.join("other-game");
-        std::fs::create_dir_all(config.join("yoake-wasm/example")).unwrap();
-        std::fs::write(config.join("yoake-wasm/example/settings.json"), b"{}").unwrap();
+        std::fs::create_dir_all(config.join("config/yoake-wasm/example")).unwrap();
+        std::fs::write(
+            config.join("config/yoake-wasm/example/settings.json.bin"), b"{}").unwrap();
         let store = DiskStorage::open_scoped(&config, "example", "global").unwrap();
         assert_eq!(store.get("settings.json").unwrap(), Some(b"{}".to_vec()));
+        drop(store);
+        std::fs::create_dir_all(config.join("yoake-data/example/client")).unwrap();
+        std::fs::write(config.join("yoake-data/example/client/store.bin"), encoded).unwrap();
+        let store = DiskStorage::open_scoped(&config, "example", "client").unwrap();
+        assert_eq!(store.get("settings.json").unwrap(), None);
+        assert_eq!(store.get("from-store").unwrap(), None);
+        drop(store);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn corrupt_entries_and_legacy_items_do_not_poison_the_store() {
+        let root = temporary_root();
+        let directory = root.join("yoake-data/example");
+        let mut store = DiskStorage::open(&root, "example").unwrap();
+        store.put("kept", b"original").unwrap();
+        drop(store);
+        std::fs::write(directory.join("entry-corrupt.bin"), b"invalid").unwrap();
+        std::fs::remove_file(directory.join("migration-v2.done")).unwrap();
+        std::fs::write(directory.join("store.bin"), b"invalid").unwrap();
+        let legacy = root.join("yoake-wasm/example");
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::write(legacy.join(".bin"), b"invalid key").unwrap();
+        std::fs::write(legacy.join("valid.bin"), b"imported").unwrap();
+        let store = DiskStorage::open(&root, "example").unwrap();
+        assert_eq!(store.get("kept").unwrap(), Some(b"original".to_vec()));
+        assert_eq!(store.get("valid").unwrap(), Some(b"imported".to_vec()));
+        assert!(directory.join("migration-v2.done").exists());
+        drop(store);
+        std::fs::write(legacy.join("later.bin"), b"ignored").unwrap();
+        let store = DiskStorage::open(&root, "example").unwrap();
+        assert_eq!(store.get("valid").unwrap(), Some(b"imported".to_vec()));
+        assert_eq!(store.get("later").unwrap(), None);
+        drop(store);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn deleting_an_externally_removed_entry_reclaims_its_quota() {
+        let root = temporary_root();
+        let mut store = DiskStorage::open_with_quota(&root, "example", 32).unwrap();
+        store.put("key", b"original").unwrap();
+        let filename = store.entries["key"].filename.clone();
+        std::fs::remove_file(root.join("yoake-data/example").join(filename)).unwrap();
+        assert!(store.delete("key").unwrap());
+        assert!(!store.delete("key").unwrap());
+        store.put("replacement", b"value").unwrap();
+        drop(store);
+        let store = DiskStorage::open_with_quota(&root, "example", 32).unwrap();
+        assert_eq!(store.get("key").unwrap(), None);
+        assert_eq!(store.get("replacement").unwrap(), Some(b"value".to_vec()));
         drop(store);
         std::fs::remove_dir_all(root).unwrap();
     }
@@ -1021,8 +1095,11 @@ mod tests {
         std::fs::remove_dir(folder.join(&filename)).unwrap();
         std::fs::remove_file(folder.join("migration-v2.done")).unwrap();
         std::fs::write(folder.join("store.bin"), b"broken").unwrap();
-        assert!(DiskStorage::open(&root, "example").is_err());
+        let store = DiskStorage::open(&root, "example").unwrap();
+        assert_eq!(store.get("key").unwrap(), None);
+        assert!(folder.join("migration-v2.done").is_file());
         assert_eq!(std::fs::read(folder.join("store.bin")).unwrap(), b"broken");
+        drop(store);
         std::fs::remove_dir_all(root).unwrap();
     }
 
