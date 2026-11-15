@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::Mutex;
 
 use wit_parser::{ManglingAndAbi, Resolve};
 use yoake_inject_rt::{Side, catalog, enter_side};
@@ -7,6 +8,8 @@ use yoake_wasm::{Sandbox, inject::Injection};
 
 const TARGET: &str =
     "game::tick_sleep_timer#198a5917f750358ff70ce3f80ede1aa2c142d914cbe7bed985f5b6f4ed29a7b7";
+
+static INJECTION_TEST: Mutex<()> = Mutex::new(());
 
 fn read_leb(bytes: &[u8], position: &mut usize) -> u32 {
     let mut value = 0;
@@ -261,7 +264,124 @@ fn component(
 }
 
 #[test]
+fn prefix_mod_ids_run_in_bare_id_order() {
+    let _lock = INJECTION_TEST
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    let mut sandbox = Sandbox::new();
+    let trap = vec![0, 0x00, 0x0b];
+    let extras = component(
+        &[(TARGET, 1)],
+        replace_arguments(20),
+        trap.clone(),
+        trap.clone(),
+    );
+    let base = component(&[(TARGET, 1)], replace_arguments(10), trap.clone(), trap);
+    let _extras = Injection::instantiate(
+        &mut sandbox,
+        "foo-extras",
+        &extras,
+        &[TARGET.to_owned()],
+        Side::Server,
+    )
+    .unwrap();
+    let _base = Injection::instantiate(
+        &mut sandbox,
+        "foo",
+        &base,
+        &[TARGET.to_owned()],
+        Side::Server,
+    )
+    .unwrap();
+    let _side = enter_side(Side::Server);
+    let site = catalog::SITES
+        .iter()
+        .find(|site| site.id() == TARGET)
+        .unwrap();
+    assert_eq!(
+        site.invoke(
+            vec![Value::Unsigned(2), Value::Boolean(false)],
+            |arguments| arguments[0].clone()
+        ),
+        Value::Unsigned(20),
+    );
+}
+
+#[test]
+fn modules_with_only_opposite_side_targets_are_noops() {
+    let _lock = INJECTION_TEST
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    let mut sandbox = Sandbox::new();
+    for (target, side) in [
+        (TARGET, Side::Client),
+        (
+            "game::attack_strength_scale#e28527bc3c45193c7ad0406144863440989c9d229dac40a38e43a7c54768e6d3",
+            Side::Server,
+        ),
+    ] {
+        let trap = vec![0, 0x00, 0x0b];
+        let bytes = component(&[(target, 1)], trap.clone(), trap.clone(), trap);
+        let result =
+            Injection::instantiate(&mut sandbox, "opposite", &bytes, &[target.to_owned()], side);
+        assert!(result.is_ok(), "opposite-side targets rejected on {side:?}");
+    }
+}
+
+#[test]
+fn oversized_engine_snapshots_skip_without_disabling_handlers() {
+    let _lock = INJECTION_TEST
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    let mut sandbox = Sandbox::new();
+    let target = "world::food::add_exhaustion#ca3064943a7660df0f8bb96751c0c58f9df0074453c066cff57d287963b4ef4e";
+    let site = catalog::SITES
+        .iter()
+        .find(|site| site.id() == target)
+        .unwrap();
+    let _side = enter_side(Side::Server);
+    for point in [1, 4] {
+        let trap = vec![0, 0x00, 0x0b];
+        let mut cancel = vec![0];
+        store_i32(&mut cancel, 0, 2);
+        store_i32(&mut cancel, 8, 0);
+        let unit = finish(vec![0, 0x41, 0, 0x41, 0, 0x36, 2, 0]);
+        let bytes = component(&[(target, point)], finish(cancel), trap, unit);
+        let injection = Injection::instantiate(
+            &mut sandbox,
+            "oversized-engine",
+            &bytes,
+            &[target.to_owned()],
+            Side::Server,
+        )
+        .unwrap();
+        let mut scope = yoake_value::Scope::default();
+        let receiver = scope.handle("Self", Some(Value::Text("x".repeat(256 * 1024 + 1))));
+        assert_eq!(
+            site.invoke(vec![receiver, Value::Float(1.0)], |_| Value::Unit),
+            Value::Unit
+        );
+        assert_eq!(
+            site.mask(),
+            point,
+            "host encoding failure disabled an innocent handler"
+        );
+        let receiver = scope.handle("Self", None);
+        assert_eq!(
+            site.invoke(vec![receiver, Value::Float(1.0)], |_| panic!(
+                "host encoding failure disabled an innocent handler"
+            )),
+            Value::Unit
+        );
+        drop(injection);
+    }
+}
+
+#[test]
 fn component_injections_validate_dispatch_and_recover() {
+    let _lock = INJECTION_TEST
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
     let mut sandbox = Sandbox::new();
     let site = catalog::SITES
         .iter()
@@ -379,13 +499,69 @@ fn component_injections_validate_dispatch_and_recover() {
             .unwrap();
         assert!(error.to_string().contains(expected), "{error}");
     }
-    let error = Injection::instantiate(&mut sandbox, "wrong-side", &bytes, &targets, Side::Client)
-        .err()
+    let inactive =
+        Injection::instantiate(&mut sandbox, "wrong-side", &[], &targets, Side::Client).unwrap();
+    drop(inactive);
+    let client_site = catalog::SITES
+        .iter()
+        .find(|site| site.path() == "game::attack_strength_scale")
         .unwrap();
-    assert!(
-        error.to_string().contains("no mixin targets for this side"),
-        "{error}"
+    drop(
+        Injection::instantiate(
+            &mut sandbox,
+            "server-with-client-targets",
+            &[],
+            &[client_site.id().to_owned()],
+            Side::Server,
+        )
+        .unwrap(),
     );
+    let chat_site = catalog::SITES
+        .iter()
+        .find(|site| site.path() == "game::chat::handle_chat_input")
+        .unwrap();
+    for point in [1, 2, 4] {
+        let trap = vec![0, 0x00, 0x0b];
+        let bytes = component(
+            &[(&chat_site.id(), point)],
+            trap.clone(),
+            trap.clone(),
+            trap,
+        );
+        let _loaded = Injection::instantiate_with_permissions(
+            &mut sandbox,
+            "host-value-over-budget",
+            &bytes,
+            &[chat_site.id().to_owned()],
+            Side::Server,
+            &["service.commands".to_owned()],
+        )
+        .unwrap();
+        let mut scope = yoake_value::Scope::default();
+        let receiver = scope.handle("Self", None);
+        let oversized = Value::Text("x".repeat(256 * 1024 + 1));
+        let arguments = vec![
+            receiver.clone(),
+            if point == 2 {
+                Value::Text("id".to_owned())
+            } else {
+                oversized.clone()
+            },
+        ];
+        let native_result = if point == 2 { oversized } else { Value::Unit };
+        assert_eq!(
+            chat_site.invoke(arguments, |_| native_result.clone()),
+            native_result,
+        );
+        assert_eq!(chat_site.mask(), point);
+        assert_eq!(
+            chat_site.invoke(vec![receiver, Value::Text("id".to_owned())], |_| {
+                Value::Unit
+            }),
+            Value::Unit,
+        );
+        assert_eq!(chat_site.mask(), 0);
+    }
     let mut resolve = Resolve::default();
     let package = resolve
         .push_str("empty.wit", "package test:empty; world empty {}")

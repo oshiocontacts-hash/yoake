@@ -93,6 +93,15 @@ fn expand(attribute: TokenStream2, function: ItemFn) -> syn::Result<TokenStream2
     let hash = syn::LitStr::new(&info.hash(), Span::call_site());
     let ident = &signature.ident;
     let site = format_ident!("__yoake_inject_site_{}", ident);
+    let registry_bound = match options.id.as_deref() {
+        Some(
+            "world::level::on_place"
+            | "world::level::tick::crop_random_tick"
+            | "world::level::bonemeal::crop_bonemeal_increase",
+        ) => quote!(Some(self.b.table.state_count())),
+        Some("game::drop_falling_block") => quote!(Some(self.res.facts().states.len())),
+        _ => quote!(None),
+    };
     let path = match options.id {
         Some(id) => {
             let id = syn::LitStr::new(&id, Span::call_site());
@@ -124,9 +133,9 @@ fn expand(attribute: TokenStream2, function: ItemFn) -> syn::Result<TokenStream2
     };
     let wire_type = success_type(&signature.output).unwrap_or_else(|| result_type.clone());
     let invoke = if info.fallible {
-        quote!(invoke_fallible)
+        quote!(invoke_fallible_validated)
     } else {
-        quote!(invoke)
+        quote!(invoke_validated)
     };
     let encode_result = if info.fallible {
         quote!(#native.map(::yoake_inject_rt::InjectValue::into_inject_value))
@@ -162,20 +171,26 @@ fn expand(attribute: TokenStream2, function: ItemFn) -> syn::Result<TokenStream2
 
             #(#attributes)*
             #visibility #signature {
-                if #accessor.mask() == 0 {
+                if !#accessor.has_handlers() {
                     #body
                 } else {
-                    #scope
-    let #result = #accessor.#invoke(
-                        vec![#(#encode),*],
-                        |#arguments| {
-     #iterator_setup
-                            #(#decode)*
-                            let #native: #result_type = (|| -> #result_type #body)();
-                            #encode_result
-                        },
-                    );
-                    #decode_result
+                    ::yoake_inject_rt::dispatch_slow(move || {
+                        if #accessor.mask() == 0 {
+                            return (|| -> #result_type #body)();
+                        }
+                        #scope
+                        let #result = #accessor.#invoke(
+                            vec![#(#encode),*],
+                            #registry_bound,
+                            |#arguments| {
+                                #iterator_setup
+                                #(#decode)*
+                                let #native: #result_type = (|| -> #result_type #body)();
+                                #encode_result
+                            },
+                        );
+                        #decode_result
+                    })
                 }
             }
         })

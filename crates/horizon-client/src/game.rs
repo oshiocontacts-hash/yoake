@@ -22032,9 +22032,9 @@ fn player_arms(root: &std::path::Path, key: &str) -> [Option<horizon_client::mob
 #[yoake_inject_macro::yoake_inject(id = "game::tick_sleep_timer", side = "server")]
 fn tick_sleep_timer(timer: u32, sleeping: bool) -> u32 {
     if sleeping {
-        (timer + 1).min(100)
+        timer.saturating_add(1).min(100)
     } else if (1..109).contains(&timer) {
-        timer + 1
+        timer.saturating_add(1)
     } else {
         0
     }
@@ -22713,6 +22713,8 @@ mod tests {
             _ => panic!("sleep overlay must be a full-screen fill"),
         };
         assert_eq!(tick_sleep_timer(0, false), 0);
+        assert_eq!(tick_sleep_timer(u32::MAX, true), 100);
+        assert_eq!(tick_sleep_timer(u32::MAX, false), 0);
         let mut timer = 0;
         for _ in 0..50 {
             timer = tick_sleep_timer(timer, true);

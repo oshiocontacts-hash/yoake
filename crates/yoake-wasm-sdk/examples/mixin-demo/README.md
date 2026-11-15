@@ -14,6 +14,8 @@ cargo build --offline -j 4 --release --target wasm32-wasip2
 Stage the resulting `yoake_mixin_demo.wasm` as `bin/wasm/mixin-demo.wasm` beside
 `yak.toml`, using a separate package staging directory. The same component is used
 for both sides; the host filters server-only targets from the client instance.
+The chat target requires the declared `service.commands` permission and, on the
+client, `service.chat`, even though this example only observes the text.
 The target signatures are pinned to the committed engine catalog. A changed
 signature requires reviewing the new catalog and rebuilding the mod.
 

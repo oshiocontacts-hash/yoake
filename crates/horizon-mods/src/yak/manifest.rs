@@ -151,14 +151,15 @@ pub struct Wasm {
     /// hooks target `server-full`; hook worlds use interface 1.0 and injections use 1.1.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub world: Option<String>,
-    /// Powers beyond the safe set that the package asks for; an installer shows them. Today only
-    /// `service.commands` (the server module may run server commands: the dangerous ones stay denied).
+    /// Powers beyond the safe set that the package asks for; an installer shows them.
+    /// `service.commands` permits command services and sensitive injections;
+    /// `service.chat` additionally permits client chat/command injections.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub permissions: Vec<String>,
 }
 
 /// The `[wasm] permissions` this build knows.
-pub const WASM_PERMISSIONS: [&str; 1] = ["service.commands"];
+pub const WASM_PERMISSIONS: [&str; 2] = ["service.commands", "service.chat"];
 
 /// The WIT worlds a client module may target.
 pub const CLIENT_WASM_WORLDS: [&str; 3] = ["client-mod", "client-full", "inject-mod"];
@@ -246,8 +247,12 @@ impl Wasm {
             .iter()
             .any(|permission| permission == "service.commands")
             && self.server.is_none()
+            && self.world.as_deref() != Some("inject-mod")
         {
             return Err("wasm permission service.commands applies to the server module; declare wasm.server".into());
+        }
+        if self.has_permission("service.chat") && self.client.is_none() {
+            return Err("wasm permission service.chat requires wasm.client".into());
         }
         let modules = self.modules();
         if modules.is_empty() {

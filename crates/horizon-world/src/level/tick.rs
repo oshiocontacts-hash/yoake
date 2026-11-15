@@ -681,7 +681,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     let test = pos.offset(xx, yy, zz);
                     let ignite = self.fire_ignite_odds_at(test);
                     if ignite > 0 {
-                        let mut odds = (ignite + 40 + self.level.difficulty() * 7) / (age + 30);
+                        let mut odds = ignite
+                            .saturating_add(40)
+                            .saturating_add(self.level.difficulty().saturating_mul(7))
+                            / (age + 30);
                         if burnout {
                             odds /= 2;
                         }
@@ -868,7 +871,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let max = self.crop_max_age(state);
         if age < max {
             let speed = self.crop_growth_speed(b.block(state), pos);
-            if self.rand_int((25.0 / speed) as i32 + 1) == 0 {
+            if self.rand_int(((25.0 / speed) as i32).saturating_add(1)) == 0 {
                 let next = self.crop_state_for_age(state, age + 1);
                 self.set_block(pos, next, 2);
             }
@@ -880,7 +883,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             return;
         }
         let speed = self.crop_growth_speed(b.block(state), pos);
-        if self.rand_int((25.0 / speed) as i32 + 1) != 0 {
+        if self.rand_int(((25.0 / speed) as i32).saturating_add(1)) != 0 {
             return;
         }
         let age = b.table.int(state, b.props.age);

@@ -6,7 +6,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use syn::{Attribute, Meta, visit::Visit};
-use yoake_inject_spec::{Options, parse_options};
+use yoake_inject_spec::{Options, Rule, parse_options, site_policy};
 
 #[derive(Deserialize, Serialize)]
 struct CatalogSite {
@@ -18,6 +18,24 @@ struct CatalogSite {
     side: String,
     allow: Vec<String>,
     source: String,
+    argument_rules: Vec<serde_json::Value>,
+    result_rule: serde_json::Value,
+    required_capabilities: Vec<String>,
+    client_required_capabilities: Vec<String>,
+}
+
+fn validation_rule(rule: Rule) -> serde_json::Value {
+    match rule {
+        Rule::Unrestricted => serde_json::json!({ "kind": "unrestricted" }),
+        Rule::Finite => serde_json::json!({ "kind": "finite" }),
+        Rule::Number(minimum, maximum) => {
+            serde_json::json!({ "kind": "number", "minimum": minimum, "maximum": maximum })
+        }
+        Rule::Vector(minimum, maximum) => {
+            serde_json::json!({ "kind": "vector", "minimum": minimum, "maximum": maximum })
+        }
+        Rule::BlockState => serde_json::json!({ "kind": "block-state", "registry": "live" }),
+    }
 }
 
 fn annotation(attributes: &[Attribute]) -> Result<Option<Options>, String> {
@@ -141,6 +159,21 @@ impl SourceScanner<'_> {
             .ok_or("cataloged sites require an explicit side")?;
         let signature_hash = info.hash();
         let mask = options.allowed.unwrap_or(7);
+        let policy = site_policy(&path);
+        let argument_rules = info
+            .arguments
+            .iter()
+            .enumerate()
+            .map(|(index, _)| {
+                validation_rule(
+                    policy
+                        .arguments
+                        .iter()
+                        .find(|(argument, _)| *argument == index)
+                        .map_or(Rule::Finite, |(_, rule)| *rule),
+                )
+            })
+            .collect();
         let allow = [("head", 1), ("return", 2), ("overwrite", 4)]
             .into_iter()
             .filter_map(|(name, bit)| (mask & bit != 0).then_some(name.to_owned()))
@@ -158,6 +191,18 @@ impl SourceScanner<'_> {
             side,
             allow,
             source: self.source.to_owned(),
+            argument_rules,
+            result_rule: validation_rule(policy.result),
+            required_capabilities: if policy.commands {
+                vec!["service.commands".into()]
+            } else {
+                vec![]
+            },
+            client_required_capabilities: if policy.client_chat {
+                vec!["service.chat".into()]
+            } else {
+                vec![]
+            },
         })
     }
 }
@@ -354,6 +399,57 @@ mod tests {
                 "demo.rs"
             )
             .is_err()
+        );
+    }
+
+    #[test]
+    fn every_site_has_explicit_numeric_and_registry_boundaries() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let generated = generate_inject_catalog(&root).unwrap();
+        let sites: Vec<CatalogSite> = serde_json::from_str(&generated).unwrap();
+        assert_eq!(sites.len(), 51);
+        let mut block_state_slots = 0;
+        let mut sensitive = Vec::new();
+        for site in sites {
+            assert_eq!(site.arguments.len(), site.argument_rules.len());
+            for (wire, rule) in site
+                .arguments
+                .iter()
+                .zip(&site.argument_rules)
+                .chain(std::iter::once((&site.result, &site.result_rule)))
+            {
+                let kind = rule["kind"].as_str().unwrap();
+                match wire.as_str() {
+                    "block-state-id" => {
+                        assert_eq!(kind, "block-state", "{}", site.path);
+                        assert_eq!(rule["registry"], "live");
+                        block_state_slots += 1;
+                    }
+                    "block-pos" | "vec3" | "vec3-f32" => {
+                        assert_eq!(kind, "vector", "{}", site.path)
+                    }
+                    "unit" | "bool" | "string" => assert_eq!(kind, "finite"),
+                    wire if wire.starts_with("scoped<") => assert_eq!(kind, "finite"),
+                    _ => assert_eq!(kind, "number", "{}: {wire}", site.path),
+                }
+            }
+            if !site.required_capabilities.is_empty() {
+                assert_eq!(site.required_capabilities, ["service.commands"]);
+                sensitive.push(site.path.clone());
+            }
+            assert_eq!(
+                site.client_required_capabilities == ["service.chat"],
+                site.path == "game::chat::handle_chat_input"
+            );
+        }
+        assert_eq!(block_state_slots, 5);
+        assert_eq!(
+            sensitive,
+            [
+                "game::chat::handle_chat_input",
+                "game::commands::execute::execute_line",
+                "game::commands::execute_command"
+            ]
         );
     }
 

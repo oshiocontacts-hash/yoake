@@ -29,7 +29,8 @@ pub fn main_with(mods: crate::mod_api::Mods) {
     let (mods, identities) = dll_mods::extend(mods, &[]);
     let (mods, identities) = wasm_mods::extend(mods, identities);
     if !identities.is_empty() {
-        horizon_protocol::mod_list::native::install(identities).expect("Invalid native mod identities");
+        horizon_protocol::mod_list::native::install(identities)
+            .expect("Invalid native mod identities");
     }
     run(mods);
 }
@@ -55,6 +56,12 @@ fn run(mods: crate::mod_api::Mods) {
     horizon_client::telemetry::mark_start();
     horizon_client::spans::startup::init(std::time::Instant::now());
     let args: Vec<String> = std::env::args().skip(1).collect();
+    let _injection_side =
+        yoake_inject_rt::enter_side(if args.iter().any(|arg| arg == "--dedicated") {
+            yoake_inject_rt::Side::Server
+        } else {
+            yoake_inject_rt::Side::Client
+        });
     let game_args = args.iter().take_while(|a| *a != "--dedicated");
     let help = game_args
         .clone()

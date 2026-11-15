@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+pub mod policy;
 pub mod wire;
 
 use std::collections::BTreeMap;

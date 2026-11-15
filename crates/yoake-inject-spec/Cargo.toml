@@ -11,6 +11,7 @@ proc-macro2 = "1"
 quote = "1"
 sha2 = "0.10"
 syn = { version = "2", features = ["full"] }
+yoake-value = { path = "../yoake-value" }
 
 [lints]
 workspace = true

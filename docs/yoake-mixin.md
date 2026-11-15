@@ -94,8 +94,36 @@ float, string, bytes, list, and record. Numeric replacements must fit the catalo
 exact width. `usize`/`isize` use their host-width range. Strings are owned across
 the WIT boundary; native `&str` arguments can be replaced by owned guest text.
 `block-pos` is a three-element signed-32 list; `vec3` and `vec3-f32` are three-element
-float lists. Block-state IDs are unsigned-32 values. Floating-point values retain
-native NaN/infinity behavior rather than introducing a new vanilla restriction.
+float lists. Block-state IDs are unsigned-32 values with a live registry bound:
+the two state arguments of `on_place`, and the state arguments of
+`crop_random_tick`, `crop_bonemeal_increase`, and `drop_falling_block`, must be
+less than the current world's state count. A missing registry bound rejects the
+replacement. Other block, item, and entity identities at these sites are immutable
+scoped handles, not replaceable integer IDs.
+
+Guest replacements reject NaN and infinity by default, including inside vectors.
+`yoake-value::policy::site_policy` declares argument and result rules; the generated
+`inject-sites.json` includes those rules for every site. All 51 sites are audited
+for numeric and identity domains. Native arguments and native results are never
+subject to these new restrictions, preserving unmodified vanilla behavior.
+
+| Replacement domain | Inclusive bounds |
+| --- | --- |
+| Explosion radius | 0 to 128 |
+| Sleep timer | 0 to 110 |
+| Crop growth speed | 0.01 to 1024 |
+| Bonemeal increment | 0 to 25 |
+| Fire ignition odds | 0 to 10,000 |
+| Damage amount | 0 to 1,000,000 |
+| Exhaustion / saturation modifier | 0 to 40 |
+| Food nutrition | 0 to 20 |
+| Positions / item velocity, per component | -30,000,000 to 30,000,000 / -1024 to 1024 |
+
+Remaining numeric rules (crafting, experience, enchantment, fall and jump inputs,
+attack strength/speed, pickup delay, and result widths) are explicit in the same
+catalog. Out-of-range values are rejected, not silently clamped. Consumer arithmetic
+for sleep, bonemeal, fire odds and crop random-tick divisors also saturates where
+unchecked arithmetic could overflow.
 
 Receivers and opaque/reference arguments are records containing nonzero `scope`
 and `id` fields and a `type` string. An entity argument marked by the engine is a
@@ -116,7 +144,8 @@ The Wasmtime store limit also bounds allocations made by component bindings.
 
 ## Ordering, conflicts, and failure
 
-Handlers run in lexicographic mod-ID order within a site and side. HEAD handlers
+Handlers sort by `(bare mod ID, side)`, not a formatted ID/side string; for example,
+`foo` precedes `foo-extras`. HEAD handlers
 see argument changes made by earlier HEAD handlers. Cancel skips remaining HEAD
 handlers, overwrite, and the native body, but RETURN can still transform the
 cancelled result. Otherwise at most one enabled overwrite may replace the body.
@@ -142,7 +171,36 @@ its aggregate accounting is preserved and recreation time is charged. Guest
 persistent state resets on this recovery. A failed recreation disables that
 instance. Reentrant/busy instances and exhausted aggregate budgets skip callbacks
 instead of deadlocking or disabling an otherwise healthy injection point. The
-ordinary non-injection hook failure policy is unchanged.
+same skip/native-fallback behavior applies when an engine argument or native
+result exceeds the host conversion budget; this does not disable an innocent
+handler. An empty target selection on one module side is a quiet no-op, not a
+failure of the package's other module. The ordinary non-injection hook failure
+policy is unchanged.
+
+The runtime maintains separate client/server masks and refreshes them when an
+injection point or instance is disabled. Unentered threads are `Unspecified` and
+never dispatch; the client main thread explicitly enters `Client`. With no handlers,
+the gate is a relaxed atomic load plus a branch, before any thread-local access,
+locks, argument construction, or allocation.
+
+## Sensitive sites and capabilities
+
+The sensitive-site list for this catalog is exactly
+`game::chat::handle_chat_input`, `game::commands::execute::execute_line`, and
+`game::commands::execute_command`. Registering any injection point at these sites
+requires `[wasm] permissions = ["service.commands"]`; a client-side registration
+also requires `"service.chat"`, an explicit capability for outgoing chat/command
+text rewriting. Other sites retain the ordinary injection capability set.
+
+A changed HEAD command argument passes the same shared `command_gate` as the
+command service: at most 64 KiB, no control characters, and at most 16 levels of
+nested `run` commands. Client chat may replace plain non-command text, but a
+leading-slash replacement goes through that gate too. The case-insensitive
+denylist (including `minecraft:` names and nested commands) is: `transfer`,
+`fetchprofile`, `publish`, `unpublish`, `debug`, `jfr`, `perf`, `stop`, `save-off`,
+`save-on`, `op`, `deop`, `whitelist`, `ban`, `ban-ip`, `pardon`, `pardon-ip`,
+`setidletimeout`, `test`, `compute`, and `pregen`. These checks do not filter the
+player's unchanged native text, and cannot be bypassed by granting capabilities.
 
 ## Sandbox limits
 
@@ -250,24 +308,34 @@ a mod can choose among existing cataloged boundaries without one.
 ## No-injection cost and measurement
 
 An annotated function first performs a single relaxed mask load and branch.
-With no active handler, it enters the original body before making snapshots,
+With all masks clear, it enters the original body before making snapshots,
 allocating, taking registry locks, or consulting side thread-local state. Tests
 check the no-allocation path and exercise that path while its handler lock is
 held. They do not substitute for inspecting optimized builds on each platform.
 
 The ignored `zero_mask_microbenchmark` compares otherwise equivalent no-inline
 plain and annotated scalar functions. On the Windows test environment, a release
-run (11 alternating samples of 20 million calls) measured medians of 1.2785 ns
-plain and 2.6839 ns annotated: **1.4053 ns extra per call**, or 109.92% for this
-intentionally tiny body. This is not evidence of less than 1% total gameplay
-cost. Real engine-frame benchmarks and vanilla parity runs still need an owner
-machine with prepared data; this development run does not start the game or
-prepare Mojang resources.
+run (11 alternating samples of 20 million calls) measured medians of 1.5283 ns
+plain and 2.1477 ns annotated: **0.6194 ns extra per call**, or 40.53% for this
+intentionally tiny body. The `realistic_zero_mask_microbenchmark` compares one
+million calls per sample of the actual annotated `calculate_fall_damage` against
+an unannotated copy of its arithmetic and immunity check. Its 11 alternating
+samples measured medians of 8.0660 ns plain and 8.8594 ns annotated:
+**0.7934 ns extra per call**, or 9.84%.
 
-Run the micro-benchmark explicitly with:
+These microbenchmarks do not meet the 1% target. Repeated runs on this shared
+Windows environment vary substantially; neither these measurements nor a faster
+sample establish whole-engine overhead below 1%. The zero-mask gate avoids TLS
+and dispatch before the native body, but its load and branch still have a
+measurable relative cost for short functions. Real engine-frame benchmarks and
+vanilla parity runs still need an owner machine with prepared data; this
+development run does not start the game or prepare Mojang resources.
+
+Run the microbenchmarks explicitly with:
 
 ```sh
 cargo test --offline -j 4 --release -p yoake-inject-rt --test zero_mask zero_mask_microbenchmark -- --ignored --nocapture
+cargo test --offline -j 4 --release -p horizon-world --test inject_overhead realistic_zero_mask_microbenchmark -- --ignored --nocapture
 ```
 
 ## Follow-up / needs confirmation

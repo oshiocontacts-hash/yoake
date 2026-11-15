@@ -539,7 +539,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             Kind::Crop => {
                 let max = self.crop_max_age(state);
                 let increase = self.crop_bonemeal_increase(state);
-                let age = max.min(b.table.int(state, p.age) + increase);
+                let age = max.min(b.table.int(state, p.age).saturating_add(increase));
                 let next = self.crop_state_for_age(state, age);
                 self.set_block(pos, next, 2);
             }

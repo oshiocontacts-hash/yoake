@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use yoake_inject_rt::{
@@ -48,6 +49,7 @@ struct Runtime {
 struct Handler {
     runtime: Mutex<Runtime>,
     compiled: CompiledComponent,
+    disabled: AtomicBool,
 }
 
 impl Handler {
@@ -92,6 +94,7 @@ impl Handler {
                         runtime.raw.id
                     );
                     runtime.raw.disabled = true;
+                    self.disabled.store(true, Ordering::Relaxed);
                     runtime.poisoned = false;
                     return Err(CallbackError::Trap);
                 }
@@ -103,6 +106,7 @@ impl Handler {
             poisoned,
         } = &mut *runtime;
         let result = raw.call_recoverable(point, |store, _| invoke(exports, store));
+        self.disabled.store(raw.disabled, Ordering::Relaxed);
         for line in raw.drain_output() {
             eprintln!("[yoake-inject:{}:{:?}] {}", raw.id, line.stream, line.text);
         }
@@ -119,6 +123,10 @@ impl Handler {
 }
 
 impl Guest for Handler {
+    fn is_disabled(&self) -> bool {
+        self.disabled.load(Ordering::Relaxed)
+    }
+
     fn head(&self, site: &str, arguments: &[Value]) -> Result<HeadOutcome, CallbackError> {
         let arguments = encode_arguments(arguments)?;
         let outcome = self.call("inject-head", |exports, store| {
@@ -142,7 +150,7 @@ impl Guest for Handler {
     fn returned(&self, site: &str, result: &Value) -> Result<Option<Value>, CallbackError> {
         let result = Encoder::new(VALUE_LIMITS)
             .encode(result)
-            .map_err(|_| CallbackError::Trap)?;
+            .map_err(|_| CallbackError::Skipped)?;
         let result = to_wit(result);
         let replacement = self.call("inject-return", |exports, store| {
             exports
@@ -175,7 +183,7 @@ fn encode_arguments(arguments: &[Value]) -> Result<Vec<wit::Value>, CallbackErro
             encoder
                 .encode(value)
                 .map(to_wit)
-                .map_err(|_| CallbackError::Trap)
+                .map_err(|_| CallbackError::Skipped)
         })
         .collect()
 }
@@ -307,7 +315,7 @@ impl Hub {
                     })
             });
         self.registry
-            .prepare(subscriptions, |_, _, _| true)
+            .prepare(subscriptions, |module, site, _| module.permits(site))
             .map_err(|error| format!("mixin registration rejected: {error:?}"))
     }
 }
@@ -315,7 +323,7 @@ impl Hub {
 static HUB: OnceLock<Mutex<Option<Hub>>> = OnceLock::new();
 
 pub struct Injection {
-    key: String,
+    key: Option<String>,
 }
 
 impl Injection {
@@ -325,6 +333,17 @@ impl Injection {
         bytes: &[u8],
         targets: &[String],
         side: Side,
+    ) -> Result<Self, LoadError> {
+        Self::instantiate_with_permissions(sandbox, id, bytes, targets, side, &[])
+    }
+
+    pub fn instantiate_with_permissions(
+        sandbox: &mut Sandbox,
+        id: &str,
+        bytes: &[u8],
+        targets: &[String],
+        side: Side,
+        permissions: &[String],
     ) -> Result<Self, LoadError> {
         if targets.is_empty() || targets.len() > 1024 {
             return Err(LoadError::new("mixin requires between 1 and 1024 targets"));
@@ -347,6 +366,12 @@ impl Injection {
                 return Err(LoadError::new("mixin side must be client or server"));
             }
         };
+        if !expected
+            .values()
+            .any(|site| site.side() == Side::Both || site.side() == side)
+        {
+            return Ok(Self { key: None });
+        }
         let compiled = sandbox.compile(bytes).map_err(LoadError::new)?;
         let mut raw = compiled
             .clone()
@@ -394,11 +419,6 @@ impl Injection {
                 "component registrations must cover every manifest mixin target",
             ));
         }
-        if selected.is_empty() {
-            return Err(LoadError::new(
-                "component has no mixin targets for this side",
-            ));
-        }
         let key = format!("{id}:{side:?}");
         let handler = Arc::new(Handler {
             runtime: Mutex::new(Runtime {
@@ -407,11 +427,17 @@ impl Injection {
                 poisoned: false,
             }),
             compiled,
+            disabled: AtomicBool::new(false),
         });
         let entry = Entry {
             side,
             registrations: selected,
-            module: Arc::new(Mod::new(key.clone(), handler)),
+            module: Arc::new(Mod::with_permissions(
+                id,
+                handler,
+                side,
+                permissions.iter().cloned(),
+            )),
         };
         let mut hub = HUB
             .get_or_init(|| Mutex::new(None))
@@ -436,19 +462,20 @@ impl Injection {
             .publish(prepared)
             .map_err(|error| LoadError::new(format!("mixin publish failed: {error:?}")))?;
         hub.entries.insert(key.clone(), entry);
-        Ok(Self { key })
+        Ok(Self { key: Some(key) })
     }
 }
 
 impl Drop for Injection {
     fn drop(&mut self) {
+        let Some(key) = &self.key else { return };
         let Some(mut hub) = HUB.get().and_then(|hub| hub.lock().ok()) else {
             return;
         };
         let Some(hub) = hub.as_mut() else { return };
-        if let Ok(prepared) = hub.prepare(None, Some(&self.key)) {
+        if let Ok(prepared) = hub.prepare(None, Some(key)) {
             if hub.registry.publish(prepared).is_ok() {
-                hub.entries.remove(&self.key);
+                hub.entries.remove(key);
             }
         }
     }

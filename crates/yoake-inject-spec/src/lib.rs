@@ -5,6 +5,8 @@ use syn::parse::Parser;
 use syn::punctuated::Punctuated;
 use syn::{Expr, FnArg, Lit, Meta, Pat, ReturnType, Signature, Token, Type};
 
+pub use yoake_value::policy::{Policy, Rule, site_policy};
+
 #[derive(Default)]
 pub struct Options {
     pub id: Option<String>,

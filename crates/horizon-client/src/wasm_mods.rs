@@ -129,6 +129,7 @@ struct Source {
     /// The module targets `client-full` rather than `client-mod`.
     full: bool,
     mixin_targets: Vec<String>,
+    permissions: Vec<String>,
     bytes: Vec<u8>,
     /// Watched for hot reload (developer mode and not signed).
     watch: Option<PathBuf>,
@@ -174,6 +175,7 @@ fn dev_sources() -> Vec<Source> {
                 required_on_join: false,
                 full: false,
                 mixin_targets: Vec::new(),
+                permissions: Vec::new(),
                 bytes,
                 watch: Some(path),
             }),
@@ -225,9 +227,10 @@ fn load_injection(
     bytes: &[u8],
     targets: &[String],
     side: yoake_inject_rt::Side,
+    permissions: &[String],
 ) -> Result<Injection, String> {
     let mut sandbox = sandbox().lock().unwrap_or_else(|error| error.into_inner());
-    Injection::instantiate(&mut sandbox, id, bytes, targets, side)
+    Injection::instantiate_with_permissions(&mut sandbox, id, bytes, targets, side, permissions)
         .map_err(|error| error.to_string())
 }
 
@@ -247,6 +250,7 @@ pub(super) fn extend(
             required_on_join: module.required_on_join,
             full: module.full,
             mixin_targets: module.mixin_targets,
+            permissions: module.permissions,
             bytes: module.bytes,
             watch: (developer && !module.signed).then_some(module.path),
         })
@@ -301,6 +305,7 @@ pub(super) fn extend(
                 &source.bytes,
                 &source.mixin_targets,
                 yoake_inject_rt::Side::Client,
+                &source.permissions,
             ) {
                 Ok(injection) => {
                     package.hooks.push(Box::new(InjectionMod {
@@ -408,6 +413,7 @@ pub(super) fn extend(
                 &server.bytes,
                 &server.mixin_targets,
                 yoake_inject_rt::Side::Server,
+                &server.permissions,
             ) {
                 Ok(injection) => {
                     package.hooks.push(Box::new(InjectionMod {

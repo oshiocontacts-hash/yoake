@@ -19,6 +19,7 @@ interface = "1.1"
 world = "inject-mod"
 client = "bin/wasm/mixin-demo.wasm"
 server = "bin/wasm/mixin-demo.wasm"
+permissions = ["service.commands", "service.chat"]
 
 [mixin]
 targets = [

@@ -2,12 +2,14 @@
 extern crate self as yoake_inject_rt;
 
 use std::cell::Cell;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 #[cfg(test)]
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::{Arc, RwLock};
 
+pub use yoake_value::policy::command_gate;
+use yoake_value::policy::{Rule, site_policy};
 pub use yoake_value::{InjectSnapshot, InjectValue, Scope, Value, ValueType};
 
 pub mod catalog;
@@ -48,7 +50,13 @@ pub const RETURN: u8 = 2;
 pub const OVERWRITE: u8 = 4;
 const ALL_POINTS: u8 = HEAD | RETURN | OVERWRITE;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[cold]
+#[inline(never)]
+pub fn dispatch_slow<R>(dispatch: impl FnOnce() -> R) -> R {
+    dispatch()
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Side {
     Client,
     Server,
@@ -57,7 +65,7 @@ pub enum Side {
 }
 
 thread_local! {
-    static ACTIVE_SIDE: Cell<Side> = const { Cell::new(Side::Client) };
+    static ACTIVE_SIDE: Cell<Side> = const { Cell::new(Side::Unspecified) };
 }
 
 pub struct SideScope(Side, std::marker::PhantomData<*mut ()>);
@@ -80,6 +88,8 @@ pub struct Site {
     result: ValueType,
     allowed: u8,
     mask: AtomicU8,
+    client_mask: AtomicU8,
+    server_mask: AtomicU8,
     claimed: AtomicBool,
     handlers: RwLock<Option<Arc<[Handler]>>>,
     #[cfg(test)]
@@ -103,6 +113,8 @@ impl Site {
             result,
             allowed,
             mask: AtomicU8::new(0),
+            client_mask: AtomicU8::new(0),
+            server_mask: AtomicU8::new(0),
             claimed: AtomicBool::new(false),
             handlers: RwLock::new(None),
             #[cfg(test)]
@@ -111,8 +123,26 @@ impl Site {
     }
 
     #[inline(always)]
+    pub fn has_handlers(&self) -> bool {
+        self.mask.load(Ordering::Relaxed) != 0 && self.mask_for_active_side() != 0
+    }
+
+    #[inline(always)]
     pub fn mask(&self) -> u8 {
-        self.mask.load(Ordering::Relaxed)
+        if self.mask.load(Ordering::Relaxed) == 0 {
+            return 0;
+        }
+        self.mask_for_active_side()
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn mask_for_active_side(&self) -> u8 {
+        match ACTIVE_SIDE.get() {
+            Side::Client => self.client_mask.load(Ordering::Relaxed),
+            Side::Server => self.server_mask.load(Ordering::Relaxed),
+            _ => 0,
+        }
     }
 
     pub fn id(&self) -> String {
@@ -142,6 +172,46 @@ impl Site {
                 .zip(self.arguments)
                 .all(|(value, expected)| expected.accepts(value))
     }
+
+    fn accepts_replacement(&self, arguments: &[Value], block_states: Option<usize>) -> bool {
+        let policy = site_policy(self.path);
+        self.accepts_arguments(arguments)
+            && arguments.iter().enumerate().all(|(index, value)| {
+                policy
+                    .arguments
+                    .iter()
+                    .find(|(argument, _)| *argument == index)
+                    .map_or(Rule::Finite, |(_, rule)| *rule)
+                    .accepts(value, block_states)
+            })
+    }
+
+    fn accepts_result(&self, result: &Value, block_states: Option<usize>) -> bool {
+        self.result.accepts(result) && site_policy(self.path).result.accepts(result, block_states)
+    }
+
+    fn refresh_masks(&self) {
+        let handlers = self
+            .handlers
+            .read()
+            .unwrap_or_else(|poison| poison.into_inner());
+        let mut client = 0;
+        let mut server = 0;
+        for handler in handlers.iter().flat_map(|handlers| handlers.iter()) {
+            if handler.module.guest.is_disabled() {
+                continue;
+            }
+            let points = handler.points & !handler.disabled.load(Ordering::Relaxed);
+            match handler.side {
+                Side::Client => client |= points,
+                Side::Server => server |= points,
+                _ => {}
+            }
+        }
+        self.client_mask.store(client, Ordering::Relaxed);
+        self.server_mask.store(server, Ordering::Relaxed);
+        self.mask.store(client | server, Ordering::Relaxed);
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -158,6 +228,10 @@ pub enum CallbackError {
 }
 
 pub trait Guest: Send + Sync {
+    fn is_disabled(&self) -> bool {
+        false
+    }
+
     fn head(&self, _site: &str, _arguments: &[Value]) -> Result<HeadOutcome, CallbackError> {
         Ok(HeadOutcome::Continue)
     }
@@ -175,14 +249,29 @@ pub struct Mod {
     id: String,
     guest: Arc<dyn Guest>,
     disabled: AtomicBool,
+    permissions: BTreeSet<String>,
+    side: Side,
+    sites: RwLock<Vec<&'static Site>>,
 }
 
 impl Mod {
     pub fn new(id: impl Into<String>, guest: Arc<dyn Guest>) -> Self {
+        Self::with_permissions(id, guest, Side::Unspecified, [])
+    }
+
+    pub fn with_permissions(
+        id: impl Into<String>,
+        guest: Arc<dyn Guest>,
+        side: Side,
+        permissions: impl IntoIterator<Item = String>,
+    ) -> Self {
         Self {
             id: id.into(),
             guest,
             disabled: AtomicBool::new(false),
+            permissions: permissions.into_iter().collect(),
+            side,
+            sites: RwLock::new(Vec::new()),
         }
     }
 
@@ -196,6 +285,44 @@ impl Mod {
 
     fn disable(&self) {
         self.disabled.store(true, Ordering::Release);
+        self.refresh_masks();
+    }
+
+    fn refresh_masks(&self) {
+        for site in self
+            .sites
+            .read()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .iter()
+        {
+            site.refresh_masks();
+        }
+    }
+
+    pub fn permits(&self, site: &Site) -> bool {
+        self.permits_side(site, self.side)
+    }
+
+    fn permits_side(&self, site: &Site, side: Side) -> bool {
+        let policy = site_policy(site.path);
+        (!policy.commands || self.permissions.contains("service.commands"))
+            && (!policy.client_chat
+                || side != Side::Client
+                || self.permissions.contains("service.chat"))
+    }
+
+    fn permits_arguments(&self, site: &Site, before: &[Value], after: &[Value]) -> bool {
+        let policy = site_policy(site.path);
+        if !policy.commands || before.get(1) == after.get(1) {
+            return true;
+        }
+        let Some(Value::Text(line)) = after.get(1) else {
+            return false;
+        };
+        if policy.client_chat && !line.trim_start().starts_with('/') {
+            return true;
+        }
+        command_gate(line, self.permissions.contains("service.commands")).is_ok()
     }
 }
 
@@ -235,14 +362,16 @@ impl Handler {
         self.side == ACTIVE_SIDE.get()
             && self.points & point != 0
             && self.disabled.load(Ordering::Relaxed) & point == 0
+            && !self.module.guest.is_disabled()
     }
 
-    fn disable(&self, site: &str, point: u8) {
+    fn disable(&self, site: &Site, point: u8) {
         if self.disabled.fetch_or(point, Ordering::Relaxed) & point == 0 {
             self.module.disable();
             eprintln!(
                 "[yoake-inject] mod={} site={site} point={point}: handler trapped or returned invalid values; disabled",
-                self.module.id
+                self.module.id,
+                site = site.path
             );
         }
     }
@@ -354,7 +483,9 @@ impl Registry {
             } else {
                 modules.insert(module_key, Arc::clone(&subscription.module));
             }
-            if !permitted(&subscription.module, site, subscription.points) {
+            if !subscription.module.permits_side(site, subscription.side)
+                || !permitted(&subscription.module, site, subscription.points)
+            {
                 return Err(RegistryError::PermissionDenied {
                     site: subscription.site_id,
                     module: subscription.module.id.clone(),
@@ -401,7 +532,12 @@ impl Registry {
             });
         }
         for handlers in snapshot.handlers.values_mut() {
-            handlers.sort_by(|left, right| left.module.id.cmp(&right.module.id));
+            handlers.sort_by(|left, right| {
+                left.module
+                    .id
+                    .cmp(&right.module.id)
+                    .then(left.side.cmp(&right.side))
+            });
         }
         Ok(Prepared {
             owner: Arc::clone(&self.owner),
@@ -416,17 +552,27 @@ impl Registry {
         self.snapshot = prepared.snapshot;
         for (id, site) in &self.sites {
             let handlers = self.snapshot.handlers.get(id);
-            let mask = handlers.map_or(0, |handlers| {
-                handlers
-                    .iter()
-                    .fold(0, |mask, handler| mask | handler.points)
-            });
             *site
                 .handlers
                 .write()
                 .unwrap_or_else(|poison| poison.into_inner()) =
                 handlers.map(|handlers| Arc::from(handlers.clone()));
-            site.mask.store(mask, Ordering::Relaxed);
+            if let Some(handlers) = handlers {
+                for handler in handlers {
+                    let mut sites = handler
+                        .module
+                        .sites
+                        .write()
+                        .unwrap_or_else(|poison| poison.into_inner());
+                    if !sites
+                        .iter()
+                        .any(|registered| std::ptr::eq(*registered, *site))
+                    {
+                        sites.push(site);
+                    }
+                }
+            }
+            site.refresh_masks();
         }
         Ok(())
     }
@@ -455,7 +601,16 @@ impl Site {
         arguments: Vec<Value>,
         original: impl FnOnce(Vec<Value>) -> Value,
     ) -> Value {
-        self.invoke_fallible(arguments, |arguments| {
+        self.invoke_validated(arguments, None, original)
+    }
+
+    pub fn invoke_validated(
+        &'static self,
+        arguments: Vec<Value>,
+        block_states: Option<usize>,
+        original: impl FnOnce(Vec<Value>) -> Value,
+    ) -> Value {
+        self.invoke_fallible_validated(arguments, block_states, |arguments| {
             Ok::<_, std::convert::Infallible>(original(arguments))
         })
         .unwrap_or_else(|never| match never {})
@@ -464,6 +619,15 @@ impl Site {
     pub fn invoke_fallible<Error>(
         &'static self,
         arguments: Vec<Value>,
+        original: impl FnOnce(Vec<Value>) -> Result<Value, Error>,
+    ) -> Result<Value, Error> {
+        self.invoke_fallible_validated(arguments, None, original)
+    }
+
+    pub fn invoke_fallible_validated<Error>(
+        &'static self,
+        arguments: Vec<Value>,
+        block_states: Option<usize>,
         original: impl FnOnce(Vec<Value>) -> Result<Value, Error>,
     ) -> Result<Value, Error> {
         #[cfg(test)]
@@ -491,10 +655,16 @@ impl Site {
                 continue;
             }
             match handler.module.guest.head(&id, &arguments) {
-                Err(CallbackError::Skipped) => continue,
+                Err(CallbackError::Skipped) => {
+                    handler.module.refresh_masks();
+                    continue;
+                }
                 Ok(HeadOutcome::Continue) => {}
                 Ok(HeadOutcome::ReplaceArguments(replacement))
-                    if site.accepts_arguments(&replacement)
+                    if site.accepts_replacement(&replacement, block_states)
+                        && handler
+                            .module
+                            .permits_arguments(site, &arguments, &replacement)
                         && site
                             .arguments
                             .iter()
@@ -505,12 +675,12 @@ impl Site {
                 {
                     arguments = replacement;
                 }
-                Ok(HeadOutcome::Cancel(value)) if site.result.accepts(&value) => {
+                Ok(HeadOutcome::Cancel(value)) if site.accepts_result(&value, block_states) => {
                     injected_result = Some(value);
                     break;
                 }
                 _ => {
-                    handler.disable(&id, HEAD);
+                    handler.disable(site, HEAD);
                     return call_original(&mut original, original_arguments);
                 }
             }
@@ -522,10 +692,15 @@ impl Site {
                     continue;
                 }
                 match handler.module.guest.overwrite(&id, &arguments) {
-                    Err(CallbackError::Skipped) => continue,
-                    Ok(value) if site.result.accepts(&value) => injected_result = Some(value),
+                    Err(CallbackError::Skipped) => {
+                        handler.module.refresh_masks();
+                        continue;
+                    }
+                    Ok(value) if site.accepts_result(&value, block_states) => {
+                        injected_result = Some(value)
+                    }
                     _ => {
-                        handler.disable(&id, OVERWRITE);
+                        handler.disable(site, OVERWRITE);
                         return call_original(&mut original, original_arguments);
                     }
                 }
@@ -546,11 +721,14 @@ impl Site {
                 continue;
             }
             match handler.module.guest.returned(&id, &result) {
-                Err(CallbackError::Skipped) => continue,
+                Err(CallbackError::Skipped) => {
+                    handler.module.refresh_masks();
+                    continue;
+                }
                 Ok(None) => {}
-                Ok(Some(value)) if site.result.accepts(&value) => result = value,
+                Ok(Some(value)) if site.accepts_result(&value, block_states) => result = value,
                 _ => {
-                    handler.disable(&id, RETURN);
+                    handler.disable(site, RETURN);
                     return native_result
                         .map(Ok)
                         .unwrap_or_else(|| call_original(&mut original, original_arguments));
@@ -572,6 +750,8 @@ impl Drop for Registry {
     fn drop(&mut self) {
         for site in self.sites.values() {
             site.mask.store(0, Ordering::Relaxed);
+            site.client_mask.store(0, Ordering::Relaxed);
+            site.server_mask.store(0, Ordering::Relaxed);
             *site
                 .handlers
                 .write()
@@ -583,3 +763,6 @@ impl Drop for Registry {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod security_tests;

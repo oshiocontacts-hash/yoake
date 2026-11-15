@@ -428,6 +428,7 @@ pub(crate) struct WasmMod {
     /// Whether the .yak carries a valid signature from a trusted key.
     pub(crate) signed: bool,
     pub(crate) mixin_targets: Vec<String>,
+    pub(crate) permissions: Vec<String>,
 }
 
 pub(crate) fn unsigned_allowed() -> bool {
@@ -474,6 +475,7 @@ pub(crate) fn wasm_mods_from(
                 full: side == WasmSide::Server || wasm.client_full(),
                 required_on_join: entry.manifest.side.required_on_join,
                 commands: side == WasmSide::Server && wasm.has_permission("service.commands"),
+                permissions: wasm.permissions.clone(),
                 path: entry.root.join(path),
                 signed,
                 mixin_targets: entry
