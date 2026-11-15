@@ -136,6 +136,8 @@ pub use hdr::Calibration as HdrCalibration;
 pub mod block_light;
 pub mod lightning;
 mod lod;
+pub mod mod_gpu;
+pub mod mod_gpu_shader;
 mod native_material;
 mod native_pack;
 mod native_post;
