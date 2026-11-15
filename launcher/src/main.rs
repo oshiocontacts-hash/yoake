@@ -18,6 +18,8 @@ mod export_page;
 mod frame;
 mod game_tools;
 mod github_mods_page;
+mod friends_page;
+mod friends_view;
 mod glass;
 mod glass_home;
 mod glass_home_lists;
@@ -62,6 +64,8 @@ mod shell;
 mod shortcut_page;
 mod skin_page;
 mod sky;
+mod social;
+mod social_mock;
 mod specimen;
 mod switch_page;
 mod theme;
@@ -111,6 +115,8 @@ enum Page {
     /// What the player wears (`wardrobe_page.rs`), with the cosmetics flag on.
     Wardrobe,
     Notes,
+    /// Friends and groups from the owner's portal (`friends_page.rs`), in Yoake builds.
+    Friends,
     /// The group's modpacks and the portal sign-in (`yoake_page.rs`), in Yoake builds.
     Yoake,
     Settings,
@@ -130,6 +136,7 @@ impl Page {
             Ok("versions") => Page::Versions,
             Ok("notes") => Page::Notes,
             Ok("yoake") => Page::Yoake,
+            Ok("friends") => Page::Friends,
             Ok("settings") => Page::Settings,
             _ => Page::Play,
         }
@@ -137,9 +144,10 @@ impl Page {
 
     /// Every page, with its name and icon: the top bar shows all but Settings, which has its
     /// own button.
-    const ALL: [(Page, &'static str, &'static str); 8] = [
+    const ALL: [(Page, &'static str, &'static str); 9] = [
         (Page::Play, "Home", "home"),
         (Page::Yoake, "Yoake", "user-multiple-02"),
+        (Page::Friends, "Friends", "user"),
         (Page::Mods, "Mods", "package"),
         (Page::Servers, "Servers", "server"),
         (Page::Wardrobe, "Wardrobe", "user"),
@@ -153,7 +161,7 @@ impl Page {
         Self::ALL.into_iter().filter(|(page, ..)| match page {
             Page::Settings => false,
             Page::Wardrobe => horizon_cosmetics::enabled(),
-            Page::Yoake => yoake_page::enabled(),
+            Page::Yoake | Page::Friends => yoake_page::enabled(),
             _ => true,
         })
     }
@@ -433,6 +441,8 @@ struct Launcher {
     /// Home's Worlds section, of the selected instance (`worlds_page.rs`).
     worlds: worlds_page::Worlds,
     multiplayer: multiplayer_page::Multiplayer,
+    /// The Friends page: friends, requests, blocks and groups of the portal (`friends_page.rs`).
+    friends: friends_page::Friends,
     screenshots: screenshots_page::Screenshots,
     game_packs: packs_page::Packs,
     world_packs: datapacks_page::WorldPacks,
@@ -699,6 +709,7 @@ impl Launcher {
             instances: instances_page::Instances::default(),
             worlds: worlds_page::Worlds::default(),
             multiplayer: multiplayer_page::Multiplayer::default(),
+            friends: friends_page::Friends::new(),
             screenshots: screenshots_page::Screenshots::default(),
             game_packs: packs_page::Packs::default(),
             world_packs: datapacks_page::WorldPacks::default(),
@@ -836,6 +847,9 @@ impl Launcher {
         if page != self.page {
             self.page = page;
             self.switches += 1;
+            if page == Page::Friends {
+                self.friends_opened();
+            }
             self.content_scroll = Scrollbar::default();
             self.long_list = cull::Cull::default();
             if page == Page::Mods {
@@ -1028,6 +1042,7 @@ impl Launcher {
             self.yoake_refresh();
         }
         changed |= self.drain_yoake_page();
+        changed |= self.drain_friends();
         changed |= self.drain_yak_mods();
         changed |= self.drain_yoake_configs();
         let mut update_finished = false;
@@ -5238,6 +5253,7 @@ impl Render for Launcher {
             Page::Wardrobe => self.wardrobe_page(cx),
             Page::Notes => self.notes_page(cx),
             Page::Yoake => self.yoake_page(window, cx),
+            Page::Friends => self.friends_page(window, cx),
             Page::Settings => self.settings_page(cx),
         };
         self.sky.free_replaced(window);
