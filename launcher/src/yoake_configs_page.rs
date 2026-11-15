@@ -128,6 +128,37 @@ fn problem_text(problem: &Problem) -> String {
     }
 }
 
+/// Why the mod lists could not be read, in a sentence: the feed's error kinds each get their own;
+/// anything else keeps its own words.
+fn mods_error_text(error: &horizon_launcher::yoake_mods::Error) -> String {
+    use horizon_launcher::yoake_mods::Error as E;
+    use horizon_launcher::yoake_feed::FeedError as F;
+    match error {
+        E::Feed(F::Configuration) => tr("This build has no distribution server configured.").to_string(),
+        E::Feed(F::NeedsLogin | F::Authentication(_) | F::HttpStatus(401 | 403)) => {
+            tr("Sign in to see them.").to_string()
+        }
+        E::Feed(F::Network | F::HttpStatus(_)) => {
+            tr("Cannot reach the server. Check the connection.").to_string()
+        }
+        E::Feed(F::NeedsUpdate) => tr(
+            "This Yoake feed needs a newer Yoake — update from the Microsoft Store / download page",
+        )
+        .to_string(),
+        E::Feed(F::Storage) => tr("The list could not be saved on this computer.").to_string(),
+        E::Feed(
+            F::TooLarge
+            | F::Malformed
+            | F::BadSignature
+            | F::HashMismatch
+            | F::WrongSource
+            | F::Replay
+            | F::UnsafePath,
+        ) => tr("The list could not be verified; it may have been tampered with.").to_string(),
+        other => other.to_string(),
+    }
+}
+
 fn code_error(error: &yoake_configs::Error) -> String {
     use yoake_configs::Error as E;
     match error {
@@ -160,7 +191,7 @@ impl Launcher {
         let client = match Client::configured() {
             Ok(client) => client,
             Err(error) => {
-                self.yoake_configs.error = Some(error.to_string());
+                self.yoake_configs.error = Some(mods_error_text(&error));
                 return;
             }
         };
@@ -170,9 +201,9 @@ impl Launcher {
             let builtin = client.refresh_builtin();
             let (yak, notice) = match client.refresh() {
                 Ok(yak) => (Some(yak.catalog), None),
-                Err(error) => (None, Some(error.to_string())),
+                Err(error) => (None, Some(mods_error_text(&error))),
             };
-            let builtin_notice = builtin.problem.as_ref().map(ToString::to_string);
+            let builtin_notice = builtin.problem.as_ref().map(mods_error_text);
             let catalog = yoake_configs::merge(builtin.catalog.as_ref(), yak.as_ref());
             let _ = sender.send(Ok((catalog, notice, builtin_notice)));
         });

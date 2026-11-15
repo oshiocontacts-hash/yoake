@@ -1243,5 +1243,13 @@
   "You handed the group over.": "You handed the group over.",
   "(You)": "(You)",
   "Click again to kick and ban": "Click again to kick and ban",
-  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted."
+  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted.",
+  "Built-in mods: {reason}": "내장 모드: {reason}",
+  "Cannot reach the server. Check the connection.": "서버에 연결할 수 없습니다. 연결을 확인하세요.",
+  "Sign in to see them.": "로그인하면 볼 수 있습니다.",
+  "The list could not be saved on this computer.": "이 컴퓨터에 목록을 저장하지 못했습니다.",
+  "The list could not be verified; it may have been tampered with.": "목록을 검증하지 못했습니다. 변조되었을 수 있습니다.",
+  "This build has no distribution server configured.": "이 빌드에는 배포 서버가 설정되어 있지 않습니다.",
+  "Use": "사용",
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id}에는 {needs} {requirement}이(가) 필요하지만 선택한 버전이 맞지 않습니다."
 }

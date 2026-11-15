@@ -1243,5 +1243,13 @@
   "You handed the group over.": "You handed the group over.",
   "(You)": "(You)",
   "Click again to kick and ban": "Click again to kick and ban",
-  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted."
+  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted.",
+  "Built-in mods: {reason}": "Встроенные моды: {reason}",
+  "Cannot reach the server. Check the connection.": "Не удаётся связаться с сервером. Проверьте подключение.",
+  "Sign in to see them.": "Войдите, чтобы увидеть их.",
+  "The list could not be saved on this computer.": "Не удалось сохранить список на этом компьютере.",
+  "The list could not be verified; it may have been tampered with.": "Не удалось проверить список; возможно, он был изменён.",
+  "This build has no distribution server configured.": "В этой сборке не настроен сервер распространения.",
+  "Use": "Использовать",
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} требует {needs} {requirement}, чему выбранная версия не соответствует."
 }

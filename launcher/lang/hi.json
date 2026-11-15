@@ -1243,5 +1243,13 @@
   "You handed the group over.": "You handed the group over.",
   "(You)": "(You)",
   "Click again to kick and ban": "Click again to kick and ban",
-  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted."
+  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted.",
+  "Built-in mods: {reason}": "अंतर्निहित मॉड: {reason}",
+  "Cannot reach the server. Check the connection.": "सर्वर से कनेक्ट नहीं हो सका। कनेक्शन जाँचें।",
+  "Sign in to see them.": "देखने के लिए साइन इन करें।",
+  "The list could not be saved on this computer.": "सूची इस कंप्यूटर पर सहेजी नहीं जा सकी।",
+  "The list could not be verified; it may have been tampered with.": "सूची सत्यापित नहीं हो सकी; हो सकता है उसमें छेड़छाड़ हुई हो।",
+  "This build has no distribution server configured.": "इस बिल्ड में कोई वितरण सर्वर कॉन्फ़िगर नहीं है।",
+  "Use": "उपयोग करें",
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} को {needs} {requirement} चाहिए, जो चुना गया संस्करण पूरा नहीं करता।"
 }

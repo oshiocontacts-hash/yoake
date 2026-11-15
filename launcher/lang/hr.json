@@ -1243,5 +1243,13 @@
   "You handed the group over.": "You handed the group over.",
   "(You)": "(You)",
   "Click again to kick and ban": "Click again to kick and ban",
-  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted."
+  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted.",
+  "Built-in mods: {reason}": "Ugrađeni modovi: {reason}",
+  "Cannot reach the server. Check the connection.": "Nije moguće povezati se s poslužiteljem. Provjerite vezu.",
+  "Sign in to see them.": "Prijavite se da ih vidite.",
+  "The list could not be saved on this computer.": "Popis nije moguće spremiti na ovo računalo.",
+  "The list could not be verified; it may have been tampered with.": "Popis nije moguće provjeriti; možda je izmijenjen.",
+  "This build has no distribution server configured.": "Ova verzija nema konfiguriran poslužitelj za distribuciju.",
+  "Use": "Koristi",
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} treba {needs} {requirement}, što odabrana verzija ne zadovoljava."
 }

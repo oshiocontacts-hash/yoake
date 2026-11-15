@@ -1243,5 +1243,13 @@
   "You handed the group over.": "You handed the group over.",
   "(You)": "(You)",
   "Click again to kick and ban": "Click again to kick and ban",
-  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted."
+  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted.",
+  "Built-in mods: {reason}": "Integrierte Mods: {reason}",
+  "Cannot reach the server. Check the connection.": "Der Server ist nicht erreichbar. Prüfe die Verbindung.",
+  "Sign in to see them.": "Melde dich an, um sie zu sehen.",
+  "The list could not be saved on this computer.": "Die Liste konnte auf diesem Computer nicht gespeichert werden.",
+  "The list could not be verified; it may have been tampered with.": "Die Liste konnte nicht überprüft werden; sie wurde möglicherweise manipuliert.",
+  "This build has no distribution server configured.": "In diesem Build ist kein Verteilungsserver eingerichtet.",
+  "Use": "Verwenden",
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} benötigt {needs} {requirement}, was die gewählte Version nicht erfüllt."
 }

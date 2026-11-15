@@ -1243,5 +1243,13 @@
   "You handed the group over.": "You handed the group over.",
   "(You)": "(You)",
   "Click again to kick and ban": "Click again to kick and ban",
-  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted."
+  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted.",
+  "Built-in mods: {reason}": "Yerleşik modlar: {reason}",
+  "Cannot reach the server. Check the connection.": "Sunucuya ulaşılamıyor. Bağlantınızı kontrol edin.",
+  "Sign in to see them.": "Görmek için oturum açın.",
+  "The list could not be saved on this computer.": "Liste bu bilgisayara kaydedilemedi.",
+  "The list could not be verified; it may have been tampered with.": "Liste doğrulanamadı; değiştirilmiş olabilir.",
+  "This build has no distribution server configured.": "Bu sürümde dağıtım sunucusu yapılandırılmamış.",
+  "Use": "Kullan",
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id}, {needs} {requirement} gerektiriyor; seçilen sürüm bunu karşılamıyor."
 }

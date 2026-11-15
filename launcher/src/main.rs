@@ -2743,6 +2743,23 @@ impl Drop for GlassMode {
     }
 }
 
+/// A small rounded label (22 px tall): the glass look's badge, `fg` on a tint of itself.
+fn glass_pill(label: impl Into<SharedString>, fg: Hsla, tint: f32) -> Div {
+    div()
+        .flex()
+        .flex_none()
+        .items_center()
+        .h(px(22.))
+        .px(px(8.))
+        .rounded_full()
+        .bg(fg.opacity(tint))
+        .child(
+            glass_ui::text(12., FontWeight::MEDIUM, 1.)
+                .text_color(fg)
+                .child(label.into()),
+        )
+}
+
 /// A page's big title inside its content: the pixel look's `theme::TITLE`, or 24 px semibold
 /// Geist in the glass form.
 fn mode_title() -> Div {
@@ -3670,7 +3687,7 @@ impl Launcher {
                                 .items_start()
                                 .gap(px(16.))
                                 .px(px(12.))
-                                .py(px(32.))
+                                .py(px(28.))
                                 .child(
                                     glass_ui::text(14., FontWeight::NORMAL, ink::NOTE)
                                         .child(tr("No version installed yet.")),
@@ -5291,8 +5308,12 @@ impl Launcher {
                         .child(tr("No build for this platform"))
                         .into_any_element()
                 } else {
-                    let mut b =
-                        glass_ui::solid(format!("install-{tag}"), tr("Install"), 36., 14., &t);
+                    // Eight white buttons in a column are heavy: only the newest row's is solid.
+                    let mut b = if i == 0 {
+                        glass_ui::solid(format!("install-{tag}"), tr("Install"), 36., 14., &t)
+                    } else {
+                        glass_ui::quiet(format!("install-{tag}"), tr("Install"), 36., &t)
+                    };
                     if self.installing.is_some() {
                         b = disabled(b);
                     } else {
@@ -5304,13 +5325,13 @@ impl Launcher {
                     b.into_any_element()
                 };
                 let status = if selected {
-                    Some(
-                        glass_ui::text(13., FontWeight::MEDIUM, ink::FULL)
-                            .text_color(glass_ui::color(self.look.accent_soft))
-                            .child(tr("In use")),
-                    )
+                    Some(glass_pill(
+                        tr("In use"),
+                        glass_ui::color(self.look.accent_soft),
+                        0.18,
+                    ))
                 } else if installed {
-                    Some(glass_ui::text(13., FontWeight::NORMAL, ink::MUTED).child(tr("Installed")))
+                    Some(glass_pill(tr("Installed"), glass_ui::white(ink::BODY), 0.1))
                 } else {
                     None
                 };
@@ -5327,19 +5348,41 @@ impl Launcher {
                     .flex_col()
                     .child(
                         glass_ui::list_row(key, hovered, hover, &t)
-                            .child(glass_ui::list_text(version_label(&tag), summary))
                             .child(
+                                // `ui::list_text`, with the state's badge after the name.
                                 div()
                                     .relative()
                                     .flex()
                                     .flex_col()
-                                    .items_end()
-                                    .flex_none()
-                                    .children(status)
+                                    .flex_1()
+                                    .min_w_0()
                                     .child(
-                                        glass_ui::text(13., FontWeight::NORMAL, ink::DIM)
-                                            .child(meta.join("  ·  ")),
+                                        div()
+                                            .flex()
+                                            .items_center()
+                                            .gap(px(8.))
+                                            .min_w_0()
+                                            .child(
+                                                glass_ui::text(14., FontWeight::MEDIUM, ink::FULL)
+                                                    .line_height(px(21.))
+                                                    .truncate()
+                                                    .child(version_label(&tag)),
+                                            )
+                                            .children(status),
+                                    )
+                                    .child(
+                                        glass_ui::text(13., FontWeight::NORMAL, ink::QUIET)
+                                            .line_height(px(19.5))
+                                            .truncate()
+                                            .child(summary),
                                     ),
+                            )
+                            .child(
+                                glass_ui::text(13., FontWeight::NORMAL, ink::DIM)
+                                    .relative()
+                                    .flex_none()
+                                    .whitespace_nowrap()
+                                    .child(meta.join("  ·  ")),
                             )
                             .child(
                                 div()

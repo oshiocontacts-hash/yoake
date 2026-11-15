@@ -1243,5 +1243,13 @@
   "You handed the group over.": "You handed the group over.",
   "(You)": "(You)",
   "Click again to kick and ban": "Click again to kick and ban",
-  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted."
+  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted.",
+  "Built-in mods: {reason}": "内置模组：{reason}",
+  "Cannot reach the server. Check the connection.": "无法连接服务器，请检查网络连接。",
+  "Sign in to see them.": "登录后即可查看。",
+  "The list could not be saved on this computer.": "无法在此电脑上保存列表。",
+  "The list could not be verified; it may have been tampered with.": "无法验证该列表，可能已被篡改。",
+  "This build has no distribution server configured.": "此版本未配置分发服务器。",
+  "Use": "使用",
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} 需要 {needs} {requirement}，而所选版本不符合要求。"
 }

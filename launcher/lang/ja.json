@@ -1243,5 +1243,13 @@
   "You handed the group over.": "グループを引き継ぎました。",
   "(You)": "（あなた）",
   "Click again to kick and ban": "もう一度押すと追放して参加禁止にします",
-  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "メンバーを追放しました。禁止を解除するまで、再参加はできません。"
+  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "メンバーを追放しました。禁止を解除するまで、再参加はできません。",
+  "Built-in mods: {reason}": "組み込み MOD: {reason}",
+  "Cannot reach the server. Check the connection.": "サーバーに接続できません。接続を確認してください。",
+  "Sign in to see them.": "サインインすると表示されます。",
+  "The list could not be saved on this computer.": "この PC に一覧を保存できませんでした。",
+  "The list could not be verified; it may have been tampered with.": "一覧を検証できませんでした。改ざんされている可能性があります。",
+  "This build has no distribution server configured.": "このビルドには配布サーバーが設定されていません。",
+  "Use": "使う",
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} には {needs} {requirement} が必要ですが、選んだバージョンは条件を満たしていません。"
 }

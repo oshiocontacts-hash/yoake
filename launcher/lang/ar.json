@@ -1243,5 +1243,13 @@
   "You handed the group over.": "You handed the group over.",
   "(You)": "(You)",
   "Click again to kick and ban": "Click again to kick and ban",
-  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted."
+  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted.",
+  "Built-in mods: {reason}": "الإضافات المدمجة: {reason}",
+  "Cannot reach the server. Check the connection.": "تعذّر الاتصال بالخادم. تحقق من الاتصال.",
+  "Sign in to see them.": "سجّل الدخول لعرضها.",
+  "The list could not be saved on this computer.": "تعذّر حفظ القائمة على هذا الحاسوب.",
+  "The list could not be verified; it may have been tampered with.": "تعذّر التحقق من القائمة؛ قد يكون قد تم العبث بها.",
+  "This build has no distribution server configured.": "لم يتم إعداد خادم توزيع في هذا الإصدار.",
+  "Use": "استخدم",
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "يحتاج {id} إلى {needs} {requirement}، وهو ما لا يطابقه الإصدار المختار."
 }

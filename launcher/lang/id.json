@@ -1243,5 +1243,13 @@
   "You handed the group over.": "You handed the group over.",
   "(You)": "(You)",
   "Click again to kick and ban": "Click again to kick and ban",
-  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted."
+  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted.",
+  "Built-in mods: {reason}": "Mod bawaan: {reason}",
+  "Cannot reach the server. Check the connection.": "Tidak dapat terhubung ke server. Periksa koneksi.",
+  "Sign in to see them.": "Masuk untuk melihatnya.",
+  "The list could not be saved on this computer.": "Daftar tidak dapat disimpan di komputer ini.",
+  "The list could not be verified; it may have been tampered with.": "Daftar tidak dapat diverifikasi; mungkin telah diubah.",
+  "This build has no distribution server configured.": "Build ini tidak memiliki server distribusi yang dikonfigurasi.",
+  "Use": "Gunakan",
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} membutuhkan {needs} {requirement}, yang tidak dipenuhi versi yang dipilih."
 }
