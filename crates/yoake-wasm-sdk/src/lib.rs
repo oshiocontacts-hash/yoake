@@ -31,6 +31,8 @@ extern crate alloc;
 mod heap;
 
 pub mod nbt;
+pub mod testing;
+pub use yoake_wasm_test_macros::yoake_test;
 
 #[cfg(feature = "full")]
 pub mod full;

@@ -90,6 +90,45 @@ instance running (one warning in the log). `YOAKE_WASM_DEV_DIR=<folder>` additio
 without the flag. The startup log has one line saying `wasm: no mods (engine not started)` or
 `wasm: N mod(s), engine started`.
 
+## CLI and test scaffolding
+
+The `yoake` workspace binary needs Rust 1.95 or later, the `wasm32-wasip2` target and `wasm-tools`.
+From a directory where a new project may be created:
+
+```sh
+yoake new hud-only my-mod
+cd my-mod
+yoake build
+yoake check
+yoake pack
+yoake dev
+```
+
+`new` also accepts `minigame`, `custom-mob`, `utility` and `script`. These are starter projects,
+not complete game modes; mob data, models and script files are placeholders. Set `YOAKE_SDK_PATH`
+when creating a project to use a different local SDK checkout. Its absolute path is saved in the
+generated Cargo manifest.
+
+`build` compiles a single declared module and packs it. `pack` packages previously built modules
+using the existing unsigned `.yak` packer. Signing remains an owner operation. `check` validates
+the manifest, permissions, module sizes and whether `wasm-tools` can read the component. Its WIT
+name check is only a preflight, not full ABI validation; the engine remains responsible for that.
+It prints nonempty lines from `WASM-NEEDS.md` when that file exists and exits unsuccessfully until
+full WIT world and ABI verification is available. `build` and `pack` emit the same limitation as a
+warning and can still produce unsigned packages.
+
+`dev` emits one JSON line with `ok`, `errors`, `tests` and `wasm_needs`. For a `client-mod` it
+builds, packs and replaces the already-watched `<id>.wasm` in `YOAKE_WASM_DEV_DIR`; that file must
+exist when the engine starts. The owner must explicitly enable unsigned developer mode, and a file
+replacement does not confirm the engine accepted the reload. The offscreen test runner is not yet
+implemented, so `dev` returns an error and an empty `tests` array rather than reporting success.
+
+`#[yoake_test]`, `TestCase`, `TestWorld` and `TestDriver` provide a host-independent test interface.
+The generated example uses an explicit `YOAKE_TESTS` registry and a local mock driver. The marker
+and registry are not exported to Wasm, and no engine driver or multiplayer runner currently executes
+them. See the [recipes](yoake-recipes.md) and [API index](yoake-api-index.md); the latter can be
+checked with `python tools/generate_yoake_api_index.py --check`.
+
 ## Full-catalog mods (`client-full`, `server-full`)
 
 The frozen `client-mod` world has 19 hooks. Two more worlds of `crates/yoake-wasm/wit/yoake-full.wit` cover

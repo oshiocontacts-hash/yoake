@@ -36,6 +36,7 @@ members = [
     "crates/horizon-mod-abi",
     "crates/horizon-mod-sdk",
     "crates/yoake-wasm",
+    "crates/yoake-cli",
     "examples/dll-hello",
     "examples/dll-net-echo",
     "crates/cargo-horizon-mod",
