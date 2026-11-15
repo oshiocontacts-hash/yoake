@@ -2351,6 +2351,12 @@ fn button_label(
 ) -> Stateful<Div> {
     let id: SharedString = id.into();
     let label: SharedString = label.into();
+    if glass_mode() {
+        return match kind {
+            Kind::Primary => glass_ui::solid(id, label, 36., 14., t),
+            Kind::Secondary | Kind::Ghost => glass_ui::quiet(id, label, 36., t),
+        };
+    }
     let t = *t;
     let hover = match kind {
         Kind::Primary => t.on_face.opacity(0.10),
@@ -2461,6 +2467,9 @@ fn sync_system_clipboard(text: String) {
 
 /// An on/off switch: a square knob sliding in a sunk track that turns violet when on.
 fn switch(id: impl Into<SharedString>, on: bool, t: &Theme) -> Stateful<Div> {
+    if glass_mode() {
+        return glass_ui::toggle(id, on, horizon_theme::glass::ACCENT, 0xffffff, t);
+    }
     let t = *t;
     let id: SharedString = id.into();
     let knob = if on { t.on_face } else { t.muted };
@@ -2498,6 +2507,13 @@ fn switch(id: impl Into<SharedString>, on: bool, t: &Theme) -> Stateful<Div> {
 
 /// A section's title inside a page: a pixel icon in the accent and the name in the pixel face.
 fn section_title(label: &'static str, icon: &'static str, t: &Theme) -> Div {
+    if glass_mode() {
+        use horizon_theme::glass::ink;
+        let _ = (icon, t);
+        return glass_ui::text(18., FontWeight::SEMIBOLD, ink::FULL)
+            .pt(px(8.))
+            .child(tr(label).to_string());
+    }
     div()
         .flex()
         .items_center()
@@ -2518,6 +2534,21 @@ fn segments<T: Copy + PartialEq + 'static>(
     t: &Theme,
     on_pick: impl Fn(T, &mut Window, &mut App) + Clone + 'static,
 ) -> Stateful<Div> {
+    if glass_mode() {
+        return div()
+            .id(id)
+            .flex()
+            .flex_none()
+            .p(px(3.))
+            .gap(px(2.))
+            .rounded(px(horizon_theme::glass::radius::ROW))
+            .bg(glass_ui::white(horizon_theme::glass::fill::FIELD))
+            .children(options.iter().map(|&(value, label)| {
+                let pick = on_pick.clone();
+                glass_ui::tab(format!("{id}-{label}"), tr(label), current == value, t)
+                    .on_click(move |_: &ClickEvent, window, cx| pick(value, window, cx))
+            }));
+    }
     let t = *t;
     div()
         .id(id)
@@ -2684,6 +2715,57 @@ fn glass_page_head(title: &str, description: &str) -> Div {
         )
 }
 
+thread_local! {
+    /// Set while a page that has moved to the glass look but still builds with the pixel look's
+    /// helpers (`button`, `slot_row`, `notice`, ...) is drawn: they then give their glass form.
+    /// Everything else draws as before. See [`GlassMode`].
+    static GLASS_MODE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Whether the page being built is in the glass look (see [`GlassMode`]).
+fn glass_mode() -> bool {
+    GLASS_MODE.with(|m| m.get())
+}
+
+/// Puts the pixel look's helpers into their glass form until it is dropped. The Mods page holds
+/// one while it is built (its rows are built eagerly, in the same call).
+struct GlassMode(bool);
+
+impl GlassMode {
+    fn enter(on: bool) -> Self {
+        Self(GLASS_MODE.with(|m| m.replace(on)))
+    }
+}
+
+impl Drop for GlassMode {
+    fn drop(&mut self) {
+        GLASS_MODE.with(|m| m.set(self.0));
+    }
+}
+
+/// A page's big title inside its content: the pixel look's `theme::TITLE`, or 24 px semibold
+/// Geist in the glass form.
+fn mode_title() -> Div {
+    if glass_mode() {
+        glass_ui::text(24., FontWeight::SEMIBOLD, horizon_theme::glass::ink::FULL)
+            .line_height(px(30.))
+    } else {
+        text(theme::TITLE)
+    }
+}
+
+/// `t` with the glass look's white inks, for text drawn by helpers that take a Theme (markdown).
+fn glass_ink_theme(t: &Theme) -> Theme {
+    use horizon_theme::glass::ink;
+    let mut g = *t;
+    g.ink = glass_ui::white(ink::FULL);
+    g.ink_soft = glass_ui::white(ink::SOFT);
+    g.muted = glass_ui::white(ink::DIM);
+    g.plate_soft = glass_ui::white(0.08);
+    g.rule = glass_ui::white(0.12);
+    g
+}
+
 /// A glass panel for one block of a page (a release, a notice): round at 20, content after it.
 fn glass_card() -> Div {
     glass::plate(horizon_theme::glass::radius::PANEL)
@@ -2736,6 +2818,16 @@ fn glass_index_row(
     detail: Option<AnyElement>,
     right: Option<AnyElement>,
 ) -> Div {
+    glass_slot_row(None, name, detail, right)
+}
+
+/// [`glass_index_row`] with a picture or letter slot before the name.
+fn glass_slot_row(
+    slot: Option<Div>,
+    name: impl IntoElement,
+    detail: Option<AnyElement>,
+    right: Option<AnyElement>,
+) -> Div {
     use horizon_theme::glass::{ink, radius};
     div()
         .relative()
@@ -2746,6 +2838,13 @@ fn glass_index_row(
         .px(px(12.))
         .py(px(10.))
         .rounded(px(radius::ROW))
+        .when(glass_mode(), |d| {
+            d.bg(glass_ui::white(horizon_theme::glass::fill::HOVER))
+                .mb(px(8.))
+                .px(px(16.))
+                .py(px(12.))
+        })
+        .children(slot)
         .child(
             div()
                 .flex()
@@ -2836,6 +2935,9 @@ fn slot_row(
     right: Option<AnyElement>,
     t: &Theme,
 ) -> Div {
+    if glass_mode() {
+        return glass_slot_row(slot, name, detail, right);
+    }
     blocks::panel(t)
         .flex()
         .items_center()
@@ -2869,6 +2971,15 @@ fn slot_row(
 
 /// A plate that stands apart from the page: notices, the console, the agents note.
 fn plate(t: &Theme) -> Div {
+    if glass_mode() {
+        // A tile on the page's glass: white at 6 %.
+        return div()
+            .relative()
+            .rounded(px(horizon_theme::glass::radius::ROW))
+            .bg(glass_ui::white(horizon_theme::glass::fill::FIELD))
+            .text_size(px(14.))
+            .text_color(glass_ui::white(horizon_theme::glass::ink::FULL));
+    }
     blocks::panel(t)
 }
 
@@ -2891,6 +3002,25 @@ fn quiet_note(text_: impl Into<SharedString>, t: &Theme) -> Div {
 
 /// Something went wrong: a dot in the danger colour, then what happened.
 fn notice(text_: String, t: &Theme) -> Div {
+    if glass_mode() {
+        use horizon_theme::glass::{ink, radius};
+        let _ = t;
+        let danger = glass_ui::color(horizon_theme::glass::DANGER);
+        return div()
+            .flex()
+            .gap(px(12.))
+            .px(px(16.))
+            .py(px(12.))
+            .rounded(px(radius::ROW))
+            .bg(gpui::rgba(horizon_theme::glass::DANGER_HOVER << 8 | 0x1f))
+            .child(glass_ui::icon("information-circle", 18., danger))
+            .child(
+                glass_ui::text(14., FontWeight::NORMAL, ink::FULL)
+                    .flex_1()
+                    .min_w_0()
+                    .child(text_),
+            );
+    }
     plate(t)
         .flex()
         .gap(px(12.))
@@ -2914,6 +3044,17 @@ fn notice(text_: String, t: &Theme) -> Div {
 
 /// An empty state: a short sentence, and the one thing to do about it.
 fn centered(text_: &str, t: &Theme) -> Div {
+    if glass_mode() {
+        use horizon_theme::glass::ink;
+        let _ = t;
+        return div()
+            .flex()
+            .flex_col()
+            .items_start()
+            .gap(px(16.))
+            .py(px(32.))
+            .child(glass_ui::text(14., FontWeight::NORMAL, ink::NOTE).child(text_.to_string()));
+    }
     div()
         .flex()
         .flex_col()
@@ -2953,6 +3094,10 @@ fn thousands(n: u64) -> String {
 
 /// A mono line in upper case: the status above a title, the footer's links.
 fn caps(s: impl AsRef<str>) -> Div {
+    if glass_mode() {
+        return glass_ui::text(13., FontWeight::MEDIUM, horizon_theme::glass::ink::MUTED)
+            .child(s.as_ref().to_string());
+    }
     text(theme::MICRO).child(s.as_ref().to_uppercase())
 }
 

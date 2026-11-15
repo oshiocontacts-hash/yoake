@@ -194,20 +194,25 @@ impl Launcher {
     fn github_field(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {
         let t = self.theme;
         let focused = self.github.focused;
-        let field = div()
+        let base = if glass_mode() {
+            glass_ui::field(focused, false).gap(px(10.)).w(px(460.))
+        } else {
+            div()
+                .flex()
+                .items_center()
+                .gap(px(10.))
+                .w(px(460.))
+                .h(px(theme::FIELD + 4.))
+                .px(px(12.))
+                .overflow_hidden()
+                .border_2()
+                .border_color(if focused { t.accent } else { t.outline })
+                .bg(t.well)
+                .text_size(px(theme::UI.px))
+        };
+        let field = base
             .id("github-link")
             .track_focus(&self.github.focus)
-            .flex()
-            .items_center()
-            .gap(px(10.))
-            .w(px(460.))
-            .h(px(theme::FIELD + 4.))
-            .px(px(12.))
-            .overflow_hidden()
-            .border_2()
-            .border_color(if focused { t.accent } else { t.outline })
-            .bg(t.well)
-            .text_size(px(theme::UI.px))
             .cursor_text()
             .child(line_edit::content(
                 &self.github.text,
