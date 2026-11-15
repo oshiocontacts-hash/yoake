@@ -80,7 +80,10 @@ impl TempRoot {
         for _ in 0..16 {
             let path = absolute(&std::env::temp_dir().join(format!("yoake-test-{}", random_hex(8))));
             match fs::create_dir(&path) {
-                Ok(()) => return Ok(Self { path, keep }),
+                Ok(()) => {
+                    guard::make_private(&path).map_err(|error| format!("{}: {error}", path.display()))?;
+                    return Ok(Self { path, keep });
+                }
                 Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
                 Err(error) => return Err(format!("{}: {error}", path.display())),
             }
@@ -199,7 +202,7 @@ pub fn run_one(
         for folder in [&game_dir, &home] {
             fs::create_dir_all(folder).map_err(|error| format!("{}: {error}", folder.display()))?;
         }
-        fs::write(dir.join(TOKEN_FILE), &token).map_err(|error| format!("{}: {error}", dir.display()))?;
+        guard::write_private(&dir.join(TOKEN_FILE), &token).map_err(|error| format!("{}: {error}", dir.display()))?;
         // Every game of the test has the packages installed: the worker's, and the second client's.
         let mut folders = vec![game_dir.clone()];
         if plan.clients == 2 {
@@ -207,7 +210,7 @@ pub fn run_one(
             for folder in [second.join("game"), second.join("home")] {
                 fs::create_dir_all(&folder).map_err(|error| format!("{}: {error}", folder.display()))?;
             }
-            fs::write(second.join(TOKEN_FILE), &token).map_err(|error| format!("{}: {error}", second.display()))?;
+            guard::write_private(&second.join(TOKEN_FILE), &token).map_err(|error| format!("{}: {error}", second.display()))?;
             folders.push(second.join("game"));
         }
         for folder in folders {
@@ -232,7 +235,16 @@ pub fn run_one(
             }
             let tail = Tail::capture(&mut child);
             let mut second = (plan.clients == 2).then(|| Second::new(&dir, &token));
-            finish(plan, game, Worker(child), name, &result, &tail, began, second.as_mut(), job)
+            let mut record = finish(plan, game, Worker(child), name, &result, &tail, began, second.as_mut(), job);
+            if !record.ok {
+                // What the game's own log said about mods in each process: a mod that did not load is the usual reason.
+                let mut said = guard::log_lines_with(&home.join("logs").join("latest.log"), "wasm", 6);
+                said.extend(guard::log_lines_with(&dir.join(CLIENT_FOLDER).join("home").join("logs").join("latest.log"), "wasm", 3));
+                if !said.is_empty() {
+                    record.error = Some(report::clip(&format!("{}; the game log's mod lines: {}", record.error.unwrap_or_default(), said.join(" | "))));
+                }
+            }
+            record
         }
         Err(error) => fail(error),
     };
@@ -302,6 +314,8 @@ enum Ending {
     Exited(Option<i32>),
     Killed,
     Interrupted,
+    /// The second client could not start or ended before the worker reported.
+    ClientDied(String),
     /// The worker wrote its result and did not exit: killed after the linger.
     Lingered,
     Lost(String),
@@ -338,6 +352,18 @@ impl Second {
         }
     }
 
+    /// Why the client cannot join any more: it could not be started, or it ended.
+    fn dead(&mut self) -> Option<String> {
+        if let Some(error) = &self.failure {
+            return Some(format!("it could not start: {error}"));
+        }
+        let (worker, _) = self.started.as_mut()?;
+        match worker.0.try_wait() {
+            Ok(Some(status)) => Some(format!("it exited with {:?}", status.code())),
+            _ => None,
+        }
+    }
+
     /// What to add to a failure: the client's trouble, and the end of its output.
     fn note(&mut self) -> String {
         let mut note = String::new();
@@ -349,11 +375,35 @@ impl Second {
                 Ok(Some(status)) => format!("exited with {:?}", status.code()),
                 _ => "was still running".to_owned(),
             };
+            if state.starts_with("exited") {
+                // The reader thread may still be taking the last of its output.
+                std::thread::sleep(Duration::from_millis(150));
+            }
             let output = tail.text(OUTPUT_TAIL / 2);
             note += &format!("; the second client {state}{}", if output.is_empty() { String::new() } else { format!(", its output ended: {output}") });
         }
         note
     }
+}
+
+/// The part of the forwarded game arguments the second client gets: where the prepared data is and how it draws.
+/// Nothing else of the caller's reaches a game that joins a server.
+pub fn client_game_args(args: &[String]) -> Vec<String> {
+    let mut kept = Vec::new();
+    let mut iterator = args.iter();
+    while let Some(argument) = iterator.next() {
+        match argument.as_str() {
+            "--headless" => kept.push(argument.clone()),
+            "--resources" | "--width" | "--height" | "--render-distance" => {
+                if let Some(value) = iterator.next() {
+                    kept.push(argument.clone());
+                    kept.push(value.clone());
+                }
+            }
+            _ => {}
+        }
+    }
+    kept
 }
 
 /// Starts the second client: a plain offscreen game that joins 127.0.0.1:port in its own folders.
@@ -372,7 +422,7 @@ fn spawn_client(plan: &Plan, game: &GameCommand, dir: &Path, port: u16, token: &
         .arg(folder.join(CONTROL_FILE))
         .args(["--yoake-test-client", "1"])
         .args(["--yoake-test-lifetime-seconds", &(plan.startup + plan.timeout).as_secs().max(1).to_string()])
-        .args(&plan.game_args);
+        .args(client_game_args(&plan.game_args));
     command.env_clear();
     for (variable, value) in guard::worker_env(std::env::vars_os()) {
         command.env(variable, value);
@@ -405,6 +455,10 @@ fn finish(
     let ending = loop {
         if let Some(second) = second.as_deref_mut() {
             second.poll(plan, game, job);
+            // A client that is gone cannot join: fail now, not when the worker's own wait runs out.
+            if !result.exists() && let Some(why) = second.dead() {
+                break Ending::ClientDied(why);
+            }
         }
         if (game.interrupted)() {
             break Ending::Interrupted;
@@ -455,6 +509,7 @@ fn finish(
     let why = match ending {
         Ending::Killed => format!("the worker did not finish within {} s and was killed", (plan.startup + plan.timeout + game.grace).as_secs()),
         Ending::Interrupted => "interrupted".to_owned(),
+        Ending::ClientDied(why) => format!("the second client did not join: {why}"),
         Ending::Lingered => "the worker's result vanished".to_owned(),
         Ending::Exited(Some(0)) => "the worker exited without writing a result".to_owned(),
         Ending::Exited(Some(code)) => format!("the worker exited with code {code} before it ran the test"),
@@ -495,6 +550,10 @@ mod tests {
         let value = |flag: &str| args.iter().position(|argument| argument == flag).and_then(|index| args.get(index + 1)).cloned();
         // The second client of a two-client test: it proves itself, leaves a marker in its folder and waits to be killed.
         if value("--yoake-test-client").is_some() {
+            if std::env::var_os("YOAKE_NEVER_SET").is_none() && value("--name").as_deref() == Some("TestB") && value("--server").is_some_and(|server| server.ends_with(":4343")) {
+                println!("client says goodbye");
+                std::process::exit(7);
+            }
             let proof = guard::verify_client(&args[1..], std::env::var(TOKEN_ENV).ok().as_deref());
             let folder = PathBuf::from(value("--game-dir").expect("a game dir")).parent().unwrap().to_owned();
             let server = value("--server").unwrap_or_default();
@@ -567,6 +626,12 @@ mod tests {
                 std::thread::sleep(Duration::from_secs(120));
             }
             "hang" => std::thread::sleep(Duration::from_secs(120)),
+            "two-dies" => {
+                // Publishes a port the stand-in client exits on, then waits for a client that will never join.
+                let folder = result.parent().unwrap().to_owned();
+                fs::write(folder.join(guard::PORT_FILE), "4343").unwrap();
+                std::thread::sleep(Duration::from_secs(60));
+            }
             "two" => {
                 // The worker of a two-client test: publishes (a port file), waits for its client, then reports.
                 let folder = result.parent().unwrap().to_owned();
@@ -722,6 +787,32 @@ mod tests {
         assert!(dir.join("c/game/yoake-mods.txt").is_file());
         assert!(dir.join("c").join(TOKEN_FILE).is_file());
         let _ = (fs::remove_dir_all(project_dir), fs::remove_dir_all(dir));
+    }
+
+    #[test]
+    fn the_second_client_gets_only_the_resources_and_drawing_arguments() {
+        let args: Vec<String> = ["--resources", "res", "--headless", "--render-distance", "6", "--no-pause", "--name", "Mallory", "--width", "800"]
+            .iter()
+            .map(|argument| (*argument).to_owned())
+            .collect();
+        assert_eq!(client_game_args(&args), ["--resources", "res", "--headless", "--render-distance", "6", "--width", "800"]);
+        assert!(client_game_args(&["--resources".to_owned()]).is_empty(), "a flag without its value is dropped");
+    }
+
+    #[test]
+    fn a_second_client_that_dies_fails_the_run_at_once_with_its_output() {
+        let project_dir = scratch("clientdies");
+        project(&project_dir, "demo", false);
+        let mut plan = plan(&project_dir);
+        plan.clients = 2;
+        let began = Instant::now();
+        // The worker waits 60 s for a client that exits at once (the stand-in client of "two-dies").
+        let record = one_with(&plan, &game(GRACE), "two-dies");
+        let error = record.error.unwrap_or_default();
+        assert!(!record.ok && error.contains("the second client did not join: it exited with Some(7)"), "{error}");
+        assert!(error.contains("client says goodbye"), "its output tail is in the failure: {error}");
+        assert!(began.elapsed() < Duration::from_secs(30), "{:?}", began.elapsed());
+        let _ = fs::remove_dir_all(project_dir);
     }
 
     #[test]

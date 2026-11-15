@@ -111,6 +111,24 @@ pub fn verify_role(args: &[String], token: Option<&str>) -> Result<Option<Role>,
     }
 }
 
+/// Arguments the game's parser treats as aliases or takes over the ones the proof reads (it keeps the last of a
+/// repeated option): none may appear in a test process.
+const ALIASES_CLIENT: &[&str] = &[
+    "--gameDir", "--quickPlayMultiplayer", "--quickPlaySingleplayer", "--session-file", "--session-stdin", "--control",
+    "--dev-mod", "--benchmark", "--dedicated", "--world", "--yoake-test-run",
+];
+const ALIASES_WORKER: &[&str] = &[
+    "--gameDir", "--quickPlayMultiplayer", "--quickPlaySingleplayer", "--server", "--session-file", "--session-stdin",
+    "--control", "--control-socket", "--dev-mod", "--benchmark", "--dedicated", "--yoake-test-client",
+];
+
+fn reject_aliases(args: &[String], list: &[&str], who: &str) -> Result<(), String> {
+    match args.iter().find(|argument| list.contains(&argument.as_str())) {
+        Some(found) => Err(format!("{found} is not allowed in {who}")),
+        None => Ok(()),
+    }
+}
+
 /// The proof of the second client: the token, `--offscreen`, a loopback server address, its own game folder
 /// (`<folder>/game`) next to the token file, and its control endpoint `<folder>/control.json`.
 pub fn verify_client(args: &[String], token: Option<&str>) -> Result<Option<WorkerArgs>, String> {
@@ -123,6 +141,7 @@ pub fn verify_client(args: &[String], token: Option<&str>) -> Result<Option<Work
             client.set(flag, value.to_owned())?;
         }
     }
+    reject_aliases(args, ALIASES_CLIENT, "a test client")?;
     let token = token.filter(|token| token.len() >= 32).ok_or("this is not a test client: the coordinator's token is missing")?;
     let game = absolute(once(args, "--game-dir")?.ok_or("a test client has a --game-dir")?)?;
     let folder = game.parent().ok_or("the game folder has no parent")?.to_owned();
@@ -145,9 +164,6 @@ pub fn verify_client(args: &[String], token: Option<&str>) -> Result<Option<Work
     if control != folder.join(CONTROL_FILE) {
         return Err(format!("a test client's control endpoint is {CONTROL_FILE} in its folder"));
     }
-    if args.iter().any(|argument| matches!(argument.as_str(), "--world" | "--dedicated" | "--yoake-test-run")) {
-        return Err("a test client joins; it opens no world".into());
-    }
     Ok(Some(client))
 }
 
@@ -160,6 +176,7 @@ pub fn verify_worker(args: &[String], token: Option<&str>) -> Result<Option<Work
     if once(args, "--yoake-test-run")?.is_none() {
         return Ok(None);
     }
+    reject_aliases(args, ALIASES_WORKER, "a test worker")?;
     let mut worker = WorkerArgs::default();
     for flag in WorkerArgs::FLAGS {
         if let Some(value) = once(args, flag)? {
@@ -372,6 +389,57 @@ pub fn parent_id() -> Option<u32> {
     }
 }
 
+/// The last lines (at most `max_lines`, each cut to 300 characters) of the end of the file at `path` (its last 64 KiB)
+/// that contain `needle`: how a failure shows what the game's log said about mods.
+pub fn log_lines_with(path: &Path, needle: &str, max_lines: usize) -> Vec<String> {
+    use std::io::{Seek, SeekFrom};
+    let Ok(mut file) = std::fs::File::open(path) else { return Vec::new() };
+    let length = file.metadata().map_or(0, |metadata| metadata.len());
+    if file.seek(SeekFrom::Start(length.saturating_sub(64 * 1024))).is_err() {
+        return Vec::new();
+    }
+    let mut bytes = Vec::new();
+    if file.take(64 * 1024).read_to_end(&mut bytes).is_err() {
+        return Vec::new();
+    }
+    let text = String::from_utf8_lossy(&bytes).into_owned();
+    let mut lines: Vec<String> = text
+        .lines()
+        .filter(|line| line.contains(needle))
+        .map(|line| line.chars().filter(|character| !character.is_control()).take(300).collect())
+        .collect();
+    let skip = lines.len().saturating_sub(max_lines);
+    lines.drain(..skip);
+    lines
+}
+
+/// Writes `contents` to a new file only its owner reads (mode 0600 on Unix; fails if the file exists).
+pub fn write_private(path: &Path, contents: &str) -> std::io::Result<()> {
+    use std::io::Write;
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    options.open(path)?.write_all(contents.as_bytes())
+}
+
+/// Makes the folder at `path` private to its owner (mode 0700 on Unix; nothing elsewhere).
+pub fn make_private(path: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+        Ok(())
+    }
+}
+
 /// Reads at most `limit` bytes of the file at `path` as text (`None` when it cannot be read).
 pub fn read_limited(path: &Path, limit: u64) -> Option<String> {
     let file = std::fs::File::open(path).ok()?;
@@ -509,7 +577,11 @@ mod tests {
         assert!(refused(&|a| { let i = a.iter().position(|x| x == "--server").unwrap(); a[i + 1] = "example.com:25565".into(); }).contains("127.0.0.1"));
         assert!(refused(&|a| { let i = a.iter().position(|x| x == "--server").unwrap(); a[i + 1] = "127.0.0.1:0".into(); }).contains("127.0.0.1"));
         assert!(refused(&|a| a.retain(|x| x != "--offscreen")).contains("--offscreen"));
-        assert!(refused(&|a| a.extend(args(&["--world", "x"]))).contains("opens no world"));
+        assert!(refused(&|a| a.extend(args(&["--world", "x"]))).contains("not allowed"));
+        // The game's parser has aliases and keeps the last of a repeated option: none gets in.
+        for alias in ["--gameDir", "--quickPlayMultiplayer", "--quickPlaySingleplayer", "--session-file", "--control", "--dev-mod"] {
+            assert!(refused(&|a| a.extend(args(&[alias, "x"]))).contains(alias), "{alias}");
+        }
         assert!(refused(&|a| { let i = a.iter().position(|x| x == "--control-socket").unwrap(); a[i + 1] = std::env::temp_dir().join("control.json").display().to_string(); }).contains("control"));
         assert!(refused(&|a| a.extend(args(&["--yoake-test-run", "x"]))).contains("exclude"));
         let _ = fs::remove_dir_all(folder);
@@ -530,6 +602,11 @@ mod tests {
         let mut missing = worker_args(&folder);
         missing.extend(args(&["--yoake-test-clients", "2"]));
         assert!(verify_worker(&missing, Some(&token)).unwrap_err().contains("--yoake-test-client-control"));
+        for alias in ["--gameDir", "--quickPlayMultiplayer", "--quickPlaySingleplayer", "--server", "--session-file", "--control", "--control-socket", "--dev-mod"] {
+            let mut aliased = worker_args(&folder);
+            aliased.extend(args(&[alias, "x"]));
+            assert!(verify_worker(&aliased, Some(&token)).unwrap_err().contains(alias), "{alias}");
+        }
         let mut stray = worker_args(&folder);
         stray.extend(args(&["--yoake-test-client-control", "x"]));
         assert!(verify_worker(&stray, Some(&token)).unwrap_err().contains("needs two clients"));
@@ -568,6 +645,39 @@ mod tests {
             println!("{}", "x".repeat(1023));
         }
         println!("the end");
+    }
+
+    #[test]
+    fn a_log_is_searched_from_its_end() {
+        let path = std::env::temp_dir().join(format!("yoake-guard-log-{}", random_hex(6)));
+        let mut text = String::new();
+        for index in 0..5000 {
+            text += &format!("[t] filler line {index}\n");
+        }
+        text += "[t] wasm: mod demo server module not loaded: init trapped\n[t] other\n[t] wasm: 1 mod(s)\n";
+        fs::write(&path, text).unwrap();
+        assert_eq!(log_lines_with(&path, "wasm:", 5), ["[t] wasm: mod demo server module not loaded: init trapped", "[t] wasm: 1 mod(s)"]);
+        assert_eq!(log_lines_with(&path, "wasm:", 1), ["[t] wasm: 1 mod(s)"]);
+        assert!(log_lines_with(&path.with_extension("none"), "wasm:", 5).is_empty());
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn private_files_are_new_and_not_overwritten() {
+        let folder = std::env::temp_dir().join(format!("yoake-guard-private-{}", random_hex(6)));
+        fs::create_dir_all(&folder).unwrap();
+        make_private(&folder).unwrap();
+        let file = folder.join("token");
+        write_private(&file, "secret").unwrap();
+        assert_eq!(fs::read_to_string(&file).unwrap(), "secret");
+        assert!(write_private(&file, "other").is_err(), "an existing file is never replaced");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(fs::metadata(&file).unwrap().permissions().mode() & 0o777, 0o600);
+            assert_eq!(fs::metadata(&folder).unwrap().permissions().mode() & 0o777, 0o700);
+        }
+        let _ = fs::remove_dir_all(folder);
     }
 
     #[test]

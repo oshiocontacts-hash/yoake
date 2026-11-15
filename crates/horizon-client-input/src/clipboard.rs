@@ -123,19 +123,43 @@ pub trait Clipboard {
 /// data-control protocol and falls back to X11 (XWayland) on compositors
 /// without it. When no system clipboard can be reached, text copied in the
 /// game can still be pasted in the game.
-#[derive(Default)]
 pub struct SystemClipboard {
     system: Option<arboard::Clipboard>,
     /// The text Horizon last copied (`horizon-ctl status`).
     copied: Option<String>,
+    /// Never touches the system's clipboard: text copied in the game is pasted in the game only.
+    isolated: bool,
+}
+
+/// Set for the whole process by [`isolate_system_clipboard`].
+static ISOLATED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// From now on every [`SystemClipboard`] made keeps to the game: an automated test process (`yoake test`)
+/// must neither read what the user copied nor replace it.
+pub fn isolate_system_clipboard() {
+    ISOLATED.store(true, std::sync::atomic::Ordering::SeqCst);
+}
+
+impl Default for SystemClipboard {
+    fn default() -> Self {
+        Self { system: None, copied: None, isolated: ISOLATED.load(std::sync::atomic::Ordering::SeqCst) }
+    }
 }
 
 impl SystemClipboard {
+    /// A clipboard that never reaches the system's.
+    pub fn isolated() -> Self {
+        Self { isolated: true, ..Self::default() }
+    }
+
     /// The text last copied by the game.
     pub fn copied(&self) -> Option<&str> {
         self.copied.as_deref()
     }
     fn system(&mut self) -> Option<&mut arboard::Clipboard> {
+        if self.isolated {
+            return None;
+        }
         if self.system.is_none() {
             self.system = arboard::Clipboard::new().ok();
         }
@@ -314,6 +338,15 @@ pub fn append_limited(value: &mut String, text: &str, max_chars: usize) -> bool 
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn an_isolated_clipboard_keeps_what_was_copied_in_the_game_and_reads_nothing_else() {
+        let mut board = SystemClipboard::isolated();
+        assert_eq!(board.get(), "");
+        board.set("from the game");
+        assert_eq!(board.get(), "from the game");
+        assert_eq!(board.copied(), Some("from the game"));
+    }
     use super::*;
 
     #[test]

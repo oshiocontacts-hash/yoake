@@ -38,6 +38,10 @@ pub(crate) fn init_worker() {
             std::process::exit(crate::game::exit_code::USAGE);
         }
     };
+    if verified.is_some() {
+        // An automated process neither reads nor replaces what the user copied.
+        crate::clipboard::isolate_system_clipboard();
+    }
     match &verified {
         Some(Role::Worker(worker)) => yoake_test_runner::worker::arm(worker),
         Some(Role::Client(client)) => yoake_test_runner::worker::arm_client(client),

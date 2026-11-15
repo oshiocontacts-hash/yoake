@@ -64,8 +64,8 @@ fn two_clients(world: &mut TestWorld<'_>) -> TestResult {
     world.run_ticks(2)?;
     world.client(1).wait_chat("hello-from-b", 20_000)?;
     // Server to client.
-    // `say` from the console does not reach a client's chat log; `tellraw` does.
-    world.assert_command("tellraw @a \"hello-from-the-server\"")?;
+    // The console's `say` reaches every player of the published world.
+    world.assert_command("say hello-from-the-server")?;
     world.run_ticks(2)?;
     world.client(1).wait_chat("hello-from-the-server", 20_000)?;
     // The server module answers while both are connected.

@@ -22,9 +22,20 @@ pub fn check_command(line: &str) -> Result<(), String> {
     if line.is_empty() || line.len() > MAX_LINE || line.chars().any(char::is_control) {
         return Err("a client command is one line of plain text".into());
     }
-    let word = line.split_whitespace().next().unwrap_or_default();
+    let mut words = line.split_whitespace();
+    let word = words.next().unwrap_or_default();
     if !ALLOWED.contains(&word) {
         return Err(format!("the client command {word:?} is not available to tests (allowed: {})", ALLOWED.join(", ")));
+    }
+    if word == "key" {
+        let key = words.next().unwrap_or_default().to_ascii_lowercase();
+        // No edit modifier (Ctrl+C/X/V/A would reach the clipboard shortcuts), no debug combo (F3+...) and no
+        // function key (F1 to F12 are the debug keys, the screenshot and fullscreen).
+        let function_key = key.strip_prefix('f').is_some_and(|rest| !rest.is_empty() && rest.bytes().all(|byte| byte.is_ascii_digit()));
+        let blocked = ["ctrl", "control", "lctrl", "rctrl", "lcontrol", "rcontrol", "super", "meta", "cmd", "command", "win", "alt", "lalt", "ralt"];
+        if function_key || blocked.contains(&key.as_str()) {
+            return Err(format!("the key {key:?} is not available to tests: no edit modifier, debug or function key"));
+        }
     }
     Ok(())
 }
@@ -63,7 +74,8 @@ impl Control {
         check_command(line)?;
         let (port, token) = self.endpoint()?;
         let address = SocketAddr::from((Ipv4Addr::LOCALHOST, port));
-        let stream = TcpStream::connect_timeout(&address, Duration::from_secs(5)).map_err(|error| format!("the client does not answer: {error}"))?;
+        let stream = TcpStream::connect_timeout(&address, timeout.min(Duration::from_secs(5)).max(Duration::from_millis(1)))
+            .map_err(|error| format!("the client does not answer: {error}"))?;
         let _ = stream.set_nodelay(true);
         stream.set_read_timeout(Some(timeout)).map_err(|error| error.to_string())?;
         stream.set_write_timeout(Some(Duration::from_secs(5))).map_err(|error| error.to_string())?;
@@ -86,13 +98,28 @@ impl Control {
         read_line(&mut reader)
     }
 
+    /// How long a call of `line` may take: 30 s, and for `wait-for ... --timeout N` (the client answers when its
+    /// condition holds or after N seconds) N seconds and a margin.
+    pub fn timeout_for(line: &str) -> Duration {
+        let mut words = line.split_whitespace();
+        let waited = words.by_ref().skip_while(|word| *word != "--timeout").nth(1).and_then(|seconds| seconds.parse::<u64>().ok());
+        match (line.starts_with("wait-for"), waited) {
+            (true, Some(seconds)) => Duration::from_secs(seconds.min(3600) + 10),
+            // `wait-for` has its own default of 30 s.
+            (true, None) => Duration::from_secs(40),
+            _ => Duration::from_secs(30),
+        }
+    }
+
     /// Repeats `line` every 50 ms until its reply contains `expect` (plain text), up to `total`. Returns that
     /// reply; on timeout the error carries the last reply.
     pub fn wait(&self, line: &str, expect: &str, total: Duration) -> Result<String, String> {
         let deadline = Instant::now() + total;
         let mut last = String::new();
         loop {
-            match self.call(line, Duration::from_secs(10)) {
+            // Each call gets what is left of the total (at most 10 s), so the wait ends when it said it would.
+            let left = deadline.saturating_duration_since(Instant::now()).clamp(Duration::from_millis(50), Duration::from_secs(10));
+            match self.call(line, left) {
                 Ok(reply) if reply.contains(expect) => return Ok(reply),
                 Ok(reply) => last = reply,
                 Err(error) => last = error,
@@ -164,6 +191,38 @@ mod tests {
             assert!(check_command(bad).is_err(), "{bad:?}");
         }
         assert!(check_command(&format!("chat {}", "x".repeat(5000))).is_err());
+        // Plain keys pass; the edit modifiers, the debug combo and the function keys do not.
+        for good in ["key w down", "key space tap", "key shift down", "key e tap"] {
+            assert!(check_command(good).is_ok(), "{good}");
+        }
+        for bad in ["key ctrl down", "key Control tap", "key super down", "key cmd down", "key alt down", "key f3 down", "key F3 tap", "key f11 tap", "key f1 tap"] {
+            assert!(check_command(bad).unwrap_err().contains("not available to tests"), "{bad}");
+        }
+    }
+
+    #[test]
+    fn a_call_waits_as_long_as_the_command_does() {
+        assert_eq!(Control::timeout_for("status"), Duration::from_secs(30));
+        assert_eq!(Control::timeout_for("chat-log 5"), Duration::from_secs(30));
+        assert_eq!(Control::timeout_for("wait-for chat hi --timeout 60"), Duration::from_secs(70));
+        assert_eq!(Control::timeout_for("wait-for chat hi"), Duration::from_secs(40));
+        assert_eq!(Control::timeout_for("wait-for loaded --timeout 5 --since 3"), Duration::from_secs(15));
+    }
+
+    #[test]
+    fn a_wait_ends_when_it_said_it_would_even_if_the_client_hangs() {
+        // A listener that accepts and never answers.
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let folder = std::env::temp_dir().join(format!("yoake-control-{}", crate::guard::random_hex(6)));
+        std::fs::create_dir_all(&folder).unwrap();
+        let path = folder.join("control.json");
+        std::fs::write(&path, format!("{{\"port\":{},\"token\":\"t\"}}", listener.local_addr().unwrap().port())).unwrap();
+        let began = Instant::now();
+        let error = Control::new(&path).wait("status", "x", Duration::from_millis(600)).unwrap_err();
+        assert!(error.contains("did not show"), "{error}");
+        assert!(began.elapsed() < Duration::from_secs(3), "{:?}", began.elapsed());
+        drop(listener);
+        let _ = std::fs::remove_dir_all(folder);
     }
 
     #[test]

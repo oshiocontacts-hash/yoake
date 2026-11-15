@@ -19,8 +19,16 @@ pub const OWNER_WAIT: Duration = Duration::from_secs(120);
 /// Real time the world runs after the owner joined, before it is frozen for the test: chunks around the
 /// spawn load and the first ticks run on their own.
 pub const WARMUP: Duration = Duration::from_secs(2);
-/// Longest the worker waits for the second client to join and to be in the world.
-pub const CLIENT_WAIT: Duration = Duration::from_secs(240);
+/// When this process armed its limits (about its start): the startup budget counts from here.
+static STARTED: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
+
+/// Time since this process armed its limits.
+pub fn elapsed() -> Duration {
+    STARTED.get().map_or(Duration::ZERO, Instant::elapsed)
+}
+
+/// The name the second client joins with.
+pub const SECOND_CLIENT_NAME: &str = "TestB";
 /// Extra time the watchdog gives after startup and the test's own limit before it ends the process.
 const GRACE: Duration = Duration::from_secs(10);
 
@@ -100,18 +108,23 @@ fn open_to_second_client(args: &WorkerArgs, client: &Client, control: &Control) 
         other => return Err(format!("the world was not opened to the loopback: {other:?}")),
     };
     let folder = args.result.as_deref().and_then(Path::parent).ok_or("no result folder")?;
-    std::fs::write(folder.join(PORT_FILE), port.to_string()).map_err(|error| format!("cannot write the port: {error}"))?;
-    let deadline = Instant::now() + CLIENT_WAIT;
+    // Written whole and renamed: the coordinator never reads half a port.
+    let temporary = folder.join(format!("{PORT_FILE}.tmp"));
+    std::fs::write(&temporary, port.to_string())
+        .and_then(|()| std::fs::rename(&temporary, folder.join(PORT_FILE)))
+        .map_err(|error| format!("cannot write the port: {error}"))?;
+    // What is left of the startup budget, the game's own start and the owner's join already spent.
+    let deadline = Instant::now() + args.startup.saturating_sub(elapsed()).max(Duration::from_secs(10));
     loop {
-        let players = match client.request_within(Op::Players, Duration::from_secs(5))? {
-            Reply::Players(players) => players.len(),
-            _ => 0,
+        let named = match client.request_within(Op::Players, Duration::from_secs(5))? {
+            Reply::Players(players) => players.iter().any(|player| player.name == SECOND_CLIENT_NAME),
+            _ => false,
         };
-        if players >= 2 {
+        if named {
             break;
         }
         if Instant::now() >= deadline {
-            return Err("the second client did not join the world".into());
+            return Err(format!("the second client ({SECOND_CLIENT_NAME}) did not join the world"));
         }
         std::thread::sleep(Duration::from_millis(200));
     }
@@ -147,6 +160,7 @@ fn finish(args: &WorkerArgs, record: &TestRecord, code: i32) {
 /// watchdog that ends it after `startup + timeout` (and a grace) whatever it is doing, and, where the
 /// system gives no other way, a check that its coordinator is still there.
 pub fn arm(args: &WorkerArgs) {
+    let _ = STARTED.set(Instant::now());
     let name = args.test.clone().unwrap_or_default();
     let watch = args.clone();
     let _ = std::thread::Builder::new().name("yoake-test-watchdog".into()).spawn(move || {

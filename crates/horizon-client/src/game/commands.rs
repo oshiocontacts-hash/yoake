@@ -3788,6 +3788,7 @@ impl Game<'_> {
             Some(None) => Text::literal("Server"),
             None => self.player_display_name(),
         };
+        let (plain_name, plain_message) = (name.plain(), message.plain());
         let line = match id {
             "say" => Text::translate("chat.type.announcement", &[name, message]),
             "me" => Text::translate("chat.type.emote", &[name, message]),
@@ -3811,6 +3812,14 @@ impl Game<'_> {
         };
         if let Some(capture) = self.chat_capture.as_mut() {
             capture.push(line.clone());
+        }
+        // SayCommand from the server itself (the console, a native mod's command, the test driver) reaches every
+        // player of a published world, as the dedicated console's `say` does (`Hub::say`); it used to reach
+        // only the server's own chat, where no one reads it.
+        if announces_to_players(id, self.command_source.map(|s| s.entity), self.lan.is_some())
+            && let Some(host) = &self.lan
+        {
+            host.hub.say(&plain_name, &plain_message);
         }
         let focused = self.screen == Screen::Chat;
         self.ui.chat.add(
@@ -4000,5 +4009,26 @@ mod percent_f_tests {
         assert_eq!(percent_f(0.1234565, 6), "0.123457");
         assert_eq!(percent_f(-1.005, 2), "-1.01");
         assert_eq!(percent_f(3.0, 2), "3.00");
+    }
+}
+
+/// Whether `/say` is a message to the players of a published world: the source is the server (no entity) and
+/// the world has a hub. A player's own `/say` goes out through its connection (`guest_message_command`).
+fn announces_to_players<T>(id: &str, source_entity: Option<Option<T>>, published: bool) -> bool {
+    id == "say" && published && matches!(source_entity, Some(None))
+}
+
+#[cfg(test)]
+mod say_tests {
+    use super::announces_to_players;
+
+    #[test]
+    fn only_the_servers_own_say_in_a_published_world_goes_to_the_players() {
+        assert!(announces_to_players::<u8>("say", Some(None), true));
+        assert!(!announces_to_players::<u8>("say", Some(None), false), "no hub, no one to tell");
+        assert!(!announces_to_players("say", Some(Some(1u8)), true), "an entity's say is its own connection's");
+        assert!(!announces_to_players::<u8>("say", None, true), "the window's player speaks for itself");
+        assert!(!announces_to_players::<u8>("me", Some(None), true));
+        assert!(!announces_to_players::<u8>("msg", Some(None), true));
     }
 }

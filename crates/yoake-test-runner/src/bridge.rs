@@ -481,7 +481,7 @@ impl TestHost for ChannelHost {
     }
 
     fn client_call(&mut self, index: u32, command: &str) -> Result<String, String> {
-        self.second(index)?.call(command, Duration::from_secs(30))
+        self.second(index)?.call(command, crate::control_client::Control::timeout_for(command))
     }
 
     fn client_wait(&mut self, index: u32, command: &str, expect: &str, timeout: Duration) -> Result<String, String> {

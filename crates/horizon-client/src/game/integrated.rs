@@ -1227,6 +1227,8 @@ impl Game<'_> {
             integrated: true,
         };
         let owner = launch.owner;
+        // A test worker (`yoake test`, two clients) lets in the one player it expects, and nobody else.
+        let testing = crate::yoake_test::worker().is_some();
         let published = flags.clone();
         let local_players = flags.clone();
         let net = NetConfig {
@@ -1239,13 +1241,14 @@ impl Game<'_> {
             bypasses_limit: Some(Arc::new(move |uuid| {
                 local_players.split_players.lock().unwrap().contains(&uuid)
             })),
-            gate: Some(Arc::new(move |address, uuid, _| {
-                refused(
+            gate: Some(Arc::new(move |address, uuid, name| {
+                let memory = address == horizon_client::lan::conn::MEMORY_ADDRESS;
+                (refused(
                     uuid == owner,
                     published.published.load(Ordering::Relaxed) != 0,
                     published.split_players.lock().unwrap().contains(&uuid),
-                    address == horizon_client::lan::conn::MEMORY_ADDRESS,
-                )
+                    memory,
+                ) || not_the_test_client(testing, uuid == owner, memory, name))
                 .then(|| translatable("multiplayer.disconnect.not_whitelisted", &[]))
             })),
             levels: self.level_shapes,
@@ -1760,6 +1763,11 @@ fn server_game(
 /// Who the integrated server turns away: anyone but the owner until it is opened to the LAN,
 /// except a splitscreen seat. A seat's name is let in only through memory, so a LAN player
 /// logging in under it never gets its place or the owner's permissions it holds.
+/// The login a test worker's published world takes: its owner, and the second client named `TestB`.
+fn not_the_test_client(testing: bool, owner: bool, memory: bool, name: &str) -> bool {
+    testing && !owner && !memory && name != "TestB"
+}
+
 fn refused(owner: bool, published: bool, split_seat: bool, memory: bool) -> bool {
     if split_seat {
         !memory
@@ -1771,6 +1779,16 @@ fn refused(owner: bool, published: bool, split_seat: bool, memory: bool) -> bool
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_test_worker_lets_in_only_its_owner_and_testb() {
+        assert!(!not_the_test_client(false, false, false, "Anyone"), "a normal world takes whoever may join");
+        assert!(!not_the_test_client(true, true, false, "Owner"));
+        assert!(!not_the_test_client(true, false, true, "Window"));
+        assert!(!not_the_test_client(true, false, false, "TestB"));
+        assert!(not_the_test_client(true, false, false, "Mallory"));
+        assert!(not_the_test_client(true, false, false, "testb"));
+    }
 
     #[test]
     fn integrated_owner_requires_an_authoritative_tick_and_server() {

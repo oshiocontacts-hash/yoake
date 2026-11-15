@@ -28,7 +28,8 @@ impl Game<'_> {
             force_game_mode: false,
             loopback_only: true,
             announce: false,
-            max_players: 4,
+            // The owner and the one client the test starts.
+            max_players: 2,
             game_mode: None,
         };
         let port = self.publish(settings)?;
