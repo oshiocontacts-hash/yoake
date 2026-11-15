@@ -57,6 +57,15 @@ jobs:
             $fxc.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           }
 
+      # Test guests (SDK examples, fixtures) are separate workspaces built with --offline by the tests: fetch their crates first.
+      - name: Fetch guest crates
+        shell: bash
+        run: |
+          for m in crates/yoake-wasm-sdk/examples/*/Cargo.toml crates/yoake-wasm/tests/*/Cargo.toml examples/*/Cargo.toml; do
+            [ -f "$m" ] || continue
+            echo "fetch $m"; cargo fetch --manifest-path "$m" --target wasm32-wasip2 || cargo fetch --manifest-path "$m" --target wasm32-wasip2 || true
+          done
+
       - name: Check
         if: ${{ inputs.check != '' }}
         shell: bash
