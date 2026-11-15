@@ -67,14 +67,20 @@ pub fn encode(message: &Message) -> Result<Vec<u8>> {
                 .to_string()
                 .map_err(|_| Error::new("attachment sync: name is not UTF-16"))?;
             if name.encode_utf16().count() > MAX_NAME {
-                return Err(Error::new(format!(
-                    "attachment sync: name {name} is too long"
-                )));
+                return Err(Error::new("attachment sync: name is too long"));
             }
             w.string(&name);
         }
         match &change.value {
             Some(value) => {
+                nbt::network_compound_encoded_size(
+                    value,
+                    nbt::Limits {
+                        max_bytes: MAX_PAYLOAD,
+                        ..nbt::Limits::default()
+                    },
+                )
+                .map_err(|e| Error::new(format!("attachment sync: value: {e}")))?;
                 let tag = Tag::Compound(value.clone());
                 let bytes = nbt::write_network(&tag, nbt::Limits::default())
                     .map_err(|e| Error::new(format!("attachment sync: value: {e}")))?;
@@ -87,6 +93,62 @@ pub fn encode(message: &Message) -> Result<Vec<u8>> {
         return Err(Error::new("attachment sync: payload too big"));
     }
     Ok(w.data)
+}
+
+/// Split a holder's changes into independently encodable payloads.
+pub fn split(message: &Message) -> Result<Vec<Message>> {
+    let empty = Message {
+        holder: message.holder,
+        replace: false,
+        changes: Vec::new(),
+    };
+    let header_size = encode(&empty)?.len();
+    let mut batches = Vec::new();
+    let mut batch = Message {
+        holder: message.holder,
+        replace: message.replace,
+        changes: Vec::new(),
+    };
+    let mut size = header_size + 4;
+    for change in &message.changes {
+        if let Some(value) = &change.value {
+            nbt::network_compound_encoded_size(
+                value,
+                nbt::Limits {
+                    max_bytes: MAX_PAYLOAD,
+                    ..nbt::Limits::default()
+                },
+            )
+            .map_err(|e| Error::new(format!("attachment sync: value: {e}")))?;
+        }
+        let single = Message {
+            holder: message.holder,
+            replace: false,
+            changes: vec![change.clone()],
+        };
+        let change_size = encode(&single)?.len() - header_size;
+        if size + change_size > MAX_PAYLOAD {
+            if batch.changes.is_empty() {
+                return Err(Error::new("attachment sync: individual change too big"));
+            }
+            batches.push(batch);
+            batch = Message {
+                holder: message.holder,
+                replace: false,
+                changes: Vec::new(),
+            };
+            size = header_size + 4;
+        }
+        if size + change_size > MAX_PAYLOAD {
+            return Err(Error::new("attachment sync: individual change too big"));
+        }
+        size += change_size;
+        batch.changes.push(change.clone());
+    }
+    if !batch.changes.is_empty() || batches.is_empty() {
+        batches.push(batch);
+    }
+    Ok(batches)
 }
 
 /// A payload's message; an error for one that breaks a cap.
@@ -208,5 +270,34 @@ mod tests {
         let big = Tag::ByteArray(vec![0; MAX_PAYLOAD]);
         message.changes[0].value = Some([("big".into(), big)].into());
         assert!(encode(&message).is_err(), "payload");
+    }
+
+    #[test]
+    fn splitting_keeps_every_change_and_replaces_only_once() {
+        let changes: Vec<_> = (0..20)
+            .map(|index| AttachmentSync {
+                namespace: "test".into(),
+                name: format!("key{index}").as_str().into(),
+                value: Some([("data".into(), Tag::ByteArray(vec![0; 60_000]))].into()),
+            })
+            .collect();
+        let message = Message {
+            holder: Holder::Level,
+            replace: true,
+            changes: changes.clone(),
+        };
+        let batches = split(&message).unwrap();
+        assert!(batches.len() > 1);
+        assert!(batches[0].replace);
+        assert!(batches[1..].iter().all(|batch| !batch.replace));
+        let decoded: Vec<_> = batches
+            .iter()
+            .flat_map(|batch| {
+                let payload = encode(batch).unwrap();
+                assert!(payload.len() <= MAX_PAYLOAD);
+                decode(&payload).unwrap().changes
+            })
+            .collect();
+        assert_eq!(decoded, changes);
     }
 }

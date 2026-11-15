@@ -173,7 +173,10 @@ yoake_wasm_sdk::export_server_full!(M);
 it; `&mut` draw objects (`HudBatch`, `BlockEntityDraw`, `Corners`) become command lists you return; other
 `&mut` values come back as `option` fields of the outcome. Engine objects that cannot be copied are `u64`
 handles, valid only during the call. Example: `crates/yoake-wasm-sdk/examples/full-demo` (build once per
-feature, `client` and `server`).
+feature, `client` and `server`). A `.yak` with data content (`content/`: blocks, items, a mob effect, a recipe, a loot
+table, a data-defined mob, a sound and a creative tab, see mods.md) and a small server module that reacts to the mob:
+`crates/yoake-wasm-sdk/examples/content-demo` (`cargo build --release --target wasm32-wasip2`; the package id is
+`content_demo`, a namespace, so `[a-z0-9_]` only).
 
 ### What the host applies / does not
 
@@ -181,7 +184,7 @@ feature, `client` and `server`).
   Skipped: `texture`, `highlight`, textured quads.
 * Model commands: push/pop/translate/rotate/scale/light/keep, quad, block. Skipped: cube, model, item.
 * Corner reservations: applied. Frame-stage commands (`world-drawn`, `hand-drawn`, ...): not applied yet.
-* Server services: all 84 of `server-services` (`crates/horizon-mod-api-gen/abi-subset-server.json`) answer,
+* Server services: all 88 of `server-services` (`crates/horizon-mod-api-gen/abi-subset-server.json`) answer,
   except four (below). Each validates its arguments (finite numbers, sizes, registry ids, UUIDs) and fails
   closed (an `Err` changes nothing). Mods are trusted inside the game: they may change other players'
   inventories, break blocks and move items. The one hard line is the PC: storage is a per-package folder, commands
@@ -199,6 +202,7 @@ feature, `client` and `server`).
   | `play-sound-at` | new (WASM layer: every player in earshot) |
   | `break-block-as` (the game's own player break: drops with Fortune/Silk Touch, tool damage, XP, stats, mod events), `player-sneaking` (guests, the LAN host and single player's owner), `container-slots`, `container-set-slots` (same items, totals verified; plain containers, both halves of a double chest), `containers-in`, `player-set-slots` (36 main slots, totals verified), `player-remove-slot` (exact item, count and components; all-or-nothing across main, armor, off hand and cursor), `block-tags`, `item-tags`, `block-tool-requirement`, `can-harvest`, `attribute-get`, `item-entities-in`, `item-entity-move`, `item-entity-pickup`, `give-items` (remainder returned), `inventory-apply` (exact: id + count + components, all or nothing; `give` needs room for all), `advancement-progress`, `advancement-grant`, `entity-vitals-of` | new |
   | `mod-call` | new: `target-mod`, `method`, `payload` (1 MiB); the callee exports `handle-call(caller, method, payload)` of the `server-full` world; no call into a caller that is waiting (it is busy), at most 4 nested, never to itself |
+  | `attachment-define`, `attachment-get`, `attachment-set`, `attachment-remove` (W2-B: opaque bytes, 64 KiB, on a player, entity, block entity, chunk or the level; persistent / synced / copy-on-death are the engine's own attachment policies, ids `<package id>:<name>`, see `docs/mods.md`) | new (server-full only; a client module cannot read synced values yet) |
   | `block-entity-read`, `block-entity-patch-call` | still missing: a block-entity hook returns its new state directly (no native service to forward) |
   | `range-override-set/clear` | deferred (Nestgate voice, W5) |
 

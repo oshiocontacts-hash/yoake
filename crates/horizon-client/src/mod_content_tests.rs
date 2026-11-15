@@ -1470,6 +1470,58 @@ fn content_root_registers_a_mod_entity_type() {
     fs::remove_dir_all(&scratch).unwrap();
 }
 
+/// a mod's mob type gets a network id after vanilla's, its template's row, a
+/// line in the mobs file the mob loader reads, and its natural spawns in the
+/// biomes it names.
+#[test]
+#[ignore = "full content root: CI and pr_ready run it"]
+fn content_root_registers_a_mod_mob_type() {
+    let Some(base) = prepared() else {
+        return;
+    };
+    let scratch = std::env::temp_dir().join(format!("horizon-mod-mob-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&scratch);
+    let m = folder_mod(
+        &scratch.join("example"),
+        &[
+            ("horizon-mod.toml", &manifest("example", "")),
+            ("assets/example/textures/entity/gem_cow.png", "png"),
+            (
+                "data/example/horizon/entity_type/gem_cow.json",
+                r#"{"template": "minecraft:cow", "texture": "example:entity/gem_cow",
+                    "attributes": {"max_health": 30},
+                    "spawn": {"biomes": "minecraft:plains", "weight": 7, "min": 2, "max": 3}}"#,
+            ),
+        ],
+    );
+    let root = resource_root(&base, std::slice::from_ref(&m), &scratch.join("cache")).unwrap();
+    let ids =
+        horizon_protocol::registry::Builtin::load(&root.join("registries.json")).unwrap();
+    assert!(ids
+        .get("minecraft:entity_type")
+        .unwrap()
+        .id("example:gem_cow")
+        .is_some());
+    let types: serde_json::Value =
+        serde_json::from_slice(&fs::read(root.join("entity-types.json")).unwrap()).unwrap();
+    assert_eq!(types["example:gem_cow"], types["minecraft:cow"]);
+    let mobs = crate::mobs::mod_mob::read(&root);
+    assert_eq!(mobs.len(), 1);
+    assert_eq!(mobs[0].0, "example:gem_cow");
+    assert_eq!(mobs[0].1.attributes["max_health"], 30.0);
+    // the loader builds the type from the cow's.
+    let mut loaded = crate::mobs::MobTypes::load_for_server(&root).unwrap().types;
+    assert_eq!(loaded["example:gem_cow"].max_health, 30.0);
+    assert_eq!(loaded["example:gem_cow"].texture, "example:entity/gem_cow");
+    assert_eq!(
+        loaded.remove("example:gem_cow").unwrap().species,
+        loaded["minecraft:cow"].species
+    );
+    let biomes = fs::read_to_string(root.join("worldgen/biomes.json")).unwrap();
+    assert!(biomes.contains("example:gem_cow"));
+    fs::remove_dir_all(&scratch).unwrap();
+}
+
 /// a mod's menu type gets the menu network id after vanilla's last, and it
 /// changes the content identity.
 #[test]

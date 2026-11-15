@@ -243,6 +243,17 @@ impl BlockEntities {
         }
         Some(self.attachments.entry(pos).or_default())
     }
+
+    /// Read a live block entity's map without creating one.
+    pub fn attachments_read(
+        &self,
+        pos: Pos,
+    ) -> Option<Option<&horizon_world::attachments::Attachments>> {
+        if !self.map.contains_key(&pos) && !self.out.contains(&pos) {
+            return None;
+        }
+        Some(self.attachments.get(&pos))
+    }
     /// Attachment maps in a loaded chunk, for a save snapshot.
     pub fn chunk_attachments(
         &self,
@@ -254,6 +265,16 @@ impl BlockEntities {
             .filter(|(p, _)| p.0 >> 4 == x && p.2 >> 4 == z)
             .map(|(p, data)| (*p, data.clone()))
             .collect()
+    }
+    pub fn chunk_attachments_mut(
+        &mut self,
+        x: i32,
+        z: i32,
+    ) -> impl Iterator<Item = (Pos, &mut horizon_world::attachments::Attachments)> {
+        self.attachments
+            .iter_mut()
+            .filter(move |(pos, _)| pos.0 >> 4 == x && pos.2 >> 4 == z)
+            .map(|(pos, data)| (*pos, data))
     }
     /// Restore a loaded block entity's attachment map.
     pub fn restore_attachments(&mut self, pos: Pos, data: horizon_world::attachments::Attachments) {

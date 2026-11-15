@@ -1,0 +1,2 @@
+{ "title": "Content Demo", "icon": "content_demo:gem",
+  "items": ["content_demo:gem", "content_demo:gem_block", "content_demo:gem_cow_spawn_egg"] }

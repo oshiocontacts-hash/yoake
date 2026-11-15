@@ -2014,6 +2014,10 @@ interface server-services {
     set-world-border: func(center-x: f64, center-z: f64, dimension: string, lerp-ticks: option<u64>, size: f64, target-size: option<f64>) -> result<_, string>;
     mod-call: func(method: string, payload: list<u8>, target-mod: string) -> result<list<u8>, string>;
     player-remove-slot: func(expected: item-stack, player: string, slot: u32) -> result<bool, string>;
+    attachment-define: func(copy-on-death: bool, id: string, kind: string, persistent: bool, synced: bool) -> result<_, string>;
+    attachment-get: func(holder: string, id: string, kind: string) -> result<option<list<u8>>, string>;
+    attachment-set: func(data: list<u8>, holder: string, id: string, kind: string) -> result<_, string>;
+    attachment-remove: func(holder: string, id: string, kind: string) -> result<bool, string>;
 }
 
 /// Hooks that run in the client.

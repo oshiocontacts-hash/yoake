@@ -3553,10 +3553,25 @@ impl Game<'_> {
         }
         // PlayerList.respawn replaces the player, retaining only opted-in data.
         let uuid = host.hub.guests[i].uuid;
-        if let Some(attachments) = self.guest_attachments.get_mut(&uuid)
-            && let Ok(copy) = attachments.copy_on_death()
-        {
-            *attachments = copy;
+        if let Some(attachments) = self.guest_attachments.get_mut(&uuid) {
+            if let Err(error) = crate::entry::wasm_mods::prepare_attachments(
+                horizon_client::mod_api::Holder::Player(uuid),
+                attachments,
+                format!("player:{uuid}"),
+            ) {
+                log::warn!("pre-respawn attachment reconciliation failed: {error:?}");
+            }
+            *attachments = attachments.copy_on_death().unwrap_or_else(|error| {
+                log::warn!("respawn attachment copy failed: {error:?}");
+                Default::default()
+            });
+            if let Err(error) = crate::entry::wasm_mods::prepare_attachments(
+                horizon_client::mod_api::Holder::Player(uuid),
+                attachments,
+                format!("player:{uuid}"),
+            ) {
+                log::warn!("respawn attachment reconciliation failed: {error:?}");
+            }
         }
         // PlayerList.respawn removes the dead player (Player.remove).
         self.guest_drop_carried(host, i);

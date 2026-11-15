@@ -556,7 +556,9 @@ impl Game<'_> {
                     return Ok(0);
                 };
                 let ty = self.target_type(t);
-                let table = format!("minecraft:entities/{}", ty.trim_start_matches("minecraft:"));
+                let table = horizon_client::mobs::mod_mob::loot_table(&ty).unwrap_or_else(|| {
+                    format!("minecraft:entities/{}", ty.trim_start_matches("minecraft:"))
+                });
                 if t == Target::Player || !world_items!(self).has_loot_table(&table) {
                     return Err(err(
                         "commands.drop.no_loot_table.entity",

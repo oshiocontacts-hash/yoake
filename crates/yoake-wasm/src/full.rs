@@ -224,6 +224,10 @@ server_services! {
     world_border(dimension: String) -> Result<st::WorldBorderState, String> = unsupported();
     set_world_border(center_x: f64, center_z: f64, dimension: String, lerp_ticks: Option<u64>, size: f64, target_size: Option<f64>) -> Result<(), String> = unsupported();
     mod_call(method: String, payload: Vec<u8>, target_mod: String) -> Result<Vec<u8>, String> = unsupported();
+    attachment_define(copy_on_death: bool, id: String, kind: String, persistent: bool, synced: bool) -> Result<(), String> = unsupported();
+    attachment_get(holder: String, id: String, kind: String) -> Result<Option<Vec<u8>>, String> = unsupported();
+    attachment_set(data: Vec<u8>, holder: String, id: String, kind: String) -> Result<(), String> = unsupported();
+    attachment_remove(holder: String, id: String, kind: String) -> Result<bool, String> = unsupported();
 }
 
 pub struct ServerContext {

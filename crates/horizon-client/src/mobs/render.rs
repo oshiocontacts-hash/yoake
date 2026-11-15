@@ -254,8 +254,17 @@ fn avatar(m: &Mob) -> bool {
 pub fn layers_shown(m: &Mob) -> bool {
     !(avatar(m) && m.extra.spectator)
 }
-/// The model layer key and texture for the mob's body.
+/// The model layer key and texture for the mob's body. A mod mob type with a
+/// texture of its own draws it on its template's model.
 pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
+    let (model, texture) = vanilla_body(m);
+    if !m.kind.id.starts_with("minecraft:") && m.kind.texture != super::species::def(m.kind.species).texture {
+        return (model, m.kind.texture.as_str().into());
+    }
+    (model, texture)
+}
+/// The model layer key and texture of a vanilla mob's body.
+fn vanilla_body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
     use Species as S;
     let baby = m.is_baby();
     let b = |s: &str| -> Cow<'static, str> {

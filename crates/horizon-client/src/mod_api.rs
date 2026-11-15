@@ -106,7 +106,9 @@ pub use horizon_world::identifier::Identifier;
 pub use horizon_world::player_inventory::EquipmentSlot;
 pub use horizon_world::{
     attachments::{
-        AttachmentCodec, AttachmentError, AttachmentHost, AttachmentType, Attachments, Holder,
+        AttachmentCodec, AttachmentError, AttachmentHost, AttachmentScope, AttachmentType,
+        Attachments, DynamicAttachmentPolicy, DynamicAttachmentRegistry, DynamicAttachmentType,
+        Holder,
     },
     collision_context::{CollisionContext, CollisionEntity, CollisionItem},
     entity_obstruction::EntityIdentity,

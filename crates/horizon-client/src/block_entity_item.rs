@@ -86,7 +86,11 @@ pub fn spawn_egg_on_spawner(
         Some(Tag::String(id)) => id.to_string_lossy(),
         _ => {
             let kind = stack.item.trim_end_matches("_spawn_egg");
-            format!("minecraft:{}", kind.trim_start_matches("minecraft:"))
+            if kind.contains(':') {
+                kind.to_owned()
+            } else {
+                format!("minecraft:{kind}")
+            }
         }
     };
     (id, data.filter(|_| op).cloned())
@@ -556,6 +560,18 @@ mod tests {
             data.get(&JavaString::from("CustomName")),
             Some(&Tag::String("Guard".into()))
         );
+    }
+
+    #[test]
+    fn a_spawn_egg_preserves_its_namespace_on_a_spawner() {
+        for (item, expected) in [
+            ("ruby:gem_cow_spawn_egg", "ruby:gem_cow"),
+            ("minecraft:zombie_spawn_egg", "minecraft:zombie"),
+            ("zombie_spawn_egg", "minecraft:zombie"),
+        ] {
+            let egg = crate::items::ItemStack::new(item, 1);
+            assert_eq!(spawn_egg_on_spawner(&egg, false), (expected.into(), None));
+        }
     }
 
     #[test]

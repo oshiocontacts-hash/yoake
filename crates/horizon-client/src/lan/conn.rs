@@ -323,6 +323,24 @@ impl PlayerSender {
             held.push(body);
         }
     }
+    pub fn try_send_many(&self, bodies: Vec<Vec<u8>>) -> bool {
+        self.flush();
+        if self.posted.load(Ordering::Acquire) != 0 {
+            return false;
+        }
+        let Some(size) = bodies
+            .iter()
+            .try_fold(0usize, |size, body| size.checked_add(body.len()))
+        else {
+            return false;
+        };
+        self.pending.fetch_add(size, Ordering::Relaxed);
+        if self.tx.send(Out::Packets(bodies)).is_err() {
+            self.pending.fetch_sub(size, Ordering::Relaxed);
+            return false;
+        }
+        true
+    }
     /// Hand the held packets to the writer thread.
     pub fn flush(&self) {
         let held = std::mem::take(&mut *self.held());
@@ -1749,6 +1767,16 @@ fn write_loop(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn try_send_many_reports_a_closed_connection() {
+        let (tx, rx) = channel();
+        let pending = Arc::new(AtomicUsize::new(0));
+        let sender = PlayerSender::new(tx, pending.clone());
+        drop(rx);
+        assert!(!sender.try_send_many(vec![vec![1, 2, 3]]));
+        assert_eq!(pending.load(Ordering::Relaxed), 0);
+    }
 
     /// Logs in through `c` and answers the `LoginFinished` profile.
     fn login_profile(mut c: Connection, name: &str) -> login::GameProfile {

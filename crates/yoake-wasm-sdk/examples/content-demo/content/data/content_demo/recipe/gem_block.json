@@ -1,0 +1,4 @@
+{ "type": "minecraft:crafting_shaped",
+  "pattern": ["GGG", "GGG", "GGG"],
+  "key": { "G": "content_demo:gem" },
+  "result": { "id": "content_demo:gem_block", "count": 1 } }

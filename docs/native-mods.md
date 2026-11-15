@@ -4447,6 +4447,26 @@ keeps a copy for any holder it is asked about (see the sync paragraph below).
 `InvalidNamespace` (a malformed saved compound), `InvalidCopyPolicy` (death-copy
 without a codec) and `InvalidSyncPolicy` (sync without a codec).
 
+Runtime-defined NBT values can instead use `DynamicAttachmentRegistry` and
+`DynamicAttachmentPolicy`. Define a namespaced ID once, retain the returned
+`DynamicAttachmentType`, and call its `get`, `set`, or `remove` with an attachment
+host and a holder. `get` does not insert a default. The policy selects a player,
+entity, block-entity, chunk, or level scope and independently selects persistence,
+client synchronization, and copying on death. A scope mismatch, duplicate
+definition, invalid ID, or wrong namespace returns an `AttachmentError`.
+The `owner` argument is trusted host input: a host exposing this API to an
+untrusted mod must supply the actual calling mod's namespace, not a guest-provided
+value. This is an in-process Rust API, not a DLL or WASM interface; item-stack
+attachments and attachment-changed callbacks are not implemented by this API.
+Saved entries retain their previous sync and death-copy flags until they are read
+using the current definition. Before initial sync or copying on death, a host can
+call `registry.reconcile(host, holder)` to apply current policies to registered
+values in that holder's scope. Reconciliation is not automatic and does not cover
+unregistered or differently scoped saved keys, or retract values already sent to
+clients; hosts need additional lifecycle and visibility controls for those cases.
+The host must also reserve each namespace and key across both typed and dynamic
+attachments: their serialized representations do not distinguish the two APIs.
+
 ```rust
 use horizon_client::mod_api::{AttachmentCodec, AttachmentError, AttachmentType, Compound, Holder, Tag};
 

@@ -11,7 +11,7 @@ mod dll_mods;
 // current hook's host access (same pattern as dll_mods); nothing here runs without an installed wasm mod.
 #[allow(unsafe_code)]
 #[path = "wasm_mods.rs"]
-mod wasm_mods;
+pub(crate) mod wasm_mods;
 
 pub use horizon_protocol::mod_list::{Side as NativeSide, native::Mod as NativeMod};
 

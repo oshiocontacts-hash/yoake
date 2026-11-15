@@ -21,6 +21,10 @@
       "target": "horizon_client::game::native_hooks::Game<'_>::native_attachments"
     },
     {
+      "name": "attachment_read",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_attachment_read"
+    },
+    {
       "name": "teleport_mob",
       "target": "horizon_client::game::native_mobs::Game<'_>::native_teleport_mob"
     },

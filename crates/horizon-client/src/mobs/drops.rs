@@ -615,10 +615,12 @@ pub fn death_loot_table(m: &Mob, mob_drops: bool) -> Option<String> {
     // Mob.getLootTable: the mob's own `DeathLootTable`, else its type's.
     (mob_drops && (is_monster(m.species()) || !m.is_baby())).then(|| {
         m.extra.death_loot_table.clone().unwrap_or_else(|| {
-            format!(
-                "minecraft:entities/{}",
-                m.kind.id.trim_start_matches("minecraft:")
-            )
+            super::mod_mob::loot_table(&m.kind.id).unwrap_or_else(|| {
+                format!(
+                    "minecraft:entities/{}",
+                    m.kind.id.trim_start_matches("minecraft:")
+                )
+            })
         })
     })
 }

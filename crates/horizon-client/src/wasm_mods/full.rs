@@ -155,8 +155,8 @@ impl FullMod {
     /// a time and a guest keeps its state in its instance): called as a world's server starts.
     fn reset_server(&self) {
         let Some(source) = &self.server_source else { return };
-        if !self.server.dirty.swap(false, Ordering::Relaxed) { return; }
         let Ok(mut state) = self.server.state.try_lock() else { return };
+        self.server.dirty.store(false, Ordering::Relaxed);
         match load_server(&source.module()) {
             Ok(module) => {
                 for (word, fresh) in self.masks[Side::Server as usize].iter().zip(mask_of(|name| module.subscribed(name))) {
@@ -645,6 +645,28 @@ pub(super) struct GameServerHost {
     pub(super) commands: bool,
 }
 
+thread_local! {
+    static SERVER_INIT_OWNER: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
+pub(super) struct ServerInitScope(Option<String>);
+
+impl ServerInitScope {
+    fn enter(owner: &str) -> Self {
+        Self(SERVER_INIT_OWNER.with(|active| active.replace(Some(owner.to_owned()))))
+    }
+}
+
+impl Drop for ServerInitScope {
+    fn drop(&mut self) {
+        SERVER_INIT_OWNER.with(|active| active.replace(self.0.take()));
+    }
+}
+
+pub(super) fn initializing_server(owner: &str) -> bool {
+    SERVER_INIT_OWNER.with(|active| active.borrow().as_deref() == Some(owner))
+}
+
 /// Commands no guest may run, whatever it declared: they open connections, change what the server
 /// is or who runs it, or write outside the world and the game folder's own files.
 const DENIED_COMMANDS: &[&str] = &[
@@ -781,6 +803,7 @@ pub(super) fn load_client(source: &ModuleSource<'_>) -> Result<ClientFullMod, St
 pub(super) fn load_server(source: &ModuleSource<'_>) -> Result<ServerFullMod, String> {
     horizon_items::items::publish_registry_for_checks();
     let mut sandbox = sandbox().lock().unwrap_or_else(|error| error.into_inner());
+    let _initialization = ServerInitScope::enter(source.id);
     ServerFullMod::instantiate(&mut sandbox, source.id, source.bytes, Box::new(GameServerHost { id: source.id.to_owned(), commands: source.commands }), UNWIRED)
         .map_err(|error| error.to_string())
 }
@@ -797,7 +820,219 @@ include!("full_adapters.rs");
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mod_api::AttachmentResult;
+    use horizon_world::attachments::{AttachmentError, Attachments, Holder};
     use std::cell::RefCell;
+
+    struct AttachmentServiceHost {
+        attachments: Attachments,
+        mutable_reads: usize,
+        root: std::path::PathBuf,
+    }
+
+    impl AttachmentServiceHost {
+        fn new() -> Self {
+            let nonce = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            Self {
+                attachments: Attachments::default(),
+                mutable_reads: 0,
+                root: std::env::temp_dir().join(format!(
+                    "yoake-w2bf-services-{}-{nonce}",
+                    std::process::id()
+                )),
+            }
+        }
+    }
+
+    impl Host for AttachmentServiceHost {
+        fn attachments(&mut self, holder: Holder) -> AttachmentResult<&mut Attachments> {
+            if holder != Holder::Level {
+                return Err(AttachmentError::MissingHolder);
+            }
+            self.mutable_reads += 1;
+            Ok(&mut self.attachments)
+        }
+
+        fn attachment_read(&self, holder: Holder) -> AttachmentResult<Option<&Attachments>> {
+            if holder != Holder::Level {
+                return Err(AttachmentError::MissingHolder);
+            }
+            Ok(Some(&self.attachments))
+        }
+
+        fn world_dir(&self) -> Option<std::path::PathBuf> {
+            Some(self.root.join("world"))
+        }
+        fn config_dir(&self) -> Result<std::path::PathBuf, String> {
+            Ok(self.root.join("config"))
+        }
+    }
+
+    fn with_services<Result>(host: HostAccess<'_>, operation: impl FnOnce() -> Result) -> Result {
+        let mut invocation = Invocation {
+            host,
+            batch: None,
+            batch_start: 0,
+        };
+        let _scope = Scope::enter(&mut invocation);
+        operation()
+    }
+
+    #[test]
+    fn attachment_definitions_require_the_owning_server_initialization() {
+        let _guard = super::super::server_services::ATTACHMENT_TEST_LOCK
+            .lock()
+            .unwrap();
+        let mut host = GameServerHost {
+            id: "cap-init".into(),
+            commands: false,
+        };
+        let define = |host: &mut GameServerHost| {
+            host.attachment_define(false, "cap-init:data".into(), "level".into(), true, false)
+        };
+        assert!(define(&mut host).is_err());
+        {
+            let _initialization = ServerInitScope::enter("cap-init");
+            define(&mut host).unwrap();
+            {
+                let _other_initialization = ServerInitScope::enter("cap-other");
+                assert!(define(&mut host).is_err());
+            }
+            define(&mut host).unwrap();
+        }
+        assert!(define(&mut host).is_err());
+    }
+
+    #[test]
+    fn attachment_calls_enforce_current_hook_access_and_package_ownership() {
+        let _guard = super::super::server_services::ATTACHMENT_TEST_LOCK
+            .lock()
+            .unwrap();
+        let mut server = GameServerHost {
+            id: "cap-call".into(),
+            commands: false,
+        };
+        {
+            let _initialization = ServerInitScope::enter("cap-call");
+            server
+                .attachment_define(false, "cap-call:data".into(), "level".into(), true, true)
+                .unwrap();
+        }
+        let mut host = AttachmentServiceHost::new();
+        let get = |server: &mut GameServerHost| {
+            server.attachment_get(String::new(), "cap-call:data".into(), "level".into())
+        };
+        let set = |server: &mut GameServerHost| {
+            server.attachment_set(
+                vec![1, 2, 3],
+                String::new(),
+                "cap-call:data".into(),
+                "level".into(),
+            )
+        };
+        let remove = |server: &mut GameServerHost| {
+            server.attachment_remove(String::new(), "cap-call:data".into(), "level".into())
+        };
+        assert!(get(&mut server).is_err());
+        assert!(set(&mut server).is_err());
+        assert!(remove(&mut server).is_err());
+        with_services(HostAccess::None, || {
+            assert!(get(&mut server).is_err());
+            assert!(set(&mut server).is_err());
+            assert!(remove(&mut server).is_err());
+        });
+        with_services(HostAccess::Read(&host), || {
+            assert_eq!(get(&mut server).unwrap(), None);
+            assert!(set(&mut server).is_err());
+            assert!(remove(&mut server).is_err());
+        });
+        assert_eq!(host.mutable_reads, 0);
+        with_services(HostAccess::Write(&mut host), || {
+            set(&mut server).unwrap();
+            assert_eq!(get(&mut server).unwrap(), Some(vec![1, 2, 3]));
+            assert!(
+                server
+                    .attachment_set(
+                        vec![9],
+                        String::new(),
+                        "cap-init:data".into(),
+                        "level".into()
+                    )
+                    .is_err()
+            );
+            assert!(
+                server
+                    .attachment_get("1,2".into(), "cap-call:data".into(), "chunk".into())
+                    .is_err()
+            );
+        });
+        let mutable_reads = host.mutable_reads;
+        let before = host.attachments.to_nbt();
+        with_services(HostAccess::Read(&host), || {
+            assert_eq!(get(&mut server).unwrap(), Some(vec![1, 2, 3]));
+            assert!(set(&mut server).is_err());
+            assert!(remove(&mut server).is_err());
+        });
+        assert_eq!(host.mutable_reads, mutable_reads);
+        assert_eq!(host.attachments.to_nbt(), before);
+        with_services(HostAccess::Write(&mut host), || {
+            assert!(remove(&mut server).unwrap());
+            assert_eq!(get(&mut server).unwrap(), None);
+            assert!(!remove(&mut server).unwrap());
+        });
+        assert!(get(&mut server).is_err());
+    }
+
+    #[test]
+    fn storage_reads_allow_listen_but_writes_require_mutable_services() {
+        let mut server = GameServerHost {
+            id: "cap-storage".into(),
+            commands: false,
+        };
+        let mut other = GameServerHost {
+            id: "cap-storage-other".into(),
+            commands: false,
+        };
+        let mut host = AttachmentServiceHost::new();
+        assert!(server.world_storage_read("state".into()).is_err());
+        assert!(server.config_read("state".into()).is_err());
+        assert!(server.world_storage_write(vec![1], "state".into()).is_err());
+        assert!(server.config_write(vec![2], "state".into()).is_err());
+        with_services(HostAccess::Read(&host), || {
+            assert_eq!(server.world_storage_read("state".into()).unwrap(), None);
+            assert_eq!(server.config_read("state".into()).unwrap(), None);
+            assert!(server.world_storage_write(vec![1], "state".into()).is_err());
+            assert!(server.config_write(vec![2], "state".into()).is_err());
+        });
+        assert!(!host.root.exists());
+        with_services(HostAccess::Write(&mut host), || {
+            server.world_storage_write(vec![1], "state".into()).unwrap();
+            server.config_write(vec![2], "state".into()).unwrap();
+            assert!(
+                server
+                    .world_storage_write(vec![9], "../other".into())
+                    .is_err()
+            );
+        });
+        with_services(HostAccess::Read(&host), || {
+            assert_eq!(
+                server.world_storage_read("state".into()).unwrap(),
+                Some(vec![1])
+            );
+            assert_eq!(server.config_read("state".into()).unwrap(), Some(vec![2]));
+            assert_eq!(other.world_storage_read("state".into()).unwrap(), None);
+            assert_eq!(other.config_read("state".into()).unwrap(), None);
+            assert!(server.world_storage_write(vec![3], "state".into()).is_err());
+            assert!(server.config_write(vec![4], "state".into()).is_err());
+        });
+        assert!(server.world_storage_write(vec![3], "state".into()).is_err());
+        assert!(server.config_write(vec![4], "state".into()).is_err());
+        assert!(host.root.starts_with(std::env::temp_dir()));
+        std::fs::remove_dir_all(&host.root).unwrap();
+    }
 
     #[derive(Default)]
     struct FakeHost {

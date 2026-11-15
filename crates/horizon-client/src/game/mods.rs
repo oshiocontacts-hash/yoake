@@ -212,6 +212,23 @@ fn register_mob_effects(mods: &[horizon_client::mod_content::ContentMod]) {
     use horizon_mods::content::EffectCategory;
     let effects = horizon_client::mod_content::mob_effects(mods);
     let ids: Vec<String> = effects.iter().map(|e| e.id.clone()).collect();
+    // Their attribute modifiers (`MobEffect.addAttributeModifier`), one per entry; ids
+    // `<effect id>/<attribute path>` so two effects never share a modifier.
+    horizon_client_core::potions::register_mod_effect_modifiers(
+        horizon_client::mod_content::mob_effects(mods)
+            .into_iter()
+            .flat_map(|e| {
+                e.attributes.iter().map(move |a| {
+                    let attribute = if a.attribute.contains(':') {
+                        a.attribute.clone()
+                    } else {
+                        format!("minecraft:{}", a.attribute)
+                    };
+                    let path = attribute.replace(':', ".");
+                    (e.id.clone(), attribute, format!("{}/{path}", e.id), a.amount, a.operation.clone())
+                })
+            }),
+    );
     let set = brewing::register_mod_effects(effects.into_iter().map(|e| {
         let category = match e.category {
             EffectCategory::Beneficial => Category::Beneficial,
@@ -234,7 +251,8 @@ fn register_mob_effects(mods: &[horizon_client::mod_content::ContentMod]) {
 /// startup root.
 fn register_entity_types(mods: &[horizon_client::mod_content::ContentMod]) {
     use horizon_client::projectiles;
-    let types = horizon_client::mod_content::entity_types(mods);
+    let mut types = horizon_client::mod_content::entity_types(mods);
+    types.retain(|t| !t.is_mob());
     let set = projectiles::register_thrown_types(
         types
             .iter()
