@@ -11,6 +11,8 @@ horizon-client-core = { path = "../horizon-client-core" }
 horizon-items = { path = "../horizon-items" }
 horizon-world = { path = "../horizon-world" }
 serde_json = "1.0.151"
+yoake-inject-rt = { path = "../yoake-inject-rt" }
+yoake-value = { path = "../yoake-value" }
 wasmtime = { version = "=48.0.7", default-features = false, features = ["runtime", "cranelift", "component-model", "std"] }
 
 wasmtime-wasi = { version = "=48.0.7", default-features = false, features = ["p2"] }

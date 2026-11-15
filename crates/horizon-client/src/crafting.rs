@@ -1287,6 +1287,11 @@ pub struct CustomRecipe {
     pub json: Arc<Value>,
     pub decoded: Option<Arc<Value>>,
 }
+#[yoake_inject_macro::yoake_inject(id = "crafting::crafting_result_count", side = "both")]
+fn crafting_result_count(result: &ItemStack) -> u32 {
+    result.count
+}
+
 /// An item stack as a recipe's `result` names it (`ItemStackTemplate`); none
 /// with no `id` or a count outside 1 to 99.
 pub fn recipe_result(v: &Value) -> Option<ItemStack> {
@@ -1748,7 +1753,10 @@ impl Recipes {
         };
         for (name, recipe) in &self.crafting {
             if let Some(result) = Self::assemble_if_matches(&ctx, &input, recipe) {
-                return result.map(|r| (name.as_str(), r));
+                return result.map(|mut result| {
+                    result.count = crafting_result_count(&result);
+                    (name.as_str(), result)
+                });
             }
         }
         None

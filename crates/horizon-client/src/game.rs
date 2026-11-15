@@ -204,28 +204,26 @@ mod music;
 mod names;
 mod narrator;
 mod native_account;
+mod native_attack_hitbox;
 mod native_audio;
 mod native_avatar_equipment;
 mod native_biome_colors;
-pub mod native_block_entity_draw;
 pub mod native_block_behaviors;
-pub mod native_capabilities;
-mod native_fluids;
-pub mod native_item_behaviors;
-pub mod native_data_menus;
-pub mod native_item_render;
+pub mod native_block_entity_draw;
 mod native_block_sprites;
+pub mod native_capabilities;
 mod native_chat;
 mod native_claimed_items;
 mod native_client_items;
-mod native_client_state;
 pub mod native_client_map;
+mod native_client_state;
 mod native_components;
 mod native_cooldowns;
 mod native_criteria;
 mod native_crosshair;
 mod native_damage;
 mod native_data_maps;
+pub mod native_data_menus;
 pub mod native_deferred;
 mod native_entities;
 mod native_entity_data;
@@ -234,22 +232,25 @@ pub mod native_entity_query;
 mod native_entity_refs;
 mod native_explosions;
 mod native_falling;
+mod native_fluids;
 mod native_frames;
 mod native_gui_textures;
-mod native_hud_visibility;
 pub(crate) mod native_hooks;
+mod native_hud_visibility;
 mod native_inventories;
 mod native_inventory_rules;
 pub(crate) mod native_inventory_screen;
+pub mod native_item_behaviors;
 mod native_item_container;
 mod native_item_energy;
 mod native_item_fluids;
+pub mod native_item_render;
 mod native_item_slot;
 pub(crate) mod native_lan;
-mod native_local_player;
 mod native_level_refs;
 mod native_lifecycle;
 mod native_living_refs;
+mod native_local_player;
 mod native_mannequin;
 mod native_menus;
 mod native_mix;
@@ -275,13 +276,12 @@ mod native_server_ops;
 pub(crate) mod native_server_physics;
 mod native_session;
 mod native_shaders;
+mod native_sky_tint;
 mod native_streams;
 mod native_team;
 mod native_ticks;
 mod native_title_screen;
 mod native_visuals;
-mod native_attack_hitbox;
-mod native_sky_tint;
 mod native_world_border;
 mod native_world_columns;
 mod native_world_edit;
@@ -4075,6 +4075,7 @@ impl Game<'_> {
         let id = self.next_entity;
         self.dropped.last_mut().filter(|d| d.id == id)
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::spawn_item", side = "server")]
     fn spawn_item(
         &mut self,
         stack: ItemStack,
@@ -4763,7 +4764,8 @@ impl Game<'_> {
     fn attack_block(&mut self, pos: [i32; 3]) -> Result<()> {
         if native_block_behaviors::enabled() {
             let state = self.world.block(pos[0], pos[1], pos[2]);
-            if let Some(behavior) = native_block_behaviors::lookup(self.pack.assets.registry, state) {
+            if let Some(behavior) = native_block_behaviors::lookup(self.pack.assets.registry, state)
+            {
                 behavior.attack(self, BlockPos::new(pos[0], pos[1], pos[2]), state);
             }
         }
@@ -6025,6 +6027,7 @@ impl Game<'_> {
         })
     }
     /// `Entity.spawnAtLocation`: an item entity where the block was.
+    #[yoake_inject_macro::yoake_inject(id = "game::drop_falling_block", side = "server")]
     fn drop_falling_block(&mut self, state: BlockStateId, at: Vec3) {
         // Entity.spawnAtLocation: an item entity where the block was.
         let item = self.res.facts().get(state).item.clone();
@@ -6122,6 +6125,7 @@ impl Game<'_> {
         }
         self.award_stat("used", &stack.item, 1);
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::break_block", side = "server")]
     fn break_block(&mut self, pos: [i32; 3]) -> Result<()> {
         self.lan_break_pos = Some(pos);
         let broken = self.with_player_actor(|game| game.break_block_as_player(pos));
@@ -6435,6 +6439,7 @@ impl Game<'_> {
     /// `use_cooldown` component starts its entry (`UseCooldown.apply`). A
     /// server's guest also gets `ClientboundCooldownPacket`
     /// (`ServerItemCooldowns.onCooldownStarted`), queued for their turn's end.
+    #[yoake_inject_macro::yoake_inject(id = "game::apply_use_cooldown", side = "server")]
     pub(super) fn apply_use_cooldown(&mut self, stack: &ItemStack) {
         let default = self
             .res
@@ -7104,6 +7109,7 @@ impl Game<'_> {
             }
         }
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::consume_held", side = "server")]
     fn consume_held(&mut self) {
         if self.creative {
             return;
@@ -8874,9 +8880,10 @@ impl Game<'_> {
                 g.draw_tab_list(batch);
             });
             if drawn.is_none() {
-                let has_mannequin_profile = self.mobs.iter().any(|mob| {
-                    &*mob.kind.id == "minecraft:mannequin" && mob.profile.is_some()
-                });
+                let has_mannequin_profile = self
+                    .mobs
+                    .iter()
+                    .any(|mob| &*mob.kind.id == "minecraft:mannequin" && mob.profile.is_some());
                 if self.native_mob_player_cache.get_mut().is_some() || has_mannequin_profile {
                     self.flush_skin_slots();
                 }
@@ -10028,7 +10035,8 @@ impl Game<'_> {
                             .remote_menu_type()
                             .or_else(|| self.container.and_then(|key| self.mod_menu_at(key)))
                             .unwrap_or(&entity.id);
-                        let Some(kind) = horizon_client::containers::mod_menu_type(menu_type) else {
+                        let Some(kind) = horizon_client::containers::mod_menu_type(menu_type)
+                        else {
                             return false;
                         };
                         (Kind::Mod(kind), kind.slots)
@@ -11835,6 +11843,7 @@ impl Game<'_> {
         (amount, scale, crit, enchant_bonus * scale > 0.0)
     }
     /// `Player.getAttackStrengthScale(0.5)`.
+    #[yoake_inject_macro::yoake_inject(id = "game::attack_strength_scale", side = "client")]
     fn attack_strength_scale(&self) -> f32 {
         let delay = horizon_client::attack_strength::delay(self.main_hand_attack_speed());
         ((self.attack_ticks as f32 + 0.5) / delay).clamp(0.0, 1.0)
@@ -13742,6 +13751,7 @@ impl Game<'_> {
     /// `ExperienceOrb.award`: orbs of the largest sizes; each draws the id
     /// `tryMergeToExisting` compares from the level random, then moves with
     /// its own random.
+    #[yoake_inject_macro::yoake_inject(id = "game::spawn_orbs", side = "server")]
     fn spawn_orbs(&mut self, at: [f64; 3], mut value: u32) {
         while value > 0 {
             let v = ExperienceOrb::split(value);
@@ -13887,6 +13897,7 @@ impl Game<'_> {
         };
         self.with_level(|b, level, ticks| b.fire_can_be_placed_at(level, ticks, pos, direction))
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::place_used_fire", side = "server")]
     fn place_used_fire(&mut self, target: [i32; 3]) -> Result<()> {
         let pos = BlockPos::new(target[0], target[1], target[2]);
         let state = self.with_level(|b, level, ticks| b.fire_state_for(level, ticks, pos));
@@ -14439,7 +14450,8 @@ impl Game<'_> {
             } else {
                 horizon_client::cit::Hand::Main
             };
-            let mut state = self.resolve_item_in_hand(&stack, context, Some(&owner), seed, cit_hand);
+            let mut state =
+                self.resolve_item_in_hand(&stack, context, Some(&owner), seed, cit_hand);
             if state.native_owner.is_some() {
                 state.native_swing_progress = Some(swing);
             }
@@ -14624,6 +14636,7 @@ impl Game<'_> {
     fn rain_height(&self, x: i32, z: i32) -> i32 {
         render_tick::motion_blocking_height(&self.world, &self.pack.assets.properties, x, z)
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::tick_weather_effects", side = "server")]
     fn tick_weather_effects(&mut self) {
         if self.flash > 0 {
             self.flash -= 1;
@@ -14731,6 +14744,7 @@ impl Game<'_> {
     /// ServerPlayer.startSleepInBed: in reach, not obstructed, night or thunder,
     /// and (outside creative) no monsters within 8 blocks; the bed becomes the
     /// respawn point either way.
+    #[yoake_inject_macro::yoake_inject(id = "game::try_sleep", side = "server")]
     fn try_sleep(&mut self, pos: [i32; 3]) {
         let Some((position, yaw)) = self.player.as_ref().map(|p| (p.position, p.yaw)) else {
             return;
@@ -16074,14 +16088,21 @@ impl Game<'_> {
                     };
                     let p = h.pos.map(f64::from);
                     if let Some(boxes) = self.block_behavior_outline(h.pos, state) {
-                        return boxes.iter().flat_map(|bounds| {
-                            horizon_client::blocks::cube_edges().iter().map(move |edge| {
-                                std::array::from_fn(|index| {
-                                    let axis = index % 3;
-                                    bounds[axis] + edge[index] * (bounds[axis + 3] - bounds[axis])
-                                })
-                            }).collect::<Vec<_>>()
-                        }).collect();
+                        return boxes
+                            .iter()
+                            .flat_map(|bounds| {
+                                horizon_client::blocks::cube_edges()
+                                    .iter()
+                                    .map(move |edge| {
+                                        std::array::from_fn(|index| {
+                                            let axis = index % 3;
+                                            bounds[axis]
+                                                + edge[index] * (bounds[axis + 3] - bounds[axis])
+                                        })
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect();
                     }
                     if let Some(b) = self.context_outline(h.pos, state) {
                         return horizon_client::blocks::cube_edges()
@@ -16157,8 +16178,10 @@ impl Game<'_> {
                 fov_degrees,
                 near: 0.05,
                 far: depth_far,
-                view: (bob * spin * horizon_client::camera::view_matrix_with_roll(yaw, pitch, roll))
-                    .to_cols_array(),
+                view: (bob
+                    * spin
+                    * horizon_client::camera::view_matrix_with_roll(yaw, pitch, roll))
+                .to_cols_array(),
                 projection: glam::Mat4::perspective_rh(
                     fov_degrees.to_radians(),
                     size[0] as f32 / size[1].max(1) as f32,
@@ -19138,7 +19161,8 @@ impl<'a> Game<'a> {
         Self::native_camera_override_listened(&mut native_camera_override_listened);
         let mut audio_mix_listened = false;
         Self::native_audio_mix_ready_listened(&mut audio_mix_listened);
-        let map_enabled = !horizon_client::mod_api::mods().is_empty() && options.execution_role.is_client();
+        let map_enabled =
+            !horizon_client::mod_api::mods().is_empty() && options.execution_role.is_client();
         let mut map_listeners = native_client_map::Listeners::default();
         if map_enabled {
             Self::native_client_chunk_load_listened(&mut map_listeners.load);
@@ -22005,6 +22029,7 @@ fn player_arms(root: &std::path::Path, key: &str) -> [Option<horizon_client::mob
 }
 
 // Player.tick: cap the sleeping fade at 100, then fade out over 10 waking ticks.
+#[yoake_inject_macro::yoake_inject(id = "game::tick_sleep_timer", side = "server")]
 fn tick_sleep_timer(timer: u32, sleeping: bool) -> u32 {
     if sleeping {
         (timer + 1).min(100)

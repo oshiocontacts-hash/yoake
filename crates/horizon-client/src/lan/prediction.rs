@@ -398,6 +398,7 @@ impl Replay {
     }
 
     /// Whether an excuse still covers the ticks.
+    #[yoake_inject_macro::yoake_inject(id = "lan::prediction::excused", side = "server")]
     pub fn excused(&self) -> bool {
         self.drift > 0
     }

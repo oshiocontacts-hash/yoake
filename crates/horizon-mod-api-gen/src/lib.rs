@@ -11,12 +11,12 @@ use syn::{FnArg, ImplItem, Item, Pat, Type, visit::Visit, visit_mut::VisitMut};
 
 mod abi;
 mod inject_catalog;
-pub use inject_catalog::generate_inject_catalog;
 pub use abi::{
-    FullWit, WasmAdapters, generate_abi, generate_dll_adapters, generate_full_hook_names, generate_full_wit,
-    generate_sdk_full, generate_wasm_adapters, generate_wasm_hook_names, SdkFull,
-    generate_inject_wit, generate_wit,
+    FullWit, SdkFull, WasmAdapters, generate_abi, generate_dll_adapters, generate_full_hook_names,
+    generate_full_wit, generate_inject_wit, generate_sdk_full, generate_wasm_adapters,
+    generate_wasm_hook_names, generate_wit,
 };
+pub use inject_catalog::{generate_inject_catalog, generate_inject_registry};
 
 fn impl_functions(item: syn::ItemImpl) -> impl Iterator<Item = syn::ItemFn> {
     item.items.into_iter().filter_map(|item| match item {

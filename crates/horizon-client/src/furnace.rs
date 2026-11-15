@@ -129,9 +129,14 @@ impl FurnaceCooking for Furnace {
                             if self.cooking_timer >= self.cooking_total {
                                 self.cooking_timer = 0;
                                 self.cooking_total = total_time(recipe.time, self.speed);
+                                let result_count = smelting_result_count(&recipe.result);
                                 match &mut self.items[2] {
-                                    Some(out) => out.count += recipe.result.count,
-                                    None => self.items[2] = Some(recipe.result.clone()),
+                                    Some(out) => out.count += result_count,
+                                    None => {
+                                        let mut result = recipe.result.clone();
+                                        result.count = result_count;
+                                        self.items[2] = Some(result);
+                                    }
                                 }
                                 *self
                                     .recipes_used
@@ -178,6 +183,11 @@ fn total_time(time: u32, speed: f32) -> i32 {
     } else {
         time as i32
     }
+}
+
+#[yoake_inject_macro::yoake_inject(id = "furnace::smelting_result_count", side = "server")]
+fn smelting_result_count(result: &ItemStack) -> u32 {
+    result.count
 }
 
 #[cfg(test)]

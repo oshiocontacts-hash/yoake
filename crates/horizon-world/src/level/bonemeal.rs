@@ -729,6 +729,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             .set_int(b.default_of(b.block(state)), b.props.age, age)
     }
     /// `CropBlock.getBonemealAgeIncrease` and its overrides.
+    #[yoake_inject_macro::yoake_inject(
+        id = "world::level::bonemeal::crop_bonemeal_increase",
+        side = "server"
+    )]
     fn crop_bonemeal_increase(&mut self, state: BlockStateId) -> i32 {
         let b = self.b;
         if b.instance_of(state, Class::TorchflowerCrop) {

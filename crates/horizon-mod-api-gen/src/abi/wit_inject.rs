@@ -3,6 +3,13 @@ pub fn generate_inject_wit() -> String {
         r#"package yoake:mods@1.1.0;
 
 interface inject {
+    record registration {
+        site: string,
+        points: u8,
+    }
+
+    registrations: func() -> list<registration>;
+
     record record-entry {
         key: string,
         node: u32,
@@ -63,12 +70,19 @@ mod tests {
     #[test]
     fn generated_inject_wit_matches_committed_and_parses() {
         let generated = generate_inject_wit();
-        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../yoake-wasm/wit-inject/yoake-inject.wit");
+        let path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../yoake-wasm/wit-inject/yoake-inject.wit");
+        if std::env::var_os("YOAKE_UPDATE_WIT").is_some() {
+            std::fs::write(&path, &generated).expect("write generated inject WIT");
+        }
         let committed = std::fs::read_to_string(path).expect("read generated inject WIT");
         assert_eq!(generated, committed.replace("\r\n", "\n"));
         let mut resolve = wit_parser::Resolve::default();
-        let package = resolve.push_str("yoake-inject.wit", &generated).expect("parse WIT");
-        resolve.select_world(&[package], Some("inject-mod")).expect("find world");
+        let package = resolve
+            .push_str("yoake-inject.wit", &generated)
+            .expect("parse WIT");
+        resolve
+            .select_world(&[package], Some("inject-mod"))
+            .expect("find world");
     }
 }

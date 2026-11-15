@@ -1,18 +1,22 @@
-use std::{collections::HashSet, fs, path::{Path, PathBuf}};
+use std::{
+    collections::HashSet,
+    fs,
+    path::{Path, PathBuf},
+};
 
-use serde::Serialize;
-use syn::{visit::Visit, Attribute, Meta};
-use yoake_inject_spec::{inspect_signature, parse_options, Options};
+use serde::{Deserialize, Serialize};
+use syn::{Attribute, Meta, visit::Visit};
+use yoake_inject_spec::{Options, parse_options};
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 struct CatalogSite {
     id: String,
     path: String,
     signature_hash: String,
-    arguments: Vec<&'static str>,
-    result: &'static str,
+    arguments: Vec<String>,
+    result: String,
     side: String,
-    allow: Vec<&'static str>,
+    allow: Vec<String>,
     source: String,
 }
 
@@ -20,13 +24,20 @@ fn annotation(attributes: &[Attribute]) -> Result<Option<Options>, String> {
     let mut found = None;
     for attribute in attributes {
         if attribute.path().is_ident("cfg_attr")
-            && quote::ToTokens::to_token_stream(attribute).to_string().contains("yoake_inject")
+            && quote::ToTokens::to_token_stream(attribute)
+                .to_string()
+                .contains("yoake_inject")
         {
             return Err("conditional yoake_inject attributes are not supported".into());
         }
-        if attribute.path().segments.last().is_some_and(|segment| segment.ident == "yoake_inject") {
-            if !attribute.path().is_ident("yoake_inject") || found.is_some() {
-                return Err("use one unqualified yoake_inject attribute".into());
+        if attribute
+            .path()
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == "yoake_inject")
+        {
+            if found.is_some() {
+                return Err("use one yoake_inject attribute".into());
             }
             let tokens = match &attribute.meta {
                 Meta::Path(_) => Default::default(),
@@ -40,7 +51,9 @@ fn annotation(attributes: &[Attribute]) -> Result<Option<Options>, String> {
 }
 
 fn is_conditional(attributes: &[Attribute]) -> bool {
-    attributes.iter().any(|attribute| attribute.path().is_ident("cfg") || attribute.path().is_ident("cfg_attr"))
+    attributes
+        .iter()
+        .any(|attribute| attribute.path().is_ident("cfg") || attribute.path().is_ident("cfg_attr"))
 }
 
 struct SourceScanner<'a> {
@@ -78,7 +91,18 @@ impl<'ast> Visit<'ast> for SourceScanner<'_> {
 
     fn visit_impl_item_fn(&mut self, item: &'ast syn::ImplItemFn) {
         match annotation(&item.attrs) {
-            Ok(Some(_)) => self.errors.push("injected methods and associated functions are not supported".into()),
+            Ok(Some(options)) => {
+                let function = syn::ItemFn {
+                    attrs: item.attrs.clone(),
+                    vis: item.vis.clone(),
+                    sig: item.sig.clone(),
+                    block: Box::new(item.block.clone()),
+                };
+                match self.site(&function, options) {
+                    Ok(site) => self.sites.push(site),
+                    Err(error) => self.errors.push(error),
+                }
+            }
             Ok(None) => {}
             Err(error) => self.errors.push(error),
         }
@@ -89,7 +113,9 @@ impl<'ast> Visit<'ast> for SourceScanner<'_> {
 
     fn visit_trait_item_fn(&mut self, item: &'ast syn::TraitItemFn) {
         match annotation(&item.attrs) {
-            Ok(Some(_)) => self.errors.push("injected trait methods are not supported".into()),
+            Ok(Some(_)) => self
+                .errors
+                .push("injected trait methods are not supported".into()),
             Ok(None) => {}
             Err(error) => self.errors.push(error),
         }
@@ -107,18 +133,27 @@ impl SourceScanner<'_> {
         if self.function_depth != 0 {
             return Err("nested injected functions are not supported by the source catalog".into());
         }
+        let info = yoake_inject_spec::inspect_signature_with_options(&item.sig, &options)
+            .map_err(|error| error.to_string())?;
         let path = options.id.ok_or("cataloged sites require an explicit id")?;
-        let side = options.side.ok_or("cataloged sites require an explicit side")?;
-        let info = inspect_signature(&item.sig).map_err(|error| error.to_string())?;
+        let side = options
+            .side
+            .ok_or("cataloged sites require an explicit side")?;
         let signature_hash = info.hash();
         let mask = options.allowed.unwrap_or(7);
         let allow = [("head", 1), ("return", 2), ("overwrite", 4)]
-            .into_iter().filter_map(|(name, bit)| (mask & bit != 0).then_some(name)).collect();
+            .into_iter()
+            .filter_map(|(name, bit)| (mask & bit != 0).then_some(name.to_owned()))
+            .collect();
         Ok(CatalogSite {
             id: format!("{path}#{signature_hash}"),
             path,
             signature_hash,
-            arguments: info.arguments.iter().map(|shape| shape.wire).collect(),
+            arguments: info
+                .arguments
+                .iter()
+                .map(|shape| shape.wire.clone())
+                .collect(),
             result: info.result.wire,
             side,
             allow,
@@ -144,7 +179,9 @@ fn scan_source(source: &str, name: &str) -> Result<Vec<CatalogSite>, String> {
 }
 
 fn collect_rust_files(directory: &Path, files: &mut Vec<PathBuf>) -> Result<(), String> {
-    for entry in fs::read_dir(directory).map_err(|error| format!("{}: {error}", directory.display()))? {
+    for entry in
+        fs::read_dir(directory).map_err(|error| format!("{}: {error}", directory.display()))?
+    {
         let entry = entry.map_err(|error| error.to_string())?;
         let kind = entry.file_type().map_err(|error| error.to_string())?;
         let path = entry.path();
@@ -159,15 +196,32 @@ fn collect_rust_files(directory: &Path, files: &mut Vec<PathBuf>) -> Result<(), 
 
 /// Scan the gameplay source roots and render the deterministic, fail-closed draft catalog.
 pub fn generate_inject_catalog(root: &Path) -> Result<String, String> {
-    let mut files = vec![root.join("crates/horizon-client/src/game.rs")];
-    for directory in ["crates/horizon-world/src", "crates/horizon-items/src", "crates/horizon-client/src/game"] {
+    let mut files = [
+        "game.rs",
+        "crafting.rs",
+        "furnace.rs",
+        "motion.rs",
+        "mobs/animal_brain.rs",
+        "lan/prediction.rs",
+    ]
+    .into_iter()
+    .map(|file| root.join("crates/horizon-client/src").join(file))
+    .collect::<Vec<_>>();
+    for directory in [
+        "crates/horizon-world/src",
+        "crates/horizon-items/src",
+        "crates/horizon-client/src/game",
+    ] {
         collect_rust_files(&root.join(directory), &mut files)?;
     }
     files.sort();
     let mut sites = Vec::new();
     for path in files {
-        let name = path.strip_prefix(root).map_err(|error| error.to_string())?
-            .to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/");
+        let name = path
+            .strip_prefix(root)
+            .map_err(|error| error.to_string())?
+            .to_string_lossy()
+            .replace(std::path::MAIN_SEPARATOR, "/");
         let source = fs::read_to_string(&path).map_err(|error| format!("{name}: {error}"))?;
         sites.extend(scan_source(&source, &name)?);
     }
@@ -183,6 +237,81 @@ pub fn generate_inject_catalog(root: &Path) -> Result<String, String> {
     Ok(json)
 }
 
+pub fn generate_inject_registry(catalog: &str) -> Result<String, String> {
+    let sites: Vec<CatalogSite> =
+        serde_json::from_str(catalog).map_err(|error| error.to_string())?;
+    let mut output = String::from(
+        "use crate::{Side, Site, ValueType};\n\npub const KEYS: &[(&str, &str)] = &[\n",
+    );
+    for site in &sites {
+        output.push_str(&format!(
+            "    ({:?}, {:?}),\n",
+            site.path, site.signature_hash
+        ));
+    }
+    output.push_str(&format!(
+        "];\n\npub static SITES: [Site; {}] = [\n",
+        sites.len()
+    ));
+    for site in &sites {
+        let arguments = site
+            .arguments
+            .iter()
+            .map(|wire| registry_type(wire))
+            .collect::<Result<Vec<_>, _>>()?
+            .join(", ");
+        let result = registry_type(&site.result)?;
+        let side = match site.side.as_str() {
+            "client" => "Client",
+            "server" => "Server",
+            "both" => "Both",
+            _ => return Err("invalid catalog side".into()),
+        };
+        let mask: u8 = site
+            .allow
+            .iter()
+            .map(|point| match point.as_str() {
+                "head" => 1,
+                "return" => 2,
+                "overwrite" => 4,
+                _ => 0,
+            })
+            .sum();
+        output.push_str(&format!(
+            "    Site::new({:?}, {:?}, Side::{side}, &[{arguments}], {result}, {mask}),\n",
+            site.path, site.signature_hash
+        ));
+    }
+    output.push_str("];\n");
+    Ok(output)
+}
+
+fn registry_type(wire: &str) -> Result<String, String> {
+    let variant = match wire {
+        "unit" => "Unit",
+        "bool" => "Bool",
+        "s8" => "S8",
+        "s16" => "S16",
+        "s32" => "S32",
+        "s64" => "S64",
+        "u8" => "U8",
+        "u16" | "block-id" => "U16",
+        "u32" | "block-state-id" => "U32",
+        "u64" => "U64",
+        "usize" => "Usize",
+        "isize" => "Ssize",
+        "f32" => "F32",
+        "f64" => "F64",
+        "string" => "String",
+        "block-pos" => "BlockPos",
+        "vec3-f32" => "Vec3F32",
+        "vec3" => "Vec3",
+        value if value.starts_with("scoped<") => "Handle",
+        _ => return Err(format!("unknown catalog value type: {wire}")),
+    };
+    Ok(format!("ValueType::{variant}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -193,7 +322,10 @@ mod tests {
             fn hit(amount: i32, critical: bool) -> i32 { amount }"#;
         let sites = scan_source(source, "demo.rs").unwrap();
         assert_eq!(sites.len(), 1);
-        assert_eq!(sites[0].id, "demo::hit#b4d3a485bf2cb6dda7bd066e50eb91ee5a7fdc8883530bbed800ef41e673daa9");
+        assert_eq!(
+            sites[0].id,
+            "demo::hit#b4d3a485bf2cb6dda7bd066e50eb91ee5a7fdc8883530bbed800ef41e673daa9"
+        );
         assert_eq!(sites[0].arguments, ["s32", "bool"]);
         assert_eq!(sites[0].allow, ["head", "return"]);
         assert_eq!(sites[0].side, "server");
@@ -202,15 +334,57 @@ mod tests {
     #[test]
     fn catalog_refuses_sites_it_cannot_represent() {
         assert!(scan_source("#[yoake_inject] fn f() {}", "demo.rs").is_err());
-        assert!(scan_source(r#"#[yoake_inject(id = "f", side = "server")] fn f(x: &str) {}"#, "demo.rs").is_err());
-        assert!(scan_source(r#"impl Game { #[yoake_inject(id = "f", side = "server")] fn f(&self) {} }"#, "demo.rs").is_err());
-        assert!(scan_source(r#"#[cfg(test)] mod test { #[yoake_inject(id = "f", side = "server")] fn f() {} }"#, "demo.rs").is_err());
+        assert!(
+            scan_source(
+                r#"#[yoake_inject(id = "f", side = "server")] fn f(x: *const u8) {}"#,
+                "demo.rs"
+            )
+            .is_err()
+        );
+        assert!(
+            scan_source(
+                r#"impl Game { #[yoake_inject(id = "f", side = "server")] fn f(&self) {} }"#,
+                "demo.rs"
+            )
+            .is_ok()
+        );
+        assert!(
+            scan_source(
+                r#"#[cfg(test)] mod test { #[yoake_inject(id = "f", side = "server")] fn f() {} }"#,
+                "demo.rs"
+            )
+            .is_err()
+        );
     }
 
     #[test]
     fn committed_injection_catalog_is_current() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let generated = generate_inject_catalog(&root).unwrap();
-        assert_eq!(generated, include_str!("../../yoake-wasm/wit/inject-sites.json"));
+        let registry = generate_inject_registry(&generated).unwrap();
+        if std::env::var_os("YOAKE_UPDATE_WIT").is_some() {
+            fs::write(
+                root.join("crates/yoake-wasm/wit/inject-sites.json"),
+                &generated,
+            )
+            .unwrap();
+            fs::write(
+                root.join("crates/yoake-inject-rt/src/catalog.rs"),
+                &registry,
+            )
+            .unwrap();
+        }
+        assert_eq!(
+            generated,
+            fs::read_to_string(root.join("crates/yoake-wasm/wit/inject-sites.json"))
+                .unwrap()
+                .replace("\r\n", "\n")
+        );
+        assert_eq!(
+            registry,
+            fs::read_to_string(root.join("crates/yoake-inject-rt/src/catalog.rs"))
+                .unwrap()
+                .replace("\r\n", "\n")
+        );
     }
 }

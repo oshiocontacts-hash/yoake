@@ -16,6 +16,7 @@ runtime = []
 # Typed bindings of the full hook catalog (`client-full` and `server-full` worlds): `yoake_wasm_sdk::full`.
 # Off by default: the bindings are large and only needed by full-catalog mods.
 full = []
+mixin = []
 
 [dependencies]
 # default features off: the SDK decides about std itself.

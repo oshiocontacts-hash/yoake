@@ -1,1 +1,895 @@
-[]
+[
+  {
+    "id": "crafting::crafting_result_count#5e147b2cfbddd26373813d8c72c8f539918d9fd10de46b9fd3af0f2859f3376e",
+    "path": "crafting::crafting_result_count",
+    "signature_hash": "5e147b2cfbddd26373813d8c72c8f539918d9fd10de46b9fd3af0f2859f3376e",
+    "arguments": [
+      "scoped<&ItemStack>"
+    ],
+    "result": "u32",
+    "side": "both",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/crafting.rs"
+  },
+  {
+    "id": "furnace::smelting_result_count#5e147b2cfbddd26373813d8c72c8f539918d9fd10de46b9fd3af0f2859f3376e",
+    "path": "furnace::smelting_result_count",
+    "signature_hash": "5e147b2cfbddd26373813d8c72c8f539918d9fd10de46b9fd3af0f2859f3376e",
+    "arguments": [
+      "scoped<&ItemStack>"
+    ],
+    "result": "u32",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/furnace.rs"
+  },
+  {
+    "id": "game::apply_use_cooldown#82aa94f717b88f2311b42287713ef26f00afdf2fc95b3118e269930f05420206",
+    "path": "game::apply_use_cooldown",
+    "signature_hash": "82aa94f717b88f2311b42287713ef26f00afdf2fc95b3118e269930f05420206",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "scoped<&ItemStack>"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game.rs"
+  },
+  {
+    "id": "game::attack_strength_scale#e28527bc3c45193c7ad0406144863440989c9d229dac40a38e43a7c54768e6d3",
+    "path": "game::attack_strength_scale",
+    "signature_hash": "e28527bc3c45193c7ad0406144863440989c9d229dac40a38e43a7c54768e6d3",
+    "arguments": [
+      "scoped<&Self>"
+    ],
+    "result": "f32",
+    "side": "client",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game.rs"
+  },
+  {
+    "id": "game::block_entity_ticks::tick_furnace#cdf90a437f18a89365314441a8da1739860701f3c9bc528b13cf25fedd9adea2",
+    "path": "game::block_entity_ticks::tick_furnace",
+    "signature_hash": "cdf90a437f18a89365314441a8da1739860701f3c9bc528b13cf25fedd9adea2",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "block-pos"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/block_entity_ticks.rs"
+  },
+  {
+    "id": "game::break_block#cdf90a437f18a89365314441a8da1739860701f3c9bc528b13cf25fedd9adea2",
+    "path": "game::break_block",
+    "signature_hash": "cdf90a437f18a89365314441a8da1739860701f3c9bc528b13cf25fedd9adea2",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "block-pos"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game.rs"
+  },
+  {
+    "id": "game::chat::advance_clock#003edb56c3779aef98f8fdbb3391a4f1c6649d4bff5f035d49ca0c9e7ce4fa39",
+    "path": "game::chat::advance_clock",
+    "signature_hash": "003edb56c3779aef98f8fdbb3391a4f1c6649d4bff5f035d49ca0c9e7ce4fa39",
+    "arguments": [
+      "scoped<&mutSelf>"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/chat.rs"
+  },
+  {
+    "id": "game::chat::handle_chat_input#2d6b616020cec7006f8b8c6aeb2d8f9faf0caa7a8dbeb7f38b5a4d839b0d2e62",
+    "path": "game::chat::handle_chat_input",
+    "signature_hash": "2d6b616020cec7006f8b8c6aeb2d8f9faf0caa7a8dbeb7f38b5a4d839b0d2e62",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "string"
+    ],
+    "result": "unit",
+    "side": "both",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/chat.rs"
+  },
+  {
+    "id": "game::commands::change_experience#115e5886164880616124c770066d1583d2372e9482f036a772a47d4907269211",
+    "path": "game::commands::change_experience",
+    "signature_hash": "115e5886164880616124c770066d1583d2372e9482f036a772a47d4907269211",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "bool",
+      "bool",
+      "s32"
+    ],
+    "result": "bool",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/commands.rs"
+  },
+  {
+    "id": "game::commands::execute::execute_line#fbb37fd1e372d65fd16a3cd73dadf4628d887a07d2b74c0abc345c462f0fb97a",
+    "path": "game::commands::execute::execute_line",
+    "signature_hash": "fbb37fd1e372d65fd16a3cd73dadf4628d887a07d2b74c0abc345c462f0fb97a",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "string",
+      "scoped<Source>"
+    ],
+    "result": "s32",
+    "side": "both",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/commands/execute.rs"
+  },
+  {
+    "id": "game::commands::execute_command#e624502589081ee29de772d224cb46e0d9b3c622034c8c853db1db442e849932",
+    "path": "game::commands::execute_command",
+    "signature_hash": "e624502589081ee29de772d224cb46e0d9b3c622034c8c853db1db442e849932",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "string",
+      "scoped<&Context>"
+    ],
+    "result": "s32",
+    "side": "both",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/commands.rs"
+  },
+  {
+    "id": "game::commands::kill_target_in_level#837c1e63b0dc126c0968314fdd075bb771840eb47350120e7eddfd10d5389202",
+    "path": "game::commands::kill_target_in_level",
+    "signature_hash": "837c1e63b0dc126c0968314fdd075bb771840eb47350120e7eddfd10d5389202",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "scoped<Target>"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/commands.rs"
+  },
+  {
+    "id": "game::commands::unpack_opened_loot#d3170787041df8d00db972ad571de5abd58a0ecb053a90f8160561dda020cc96",
+    "path": "game::commands::unpack_opened_loot",
+    "signature_hash": "d3170787041df8d00db972ad571de5abd58a0ecb053a90f8160561dda020cc96",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "block-pos",
+      "string"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/commands.rs"
+  },
+  {
+    "id": "game::consume_held#003edb56c3779aef98f8fdbb3391a4f1c6649d4bff5f035d49ca0c9e7ce4fa39",
+    "path": "game::consume_held",
+    "signature_hash": "003edb56c3779aef98f8fdbb3391a4f1c6649d4bff5f035d49ca0c9e7ce4fa39",
+    "arguments": [
+      "scoped<&mutSelf>"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game.rs"
+  },
+  {
+    "id": "game::creatures::add_projectile#dd3b1deb840293eedb1d5770e2b1a690933d75ca3078fb142ee56c83a0760161",
+    "path": "game::creatures::add_projectile",
+    "signature_hash": "dd3b1deb840293eedb1d5770e2b1a690933d75ca3078fb142ee56c83a0760161",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "scoped<horizon_client::projectiles::Projectile>"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/creatures.rs"
+  },
+  {
+    "id": "game::creatures::drop_death_loot#2e402a9829ae42a363e722af51fa9b55ac490138f33e93fcafad14684c1e1c11",
+    "path": "game::creatures::drop_death_loot",
+    "signature_hash": "2e402a9829ae42a363e722af51fa9b55ac490138f33e93fcafad14684c1e1c11",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "scoped<&mutMob>",
+      "scoped<Option<u128>>",
+      "bool",
+      "bool",
+      "vec3"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/creatures.rs"
+  },
+  {
+    "id": "game::creatures::hurt_player_by#95190a49eb1a130a876f949d602e3d5ebf39b11a69eebe07957684e83d9fb1ad",
+    "path": "game::creatures::hurt_player_by",
+    "signature_hash": "95190a49eb1a130a876f949d602e3d5ebf39b11a69eebe07957684e83d9fb1ad",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "string",
+      "f32"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/creatures.rs"
+  },
+  {
+    "id": "game::creatures::mob_died_with_credit#4e21a94cb5744962c2314e952f3b8a6fa6f5c0b467c10250cbbe51e8bcdee1a2",
+    "path": "game::creatures::mob_died_with_credit",
+    "signature_hash": "4e21a94cb5744962c2314e952f3b8a6fa6f5c0b467c10250cbbe51e8bcdee1a2",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "scoped<&Mob>",
+      "scoped<implFnOnce(&mutSelf,&Mob,Option<Option<u32>>)>"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/creatures.rs"
+  },
+  {
+    "id": "game::creatures::mob_hits_mob#da775c291c1dfc2d03bf532d5e879e09e904fe8b4fa91292a26f6ef74648461f",
+    "path": "game::creatures::mob_hits_mob",
+    "signature_hash": "da775c291c1dfc2d03bf532d5e879e09e904fe8b4fa91292a26f6ef74648461f",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "scoped<entity>",
+      "f32",
+      "scoped<Damage>"
+    ],
+    "result": "bool",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/creatures.rs"
+  },
+  {
+    "id": "game::creatures::mob_hits_player#976890241e05c11059763762a6101de1f2644a81857a0ed671c267f41940454e",
+    "path": "game::creatures::mob_hits_player",
+    "signature_hash": "976890241e05c11059763762a6101de1f2644a81857a0ed671c267f41940454e",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "f32",
+      "vec3",
+      "string"
+    ],
+    "result": "bool",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/creatures.rs"
+  },
+  {
+    "id": "game::creatures::projectile_hit#5db96b45a2c79caf2e477618823ca0de828f3147d3fd57802926c2ee3122cca3",
+    "path": "game::creatures::projectile_hit",
+    "signature_hash": "5db96b45a2c79caf2e477618823ca0de828f3147d3fd57802926c2ee3122cca3",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "scoped<&Projectile>",
+      "scoped<Hit>"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/creatures.rs"
+  },
+  {
+    "id": "game::creatures::tick_creature_entities#3103cc0406cfb6da3480dc27c8a3e4a5472f9eedbfee20dc6f0ecdd59fabfd08",
+    "path": "game::creatures::tick_creature_entities",
+    "signature_hash": "3103cc0406cfb6da3480dc27c8a3e4a5472f9eedbfee20dc6f0ecdd59fabfd08",
+    "arguments": [
+      "scoped<&mutSelf>"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/creatures.rs"
+  },
+  {
+    "id": "game::drop_falling_block#6887e3e4a647a52a1be65306a14d144a3eaad5307e9827caaa00336636d1103f",
+    "path": "game::drop_falling_block",
+    "signature_hash": "6887e3e4a647a52a1be65306a14d144a3eaad5307e9827caaa00336636d1103f",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "block-state-id",
+      "vec3"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game.rs"
+  },
+  {
+    "id": "game::explosion::server_explode#910e0323d56abb8543f5f43fc61744ff4eb8b9e7404ab49e586a697a256c80d3",
+    "path": "game::explosion::server_explode",
+    "signature_hash": "910e0323d56abb8543f5f43fc61744ff4eb8b9e7404ab49e586a697a256c80d3",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "vec3",
+      "f32",
+      "scoped<BlockInteraction>",
+      "bool"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/explosion.rs"
+  },
+  {
+    "id": "game::hand::attack_damage#798a72923c4015b370175cb5ef3c9caafdccea63d164e658ba38a4a5bfbed4b3",
+    "path": "game::hand::attack_damage",
+    "signature_hash": "798a72923c4015b370175cb5ef3c9caafdccea63d164e658ba38a4a5bfbed4b3",
+    "arguments": [
+      "scoped<&mutSelf>"
+    ],
+    "result": "f32",
+    "side": "client",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/hand.rs"
+  },
+  {
+    "id": "game::hand::main_hand_attack_speed#53d3641715fcbb687a0abc0374630960332094b9d0c6ee58f3060ed023581853",
+    "path": "game::hand::main_hand_attack_speed",
+    "signature_hash": "53d3641715fcbb687a0abc0374630960332094b9d0c6ee58f3060ed023581853",
+    "arguments": [
+      "scoped<&Self>"
+    ],
+    "result": "f64",
+    "side": "client",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/hand.rs"
+  },
+  {
+    "id": "game::hand::reset_attack_strength#003edb56c3779aef98f8fdbb3391a4f1c6649d4bff5f035d49ca0c9e7ce4fa39",
+    "path": "game::hand::reset_attack_strength",
+    "signature_hash": "003edb56c3779aef98f8fdbb3391a4f1c6649d4bff5f035d49ca0c9e7ce4fa39",
+    "arguments": [
+      "scoped<&mutSelf>"
+    ],
+    "result": "unit",
+    "side": "client",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/hand.rs"
+  },
+  {
+    "id": "game::hand::use_with_hand#3103cc0406cfb6da3480dc27c8a3e4a5472f9eedbfee20dc6f0ecdd59fabfd08",
+    "path": "game::hand::use_with_hand",
+    "signature_hash": "3103cc0406cfb6da3480dc27c8a3e4a5472f9eedbfee20dc6f0ecdd59fabfd08",
+    "arguments": [
+      "scoped<&mutSelf>"
+    ],
+    "result": "unit",
+    "side": "client",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/hand.rs"
+  },
+  {
+    "id": "game::machines::crafter::crafter_eject#cf1e3217c8403f4f25b9106dd358087db8fff262703ed7cf7d9672a84f0f1637",
+    "path": "game::machines::crafter::crafter_eject",
+    "signature_hash": "cf1e3217c8403f4f25b9106dd358087db8fff262703ed7cf7d9672a84f0f1637",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "block-pos",
+      "scoped<Direction>",
+      "scoped<ItemStack>",
+      "string"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/machines/crafter.rs"
+  },
+  {
+    "id": "game::native_hooks::knockback#82a1f96545afa67c62defbef8b195411c9c119ec73bd76e2cfcad0f71f21fbca",
+    "path": "game::native_hooks::knockback",
+    "signature_hash": "82a1f96545afa67c62defbef8b195411c9c119ec73bd76e2cfcad0f71f21fbca",
+    "arguments": [
+      "scoped<Hurting<'_>>",
+      "scoped<&mutKnock>"
+    ],
+    "result": "bool",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/native_hooks.rs"
+  },
+  {
+    "id": "game::place_used_fire#cdf90a437f18a89365314441a8da1739860701f3c9bc528b13cf25fedd9adea2",
+    "path": "game::place_used_fire",
+    "signature_hash": "cdf90a437f18a89365314441a8da1739860701f3c9bc528b13cf25fedd9adea2",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "block-pos"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game.rs"
+  },
+  {
+    "id": "game::spawn_item#930a3e860bdfc085de2ed157bf46814b45129e44eab20760767c5e39e2e62112",
+    "path": "game::spawn_item",
+    "signature_hash": "930a3e860bdfc085de2ed157bf46814b45129e44eab20760767c5e39e2e62112",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "scoped<ItemStack>",
+      "vec3",
+      "vec3",
+      "u32"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game.rs"
+  },
+  {
+    "id": "game::spawn_orbs#7f2480e65cbba956ee9b12f8c3a97d8da96c3b5297c0d977cfcd65bd8b126928",
+    "path": "game::spawn_orbs",
+    "signature_hash": "7f2480e65cbba956ee9b12f8c3a97d8da96c3b5297c0d977cfcd65bd8b126928",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "vec3",
+      "u32"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game.rs"
+  },
+  {
+    "id": "game::tick_sleep_timer#198a5917f750358ff70ce3f80ede1aa2c142d914cbe7bed985f5b6f4ed29a7b7",
+    "path": "game::tick_sleep_timer",
+    "signature_hash": "198a5917f750358ff70ce3f80ede1aa2c142d914cbe7bed985f5b6f4ed29a7b7",
+    "arguments": [
+      "u32",
+      "bool"
+    ],
+    "result": "u32",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game.rs"
+  },
+  {
+    "id": "game::tick_weather_effects#003edb56c3779aef98f8fdbb3391a4f1c6649d4bff5f035d49ca0c9e7ce4fa39",
+    "path": "game::tick_weather_effects",
+    "signature_hash": "003edb56c3779aef98f8fdbb3391a4f1c6649d4bff5f035d49ca0c9e7ce4fa39",
+    "arguments": [
+      "scoped<&mutSelf>"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game.rs"
+  },
+  {
+    "id": "game::try_sleep#f16a185525735bc55ac1bcaf5d932a202f5f4db381ac0d4a11457845dadb322a",
+    "path": "game::try_sleep",
+    "signature_hash": "f16a185525735bc55ac1bcaf5d932a202f5f4db381ac0d4a11457845dadb322a",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "block-pos"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game.rs"
+  },
+  {
+    "id": "items::enchant::enchantment_cost#1b4f10a33cd7d201c2bdf989710857c0a8071491ca5adb526eb5f4013e196253",
+    "path": "items::enchant::enchantment_cost",
+    "signature_hash": "1b4f10a33cd7d201c2bdf989710857c0a8071491ca5adb526eb5f4013e196253",
+    "arguments": [
+      "scoped<&Self>",
+      "scoped<&mutR>",
+      "usize",
+      "s32",
+      "string"
+    ],
+    "result": "s32",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-items/src/enchant.rs"
+  },
+  {
+    "id": "lan::prediction::excused#895abb5ec4b04f60dad553e5912c9adc4ed4fb6551f2779c28670ea2b6fb7ee8",
+    "path": "lan::prediction::excused",
+    "signature_hash": "895abb5ec4b04f60dad553e5912c9adc4ed4fb6551f2779c28670ea2b6fb7ee8",
+    "arguments": [
+      "scoped<&Self>"
+    ],
+    "result": "bool",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/lan/prediction.rs"
+  },
+  {
+    "id": "mobs::animal_brain::targetable#6a280e20f4f62541857d28da6fdcebf69483ea0cfbb9670d696ffca8efc7ada1",
+    "path": "mobs::animal_brain::targetable",
+    "signature_hash": "6a280e20f4f62541857d28da6fdcebf69483ea0cfbb9670d696ffca8efc7ada1",
+    "arguments": [
+      "scoped<&mutMob>",
+      "scoped<&MobWorld>",
+      "scoped<Who>"
+    ],
+    "result": "bool",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/mobs/animal_brain.rs"
+  },
+  {
+    "id": "motion::set_sprinting#3f7fc74e6c415236ce9e86a6a011ef3bf5ec6893fde7f8861375c0c28c607f0d",
+    "path": "motion::set_sprinting",
+    "signature_hash": "3f7fc74e6c415236ce9e86a6a011ef3bf5ec6893fde7f8861375c0c28c607f0d",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "bool"
+    ],
+    "result": "unit",
+    "side": "both",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/motion.rs"
+  },
+  {
+    "id": "world::food::add_exhaustion#ca3064943a7660df0f8bb96751c0c58f9df0074453c066cff57d287963b4ef4e",
+    "path": "world::food::add_exhaustion",
+    "signature_hash": "ca3064943a7660df0f8bb96751c0c58f9df0074453c066cff57d287963b4ef4e",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "f32"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-world/src/food.rs"
+  },
+  {
+    "id": "world::food::eat_properties#87c58205030f0859d15bbfbb4c03bca96f245feb674e1573b06406c03cc790eb",
+    "path": "world::food::eat_properties",
+    "signature_hash": "87c58205030f0859d15bbfbb4c03bca96f245feb674e1573b06406c03cc790eb",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "s32",
+      "f32"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-world/src/food.rs"
+  },
+  {
+    "id": "world::level::bonemeal::crop_bonemeal_increase#b61d671fb9375f084f2bf026f466add0e8423efd996180dee3fb52ca18348fd1",
+    "path": "world::level::bonemeal::crop_bonemeal_increase",
+    "signature_hash": "b61d671fb9375f084f2bf026f466add0e8423efd996180dee3fb52ca18348fd1",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "block-state-id"
+    ],
+    "result": "s32",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-world/src/level/bonemeal.rs"
+  },
+  {
+    "id": "world::level::on_place#f2e7f4f622cd6459cdf4408595ab0732a6f751918833cd15a2c7cf691c14d14b",
+    "path": "world::level::on_place",
+    "signature_hash": "f2e7f4f622cd6459cdf4408595ab0732a6f751918833cd15a2c7cf691c14d14b",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "block-state-id",
+      "block-pos",
+      "block-state-id",
+      "bool"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-world/src/level/hooks.rs"
+  },
+  {
+    "id": "world::level::tick::crop_growth_speed#86f1053f51751d3d36e310304589b477148dcb9afff1a901c25bc8c3b283ca29",
+    "path": "world::level::tick::crop_growth_speed",
+    "signature_hash": "86f1053f51751d3d36e310304589b477148dcb9afff1a901c25bc8c3b283ca29",
+    "arguments": [
+      "scoped<&Self>",
+      "scoped<super::states::BlockId>",
+      "block-pos"
+    ],
+    "result": "f32",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-world/src/level/tick.rs"
+  },
+  {
+    "id": "world::level::tick::crop_random_tick#28c6b43b0b3b1d1bec9292bba55e4f503787ebd89f597ed89bc0f87991833d61",
+    "path": "world::level::tick::crop_random_tick",
+    "signature_hash": "28c6b43b0b3b1d1bec9292bba55e4f503787ebd89f597ed89bc0f87991833d61",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "block-state-id",
+      "block-pos"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-world/src/level/tick.rs"
+  },
+  {
+    "id": "world::level::tick::fire_ignite_odds_at#e4b19b03408d40ebc13322180f28da0353f8d89dce91d334aec80d1a6bd951c7",
+    "path": "world::level::tick::fire_ignite_odds_at",
+    "signature_hash": "e4b19b03408d40ebc13322180f28da0353f8d89dce91d334aec80d1a6bd951c7",
+    "arguments": [
+      "scoped<&Self>",
+      "block-pos"
+    ],
+    "result": "s32",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-world/src/level/tick.rs"
+  },
+  {
+    "id": "world::living_fall::calculate_fall_damage#9a9a629c2a289ab6ffb883cb0cd5891af74587992a6e2da94d8090723ede5b94",
+    "path": "world::living_fall::calculate_fall_damage",
+    "signature_hash": "9a9a629c2a289ab6ffb883cb0cd5891af74587992a6e2da94d8090723ede5b94",
+    "arguments": [
+      "scoped<&mutW>",
+      "f64",
+      "f32"
+    ],
+    "result": "s32",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-world/src/living_fall.rs"
+  },
+  {
+    "id": "world::living_fall::cause_living_fall_damage#40abf719eadc611c3b8f1173d44e1a693ec8bf8272f230f5f2af30b66ef64eaa",
+    "path": "world::living_fall::cause_living_fall_damage",
+    "signature_hash": "40abf719eadc611c3b8f1173d44e1a693ec8bf8272f230f5f2af30b66ef64eaa",
+    "arguments": [
+      "scoped<&mutW>",
+      "f64",
+      "f32"
+    ],
+    "result": "bool",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-world/src/living_fall.rs"
+  },
+  {
+    "id": "world::living_motion::jump_from_ground#49e2162006d6305be832360344cecf87f36422ed6eca7fe24c598d1fd965dc2a",
+    "path": "world::living_motion::jump_from_ground",
+    "signature_hash": "49e2162006d6305be832360344cecf87f36422ed6eca7fe24c598d1fd965dc2a",
+    "arguments": [
+      "scoped<&mutW>"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-world/src/living_motion.rs"
+  },
+  {
+    "id": "world::living_motion::jump_power#a887a93bbf10f3908aa90913b32c0a6c6f5307dccc4a8d25ae9a4ac456432c1f",
+    "path": "world::living_motion::jump_power",
+    "signature_hash": "a887a93bbf10f3908aa90913b32c0a6c6f5307dccc4a8d25ae9a4ac456432c1f",
+    "arguments": [
+      "scoped<&mutW>",
+      "f32"
+    ],
+    "result": "f32",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-world/src/living_motion.rs"
+  }
+]

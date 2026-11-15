@@ -8183,6 +8183,7 @@ impl Game<'_> {
 /// `native_living_knockback` for the knockback code (`health::KNOCKBACK`): whether it
 /// canceled the push. Its one caller. The pushed entity and the source are named as the
 /// damage hook names them.
+#[yoake_inject_macro::yoake_inject(id = "game::native_hooks::knockback", side = "server")]
 pub(super) fn knockback(pushed: Hurting<'_>, knock: &mut Knock) -> bool {
     if mod_api::mods().is_empty() {
         return false;

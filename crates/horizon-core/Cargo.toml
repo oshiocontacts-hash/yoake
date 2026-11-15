@@ -12,6 +12,7 @@ rng-trace = []
 
 [dependencies]
 libm = "=0.2.16"
+yoake-value = { path = "../yoake-value" }
 
 [[bin]]
 name = "horizon-parity"

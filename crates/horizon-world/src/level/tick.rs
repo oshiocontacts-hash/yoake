@@ -703,6 +703,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
     }
     /// `FireBlock.getIgniteOdds(level, pos)`: only for air with flammable neighbours.
+    #[yoake_inject_macro::yoake_inject(
+        id = "world::level::tick::fire_ignite_odds_at",
+        side = "server"
+    )]
     fn fire_ignite_odds_at(&self, pos: BlockPos) -> i32 {
         if !self.is_empty_block(pos) {
             return 0;
@@ -809,6 +813,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     // ---- crops and plants ----
 
     /// `CropBlock.getGrowthSpeed`.
+    #[yoake_inject_macro::yoake_inject(
+        id = "world::level::tick::crop_growth_speed",
+        side = "server"
+    )]
     pub(crate) fn crop_growth_speed(&self, block: super::states::BlockId, pos: BlockPos) -> f32 {
         let b = self.b;
         let mut speed = 1.0f32;
@@ -847,6 +855,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
         speed
     }
+    #[yoake_inject_macro::yoake_inject(
+        id = "world::level::tick::crop_random_tick",
+        side = "server"
+    )]
     fn crop_random_tick(&mut self, state: BlockStateId, pos: BlockPos) {
         let b = self.b;
         if self.raw_brightness(pos, 0) < 9 {

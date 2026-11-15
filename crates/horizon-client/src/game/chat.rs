@@ -963,6 +963,7 @@ impl Game<'_> {
     /// 256 UTF-16 units the packet holds), into history, then as a command or
     /// a chat line. The Chat option's restrictions stop the message here too,
     /// so a control-socket `chat` cannot send what the player's setting hides.
+    #[yoake_inject_macro::yoake_inject(id = "game::chat::handle_chat_input", side = "both")]
     pub(super) fn handle_chat_input(&mut self, message: &str) {
         let message = normalize_chat_message(message);
         if message.is_empty() || !self.chat_abilities().allows(&message) {
@@ -1347,6 +1348,7 @@ impl Game<'_> {
     }
     /// Advance the overworld clock (ServerClockManager.tick) when
     /// `advance_time` allows it.
+    #[yoake_inject_macro::yoake_inject(id = "game::chat::advance_clock", side = "server")]
     pub(super) fn advance_clock(&mut self) {
         if !self.ui.rules.bool("advance_time") || self.ui.clock.paused {
             return;

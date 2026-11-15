@@ -844,6 +844,7 @@ impl PlayerMotion {
         }
         Ok(())
     }
+    #[yoake_inject_macro::yoake_inject(id = "motion::set_sprinting", side = "both")]
     pub fn set_sprinting(&mut self, sprinting: bool) -> Result<()> {
         self.sprinting = sprinting;
         self.set_sprint_modifier(sprinting)

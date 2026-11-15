@@ -1,6 +1,13 @@
 package yoake:mods@1.1.0;
 
 interface inject {
+    record registration {
+        site: string,
+        points: u8,
+    }
+
+    registrations: func() -> list<registration>;
+
     record record-entry {
         key: string,
         node: u32,

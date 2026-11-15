@@ -393,6 +393,7 @@ impl Enchantments {
     // ---- Enchanting table (EnchantmentHelper) ----
 
     /// `EnchantmentHelper.getEnchantmentCost`.
+    #[yoake_inject_macro::yoake_inject(id = "items::enchant::enchantment_cost", side = "server")]
     pub fn enchantment_cost<R: RandomSource>(
         &self,
         random: &mut R,

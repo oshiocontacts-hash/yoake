@@ -32,17 +32,29 @@ mod heap;
 
 pub mod nbt;
 
+#[cfg(feature = "mixin")]
+pub mod mixin;
+
 #[cfg(feature = "full")]
 pub mod full;
 
 /// Everything a `#![no_std]` mod usually needs from `alloc`.
 pub mod prelude {
-    pub use alloc::{boxed::Box, format, string::{String, ToString}, vec, vec::Vec};
+    pub use alloc::{
+        boxed::Box,
+        format,
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
 }
 
 #[doc(hidden)]
 pub mod __private {
-    pub use alloc::{string::{String, ToString}, vec::Vec};
+    pub use alloc::{
+        string::{String, ToString},
+        vec::Vec,
+    };
 }
 
 use prelude::*;
@@ -116,19 +128,45 @@ pub trait Mod: Default + 'static {
     }
     fn gui_layer_post(&mut self, layer: &str) {}
     fn screen_render_post(&mut self, screen: ScreenView) {}
-    fn screen_key_pressed_pre(&mut self, screen: ScreenView, key: &str, repeat: bool, modifiers: u32) -> bool {
+    fn screen_key_pressed_pre(
+        &mut self,
+        screen: ScreenView,
+        key: &str,
+        repeat: bool,
+        modifiers: u32,
+    ) -> bool {
         false
     }
-    fn screen_char_typed_pre(&mut self, screen: ScreenView, character: u32, modifiers: u32) -> bool {
+    fn screen_char_typed_pre(
+        &mut self,
+        screen: ScreenView,
+        character: u32,
+        modifiers: u32,
+    ) -> bool {
         false
     }
-    fn screen_mouse_button_pressed_pre(&mut self, screen: ScreenView, button: i32, modifiers: u32) -> bool {
+    fn screen_mouse_button_pressed_pre(
+        &mut self,
+        screen: ScreenView,
+        button: i32,
+        modifiers: u32,
+    ) -> bool {
         false
     }
-    fn screen_mouse_button_released_pre(&mut self, screen: ScreenView, button: i32, modifiers: u32) -> bool {
+    fn screen_mouse_button_released_pre(
+        &mut self,
+        screen: ScreenView,
+        button: i32,
+        modifiers: u32,
+    ) -> bool {
         false
     }
-    fn screen_mouse_scrolled_pre(&mut self, screen: ScreenView, scroll: (f64, f64), modifiers: u32) -> bool {
+    fn screen_mouse_scrolled_pre(
+        &mut self,
+        screen: ScreenView,
+        scroll: (f64, f64),
+        modifiers: u32,
+    ) -> bool {
         false
     }
     /// Settings entries shown for this mod.
@@ -154,7 +192,12 @@ pub mod rt {
     ///
     /// # Safety
     /// Called by the component runtime with a pointer previously returned by this function.
-    pub unsafe fn cabi_realloc(old_ptr: *mut u8, old_len: usize, align: usize, new_len: usize) -> *mut u8 {
+    pub unsafe fn cabi_realloc(
+        old_ptr: *mut u8,
+        old_len: usize,
+        align: usize,
+        new_len: usize,
+    ) -> *mut u8 {
         use alloc::alloc::{Layout, alloc, handle_alloc_error, realloc};
         unsafe {
             if old_len == 0 {
@@ -224,47 +267,86 @@ macro_rules! export_mod {
                 fn init() -> $crate::__private::Vec<$crate::__private::String> {
                     $crate::rt::install::<$ty>(<$ty as ::core::default::Default>::default());
                     $crate::rt::with::<$ty, _>(|m| m.init());
-                    <$ty as $crate::Mod>::subscriptions().iter().map(|s| $crate::__private::ToString::to_string(*s)).collect()
+                    <$ty as $crate::Mod>::subscriptions()
+                        .iter()
+                        .map(|s| $crate::__private::ToString::to_string(*s))
+                        .collect()
                 }
             }
 
             impl HooksGuest for Shim {
-                fn tick(_: u32) { $crate::rt::with::<$ty, _>(|m| m.tick()); }
-                fn key(key: $crate::__private::String, pressed: bool) { $crate::rt::with::<$ty, _>(|m| m.key(&key, pressed)); }
-                fn hud() { $crate::rt::with::<$ty, _>(|m| m.hud()); }
-                fn net_from_server(c: $crate::__private::String, d: $crate::__private::Vec<u8>) { $crate::rt::with::<$ty, _>(|m| m.net_from_server(&c, &d)); }
-                fn frame(ns: u64) { $crate::rt::with::<$ty, _>(|m| m.frame(ns)); }
-                fn local_player_tick_end(_: u32) { $crate::rt::with::<$ty, _>(|m| m.local_player_tick_end()); }
+                fn tick(_: u32) {
+                    $crate::rt::with::<$ty, _>(|m| m.tick());
+                }
+                fn key(key: $crate::__private::String, pressed: bool) {
+                    $crate::rt::with::<$ty, _>(|m| m.key(&key, pressed));
+                }
+                fn hud() {
+                    $crate::rt::with::<$ty, _>(|m| m.hud());
+                }
+                fn net_from_server(c: $crate::__private::String, d: $crate::__private::Vec<u8>) {
+                    $crate::rt::with::<$ty, _>(|m| m.net_from_server(&c, &d));
+                }
+                fn frame(ns: u64) {
+                    $crate::rt::with::<$ty, _>(|m| m.frame(ns));
+                }
+                fn local_player_tick_end(_: u32) {
+                    $crate::rt::with::<$ty, _>(|m| m.local_player_tick_end());
+                }
                 fn net_frames_listened(l: bool) -> bool {
                     $crate::rt::with::<$ty, _>(|m| m.net_frames_listened(l)).unwrap_or(l)
                 }
-                fn net_frame_received(f: h::ReceivedFrame) { $crate::rt::with::<$ty, _>(|m| m.net_frame_received(f)); }
-                fn net_session_ended(s: u64, r: $crate::__private::String) { $crate::rt::with::<$ty, _>(|m| m.net_session_ended(s, &r)); }
-                fn gui_layer_pre(l: $crate::__private::String) -> bool { $crate::rt::with::<$ty, _>(|m| m.gui_layer_pre(&l)).unwrap_or(false) }
-                fn gui_layer_post(l: $crate::__private::String) { $crate::rt::with::<$ty, _>(|m| m.gui_layer_post(&l)); }
-                fn screen_render_post(s: h::ScreenView) { $crate::rt::with::<$ty, _>(|m| m.screen_render_post(s)); }
-                fn screen_key_pressed_pre(s: h::ScreenView, k: $crate::__private::String, r: bool, md: u32) -> bool {
-                    $crate::rt::with::<$ty, _>(|m| m.screen_key_pressed_pre(s, &k, r, md)).unwrap_or(false)
+                fn net_frame_received(f: h::ReceivedFrame) {
+                    $crate::rt::with::<$ty, _>(|m| m.net_frame_received(f));
+                }
+                fn net_session_ended(s: u64, r: $crate::__private::String) {
+                    $crate::rt::with::<$ty, _>(|m| m.net_session_ended(s, &r));
+                }
+                fn gui_layer_pre(l: $crate::__private::String) -> bool {
+                    $crate::rt::with::<$ty, _>(|m| m.gui_layer_pre(&l)).unwrap_or(false)
+                }
+                fn gui_layer_post(l: $crate::__private::String) {
+                    $crate::rt::with::<$ty, _>(|m| m.gui_layer_post(&l));
+                }
+                fn screen_render_post(s: h::ScreenView) {
+                    $crate::rt::with::<$ty, _>(|m| m.screen_render_post(s));
+                }
+                fn screen_key_pressed_pre(
+                    s: h::ScreenView,
+                    k: $crate::__private::String,
+                    r: bool,
+                    md: u32,
+                ) -> bool {
+                    $crate::rt::with::<$ty, _>(|m| m.screen_key_pressed_pre(s, &k, r, md))
+                        .unwrap_or(false)
                 }
                 fn screen_char_typed_pre(s: h::ScreenView, c: u32, md: u32) -> bool {
-                    $crate::rt::with::<$ty, _>(|m| m.screen_char_typed_pre(s, c, md)).unwrap_or(false)
+                    $crate::rt::with::<$ty, _>(|m| m.screen_char_typed_pre(s, c, md))
+                        .unwrap_or(false)
                 }
                 fn screen_mouse_button_pressed_pre(s: h::ScreenView, b: i32, md: u32) -> bool {
-                    $crate::rt::with::<$ty, _>(|m| m.screen_mouse_button_pressed_pre(s, b, md)).unwrap_or(false)
+                    $crate::rt::with::<$ty, _>(|m| m.screen_mouse_button_pressed_pre(s, b, md))
+                        .unwrap_or(false)
                 }
                 fn screen_mouse_button_released_pre(s: h::ScreenView, b: i32, md: u32) -> bool {
-                    $crate::rt::with::<$ty, _>(|m| m.screen_mouse_button_released_pre(s, b, md)).unwrap_or(false)
+                    $crate::rt::with::<$ty, _>(|m| m.screen_mouse_button_released_pre(s, b, md))
+                        .unwrap_or(false)
                 }
                 fn screen_mouse_scrolled_pre(s: h::ScreenView, sc: (f64, f64), md: u32) -> bool {
-                    $crate::rt::with::<$ty, _>(|m| m.screen_mouse_scrolled_pre(s, sc, md)).unwrap_or(false)
+                    $crate::rt::with::<$ty, _>(|m| m.screen_mouse_scrolled_pre(s, sc, md))
+                        .unwrap_or(false)
                 }
-                fn settings(id: $crate::__private::String) -> $crate::__private::Vec<$crate::__private::String> {
+                fn settings(
+                    id: $crate::__private::String,
+                ) -> $crate::__private::Vec<$crate::__private::String> {
                     $crate::rt::with::<$ty, _>(|m| m.settings(&id)).unwrap_or_default()
                 }
-                fn settings_click(id: $crate::__private::String, b: u64) { $crate::rt::with::<$ty, _>(|m| m.settings_click(&id, b)); }
+                fn settings_click(id: $crate::__private::String, b: u64) {
+                    $crate::rt::with::<$ty, _>(|m| m.settings_click(&id, b));
+                }
             }
 
-            $crate::bindings::export!(Shim with_types_in $crate::bindings);
+    $crate::bindings::export!(Shim with_types_in $crate::bindings);
         };
     };
 }
@@ -286,8 +368,8 @@ pub fn feedback(text: &str) -> Result<()> {
 
 /// HUD drawing; valid inside the `hud` hook.
 pub mod hud {
-    use super::*;
     pub use super::imp::hud::GuiTexture;
+    use super::*;
 
     pub fn text(text: &str, at: (f32, f32), rgb: u32, shadow: bool) -> Result<()> {
         imp::hud::text(text, Point { x: at.0, y: at.1 }, rgb, shadow)
@@ -295,7 +377,15 @@ pub mod hud {
     /// Fills `[x, y, width, height]` with an ARGB colour.
     pub fn rect(bounds: [f32; 4], argb: u32) -> Result<()> {
         let [x, y, width, height] = bounds;
-        imp::hud::fill(Rect { x, y, width, height }, argb)
+        imp::hud::fill(
+            Rect {
+                x,
+                y,
+                width,
+                height,
+            },
+            argb,
+        )
     }
     pub fn text_width(text: &str) -> Result<Option<f32>> {
         imp::hud::text_width(text)

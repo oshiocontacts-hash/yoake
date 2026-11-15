@@ -9,6 +9,19 @@ pub struct BlockPos {
     pub z: i32,
 }
 
+impl yoake_value::InjectValue for BlockPos {
+    const TYPE: yoake_value::ValueType = yoake_value::ValueType::BlockPos;
+
+    fn into_inject_value(self) -> yoake_value::Value {
+        [self.x, self.y, self.z].into_inject_value()
+    }
+
+    fn from_inject_value(value: yoake_value::Value) -> Option<Self> {
+        let [x, y, z] = <[i32; 3] as yoake_value::InjectValue>::from_inject_value(value)?;
+        Some(Self { x, y, z })
+    }
+}
+
 impl BlockPos {
     pub const fn new(x: i32, y: i32, z: i32) -> Self {
         Self { x, y, z }
