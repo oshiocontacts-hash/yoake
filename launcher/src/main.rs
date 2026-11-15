@@ -2273,16 +2273,6 @@ fn version_label(tag: &str) -> String {
         .unwrap_or_else(|| tag.trim_start_matches('v').to_string())
 }
 
-/// A release's tag as a title: mono, so its digits read at a glance.
-fn version_tag(tag: &str) -> Div {
-    div()
-        .font_family(theme::MONO)
-        .text_size(px(22.))
-        .line_height(px(28.))
-        .font_weight(FontWeight::MEDIUM)
-        .child(version_label(tag))
-}
-
 /// Horizon's mark: two stems, their reflection below, and the horizon across in the accent.
 fn mark(size: f32, t: &Theme) -> Div {
     let u = size / 16.;
@@ -2663,7 +2653,6 @@ fn disabled(b: Stateful<Div>) -> Stateful<Div> {
     b.opacity(theme::DISABLED).cursor_default().tab_stop(false)
 }
 
-/// A page's title in the pixel face and one line on what it is for.
 /// A glass page's head: the title large in Bricolage with its line under it, as the Friends
 /// page has it.
 fn glass_page_head(title: &str, description: &str) -> Div {
@@ -2700,6 +2689,7 @@ fn glass_card() -> Div {
     glass::plate(horizon_theme::glass::radius::PANEL)
 }
 
+/// A page's title in the pixel face and one line on what it is for.
 fn page_header(title: &str, description: &str, t: &Theme) -> Div {
     div()
         .flex()
@@ -4698,46 +4688,56 @@ impl Launcher {
         let t = self.theme;
         let confirming = self.confirm_remove.as_deref() == Some(tag);
         let (t1, t2) = (tag.to_string(), tag.to_string());
+        let remove_id = SharedString::from(format!("remove-{tag}"));
+        let remove = cx.listener(move |this, _: &ClickEvent, _, cx| {
+            if this.confirm_remove.as_ref() == Some(&t2) {
+                this.remove(&t2);
+            } else {
+                this.confirm_remove = Some(t2.clone());
+            }
+            cx.notify();
+        });
         div()
+            .relative()
             .flex()
             .items_center()
             .gap(px(4.))
             .when(!selected && !confirming, |d| {
                 d.child(
-                    button(format!("use-{tag}"), "Use", Kind::Ghost, &t).on_click(cx.listener(
-                        move |this, _: &ClickEvent, _, cx| {
+                    glass_ui::quiet(format!("use-{tag}"), tr("Use"), 36., &t).on_click(
+                        cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.settings.selected = Some(t1.clone());
                             this.save_settings();
                             cx.notify();
-                        },
-                    )),
+                        }),
+                    ),
                 )
             })
-            .child(
-                button(
-                    format!("remove-{tag}"),
-                    if confirming {
-                        "Remove for good"
-                    } else {
-                        "Remove"
-                    },
-                    if confirming {
-                        Kind::Secondary
-                    } else {
-                        Kind::Ghost
-                    },
+            .child(if confirming {
+                keyboard(
+                    glass_home_lists::danger_button(remove_id, tr("Remove for good").into()),
                     &t,
                 )
-                .when(confirming, |b| b.text_color(t.danger))
-                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                    if this.confirm_remove.as_ref() == Some(&t2) {
-                        this.remove(&t2);
-                    } else {
-                        this.confirm_remove = Some(t2.clone());
-                    }
-                    cx.notify();
-                })),
-            )
+                .on_click(remove)
+                .into_any_element()
+            } else {
+                glass_ui::quiet(remove_id, tr("Remove"), 36., &t)
+                    .on_click(remove)
+                    .into_any_element()
+            })
+    }
+
+    /// A glass row's progress line (installing, removing, importing): the bar, then its text.
+    fn glass_progress(&self, bar: Div, label: String) -> Div {
+        use horizon_theme::glass::ink;
+        div()
+            .relative()
+            .flex()
+            .items_center()
+            .gap(px(10.))
+            .w(px(180.))
+            .child(bar)
+            .child(glass_ui::text(13., FontWeight::NORMAL, ink::DIM).child(label))
     }
 
     /// One installed build made here on the Versions page, a native build or an imported one:
@@ -4748,6 +4748,7 @@ impl Launcher {
         on_disk: &dyn Fn(&String) -> Option<u64>,
         cx: &mut Context<Self>,
     ) -> Div {
+        use horizon_theme::glass::ink;
         let t = self.theme;
         let selected = self.selected().map(String::as_str) == Some(tag);
         let mut meta = Vec::new();
@@ -4763,13 +4764,7 @@ impl Launcher {
             meta.push(trf("{size} on disk", &[("size", &megabytes(n))]));
         }
         let right = if self.removing.iter().any(|r| r == tag) {
-            div()
-                .flex()
-                .items_center()
-                .gap(px(10.))
-                .w(px(180.))
-                .child(progress_bar(None, &t))
-                .child(text(theme::MICRO).text_color(t.muted).child("Removing…"))
+            self.glass_progress(progress_bar(None, &t), "Removing…".to_string())
         } else {
             self.version_actions(tag, selected, cx)
         };
@@ -4778,35 +4773,25 @@ impl Launcher {
             .as_ref()
             .filter(|(e, _)| e == tag)
             .map(|(_, e)| e.clone());
+        let key = SharedString::from(format!("local-{tag}"));
+        let hovered = self.list_hover.as_ref() == Some(&key);
+        let hover = self.list_hover_listener(key.clone(), cx);
         div()
             .flex()
             .flex_col()
-            .gap(px(10.))
-            .py(px(14.))
-            .px(px(16.))
-            .bg(t.panel)
-            .border_2()
-            .border_color(t.outline)
-            .children(blocks::edges(t.bevel, t.lip, theme::BEVEL))
             .child(
-                div()
-                    .relative()
-                    .flex()
-                    .items_center()
-                    .gap(px(16.))
+                glass_ui::list_row(key, hovered, hover, &t)
+                    .child(glass_ui::list_text(version_label(tag), meta.join("  ·  ")))
+                    .children(selected.then(|| {
+                        glass_ui::text(13., FontWeight::MEDIUM, ink::FULL)
+                            .relative()
+                            .flex_none()
+                            .text_color(glass_ui::color(self.look.accent_soft))
+                            .child(tr("In use"))
+                    }))
                     .child(
                         div()
-                            .flex()
-                            .flex_col()
-                            .flex_1()
-                            .min_w_0()
-                            .gap(px(4.))
-                            .child(version_tag(tag).text_color(t.ink))
-                            .child(caps(meta.join("  ·  ")).text_color(t.muted)),
-                    )
-                    .children(selected.then(|| caps(tr("In use")).text_color(t.accent)))
-                    .child(
-                        div()
+                            .relative()
                             .flex()
                             .justify_end()
                             .w(px(190.))
@@ -4814,7 +4799,7 @@ impl Launcher {
                             .child(right),
                     ),
             )
-            .children(error.map(|e| notice(e, &t)))
+            .children(error.map(glass_home_lists::danger_line))
     }
 
     /// The installed builds of one kind made here (`is`: native or imported) under their caption,
@@ -4827,7 +4812,7 @@ impl Launcher {
         on_disk: &dyn Fn(&String) -> Option<u64>,
         cx: &mut Context<Self>,
     ) -> Option<Div> {
-        let t = self.theme;
+        use horizon_theme::glass::ink;
         let tags: Vec<&String> = self
             .installed
             .iter()
@@ -4838,9 +4823,14 @@ impl Launcher {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(8.))
-                .child(caps(tr(title)).text_color(t.muted))
-                .children(notice_.map(|n| notice(n.to_string(), &t)))
+                .child(glass_ui::list_head(tr(title)).pt(px(12.)))
+                .children(notice_.map(|n| {
+                    div().px(px(12.)).pb(px(8.)).child(
+                        glass_ui::text(13., FontWeight::NORMAL, ink::NOTE)
+                            .text_color(glass_ui::color(horizon_theme::glass::WARN))
+                            .child(n.to_string()),
+                    )
+                }))
                 .children(
                     tags.into_iter()
                         .map(|tag| self.local_build_row(tag, on_disk, cx)),
@@ -4849,11 +4839,11 @@ impl Launcher {
     }
 
     fn versions_page(&mut self, cx: &mut Context<Self>) -> Div {
+        use horizon_theme::glass::ink;
         let t = self.theme;
-        let header = page_header(
+        let header = glass_page_head(
             "Versions",
             "Builds from GitHub. Each one installs into its own folder.",
-            &t,
         );
         // Measured again when the installed versions change.
         if self.disk_for != self.installed {
@@ -4876,45 +4866,46 @@ impl Launcher {
         let used: u64 = self.installed.iter().filter_map(on_disk).sum();
         // The list's own action at the end of the line above it: a build the player has.
         let import: AnyElement = if self.importing_build {
-            div()
-                .flex()
-                .items_center()
-                .gap(px(10.))
-                .w(px(180.))
-                .child(progress_bar(None, &t))
-                .child(
-                    text(theme::MICRO)
-                        .text_color(t.muted)
-                        .child(tr("Importing…")),
-                )
+            self.glass_progress(progress_bar(None, &t), tr("Importing…").to_string())
                 .into_any_element()
         } else {
-            button("import-build", "Import a game build…", Kind::Secondary, &t)
+            glass_ui::quiet("import-build", tr("Import a game build…"), 36., &t)
+                .relative()
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.import_build(cx)))
                 .into_any_element()
         };
         let page = div()
             .flex()
             .flex_col()
-            .gap(px(32.))
-            .child(header)
+            .gap(px(28.))
+            .pt(px(36.))
+            .child(header);
+        // The page's one panel: the line over the list, then what is installed, then the releases.
+        let mut body = div()
+            .relative()
+            .flex()
+            .flex_col()
+            .min_h(px(200.))
+            .p(px(8.))
             .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .gap(px(16.))
-                    .child(text(theme::UI).text_color(t.muted).when(used > 0, |d| {
-                        d.child(trf(
-                            "Installed versions use {size}.",
-                            &[("size", &megabytes(used))],
-                        ))
-                    }))
-                    .child(import),
+                glass_ui::list_head(if used > 0 {
+                    trf(
+                        "Installed versions use {size}.",
+                        &[("size", &megabytes(used))],
+                    )
+                } else {
+                    String::new()
+                })
+                .pt(px(8.))
+                .child(import),
             )
-            .children(self.import_error.clone().map(|e| notice(e, &t)));
+            .children(
+                self.import_error
+                    .clone()
+                    .map(glass_home_lists::danger_line),
+            );
         // Builds made here, not downloaded, are listed apart from the releases.
-        let page = page
+        body = body
             .children(self.local_builds(
                 "Native mod builds",
                 native_mods::is_native,
@@ -4933,21 +4924,35 @@ impl Launcher {
                 cx,
             ));
         let releases = match &self.releases {
-            Load::Loading => return page.child(centered(tr("Loading releases…"), &t)),
+            Load::Loading => {
+                return page.child(
+                    glass_card().child(body.child(glass_ui::empty().child(tr("Loading releases…")))),
+                )
+            }
             Load::Failed(e) => {
                 return page.child(
-                    centered(&trf("Couldn't load releases. {error}", &[("error", e)]), &t).child(
-                        button("retry", "Try again", Kind::Secondary, &t).on_click(cx.listener(
-                            |this, _: &ClickEvent, _, cx| {
-                                this.fetch_releases();
-                                cx.notify();
-                            },
-                        )),
+                    glass_card().child(
+                        body.child(glass_ui::empty().pb(px(16.)).child(trf(
+                            "Couldn't load releases. {error}",
+                            &[("error", e)],
+                        )))
+                        .child(
+                            div().px(px(12.)).pb(px(24.)).child(
+                                glass_ui::quiet("retry", tr("Try again"), 36., &t).on_click(
+                                    cx.listener(|this, _: &ClickEvent, _, cx| {
+                                        this.fetch_releases();
+                                        cx.notify();
+                                    }),
+                                ),
+                            ),
+                        ),
                     ),
                 );
             }
             Load::Ready(r) if r.is_empty() => {
-                return page.child(centered(tr("No releases yet."), &t));
+                return page.child(
+                    glass_card().child(body.child(glass_ui::empty().child(tr("No releases yet.")))),
+                );
             }
             Load::Ready(r) => r,
         };
@@ -4962,7 +4967,7 @@ impl Launcher {
         let list = self.long_list.clone().column(
             &self.content_scroll.handle,
             releases.len(),
-            8.,
+            2.,
             keep,
             |i| {
                 let release = releases[i].clone();
@@ -4984,37 +4989,24 @@ impl Launcher {
                 let right: gpui::AnyElement = if let Some((_, p)) =
                     self.installing.as_ref().filter(|(t, _)| *t == tag)
                 {
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap(px(10.))
-                        .w(px(180.))
-                        .child(progress_bar(Some(self.bar), &t))
-                        .child(
-                            text(theme::MICRO)
-                                .w(px(36.))
-                                .text_color(t.muted)
-                                .child(format!("{:.0}%", p * 100.)),
-                        )
-                        .into_any_element()
+                    self.glass_progress(
+                        progress_bar(Some(self.bar), &t),
+                        format!("{:.0}%", p * 100.),
+                    )
+                    .into_any_element()
                 } else if self.removing.contains(&tag) {
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap(px(10.))
-                        .w(px(180.))
-                        .child(progress_bar(None, &t))
-                        .child(text(theme::MICRO).text_color(t.muted).child("Removing…"))
+                    self.glass_progress(progress_bar(None, &t), "Removing…".to_string())
                         .into_any_element()
                 } else if installed {
                     self.version_actions(&tag, selected, cx).into_any_element()
                 } else if release.asset.is_none() {
-                    text(theme::CAPTION)
-                        .text_color(t.muted)
+                    glass_ui::text(13., FontWeight::NORMAL, ink::DIM)
+                        .relative()
                         .child(tr("No build for this platform"))
                         .into_any_element()
                 } else {
-                    let mut b = button(format!("install-{tag}"), "Install", Kind::Secondary, &t);
+                    let mut b =
+                        glass_ui::solid(format!("install-{tag}"), tr("Install"), 36., 14., &t);
                     if self.installing.is_some() {
                         b = disabled(b);
                     } else {
@@ -5026,9 +5018,13 @@ impl Launcher {
                     b.into_any_element()
                 };
                 let status = if selected {
-                    Some(caps(tr("In use")).text_color(t.accent))
+                    Some(
+                        glass_ui::text(13., FontWeight::MEDIUM, ink::FULL)
+                            .text_color(glass_ui::color(self.look.accent_soft))
+                            .child(tr("In use")),
+                    )
                 } else if installed {
-                    Some(caps(tr("Installed")).text_color(t.ink_soft))
+                    Some(glass_ui::text(13., FontWeight::NORMAL, ink::MUTED).child(tr("Installed")))
                 } else {
                     None
                 };
@@ -5037,54 +5033,31 @@ impl Launcher {
                     .as_ref()
                     .filter(|(t, _)| *t == tag)
                     .map(|(_, e)| e.clone());
-                let id = SharedString::from(format!("release-{tag}"));
-                let row = div()
-                    .id(id.clone())
-                    .relative()
+                let key = SharedString::from(format!("release-{tag}"));
+                let hovered = self.list_hover.as_ref() == Some(&key);
+                let hover = self.list_hover_listener(key.clone(), cx);
+                div()
                     .flex()
                     .flex_col()
-                    .gap(px(10.))
-                    .py(px(14.))
-                    .px(px(16.))
-                    .mb(px(8.))
-                    .bg(t.panel)
-                    .border_2()
-                    .border_color(t.outline)
-                    .children(blocks::edges(t.bevel, t.lip, theme::BEVEL))
-                    .child(hover_layer(&id, t.raised, 0., 0.))
                     .child(
-                        div()
-                            .relative()
-                            .flex()
-                            .items_center()
-                            .gap(px(16.))
+                        glass_ui::list_row(key, hovered, hover, &t)
+                            .child(glass_ui::list_text(version_label(&tag), summary))
                             .child(
                                 div()
+                                    .relative()
                                     .flex()
                                     .flex_col()
-                                    .flex_1()
-                                    .min_w_0()
-                                    .gap(px(4.))
-                                    .child(version_tag(&tag).text_color(t.ink))
+                                    .items_end()
+                                    .flex_none()
+                                    .children(status)
                                     .child(
-                                        text(theme::UI)
-                                            .text_color(t.muted)
-                                            .truncate()
-                                            .child(summary),
+                                        glass_ui::text(13., FontWeight::NORMAL, ink::DIM)
+                                            .child(meta.join("  ·  ")),
                                     ),
                             )
                             .child(
                                 div()
-                                    .flex()
-                                    .flex_col()
-                                    .items_end()
-                                    .gap(px(2.))
-                                    .flex_none()
-                                    .children(status)
-                                    .child(caps(meta.join("  ·  ")).text_color(t.muted)),
-                            )
-                            .child(
-                                div()
+                                    .relative()
                                     .flex()
                                     .justify_end()
                                     .w(px(190.))
@@ -5092,11 +5065,10 @@ impl Launcher {
                                     .child(right),
                             ),
                     )
-                    .children(error.map(|e| notice(e, &t)));
-                track_hover(row, id)
+                    .children(error.map(glass_home_lists::danger_line))
             },
         );
-        page.child(list)
+        page.child(glass_card().child(body.child(list)))
     }
 
     fn notes_page(&mut self, cx: &mut Context<Self>) -> Div {
