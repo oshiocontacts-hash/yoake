@@ -80,7 +80,7 @@ Excerpts from `server-storage`:[^server-storage]
         }
 ```
 
-- For the storage location (`StorageScope`), server modules can choose per-save-world `World` (`<world>/yoake-data/<mod-id>/store.bin`) or cross-world `Global` (`<game>/yoake-data/<mod-id>/global/store.bin`), while client modules use `Client` (`<game>/yoake-data/<mod-id>/client/store.bin`). In the current implementation, all keys in a scope are persisted synchronously into a single `store.bin` file.[^storage]
+- For the storage location (`StorageScope`), server modules can choose per-save-game-world `World` (`<world>/yoake-data/<mod-id>/store.bin`) or cross-world `Global` (`<game>/yoake-data/<mod-id>/global/store.bin`), while client modules use `Client` (`<game>/yoake-data/<mod-id>/client/store.bin`). In the current implementation, all keys in a scope are persisted synchronously into a single `store.bin` file.[^storage]
 
 > The on-disk format of `store.bin` may change in future versions. Never edit `store.bin` directly
 > or build external tools that depend on its layout—always read and write data through `storage_get` and `storage_put`.

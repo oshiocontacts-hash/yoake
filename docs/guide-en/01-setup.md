@@ -1,7 +1,7 @@
 # 1. Setting Up Your Environment
 
 Yoake mods are written in the **Rust** programming language and compiled (built) into **WebAssembly (`wasm32-wasip2`)**.
-This page walks you through installing the development tools on your computer. The main instructions focus on Windows, with brief notes for macOS and Linux along the way.
+This page walks you through installing the development tools on your computer, focusing on Windows with brief notes for macOS and Linux where needed.
 
 ---
 

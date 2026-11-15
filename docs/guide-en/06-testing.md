@@ -10,7 +10,7 @@ When you run Yoake's test runner (`yoake test`), the game launches offscreen wit
 
 ### How Test Modules Work
 
-In Yoake, tests are compiled as a separate WebAssembly component called a **test module** (using the `test-mod` WIT world defined in `crates/yoake-wasm/wit/yoake-test.wit`), distinct from your main mod binary (`client-mod`, etc.):
+In Yoake, tests are compiled as a separate WebAssembly component called a **test module** (using the `test-mod` WIT world defined in `crates/yoake-wasm/wit/yoake-test.wit`), distinct from your mod itself (for example a `client-mod`):
 
 - A normal build produces your mod binary (`bin/wasm/<id>.wasm`).
 - Building with the Cargo `tests` feature enabled produces the test module (`bin/wasm/<id>-tests.wasm`) from the same crate.
@@ -100,7 +100,7 @@ The `TestWorld` passed to your test function forwards every action to an underly
 
 ### `TestDriver` Trait and Helper Functions (`testing.rs` / `testing/engine.rs`)
 
-When writing a mock for `cargo test`, implement the `TestDriver` trait. The first 4 methods are required, while the remaining 8 have default implementations (`tick` returns `0`, `log` is a no-op, and the rest return `Err("unsupported: …")`), so you only need to implement what your test uses. Note that `engine::client_count` and `engine::run_with` are available only when the SDK's `test` feature (`yoake-wasm-sdk/test`) is enabled.
+When writing a mock for `cargo test`, implement the `TestDriver` trait. The first 4 methods are required, while the remaining methods have defaults (`tick` returns `0`, `log` is a no-op, and the rest return `Err("unsupported: …")`), so you only need to implement what your test uses. Note that `engine::client_count` and `engine::run_with` are available only when the SDK's `test` feature (`yoake-wasm-sdk/test`) is enabled.
 
 | Function / Method | Behavior | Example |
 | --- | --- | --- |
@@ -178,16 +178,16 @@ The game executable's direct test interface is `horizon-client --yoake-test <pro
 
 ## 4. Superflat World Assumptions and Execution Rules
 
-The world where your tests run follows these rules (source: `docs/yoake-wasm-dev.md` and hardware verification on GALLERIA (2026-11-16)):
+The world where your tests run follows these rules (source: `docs/yoake-wasm-dev.md` and verified in a real run (2026-11-16)):
 
-1. **Superflat layers and coordinates (verified on GALLERIA (2026-11-16))**:
+1. **Superflat layers and coordinates (verified in a real run (2026-11-16))**:
    - The world is a superflat world with seed `0` and structures turned off.
    - Its ground layers from bottom to top are: **`y = -64` is bedrock, `y = -63` and `y = -62` are dirt, `y = -61` is grass block, and `y = -60` and above are air**. Examples place blocks at `y = -60` because that is the first air layer right above the grass.
 2. **Initial state and working near spawn**:
    - The world owner joins near spawn (`0, 0`) in Creative mode (`--creative`), with time set to `6000` (`--time 6000`), clear weather (`--weather clear`), and a render distance of `4` chunks (`--render-distance 4`). Place blocks and entities used by your tests near `(0, 0)`.
-   - The owner joins with an automatically generated name matching **`PlayerNNNNN`** (verified on GALLERIA (2026-11-16)).
+   - The owner joins with an automatically generated name matching **`PlayerNNNNN`** (verified in a real run (2026-11-16)).
 3. **The world is frozen and advances only when you call `run_ticks`**:
-   - After the owner joins, the world runs for 2 seconds of real time so chunks can finish loading (warmup). Because of this warmup, **the world has already advanced by roughly 87–103 ticks when your test function starts** (do not assume `world.tick()` starts at `0`; verified on GALLERIA (2026-11-16)).
+   - After the owner joins, the world runs for 2 seconds of real time so chunks can finish loading (warmup). Because of this warmup, **the world has already advanced by roughly 87–103 ticks when your test function starts** (do not assume `world.tick()` starts at `0`; verified in a real run (2026-11-16)).
    - Right after warmup, **the world is frozen**. While frozen, server ticks never advance on their own; they advance by the exact number of ticks you request via `world.run_ticks(n)` (skipping the normal 50 ms per-tick sleep to run as fast as possible).
 4. **Each test spawns a fresh process and world, which takes time**:
    - To completely isolate tests from leftover state or hangs, **every single test starts a brand-new worker process and temporary world**.
@@ -257,7 +257,7 @@ fn a_change_reaches_the_second_client(world: &mut TestWorld<'_>) -> TestResult {
 The following features are not implemented yet (source: `docs/yoake-wasm-dev.md`, "Limits and what is not covered"):
 
 - **Driving client-only hooks (HUD rendering, key input, etc.) or asserting on rendered frames (not implemented)**:
-  - There is no way for the test driver to trigger client-only hooks (such as HUD rendering) or assert against screenshots or rendered frames (not implemented).
+  - Tests run on the server side of a single-player world, so key input, screenshots, and rendered frames cannot be checked, and there is no way for the test driver to trigger client-only hooks such as HUD rendering (not implemented).
 - **Operating on dimensions other than the Overworld (not implemented)**:
   - The test driver can only operate on the Overworld (not implemented).
 - **Running tests for native (DLL) mod packages (not implemented)**:

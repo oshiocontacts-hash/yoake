@@ -37,7 +37,7 @@ The CLI behavior and generated files below are verified against the **`yoake/p10
 > `<name>` is used directly as the **`id`** in `yak.toml`, the Rust **crate name**, and the filename in **`bin/wasm/<name>.wasm`**.
 
 > [!NOTE]
-> A **WIT world (mod kind)** defines which combination of hooks and services a mod can use. Not to be confused with a Minecraft save world.
+> A **WIT world (mod kind)** defines which combination of hooks and services a mod can use. Not to be confused with a save-game world.
 >
 > - **`client-mod`**: Pick this when the 19 core client hooks are enough. It is the default when `world` is omitted in `yak.toml`, and it supports hot-reloading raw `.wasm` files.
 > - **`client-full`**: Pick this when you need full-catalog features such as item icons, custom tooltips, or FOV adjustments. You install and test it as a `.yak` package.

@@ -9,7 +9,7 @@ If you have even a little programming experience, you can follow along step by s
 
 A Yoake mod is written in Rust, compiled to a flavor of WebAssembly called **`wasm32-wasip2`**, and bundled together with a manifest file (`yak.toml`) into a `.yak` package for distribution and installation.
 
-WebAssembly mods run inside a safe sandbox within the game. Even if a mod hits an infinite loop or runs out of time, only that mod is stopped—the game itself keeps running safely.
+WebAssembly mods run inside a safe sandbox within the game. Even if a mod hits an infinite loop or runs out of time, an error or a timeout stops only that mod.
 
 ---
 
