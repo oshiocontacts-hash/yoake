@@ -140,6 +140,10 @@ mod native_material;
 mod native_pack;
 mod native_post;
 pub mod native_render;
+pub mod native_services;
+pub mod native_post_shader;
+#[cfg(test)]
+mod native_services_tests;
 mod native_shadow;
 mod native_sky;
 mod occlusion;
@@ -1097,6 +1101,7 @@ pub struct Renderer {
     /// Resolution scale, FXAA and TAA (Horizon settings).
     world_post: world_post::Post,
     native_pre_post_previous: Option<(Mat4, DVec3)>,
+    pub native_services: native_services::WorldServices,
     native_pre_post_frame: u64,
     /// Frame generation (Horizon setting).
     frame_gen: frame_gen::FrameGen,
@@ -4187,6 +4192,7 @@ impl Renderer {
             layout: crate::chunk::ColumnLayout::VANILLA,
             world_post,
             native_pre_post_previous: None,
+            native_services: native_services::WorldServices::default(),
             native_pre_post_frame: 0,
             frame_gen: frame_gen::FrameGen::new(),
             entity_atlas: atlas_view.clone(),
@@ -7841,6 +7847,8 @@ impl Renderer {
         let pack_post = !frame.title && self.pack_post.as_ref().is_some_and(|p| p.1.is_some());
         // One of Horizon's own packs reads the same world target.
         let native_post = !frame.title && self.native.as_ref().is_some_and(|n| n.post.is_some());
+        let mod_post = !frame.title && self.native_services.post.active();
+        let mod_draws = !frame.title && !self.native_services.draws.is_empty();
         if let Some(timer) = Self::pass_timer(&mut self.pack_post, &mut self.native)
             && timer.is_some() != self.pass_timing
         {
@@ -7849,11 +7857,12 @@ impl Renderer {
                 .then(|| pack_timing::PassTiming::new(&self.device, &self.queue))
                 .flatten();
         }
-        let pack_reads_world = pack_post || native_post;
+        let pack_reads_world = pack_post || native_post || mod_post;
         laps.lap("r_uploads");
         let render_needs = native_render::render_needs();
         // Phase 2 of occlusion culling draws over the depth, and a shader pack or TAA reads it.
         let keep_depth = pack_reads_world
+            || mod_draws
             || (taa && self.world_post.taa)
             || oit_on
             || render_needs.world_depth
@@ -7927,6 +7936,7 @@ impl Renderer {
             // Frame generation draws the hand over the real and the made frame after the world.
             && fg_frames.is_none()
             && !render_needs.pre_post
+            && !mod_draws
             && !native_render::world_drawn_hooked();
         if oit_on {
             let size = self
@@ -9106,6 +9116,7 @@ impl Renderer {
                 device: &self.device,
                 queue: &self.queue,
                 encoder: &mut encoder,
+                draws: &mut self.native_services.draws,
                 color: world_view.texture(),
                 color_view: world_view,
                 color_format: self.config.format.remove_srgb_suffix(),
@@ -9140,6 +9151,30 @@ impl Renderer {
             self.native_pre_post_frame = self.native_pre_post_frame.wrapping_add(1);
         } else if self.native_pre_post_previous.is_some() {
             self.native_pre_post_previous = None;
+        }
+        if frame.title {
+            self.native_services.draws.clear();
+        } else {
+            if let Err(error) = self.native_services.render(
+                &self.device,
+                &self.queue,
+                &mut encoder,
+                world_view,
+                world_depth,
+                jittered,
+                frame.camera,
+                self.config.format.remove_srgb_suffix(),
+            ) {
+                eprintln!("mod world drawing: {error}");
+            }
+            if mod_post
+                && let Err(error) =
+                    self.native_services
+                        .post
+                        .render(&self.device, &mut encoder, world_view)
+            {
+                eprintln!("mod post shader: {error}");
+            }
         }
         if let Some((color, depth)) = &scaled
             && pack_post

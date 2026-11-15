@@ -65,8 +65,10 @@ pub use crate::game::{NativeChatRecipients, NativeCrosshairEntity, NativeViewHit
 pub use crate::game::{FixedFrame, FrameAdvance, LocalPlayerSnapshot, SnapshotReport};
 pub use crate::gfx::native_render::{
     BlockSpriteArrays, RenderHooks, RenderNeeds, RenderNeedsEvent, WorldDrawn, WorldDrawnEvent,
-    wgpu,
+    WorldPrePost, wgpu,
 };
+pub use crate::gfx::native_post_shader::NativePostUniformLayout;
+pub use crate::gfx::native_services::WorldDraws;
 pub use crate::hud::HudBatch;
 pub use crate::hud::native_textures::{
     NativeGuiNineSlice, NativeGuiTexture, NativeGuiTextureError, NativeGuiTextureFilter,

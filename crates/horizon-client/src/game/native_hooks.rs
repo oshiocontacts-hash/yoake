@@ -2366,6 +2366,9 @@ impl Game<'_> {
     /// Once a frame, in a world or not, after Horizon's extras.
     pub(super) fn native_frame(&mut self, elapsed: Duration) {
         let in_world = self.options.execution_role.is_client() && self.title.is_none();
+        if let Some(renderer) = &mut self.renderer {
+            renderer.native_services.draws.clear();
+        }
         self.native_world_lines.begin_frame(in_world);
         mod_api::dispatch_frame(self, mod_api::mods(), elapsed);
         self.native_world_lines.end_frame();
@@ -2781,11 +2784,21 @@ impl Game<'_> {
     ) {
         mod_api::dispatch_health_hud(self, mod_api::mods(), inputs, wi, hi, draws);
     }
+    pub(super) fn native_key_binding_pressed(&mut self, id: &str) {
+        mod_api::dispatch_key_binding_pressed(self, mod_api::mods(), id);
+    }
+
     /// A key or mouse button went down or up, by its vanilla name
     /// (`key.keyboard.z`, `key.mouse.left`): keys on any screen (check
     /// `native_playing`), mouse buttons while playing. Repeats are left out.
     pub(super) fn native_key(&mut self, key: &str, pressed: bool) {
         mod_api::dispatch_key(self, mod_api::mods(), key, pressed);
+    }
+
+    pub(super) fn native_mod_binding_event(&mut self, key: &str, pressed: bool) {
+        for id in self.settings.keys.mod_key_event(key, pressed) {
+            self.native_key_binding_pressed(&id);
+        }
     }
     /// A real window key event after handling, including repeats and consumed shortcuts.
     /// Receives the original physical/logical key, text, location, state and repeat flag.

@@ -2663,6 +2663,20 @@ impl HudRenderer {
             .is_some_and(|textures| textures.owns(texture))
     }
 
+    pub fn native_gui_texture_write(
+        &self,
+        queue: &wgpu::Queue,
+        texture: &NativeGuiTexture,
+        origin: [u32; 2],
+        size: [u32; 2],
+        bytes: &[u8],
+    ) -> std::result::Result<(), NativeGuiTextureError> {
+        self.native_textures
+            .get()
+            .ok_or(NativeGuiTextureError::StaleGeneration)?
+            .write(queue, texture, origin, size, bytes)
+    }
+
     fn native_gui_texture_insert(
         &self,
         device: &wgpu::Device,

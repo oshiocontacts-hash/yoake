@@ -222,6 +222,7 @@ pub struct WorldPrePost<'a> {
     pub device: &'a wgpu::Device,
     pub queue: &'a wgpu::Queue,
     pub encoder: &'a mut wgpu::CommandEncoder,
+    pub draws: &'a mut super::native_services::WorldDraws,
     /// The world colour the next finishing pass reads, not a pack's material/MRT targets.
     /// Copy it out before sampling it while drawing into it. Its format is the renderer's
     /// working format without sRGB, also when scaled or HDR output is enabled.
@@ -766,6 +767,7 @@ mod tests {
         let mut encoder = device.create_command_encoder(&Default::default());
         {
             let pre_post = WorldPrePost {
+                draws: &mut super::super::native_services::WorldDraws::default(),
                 device: &device,
                 queue: &queue,
                 encoder: &mut encoder,

@@ -1,0 +1,9 @@
+{
+  "hooks": [{"name":"key_binding_pressed","target":"horizon_client::game::native_hooks::Game<'_>::native_key_binding_pressed","side":"client","mod_api":{"contract":"listen"}}],
+  "helpers": [
+    {"name":"register_key_binding","target":"horizon_client::game::native_key_bindings::Game<'_>::native_register_key_binding"},
+    {"name":"key_binding_state","target":"horizon_client::game::native_key_bindings::Game<'_>::native_key_binding_state"}
+  ],
+  "rust_summary":"Namespaced, persistent Controls bindings and rising-edge input.",
+  "doc_summary":"`register_key_binding(id, default_key, category, label)` registers up to 256 bindings in vanilla Controls, using translation keys for category and label. IDs belong to the calling mod. `key_binding_pressed(id)` fires once on a physical rising edge; `key_binding_state(id)` reads the held state. Focus loss releases all bindings. Saved names use `key_key.mod.namespace/path` without changing vanilla mappings. Requires API @API:key_bindings@."
+}

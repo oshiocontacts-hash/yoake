@@ -215,6 +215,7 @@ pub mod native_item_behaviors;
 pub mod native_data_menus;
 pub mod native_item_render;
 mod native_block_sprites;
+mod native_camera;
 mod native_chat;
 mod native_claimed_items;
 mod native_client_items;
@@ -224,6 +225,8 @@ mod native_components;
 mod native_cooldowns;
 mod native_criteria;
 mod native_crosshair;
+mod native_key_bindings;
+mod native_post_shader;
 mod native_damage;
 mod native_data_maps;
 pub mod native_deferred;
@@ -237,6 +240,7 @@ mod native_falling;
 mod native_frames;
 mod native_gui_item;
 mod native_gui_textures;
+mod native_hud_layout;
 mod native_hud_visibility;
 pub(crate) mod native_hooks;
 mod native_inventories;
@@ -16003,8 +16007,6 @@ impl Game<'_> {
         let on_top = g.on_top;
         let colored_lights = if self.title.is_none() {
             let colored_lights = self.native_frame_visuals(camera, alpha, &mut lines);
-            self.native_world_lines
-                .append_visible(camera.to_array(), &mut lines);
             colored_lights
         } else {
             Vec::new()
@@ -16159,28 +16161,18 @@ impl Game<'_> {
         // Only native mods read it: no matrices or allocation per frame without one.
         let mods_read_camera = !horizon_client::mod_api::mods().is_empty();
         self.native_camera_frame = (mods_read_camera && !title).then(|| {
-            let partial = camera_alpha as f32;
-            horizon_client::mod_api::NativeCamera {
+            native_camera::snapshot(native_camera::CameraFrame {
                 position: camera.to_array(),
-                eye_height: self.view.eye_height_old
-                    + (self.view.eye_height - self.view.eye_height_old) * partial,
-                partial_tick: partial,
-                yaw,
-                pitch,
+                eye_height: [self.view.eye_height_old, self.view.eye_height],
+                partial_tick: camera_alpha as f32,
+                angles: [yaw, pitch, roll],
                 fov_degrees,
-                near: 0.05,
                 far: depth_far,
-                view: (bob * spin * horizon_client::camera::view_matrix_with_roll(yaw, pitch, roll))
-                    .to_cols_array(),
-                projection: glam::Mat4::perspective_rh(
-                    fov_degrees.to_radians(),
-                    size[0] as f32 / size[1].max(1) as f32,
-                    depth_far,
-                    0.05,
-                )
-                .to_cols_array(),
-                dimension: self.dim.id().to_string(),
-            }
+                size,
+                bob,
+                spin,
+                dimension: self.dim.id(),
+            })
         });
         let cull_pose = if roll == 0.0 {
             bob * spin
@@ -17523,6 +17515,22 @@ impl Game<'_> {
                 self.physical_buttons.remove(button);
             }
         }
+        match &event {
+            WindowEvent::KeyboardInput { event, .. } if !event.repeat => {
+                if let PhysicalKey::Code(key) = event.physical_key
+                    && let Some(name) = horizon_client::keybinds::key_name(key)
+                {
+                    self.native_mod_binding_event(name, event.state == ElementState::Pressed);
+                }
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                self.native_mod_binding_event(
+                    &horizon_client::keybinds::mouse_name(*button),
+                    *state == ElementState::Pressed,
+                );
+            }
+            _ => {}
+        }
         let mouse = if !self.pad_synthetic_input()
             && let WindowEvent::MouseInput { state, button, .. } = &event
         {
@@ -17548,6 +17556,7 @@ impl Game<'_> {
     }
     fn handle_window_event_inner(&mut self, event_loop: &dyn EventLoopCtl, mut event: WindowEvent) {
         if let WindowEvent::Focused(false) = &event {
+            self.settings.keys.release_mod_keys();
             self.physical_keys.clear();
             self.physical_buttons.clear();
             self.drag_button = None;

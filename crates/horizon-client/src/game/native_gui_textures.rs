@@ -44,6 +44,22 @@ impl Game<'_> {
             .native_gui_texture_create(&renderer.device, size, format, filter)
     }
 
+    pub(super) fn native_gui_texture_write(
+        &self,
+        texture: &NativeGuiTexture,
+        origin: [u32; 2],
+        size: [u32; 2],
+        bytes: &[u8],
+    ) -> Result<(), NativeGuiTextureError> {
+        let renderer = self
+            .renderer
+            .as_ref()
+            .ok_or(NativeGuiTextureError::RendererUnavailable)?;
+        renderer
+            .hud
+            .native_gui_texture_write(&renderer.queue, texture, origin, size, bytes)
+    }
+
     /// Append an ordered GUI draw in GUI units with normalized UVs and straight
     /// alpha ARGB tint. False means the handle or geometry is invalid; nothing
     /// is appended. API @API:gui_textures@.

@@ -12,6 +12,7 @@ use std::{
 
 const MAX_REGISTRATIONS: usize = 64;
 const MAX_BYTES: u64 = 128 * 1024 * 1024;
+const MAX_UPLOAD_BYTES: usize = 16 * 1024 * 1024;
 const MAX_RETAINED_RUNS: usize = 256;
 const RUN_POOL_SIZE: usize = 4;
 const BUNDLE_CACHE_SIZE: usize = 256;
@@ -190,6 +191,9 @@ pub enum NativeGuiTextureError {
     UnsupportedTexture,
     UnsupportedFormat,
     MissingSampledUsage,
+    MissingUploadUsage,
+    InvalidUpload,
+    UploadLimit,
     StaleGeneration,
     RegistrationLimit,
     MemoryLimit,
@@ -309,6 +313,41 @@ impl<'a> Iterator for TextureParts<'a> {
     }
 }
 
+fn upload_layout(
+    dimensions: [u32; 2],
+    origin: [u32; 2],
+    size: [u32; 2],
+    format: wgpu::TextureFormat,
+    length: usize,
+) -> Result<u32, NativeGuiTextureError> {
+    let bytes_per_pixel = match format {
+        wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Bgra8Unorm => 4,
+        wgpu::TextureFormat::Rgba16Float => 8,
+        _ => return Err(NativeGuiTextureError::UnsupportedFormat),
+    };
+    if size.contains(&0)
+        || origin
+            .iter()
+            .zip(size)
+            .zip(dimensions)
+            .any(|((&offset, extent), bound)| {
+                offset.checked_add(extent).is_none_or(|end| end > bound)
+            })
+    {
+        return Err(NativeGuiTextureError::InvalidUpload);
+    }
+    let row_bytes = size[0]
+        .checked_mul(bytes_per_pixel)
+        .ok_or(NativeGuiTextureError::InvalidUpload)?;
+    if u64::from(row_bytes) * u64::from(size[1]) != length as u64 {
+        return Err(NativeGuiTextureError::InvalidUpload);
+    }
+    if length > MAX_UPLOAD_BYTES {
+        return Err(NativeGuiTextureError::UploadLimit);
+    }
+    Ok(row_bytes)
+}
+
 fn check_limits(
     size: [u32; 2],
     max_side: u32,
@@ -356,6 +395,52 @@ impl NativeGuiTextures {
 
     pub(super) fn owns(&self, texture: &NativeGuiTexture) -> bool {
         texture.is_valid() && Arc::ptr_eq(&self.generation, &texture.0.generation)
+    }
+
+    pub(super) fn write(
+        &self,
+        queue: &wgpu::Queue,
+        texture: &NativeGuiTexture,
+        origin: [u32; 2],
+        size: [u32; 2],
+        bytes: &[u8],
+    ) -> Result<(), NativeGuiTextureError> {
+        if !self.owns(texture) {
+            return Err(NativeGuiTextureError::StaleGeneration);
+        }
+        let target = texture.texture();
+        if !target.usage().contains(wgpu::TextureUsages::COPY_DST) {
+            return Err(NativeGuiTextureError::MissingUploadUsage);
+        }
+        let row_bytes = upload_layout(
+            [target.width(), target.height()],
+            origin,
+            size,
+            target.format(),
+            bytes.len(),
+        )?;
+        queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                origin: wgpu::Origin3d {
+                    x: origin[0],
+                    y: origin[1],
+                    z: 0,
+                },
+                ..target.as_image_copy()
+            },
+            bytes,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(row_bytes),
+                rows_per_image: None,
+            },
+            wgpu::Extent3d {
+                width: size[0],
+                height: size[1],
+                depth_or_array_layers: 1,
+            },
+        );
+        Ok(())
     }
 
     pub(super) fn clear_bundles(&self) {
@@ -717,6 +802,41 @@ mod tests {
     }
 
     #[test]
+    fn uploads_validate_extent_format_length_and_budget() {
+        let format = wgpu::TextureFormat::Rgba8Unorm;
+        assert_eq!(upload_layout([4, 4], [1, 1], [2, 2], format, 16), Ok(8));
+        assert_eq!(
+            upload_layout([4, 4], [0, 0], [2, 2], wgpu::TextureFormat::Rgba16Float, 32),
+            Ok(16)
+        );
+        for (origin, size, length) in [
+            ([0, 0], [0, 1], 0),
+            ([3, 0], [2, 1], 8),
+            ([u32::MAX, 0], [1, 1], 4),
+            ([0, 0], [2, 2], 15),
+        ] {
+            assert_eq!(
+                upload_layout([4, 4], origin, size, format, length),
+                Err(NativeGuiTextureError::InvalidUpload)
+            );
+        }
+        assert_eq!(
+            upload_layout([4096; 2], [0; 2], [4096; 2], format, 4096 * 4096 * 4),
+            Err(NativeGuiTextureError::UploadLimit)
+        );
+        assert_eq!(
+            upload_layout(
+                [1; 2],
+                [0; 2],
+                [1; 2],
+                wgpu::TextureFormat::Rgba8UnormSrgb,
+                4
+            ),
+            Err(NativeGuiTextureError::UnsupportedFormat)
+        );
+    }
+
+    #[test]
     fn atlas_parts_need_no_texture_selection() {
         let parts: Vec<_> = TextureParts::new(&[], 6..24).collect();
         assert_eq!(parts.len(), 1);
@@ -910,6 +1030,37 @@ mod tests {
             plain_vertices
         );
         assert!(renderer.native_textures.get().is_none());
+
+        let upload = renderer
+            .native_gui_texture_create(
+                &device,
+                [1, 1],
+                wgpu::TextureFormat::Rgba8Unorm,
+                NativeGuiTextureFilter::Nearest,
+            )
+            .unwrap();
+        assert_eq!(
+            renderer.native_gui_texture_write(&queue, &upload, [0, 0], [1, 1], &[255, 0, 0, 255]),
+            Ok(())
+        );
+        let mut uploaded = HudBatch::new([1, 1]);
+        assert!(uploaded.native_gui_texture(
+            &upload,
+            [0.0, 0.0, 1.0, 1.0],
+            [0.0, 0.0, 1.0, 1.0],
+            u32::MAX,
+            None
+        ));
+        assert_eq!(
+            render(&mut renderer, &device, &queue, &uploaded, [1, 1], false).0,
+            vec![255, 0, 0, 255]
+        );
+        assert_eq!(
+            renderer.native_gui_texture_write(&queue, &upload, [1, 0], [1, 1], &[0; 4]),
+            Err(NativeGuiTextureError::InvalidUpload)
+        );
+        drop(uploaded);
+        drop(upload);
 
         assert!(matches!(
             renderer.native_gui_texture_create(

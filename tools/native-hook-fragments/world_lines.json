@@ -2,11 +2,14 @@
   "hooks": [],
   "helpers": [
     {"name": "draw_world_line", "target": "horizon_client::game::native_world_draw::Game<'_>::native_draw_world_line"},
+    {"name": "draw_world_quad", "target": "horizon_client::game::native_world_draw::Game<'_>::native_draw_world_quad"},
+    {"name": "draw_world_textured_quad", "target": "horizon_client::game::native_world_draw::Game<'_>::native_draw_world_textured_quad"},
+    {"name": "draw_world_billboard", "target": "horizon_client::game::native_world_draw::Game<'_>::native_draw_world_billboard"},
     {"name": "draw_post_tint", "target": "horizon_client::game::native_world_draw::Game<'_>::native_draw_post_tint"},
     {"name": "draw_post_vignette", "target": "horizon_client::game::native_world_draw::Game<'_>::native_draw_post_vignette"}
   ],
-  "rust_summary": "submitting bounded depth-tested world lines and full-screen tint or vignette for a client frame.",
-  "doc_summary": "`draw_world_line(start, end, color, width)` submits a world-space line during a client world frame hook. Color is ARGB and width is in pixels from 0.5 to 4; each frame accepts at most 256 lines. Endpoints must be distinct and finite; lines with either endpoint farther than 256 blocks from the camera are discarded. The host depth-tests and consumes the accepted lines for that frame. `draw_post_tint(color)` and `draw_post_vignette(color)` submit at most 16 full-screen effects per frame, after the world and before the HUD. Vignette alpha controls its darkening strength. Bundles need fragment @API:world_lines@.",
+  "rust_summary": "submitting bounded depth-tested world primitives and full-screen tint or vignette for a client frame.",
+  "doc_summary": "`draw_world_line(start, end, color, width)`, `draw_world_quad(corners, color)`, `draw_world_textured_quad(corners, uv, color, texture)` and `draw_world_billboard(center, size, uv, color, texture)` submit world-space primitives during a client world frame hook. Color is ARGB; line width is 0.5 to 4 pixels, billboard dimensions are positive and at most 256 blocks, and UV rectangles are normalized. Each frame accepts at most 256 primitives, depth-tested with no depth writes and consumed once; primitives beyond 256 camera blocks are discarded. Textures must be current same-renderer GUI handles. For late submission opt into RenderNeeds::pre_post and use WorldPrePost.draws directly with fragment @API:world_pre_post@. Empty queues add no passes or GPU allocations. `draw_post_tint(color)` and `draw_post_vignette(color)` submit at most 16 full-screen effects per frame, after the world and before the HUD. Vignette alpha controls its darkening strength. Bundles need fragment @API:world_lines@.",
   "comments": [
     "crates/horizon-client/src/game/native_world_draw.rs"
   ]

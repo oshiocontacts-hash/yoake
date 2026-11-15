@@ -1,11 +1,10 @@
 //! Frame-local, bounded world drawing requests for native source mods.
-use horizon_client::{gizmos, hud::HudAtlas, screen_effects};
+use horizon_client::hud::native_textures::NativeGuiTexture;
+use horizon_client::{gfx::native_services::WorldDraws, hud::HudAtlas, screen_effects};
 
 use super::Game;
 
-const MAX_LINES: usize = 256;
 const MAX_POST_EFFECTS: usize = 16;
-const MAX_DISTANCE: f64 = 256.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PostKind {
@@ -31,41 +30,17 @@ struct PostEffect {
 #[derive(Default)]
 pub(super) struct WorldLines {
     accepting: bool,
-    lines: Vec<gizmos::Line>,
     post_effects: Vec<PostEffect>,
 }
 
 impl WorldLines {
     pub(super) fn begin_frame(&mut self, in_world: bool) {
-        self.lines.clear();
         self.post_effects.clear();
         self.accepting = in_world;
     }
 
     pub(super) fn end_frame(&mut self) {
         self.accepting = false;
-    }
-
-    fn push(&mut self, line: gizmos::Line) -> Result<(), String> {
-        if !self.accepting {
-            return Err("world lines may only be submitted from the client world frame hook".into());
-        }
-        if !line
-            .start
-            .iter()
-            .chain(line.end.iter())
-            .all(|value| value.is_finite())
-            || !line.width.is_finite()
-            || !(0.5..=4.0).contains(&line.width)
-            || line.start == line.end
-        {
-            return Err("world lines need distinct finite endpoints and width from 0.5 to 4".into());
-        }
-        if self.lines.len() >= MAX_LINES {
-            return Err("world line frame limit reached".into());
-        }
-        self.lines.push(line);
-        Ok(())
     }
 
     fn push_post_effect(&mut self, effect: PostEffect) -> Result<(), String> {
@@ -77,19 +52,6 @@ impl WorldLines {
         }
         self.post_effects.push(effect);
         Ok(())
-    }
-
-    pub(super) fn append_visible(&mut self, camera: [f64; 3], output: &mut Vec<gizmos::Line>) {
-        output.extend(self.lines.drain(..).filter(|line| {
-            [line.start, line.end].iter().all(|point| {
-                point
-                    .iter()
-                    .zip(camera.iter())
-                    .map(|(value, origin)| (value - origin).powi(2))
-                    .sum::<f64>()
-                    <= MAX_DISTANCE * MAX_DISTANCE
-            })
-        }));
     }
 
     pub(super) fn append_post_effects(
@@ -150,12 +112,63 @@ impl Game<'_> {
         color: u32,
         width: f32,
     ) -> Result<(), String> {
-        self.native_world_lines.push(gizmos::Line {
-            start,
-            end,
-            color,
-            width,
-        })
+        self.native_world_draws()?.line(start, end, color, width)
+    }
+
+    pub fn native_draw_world_quad(
+        &mut self,
+        corners: [[f64; 3]; 4],
+        color: u32,
+    ) -> Result<(), String> {
+        self.native_world_draws()?.quad(corners, color)
+    }
+
+    pub fn native_draw_world_textured_quad(
+        &mut self,
+        corners: [[f64; 3]; 4],
+        uv: [f32; 4],
+        color: u32,
+        texture: &NativeGuiTexture,
+    ) -> Result<(), String> {
+        self.native_world_texture(texture)?;
+        self.native_world_draws()?
+            .textured_quad(corners, uv, color, texture)
+    }
+
+    pub fn native_draw_world_billboard(
+        &mut self,
+        center: [f64; 3],
+        size: [f32; 2],
+        uv: [f32; 4],
+        color: u32,
+        texture: Option<&NativeGuiTexture>,
+    ) -> Result<(), String> {
+        if let Some(texture) = texture {
+            self.native_world_texture(texture)?;
+        }
+        self.native_world_draws()?
+            .billboard(center, size, uv, color, texture)
+    }
+
+    fn native_world_draws(&mut self) -> Result<&mut WorldDraws, String> {
+        if !self.native_world_lines.accepting {
+            return Err("world drawing requires the client world frame hook".into());
+        }
+        self.renderer
+            .as_mut()
+            .map(|renderer| &mut renderer.native_services.draws)
+            .ok_or("renderer unavailable".into())
+    }
+
+    fn native_world_texture(&self, texture: &NativeGuiTexture) -> Result<(), String> {
+        if !self
+            .renderer
+            .as_ref()
+            .is_some_and(|renderer| renderer.hud.native_gui_texture_owns(texture))
+        {
+            return Err("world texture must belong to the current renderer".into());
+        }
+        Ok(())
     }
 
     /// Add a full-screen ARGB tint after the world, before the HUD, for this client frame.
@@ -183,61 +196,16 @@ impl Game<'_> {
 mod tests {
     use super::*;
 
-    fn line(start: [f64; 3], end: [f64; 3]) -> gizmos::Line {
-        gizmos::Line {
-            start,
-            end,
-            color: 0xff12_3456,
-            width: 2.0,
-        }
-    }
-
     #[test]
     fn requests_are_only_accepted_in_a_world_frame() {
         let mut lines = WorldLines::default();
-        assert!(lines.push(line([0.0; 3], [1.0; 3])).is_err());
+        assert!(!lines.accepting);
         lines.begin_frame(false);
-        assert!(lines.push(line([0.0; 3], [1.0; 3])).is_err());
+        assert!(!lines.accepting);
         lines.begin_frame(true);
-        assert!(lines.push(line([0.0; 3], [1.0; 3])).is_ok());
+        assert!(lines.accepting);
         lines.end_frame();
-        assert!(lines.push(line([0.0; 3], [1.0; 3])).is_err());
-    }
-
-    #[test]
-    fn rejects_invalid_geometry_and_limits_each_frame() {
-        let mut lines = WorldLines::default();
-        lines.begin_frame(true);
-        assert!(lines.push(line([f64::NAN, 0.0, 0.0], [0.0; 3])).is_err());
-        assert!(lines.push(line([0.0; 3], [0.0; 3])).is_err());
-        let mut invalid = line([0.0; 3], [1.0; 3]);
-        invalid.width = f32::INFINITY;
-        assert!(lines.push(invalid).is_err());
-        invalid.width = 4.1;
-        assert!(lines.push(invalid).is_err());
-        for _ in 0..MAX_LINES {
-            assert!(lines.push(line([0.0; 3], [1.0; 3])).is_ok());
-        }
-        assert!(lines.push(line([0.0; 3], [1.0; 3])).is_err());
-        lines.begin_frame(true);
-        assert!(lines.push(line([0.0; 3], [1.0; 3])).is_ok());
-    }
-
-    #[test]
-    fn renders_nearby_lines_once_and_discards_distant_lines() {
-        let mut lines = WorldLines::default();
-        let near = line([12.0, 0.0, 0.0], [15.0, 0.0, 0.0]);
-        lines.begin_frame(true);
-        lines.push(near).unwrap();
-        lines
-            .push(line([300.0, 0.0, 0.0], [301.0, 0.0, 0.0]))
-            .unwrap();
-        lines.push(line([0.0; 3], [f64::MAX, 0.0, 0.0])).unwrap();
-        let mut output = Vec::new();
-        lines.append_visible([0.0; 3], &mut output);
-        assert_eq!(output, vec![near]);
-        lines.append_visible([0.0; 3], &mut output);
-        assert_eq!(output, vec![near]);
+        assert!(!lines.accepting);
     }
 
     #[test]

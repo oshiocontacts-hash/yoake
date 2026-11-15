@@ -5,7 +5,7 @@
     {"name": "owner_mod", "target": "horizon_client::game::native_registry_names::Game<'_>::native_owner_mod"}
   ],
   "rust_summary": "looking up translated registry names and content namespace owners (`native_display_name`, `native_owner_mod`).",
-  "doc_summary": "`display_name(registry, id)` returns a current-language name for items, blocks, entity types, effects and enchantments, with the pinned English fallback when available. Missing non-item translations and unsupported registries return the ID. `owner_mod(namespace)` returns the active content owner's `(id, manifest name)`, Minecraft for `minecraft`, or `None` when unknown. Bundles need fragment @API:registry_names@.",
+  "doc_summary": "`display_name(registry, id)` accepts every registry, including server-synchronized registries: current-language then pinned English translation keys, with entity/effect/biome/stat/attribute aliases, item/block fallback, enchantment descriptions and jukebox-song text components. Registries without translated labels (for example sounds or loot tables) return the original ID, never an invented name. `owner_mod(namespace)` returns the active content owner's `(id, manifest name)`, Minecraft for `minecraft`, or `None` when unknown. Bundles need fragment @API:registry_names@.",
   "comments": [
     "crates/horizon-client/src/game/native_registry_names.rs"
   ]

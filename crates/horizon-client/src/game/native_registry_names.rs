@@ -5,17 +5,22 @@ use super::Game;
 fn registry_translation_key(registry: &str, id: &str) -> Option<String> {
     let registry = registry.strip_prefix("minecraft:").unwrap_or(registry);
     let prefix = match registry {
-        "item" => "item",
-        "block" => "block",
         "entity_type" => "entity",
         "mob_effect" => "effect",
-        _ => return None,
+        "worldgen/biome" => "biome",
+        "custom_stat" => "stat",
+        "attribute" => "attribute.name",
+        _ => registry,
     };
     let (namespace, path) = id.split_once(':').unwrap_or(("minecraft", id));
-    if namespace.is_empty() || path.is_empty() {
+    if prefix.is_empty() || namespace.is_empty() || path.is_empty() {
         return None;
     }
     let path = path.replace('/', ".");
+    if registry == "attribute" && namespace == "minecraft" {
+        return Some(format!("{prefix}.{path}"));
+    }
+    let prefix = prefix.replace('/', ".");
     Some(format!("{prefix}.{namespace}.{path}"))
 }
 
@@ -44,8 +49,8 @@ fn owner_mod(owners: &super::mods::ModOwners, namespace: &str) -> Option<(String
 
 #[allow(dead_code)]
 impl Game<'_> {
-    /// Returns the current-language display name for supported registries.
-    /// Unknown registries and missing non-item translations return the ID.
+    /// Returns the current-language display name using registry translation keys.
+    /// Registries without a translated name return the ID.
     /// API @API:registry_names@.
     pub(super) fn native_display_name(&self, registry: &str, id: &str) -> String {
         let registry = registry.strip_prefix("minecraft:").unwrap_or(registry);
@@ -79,6 +84,19 @@ impl Game<'_> {
                         .unwrap_or_else(|| enchantment.description.clone())
                 })
                 .unwrap_or_else(|| id.to_owned());
+        }
+        if registry == "jukebox_song" {
+            let canonical_id = if id.contains(':') {
+                Cow::Borrowed(id)
+            } else {
+                Cow::Owned(format!("minecraft:{id}"))
+            };
+            if let Some(song) = self.items().songs.get(canonical_id.as_ref()) {
+                return horizon_client::component::to_text(&song.description, &mut |_| {
+                    horizon_client::text::Text::empty()
+                })
+                .plain();
+            }
         }
         translated_registry_name(registry, id, |key| self.pack.names.display_get(key))
     }
@@ -147,8 +165,42 @@ mod tests {
             "example:missing"
         );
         assert_eq!(
-            translated_registry_name("unknown", "example:thing", |_| unreachable!()),
+            translated_registry_name("unknown", "example:thing", |_| None),
             "example:thing"
+        );
+    }
+
+    #[test]
+    fn registry_names_cover_engine_registries_without_inventing_labels() {
+        for (registry, key) in [
+            ("worldgen/biome", "biome.example.thing"),
+            ("attribute", "attribute.name.example.thing"),
+            ("custom_stat", "stat.example.thing"),
+            ("instrument", "instrument.example.thing"),
+            ("jukebox_song", "jukebox_song.example.thing"),
+            ("sound_event", "sound_event.example.thing"),
+            ("damage_type", "damage_type.example.thing"),
+            ("worldgen/structure", "worldgen.structure.example.thing"),
+            ("recipe", "recipe.example.thing"),
+            ("advancement", "advancement.example.thing"),
+            ("loot_table", "loot_table.example.thing"),
+            ("item_modifier", "item_modifier.example.thing"),
+            ("predicate", "predicate.example.thing"),
+            ("world_clock", "world_clock.example.thing"),
+            ("timeline", "timeline.example.thing"),
+        ] {
+            assert_eq!(
+                registry_translation_key(registry, "example:thing").as_deref(),
+                Some(key)
+            );
+            assert_eq!(
+                translated_registry_name(registry, "example:thing", |_| None),
+                "example:thing"
+            );
+        }
+        assert_eq!(
+            registry_translation_key("attribute", "minecraft:movement_speed").as_deref(),
+            Some("attribute.name.movement_speed")
         );
     }
 

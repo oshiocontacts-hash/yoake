@@ -59,6 +59,12 @@ fn screen_kind<'a>(
         return None;
     }
     if let Some(menu) = menu.filter(|menu| !menu.is_empty()) {
+        if menu
+            .strip_prefix("horizon:mount")
+            .is_some_and(|columns| columns.parse::<usize>().is_ok_and(|columns| columns <= 5))
+        {
+            return Some("minecraft:horse_inventory");
+        }
         return (menu == "inventory" || menu.starts_with("minecraft:")).then_some(menu);
     }
     local_kind.or(match context {
@@ -99,6 +105,10 @@ impl Game<'_> {
                 self.station
                     .as_ref()
                     .map(|station| station_kind(station.kind))
+                    .or_else(|| {
+                        self.mount_menu_columns()
+                            .map(|_| "minecraft:horse_inventory")
+                    })
                     .or_else(|| {
                         self.container_kind().and_then(|entity| {
                             if matches!(entity, BlockEntity::Chest(_)) {
@@ -200,9 +210,62 @@ mod tests {
     }
 
     #[test]
+    fn every_vanilla_menu_retains_its_type_and_mounts_are_normalized() {
+        for menu in [
+            "minecraft:generic_9x1",
+            "minecraft:generic_9x2",
+            "minecraft:generic_9x3",
+            "minecraft:generic_9x4",
+            "minecraft:generic_9x5",
+            "minecraft:generic_9x6",
+            "minecraft:generic_3x3",
+            "minecraft:crafter_3x3",
+            "minecraft:anvil",
+            "minecraft:beacon",
+            "minecraft:blast_furnace",
+            "minecraft:brewing_stand",
+            "minecraft:crafting",
+            "minecraft:enchantment",
+            "minecraft:furnace",
+            "minecraft:grindstone",
+            "minecraft:hopper",
+            "minecraft:lectern",
+            "minecraft:loom",
+            "minecraft:merchant",
+            "minecraft:shulker_box",
+            "minecraft:smithing",
+            "minecraft:smoker",
+            "minecraft:cartography_table",
+            "minecraft:stonecutter",
+        ] {
+            assert_eq!(
+                screen_kind("inventory", Some(menu), false, None, None),
+                Some(menu)
+            );
+        }
+        for columns in 0..=5 {
+            let menu = format!("horizon:mount{columns}");
+            assert_eq!(
+                screen_kind("inventory", Some(&menu), false, None, None),
+                Some("minecraft:horse_inventory")
+            );
+        }
+        assert_eq!(
+            screen_kind("inventory", Some("horizon:mount6"), false, None, None),
+            None
+        );
+    }
+
+    #[test]
     fn ambiguous_or_mod_screens_do_not_claim_a_vanilla_kind() {
         assert_eq!(
-            screen_kind("inventory", None, false, None, Some(NativeInventoryContext::Container)),
+            screen_kind(
+                "inventory",
+                None,
+                false,
+                None,
+                Some(NativeInventoryContext::Container)
+            ),
             None
         );
         assert_eq!(
