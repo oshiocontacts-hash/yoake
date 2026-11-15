@@ -11,6 +11,7 @@ use crate::friends_page::{
 use crate::glass_home_lists::{danger_button, danger_line, picture};
 use crate::glass_ui::{self as ui, white};
 use crate::social::{self, Answer, Role};
+use gpui::deferred;
 use horizon_theme::glass::{ink, radius};
 
 impl Launcher {
@@ -142,7 +143,12 @@ impl Launcher {
                     )
                     .child(
                         ui::text(15., FontWeight::NORMAL, ink::NOTE)
-                            .mt(px(8.))
+                            // Kana and kanji fill the title's line to its edges: more air.
+                            .mt(px(if i18n::current() == i18n::Language::Japanese {
+                                18.
+                            } else {
+                                8.
+                            }))
                             .child(tr("Friends and groups you share through the Yoake portal.")),
                     ),
             )
@@ -256,13 +262,15 @@ impl Launcher {
         })
     }
 
-    /// A button that asks twice: `label`, then `ask` in red with a way back.
+    /// A button that asks twice: `label`, then `ask` in red with a way back. `danger`: the first
+    /// step is red too (block, delete, kick).
     fn friends_guarded(
         &self,
         id: String,
         confirm: Confirm,
         label: &'static str,
         ask: &'static str,
+        danger: bool,
         cx: &mut Context<Self>,
         run: impl Fn(&mut Self) + 'static,
     ) -> AnyElement {
@@ -298,12 +306,20 @@ impl Launcher {
                 )
                 .into_any_element()
         } else {
-            ui::quiet(id, tr(label), 36., &t)
-                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                    this.friends.confirm = Some(confirm.clone());
-                    cx.notify();
-                }))
-                .into_any_element()
+            let ask_first = cx.listener(move |this, _: &ClickEvent, _, cx| {
+                this.friends.confirm = Some(confirm.clone());
+                cx.notify();
+            });
+            if danger {
+                // What ends something for good wears the danger red from the start.
+                keyboard(danger_button(id, tr(label).into()), &t)
+                    .on_click(ask_first)
+                    .into_any_element()
+            } else {
+                ui::quiet(id, tr(label), 36., &t)
+                    .on_click(ask_first)
+                    .into_any_element()
+            }
         }
     }
 
@@ -317,13 +333,61 @@ impl Launcher {
         actions: Vec<AnyElement>,
         cx: &mut Context<Self>,
     ) -> Stateful<Div> {
+        self.friends_row_badged(key, icon, name, None, note, actions, cx)
+    }
+
+    /// A row whose name may be followed by a small mark: "(You)".
+    #[allow(clippy::too_many_arguments)]
+    fn friends_row_badged(
+        &mut self,
+        key: String,
+        icon: &'static str,
+        name: String,
+        badge: Option<String>,
+        note: String,
+        actions: Vec<AnyElement>,
+        cx: &mut Context<Self>,
+    ) -> Stateful<Div> {
         let t = self.theme;
         let key = SharedString::from(key);
         let hovered = self.list_hover.as_ref() == Some(&key);
         let hover = self.list_hover_listener(key.clone(), cx);
         ui::list_row(key, hovered, hover, &t)
             .child(picture(None, icon))
-            .child(ui::list_text(name, note))
+            .child(
+                // `ui::list_text`, with the mark after the name.
+                div()
+                    .relative()
+                    .flex()
+                    .flex_col()
+                    .flex_1()
+                    .min_w_0()
+                    .child(
+                        div()
+                            .flex()
+                            .items_baseline()
+                            .gap(px(6.))
+                            .min_w_0()
+                            .child(
+                                ui::text(14., FontWeight::MEDIUM, ink::FULL)
+                                    .line_height(px(21.))
+                                    .truncate()
+                                    .child(name),
+                            )
+                            .children(badge.map(|badge| {
+                                ui::text(12.5, FontWeight::NORMAL, ink::QUIET)
+                                    .line_height(px(21.))
+                                    .flex_none()
+                                    .child(badge)
+                            })),
+                    )
+                    .child(
+                        ui::text(13., FontWeight::NORMAL, ink::QUIET)
+                            .line_height(px(19.5))
+                            .truncate()
+                            .child(note),
+                    ),
+            )
             .children(
                 (!actions.is_empty()).then(|| {
                     div()
@@ -335,6 +399,111 @@ impl Launcher {
                         .children(actions)
                 }),
             )
+    }
+
+    /// A member's menu button and its menu (the launcher's own popover, as a world's): role
+    /// changes and handing the group over (asked twice). Kick stays outside, in red.
+    fn friends_member_menu(
+        &mut self,
+        member: &social::Member,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let t = self.theme;
+        let key = SharedString::from(format!("fr-member-{}-menu", member.principal_id));
+        let open = self.list_menu.as_ref().is_some_and(|(k, _)| *k == key);
+        let more = ui::icon_button(
+            SharedString::from(format!("{key}-more")),
+            "more-horizontal",
+            36.,
+            17.,
+            radius::CONTROL,
+            open,
+            &t,
+        )
+        .on_click(cx.listener({
+            let key = key.clone();
+            move |this, event: &ClickEvent, _, cx| {
+                if !this.closed_by_this_press(event) {
+                    this.list_menu = match this.list_menu.take() {
+                        Some((k, _)) if k == key => None,
+                        _ => Some((key.clone(), false)),
+                    };
+                }
+                cx.stop_propagation();
+                cx.notify();
+            }
+        }));
+        let mut holder = div().relative().child(more);
+        if open {
+            let confirm = self.list_menu.as_ref().is_some_and(|(_, c)| *c);
+            let (to, label, icon) = if member.role == Role::Admin {
+                (Role::Member, tr("Make member"), "user")
+            } else {
+                (Role::Admin, tr("Make admin"), "user-add-01")
+            };
+            let (role_id, owner_id) = (member.principal_id.clone(), member.principal_id.clone());
+            let mut menu = ui::popover(290.)
+                .id(SharedString::from(format!("{key}-popover")))
+                .occlude()
+                .on_mouse_down_out(cx.listener(|this, event: &MouseDownEvent, _, cx| {
+                    this.list_menu = None;
+                    this.menu_closed_at = Some(event.position);
+                    cx.notify();
+                }))
+                .child(
+                    ui::menu_row(
+                        SharedString::from(format!("{key}-role")),
+                        icon,
+                        label,
+                        false,
+                        &t,
+                    )
+                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        let id = role_id.clone();
+                        this.list_menu = None;
+                        this.friends_group_act(FriendAction::SetRole, move |api, group| {
+                            api.set_role(group, &id, to).map(|()| Outcome::Done)
+                        });
+                        cx.notify();
+                    })),
+                );
+            if !member.principal.is_guest() {
+                menu = menu.child(
+                    ui::menu_row(
+                        SharedString::from(format!("{key}-owner")),
+                        "favourite",
+                        if confirm {
+                            tr("Click again to hand over the group")
+                        } else {
+                            tr("Make owner")
+                        },
+                        false,
+                        &t,
+                    )
+                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        match this.list_menu.as_mut() {
+                            Some((_, confirm)) if !*confirm => *confirm = true,
+                            _ => {
+                                let id = owner_id.clone();
+                                this.list_menu = None;
+                                this.friends_group_act(
+                                    FriendAction::Transfer,
+                                    move |api, group| {
+                                        api.transfer_ownership(group, &id)
+                                            .map(|()| Outcome::Done)
+                                    },
+                                );
+                            }
+                        }
+                        cx.notify();
+                    })),
+                );
+            }
+            holder = holder.child(
+                deferred(div().absolute().top(px(44.)).right_0().child(menu)).with_priority(1),
+            );
+        }
+        holder.into_any_element()
     }
 
     /// A text field of the page, in the glass look's `FIELD`.
@@ -455,6 +624,7 @@ impl Launcher {
             Confirm::NewCode,
             "New code",
             "Click again to replace it",
+            false,
             cx,
             |this| this.friends_new_code(),
         );
@@ -532,6 +702,7 @@ impl Launcher {
                 Confirm::Remove(p.id.clone()),
                 "Remove",
                 "Click again to remove",
+                false,
                 cx,
                 {
                     let id = p.id.clone();
@@ -543,6 +714,7 @@ impl Launcher {
                 Confirm::Block(p.id.clone()),
                 "Block",
                 "Click again to block",
+                true,
                 cx,
                 {
                     let id = p.id.clone();
@@ -871,6 +1043,7 @@ impl Launcher {
                 Confirm::DeleteGroup,
                 "Delete group",
                 "Click again to delete the group",
+                true,
                 cx,
                 |this| {
                     this.friends_group_act(FriendAction::DeleteGroup, |api, group| {
@@ -884,6 +1057,7 @@ impl Launcher {
                 Confirm::Leave,
                 "Leave group",
                 "Click again to leave",
+                false,
                 cx,
                 |this| this.friends_leave(),
             ));
@@ -1111,59 +1285,16 @@ impl Launcher {
             }
             if !you && member.role != Role::Owner {
                 if owner {
-                    let (id, to) = (
-                        member.principal_id.clone(),
-                        if member.role == Role::Admin {
-                            Role::Member
-                        } else {
-                            Role::Admin
-                        },
-                    );
-                    let label = if member.role == Role::Admin {
-                        tr("Make member")
-                    } else {
-                        tr("Make admin")
-                    };
-                    actions.push(
-                        ui::quiet(
-                            SharedString::from(format!("member-{}-role", member.principal_id)),
-                            label,
-                            36.,
-                            &t,
-                        )
-                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                            let id = id.clone();
-                            this.friends_group_act(FriendAction::SetRole, move |api, group| {
-                                api.set_role(group, &id, to).map(|()| Outcome::Done)
-                            });
-                            cx.notify();
-                        }))
-                        .into_any_element(),
-                    );
-                    if !p.is_guest() {
-                        let id = member.principal_id.clone();
-                        actions.push(self.friends_guarded(
-                            format!("member-{}-owner", member.principal_id),
-                            Confirm::Transfer(member.principal_id.clone()),
-                            "Make owner",
-                            "Click again to hand over the group",
-                            cx,
-                            move |this| {
-                                let id = id.clone();
-                                this.friends_group_act(FriendAction::Transfer, move |api, group| {
-                                    api.transfer_ownership(group, &id).map(|()| Outcome::Done)
-                                })
-                            },
-                        ));
-                    }
+                    actions.push(self.friends_member_menu(&member, cx));
                 }
                 if owner || (role == Role::Admin && member.role == Role::Member) {
                     let id = member.principal_id.clone();
                     actions.push(self.friends_guarded(
                         format!("member-{}-kick", member.principal_id),
                         Confirm::Kick(member.principal_id.clone()),
-                        "Remove",
-                        "Click again to remove and ban",
+                        "Kick",
+                        "Click again to kick and ban",
+                        true,
                         cx,
                         move |this| {
                             let id = id.clone();
@@ -1174,15 +1305,11 @@ impl Launcher {
                     ));
                 }
             }
-            let name = if you {
-                trf("{name} (you)", &[("name", &p.display_name)])
-            } else {
-                p.display_name.clone()
-            };
-            body = body.child(self.friends_row(
+            body = body.child(self.friends_row_badged(
                 format!("fr-member-{}", member.principal_id),
                 "user",
-                name,
+                p.display_name.clone(),
+                you.then(|| tr("(You)").to_string()),
                 trf(
                     "{role} · joined {date}",
                     &[

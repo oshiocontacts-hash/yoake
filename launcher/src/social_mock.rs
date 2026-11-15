@@ -134,7 +134,7 @@ impl MockSocial {
         state.people.push(Principal {
             id: ME.into(),
             kind: "member".into(),
-            display_name: "You".into(),
+            display_name: "Yuki".into(),
         });
         state.my_code = state.code(FRIEND_PREFIX);
         Self { state: Mutex::new(state) }
@@ -270,7 +270,7 @@ impl SocialBackend for MockSocial {
         Ok(Me {
             id: ME.into(),
             kind: "member".into(),
-            display_name: "You".into(),
+            display_name: "Yuki".into(),
             friend_code: s.my_code.clone(),
             has_friend_code: true,
         })

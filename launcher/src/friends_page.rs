@@ -52,7 +52,6 @@ pub(super) enum Confirm {
     Remove(String),
     Block(String),
     Kick(String),
-    Transfer(String),
     Leave,
     DeleteGroup,
 }
@@ -199,6 +198,10 @@ pub(super) struct Friends {
     loaded_at: Option<Instant>,
     /// `HORIZON_LAUNCHER_FRIENDS_TAB=group:<id, role or name>`: a group to open once the list is in.
     preview_group: Option<String>,
+    /// `HORIZON_LAUNCHER_FRIENDS_NOTE`, said once the language is set.
+    preview_note: Option<bool>,
+    /// `HORIZON_LAUNCHER_FRIENDS_MENU=1`: the first member's menu open on the group page.
+    preview_menu: bool,
 }
 
 impl Friends {
@@ -233,6 +236,8 @@ impl Friends {
             refresh_again: false,
             loaded_at: None,
             preview_group: None,
+            preview_note: None,
+            preview_menu: false,
         }
     }
 
@@ -254,15 +259,10 @@ impl Friends {
             }
             Err(_) => {}
         }
-        page.note = match std::env::var("HORIZON_LAUNCHER_FRIENDS_NOTE").as_deref() {
-            Ok("error") => Some((
-                false,
-                error_text(
-                    FriendAction::SendRequest,
-                    SocialError::Api(social::ApiCode::NotFound),
-                ),
-            )),
-            Ok("ok") => Some((true, tr(done_en(FriendAction::SendRequest)).to_string())),
+        page.preview_menu = std::env::var_os("HORIZON_LAUNCHER_FRIENDS_MENU").is_some();
+        page.preview_note = match std::env::var("HORIZON_LAUNCHER_FRIENDS_NOTE").as_deref() {
+            Ok("error") => Some(false),
+            Ok("ok") => Some(true),
             _ => None,
         };
         page
@@ -558,7 +558,7 @@ pub(super) fn done_en(action: FriendAction) -> &'static str {
         A::CreateInvite => "Invite created. Copy its code now: the portal shows it only once.",
         A::RevokeInvite => "Invite revoked.",
         A::SetRole => "Role changed.",
-        A::Kick => "Member removed. They cannot rejoin until the ban is lifted.",
+        A::Kick => "Member kicked and banned. They cannot rejoin until the ban is lifted.",
         A::LiftBan => "Ban lifted.",
         A::Transfer => "You handed the group over.",
     }
@@ -826,6 +826,37 @@ impl Launcher {
                 }
             }
         }
+        if self.friends.preview_menu {
+            if let Some(detail) = &self.friends.detail {
+                let me = self.friends.my_id().to_string();
+                let first = detail
+                    .members
+                    .iter()
+                    .find(|m| m.principal_id != me && m.role != social::Role::Owner);
+                if let Some(member) = first {
+                    self.list_menu = Some((
+                        SharedString::from(format!("fr-member-{}-menu", member.principal_id)),
+                        false,
+                    ));
+                    self.friends.preview_menu = false;
+                    changed = true;
+                }
+            }
+        }
+        if let Some(good) = self.friends.preview_note.take() {
+            self.friends.note = Some(if good {
+                (true, tr(done_en(FriendAction::SendRequest)).to_string())
+            } else {
+                (
+                    false,
+                    error_text(
+                        FriendAction::SendRequest,
+                        SocialError::Api(social::ApiCode::NotFound),
+                    ),
+                )
+            });
+            changed = true;
+        }
         if self.friends.open_group.is_none() && !self.friends.groups.is_empty() {
             if let Some(want) = self.friends.preview_group.take() {
                 let found = self.friends.groups.iter().find(|g| {
@@ -985,6 +1016,9 @@ mod tests {
             "Admin",
             "{kind} · friends since {date}",
             "{kind} · sent {date}",
+            "(You)",
+            "Kick",
+            "Click again to kick and ban",
         ] {
             assert_ne!(tr_in(Language::Japanese, en), en, "{en:?}");
         }
@@ -1026,7 +1060,7 @@ mod tests {
         assert_eq!(page.status, FriendsStatus::Idle);
         read_all(&mut page, &api);
         assert_eq!(page.status, FriendsStatus::Ready);
-        assert_eq!(page.me.as_ref().unwrap().display_name, "You");
+        assert_eq!(page.me.as_ref().unwrap().display_name, "Yuki");
         assert_eq!(
             (
                 page.list.friends.len(),

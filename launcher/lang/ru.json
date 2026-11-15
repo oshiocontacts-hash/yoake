@@ -1191,12 +1191,10 @@
   "Invite": "Invite",
   "{used} of {max} used · expires {date}": "{used} of {max} used · expires {date}",
   "Members · {count}": "Members · {count}",
-  "{name} (you)": "{name} (you)",
   "Make member": "Make member",
   "Make admin": "Make admin",
   "Make owner": "Make owner",
   "Click again to hand over the group": "Click again to hand over the group",
-  "Click again to remove and ban": "Click again to remove and ban",
   "Banned · {count}": "Banned · {count}",
   "Lift ban": "Lift ban",
   "Banned {date}": "Banned {date}",
@@ -1241,7 +1239,9 @@
   "Invite created. Copy its code now: the portal shows it only once.": "Invite created. Copy its code now: the portal shows it only once.",
   "Invite revoked.": "Invite revoked.",
   "Role changed.": "Role changed.",
-  "Member removed. They cannot rejoin until the ban is lifted.": "Member removed. They cannot rejoin until the ban is lifted.",
   "Ban lifted.": "Ban lifted.",
-  "You handed the group over.": "You handed the group over."
+  "You handed the group over.": "You handed the group over.",
+  "(You)": "(You)",
+  "Click again to kick and ban": "Click again to kick and ban",
+  "Member kicked and banned. They cannot rejoin until the ban is lifted.": "Member kicked and banned. They cannot rejoin until the ban is lifted."
 }
