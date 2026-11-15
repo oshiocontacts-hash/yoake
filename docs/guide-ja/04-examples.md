@@ -1,0 +1,176 @@
+# 4. サンプル MOD 集を読む
+
+`crates/yoake-wasm-sdk/examples/` には、目的別のサンプル MOD が入っています。
+自分が作りたい機能に近いサンプルを開いて、`yak.toml` と `src/lib.rs` を真似するのが一番の近道です。
+
+---
+
+## 4-1. サンプル一覧（何を見せているか・使うフックと service）
+
+| サンプル名 | ワールド | 何を見せているか | 主なフック（`hook::*`） | 主なサービス・ホスト呼び出し |
+|---|---|---|---|---|
+| `hello`（および `hello-std`） | `client-mod` | 最小のクライアント MOD。ティック数を数えて HUD に背景矩形と文字を描画し、設定ボタン名を返す（`hello` は `#![no_std]`、`hello-std` は `std` 使用） | `TICK`, `HUD`, `SETTINGS`（`hello-std` は `TICK`, `KEY`, `HUD`） | `yoake_wasm_sdk::log`, `hud::rect`, `hud::text` |
+| `hud-item` | `client-full` | 毎フレーム HUD に半透明パネル・`minecraft:diamond` のアイテムアイコン・ラベル文字を描画する | `HUD` | なし（`et::HudOutcome` に `Rect`, `Item`, `Text` を詰めて返す） |
+| `server-storage` | `server-full` | `/visits` コマンドを追加し、プレイヤー UUID ごとの訪問回数をワールドストレージに保存して返答する | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::storage_get`, `services::storage_put`, `services::tell` |
+| `config-demo` | `client-full` | `yak.toml` の `[config]` で定義した文字と色を読み取り、設定変更時に `config_changed` で HUD 表示を更新する | `HUD`, `CONFIG_CHANGED`（＋ `init`） | `services::config_get` |
+| `permission-demo` | `server-full` | `/secret` コマンドを追加し、`has_permission` で `"secret.access"` 権限ノードの有無を判定して返答を変える | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::has_permission`, `services::tell` |
+| `full-demo` | `client-full` / `server-full` | クライアント（HUD・ホットバー非表示・ツールチップ追加・FOV 変更）、サーバー（`/wasmping`・`/wasmsvc` で各種サービス巡回）、別 MOD 連携（`peer`）の総合デモ | client: `HUD`, `GUI_LAYER_PRE`, `TOOLTIP`, `COMPUTE_FOV` / server: `REGISTER_COMMANDS`, `PERFORM_COMMAND`, `SERVER_TICK` / peer: `handle_call` | `tell`, `give_items`, `break_block_as`, `edit_blocks`, `run_command`, `mod_call` ほか多数 |
+| `full-services` | `client-full` / `server-full` | 設定・ストレージ（通常および分割 blob）・権限チェックの一連の操作と、権限未宣言時に `"permission denied: ..."` で拒否される動作の検証 | `CONFIG_CHANGED`（＋ client `init` / server `handle_call`） | `config_get`, `config_set`, `storage_get`, `storage_put`, `storage_delete`, `storage_blob_begin/write/commit/abort/read`, `has_permission` |
+
+---
+
+## 4-2. 各サンプルのポイントとコード抜粋
+
+### ① `hello` / `hud-item`（HUD に文字やアイテムを描く）
+
+- 19 個の基本フックだけで足りる場合は `hello` のように `yoake_wasm_sdk::Mod` と `export_mod!` を使います。
+- アイテムアイコン（`HudCommand::Item`）やツールチップ変更などフルカタログの機能を使う場合は、`hud-item` のように `yak.toml` に `world = "client-full"` を書き、`ClientMod` と `export_client_full!` を使います。
+
+`crates/yoake-wasm-sdk/examples/hud-item/src/lib.rs` より抜粋:
+
+```rust
+        // 2. A 16x16 item icon for "minecraft:diamond".
+        //    `components` holds optional binary item component data; an empty
+        //    Vec means a default stack with no extra components.
+        let icon = et::HudCommand::Item(et::HudItem {
+            stack: et::ItemStack {
+                id: "minecraft:diamond".to_owned(),
+                count: 1,
+                components: Vec::new(),
+            },
+            x: panel_x + 4.0,
+            y: panel_y + 4.0,
+            decorations: true,
+        });
+```
+
+### ② `server-storage`（コマンド追加とデータ保存）
+
+サーバー側で動く MOD は `yak.toml` の `[wasm]` に `server = "bin/wasm/..."` を指定します（サーバーモジュールは常に `server-full` ワールドになります）。
+`storage_get` や `storage_put` を使うには、`yak.toml` の `[wasm]` に `permissions = ["service.storage"]` が必要です。
+
+`crates/yoake-wasm-sdk/examples/server-storage/src/lib.rs` より抜粋:
+
+```rust
+    fn register_commands(&mut self, mut commands: Vec<et::NativeCommand>) -> Vec<et::NativeCommand> {
+        commands.push(et::NativeCommand {
+            usage: "visits".to_owned(),
+            level: 0,
+        });
+        commands
+    }
+```
+
+```rust
+        let current = match services::storage_get(&key, types::StorageScope::World) {
+            Ok(Some(bytes)) => decode_u64(&bytes),
+            Ok(None) => 0,
+            Err(err) => {
+                let _ = services::tell(&format!("Failed to read visits: {err}"), &uuid);
+                return true;
+            }
+        };
+
+        let next = current.saturating_add(1);
+        if let Err(err) =
+            services::storage_put(&key, types::StorageScope::World, &next.to_le_bytes())
+        {
+            let _ = services::tell(&format!("Failed to save visits: {err}"), &uuid);
+            return true;
+        }
+```
+
+- 保存先（`StorageScope`）は、サーバー側ではワールドごとの `World`（`<world>/yoake-data/<mod-id>/store.bin`）と全ワールド共通の `Global`（`<game>/yoake-data/<mod-id>/global/store.bin`）、クライアント側では `Client`（`<game>/yoake-data/<mod-id>/client/store.bin`）を選べます。
+
+---
+
+## 4-3. `yak.toml` での `[wasm] permissions`・`[config]`・`[permissions."node"]` の書き方
+
+MOD が特別な機能（設定の読み書き、ストレージ保存、権限チェック、サーバーコマンド実行など）を使うときは、`yak.toml` に宣言を書きます。
+
+### `[wasm] permissions` の種類
+
+`crates/horizon-mods/src/yak/manifest.rs` で定義されている指定可能な権限（capability）は次の 5 つです。
+
+- `"service.config"`: `config_get` / `config_set` / `config_dir` の呼び出しと、同期設定の受信
+- `"service.storage"`: `storage_*` および `world_storage_*` / `config_read` / `config_write` の呼び出し
+- `"service.permissions"`: サーバーモジュールからの `has_permission` の呼び出し（`wasm.server` が必須）
+- `"service.commands"`: サーバーモジュールからの `run_command` の呼び出し（`wasm.server` が必須）
+- `"service.http"`: `[http] hosts` と対になる HTTP 権限宣言（ただし `docs/yoake-wasm-dev.md` の通り HTTP 通信自体は現時点では未接続）
+
+### `[config]` の書き方（`examples/config-demo/yak.toml` より抜粋）
+
+```toml
+[wasm]
+interface = "1.0"
+client = "bin/wasm/config-demo.wasm"
+world = "client-full"
+permissions = ["service.config"]
+
+[config.text]
+type = "string"
+side = "client"
+default = "Config Demo HUD"
+comment = "Text shown on the HUD banner."
+label.en_us = "HUD Text"
+label.ja_jp = "HUDテキスト"
+
+[config.color]
+type = "enum"
+side = "client"
+default = "gold"
+values = ["gold", "aqua", "lime", "white"]
+comment = "Colour preset for the HUD banner text."
+label.en_us = "HUD Colour"
+label.ja_jp = "HUD文字色"
+```
+
+さらに数値範囲（`min` / `max`）やリスト（`type = "list"`）、サーバーからクライアントへ同期する `side = "synced"` なども使えます（`docs/yoake-wasm-dev.md` より抜粋）:
+
+```toml
+[config.enabled]
+type = "bool"
+side = "server"
+default = true
+label.en_us = "Enabled"
+label.ja_jp = "有効"
+
+[config.radius]
+type = "int"
+side = "synced"
+default = 8
+min = 1
+max = 16
+
+[config.layers]
+type = "list"
+element = "enum"
+side = "server"
+default = ["surface"]
+values = ["surface", "deep"]
+```
+
+- **使える型（`type`）**: `"bool"`, `"int"`, `"float"`, `"string"`, `"enum"`, `"list"`（`list` の場合は `element` に `"list"` 以外の要素型を指定します）。
+- **使えるサイド（`side`）**: `"client"`（クライアント専用）、`"server"`（サーバー専用）、`"synced"`（サーバーで管理し、接続中のクライアントへ自動同期）。
+- `[config]` を宣言した MOD は、ゲーム内の MOD 一覧画面の **Configure** ボタンから自動で設定画面が開けるようになります。
+
+### `[permissions."node"]` の書き方（`examples/permission-demo/yak.toml` より抜粋）
+
+```toml
+[wasm]
+interface = "1.0"
+server = "bin/wasm/permission-demo.wasm"
+permissions = ["service.permissions"]
+
+[permissions."secret.access"]
+default_op_level = 2
+```
+
+- ノード名（`"secret.access"` など）はドット（`.`）区切りの英数字・`_`・`-` で書き、`default_op_level` には `0`〜`4` の OP レベルを指定します。
+- `services::has_permission("secret.access", &uuid)` を呼ぶと、まずワールドフォルダ内の `<world>/permissions.toml` にプレイヤー別・グループ別の明示的な許可／拒否があるかを調べ、無ければ `default_op_level` 以上の OP 権限を持っているかで判定します。
+
+---
+
+## 次のステップ
+
+MOD を改造していてエラーに出会ったときは、[5. よくあるエラーと直し方（`05-errors.md`）](./05-errors.md) を開いて原因と直し方を確認しましょう。
