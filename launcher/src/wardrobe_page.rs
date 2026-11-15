@@ -69,6 +69,9 @@ struct Trip {
     result: Result<(), Error>,
 }
 
+/// The made-up account of `wardrobe_preview`, whose name is drawn translated.
+const PREVIEW_UUID: &str = "00000000000000000000000000000001";
+
 /// The launcher's data folder for the Wardrobe: per-account outfits, item files by hash.
 fn dir() -> std::path::PathBuf {
     backend::data_dir().join("wardrobe")
@@ -512,7 +515,8 @@ impl Launcher {
             claim: claim.clone(),
         };
         let account = account::Account {
-            uuid: "00000000000000000000000000000001".into(),
+            uuid: PREVIEW_UUID.into(),
+            // Translated where it is drawn: the language can change after this runs.
             name: "Preview".into(),
             skin: None,
             cape: None,
@@ -768,7 +772,11 @@ impl Launcher {
             .child(
                 glass_ui::text(14., FontWeight::NORMAL, 1.)
                     .text_color(gpui::white())
-                    .child(me.name.clone()),
+                    .child(if me.uuid == PREVIEW_UUID {
+                        tr(&me.name).to_string()
+                    } else {
+                        me.name.clone()
+                    }),
             )
             .when_some(line, |d, c| d.border_b_2().border_color(c));
         let turn = button("wardrobe-turn", "Turn", Kind::Ghost, &t).on_click(cx.listener(

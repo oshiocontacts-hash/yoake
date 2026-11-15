@@ -3694,8 +3694,7 @@ impl Launcher {
                                 .flex_col()
                                 .items_start()
                                 .gap(px(16.))
-                                .px(px(12.))
-                                .py(px(28.))
+                                .p(px(20.))
                                 .child(
                                     glass_ui::text(14., FontWeight::NORMAL, ink::NOTE)
                                         .child(tr("No version installed yet.")),
