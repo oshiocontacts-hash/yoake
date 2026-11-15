@@ -363,16 +363,19 @@ pub trait SocialBackend: Send + Sync {
     fn transfer_ownership(&self, group: &str, principal_id: &str) -> Result<()>;
 }
 
-/// What a backend has when this build has no portal.
-pub struct NoPortal;
+/// A backend whose every call fails the same way: what a build with no portal has (`NO_PORTAL`),
+/// and what `HORIZON_LAUNCHER_SOCIAL=signedout` shows for screenshots.
+pub struct Failing(pub SocialError);
+
+pub const NO_PORTAL: Failing = Failing(SocialError::NotAvailable);
 
 macro_rules! unavailable {
     ($($name:ident($($arg:ident: $ty:ty),*) -> $ret:ty;)*) => {
-        $(fn $name(&self, $($arg: $ty),*) -> $ret { let _ = ($(&$arg,)*); Err(SocialError::NotAvailable) })*
+        $(fn $name(&self, $($arg: $ty),*) -> $ret { let _ = ($(&$arg,)*); Err(self.0) })*
     };
 }
 
-impl SocialBackend for NoPortal {
+impl SocialBackend for Failing {
     unavailable! {
         me() -> Result<Me>;
         rotate_friend_code() -> Result<Me>;
@@ -734,12 +737,14 @@ impl Transport for UreqTransport {
 pub fn configured(data_dir: &std::path::Path) -> std::sync::Arc<dyn SocialBackend> {
     match std::env::var("HORIZON_LAUNCHER_SOCIAL").as_deref() {
         Ok("mock") => return std::sync::Arc::new(crate::social_mock::MockSocial::sample()),
-        Ok("unavailable") => return std::sync::Arc::new(NoPortal),
+        Ok("unavailable") => return std::sync::Arc::new(NO_PORTAL),
+        Ok("signedout") => return std::sync::Arc::new(Failing(SocialError::SignedOut)),
+        Ok("offline") => return std::sync::Arc::new(Failing(SocialError::Offline)),
         _ => {}
     }
     match UreqTransport::configured(data_dir) {
         Some(transport) => std::sync::Arc::new(HttpSocial::new(transport)),
-        None => std::sync::Arc::new(NoPortal),
+        None => std::sync::Arc::new(NO_PORTAL),
     }
 }
 
@@ -987,7 +992,8 @@ mod tests {
 
     #[test]
     fn a_build_without_a_portal_has_no_social() {
-        assert_eq!(NoPortal.me(), Err(SocialError::NotAvailable));
-        assert_eq!(NoPortal.redeem_invite("x"), Err(SocialError::NotAvailable));
+        assert_eq!(NO_PORTAL.me(), Err(SocialError::NotAvailable));
+        assert_eq!(NO_PORTAL.redeem_invite("x"), Err(SocialError::NotAvailable));
+        assert_eq!(Failing(SocialError::SignedOut).friends(), Err(SocialError::SignedOut));
     }
 }

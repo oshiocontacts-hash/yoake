@@ -197,6 +197,8 @@ pub(super) struct Friends {
     refreshing: bool,
     refresh_again: bool,
     loaded_at: Option<Instant>,
+    /// `HORIZON_LAUNCHER_FRIENDS_TAB=group:<id, role or name>`: a group to open once the list is in.
+    preview_group: Option<String>,
 }
 
 impl Friends {
@@ -230,7 +232,40 @@ impl Friends {
             refreshing: false,
             refresh_again: false,
             loaded_at: None,
+            preview_group: None,
         }
+    }
+
+    /// `HORIZON_LAUNCHER_FRIENDS_TAB=friends|requests|groups|blocked|group:<id, role or name>` and
+    /// `HORIZON_LAUNCHER_FRIENDS_NOTE=error|ok` start the page on a tab, a group or a message, for
+    /// screenshots. Nothing happens without them.
+    pub(super) fn from_env() -> Self {
+        let mut page = Self::new();
+        match std::env::var("HORIZON_LAUNCHER_FRIENDS_TAB").as_deref() {
+            Ok("friends") => page.tab = FriendsTab::Friends,
+            Ok("requests") => page.tab = FriendsTab::Requests,
+            Ok("groups") => page.tab = FriendsTab::Groups,
+            Ok("blocked") => page.tab = FriendsTab::Blocked,
+            Ok(other) => {
+                if let Some(group) = other.strip_prefix("group:") {
+                    page.tab = FriendsTab::Groups;
+                    page.preview_group = Some(group.to_string());
+                }
+            }
+            Err(_) => {}
+        }
+        page.note = match std::env::var("HORIZON_LAUNCHER_FRIENDS_NOTE").as_deref() {
+            Ok("error") => Some((
+                false,
+                error_text(
+                    FriendAction::SendRequest,
+                    SocialError::Api(social::ApiCode::NotFound),
+                ),
+            )),
+            Ok("ok") => Some((true, tr(done_en(FriendAction::SendRequest)).to_string())),
+            _ => None,
+        };
+        page
     }
 
     /// A page over a backend of the caller's, for tests.
@@ -788,6 +823,17 @@ impl Launcher {
                 match follow {
                     Follow::Refresh => self.friends_refresh(),
                     Follow::OpenGroup(id) => self.friends_open_group(id),
+                }
+            }
+        }
+        if self.friends.open_group.is_none() && !self.friends.groups.is_empty() {
+            if let Some(want) = self.friends.preview_group.take() {
+                let found = self.friends.groups.iter().find(|g| {
+                    g.id == want || g.name == want || role_word(g.role).eq_ignore_ascii_case(&want)
+                });
+                if let Some(id) = found.map(|g| g.id.clone()) {
+                    self.friends_open_group(id);
+                    changed = true;
                 }
             }
         }

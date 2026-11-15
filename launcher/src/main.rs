@@ -55,6 +55,7 @@ mod perf;
 mod plate;
 mod profile_heads;
 mod scene;
+mod screenshot_mode;
 mod screenshots_page;
 mod scrollbar;
 mod servers_page;
@@ -709,7 +710,7 @@ impl Launcher {
             instances: instances_page::Instances::default(),
             worlds: worlds_page::Worlds::default(),
             multiplayer: multiplayer_page::Multiplayer::default(),
-            friends: friends_page::Friends::new(),
+            friends: friends_page::Friends::from_env(),
             screenshots: screenshots_page::Screenshots::default(),
             game_packs: packs_page::Packs::default(),
             world_packs: datapacks_page::WorldPacks::default(),
@@ -5647,29 +5648,55 @@ fn main() {
                 setup_page::open(mode, cx);
                 return;
             }
+            // `HORIZON_LAUNCHER_SCREENSHOT=<png>`: a hidden window, drawn once off screen, saved
+            // and closed (`screenshot_mode.rs`). Nothing is shown or focused.
+            let shot = screenshot_mode::wanted();
             let bounds = Bounds::centered(None, size(px(1180.), px(760.)), cx);
-            cx.open_window(
-                WindowOptions {
-                    window_bounds: Some(WindowBounds::Windowed(bounds)),
-                    window_min_size: Some(size(px(960.), px(600.))),
-                    titlebar: Some(titlebar::options()),
-                    #[cfg(target_os = "linux")]
-                    window_decorations: Some(gpui::WindowDecorations::Client),
-                    app_id: Some("horizon-launcher".into()),
-                    // GPUI draws a window without focus at most every 33 ms to save energy. A
-                    // benchmark's window often starts without it (KDE keeps focus from windows
-                    // a background process opens), and it measures drawing, not that limit.
-                    inactive_frame_interval: if perf::Bench::wanted() {
-                        None
-                    } else {
-                        WindowOptions::default().inactive_frame_interval
+            let handle = cx
+                .open_window(
+                    WindowOptions {
+                        window_bounds: Some(WindowBounds::Windowed(bounds)),
+                        window_min_size: Some(size(px(960.), px(600.))),
+                        titlebar: Some(titlebar::options()),
+                        focus: shot.is_none(),
+                        show: shot.is_none(),
+                        #[cfg(target_os = "linux")]
+                        window_decorations: Some(gpui::WindowDecorations::Client),
+                        app_id: Some("horizon-launcher".into()),
+                        // GPUI draws a window without focus at most every 33 ms to save energy. A
+                        // benchmark's window often starts without it (KDE keeps focus from windows
+                        // a background process opens), and it measures drawing, not that limit.
+                        inactive_frame_interval: if perf::Bench::wanted() {
+                            None
+                        } else {
+                            WindowOptions::default().inactive_frame_interval
+                        },
+                        ..Default::default()
                     },
-                    ..Default::default()
-                },
-                |window, cx| cx.new(|cx| Launcher::new(window, cx)),
-            )
-            .expect("window");
+                    |window, cx| {
+                        cx.new(|cx| {
+                            let mut launcher = Launcher::new(window, cx);
+                            if shot.is_some() {
+                                // No first-run sheets over the page being drawn.
+                                launcher.settings.owner_notice_seen = true;
+                                // `HORIZON_LAUNCHER_SCREENSHOT_LANG=en|ja|…`
+                                if let Some(language) = std::env::var("HORIZON_LAUNCHER_SCREENSHOT_LANG")
+                                    .ok()
+                                    .and_then(|code| i18n::Language::parse(&code))
+                                {
+                                    i18n::set(language);
+                                }
+                            }
+                            launcher
+                        })
+                    },
+                )
+                .expect("window");
             cx.on_window_closed(|cx, _| shut_down(cx)).detach();
+            if let Some(shot) = screenshot_mode::wanted() {
+                screenshot_mode::drive(handle.into(), shot, cx);
+                return;
+            }
             cx.activate(true);
         });
 }
