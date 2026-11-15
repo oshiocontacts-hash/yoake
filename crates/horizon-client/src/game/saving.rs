@@ -64,6 +64,7 @@ impl Game<'_> {
                 return self.leave_server(None);
             }
             if let Some(mut remote) = self.remote.take() {
+                self.clear_config_sync();
                 remote.session.disconnect();
             }
             self.saved_for_exit = true;

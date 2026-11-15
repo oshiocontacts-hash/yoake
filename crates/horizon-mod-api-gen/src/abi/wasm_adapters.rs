@@ -524,9 +524,22 @@ fn borrowed(shape: &Shape, var: &str, defs: &BTreeMap<String, NamedDef>) -> Res<
             Shape::Str(_) | Shape::Wide { .. } | Shape::List(..) | Shape::Map(..) => format!("{var}.as_deref()"),
             Shape::Tag | Shape::Compound | Shape::Text | Shape::Json | Shape::JsonMap | Shape::Item => format!("{var}.as_ref()"),
             Shape::Named(_) => {
-                if by_reference(inner, defs) { format!("{var}.as_ref()") } else { var.to_owned() }
+                if by_reference(inner, defs) {
+                    format!("{var}.as_ref()")
+                } else {
+                    var.to_owned()
+                }
             }
-            Shape::Tuple(items) if items.iter().all(|item| matches!(peel(item), Shape::Scalar { .. } | Shape::Glam { .. } | Shape::Duration | Shape::Handle)) => var.to_owned(),
+            Shape::Tuple(items)
+                if items.iter().all(|item| {
+                    matches!(
+                        peel(item),
+                        Shape::Scalar { .. } | Shape::Glam { .. } | Shape::Duration | Shape::Handle
+                    )
+                }) =>
+            {
+                var.to_owned()
+            }
             _ => return Err("an option of a compound value is not passed yet".into()),
         },
         Shape::Tuple(items) => {
@@ -975,7 +988,13 @@ pub fn render_full_hook_names(hooks: &[(String, Side)]) -> String {
 /// The hook names list the runtime validates subscriptions against.
 pub fn generate_full_hook_names(root: &Path) -> Result<String, String> {
     let full = generate_full_wit(root)?;
-    Ok(render_full_hook_names(&full.plans.iter().map(|plan| (plan.name.clone(), plan.side)).collect::<Vec<_>>()))
+    let mut hooks = full
+        .plans
+        .iter()
+        .map(|plan| (plan.name.clone(), plan.side))
+        .collect::<Vec<_>>();
+    hooks.push(("config_changed".into(), Side::Both));
+    Ok(render_full_hook_names(&hooks))
 }
 
 #[derive(serde::Deserialize)]

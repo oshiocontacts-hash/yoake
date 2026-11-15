@@ -5,8 +5,8 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use super::storage_fs::Dir;
 use super::MAX_MESSAGE_BYTES;
+use super::storage_fs::Dir;
 
 pub const MAX_STORAGE_BYTES: usize = 256 * 1024 * 1024;
 const MAX_KEYS: usize = 65_536;
@@ -284,6 +284,7 @@ static NEXT_TEMP_FILE: AtomicU64 = AtomicU64::new(0);
 pub struct DiskStorage {
     base: PathBuf,
     mod_id: String,
+    scope: Option<&'static str>,
     storage: Storage,
 }
 
@@ -293,14 +294,34 @@ impl DiskStorage {
     }
 
     pub fn open_with_quota(base: &Path, mod_id: &str, quota: usize) -> Result<Self, String> {
-        if !(3..=48).contains(&mod_id.len()) || reserved_name(mod_id)
-            || !mod_id.bytes().all(|value| value.is_ascii_lowercase() || value.is_ascii_digit() || matches!(value, b'_' | b'-'))
+        Self::open_scoped_with_quota(base, mod_id, None, quota)
+    }
+
+    pub fn open_scoped(base: &Path, mod_id: &str, scope: &'static str) -> Result<Self, String> {
+        if !matches!(scope, "global" | "client") {
+            return Err("invalid storage scope".into());
+        }
+        Self::open_scoped_with_quota(base, mod_id, Some(scope), MAX_STORAGE_BYTES)
+    }
+
+    fn open_scoped_with_quota(
+        base: &Path,
+        mod_id: &str,
+        scope: Option<&'static str>,
+        quota: usize,
+    ) -> Result<Self, String> {
+        if !(3..=48).contains(&mod_id.len())
+            || reserved_name(mod_id)
+            || !mod_id.bytes().all(|value| {
+                value.is_ascii_lowercase() || value.is_ascii_digit() || matches!(value, b'_' | b'-')
+            })
         {
             return Err("invalid storage mod ID".into());
         }
         let mut result = Self {
             base: base.to_path_buf(),
             mod_id: mod_id.to_owned(),
+            scope,
             storage: Storage::new(quota).map_err(str::to_owned)?,
         };
         match result.directory(false) {
@@ -318,9 +339,13 @@ impl DiskStorage {
     }
 
     fn directory(&self, create: bool) -> std::io::Result<Dir> {
-        Dir::open(&self.base, false)?
+        let directory = Dir::open(&self.base, false)?
             .child(OsStr::new("yoake-data"), create)?
-            .child(OsStr::new(&self.mod_id), create)
+            .child(OsStr::new(&self.mod_id), create)?;
+        match self.scope {
+            Some(scope) => directory.child(OsStr::new(scope), create),
+            None => Ok(directory),
+        }
     }
 
     pub fn get(&self, key: &str) -> Result<Option<&[u8]>, &'static str> {
@@ -497,6 +522,30 @@ mod tests {
         assert!(DiskStorage::open(&root, "example").is_err());
         assert_eq!(std::fs::read(folder.join("store.bin")).unwrap(), b"broken");
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn disk_storage_refuses_junctions_before_and_after_open() {
+        let root = temporary_root();
+        let outside = root.join("outside");
+        let data = root.join("yoake-data");
+        let junction = data.join("example");
+        std::fs::create_dir(&outside).unwrap();
+        std::fs::create_dir(&data).unwrap();
+        let mut store = DiskStorage::open(&root, "example").unwrap();
+        let status = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command",
+                "New-Item -ItemType Junction -Path $env:YOAKE_TEST_JUNCTION -Target $env:YOAKE_TEST_TARGET -ErrorAction Stop | Out-Null"])
+            .env("YOAKE_TEST_JUNCTION", &junction).env("YOAKE_TEST_TARGET", &outside)
+            .status().unwrap();
+        assert!(status.success(), "junction creation failed");
+        assert!(DiskStorage::open(&root, "example").is_err());
+        assert!(store.put("key", b"must stay confined").is_err());
+        assert!(std::fs::read_dir(&outside).unwrap().next().is_none());
+        assert!(junction.starts_with(&root));
+        std::fs::remove_dir(&junction).unwrap();
+        std::fs::remove_dir_all(&root).unwrap();
     }
 
     #[cfg(unix)]

@@ -1,7 +1,7 @@
 //! Test support (feature `test-guests`): finds, and when needed builds, the example guest modules
 //! the integration tests run (`crates/yoake-wasm-sdk/examples`).
 //!
-//! The guests build into `YOAKE_WASM_TARGET_DIR`; without it, into a `target-wasm` folder next to
+//! The guests honor `CARGO_TARGET_DIR`, then `YOAKE_WASM_TARGET_DIR`; otherwise a `target-wasm` folder next to
 //! the repository folder when one exists, else into `target/wasm-guests` of the workspace. A build
 //! that cannot run (no `wasm32-wasip2` target, offline) falls back to an artifact already there. A
 //! guest that is not available fails the test when `YOAKE_CI` or `CI` is set (and when
@@ -19,12 +19,43 @@ pub struct Guest {
     artifact: &'static str,
 }
 
-pub const HELLO: Guest = Guest { name: "hello", example: "hello", features: "", artifact: "yoake_wasm_hello.wasm" };
-pub const HELLO_STD: Guest = Guest { name: "hello-std", example: "hello-std", features: "", artifact: "yoake_wasm_hello_std.wasm" };
-pub const FULL_DEMO_CLIENT: Guest =
-    Guest { name: "full-demo-client", example: "full-demo", features: "client", artifact: "yoake_wasm_full_demo.wasm" };
-pub const FULL_DEMO_SERVER: Guest =
-    Guest { name: "full-demo-server", example: "full-demo", features: "server", artifact: "yoake_wasm_full_demo.wasm" };
+pub const HELLO: Guest = Guest {
+    name: "hello",
+    example: "hello",
+    features: "",
+    artifact: "yoake_wasm_hello.wasm",
+};
+pub const HELLO_STD: Guest = Guest {
+    name: "hello-std",
+    example: "hello-std",
+    features: "",
+    artifact: "yoake_wasm_hello_std.wasm",
+};
+pub const FULL_DEMO_CLIENT: Guest = Guest {
+    name: "full-demo-client",
+    example: "full-demo",
+    features: "client",
+    artifact: "yoake_wasm_full_demo.wasm",
+};
+pub const FULL_DEMO_SERVER: Guest = Guest {
+    name: "full-demo-server",
+    example: "full-demo",
+    features: "server",
+    artifact: "yoake_wasm_full_demo.wasm",
+};
+
+pub const FULL_SERVICES_CLIENT: Guest = Guest {
+    name: "full-services-client",
+    example: "full-services",
+    features: "client",
+    artifact: "yoake_wasm_full_services.wasm",
+};
+pub const FULL_SERVICES_SERVER: Guest = Guest {
+    name: "full-services-server",
+    example: "full-services",
+    features: "server",
+    artifact: "yoake_wasm_full_services.wasm",
+};
 
 /// The second package of the `mod-call` tests: only answers `handle-call`.
 pub const FULL_DEMO_PEER: Guest =
@@ -37,6 +68,9 @@ fn workspace() -> PathBuf {
 }
 
 fn target_dir() -> PathBuf {
+    if let Some(dir) = std::env::var_os("CARGO_TARGET_DIR").filter(|dir| !dir.is_empty()) {
+        return PathBuf::from(dir);
+    }
     if let Some(dir) = std::env::var_os("YOAKE_WASM_TARGET_DIR").filter(|dir| !dir.is_empty()) {
         return PathBuf::from(dir);
     }
@@ -63,9 +97,16 @@ pub fn load(guest: &Guest) -> Option<Vec<u8>> {
     let example = workspace().join("crates/yoake-wasm-sdk/examples").join(guest.example);
     let mut command = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()));
     command
-        .args(["build", "--release", "--target", "wasm32-wasip2", "-j", "2"])
+        .args([
+            "build",
+            "--offline",
+            "--release",
+            "--target",
+            "wasm32-wasip2",
+            "-j",
+            "4",
+        ])
         .current_dir(&example)
-        .env("CARGO_TARGET_DIR", &target)
         .env_remove("CARGO_ENCODED_RUSTFLAGS")
         .env_remove("RUSTFLAGS");
     if !guest.features.is_empty() {

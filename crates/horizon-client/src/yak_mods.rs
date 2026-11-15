@@ -60,6 +60,7 @@ pub(crate) struct Installed {
 
 #[derive(Default)]
 struct Runtime {
+    game_root: PathBuf,
     entries: Vec<Installed>,
     notices: Mutex<VecDeque<Notice>>,
     problems: Mutex<BTreeMap<String, String>>,
@@ -105,7 +106,10 @@ impl Runtime {
 
     /// `read` for a client (`dedicated` false) or a dedicated server.
     fn read_as(game: &Path, build: &Build, keys: &[PublicKey], dedicated: bool) -> Self {
-        let mut runtime = Self::default();
+        let mut runtime = Self {
+            game_root: game.to_path_buf(),
+            ..Self::default()
+        };
         let file = match File::open(game.join("yoake-mods.txt")) {
             Ok(file) => file,
             Err(error) if error.kind() == ErrorKind::NotFound => return runtime,
@@ -223,6 +227,10 @@ pub(crate) fn initialize() {
         }
     };
     let _ = RUNTIME.set(runtime);
+}
+
+pub(crate) fn game_root() -> Option<&'static Path> {
+    RUNTIME.get().map(|runtime| runtime.game_root.as_path())
 }
 
 pub(crate) fn entries() -> &'static [Installed] {

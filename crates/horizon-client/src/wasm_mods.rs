@@ -11,6 +11,10 @@
 
 #[path = "wasm_mods/full.rs"]
 mod full;
+#[path = "wasm_mods/package.rs"]
+pub(crate) mod package;
+#[path = "wasm_mods/package_ui.rs"]
+pub(crate) mod package_ui;
 #[path = "wasm_mods/server_services.rs"]
 mod server_services;
 
@@ -707,6 +711,9 @@ fn batch_range<'borrow>(invocation: &'borrow mut Invocation<'_>, start: u64) -> 
 }
 
 impl ClientHost for GameHost {
+    fn services(&mut self) -> Result<yoake_wasm::package_services::ServiceHandle, String> {
+        package::services(&self.id, horizon_mods::yak::ConfigRuntimeSide::Client, None)
+    }
     fn log(&mut self, target: &str, message: &str) -> Result<(), w::HostError> {
         let clean = |text: &str| -> String {
             text.chars().take(MAX_LOG_CHARS).map(|c| if c.is_control() { ' ' } else { c }).collect()

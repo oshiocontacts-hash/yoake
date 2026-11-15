@@ -47,6 +47,8 @@ pub struct ConfigField {
     pub values: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub label: BTreeMap<String, String>,
     #[serde(default, skip_serializing_if = "is_false")]
     pub restart: bool,
 }
@@ -93,6 +95,14 @@ pub(super) fn validate_declarations(
     }
     let mut default_bytes = 0usize;
     for (name, field) in fields {
+        if field.label.len() > 16
+            || field
+                .label
+                .iter()
+                .any(|(language, label)| language.len() > 32 || label.len() > 1024)
+        {
+            return Err("config label exceeds limits".into());
+        }
         if !valid_name(name) {
             return Err(format!("invalid config key: {name}"));
         }
@@ -480,12 +490,28 @@ impl ConfigFile {
     }
 
     pub fn set_local(&mut self, name: &str, value: Value) -> Result<Option<ConfigChange>, String> {
+        Ok(self
+            .set_many(&BTreeMap::from([(name.into(), value)]))?
+            .into_iter()
+            .next())
+    }
+
+    pub fn set_many(
+        &mut self,
+        values: &BTreeMap<String, Value>,
+    ) -> Result<Vec<ConfigChange>, String> {
         let mut document = read_config_file(&self.path, &self.fields)?;
         let mut candidate = self.state.clone();
-        let Some(change) = candidate.set_local(name, value)? else {
-            return Ok(None);
-        };
-        document.insert(name.to_owned(), change.new.clone());
+        let mut changes = Vec::new();
+        for (name, value) in values {
+            if let Some(change) = candidate.set_local(name, value.clone())? {
+                document.insert(name.clone(), change.new.clone());
+                changes.push(change);
+            }
+        }
+        if changes.is_empty() {
+            return Ok(changes);
+        }
         let encoded = toml::to_string(&document).map_err(|error| error.to_string())?;
         parse_config(&self.fields, &encoded)?;
         let parent = self.path.parent().ok_or("config path has no parent")?;
@@ -495,7 +521,7 @@ impl ConfigFile {
             file.write_all(encoded.as_bytes()).map_err(|error| error.to_string())
         })?;
         self.state = candidate;
-        Ok(Some(change))
+        Ok(changes)
     }
 
     pub fn apply_synced_snapshot(

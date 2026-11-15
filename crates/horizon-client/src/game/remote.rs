@@ -1035,6 +1035,7 @@ impl Game<'_> {
                     };
                 });
         }
+        self.clear_config_sync();
         self.remote = Some(Remote {
             session,
             snapshot: None,
@@ -1214,6 +1215,7 @@ impl Game<'_> {
             self.native_client_level_unload(&old);
         }
         if let Some(mut r) = self.remote.take() {
+            self.clear_config_sync();
             r.session.disconnect();
         }
         super::lan::forget_sync_data();
@@ -3200,6 +3202,9 @@ impl Game<'_> {
             }
             C::CustomPayload(p) if p.channel == horizon_protocol::mod_net::CHANNEL => {
                 self.remote_native_net(&p.data);
+            }
+            C::CustomPayload(p) if p.channel == yoake_wasm::config_sync::CHANNEL => {
+                self.remote_config_sync(&p.data);
             }
             // The attack hit boxes a server's mods gave players, for the crosshair.
             C::CustomPayload(p) if p.channel == horizon_client::lan::attack_hitbox::CHANNEL => {

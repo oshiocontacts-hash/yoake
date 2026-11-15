@@ -6,7 +6,7 @@
 //! game folder or the PC: storage is sandboxed per mod, commands are gated and denied lists apply.
 //! Not forwarded (they answer "unsupported"): `block-entity-read` and `block-entity-patch-call`
 //! (a block-entity hook returns its new state directly), `range-override-*` (voice, deferred).
-use std::{fs, io::Write as _, path::PathBuf, sync::{Arc, Mutex, Weak}};
+use std::sync::{Arc, Mutex, Weak};
 
 use super::full::{
     GameServerHost, SideState, checked, game_relative, item_from, item_w, message_text, parse_uuid, read_service,
@@ -18,9 +18,6 @@ use yoake_wasm::{ServerFullMod, ServerHost, server_types as st};
 
 /// Largest value of a storage write, a `mod-call` payload and its answer.
 const MAX_BLOB: usize = 1 << 20;
-/// Most keys a package may keep in each of its two storage folders, and most bytes in all.
-const MAX_KEYS: usize = 256;
-const MAX_STORAGE_BYTES: u64 = 32 << 20;
 /// Most items or slots in a list a guest passes.
 const MAX_LIST: usize = 512;
 /// Nested `mod-call`s, the outer one included.
@@ -101,65 +98,6 @@ fn command_word(word: &str, what: &str) -> Result<(), String> {
 
 fn vitals_float(value: f32) -> f32 {
     if value.is_finite() { value } else { 0.0 }
-}
-
-// ---------------------------------------------------------------------------------------------
-// Package storage (world, config) under a per-mod folder
-// ---------------------------------------------------------------------------------------------
-
-/// A storage key: 1 to 128 of letters, digits and `_ . -`, not starting with a dot.
-fn storage_key(key: &str) -> Result<(), String> {
-    let ok = !key.is_empty()
-        && key.len() <= 128
-        && !key.starts_with('.')
-        && key.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'.' | b'-'));
-    if ok { Ok(()) } else { Err("a storage key is 1 to 128 letters, digits and _ . - (no leading dot)".into()) }
-}
-
-fn storage_file(folder: &std::path::Path, key: &str) -> PathBuf {
-    folder.join(format!("{key}.bin"))
-}
-
-fn read_stored(folder: &std::path::Path, key: &str) -> Result<Option<Vec<u8>>, String> {
-    storage_key(key)?;
-    match fs::read(storage_file(folder, key)) {
-        Ok(bytes) => Ok(Some(bytes)),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(format!("could not read: {error}")),
-    }
-}
-
-fn write_stored(folder: &std::path::Path, key: &str, data: &[u8]) -> Result<(), String> {
-    storage_key(key)?;
-    if data.len() > MAX_BLOB {
-        return Err("a stored value is at most 1 MiB".into());
-    }
-    fs::create_dir_all(folder).map_err(|error| format!("could not create the storage folder: {error}"))?;
-    let (mut keys, mut bytes, mut own) = (0usize, 0u64, 0u64);
-    if let Ok(entries) = fs::read_dir(folder) {
-        for entry in entries.flatten() {
-            let Ok(meta) = entry.metadata() else { continue };
-            if !meta.is_file() { continue; }
-            keys += 1;
-            bytes += meta.len();
-            if entry.path() == storage_file(folder, key) {
-                own = meta.len();
-                keys -= 1;
-            }
-        }
-    }
-    if keys >= MAX_KEYS {
-        return Err("a package keeps at most 256 keys".into());
-    }
-    if bytes - own + data.len() as u64 > MAX_STORAGE_BYTES {
-        return Err("a package keeps at most 32 MiB".into());
-    }
-    let target = storage_file(folder, key);
-    let temp = folder.join(format!("{key}.tmp"));
-    let mut file = fs::File::create(&temp).map_err(|error| format!("could not write: {error}"))?;
-    file.write_all(data).and_then(|()| file.sync_all()).map_err(|error| format!("could not write: {error}"))?;
-    drop(file);
-    fs::rename(&temp, &target).map_err(|error| format!("could not write: {error}"))
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -246,6 +184,15 @@ pub(super) fn call_mod(caller: &str, target: &str, method: &str, payload: &[u8])
 // ---------------------------------------------------------------------------------------------
 
 impl ServerHost for GameServerHost {
+    fn services(&mut self) -> Result<yoake_wasm::package_services::ServiceHandle, String> {
+        let world = read_service(|host| Ok(host.world_dir())).ok().flatten();
+        super::package::services(
+            &self.id,
+            horizon_mods::yak::ConfigRuntimeSide::Server,
+            world.as_deref(),
+        )
+    }
+
     fn log(&mut self, target: &str, message: &str) -> Result<(), w::HostError> {
         let clean = |text: &str| -> String {
             text.chars().take(MAX_LOG_CHARS).map(|c| if c.is_control() { ' ' } else { c }).collect()
@@ -855,27 +802,41 @@ impl ServerHost for GameServerHost {
     }
 
     fn config_dir(&mut self) -> Result<String, String> {
-        read_service(|host| host.config_dir()).and_then(|path| game_relative(&path).ok_or_else(|| "path is not text".to_owned()))
+        let handle = self.services()?;
+        handle
+            .lock()
+            .map_err(|_| "package services unavailable")?
+            .require(yoake_wasm::package_services::CONFIG_CAPABILITY)?;
+        let root = crate::yak_mods::game_root().ok_or("package root unavailable")?;
+        game_relative(&root.join("config")).ok_or_else(|| "path is not text".to_owned())
     }
 
     fn world_storage_read(&mut self, key: String) -> Result<Option<Vec<u8>>, String> {
-        let folder = self.storage_folder(false)?;
-        read_stored(&folder, &key)
+        self.services()?
+            .lock()
+            .map_err(|_| "package services unavailable")?
+            .storage_get(&key, st::StorageScope::World)
     }
 
     fn world_storage_write(&mut self, data: Vec<u8>, key: String) -> Result<(), String> {
-        let folder = self.storage_folder(false)?;
-        write_stored(&folder, &key, &data)
+        self.services()?
+            .lock()
+            .map_err(|_| "package services unavailable")?
+            .storage_put(&key, st::StorageScope::World, &data)
     }
 
     fn config_read(&mut self, key: String) -> Result<Option<Vec<u8>>, String> {
-        let folder = self.storage_folder(true)?;
-        read_stored(&folder, &key)
+        self.services()?
+            .lock()
+            .map_err(|_| "package services unavailable")?
+            .storage_get(&key, st::StorageScope::Global)
     }
 
     fn config_write(&mut self, data: Vec<u8>, key: String) -> Result<(), String> {
-        let folder = self.storage_folder(true)?;
-        write_stored(&folder, &key, &data)
+        self.services()?
+            .lock()
+            .map_err(|_| "package services unavailable")?
+            .storage_put(&key, st::StorageScope::Global, &data)
     }
 
     fn asset_read(&mut self, key: String) -> Result<Option<Vec<u8>>, String> {
@@ -904,21 +865,6 @@ impl ServerHost for GameServerHost {
         };
         log::debug!("wasm mod {} qa {}: {}", self.id, clean(&event, 64), clean(&json, 1024));
         Ok(())
-    }
-}
-
-impl GameServerHost {
-    /// The package's own storage folder: `<world>/yoake-wasm/<id>` or `<config>/yoake-wasm/<id>`.
-    fn storage_folder(&self, config: bool) -> Result<PathBuf, String> {
-        let root = if config {
-            read_service(|host| host.config_dir())?
-        } else {
-            read_service(|host| host.world_dir().ok_or_else(|| "no world is open on this server".to_owned()))?
-        };
-        if !safe_component(&self.id) {
-            return Err("the package id is not a plain folder name".into());
-        }
-        Ok(root.join("yoake-wasm").join(&self.id))
     }
 }
 
@@ -1020,34 +966,6 @@ fn particle_lines(request: &st::ParticleRequest) -> Result<Vec<String>, String> 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn storage_keys_cannot_leave_the_folder() {
-        for bad in ["", ".hidden", "a/b", "..", "a\\b", "x y", &"k".repeat(129)] {
-            assert!(storage_key(bad).is_err(), "{bad:?}");
-        }
-        for good in ["state", "a.b-c_d", "7"] {
-            assert!(storage_key(good).is_ok());
-        }
-    }
-
-    #[test]
-    fn storage_round_trips_and_is_capped() {
-        let folder = std::env::temp_dir().join(format!("yoake-wasm-storage-test-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&folder);
-        assert_eq!(read_stored(&folder, "a").unwrap(), None);
-        write_stored(&folder, "a", b"hello").unwrap();
-        assert_eq!(read_stored(&folder, "a").unwrap(), Some(b"hello".to_vec()));
-        write_stored(&folder, "a", b"hi").unwrap();
-        assert_eq!(read_stored(&folder, "a").unwrap(), Some(b"hi".to_vec()));
-        assert!(write_stored(&folder, "big", &vec![0u8; MAX_BLOB + 1]).is_err());
-        for i in 0..MAX_KEYS - 1 {
-            write_stored(&folder, &format!("k{i}"), b"x").unwrap();
-        }
-        assert!(write_stored(&folder, "one-too-many", b"x").is_err());
-        write_stored(&folder, "k0", b"still fine").unwrap();
-        let _ = fs::remove_dir_all(&folder);
-    }
 
     #[test]
     fn world_control_lines_only_hold_checked_words() {

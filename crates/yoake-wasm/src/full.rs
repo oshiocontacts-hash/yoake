@@ -3,8 +3,8 @@
 //! time limits, WASI subset); a trap, a limit or a bad answer disables only that module. The typed
 //! hook calls are made by the host's generated adapters through [`ClientFullMod::dispatch`] and
 //! [`ServerFullMod::dispatch`], which only run a hook the module subscribed to.
-use wasmtime::component::HasSelf;
 use wasmtime::Store;
+use wasmtime::component::HasSelf;
 
 use crate::bindings::yoake::mods::types::HostError;
 use crate::full_bindings::{client as client_world, server as server_world};
@@ -13,6 +13,110 @@ use crate::subscriptions::FullWorld;
 use crate::{HostState, LoadError, ModInstance, OutputLine, Sandbox, Subscriptions};
 
 pub use crate::full_bindings::server::yoake::mods::server_types;
+
+fn service_call<T>(
+    handle: Result<crate::package_services::ServiceHandle, String>,
+    call: impl FnOnce(&mut crate::package_services::PackageServices) -> Result<T, String>,
+) -> Result<T, String> {
+    let began = std::time::Instant::now();
+    let result = handle.and_then(|handle| {
+        let mut services = handle.lock().map_err(|_| "package service lock poisoned")?;
+        call(&mut services)
+    });
+    crate::add_host_time(began.elapsed());
+    result
+}
+
+macro_rules! package_imports {
+    () => {
+        fn config_get(&mut self, key: String) -> Result<server_types::ConfigValue, String> {
+            service_call(self.host.services(), |services| services.config_get(&key))
+        }
+        fn config_set(
+            &mut self,
+            key: String,
+            value: server_types::ConfigValue,
+        ) -> Result<(), String> {
+            service_call(self.host.services(), |services| {
+                services.config_set(&key, value)
+            })
+        }
+        fn storage_get(
+            &mut self,
+            key: String,
+            scope: server_types::StorageScope,
+        ) -> Result<Option<Vec<u8>>, String> {
+            service_call(self.host.services(), |services| {
+                services.storage_get(&key, scope)
+            })
+        }
+        fn storage_put(
+            &mut self,
+            key: String,
+            scope: server_types::StorageScope,
+            value: Vec<u8>,
+        ) -> Result<(), String> {
+            service_call(self.host.services(), |services| {
+                services.storage_put(&key, scope, &value)
+            })
+        }
+        fn storage_delete(
+            &mut self,
+            key: String,
+            scope: server_types::StorageScope,
+        ) -> Result<bool, String> {
+            service_call(self.host.services(), |services| {
+                services.storage_delete(&key, scope)
+            })
+        }
+        fn storage_blob_begin(
+            &mut self,
+            key: String,
+            scope: server_types::StorageScope,
+            total: u64,
+        ) -> Result<u64, String> {
+            service_call(self.host.services(), |services| {
+                services.storage_blob_begin(&key, scope, total)
+            })
+        }
+        fn storage_blob_write(
+            &mut self,
+            data: Vec<u8>,
+            id: u64,
+            offset: u64,
+        ) -> Result<(), String> {
+            service_call(self.host.services(), |services| {
+                services.storage_blob_write(&data, id, offset)
+            })
+        }
+        fn storage_blob_commit(&mut self, id: u64) -> Result<(), String> {
+            service_call(self.host.services(), |services| {
+                services.storage_blob_commit(id)
+            })
+        }
+        fn storage_blob_abort(&mut self, id: u64) -> Result<bool, String> {
+            service_call(self.host.services(), |services| {
+                services.storage_blob_abort(id)
+            })
+        }
+        fn storage_blob_read(
+            &mut self,
+            key: String,
+            length: u32,
+            offset: u64,
+            scope: server_types::StorageScope,
+        ) -> Result<Vec<u8>, String> {
+            service_call(self.host.services(), |services| {
+                services.storage_blob_read(&key, length, offset, scope)
+            })
+        }
+    };
+}
+
+impl client_world::yoake::mods::server_types::Host for ClientContext {}
+impl client_world::yoake::mods::client_services::Host for ClientContext {
+    package_imports!();
+}
 
 fn flush_output<T: 'static>(raw: &mut ModInstance<T>, mut log: impl FnMut(&mut T, &OutputLine)) {
     for line in raw.drain_output() {
@@ -62,8 +166,15 @@ impl ClientFullMod {
         let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
         flush_output(&mut raw, |host, line| host.log_output(line));
         let names = names.ok_or_else(|| LoadError::new("mod init trapped or timed out"))?;
-        let subscriptions = Subscriptions::for_full_world(FullWorld::Client, names, unwired).map_err(LoadError::new)?;
-        Ok(Self { raw, exports, subscriptions })
+        let subscriptions = Subscriptions::for_full_world(FullWorld::Client, names, unwired)
+            .map_err(LoadError::new)?;
+        let mut module = Self {
+            raw,
+            exports,
+            subscriptions,
+        };
+        module.notify_config_changes();
+        Ok(module)
     }
 
     pub fn subscribed(&self, hook: &str) -> bool {
@@ -78,6 +189,29 @@ impl ClientFullMod {
         self.raw.is_disabled()
     }
 
+    pub fn notify_config_changes(&mut self) {
+        let Ok(services) = self.raw.store.data_mut().host.host.services() else {
+            return;
+        };
+        let changes = match services.lock() {
+            Ok(mut services) => services.take_changes(),
+            Err(_) => return,
+        };
+        if !self.subscribed("config_changed") {
+            return;
+        }
+        for (key, value) in changes {
+            let exports = &self.exports;
+            self.raw.call("config_changed", |store, _| {
+                exports
+                    .yoake_mods_client_hooks()
+                    .call_config_changed(store, &key, &value)
+                    .map_err(|error| format!("{error:#}"))
+            });
+            flush_output(&mut self.raw, |host, line| host.log_output(line));
+        }
+    }
+
     /// Runs `call` against the guest's exports if it subscribed to `hook`; `None` when it did not
     /// subscribe, trapped, or ran out of fuel or time (the module is then disabled).
     pub fn dispatch<R>(
@@ -85,12 +219,14 @@ impl ClientFullMod {
         hook: &str,
         call: impl FnOnce(&client_world::ClientFull, &mut Store<HostState<ClientContext>>) -> wasmtime::Result<R>,
     ) -> Option<R> {
+        self.notify_config_changes();
         if !self.subscribed(hook) {
             return None;
         }
         let exports = &self.exports;
         let result = self.raw.call(hook, |store, _| call(exports, store).map_err(|error| format!("{error:#}")));
         flush_output(&mut self.raw, |host, line| host.log_output(line));
+        self.notify_config_changes();
         result
     }
 }
@@ -103,6 +239,10 @@ macro_rules! server_services {
         /// answers "unsupported" (an `Err` for services that can fail, none or false otherwise), so
         /// a host implements what it can forward and leaves the rest.
         pub trait ServerHost: Send {
+            fn services(&mut self) -> Result<crate::package_services::ServiceHandle, String> {
+                Err("package services unavailable".into())
+            }
+
             fn log(&mut self, target: &str, message: &str) -> Result<(), HostError> {
                 let _ = (target, message);
                 Err(HostError::Unsupported)
@@ -116,6 +256,16 @@ macro_rules! server_services {
         }
 
         impl server_world::yoake::mods::server_services::Host for ServerContext {
+            package_imports!();
+
+            fn has_permission(&mut self, node: String, player: String) -> Result<bool, String> {
+                let handle = self.host.services()?;
+                service_call(Ok(handle.clone()), |services| services.require(crate::package_services::PERMISSIONS_CAPABILITY))?;
+                let level = self.host.server_players()?.into_iter().find(|entry| entry.uuid == player)
+                    .ok_or("player is not connected")?.permission_level;
+                service_call(Ok(handle), |services| services.has_permission(&node, &player, level))
+            }
+
             $(
                 fn $name(&mut self, $($arg: $ty),*) -> $ret {
                     // The game's time in the service is not the guest's (see `HOST_TIME`).
@@ -227,7 +377,7 @@ server_services! {
 
 pub struct ServerContext {
     id: String,
-    host: Box<dyn ServerHost>,
+    pub(crate) host: Box<dyn ServerHost>,
 }
 
 impl ServerContext {
@@ -283,8 +433,15 @@ impl ServerFullMod {
         let names = raw.call_init(crate::TimeLimits::SERVER, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
         flush_output(&mut raw, |host, line| host.log_output(line));
         let names = names.ok_or_else(|| LoadError::new("mod init trapped or timed out"))?;
-        let subscriptions = Subscriptions::for_full_world(FullWorld::Server, names, unwired).map_err(LoadError::new)?;
-        Ok(Self { raw, exports, subscriptions })
+        let subscriptions = Subscriptions::for_full_world(FullWorld::Server, names, unwired)
+            .map_err(LoadError::new)?;
+        let mut module = Self {
+            raw,
+            exports,
+            subscriptions,
+        };
+        module.notify_config_changes();
+        Ok(module)
     }
 
     pub fn subscribed(&self, hook: &str) -> bool {
@@ -301,7 +458,13 @@ impl ServerFullMod {
 
     /// Calls the module's `handle-call` export (another package's `mod-call`). `None` when the
     /// module is disabled, trapped or ran out of its limits on this call (it is then disabled).
-    pub fn handle_call(&mut self, caller: &str, method: &str, payload: &[u8]) -> Option<Result<Vec<u8>, String>> {
+    pub fn handle_call(
+        &mut self,
+        caller: &str,
+        method: &str,
+        payload: &[u8],
+    ) -> Option<Result<Vec<u8>, String>> {
+        self.notify_config_changes();
         if self.raw.is_disabled() {
             return None;
         }
@@ -310,7 +473,31 @@ impl ServerFullMod {
             exports.call_handle_call(store, caller, method, payload).map_err(|error| format!("{error:#}"))
         });
         flush_output(&mut self.raw, |host, line| host.log_output(line));
+        self.notify_config_changes();
         result
+    }
+
+    pub fn notify_config_changes(&mut self) {
+        let Ok(services) = self.raw.store.data_mut().host.host.services() else {
+            return;
+        };
+        let changes = match services.lock() {
+            Ok(mut services) => services.take_changes(),
+            Err(_) => return,
+        };
+        if !self.subscribed("config_changed") {
+            return;
+        }
+        for (key, value) in changes {
+            let exports = &self.exports;
+            self.raw.call("config_changed", |store, _| {
+                exports
+                    .yoake_mods_server_hooks()
+                    .call_config_changed(store, &key, &value)
+                    .map_err(|error| format!("{error:#}"))
+            });
+            flush_output(&mut self.raw, |host, line| host.log_output(line));
+        }
     }
 
     /// Like [`ClientFullMod::dispatch`], for a server-side hook.
@@ -319,12 +506,14 @@ impl ServerFullMod {
         hook: &str,
         call: impl FnOnce(&server_world::ServerFull, &mut Store<HostState<ServerContext>>) -> wasmtime::Result<R>,
     ) -> Option<R> {
+        self.notify_config_changes();
         if !self.subscribed(hook) {
             return None;
         }
         let exports = &self.exports;
         let result = self.raw.call(hook, |store, _| call(exports, store).map_err(|error| format!("{error:#}")));
         flush_output(&mut self.raw, |host, line| host.log_output(line));
+        self.notify_config_changes();
         result
     }
 }

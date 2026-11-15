@@ -14,14 +14,14 @@
 //! or the other thread holding the lock) is dropped with the hook's documented fallback (no answer
 //! applied), and counted: the first drop of a module is logged.
 
-use super::*;
 use super::server_services::{ServerSlot, register_endpoint};
+use super::*;
 use crate::gfx::native_render::*;
 use horizon_client_core::text::Text;
 use horizon_items::items::ItemStack;
 use horizon_world::nbt::{Compound, Tag};
 use yoake_wasm::full_bindings::client::yoake::mods::engine_types as et;
-use yoake_wasm::{ClientFullMod, ServerFullMod, ServerHost, convert, server_types as st};
+use yoake_wasm::{ClientFullMod, ServerFullMod, convert, server_types as st};
 
 /// Commands a guest may return for one object in one call.
 const MAX_COMMANDS: usize = 8192;
@@ -86,7 +86,7 @@ use std::sync::atomic::AtomicU64;
 fn mask_of(subscribed: impl Fn(&str) -> bool) -> [AtomicU64; MASK_WORDS] {
     let words: [AtomicU64; MASK_WORDS] = std::array::from_fn(|_| AtomicU64::new(0));
     for (ordinal, (name, _)) in yoake_wasm::FULL_HOOK_LIST.iter().enumerate() {
-        if subscribed(name) {
+        if subscribed(name) || (*name == "tick_start" && subscribed("config_changed")) {
             words[ordinal / 64].fetch_or(1 << (ordinal % 64), Ordering::Relaxed);
         }
     }
@@ -798,6 +798,7 @@ include!("full_adapters.rs");
 mod tests {
     use super::*;
     use std::cell::RefCell;
+    use yoake_wasm::ServerHost as _;
 
     #[derive(Default)]
     struct FakeHost {

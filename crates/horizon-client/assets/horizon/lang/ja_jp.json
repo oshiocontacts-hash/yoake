@@ -1,0 +1,6 @@
+{
+  "yoake.config.title": "%s の設定",
+  "yoake.config.read_only": "外部サーバーの設定は変更できません。",
+  "yoake.config.restart": "再起動が必要です",
+  "yoake.config.list_hint": "リストの項目は半角カンマで区切ってください"
+}

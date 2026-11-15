@@ -8,13 +8,15 @@ use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder, UpdateDea
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
 mod client;
+pub mod config_sync;
 pub mod convert;
 mod full;
-mod full_hook_names;
 pub mod full_bindings;
+mod full_hook_names;
+mod hook_names;
 mod host;
 pub mod host_services;
-mod hook_names;
+pub mod package_services;
 mod subscriptions;
 #[cfg(feature = "test-guests")]
 pub mod test_guests;
@@ -29,8 +31,8 @@ pub mod bindings {
 
 pub use client::{ClientMod, LoadError};
 pub use full::{ClientFullMod, SERVER_SERVICES, ServerFullMod, ServerHost, server_types};
-pub use host::{ClientContext, ClientHost};
 pub use full_hook_names::{FULL_HOOKS as FULL_HOOK_LIST, HookSide};
+pub use host::{ClientContext, ClientHost};
 pub use subscriptions::FullWorld;
 
 pub use subscriptions::Subscriptions;
