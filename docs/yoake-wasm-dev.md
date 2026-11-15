@@ -173,7 +173,10 @@ yoake_wasm_sdk::export_server_full!(M);
 it; `&mut` draw objects (`HudBatch`, `BlockEntityDraw`, `Corners`) become command lists you return; other
 `&mut` values come back as `option` fields of the outcome. Engine objects that cannot be copied are `u64`
 handles, valid only during the call. Example: `crates/yoake-wasm-sdk/examples/full-demo` (build once per
-feature, `client` and `server`).
+feature, `client` and `server`). A `.yak` with data content (`content/`: blocks, items, a mob effect, a recipe, a loot
+table, a data-defined mob, a sound and a creative tab, see mods.md) and a small server module that reacts to the mob:
+`crates/yoake-wasm-sdk/examples/content-demo` (`cargo build --release --target wasm32-wasip2`; the package id is
+`content_demo`, a namespace, so `[a-z0-9_]` only).
 
 ### What the host applies / does not
 

@@ -56,6 +56,7 @@ pub mod landing;
 pub mod leash;
 pub mod living;
 pub mod llama;
+pub mod mod_mob;
 pub mod monster_brain;
 pub mod native_control;
 pub mod nautilus;
@@ -575,6 +576,7 @@ impl MobTypes {
                 },
             );
         }
+        mod_mob::add(root, &mut out);
         Ok(Self { types: out })
     }
 }

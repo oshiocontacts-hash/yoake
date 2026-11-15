@@ -332,6 +332,8 @@ pub fn register(m: &mut Mob) {
     constructor_maluses(m);
     // Raider subclasses call super.registerGoals() first.
     super::raider::register(m);
+    // A mod mob that lists behaviours has them instead of its template's goals.
+    if !super::mod_mob::register(m) {
     match family(m.species()) {
         Family::Farm => farm::register(m),
         Family::Undead => undead::register(m),
@@ -405,6 +407,7 @@ pub fn register(m: &mut Mob) {
         Family::Bee => super::bee::register(m),
         Family::Panda => super::panda::register(m),
         Family::PolarBear => super::polar_bear::register(m),
+    }
     }
     // FloatGoal's constructor lets the navigation float, as do the
     // constructors of these brain-driven and flying mobs. A floater rises

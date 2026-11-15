@@ -251,7 +251,8 @@ fn register_mob_effects(mods: &[horizon_client::mod_content::ContentMod]) {
 /// startup root.
 fn register_entity_types(mods: &[horizon_client::mod_content::ContentMod]) {
     use horizon_client::projectiles;
-    let types = horizon_client::mod_content::entity_types(mods);
+    let mut types = horizon_client::mod_content::entity_types(mods);
+    types.retain(|t| !t.is_mob());
     let set = projectiles::register_thrown_types(
         types
             .iter()

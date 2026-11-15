@@ -2561,6 +2561,25 @@ pub fn build(base: &Path, mods: &[ContentMod], out: &Path) -> Result<Vec<String>
             placed_doc = Some(doc);
         }
     }
+    // A mob type's natural spawns are an `add_spawns` biome modifier of the mod's own.
+    for m in mods {
+        for t in m.content.entity_types.iter().filter(|t| t.is_mob()) {
+            let Some(spawn) = &t.spawn else { continue };
+            let text = serde_json::json!({
+                "type": "neoforge:add_spawns",
+                "biomes": spawn.biomes,
+                "spawners": {
+                    "type": t.id,
+                    "weight": spawn.weight,
+                    "minCount": spawn.min,
+                    "maxCount": spawn.max,
+                },
+            })
+            .to_string();
+            let file = format!("data/{}/horizon/{}.json", m.id, t.id.replace(':', "/"));
+            modifiers.extend(biomes::Modifier::read(&m.id, &file, &text, &mut warnings)?);
+        }
+    }
     if !modifiers.is_empty() {
         place_in_biomes(
             base,
@@ -2633,6 +2652,16 @@ pub fn build(base: &Path, mods: &[ContentMod], out: &Path) -> Result<Vec<String>
             horizon_items::items::MOD_CRAFT_REMAINDERS,
             &serde_json::to_vec(&remainders)?,
         )?;
+    }
+    // the mods' mob types, which the mob loader builds from their templates.
+    let mobs: Vec<&EntityType> = plan
+        .entity_types
+        .iter()
+        .copied()
+        .filter(|t| t.is_mob())
+        .collect();
+    if !mobs.is_empty() {
+        overlay.write(horizon_mods::content::MOBS_FILE, &serde_json::to_vec(&mobs)?)?;
     }
     // clients must agree on the block states and the items', mob effects',
     // entity types' and menu types' network ids.

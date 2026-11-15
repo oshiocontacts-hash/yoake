@@ -10,7 +10,7 @@
 //! and totals are capped, vanilla ids cannot be redefined, and no two mods
 //! share a namespace ([`clash`]).
 use crate::manifest::{Capability, MANIFEST, Manifest};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
     io::Read,
@@ -418,21 +418,190 @@ fn add_value() -> String {
 /// projectiles (`ThrowableItemProjectile`).
 pub const ENTITY_TEMPLATES: [&str; 1] = ["minecraft:snowball"];
 
-/// an entity type the mod adds: a copy of a vanilla template's, thrown
-/// from `item` and drawn as it.
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+/// the vanilla ground mobs a mod's mob may copy: the model, animation,
+/// sounds, spawn rules and, unless it lists `behaviours`, the goals of the
+/// template, with the mod's texture, size, attributes, drops and spawns.
+pub const MOB_TEMPLATES: [&str; 8] = [
+    "minecraft:pig",
+    "minecraft:cow",
+    "minecraft:sheep",
+    "minecraft:chicken",
+    "minecraft:zombie",
+    "minecraft:skeleton",
+    "minecraft:spider",
+    "minecraft:creeper",
+];
+
+/// the attributes a mob type sets (`attributes`), with the range of each.
+pub const MOB_ATTRIBUTES: [(&str, f64, f64); 8] = [
+    ("max_health", 1.0, 1024.0),
+    ("movement_speed", 0.0, 10.0),
+    ("attack_damage", 0.0, 2048.0),
+    ("attack_knockback", 0.0, 5.0),
+    ("armor", 0.0, 30.0),
+    ("armor_toughness", 0.0, 20.0),
+    ("knockback_resistance", 0.0, 1.0),
+    ("follow_range", 1.0, 128.0),
+];
+
+/// the file in a content root where the mods' mob types are written, as a
+/// JSON list of [`EntityType`]s with their ids (the mob loader reads it).
+pub const MOBS_FILE: &str = "horizon-mod-mobs.json";
+
+/// a built-in behaviour (a vanilla goal) of a mod mob. A mob that lists
+/// some has exactly these goals and targets, first listed first; without
+/// the list it keeps its template's.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Behaviour {
+    /// `FloatGoal`: swims instead of sinking.
+    Float,
+    /// `WaterAvoidingRandomStrollGoal`.
+    Wander {
+        #[serde(default = "one")]
+        speed: f64,
+    },
+    /// `LookAtPlayerGoal`.
+    LookAtPlayer {
+        #[serde(default = "six")]
+        range: f32,
+    },
+    /// `RandomLookAroundGoal`.
+    RandomLook,
+    /// `PanicGoal`: runs when hurt.
+    Panic {
+        #[serde(default = "panic_speed")]
+        speed: f64,
+    },
+    /// `TemptGoal`: follows a player holding one of `items`.
+    Tempt {
+        items: Vec<String>,
+        #[serde(default = "tempt_speed")]
+        speed: f64,
+    },
+    /// `AvoidEntityGoal`: keeps `distance` blocks from `from`
+    /// (`minecraft:player` or vanilla mob ids).
+    Flee {
+        #[serde(default = "player_only")]
+        from: Vec<String>,
+        #[serde(default = "eight")]
+        distance: f32,
+        #[serde(default = "panic_speed")]
+        walk_speed: f64,
+        #[serde(default = "flee_sprint")]
+        sprint_speed: f64,
+    },
+    /// `MeleeAttackGoal`: attacks its target with its `attack_damage`.
+    MeleeAttack {
+        #[serde(default = "one")]
+        speed: f64,
+    },
+    /// `NearestAttackableTargetGoal` for players.
+    TargetPlayer {
+        #[serde(default = "yes")]
+        must_see: bool,
+    },
+    /// `HurtByTargetGoal`: hits back at what hurt it.
+    HurtByTarget,
+}
+fn one() -> f64 {
+    1.0
+}
+fn six() -> f32 {
+    6.0
+}
+fn eight() -> f32 {
+    8.0
+}
+fn panic_speed() -> f64 {
+    1.25
+}
+fn tempt_speed() -> f64 {
+    1.2
+}
+fn flee_sprint() -> f64 {
+    1.5
+}
+fn player_only() -> Vec<String> {
+    vec!["minecraft:player".to_owned()]
+}
+
+/// where and how often a mod mob spawns naturally: what NeoForge's
+/// `add_spawns` biome modifier adds to the biomes.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct SpawnRule {
+    /// an id, a `#tag`, or a list of them (as a biome modifier's `biomes`).
+    pub biomes: serde_json::Value,
+    /// 1 to 1000; the cow's is 8, the zombie's 95.
+    #[serde(default = "ten")]
+    pub weight: u32,
+    /// a group's size, 1 to 32 and `min <= max`.
+    #[serde(default = "one_u32")]
+    pub min: u32,
+    #[serde(default = "four")]
+    pub max: u32,
+}
+fn ten() -> u32 {
+    10
+}
+fn one_u32() -> u32 {
+    1
+}
+fn four() -> u32 {
+    4
+}
+
+/// an entity type the mod adds: a thrown projectile (`template`
+/// `minecraft:snowball`, thrown from `item` and drawn as it) or a mob (one of
+/// [`MOB_TEMPLATES`], with the fields after `damage`).
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct EntityType {
     /// `<mod id>:<path>`.
-    #[serde(skip)]
+    #[serde(skip_deserializing)]
     pub id: String,
-    /// one of [`ENTITY_TEMPLATES`].
+    /// one of [`ENTITY_TEMPLATES`] or [`MOB_TEMPLATES`].
     pub template: String,
-    /// one of the mod's own items, which throws it.
+    /// one of the mod's own items, which throws it (a projectile only; one
+    /// type per item).
+    #[serde(default)]
     pub item: String,
-    /// what a hit deals to an entity, as `thrown` damage.
+    /// what a hit deals to an entity, as `thrown` damage (a projectile only).
     #[serde(default)]
     pub damage: f32,
+    /// a mob's texture, `<namespace>:entity/<path>` of a PNG in
+    /// `assets/<namespace>/textures/`; the template's by default.
+    #[serde(default)]
+    pub texture: Option<String>,
+    /// a mob's box in blocks; the template's by default.
+    #[serde(default)]
+    pub width: Option<f64>,
+    #[serde(default)]
+    pub height: Option<f64>,
+    #[serde(default)]
+    pub eye_height: Option<f64>,
+    /// a mob's attributes ([`MOB_ATTRIBUTES`], bare or `minecraft:` names).
+    #[serde(default)]
+    pub attributes: BTreeMap<String, f64>,
+    /// a mob's goals ([`Behaviour`]); the template's when absent.
+    #[serde(default)]
+    pub behaviours: Option<Vec<Behaviour>>,
+    /// a mob's death loot table; `<mod id>:entities/<path>` when absent.
+    #[serde(default)]
+    pub loot_table: Option<String>,
+    /// a mob's natural spawns.
+    #[serde(default)]
+    pub spawn: Option<SpawnRule>,
+    /// the mod has an item `<id>:<path>_spawn_egg`, which spawns it.
+    #[serde(default)]
+    pub spawn_egg: bool,
+}
+impl EntityType {
+    /// a mob, not a thrown projectile.
+    pub fn is_mob(&self) -> bool {
+        MOB_TEMPLATES.contains(&self.template.as_str())
+    }
 }
 
 /// a menu type the mod adds (vanilla's `MenuType`, NeoForge's
@@ -905,12 +1074,31 @@ impl Content {
             });
         }
         for (kind, name) in types {
-            let file: EntityType =
+            let mut file: EntityType =
                 serde_json::from_slice(&self.file(&name)?).map_err(|e| format!("{name}: {e}"))?;
+            if file.is_mob() {
+                self.check_mob(&name, &kind, &mut file, &ids)?;
+                self.entity_types.push(EntityType { id: kind, ..file });
+                continue;
+            }
             if !ENTITY_TEMPLATES.contains(&file.template.as_str()) {
                 return Err(format!(
-                    "{name}: template {:?} is not one of {ENTITY_TEMPLATES:?}",
+                    "{name}: template {:?} is not one of {ENTITY_TEMPLATES:?} or {MOB_TEMPLATES:?}",
                     file.template
+                ));
+            }
+            if file.texture.is_some()
+                || file.width.is_some()
+                || file.height.is_some()
+                || file.eye_height.is_some()
+                || !file.attributes.is_empty()
+                || file.behaviours.is_some()
+                || file.loot_table.is_some()
+                || file.spawn.is_some()
+                || file.spawn_egg
+            {
+                return Err(format!(
+                    "{name}: texture, size, attributes, behaviours, loot_table, spawn and spawn_egg are for mob templates"
                 ));
             }
             // its own item, so no vanilla item loses its use to it.
@@ -920,7 +1108,11 @@ impl Content {
                     file.item
                 ));
             }
-            if self.entity_types.iter().any(|t| t.item == file.item) {
+            if self
+                .entity_types
+                .iter()
+                .any(|t| !t.is_mob() && t.item == file.item)
+            {
                 return Err(format!(
                     "{name}: item {:?} already throws another entity type",
                     file.item
@@ -952,6 +1144,156 @@ impl Content {
                 }
             }
             self.menu_types.push(MenuType { id: menu, ..file });
+        }
+        Ok(())
+    }
+}
+
+impl Content {
+    /// A mob type's fields: the texture, size, attributes (stored with bare
+    /// names), behaviours, loot table, spawn rule and spawn egg.
+    fn check_mob(
+        &self,
+        name: &str,
+        kind: &str,
+        file: &mut EntityType,
+        items: &BTreeSet<String>,
+    ) -> Result<(), String> {
+        if !file.item.is_empty() || file.damage != 0.0 {
+            return Err(format!(
+                "{name}: item and damage are for minecraft:snowball"
+            ));
+        }
+        let owns = |ns: &str| self.namespaces.iter().any(|n| n == ns);
+        if let Some(texture) = &file.texture {
+            let own_file = texture
+                .split_once(':')
+                .filter(|(ns, path)| owns(ns) && path.starts_with("entity/"))
+                .map(|(ns, path)| format!("assets/{ns}/textures/{path}.png"));
+            if !own_file.is_some_and(|f| self.files.contains(&f)) {
+                return Err(format!(
+                    "{name}: texture {texture:?} is not a PNG of this mod under assets/<namespace>/textures/entity/ (write <namespace>:entity/<path>)"
+                ));
+            }
+        }
+        let size = |what: &str, v: Option<f64>| -> Result<(), String> {
+            match v {
+                Some(v) if !(v.is_finite() && v > 0.0 && v <= 16.0) => {
+                    Err(format!("{name}: {what} is above 0 and at most 16"))
+                }
+                _ => Ok(()),
+            }
+        };
+        size("width", file.width)?;
+        size("height", file.height)?;
+        size("eye_height", file.eye_height)?;
+        let mut attributes = BTreeMap::new();
+        for (key, value) in std::mem::take(&mut file.attributes) {
+            let bare = key.strip_prefix("minecraft:").unwrap_or(&key).to_owned();
+            let Some(&(_, lo, hi)) = MOB_ATTRIBUTES.iter().find(|(n, ..)| *n == bare) else {
+                let names: Vec<_> = MOB_ATTRIBUTES.iter().map(|(n, ..)| *n).collect();
+                return Err(format!("{name}: attribute {key:?} is not one of {names:?}"));
+            };
+            if !(value.is_finite() && (lo..=hi).contains(&value)) {
+                return Err(format!("{name}: attribute {bare} is {lo} to {hi}"));
+            }
+            if attributes.insert(bare.clone(), value).is_some() {
+                return Err(format!("{name}: attribute {bare} is set twice"));
+            }
+        }
+        file.attributes = attributes;
+        let id_like = |s: &str| {
+            s.split_once(':')
+                .is_some_and(|(n, p)| !n.is_empty() && !p.is_empty())
+        };
+        let speed_ok = |s: f64| s.is_finite() && (0.0..=4.0).contains(&s);
+        if let Some(list) = &file.behaviours {
+            if list.len() > 32 {
+                return Err(format!("{name}: at most 32 behaviours"));
+            }
+            for b in list {
+                let fine = match b {
+                    Behaviour::Tempt { items, speed } => {
+                        if items.is_empty() || !items.iter().all(|i| id_like(i)) {
+                            return Err(format!(
+                                "{name}: tempt needs items, each an item id (namespace:path)"
+                            ));
+                        }
+                        speed_ok(*speed)
+                    }
+                    Behaviour::Flee {
+                        from,
+                        distance,
+                        walk_speed,
+                        sprint_speed,
+                    } => {
+                        if from.is_empty() || !from.iter().all(|f| id_like(f)) {
+                            return Err(format!(
+                                "{name}: flee needs from, minecraft:player or vanilla mob ids"
+                            ));
+                        }
+                        if !(distance.is_finite() && (1.0..=64.0).contains(distance)) {
+                            return Err(format!("{name}: flee distance is 1 to 64"));
+                        }
+                        speed_ok(*walk_speed) && speed_ok(*sprint_speed)
+                    }
+                    Behaviour::Wander { speed }
+                    | Behaviour::Panic { speed }
+                    | Behaviour::MeleeAttack { speed } => speed_ok(*speed),
+                    Behaviour::LookAtPlayer { range } => {
+                        if !(range.is_finite() && (1.0..=64.0).contains(range)) {
+                            return Err(format!("{name}: look_at_player range is 1 to 64"));
+                        }
+                        true
+                    }
+                    Behaviour::Float
+                    | Behaviour::RandomLook
+                    | Behaviour::TargetPlayer { .. }
+                    | Behaviour::HurtByTarget => true,
+                };
+                if !fine {
+                    return Err(format!("{name}: a speed is 0 to 4"));
+                }
+            }
+        }
+        if let Some(table) = &file.loot_table
+            && !table
+                .split_once(':')
+                .is_some_and(|(ns, p)| owns(ns) && !p.is_empty())
+        {
+            return Err(format!(
+                "{name}: loot_table {table:?} is a loot table id in this mod's namespaces"
+            ));
+        }
+        if let Some(spawn) = &file.spawn {
+            let one = |v: &serde_json::Value| v.as_str().is_some_and(|s| !s.is_empty());
+            let biomes_ok = match &spawn.biomes {
+                v if one(v) => true,
+                serde_json::Value::Array(list) => !list.is_empty() && list.iter().all(one),
+                _ => false,
+            };
+            if !biomes_ok {
+                return Err(format!(
+                    "{name}: spawn.biomes is a biome id, a #tag or a list of them"
+                ));
+            }
+            if !(1..=1000).contains(&spawn.weight)
+                || !(1..=32).contains(&spawn.min)
+                || spawn.max < spawn.min
+                || spawn.max > 32
+            {
+                return Err(format!(
+                    "{name}: spawn weight is 1 to 1000, min 1 to 32 and max min to 32"
+                ));
+            }
+        }
+        if file.spawn_egg {
+            let egg = format!("{kind}_spawn_egg");
+            if !items.contains(&egg) {
+                return Err(format!(
+                    "{name}: spawn_egg needs an item of this mod named {egg}"
+                ));
+            }
         }
         Ok(())
     }
@@ -1700,6 +2042,128 @@ capabilities = ["registries"]
         ];
         let e = hmod("type-shared", MANIFEST_TEXT, files).unwrap_err();
         assert!(e.contains("already throws another entity type"), "{e}");
+    }
+
+    #[test]
+    fn mob_entity_types_copy_a_vanilla_mob_with_their_own_stats() {
+        let egg = ("data/ruby/horizon/item/gem_cow_spawn_egg.json", ITEM);
+        let texture = ("assets/ruby/textures/entity/gem_cow.png", &b"png"[..]);
+        let mob = br##"{
+            "template": "minecraft:cow",
+            "texture": "ruby:entity/gem_cow",
+            "width": 1.0, "height": 1.2,
+            "attributes": { "minecraft:max_health": 30, "movement_speed": 0.3 },
+            "behaviours": [
+                { "type": "float" },
+                { "type": "panic", "speed": 1.5 },
+                { "type": "tempt", "items": ["minecraft:wheat"] },
+                { "type": "flee", "from": ["minecraft:player"], "distance": 6 },
+                { "type": "wander" },
+                { "type": "look_at_player", "range": 8 },
+                { "type": "random_look" },
+                { "type": "melee_attack" },
+                { "type": "target_player", "must_see": false },
+                { "type": "hurt_by_target" }
+            ],
+            "loot_table": "ruby:entities/special",
+            "spawn": { "biomes": ["#minecraft:is_overworld"], "weight": 6, "min": 2, "max": 3 },
+            "spawn_egg": true
+        }"##;
+        let files: &[(&str, &[u8])] = &[
+            egg,
+            texture,
+            ("data/ruby/horizon/entity_type/gem_cow.json", mob),
+        ];
+        let content = hmod("mob-types", MANIFEST_TEXT, files).unwrap();
+        let t = &content.entity_types[0];
+        assert!(t.is_mob());
+        assert_eq!(t.id, "ruby:gem_cow");
+        assert_eq!(t.attributes["max_health"], 30.0);
+        assert_eq!(t.attributes["movement_speed"], 0.3);
+        assert_eq!(t.behaviours.as_ref().unwrap().len(), 10);
+        assert_eq!(t.spawn.as_ref().unwrap().weight, 6);
+        // what the content root holds for the game to read.
+        let text = serde_json::to_string(&content.entity_types).unwrap();
+        assert!(text.contains(r#""id":"ruby:gem_cow""#));
+
+        let cow = |rest: &str| format!(r#"{{"template": "minecraft:cow"{rest}}}"#);
+        for (case, file, why) in [
+            (
+                "mob-texture",
+                cow(r#", "texture": "ruby:entity/missing""#),
+                "texture",
+            ),
+            (
+                "mob-texture-ns",
+                cow(r#", "texture": "other:entity/gem_cow""#),
+                "texture",
+            ),
+            ("mob-item", cow(r#", "item": "ruby:gem""#), "snowball"),
+            ("mob-width", cow(r#", "width": 0"#), "width is above 0"),
+            (
+                "mob-attribute",
+                cow(r#", "attributes": {"luck": 1}"#),
+                "is not one of",
+            ),
+            (
+                "mob-attribute-range",
+                cow(r#", "attributes": {"max_health": 0}"#),
+                "max_health is 1 to",
+            ),
+            (
+                "mob-behaviour",
+                cow(r#", "behaviours": [{"type": "dance"}]"#),
+                "unknown variant",
+            ),
+            (
+                "mob-behaviour-field",
+                cow(r#", "behaviours": [{"type": "wander", "pace": 1}]"#),
+                "unknown field",
+            ),
+            (
+                "mob-tempt",
+                cow(r#", "behaviours": [{"type": "tempt", "items": []}]"#),
+                "tempt needs items",
+            ),
+            (
+                "mob-speed",
+                cow(r#", "behaviours": [{"type": "wander", "speed": 9}]"#),
+                "a speed is 0 to 4",
+            ),
+            (
+                "mob-loot",
+                cow(r#", "loot_table": "minecraft:entities/cow""#),
+                "loot_table",
+            ),
+            (
+                "mob-spawn-biomes",
+                cow(r#", "spawn": {"biomes": []}"#),
+                "spawn.biomes",
+            ),
+            (
+                "mob-spawn-count",
+                cow(r#", "spawn": {"biomes": "minecraft:plains", "min": 3, "max": 2}"#),
+                "spawn weight",
+            ),
+            ("mob-egg", cow(r#", "spawn_egg": true"#), "gem_cow_spawn_egg"),
+        ] {
+            let files: &[(&str, &[u8])] = &[
+                texture,
+                ("data/ruby/horizon/entity_type/gem_cow.json", file.as_bytes()),
+            ];
+            let e = hmod(case, MANIFEST_TEXT, files).unwrap_err();
+            assert!(e.contains(why), "{case}: {e}");
+        }
+        // a snowball takes none of a mob's fields.
+        let files: &[(&str, &[u8])] = &[
+            ("data/ruby/horizon/item/gem.json", ITEM),
+            (
+                "data/ruby/horizon/entity_type/a.json",
+                br#"{"template": "minecraft:snowball", "item": "ruby:gem", "spawn_egg": true}"#,
+            ),
+        ];
+        let e = hmod("mob-snowball", MANIFEST_TEXT, files).unwrap_err();
+        assert!(e.contains("are for mob templates"), "{e}");
     }
 
     #[test]

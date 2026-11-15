@@ -1,0 +1,6 @@
+id = "content_demo"
+name = "Content Demo"
+version = "0.1.0"
+api = "0.2"
+capabilities = ["registries"]
+side = "both"

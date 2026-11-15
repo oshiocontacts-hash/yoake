@@ -311,8 +311,8 @@ level. A value is opaque bytes (64 KiB at most). `persistent` saves it with the 
 `synced` sends it to the clients that see the holder, `copy-on-death` carries it to the respawned player. Defining the
 same id twice with the same policy is fine; a different policy or another package's namespace is refused.
 
-A mod entity type is declared in `data/<id>/horizon/entity_type/<name>.json`. It copies a vanilla type: for now only
-`minecraft:snowball`, a thrown item projectile. `item` is one of the mod's own items (one type per item), and `damage`
+A mod entity type is declared in `data/<id>/horizon/entity_type/<name>.json`. It copies a vanilla type: `minecraft:snowball` (below), or a mob ("Mob types", below).
+A `minecraft:snowball` type is a thrown item projectile: `item` is one of the mod's own items (one type per item), and `damage`
 (0 by default) is what a hit deals to anything it hits, as `thrown` damage from the thrower (the snowball's 3 to blazes
 is not copied):
 
@@ -328,6 +328,81 @@ untested so far. Clients join a server only with the same mods' entity types, as
 chunk, `/summon <id>:<name>` makes one, and it has its template's row in `entity-types.json`. A world opened without the
 mod keeps the saved ones as they are, frozen in place. Not yet: a dispenser doesn't throw it, and a vanilla client on a
 server with it may be disconnected when one spawns.
+
+#### Mob types
+
+An entity type whose `template` is one of `minecraft:pig`, `cow`, `sheep`, `chicken`, `zombie`, `skeleton`, `spider`
+or `creeper` is a mob: a copy of that vanilla mob's type with the mod's id, texture, size, attributes, goals, drops and
+spawns. It keeps its template's **model and animation** (drawn by reference: there is no Blockbench or JSON model path
+for mod entities yet, see below), sounds, spawn rules (a cow-based mob needs grass and light, a zombie-based one
+darkness), baby and breeding behaviour, and anything its species does apart from its goals (a zombie-based mob burns in
+sunlight). All fields but `template` are optional:
+
+```json
+{ "template": "minecraft:cow",
+  "texture": "ruby:entity/gem_cow",
+  "width": 1.1, "height": 1.5,
+  "attributes": { "max_health": 30, "movement_speed": 0.3, "attack_damage": 3, "armor": 2 },
+  "behaviours": [
+    { "type": "float" },
+    { "type": "panic", "speed": 1.4 },
+    { "type": "tempt", "items": ["minecraft:wheat"], "speed": 1.2 },
+    { "type": "flee", "from": ["minecraft:player"], "distance": 6 },
+    { "type": "wander", "speed": 1.0 },
+    { "type": "look_at_player", "range": 8 },
+    { "type": "random_look" }
+  ],
+  "loot_table": "ruby:entities/gem_cow",
+  "spawn": { "biomes": ["#minecraft:is_overworld"], "weight": 8, "min": 2, "max": 4 },
+  "spawn_egg": true }
+```
+
+- `texture` is `<namespace>:entity/<path>`, a PNG at `assets/<namespace>/textures/entity/<path>.png` in the mod's own
+  namespaces (the layout of the template's texture). `width`, `height` and `eye_height` (above 0, at most 16) replace the
+  box; with only `height` the eyes keep their place in it.
+- `attributes` (bare or `minecraft:` names): `max_health` (1-1024), `movement_speed` (0-10), `attack_damage` (0-2048),
+  `attack_knockback` (0-5), `armor` (0-30), `armor_toughness` (0-20), `knockback_resistance` (0-1) and `follow_range`
+  (1-128). The rest are the template's.
+- `behaviours` are vanilla goals, first listed first (priority 0, 1, ...): `float`, `wander` (`speed`),
+  `look_at_player` (`range`), `random_look`, `panic` (`speed`, runs when hurt), `tempt` (`items`, `speed`: follows a
+  player holding one), `flee` (`from`: `minecraft:player` and/or vanilla mob ids, `distance`, `walk_speed`,
+  `sprint_speed`), `melee_attack` (`speed`; uses `attack_damage`), `target_player` (`must_see`) and `hurt_by_target`.
+  Speeds are 0-4. A mob that lists them has exactly these, the targets (`target_player`, `hurt_by_target`) after
+  the goals; a mob without the list keeps its template's goals, breeding included. A hostile mob wants `melee_attack`
+  with `target_player`.
+- `loot_table` is a loot table of the mod's namespaces; by default `<id>:entities/<name>`, that is
+  `data/<id>/loot_table/entities/<name>.json` (vanilla's entity loot tables, so conditions such as
+  `killed_by_player` and `looting` work). A mod mob with no such table drops nothing.
+- `spawn` adds the mob to the natural spawns of the biomes (`biomes` is an id, a `#tag` or a list, as in a biome
+  modifier) at its template's category, with a `weight` (1-1000) and group size `min` to `max` (1-32). It is the
+  `add_spawns` biome modifier written for you.
+- `spawn_egg: true` requires an item `<id>:<name>_spawn_egg` of the mod (declared like any item, with its own model and
+  texture): the game spawns the mob when an item named `<type>_spawn_egg` is used on a block, as it does for vanilla.
+
+A mob is `/summon`ed as `<id>:<name>`, saved with its chunk and shown to clients as its template is. Every player needs
+the same mods, as with blocks. What a full Blockbench or JSON model path needs: the engine draws mob models from baked
+model layers keyed by `<model>#<layer>` and animates them by the species' animation family; a custom model means a
+new layer key per mod type in `MobType.layers`, a loader for the model JSON into the `Part` tree (the
+OptiFine `.jem` loader in `mobs/cem.rs` already builds `Part`s from boxes and could be reused, with the mod's bones
+animated by a mod-side animation), and an animation family for it. The `.jem`-based route is the closest: a mod may
+ship `optifine/cem` files for a mod mob's layer once layers are keyed by the mob's own id.
+
+#### Sounds, particles and creative tabs (data only)
+
+These need no declaration beyond their files:
+
+- **Sounds**: `assets/<id>/sounds.json` defines sound events as a resource pack does
+  (`{ "gem_cow.moo": { "sounds": [{ "name": "<id>:mob/moo", "volume": 0.8, "pitch": 1.2 }] } }`, the files at
+  `assets/<id>/sounds/mob/moo.ogg`; `"name"` may also name a sound of another namespace, and `"stream": true` suits long
+  music). The event is `<id>:gem_cow.moo`. A WebAssembly or native module plays it with `play-sound-at` (server, heard by the
+  players near it) or the client's sound service; a mod mob's own sounds are its template's.
+- **Particles**: `assets/<id>/particles/<path>.json` holds `{ "textures": ["<id>:<path>/1", "<id>:<path>/2"] }`, frames
+  at `assets/<id>/textures/particle/<path>/1.png`; a module sends `<id>:<path>` as a particle name (`particle-spawn`,
+  `native_send_particles`). The particle is a plain billboard with the sprite set (20 to 40 ticks).
+- **Creative tabs** list their items in order (above); a mod's items also join the search tab.
+
+Not data-driven yet: damage types (the damage kinds are the engine's own list), game rules, enchantments (a module
+gives items the effect with its hooks) and mob effect behaviour beyond attribute modifiers.
 
 #### Menu types
 
