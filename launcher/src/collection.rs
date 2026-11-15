@@ -409,7 +409,7 @@ impl Launcher {
         ));
         glass_section(
             "Data collection",
-            "info-box",
+            "information-circle",
             None,
             glass_body()
                 .child(glass_note(

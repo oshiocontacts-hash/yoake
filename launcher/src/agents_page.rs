@@ -221,7 +221,7 @@ impl Launcher {
         }
         Some(glass_section(
             "Connect an AI agent",
-            "terminal",
+            "computer-terminal-01",
             None,
             section,
         ))

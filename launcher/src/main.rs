@@ -4327,7 +4327,7 @@ impl Launcher {
         );
         let updates = group(
             "Updates",
-            "reload",
+            "refresh",
             vec![
                 index_row(
                     n + 1,
@@ -4358,7 +4358,7 @@ impl Launcher {
         );
         let launcher_group = group(
             "Launcher",
-            "monitor",
+            "computer",
             vec![
                 index_row(
                     n + 3,
@@ -4384,9 +4384,21 @@ impl Launcher {
                 .into_any_element(),
             ],
         );
-        let network = group("Network", "globe", vec![self.proxy_row(n + 4, cx).into_any_element()]);
-        let game = group("Game", "gamepad", vec![self.game_args_row(n + 5, cx).into_any_element()]);
-        let ai = group("AI", "terminal", vec![self.no_ai_row(n + 6, cx).into_any_element()]);
+        let network = group(
+            "Network",
+            "globe-02",
+            vec![self.proxy_row(n + 4, cx).into_any_element()],
+        );
+        let game = group(
+            "Game",
+            "game-controller-01",
+            vec![self.game_args_row(n + 5, cx).into_any_element()],
+        );
+        let ai = group(
+            "AI",
+            "computer-terminal-01",
+            vec![self.no_ai_row(n + 6, cx).into_any_element()],
+        );
         let mut about = vec![
             index_row(
                 n + 7,
@@ -4449,7 +4461,7 @@ impl Launcher {
                 .into_any_element(),
             );
         }
-        let about = group("About", "info-box", about);
+        let about = group("About", "information-circle", about);
         div()
             .flex()
             .flex_col()
@@ -4470,7 +4482,7 @@ impl Launcher {
                 use horizon_theme::glass::ink;
                 page.child(glass_section(
                     "About / licences",
-                    "info-box",
+                    "information-circle",
                     None,
                     glass_body()
                         .gap(px(12.))

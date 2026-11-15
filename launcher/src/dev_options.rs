@@ -113,7 +113,7 @@ impl Launcher {
         }
         Some(glass_section(
             "Developer options",
-            "terminal",
+            "computer-terminal-01",
             None,
             section,
         ))
