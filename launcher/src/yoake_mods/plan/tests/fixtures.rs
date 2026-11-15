@@ -147,8 +147,12 @@ impl Fixture {
             optional: BTreeMap::new(),
             conflicts: BTreeMap::new(),
             bin: None,
+            wasm: None,
+            http: None,
             shaders: Vec::new(),
             services: Vec::new(),
+            config: BTreeMap::new(),
+            permissions: BTreeMap::new(),
         }
     }
 

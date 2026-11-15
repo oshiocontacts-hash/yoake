@@ -2,17 +2,23 @@
 
 mod catalog;
 mod compatibility;
+mod config;
+mod http_policy;
 mod installed;
 mod manifest;
 mod pack;
+mod permissions;
 
 pub use catalog::{CATALOG_PATH, Catalog, CatalogEntry, CatalogVersion, MAX_CATALOG_SIZE};
 pub use compatibility::{CompatibilityIssue, Environment, Resolution, ResolutionIssue, check_compatibility, check_data_compatibility, resolve};
+pub use config::{ConfigChange, ConfigField, ConfigKind, ConfigRuntimeSide, ConfigSide, ConfigState, PermissionNode, has_permission, parse_config, resolve_config, serialize_config};
+pub use http_policy::{HttpsPolicy, validate_https_addresses};
 pub use installed::{check_installed_tree, check_plain_path, hash_installed_file, trusted_keys, verify_installed};
 pub use horizon_release_sign::{PublicKey, parse_keys};
 pub use horizon_release_sign::yak::{Entry, MAX_ARCHIVE_SIZE, MAX_COMPRESSION_RATIO, MAX_ENTRIES, MAX_FILE_SIZE, MAX_TOTAL_SIZE, Signature, canonical_hashes};
-pub use manifest::{Bin, Manifest, OptionValue, Service, Shader, ShaderOption, Side, Target, Wasm, Yoake, MAX_WASM_SIZE, SUPPORTED_WASM_INTERFACE};
+pub use manifest::{Bin, Http, Manifest, OptionValue, Service, Shader, ShaderOption, Side, Target, Wasm, Yoake, MAX_WASM_SIZE, SUPPORTED_WASM_INTERFACE};
 pub use pack::pack_directory;
+pub use permissions::PermissionOverrides;
 pub use semver::{Version, VersionReq};
 
 use horizon_release_sign::yak as container;

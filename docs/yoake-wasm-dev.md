@@ -214,3 +214,90 @@ feature, `client` and `server`).
 * The guest examples used by the tests are built by `yoake_wasm::test_guests` (feature `test-guests`) into
   `YOAKE_WASM_TARGET_DIR`, else a `target-wasm` folder next to the repository, else `target/wasm-guests`.
   With `YOAKE_CI=1` (or `CI`) a guest that cannot be built fails its test instead of skipping.
+
+## W2D service groundwork (not wired)
+
+`crates/horizon-mod-api-gen/abi-subset-w2d-services.json` is a **proposed-only** catalog fragment. It is
+not consumed by the generator and does not make services or hooks available. The lead must review the
+contracts, allocate IDs and merge the appropriate entries into both catalogs before regenerating WIT and
+adapters together. The signatures, limits and capability names in the fragment can still change.
+
+The `.yak` manifest parser accepts typed config and permission declarations, for example:
+
+```toml
+[config.enabled]
+type = "bool"
+side = "server"
+default = true
+
+[config.radius]
+type = "int"
+side = "synced"
+default = 8
+min = 1
+max = 16
+
+[config.mode]
+type = "enum"
+side = "client"
+default = "simple"
+values = ["simple", "advanced"]
+
+[config.layers]
+type = "list"
+element = "enum"
+side = "server"
+default = ["surface"]
+values = ["surface", "deep"]
+
+[permissions."example.edit"]
+default_op_level = 2
+```
+
+Types are `bool`, `int`, `float`, `string`, `enum` and non-nested `list`. Numeric ranges use the same
+type as the value, enum values must be declared, and optional `comment` and `restart` fields describe
+settings. Config names and permission nodes contain dot-separated alphanumeric, `_` or `-` segments.
+Resolved keys and values, and the declared defaults, are limited to 1 MiB in aggregate.
+The reusable `resolve_config`, `parse_config` and `serialize_config` helpers validate values, fill
+defaults and handle bounded TOML documents in memory. `ConfigState` separates local and synced values,
+validates complete server snapshots before applying them atomically, and reports changes for a future
+hook dispatcher. The caller must authenticate the server, deliver snapshots, clear them on disconnect,
+and read and write the side-specific documents safely; this is not yet connected to the runtime.
+`PermissionOverrides::parse` accepts a bounded in-memory `permissions.toml` document, and `check`
+applies per-mod, per-player UUID overrides only to declared nodes before falling back to operator level.
+For example, `[mods.example.players.'01234567-89ab-cdef-0123-456789abcdef']` can contain
+`'example.edit' = true`. The host still needs to load this file safely, identify players, and expose the
+check; config persistence, network synchronization, the config screen and hook dispatch are also pending.
+
+Packages may declare `service.http` in `[wasm].permissions` together with exact domain names in
+`[http].hosts`. The two declarations are required together. `HttpsPolicy` checks the declared domains,
+the permission and user-consent decisions, and the HTTPS URL; `validate_https_addresses` rejects a
+resolution containing non-public or reserved addresses. These helpers do not request consent, resolve
+DNS or make requests. An eventual transport must pin the validated resolution when connecting, repeat
+the checks for every redirect, and prevent proxies from bypassing the checks.
+
+`yoake_wasm::host_services` contains bounded fixed-window message accounting and an in-memory transfer
+assembler: messages are capped at 1 MiB, transfers at 64 MiB, and chunks may arrive out of order or be
+retried with identical content. A host must scope and authorize each transfer and apply aggregate memory
+and rate limits; the helper itself has no transport, identity checks, persistence or timeout. Resume is
+only possible while the host retains the corresponding assembler.
+
+`ChunkTickets` provides bounded per-mod ownership accounting, including shared chunks and cleanup on
+mod unload. It does not load or unload chunks: integration must preserve all non-mod ticket owners.
+
+The in-memory `Storage` helper accounts for serialized keys and data, reserves quota before receiving
+blobs, and exposes only complete committed blobs. Its reader and writer take streams rather than paths;
+they do not open files or isolate mods or worlds. An eventual host must open confined, symlink-safe
+files, select separate stores per mod and scope, and persist snapshots atomically before reporting a
+durable write. Pending blob uploads are not persisted and must be discarded on session shutdown.
+
+`RequestTickets` bounds outstanding work and scopes completion, polling and cancellation by mod ID.
+Uncollected completions count against the limit. It starts no work, validates neither requests nor
+response sizes, and does not wire any service.
+
+HTTP transport, storage persistence, force-loading, backups, performance metrics, locate and client mod
+calls are proposed contracts only; none is wired by this groundwork. In particular, the existing
+WASM storage limits above have **not** changed. An HTTP implementation must require declared hosts,
+`service.http` and per-mod user consent, require HTTPS, and reject loopback, private and link-local
+addresses after resolution, including on redirects, without a DNS-rebinding gap. File-backed services
+must remain within game/mod directories even in the presence of links or Windows reparse points.

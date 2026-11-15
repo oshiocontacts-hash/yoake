@@ -184,3 +184,27 @@ permissions = [\"service.commands\"]
 ");
     assert!(Manifest::parse(&client_only).unwrap_err().contains("server module"));
 }
+
+#[test]
+fn http_hosts_and_permission_must_be_declared_together() {
+    let parse = |permissions: &str, http: &str| {
+        Manifest::parse(&with_wasm(&format!(
+            r#"
+[wasm]
+interface = "1.0"
+client = "bin/wasm/a.wasm"
+{permissions}
+{http}
+"#
+        )))
+    };
+    let permission = r#"permissions = ["service.http"]"#;
+    let hosts = "[http]\nhosts = ['api.example.com']";
+    assert!(parse(permission, hosts).is_ok());
+    assert!(parse(permission, "").is_err());
+    assert!(parse("", hosts).is_err());
+    for host in ["127.0.0.1", "*.example.com", "https://example.com", "example.com."] {
+        let http = format!("[http]\nhosts = ['{host}']");
+        assert!(parse(permission, &http).is_err(), "{host}");
+    }
+}

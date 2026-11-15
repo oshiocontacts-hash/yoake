@@ -13,6 +13,7 @@ mod full;
 mod full_hook_names;
 pub mod full_bindings;
 mod host;
+pub mod host_services;
 mod hook_names;
 mod subscriptions;
 #[cfg(feature = "test-guests")]
