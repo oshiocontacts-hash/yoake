@@ -144,7 +144,7 @@ arrives, so it covers the TLS handshake and the wait for that message. Slots are
 counted per source group (an IPv4 address, or an IPv6 /64, after mapping
 IPv4-in-IPv6 back to IPv4): at most 4 per group; per coarser net (IPv4 /24, IPv6
 /48): at most 32; and 256 in total. When the total is full the oldest connection
-of the net holding the most is dropped to admit the new one, so stalled
+of the busiest net inside the busiest wide group (IPv4 /16, IPv6 /32) is dropped to admit the new one, so stalled
 connections, even spread over many sources, cannot lock real clients out. The
 listener also caps live connection threads (2048) and closes further sockets
 unread. The relay refuses new connections while its certificate is outside its
@@ -159,8 +159,8 @@ paired forwarding handle. It decrypts one outer TLS channel and re-encrypts into
 the other while preserving per-session connection, nonce, bandwidth, and
 inactivity limits. Its locks are held only to check limits and take budget, never
 across network I/O. The forwarder reads first, without waiting, and charges
-bandwidth for a whole message only once it holds one (a message larger than the
-burst costs one full burst), so idle pairs hold no budget and messages are never
+bandwidth for a whole message only once it holds one (a session's burst must be at least
+one maximum message, 16 KiB, or its limits are invalid), so idle pairs hold no budget and messages are never
 split. A message of zero length is a protocol violation and closes the bridge. The
 forwarding loop naps up to 16 ms when both directions are idle, so an idle pair
 costs little and the first message after a long silence can be delayed by that
@@ -169,7 +169,7 @@ would need a shared poller across channels and is not done. Pending guests are k
 grant nonce, and a second guest with the same grant is refused. The guest gets
 `waiting` before it can be paired. A host with a wrong token, a different grant,
 or an expired grant is rejected without disturbing the waiting guest, except that
-three wrong tokens against one waiting guest drop that guest; a host
+three wrong tokens against one waiting guest lock that guest's slot against every host for 30 s (the guest itself keeps waiting); a host
 that arrives before the guest is rejected (hosts do not queue). Nonces are
 accepted only as 64 lowercase hexadecimal characters. Known limits: a guest that
 disconnects while waiting is noticed only at the session's idle limit; a bridged
@@ -185,6 +185,7 @@ briefly for the peer to finish, so unread data does not turn its close into a
 reset. A retired session's place is freed at once, but its identifier stays
 reserved for 300 s (the longest grant lifetime) so a grant issued before the
 retirement cannot be replayed against a re-provisioned session of the same id.
+Live sessions plus these reservations are capped at four times the session limit.
 
 A grant is a bearer authorization, not proof of possession of the guest's
 Minecraft account. Gameplay does not use the verified principal yet. The future

@@ -289,7 +289,7 @@ fn an_empty_message_closes_the_bridge() {
 }
 
 #[test]
-fn a_waiting_guest_is_dropped_after_a_few_wrong_host_tokens() {
+fn repeated_wrong_tokens_lock_hosts_out_for_a_while_but_never_evict_the_guest() {
     let (_server, address, tls) = setup(Duration::from_secs(30));
     let grant = signed("session-1", unix_time() + 60, 63);
     let mut guest = guest(address, &tls, &grant);
@@ -298,9 +298,10 @@ fn a_waiting_guest_is_dropped_after_a_few_wrong_host_tokens() {
         let mut bad = host(address, &tls, &grant, &"cd".repeat(32));
         assert_rejected(&mut bad);
     }
-    assert_peer_closed(&mut guest);
-    let mut late = host(address, &tls, &grant, TOKEN);
-    assert_rejected(&mut late);
+    // Locked out for a while, even for the right token; the guest is still waiting.
+    let mut locked = host(address, &tls, &grant, TOKEN);
+    assert_rejected(&mut locked);
+    assert!(guest.try_recv_message(Duration::from_millis(300)).unwrap().is_none());
 }
 
 #[test]

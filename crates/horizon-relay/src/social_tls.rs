@@ -4,7 +4,7 @@
 //! the TLS handshake and the wait for that message. Slots are counted per source
 //! group (an IPv4 address, or an IPv6 /64, after `to_canonical()`) and per coarser
 //! net (IPv4 /24, IPv6 /48). When the total is full, the oldest connection of the
-//! busiest net is dropped. This only means something when clients reach the relay
+//! busiest net inside the busiest wide group (IPv4 /16, IPv6 /32) is dropped. This only means something when clients reach the relay
 //! directly: behind a proxy or load balancer every client shares the proxy's
 //! address; that needs the PROXY protocol, which is not implemented. Run the
 //! social listener without a proxy.
@@ -67,9 +67,26 @@ fn source_net(ip: IpAddr) -> IpAddr {
     }
 }
 
+/// The widest tier used for eviction: IPv4 /16, IPv6 /32.
+fn source_wide(ip: IpAddr) -> IpAddr {
+    match ip.to_canonical() {
+        IpAddr::V6(v6) => {
+            let mut octets = v6.octets();
+            octets[4..].fill(0);
+            IpAddr::V6(Ipv6Addr::from(octets))
+        }
+        IpAddr::V4(v4) => {
+            let mut octets = v4.octets();
+            octets[2..].fill(0);
+            IpAddr::V4(octets.into())
+        }
+    }
+}
+
 struct InFlight {
     group: IpAddr,
     net: IpAddr,
+    wide: IpAddr,
     stream: TcpStream,
 }
 
@@ -156,7 +173,7 @@ impl TlsAcceptor {
     }
 
     fn begin_from(&self, ip: IpAddr, stream: &TcpStream) -> io::Result<HandshakeGuard> {
-        let (group, net) = (source_group(ip), source_net(ip));
+        let (group, net, wide) = (source_group(ip), source_net(ip), source_wide(ip));
         let clone = stream.try_clone()?;
         let mut active = self.active.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         let refuse = |what: &str| Err(io::Error::new(
@@ -171,20 +188,30 @@ impl TlsAcceptor {
         }
         if active.flights.len() >= self.limits.total {
             // Stalled connections are the oldest; a real client is through in a moment. Drop the
-            // oldest of the net holding the most, so spreading over many sources does not help.
-            let mut per_net: HashMap<IpAddr, usize> = HashMap::new();
-            for flight in active.flights.values() { *per_net.entry(flight.net).or_default() += 1; }
-            let busiest = per_net.values().copied().max().unwrap_or(0);
-            let victim = active.flights.iter().find(|(_, flight)| per_net[&flight.net] == busiest).map(|(id, _)| *id);
+            // oldest connection of the busiest tier-by-tier: widest group first (IPv4 /16, IPv6
+            // /32), then its busiest net, so spreading over many sources does not help.
+            // Ties go to whoever started first.
+            let all: Vec<_> = active.flights.iter().map(|(id, flight)| (*id, flight)).collect();
+            let in_busiest_wide = busiest(|flight| flight.wide, &all);
+            let in_busiest_net = busiest(|flight| flight.net, &in_busiest_wide);
+            let victim = in_busiest_net.first().map(|(id, _)| *id);
             if let Some(flight) = victim.and_then(|id| active.flights.remove(&id)) {
                 let _ = flight.stream.shutdown(Shutdown::Both);
             }
         }
         let id = active.next;
         active.next += 1;
-        active.flights.insert(id, InFlight { group, net, stream: clone });
+        active.flights.insert(id, InFlight { group, net, wide, stream: clone });
         Ok(HandshakeGuard { active: self.active.clone(), id })
     }
+}
+
+/// The entries (oldest first) whose key is shared by the most entries.
+fn busiest<'a>(key: fn(&InFlight) -> IpAddr, among: &[(u64, &'a InFlight)]) -> Vec<(u64, &'a InFlight)> {
+    let mut counts: HashMap<IpAddr, usize> = HashMap::new();
+    for (_, flight) in among { *counts.entry(key(flight)).or_default() += 1; }
+    let most = counts.values().copied().max().unwrap_or(0);
+    among.iter().filter(|(_, flight)| counts[&key(flight)] == most).copied().collect()
 }
 
 impl ChannelAcceptor for TlsAcceptor {
@@ -263,6 +290,10 @@ mod tests {
         assert_eq!(net("2001:db8:1:2::1"), net("2001:db8:1:ffff::9"));
         assert_ne!(net("2001:db8:1::1"), net("2001:db8:2::1"));
         assert_eq!(net("192.0.2.7"), net("192.0.2.200"));
+        let wide = |text: &str| source_wide(text.parse().unwrap());
+        assert_eq!(wide("192.0.2.7"), wide("192.0.99.1"));
+        assert_ne!(wide("192.0.2.7"), wide("192.1.2.7"));
+        assert_eq!(wide("2001:db8:1::1"), wide("2001:db8:ffff::1"));
         assert_ne!(net("192.0.2.7"), net("192.0.3.7"));
     }
 
@@ -310,6 +341,26 @@ mod tests {
         legit_peer.set_read_timeout(Some(Duration::from_millis(300))).unwrap();
         let error = legit_peer.read(&mut [0; 1]).unwrap_err();
         assert!(matches!(error.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut), "the real client must keep its slot: {error:?}");
+    }
+
+    #[test]
+    fn one_handshake_per_net_still_protects_real_clients_from_a_wide_flood() {
+        let acceptor = acceptor(HandshakeLimits { total: 8, per_ip: 4, per_net: 100, timeout: Duration::from_secs(3) });
+        let (mut attackers, mut guards) = (Vec::new(), Vec::new());
+        // Seven attackers in distinct /24s of one /16: every net holds exactly one.
+        for index in 0..7u8 {
+            let (relay_side, peer) = sockets();
+            guards.push(acceptor.begin_from(format!("203.0.{index}.1").parse().unwrap(), &relay_side).unwrap());
+            attackers.push((relay_side, peer));
+        }
+        let (legit_side, mut legit_peer) = sockets();
+        guards.push(acceptor.begin_from("198.51.100.5".parse().unwrap(), &legit_side).unwrap());
+        let (second_side, _second_peer) = sockets();
+        guards.push(acceptor.begin_from("192.0.2.9".parse().unwrap(), &second_side).unwrap());
+        assert!(is_closed(&mut attackers[0].1), "an attacker connection must be dropped");
+        legit_peer.set_read_timeout(Some(Duration::from_millis(300))).unwrap();
+        let error = legit_peer.read(&mut [0; 1]).unwrap_err();
+        assert!(matches!(error.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut), "{error:?}");
     }
 
     #[test]

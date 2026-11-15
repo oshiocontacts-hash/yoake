@@ -85,7 +85,7 @@ impl<GUEST: Read + Write, HOST: Read + Write> PairedConnection<GUEST, HOST> {
             .min(session.limits.burst_bytes as f64);
         session.last_refill = now.max(session.last_refill);
         let Some(need) = need else { return Ok(true); };
-        // A message bigger than the bucket can never be covered: it costs a full bucket.
+        // `SessionLimits` require a burst of at least one maximum message, so `need` always fits.
         let need = (need as f64).min(session.limits.burst_bytes as f64);
         if session.tokens < need { return Ok(false); }
         session.tokens -= need;

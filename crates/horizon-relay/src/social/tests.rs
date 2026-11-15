@@ -39,6 +39,7 @@ impl Write for TestStream {
     }
 }
 
+const BURST: usize = 16 * 1024;
 const SEED: &str = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60";
 const PUBLIC: &str = "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a";
 
@@ -83,7 +84,7 @@ fn setup(max_connections: usize, idle_timeout: Duration, burst_bytes: usize, rat
 
 #[test]
 fn pairing_requires_the_host_token_and_the_exact_guest_grant() {
-    let (relay, now) = setup(2, Duration::from_secs(30), 32, 32);
+    let (relay, now) = setup(2, Duration::from_secs(30), BURST, 32);
     let grant = signed(1, 200);
     let (guest, guest_output) = TestStream::new(b"hello");
     let (host, host_output) = TestStream::new(b"welcome");
@@ -101,7 +102,7 @@ fn pairing_requires_the_host_token_and_the_exact_guest_grant() {
 
 #[test]
 fn connection_capacity_is_released_without_allowing_grant_replay() {
-    let (relay, now) = setup(1, Duration::from_secs(30), 32, 32);
+    let (relay, now) = setup(1, Duration::from_secs(30), BURST, 32);
     let first = signed(1, 200);
     let second = signed(2, 200);
     let mut pending = relay.begin_guest(&first, TestStream::empty(), 100, now).unwrap();
@@ -115,7 +116,7 @@ fn connection_capacity_is_released_without_allowing_grant_replay() {
 
 #[test]
 fn idle_pending_and_paired_connections_expire() {
-    let (relay, now) = setup(1, Duration::from_secs(5), 32, 32);
+    let (relay, now) = setup(1, Duration::from_secs(5), BURST, 32);
     let first = signed(1, 200);
     let second = signed(2, 200);
     let mut stale = relay.begin_guest(&first, TestStream::empty(), 100, now).unwrap();
@@ -132,22 +133,22 @@ fn idle_pending_and_paired_connections_expire() {
 
 #[test]
 fn bandwidth_budget_is_shared_across_directions() {
-    let (relay, now) = setup(1, Duration::from_secs(30), 4, 4);
+    let (relay, now) = setup(1, Duration::from_secs(30), BURST, BURST as u64);
     let grant = signed(1, 200);
-    let (guest, guest_output) = TestStream::new(b"1234");
-    let (host, host_output) = TestStream::new(b"abcd");
+    let (guest, guest_output) = TestStream::new(&[b'1'; BURST]);
+    let (host, host_output) = TestStream::new(&[b'a'; BURST]);
     let mut pending = relay.begin_guest(&grant, guest, 100, now).unwrap();
     let mut pair = pending.pair(&grant, &"ab".repeat(32), host, 100, now).unwrap();
-    assert_eq!(pair.forward_once(Direction::GuestToHost, now).unwrap(), ForwardProgress::Transferred(4));
+    assert_eq!(pair.forward_once(Direction::GuestToHost, now).unwrap(), ForwardProgress::Transferred(BURST));
     assert_eq!(pair.forward_once(Direction::HostToGuest, now).unwrap(), ForwardProgress::Blocked);
-    assert_eq!(pair.forward_once(Direction::HostToGuest, now + Duration::from_secs(1)).unwrap(), ForwardProgress::Transferred(4));
-    assert_eq!(host_output.borrow().as_slice(), b"1234");
-    assert_eq!(guest_output.borrow().as_slice(), b"abcd");
+    assert_eq!(pair.forward_once(Direction::HostToGuest, now + Duration::from_secs(1)).unwrap(), ForwardProgress::Transferred(BURST));
+    assert_eq!(host_output.borrow().as_slice(), &[b'1'; BURST][..]);
+    assert_eq!(guest_output.borrow().as_slice(), &[b'a'; BURST][..]);
 }
 
 #[test]
 fn stale_handle_cannot_remove_a_reused_slot() {
-    let (relay, now) = setup(1, Duration::from_secs(5), 32, 32);
+    let (relay, now) = setup(1, Duration::from_secs(5), BURST, 32);
     let stale = relay.begin_guest(&signed(1, 105), TestStream::empty(), 100, now).unwrap();
     let later = now + Duration::from_secs(6);
     let fresh_grant = signed(1, 200);
@@ -160,7 +161,7 @@ fn stale_handle_cannot_remove_a_reused_slot() {
 fn retiring_a_session_frees_its_place_but_not_its_id_for_a_while() {
     let now = Instant::now();
     let relay = SocialRelay::new(hex::<32>(PUBLIC), 1);
-    let limits = SessionLimits { max_connections: 1, max_nonces: 1, bytes_per_second: 1, burst_bytes: 1, idle_timeout: Duration::from_secs(5) };
+    let limits = SessionLimits { max_connections: 1, max_nonces: 1, bytes_per_second: 1, burst_bytes: BURST, idle_timeout: Duration::from_secs(5) };
     let request = |id: &str| RegisterSession::relay_only(id.into(), "member:host".into());
     relay.provision(&request("a"), &"ab".repeat(32), limits, now).unwrap();
     assert!(matches!(relay.provision(&request("b"), &"ab".repeat(32), limits, now), Err(RelayError::SessionLimit)));
@@ -170,23 +171,40 @@ fn retiring_a_session_frees_its_place_but_not_its_id_for_a_while() {
     // ... but "a" cannot come back while a grant issued before the retirement could still be valid.
     relay.retire("b").unwrap();
     assert!(matches!(relay.provision(&request("a"), &"ab".repeat(32), limits, now), Err(RelayError::SessionExists)));
+    // Retired ids are bounded too: live sessions plus tombstones stay under 4 x max_sessions.
+    relay.provision(&request("c"), &"ab".repeat(32), limits, now).unwrap();
+    relay.retire("c").unwrap();
+    relay.provision(&request("d"), &"ab".repeat(32), limits, now).unwrap();
+    relay.retire("d").unwrap();
+    assert!(matches!(relay.provision(&request("e"), &"ab".repeat(32), limits, now), Err(RelayError::SessionLimit)));
 }
 
 #[test]
-fn a_guest_is_dropped_after_repeated_wrong_tokens() {
-    let (relay, now) = setup(2, Duration::from_secs(30), 32, 32);
-    let grant = signed(1, 200);
+fn repeated_wrong_tokens_lock_the_slot_for_a_while_but_never_drop_the_guest() {
+    let (relay, now) = setup(2, Duration::from_secs(600), BURST, 32);
+    let grant = signed(1, 300);
     let mut pending = relay.begin_guest(&grant, TestStream::empty(), 100, now).unwrap();
     for _ in 0..3 {
         assert!(matches!(pending.pair(&grant, &"cd".repeat(32), TestStream::empty(), 100, now), Err(RelayError::WrongToken)));
     }
-    assert!(pending.is_expired(now));
-    assert!(matches!(pending.pair(&grant, &"ab".repeat(32), TestStream::empty(), 100, now), Err(RelayError::TimedOut)));
+    // Locked: even the right token is refused, but the guest is still there.
+    assert!(!pending.is_expired(now));
+    assert!(matches!(pending.pair(&grant, &"ab".repeat(32), TestStream::empty(), 100, now + Duration::from_secs(29)), Err(RelayError::WrongToken)));
+    assert!(!pending.is_expired(now + Duration::from_secs(29)));
+    assert!(pending.pair(&grant, &"ab".repeat(32), TestStream::empty(), 130, now + Duration::from_secs(31)).is_ok());
+}
+
+#[test]
+fn a_burst_smaller_than_one_message_is_not_a_valid_limit() {
+    let relay = SocialRelay::new(hex::<32>(PUBLIC), 1);
+    let limits = SessionLimits { max_connections: 1, max_nonces: 1, bytes_per_second: 1, burst_bytes: BURST - 1, idle_timeout: Duration::from_secs(5) };
+    let request = RegisterSession::relay_only("a".into(), "member:host".into());
+    assert!(matches!(relay.provision(&request, &"ab".repeat(32), limits, Instant::now()), Err(RelayError::InvalidLimits)));
 }
 
 #[test]
 fn bandwidth_is_charged_per_whole_message_and_nothing_is_held_while_idle() {
-    let (relay, now) = setup(1, Duration::from_secs(30), 10, 10);
+    let (relay, now) = setup(1, Duration::from_secs(30), BURST, 10);
     let grant = signed(1, 200);
     let (guest, _) = TestStream::new(b"0123456789");
     let host_output = Rc::new(RefCell::new(Vec::new()));

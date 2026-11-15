@@ -27,7 +27,7 @@ impl SessionLimits {
         self.max_connections > 0
             && self.max_nonces > 0
             && self.bytes_per_second > 0
-            && self.burst_bytes > 0
+            && self.burst_bytes >= MIN_BURST_BYTES
             && !self.idle_timeout.is_zero()
     }
 }
@@ -75,12 +75,18 @@ struct Slot {
     id: u64,
     paired: bool,
     last_activity: Instant,
-    /// Host token failures while this guest waits.
+    /// Host token failures since the last lock-out.
     failures: u8,
+    /// Host attempts on this slot are refused until then.
+    locked_until: Option<Instant>,
 }
 
 /// Wrong host tokens tolerated per waiting guest before it is dropped.
 const MAX_TOKEN_FAILURES: u8 = 3;
+/// How long a slot refuses every host after that many wrong tokens. The guest is never dropped for it.
+const TOKEN_LOCKOUT: Duration = Duration::from_secs(30);
+/// Smallest burst: it must cover the biggest message, or one message could exceed the rate cap.
+const MIN_BURST_BYTES: usize = horizon_friends::social_tls::MAX_MESSAGE_SIZE;
 
 struct Session {
     host_principal: String,
@@ -142,7 +148,10 @@ impl SocialRelay {
         if sessions.contains_key(&request.session_id) {
             return Err(RelayError::SessionExists);
         }
-        if sessions.values().filter(|session| session.active).count() >= self.max_sessions {
+        // Live sessions and retired-id tombstones are both bounded.
+        if sessions.len() >= self.max_sessions.saturating_mul(4)
+            || sessions.values().filter(|session| session.active).count() >= self.max_sessions
+        {
             return Err(RelayError::SessionLimit);
         }
         sessions.insert(
@@ -167,8 +176,8 @@ impl SocialRelay {
         let mut sessions = self.sessions.lock().map_err(|_| RelayError::Unavailable)?;
         let session = sessions.get_mut(session_id).ok_or(RelayError::UnknownSession)?;
         session.active = false;
-        session.slots.clear();
-        session.used.clear();
+        session.slots = HashMap::new(); // not clear(): give the memory back
+        session.used = HashMap::new();
         let unix_now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
         session.retired_until = unix_now + MAX_GRANT_LIFETIME_SECS;
         Ok(())
@@ -204,7 +213,7 @@ impl SocialRelay {
         let slot_id = session.next_slot_id.checked_add(1).ok_or(RelayError::Unavailable)?;
         session.next_slot_id = slot_id;
         session.used.insert(nonce, verified.expires_at());
-        session.slots.insert(nonce, Slot { id: slot_id, paired: false, last_activity: now, failures: 0 });
+        session.slots.insert(nonce, Slot { id: slot_id, paired: false, last_activity: now, failures: 0, locked_until: None });
         Ok(PendingGuest {
             relay: self.clone(),
             signed: signed.clone(),
@@ -268,11 +277,14 @@ impl<GUEST> PendingGuest<GUEST> {
         let slot = session.slots.get_mut(&self.verified.nonce())
             .filter(|slot| slot.id == self.slot_id)
             .ok_or(RelayError::TimedOut)?;
+        if slot.locked_until.is_some_and(|until| now < until) {
+            return Err(RelayError::WrongToken);
+        }
         if !session.token.verify(host_token) {
             slot.failures += 1;
             if slot.failures >= MAX_TOKEN_FAILURES {
-                // Too many guesses against this guest: drop it (its thread notices the gone slot).
-                session.slots.remove(&self.verified.nonce());
+                slot.failures = 0;
+                slot.locked_until = Some(now.checked_add(TOKEN_LOCKOUT).unwrap_or(now));
             }
             return Err(RelayError::WrongToken);
         }
