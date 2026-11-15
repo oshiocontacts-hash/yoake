@@ -240,11 +240,15 @@ horizon-release-sign verify --tag yoake-mods-v1 --key <base64-public-key> path/t
 2. **WebAssembly MODにネイティブDLLを混ぜたり、未署名の `[wasm]`・`[bin]` MODをプレイヤーに配布したりしない**:
    `.yak` に `[bin]` と `[wasm]` を同時に入れることは禁止されており、宣言していないバイナリも拒否されます[^yak-manifest][^yak-root]。またゲーム本体は `[wasm]` と `[bin]` の両方に対してYoakeのピン留め鍵による有効な `SIGNATURE` を要求するため、未署名のコードMODをプレイヤー向けに配布してはいけません[^api-yoake-mods][^yak-mods-client][^launcher-plan]。
 3. **他のMODの `id` を使い回さない**:
-   カタログ、`installed.json`、`yoake-mods.txt`、依存解決（`yak::resolve`）はすべて `id` が一意であることを前提としており、同じ `id` のMODを入れると既存のMODが置き換えられます[^api-yoake-mods][^yak-catalog][^launcher-tx]。さらに設定ファイル（`<game>/config/<mod-id>.toml`）、ストレージ（`yoake-data/<mod-id>/...`）、権限設定（`[mods.<mod-id>]`）もすべて `id` ごとに分離されています[^wasm-dev]。
+   カタログ、`installed.json`、`yoake-mods.txt`、依存解決（`yak::resolve`）はすべて `id` が一意であることを前提としており、同じ `id` のMODを入れると既存のMODが置き換えられます[^api-yoake-mods][^yak-catalog][^launcher-tx]。さらに設定ファイル（`<game>/config/<mod-id>.toml`）、ストレージ（`yoake-data/<mod-id>/...`）、権限設定（`[mods.<mod-id>]`）もすべて `id` ごとに分離されています[^wasm-dev][^wasm-storage]。
 4. **パッケージや `yak.toml`、カタログに秘密鍵・トークン・パスワードを入れない**:
    `yak.toml` の `[[services]]` やURLではトークン・パスワード・秘密鍵・APIキー・認証情報らしきキーやURL内資格情報が拒否されますが、通常の文字列に隠された秘密を万能に検出するものではありません。パッケージやカタログ、リポジトリのどこにもシークレットや署名用の秘密鍵を入れてはいけません[^api-yoake-mods][^yak-manifest]。
-5. **`store.bin` の内部バイナリ形式に依存したり、`std::fs` で直接読み書きしようとしたりしない**:
-   WebAssemblyゲストには事前オープンされたディレクトリがなく、`std::fs` の呼び出しはすべて失敗します[^wasm-dev]。また永続化先の `<world>/yoake-data/<mod-id>/store.bin`、`<game>/yoake-data/<mod-id>/global/store.bin`、`<game>/yoake-data/<mod-id>/client/store.bin` はホスト側が管理するファイルであり、その内部バイナリ構造は仕様として公開されていません（未確定）。データの保存・読み出しには必ず `storage-get` / `storage-put` / `storage-delete` / `storage-blob-*` インポートを使ってください[^wasm-dev]。
+5. **ストレージの内部ファイル形式に依存したり、ファイルを直接編集・`std::fs` で読み書きしようとしたりしない**:
+   WebAssemblyゲストには事前オープンされたディレクトリがなく、`std::fs` の呼び出しはすべて失敗します[^wasm-dev]。またディスク上のファイル形式はホスト内部の実装であり将来変更される可能性があるため、ファイルを直接編集せず、必ず `storage_get` / `storage_put` / `storage_delete` および `storage_blob_*`（WITの `storage-get` / `storage-put` / `storage-delete` / `storage-blob-*` インポート）を使ってください[^wasm-dev][^wasm-storage]。
+   - **スコープ別フォルダとキー単位ファイル**: 保存先は `world` が `<world>/yoake-data/<mod-id>/`、`global` が `<game>/yoake-data/<mod-id>/global/`（以上サーバー専用）、`client` が `<game>/yoake-data/<mod-id>/client/`（クライアント専用）です[^wasm-dev][^wasm-storage]。単一の `store.bin` ではなく、各ストアフォルダに排他ロックファイル（`store.lock`）とキーごとのエントリファイル（`entry-<pid>-<seq>.bin`）が作られます（メモリにはキーと長さだけを保持し、値やBlobスライスは必要時に読み出されます）[^wasm-dev][^wasm-storage]。書き込みは一時ファイル（`.store-<pid>-<seq>.tmp`）→ `fsync`（`sync_all`）→ アトミックなリネームの順で行われ、残存した一時ファイルはオープン時に削除されます[^wasm-dev][^wasm-storage]。
+   - **容量上限・Blob・書き込み予算**: 各ストアの上限は最大 `256 MiB`（メタデータと保留中Blob予約分を含む）・最大 `65,536` キー（1キー最大 `256` バイト）です[^wasm-dev][^wasm-storage]。インラインの読み書き（`storage_get` / `storage_put`）とBlobチャンク（`storage_blob_write` / `storage_blob_read`）は最大 `1 MiB` です[^wasm-dev][^wasm-storage]。Blobアップロード（`storage-blob-begin` / `write` / `commit` / `abort` / `read`）はストアごとに同時最大 `64` 件、MOD全体（全スコープ合計）で保留中Blob合計最大 **`32 MiB`** に制限され、バッファは書き込み時に遅延確保されます（順不同の書き込みに対応し最大 `4,096` 区間、コミットには全範囲の書き込み完了が必要で、失敗時もアップロードは保持されます）[^wasm-dev][^wasm-storage]。また設定の書き込みも含め、全スコープ共通でMODごとに **持続 `8 MiB/秒`・バースト `32 MiB`** の書き込み予算があり、超過するとエラーが返ります[^wasm-dev]。
+   - **旧形式からの自動移行と破損ファイルのスキップ**: 初回バインド時（`migration-v2.done` が未作成のとき）、`world` と `global` のストアは旧 `store.bin` のデータおよびレガシーな `<world>/yoake-wasm/<mod-id>/<key>.bin`（`world`）・`<game>/config/yoake-wasm/<mod-id>/<key>.bin`（`global`）のエントリ（`.bin` 接尾辞は除去、`client` ストアは対象外）を、クォータ内で新しいデータを上書きせずに自動インポートします[^wasm-dev][^wasm-storage]。旧ファイルは復旧用バックアップとして保持され、マーカーファイル（`migration-v2.done`）が再インポートを防ぎます[^wasm-dev][^wasm-storage]。破損または読み取り不能なエントリファイル（および旧データ）は警告（`[yoake] storage ...: skipping ...`）を出してスキップされ、正常なエントリはそのまま利用できます[^wasm-dev][^wasm-storage]。
+   - **注記**: このストレージ設計には `yoake/w2d-services`（`@4ec9e65b2`）以降のエンジン版が必要です[^wasm-dev][^wasm-storage]。
 6. **署名後の `.yak` や `index.json` を書き換えたり、展開先フォルダ（`<game dir>/yoake-mods/<id>/<version>/`）を再パックしたりしない**:
    署名後に1バイトでも書き換えると署名やSHA-256が無効になります。また展開先フォルダに残される `SIGNATURE` は「元の完全な `.yak` アーカイブ」に対する署名であり、展開されたサブセットを単体の署名済みアーカイブとして再パック・検証することはできません[^api-yoake-mods]。
 
@@ -252,6 +256,7 @@ horizon-release-sign verify --tag yoake-mods-v1 --key <base64-public-key> path/t
 
 [^api-yoake-mods]: 確認元: `docs/api/yoake-mods.md`
 [^wasm-dev]: 確認元: `docs/yoake-wasm-dev.md`
+[^wasm-storage]: 確認元: `crates/yoake-wasm/src/host_services/storage.rs`
 [^yoake-cli]: 確認元: `docs/guide-ja/02-first-mod.md` / `docs/guide-ja/03-play.md`（`yoake/p10-tools` CLI の `yoake pack`）
 [^yak-root]: 確認元: `crates/horizon-mods/src/yak.rs`
 [^yak-manifest]: 確認元: `crates/horizon-mods/src/yak/manifest.rs`
