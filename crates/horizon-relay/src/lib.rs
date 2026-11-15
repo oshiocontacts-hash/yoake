@@ -7,6 +7,7 @@
 pub mod limits;
 pub mod social;
 pub mod social_server;
+pub mod social_tls;
 
 use horizon_friends::{
     code,

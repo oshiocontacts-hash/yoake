@@ -9,22 +9,24 @@ use std::{
 
 use horizon_friends::{
     social::{FromRelay, SignedGrant, ToRelay},
-    social_channel::{RelayIdentity, SecureChannel, relay_handshake},
+    social_tls::{ChannelAcceptor, ControlChannel},
 };
-use crate::social::{Direction, ForwardProgress, PairedConnection, PendingGuest, SocialRelay};
+use crate::{
+    social::{Direction, ForwardProgress, PairedConnection, PendingGuest, SocialRelay},
+    social_tls::{HandshakeLimits, TlsAcceptor, read_certificate_and_key},
+};
 #[path = "social_server_stream.rs"]
 mod stream;
 use stream::MessageStream;
 
-const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
-type Channel = SecureChannel<TcpStream>;
+type Channel = Box<dyn ControlChannel>;
 type Pending = PendingGuest<MessageStream>;
 type SharedPending = Arc<(Mutex<HashMap<[u8; 32], PendingEntry>>, Condvar)>;
 
 #[derive(Clone)]
 pub struct SocialServer {
     relay: SocialRelay,
-    identity: Arc<RelayIdentity>,
+    acceptor: Arc<dyn ChannelAcceptor>,
     pending: SharedPending,
     stop: Arc<AtomicBool>,
 }
@@ -38,10 +40,10 @@ struct PendingEntry {
 }
 
 impl SocialServer {
-    pub fn new(portal_key: [u8; 32], identity: RelayIdentity) -> Self {
+    pub fn new(portal_key: [u8; 32], acceptor: Arc<dyn ChannelAcceptor>) -> Self {
         Self {
             relay: SocialRelay::new(portal_key, 1024),
-            identity: Arc::new(identity),
+            acceptor,
             pending: Arc::new((Mutex::new(HashMap::new()), Condvar::new())),
             stop: Arc::new(AtomicBool::new(false)),
         }
@@ -51,17 +53,17 @@ impl SocialServer {
     /// its authenticated network channel is not specified yet.
     pub fn relay(&self) -> &SocialRelay { &self.relay }
 
-    /// Read the optional listener configuration. Any absent or invalid setting
-    /// disables only social joins; the legacy invite relay remains independent.
+    /// Missing or invalid settings disable only this independent listener.
     pub fn from_env() -> Option<(SocketAddr, Self)> {
         Self::from_options(
             std::env::var("HORIZON_RELAY_SOCIAL_ADDR").ok(),
-            std::env::var("HORIZON_RELAY_SOCIAL_KEY").ok(),
+            std::env::var("HORIZON_RELAY_SOCIAL_CERT").ok(),
+            std::env::var("HORIZON_RELAY_SOCIAL_CERT_KEY").ok(),
             std::env::var("HORIZON_RELAY_PORTAL_KEY").ok(),
         )
     }
 
-    pub fn from_options(address: Option<String>, key: Option<String>, portal: Option<String>) -> Option<(SocketAddr, Self)> {
+    pub fn from_options(address: Option<String>, cert: Option<String>, key: Option<String>, portal: Option<String>) -> Option<(SocketAddr, Self)> {
         let address = match address.and_then(|value| value.parse().ok()) {
             Some(address) => address,
             None => {
@@ -69,13 +71,15 @@ impl SocialServer {
                 return None;
             }
         };
-        let identity = key.and_then(|path| std::fs::read(path).ok())
-            .and_then(|bytes| RelayIdentity::from_pkcs8(&bytes).ok());
+        let configured = cert.zip(key).and_then(|(cert, key)| {
+            let (cert, key) = read_certificate_and_key(cert.as_ref(), key.as_ref()).ok()?;
+            TlsAcceptor::from_der(cert, key, HandshakeLimits::default()).ok()
+        });
         let portal = portal.and_then(|value| decode_key(&value));
-        match (identity, portal) {
-            (Some(identity), Some(portal)) => Some((address, Self::new(portal, identity))),
+        match (configured, portal) {
+            (Some(acceptor), Some(portal)) => Some((address, Self::new(portal, Arc::new(acceptor)))),
             _ => {
-                eprintln!("horizon-relay: social listener disabled: invalid or missing social identity/portal key");
+                eprintln!("horizon-relay: social listener disabled: invalid or missing certificate/key/portal configuration");
                 None
             }
         }
@@ -110,20 +114,18 @@ impl SocialServer {
     pub fn stop(&self) { self.stop.store(true, Ordering::Relaxed); }
 
     fn handle(&self, stream: TcpStream) -> io::Result<()> {
-        stream.set_read_timeout(Some(HANDSHAKE_TIMEOUT))?;
-        stream.set_write_timeout(Some(HANDSHAKE_TIMEOUT))?;
-        let deadline = horizon_friends::deadline(&stream, HANDSHAKE_TIMEOUT)?;
-        let mut channel = relay_handshake(stream, &self.identity)?;
-        let request = channel.recv_to_relay();
-        drop(deadline);
-        match request? {
+        let mut channel = self.acceptor.accept(stream)?;
+        let request = channel.recv_message().and_then(|bytes| {
+            serde_json::from_slice(&bytes).map_err(io::Error::other)
+        })?;
+        match request {
             ToRelay::Guest { grant } => self.guest(channel, grant),
             ToRelay::Host { grant, token } => self.host(channel, grant, token),
         }
     }
 
     fn guest(&self, channel: Channel, grant: SignedGrant) -> io::Result<()> {
-        let stream = MessageStream::new(channel)?;
+        let stream = MessageStream::new(channel);
         let Some(key) = grant_key(&grant) else { return reject(stream); };
         let pending = match self.relay.begin_guest(&grant, stream.clone(), unix_time(), Instant::now()) {
             Ok(pending) => pending,
@@ -154,7 +156,7 @@ impl SocialServer {
     }
 
     fn host(&self, channel: Channel, grant: SignedGrant, token: String) -> io::Result<()> {
-        let host = MessageStream::new(channel)?;
+        let host = MessageStream::new(channel);
         let Some(key) = grant_key(&grant) else { return reject(host); };
         let (lock, _) = &*self.pending;
         let (result, guest) = {
@@ -221,16 +223,13 @@ fn reject(stream: MessageStream) -> io::Result<()> {
     stream.shutdown();
     Ok(())
 }
-
 fn lock_unpoison<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 fn unix_time() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
 }
-fn grant_key(grant: &SignedGrant) -> Option<[u8; 32]> {
-    decode_key(&grant.grant.nonce)
-}
+fn grant_key(grant: &SignedGrant) -> Option<[u8; 32]> { decode_key(&grant.grant.nonce) }
 fn decode_key(text: &str) -> Option<[u8; 32]> {
     if text.len() != 64 { return None; }
     let mut output = [0; 32];

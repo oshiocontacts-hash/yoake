@@ -1,15 +1,13 @@
 use std::{
     io::{self, Read, Write},
-    net::{Shutdown, TcpStream},
     sync::{Arc, Mutex, MutexGuard},
 };
-use horizon_friends::social_channel::{MAX_FRAME_SIZE, SecureChannel};
+use horizon_friends::social_tls::ControlChannel;
 
-type Channel = SecureChannel<TcpStream>;
+type Channel = Box<dyn ControlChannel>;
 
-/// A nonblocking byte-stream view of encrypted messages for `PairedConnection`.
-/// A complete frame is peeked before decryption, so a short socket read never
-/// poisons the stage 1 channel. Writes temporarily use blocking mode.
+/// Message adapter for `PairedConnection`. TLS sockets remain blocking with
+/// short deadlines; timed-out reads become `WouldBlock` and retain partial frames.
 #[derive(Clone)]
 pub(super) struct MessageStream {
     channel: Arc<Mutex<Channel>>,
@@ -18,9 +16,8 @@ pub(super) struct MessageStream {
 }
 
 impl MessageStream {
-    pub(super) fn new(channel: Channel) -> io::Result<Self> {
-        channel.get_ref().set_nonblocking(true)?;
-        Ok(Self { channel: Arc::new(Mutex::new(channel)), buffer: Vec::new(), offset: 0 })
+    pub(super) fn new(channel: Channel) -> Self {
+        Self { channel: Arc::new(Mutex::new(channel)), buffer: Vec::new(), offset: 0 }
     }
 
     fn lock(&self) -> MutexGuard<'_, Channel> {
@@ -28,36 +25,18 @@ impl MessageStream {
     }
 
     pub(super) fn send_from_relay(&self, message: &horizon_friends::social::FromRelay) -> io::Result<()> {
-        let mut channel = self.lock();
-        channel.get_ref().set_nonblocking(false)?;
-        let result = channel.send_from_relay(message);
-        let restored = channel.get_ref().set_nonblocking(true);
-        result.and(restored)
+        let bytes = serde_json::to_vec(message).map_err(io::Error::other)?;
+        self.lock().send_message(&bytes)
     }
 
-    pub(super) fn shutdown(&self) {
-        let _ = self.lock().get_ref().shutdown(Shutdown::Both);
-    }
+    pub(super) fn shutdown(&self) { self.lock().shutdown(); }
 }
 
 impl Read for MessageStream {
     fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
         loop {
             if self.offset < self.buffer.len() { break; }
-            let mut channel = self.lock();
-            let mut wire = [0; MAX_FRAME_SIZE + 4];
-            let available = match channel.get_ref().peek(&mut wire) {
-                Ok(0) => return Ok(0),
-                Ok(available) => available,
-                Err(error) => return Err(error),
-            };
-            if available < 4 { return Err(io::ErrorKind::WouldBlock.into()); }
-            let length = u32::from_be_bytes(wire[..4].try_into().unwrap()) as usize;
-            if length <= MAX_FRAME_SIZE && available < length + 4 {
-                return Err(io::ErrorKind::WouldBlock.into());
-            }
-            let message = channel.recv_message()?;
-            drop(channel);
+            let message = self.lock().recv_message()?;
             self.buffer = message;
             self.offset = 0;
         }
@@ -71,11 +50,7 @@ impl Read for MessageStream {
 impl Write for MessageStream {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
         if bytes.is_empty() { return Ok(0); }
-        let mut channel = self.lock();
-        channel.get_ref().set_nonblocking(false)?;
-        let result = channel.send_message(bytes);
-        let restored = channel.get_ref().set_nonblocking(true);
-        result.and(restored)?;
+        self.lock().send_message(bytes)?;
         Ok(bytes.len())
     }
 

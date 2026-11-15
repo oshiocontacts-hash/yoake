@@ -1,10 +1,9 @@
 # Yoake social transport: draft protocol
 
-This document specifies the code-only social transport primitives, not a deployed
-protocol. The running relay, launcher, and game do not yet use them. Social joins
-must remain unavailable until the portal, authenticated relay transport, host
-connection handling, and end-to-end encryption are integrated; the existing
-invite-code and LAN paths remain separate.
+This document specifies the social transport primitives. The relay has an opt-in
+social listener, but the launcher and game do not use it yet. Social joins must
+remain unavailable until the portal, host connection handling, and end-to-end
+encryption are integrated; the existing invite-code and LAN paths remain separate.
 
 ## Portal grant
 
@@ -101,25 +100,36 @@ an extension of the legacy invite-code wire format. A guest presents a signed
 grant; the host presents that same signed grant and its session token. Responses
 are `waiting`, `bridged`, or `rejected`. These message types have no fields for
 direct addresses, observed addresses, or ICE candidates, and unknown fields are
-rejected. They must only be used over an authenticated, confidential channel;
-the message types alone do not provide TLS or prevent identifying information
-from being placed inside an otherwise valid opaque identifier.
+rejected.
+
+The control channel is TLS 1.3 only, implemented by rustls with ring. A client
+trusts only the caller-supplied Yoake private CA certificate and verifies the
+relay's DNS name (SNI); it does not use public WebPKI roots or a custom verifier.
+The relay's leaf certificate and private key are separate from the portal's grant
+signing key. `HORIZON_RELAY_SOCIAL_CERT` and `HORIZON_RELAY_SOCIAL_CERT_KEY` are
+paths to a DER leaf certificate and PKCS#8 key, never inline contents. On Unix,
+group/other-accessible key files are refused; Windows ACLs are managed by the
+deployer. The production CA is not created or embedded yet.
+
+Messages use a four-byte big-endian length and at most 16 KiB of payload, with
+the length checked before allocation. Handshakes and each message read/write use
+blocking sockets with deadlines. Concurrent handshakes are limited globally and
+per source IP. TCP EOF without TLS `close_notify` is an error. There is no raw
+stream accessor or plaintext fallback. The TLS exporter output for label
+`EXPORTER-yoake-social-binding-v1`, with no context, is available as an input to
+the future end-to-end layer.
 
 The relay state machine verifies grants and the host token before producing a
-paired forwarding handle. The handle owns the guest and host streams supplied
-during authentication and forwards only between those streams. Per-session
-configuration bounds connections, remembered nonces, forwarding bandwidth, and
-inactivity. Forwarding holds the shared session lock during I/O and requires
-nonblocking streams. Idle expiration is enforced when the state is serviced or a
-new request arrives; an integration must drive it and close expired sockets.
-Retired session identifiers cannot be reused during the relay process lifetime;
-they count toward the configured session limit even after retirement.
+paired forwarding handle. It decrypts one outer TLS channel and re-encrypts into
+the other while preserving per-session connection, nonce, bandwidth, and
+inactivity limits. The listener actively expires pending and idle connections and
+closes both sockets. Retired session identifiers cannot be reused during the relay
+process lifetime and count toward the configured session limit after retirement.
 
 A grant is a bearer authorization, not proof of possession of the guest's
-Minecraft account. The host verifier provides a stream wrapper retaining the
-verified grant, but gameplay does not use it yet. The future integration must
-bind that principal to the actual host-side player, prove the Minecraft identity as
-required by the portal contract, and establish end-to-end encryption using a
-separate per-guest secret. Neither the relay token nor the signed grant is that
-secret. Portal unavailability, missing credentials, failed verification, and
+Minecraft account. Gameplay does not use the verified principal yet. The future
+integration must bind that principal to the host-side player, prove the Minecraft
+identity, and establish end-to-end encryption using a separate per-guest secret.
+Neither the relay token, signed grant, nor TLS channel binding alone is that
+secret. Portal provisioning, unavailable credentials, failed verification, and
 unavailable social transport must never fall back to an unauthenticated join.
