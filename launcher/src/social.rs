@@ -458,6 +458,10 @@ impl<T: Transport> HttpSocial<T> {
     }
 
     fn send(&self, method: Method, segments: &[&str], body: Option<Value>) -> Result<Value> {
+        // An id that is empty, "." or ".." would change the path, not name a thing in it.
+        if segments.iter().any(|s| matches!(*s, "" | "." | "..")) {
+            return Err(SocialError::Invalid);
+        }
         let reply = self
             .transport
             .call(method, segments, body)
@@ -578,8 +582,11 @@ impl<T: Transport> SocialBackend for HttpSocial<T> {
             &["groups", group, "invites"],
             Some(json!({ "maxUses": max_uses, "expiresInDays": expires_in_days })),
         )?;
-        let invite = serde_json::from_value(answer["invite"].take())
-            .map_err(|_| SocialError::Invalid)?;
+        let invite = answer
+            .get_mut("invite")
+            .map(Value::take)
+            .ok_or(SocialError::Invalid)
+            .and_then(|v| serde_json::from_value(v).map_err(|_| SocialError::Invalid))?;
         let code = answer["code"]
             .as_str()
             .map(str::to_string)
@@ -856,6 +863,28 @@ mod tests {
                 Some(json!({ "principalId": "p1" }))
             )
         );
+    }
+
+    #[test]
+    fn ids_that_change_the_path_are_refused_without_a_call() {
+        let script = Script::new(vec![]);
+        let api = HttpSocial::new(&script);
+        for id in ["", ".", ".."] {
+            assert_eq!(api.remove_friend(id), Err(SocialError::Invalid));
+            assert_eq!(api.delete_group(id), Err(SocialError::Invalid));
+            assert_eq!(api.revoke_invite("g1", id), Err(SocialError::Invalid));
+            assert_eq!(api.remove_member(id, "p1"), Err(SocialError::Invalid));
+        }
+        assert!(script.calls.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn an_invite_answer_that_is_not_an_object_is_invalid_not_a_panic() {
+        for body in [json!([1]), json!("x"), json!(7), json!({ "code": "YKG-ABCD-2345" })] {
+            let script = Script::new(vec![ok(body)]);
+            let api = HttpSocial::new(&script);
+            assert_eq!(api.create_invite("g1", 1, 1).err(), Some(SocialError::Invalid));
+        }
     }
 
     #[test]

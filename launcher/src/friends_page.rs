@@ -17,6 +17,11 @@ use std::rc::Rc;
 use std::sync::mpsc;
 use std::sync::Arc;
 
+/// A second click on a confirmation within this long is the double click of the first.
+const CONFIRM_GUARD: Duration = Duration::from_millis(400);
+/// A confirmation nobody answers goes away after this long.
+const CONFIRM_TTL: Duration = Duration::from_secs(5);
+
 /// The page is read again this often while it is open.
 const REFRESH: Duration = Duration::from_secs(30);
 /// How long "Copied" stays on a button.
@@ -164,8 +169,14 @@ enum Follow {
 /// What the page keeps between frames.
 pub(super) struct Friends {
     backend: Option<Arc<dyn SocialBackend>>,
-    tx: mpsc::Sender<Event>,
-    rx: mpsc::Receiver<Event>,
+    tx: mpsc::Sender<(u64, Event)>,
+    rx: mpsc::Receiver<(u64, Event)>,
+    /// The sign-in the data on the page belongs to (`yoake_auth::credential_epoch`); events of
+    /// calls started under another one are dropped.
+    epoch: u64,
+    /// The writes in flight, so the same one is not sent twice.
+    in_flight: Vec<FriendAction>,
+    confirm_at: Option<Instant>,
     pub(super) status: FriendsStatus,
     pub(super) me: Option<Me>,
     pub(super) list: FriendsList,
@@ -211,6 +222,9 @@ impl Friends {
             backend: None,
             tx,
             rx,
+            epoch: crate::yoake_auth::credential_epoch(),
+            in_flight: Vec::new(),
+            confirm_at: None,
             status: FriendsStatus::Idle,
             me: None,
             list: FriendsList::default(),
@@ -311,10 +325,16 @@ impl Friends {
     }
 
     /// A failure that says where the page stands (no API, no sign-in) changes its state.
-    fn note_state(&mut self, error: SocialError) {
+    fn note_state(&mut self, action: FriendAction, error: SocialError) {
         match error {
-            SocialError::NotAvailable => self.status = FriendsStatus::NotAvailable,
-            SocialError::SignedOut => self.status = FriendsStatus::SignedOut,
+            // Only a read says the portal has no API: a 404 on a write is that write's error.
+            SocialError::NotAvailable if action == FriendAction::Load => {
+                self.status = FriendsStatus::NotAvailable
+            }
+            SocialError::SignedOut => {
+                self.clear_account();
+                self.status = FriendsStatus::SignedOut
+            }
             SocialError::Offline | SocialError::Invalid | SocialError::Api(_)
                 if self.me.is_none() =>
             {
@@ -324,16 +344,68 @@ impl Friends {
         }
     }
 
+    /// Forgets everything that belongs to the signed-in account: its code, lists, open group,
+    /// invite code and what was typed. The status is the caller's.
+    fn clear_account(&mut self) {
+        self.me = None;
+        self.list = FriendsList::default();
+        self.blocks.clear();
+        self.groups.clear();
+        self.open_group = None;
+        self.detail = None;
+        self.new_invite = None;
+        self.confirm = None;
+        self.confirm_at = None;
+        self.panel = GroupPanel::None;
+        self.copied = None;
+        self.note = None;
+        self.add.edit.set(String::new());
+        self.name.edit.set(String::new());
+        self.join.edit.set(String::new());
+    }
+
+    /// A different sign-in: nothing of the old one stays, and the page starts over.
+    fn reset_for_new_sign_in(&mut self, epoch: u64) {
+        self.clear_account();
+        self.epoch = epoch;
+        self.status = FriendsStatus::Idle;
+        self.busy = 0;
+        self.in_flight.clear();
+        self.refreshing = false;
+        self.refresh_again = false;
+        self.loaded_at = None;
+    }
+
+    /// Whether this write is on its way.
+    pub(super) fn is_busy(&self, action: FriendAction) -> bool {
+        self.in_flight.contains(&action)
+    }
+
+    /// Asks twice: `confirm` is what the next click would do.
+    pub(super) fn ask(&mut self, confirm: Confirm) {
+        self.confirm = Some(confirm);
+        self.confirm_at = Some(Instant::now());
+    }
+
+    /// Whether a click on a pending confirmation is a real second click (not a double click).
+    pub(super) fn confirm_ready(&self) -> bool {
+        self.confirm_at.is_some_and(|at| at.elapsed() >= CONFIRM_GUARD)
+    }
+
     /// Takes in what a background call said. What to do next is the caller's ([`Follow`]).
     fn apply(&mut self, event: Event) -> Vec<Follow> {
         let mut follow = Vec::new();
         match event {
             Event::Me(Ok(me)) => {
+                if self.me.as_ref().is_some_and(|old| old.id != me.id) {
+                    // Another account answered: nothing of the last one is kept.
+                    self.clear_account();
+                }
                 self.me = Some(me);
                 self.status = FriendsStatus::Ready;
             }
             Event::Me(Err(error)) => {
-                self.note_state(error);
+                self.note_state(FriendAction::Load, error);
                 if self.status == FriendsStatus::Ready {
                     self.note_error(FriendAction::Load, error);
                 }
@@ -342,7 +414,7 @@ impl Friends {
             Event::Blocks(Ok(blocks)) => self.blocks = blocks,
             Event::Groups(Ok(groups)) => self.groups = groups,
             Event::Friends(Err(error)) | Event::Blocks(Err(error)) | Event::Groups(Err(error)) => {
-                self.note_state(error);
+                self.note_state(FriendAction::Load, error);
                 if self.note.is_none() {
                     self.note_error(FriendAction::Load, error);
                 }
@@ -360,7 +432,7 @@ impl Friends {
                             self.detail = None;
                             self.new_invite = None;
                         }
-                        self.note_state(error);
+                        self.note_state(FriendAction::Load, error);
                         self.note_error(FriendAction::Load, error);
                     }
                 }
@@ -378,10 +450,13 @@ impl Friends {
             }
             Event::Done(action, result) => {
                 self.busy = self.busy.saturating_sub(1);
+                if let Some(at) = self.in_flight.iter().position(|a| *a == action) {
+                    self.in_flight.remove(at);
+                }
                 match result {
                     Ok(outcome) => follow.extend(self.done(action, outcome)),
                     Err(error) => {
-                        self.note_state(error);
+                        self.note_state(action, error);
                         self.note_error(action, error);
                         // What the page showed may be stale (a request answered elsewhere, a
                         // member already gone): read it again.
@@ -576,8 +651,9 @@ impl Launcher {
     pub(super) fn friends_opened(&mut self) {
         self.friends.note = None;
         self.friends.confirm = None;
-        self.friends.loaded_at = None;
-        if self.friends.status != FriendsStatus::Ready {
+        if self.friends.status == FriendsStatus::Ready {
+            self.friends_refresh();
+        } else {
             self.friends.status = FriendsStatus::Idle;
         }
     }
@@ -594,21 +670,28 @@ impl Launcher {
         }
         let backend = self.friends.backend();
         let tx = self.friends.tx.clone();
+        let epoch = self.friends.epoch;
         let open = self.friends.open_group.clone();
         std::thread::spawn(move || {
-            let me = backend.me();
-            let stop = me.is_err();
-            let _ = tx.send(Event::Me(me));
-            if !stop {
-                let _ = tx.send(Event::Friends(backend.friends()));
-                let _ = tx.send(Event::Blocks(backend.blocks()));
-                let _ = tx.send(Event::Groups(backend.groups()));
-                if let Some(id) = open {
-                    let detail = backend.group(&id);
-                    let _ = tx.send(Event::Detail(id, detail));
+            let send = |event| {
+                let _ = tx.send((epoch, event));
+            };
+            // Whatever happens in the calls, the read ends: the page never waits for ever.
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let me = backend.me();
+                let stop = me.is_err();
+                send(Event::Me(me));
+                if !stop {
+                    send(Event::Friends(backend.friends()));
+                    send(Event::Blocks(backend.blocks()));
+                    send(Event::Groups(backend.groups()));
+                    if let Some(id) = open {
+                        let detail = backend.group(&id);
+                        send(Event::Detail(id, detail));
+                    }
                 }
-            }
-            let _ = tx.send(Event::Refreshed);
+            }));
+            send(Event::Refreshed);
         });
     }
 
@@ -618,13 +701,23 @@ impl Launcher {
         action: FriendAction,
         run: impl FnOnce(&dyn SocialBackend) -> social::Result<Outcome> + Send + 'static,
     ) {
+        // The same write is not sent twice while the first is on its way.
+        if self.friends.in_flight.contains(&action) {
+            return;
+        }
         let backend = self.friends.backend();
         let tx = self.friends.tx.clone();
+        let epoch = self.friends.epoch;
         self.friends.busy += 1;
+        self.friends.in_flight.push(action);
         self.friends.note = None;
         self.friends.confirm = None;
         std::thread::spawn(move || {
-            let _ = tx.send(Event::Done(action, run(backend.as_ref())));
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                run(backend.as_ref())
+            }))
+            .unwrap_or(Err(SocialError::Invalid));
+            let _ = tx.send((epoch, Event::Done(action, result)));
         });
     }
 
@@ -636,9 +729,13 @@ impl Launcher {
         self.friends.confirm = None;
         let backend = self.friends.backend();
         let tx = self.friends.tx.clone();
+        let epoch = self.friends.epoch;
         std::thread::spawn(move || {
-            let detail = backend.group(&id);
-            let _ = tx.send(Event::Detail(id, detail));
+            let detail = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                backend.group(&id)
+            }))
+            .unwrap_or(Err(SocialError::Invalid));
+            let _ = tx.send((epoch, Event::Detail(id, detail)));
         });
     }
 
@@ -817,7 +914,16 @@ impl Launcher {
     /// True when something changed.
     pub(super) fn drain_friends(&mut self) -> bool {
         let mut changed = false;
-        while let Ok(event) = self.friends.rx.try_recv() {
+        // Another sign-in (or none): the page forgets the old one's data before anything else.
+        let epoch = crate::yoake_auth::credential_epoch();
+        if epoch != self.friends.epoch {
+            self.friends.reset_for_new_sign_in(epoch);
+            changed = true;
+        }
+        while let Ok((from, event)) = self.friends.rx.try_recv() {
+            if from != self.friends.epoch {
+                continue;
+            }
             changed = true;
             for follow in self.friends.apply(event) {
                 match follow {
@@ -868,6 +974,16 @@ impl Launcher {
                 }
             }
         }
+        if self.friends.confirm.is_some()
+            && self
+                .friends
+                .confirm_at
+                .is_some_and(|at| at.elapsed() >= CONFIRM_TTL)
+        {
+            self.friends.confirm = None;
+            self.friends.confirm_at = None;
+            changed = true;
+        }
         if let Some((_, at)) = self.friends.copied {
             if at.elapsed() >= COPIED {
                 self.friends.copied = None;
@@ -881,7 +997,7 @@ impl Launcher {
             && self
                 .friends
                 .loaded_at
-                .is_some_and(|at| at.elapsed() >= REFRESH)
+                .is_none_or(|at| at.elapsed() >= REFRESH)
         {
             self.friends_refresh();
         }
@@ -1170,5 +1286,99 @@ mod tests {
         page.refreshing = true;
         page.refresh_again = true;
         assert_eq!(page.apply(Event::Refreshed), [Follow::Refresh]);
+    }
+
+    fn full_page() -> Friends {
+        let mut page = Friends::with_backend(Arc::new(MockSocial::blank()));
+        read_all(&mut page, &MockSocial::sample());
+        page.open_group = Some("g1".into());
+        page.new_invite = Some(("g1".into(), "YKG-ABCD-2345".into()));
+        page.confirm = Some(Confirm::Leave);
+        page.add.edit.set("YKF-ABCD-2345".into());
+        page
+    }
+
+    fn assert_forgotten(page: &Friends) {
+        assert!(page.me.is_none() && page.open_group.is_none() && page.detail.is_none());
+        assert!(page.new_invite.is_none() && page.confirm.is_none());
+        assert!(page.list.friends.is_empty() && page.groups.is_empty() && page.blocks.is_empty());
+        assert_eq!(page.add.edit.text(), "");
+        assert_eq!(page.my_id(), "");
+    }
+
+    #[test]
+    fn another_account_or_a_sign_out_leaves_nothing_of_the_last_one() {
+        // A new sign-in (the epoch moved): back to Idle, empty.
+        let mut page = full_page();
+        page.busy = 2;
+        page.in_flight.push(FriendAction::Leave);
+        page.reset_for_new_sign_in(page.epoch + 1);
+        assert_forgotten(&page);
+        assert_eq!(page.status, FriendsStatus::Idle);
+        assert_eq!((page.busy, page.in_flight.len()), (0, 0));
+
+        // The portal answers `me` with another id.
+        let mut page = full_page();
+        let mut other = page.me.clone().unwrap();
+        other.id = "someone-else".into();
+        page.apply(Event::Me(Ok(other)));
+        assert_eq!(page.my_id(), "someone-else");
+        assert!(page.open_group.is_none() && page.new_invite.is_none() && page.groups.is_empty());
+        assert_eq!(page.add.edit.text(), "");
+        assert_eq!(page.status, FriendsStatus::Ready);
+
+        // The same account again keeps what it has.
+        let mut page = full_page();
+        let same = page.me.clone().unwrap();
+        page.apply(Event::Me(Ok(same)));
+        assert!(page.open_group.is_some() && !page.groups.is_empty());
+
+        // Signed out, by a read or by a write.
+        let mut page = full_page();
+        page.apply(Event::Me(Err(SocialError::SignedOut)));
+        assert_forgotten(&page);
+        assert_eq!(page.status, FriendsStatus::SignedOut);
+        let mut page = full_page();
+        done(&mut page, FriendAction::Leave, Err(SocialError::SignedOut));
+        assert_forgotten(&page);
+        assert_eq!(page.status, FriendsStatus::SignedOut);
+    }
+
+    #[test]
+    fn only_a_read_can_say_the_portal_has_no_api() {
+        let mut page = full_page();
+        let follow = done(
+            &mut page,
+            FriendAction::Kick,
+            Err(SocialError::NotAvailable),
+        );
+        assert!(follow.is_empty());
+        assert_eq!(page.status, FriendsStatus::Ready);
+        assert!(page.me.is_some());
+        assert_eq!(
+            page.note,
+            Some((false, error_text(FriendAction::Kick, SocialError::NotAvailable)))
+        );
+        page.apply(Event::Groups(Err(SocialError::NotAvailable)));
+        assert_eq!(page.status, FriendsStatus::NotAvailable);
+    }
+
+    #[test]
+    fn a_write_in_flight_is_tracked_until_it_is_done() {
+        let mut page = full_page();
+        page.in_flight.push(FriendAction::CreateInvite);
+        assert!(page.is_busy(FriendAction::CreateInvite));
+        assert!(!page.is_busy(FriendAction::Kick));
+        done(&mut page, FriendAction::CreateInvite, Err(SocialError::Invalid));
+        assert!(!page.is_busy(FriendAction::CreateInvite));
+    }
+
+    #[test]
+    fn a_double_click_is_not_a_confirmation() {
+        let mut page = full_page();
+        page.ask(Confirm::Leave);
+        assert!(!page.confirm_ready());
+        page.confirm_at = Some(Instant::now() - CONFIRM_GUARD);
+        assert!(page.confirm_ready());
     }
 }

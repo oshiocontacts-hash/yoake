@@ -284,7 +284,10 @@ impl Launcher {
                 .child(
                     keyboard(danger_button(id.clone(), tr(ask).into()), &t).on_click(
                         cx.listener(move |this, _: &ClickEvent, _, cx| {
-                            run(this);
+                            // A double click on the first button lands here too: not a yes.
+                            if this.friends.confirm_ready() {
+                                run(this);
+                            }
                             cx.notify();
                         }),
                     ),
@@ -307,7 +310,7 @@ impl Launcher {
                 .into_any_element()
         } else {
             let ask_first = cx.listener(move |this, _: &ClickEvent, _, cx| {
-                this.friends.confirm = Some(confirm.clone());
+                this.friends.ask(confirm.clone());
                 cx.notify();
             });
             if danger {
@@ -1139,14 +1142,17 @@ impl Launcher {
                         cx.notify();
                     })),
                 )
-                .child(
-                    ui::solid("invite-create", tr("Create invite"), 36., 14., &t).on_click(
-                        cx.listener(|this, _: &ClickEvent, _, cx| {
+                .child({
+                    let button = ui::solid("invite-create", tr("Create invite"), 36., 14., &t);
+                    if self.friends.is_busy(FriendAction::CreateInvite) {
+                        disabled(button)
+                    } else {
+                        button.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.friends_create_invite();
                             cx.notify();
-                        }),
-                    ),
-                );
+                        }))
+                    }
+                });
             body = body.child(ui::list_head(tr("Invites")));
             body = body.child(make);
             if let Some((group, code)) = self.friends.new_invite.clone() {
