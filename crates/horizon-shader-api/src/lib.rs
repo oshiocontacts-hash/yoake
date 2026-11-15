@@ -5,10 +5,12 @@
 //! everywhere.
 pub mod check;
 pub mod inputs;
+pub mod jitter;
 pub mod manifest;
 pub mod package;
 pub mod reference;
 pub mod stages;
+pub mod voxel;
 
 pub use check::{Problem, Report, check};
 pub use inputs::Frame;

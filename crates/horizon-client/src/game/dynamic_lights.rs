@@ -5,6 +5,32 @@ use glam::DVec3;
 use horizon_client::dynamic_light::{self, BURNING, Luminance, Source};
 
 impl Game<'_> {
+    pub(super) fn native_held_light(&self, camera: DVec3) -> Option<([f32; 3], u8)> {
+        let player = self.player.as_ref().filter(|player| !player.spectator)?;
+        let luminance = self.luminance();
+        let level = [
+            self.stack_in(self.selected),
+            self.stack_in(shield::OFFHAND_SLOT),
+        ]
+        .into_iter()
+        .flatten()
+        .map(|stack| luminance.of(&stack.item))
+        .chain(std::iter::once(if player.fire_ticks > 0 {
+            BURNING
+        } else {
+            0
+        }))
+        .max()
+        .unwrap_or(0);
+        if level == 0 {
+            return None;
+        }
+        let feet = self
+            .previous_position
+            .lerp(player.position, self.clock.camera_fraction());
+        let position = DVec3::new(feet.x, feet.y + 1.2, feet.z);
+        Some(((position - camera).as_vec3().to_array(), level))
+    }
     /// Fills `dynamic_lights` for the frame: the player's and mobs' held items and fire, and
     /// glowing dropped items, the nearest [`dynamic_light::MAX`] of them.
     /// How brightly each item glows, built on first use.

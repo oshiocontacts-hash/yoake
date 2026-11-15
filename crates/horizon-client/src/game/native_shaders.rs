@@ -96,14 +96,21 @@ impl Game<'_> {
                 }
             }
             let labels = renderer
-                .set_native_shader_pack(Some((report, constants.into_iter().collect(), tags, materials, lights)))
+                .set_native_shader_pack(Some((
+                    report,
+                    constants.into_iter().collect(),
+                    tags,
+                    materials,
+                    lights,
+                )))
                 .map_err(|e| vec![e])?;
             Ok((pack.manifest, labels, translucent))
         });
         // The resources were loaded without a native pack, so without the resource packs'
         // LabPBR maps its material stage reads: load them once, now that one runs.
-        if result.as_ref().is_ok_and(|(m, _, _)| m.material.is_some())
-            && !horizon_client::sprites::labpbr_maps()
+        if result.as_ref().is_ok_and(|(manifest, _, _)| {
+            manifest.material.is_some() || manifest.entity_material.is_some()
+        }) && !horizon_client::sprites::labpbr_maps()
         {
             horizon_client::sprites::set_labpbr_maps(true);
             log::info!("Horizon: reloading resources for the LabPBR maps a native pack reads");

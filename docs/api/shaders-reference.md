@@ -14,6 +14,7 @@ bindings and no entry points, and no names starting with `horizon_`.
 | sky | `[sky]` | `fn sky(input: SkyInput) -> vec4<f32>` |
 | vertex | `[vertex]` | `fn vertex(input: VertexInput) -> vec3<f32>` |
 | material | `[material]` | `fn material(input: MaterialInput) -> Surface` |
+| entity_material | `[entity_material]` | `fn entity_material(input: EntityMaterialInput) -> Surface` |
 | weather | `[weather]` | `fn weather(input: WeatherInput) -> vec4<f32>` |
 | post | `[[post]]` | `fn post(input: PostInput) -> vec4<f32>` |
 
@@ -129,6 +130,53 @@ Helpers:
 - `fn block_normal_map_level(uv: vec2<f32>, lod: f32) -> vec4<f32>`, `fn block_specular_map_level(uv: vec2<f32>, lod: f32) -> vec4<f32>`: the same at the block texture's mip level `lod`.
 - `fn block_pbr_size() -> vec2<f32>`: the LabPBR maps' size in texels.
 - `fn set_surface(normal: vec3<f32>, smoothness: f32, data: f32)`: what the post stage's `surface_at` reads for this point of solid terrain (`data` the pack's own; the face's normal and 0, 0 unset).
+- `fn shadow_position(position: vec3<f32>) -> vec3<f32>`: where the camera-relative point `position` is
+  stored in the shadow map, for `textureSampleCompareLevel`.
+- `fn shadow_distort(xy: vec2<f32>) -> vec2<f32>`: the map's distortion of a point at shadow clip `xy`.
+
+## entity_material
+
+`fn entity_material(input: EntityMaterialInput) -> Surface`
+
+### `EntityMaterialInput`
+
+A mob, player or block entity surface, before fog and alpha testing.
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `position` | `vec3<f32>` | Camera-relative world position, in blocks. |
+| `normal` | `vec3<f32>` | World-space unit normal. |
+| `albedo` | `vec4<f32>` | Texture and vertex tint before vanilla lighting. |
+| `light` | `vec2<f32>` | Vanilla block and sky light, normalized to 0..1. |
+| `lightmap` | `vec3<f32>` | Sampled vanilla lightmap colour. |
+| `kind` | `u32` | Entity kind ID; block entity IDs carry bit 31. |
+
+### `Surface`
+
+What `material` returns. Vanilla's own is `albedo * tint * vec4(lightmap, 1.0)`; Horizon then applies the alpha test (cutout and translucent) and fog.
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `color` | `vec4<f32>` | The lit colour, 0..1, with its alpha. |
+
+Resources (bind group 3):
+
+| Binding | Declaration | Meaning |
+| --- | --- | --- |
+| 0 | `var<uniform> frame: Frame` | The frame (`Frame`). |
+| 1 | `var reflection: texture_2d<f32>` | The water mirror: the world as a camera mirrored about the horizontal water plane around the camera (`frame.water_plane`) sees it, at half resolution, mapped like the world's picture, so water samples it at `input.screen`. Solid terrain, cut away below the plane, over the vanilla sky gradient: not the pack's `sky` stage, nor the sun, moon and stars. Drawn only for a pack whose material reads it, while `frame.has_reflection` is 1; else a 1×1 blank. |
+| 2 | `var reflection_sampler: sampler` | Bilinear filtering, clamped to the edges. |
+| 3 | `var shadow_map: texture_depth_2d` | This frame's shadow map: the depth of the solid terrain and entities the light sees, 0 at the light, 1 away from it (and where nothing is), stored at `shadow_position`'s mapping. Valid while `frame.has_shadow` is 1 (the pack asks for it with `[shadow]`), else a 1×1 map that lights everything. |
+| 4 | `var shadow_sampler: sampler_comparison` | Depth comparison, bilinear (2×2 percentage-closer filtering): `textureSampleCompareLevel(shadow_map, shadow_sampler, p.xy, p.z)` is 1 where the point is lit, 0 in shadow. |
+| 7 | `var shadow_map_translucent: texture_depth_2d` | `shadow_map` with the translucent terrain (water, stained glass, ice) the light passes through drawn in too, read with `shadow_sampler` the same way: a point lit in `shadow_map` but not here lies under such a surface, which `shadow_color` gives the colour of. |
+| 8 | `var shadow_color: texture_2d<f32>` | The texture colour times the vertex colour (rgb: the tint, the face's directional shade and ambient occlusion) of the nearest translucent surface the light passes through at each texel of `shadow_map_translucent`, white where there is none; alpha is 1 on a fluid (water) and the texture's alpha, at most 0.99, on anything else. Read it with `textureLoad` at `shadow_position`'s xy times `textureDimensions(shadow_color)`. |
+| 6 | `var opaque_depth: texture_depth_2d` | The world's depth before translucent terrain (reversed, like `scene_depth`), for the translucent pass: `textureLoad(opaque_depth, vec2<i32>(input.screen * frame.resolution), 0)` is what lies behind water or glass. Stale while solid terrain draws. |
+| 9 | `var block_light_colors: texture_3d<f32>` | The colour of the block light around the camera, from the `[[lights]]` of the light sources nearby: rgb their colours averaged by how near each is, over 4; a how strongly they reach the cell. Read it through `block_light_color`. |
+| 10 | `var<uniform> block_light_grid: vec4<f32>` | Where `block_light_colors` lies: xyz its corner, camera-relative, w the side of one of its cells in blocks. |
+| 11 | `var opaque_color: texture_2d<f32>` | The world's picture before translucent terrain (sky, solid terrain, entities), the size of `opaque_depth`, for the translucent pass: what a surface refracts. Read it with `textureLoad`. Stale while solid terrain draws; black when the world draws straight to the window (a pack without `[[post]]` passes, at full resolution). |
+
+Helpers:
+
 - `fn shadow_position(position: vec3<f32>) -> vec3<f32>`: where the camera-relative point `position` is
   stored in the shadow map, for `textureSampleCompareLevel`.
 - `fn shadow_distort(xy: vec2<f32>) -> vec2<f32>`: the map's distortion of a point at shadow clip `xy`.
@@ -264,6 +312,15 @@ The frame, as `frame` in every stage. Positions and directions are in world axes
 | `shadow_distortion` | `f32` | 740 | How strongly the shadow map is distorted toward its centre, 0..1: a point at shadow clip `xy` is stored at `xy / (length(xy) * k + 1 - k)`, so texels near the camera cover less ground (`shadow_position` applies it). |
 | `shadow_resolution` | `f32` | 744 | The shadow map's side, in texels; 0 without a shadow map. |
 | `shadow_center_texel` | `f32` | 748 | The ground one shadow texel covers at the map's centre, in blocks (for a bias that scales with it); 0 without a shadow map. |
+| `unjittered_view_projection` | `mat4x4<f32>` | 752 | Current unjittered camera-relative view-projection matrix. |
+| `previous_unjittered_view_projection` | `mat4x4<f32>` | 816 | Previous unjittered camera-relative view-projection matrix. |
+| `jitter` | `vec4<f32>` | 880 | Current xy and previous zw Halton offsets, in pixels; zero unless opted in. |
+| `voxel_size` | `vec3<u32>` | 896 | Actual toroidal voxel texture dimensions, in blocks, not the declared maximum. |
+| `has_voxels` | `u32` | 908 | One when the pack has an allocated voxel input, otherwise zero. |
+| `voxel_origin` | `vec3<f32>` | 912 | Inclusive grid minimum relative to the camera. Address world cells modulo voxel_size. |
+| `light_count` | `u32` | 924 | Number of initialized entries in light_list, including the held light. |
+| `voxel_center` | `vec3<f32>` | 928 | Grid centre relative to the camera. |
+| `voxel_cell_size` | `f32` | 940 | Blocks per voxel (one when available, zero otherwise). |
 
 ## Options
 

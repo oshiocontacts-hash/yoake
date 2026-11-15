@@ -216,6 +216,74 @@ fn the_smallest_manifest() {
     )
     .unwrap();
     assert!(m.sky.is_none() && m.options.is_empty() && m.budget.gpu_ms.is_none());
+    assert!(m.entity_material.is_none() && m.voxels.is_none());
+    assert!(!m.light_list && !m.taa_jitter);
+}
+
+#[test]
+fn shadow_caching_requires_an_explicit_declaration() {
+    let text = "schema = 1\nid = \"p\"\nname = \"P\"\nversion = \"1\"\napi = \"0.1\"\n\
+                [[post]]\nfile = \"a.wgsl\"\n[shadow]\nresolution = 1024\n";
+    assert!(!Manifest::parse(text).unwrap().shadow.unwrap().cache);
+    assert!(
+        Manifest::parse(&format!("{text}cache = true\n"))
+            .unwrap()
+            .shadow
+            .unwrap()
+            .cache
+    );
+}
+
+#[test]
+fn shadow_resolution_option_selects_only_validated_sizes() {
+    let head = "schema = 1\nid = \"p\"\nname = \"P\"\nversion = \"1\"\napi = \"0.1\"\n\
+                [[post]]\nfile = \"a.wgsl\"\n[shadow]\nresolution = 1024\n";
+    let options = "[[options]]\nid = \"shadow_size\"\nname = \"Shadow size\"\n\
+                   type = \"choice\"\nvalues = [\"512\", \"1024\", \"2048\"]\n\
+                   default = \"1024\"\n\
+                   [[options]]\nid = \"reflections\"\nname = \"Reflections\"\n\
+                   type = \"bool\"\ndefault = true\n";
+    let text = format!("{head}resolution_option = \"shadow_size\"\n{options}");
+    let manifest = Manifest::parse(&text).unwrap();
+    assert_eq!(manifest.shadow_resolution(&[]), Some(1024));
+    for (index, expected) in [(0.0, 512), (1.0, 1024), (2.0, 2048)] {
+        assert_eq!(
+            manifest.shadow_resolution(&[("shadow_size".into(), index)]),
+            Some(expected)
+        );
+    }
+    for index in [-1.0, 0.5, 3.0, f64::NAN, f64::INFINITY] {
+        assert_eq!(
+            manifest.shadow_resolution(&[("shadow_size".into(), index)]),
+            Some(1024)
+        );
+    }
+    assert_eq!(
+        Manifest::parse(head).unwrap().shadow_resolution(&[]),
+        Some(1024)
+    );
+    for (bad, expected) in [
+        (
+            text.replace(
+                "resolution_option = \"shadow_size\"",
+                "resolution_option = \"missing\"",
+            ),
+            "is no option",
+        ),
+        (
+            text.replace(
+                "resolution_option = \"shadow_size\"",
+                "resolution_option = \"reflections\"",
+            ),
+            "must be a choice",
+        ),
+        (text.replace("\"512\"", "\"64\""), "value \"64\""),
+        (text.replace("\"2048\"", "\"8193\""), "value \"8193\""),
+        (text.replace("\"512\"", "\"large\""), "value \"large\""),
+    ] {
+        let error = refused(&bad);
+        assert!(error.contains(expected), "{expected:?} not in {error:?}");
+    }
 }
 
 #[test]

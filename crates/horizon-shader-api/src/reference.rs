@@ -45,6 +45,7 @@ pub fn markdown() -> String {
             StageKind::Post => "[[post]]",
             StageKind::Sky => "[sky]",
             StageKind::Material => "[material]",
+            StageKind::EntityMaterial => "[entity_material]",
             StageKind::Vertex => "[vertex]",
             StageKind::Weather => "[weather]",
         };
@@ -54,7 +55,7 @@ pub fn markdown() -> String {
     for kind in StageKind::ALL {
         out += &format!("## {}\n\n`{}`\n\n", kind.name(), kind.signature());
         out += &table(kind.input(), None);
-        if kind == StageKind::Material {
+        if matches!(kind, StageKind::Material | StageKind::EntityMaterial) {
             out += &table(&SURFACE, None);
         }
         out += &format!(

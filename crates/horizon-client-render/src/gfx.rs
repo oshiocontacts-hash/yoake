@@ -121,7 +121,6 @@ fn translucent_split(batching: bool, flat_draws: bool, terrain: bool, shadow: bo
 mod animate;
 mod arena;
 pub mod capture;
-mod native_fixed;
 pub mod compositor;
 mod cull;
 mod end_sky;
@@ -132,16 +131,19 @@ mod gpu_culling;
 mod hdr;
 mod hdr_icc;
 mod hdr_stats;
+mod native_fixed;
 pub use hdr::Calibration as HdrCalibration;
 pub mod block_light;
 pub mod lightning;
 mod lod;
+mod native_entity;
 mod native_material;
 mod native_pack;
 mod native_post;
 pub mod native_render;
 mod native_shadow;
 mod native_sky;
+mod native_world;
 mod occlusion;
 mod oit;
 mod oit_features;
@@ -1089,6 +1091,7 @@ pub struct Renderer {
     /// The light sources of each section and their revision, for `block_light`.
     light_blocks: FxHashMap<SectionKey, Vec<([i32; 3], u32)>>,
     light_revision: u64,
+    shadow_mesh_revision: u64,
     /// VisGraph face connectivity per meshed section (cave culling).
     occlusion: occlusion::Occlusion,
     /// The column `occlusion`, `sections` and `detail_columns` count in: the
@@ -4183,6 +4186,7 @@ impl Renderer {
             block_entity_revision: next_block_entity_revision(),
             light_blocks: Default::default(),
             light_revision: 0,
+            shadow_mesh_revision: 0,
             occlusion: occlusion::Occlusion::new(crate::chunk::MIN_Y, crate::chunk::HEIGHT / 16),
             layout: crate::chunk::ColumnLayout::VANILLA,
             world_post,
@@ -4660,6 +4664,12 @@ impl Renderer {
     pub fn native_shadow(&self) -> bool {
         self.native.as_ref().is_some_and(|n| n.shadow.is_some())
     }
+
+    pub fn native_entity_material(&self) -> bool {
+        self.native
+            .as_ref()
+            .is_some_and(|pack| pack.entity.is_some())
+    }
     /// What a shader pack's shadow pass draws of the entities this frame: (entities or block
     /// entities other than the player, so those Horizon's culling hides from the camera are
     /// kept for it; the local player, so its model is built in first person too). (false,
@@ -4694,6 +4704,16 @@ impl Renderer {
         self.occlusion.update(camera, (distance / 16.0) as i32 + 2);
     }
     pub fn upload(&mut self, key: SectionKey, mesh: &SectionMesh) {
+        if let Some(native) = &mut self.native {
+            if native.frame.shadow_cache_enabled {
+                self.shadow_mesh_revision = self.shadow_mesh_revision.wrapping_add(1);
+            }
+            native.frame.world.mark_dirty([
+                key.0,
+                self.layout.min_y().div_euclid(16) + key.1,
+                key.2,
+            ]);
+        }
         self.occlusion.set(key, mesh.visibility);
         let changed = if mesh.block_entities.is_empty() {
             self.block_entities.remove(&key).is_some()
@@ -4957,6 +4977,13 @@ impl Renderer {
     }
     fn release_section(&mut self, key: SectionKey) {
         if let Some(s) = self.sections.remove(key) {
+            if self
+                .native
+                .as_ref()
+                .is_some_and(|native| native.frame.shadow_cache_enabled)
+            {
+                self.shadow_mesh_revision = self.shadow_mesh_revision.wrapping_add(1);
+            }
             self.release_mesh(s);
         }
     }
@@ -5212,6 +5239,12 @@ impl Renderer {
     }
     /// Drops every section, for a level whose chunks hold `layout`.
     pub fn clear_sections(&mut self, layout: crate::chunk::ColumnLayout) {
+        if let Some(native) = &mut self.native {
+            if native.frame.shadow_cache_enabled {
+                self.shadow_mesh_revision = self.shadow_mesh_revision.wrapping_add(1);
+            }
+            native.frame.world.invalidate();
+        }
         self.block_entities.clear();
         self.block_entity_section_revisions.clear();
         self.block_entity_membership_revisions.clear();
@@ -5393,6 +5426,12 @@ impl Renderer {
             let retiring = !self.lod_cutout.is_empty() && self.lod_cutout.contains(&(x, z));
             for sy in 0..self.layout.sections() as i32 {
                 let key = (x, sy, z);
+                if let Some(native) = &mut self.native {
+                    native
+                        .frame
+                        .world
+                        .mark_dirty([x, self.layout.min_y().div_euclid(16) + sy, z]);
+                }
                 block_entities |= self.block_entities.remove(&key).is_some();
                 self.block_entity_section_revisions.remove(&key);
                 self.block_entity_membership_revisions.remove(&key);
@@ -5422,6 +5461,15 @@ impl Renderer {
         let gone: crate::fast_hash::FxHashSet<(i32, i32)> = columns.iter().copied().collect();
         let complete = self.complete_column();
         for &(x, z) in columns {
+            if let Some(native) = &mut self.native {
+                for section in 0..self.layout.sections() as i32 {
+                    native.frame.world.mark_dirty([
+                        x,
+                        self.layout.min_y().div_euclid(16) + section,
+                        z,
+                    ]);
+                }
+            }
             if self.detail_columns.remove(&(x, z)) == Some(complete) {
                 self.detail_revision += 1;
             }
@@ -5833,6 +5881,35 @@ impl Renderer {
         }
         Ok(labels)
     }
+    pub fn native_light_list(&self) -> bool {
+        self.native
+            .as_ref()
+            .is_some_and(|native| native.frame.world.needs_lights())
+    }
+    pub fn update_native_world(
+        &mut self,
+        camera: glam::DVec3,
+        world: &crate::world::World,
+        tables: &crate::mesher::MeshTables,
+        registry: &horizon_world::registry::BlockRegistry,
+        held: Option<([f32; 3], u8)>,
+    ) {
+        if let Some(native) = &mut self.native {
+            native
+                .frame
+                .world
+                .update(&self.queue, camera, world, tables, registry);
+            native
+                .frame
+                .world
+                .update_lights(&self.queue, camera, &self.light_blocks, held);
+        }
+    }
+    pub fn observe_native_world_changes(&mut self, world: &crate::world::World) {
+        if let Some(native) = &mut self.native {
+            native.frame.world.observe_dirty_sections(world);
+        }
+    }
     /// What a shader pack's gbuffers programs read from Horizon's geometry: the sky's, and
     /// terrain's in the pack's block atlas (made here when missing; none when it does not fit).
     pub fn pack_inputs(&mut self) -> horizon_shaders::GameInputs {
@@ -6015,12 +6092,7 @@ impl Renderer {
     }
     /// The views `render` draws `frame` from.
     pub fn views(&self, frame: &Frame) -> ViewSet {
-        let mut view = self.screen_view(
-            frame.fov_degrees,
-            frame.yaw,
-            frame.pitch,
-            frame.depth_far,
-        );
+        let mut view = self.screen_view(frame.fov_degrees, frame.yaw, frame.pitch, frame.depth_far);
         if frame.roll != 0.0 {
             view.view = Mat4::from_rotation_z(-frame.roll.to_radians()) * view.view;
         }
@@ -6386,7 +6458,10 @@ impl Renderer {
         let needs_readback =
             needs_readback || (self.capture_time.is_some() && self.capture.pending());
         let needs_readback = needs_readback
-            || self.native_fixed.as_ref().is_some_and(|output| output.capture.pending());
+            || self
+                .native_fixed
+                .as_ref()
+                .is_some_and(|output| output.capture.pending());
         let target_texture = match (&surface_frame, &mut self.hdr) {
             _ if let Some((real, _)) = &fg_frames => real.clone(),
             (Some(_), Some(hdr)) => hdr.frame(&self.device, size),
@@ -6439,13 +6514,27 @@ impl Renderer {
         // TAA runs where the world post pass does, not under a shader pack's own.
         let taa = !frame.title
             && self.pack_post.as_ref().is_none_or(|p| p.1.is_none())
-            && self.native.as_ref().is_none_or(|n| n.post.is_none());
-        let jittered = self.world_post.jitter(
-            [self.config.width, self.config.height],
-            taa,
-            view_proj,
-            frame.camera,
-        ) * view_proj;
+            && self
+                .native
+                .as_ref()
+                .is_none_or(|native| native.post.is_none() && !native.frame.taa_jitter);
+        let native_jitter =
+            self.native
+                .as_ref()
+                .filter(|_| !frame.title)
+                .map_or(glam::Mat4::IDENTITY, |native| {
+                    native
+                        .frame
+                        .projection_jitter([self.config.width, self.config.height])
+                });
+        let jittered = native_jitter
+            * self.world_post.jitter(
+                [self.config.width, self.config.height],
+                taa,
+                view_proj,
+                frame.camera,
+            )
+            * view_proj;
         if frame.title {
             self.panorama.prepare(
                 &self.device,
@@ -6674,6 +6763,14 @@ impl Renderer {
                 self.start_occlusion(camera, frame.detail_distance)
             });
         }
+        if !frame.title
+            && let Some(native) = &mut self.native
+            && native.shadow.is_some()
+        {
+            native
+                .frame
+                .prepare_shadow(frame, self.shadow_mesh_revision);
+        }
         // A shader pack's shadow pass draws the sections in its camera's box, all of them (the
         // occlusion graph follows the eye, not the light), within shadowDistanceRenderMul.
         let shadow_view = self
@@ -6686,7 +6783,7 @@ impl Renderer {
                 // One of Horizon's own packs with `[shadow]` uses the same lists.
                 let native = self.native.as_ref().filter(|_| !frame.title)?;
                 native.shadow.as_ref()?;
-                native.frame.shadow_view(frame)
+                native.frame.shadow_view()
             });
         let pack_terrain = !frame.title
             && self
@@ -8031,6 +8128,7 @@ impl Renderer {
             && shadow_view.is_some()
             && let Some(native) = &self.native
             && let Some(shadow) = &native.shadow
+            && native.frame.shadow_needs_render()
         {
             let mut pass = native.frame.shadow_map.begin(
                 &mut encoder,
@@ -8602,13 +8700,40 @@ impl Renderer {
             }
             pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint32);
             if entity_quads > 0 {
-                pass.set_pipeline(&self.entity_pipeline);
                 pass.set_bind_group(0, &self.entity_group, &[]);
                 pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
-                pass.draw_indexed(0..entity_quads * 6, 0, 0..1);
-                if self.hdr.is_some() {
-                    pass.set_pipeline(&self.hdr_mark_pipeline);
+                if let Some(native) = &self.native
+                    && let Some(entity) = &native.entity
+                {
+                    for (indices, kind) in native_entity::draw_ranges(
+                        frame.entity_spans,
+                        self.entity_batch.entity_runs(),
+                    ) {
+                        if let Some(kind) = kind {
+                            pass.set_pipeline(&entity.pipeline);
+                            pass.set_bind_group(3, &native.frame.group, &[]);
+                            pass.draw_indexed(indices, 0, kind..kind + 1);
+                        } else {
+                            pass.set_pipeline(&self.entity_pipeline);
+                            pass.draw_indexed(indices, 0, 0..1);
+                        }
+                    }
+                    if self.hdr.is_some() {
+                        pass.set_pipeline(&self.hdr_mark_pipeline);
+                        for (indices, _) in native_entity::draw_ranges(
+                            frame.entity_spans,
+                            self.entity_batch.entity_runs(),
+                        ) {
+                            pass.draw_indexed(indices, 0, 0..1);
+                        }
+                    }
+                } else {
+                    pass.set_pipeline(&self.entity_pipeline);
                     pass.draw_indexed(0..entity_quads * 6, 0, 0..1);
+                    if self.hdr.is_some() {
+                        pass.set_pipeline(&self.hdr_mark_pipeline);
+                        pass.draw_indexed(0..entity_quads * 6, 0, 0..1);
+                    }
                 }
                 pass.set_bind_group(0, &self.group, &[]);
             }
@@ -8637,22 +8762,41 @@ impl Renderer {
                 pass.set_bind_group(0, &self.group, &[]);
             }
             if translucent_item_quads > 0 && !oit_on {
-                pass.set_pipeline(&self.translucent_item_pipeline);
                 pass.set_bind_group(0, &self.entity_group, &[]);
                 pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
-                pass.draw_indexed(
-                    0..translucent_item_quads * 6,
-                    ((base_quads - translucent_item_quads) * 4) as i32,
-                    0..1,
-                );
-                if self.hdr.is_some() {
-                    // A glowing item in the world (Item sheet quads), as entities are.
-                    pass.set_pipeline(&self.hdr_mark_pipeline);
-                    pass.draw_indexed(
-                        0..translucent_item_quads * 6,
-                        ((base_quads - translucent_item_quads) * 4) as i32,
-                        0..1,
-                    );
+                let base_vertex = ((base_quads - translucent_item_quads) * 4) as i32;
+                if let Some(native) = &self.native
+                    && let Some(entity) = &native.entity
+                {
+                    for (indices, kind) in native_entity::draw_ranges(
+                        frame.entity_spans,
+                        self.entity_batch.translucent_item_runs(),
+                    ) {
+                        if let Some(kind) = kind {
+                            pass.set_pipeline(&entity.translucent_pipeline);
+                            pass.set_bind_group(3, &native.frame.group, &[]);
+                            pass.draw_indexed(indices, base_vertex, kind..kind + 1);
+                        } else {
+                            pass.set_pipeline(&self.translucent_item_pipeline);
+                            pass.draw_indexed(indices, base_vertex, 0..1);
+                        }
+                    }
+                    if self.hdr.is_some() {
+                        pass.set_pipeline(&self.hdr_mark_pipeline);
+                        for (indices, _) in native_entity::draw_ranges(
+                            frame.entity_spans,
+                            self.entity_batch.translucent_item_runs(),
+                        ) {
+                            pass.draw_indexed(indices, base_vertex, 0..1);
+                        }
+                    }
+                } else {
+                    pass.set_pipeline(&self.translucent_item_pipeline);
+                    pass.draw_indexed(0..translucent_item_quads * 6, base_vertex, 0..1);
+                    if self.hdr.is_some() {
+                        pass.set_pipeline(&self.hdr_mark_pipeline);
+                        pass.draw_indexed(0..translucent_item_quads * 6, base_vertex, 0..1);
+                    }
                 }
                 pass.set_bind_group(0, &self.group, &[]);
             }
@@ -9403,7 +9547,9 @@ impl Renderer {
             None
         };
         let native_readback = self.native_fixed.as_ref().and_then(|output| {
-            output.capture.copy(&self.device, &mut encoder, shown_texture)
+            output
+                .capture
+                .copy(&self.device, &mut encoder, shown_texture)
         });
         self.uploads.finish(&encoder);
         if has_section_copies {

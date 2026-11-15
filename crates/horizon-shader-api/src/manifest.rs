@@ -45,6 +45,7 @@ pub struct Manifest {
     pub shared: Vec<String>,
     pub sky: Option<Stage>,
     pub material: Option<Stage>,
+    pub entity_material: Option<Stage>,
     /// Where corners of terrain are drawn: needs `material`, and shares its module.
     pub vertex: Option<Stage>,
     /// The colour of rain and snow streaks (Minecraft's own when absent).
@@ -72,6 +73,20 @@ pub struct Manifest {
     pub reflection: Option<Reflection>,
     /// The shadow map the material and post stages read, if the pack asks for one.
     pub shadow: Option<Shadow>,
+    pub voxels: Option<Voxels>,
+    pub light_list: bool,
+    pub taa_jitter: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Voxels {
+    #[serde(default = "default_voxel_size")]
+    pub size: [u32; 3],
+}
+
+fn default_voxel_size() -> [u32; 3] {
+    [128; 3]
 }
 
 /// `[shadow]`: the renderer draws the solid terrain and entities as the sun (the moon by night)
@@ -82,6 +97,11 @@ pub struct Shadow {
     /// The map's side, in texels.
     #[serde(default = "default_shadow_resolution")]
     pub resolution: u32,
+    /// A choice option whose values are shadow-map sides in texels.
+    #[serde(default)]
+    pub resolution_option: Option<String>,
+    #[serde(default)]
+    pub cache: bool,
     /// Half the side of the square the map covers around the camera, in blocks.
     #[serde(default = "default_shadow_distance")]
     pub distance: f32,
@@ -272,11 +292,12 @@ pub const POST_SCALES: [f32; 3] = [1.0, 0.5, 0.25];
 /// The most targets a pack's post passes may write.
 pub const MAX_POST_TARGETS: usize = 4;
 
-/// An option the player can change: a WGSL `override` constant of the
-/// same name, set when the pipelines are built.
+/// An option the player can change. Options normally control a WGSL
+/// `override` of the same name; a shadow resolution option may also be
+/// used by the manifest without a corresponding WGSL override.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PackOption {
-    /// The `override`'s name in the pack's WGSL.
+    /// The option ID and, when present, its WGSL `override` name.
     pub id: String,
     pub name: String,
     pub description: String,
@@ -349,6 +370,7 @@ struct Raw {
     shared: Vec<String>,
     sky: Option<Stage>,
     material: Option<Stage>,
+    entity_material: Option<Stage>,
     #[serde(default)]
     vertex: Option<Stage>,
     #[serde(default)]
@@ -373,6 +395,11 @@ struct Raw {
     budget: RawBudget,
     reflection: Option<Reflection>,
     shadow: Option<Shadow>,
+    voxels: Option<Voxels>,
+    #[serde(default)]
+    light_list: bool,
+    #[serde(default)]
+    taa_jitter: bool,
 }
 
 #[derive(Deserialize)]
@@ -497,6 +524,7 @@ impl Manifest {
         }
         if raw.sky.is_none()
             && raw.material.is_none()
+            && raw.entity_material.is_none()
             && raw.weather.is_none()
             && raw.post.is_empty()
         {
@@ -514,6 +542,7 @@ impl Manifest {
             .iter()
             .chain(&raw.vertex)
             .chain(&raw.post)
+            .chain(&raw.entity_material)
             .any(|s| s.fog.is_some())
         {
             return Err(err("`fog` is a key of [material] only".into()));
@@ -523,11 +552,16 @@ impl Manifest {
             .iter()
             .chain(&raw.material)
             .chain(&raw.vertex)
+            .chain(&raw.entity_material)
             .any(|s| s.scale.is_some() || s.output.is_some())
         {
             return Err(err("`scale` and `output` are keys of [[post]] only".into()));
         }
         check_post_targets(&raw.post).map_err(err)?;
+        if let Some(voxels) = &raw.voxels {
+            crate::voxel::Window::new(voxels.size, [0; 3])
+                .map_err(|message| err(message.into()))?;
+        }
         if raw.post.len() > MAX_POST_PASSES {
             return Err(err(format!(
                 "{} post passes; a pack may chain {MAX_POST_PASSES}",
@@ -540,6 +574,7 @@ impl Manifest {
             .chain(&raw.material)
             .chain(&raw.vertex)
             .chain(&raw.weather)
+            .chain(&raw.entity_material)
             .chain(&raw.post);
         for file in raw
             .shared
@@ -551,7 +586,13 @@ impl Manifest {
             }
         }
         let sky_only = |s: &Stage| s.clouds.is_some() || s.sun.is_some() || s.stars.is_some();
-        if raw.material.iter().chain(&raw.post).any(sky_only) {
+        if raw
+            .material
+            .iter()
+            .chain(&raw.entity_material)
+            .chain(&raw.post)
+            .any(sky_only)
+        {
             return Err(err(
                 "`clouds`, `sun` and `stars` are keys of [sky] only".into()
             ));
@@ -755,6 +796,27 @@ impl Manifest {
                     s.resolution
                 )));
             }
+            if let Some(id) = &s.resolution_option {
+                let option = options
+                    .iter()
+                    .find(|option| option.id == *id)
+                    .ok_or_else(|| err(format!("shadow.resolution_option: `{id}` is no option")))?;
+                let OptionKind::Choice { values, .. } = &option.kind else {
+                    return Err(err(format!(
+                        "shadow.resolution_option: `{id}` must be a choice option"
+                    )));
+                };
+                for value in values {
+                    if !value
+                        .parse::<u32>()
+                        .is_ok_and(|size| SHADOW_RESOLUTIONS.contains(&size))
+                    {
+                        return Err(err(format!(
+                            "shadow.resolution_option: value {value:?} is not an integer in {SHADOW_RESOLUTIONS:?}"
+                        )));
+                    }
+                }
+            }
             if !SHADOW_DISTANCES.contains(&s.distance) {
                 return Err(err(format!(
                     "shadow.distance {} is not in {SHADOW_DISTANCES:?}",
@@ -773,6 +835,7 @@ impl Manifest {
             shared: raw.shared,
             sky: raw.sky,
             material: raw.material,
+            entity_material: raw.entity_material,
             vertex: raw.vertex,
             weather: raw.weather,
             post: raw.post,
@@ -786,7 +849,34 @@ impl Manifest {
             budget: Budget { gpu_ms },
             reflection: raw.reflection,
             shadow: raw.shadow,
+            voxels: raw.voxels,
+            light_list: raw.light_list,
+            taa_jitter: raw.taa_jitter,
         })
+    }
+
+    /// Resolve the selected shadow size, falling back to its default for invalid selections.
+    pub fn shadow_resolution(&self, constants: &[(String, f64)]) -> Option<u32> {
+        let shadow = self.shadow.as_ref()?;
+        let Some(id) = &shadow.resolution_option else {
+            return Some(shadow.resolution);
+        };
+        let option = self.options.iter().find(|option| option.id == *id)?;
+        let OptionKind::Choice { values, default } = &option.kind else {
+            return None;
+        };
+        let selected = constants
+            .iter()
+            .find(|(name, _)| name == id)
+            .and_then(|(_, value)| {
+                (value.is_finite()
+                    && *value >= 0.0
+                    && value.fract() == 0.0
+                    && *value < values.len() as f64)
+                    .then_some(*value as usize)
+            })
+            .unwrap_or(*default as usize);
+        values.get(selected)?.parse().ok()
     }
 
     /// The tags of each block sprite `(name, layer)` that has any, as `(layer, bits)` in
@@ -884,6 +974,7 @@ impl Manifest {
             .sky
             .iter()
             .chain(&self.material)
+            .chain(&self.entity_material)
             .chain(&self.vertex)
             .chain(&self.weather)
             .chain(&self.post);

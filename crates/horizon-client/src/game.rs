@@ -204,28 +204,26 @@ mod music;
 mod names;
 mod narrator;
 mod native_account;
+mod native_attack_hitbox;
 mod native_audio;
 mod native_avatar_equipment;
 mod native_biome_colors;
-pub mod native_block_entity_draw;
 pub mod native_block_behaviors;
-pub mod native_capabilities;
-mod native_fluids;
-pub mod native_item_behaviors;
-pub mod native_data_menus;
-pub mod native_item_render;
+pub mod native_block_entity_draw;
 mod native_block_sprites;
+pub mod native_capabilities;
 mod native_chat;
 mod native_claimed_items;
 mod native_client_items;
-mod native_client_state;
 pub mod native_client_map;
+mod native_client_state;
 mod native_components;
 mod native_cooldowns;
 mod native_criteria;
 mod native_crosshair;
 mod native_damage;
 mod native_data_maps;
+pub mod native_data_menus;
 pub mod native_deferred;
 mod native_entities;
 mod native_entity_data;
@@ -234,22 +232,25 @@ pub mod native_entity_query;
 mod native_entity_refs;
 mod native_explosions;
 mod native_falling;
+mod native_fluids;
 mod native_frames;
 mod native_gui_textures;
-mod native_hud_visibility;
 pub(crate) mod native_hooks;
+mod native_hud_visibility;
 mod native_inventories;
 mod native_inventory_rules;
 pub(crate) mod native_inventory_screen;
+pub mod native_item_behaviors;
 mod native_item_container;
 mod native_item_energy;
 mod native_item_fluids;
+pub mod native_item_render;
 mod native_item_slot;
 pub(crate) mod native_lan;
-mod native_local_player;
 mod native_level_refs;
 mod native_lifecycle;
 mod native_living_refs;
+mod native_local_player;
 mod native_mannequin;
 mod native_menus;
 mod native_mix;
@@ -275,13 +276,12 @@ mod native_server_ops;
 pub(crate) mod native_server_physics;
 mod native_session;
 mod native_shaders;
+mod native_sky_tint;
 mod native_streams;
 mod native_team;
 mod native_ticks;
 mod native_title_screen;
 mod native_visuals;
-mod native_attack_hitbox;
-mod native_sky_tint;
 mod native_world_border;
 mod native_world_columns;
 mod native_world_edit;
@@ -4763,7 +4763,8 @@ impl Game<'_> {
     fn attack_block(&mut self, pos: [i32; 3]) -> Result<()> {
         if native_block_behaviors::enabled() {
             let state = self.world.block(pos[0], pos[1], pos[2]);
-            if let Some(behavior) = native_block_behaviors::lookup(self.pack.assets.registry, state) {
+            if let Some(behavior) = native_block_behaviors::lookup(self.pack.assets.registry, state)
+            {
                 behavior.attack(self, BlockPos::new(pos[0], pos[1], pos[2]), state);
             }
         }
@@ -8874,9 +8875,10 @@ impl Game<'_> {
                 g.draw_tab_list(batch);
             });
             if drawn.is_none() {
-                let has_mannequin_profile = self.mobs.iter().any(|mob| {
-                    &*mob.kind.id == "minecraft:mannequin" && mob.profile.is_some()
-                });
+                let has_mannequin_profile = self
+                    .mobs
+                    .iter()
+                    .any(|mob| &*mob.kind.id == "minecraft:mannequin" && mob.profile.is_some());
                 if self.native_mob_player_cache.get_mut().is_some() || has_mannequin_profile {
                     self.flush_skin_slots();
                 }
@@ -10028,7 +10030,8 @@ impl Game<'_> {
                             .remote_menu_type()
                             .or_else(|| self.container.and_then(|key| self.mod_menu_at(key)))
                             .unwrap_or(&entity.id);
-                        let Some(kind) = horizon_client::containers::mod_menu_type(menu_type) else {
+                        let Some(kind) = horizon_client::containers::mod_menu_type(menu_type)
+                        else {
                             return false;
                         };
                         (Kind::Mod(kind), kind.slots)
@@ -11409,7 +11412,7 @@ impl Game<'_> {
             // through the per-vertex occlusion callback both repeats that work
             // and disables their per-section GPU cache. Shader packs still need
             // per-entity span marks, so they keep the callback path.
-            if self.pack_ids.is_some() {
+            if self.pack_ids.is_some() || r.native_entity_material() {
                 let section_revision = |pos| r.block_entity_section_revision(pos);
                 static_block_entity_stats = self
                     .res
@@ -14439,7 +14442,8 @@ impl Game<'_> {
             } else {
                 horizon_client::cit::Hand::Main
             };
-            let mut state = self.resolve_item_in_hand(&stack, context, Some(&owner), seed, cit_hand);
+            let mut state =
+                self.resolve_item_in_hand(&stack, context, Some(&owner), seed, cit_hand);
             if state.native_owner.is_some() {
                 state.native_swing_progress = Some(swing);
             }
@@ -16074,14 +16078,21 @@ impl Game<'_> {
                     };
                     let p = h.pos.map(f64::from);
                     if let Some(boxes) = self.block_behavior_outline(h.pos, state) {
-                        return boxes.iter().flat_map(|bounds| {
-                            horizon_client::blocks::cube_edges().iter().map(move |edge| {
-                                std::array::from_fn(|index| {
-                                    let axis = index % 3;
-                                    bounds[axis] + edge[index] * (bounds[axis + 3] - bounds[axis])
-                                })
-                            }).collect::<Vec<_>>()
-                        }).collect();
+                        return boxes
+                            .iter()
+                            .flat_map(|bounds| {
+                                horizon_client::blocks::cube_edges()
+                                    .iter()
+                                    .map(move |edge| {
+                                        std::array::from_fn(|index| {
+                                            let axis = index % 3;
+                                            bounds[axis]
+                                                + edge[index] * (bounds[axis + 3] - bounds[axis])
+                                        })
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect();
                     }
                     if let Some(b) = self.context_outline(h.pos, state) {
                         return horizon_client::blocks::cube_edges()
@@ -16157,8 +16168,10 @@ impl Game<'_> {
                 fov_degrees,
                 near: 0.05,
                 far: depth_far,
-                view: (bob * spin * horizon_client::camera::view_matrix_with_roll(yaw, pitch, roll))
-                    .to_cols_array(),
+                view: (bob
+                    * spin
+                    * horizon_client::camera::view_matrix_with_roll(yaw, pitch, roll))
+                .to_cols_array(),
                 projection: glam::Mat4::perspective_rh(
                     fov_degrees.to_radians(),
                     size[0] as f32 / size[1].max(1) as f32,
@@ -16262,6 +16275,22 @@ impl Game<'_> {
             self.dynamic_lights.clear();
         } else {
             self.gather_dynamic_lights(camera, alpha);
+        }
+        if !title {
+            let held = self
+                .renderer
+                .as_ref()
+                .filter(|renderer| renderer.native_light_list())
+                .and_then(|_| self.native_held_light(camera));
+            if let Some(renderer) = &mut self.renderer {
+                renderer.update_native_world(
+                    camera,
+                    &self.world,
+                    &self.pack.context.tables,
+                    self.pack.assets.registry,
+                    held,
+                );
+            }
         }
         let pack_inputs = if title {
             Default::default()
@@ -17112,6 +17141,9 @@ impl Game<'_> {
         self.streaming
             .extra
             .extend(waiting.into_iter().map(|chunk| (chunk, 0)));
+        if let Some(renderer) = &mut self.renderer {
+            renderer.observe_native_world_changes(&self.world);
+        }
         let (uploads, unloaded) =
             horizon_client::spans::time("streaming", || self.streaming.update(&mut self.world));
         self.streaming.extra.truncate(areas);
@@ -19138,7 +19170,8 @@ impl<'a> Game<'a> {
         Self::native_camera_override_listened(&mut native_camera_override_listened);
         let mut audio_mix_listened = false;
         Self::native_audio_mix_ready_listened(&mut audio_mix_listened);
-        let map_enabled = !horizon_client::mod_api::mods().is_empty() && options.execution_role.is_client();
+        let map_enabled =
+            !horizon_client::mod_api::mods().is_empty() && options.execution_role.is_client();
         let mut map_listeners = native_client_map::Listeners::default();
         if map_enabled {
             Self::native_client_chunk_load_listened(&mut map_listeners.load);

@@ -16,6 +16,7 @@ pub struct EntitySpan {
     pub stage: u32,
     /// `entityId` for entities, `blockEntityId` for block entities (5.3), else 0.
     pub id: i32,
+    pub native_kind: Option<u32>,
     /// An entity part that blends (a name tag, a shadow): `gbuffers_entities_translucent`.
     pub translucent: bool,
     /// Hidden from the camera (Horizon's entity culling, the player in first person): only the
