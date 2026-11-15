@@ -36,7 +36,7 @@ jobs:
       CARGO_INCREMENTAL: '0'
       CARGO_TERM_COLOR: never
       # Test guests are built by the tests into this same dir and looked up there (crates/yoake-wasm/src/test_guests.rs).
-      CARGO_TARGET_DIR: ${{ github.workspace }}\target
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
     steps:
       - uses: actions/checkout@v4
         with:
