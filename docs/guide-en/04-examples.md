@@ -80,10 +80,13 @@ Excerpts from `server-storage`:[^server-storage]
         }
 ```
 
-- For the storage location (`StorageScope`), server modules can choose per-save-game-world `World` (`<world>/yoake-data/<mod-id>/store.bin`) or cross-world `Global` (`<game>/yoake-data/<mod-id>/global/store.bin`), while client modules use `Client` (`<game>/yoake-data/<mod-id>/client/store.bin`). In the current implementation, all keys in a scope are persisted synchronously into a single `store.bin` file.[^storage]
+- **Storage scopes and folders (`StorageScope`)**: Server modules can use per-world `World` (`<world>/yoake-data/<mod-id>/`) or cross-world `Global` (`<game>/yoake-data/<mod-id>/global/`), while client modules use `Client` (`<game>/yoake-data/<mod-id>/client/`).[^storage]
+- **Per-key atomic files and locking**: Rather than storing everything in a single `store.bin`, each store folder holds an exclusive lock file (`store.lock`) for its lifetime (concurrent processes receive an error) and writes each key into its own host-generated entry file (`entry-*.bin`). Only keys and value lengths stay resident in memory; values and blob slices are read on demand. Every `storage_put`, `storage_delete`, and `storage_blob_commit` persists before returning by writing to a temporary file (`.store-*.tmp`), calling `fsync` (`sync_all`), and atomically renaming it into place (also syncing the parent directory on Unix); stale `.store-*.tmp` files are cleaned up on open.[^storage]
+- **Quotas, blobs, and write budget**: Each store has a **256 MiB** quota (including entry metadata and reserved pending uploads) and holds at most **65,536 keys** (logical names up to 256 bytes, never paths). Inline `storage_get` / `storage_put` calls and individual blob chunks are capped at **1 MiB**. Larger values use `storage_blob_begin`, `storage_blob_write`, `storage_blob_commit`, `storage_blob_abort`, and `storage_blob_read` (up to **64** concurrent uploads per store and a **32 MiB** aggregate pending-blob limit per mod across all scopes; buffers grow lazily on write, chunks may arrive out of order, and commit requires complete coverage, retaining the upload on failure for completion or abort; pending uploads are not persisted and world uploads are discarded on world change or when an instance is created, dropped, disabled, or traps). Across all scopes, encoded storage writes—**including config writes**—share a per-mod token bucket of **8 MiB/s sustained** with a **32 MiB burst**, returning an error if exceeded.[^storage]
+- **Automatic legacy migration and corruption handling**: On first bind, server stores (`World` and `Global`) automatically import existing `store.bin` data and legacy `<world>/yoake-wasm/<mod-id>/<key>.bin` / `<game>/config/yoake-wasm/<mod-id>/<key>.bin` entries (stripping `.bin`) within quota without overwriting newer keys (`Client` stores do not import legacy sources). The old `store.bin` and legacy `.bin` files are kept as recovery backups, and a `migration-v2.done` marker prevents repeated imports. Corrupted or unreadable entry files (or legacy entries during import) are skipped with a warning so healthy keys remain usable.[^storage]
 
-> The on-disk format of `store.bin` may change in future versions. Never edit `store.bin` directly
-> or build external tools that depend on its layout—always read and write data through `storage_get` and `storage_put`.
+> **Note:** This per-key storage design requires an engine version from `yoake/w2d-services` (`@4ec9e65b2`) or later.
+> The on-disk format (`entry-*.bin`, `store.lock`, `migration-v2.done`, etc.) is internal and may change in future versions—never edit the files in the store folder directly or build external tools that depend on their layout; always read and write data through `storage_get`, `storage_put`, and the `storage_blob_*` calls.
 
 ---
 
@@ -180,6 +183,6 @@ If you run into an error while modifying or building a mod, check [5. Common Err
 
 [^hud-item]: Source: `crates/yoake-wasm-sdk/examples/hud-item/src/lib.rs`.
 [^server-storage]: Source: `crates/yoake-wasm-sdk/examples/server-storage/src/lib.rs`.
-[^storage]: Source: `DiskStorage::directory` / `open_scoped_with_quota` / `persist` in `crates/yoake-wasm/src/host_services/storage.rs`.
+[^storage]: Source: `DiskStorage::open_scoped_with_quota` / `persist` / `atomic_write` / `import_store` / `import_directory` in `crates/yoake-wasm/src/host_services/storage.rs` and `docs/yoake-wasm-dev.md`.
 [^manifest]: Source: `crates/horizon-mods/src/yak/manifest.rs`.
 [^dev-doc]: Source: `docs/yoake-wasm-dev.md`.
