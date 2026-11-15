@@ -43,7 +43,7 @@ interface test-driver {
     place-block: func(position: block-pos, block: string) -> result<_, string>;
     /// Breaks the block as a player would (drops included).
     break-block: func(position: block-pos) -> result<_, string>;
-    /// The block state at `position`, as text (`namespace:id[property=value,...]`).
+    /// The block at `position`, as its id (`namespace:id`; the game's `block` service gives no properties).
     block-at: func(position: block-pos) -> result<string, string>;
 
     /// Spawns an entity of `kind` (`minecraft:pig`) and returns its id.

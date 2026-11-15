@@ -526,6 +526,7 @@ mod tests {
         let record = one_with(&plan, &game(Duration::from_millis(500)), "hang");
         assert!(!record.ok && record.error.as_deref().unwrap().contains("was killed"), "{record:?}");
         assert!(began.elapsed() < Duration::from_secs(30), "{:?}", began.elapsed());
+        let _ = fs::remove_dir_all(project_dir);
     }
 
     #[test]

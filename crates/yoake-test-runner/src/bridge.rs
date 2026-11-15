@@ -74,6 +74,8 @@ pub struct Bridge {
     ticks: Arc<AtomicU64>,
     /// Set once the world is frozen: its ticks then run only for `advance-ticks`.
     frozen: Arc<AtomicBool>,
+    /// The server loop has seen the freeze: no tick is in flight.
+    acked: Arc<AtomicBool>,
     signal: Arc<Signal>,
 }
 
@@ -106,6 +108,7 @@ pub struct Client {
     outbox: Sender<Request>,
     ticks: Arc<AtomicU64>,
     frozen: Arc<AtomicBool>,
+    acked: Arc<AtomicBool>,
     signal: Arc<Signal>,
     wait: Duration,
 }
@@ -115,6 +118,7 @@ pub fn channel(wait: Duration) -> (Bridge, Client) {
     let (outbox, inbox) = mpsc::channel();
     let ticks = Arc::new(AtomicU64::new(0));
     let frozen = Arc::new(AtomicBool::new(false));
+    let acked = Arc::new(AtomicBool::new(false));
     let signal = Arc::new(Signal::default());
     (
         Bridge {
@@ -123,9 +127,10 @@ pub fn channel(wait: Duration) -> (Bridge, Client) {
             fast: AtomicBool::new(false),
             ticks: Arc::clone(&ticks),
             frozen: Arc::clone(&frozen),
+            acked: Arc::clone(&acked),
             signal: Arc::clone(&signal),
         },
-        Client { outbox, ticks, frozen, signal, wait },
+        Client { outbox, ticks, frozen, acked, signal, wait },
     )
 }
 
@@ -188,6 +193,10 @@ impl Bridge {
     /// a tick each. Returns once the world should tick (an `advance-ticks` arrived), or nothing came for
     /// `idle` (the loop then services its connections).
     pub fn serve(&self, execute: &mut dyn FnMut(Op) -> Answer, idle: Duration) {
+        // The loop is back at its top: a tick that was running when the world was frozen is over.
+        if self.frozen.load(Ordering::Relaxed) {
+            self.acked.store(true, Ordering::SeqCst);
+        }
         self.pump(execute);
         while self.frozen() {
             if !self.signal.wait(idle) {
@@ -209,6 +218,12 @@ impl Client {
     pub fn freeze(&self) {
         self.frozen.store(true, Ordering::Relaxed);
         self.signal.notify();
+        // Wait until the server loop has seen it, so the tick that may be running now is counted before the
+        // test reads `tick()`. A loop that never answers (no world) does not hold the test up for long.
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while !self.acked.load(Ordering::SeqCst) && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(1));
+        }
     }
 
     pub fn request(&self, op: Op) -> Answer {
@@ -289,6 +304,11 @@ fn normalized_state(text: &str) -> (String, Vec<(String, String)>) {
         .collect();
     properties.sort();
     (id, properties)
+}
+
+/// A block state text as `(namespaced id, properties sorted)`.
+pub fn state_parts(text: &str) -> (String, Vec<(String, String)>) {
+    normalized_state(text)
 }
 
 /// Whether the block state text `actual` (what the game reports) is the state `wanted` (what a test asked
@@ -577,6 +597,10 @@ mod tests {
             bridge.frozen.load(Ordering::Relaxed)
         }
         client.freeze();
+        // freeze() returns only once no tick is in flight: the counter does not move afterwards.
+        let frozen_at = client.ticks();
+        thread::sleep(Duration::from_millis(100));
+        assert_eq!(client.ticks(), frozen_at, "a tick ran after freeze() returned");
         let began = Instant::now();
         for _ in 0..2000 {
             assert_eq!(client.request(Op::Players), Ok(Reply::Done));
@@ -600,6 +624,9 @@ mod tests {
         assert!(!same_state("minecraft:dirt", "minecraft:stone"));
         assert!(!same_state("minecraft:oak_stairs[facing=south]", "minecraft:oak_stairs[facing=north]"));
         assert!(!same_state("minecraft:oak_stairs[facing=south]", "minecraft:oak_stairs"));
+        let (id, properties) = state_parts("oak_stairs[half=top,facing=north]");
+        assert_eq!(id, "minecraft:oak_stairs");
+        assert_eq!(properties, [("facing".to_owned(), "north".to_owned()), ("half".to_owned(), "top".to_owned())]);
     }
 
     #[test]

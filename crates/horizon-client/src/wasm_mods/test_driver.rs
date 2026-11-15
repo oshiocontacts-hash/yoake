@@ -10,7 +10,7 @@ use super::full::{GameServerHost, uuid_text};
 use super::*;
 use yoake_test_runner::bridge::{
     Answer, EntityRow, MAX_ENTITIES, Op, PlayerRow, Reply, break_block_command, mannequin_uuid, place_block_command, player_name,
-    same_state, summon_command,
+    same_state, state_parts, summon_command,
 };
 use yoake_wasm::{ServerHost, server_types as st};
 
@@ -33,6 +33,9 @@ fn vec3(position: [f64; 3]) -> st::Vec3 {
 pub(in crate::entry) fn execute(host: &mut dyn Host, op: Op) -> Answer {
     let mut invocation = Invocation { host: HostAccess::Write(host), batch: None, batch_start: 0 };
     let _scope = Scope::enter(&mut invocation);
+    // The game's native entity queries (and the guard around native mods) want a mod call to be active: the
+    // driver is one, under a mod index no real mod has.
+    let _call = crate::crash::enter_native_mod(crate::crash::NativeModCall { id: Some(CALLER), index: usize::MAX, hook: "yoake_test" });
     let mut services = GameServerHost { id: CALLER.to_owned(), commands: true };
     run(&mut services, op)
 }
@@ -52,8 +55,15 @@ fn run(services: &mut GameServerHost, op: Op) -> Answer {
             let line = place_block_command(position, &block)?;
             // `/setblock` of the state a block already has "fails": that is a block that is there, not an error.
             if !services.run_command(line.clone())? {
+                // The `block` service names the block without its properties: the id must be the wanted one and
+                // each wanted property must read back (`block-property`) with the wanted value.
                 let actual = services.block(block_pos(position))?;
-                if !same_state(&actual, &block) {
+                let (wanted_id, wanted_properties) = state_parts(&block);
+                let mut same = state_parts(&actual).0 == wanted_id;
+                for (key, value) in &wanted_properties {
+                    same = same && services.block_property(block_pos(position), key.clone())?.as_deref() == Some(value.as_str());
+                }
+                if !same {
                     return Err(format!("could not place {block} at {position:?}: the block there is {actual} (is the chunk loaded?)"));
                 }
             }

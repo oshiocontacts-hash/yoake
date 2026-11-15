@@ -7,7 +7,12 @@ impl Game<'_> {
     /// of a `server-full` mod, `wasm_mods/test_driver.rs`). While the test froze the world this waits for the
     /// test's next call (up to 50 ms) instead of ticking, so a call costs what it costs and not a tick.
     pub(super) fn pump_yoake_test(&mut self) {
-        crate::yoake_test::serve(&mut |op| crate::entry::run_test_op(self, op));
+        crate::yoake_test::serve(&mut |op| {
+            self.native_lifecycle_test_read_scope(true);
+            let answer = crate::entry::run_test_op(self, op);
+            self.native_lifecycle_test_read_scope(false);
+            answer
+        });
     }
 
     /// Test mode: one server tick ran (an `advance-ticks` counts them).

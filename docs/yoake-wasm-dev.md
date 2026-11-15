@@ -215,7 +215,7 @@ cannot ship inside a mod by accident.
 | `run_ticks(n)` | the server runs `n` more ticks (1 to 72000), as fast as it can, then the call returns | the bridge counts server ticks; the server loop skips its 50 ms wait meanwhile, as `/tick sprint` does |
 | `place_block(pos, "minecraft:oak_stairs[facing=north]")` | sets the block (overworld) | `/setblock x y z <block>` |
 | `break_block(pos)` | breaks it, drops included | `/setblock x y z minecraft:air destroy` |
-| `block_at(pos)`, `assert_block(pos, text)` | the block state as text | the `block` server service (what a `server-full` mod gets) |
+| `block_at(pos)`, `assert_block(pos, text)` | the block's id as text (`minecraft:oak_stairs`: measured, no properties) | the `block` server service (what a `server-full` mod gets) |
 | `spawn_entity(kind, pos)` | spawns, returns the entity id | `/summon` then `entities-in` (the newest of that kind there) |
 | `spawn_mannequin(name, pos)` | a mannequin entity (not a player: it is not listed by `player_names`) for a stable UUID derived from `name`, returns its entity id | the `spawn-mannequin` service |
 | `entities_near(pos, radius)`, `assert_entity_count(kind, pos, radius, n)` | the kinds of the living entities near, at most 512 | the `entities-in` service |
@@ -314,6 +314,19 @@ World facts a test may rely on: the owner is in creative mode at the world spawn
 weather clear at the start; the render distance is 4 chunks. Tests should build what they use near the spawn
 (0, 0): the superflat layers are bedrock, two dirt and grass, so the ground is the layer above the world's
 bottom (the exact height is not pinned here; read it with `block_at` if a test depends on it).
+
+### Measured (Windows, debug build, RTX 2060, prepared data without `horizon-data.bin`)
+
+* A worker takes 90 to 100 s from start to the first driver call (loading the prepared data, the world and the
+  owner). Do one test per call of `yoake test --filter` while developing, and expect a full run to cost that per
+  test; a release build and a prepared folder that has its `horizon-data.bin` (a normal game start writes it) are
+  faster. A test itself takes milliseconds: a place, an advance of 3 ticks and a read took 150 ms the first time,
+  1000 `block_at` calls 96 ms, an advance of 20 ticks plus two spawns 1.5 s.
+* A worker never writes into the prepared folder (the game's own `horizon-data.bin` cache is skipped), reads it in
+  place, and leaves nothing outside its temporary folder.
+* The server's entity queries (`entities_near`, `spawn_entity`'s lookup) have the game's budget per server tick
+  and mod; the world is frozen, so every query of a test between two `run_ticks` shares one tick's budget (512
+  to 1024 calls). Advance a tick to start a new budget.
 
 ### Two clients (`--yoake-test-clients=2`): design, not implemented
 

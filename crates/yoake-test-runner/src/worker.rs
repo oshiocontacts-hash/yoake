@@ -146,7 +146,7 @@ mod tests {
             let mut polls = 0;
             let mut block = String::from("minecraft:air");
             while !stop.load(Ordering::Relaxed) {
-                bridge.pump(&mut |op| -> Answer {
+                bridge.serve(&mut |op| -> Answer {
                     Ok(match op {
                         Op::Players => {
                             polls += 1;
@@ -176,7 +176,10 @@ mod tests {
                         Op::BreakBlock(_) => Reply::Done,
                         Op::Advance(_) => unreachable!("the bridge handles it"),
                     })
-                });
+                }, Duration::from_millis(20));
+                if bridge.frozen() {
+                    continue;
+                }
                 bridge.tick_done();
                 if !bridge.ticking_fast() {
                     std::thread::sleep(Duration::from_millis(2));

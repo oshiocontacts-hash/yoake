@@ -20707,6 +20707,10 @@ fn load_resources(
 /// the next starts read them from one file (#1961).
 fn write_prepared_files(root: PathBuf) {
     use horizon_core::prepared_files;
+    // A test worker (`yoake test`) reads the prepared folder in place and never writes into it.
+    if crate::yoake_test::is_worker() {
+        return;
+    }
     if prepared_files::open(&root).is_some() || !root.join("horizon-resources.json").is_file() {
         return;
     }
