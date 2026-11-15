@@ -84,10 +84,22 @@
         }
 ```
 
-- 保存先（`StorageScope`）は、サーバー側ではセーブデータのワールドごとの `World`（`<world>/yoake-data/<mod-id>/store.bin`）と全ワールド共通の `Global`（`<game>/yoake-data/<mod-id>/global/store.bin`）、クライアント側では `Client`（`<game>/yoake-data/<mod-id>/client/store.bin`）を選べます。現行実装では、各スコープの全キーを 1 つの `store.bin` に同期保存します。[^storage]
+- 保存先（`StorageScope`）は、サーバー側ではセーブデータのワールドごとの `World`（`<world>/yoake-data/<mod-id>/`）と全ワールド共通の `Global`（`<game>/yoake-data/<mod-id>/global/`）、クライアント側では `Client`（`<game>/yoake-data/<mod-id>/client/`）を選べます。`World` と `Global` はサーバー専用、`Client` はクライアント専用で、各 MOD は自分のパッケージのストアだけにアクセスできます。[^storage]
 
-> 保存ファイル（`store.bin`）の形は今後の版で変わる可能性があります。中身を直接書き換えたり、
-> 形に頼った道具を作ったりせず、必ず `storage_get` / `storage_put` を使ってください。
+各ストアフォルダには、ホストが生成したキーごとの `entry-*.bin` と `store.lock` があり、全キーを 1 つの `store.bin` にまとめる方式ではありません。ロックはストアを開いている間保持され、別プロセスから同じストアを開くとエラーになります。1 キーの変更ではその値とメタデータだけを書き込み、一時ファイルへ書いて `fsync` してから rename で置き換えます。`put`、`delete`、blob の commit が成功を返すまでに永続化が完了します。開いたときに残っている古い一時ファイルは削除され、Unix では rename 時に親ディレクトリも同期します。
+
+各ストアの容量上限は、シリアル化されたメタデータと予約済みの未完了 blob アップロードを含めて 256 MiB、キー数は最大 65,536 です。メモリに常駐するのはキーと長さだけで、値と blob のスライスは必要に応じて読み込みます。書き込み量は MOD ごと・全スコープ共通のトークンバケットで制限され、設定の書き込みも含めて継続 8 MiB/秒、バースト 32 MiB です。この上限を超えるとエラーを返します。
+
+通常の読み書きと blob のチャンクは、それぞれ最大 1 MiB です。`storage_blob_begin` は容量を予約してパッケージ所有のアップロード ID を返し、未完了のアップロードは各ストアで最大 64 件、MOD ごとに全スコープ合計 32 MiB までです。バッファは begin 時ではなく write 時に必要に応じて確保されます。チャンクは順不同で書き込めますが、commit には対象全体が欠けなくそろっている必要があります。commit に失敗してもアップロードは残るため、続きを書いて再試行するか abort できます。`storage_blob_read` は commit 済みデータの範囲を上限付きで読みます。アップロードは永続化されず、ワールドのアップロードはワールド変更時やモジュールインスタンスの作成・削除・無効化・トラップ時に破棄されます。
+
+ストアを最初にバインドするとき、World / Global では旧 `store.bin` と、World では `<world>/yoake-wasm/<mod-id>/<key>.bin`、Global では `<game>/config/yoake-wasm/<mod-id>/<key>.bin` の旧エントリが、容量上限内で自動的にインポートされます。どちらの旧形式でもファイル名末尾の `.bin` はキーから取り除かれ、新しいストアに既にあるキーは置き換えません。Client はこれらの旧形式をインポートしません。旧ファイルと `store.bin` は復旧用バックアップとして残し、`migration-v2.done` マーカーで繰り返しのインポートを防ぎます。
+
+破損・形式不正・読み取り不能なエントリファイルは、警告を出してスキップするため、正常なエントリは引き続き使えます。
+
+> ディスク上の形式は内部仕様であり、今後の版で変わる可能性があります。ファイルを直接編集したり、
+> 形式に依存した道具を作ったりせず、必ず `storage_get` / `storage_put` と blob 用 API（`storage_blob_*`）を使ってください。
+
+> **必要なエンジン:** `yoake/w2d-services` の `4ec9e65b2` 以降。
 
 ### `mod-call-pair`（別の MOD を呼び出す）
 
@@ -200,6 +212,6 @@ MOD を改造していてエラーに出会ったときは、[5. よくあるエ
 
 [^hud-item]: 確認元: `crates/yoake-wasm-sdk/examples/hud-item/src/lib.rs`。
 [^server-storage]: 確認元: `crates/yoake-wasm-sdk/examples/server-storage/src/lib.rs`。
-[^storage]: 確認元: `crates/yoake-wasm/src/host_services/storage.rs` の `DiskStorage::directory` / `open_scoped_with_quota` / `persist`。
+[^storage]: 確認元: `docs/yoake-wasm-dev.md` の「Package config, permissions and storage」、`crates/yoake-wasm/src/host_services/storage.rs` の `DiskStorage::open_scoped_with_quota` / `import_store` / `import_directory` / `persist` / `atomic_write`。
 [^manifest]: 確認元: `crates/horizon-mods/src/yak/manifest.rs`。
 [^dev-doc]: 確認元: `docs/yoake-wasm-dev.md`。
