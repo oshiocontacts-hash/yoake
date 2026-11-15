@@ -54,6 +54,15 @@ fn response(head: HeadOutcome, result: Value) -> Arc<Mod> {
     Arc::new(Mod::new("response", Arc::new(Response { head, result })))
 }
 
+fn command_response(head: HeadOutcome, result: Value) -> Arc<Mod> {
+    Arc::new(Mod::with_permissions(
+        "command",
+        Arc::new(Response { head, result }),
+        Side::Server,
+        ["service.commands".into()],
+    ))
+}
+
 #[test]
 fn live_block_state_bounds_prevent_native_index_panics() {
     let _side = enter_side(Side::Server);
@@ -169,17 +178,26 @@ fn sensitive_sites_require_capabilities_at_every_point() {
 
 #[test]
 fn command_rewrites_use_the_shared_denylist() {
-    for path in [
-        "game::commands::execute_command",
-        "game::commands::execute::execute_line",
-        "game::chat::handle_chat_input",
+    for (path, lines) in [
+        (
+            "game::commands::execute_command",
+            &["whitelist.off", "test.run", "pregen.start", "say"][..],
+        ),
+        (
+            "game::commands::execute::execute_line",
+            &[
+                "/stop",
+                "/minecraft:STOP",
+                "/execute as @a RUN execute at @s run minecraft:op test",
+                "/say safe",
+            ][..],
+        ),
+        (
+            "game::chat::handle_chat_input",
+            &["/stop", "/minecraft:STOP", "/say safe"][..],
+        ),
     ] {
-        for line in [
-            "/stop",
-            "/minecraft:STOP",
-            "/execute as @a RUN minecraft:op test",
-            "/say safe",
-        ] {
+        for line in lines {
             let _side = enter_side(Side::Server);
             let site = site(
                 path,
@@ -191,30 +209,139 @@ fn command_rewrites_use_the_shared_denylist() {
             let module = Arc::new(Mod::with_permissions(
                 "command",
                 Arc::new(Response {
-                    head: HeadOutcome::ReplaceArguments(vec![handle, Value::Text(line.into())]),
+                    head: HeadOutcome::ReplaceArguments(vec![handle, Value::Text((*line).into())]),
                     result: Value::Signed(0),
                 }),
                 Side::Server,
                 ["service.commands".into()],
             ));
             let _registry = install(site, Arc::clone(&module), Side::Server, HEAD);
+            let permitted = line.starts_with("say") || line.starts_with("/say");
             assert_eq!(
-                site.invoke(original.clone(), |arguments| {
-                    assert_eq!(
-                        arguments,
-                        if line == "/say safe" {
-                            vec![original[0].clone(), Value::Text(line.into())]
-                        } else {
-                            original
-                        }
-                    );
-                    Value::Signed(3)
+                site.invoke(original, |arguments| {
+                    assert!(in_guest_command());
+                    assert_eq!(arguments[1], Value::Text((*line).into()));
+                    let gate = if path.ends_with("execute_command") {
+                        guest_command_leaf_gate(line)
+                    } else {
+                        guest_command_gate(line)
+                    };
+                    Value::Signed(if gate.is_ok() { 3 } else { 0 })
                 }),
-                Value::Signed(3)
+                Value::Signed(if permitted { 3 } else { 0 })
             );
-            assert_eq!(module.has_disabled_handlers(), line != "/say safe");
+            assert!(!in_guest_command());
+            assert!(!module.has_disabled_handlers());
         }
     }
+}
+
+#[test]
+fn rewritten_chat_rejects_control_characters_before_the_native_body() {
+    let _side = enter_side(Side::Server);
+    let site = site(
+        "game::chat::handle_chat_input",
+        &[ValueType::String, ValueType::String],
+        ValueType::Unit,
+    );
+    let original = vec![Value::Text("game".into()), Value::Text("/say safe".into())];
+    let module = command_response(
+        HeadOutcome::ReplaceArguments(vec![original[0].clone(), Value::Text("\u{1}/stop".into())]),
+        Value::Unit,
+    );
+    let _registry = install(site, Arc::clone(&module), Side::Server, HEAD);
+    site.invoke(original.clone(), |arguments| {
+        assert_eq!(arguments, original);
+        assert!(!in_guest_command());
+        Value::Unit
+    });
+    assert!(module.has_disabled_handlers());
+}
+
+#[test]
+fn any_changed_command_argument_scopes_the_native_body() {
+    let _side = enter_side(Side::Server);
+    for changed in [false, true] {
+        let site = site(
+            "game::commands::execute_command",
+            &[ValueType::String, ValueType::String, ValueType::U32],
+            ValueType::Unit,
+        );
+        let original = vec![
+            Value::Text("game".into()),
+            Value::Text("whitelist.off".into()),
+            Value::Unsigned(1),
+        ];
+        let mut replacement = original.clone();
+        replacement[2] = Value::Unsigned(if changed { 2 } else { 1 });
+        let _registry = install(
+            site,
+            command_response(HeadOutcome::ReplaceArguments(replacement), Value::Unit),
+            Side::Server,
+            HEAD,
+        );
+        site.invoke(original, |_| {
+            assert_eq!(in_guest_command(), changed);
+            assert_eq!(guest_command_leaf_gate("whitelist.off").is_err(), changed);
+            Value::Unit
+        });
+        assert!(!in_guest_command());
+    }
+}
+
+#[test]
+fn echoed_engine_values_do_not_disable_argument_replacements() {
+    let _side = enter_side(Side::Server);
+    for (path, engine_value) in [
+        ("game::creatures::hurt_player_by", f64::from(f32::MAX)),
+        ("game::explosion::server_explode", 256.0),
+    ] {
+        let site = site(
+            path,
+            &[ValueType::U32, ValueType::Vec3, ValueType::F32],
+            ValueType::Unit,
+        );
+        let original = vec![
+            Value::Unsigned(1),
+            Value::List(vec![Value::Float(0.0); 3]),
+            Value::Float(engine_value),
+        ];
+        let mut replacement = original.clone();
+        replacement[0] = Value::Unsigned(2);
+        let module = response(
+            HeadOutcome::ReplaceArguments(replacement.clone()),
+            Value::Unit,
+        );
+        let _registry = install(site, Arc::clone(&module), Side::Server, HEAD);
+        site.invoke(original, |arguments| {
+            assert_eq!(arguments, replacement);
+            Value::Unit
+        });
+        assert!(!module.has_disabled_handlers());
+        assert_eq!(site.mask(), HEAD);
+    }
+}
+
+#[test]
+fn guest_command_scope_is_nested_thread_local_and_unwind_safe() {
+    assert!(!in_guest_command());
+    assert!(guest_command_leaf_gate("whitelist.off").is_ok());
+    {
+        let _scope = guest_command_scope();
+        assert!(guest_command_leaf_gate("whitelist.off").is_err());
+        assert!(
+            std::panic::catch_unwind(|| {
+                let _nested = guest_command_scope();
+                panic!("unwind the nested command scope");
+            })
+            .is_err()
+        );
+        assert!(in_guest_command());
+        std::thread::spawn(|| assert!(!in_guest_command()))
+            .join()
+            .unwrap();
+    }
+    assert!(!in_guest_command());
 }
 
 #[test]
@@ -378,4 +505,64 @@ fn instance_disable_clears_every_registered_site_mask() {
     first.invoke(vec![], |_| Value::Unit);
     assert_eq!(first.mask(), 0);
     assert_eq!(second.mask(), 0);
+}
+
+struct SnapshotDisabledGuest {
+    disabled: AtomicBool,
+    pause_next: AtomicBool,
+    snapshot_taken: std::sync::mpsc::SyncSender<()>,
+    resume: Mutex<std::sync::mpsc::Receiver<()>>,
+}
+
+impl Guest for SnapshotDisabledGuest {
+    fn is_disabled(&self) -> bool {
+        let disabled = self.disabled.load(Ordering::Acquire);
+        if self.pause_next.swap(false, Ordering::AcqRel) {
+            self.snapshot_taken.send(()).unwrap();
+            self.resume
+                .lock()
+                .unwrap()
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap();
+        }
+        disabled
+    }
+}
+
+#[test]
+fn concurrent_mask_refresh_cannot_restore_disabled_handlers() {
+    let _side = enter_side(Side::Server);
+    let site = site("test::concurrent_mask_refresh", &[], ValueType::Unit);
+    let (snapshot_sender, snapshot_receiver) = std::sync::mpsc::sync_channel(1);
+    let (resume_sender, resume_receiver) = std::sync::mpsc::sync_channel(1);
+    let guest = Arc::new(SnapshotDisabledGuest {
+        disabled: AtomicBool::new(false),
+        pause_next: AtomicBool::new(false),
+        snapshot_taken: snapshot_sender,
+        resume: Mutex::new(resume_receiver),
+    });
+    let _registry = install(
+        site,
+        Arc::new(Mod::new("snapshot", guest.clone())),
+        Side::Server,
+        HEAD,
+    );
+    guest.pause_next.store(true, Ordering::Release);
+    std::thread::scope(|threads| {
+        let first = threads.spawn(|| site.refresh_masks());
+        snapshot_receiver
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        guest.disabled.store(true, Ordering::Release);
+        let (done_sender, done_receiver) = std::sync::mpsc::sync_channel(1);
+        let second = threads.spawn(move || {
+            site.refresh_masks();
+            done_sender.send(()).unwrap();
+        });
+        let _ = done_receiver.recv_timeout(std::time::Duration::from_millis(250));
+        resume_sender.send(()).unwrap();
+        first.join().unwrap();
+        second.join().unwrap();
+    });
+    assert_eq!(site.mask(), 0);
 }

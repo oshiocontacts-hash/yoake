@@ -107,7 +107,7 @@ pub fn site_policy(path: &str) -> Policy {
         _ => &[],
     };
     let result = match path {
-        "crafting::crafting_result_count" | "furnace::smelting_result_count" => Number(0.0, 1024.0),
+        "crafting::crafting_result_count" | "furnace::smelting_result_count" => Number(0.0, 99.0),
         "game::attack_strength_scale" => Number(0.0, 1.0),
         "game::hand::attack_damage" => Number(0.0, 1_000_000.0),
         "game::hand::main_hand_attack_speed" => Number(0.01, 1024.0),
@@ -171,29 +171,30 @@ pub fn command_gate(line: &str, declared: bool) -> Result<(), String> {
     if line.chars().any(char::is_control) {
         return Err("denied: a command is one line of plain text".into());
     }
-    fn check(line: &str, depth: usize) -> Result<(), String> {
-        if depth > 16 {
-            return Err("denied: commands nested too deep".into());
+    let tokens: Vec<_> = line.split_whitespace().collect();
+    if tokens.is_empty() {
+        return Err("denied: empty command".into());
+    }
+    let mut depth = 0;
+    for (index, token) in tokens.iter().enumerate() {
+        if index != 0 {
+            if !tokens[index - 1].eq_ignore_ascii_case("run") {
+                continue;
+            }
+            depth += 1;
+            if depth > 16 {
+                return Err("denied: commands nested too deep".into());
+            }
         }
-        let tokens: Vec<_> = line.split_whitespace().collect();
-        let Some(first) = tokens.first() else {
-            return Err("denied: empty command".into());
-        };
-        let name = first.trim_start_matches('/').to_ascii_lowercase();
+        let name = token.trim_start_matches('/').to_ascii_lowercase();
         let name = name.strip_prefix("minecraft:").unwrap_or(&name);
         if DENIED_COMMANDS.contains(&name) {
             return Err(format!(
                 "denied: /{name} is not available to WebAssembly mods"
             ));
         }
-        for (index, token) in tokens.iter().enumerate() {
-            if token.eq_ignore_ascii_case("run") && index + 1 < tokens.len() {
-                check(&tokens[index + 1..].join(" "), depth + 1)?;
-            }
-        }
-        Ok(())
     }
-    check(line, 0)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -253,5 +254,32 @@ mod tests {
         }
         assert!(command_gate("id", true).is_ok());
         assert!(command_gate("id", false).is_err());
+    }
+
+    #[test]
+    fn command_gate_scans_large_nested_commands_without_recursive_tails() {
+        let prefix = "execute as @s run ".repeat(16);
+        let permitted = format!("{prefix}say {}", "a".repeat(65_536 - prefix.len() - 4));
+        assert_eq!(permitted.len(), 65_536);
+        assert!(command_gate(&permitted, true).is_ok());
+        assert!(command_gate(&format!("{prefix}stop"), true).is_err());
+        assert!(command_gate(&format!("{prefix}execute run say safe"), true).is_err());
+        assert!(command_gate(&format!("{permitted}a"), true).is_err());
+    }
+
+    #[test]
+    fn result_counts_allow_only_the_empty_sentinel_or_a_vanilla_stack() {
+        for path in [
+            "crafting::crafting_result_count",
+            "furnace::smelting_result_count",
+        ] {
+            let rule = site_policy(path).result;
+            for count in [0, 1, 99] {
+                assert!(rule.accepts(&Value::Unsigned(count), None));
+            }
+            for count in [100, 1024, u64::MAX] {
+                assert!(!rule.accepts(&Value::Unsigned(count), None));
+            }
+        }
     }
 }

@@ -1048,6 +1048,9 @@ impl Game<'_> {
 
     #[yoake_inject_macro::yoake_inject(id = "game::commands::execute_command", side = "both")]
     fn execute_command(&mut self, id: &str, ctx: &Context) -> R<i32> {
+        if yoake_inject_rt::guest_command_leaf_gate(id).is_err() {
+            return Err(err("command.failed", &[]));
+        }
         match id {
             "help" => self.cmd_help(ctx),
             "gamemode" => self.cmd_gamemode(ctx),

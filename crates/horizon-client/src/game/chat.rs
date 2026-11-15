@@ -21,6 +21,19 @@ use std::{
 
 pub(super) type UiInstant = horizon_client_render::AnimationInstant;
 
+fn permitted_chat_message(message: &str) -> Option<String> {
+    if crate::mod_api::in_guest_command() && message.chars().any(char::is_control) {
+        return None;
+    }
+    let message = normalize_chat_message(message);
+    if let Some(command) = message.strip_prefix('/')
+        && yoake_inject_rt::guest_command_gate(command).is_err()
+    {
+        return None;
+    }
+    Some(message)
+}
+
 /// The tree the chat parses and completes with: `Remote::chat_tree`, which is
 /// a server's, once it has sent one (ClientPacketListener.commands), else the
 /// game's own, plus the commands native mods own (`chat_tree_for`).
@@ -965,7 +978,9 @@ impl Game<'_> {
     /// so a control-socket `chat` cannot send what the player's setting hides.
     #[yoake_inject_macro::yoake_inject(id = "game::chat::handle_chat_input", side = "both")]
     pub(super) fn handle_chat_input(&mut self, message: &str) {
-        let message = normalize_chat_message(message);
+        let Some(message) = permitted_chat_message(message) else {
+            return;
+        };
         if message.is_empty() || !self.chat_abilities().allows(&message) {
             return;
         }
@@ -1584,6 +1599,87 @@ const LINK_COPY: usize = 1;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn guest_chat_rejects_controls_and_normalizes_before_checking() {
+        let _scope = crate::mod_api::guest_command_scope();
+        for message in [
+            "\u{1}/stop",
+            "/say hi\n/stop",
+            "\t/stop",
+            " /minecraft:STOP ",
+        ] {
+            assert_eq!(permitted_chat_message(message), None, "{message:?}");
+        }
+        assert_eq!(
+            permitted_chat_message("  /say   hello  ").as_deref(),
+            Some("/say hello")
+        );
+        assert_eq!(
+            permitted_chat_message("  hello   world  ").as_deref(),
+            Some("hello world")
+        );
+    }
+
+    #[test]
+    fn guest_chat_checks_the_command_after_utf16_truncation() {
+        let prefix = "/execute as ";
+        let suffix = " run stopX";
+        for name in [
+            "x".repeat(257 - prefix.len() - suffix.len()),
+            "\u{1f600}".repeat(117) + "x",
+        ] {
+            let message = format!("{prefix}{name}{suffix}");
+            assert_eq!(message.encode_utf16().count(), 257);
+            assert!(normalize_chat_message(&message).ends_with(" run stop"));
+            assert!(yoake_inject_rt::command_gate(&message, true).is_ok());
+            assert!(permitted_chat_message(&message).is_some());
+            let _scope = crate::mod_api::guest_command_scope();
+            assert_eq!(permitted_chat_message(&message), None);
+        }
+    }
+
+    #[test]
+    fn guest_chat_never_reaches_another_mods_command_hook() {
+        let offered = std::cell::Cell::new(0);
+        let dispatch = || {
+            offered.set(offered.get() + 1);
+            true
+        };
+        assert!(super::super::native_hooks::dispatch_client_mod_command(
+            dispatch
+        ));
+        {
+            let _scope = crate::mod_api::guest_command_scope();
+            assert_eq!(
+                permitted_chat_message("/say safe").as_deref(),
+                Some("/say safe")
+            );
+            assert!(!super::super::native_hooks::dispatch_client_mod_command(
+                dispatch
+            ));
+            assert_eq!(offered.get(), 1);
+        }
+        assert!(super::super::native_hooks::dispatch_client_mod_command(
+            dispatch
+        ));
+        assert_eq!(offered.get(), 2);
+    }
+
+    #[test]
+    fn native_chat_retains_vanilla_normalization_and_commands() {
+        for message in [
+            "\u{1}/stop",
+            "\t/op player",
+            " /whitelist off ",
+            "/test run test:demo",
+        ] {
+            assert_eq!(
+                permitted_chat_message(message),
+                Some(normalize_chat_message(message))
+            );
+        }
+    }
 
     /// `ChatScreen.shouldDiscardDraft`.
     #[test]

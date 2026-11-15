@@ -81,12 +81,15 @@ impl FurnaceCooking for Furnace {
                         self.cooking_total = total_time(recipe.time, self.speed);
                     }
                     let max = items.get(&recipe.result.item).map_or(64, |i| i.max_stack);
-                    let can_burn = match &self.items[2] {
-                        None => true,
-                        Some(out) => {
-                            out.item == recipe.result.item && out.count + recipe.result.count <= max
-                        }
-                    };
+                    let result_count = smelting_result_count(&recipe.result);
+                    let can_burn = result_count > 0
+                        && result_count <= max
+                        && match &self.items[2] {
+                            None => true,
+                            Some(out) => {
+                                out.item == recipe.result.item && out.count + result_count <= max
+                            }
+                        };
                     if can_burn {
                         if !lit {
                             let fuel = self.items[1].clone();
@@ -129,7 +132,6 @@ impl FurnaceCooking for Furnace {
                             if self.cooking_timer >= self.cooking_total {
                                 self.cooking_timer = 0;
                                 self.cooking_total = total_time(recipe.time, self.speed);
-                                let result_count = smelting_result_count(&recipe.result);
                                 match &mut self.items[2] {
                                     Some(out) => out.count += result_count,
                                     None => {
@@ -197,13 +199,69 @@ mod tests {
     use horizon_world::loot::PackOverlay;
     use std::{collections::HashMap, fs};
 
+    struct ResultCount {
+        owner: std::thread::ThreadId,
+        count: u32,
+    }
+
+    impl yoake_inject_rt::Guest for ResultCount {
+        fn returned(
+            &self,
+            _: &str,
+            _: &yoake_inject_rt::Value,
+        ) -> std::result::Result<Option<yoake_inject_rt::Value>, yoake_inject_rt::CallbackError>
+        {
+            Ok((std::thread::current().id() == self.owner)
+                .then_some(yoake_inject_rt::Value::Unsigned(u64::from(self.count))))
+        }
+    }
+
+    fn override_result_count(count: u32) -> yoake_inject_rt::Registry {
+        use std::sync::Arc;
+        use yoake_inject_rt::{Mod, RETURN, Registry, Side, Subscription};
+
+        let site = __yoake_inject_site_smelting_result_count();
+        let mut registry = Registry::new([site]).unwrap();
+        let module = Arc::new(Mod::new(
+            "result-count",
+            Arc::new(ResultCount {
+                owner: std::thread::current().id(),
+                count,
+            }),
+        ));
+        let prepared = registry
+            .prepare(
+                [Subscription {
+                    site_id: site.id(),
+                    side: Side::Server,
+                    points: RETURN,
+                    module,
+                }],
+                |_, _, _| true,
+            )
+            .unwrap();
+        registry.publish(prepared).unwrap();
+        registry
+    }
+
     /// A furnace with `fuel` x `count` burning `test:ore` into `test:ingot`, over a
     /// data root holding that one recipe and an item table with two fuels: `test:coal`
     /// (no remainder) and `test:cell` (a content mod's item that leaves `test:husk`).
     fn burn(fuel: &str, count: u32) -> (Furnace, Vec<ItemStack>) {
+        burn_ticks(fuel, count, 1, Some(true), None)
+    }
+
+    fn burn_ticks(
+        fuel: &str,
+        count: u32,
+        ticks: usize,
+        expected_lit: Option<bool>,
+        output: Option<ItemStack>,
+    ) -> (Furnace, Vec<ItemStack>) {
         let root = std::env::temp_dir().join(format!(
-            "horizon-furnace-remainder-{}-{}-{count}",
+            "horizon-furnace-remainder-{}-{:?}-{}-{count}",
             std::process::id(),
+            std::thread::current().id(),
             fuel.replace(':', "-")
         ));
         let _ = fs::remove_dir_all(&root);
@@ -236,7 +294,7 @@ mod tests {
             items: [
                 Some(ItemStack::new("test:ore", 1)),
                 Some(ItemStack::new(fuel, count)),
-                None,
+                output,
             ],
             lit_remaining: 0,
             lit_total: 0,
@@ -247,9 +305,42 @@ mod tests {
         };
         let mut drops = Vec::new();
         let lit = furnace.tick(&recipes, &items, &providers, &mut drops);
+        assert_eq!(lit, expected_lit);
+        for _ in 1..ticks {
+            furnace.tick(&recipes, &items, &providers, &mut drops);
+        }
         let _ = fs::remove_dir_all(&root);
-        assert_eq!(lit, Some(true), "the fuel lit the furnace");
         (furnace, drops)
+    }
+
+    #[test]
+    fn replaced_smelting_counts_do_not_consume_items_without_output_capacity() {
+        let _side = yoake_inject_rt::enter_side(yoake_inject_rt::Side::Server);
+        for count in [0, 99] {
+            let registry = override_result_count(count);
+            let (furnace, drops) = burn_ticks("test:coal", 4, 200, None, None);
+            assert_eq!(furnace.items[0], Some(ItemStack::new("test:ore", 1)));
+            assert_eq!(fuel_slot(&furnace), Some(("test:coal", 4)));
+            assert!(furnace.items[2].is_none());
+            assert_eq!(furnace.lit_remaining, 0);
+            assert_eq!(furnace.cooking_timer, 0);
+            assert!(furnace.recipes_used.is_empty());
+            assert!(drops.is_empty());
+            drop(registry);
+        }
+        let _registry = override_result_count(2);
+        let output = Some(ItemStack::new("test:ingot", 63));
+        let (furnace, drops) = burn_ticks("test:coal", 4, 200, None, output.clone());
+        assert_eq!(furnace.items[0], Some(ItemStack::new("test:ore", 1)));
+        assert_eq!(fuel_slot(&furnace), Some(("test:coal", 4)));
+        assert_eq!(furnace.items[2], output);
+        assert!(drops.is_empty());
+        let (furnace, drops) = burn_ticks("test:coal", 4, 200, Some(true), None);
+        assert!(furnace.items[0].is_none());
+        assert_eq!(fuel_slot(&furnace), Some(("test:coal", 3)));
+        assert_eq!(furnace.items[2], Some(ItemStack::new("test:ingot", 2)));
+        assert_eq!(furnace.recipes_used.values().copied().sum::<u32>(), 1);
+        assert!(drops.is_empty());
     }
 
     fn fuel_slot(furnace: &Furnace) -> Option<(&str, u32)> {

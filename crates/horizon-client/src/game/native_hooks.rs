@@ -958,6 +958,10 @@ use std::{
 };
 use winit::{event::MouseButton, keyboard::KeyCode};
 
+pub(super) fn dispatch_client_mod_command(dispatch: impl FnOnce() -> bool) -> bool {
+    !crate::mod_api::in_guest_command() && dispatch()
+}
+
 pub(super) struct ObservedScreen {
     id: &'static str,
     menu: Option<String>,
@@ -10962,13 +10966,11 @@ impl Game<'_> {
     }
     /// A native mod's command.
     pub(super) fn client_mod_command(&mut self, command: &str) -> bool {
-        // A WebAssembly guest's command never runs another mod's command hook.
-        if crate::mod_api::in_guest_command() {
-            return false;
-        }
-        let mut ran = false;
-        self.native_command(command, &mut ran);
-        ran
+        dispatch_client_mod_command(|| {
+            let mut ran = false;
+            self.native_command(command, &mut ran);
+            ran
+        })
     }
     /// The zoom in effect while playing (a native mod's); the spyglass's own
     /// view wins.

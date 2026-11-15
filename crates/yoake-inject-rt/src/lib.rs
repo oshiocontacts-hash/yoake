@@ -66,6 +66,35 @@ pub enum Side {
 
 thread_local! {
     static ACTIVE_SIDE: Cell<Side> = const { Cell::new(Side::Unspecified) };
+    static GUEST_COMMAND: Cell<bool> = const { Cell::new(false) };
+}
+
+pub struct GuestCommandScope(bool, std::marker::PhantomData<*mut ()>);
+
+pub fn guest_command_scope() -> GuestCommandScope {
+    GuestCommandScope(GUEST_COMMAND.replace(true), std::marker::PhantomData)
+}
+
+impl Drop for GuestCommandScope {
+    fn drop(&mut self) {
+        GUEST_COMMAND.set(self.0);
+    }
+}
+
+pub fn in_guest_command() -> bool {
+    GUEST_COMMAND.get()
+}
+
+pub fn guest_command_gate(line: &str) -> Result<(), String> {
+    if in_guest_command() {
+        command_gate(line, true)
+    } else {
+        Ok(())
+    }
+}
+
+pub fn guest_command_leaf_gate(id: &str) -> Result<(), String> {
+    guest_command_gate(id.split('.').next().unwrap_or(id))
 }
 
 pub struct SideScope(Side, std::marker::PhantomData<*mut ()>);
@@ -173,10 +202,18 @@ impl Site {
                 .all(|(value, expected)| expected.accepts(value))
     }
 
-    fn accepts_replacement(&self, arguments: &[Value], block_states: Option<usize>) -> bool {
+    fn accepts_replacement(
+        &self,
+        incoming: &[Value],
+        arguments: &[Value],
+        block_states: Option<usize>,
+    ) -> bool {
         let policy = site_policy(self.path);
         self.accepts_arguments(arguments)
             && arguments.iter().enumerate().all(|(index, value)| {
+                if incoming.get(index) == Some(value) {
+                    return true;
+                }
                 policy
                     .arguments
                     .iter()
@@ -193,11 +230,15 @@ impl Site {
     fn refresh_masks(&self) {
         let handlers = self
             .handlers
-            .read()
+            .write()
             .unwrap_or_else(|poison| poison.into_inner());
+        self.store_masks(handlers.as_deref());
+    }
+
+    fn store_masks(&self, handlers: Option<&[Handler]>) {
         let mut client = 0;
         let mut server = 0;
-        for handler in handlers.iter().flat_map(|handlers| handlers.iter()) {
+        for handler in handlers.into_iter().flatten() {
             if handler.module.guest.is_disabled() {
                 continue;
             }
@@ -289,12 +330,12 @@ impl Mod {
     }
 
     fn refresh_masks(&self) {
-        for site in self
+        let sites = self
             .sites
             .read()
             .unwrap_or_else(|poison| poison.into_inner())
-            .iter()
-        {
+            .clone();
+        for site in sites {
             site.refresh_masks();
         }
     }
@@ -313,16 +354,13 @@ impl Mod {
 
     fn permits_arguments(&self, site: &Site, before: &[Value], after: &[Value]) -> bool {
         let policy = site_policy(site.path);
-        if !policy.commands || before.get(1) == after.get(1) {
+        if !policy.client_chat || before.get(1) == after.get(1) {
             return true;
         }
         let Some(Value::Text(line)) = after.get(1) else {
             return false;
         };
-        if policy.client_chat && !line.trim_start().starts_with('/') {
-            return true;
-        }
-        command_gate(line, self.permissions.contains("service.commands")).is_ok()
+        !line.chars().any(char::is_control)
     }
 }
 
@@ -552,11 +590,6 @@ impl Registry {
         self.snapshot = prepared.snapshot;
         for (id, site) in &self.sites {
             let handlers = self.snapshot.handlers.get(id);
-            *site
-                .handlers
-                .write()
-                .unwrap_or_else(|poison| poison.into_inner()) =
-                handlers.map(|handlers| Arc::from(handlers.clone()));
             if let Some(handlers) = handlers {
                 for handler in handlers {
                     let mut sites = handler
@@ -572,7 +605,12 @@ impl Registry {
                     }
                 }
             }
-            site.refresh_masks();
+            let mut published = site
+                .handlers
+                .write()
+                .unwrap_or_else(|poison| poison.into_inner());
+            *published = handlers.map(|handlers| Arc::from(handlers.clone()));
+            site.store_masks(published.as_deref());
         }
         Ok(())
     }
@@ -649,6 +687,7 @@ impl Site {
         let mut arguments = arguments;
         let mut original = Some(original);
         let mut injected_result = None;
+        let mut arguments_replaced = false;
 
         for handler in handlers.iter() {
             if !handler.enabled(HEAD) {
@@ -661,7 +700,7 @@ impl Site {
                 }
                 Ok(HeadOutcome::Continue) => {}
                 Ok(HeadOutcome::ReplaceArguments(replacement))
-                    if site.accepts_replacement(&replacement, block_states)
+                    if site.accepts_replacement(&arguments, &replacement, block_states)
                         && handler
                             .module
                             .permits_arguments(site, &arguments, &replacement)
@@ -673,6 +712,7 @@ impl Site {
                                 *kind != ValueType::Handle || before == after
                             }) =>
                 {
+                    arguments_replaced |= replacement != arguments;
                     arguments = replacement;
                 }
                 Ok(HeadOutcome::Cancel(value)) if site.accepts_result(&value, block_states) => {
@@ -712,6 +752,8 @@ impl Site {
         let mut result = if let Some(value) = injected_result {
             value
         } else {
+            let _scope =
+                (arguments_replaced && site_policy(site.path).commands).then(guest_command_scope);
             let value = call_original(&mut original, arguments)?;
             native_result = Some(value.clone());
             value
@@ -749,13 +791,14 @@ fn call_original<Error>(
 impl Drop for Registry {
     fn drop(&mut self) {
         for site in self.sites.values() {
+            let mut handlers = site
+                .handlers
+                .write()
+                .unwrap_or_else(|poison| poison.into_inner());
+            *handlers = None;
             site.mask.store(0, Ordering::Relaxed);
             site.client_mask.store(0, Ordering::Relaxed);
             site.server_mask.store(0, Ordering::Relaxed);
-            *site
-                .handlers
-                .write()
-                .unwrap_or_else(|poison| poison.into_inner()) = None;
             site.claimed.store(false, Ordering::Release);
         }
     }

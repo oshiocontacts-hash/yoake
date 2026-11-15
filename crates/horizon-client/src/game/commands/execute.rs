@@ -3,11 +3,24 @@
 //! reporting each result to the `store` callbacks of its source.
 use super::{Arg, Context, Dim, Game, R, Target, data::DataRef, err};
 use horizon_client::{
-    command::{CommandError, vanilla},
+    command::{CommandError, Dispatcher, Registries, vanilla},
     nbt_path::NbtPath,
     text::Text,
 };
 use horizon_world::nbt::Tag;
+
+fn parse_executable_command(
+    line: &str,
+    dispatcher: &Dispatcher,
+    registries: &Registries,
+) -> R<(Context, Context)> {
+    if yoake_inject_rt::guest_command_gate(line).is_err() {
+        return Err(err("command.failed", &[]));
+    }
+    let parse = dispatcher.parse(line, registries);
+    let (context, _) = parse.executable()?;
+    Ok((parse.context.clone(), context.clone()))
+}
 
 /// `CommandSourceStack` fields Horizon models: the executing entity (None for
 /// the server), position, rotation, anchor, whether feedback is suppressed
@@ -233,11 +246,8 @@ impl Game<'_> {
     /// for functions and `execute run`.
     #[yoake_inject_macro::yoake_inject(id = "game::commands::execute::execute_line", side = "both")]
     pub(in crate::game) fn execute_line(&mut self, line: &str, source: Source) -> R<i32> {
-        let d = vanilla::game_dispatcher_with_features(&self.level.enabled_features);
-        let parse = d.parse(line, &self.ui.registries);
-        let (ctx, _) = parse.executable()?;
-        let ctx = ctx.clone();
-        let root = parse.context.clone();
+        let dispatcher = vanilla::game_dispatcher_with_features(&self.level.enabled_features);
+        let (root, ctx) = parse_executable_command(line, dispatcher, &self.ui.registries)?;
         self.with_source(source, |g| g.run_chain(&root, &ctx))
     }
     /// Run a parsed command (`root` is the first context; `ctx` the one with
@@ -261,7 +271,11 @@ impl Game<'_> {
     pub(in crate::game) fn run_leaf(&mut self, id: &str, ctx: &Context) -> R<i32> {
         self.exec.callback = None;
         let store = self.command_source.and_then(|s| s.store);
-        let result = self.execute_command(id, ctx);
+        let result = if yoake_inject_rt::guest_command_leaf_gate(id).is_err() {
+            Err(err("command.failed", &[]))
+        } else {
+            self.execute_command(id, ctx)
+        };
         let custom = self.exec.callback.take();
         let outcome = match (&result, custom) {
             (_, Some(c)) => c,
@@ -1144,5 +1158,44 @@ impl Game<'_> {
         let entries = self.tag_entries("worldgen/biome", tag);
         entries.iter().any(|id| id == biome)
             || (entries.is_empty() && self.res.mob_data().biome_has(tag, biome))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn guest_functions_gate_instantiated_commands_at_execution() {
+        let registries = Registries {
+            permission: 4,
+            ..Registries::default()
+        };
+        let dispatcher = vanilla::build_for(false, true);
+        let function = horizon_client::datapack::parse_function(
+            "test:guest",
+            "say allowed\nstop\nwhitelist off\nexecute as @s run stop\n$execute as @s run $(command)",
+        ).unwrap();
+        let arguments = horizon_world::nbt::parse_snbt("{command:\"whitelist off\"}")
+            .unwrap()
+            .0;
+        let lines = function.instantiate(Some(&arguments)).unwrap();
+        for line in &lines {
+            assert!(
+                parse_executable_command(line, &dispatcher, &registries).is_ok(),
+                "{line}"
+            );
+        }
+        {
+            let _scope = yoake_inject_rt::guest_command_scope();
+            assert!(parse_executable_command(&lines[0], &dispatcher, &registries).is_ok());
+            for line in &lines[1..] {
+                assert!(
+                    parse_executable_command(line, &dispatcher, &registries).is_err(),
+                    "{line}"
+                );
+            }
+        }
+        assert!(parse_executable_command("stop", &dispatcher, &registries).is_ok());
     }
 }
