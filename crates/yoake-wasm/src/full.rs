@@ -18,13 +18,34 @@ fn service_call<T>(
     handle: Result<crate::package_services::ServiceHandle, String>,
     call: impl FnOnce(&mut crate::package_services::PackageServices) -> Result<T, String>,
 ) -> Result<T, String> {
-    let began = std::time::Instant::now();
-    let result = handle.and_then(|handle| {
+    handle.and_then(|handle| {
         let mut services = handle.lock().map_err(|_| "package service lock poisoned")?;
         call(&mut services)
-    });
-    crate::add_host_time(began.elapsed());
-    result
+    })
+}
+
+struct TicketGuard(Option<crate::package_services::ServiceHandle>);
+
+impl TicketGuard {
+    fn new(handle: Result<crate::package_services::ServiceHandle, String>) -> Self {
+        let guard = Self(handle.ok());
+        guard.abort();
+        guard
+    }
+
+    fn abort(&self) {
+        if let Some(handle) = &self.0 {
+            if let Ok(mut services) = handle.lock() {
+                services.abort_all_tickets();
+            }
+        }
+    }
+}
+
+impl Drop for TicketGuard {
+    fn drop(&mut self) {
+        self.abort();
+    }
 }
 
 macro_rules! package_imports {
@@ -136,6 +157,7 @@ pub struct ClientFullMod {
     raw: ModInstance<ClientContext>,
     exports: client_world::ClientFull,
     subscriptions: Subscriptions,
+    tickets: TicketGuard,
 }
 
 impl ClientFullMod {
@@ -145,25 +167,34 @@ impl ClientFullMod {
         runtime: &mut Sandbox,
         id: impl Into<String>,
         component_bytes: &[u8],
-        host: Box<dyn ClientHost>,
+        mut host: Box<dyn ClientHost>,
         unwired: &[&str],
     ) -> Result<Self, LoadError> {
         let id = id.into();
+        let tickets = TicketGuard::new(host.services());
         let texture_count = runtime.texture_count(&id);
         let mut raw = runtime
             .compile(component_bytes)
             .map_err(LoadError::new)?
-            .instantiate(id.clone(), ClientContext::new(id, host, texture_count), |linker| {
-                client_world::ClientFull::add_to_linker::<HostState<ClientContext>, HasSelf<ClientContext>>(
-                    linker,
-                    |state| &mut state.host,
-                )
-                .map_err(|error| error.to_string())
-            })
+            .instantiate(
+                id.clone(),
+                ClientContext::new(id, host, texture_count),
+                |linker| {
+                    client_world::ClientFull::add_to_linker::<
+                        HostState<ClientContext>,
+                        HasSelf<ClientContext>,
+                    >(linker, |state| &mut state.host)
+                    .map_err(|error| error.to_string())
+                },
+            )
             .map_err(LoadError::new)?;
         let exports = client_world::ClientFull::new(&mut raw.store, &raw.instance)
             .map_err(|error| LoadError::new(error.to_string()))?;
-        let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
+        let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| {
+            exports
+                .call_init(store)
+                .map_err(|error| format!("{error:#}"))
+        });
         flush_output(&mut raw, |host, line| host.log_output(line));
         let names = names.ok_or_else(|| LoadError::new("mod init trapped or timed out"))?;
         let subscriptions = Subscriptions::for_full_world(FullWorld::Client, names, unwired)
@@ -172,6 +203,7 @@ impl ClientFullMod {
             raw,
             exports,
             subscriptions,
+            tickets,
         };
         module.notify_config_changes();
         Ok(module)
@@ -190,6 +222,10 @@ impl ClientFullMod {
     }
 
     pub fn notify_config_changes(&mut self) {
+        if self.raw.is_disabled() {
+            self.tickets.abort();
+            return;
+        }
         let Ok(services) = self.raw.store.data_mut().host.host.services() else {
             return;
         };
@@ -209,6 +245,10 @@ impl ClientFullMod {
                     .map_err(|error| format!("{error:#}"))
             });
             flush_output(&mut self.raw, |host, line| host.log_output(line));
+            if self.raw.is_disabled() {
+                self.tickets.abort();
+                return;
+            }
         }
     }
 
@@ -259,19 +299,24 @@ macro_rules! server_services {
             package_imports!();
 
             fn has_permission(&mut self, node: String, player: String) -> Result<bool, String> {
+                let player = horizon_mods::yak::normalize_uuid(&player)
+                    .ok_or("invalid player UUID")?;
                 let handle = self.host.services()?;
                 service_call(Ok(handle.clone()), |services| services.require(crate::package_services::PERMISSIONS_CAPABILITY))?;
-                let level = self.host.server_players()?.into_iter().find(|entry| entry.uuid == player)
+                let level = self.host.server_players()?.into_iter().find(|entry| {
+                    horizon_mods::yak::normalize_uuid(&entry.uuid).as_ref() == Some(&player)
+                })
                     .ok_or("player is not connected")?.permission_level;
                 service_call(Ok(handle), |services| services.has_permission(&node, &player, level))
             }
 
             $(
                 fn $name(&mut self, $($arg: $ty),*) -> $ret {
-                    // The game's time in the service is not the guest's (see `HOST_TIME`).
                     let began = std::time::Instant::now();
                     let answer = self.host.$name($($arg),*);
-                    crate::add_host_time(began.elapsed());
+                    if !matches!(stringify!($name), "world_storage_read" | "world_storage_write" | "config_read" | "config_write" | "config_dir") {
+                        crate::add_host_time(began.elapsed());
+                    }
                     answer
                 }
             )*
@@ -406,6 +451,79 @@ pub struct ServerFullMod {
     raw: ModInstance<ServerContext>,
     exports: server_world::ServerFull,
     subscriptions: Subscriptions,
+    tickets: TicketGuard,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::package_services::{PackageServices, STORAGE_CAPABILITY, ServiceHandle};
+    use std::collections::BTreeMap;
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
+
+    struct StorageHost(ServiceHandle);
+
+    impl ServerHost for StorageHost {
+        fn services(&mut self) -> Result<ServiceHandle, String> {
+            Ok(self.0.clone())
+        }
+
+        fn world_storage_write(&mut self, data: Vec<u8>, key: String) -> Result<(), String> {
+            self.0
+                .lock()
+                .unwrap()
+                .storage_put(&key, server_types::StorageScope::World, &data)
+        }
+
+        fn server_players(&mut self) -> Result<Vec<server_types::Player>, String> {
+            std::thread::sleep(Duration::from_millis(2));
+            Ok(Vec::new())
+        }
+    }
+
+    #[test]
+    fn storage_io_remains_charged_to_the_guest_time_budget() {
+        use server_world::yoake::mods::server_services::Host;
+
+        let time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::fs::canonicalize(std::env::temp_dir())
+            .unwrap()
+            .join(format!("yoake-storage-time-{}-{time}", std::process::id()));
+        std::fs::create_dir(&root).unwrap();
+        let services = Arc::new(Mutex::new(
+            PackageServices::open(
+                "example",
+                &[STORAGE_CAPABILITY.into()],
+                &BTreeMap::new(),
+                &BTreeMap::new(),
+                horizon_mods::yak::ConfigRuntimeSide::Server,
+                &root,
+                Some(&root),
+            )
+            .unwrap(),
+        ));
+        let mut context =
+            ServerContext::new("example".into(), Box::new(StorageHost(services.clone())));
+        let previous = crate::HOST_TIME.with(|time| time.replace(Duration::ZERO));
+        context
+            .storage_put("typed".into(), server_types::StorageScope::World, vec![1])
+            .unwrap();
+        assert_eq!(crate::HOST_TIME.with(|time| time.get()), Duration::ZERO);
+        context
+            .world_storage_write(vec![2], "legacy".into())
+            .unwrap();
+        assert_eq!(crate::HOST_TIME.with(|time| time.get()), Duration::ZERO);
+        context.server_players().unwrap();
+        assert!(crate::HOST_TIME.with(|time| time.get()) >= Duration::from_millis(2));
+        crate::HOST_TIME.with(|time| time.set(previous));
+        drop(context);
+        drop(services);
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }
 
 impl ServerFullMod {
@@ -413,24 +531,29 @@ impl ServerFullMod {
         runtime: &mut Sandbox,
         id: impl Into<String>,
         component_bytes: &[u8],
-        host: Box<dyn ServerHost>,
+        mut host: Box<dyn ServerHost>,
         unwired: &[&str],
     ) -> Result<Self, LoadError> {
         let id = id.into();
+        let tickets = TicketGuard::new(host.services());
         let mut raw = runtime
             .compile(component_bytes)
             .map_err(LoadError::new)?
             .instantiate(id.clone(), ServerContext::new(id, host), |linker| {
-                server_world::ServerFull::add_to_linker::<HostState<ServerContext>, HasSelf<ServerContext>>(
-                    linker,
-                    |state| &mut state.host,
-                )
+                server_world::ServerFull::add_to_linker::<
+                    HostState<ServerContext>,
+                    HasSelf<ServerContext>,
+                >(linker, |state| &mut state.host)
                 .map_err(|error| error.to_string())
             })
             .map_err(LoadError::new)?;
         let exports = server_world::ServerFull::new(&mut raw.store, &raw.instance)
             .map_err(|error| LoadError::new(error.to_string()))?;
-        let names = raw.call_init(crate::TimeLimits::SERVER, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
+        let names = raw.call_init(crate::TimeLimits::SERVER, |store, _| {
+            exports
+                .call_init(store)
+                .map_err(|error| format!("{error:#}"))
+        });
         flush_output(&mut raw, |host, line| host.log_output(line));
         let names = names.ok_or_else(|| LoadError::new("mod init trapped or timed out"))?;
         let subscriptions = Subscriptions::for_full_world(FullWorld::Server, names, unwired)
@@ -439,6 +562,7 @@ impl ServerFullMod {
             raw,
             exports,
             subscriptions,
+            tickets,
         };
         module.notify_config_changes();
         Ok(module)
@@ -478,6 +602,10 @@ impl ServerFullMod {
     }
 
     pub fn notify_config_changes(&mut self) {
+        if self.raw.is_disabled() {
+            self.tickets.abort();
+            return;
+        }
         let Ok(services) = self.raw.store.data_mut().host.host.services() else {
             return;
         };
@@ -497,6 +625,10 @@ impl ServerFullMod {
                     .map_err(|error| format!("{error:#}"))
             });
             flush_output(&mut self.raw, |host, line| host.log_output(line));
+            if self.raw.is_disabled() {
+                self.tickets.abort();
+                return;
+            }
         }
     }
 

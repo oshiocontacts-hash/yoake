@@ -185,12 +185,7 @@ pub(super) fn call_mod(caller: &str, target: &str, method: &str, payload: &[u8])
 
 impl ServerHost for GameServerHost {
     fn services(&mut self) -> Result<yoake_wasm::package_services::ServiceHandle, String> {
-        let world = read_service(|host| Ok(host.world_dir())).ok().flatten();
-        super::package::services(
-            &self.id,
-            horizon_mods::yak::ConfigRuntimeSide::Server,
-            world.as_deref(),
-        )
+        super::package::services(&self.id, horizon_mods::yak::ConfigRuntimeSide::Server)
     }
 
     fn log(&mut self, target: &str, message: &str) -> Result<(), w::HostError> {

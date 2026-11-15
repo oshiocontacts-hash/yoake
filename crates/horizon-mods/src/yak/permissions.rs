@@ -41,7 +41,7 @@ pub struct PermissionOverrides {
     mods: BTreeMap<String, ModOverrides>,
 }
 
-fn normalize_uuid(uuid: &str) -> Option<String> {
+pub fn normalize_uuid(uuid: &str) -> Option<String> {
     let bytes = uuid.as_bytes();
     if bytes.len() != 32 && bytes.len() != 36 {
         return None;
@@ -65,14 +65,15 @@ fn normalize_uuid(uuid: &str) -> Option<String> {
 impl PermissionOverrides {
     pub fn load_world(world_dir: &Path) -> Result<Self, String> {
         let path = world_dir.join("permissions.toml");
-        horizon_release_sign::yak::check_plain_path(&path)
-            .map_err(|error| format!("invalid permissions path {}: {error}", path.display()))?;
-        let file = match std::fs::File::open(&path) {
-            Ok(file) => file,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(Self::default());
-            }
-            Err(error) => return Err(format!("cannot read {}: {error}", path.display())),
+        let root = world_dir
+            .canonicalize()
+            .map_err(|error| error.to_string())?;
+        let directory = super::fs::Dir::open(&root, false).map_err(|error| error.to_string())?;
+        let Some(file) = directory
+            .read(std::ffi::OsStr::new("permissions.toml"))
+            .map_err(|error| format!("cannot read {}: {error}", path.display()))?
+        else {
+            return Ok(Self::default());
         };
         let mut bytes = Vec::new();
         file.take((MAX_DOCUMENT_BYTES + 1) as u64)

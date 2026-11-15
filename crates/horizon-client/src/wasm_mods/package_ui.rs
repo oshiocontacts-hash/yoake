@@ -125,11 +125,6 @@ fn runtime_side(field: &ConfigField, server_editable: bool) -> ConfigRuntimeSide
 fn display_value(value: &Value) -> String {
     match value {
         Value::String(text) => text.clone(),
-        Value::Array(values) => values
-            .iter()
-            .map(display_value)
-            .collect::<Vec<_>>()
-            .join(", "),
         value => value.to_string(),
     }
 }
@@ -157,14 +152,14 @@ fn parse_value(field: &ConfigField, text: &str) -> Result<Value, String> {
         }
     };
     let value = if field.kind == ConfigKind::List {
-        let element = field.element.ok_or("missing list element type")?;
-        Value::Array(if text.trim().is_empty() {
-            Vec::new()
+        if text.trim().is_empty() {
+            Value::Array(Vec::new())
         } else {
-            text.split(',')
-                .map(|item| scalar(element, item.trim()))
-                .collect::<Result<_, _>>()?
-        })
+            toml::from_str::<BTreeMap<String, Value>>(&format!("value = {text}"))
+                .map_err(|error| error.to_string())?
+                .remove("value")
+                .ok_or("missing list value")?
+        }
     } else {
         scalar(field.kind, text)?
     };
@@ -175,6 +170,28 @@ fn parse_value(field: &ConfigField, text: &str) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn list_editor_roundtrips_commas_quotes_and_empty_items() {
+        let fields: BTreeMap<String, ConfigField> = toml::from_str(
+            r#"[names]
+            type = "list"
+            element = "string"
+            default = []
+            side = "client""#,
+        )
+        .unwrap();
+        let value = Value::Array(
+            ["a,b", r#"say: "hello""#, r"path\name", "", "日本語"]
+                .into_iter()
+                .map(|text| Value::String(text.into()))
+                .collect(),
+        );
+        assert_eq!(
+            parse_value(&fields["names"], &display_value(&value)).unwrap(),
+            value
+        );
+    }
 
     #[test]
     fn editor_validates_ranges_choices_and_lists() {
@@ -206,8 +223,8 @@ mod tests {
         assert!(parse_value(&fields["count"], "4").is_err());
         assert!(parse_value(&fields["mode"], "three").is_err());
         assert_eq!(
-            display_value(&parse_value(&fields["list"], "1, 2,3").unwrap()),
-            "1, 2, 3"
+            display_value(&parse_value(&fields["list"], "[1, 2,3]").unwrap()),
+            "[1, 2, 3]"
         );
         assert!(parse_value(&fields["list"], "one").is_err());
     }

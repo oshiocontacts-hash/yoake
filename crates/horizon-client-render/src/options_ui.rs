@@ -1304,6 +1304,7 @@ enum Act {
     ShaderReset,
     /// The installed native mod's settings page.
     ModSettings(usize),
+    NativeSettings(usize),
     ConfigField(usize, usize),
     /// A native mod's key (mod, key) waits for a key; a button of its page.
     NativeKey(usize, usize),
@@ -2396,6 +2397,18 @@ impl OptionsUi {
             return Vec::new();
         };
         let mut rows = vec![Row::Note(installed.title.clone())];
+        if installed.native.is_some() {
+            rows.push(Row::Buttons(
+                button(
+                    0.0,
+                    0.0,
+                    310.0,
+                    Text::tr("yoake.config.native_settings", &[]),
+                    Act::NativeSettings(index),
+                ),
+                None,
+            ));
+        }
         for (field_index, field) in page.fields.iter().enumerate() {
             let caption = inactive(button(
                 0.0,
@@ -2438,9 +2451,13 @@ impl OptionsUi {
             self.push(Page::ModConfig(index));
             Event::ConfigOpen(index)
         } else {
-            self.push(Page::NativeMod(index));
-            Event::NativeSettings(index)
+            self.open_native_settings(index)
         }
+    }
+
+    fn open_native_settings(&mut self, index: usize) -> Event {
+        self.push(Page::NativeMod(index));
+        Event::NativeSettings(index)
     }
 
     fn edit_config_field(&mut self, settings: &mut Settings, index: usize, field_index: usize) {
@@ -4307,6 +4324,10 @@ impl OptionsUi {
                             events.push(Event::ButtonClick);
                             events.push(self.open_mod_settings(s, i));
                         }
+                        Act::NativeSettings(index) => {
+                            events.push(Event::ButtonClick);
+                            events.push(self.open_native_settings(index));
+                        }
                         Act::ConfigField(index, field_index) => {
                             self.edit_config_field(s, index, field_index)
                         }
@@ -4692,6 +4713,9 @@ impl OptionsUi {
             .map(|c| c.picture(h))
     }
     pub fn back(&mut self, s: &mut Settings) -> Vec<Event> {
+        if let Page::ModConfig(index) = self.page() {
+            return vec![Event::ConfigSave(index)];
+        }
         let mut events = Vec::new();
         // A pack's screen goes back to the one that opened it.
         if self.page() == Page::ShaderOptions
@@ -4702,17 +4726,7 @@ impl OptionsUi {
             return events;
         }
         let page = self.stack.pop().unwrap_or(Page::Main);
-        self.scroll = 0.0;
-        self.scrollbar_drag_y = None;
-        self.dragging = None;
-        self.slider_value = None;
-        self.selected_key = None;
-        self.selected_pad_action = None;
-        self.focus = None;
-        self.focus_from_keyboard = false;
-        self.settings_search.focused = false;
-        self.language_search.focused = false;
-        self.can_change_value = false;
+        self.reset_page_navigation();
         match page {
             Page::ConfigValue(index, field_index) => {
                 if let Some(installed) = s.mods.installed.get(index)
@@ -4727,7 +4741,6 @@ impl OptionsUi {
                 }
                 self.config_edit.focused = false;
             }
-            Page::ModConfig(index) => events.push(Event::ConfigSave(index)),
             Page::ShaderOptions => {
                 if s.shader_options.as_ref().is_some_and(|o| o.changed) {
                     events.push(Event::ShaderOptions);
@@ -4765,6 +4778,38 @@ impl OptionsUi {
             _ => {}
         }
         events.push(Event::Changed);
+        if self.stack.is_empty() {
+            events.push(Event::Close);
+        }
+        events
+    }
+
+    fn reset_page_navigation(&mut self) {
+        self.scroll = 0.0;
+        self.scrollbar_drag_y = None;
+        self.dragging = None;
+        self.slider_value = None;
+        self.selected_key = None;
+        self.selected_pad_action = None;
+        self.focus = None;
+        self.focus_from_keyboard = false;
+        self.settings_search.focused = false;
+        self.language_search.focused = false;
+        self.can_change_value = false;
+    }
+
+    pub fn finish_config_save(&mut self, result: Result<(), String>) -> Vec<Event> {
+        if let Err(error) = result {
+            self.resource_error = Some(error);
+            return Vec::new();
+        }
+        if !matches!(self.page(), Page::ModConfig(_)) {
+            return Vec::new();
+        }
+        self.resource_error = None;
+        self.stack.pop();
+        self.reset_page_navigation();
+        let mut events = vec![Event::Changed];
         if self.stack.is_empty() {
             events.push(Event::Close);
         }
@@ -5244,6 +5289,12 @@ impl OptionsUi {
                             self.can_change_value = false;
                             events.push(self.open_mod_settings(s, i));
                         }
+                        Act::NativeSettings(index) => {
+                            self.focus = None;
+                            self.focus_from_keyboard = false;
+                            self.can_change_value = false;
+                            events.push(self.open_native_settings(index));
+                        }
                         Act::ConfigField(index, field_index) => {
                             self.edit_config_field(s, index, field_index)
                         }
@@ -5385,6 +5436,18 @@ mod tests {
     }
 
     #[test]
+    fn mod_config_save_request_keeps_page_and_drafts_until_success() {
+        let mut settings = config_test_settings();
+        let mut ui = OptionsUi::default();
+        ui.open_at(false, Page::Mods);
+        ui.open_mod_settings(&settings, 0);
+        ui.edit_config_field(&mut settings, 0, 0);
+        assert_eq!(ui.back(&mut settings), vec![Event::ConfigSave(0)]);
+        assert_eq!(ui.page(), Page::ModConfig(0));
+        assert_eq!(ui.config_field(&settings, 0, 0).unwrap().value, "true");
+    }
+
+    #[test]
     fn mod_config_edits_all_field_types_and_saves_on_done() {
         let mut settings = config_test_settings();
         let mut ui = OptionsUi::default();
@@ -5424,10 +5487,9 @@ mod tests {
                 )));
             });
         }
-        assert_eq!(
-            ui.back(&mut settings),
-            vec![Event::ConfigSave(0), Event::Changed]
-        );
+        assert_eq!(ui.back(&mut settings), vec![Event::ConfigSave(0)]);
+        assert_eq!(ui.page(), Page::ModConfig(0));
+        assert_eq!(ui.finish_config_save(Ok(())), vec![Event::Changed]);
         assert_eq!(ui.page(), Page::Mods);
     }
 
@@ -5447,15 +5509,52 @@ mod tests {
             assert!(!ui.typing());
         }
         assert_eq!(settings.mods.configs, original);
-        assert_eq!(
-            ui.back(&mut settings),
-            vec![Event::ConfigSave(0), Event::Changed]
-        );
+        assert_eq!(ui.back(&mut settings), vec![Event::ConfigSave(0)]);
+        ui.finish_config_save(Ok(()));
         settings.mods.configs.clear();
         assert_eq!(ui.open_mod_settings(&settings, 0), Event::NativeSettings(0));
         assert_eq!(ui.page(), Page::NativeMod(0));
         assert_eq!(ui.back(&mut settings), vec![Event::Changed]);
         assert_eq!(ui.page(), Page::Mods);
+    }
+
+    #[test]
+    fn failed_config_save_preserves_drafts_and_shows_error() {
+        let mut settings = config_test_settings();
+        let mut ui = OptionsUi::default();
+        ui.open_at(false, Page::Mods);
+        ui.open_mod_settings(&settings, 0);
+        ui.edit_config_field(&mut settings, 0, 0);
+        let drafts = settings.mods.configs.clone();
+        assert_eq!(ui.back(&mut settings), vec![Event::ConfigSave(0)]);
+        assert!(
+            ui.finish_config_save(Err("invalid count".into()))
+                .is_empty()
+        );
+        assert_eq!(ui.page(), Page::ModConfig(0));
+        assert_eq!(settings.mods.configs, drafts);
+        assert_eq!(ui.resource_error.as_deref(), Some("invalid count"));
+        assert_eq!(ui.finish_config_save(Ok(())), vec![Event::Changed]);
+        assert_eq!(ui.page(), Page::Mods);
+        assert!(ui.resource_error.is_none());
+    }
+
+    #[test]
+    fn package_and_native_settings_are_both_reachable() {
+        let mut settings = config_test_settings();
+        settings.mods.installed[0].native = Some(Default::default());
+        let mut ui = OptionsUi::default();
+        ui.open_at(false, Page::Mods);
+        assert_eq!(ui.open_mod_settings(&settings, 0), Event::ConfigOpen(0));
+        assert_eq!(ui.page(), Page::ModConfig(0));
+        assert!(ui.config_rows(&settings, 0).iter().any(|row| matches!(
+            row, Row::Buttons(widget, _) if matches!(widget.kind,
+                WKind::Button { act: Act::NativeSettings(0), .. })
+        )));
+        assert_eq!(ui.open_native_settings(0), Event::NativeSettings(0));
+        assert_eq!(ui.page(), Page::NativeMod(0));
+        ui.back(&mut settings);
+        assert_eq!(ui.page(), Page::ModConfig(0));
     }
 
     /// The window allows the input method only while `typing` says a search

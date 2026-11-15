@@ -153,10 +153,17 @@ impl FullMod {
 
     /// Starts the server module afresh when it already served a world (the server runs one world at
     /// a time and a guest keeps its state in its instance): called as a world's server starts.
-    fn reset_server(&self) {
-        let Some(source) = &self.server_source else { return };
-        if !self.server.dirty.swap(false, Ordering::Relaxed) { return; }
-        let Ok(mut state) = self.server.state.try_lock() else { return };
+    fn reset_server(&self, world: Option<&std::path::Path>) {
+        super::package::bind_world(&self.id, world);
+        let Some(source) = &self.server_source else {
+            return;
+        };
+        if !self.server.dirty.swap(false, Ordering::Relaxed) {
+            return;
+        }
+        let Ok(mut state) = self.server.state.try_lock() else {
+            return;
+        };
         match load_server(&source.module()) {
             Ok(module) => {
                 for (word, fresh) in self.masks[Side::Server as usize].iter().zip(mask_of(|name| module.subscribed(name))) {
@@ -181,6 +188,13 @@ impl FullMod {
     }
 
     fn disable(&self, side: Side) {
+        super::package::abort_tickets(
+            &self.id,
+            match side {
+                Side::Server => horizon_mods::yak::ConfigRuntimeSide::Server,
+                Side::Client => horizon_mods::yak::ConfigRuntimeSide::Client,
+            },
+        );
         for word in &self.masks[side as usize] {
             word.store(0, Ordering::Relaxed);
         }
@@ -867,6 +881,7 @@ mod tests {
 
     #[test]
     fn a_guest_cancels_a_layer_draws_commands_and_mutates_values() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(mod_) = client() else { return };
         let mut host = FakeHost::default();
         let mut batch = HudBatch::new([854, 480]);
@@ -894,6 +909,7 @@ mod tests {
 
     #[test]
     fn a_server_guest_runs_server_tick_and_perform_command_on_the_server_thread() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(bytes) = module("server") else { return };
         let server = load_server(&ModuleSource { id: "demo", bytes: &bytes, commands: false }).expect("server-full loads");
         let mod_ = Arc::new(FullMod::new("demo".into(), None, Some(server)));
@@ -932,6 +948,7 @@ mod tests {
 
     #[test]
     fn a_thread_named_server_thread_is_not_the_server_without_the_scope() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(bytes) = module("server") else { return };
         let server = load_server(&ModuleSource { id: "demo", bytes: &bytes, commands: false }).expect("server-full loads");
         let mod_ = Arc::new(FullMod::new("demo".into(), None, Some(server)));
@@ -948,6 +965,7 @@ mod tests {
 
     #[test]
     fn a_busy_module_drops_the_hook_with_its_fallback_and_counts_it() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(mod_) = client() else { return };
         let mut host = FakeHost::default();
         let mut batch = HudBatch::new([854, 480]);
@@ -967,6 +985,7 @@ mod tests {
 
     #[test]
     fn a_package_without_a_render_hook_stays_out_of_the_render_pass() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(server_bytes) = module("server") else { return };
         let server = load_server(&ModuleSource { id: "demo", bytes: &server_bytes, commands: false }).unwrap();
         let server_only = FullMod::new("demo".into(), None, Some(server));
@@ -979,7 +998,10 @@ mod tests {
 
     #[test]
     fn the_server_module_starts_afresh_for_each_world() {
-        let Some(bytes) = module("server") else { return };
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+        let Some(bytes) = module("server") else {
+            return;
+        };
         let source = ServerSource::new("demo", bytes, false);
         let server = load_server(&source.module()).unwrap();
         let mod_ = Arc::new(FullMod::new("demo".into(), None, Some(server)).with_server_source(source));
@@ -992,10 +1014,22 @@ mod tests {
             let mut lines = Vec::new();
             for world in 0..2 {
                 // A world's server starts: the guest's counter starts at zero in each.
-                runner.reset_server();
+                runner.reset_server(None);
                 let mut host = FakeHost::default();
-                runner.perform_command(&mut host, &mut PerformCommandEvent { player: &player, command: "wasmping" });
-                runner.perform_command(&mut host, &mut PerformCommandEvent { player: &player, command: "wasmping" });
+                runner.perform_command(
+                    &mut host,
+                    &mut PerformCommandEvent {
+                        player: &player,
+                        command: "wasmping",
+                    },
+                );
+                runner.perform_command(
+                    &mut host,
+                    &mut PerformCommandEvent {
+                        player: &player,
+                        command: "wasmping",
+                    },
+                );
                 lines.push((world, host.told.borrow().clone()));
             }
             lines
@@ -1007,6 +1041,7 @@ mod tests {
 
     #[test]
     fn mod_call_reaches_the_peers_handle_call_and_never_re_enters_a_waiting_caller() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(peer_bytes) = module("peer") else { return };
         let Some(demo_bytes) = module("server") else { return };
         let peer = load_server(&ModuleSource { id: "w2-peer", bytes: &peer_bytes, commands: false }).expect("peer loads");

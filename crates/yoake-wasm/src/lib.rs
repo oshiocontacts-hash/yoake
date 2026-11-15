@@ -49,7 +49,8 @@ thread_local! {
     /// Wall-clock time the running call spent inside host services (the game doing what the guest asked:
     /// breaking a block, reading a container). It is the game's time, not the guest's: it extends the
     /// call's deadline and does not count against the aggregate budget. The guest's own work is still
-    /// bounded by fuel, and every service call burns some.
+    /// bounded by fuel, and every service call burns some. Package config, permissions and storage
+    /// I/O is excluded from this exemption and counts against the guest's time budget.
     static HOST_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
 }
 
@@ -88,11 +89,19 @@ pub struct TimeLimits {
 }
 
 impl TimeLimits {
-    pub const CLIENT: Self = Self { call: CLIENT_HOOK_BUDGET, aggregate: CLIENT_AGGREGATE_BUDGET };
-    pub const SERVER: Self = Self { call: SERVER_HOOK_BUDGET, aggregate: SERVER_AGGREGATE_BUDGET };
+    pub const CLIENT: Self = Self {
+        call: CLIENT_HOOK_BUDGET,
+        aggregate: CLIENT_AGGREGATE_BUDGET,
+    };
+    pub const SERVER: Self = Self {
+        call: SERVER_HOOK_BUDGET,
+        aggregate: SERVER_AGGREGATE_BUDGET,
+    };
     /// A module's `init` (and its start function): it runs once, while the game loads.
-    pub const INIT: Self = Self { call: Duration::from_millis(250), aggregate: Duration::from_secs(1) };
-
+    pub const INIT: Self = Self {
+        call: Duration::from_millis(250),
+        aggregate: Duration::from_secs(1),
+    };
 }
 
 /// The store limits every instance gets (also what the tests check).

@@ -94,6 +94,9 @@ impl Game<'_> {
         if self.level_pass.last {
             self.native_net.from_counts.clear();
             self.native_net.to_counts.clear();
+            if !crate::yak_mods::has_synced_config() {
+                return;
+            }
             let connections: BTreeSet<_> = host
                 .hub
                 .guests
@@ -103,9 +106,7 @@ impl Game<'_> {
                 .collect();
             self.native_net.config_outbox.retain(&connections);
             if !connections.is_empty() {
-                match crate::entry::wasm_mods::package::snapshots(
-                    self.native_world_dir().as_deref(),
-                ) {
+                match crate::entry::wasm_mods::package::snapshots() {
                     Ok(snapshots) => {
                         for connection in connections {
                             match self

@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant, SystemTime};
 
 use horizon_mods::yak::{
     ConfigField, ConfigFile, ConfigKind, ConfigRuntimeSide, PermissionNode, PermissionOverrides,
@@ -15,13 +16,20 @@ pub const CONFIG_CAPABILITY: &str = "service.config";
 pub const PERMISSIONS_CAPABILITY: &str = "service.permissions";
 pub const STORAGE_CAPABILITY: &str = "service.storage";
 pub const MAX_SYNC_BYTES: usize = 1024 * 1024;
+pub const MAX_WRITE_BYTES_PER_SECOND: usize = 64 * 1024 * 1024;
+
+struct PermissionCache {
+    checked: Instant,
+    stamp: Option<(SystemTime, u64)>,
+    overrides: Result<PermissionOverrides, String>,
+}
 
 pub struct PackageServices {
     id: String,
     capabilities: BTreeSet<String>,
     fields: BTreeMap<String, ConfigField>,
     permissions: BTreeMap<String, PermissionNode>,
-    config: ConfigFile,
+    config: Result<ConfigFile, String>,
     side: ConfigRuntimeSide,
     global: PathBuf,
     world: Option<PathBuf>,
@@ -30,6 +38,10 @@ pub struct PackageServices {
     next_ticket: u64,
     changes: BTreeMap<String, Value>,
     revision: u64,
+    snapshot_cache: Option<(u64, Arc<Vec<u8>>)>,
+    permission_cache: Option<PermissionCache>,
+    write_window: Instant,
+    write_bytes: usize,
 }
 
 impl PackageServices {
@@ -47,7 +59,9 @@ impl PackageServices {
             capabilities: capabilities.iter().cloned().collect(),
             fields: fields.clone(),
             permissions: permissions.clone(),
-            config: ConfigFile::load(global, id, fields, side)?,
+            config: ConfigFile::load(global, id, fields, side).inspect_err(|error| {
+                eprintln!("[yoake] config {id}: {error}");
+            }),
             side,
             global: global.into(),
             world: world.map(Path::to_path_buf),
@@ -56,6 +70,10 @@ impl PackageServices {
             next_ticket: 0,
             changes: BTreeMap::new(),
             revision: 0,
+            snapshot_cache: None,
+            permission_cache: None,
+            write_window: Instant::now(),
+            write_bytes: 0,
         })
     }
 
@@ -72,6 +90,7 @@ impl PackageServices {
             self.world = world.map(Path::to_path_buf);
             self.stores.remove(&0);
             self.tickets.retain(|_, (scope, _)| *scope != 0);
+            self.permission_cache = None;
         }
     }
 
@@ -80,12 +99,17 @@ impl PackageServices {
         let field = self.fields.get(key).ok_or("unknown config key")?;
         encode_value(
             field,
-            self.config.state().get(key).ok_or("unknown config key")?,
+            self.config
+                .as_ref()
+                .map_err(Clone::clone)?
+                .state()
+                .get(key)
+                .ok_or("unknown config key")?,
         )
     }
 
     pub fn settings_value(&self, key: &str) -> Option<&Value> {
-        self.config.state().get(key)
+        self.config.as_ref().ok()?.state().get(key)
     }
 
     pub fn config_set(&mut self, key: &str, value: ConfigValue) -> Result<(), String> {
@@ -96,7 +120,11 @@ impl PackageServices {
     }
 
     pub fn save_config(&mut self, values: &BTreeMap<String, Value>) -> Result<(), String> {
-        let changes = self.config.set_many(values)?;
+        let changes = self
+            .config
+            .as_mut()
+            .map_err(|error| error.clone())?
+            .set_many(values)?;
         if !changes.is_empty() {
             self.revision = self.revision.wrapping_add(1);
             for change in changes {
@@ -117,14 +145,26 @@ impl PackageServices {
             .collect()
     }
 
-    pub fn snapshot(&self) -> Result<(u64, Vec<u8>), String> {
-        let values = self.config.state().synced_snapshot()?;
+    pub fn snapshot(&mut self) -> Result<(u64, Arc<Vec<u8>>), String> {
+        if let Some((revision, data)) = &self.snapshot_cache
+            && *revision == self.revision
+        {
+            return Ok((*revision, data.clone()));
+        }
+        let values = self
+            .config
+            .as_ref()
+            .map_err(Clone::clone)?
+            .state()
+            .synced_snapshot()?;
         let data = toml::to_string(&values)
             .map_err(|error| error.to_string())?
             .into_bytes();
         if data.len() > MAX_SYNC_BYTES {
             return Err("config snapshot too large".into());
         }
+        let data = Arc::new(data);
+        self.snapshot_cache = Some((self.revision, data.clone()));
         Ok((self.revision, data))
     }
 
@@ -135,25 +175,62 @@ impl PackageServices {
         let text = std::str::from_utf8(data).map_err(|error| error.to_string())?;
         let values: BTreeMap<String, Value> =
             toml::from_str(text).map_err(|error| error.to_string())?;
-        for change in self.config.apply_synced_snapshot(&values)? {
+        for change in self
+            .config
+            .as_mut()
+            .map_err(|error| error.clone())?
+            .apply_synced_snapshot(&values)?
+        {
             self.changes.insert(change.name, change.new);
         }
         Ok(())
     }
 
     pub fn clear_snapshot(&mut self) {
-        for change in self.config.clear_synced() {
+        let Ok(config) = &mut self.config else {
+            return;
+        };
+        for change in config.clear_synced() {
             self.changes.insert(change.name, change.new);
         }
     }
 
-    pub fn has_permission(&self, node: &str, player: &str, op_level: u8) -> Result<bool, String> {
+    pub fn has_permission(
+        &mut self,
+        node: &str,
+        player: &str,
+        op_level: u8,
+    ) -> Result<bool, String> {
         self.require(PERMISSIONS_CAPABILITY)?;
         if self.side != ConfigRuntimeSide::Server {
             return Err("server service only".into());
         }
         let world = self.world.as_deref().ok_or("no world open")?;
-        Ok(PermissionOverrides::load_world(world)?.check(
+        if self
+            .permission_cache
+            .as_ref()
+            .is_none_or(|cache| cache.checked.elapsed() >= Duration::from_secs(1))
+        {
+            let stamp = std::fs::metadata(world.join("permissions.toml"))
+                .ok()
+                .and_then(|metadata| Some((metadata.modified().ok()?, metadata.len())));
+            if let Some(cache) = &mut self.permission_cache
+                && cache.stamp == stamp
+            {
+                cache.checked = Instant::now();
+            } else {
+                self.permission_cache = Some(PermissionCache {
+                    checked: Instant::now(),
+                    stamp,
+                    overrides: PermissionOverrides::load_world(world),
+                });
+            }
+        }
+        let cache = self
+            .permission_cache
+            .as_ref()
+            .ok_or("permissions unavailable")?;
+        Ok(cache.overrides.as_ref().map_err(Clone::clone)?.check(
             &self.id,
             player,
             &self.permissions,
@@ -182,19 +259,69 @@ impl PackageServices {
             .ok_or_else(|| "storage unavailable".into())
     }
 
+    fn has_store(&self, scope: u8, key: &str) -> Result<bool, String> {
+        self.require(STORAGE_CAPABILITY)?;
+        crate::host_services::storage::validate_key(key)?;
+        let base = match scope {
+            0 if self.side == ConfigRuntimeSide::Server => {
+                self.world.as_deref().ok_or("world storage unavailable")?
+            }
+            1 if self.side == ConfigRuntimeSide::Server => self.global.as_path(),
+            2 if self.side == ConfigRuntimeSide::Client => self.global.as_path(),
+            _ => return Err("storage scope unavailable".into()),
+        };
+        Ok(self.stores.contains_key(&scope)
+            || DiskStorage::exists(
+                base,
+                &self.id,
+                match scope {
+                    1 => Some("global"),
+                    2 => Some("client"),
+                    _ => None,
+                },
+            )?)
+    }
+
+    fn charge_write(&mut self, bytes: usize) -> Result<(), String> {
+        self.require(STORAGE_CAPABILITY)?;
+        if self.write_window.elapsed() >= Duration::from_secs(1) {
+            self.write_window = Instant::now();
+            self.write_bytes = 0;
+        }
+        let total = self
+            .write_bytes
+            .checked_add(bytes)
+            .ok_or("storage write budget exceeded")?;
+        if total > MAX_WRITE_BYTES_PER_SECOND {
+            return Err("storage write budget exceeded".into());
+        }
+        self.write_bytes = total;
+        Ok(())
+    }
+
+    pub fn abort_all_tickets(&mut self) {
+        self.tickets.clear();
+        for store in self.stores.values_mut() {
+            store.abort_all();
+        }
+    }
+
     pub fn storage_get(
         &mut self,
         key: &str,
         scope: StorageScope,
     ) -> Result<Option<Vec<u8>>, String> {
-        let value = self
-            .store(scope_id(scope))?
-            .get(key)
-            .map_err(str::to_owned)?;
-        if value.is_some_and(|value| value.len() > crate::host_services::MAX_MESSAGE_BYTES) {
+        if !self.has_store(scope_id(scope), key)? {
+            return Ok(None);
+        }
+        let value = self.store(scope_id(scope))?.get(key)?;
+        if value
+            .as_ref()
+            .is_some_and(|value| value.len() > crate::host_services::MAX_MESSAGE_BYTES)
+        {
             return Err("value requires storage-blob-read".into());
         }
-        Ok(value.map(<[u8]>::to_vec))
+        Ok(value)
     }
 
     pub fn storage_put(
@@ -207,10 +334,15 @@ impl PackageServices {
         if value.len() > crate::host_services::MAX_MESSAGE_BYTES {
             return Err("value requires blob upload".into());
         }
+        self.charge_write(value.len() + key.len() + 6)?;
         self.store(scope_id(scope))?.put(key, value)
     }
 
     pub fn storage_delete(&mut self, key: &str, scope: StorageScope) -> Result<bool, String> {
+        if !self.has_store(scope_id(scope), key)? {
+            return Ok(false);
+        }
+        self.charge_write(key.len() + 6)?;
         self.store(scope_id(scope))?.delete(key)
     }
 
@@ -230,6 +362,10 @@ impl PackageServices {
             .ok_or("blob ticket exhausted")?;
         let scope = scope_id(scope);
         let total = usize::try_from(total).map_err(|_| "blob too large")?;
+        let pending: usize = self.stores.values().map(DiskStorage::pending_bytes).sum();
+        if total > crate::host_services::storage::MAX_PENDING_BYTES.saturating_sub(pending) {
+            return Err("pending blob byte limit exceeded".into());
+        }
         let ticket = self
             .store(scope)?
             .begin_blob(key, total)
@@ -257,6 +393,11 @@ impl PackageServices {
 
     pub fn storage_blob_commit(&mut self, id: u64) -> Result<(), String> {
         let (scope, ticket) = self.ticket(id)?;
+        let bytes = self
+            .store(scope)?
+            .blob_size(ticket)
+            .ok_or("unknown blob ticket")?;
+        self.charge_write(bytes + 262)?;
         self.store(scope)?.commit_blob(ticket)?;
         self.tickets.remove(&id);
         Ok(())
@@ -278,13 +419,14 @@ impl PackageServices {
         scope: StorageScope,
     ) -> Result<Vec<u8>, String> {
         self.require(STORAGE_CAPABILITY)?;
+        if !self.has_store(scope_id(scope), key)? {
+            return Ok(Vec::new());
+        }
         let offset = usize::try_from(offset).map_err(|_| "invalid blob offset")?;
         Ok(self
             .store(scope_id(scope))?
-            .read_blob(key, offset, length as usize)
-            .map_err(str::to_owned)?
-            .unwrap_or_default()
-            .to_vec())
+            .read_blob(key, offset, length as usize)?
+            .unwrap_or_default())
     }
 }
 
@@ -664,10 +806,126 @@ side = "synced"
     }
 
     #[test]
+    fn broken_config_is_cached_without_disabling_other_services() {
+        let root = Scratch::new();
+        std::fs::create_dir(root.0.join("config")).unwrap();
+        let config = root.0.join("config/example.toml");
+        std::fs::write(&config, "count = [").unwrap();
+        let mut service = open(
+            &root.0,
+            ConfigRuntimeSide::Server,
+            &[
+                CONFIG_CAPABILITY,
+                STORAGE_CAPABILITY,
+                PERMISSIONS_CAPABILITY,
+            ],
+        );
+        assert!(service.config_get("count").is_err());
+        std::fs::write(config, "count = 3\n").unwrap();
+        assert!(service.config_get("count").is_err());
+        assert!(service.snapshot().is_err());
+        service
+            .storage_put("value", StorageScope::World, b"kept")
+            .unwrap();
+        assert_eq!(
+            service
+                .storage_get("value", StorageScope::World)
+                .unwrap()
+                .unwrap(),
+            b"kept"
+        );
+        assert!(
+            service
+                .has_permission("example.edit", "0123456789abcdef0123456789abcdef", 2)
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn snapshots_reuse_bytes_until_the_revision_changes() {
+        let root = Scratch::new();
+        let mut service = open(&root.0, ConfigRuntimeSide::Server, &[CONFIG_CAPABILITY]);
+        let (revision, first) = service.snapshot().unwrap();
+        let (same_revision, second) = service.snapshot().unwrap();
+        assert_eq!(revision, same_revision);
+        assert!(Arc::ptr_eq(&first, &second));
+        let value = encode_value(&fields()["shared"], &Value::Boolean(true)).unwrap();
+        service.config_set("shared", value).unwrap();
+        let (new_revision, third) = service.snapshot().unwrap();
+        assert!(new_revision > revision);
+        assert!(!Arc::ptr_eq(&first, &third));
+        assert_ne!(first, third);
+    }
+
+    #[test]
+    fn write_budget_rejects_a_mutation_without_losing_its_ticket() {
+        let root = Scratch::new();
+        let mut service = open(&root.0, ConfigRuntimeSide::Server, &[STORAGE_CAPABILITY]);
+        let ticket = service
+            .storage_blob_begin("blob", StorageScope::World, 4)
+            .unwrap();
+        service.storage_blob_write(b"data", ticket, 0).unwrap();
+        service.write_bytes = MAX_WRITE_BYTES_PER_SECOND;
+        assert!(
+            service
+                .storage_put("value", StorageScope::World, b"denied")
+                .unwrap_err()
+                .contains("write budget")
+        );
+        assert!(
+            service
+                .storage_delete("value", StorageScope::World)
+                .unwrap_err()
+                .contains("write budget")
+        );
+        assert!(
+            service
+                .storage_blob_commit(ticket)
+                .unwrap_err()
+                .contains("write budget")
+        );
+        assert_eq!(
+            service.storage_get("blob", StorageScope::World).unwrap(),
+            None
+        );
+        service.write_window = Instant::now() - Duration::from_secs(2);
+        service.storage_blob_commit(ticket).unwrap();
+        assert_eq!(
+            service
+                .storage_get("blob", StorageScope::World)
+                .unwrap()
+                .unwrap(),
+            b"data"
+        );
+    }
+
+    #[test]
+    fn pending_bytes_are_shared_between_scopes_and_released_on_abort() {
+        let root = Scratch::new();
+        let mut service = open(&root.0, ConfigRuntimeSide::Server, &[STORAGE_CAPABILITY]);
+        let size = 17 * 1024 * 1024;
+        let ticket = service
+            .storage_blob_begin("world", StorageScope::World, size)
+            .unwrap();
+        assert!(
+            service
+                .storage_blob_begin("global", StorageScope::Global, size)
+                .is_err()
+        );
+        service.abort_all_tickets();
+        assert!(service.storage_blob_write(b"x", ticket, 0).is_err());
+        assert!(
+            service
+                .storage_blob_begin("global", StorageScope::Global, size)
+                .is_ok()
+        );
+    }
+
+    #[test]
     fn permission_defaults_and_world_overrides_reach_the_host() {
         let root = Scratch::new();
         let player = "0123456789abcdef0123456789abcdef";
-        let service = open(
+        let mut service = open(
             &root.0,
             ConfigRuntimeSide::Server,
             &[PERMISSIONS_CAPABILITY],
@@ -684,8 +942,13 @@ side = "synced"
             format!("[mods.example.players.'{player}']\n'example.edit' = false\n"),
         )
         .unwrap();
+        assert!(service.has_permission("example.edit", player, 4).unwrap());
+        service.permission_cache.as_mut().unwrap().checked =
+            Instant::now() - Duration::from_secs(2);
         assert!(!service.has_permission("example.edit", player, 4).unwrap());
         std::fs::write(root.0.join("permissions.toml"), format!("[mods.example.groups.builders]\n'example.edit' = true\n[mods.example.members]\n'{player}' = ['builders']\n")).unwrap();
+        service.permission_cache.as_mut().unwrap().checked =
+            Instant::now() - Duration::from_secs(2);
         assert!(service.has_permission("example.edit", player, 0).unwrap());
         assert!(
             open(

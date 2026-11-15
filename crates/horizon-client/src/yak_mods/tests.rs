@@ -137,10 +137,14 @@ fn sample_pack() -> horizon_shader_api::Pack {
 #[test]
 fn missing_list_does_not_inspect_installed_packages_or_create_files() {
     let fixture = Fixture::new();
-    fixture.write(&fixture.0.join("yoake-mods/broken/1.2.3/yak.toml"), b"invalid TOML");
+    fixture.write(
+        &fixture.0.join("yoake-mods/broken/1.2.3/yak.toml"),
+        b"invalid TOML",
+    );
     let before = fs::read_dir(&fixture.0).unwrap().count();
     let runtime = Runtime::read(&fixture.0, &build(), &[]);
     assert!(runtime.entries.is_empty());
+    assert!(!runtime.synced_config);
     assert!(runtime.startup_log.is_empty());
     assert!(runtime.notices.lock().unwrap().is_empty());
     assert_eq!(fs::read_dir(&fixture.0).unwrap().count(), before);
@@ -443,4 +447,25 @@ fn the_commands_permission_reaches_the_server_module() {
     let found = wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Server, &[], true);
     assert_eq!(found.len(), 1);
     assert!(found[0].commands);
+}
+
+#[test]
+fn config_sync_is_enabled_only_for_a_capable_synced_server_module() {
+    let fixture = Fixture::new();
+    let config = "\n[config.shared]\ntype = 'bool'\ndefault = false\nside = 'synced'\n";
+    let entry =
+        fixture.install(&(server_wasm_source("permissions = ['service.config']\n") + config));
+    assert!(entry.has_synced_config());
+    let mut local_only = entry.clone();
+    local_only.manifest.config.get_mut("shared").unwrap().side = yak::ConfigSide::Client;
+    assert!(!local_only.has_synced_config());
+    let mut denied = entry.clone();
+    denied.manifest.wasm.as_mut().unwrap().permissions.clear();
+    assert!(!denied.has_synced_config());
+    let mut client_only = entry.clone();
+    client_only.manifest.wasm.as_mut().unwrap().server = None;
+    assert!(!client_only.has_synced_config());
+    fixture.list("server_mod 1.2.3\n");
+    let runtime = Runtime::read_as(&fixture.0, &build(), &[], true);
+    assert!(runtime.synced_config);
 }

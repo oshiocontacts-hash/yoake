@@ -131,8 +131,8 @@ client module fails to load does not run its server module either.
   one module in a 50 ms window may use 10 ms (client) or 25 ms (server) of it;
   further calls in the window are skipped (a skipped hook answers its fallback) and counted, and a module
   that overruns in 20 windows in a row is disabled. `init` has 250 ms.
-* Time spent inside a server service (the game breaking a block, reading a container, another package's
-  `handle-call`) is the game's, not the guest's: it extends the call's deadline (by at most 400 ms in all)
+* Except for config and storage I/O, time spent inside a server service (the game breaking a block,
+  reading a container, another package's `handle-call`) is the game's, not the guest's: it extends the call's deadline (by at most 400 ms in all)
   and does not count against the aggregate budget; the guest's own work stays bounded by fuel and the
   clock, and the native helpers allow 512 to 1024 calls per mod and server tick.
 * A hook that finds its module busy (re-entered from the module's own service call) answers its fallback
@@ -285,11 +285,18 @@ matching payload and leave other fields empty/default. `config-set` checks the m
 enum membership and side. Client modules can write `side = "client"`; server modules can write
 `server` and `synced`. Client reads of `synced` values use the server snapshot, never a local override.
 Persisted local settings live in `<game>/config/<mod-id>.toml`, with `[client]` and `[server]` tables.
-Writes preserve the other side and replace the file atomically. Loading defaults does not create it.
+Writes lock the config file, re-read its latest values to preserve the other side, and replace it
+atomically. A concurrent writer gets an error instead of silently overwriting another process.
+Loading defaults does not create a file. Unknown/removed keys are dropped with a warning and invalid
+values fall back to their manifest defaults. An unreadable or malformed document is cached as a
+failure and logged once; it does not disable storage or permissions, or other mods' snapshots.
 
 The mod list's Configure button opens a generic screen for packages declaring `[config]`: bool
-toggles, numbers with bounds, text, enum cycles and lists edited as comma-separated text. Labels use
-the current language's `label`, then `en_us`, then the key. Done validates all values before saving;
+toggles, numbers with bounds, text, enum cycles and lists edited as TOML array contents (for example,
+`"a,b", "quoted \"text\"", ""`). A package with native settings and `[config]` gets separate entries
+for both screens. Labels use the current language's `label`, then `en_us`, then the key. Done validates
+all values before saving; a bad field leaves the page and its draft open with an error, so it can be
+corrected without losing other edits;
 server/synced rows are read-only when connected to another server. There is no file-watcher: guest
 writes and config-screen saves produce coalesced `config-changed` notifications at dispatch boundaries.
 Writes made inside the hook are deferred to the next boundary rather than recursively dispatching.
@@ -299,7 +306,9 @@ clients. Snapshots are at most 1 MiB per mod, 256 mods / 8 MiB total; packets ca
 snapshot data and the sender pumps four packets per connection per tick. The receiver requires ordered,
 complete packets and validates the entire snapshot before changing any values. Received values are
 memory-only and reset to defaults on disconnect; config changes also reach subscribed client hooks.
-With no eligible mod, no config payload or config/storage file is created.
+Snapshots cache their revision and serialized bytes, and are rebuilt only when a synced value changes.
+A precomputed eligible-mod flag skips per-tick sync entirely when no installed server module has
+synced config. With no eligible mod, no config payload or config/storage file is created.
 
 `has-permission(node, player)` requires an online player's UUID, a node declared by this package, and
 an open world. It falls back to the node's `default_op_level` (0–4). Undeclared nodes return false.
@@ -317,30 +326,48 @@ an open world. It falls back to the node's `default_op_level` (0–4). Undeclare
 ```
 
 An explicit player rule wins; otherwise any matching group denial wins over group grants, then the
-op-level default applies. UUIDs accept compact or hyphenated forms. The bounded file is re-read for
-each check, missing files mean defaults, and malformed files return an error rather than granting access.
+op-level default applies. UUIDs accept compact or hyphenated forms in either case. Parsed overrides
+are cached; modification time and length are checked at most once per second and a change reloads the
+bounded file. Missing files mean defaults; malformed files return an error rather than granting access.
 
 `StorageScope` selects separate stores: `world` and `global` are server-only; `client` is client-only.
 All calls are confined to the current package's store:
 
-| Scope | File |
+| Scope | Directory |
 | --- | --- |
-| world | `<world>/yoake-data/<mod-id>/store.bin` |
-| global | `<game>/yoake-data/<mod-id>/global/store.bin` |
-| client | `<game>/yoake-data/<mod-id>/client/store.bin` |
+| world | `<world>/yoake-data/<mod-id>/` |
+| global | `<game>/yoake-data/<mod-id>/global/` |
+| client | `<game>/yoake-data/<mod-id>/client/` |
 
 Each store has a 256 MiB quota, including serialized metadata and reserved pending uploads, and at most
-65,536 keys. Inline reads/writes and blob chunks are capped at 1 MiB. `storage-blob-begin` reserves quota
-and returns a package-owned upload ID (at most 64 outstanding); writes may arrive out of order, but
+65,536 keys. Entries use host-generated filenames and one atomic file per key, so a mutation writes
+only that value and its metadata, not the whole store. Only keys and lengths stay resident; values and
+blob slices are read on demand. Encoded writes are limited to 64 MiB per second per mod across its
+scopes; exceeding that budget returns an error. Storage I/O time counts against the guest time budget.
+Inline reads/writes and blob chunks are capped at 1 MiB. `storage-blob-begin` reserves quota and returns
+a package-owned upload ID (at most 64 outstanding), with a separate **32 MiB aggregate pending-blob
+limit per mod** across all scopes. Buffers grow lazily on write, not at begin. Writes may arrive out of order, but
 commit requires complete coverage. A failed commit retains the upload for completion or abort.
 `storage-blob-read` reads bounded slices of committed data. Uploads are not persisted and world uploads
-are discarded when changing worlds. Put, delete and successful blob commit atomically persist before
-reporting success. Reads of absent stores and opening settings do not create directories.
+are discarded when changing worlds or creating, dropping, disabling or trapping a module instance.
+World binding changes only on explicit world open/close, never on a hook or config notification.
+Put, delete and successful blob commit persist before
+reporting success. A store holds an exclusive lock for its lifetime; another process gets a clear
+error. Writes use a synced temporary file and rename; stale temporary files are removed on open.
+Reads of absent stores and opening settings do not create directories.
+
+On first storage open, existing `store.bin` data and legacy `<world>/yoake-wasm/<mod-id>/<key>.bin`
+or `<game>/config/yoake-wasm/<mod-id>/` entries are imported within quota, without replacing newer
+keys. A marker records completion; legacy files are left intact. Legacy `world-storage-read/write`
+and raw `config-read/write` now require `service.storage`; `config-dir` requires `service.config`.
+Those imports use the same quota, locking and no-follow rules as new stores.
 
 Keys are logical names, never paths. Traversal, absolute paths, Windows reserved names (including
 reserved superscript digits), symlinks and Windows reparse points are rejected. The disk layer holds
-directory handles on Windows and uses no-follow relative opens on Unix. Permissions/config file paths
-are also checked for links/reparse points.
+directory handles on Windows and uses no-follow relative opens on Unix. The trusted game/world base
+is canonicalized before checks below it, so a linked/junctioned base or `..` in `--game-dir` is allowed.
+Unix ancestors use search-only handles (`O_PATH`/`O_SEARCH`). Permissions/config paths below the
+trusted base are also checked for links/reparse points.
 
 HTTP, general networking, chunk force-loading and the other W2D proposal entries are not connected by
 this work. `HttpsPolicy`, transfer accounting, `ChunkTickets` and `RequestTickets` remain standalone

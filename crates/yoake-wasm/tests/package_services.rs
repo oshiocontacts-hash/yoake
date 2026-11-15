@@ -8,6 +8,8 @@ use yoake_wasm::package_services::{PackageServices, ServiceHandle};
 use yoake_wasm::server_types::{Player, StorageScope, Vec3};
 use yoake_wasm::{ClientFullMod, ClientHost, Sandbox, ServerFullMod, ServerHost};
 
+static GUEST_TEST: Mutex<()> = Mutex::new(());
+
 struct Scratch(PathBuf);
 
 impl Scratch {
@@ -115,6 +117,7 @@ fn call(guest: &mut ServerFullMod, method: &str) -> Vec<u8> {
 
 #[test]
 fn server_guest_round_trips_config_storage_permissions_and_change_hooks() {
+    let _test = GUEST_TEST.lock().unwrap();
     let scratch = Scratch::new();
     let services = scratch.services(ConfigRuntimeSide::Server, true);
     let bytes = yoake_wasm::test_guests::load(&yoake_wasm::test_guests::FULL_SERVICES_SERVER)
@@ -135,6 +138,7 @@ fn server_guest_round_trips_config_storage_permissions_and_change_hooks() {
         "[mods.example.players.'0123456789abcdef0123456789abcdef']\n'example.edit'=false\n",
     )
     .unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(1100));
     assert_eq!(call(&mut guest, "permission"), [0]);
     drop(guest);
     drop(services);
@@ -153,6 +157,7 @@ fn server_guest_round_trips_config_storage_permissions_and_change_hooks() {
 
 #[test]
 fn server_guest_without_capabilities_is_denied_without_creating_files() {
+    let _test = GUEST_TEST.lock().unwrap();
     let scratch = Scratch::new();
     let services = scratch.services(ConfigRuntimeSide::Server, false);
     let bytes = yoake_wasm::test_guests::load(&yoake_wasm::test_guests::FULL_SERVICES_SERVER)
@@ -169,8 +174,120 @@ fn server_guest_without_capabilities_is_denied_without_creating_files() {
     assert!(std::fs::read_dir(&scratch.0).unwrap().next().is_none());
 }
 
+fn begin_ticket(services: &ServiceHandle, scope: StorageScope) -> u64 {
+    services
+        .lock()
+        .unwrap()
+        .storage_blob_begin("pending", scope, 8)
+        .unwrap()
+}
+
+fn assert_ticket_aborted(services: &ServiceHandle, ticket: u64) {
+    assert!(
+        services
+            .lock()
+            .unwrap()
+            .storage_blob_write(b"x", ticket, 0)
+            .is_err()
+    );
+}
+
+#[test]
+fn server_instance_lifecycle_aborts_pending_blob_tickets() {
+    let _test = GUEST_TEST.lock().unwrap();
+    let scratch = Scratch::new();
+    let services = scratch.services(ConfigRuntimeSide::Server, true);
+    let bytes = yoake_wasm::test_guests::load(&yoake_wasm::test_guests::FULL_DEMO_SERVER)
+        .expect("server guest is required");
+    let stale = begin_ticket(&services, StorageScope::World);
+    let mut guest = ServerFullMod::instantiate(
+        &mut Sandbox::new(),
+        "example",
+        &bytes,
+        Box::new(Server(services.clone())),
+        &[],
+    )
+    .unwrap();
+    assert_ticket_aborted(&services, stale);
+    let trapped = begin_ticket(&services, StorageScope::World);
+    assert_eq!(
+        guest.dispatch::<()>("server_tick", |_, _| {
+            Err(wasmtime::Error::msg("deliberate lifecycle test trap"))
+        }),
+        None
+    );
+    assert!(guest.is_disabled());
+    assert_ticket_aborted(&services, trapped);
+    let disabled = begin_ticket(&services, StorageScope::World);
+    guest.notify_config_changes();
+    assert_ticket_aborted(&services, disabled);
+    let dropped = begin_ticket(&services, StorageScope::World);
+    drop(guest);
+    assert_ticket_aborted(&services, dropped);
+    let failed_creation = begin_ticket(&services, StorageScope::World);
+    assert!(
+        ServerFullMod::instantiate(
+            &mut Sandbox::new(),
+            "example",
+            &[0],
+            Box::new(Server(services.clone())),
+            &[],
+        )
+        .is_err()
+    );
+    assert_ticket_aborted(&services, failed_creation);
+}
+
+#[test]
+fn client_instance_lifecycle_aborts_pending_blob_tickets() {
+    let _test = GUEST_TEST.lock().unwrap();
+    let scratch = Scratch::new();
+    let services = scratch.services(ConfigRuntimeSide::Client, true);
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let bytes = yoake_wasm::test_guests::load(&yoake_wasm::test_guests::FULL_DEMO_CLIENT)
+        .expect("client guest is required");
+    let stale = begin_ticket(&services, StorageScope::Client);
+    let mut guest = ClientFullMod::instantiate(
+        &mut Sandbox::new(),
+        "example",
+        &bytes,
+        Box::new(Client(services.clone(), log.clone())),
+        &[],
+    )
+    .unwrap();
+    assert_ticket_aborted(&services, stale);
+    let trapped = begin_ticket(&services, StorageScope::Client);
+    assert_eq!(
+        guest.dispatch::<()>("hud", |_, _| {
+            Err(wasmtime::Error::msg("deliberate lifecycle test trap"))
+        }),
+        None
+    );
+    assert!(guest.is_disabled());
+    assert_ticket_aborted(&services, trapped);
+    let disabled = begin_ticket(&services, StorageScope::Client);
+    guest.notify_config_changes();
+    assert_ticket_aborted(&services, disabled);
+    let dropped = begin_ticket(&services, StorageScope::Client);
+    drop(guest);
+    assert_ticket_aborted(&services, dropped);
+    let failed_creation = begin_ticket(&services, StorageScope::Client);
+    assert!(
+        ClientFullMod::instantiate(
+            &mut Sandbox::new(),
+            "example",
+            &[0],
+            Box::new(Client(services.clone(), log)),
+            &[],
+        )
+        .is_err()
+    );
+    assert_ticket_aborted(&services, failed_creation);
+}
+
 #[test]
 fn client_guest_round_trips_client_data_and_observes_synced_changes() {
+    let _test = GUEST_TEST.lock().unwrap();
     let scratch = Scratch::new();
     let services = scratch.services(ConfigRuntimeSide::Client, true);
     let log = Arc::new(Mutex::new(Vec::new()));
@@ -233,6 +350,7 @@ fn client_guest_round_trips_client_data_and_observes_synced_changes() {
 
 #[test]
 fn client_guest_without_capabilities_is_denied_without_creating_files() {
+    let _test = GUEST_TEST.lock().unwrap();
     let scratch = Scratch::new();
     let services = scratch.services(ConfigRuntimeSide::Client, false);
     let log = Arc::new(Mutex::new(Vec::new()));

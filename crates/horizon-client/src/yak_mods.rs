@@ -1,6 +1,9 @@
 use horizon_client::{mod_list::Installed as ModRow, text::Text, toasts::SystemToast};
 use horizon_mod_abi as abi;
-use horizon_mods::{Package, yak::{self, Manifest, PublicKey, Target, Version}};
+use horizon_mods::{
+    Package,
+    yak::{self, Manifest, PublicKey, Target, Version},
+};
 use std::{
     collections::{BTreeMap, HashSet, VecDeque},
     fs::File,
@@ -58,6 +61,23 @@ pub(crate) struct Installed {
     signed: bool,
 }
 
+impl Installed {
+    pub(crate) fn has_synced_config(&self) -> bool {
+        self.manifest.wasm.as_ref().is_some_and(|wasm| {
+            wasm.server.is_some()
+                && wasm
+                    .permissions
+                    .iter()
+                    .any(|permission| permission == yoake_wasm::package_services::CONFIG_CAPABILITY)
+                && self
+                    .manifest
+                    .config
+                    .values()
+                    .any(|field| field.side == yak::ConfigSide::Synced)
+        })
+    }
+}
+
 #[derive(Default)]
 struct Runtime {
     game_root: PathBuf,
@@ -65,6 +85,7 @@ struct Runtime {
     notices: Mutex<VecDeque<Notice>>,
     problems: Mutex<BTreeMap<String, String>>,
     startup_log: Vec<String>,
+    synced_config: bool,
 }
 
 struct Notice {
@@ -114,17 +135,29 @@ impl Runtime {
             Ok(file) => file,
             Err(error) if error.kind() == ErrorKind::NotFound => return runtime,
             Err(error) => {
-                runtime.reject("yoake-mods.txt", &build.version.to_string(), &error.to_string());
+                runtime.reject(
+                    "yoake-mods.txt",
+                    &build.version.to_string(),
+                    &error.to_string(),
+                );
                 return runtime;
             }
         };
         let mut text = String::new();
         if let Err(error) = file.take(MAX_LIST_SIZE + 1).read_to_string(&mut text) {
-            runtime.reject("yoake-mods.txt", &build.version.to_string(), &error.to_string());
+            runtime.reject(
+                "yoake-mods.txt",
+                &build.version.to_string(),
+                &error.to_string(),
+            );
             return runtime;
         }
         if text.len() as u64 > MAX_LIST_SIZE {
-            runtime.reject("yoake-mods.txt", &build.version.to_string(), "list exceeds 1 MiB");
+            runtime.reject(
+                "yoake-mods.txt",
+                &build.version.to_string(),
+                "list exceeds 1 MiB",
+            );
             return runtime;
         }
         let mut seen = HashSet::new();
@@ -165,13 +198,24 @@ impl Runtime {
                 let names = installed_files(&root)?;
                 let names: Vec<_> = names.iter().map(String::as_str).collect();
                 let signed = yak::verify_installed(&root, &names, keys).is_ok();
-                Ok(Installed { root, manifest, content, content_wasm, signed })
+                Ok(Installed {
+                    root,
+                    manifest,
+                    content,
+                    content_wasm,
+                    signed,
+                })
             })();
             match result {
                 Ok(entry) => runtime.entries.push(entry),
-                Err(reason) => runtime.reject(&display_name, &build.version.to_string(), &format!("{label}: {reason}")),
+                Err(reason) => runtime.reject(
+                    &display_name,
+                    &build.version.to_string(),
+                    &format!("{label}: {reason}"),
+                ),
             }
         }
+        runtime.synced_config = runtime.entries.iter().any(Installed::has_synced_config);
         runtime
     }
 }
@@ -237,6 +281,10 @@ pub(crate) fn entries() -> &'static [Installed] {
     RUNTIME.get().map(|runtime| runtime.entries.as_slice()).unwrap_or_default()
 }
 
+pub(crate) fn has_synced_config() -> bool {
+    RUNTIME.get().is_some_and(|runtime| runtime.synced_config)
+}
+
 pub(crate) fn log_startup() {
     if let Some(runtime) = RUNTIME.get() {
         for message in &runtime.startup_log { log::warn!("{message}"); }
@@ -288,7 +336,10 @@ pub(crate) fn binary_preflight(entry: &Installed, build: &Build, keys: &[PublicK
 /// Which half of a package a WebAssembly module belongs to.
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum WasmSide { Client, Server }
+pub(crate) enum WasmSide {
+    Client,
+    Server,
+}
 
 /// One accepted WebAssembly module of an enabled .yak. Nothing here runs the module.
 #[allow(dead_code)]

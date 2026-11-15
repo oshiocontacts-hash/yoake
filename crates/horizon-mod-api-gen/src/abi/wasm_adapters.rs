@@ -6,15 +6,22 @@
 //!
 //! A hook whose conversion cannot be generated is not wired (see [`WasmAdapters::unsupported`]):
 //! a guest that subscribes to it is refused at load, so nothing is silently dropped.
-use super::wit_full::shape::{Field, ListKind, MapKind, NamedDef, RustPath, Shape, StrKind, VCase, WrapKind};
-use super::wit_full::{EffectPlan, ExtraPlan, FullWit, HookPlan, Main, ResultForm, Side, generate_full_wit};
+use super::wit_full::shape::{
+    Field, ListKind, MapKind, NamedDef, RustPath, Shape, StrKind, VCase, WrapKind,
+};
+use super::wit_full::{
+    EffectPlan, ExtraPlan, FullWit, HookPlan, Main, ResultForm, Side, generate_full_wit,
+};
 use quote::ToTokens;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write as _;
 use std::path::Path;
 
 /// Newtypes with a private field and the accessors that read and build them.
-const NEWTYPE_ACCESS: &[(&str, &str, &str)] = &[("NativeTickId", "get", "new"), ("NativeWorldEpoch", "get", "new")];
+const NEWTYPE_ACCESS: &[(&str, &str, &str)] = &[
+    ("NativeTickId", "get", "new"),
+    ("NativeWorldEpoch", "get", "new"),
+];
 
 const DENYLIST: &str = include_str!("../../wasm-adapter-denylist.json");
 
@@ -132,10 +139,11 @@ fn camel(wit: &str) -> String {
 }
 
 const RUST_KEYWORDS: &[&str] = &[
-    "as", "break", "const", "continue", "crate", "else", "enum", "extern", "false", "fn", "for", "if", "impl", "in",
-    "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return", "self", "Self", "static", "struct", "super",
-    "trait", "true", "type", "unsafe", "use", "where", "while", "async", "await", "dyn", "abstract", "become", "box",
-    "do", "final", "macro", "override", "priv", "typeof", "unsized", "virtual", "yield", "try",
+    "as", "break", "const", "continue", "crate", "else", "enum", "extern", "false", "fn", "for",
+    "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return",
+    "self", "Self", "static", "struct", "super", "trait", "true", "type", "unsafe", "use", "where",
+    "while", "async", "await", "dyn", "abstract", "become", "box", "do", "final", "macro",
+    "override", "priv", "typeof", "unsized", "virtual", "yield", "try",
 ];
 
 fn snake(wit: &str) -> String {
@@ -752,7 +760,8 @@ fn build_hook(
     event: &EventDef,
     ordinal_const: &str,
 ) -> Res<Built> {
-    let fields: HashMap<&str, &syn::Type> = event.fields.iter().map(|(n, t)| (n.as_str(), t)).collect();
+    let fields: HashMap<&str, &syn::Type> =
+        event.fields.iter().map(|(n, t)| (n.as_str(), t)).collect();
     let name = &plan.name;
     let sig_host = match &method.host_param {
         Some((param, ty)) => format!("{param}: {ty}, "),
@@ -765,7 +774,12 @@ fn build_hook(
     if plan.name == "server_about_to_start" {
         // The server runs one world at a time and a guest keeps its state in its instance: each
         // world's server starts with a fresh one (nothing happens before the first hook ran).
-        body.push_str("self.reset_server(); ");
+        let host = &method
+            .host_param
+            .as_ref()
+            .ok_or("server start requires host")?
+            .0;
+        let _ = write!(body, "self.reset_server({host}.world_dir().as_deref()); ");
     }
     let (default, out_kind) = match (plan.contract.as_str(), ret.as_deref()) {
         ("cancel", Some(r)) if r.trim() == "Flow" => ("Flow::Continue".to_owned(), "cancel"),
@@ -782,7 +796,11 @@ fn build_hook(
         Side::Both => &["client", "server"],
     };
     for side in sides {
-        let side_enum = if *side == "client" { "Side::Client" } else { "Side::Server" };
+        let side_enum = if *side == "client" {
+            "Side::Client"
+        } else {
+            "Side::Server"
+        };
         let mut block = String::new();
         let guard = match out_kind {
             "cancel" => " && matches!(out, Flow::Continue)",
@@ -796,7 +814,10 @@ fn build_hook(
             (Side::Both, _) => " && !on_server_thread()",
             _ => "",
         };
-        let _ = write!(block, "if self.wants({side_enum}, {ordinal_const}){routing}{guard} {{ ");
+        let _ = write!(
+            block,
+            "if self.wants({side_enum}, {ordinal_const}){routing}{guard} {{ "
+        );
         // Arguments.
         let mut call_args = Vec::new();
         for param in &plan.params {
@@ -812,12 +833,20 @@ fn build_hook(
         let batch = plan
             .effects
             .iter()
-            .find(|effect| fields.get(effect.field.as_str()).and_then(|ty| elem_name(ty)).as_deref() == Some("HudBatch"))
+            .find(|effect| {
+                fields
+                    .get(effect.field.as_str())
+                    .and_then(|ty| elem_name(ty))
+                    .as_deref()
+                    == Some("HudBatch")
+            })
             .map(|effect| format!("Some(&mut *event.{})", effect.field))
             .or_else(|| {
                 fields
                     .iter()
-                    .find(|(_, ty)| elem_name(ty).as_deref() == Some("HudBatch") && field_is_mut_ref(ty))
+                    .find(|(_, ty)| {
+                        elem_name(ty).as_deref() == Some("HudBatch") && field_is_mut_ref(ty)
+                    })
                     .map(|(field, _)| format!("Some(&mut *event.{field})"))
             })
             .unwrap_or_else(|| "None".into());
@@ -832,7 +861,11 @@ fn build_hook(
             }
             HostKind::None => "HostAccess::None".into(),
         };
-        let args = if call_args.is_empty() { String::new() } else { format!(", {}", call_args.join(", ")) };
+        let args = if call_args.is_empty() {
+            String::new()
+        } else {
+            format!(", {}", call_args.join(", "))
+        };
         let call = format!("call_{}", ident(&super::wit_full::kebab(name)));
         let _ = write!(
             block,
@@ -855,14 +888,25 @@ fn build_hook(
         block.push_str("} ");
         body.push_str(&block);
     }
+    if plan.name == "server_stopping" {
+        body.push_str("super::package::bind_world(&self.id, None); ");
+    }
     if ret.is_some() {
         body.push_str("out");
     }
     let ret_text = ret.map(|r| format!(" -> {r}")).unwrap_or_default();
     // A host the hook receives but does not pass is still used (silences unused parameters).
-    let unused = method.host_param.as_ref().map(|(param, _)| format!("let _ = &{param}; ")).unwrap_or_default();
-    let method_text = format!("fn {name}(&self, {sig_host}event: {event_ty}){ret_text} {{ {unused}let _ = &event; {body} }}\n");
-    Ok(Built { method: method_text })
+    let unused = method
+        .host_param
+        .as_ref()
+        .map(|(param, _)| format!("let _ = &{param}; "))
+        .unwrap_or_default();
+    let method_text = format!(
+        "fn {name}(&self, {sig_host}event: {event_ty}){ret_text} {{ {unused}let _ = &event; {body} }}\n"
+    );
+    Ok(Built {
+        method: method_text,
+    })
 }
 
 fn apply_result(emitter: &mut Emitter<'_>, plan: &HookPlan, fields: &HashMap<&str, &syn::Type>, out_kind: &str, host_ref: &str) -> Res<String> {

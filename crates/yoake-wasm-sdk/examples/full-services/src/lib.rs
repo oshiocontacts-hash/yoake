@@ -101,11 +101,15 @@ mod server {
     #[derive(Default)]
     struct Guest {
         changes: u32,
+        exercise_error: Option<String>,
     }
 
     impl ServerMod for Guest {
         fn subscriptions() -> &'static [&'static str] {
             &[hook::CONFIG_CHANGED]
+        }
+        fn init(&mut self) {
+            self.exercise_error = exercise().err();
         }
         fn config_changed(&mut self, _key: String, _value: types::ConfigValue) {
             self.changes += 1;
@@ -118,7 +122,9 @@ mod server {
         ) -> Result<Vec<u8>, String> {
             match method.as_str() {
                 "exercise" => {
-                    exercise()?;
+                    if let Some(error) = &self.exercise_error {
+                        return Err(error.clone());
+                    }
                     Ok(b"ok".to_vec())
                 }
                 "denied" => {

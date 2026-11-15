@@ -18,18 +18,21 @@ pub(crate) mod package_ui;
 #[path = "wasm_mods/server_services.rs"]
 mod server_services;
 
-use super::dll_mods::{frame_time, native_identity, safe_component, StaticMod};
+use super::dll_mods::{StaticMod, frame_time, native_identity, safe_component};
 use crate::mod_api::*;
 use horizon_mod_abi as abi;
-use horizon_protocol::{buf::{Codec, Writer}, item::Slot};
+use horizon_protocol::{
+    buf::{Codec, Writer},
+    item::Slot,
+};
 use std::{
     cell::Cell,
     collections::{HashMap, HashSet},
     path::PathBuf,
     ptr,
     sync::{
-        atomic::{AtomicBool, AtomicU32, Ordering},
         Arc, Mutex, OnceLock, TryLockError,
+        atomic::{AtomicBool, AtomicU32, Ordering},
     },
     time::{Duration, SystemTime},
 };
@@ -43,6 +46,9 @@ const POLL_INTERVAL: Duration = Duration::from_secs(1);
 /// Lines produced before the game's logger exists are kept and written by [`log_startup`].
 static STARTUP: Mutex<Option<Vec<String>>> = Mutex::new(Some(Vec::new()));
 static SANDBOX: OnceLock<Mutex<Sandbox>> = OnceLock::new();
+
+#[cfg(test)]
+static GUEST_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 fn emit(message: String) {
     let mut startup = STARTUP.lock().unwrap_or_else(|error| error.into_inner());
@@ -712,7 +718,7 @@ fn batch_range<'borrow>(invocation: &'borrow mut Invocation<'_>, start: u64) -> 
 
 impl ClientHost for GameHost {
     fn services(&mut self) -> Result<yoake_wasm::package_services::ServiceHandle, String> {
-        package::services(&self.id, horizon_mods::yak::ConfigRuntimeSide::Client, None)
+        package::services(&self.id, horizon_mods::yak::ConfigRuntimeSide::Client)
     }
     fn log(&mut self, target: &str, message: &str) -> Result<(), w::HostError> {
         let clean = |text: &str| -> String {
@@ -1038,6 +1044,7 @@ mod tests {
 
     #[test]
     fn wasm_hello_draws_through_the_hud_hook_slot() {
+        let _serial = GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(module) = load("yoake_wasm_hello.wasm", "hello", None) else {
             eprintln!("skipped: hello.wasm is not built");
             return;
@@ -1055,6 +1062,7 @@ mod tests {
 
     #[test]
     fn wasm_hot_reload_swaps_the_instance_at_the_next_tick() {
+        let _serial = GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let reload = Arc::new(Reload::default());
         let Some(module) = load("yoake_wasm_hello.wasm", "hello", Some(Arc::clone(&reload))) else {
             eprintln!("skipped: hello.wasm is not built");

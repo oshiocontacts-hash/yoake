@@ -425,13 +425,13 @@ impl Game<'_> {
                     self.integrated.is_some() || self.remote.is_none(),
                 ),
                 Event::ConfigSave(index) => {
-                    if let Err(error) = crate::entry::wasm_mods::package_ui::save(
+                    let result = crate::entry::wasm_mods::package_ui::save(
                         &self.settings,
                         index,
                         self.integrated.is_some() || self.remote.is_none(),
-                    ) {
-                        self.ui.options.resource_error = Some(error);
-                    }
+                    );
+                    let events = self.ui.options.finish_config_save(result);
+                    self.handle_option_events(events)?;
                 }
                 Event::NativeButton(i, b) => self.native_settings_event(i, b),
                 Event::Credits => self.open_win_screen(false, super::win::Finish::Options),

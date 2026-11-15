@@ -6,35 +6,96 @@ use horizon_mods::yak::ConfigRuntimeSide;
 use yoake_wasm::config_sync::Snapshot;
 use yoake_wasm::package_services::{PackageServices, ServiceHandle};
 
-static SERVICES: OnceLock<Mutex<BTreeMap<(String, bool), ServiceHandle>>> = OnceLock::new();
+#[derive(Default)]
+struct RegistryState {
+    handles: BTreeMap<(String, bool), ServiceHandle>,
+}
 
-pub(crate) fn services(
-    id: &str,
-    side: ConfigRuntimeSide,
-    world: Option<&Path>,
-) -> Result<ServiceHandle, String> {
+#[derive(Default)]
+struct Registry(Mutex<RegistryState>);
+
+static SERVICES: OnceLock<Registry> = OnceLock::new();
+
+impl Registry {
+    fn load(
+        &self,
+        id: &str,
+        side: ConfigRuntimeSide,
+        open: impl FnOnce() -> Result<PackageServices, String>,
+    ) -> Result<ServiceHandle, String> {
+        let key = (id.to_owned(), side == ConfigRuntimeSide::Server);
+        if let Some(handle) = self
+            .0
+            .lock()
+            .map_err(|_| "package services unavailable")?
+            .handles
+            .get(&key)
+            .cloned()
+        {
+            return Ok(handle);
+        }
+        let handle = Arc::new(Mutex::new(open()?));
+        let mut cache = self.0.lock().map_err(|_| "package services unavailable")?;
+        Ok(cache.handles.entry(key).or_insert(handle).clone())
+    }
+
+    fn bind_world(&self, id: &str, world: Option<&Path>) {
+        let handle = {
+            let Ok(cache) = self.0.lock() else { return };
+            cache.handles.get(&(id.into(), true)).cloned()
+        };
+        if let Some(handle) = handle
+            && let Ok(mut service) = handle.lock()
+        {
+            service.bind_world(world);
+        }
+    }
+}
+
+pub(super) fn bind_world(id: &str, world: Option<&Path>) {
+    if world.is_some() {
+        let _ = services(id, ConfigRuntimeSide::Server);
+    }
+    if let Some(registry) = SERVICES.get() {
+        registry.bind_world(id, world);
+    }
+}
+
+pub(super) fn abort_tickets(id: &str, side: ConfigRuntimeSide) {
+    let handle = SERVICES.get().and_then(|registry| {
+        registry
+            .0
+            .lock()
+            .ok()?
+            .handles
+            .get(&(id.into(), side == ConfigRuntimeSide::Server))
+            .cloned()
+    });
+    if let Some(handle) = handle
+        && let Ok(mut service) = handle.lock()
+    {
+        service.abort_all_tickets();
+    }
+}
+
+pub(crate) fn services(id: &str, side: ConfigRuntimeSide) -> Result<ServiceHandle, String> {
     if !crate::yak_mods::entries()
         .iter()
         .any(|entry| entry.manifest.id == id && entry.manifest.wasm.is_some())
     {
         return Err("not a WASM package".into());
     }
-    load(id, side, world, true)
+    load(id, side)
 }
 
 pub(crate) fn settings_services(
     id: &str,
     side: ConfigRuntimeSide,
 ) -> Result<ServiceHandle, String> {
-    load(id, side, None, false)
+    load(id, side)
 }
 
-fn load(
-    id: &str,
-    side: ConfigRuntimeSide,
-    world: Option<&Path>,
-    bind: bool,
-) -> Result<ServiceHandle, String> {
+fn load(id: &str, side: ConfigRuntimeSide) -> Result<ServiceHandle, String> {
     let entries = crate::yak_mods::entries();
     let entry = entries
         .iter()
@@ -47,78 +108,61 @@ fn load(
         .map(|wasm| wasm.permissions.as_slice())
         .unwrap_or_default();
     let root = crate::yak_mods::game_root().ok_or("package root unavailable")?;
-    let mut cache = SERVICES
-        .get_or_init(Default::default)
-        .lock()
-        .map_err(|_| "package services unavailable")?;
-    let handle = cache.entry((id.into(), side == ConfigRuntimeSide::Server));
-    let handle = match handle {
-        std::collections::btree_map::Entry::Occupied(entry) => entry.into_mut(),
-        std::collections::btree_map::Entry::Vacant(slot) => {
-            slot.insert(Arc::new(Mutex::new(PackageServices::open(
-                id,
-                capabilities,
-                &entry.manifest.config,
-                &entry.manifest.permissions,
-                side,
-                root,
-                world,
-            )?)))
-        }
-    };
-    if bind && side == ConfigRuntimeSide::Server {
-        handle
-            .lock()
-            .map_err(|_| "package services unavailable")?
-            .bind_world(world);
-    }
-    Ok(handle.clone())
+    SERVICES.get_or_init(Default::default).load(id, side, || {
+        PackageServices::open(
+            id,
+            capabilities,
+            &entry.manifest.config,
+            &entry.manifest.permissions,
+            side,
+            root,
+            None,
+        )
+    })
 }
 
-pub(crate) fn snapshots(world: Option<&Path>) -> Result<Vec<Snapshot>, String> {
+pub(crate) fn snapshots() -> Result<Vec<Snapshot>, String> {
+    collect_snapshots(
+        crate::yak_mods::entries()
+            .iter()
+            .filter(|entry| entry.has_synced_config())
+            .map(|entry| {
+                let handle = services(&entry.manifest.id, ConfigRuntimeSide::Server)?;
+                let (revision, data) = handle
+                    .lock()
+                    .map_err(|_| "package services unavailable")?
+                    .snapshot()?;
+                Ok(Snapshot {
+                    id: entry.manifest.id.clone(),
+                    revision,
+                    data,
+                })
+            }),
+    )
+}
+
+fn collect_snapshots(
+    candidates: impl Iterator<Item = Result<Snapshot, String>>,
+) -> Result<Vec<Snapshot>, String> {
     let mut snapshots = Vec::new();
     let mut total = 0usize;
-    for entry in crate::yak_mods::entries() {
-        let Some(wasm) = &entry.manifest.wasm else {
-            continue;
-        };
-        if wasm.server.is_none()
-            || !wasm
-                .permissions
-                .iter()
-                .any(|permission| permission == yoake_wasm::package_services::CONFIG_CAPABILITY)
-            || !entry
-                .manifest
-                .config
-                .values()
-                .any(|field| field.side == horizon_mods::yak::ConfigSide::Synced)
-        {
-            continue;
-        }
-        let handle = services(&entry.manifest.id, ConfigRuntimeSide::Server, world)?;
-        let (revision, data) = handle
-            .lock()
-            .map_err(|_| "package services unavailable")?
-            .snapshot()?;
+    for candidate in candidates {
+        let Ok(snapshot) = candidate else { continue };
         total = total
-            .checked_add(data.len())
+            .checked_add(snapshot.data.len())
             .ok_or("config sync aggregate limit exceeded")?;
         if total > yoake_wasm::config_sync::MAX_TOTAL_BYTES
             || snapshots.len() >= yoake_wasm::config_sync::MAX_MODS
         {
             return Err("config sync aggregate limit exceeded".into());
         }
-        snapshots.push(Snapshot {
-            id: entry.manifest.id.clone(),
-            revision,
-            data: Arc::new(data),
-        });
+        snapshots.push(snapshot);
     }
     Ok(snapshots)
 }
 
 pub(crate) fn apply_snapshot(id: &str, data: &[u8]) -> Result<(), String> {
-    let handle = services(id, ConfigRuntimeSide::Client, None)?;
+    let handle = services(id, ConfigRuntimeSide::Client)?;
     let mut service = handle.lock().map_err(|_| "package services unavailable")?;
     service.require(yoake_wasm::package_services::CONFIG_CAPABILITY)?;
     service.apply_snapshot(data)
@@ -128,12 +172,166 @@ pub(crate) fn clear_snapshots() {
     let Some(cache) = SERVICES.get() else {
         return;
     };
-    let Ok(cache) = cache.lock() else {
+    let Ok(cache) = cache.0.lock() else {
         return;
     };
-    for ((_, server), handle) in cache.iter() {
-        if !server && let Ok(mut service) = handle.lock() {
+    let handles: Vec<_> = cache
+        .handles
+        .iter()
+        .filter(|((_, server), _)| !server)
+        .map(|(_, handle)| handle.clone())
+        .collect();
+    drop(cache);
+    for handle in handles {
+        if let Ok(mut service) = handle.lock() {
             service.clear_snapshot();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use yoake_wasm::server_types::StorageScope;
+
+    struct Scratch(PathBuf);
+
+    impl Scratch {
+        fn new() -> Self {
+            static NEXT: AtomicU64 = AtomicU64::new(0);
+            let root = std::env::temp_dir().join(format!(
+                "yoake-registry-{}-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos(),
+                NEXT.fetch_add(1, Ordering::Relaxed),
+            ));
+            std::fs::create_dir(&root).unwrap();
+            Self(root.canonicalize().unwrap())
+        }
+
+        fn open(&self) -> Result<PackageServices, String> {
+            PackageServices::open(
+                "sample-mod",
+                &["service.storage".into()],
+                &BTreeMap::new(),
+                &BTreeMap::new(),
+                ConfigRuntimeSide::Server,
+                &self.0,
+                None,
+            )
+        }
+    }
+
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn registry_does_not_hold_map_lock_during_open_or_handle_use() {
+        let root = Scratch::new();
+        let registry = Registry::default();
+        let handle = registry
+            .load("sample-mod", ConfigRuntimeSide::Server, || {
+                assert!(registry.0.try_lock().is_ok());
+                root.open()
+            })
+            .unwrap();
+        let _service = handle.lock().unwrap();
+        let cached = registry
+            .load("sample-mod", ConfigRuntimeSide::Server, || {
+                panic!("a cached service must not reopen its config");
+            })
+            .unwrap();
+        assert!(Arc::ptr_eq(&handle, &cached));
+        assert!(registry.0.try_lock().is_ok());
+    }
+
+    #[test]
+    fn registry_keeps_the_winner_of_a_double_checked_insert() {
+        let root = Scratch::new();
+        let registry = Registry::default();
+        let mut inserted = None;
+        let handle = registry
+            .load("sample-mod", ConfigRuntimeSide::Server, || {
+                inserted =
+                    Some(registry.load("sample-mod", ConfigRuntimeSide::Server, || root.open())?);
+                root.open()
+            })
+            .unwrap();
+        assert!(Arc::ptr_eq(&handle, inserted.as_ref().unwrap()));
+        assert_eq!(registry.0.lock().unwrap().handles.len(), 1);
+    }
+
+    #[test]
+    fn nonbinding_access_preserves_world_store_and_pending_blob() {
+        let root = Scratch::new();
+        let registry = Registry::default();
+        let handle = registry
+            .load("sample-mod", ConfigRuntimeSide::Server, || root.open())
+            .unwrap();
+        registry.bind_world("sample-mod", Some(&root.0));
+        let ticket = handle
+            .lock()
+            .unwrap()
+            .storage_blob_begin("blob", StorageScope::World, 4)
+            .unwrap();
+        for _ in 0..3 {
+            let service = registry
+                .load("sample-mod", ConfigRuntimeSide::Server, || root.open())
+                .unwrap();
+            assert!(Arc::ptr_eq(&handle, &service));
+        }
+        {
+            let mut service = handle.lock().unwrap();
+            service.storage_blob_write(b"kept", ticket, 0).unwrap();
+            service.storage_blob_commit(ticket).unwrap();
+            assert_eq!(
+                service.storage_get("blob", StorageScope::World).unwrap(),
+                Some(b"kept".to_vec())
+            );
+        }
+        registry.bind_world("sample-mod", None);
+        assert!(
+            handle
+                .lock()
+                .unwrap()
+                .storage_get("blob", StorageScope::World)
+                .is_err()
+        );
+        registry.bind_world("sample-mod", Some(&root.0));
+        assert_eq!(
+            handle
+                .lock()
+                .unwrap()
+                .storage_get("blob", StorageScope::World)
+                .unwrap(),
+            Some(b"kept".to_vec())
+        );
+    }
+
+    #[test]
+    fn a_failing_snapshot_does_not_hide_healthy_mods() {
+        let snapshots = collect_snapshots(
+            [
+                Err("invalid config".to_owned()),
+                Ok(Snapshot {
+                    id: "healthy-mod".into(),
+                    revision: 7,
+                    data: Arc::new(b"healthy".to_vec()),
+                }),
+            ]
+            .into_iter(),
+        )
+        .unwrap();
+        assert_eq!(snapshots.len(), 1);
+        assert_eq!(snapshots[0].id, "healthy-mod");
+        assert_eq!(snapshots[0].revision, 7);
     }
 }
