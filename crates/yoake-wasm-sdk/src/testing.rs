@@ -1,4 +1,9 @@
-use alloc::{format, string::String};
+use alloc::{format, string::String, vec::Vec};
+
+/// Test modules run by the engine (`yoake test`): the host-backed [`TestDriver`] and `export_tests!`.
+/// Needs the SDK feature `test`.
+#[cfg(feature = "test")]
+pub mod engine;
 
 pub type TestResult = Result<(), String>;
 
@@ -9,11 +14,52 @@ pub struct BlockPos {
     pub z: i32,
 }
 
+/// What a test may do to its world. [`engine::HostDriver`] (feature `test`) runs it in the game; a
+/// mock implements it for `cargo test`. The methods after `run_ticks` have defaults that answer
+/// "unsupported", so a mock implements only what its tests use.
 pub trait TestDriver {
     fn place_block(&mut self, position: BlockPos, block: &str) -> TestResult;
     fn block_at(&mut self, position: BlockPos) -> Result<String, String>;
     fn spawn_entity(&mut self, kind: &str, position: BlockPos) -> Result<u64, String>;
     fn run_ticks(&mut self, ticks: u32) -> TestResult;
+
+    /// Breaks the block as a player would (drops included).
+    fn break_block(&mut self, position: BlockPos) -> TestResult {
+        let _ = position;
+        Err(String::from("unsupported: break_block"))
+    }
+    /// Spawns a fake player (a mannequin carrying `name`) and returns its entity id.
+    fn spawn_fake_player(&mut self, name: &str, position: BlockPos) -> Result<u64, String> {
+        let _ = (name, position);
+        Err(String::from("unsupported: spawn_fake_player"))
+    }
+    /// Runs a server command as the console; whether it succeeded.
+    fn run_command(&mut self, command: &str) -> Result<bool, String> {
+        let _ = command;
+        Err(String::from("unsupported: run_command"))
+    }
+    /// Calls another loaded server module's `handle-call` (the mod under test, usually).
+    fn mod_call(&mut self, target: &str, method: &str, payload: &[u8]) -> Result<Vec<u8>, String> {
+        let _ = (target, method, payload);
+        Err(String::from("unsupported: mod_call"))
+    }
+    /// The kinds of the entities within `radius` blocks of `position`.
+    fn entities_near(&mut self, position: BlockPos, radius: f64) -> Result<Vec<String>, String> {
+        let _ = (position, radius);
+        Err(String::from("unsupported: entities_near"))
+    }
+    /// The names of the players on the server, the world's owner first.
+    fn player_names(&mut self) -> Result<Vec<String>, String> {
+        Err(String::from("unsupported: player_names"))
+    }
+    /// The server ticks the world has run since the test began.
+    fn tick(&mut self) -> u64 {
+        0
+    }
+    /// A line for the test log.
+    fn log(&mut self, message: &str) {
+        let _ = message;
+    }
 }
 
 pub struct TestWorld<'driver> {
@@ -39,6 +85,57 @@ impl<'driver> TestWorld<'driver> {
 
     pub fn run_ticks(&mut self, ticks: u32) -> TestResult {
         self.driver.run_ticks(ticks)
+    }
+
+    pub fn break_block(&mut self, position: BlockPos) -> TestResult {
+        self.driver.break_block(position)
+    }
+
+    pub fn spawn_fake_player(&mut self, name: &str, position: BlockPos) -> Result<u64, String> {
+        self.driver.spawn_fake_player(name, position)
+    }
+
+    pub fn run_command(&mut self, command: &str) -> Result<bool, String> {
+        self.driver.run_command(command)
+    }
+
+    /// Runs `command` and fails the test when the server says it did not succeed.
+    pub fn assert_command(&mut self, command: &str) -> TestResult {
+        if self.driver.run_command(command)? {
+            Ok(())
+        } else {
+            Err(format!("command did not succeed: {command}"))
+        }
+    }
+
+    pub fn mod_call(&mut self, target: &str, method: &str, payload: &[u8]) -> Result<Vec<u8>, String> {
+        self.driver.mod_call(target, method, payload)
+    }
+
+    pub fn entities_near(&mut self, position: BlockPos, radius: f64) -> Result<Vec<String>, String> {
+        self.driver.entities_near(position, radius)
+    }
+
+    pub fn player_names(&mut self) -> Result<Vec<String>, String> {
+        self.driver.player_names()
+    }
+
+    pub fn tick(&mut self) -> u64 {
+        self.driver.tick()
+    }
+
+    pub fn log(&mut self, message: &str) {
+        self.driver.log(message)
+    }
+
+    /// Fails unless exactly `count` entities of `kind` are within `radius` blocks of `position`.
+    pub fn assert_entity_count(&mut self, kind: &str, position: BlockPos, radius: f64, count: usize) -> TestResult {
+        let actual = self.driver.entities_near(position, radius)?.iter().filter(|found| *found == kind).count();
+        if actual == count {
+            Ok(())
+        } else {
+            Err(format!("entities {kind:?} near {position:?}: expected {count}, got {actual}"))
+        }
     }
 
     pub fn assert_block(&mut self, position: BlockPos, expected: &str) -> TestResult {

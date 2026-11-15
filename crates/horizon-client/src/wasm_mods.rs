@@ -13,6 +13,9 @@
 mod full;
 #[path = "wasm_mods/server_services.rs"]
 mod server_services;
+// Test mode only (`--yoake-test`): the operations of the engine test driver (`yoake_test.rs`).
+#[path = "wasm_mods/test_driver.rs"]
+pub(super) mod test_driver;
 
 use super::dll_mods::{frame_time, native_identity, safe_component, StaticMod};
 use crate::mod_api::*;

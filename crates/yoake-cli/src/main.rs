@@ -1,3 +1,4 @@
+mod engine_test;
 mod scaffold;
 #[cfg(test)]
 mod tests;
@@ -16,7 +17,7 @@ use yoake_wasm::{ClientFullMod, ClientHost, ClientMod, Sandbox, ServerFullMod, S
 
 type Result<T> = std::result::Result<T, String>;
 const FULL_UNWIRED: &[&str] = &["input_key", "item_model_select"];
-const USAGE: &str = "usage: yoake new <minigame|hud-only|custom-mob|utility|script> <name> | yoake <build|pack|check|dev>";
+const USAGE: &str = "usage: yoake new <minigame|hud-only|custom-mob|utility|script> <name> | yoake <build|pack|check|dev> | yoake test [--game EXE] [--filter TEXT] [--timeout-ms N] [--module WASM] [--keep] [-- GAME-ARGS...]";
 const CHECK_HELP: &str = "yoake check validates existing Wasm modules without rebuilding them; if src/**, Cargo.toml or yak.toml is newer, run yoake build first";
 
 fn main() {
@@ -76,6 +77,7 @@ fn run(arguments: &[String]) -> Result<serde_json::Value> {
             Ok(json!({"ok": true, "errors": [], "path": path.display().to_string()}))
         }
         [command, rest @ ..] if command == "dev" => Ok(dev(rest)),
+        [command, rest @ ..] if command == "test" => engine_test::test_command(rest),
         [command] if command == "build" || command == "pack" || command == "check" => {
             let root = env::current_dir().map_err(|error| error.to_string())?;
             process_project(&root, command, build)
@@ -115,25 +117,32 @@ fn build(root: &Path, manifest: &Manifest) -> Result<()> {
     for (side, path) in modules {
         let destination = root.join(path);
         check_plain_path(&destination)?;
-        let mut command = Command::new("cargo");
-        command.current_dir(root).args(["build", "--release", "--target", "wasm32-wasip2", "--target-dir"]).arg(&target);
-        if multi_module {
-            command.args(["--features", side]);
-        }
-        let build_started = SystemTime::now();
-        let output = command.output().map_err(|error| format!("could not start cargo: {error}"))?;
-        eprint!("{}", String::from_utf8_lossy(&output.stdout));
-        if !output.status.success() {
-            return Err(format!("cargo build for {side} failed: {}", String::from_utf8_lossy(&output.stderr)));
-        }
-        eprint!("{}", String::from_utf8_lossy(&output.stderr));
-        let parent = destination.parent().ok_or("module has no parent directory")?;
-        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-        fs::copy(&artifact, &destination).map_err(|error| format!("{}: {error}", artifact.display()))?;
-        File::options().write(true).open(&destination)
-            .and_then(|file| file.set_modified(build_started))
-            .map_err(|error| format!("{}: {error}", destination.display()))?;
+        cargo_wasm(root, &target, multi_module.then_some(side), side, &artifact, &destination)?;
     }
+    Ok(())
+}
+
+/// Builds the crate for `wasm32-wasip2` (with the Cargo feature `features`, if any) and copies the artifact to
+/// `destination`, dating it from the start of the build so `yoake check` sees it as fresh.
+fn cargo_wasm(root: &Path, target: &Path, features: Option<&str>, label: &str, artifact: &Path, destination: &Path) -> Result<()> {
+    let mut command = Command::new("cargo");
+    command.current_dir(root).args(["build", "--release", "--target", "wasm32-wasip2", "--target-dir"]).arg(target);
+    if let Some(features) = features {
+        command.args(["--features", features]);
+    }
+    let build_started = SystemTime::now();
+    let output = command.output().map_err(|error| format!("could not start cargo: {error}"))?;
+    eprint!("{}", String::from_utf8_lossy(&output.stdout));
+    if !output.status.success() {
+        return Err(format!("cargo build for {label} failed: {}", String::from_utf8_lossy(&output.stderr)));
+    }
+    eprint!("{}", String::from_utf8_lossy(&output.stderr));
+    let parent = destination.parent().ok_or("module has no parent directory")?;
+    fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    fs::copy(artifact, destination).map_err(|error| format!("{}: {error}", artifact.display()))?;
+    File::options().write(true).open(destination)
+        .and_then(|file| file.set_modified(build_started))
+        .map_err(|error| format!("{}: {error}", destination.display()))?;
     Ok(())
 }
 
@@ -279,7 +288,7 @@ fn dev(arguments: &[String]) -> serde_json::Value {
         .filter(|value| !value.is_empty())
         .map(PathBuf::from);
     dev_project(&root, directory.as_deref(), build,
-        |root, manifest| check(root, manifest).map(|_| ()), install_for_reload)
+        |root, manifest| check(root, manifest).map(|_| ()), install_for_reload, engine_test::dev_tests)
 }
 
 fn dev_error(error: &str) -> serde_json::Value {
@@ -293,8 +302,10 @@ fn dev_project(
     build_project: impl FnOnce(&Path, &Manifest) -> Result<()>,
     check_project: impl FnOnce(&Path, &Manifest) -> Result<()>,
     install: impl FnOnce(&Path, &Manifest, &Path) -> Result<()>,
+    run_tests: impl FnOnce(&Path, &Manifest) -> Result<engine_test::TestRun>,
 ) -> serde_json::Value {
     let mut built = false;
+    let mut tests = Vec::new();
     let mut checked = false;
     let mut installed = false;
     let mut errors = Vec::new();
@@ -318,12 +329,17 @@ fn dev_project(
         } else {
             notes.push("YOAKE_WASM_DEV_DIR is unset; not installed".to_owned());
         }
+        // The engine's test runner (`yoake test`): its failures are errors, so `ok` is false.
+        let run = run_tests(root, &manifest)?;
+        tests = run.tests;
+        notes.extend(run.notes);
+        errors.extend(run.errors);
         Ok(())
     })();
     if let Err(error) = result {
         errors.push(explain_error(&error));
     }
     json!({"ok": errors.is_empty(), "built": built, "checked": checked,
-        "installed": installed, "errors": errors, "notes": notes, "tests": [],
+        "installed": installed, "errors": errors, "notes": notes, "tests": tests,
         "wasm_needs": wasm_needs})
 }

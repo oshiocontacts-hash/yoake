@@ -21,6 +21,8 @@ pub struct Guest {
 
 pub const HELLO: Guest = Guest { name: "hello", example: "hello", features: "", artifact: "yoake_wasm_hello.wasm" };
 pub const HELLO_STD: Guest = Guest { name: "hello-std", example: "hello-std", features: "", artifact: "yoake_wasm_hello_std.wasm" };
+/// A test module (world `test-mod`): passes, fails, traps and spins.
+pub const TEST_DEMO: Guest = Guest { name: "test-demo", example: "test-demo", features: "", artifact: "yoake_wasm_test_demo.wasm" };
 pub const FULL_DEMO_CLIENT: Guest =
     Guest { name: "full-demo-client", example: "full-demo", features: "client", artifact: "yoake_wasm_full_demo.wasm" };
 pub const FULL_DEMO_SERVER: Guest =

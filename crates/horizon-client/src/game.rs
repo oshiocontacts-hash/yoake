@@ -392,6 +392,7 @@ mod win;
 mod wind;
 mod wither;
 mod world_loading;
+mod yoake_tests;
 mod zombie_reinforcements;
 mod zombie_villagers;
 use event_loop::EventLoopCtl;
@@ -586,6 +587,8 @@ struct Options {
     session_file: Option<String>,
     /// `--session-stdin`: the session file's JSON comes on standard input instead.
     session_stdin: bool,
+    /// `--yoake-test-run` and its companions: this process is a worker of `yoake test` (`yoake_test.rs`).
+    yoake_test: yoake_test_runner::WorkerArgs,
 }
 impl Options {
     /// The name to join servers with: the one given, else the offline name kept
@@ -713,6 +716,7 @@ impl Options {
             quick_play: None,
             session_file: std::env::var("HORIZON_SESSION_FILE").ok(),
             session_stdin: false,
+            yoake_test: yoake_test_runner::WorkerArgs::default(),
         };
         while let Some(arg) = args.next() {
             match arg.as_str() {
@@ -822,6 +826,9 @@ impl Options {
                             "--name" => o.player_name = Some(value),
                             "--session-file" => o.session_file = Some(value),
                             "--control-socket" => o.control = Some(value.into()),
+                            flag if yoake_test_runner::WorkerArgs::is_flag(flag) => {
+                                o.yoake_test.set(flag, value)?;
+                            }
                             "--time" => o.time = Some(value.parse()?),
                             "--weather" => o.weather = Some(value),
                             "--dimension" => {
@@ -843,6 +850,11 @@ impl Options {
                     read().map_err(|e| format!("{arg}: {e}"))?;
                 }
             }
+        }
+        // Test mode is a single-player worker: never a dedicated server (which also takes the rest of the line).
+        o.yoake_test.validate()?;
+        if o.yoake_test.is_active() && o.dedicated.is_some() {
+            return Err("--yoake-test-run cannot be used with --dedicated".into());
         }
         Ok(Some(o))
     }

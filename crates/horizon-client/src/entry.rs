@@ -23,6 +23,8 @@ pub fn main() {
 /// Start with trait mods in dispatch order but no native identities: the multiplayer check
 /// can't see them. Native bundles should use [`main_with_native`].
 pub fn main_with(mods: crate::mod_api::Mods) {
+    // `--yoake-test`: this process is the test coordinator and never starts the game (nothing otherwise).
+    crate::yoake_test::coordinator_requested();
     if !mods.is_empty() {
         eprintln!("Native hooks without identities; the multiplayer mod check can't see them");
     }
@@ -36,6 +38,7 @@ pub fn main_with(mods: crate::mod_api::Mods) {
 
 /// Start with hook objects and the build-time identities of every native bundle.
 pub fn main_with_native(mods: crate::mod_api::Mods, identities: &'static [NativeMod]) {
+    crate::yoake_test::coordinator_requested();
     assert!(
         identities.len() >= mods.len(),
         "Missing native mod identities"
@@ -248,6 +251,15 @@ fn run(mods: crate::mod_api::Mods) {
         });
     }
     logging::flush();
+}
+
+/// Test mode: one operation of the test driver, run on the integrated server thread with the game's own
+/// server services (see `yoake_test.rs`).
+pub(crate) fn run_test_op(
+    host: &mut dyn crate::mod_api::Host,
+    op: yoake_test_runner::Op,
+) -> Result<yoake_test_runner::Reply, String> {
+    wasm_mods::test_driver::execute(host, op)
 }
 
 /// The JVM raises its open-file limit to the hard limit as it starts

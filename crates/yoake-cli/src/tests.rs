@@ -214,6 +214,8 @@ fn bundled_sdk_contains_wit_and_macro_sources() {
     assert!(sdk.join("test-macros/src/lib.rs").is_file());
     assert!(sdk.join("../yoake-wasm/wit/yoake-mod.wit").is_file());
     assert!(sdk.join("../yoake-wasm/wit/yoake-full.wit").is_file());
+    assert!(sdk.join("../yoake-wasm/wit/yoake-test.wit").is_file());
+    assert!(sdk.join("src/testing/engine.rs").is_file());
 }
 
 #[test]
@@ -422,7 +424,7 @@ fn dev_reports_success_when_hot_reload_is_unavailable() {
         let project = Project::new("dev-unavailable", client, server, world);
         let directory = directory.map(|name| project.root.join(name));
         let result = dev_project(&project.root, directory.as_deref(), |_, _| Ok(()), |_, _| Ok(()),
-            |_, _, _| panic!("unsupported reload attempted"));
+            |_, _, _| panic!("unsupported reload attempted"), |_, _| Ok(engine_test::TestRun::default()));
         assert_eq!(result["ok"], true);
         assert_eq!(result["built"], true);
         assert_eq!(result["checked"], true);
@@ -435,16 +437,16 @@ fn dev_reports_success_when_hot_reload_is_unavailable() {
 fn dev_reports_each_stage_and_failure() {
     let project = Project::new("dev-stages", Some(b"guest"), None, None);
     let directory = project.root.join("reload");
-    let success = dev_project(&project.root, Some(&directory), |_, _| Ok(()), |_, _| Ok(()), |_, _, _| Ok(()));
+    let success = dev_project(&project.root, Some(&directory), |_, _| Ok(()), |_, _| Ok(()), |_, _, _| Ok(()), |_, _| Ok(engine_test::TestRun::default()));
     assert_eq!((success["ok"].as_bool(), success["built"].as_bool(), success["checked"].as_bool(), success["installed"].as_bool()),
         (Some(true), Some(true), Some(true), Some(true)));
-    let failed_build = dev_project(&project.root, Some(&directory), |_, _| Err("build failed".into()), |_, _| Ok(()), |_, _, _| Ok(()));
+    let failed_build = dev_project(&project.root, Some(&directory), |_, _| Err("build failed".into()), |_, _| Ok(()), |_, _, _| Ok(()), |_, _| Ok(engine_test::TestRun::default()));
     assert_eq!((failed_build["ok"].as_bool(), failed_build["built"].as_bool(), failed_build["checked"].as_bool()),
         (Some(false), Some(false), Some(false)));
-    let failed_check = dev_project(&project.root, Some(&directory), |_, _| Ok(()), |_, _| Err("check failed".into()), |_, _, _| Ok(()));
+    let failed_check = dev_project(&project.root, Some(&directory), |_, _| Ok(()), |_, _| Err("check failed".into()), |_, _, _| Ok(()), |_, _| Ok(engine_test::TestRun::default()));
     assert_eq!((failed_check["ok"].as_bool(), failed_check["built"].as_bool(), failed_check["checked"].as_bool()),
         (Some(false), Some(true), Some(false)));
-    let failed_install = dev_project(&project.root, Some(&directory), |_, _| Ok(()), |_, _| Ok(()), |_, _, _| Err("install failed".into()));
+    let failed_install = dev_project(&project.root, Some(&directory), |_, _| Ok(()), |_, _| Ok(()), |_, _, _| Err("install failed".into()), |_, _| Ok(engine_test::TestRun::default()));
     assert_eq!((failed_install["ok"].as_bool(), failed_install["built"].as_bool(), failed_install["checked"].as_bool(), failed_install["installed"].as_bool()),
         (Some(false), Some(true), Some(true), Some(false)));
 }
@@ -502,4 +504,121 @@ fn scaffold_failure_removes_staging_without_creating_target() {
     assert!(result.unwrap_err().contains("synthetic failure"));
     assert!(!project.root.join("fresh").exists());
     assert!(fs::read_dir(&project.root).unwrap().all(|entry| !entry.unwrap().file_name().to_string_lossy().starts_with(".yoake-fresh-")));
+}
+
+// ---------------------------------------------------------------------------------------------
+// yoake test: the engine's test runner
+// ---------------------------------------------------------------------------------------------
+
+use engine_test::{TestRun, TestSettings};
+
+fn strings(list: &[&str]) -> Vec<String> {
+    list.iter().map(|text| (*text).to_owned()).collect()
+}
+
+#[test]
+fn test_options_are_read_and_the_game_comes_from_the_flag_or_the_environment() {
+    let settings = engine_test::parse(&strings(&["--game", "g.exe", "--filter", "place", "--timeout-ms", "5000", "--keep", "--module", "t.wasm", "--", "--resources", "res"])).unwrap();
+    assert_eq!(settings, TestSettings {
+        game: Some("g.exe".into()), module: Some("t.wasm".into()), filter: Some("place".into()),
+        timeout_ms: Some("5000".into()), keep: true, extra: strings(&["--resources", "res"]),
+    });
+    assert!(engine_test::parse(&strings(&["--bogus"])).unwrap_err().contains("unknown option"));
+    assert!(engine_test::parse(&strings(&["--game"])).unwrap_err().contains("missing value"));
+    assert_eq!(engine_test::game_executable(&settings, Some(OsStr::new("env.exe"))), Some("g.exe".into()), "the flag wins");
+    let none = TestSettings::default();
+    assert_eq!(engine_test::game_executable(&none, Some(OsStr::new("env.exe"))), Some("env.exe".into()));
+    assert_eq!(engine_test::game_executable(&none, Some(OsStr::new(""))), None);
+    assert_eq!(engine_test::game_executable(&none, None), None);
+}
+
+#[test]
+fn the_games_report_is_its_last_json_line_and_failures_become_errors() {
+    let report = engine_test::parse_report("noise\n{\"ok\":false,\"tests\":[{\"name\":\"a\",\"ok\":true,\"ms\":3},{\"name\":\"b\",\"ok\":false,\"ms\":4,\"error\":\"expected stone\"}],\"errors\":[]}\n").unwrap();
+    let run = engine_test::summarize(&report);
+    assert_eq!(run.tests.len(), 2);
+    assert_eq!(run.errors, ["test b failed: expected stone"]);
+    assert!(engine_test::parse_report("no json here\n").unwrap_err().contains("no report"));
+    assert!(engine_test::parse_report("{broken\n").unwrap_err().contains("not JSON"));
+    // Set-up errors and notes come through; a failed run with no detail still says so.
+    let run = engine_test::summarize(&serde_json::json!({"ok": false, "errors": ["no game"], "tests": []}));
+    assert_eq!(run.errors, ["no game"]);
+    let run = engine_test::summarize(&serde_json::json!({"ok": true, "tests": [], "note": "no test matches the filter"}));
+    assert!(run.errors.is_empty());
+    assert_eq!(run.notes, ["no test matches the filter"]);
+    assert_eq!(engine_test::summarize(&serde_json::json!({"ok": false})).errors, ["the game reported a failed run"]);
+}
+
+#[test]
+fn dev_fills_the_tests_and_fails_when_one_fails() {
+    let project = Project::new("dev-tests", Some(b"guest"), None, None);
+    let directory = project.root.join("reload");
+    let passing = dev_project(&project.root, Some(&directory), |_, _| Ok(()), |_, _| Ok(()), |_, _, _| Ok(()), |_, _| {
+        Ok(TestRun { tests: vec![serde_json::json!({"name": "a", "ok": true, "ms": 5})], ..TestRun::default() })
+    });
+    assert_eq!(passing["ok"], true);
+    assert_eq!(passing["tests"], serde_json::json!([{"name": "a", "ok": true, "ms": 5}]));
+    let failing = dev_project(&project.root, Some(&directory), |_, _| Ok(()), |_, _| Ok(()), |_, _, _| Ok(()), |_, _| {
+        Ok(TestRun {
+            tests: vec![serde_json::json!({"name": "b", "ok": false, "ms": 1, "error": "boom"})],
+            errors: vec!["test b failed: boom".into()],
+            notes: Vec::new(),
+        })
+    });
+    assert_eq!(failing["ok"], false);
+    assert_eq!(failing["built"], true);
+    assert_eq!(failing["tests"][0]["name"], "b");
+    assert_eq!(failing["errors"], serde_json::json!(["test b failed: boom"]));
+    // The runner itself failing (no report) is an error of the run, with the tests left empty.
+    let broken = dev_project(&project.root, Some(&directory), |_, _| Ok(()), |_, _| Ok(()), |_, _, _| Ok(()), |_, _| Err("the game printed no report".into()));
+    assert_eq!(broken["ok"], false);
+    assert_eq!(broken["tests"], serde_json::json!([]));
+}
+
+#[test]
+fn a_project_without_tests_says_so_and_a_missing_game_is_a_note() {
+    let project = Project::new("dev-no-tests", Some(b"guest"), None, None);
+    let manifest = read_manifest(&project.root).unwrap();
+    // No Cargo.toml, no test module: a note, not a failure.
+    let run = engine_test::dev_tests(&project.root, &manifest).unwrap();
+    assert!(run.tests.is_empty() && run.errors.is_empty());
+    assert!(run.notes[0].contains("no tests"), "{:?}", run.notes);
+    assert_eq!(engine_test::build_module(&project.root, &manifest, None).unwrap(), None);
+    // The module is at its conventional path: it is found without a build.
+    let module = engine_test::module_path(&project.root, &manifest);
+    assert_eq!(module.file_name().unwrap(), "dev-no-tests-tests.wasm");
+    assert_eq!(module.parent().unwrap().file_name().unwrap(), "wasm");
+    fs::create_dir_all(module.parent().unwrap()).unwrap();
+    fs::write(&module, b"component").unwrap();
+    assert_eq!(engine_test::build_module(&project.root, &manifest, None).unwrap(), Some(module.clone()));
+    // A module that is given must exist.
+    assert!(engine_test::build_module(&project.root, &manifest, Some(&project.root.join("nope.wasm"))).is_err());
+    assert_eq!(engine_test::build_module(&project.root, &manifest, Some(&module)).unwrap(), Some(module));
+}
+
+/// The stand-in for the game in `the_game_is_started_with_the_runner_flags`: this test binary started with
+/// `--exact tests::fake_engine --nocapture --` (the arguments the game would get follow, as test filters).
+/// It prints a report that echoes its arguments. Run normally (no `--yoake-test`) it does nothing.
+#[test]
+fn fake_engine() {
+    let arguments: Vec<String> = env::args().collect();
+    let Some(at) = arguments.iter().position(|argument| argument == "--yoake-test") else { return };
+    let rest = arguments[at..].join(" ");
+    println!("a progress line");
+    println!("{}", json!({"ok": true, "tests": [{"name": "echo", "ok": true, "ms": 1, "error": rest}], "errors": []}));
+}
+
+#[test]
+fn the_game_is_started_with_the_runner_flags() {
+    let settings = TestSettings {
+        filter: Some("place".into()), timeout_ms: Some("900".into()), keep: true, extra: strings(&["--resources", "res"]), ..TestSettings::default()
+    };
+    let lead = strings(&["--exact", "tests::fake_engine", "--nocapture", "--"]);
+    let report = engine_test::run_game(Path::new("project"), &env::current_exe().unwrap(), &lead, Path::new("t.wasm"), &settings).unwrap();
+    assert_eq!(
+        report["tests"][0]["error"],
+        "--yoake-test project --yoake-test-module t.wasm --yoake-test-filter place --yoake-test-timeout-ms 900 --yoake-test-keep --resources res"
+    );
+    let missing = engine_test::run_game(Path::new("project"), Path::new("no/such/game"), &[], Path::new("t.wasm"), &settings).unwrap_err();
+    assert!(missing.contains("could not start"), "{missing}");
 }

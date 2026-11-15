@@ -1085,6 +1085,10 @@ impl Game<'_> {
         }
         // The server thread's `WorldOpenReady` site, before the tick loop.
         self.native_lifecycle_world_ready();
+        // `--yoake-test-run`: the test module starts once the world is up (a worker of `yoake test`).
+        if self.options.yoake_test.is_active() {
+            crate::yoake_test::start_worker(self.options.yoake_test.clone());
+        }
         if let (Some(script), Some(output)) = (
             std::env::var_os("HORIZON_COMMAND_SCRIPT"),
             std::env::var_os("HORIZON_COMMAND_OUTPUT"),
@@ -1099,6 +1103,7 @@ impl Game<'_> {
         let mut was_paused = false;
         while !flags.stop.load(Ordering::Relaxed) {
             self.run_tasks();
+            self.pump_yoake_test();
             #[cfg(feature = "dev-capture")]
             if self.capture_server_iteration()? {
                 next = Instant::now();
@@ -1126,6 +1131,7 @@ impl Game<'_> {
                 self.follow_distances(&flags);
                 let started = Instant::now();
                 self.tick_server_timed(false)?;
+                self.yoake_test_tick_done();
                 // MinecraftServer.tickServer's tick times, for /tick query.
                 self.clock.record(started.elapsed());
                 self.debug_charts.log_tick(started, started.elapsed());
@@ -1141,7 +1147,12 @@ impl Game<'_> {
             }
             self.apply_publish();
             self.publish_load_view();
-            self.wait_for_next_server_tick(&mut next, paused);
+            if crate::yoake_test::ticking_fast() {
+                // A test waits for ticks: the next one at once, as `/tick sprint` does.
+                next = Instant::now();
+            } else {
+                self.wait_for_next_server_tick(&mut next, paused);
+            }
         }
         self.stop_integrated()
     }

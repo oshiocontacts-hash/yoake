@@ -15,6 +15,7 @@ pub mod full_bindings;
 mod host;
 mod hook_names;
 mod subscriptions;
+mod test_mod;
 #[cfg(feature = "test-guests")]
 pub mod test_guests;
 mod wasi;
@@ -33,6 +34,7 @@ pub use full_hook_names::{FULL_HOOKS as FULL_HOOK_LIST, HookSide};
 pub use subscriptions::FullWorld;
 
 pub use subscriptions::Subscriptions;
+pub use test_mod::{TestHost, TestMod, TestOutcome, test_driver, validate_test_names};
 pub use wasi::{OutputLine, OutputStream, WASI_IMPORT_INTERFACES};
 
 pub const MEMORY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
@@ -129,6 +131,16 @@ impl Sandbox {
     }
 
     pub fn compile(&mut self, bytes: &[u8]) -> Result<CompiledComponent, String> {
+        self.compile_as(bytes, false)
+    }
+
+    /// Compiles a *test module* (world `test-mod`): the only compile that accepts the `test-driver`
+    /// import. Only [`TestMod`] calls this; a mod's components go through [`Sandbox::compile`].
+    pub(crate) fn compile_test(&mut self, bytes: &[u8]) -> Result<CompiledComponent, String> {
+        self.compile_as(bytes, true)
+    }
+
+    fn compile_as(&mut self, bytes: &[u8], test_module: bool) -> Result<CompiledComponent, String> {
         if self.runtime.is_none() {
             self.runtime = Some(Arc::new(RuntimeEngine::new()?));
         }
@@ -136,13 +148,16 @@ impl Sandbox {
         let component = Component::new(&runtime.engine, bytes)
             .map_err(|error| format!("not a valid component: {error:#}"))?;
         for (name, _) in component.component_type().imports(&runtime.engine) {
-            check_import(name)?;
+            check_import(name, test_module)?;
         }
         Ok(CompiledComponent { runtime, component })
     }
 }
 
-fn check_import(name: &str) -> Result<(), String> {
+/// The interface only a test module may import (`wit/yoake-test.wit`).
+const TEST_INTERFACE: &str = "test-driver";
+
+fn check_import(name: &str, test_module: bool) -> Result<(), String> {
     if let Some(wasi) = name.strip_prefix("wasi:") {
         return if wasi::allowed_import(wasi) {
             Ok(())
@@ -158,6 +173,9 @@ fn check_import(name: &str) -> Result<(), String> {
     };
     if interface.is_empty() || interface.contains('/') || interface.contains('@') {
         return Err(format!("invalid component import: {name}"));
+    }
+    if interface == TEST_INTERFACE && !test_module {
+        return Err(format!("forbidden component import: {name} (only the engine's test runner links it)"));
     }
     if version != INTERFACE_VERSION {
         return Err(format!("unsupported component interface version: {name}"));

@@ -1655,6 +1655,7 @@ dependencies = [
  "wgpu",
  "winit",
  "winresource",
+ "yoake-test-runner",
  "yoake-wasm",
  "zip",
 ]
@@ -6106,6 +6107,16 @@ name = "yoake-dll-net-echo"
 version = "0.1.0"
 dependencies = [
  "horizon-mod-sdk",
+]
+
+[[package]]
+name = "yoake-test-runner"
+version = "0.1.0"
+dependencies = [
+ "horizon-mods",
+ "serde_json",
+ "sha2",
+ "yoake-wasm",
 ]
 
 [[package]]
