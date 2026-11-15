@@ -9,7 +9,7 @@
 use yoake_wasm_sdk::testing::{BlockPos, TestCase, TestResult, TestWorld};
 use yoake_wasm_sdk::{Mod, hook, hud, yoake_test};
 
-/// Target position right above the superflat grass layer (`y = -61` is assumed; checked by `ground_is_grass`).
+/// Target position right above the superflat grass layer (`y = -61`, confirmed; checked by `ground_is_grass`).
 const ORIGIN: BlockPos = BlockPos { x: 0, y: -60, z: 0 };
 
 /// A tiny client mod that counts ticks and displays the counter on the HUD.
@@ -33,7 +33,7 @@ impl Mod for TestedCounter {
     }
 }
 
-/// Calibration test: pins the superflat grass height (`y = -61`) that the docs leave open.
+/// Calibration test: checks the confirmed superflat grass height (`y = -61`).
 #[yoake_test]
 fn ground_is_grass(world: &mut TestWorld<'_>) -> TestResult {
     world.assert_block(BlockPos { x: 0, y: -61, z: 0 }, "minecraft:grass_block")

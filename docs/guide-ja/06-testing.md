@@ -117,7 +117,7 @@ pub const YOAKE_TESTS: &[TestCase] = &[TestCase { name: "example_world_test", ru
 | `TestDriver::tick()` | 【任意】経過ティック数の取得（既定: `0`） | `let t = driver.tick();` |
 | `TestDriver::log(message)` | 【任意】ログ出力（既定: 何もしない） | `driver.log("logged");` |
 | `TestCase::run(&self, driver)` | `TestDriver` を使って1件の `TestCase` を実行する | `case.run(&mut driver)?;` |
-| `engine::client_count()` | 参加しているクライアント数を返す（現在は `1`。SDKフィーチャ `test` が必要） | `let n = yoake_wasm_sdk::testing::engine::client_count();` |
+| `engine::client_count()` | 参加しているクライアント数を返す（1、または2クライアント時は2。SDKフィーチャ `test` が必要） | `let n = yoake_wasm_sdk::testing::engine::client_count();` |
 | `engine::run_with(tests, name, driver)` | `tests` から `name` に一致するテストを探して `driver` で実行する（SDKフィーチャ `test` が必要） | `yoake_wasm_sdk::testing::engine::run_with(YOAKE_TESTS, "places_a_block", &mut driver)?;` |
 
 ---
@@ -168,7 +168,7 @@ yoake test --filter places --timeout-ms 60000 -- --resources /path/to/prepared/r
 | `--yoake-test-timeout-ms N` | 1テストあたりのタイムアウト（既定値 `30000` ミリ秒） |
 | `--yoake-test-startup-seconds N` | ワーカーの起動からテスト開始までの猶予時間（既定値 `240` 秒） |
 | `--yoake-test-keep` | 一時フォルダ（ゲームフォルダ・ワールド・ログ）を削除せず残し、JSONの `"kept"` にパスを記録する |
-| `--yoake-test-clients=1\|2` | 参加するクライアント数（`2` は未実装） |
+| `--yoake-test-clients=1\|2` | 参加するクライアント数（`2` は `yoake/p10-test-runner` @ `bdc976398` 以降で利用可能。第5節参照） |
 
 **出力内容**:
 - 標準エラー出力（`stderr`）に各テストの `yoake test: ok  ` / `FAIL` 行を出し、標準出力（`stdout`）に `{"ok": ..., "id": ..., "version": ..., "clients": 1, "module": ..., "declared": ..., "tests": [...], "errors": [...]}` のJSONを1行出力します。
@@ -178,16 +178,17 @@ yoake test --filter places --timeout-ms 60000 -- --resources /path/to/prepared/r
 
 ## 4. 平らなワールド（スーパーフラット）の前提と動作ルール
 
-テストが走るワールドには以下の前提があります（出典: `docs/yoake-wasm-dev.md`「Declaring tests: a test module」および「How a run works」）。
+テストが走るワールドには以下の前提があります（出典: `docs/yoake-wasm-dev.md`、および GALLERIA の実機確認（2026-11-16））。
 
-1. **スーパーフラットの層と座標**:
+1. **スーパーフラットの層と座標（GALLERIA の実機確認（2026-11-16））**:
    - シード値 `0`、構造物なし（structures off）のスーパーフラットワールドです。
-   - 地面は下から **岩盤 1・土 2・草 1** です。ドキュメントで高さは固定されていないので `block_at` で確かめます（`the exact height is not pinned here; read it with block_at if a test depends on it`）。サンプルは `y = -60` に置いています（おそらく岩盤 `-64`・土 `-63`/`-62`・草 `-61`、未確定）。
+   - 地面の高さは実機で確認されており、下から **`y = -64` が岩盤（bedrock）、`y = -63` と `y = -62` が土（dirt）、`y = -61` が草ブロック（grass）、`y = -60` 以上が空気（air）** です。サンプルが `y = -60` にブロックを置いているのは、草ブロックのすぐ上の空気層にあたるためです。
 2. **初期状態とスポーン付近で作る**:
    - ワールドのオーナーはスポーン地点（`0, 0` 付近）にクリエイティブモード（`--creative`）で参加し、時刻は `6000`（`--time 6000`）、天候は晴れ（`--weather clear`）、描画距離は `4` チャンク（`--render-distance 4`）で始まります。テストで使うブロックやエンティティは `(0, 0)` 付近に作ってください。
+   - オーナーは自動生成された名前 **`PlayerNNNNN`** で参加します（GALLERIA の実機確認（2026-11-16））。
 3. **ワールドは凍結（freeze）されており、`run_ticks` でだけ進む**:
-   - オーナーが参加したあと、チャンク読み込みのため実時間で2秒間だけワールドが動きます（ウォームアップ）。
-   - その後、**ワールドは凍結（freeze）**されます。凍結中は勝手にティックが進まず、`world.run_ticks(n)` を呼んだ回数だけ正確にサーバーティックが進みます（1 ティックごとの 50ms 待ちを飛ばして最速で実行されます）。
+   - オーナーが参加したあと、チャンク読み込みのため実時間で2秒間だけワールドが動きます（ウォームアップ）。そのため、**テスト開始時点でワールドはすでに約 87〜103 ティック進んでいます**（`world.tick()` が `0` から始まるとは仮定しないでください。GALLERIA の実機確認（2026-11-16））。
+   - ウォームアップの後、**ワールドは凍結（freeze）**されます。凍結中は勝手にティックが進まず、`world.run_ticks(n)` を呼んだ回数だけ正確にサーバーティックが進みます（1 ティックごとの 50ms 待ちを飛ばして最速で実行されます）。
 4. **テストごとに新しいワールド・新しいプロセスを起動するため時間がかかる**:
    - 前のテストの影響やハングアップを完全に切り離すため、**1テストごとに新しいワーカープロセスと一時ワールドが起動**します。
    - テスト本体の実行は数ミリ秒〜数百ミリ秒で終わりますが、ワーカーの起動とワールド準備には時間がかかります（Windowsデバッグビルド・`horizon-data.bin` キャッシュなしの実測で1テストあたり90〜100秒、リリースビルドやキャッシュありなら短縮）。
@@ -195,7 +196,45 @@ yoake test --filter places --timeout-ms 60000 -- --resources /path/to/prepared/r
 
 ---
 
-## 5. よくある失敗と直し方
+## 5. 2 クライアントのテスト
+
+※ この機能は `yoake/p10-test-runner` のコミット `bdc976398` 以降が必要です（このブランチのSDKはそれより古いため、利用するには `bdc976398` 以降へ更新してください）。
+
+`yoake test --clients 2` または `horizon-client --yoake-test <target> --yoake-test-clients=2`（`--yoake-test-clients 2`）を指定すると、1つのサーバーと2つのクライアントでマルチプレイテストを実行できます。クライアント `0` はワールドのオーナー（ワーカー自身）、クライアント `1` はループバック（`127.0.0.1`）経由で参加する2つ目のゲームプロセス（プレイヤー名 `TestB`）です。
+
+```rust
+fn a_change_reaches_the_second_client(world: &mut TestWorld<'_>) -> TestResult {
+    let at = BlockPos { x: 3, y: -60, z: 3 };
+    world.place_block(at, "minecraft:stone")?;
+    world.run_ticks(2)?;                                       // the server sends the change
+    world.client(1).wait_block(at, "minecraft:stone", 20_000)?; // real time, up to 20 s
+    world.client(1).chat("hello")?;                             // client -> server -> everyone
+    world.run_ticks(2)?;
+    world.client(1).wait_chat("hello", 20_000)
+}
+```
+
+### `world.client_count()` と `world.client(1)`（`ClientView`）の関数一覧（`bdc976398` の `testing.rs`）
+
+| 関数・シグネチャ | 動作 |
+| --- | --- |
+| `world.client_count(&mut self) -> u32` | 参加しているクライアント数を返す（通常は `1`、`--yoake-test-clients=2` 時は `2`） |
+| `world.client(&mut self, index: u32) -> ClientView<'_, 'driver>` | クライアント `index`（`1` が2つ目のゲーム）の操作ハンドル `ClientView` を返す |
+| `ClientView::call(&mut self, command: &str) -> Result<String, String>` | ゲームの制御プロトコル（`horizon-ctl` と同じ形式）の1行を送り、JSON応答を返す |
+| `ClientView::block_at(&mut self, position: BlockPos) -> Result<String, String>` | そのクライアント自身が保持しているワールド上の `position` のブロックIDを返す |
+| `ClientView::wait_block(&mut self, position: BlockPos, expected: &str, timeout_ms: u32) -> TestResult` | クライアント側の `position` のブロックが `expected` になるまで実時間で最大 `timeout_ms` ミリ秒待つ |
+| `ClientView::chat(&mut self, text: &str) -> TestResult` | そのクライアントからチャットメッセージ `text`（先頭 `/` なしの平文）を送信する |
+| `ClientView::wait_chat(&mut self, text: &str, timeout_ms: u32) -> TestResult` | そのクライアントの直近30件のチャット履歴に `text` が現れるまで実時間で最大 `timeout_ms` ミリ秒待つ |
+| `ClientView::player_names(&mut self) -> Result<Vec<String>, String>` | クライアントが参加しているワールドのプレイヤー名一覧（オーナーと `TestB`）を返す |
+
+（モック用の `TestDriver` トレイトにもデフォルト実装付きの `client_count`、`client_call`、`client_wait`、`client_player_names` が追加されています。）
+
+- **待機関数（`wait_block` / `wait_chat`）と実時間**: サーバー側のワールドは `run_ticks` の間は凍結されていますが、2つ目のクライアントプロセスは凍結されていません。`wait_*` は**実時間（real time）**で50msごとに最大 `timeout_ms` ミリ秒まで確認を繰り返します。サーバーはティック進行時に変更を送信するため、待つ前に必ず `world.run_ticks(...)` を呼んでください。
+- **コンソールコマンド `say` に関する既知の注意点（調査中）**: サーバーコンソールからの `say` は2つ目のクライアントのチャットログに届きません（調査中）。サーバーからクライアントへメッセージを送る場合は `tellraw @a "..."` を使うとクライアント `1` に届きます。
+
+---
+
+## 6. よくある失敗と直し方
 
 | よくあるエラーメッセージ・症状 | 原因と直し方 |
 | --- | --- |
@@ -213,15 +252,12 @@ yoake test --filter places --timeout-ms 60000 -- --resources /path/to/prepared/r
 
 ---
 
-## 6. 未実装の機能（未実装）
+## 7. 未実装の機能（未実装）
 
-以下の機能は現在のブランチではまだ実装されていません（出典: `docs/yoake-wasm-dev.md`「Two clients (`--yoake-test-clients=2`): design, not implemented」および「Limits and what is not covered」）。
+以下の機能はまだ実装されていません（出典: `docs/yoake-wasm-dev.md`「Limits and what is not covered」）。
 
-- **2クライアントでのマルチプレイテスト（`--yoake-test-clients=2`）（未実装）**:
-  - コマンドラインオプション `--yoake-test-clients=2` のパースと `yoake_wasm_sdk::testing::engine::client_count()` 関数自体は存在しますが、`2` を指定して実行すると終了コード `2` とエラー `"--yoake-test-clients=2 is not implemented yet: the two-client mode is designed in docs/yoake-wasm-dev.md but only one client runs"` で終了します。
-  - 2つ目のクライアントを操作する `world.client(1)` ハンドルや WIT の `client-call(index, command)` も設計段階であり（未実装）です。
 - **クライアント専用フック（HUD描画・キー入力など）の操作や画面の検証（未実装）**:
-  - テストはシングルプレイワールドのサーバー側で動くため、キー入力の送信やスクリーンショット・描画フレームに対するアサーション機能はありません（未実装）。
+  - テストドライバからクライアント専用フック（HUDなど）を直接駆動したり、スクリーンショット・描画フレームに対してアサーションを行ったりする機能はありません（未実装）。
 - **オーバーワールド以外のディメンション操作（未実装）**:
   - テストドライバが操作できるのはオーバーワールドのみです（未実装）。
 - **ネイティブ（DLL）Modパッケージのテスト実行（未実装）**:

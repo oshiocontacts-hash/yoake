@@ -4,7 +4,8 @@ A small beginner example showing a client-side Yoake WebAssembly mod (`TestedCou
 `#[yoake_test]` engine tests (`YOAKE_TESTS`) in the same crate.
 
 - **Engine tests (`yoake test`)**: The `#[yoake_test]` tests are compiled into a separate `test-mod`
-  component (`--features tests`) that exercises the engine's server-side world through `TestWorld`;
+  component (`--features tests`) that exercises the engine's server-side world through `TestWorld`
+  (including `ground_is_grass`, which checks the confirmed superflat grass height at `y = -61`);
   they do not load or drive the `TestedCounter` client mod's hooks (`tick` / `hud`).
 - **Host unit tests (`cargo test`)**: Running `cargo test` on the host runs `YOAKE_TESTS` against a
   local `MockWorld` (`TestDriver` mock), not the game engine.
