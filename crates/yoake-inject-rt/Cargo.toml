@@ -10,3 +10,6 @@ yoake-value = { path = "../yoake-value" }
 
 [dev-dependencies]
 yoake-inject-macro = { path = "../yoake-inject-macro" }
+
+[lints]
+workspace = true
