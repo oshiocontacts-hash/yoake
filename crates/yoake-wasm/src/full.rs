@@ -35,6 +35,15 @@ pub struct ClientFullMod {
 }
 
 impl ClientFullMod {
+    pub fn validate_component(
+        runtime: &mut Sandbox,
+        id: impl Into<String>,
+        component_bytes: &[u8],
+        host: Box<dyn ClientHost>,
+    ) -> Result<(), LoadError> {
+        Self::link(runtime, id.into(), component_bytes, host).map(|_| ())
+    }
+
     /// Instantiates the component and reads its subscriptions. `unwired` lists the catalog hooks the
     /// host has no adapter for: subscribing to one is an error.
     pub fn instantiate(
@@ -44,7 +53,20 @@ impl ClientFullMod {
         host: Box<dyn ClientHost>,
         unwired: &[&str],
     ) -> Result<Self, LoadError> {
-        let id = id.into();
+        let (mut raw, exports) = Self::link(runtime, id.into(), component_bytes, host)?;
+        let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
+        flush_output(&mut raw, |host, line| host.log_output(line));
+        let names = names.ok_or_else(|| LoadError::new("mod init trapped or timed out"))?;
+        let subscriptions = Subscriptions::for_full_world(FullWorld::Client, names, unwired).map_err(LoadError::new)?;
+        Ok(Self { raw, exports, subscriptions })
+    }
+
+    fn link(
+        runtime: &mut Sandbox,
+        id: String,
+        component_bytes: &[u8],
+        host: Box<dyn ClientHost>,
+    ) -> Result<(ModInstance<ClientContext>, client_world::ClientFull), LoadError> {
         let texture_count = runtime.texture_count(&id);
         let mut raw = runtime
             .compile(component_bytes)
@@ -54,16 +76,12 @@ impl ClientFullMod {
                     linker,
                     |state| &mut state.host,
                 )
-                .map_err(|error| error.to_string())
+                .map_err(|error| format!("{error:#}"))
             })
             .map_err(LoadError::new)?;
         let exports = client_world::ClientFull::new(&mut raw.store, &raw.instance)
-            .map_err(|error| LoadError::new(error.to_string()))?;
-        let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
-        flush_output(&mut raw, |host, line| host.log_output(line));
-        let names = names.ok_or_else(|| LoadError::new("mod init trapped or timed out"))?;
-        let subscriptions = Subscriptions::for_full_world(FullWorld::Client, names, unwired).map_err(LoadError::new)?;
-        Ok(Self { raw, exports, subscriptions })
+            .map_err(|error| LoadError::new(format!("invalid client-full exports: {error:#}")))?;
+        Ok((raw, exports))
     }
 
     pub fn subscribed(&self, hook: &str) -> bool {
@@ -259,6 +277,15 @@ pub struct ServerFullMod {
 }
 
 impl ServerFullMod {
+    pub fn validate_component(
+        runtime: &mut Sandbox,
+        id: impl Into<String>,
+        component_bytes: &[u8],
+        host: Box<dyn ServerHost>,
+    ) -> Result<(), LoadError> {
+        Self::link(runtime, id.into(), component_bytes, host).map(|_| ())
+    }
+
     pub fn instantiate(
         runtime: &mut Sandbox,
         id: impl Into<String>,
@@ -266,7 +293,20 @@ impl ServerFullMod {
         host: Box<dyn ServerHost>,
         unwired: &[&str],
     ) -> Result<Self, LoadError> {
-        let id = id.into();
+        let (mut raw, exports) = Self::link(runtime, id.into(), component_bytes, host)?;
+        let names = raw.call_init(crate::TimeLimits::SERVER, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
+        flush_output(&mut raw, |host, line| host.log_output(line));
+        let names = names.ok_or_else(|| LoadError::new("mod init trapped or timed out"))?;
+        let subscriptions = Subscriptions::for_full_world(FullWorld::Server, names, unwired).map_err(LoadError::new)?;
+        Ok(Self { raw, exports, subscriptions })
+    }
+
+    fn link(
+        runtime: &mut Sandbox,
+        id: String,
+        component_bytes: &[u8],
+        host: Box<dyn ServerHost>,
+    ) -> Result<(ModInstance<ServerContext>, server_world::ServerFull), LoadError> {
         let mut raw = runtime
             .compile(component_bytes)
             .map_err(LoadError::new)?
@@ -275,16 +315,12 @@ impl ServerFullMod {
                     linker,
                     |state| &mut state.host,
                 )
-                .map_err(|error| error.to_string())
+                .map_err(|error| format!("{error:#}"))
             })
             .map_err(LoadError::new)?;
         let exports = server_world::ServerFull::new(&mut raw.store, &raw.instance)
-            .map_err(|error| LoadError::new(error.to_string()))?;
-        let names = raw.call_init(crate::TimeLimits::SERVER, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
-        flush_output(&mut raw, |host, line| host.log_output(line));
-        let names = names.ok_or_else(|| LoadError::new("mod init trapped or timed out"))?;
-        let subscriptions = Subscriptions::for_full_world(FullWorld::Server, names, unwired).map_err(LoadError::new)?;
-        Ok(Self { raw, exports, subscriptions })
+            .map_err(|error| LoadError::new(format!("invalid server-full exports: {error:#}")))?;
+        Ok((raw, exports))
     }
 
     pub fn subscribed(&self, hook: &str) -> bool {

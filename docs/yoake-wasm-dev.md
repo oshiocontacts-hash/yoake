@@ -64,8 +64,8 @@ export_mod!(Hello);
 - The generated bindings come from `build.rs` (wit-bindgen 0.57.1's proc macro does not escape the
   package name `mod`).
 
-Check the imports of a build (`yoake:mods/*` and, for `std` mods, the WASI subset):
-`wasm-tools component wit target/wasm32-wasip2/release/yoake_wasm_hello.wasm`.
+In a mod project, `yoake check` validates the component's imports and exports against the same
+world and host linker used by the game, including its supported WASI subset.
 
 ## Packaging in a `.yak`
 
@@ -92,7 +92,8 @@ without the flag. The startup log has one line saying `wasm: no mods (engine not
 
 ## CLI and test scaffolding
 
-The `yoake` workspace binary needs Rust 1.95 or later, the `wasm32-wasip2` target and `wasm-tools`.
+The `yoake` workspace binary needs Rust 1.95 or later and the `wasm32-wasip2` target; no
+`wasm-tools` installation is required.
 From a directory where a new project may be created:
 
 ```sh
@@ -105,23 +106,30 @@ yoake dev
 ```
 
 `new` also accepts `minigame`, `custom-mob`, `utility` and `script`. These are starter projects,
-not complete game modes; mob data, models and script files are placeholders. Set `YOAKE_SDK_PATH`
-when creating a project to use a different local SDK checkout. Its absolute path is saved in the
-generated Cargo manifest.
+not complete game modes; mob data, models and script files are placeholders. The CLI embeds the
+SDK and WIT definitions in each generated project. Optionally set `YOAKE_SDK_PATH` when creating a
+project to use a local SDK checkout instead; that override stores its absolute path in the manifest.
 
-`build` compiles a single declared module and packs it. `pack` packages previously built modules
-using the existing unsigned `.yak` packer. Signing remains an owner operation. `check` validates
-the manifest, permissions, module sizes and whether `wasm-tools` can read the component. Its WIT
-name check is only a preflight, not full ABI validation; the engine remains responsible for that.
-It prints nonempty lines from `WASM-NEEDS.md` when that file exists and exits unsuccessfully until
-full WIT world and ABI verification is available. `build` and `pack` emit the same limitation as a
-warning and can still produce unsigned packages.
+`build` compiles declared modules into `bin/wasm/` and checks them; it does not pack them. For a
+package declaring both a client and a server module, its Cargo project must define `client` and
+`server` features that select the respective worlds, as in `full-demo`. The CLI builds once with
+each feature in addition to the project's default features. Projects using another arrangement must
+build the two components separately before running `yoake check` or `yoake pack`.
+`pack` checks the existing modules and writes the unsigned `dist/<id>-<version>.yak`, replacing
+the previous package of that version. Signing remains an owner operation.
+
+`check` validates the manifest, permissions and module sizes, then uses the game's Wasmtime
+configuration and host linker to instantiate each declared component against its world. A JSON
+summary reports the checked modules and nonempty lines from `WASM-NEEDS.md`, if present. Validation
+uses stub game hosts and does not call the mod's `init` or hooks, so it cannot establish whether a
+mod works correctly in a running game.
 
 `dev` emits one JSON line with `ok`, `errors`, `tests` and `wasm_needs`. For a `client-mod` it
-builds, packs and replaces the already-watched `<id>.wasm` in `YOAKE_WASM_DEV_DIR`; that file must
-exist when the engine starts. The owner must explicitly enable unsigned developer mode, and a file
-replacement does not confirm the engine accepted the reload. The offscreen test runner is not yet
-implemented, so `dev` returns an error and an empty `tests` array rather than reporting success.
+builds, checks and installs `<id>.wasm` in `YOAKE_WASM_DEV_DIR`, creating the directory if needed.
+The engine discovers files at startup, so restart it if the file was not present then. The owner
+must explicitly enable unsigned developer mode, and installation does not confirm the engine
+accepted the reload. The offscreen test runner is not yet implemented, so `tests` remains empty even
+when the build, check and installation succeed.
 
 `#[yoake_test]`, `TestCase`, `TestWorld` and `TestDriver` provide a host-independent test interface.
 The generated example uses an explicit `YOAKE_TESTS` registry and a local mock driver. The marker

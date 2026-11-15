@@ -1,7 +1,32 @@
 use crate::Result;
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+pub(super) fn write_bundled_sdk(root: &Path) -> Result<()> {
+    let files = [
+        ("yoake-wasm-sdk/Cargo.toml", include_str!("../../yoake-wasm-sdk/Cargo.toml")),
+        ("yoake-wasm-sdk/src/lib.rs", include_str!("../../yoake-wasm-sdk/src/lib.rs")),
+        ("yoake-wasm-sdk/src/heap.rs", include_str!("../../yoake-wasm-sdk/src/heap.rs")),
+        ("yoake-wasm-sdk/src/nbt.rs", include_str!("../../yoake-wasm-sdk/src/nbt.rs")),
+        ("yoake-wasm-sdk/src/testing.rs", include_str!("../../yoake-wasm-sdk/src/testing.rs")),
+        ("yoake-wasm-sdk/src/full.rs", include_str!("../../yoake-wasm-sdk/src/full.rs")),
+        ("yoake-wasm-sdk/src/full_client_generated.rs", include_str!("../../yoake-wasm-sdk/src/full_client_generated.rs")),
+        ("yoake-wasm-sdk/src/full_server_generated.rs", include_str!("../../yoake-wasm-sdk/src/full_server_generated.rs")),
+        ("yoake-wasm-sdk/src/full_hooks_generated.rs", include_str!("../../yoake-wasm-sdk/src/full_hooks_generated.rs")),
+        ("yoake-wasm-sdk/test-macros/Cargo.toml", include_str!("../../yoake-wasm-sdk/test-macros/Cargo.toml")),
+        ("yoake-wasm-sdk/test-macros/src/lib.rs", include_str!("../../yoake-wasm-sdk/test-macros/src/lib.rs")),
+        ("yoake-wasm/wit/yoake-mod.wit", include_str!("../../yoake-wasm/wit/yoake-mod.wit")),
+        ("yoake-wasm/wit/yoake-full.wit", include_str!("../../yoake-wasm/wit/yoake-full.wit")),
+    ];
+    for (name, content) in files {
+        let path = root.join(".yoake").join(name);
+        let parent = path.parent().ok_or("bundled SDK file has no parent directory")?;
+        fs::create_dir_all(parent).map_err(|error| format!("{}: {error}", parent.display()))?;
+        fs::write(&path, content).map_err(|error| format!("{}: {error}", path.display()))?;
+    }
+    Ok(())
+}
 
 pub fn create(template: &str, name: &str) -> Result<()> {
     let description = match template {
@@ -27,26 +52,32 @@ pub fn create(template: &str, name: &str) -> Result<()> {
     {
         return Err("name must be 3..48 lowercase letters, digits, or single hyphens and start with a letter".into());
     }
-    let sdk = env::var_os("YOAKE_SDK_PATH").map(PathBuf::from).unwrap_or_else(|| {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../yoake-wasm-sdk")
-    });
-    let sdk = fs::canonicalize(&sdk).map_err(|error| format!("SDK {}: {error}", sdk.display()))?;
-    // Windows canonical paths carry the verbatim `\\?\` prefix; Cargo accepts it but other tools and readers do not.
-    let sdk = match sdk.to_str().and_then(|path| path.strip_prefix(r"\\?\")) {
-        Some(plain) if !plain.starts_with("UNC") => PathBuf::from(plain),
-        _ => sdk,
+    let sdk = if let Some(path) = env::var_os("YOAKE_SDK_PATH") {
+        let sdk = PathBuf::from(path);
+        let sdk = fs::canonicalize(&sdk).map_err(|error| format!("SDK {}: {error}", sdk.display()))?;
+        let sdk = match sdk.to_str().and_then(|path| path.strip_prefix(r"\\?\")) {
+            Some(plain) if !plain.starts_with("UNC") => PathBuf::from(plain),
+            _ => sdk,
+        };
+        if !sdk.join("Cargo.toml").is_file() {
+            return Err(format!("{} is not an SDK crate", sdk.display()));
+        }
+        Some(sdk)
+    } else {
+        None
     };
-    if !sdk.join("Cargo.toml").is_file() {
-        return Err(format!("{} is not an SDK crate", sdk.display()));
-    }
     let target = PathBuf::from(name);
     fs::create_dir(&target).map_err(|error| format!("{}: {error}", target.display()))?;
     fs::create_dir(target.join("src")).map_err(|error| error.to_string())?;
-    let sdk_path = serde_json::to_string(&sdk.to_string_lossy()).map_err(|error| error.to_string())?;
-    let cargo = format!("[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\npublish = false\n\n[lib]\ncrate-type = [\"cdylib\", \"rlib\"]\n\n[dependencies]\nyoake-wasm-sdk = {{ path = {sdk_path} }}\n\n[profile.release]\nopt-level = \"s\"\nlto = true\nstrip = true\npanic = \"abort\"\n\n[workspace]\n");
+    let sdk_path = if let Some(sdk) = sdk {
+        serde_json::to_string(&sdk.to_string_lossy()).map_err(|error| error.to_string())?
+    } else {
+        write_bundled_sdk(&target)?;
+        serde_json::to_string(".yoake/yoake-wasm-sdk").map_err(|error| error.to_string())?
+    };
+    let cargo = format!("[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\npublish = false\n\n[lib]\ncrate-type = [\"cdylib\", \"rlib\"]\n\n[dependencies]\nyoake-wasm-sdk = {{ path = {sdk_path} }}\n\n[profile.release]\nopt-level = \"s\"\nlto = true\nstrip = true\npanic = \"abort\"\n\n[workspace]\nexclude = [\".yoake/yoake-wasm-sdk\"]\n");
     let manifest = format!("format = 1\nid = \"{name}\"\nversion = \"0.1.0\"\nname = \"{name}\"\nauthors = [\"Replace with your name\"]\ndescription = \"{description}\"\n\n[yoake]\nversion = \"*\"\n\n[side]\nclient = true\nserver = false\nrequired_on_join = false\n\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/{name}.wasm\"\n");
-    let readme = format!("# {name}\n\n{description}\n\nEdit the author in `yak.toml`. `yoake build` compiles and packs an unsigned development package; signing is an owner operation. Set `YOAKE_SDK_PATH` when creating a project to use a different local SDK. The generated Cargo manifest stores that SDK's absolute path.\n\nFor hot reload, set `YOAKE_WASM_DEV_DIR` to the engine's raw-Wasm developer directory. The `{name}.wasm` file must already be present when the engine starts; enabling unsigned developer mode is an explicit owner decision. `yoake dev` builds and updates that file but cannot confirm the engine accepted it.\n\n`cargo test` runs the local mock-driver test, not an engine world. `YOAKE_TESTS` registers an example for a future engine runner; the current engine cannot discover or run it. `yoake dev` reports that missing runner instead of claiming success.\n");
-    let readme = format!("{readme}\n`yoake check` runs preflight checks but exits unsuccessfully until full WIT ABI verification is available.\n");
+    let readme = format!("# {name}\n\n{description}\n\nEdit the author in `yak.toml`. Install Rust and the `wasm32-wasip2` target; no `wasm-tools` installation is needed. `yoake build` compiles and checks the component. `yoake check` validates its manifest and host-world compatibility using stub hosts; it does not call `init` or hooks. `yoake pack` checks it and writes `dist/{name}-0.1.0.yak` (using the version in `yak.toml`), replacing the previous package of that version. Packages are unsigned; signing is an owner operation. The project includes a copy of the SDK and WIT definitions. Optionally set `YOAKE_SDK_PATH` when creating a project to use a local SDK checkout instead.\n\nFor development, set `YOAKE_WASM_DEV_DIR` to the engine's raw-Wasm developer directory. `yoake dev` builds, checks and installs `{name}.wasm` there, but cannot confirm the engine accepted it. A newly installed file must be present when the engine starts for later hot reloads; enabling unsigned developer mode is an explicit owner decision.\n\n`cargo test` runs the local mock-driver test, not an engine world. `YOAKE_TESTS` registers an example for a future engine runner; the current engine cannot discover or run it. `yoake dev` reports an empty `tests` array until the engine runner exists.\n");
     fs::write(target.join("Cargo.toml"), cargo).map_err(|error| error.to_string())?;
     fs::write(target.join("yak.toml"), manifest).map_err(|error| error.to_string())?;
     fs::write(target.join("README.md"), readme).map_err(|error| error.to_string())?;

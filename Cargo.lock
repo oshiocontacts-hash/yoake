@@ -6091,6 +6091,7 @@ dependencies = [
  "horizon-mods",
  "serde_json",
  "toml",
+ "yoake-wasm",
 ]
 
 [[package]]
