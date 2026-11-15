@@ -61,7 +61,7 @@ pub use crate::game::{
     NativeAccount, NativeClientWorld, NativeJoinPoll, NativeMannequinPose, NativeSoundCategory,
 };
 pub use crate::game::{NativeBlast, NativeDamage, NativeDamageActor, NativeDamageKind};
-pub use crate::game::{NativeChatRecipients, NativeCrosshairEntity};
+pub use crate::game::{NativeChatRecipients, NativeCrosshairEntity, NativeViewHit, NativeViewTarget};
 pub use crate::game::{FixedFrame, FrameAdvance, LocalPlayerSnapshot, SnapshotReport};
 pub use crate::gfx::native_render::{
     BlockSpriteArrays, RenderHooks, RenderNeeds, RenderNeedsEvent, WorldDrawn, WorldDrawnEvent,
@@ -261,6 +261,12 @@ pub struct NativeScreenView<'a> {
     /// `multiplayer`, `add_server`, `direct_connect`…, with no menu, no title
     /// and no slots.
     pub id: &'static str,
+    /// The specific screen or vanilla menu type, including locally opened
+    /// inventory and station screens. Ambiguous containers and mod screens
+    /// return None. Menu types use registry IDs such as `minecraft:furnace`;
+    /// generic chest menus use IDs such as `minecraft:generic_9x3`.
+    /// API @API:screen_slot_rects@.
+    pub kind: Option<&'a str>,
     /// The type id of the menu the server opened for this screen
     /// (`minecraft:generic_9x3`, `minecraft:furnace`, a mod's own id; a mount's
     /// inventory is `horizon:mount<n>`). None on a screen without one (the
@@ -302,6 +308,7 @@ impl NativeScreenView<'_> {
         // CHECK: Compile an external test-support consumer after native API generation.
         Self {
             id,
+            kind: None,
             menu: None,
             title: None,
             extra: &[],

@@ -1,0 +1,13 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "draw_world_line", "target": "horizon_client::game::native_world_draw::Game<'_>::native_draw_world_line"},
+    {"name": "draw_post_tint", "target": "horizon_client::game::native_world_draw::Game<'_>::native_draw_post_tint"},
+    {"name": "draw_post_vignette", "target": "horizon_client::game::native_world_draw::Game<'_>::native_draw_post_vignette"}
+  ],
+  "rust_summary": "submitting bounded depth-tested world lines and full-screen tint or vignette for a client frame.",
+  "doc_summary": "`draw_world_line(start, end, color, width)` submits a world-space line during a client world frame hook. Color is ARGB and width is in pixels from 0.5 to 4; each frame accepts at most 256 lines. Endpoints must be distinct and finite; lines with either endpoint farther than 256 blocks from the camera are discarded. The host depth-tests and consumes the accepted lines for that frame. `draw_post_tint(color)` and `draw_post_vignette(color)` submit at most 16 full-screen effects per frame, after the world and before the HUD. Vignette alpha controls its darkening strength. Bundles need fragment @API:world_lines@.",
+  "comments": [
+    "crates/horizon-client/src/game/native_world_draw.rs"
+  ]
+}

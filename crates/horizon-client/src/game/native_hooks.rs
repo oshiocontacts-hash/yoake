@@ -960,6 +960,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 
 pub(super) struct ObservedScreen {
     id: &'static str,
+    kind: Option<String>,
     menu: Option<String>,
     title: Option<Text>,
     extra: Vec<u8>,
@@ -974,6 +975,7 @@ impl ObservedScreen {
     fn view(&self) -> NativeScreenView<'_> {
         NativeScreenView {
             id: self.id,
+            kind: self.kind.as_deref(),
             menu: self.menu.as_deref(),
             title: self.title.as_ref(),
             extra: &self.extra,
@@ -1073,7 +1075,7 @@ impl Game<'_> {
         self.mic_close(id)
     }
 
-    fn observed_screen_view(&self) -> Option<NativeScreenView<'_>> {
+    pub(super) fn observed_screen_view(&self) -> Option<NativeScreenView<'_>> {
         let book = match &self.book {
             Some(super::books::BookScreen::Edit { signing: true, .. }) => Some("book_sign"),
             Some(super::books::BookScreen::Edit { .. }) => Some("book_edit"),
@@ -1099,6 +1101,7 @@ impl Game<'_> {
         let batch = HudBatch::new([renderer.config.width, renderer.config.height]);
         Some(NativeScreenView {
             id,
+            kind: Some(id),
             menu: None,
             title: None,
             extra: &[],
@@ -1117,6 +1120,7 @@ impl Game<'_> {
         }
         let current = self.observed_screen_view().map(|view| ObservedScreen {
             id: view.id,
+            kind: view.kind.map(str::to_owned),
             menu: view.menu.map(str::to_owned),
             title: view.title.cloned(),
             extra: view.extra.to_vec(),
@@ -2361,7 +2365,10 @@ impl Game<'_> {
     }
     /// Once a frame, in a world or not, after Horizon's extras.
     pub(super) fn native_frame(&mut self, elapsed: Duration) {
+        let in_world = self.options.execution_role.is_client() && self.title.is_none();
+        self.native_world_lines.begin_frame(in_world);
         mod_api::dispatch_frame(self, mod_api::mods(), elapsed);
+        self.native_world_lines.end_frame();
     }
     /// Client-side evaluation of a mod's namespaced conditional item model property.
     /// Set value only for a property your mod owns; unhandled properties stay false.
@@ -3812,8 +3819,10 @@ impl Game<'_> {
     /// drawn this frame, which `NativeScreenView.id` comes from. Borrowed:
     /// nothing is copied per frame.
     pub(super) fn screen_view(&self, batch: &HudBatch, screen: Screen) -> NativeScreenView<'_> {
+        let inventory_context = self.native_inventory_context_impl(screen);
         NativeScreenView {
             id: screen.id(),
+            kind: self.native_screen_kind(screen, inventory_context),
             menu: self.remote_menu_type().filter(|m| !m.is_empty()),
             title: self.data_menu_title(),
             extra: self.remote_menu_extra(),
@@ -3821,7 +3830,7 @@ impl Game<'_> {
             slots: self.slot_count(),
             mouse: self.native_cursor(),
             partial_tick: self.clock.fraction() as f32,
-            inventory_context: self.native_inventory_context_impl(screen),
+            inventory_context,
         }
     }
     /// The title's own screen as a native mod sees it (`NativeScreenView`):
@@ -3833,6 +3842,7 @@ impl Game<'_> {
         let title = self.title.as_ref()?;
         Some(NativeScreenView {
             id: title.mode.id(),
+            kind: Some(title.mode.id()),
             menu: None,
             title: None,
             extra: &[],

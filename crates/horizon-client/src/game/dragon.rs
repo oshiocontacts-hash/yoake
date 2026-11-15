@@ -1341,8 +1341,11 @@ impl Game<'_> {
     /// Player melee on the dragon's parts or a crystal under the crosshair.
     /// The dragon part under the crosshair within reach: its id and distance.
     pub(super) fn dragon_hit(&self) -> Option<(u32, f64)> {
+        self.dragon_hit_at(self.entity_reach)
+    }
+
+    pub(super) fn dragon_hit_at(&self, reach: f64) -> Option<(u32, f64)> {
         let (eye, dir) = self.aim()?;
-        let reach: f64 = self.entity_reach;
         let mut best: Option<(u32, f64)> = None;
         for (id, b) in self.special_targets() {
             let (lo, hi) = (b.min_position(), b.max_position());

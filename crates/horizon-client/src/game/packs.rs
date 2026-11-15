@@ -495,7 +495,8 @@ pub(super) fn stage_pack(
     progress: &super::Progress,
 ) -> horizon_client::Result<StagedPack> {
     let root = startup_root(vanilla_root, selected, server)?;
-    let root = super::mods::content_root(&root, mods_enabled, dev_mods);
+    let content_root = super::mods::content_root(&root, mods_enabled, dev_mods);
+    let root = content_root.path;
     progress.set(1);
     // The world's models and sprites and the GUI atlas read the same root and nothing of
     // each other: about a second each, side by side.
@@ -533,7 +534,7 @@ pub(super) fn stage_pack(
         panorama: Arc::new(panorama.unwrap_or_else(|p| std::panic::resume_unwind(p))),
     };
     progress.set(2);
-    let pack = PackResources::load(
+    let mut pack = PackResources::load(
         &root,
         assets.clone(),
         render,
@@ -541,6 +542,7 @@ pub(super) fn stage_pack(
         context.biomes.clone(),
         context.light.clone(),
     )?;
+    pack.mod_owners = content_root.owners;
     let textures = prepare_renderer_textures(&pack);
     let cem = Arc::new(horizon_client::mobs::cem::CemModels::load(
         &root,

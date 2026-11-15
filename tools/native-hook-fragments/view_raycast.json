@@ -1,0 +1,14 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "client_view_hit",
+      "target": "horizon_client::game::native_crosshair::Game<'_>::native_client_view_hit"
+    }
+  ],
+  "rust_summary": "A bounded client view raycast using crosshair block and entity picking.",
+  "doc_summary": "`client_view_hit(max_distance)` returns a block face or entity and the world-space hit position during a client frame. The distance must be finite, positive, and at most 128 blocks. It shares the eight-query per-mod frame budget with `crosshair_entity`; an entity UUID can be unavailable. Requires native hooks API @API:view_raycast@.",
+  "comments": [
+    "crates/horizon-client/src/game/native_crosshair.rs"
+  ]
+}

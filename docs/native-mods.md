@@ -1666,6 +1666,10 @@ API 312 adds a server player's ender pearl landed: `native_ender_pearl_teleport(
 
 API 313 adds drawing an item stack on a screen: `native_item_stack(batch, stack, at, size)` draws its model, glint, damage bar, cooldown and mod decorations, but not its count. It draws nothing and returns false for an unknown item or an empty stack (air, or a count of 0). Bundles need "hooks": 313.
 
+API @API:gui_item@ adds `draw_gui_item(batch, stack, at: [f32; 2], scale: f32) -> bool` for HUD and mod-screen batches. It uses the same item and decoration drawing as the hotbar, including count; `scale = 1` is a 16-pixel icon. It returns false and adds nothing for empty or unknown stacks, non-finite coordinates or scale, coordinates whose absolute value exceeds 1,000,000, a scale outside `(0, 64]`, or a nested call while this helper is already drawing an item. The helper is named `draw_gui_item` because `draw_item` already names a block-entity drawing service.
+
+This helper is available to source mods only; the stable DLL SDK and ABI do not expose it yet.
+
 API 314 adds hiding a player (a vanish): `native_hide_player(uuid, level)` hides that player, from the next tick, from the players below permission `level` (None shows them again): they leave those players' Tab list and world (their clients stop tracking them, as they do a spectator) and those players don't read them joining or leaving. Players of `level` or more still see them; a player made an operator sees them again. It is kept by UUID, for a player who is off too, until a mod sets it again or the server stops. Server only; false on a client. Bundles need "hooks": 314.
 
 API 315 adds a player's item breaking: `native_player_destroy_item(player, name, item, slot)` is heard for a server player whose tool, shield, rod or armour piece ran out of durability (`LivingEntity.onEquippedItemBroken`, Bukkit's `PlayerItemBreakEvent`), with the item that broke and the slot it was in (`mainhand`, `offhand`, `head`, `chest`, `legs`, `feet`, `body`, `saddle`); armour has a slot rather than a hand. `native_item_damaged` is the wear, this is only the break. Listen only. The player's state is swapped in. Not heard for a creative player or for the host of a LAN world. Bundles that use it need `"hooks": 315`.
@@ -4956,3 +4960,67 @@ world-snapshot callbacks to SDK-owned data, and adapt the UI executor to
 verify recording/playback parity before choosing the DLL variant. This is an
 ABI prerequisite, not a claim that the current recorder compiles unchanged as
 a DLL or that replay DLL parity has already been tested.
+
+## Bounded world drawing
+
+Fragment `@API:world_lines@` adds the source-mod helper
+`draw_world_line(start: [f64; 3], end: [f64; 3], color: u32, width: f32) -> Result<(), String>`.
+It accepts at most 256 lines during a client world frame hook; coordinates are
+world blocks, color is ARGB, and width is between 0.5 and 4 pixels. Endpoints
+must be distinct and finite. Lines with either endpoint farther than 256 blocks
+from the camera are discarded; accepted visible lines are depth-tested and
+consumed for that frame. `draw_post_tint(color: u32) -> Result<(), String>` and
+`draw_post_vignette(color: u32) -> Result<(), String>` submit full-screen ARGB
+effects after the world and before the HUD. Vignette alpha controls darkening
+strength. At most 16 effects are accepted per frame, and a missing texture
+returns an error. These helpers are not exposed through the stable DLL SDK.
+They do not provide world quads, billboards, or custom post shaders.
+
+## Screen slot rectangles
+
+The screen kind and slot-rectangle additions are available to source mods only;
+the stable DLL SDK and ABI do not expose them yet.
+
+`NativeScreenView.kind: Option<&str>` identifies a specific screen or vanilla
+menu type. Inventory and creative use `inventory` and `creative`; known menu
+types use IDs such as `minecraft:furnace` and `minecraft:generic_9x3`.
+Locally opened stations, chests, shulker boxes, and machine menus are identified
+when their type is known. Ambiguous container representations, unknown menus,
+and mod screens return `None` rather than guessing. Other screens use their
+normal screen ID.
+
+Fragment `@API:screen_slot_rects@` adds `screen_slot_rects() -> Option<Vec<(usize, [f32; 4])>>`.
+While an inventory, container, or creative screen is open, it returns the game's
+slot IDs and their `[x, y, width, height]` icon rectangles in GUI coordinates.
+The positions use the same layout as the current screen, including recipe-book
+and modded inventory layout changes. Other screens return `None`.
+
+## Registry names and ownership
+
+These helpers are available to source mods only; the stable DLL SDK and ABI do
+not expose them yet.
+
+Fragment `@API:registry_names@` adds `display_name(registry, id) -> String`.
+It handles `item`, `block`, `entity_type`, `mob_effect`, and `enchantment`
+registries, including a `minecraft:` prefix on the registry name. IDs without
+a namespace use `minecraft`. Names use the selected language and the existing
+English fallback. Missing non-item translations and unsupported registries
+return the ID; items use the existing item-name fallback.
+
+`owner_mod(namespace) -> Option<(String, String)>` returns the owner ID and
+manifest name of an accepted content mod, including its declared namespace
+aliases. `minecraft` returns `Some(("minecraft", "Minecraft"))`; unknown
+namespaces, native-only mods without an accepted content manifest, and rejected
+content return `None`. Ownership follows the loaded content root and reloads.
+
+## View raycast
+
+Fragment `@API:view_raycast@` adds the source-mod helper
+`client_view_hit(max_distance: f64) -> Option<NativeViewHit>`. It uses the client view
+and crosshair picking, including attack-hitbox overrides, and reports the first
+block or entity intersection in world coordinates. Blocks include their
+position and face; entities include their ID and an optional UUID, which can be
+unavailable. The distance must be finite, positive, and at most 128 blocks.
+Queries run during client frame hooks and share the per-mod, eight-query frame
+budget with `crosshair_entity`. The stable DLL SDK and ABI do not expose this
+helper yet.

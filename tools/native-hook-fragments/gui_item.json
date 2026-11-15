@@ -1,0 +1,11 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "draw_gui_item", "target": "horizon_client::game::native_gui_item::Game<'_>::native_draw_gui_item"}
+  ],
+  "rust_summary": "drawing an item stack with decorations in a HUD or screen batch (`native_draw_gui_item`).",
+  "doc_summary": "`draw_gui_item(batch, stack, at, scale)` draws the hotbar item model and decorations including count, with scale 1 equal to 16 GUI pixels. It returns false for empty or unknown stacks, non-finite geometry, coordinates outside ±1,000,000, or scale outside (0, 64]. Bundles need fragment @API:gui_item@.",
+  "comments": [
+    "crates/horizon-client/src/game/native_gui_item.rs"
+  ]
+}
