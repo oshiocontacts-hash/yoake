@@ -292,8 +292,9 @@ only with the same mods' effects, as with its blocks.
 
 An effect may also list `attributes`, modifiers it adds while it lasts, each scaled by `amplifier + 1` like vanilla's
 speed or strength: `attribute` (a vanilla attribute id; `minecraft:` may be left out), `amount` (at amplifier 0) and
-`operation` (`add_value` by default, `add_multiplied_base`, `add_multiplied_total`). An unknown operation or a non-finite
-amount is refused when the mod loads. The modifiers apply to the player and are removed with the effect; the modifier id
+`operation` (`add_value` by default, `add_multiplied_base`, `add_multiplied_total`). An unknown attribute or operation, a
+duplicate attribute (including its bare and `minecraft:` forms), or a non-finite amount is refused when the mod loads.
+The modifiers apply to the player and are removed with the effect; the modifier id
 is `<effect id>/<attribute with . for :>`.
 
 ```json
@@ -305,11 +306,23 @@ is `<effect id>/<attribute with . for :>`.
 
 A `server-full` module declares data it keeps on players, entities, block entities, chunks and the level with the
 services `attachment-define(id, kind, persistent, synced, copy-on-death)`, `attachment-get`, `attachment-set` and
-`attachment-remove` (SDK: `full::server::ext::attachment_*`). `id` is `<package id>:<name>`; `kind` is `player`, `entity`,
+`attachment-remove` (SDK: `full::server::ext::attachment_*`). `id` is `<package id>:<name>` (at most 128 UTF-8 bytes); `kind` is `player`, `entity`,
 `block-entity`, `chunk` or `level`; the holder is a player UUID, a decimal entity id, `x,y,z`, `cx,cz` or empty for the
-level. A value is opaque bytes (64 KiB at most). `persistent` saves it with the holder (`horizon:attachments`),
+level. Holders resolve in the current hook's level; there is no dimension argument. Player holders cover online players
+only; other players return `MissingHolder`. A value is opaque bytes (64 KiB at most). `persistent` saves it with the holder (`horizon:attachments`),
 `synced` sends it to the clients that see the holder, `copy-on-death` carries it to the respawned player. Defining the
 same id twice with the same policy is fine; a different policy or another package's namespace is refused.
+
+Definitions are accepted only during the declaring module's initialization. The services require the `world-storage`
+capability: `attachment-get` also works in read-only hooks, while `attachment-set` and `attachment-remove` require a
+writable hook. All calls stay within the calling package's namespace.
+
+Each package has a 32 MiB attachment budget per world, shared across all holders and dimensions. It counts persistent
+and in-memory values, including saved attachments on unloaded holders, with conservative NBT key and envelope overhead.
+A write that exceeds the budget returns `QuotaExceeded` without changing the previous value. If saved data cannot be
+accounted for safely, growth is refused rather than silently granting an incomplete budget. Removing values remains
+possible. Unknown packages' persistent entries are retained for a later reinstall, but are never synced or copied on
+respawn. Current definitions are reapplied when holders load, before respawn copying and before sync snapshots.
 
 A mod entity type is declared in `data/<id>/horizon/entity_type/<name>.json`. It copies a vanilla type: `minecraft:snowball` (below), or a mob ("Mob types", below).
 A `minecraft:snowball` type is a thrown item projectile: `item` is one of the mod's own items (one type per item), and `damage`

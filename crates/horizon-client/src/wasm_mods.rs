@@ -14,6 +14,8 @@ mod full;
 #[path = "wasm_mods/server_services.rs"]
 mod server_services;
 
+pub(crate) use server_services::{attachment_registry, prepare_attachments, reset_attachments};
+
 use super::dll_mods::{frame_time, native_identity, safe_component, StaticMod};
 use crate::mod_api::*;
 use horizon_mod_abi as abi;

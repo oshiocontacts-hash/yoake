@@ -859,22 +859,22 @@ impl ServerHost for GameServerHost {
     }
 
     fn world_storage_read(&mut self, key: String) -> Result<Option<Vec<u8>>, String> {
-        let folder = self.storage_folder(false)?;
+        let folder = self.storage_folder(false, false)?;
         read_stored(&folder, &key)
     }
 
     fn world_storage_write(&mut self, data: Vec<u8>, key: String) -> Result<(), String> {
-        let folder = self.storage_folder(false)?;
+        let folder = self.storage_folder(false, true)?;
         write_stored(&folder, &key, &data)
     }
 
     fn config_read(&mut self, key: String) -> Result<Option<Vec<u8>>, String> {
-        let folder = self.storage_folder(true)?;
+        let folder = self.storage_folder(true, false)?;
         read_stored(&folder, &key)
     }
 
     fn config_write(&mut self, data: Vec<u8>, key: String) -> Result<(), String> {
-        let folder = self.storage_folder(true)?;
+        let folder = self.storage_folder(true, true)?;
         write_stored(&folder, &key, &data)
     }
 
@@ -925,11 +925,24 @@ impl ServerHost for GameServerHost {
 
 impl GameServerHost {
     /// The package's own storage folder: `<world>/yoake-wasm/<id>` or `<config>/yoake-wasm/<id>`.
-    fn storage_folder(&self, config: bool) -> Result<PathBuf, String> {
-        let root = if config {
-            read_service(|host| host.config_dir())?
+    fn storage_folder(&self, config: bool, write: bool) -> Result<PathBuf, String> {
+        let root = if write {
+            server_service(|host| {
+                if config {
+                    host.config_dir()
+                } else {
+                    host.world_dir()
+                        .ok_or_else(|| "no world is open on this server".to_owned())
+                }
+            })?
         } else {
-            read_service(|host| host.world_dir().ok_or_else(|| "no world is open on this server".to_owned()))?
+            read_service(|host| {
+                if config {
+                    host.config_dir()
+                } else {
+                    host.world_dir().ok_or_else(|| "no world is open on this server".to_owned())
+                }
+            })?
         };
         if !safe_component(&self.id) {
             return Err("the package id is not a plain folder name".into());
@@ -1149,6 +1162,38 @@ const MAX_ATTACHMENT_TYPES: usize = 256;
 static ATTACHMENT_TYPES: Mutex<Option<horizon_world::attachments::DynamicAttachmentRegistry>> = Mutex::new(None);
 static ATTACHMENT_COUNTS: Mutex<Vec<(String, usize)>> = Mutex::new(Vec::new());
 
+#[cfg(test)]
+pub(super) static ATTACHMENT_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+pub(crate) fn attachment_registry() -> horizon_world::attachments::DynamicAttachmentRegistry {
+    ATTACHMENT_TYPES
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .get_or_insert_with(Default::default)
+        .clone()
+}
+
+pub(crate) fn prepare_attachments(
+    holder: horizon_world::attachments::Holder,
+    map: &mut horizon_world::attachments::Attachments,
+    key: String,
+) -> Result<(), horizon_world::attachments::AttachmentError> {
+    let registry = attachment_registry();
+    registry.bind(map, key);
+    registry.reconcile_map(holder, map)
+}
+
+pub(crate) fn reset_attachments() {
+    let mut registry = ATTACHMENT_TYPES
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    *registry = None;
+    ATTACHMENT_COUNTS
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .clear();
+}
+
 fn attachment_scope(kind: &str) -> Result<horizon_world::attachments::AttachmentScope, String> {
     use horizon_world::attachments::AttachmentScope as S;
     Ok(match kind {
@@ -1205,7 +1250,10 @@ pub(super) fn define_attachment(
     synced: bool,
     copy_on_death: bool,
 ) -> Result<(), String> {
-    use horizon_world::attachments::{AttachmentError, DynamicAttachmentPolicy, DynamicAttachmentRegistry};
+    use horizon_world::attachments::{AttachmentError, DynamicAttachmentPolicy, DynamicAttachmentRegistry, MAX_ATTACHMENT_ID_BYTES};
+    if id.len() > MAX_ATTACHMENT_ID_BYTES {
+        return Err("an attachment id is at most 128 bytes".into());
+    }
     let policy = DynamicAttachmentPolicy { scope: attachment_scope(kind)?, persistent, synced, copy_on_death };
     let mut registry = ATTACHMENT_TYPES.lock().map_err(|_| "attachment registry poisoned".to_owned())?;
     let registry = registry.get_or_insert_with(DynamicAttachmentRegistry::default);
@@ -1250,13 +1298,20 @@ fn attachment_bytes(compound: &horizon_world::nbt::Compound) -> Option<Vec<u8>> 
 
 impl GameServerHost {
     fn attachment_define_impl(&mut self, id: &str, kind: &str, persistent: bool, synced: bool, copy_on_death: bool) -> Result<(), String> {
+        if !super::full::initializing_server(&self.id) {
+            return Err("attachment types may only be defined during server initialization".into());
+        }
         define_attachment(&self.id, id, kind, persistent, synced, copy_on_death)
     }
 
     fn attachment_get_impl(&mut self, id: &str, kind: &str, holder: &str) -> Result<Option<Vec<u8>>, String> {
         let ty = attachment_type(&self.id, id)?;
         let holder = attachment_holder(kind, holder)?;
-        server_service(|host| ty.get(host, holder).map_err(attachment_error)).map(|v| v.and_then(|c| attachment_bytes(&c)))
+        read_service(|host| {
+            let attachments = host.attachment_read(holder).map_err(attachment_error)?;
+            ty.read(holder, attachments).map_err(attachment_error)
+        })
+        .map(|v| v.and_then(|c| attachment_bytes(&c)))
     }
 
     fn attachment_set_impl(&mut self, id: &str, kind: &str, holder: &str, data: &[u8]) -> Result<(), String> {
@@ -1298,15 +1353,28 @@ mod attachment_tests {
 
     #[test]
     fn definitions_are_owned_idempotent_and_policy_checked() {
+        let _guard = ATTACHMENT_TEST_LOCK.lock().unwrap();
         assert!(define_attachment("wa1", "wa1:coins", "player", true, true, true).is_ok());
         assert!(define_attachment("wa1", "wa1:coins", "player", true, true, true).is_ok());
         assert!(define_attachment("wa1", "wa1:coins", "player", false, true, true).is_err());
         assert!(define_attachment("wa1", "other:coins", "player", true, false, false).is_err());
         assert!(attachment_type("wa2", "wa1:coins").is_err());
+        assert!(
+            define_attachment(
+                "wa1",
+                &format!("wa1:{}", "x".repeat(125)),
+                "player",
+                true,
+                false,
+                false
+            )
+            .is_err()
+        );
     }
 
     #[test]
     fn values_survive_save_and_load_and_respawn_copy() {
+        let _guard = ATTACHMENT_TEST_LOCK.lock().unwrap();
         define_attachment("wa3", "wa3:kept", "player", true, false, true).unwrap();
         define_attachment("wa3", "wa3:temp", "player", false, false, false).unwrap();
         let (kept, temp) = (attachment_type("wa3", "wa3:kept").unwrap(), attachment_type("wa3", "wa3:temp").unwrap());
@@ -1329,6 +1397,7 @@ mod attachment_tests {
 
     #[test]
     fn synced_changes_are_queued_for_clients() {
+        let _guard = ATTACHMENT_TEST_LOCK.lock().unwrap();
         define_attachment("wa4", "wa4:shown", "entity", true, true, false).unwrap();
         let shown = attachment_type("wa4", "wa4:shown").unwrap();
         let mut host = One(Attachments::default());
@@ -1340,5 +1409,41 @@ mod attachment_tests {
         client.apply_sync(changes.into_iter().next().unwrap());
         let mut client = One(client);
         assert_eq!(attachment_bytes(&shown.get(&mut client, Holder::Entity(1)).unwrap().unwrap()), Some(vec![5]));
+    }
+
+    #[test]
+    fn changing_worlds_clears_definitions_and_package_counts() {
+        let _guard = ATTACHMENT_TEST_LOCK.lock().unwrap();
+        reset_attachments();
+        for index in 0..MAX_ATTACHMENT_TYPES {
+            define_attachment(
+                "reset",
+                &format!("reset:data{index}"),
+                "player",
+                true,
+                true,
+                true,
+            )
+            .unwrap();
+        }
+        assert!(define_attachment("reset", "reset:extra", "player", true, true, true).is_err());
+        reset_attachments();
+        assert!(attachment_type("reset", "reset:data0").is_err());
+        assert!(ATTACHMENT_COUNTS.lock().unwrap().is_empty());
+        for index in 0..MAX_ATTACHMENT_TYPES {
+            define_attachment(
+                "reset",
+                &format!("reset:data{index}"),
+                "player",
+                false,
+                false,
+                false,
+            )
+            .unwrap();
+        }
+        let policy = attachment_type("reset", "reset:data0").unwrap().policy();
+        assert!(!policy.persistent && !policy.synced && !policy.copy_on_death);
+        assert!(define_attachment("reset", "reset:extra", "player", false, false, false).is_err());
+        reset_attachments();
     }
 }

@@ -26,6 +26,14 @@ use std::{
 /// The mob types the loaded content root defines, by id.
 static MOBS: RwLock<Option<HashMap<String, Arc<EntityType>>>> = RwLock::new(None);
 
+pub fn activate(root: &Path) {
+    let specs = read(root)
+        .into_iter()
+        .map(|(id, spec)| (id, Arc::new(spec)))
+        .collect();
+    *MOBS.write().unwrap_or_else(|error| error.into_inner()) = Some(specs);
+}
+
 /// A mod mob type's definition, if `id` is one.
 pub fn spec(id: &str) -> Option<Arc<EntityType>> {
     MOBS.read().ok()?.as_ref()?.get(id).cloned()
@@ -273,6 +281,21 @@ mod tests {
         assert!(!own.ai.goals.has("Breed"));
         // without them it keeps its template's.
         assert!(mob("ruby:plain_cow").ai.goals.has("Breed"));
+
+        let reloaded = root(
+            "reload",
+            r#"[{"id":"ruby:gem_cow","template":"minecraft:cow","attributes":{"max_health":55.0}}]"#,
+        );
+        activate(&reloaded);
+        assert_eq!(ids(), ["ruby:gem_cow"]);
+        assert_eq!(spec("ruby:gem_cow").unwrap().attributes["max_health"], 55.0);
+        assert!(spec("ruby:plain_cow").is_none());
+        let vanilla = root("vanilla", "[]");
+        activate(&vanilla);
+        assert!(ids().is_empty());
+        assert!(spec("ruby:gem_cow").is_none());
+        let _ = std::fs::remove_dir_all(reloaded);
+        let _ = std::fs::remove_dir_all(vanilla);
     }
 
     #[test]
@@ -280,5 +303,14 @@ mod tests {
         assert_eq!(species_of("minecraft:pig"), Some(Species::Pig));
         assert_eq!(species_of("ruby:pig"), None);
         assert_eq!(species_of("minecraft:nothing"), None);
+    }
+
+    #[test]
+    fn flee_target_catalog_matches_the_runtime_species() {
+        let expected: std::collections::BTreeSet<_> =
+            species::ALL.iter().map(|entry| entry.name).collect();
+        let accepted: std::collections::BTreeSet<_> =
+            horizon_mods::content::FLEE_MOBS.iter().copied().collect();
+        assert_eq!(accepted, expected);
     }
 }

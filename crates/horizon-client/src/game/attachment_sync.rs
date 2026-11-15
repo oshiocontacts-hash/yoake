@@ -7,7 +7,7 @@ use crate::lan::{
     hub::{AttachmentSnapshot, Hub},
 };
 use horizon_protocol::attachment_sync::{self, Message};
-use horizon_world::attachments::{Attachments, Holder};
+use horizon_world::attachments::{AttachmentError, Attachments, Holder};
 
 /// The guests `holder`'s changes go to: those in the level in place who see it,
 /// and a player's own wherever they are.
@@ -33,7 +33,8 @@ impl Game<'_> {
     /// The messages that give a player `holder`'s synced attachments whole: its
     /// own, and for a chunk those of its block entities. A player holder with
     /// none still gives one, to drop what the client holds.
-    fn attachment_snapshot(&mut self, holder: Holder) -> Vec<Message> {
+    fn attachment_snapshot(&mut self, holder: Holder) -> Result<Vec<Message>, AttachmentError> {
+        self.reconcile_attachment_holder(holder)?;
         let changes = match holder {
             // Read in place: a chunk lent to a mod is copied and saved.
             Holder::Chunk([x, z]) => self
@@ -49,10 +50,7 @@ impl Game<'_> {
                 .get(&id)
                 .and_then(|uuid| self.entity_attachments.get(uuid))
                 .map(|map| map.synced()),
-            _ => self
-                .attachment_map_quiet(holder)
-                .ok()
-                .map(|map| map.synced()),
+            _ => self.attachment_map_read(holder)?.map(|map| map.synced()),
         }
         .unwrap_or_default();
         let mut holders = vec![(holder, changes)];
@@ -65,7 +63,7 @@ impl Game<'_> {
                     .map(|((x, y, z), map)| (Holder::BlockEntity([x, y, z]), map.synced())),
             );
         }
-        holders
+        Ok(holders
             .into_iter()
             .filter(|(holder, changes)| !changes.is_empty() || matches!(holder, Holder::Player(_)))
             .map(|(holder, changes)| Message {
@@ -73,7 +71,7 @@ impl Game<'_> {
                 replace: true,
                 changes,
             })
-            .collect()
+            .collect())
     }
 
     /// The holders players started seeing are sent whole to them, in the pass
@@ -103,15 +101,28 @@ impl Game<'_> {
                     .map_or(holder, |g| Holder::Player(g.uuid)),
                 _ => holder,
             };
-            for message in self.attachment_snapshot(holder) {
-                guest.send_attachment_sync(&message);
+            let messages = match self.attachment_snapshot(holder) {
+                Ok(messages) => messages,
+                Err(AttachmentError::MissingHolder) => continue,
+                Err(error) => {
+                    log::warn!("attachment snapshot reconciliation failed: {error:?}");
+                    hub.attachment_snapshots.push(snapshot);
+                    continue;
+                }
+            };
+            let mut sent = true;
+            for message in messages {
+                sent &= guest.send_attachment_sync(&message);
+            }
+            if !sent {
+                hub.attachment_snapshots.push(snapshot);
             }
         }
         for holder in std::mem::take(&mut self.world.attachment_syncs) {
             let Ok(map) = self.attachment_map_quiet(holder) else {
                 continue;
             };
-            let changes = map.take_sync_changes();
+            let changes = map.sync_changes();
             if changes.is_empty() {
                 continue;
             }
@@ -120,8 +131,16 @@ impl Game<'_> {
                 replace: false,
                 changes,
             };
+            let mut sent = true;
             for guest in recipients(hub, holder) {
-                guest.send_attachment_sync(&message);
+                sent &= guest.send_attachment_sync(&message);
+            }
+            if sent {
+                if let Ok(map) = self.attachment_map_quiet(holder) {
+                    map.acknowledge_sync_changes(&message.changes);
+                }
+            } else {
+                self.world.attachment_syncs.insert(holder);
             }
         }
     }

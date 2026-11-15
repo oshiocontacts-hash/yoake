@@ -479,6 +479,8 @@ pub fn read_network(bytes: &[u8], limits: Limits) -> Result<(Tag, usize), Error>
 
 struct Writer {
     bytes: Vec<u8>,
+    written: usize,
+    count_only: bool,
     limits: Limits,
     nodes: usize,
     /// `NbtIo.StringFallbackDataOutput`, the disk writer's: a string too long
@@ -492,15 +494,18 @@ struct Writer {
 impl Writer {
     fn error(&self, reason: &'static str) -> Error {
         Error {
-            offset: self.bytes.len(),
+            offset: self.written,
             reason,
         }
     }
     fn put(&mut self, bytes: &[u8]) -> Result<(), Error> {
-        if bytes.len() > self.limits.max_bytes.saturating_sub(self.bytes.len()) {
+        if bytes.len() > self.limits.max_bytes.saturating_sub(self.written) {
             return Err(self.error("byte limit exceeded"));
         }
-        self.bytes.extend_from_slice(bytes);
+        self.written += bytes.len();
+        if !self.count_only {
+            self.bytes.extend_from_slice(bytes);
+        }
         Ok(())
     }
     fn count(&mut self, len: usize) -> Result<(), Error> {
@@ -604,17 +609,7 @@ impl Writer {
                     }
                 }
             }
-            Tag::Compound(values) => {
-                for (name, value) in values {
-                    if matches!(value, Tag::End) {
-                        return Err(self.error("End cannot be a named value"));
-                    }
-                    self.put(&[value.id()])?;
-                    self.string(name)?;
-                    self.payload(value, depth + 1)?;
-                }
-                self.put(&[0])?;
-            }
+            Tag::Compound(values) => self.compound(values, depth)?,
             Tag::IntArray(v) => {
                 self.count(v.len())?;
                 for item in v {
@@ -630,6 +625,18 @@ impl Writer {
         }
         Ok(())
     }
+
+    fn compound(&mut self, values: &Compound, depth: usize) -> Result<(), Error> {
+        for (name, value) in values {
+            if matches!(value, Tag::End) {
+                return Err(self.error("End cannot be a named value"));
+            }
+            self.put(&[value.id()])?;
+            self.string(name)?;
+            self.payload(value, depth + 1)?;
+        }
+        self.put(&[0])
+    }
 }
 
 /// `NbtIo.write`: a file root. A string too long for modified UTF-8 is
@@ -637,6 +644,8 @@ impl Writer {
 pub fn write_named(root: &NamedTag, limits: Limits) -> Result<Vec<u8>, Error> {
     let mut writer = Writer {
         bytes: Vec::new(),
+        written: 0,
+        count_only: false,
         limits,
         nodes: 0,
         empty_long_strings: true,
@@ -653,6 +662,8 @@ pub fn write_named(root: &NamedTag, limits: Limits) -> Result<Vec<u8>, Error> {
 pub fn write_network(tag: &Tag, limits: Limits) -> Result<Vec<u8>, Error> {
     let mut writer = Writer {
         bytes: Vec::new(),
+        written: 0,
+        count_only: false,
         limits,
         nodes: 0,
         empty_long_strings: false,
@@ -661,6 +672,45 @@ pub fn write_network(tag: &Tag, limits: Limits) -> Result<Vec<u8>, Error> {
     writer.put(&[tag.id()])?;
     writer.payload(tag, 0)?;
     Ok(writer.bytes)
+}
+
+/// Validate a network NBT value and calculate its size without allocating its encoding.
+pub fn network_encoded_size(tag: &Tag, limits: Limits) -> Result<usize, Error> {
+    let mut writer = Writer {
+        bytes: Vec::new(),
+        written: 0,
+        count_only: true,
+        limits,
+        nodes: 0,
+        empty_long_strings: false,
+        canonical_nan: false,
+    };
+    writer.put(&[tag.id()])?;
+    writer.payload(tag, 0)?;
+    Ok(writer.written)
+}
+
+/// Validate a network compound and calculate its encoded size without cloning it.
+pub fn network_compound_encoded_size(value: &Compound, limits: Limits) -> Result<usize, Error> {
+    let mut writer = Writer {
+        bytes: Vec::new(),
+        written: 0,
+        count_only: true,
+        limits,
+        nodes: 0,
+        empty_long_strings: false,
+        canonical_nan: false,
+    };
+    writer.put(&[10])?;
+    if writer.limits.max_nodes == 0 {
+        return Err(writer.error("node limit exceeded"));
+    }
+    if writer.limits.max_depth == 0 {
+        return Err(writer.error("depth limit exceeded"));
+    }
+    writer.nodes += 1;
+    writer.compound(value, 0)?;
+    Ok(writer.written)
 }
 
 /// SNBT (`TagParser`): compounds, lists, typed arrays, quoted and bare

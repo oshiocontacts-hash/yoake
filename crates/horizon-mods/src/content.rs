@@ -444,6 +444,137 @@ pub const MOB_ATTRIBUTES: [(&str, f64, f64); 8] = [
     ("follow_range", 1.0, 128.0),
 ];
 
+/// Vanilla attributes accepted by mob effects and command suggestions.
+pub const VANILLA_ATTRIBUTES: &[&str] = &[
+    "armor",
+    "armor_toughness",
+    "attack_damage",
+    "attack_knockback",
+    "attack_speed",
+    "block_break_speed",
+    "block_interaction_range",
+    "burning_time",
+    "camera_distance",
+    "explosion_knockback_resistance",
+    "entity_interaction_range",
+    "fall_damage_multiplier",
+    "flying_speed",
+    "follow_range",
+    "gravity",
+    "jump_strength",
+    "knockback_resistance",
+    "luck",
+    "max_absorption",
+    "max_health",
+    "mining_efficiency",
+    "movement_efficiency",
+    "movement_speed",
+    "oxygen_bonus",
+    "safe_fall_distance",
+    "scale",
+    "sneaking_speed",
+    "spawn_reinforcements",
+    "step_height",
+    "submerged_mining_speed",
+    "sweeping_damage_ratio",
+    "tempt_range",
+    "water_movement_efficiency",
+];
+
+/// Vanilla mob types supported as flee targets by the client.
+pub const FLEE_MOBS: &[&str] = &[
+    "pig",
+    "cow",
+    "mooshroom",
+    "sheep",
+    "chicken",
+    "rabbit",
+    "zombie_horse",
+    "skeleton_horse",
+    "giant",
+    "horse",
+    "donkey",
+    "mule",
+    "llama",
+    "trader_llama",
+    "goat",
+    "panda",
+    "polar_bear",
+    "fox",
+    "wolf",
+    "cat",
+    "ocelot",
+    "parrot",
+    "bee",
+    "turtle",
+    "armadillo",
+    "frog",
+    "axolotl",
+    "squid",
+    "glow_squid",
+    "tadpole",
+    "cod",
+    "salmon",
+    "tropical_fish",
+    "pufferfish",
+    "dolphin",
+    "bat",
+    "villager",
+    "wandering_trader",
+    "iron_golem",
+    "snow_golem",
+    "copper_golem",
+    "zombie",
+    "husk",
+    "drowned",
+    "zombie_villager",
+    "skeleton",
+    "stray",
+    "parched",
+    "bogged",
+    "wither_skeleton",
+    "creeper",
+    "spider",
+    "cave_spider",
+    "enderman",
+    "endermite",
+    "silverfish",
+    "slime",
+    "magma_cube",
+    "witch",
+    "phantom",
+    "evoker",
+    "illusioner",
+    "allay",
+    "creaking",
+    "camel",
+    "happy_ghast",
+    "sniffer",
+    "breeze",
+    "wither",
+    "ravager",
+    "vex",
+    "shulker",
+    "guardian",
+    "elder_guardian",
+    "pillager",
+    "vindicator",
+    "piglin",
+    "piglin_brute",
+    "zombified_piglin",
+    "hoglin",
+    "zoglin",
+    "ghast",
+    "blaze",
+    "strider",
+    "warden",
+    "camel_husk",
+    "nautilus",
+    "zombie_nautilus",
+    "sulfur_cube",
+    "mannequin",
+];
+
 /// the file in a content root where the mods' mob types are written, as a
 /// JSON list of [`EntityType`]s with their ids (the mob loader reads it).
 pub const MOBS_FILE: &str = "horizon-mod-mobs.json";
@@ -1025,6 +1156,7 @@ impl Content {
             if file.color > 0xFF_FFFF {
                 return Err(format!("{name}: color is RGB, 0 to 16777215 (0xFFFFFF)"));
             }
+            let mut attributes = BTreeSet::new();
             for a in &file.attributes {
                 if !matches!(
                     a.operation.as_str(),
@@ -1037,6 +1169,16 @@ impl Content {
                 }
                 if !a.amount.is_finite() || a.attribute.is_empty() {
                     return Err(format!("{name}: an attribute needs a name and a finite amount"));
+                }
+                let attribute = a
+                    .attribute
+                    .strip_prefix("minecraft:")
+                    .unwrap_or(&a.attribute);
+                if !VANILLA_ATTRIBUTES.contains(&attribute) {
+                    return Err(format!("{name}: unknown attribute {:?}", a.attribute));
+                }
+                if !attributes.insert(attribute) {
+                    return Err(format!("{name}: duplicate attribute {:?}", a.attribute));
                 }
             }
             self.effects.push(MobEffect { id: effect, ..file });
@@ -1227,7 +1369,14 @@ impl Content {
                         walk_speed,
                         sprint_speed,
                     } => {
-                        if from.is_empty() || !from.iter().all(|f| id_like(f)) {
+                        if from.is_empty()
+                            || !from.iter().all(|id| {
+                                id == "minecraft:player"
+                                    || id
+                                        .strip_prefix("minecraft:")
+                                        .is_some_and(|name| FLEE_MOBS.contains(&name))
+                            })
+                        {
                             return Err(format!(
                                 "{name}: flee needs from, minecraft:player or vanilla mob ids"
                             ));
@@ -1924,6 +2073,59 @@ capabilities = ["registries"]
         )];
         let e = hmod("effect-operation", MANIFEST_TEXT, bad).unwrap_err();
         assert!(e.contains("operation"), "{e}");
+    }
+
+    #[test]
+    fn mob_effects_reject_unknown_and_duplicate_attributes() {
+        for (case, attributes, expected) in [
+            (
+                "unknown",
+                r#"[{"attribute":"minecraft:not_real","amount":1}]"#,
+                "unknown attribute",
+            ),
+            (
+                "modded",
+                r#"[{"attribute":"ruby:movement_speed","amount":1}]"#,
+                "unknown attribute",
+            ),
+            (
+                "duplicate",
+                r#"[{"attribute":"movement_speed","amount":1},{"attribute":"minecraft:movement_speed","amount":2}]"#,
+                "duplicate attribute",
+            ),
+        ] {
+            let body = format!(r#"{{"category":"neutral","color":1,"attributes":{attributes}}}"#);
+            let files: &[(&str, &[u8])] =
+                &[("data/ruby/horizon/mob_effect/test.json", body.as_bytes())];
+            let error = hmod(case, MANIFEST_TEXT, files).unwrap_err();
+            assert!(error.contains(expected), "{case}: {error}");
+        }
+    }
+
+    #[test]
+    fn flee_targets_must_be_supported_vanilla_mobs() {
+        for target in ["minecraft:player", "minecraft:wolf", "minecraft:zombie"] {
+            let body = format!(
+                r#"{{"template":"minecraft:cow","behaviours":[{{"type":"flee","from":["{target}"]}}]}}"#
+            );
+            let files: &[(&str, &[u8])] =
+                &[("data/ruby/horizon/entity_type/test.json", body.as_bytes())];
+            assert!(hmod("flee-valid", MANIFEST_TEXT, files).is_ok(), "{target}");
+        }
+        for target in [
+            "minecraft:not_real",
+            "ruby:gem_cow",
+            "wolf",
+            "minecraft:stone",
+        ] {
+            let body = format!(
+                r#"{{"template":"minecraft:cow","behaviours":[{{"type":"flee","from":["{target}"]}}]}}"#
+            );
+            let files: &[(&str, &[u8])] =
+                &[("data/ruby/horizon/entity_type/test.json", body.as_bytes())];
+            let error = hmod("flee-invalid", MANIFEST_TEXT, files).unwrap_err();
+            assert!(error.contains("flee needs from"), "{target}: {error}");
+        }
     }
 
     #[test]

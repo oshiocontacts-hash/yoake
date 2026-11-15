@@ -2647,6 +2647,8 @@ impl Game<'_> {
     /// `WorldOpenFailed`. `dedicated` tells a dedicated server from the single
     /// player one. API 44.
     pub(super) fn native_server_about_to_start(&mut self, dedicated: bool) {
+        crate::entry::wasm_mods::reset_attachments();
+        horizon_client::mobs::mod_mob::activate(&self.options.resources);
         mod_api::dispatch_server_about_to_start(self, mod_api::mods(), dedicated);
     }
     /// The server begins an orderly stop (NeoForge's `ServerStoppingEvent`):
@@ -7125,6 +7127,9 @@ impl Game<'_> {
     /// before `WorldOpenReady`. Not told of a chunk a client receives.
     /// Server-side. API 57.
     pub(super) fn native_chunk_load(&mut self, dimension: &str, chunk: [i32; 2], new: bool) {
+        if let Err(error) = self.reconcile_attachment_holder(mod_api::Holder::Chunk(chunk)) {
+            log::warn!("chunk attachment reconciliation failed: {error:?}");
+        }
         mod_api::dispatch_chunk_load(self, mod_api::mods(), dimension, chunk, new);
     }
     /// Chunk `chunk` of `dimension` left the world (NeoForge's
@@ -7194,6 +7199,9 @@ impl Game<'_> {
         name: &str,
         directory: &std::path::Path,
     ) {
+        if let Err(error) = self.reconcile_attachment_holder(mod_api::Holder::Player(player)) {
+            log::warn!("player attachment reconciliation failed: {error:?}");
+        }
         mod_api::dispatch_player_load_from_file(self, mod_api::mods(), player, name, directory);
     }
     /// A player's data was copied to their new player (NeoForge's
@@ -8998,6 +9006,14 @@ impl Game<'_> {
         holder: Holder,
     ) -> AttachmentResult<&mut Attachments> {
         self.attachment_map(holder)
+    }
+
+    /// Read a holder without changing or marking its contents.
+    pub(super) fn native_attachment_read(
+        &self,
+        holder: Holder,
+    ) -> AttachmentResult<Option<&Attachments>> {
+        self.attachment_map_read(holder)
     }
     /// Read a loaded, light-emitting block. No implicit chunk loading.
     pub(super) fn native_lit_block_name(&self, pos: [i32; 3]) -> Option<&str> {

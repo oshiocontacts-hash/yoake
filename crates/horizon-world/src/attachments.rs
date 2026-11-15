@@ -3,6 +3,7 @@ use std::{
     any::Any,
     collections::{BTreeMap, BTreeSet},
     fmt,
+    sync::{Arc, Mutex},
 };
 
 use crate::nbt::{Compound, JavaString, Tag};
@@ -33,10 +34,156 @@ pub enum AttachmentError {
     DuplicateType,
     /// The holder does not match the declared scope.
     ScopeMismatch,
+    /// This package's world-wide attachment budget would be exceeded.
+    QuotaExceeded,
 }
 
 /// NBT key reserved for server-owned attachment maps.
 pub const ATTACHMENTS_KEY: &str = "horizon:attachments";
+/// Maximum length of a dynamic attachment identifier in UTF-8 bytes.
+pub const MAX_ATTACHMENT_ID_BYTES: usize = 128;
+/// Default per-package, per-world attachment byte budget.
+pub const DEFAULT_ATTACHMENT_BUDGET: usize = 32 * 1024 * 1024;
+
+type Usage = BTreeMap<JavaString, (usize, usize)>;
+
+#[derive(Default)]
+struct BudgetState {
+    generation: u64,
+    holders: BTreeMap<String, (u64, Usage)>,
+    totals: BTreeMap<JavaString, usize>,
+    scan_failed: bool,
+}
+
+struct BudgetBinding {
+    state: Arc<Mutex<BudgetState>>,
+    holder: String,
+    generation: u64,
+    limit: usize,
+}
+
+impl BudgetBinding {
+    fn update(&self, usage: Usage, enforce: bool) -> Result<(), AttachmentError> {
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        let Some((generation, previous)) = state.holders.get(&self.holder) else {
+            return Err(AttachmentError::MissingHolder);
+        };
+        if *generation != self.generation {
+            return Err(AttachmentError::MissingHolder);
+        }
+        let previous = previous.clone();
+        if enforce {
+            for (namespace, (bytes, _)) in &usage {
+                let old = previous.get(namespace).map_or(0, |value| value.0);
+                let total = state.totals.get(namespace).copied().unwrap_or(0);
+                if *bytes > old
+                    && (state.scan_failed
+                        || total.saturating_sub(old).saturating_add(*bytes) > self.limit)
+                {
+                    return Err(AttachmentError::QuotaExceeded);
+                }
+            }
+        }
+        for (namespace, (bytes, _)) in previous {
+            let total = state.totals.entry(namespace).or_default();
+            *total = total.saturating_sub(bytes);
+        }
+        for (namespace, (bytes, _)) in &usage {
+            let total = state.totals.entry(namespace.clone()).or_default();
+            *total = total.saturating_add(*bytes);
+        }
+        state
+            .holders
+            .insert(self.holder.clone(), (self.generation, usage));
+        state.totals.retain(|_, bytes| *bytes != 0);
+        Ok(())
+    }
+}
+
+impl Drop for BudgetBinding {
+    fn drop(&mut self) {
+        let usage = {
+            let state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+            let Some((generation, usage)) = state.holders.get(&self.holder) else {
+                return;
+            };
+            if *generation != self.generation {
+                return;
+            }
+            usage
+                .iter()
+                .filter_map(|(namespace, (_, persistent))| {
+                    (*persistent != 0).then(|| (namespace.clone(), (*persistent, *persistent)))
+                })
+                .collect()
+        };
+        let _ = self.update(usage, false);
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        if state
+            .holders
+            .get(&self.holder)
+            .is_some_and(|(generation, usage)| *generation == self.generation && usage.is_empty())
+        {
+            state.holders.remove(&self.holder);
+        }
+    }
+}
+
+/// Maximum encoded size of a synced value, reserving room for its key and holder.
+pub const MAX_SYNCED_ATTACHMENT_BYTES: usize = 1_048_576 - 1_600;
+
+fn validate_synced_value(
+    namespace: &str,
+    name: &str,
+    value: &Compound,
+) -> Result<(), AttachmentError> {
+    let limits = crate::nbt::Limits {
+        max_bytes: MAX_SYNCED_ATTACHMENT_BYTES,
+        ..crate::nbt::Limits::default()
+    };
+    if namespace.encode_utf16().count() > 256
+        || name.encode_utf16().count() > 256
+        || crate::nbt::network_compound_encoded_size(value, limits).is_err()
+    {
+        log::warn!("Refusing an attachment value that cannot be synced");
+        return Err(AttachmentError::Encode);
+    }
+    Ok(())
+}
+
+fn encodable_name(name: &JavaString) -> bool {
+    let mut length = 0usize;
+    for unit in &name.0 {
+        length += match unit {
+            0 => 2,
+            1..=0x7f => 1,
+            0x80..=0x7ff => 2,
+            _ => 3,
+        };
+        if length > u16::MAX as usize {
+            return false;
+        }
+    }
+    true
+}
+
+fn encodable_entry(name: &JavaString, value: &Tag) -> bool {
+    let limits = crate::nbt::Limits {
+        max_depth: crate::nbt::Limits::saved().max_depth - 3,
+        ..crate::nbt::Limits::saved()
+    };
+    let valid = encodable_name(name)
+        && !matches!(value, Tag::End)
+        && crate::nbt::network_encoded_size(value, limits).is_ok();
+    if !valid {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        static WARNED: AtomicBool = AtomicBool::new(false);
+        if !WARNED.swap(true, Ordering::Relaxed) {
+            log::warn!("Skipping an attachment that cannot be encoded in a save");
+        }
+    }
+    valid
+}
 
 /// Read the reserved compound without replacing an invalid saved value.
 pub fn attachment_compound(tag: Option<&Tag>) -> Result<Option<&Compound>, AttachmentError> {
@@ -107,12 +254,32 @@ pub struct DynamicAttachmentType {
 }
 
 /// Definitions are unique within a registry and confined to their owner's namespace.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct DynamicAttachmentRegistry {
     types: BTreeMap<(String, String), DynamicAttachmentType>,
+    budget: Arc<Mutex<BudgetState>>,
 }
 
 impl DynamicAttachmentRegistry {
+    /// Whether a package has registered attachments in this world.
+    pub fn is_empty(&self) -> bool {
+        self.types.is_empty()
+    }
+
+    /// Refuse growth when the world's saved usage could not be completely indexed.
+    pub fn deny_growth(&self) {
+        self.budget
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .scan_failed = true;
+    }
+
+    /// Account for an unloaded saved holder before any package can allocate more data.
+    pub fn account_saved(&self, holder: String, raw: Compound) {
+        let mut attachments = Attachments::from_nbt(raw);
+        self.bind(&mut attachments, holder);
+    }
+
     /// Register an identifier for the trusted mod owner supplied by the host.
     pub fn define(
         &mut self,
@@ -120,6 +287,9 @@ impl DynamicAttachmentRegistry {
         id: &str,
         policy: DynamicAttachmentPolicy,
     ) -> Result<DynamicAttachmentType, AttachmentError> {
+        if id.len() > MAX_ATTACHMENT_ID_BYTES {
+            return Err(AttachmentError::InvalidId);
+        }
         let (namespace, name) = id.split_once(':').ok_or(AttachmentError::InvalidId)?;
         let valid = |byte: u8| {
             byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"_.-".contains(&byte)
@@ -169,12 +339,82 @@ impl DynamicAttachmentRegistry {
         holder: Holder,
     ) -> Result<(), AttachmentError> {
         let attachments = host.attachments(holder)?;
-        for definition in self.types.values() {
-            if definition.scope.matches(holder) {
-                attachments.get_dynamic(definition)?;
+        self.reconcile_map(holder, attachments)
+    }
+
+    /// Join a holder to this world's shared budget, retaining unloaded saved usage.
+    pub fn bind(&self, attachments: &mut Attachments, holder: String) {
+        if attachments.budget.as_ref().is_some_and(|binding| {
+            Arc::ptr_eq(&binding.state, &self.budget)
+                && binding.holder == holder
+                && self
+                    .budget
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner())
+                    .holders
+                    .get(&holder)
+                    .is_some_and(|(generation, _)| *generation == binding.generation)
+        }) {
+            return;
+        }
+        let mut state = self
+            .budget
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        state.generation += 1;
+        let generation = state.generation;
+        let previous = state
+            .holders
+            .get(&holder)
+            .map(|(_, usage)| usage.clone())
+            .unwrap_or_default();
+        state.holders.insert(holder.clone(), (generation, previous));
+        drop(state);
+        attachments.budget = Some(Arc::new(BudgetBinding {
+            state: self.budget.clone(),
+            holder,
+            generation,
+            limit: DEFAULT_ATTACHMENT_BUDGET,
+        }));
+        let _ = attachments.refresh_budget(false);
+    }
+
+    /// Reconcile an already-resolved holder without resolving or dirtying it again.
+    pub fn reconcile_map(
+        &self,
+        holder: Holder,
+        attachments: &mut Attachments,
+    ) -> Result<(), AttachmentError> {
+        let mut result = Ok(());
+        attachments.entries.retain(|(namespace, name), entry| {
+            let Entry::Dynamic(value) = entry else {
+                return true;
+            };
+            if self
+                .types
+                .get(&(namespace.to_string_lossy(), name.to_string_lossy()))
+                .is_some_and(|definition| definition.scope.matches(holder))
+            {
+                return true;
+            }
+            if value.persistent {
+                *entry = Entry::Raw(value.envelope());
+                true
+            } else {
+                false
+            }
+        });
+        for definition in self
+            .types
+            .values()
+            .filter(|definition| definition.scope.matches(holder))
+        {
+            if let Err(error) = attachments.get_dynamic(definition) {
+                result = Err(error);
             }
         }
-        Ok(())
+        attachments.refresh_budget(false)?;
+        result
     }
 }
 
@@ -211,6 +451,21 @@ impl DynamicAttachmentType {
         holder: Holder,
     ) -> Result<Option<Compound>, AttachmentError> {
         self.holder(host, holder)?.get_dynamic(self)
+    }
+
+    /// Read a value without materializing it or changing the holder.
+    pub fn read(
+        &self,
+        holder: Holder,
+        attachments: Option<&Attachments>,
+    ) -> Result<Option<Compound>, AttachmentError> {
+        if !self.scope.matches(holder) {
+            return Err(AttachmentError::ScopeMismatch);
+        }
+        match attachments {
+            Some(attachments) => attachments.read_dynamic(self),
+            None => Ok(None),
+        }
     }
 
     /// Replace an NBT value and queue it for sync if requested.
@@ -418,7 +673,7 @@ impl Entry {
     }
     fn is_synced(&self) -> bool {
         match self {
-            Self::Raw(raw) => matches!(raw.get(&"sync".into()), Some(Tag::Byte(1))),
+            Self::Raw(_) => false,
             Self::Decoded(value) => value.sync(),
             Self::Dynamic(value) => value.synced,
         }
@@ -435,13 +690,24 @@ impl Clone for Entry {
 }
 
 /// The data held by one entity, block entity, chunk or level.
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct Attachments {
     entries: BTreeMap<(JavaString, JavaString), Entry>,
     // Keep malformed or otherwise unrecognized NBT exactly as it was read.
     raw: Compound,
     // Keys to send to clients at the next flush; never saved.
     pending: BTreeSet<(JavaString, JavaString)>,
+    budget: Option<Arc<BudgetBinding>>,
+}
+impl Clone for Attachments {
+    fn clone(&self) -> Self {
+        Self {
+            entries: self.entries.clone(),
+            raw: self.raw.clone(),
+            pending: self.pending.clone(),
+            budget: None,
+        }
+    }
 }
 impl fmt::Debug for Attachments {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -452,12 +718,93 @@ impl fmt::Debug for Attachments {
 }
 
 impl Attachments {
+    fn usage(&self, replacement: Option<(&(JavaString, JavaString), &Entry)>) -> Usage {
+        let mut usage = Usage::new();
+        let limits = crate::nbt::Limits {
+            max_bytes: usize::MAX,
+            ..crate::nbt::Limits::saved()
+        };
+        let mut count = |key: &(JavaString, JavaString), entry: &Entry| {
+            let (encoded, persistent) = match entry {
+                Entry::Raw(value) => (Some(value), true),
+                Entry::Decoded(value) => (value.encoded(), value.encoded().is_some()),
+                Entry::Dynamic(value) => (Some(&value.value), value.persistent),
+            };
+            let bytes = encoded
+                .map_or_else(
+                    || DEFAULT_ATTACHMENT_BUDGET + 1,
+                    |value| {
+                        crate::nbt::network_compound_encoded_size(value, limits)
+                            .unwrap_or(DEFAULT_ATTACHMENT_BUDGET + 1)
+                    },
+                )
+                .saturating_add(3 * (key.0.0.len() + key.1.0.len()) + 64);
+            let total = usage.entry(key.0.clone()).or_default();
+            total.0 = total.0.saturating_add(bytes);
+            if persistent {
+                total.1 = total.1.saturating_add(bytes);
+            }
+        };
+        for (key, entry) in &self.entries {
+            if replacement.is_none_or(|(replace, _)| replace != key) {
+                count(key, entry);
+            }
+        }
+        if let Some((key, entry)) = replacement {
+            count(key, entry);
+        }
+        for (namespace, tag) in &self.raw {
+            let mut count_raw = |name: Option<&JavaString>, tag: &Tag| {
+                let bytes = crate::nbt::network_encoded_size(tag, limits)
+                    .unwrap_or(DEFAULT_ATTACHMENT_BUDGET + 1)
+                    .saturating_add(
+                        3 * (namespace.0.len() + name.map_or(0, |name| name.0.len())) + 64,
+                    );
+                let total = usage.entry(namespace.clone()).or_default();
+                total.0 = total.0.saturating_add(bytes);
+                total.1 = total.1.saturating_add(bytes);
+            };
+            if let Tag::Compound(names) = tag {
+                for (name, value) in names {
+                    let key = (namespace.clone(), name.clone());
+                    if !self.entries.contains_key(&key)
+                        && replacement.is_none_or(|(replace, _)| replace != &key)
+                    {
+                        count_raw(Some(name), value);
+                    }
+                }
+            } else {
+                count_raw(None, tag);
+            }
+        }
+        usage
+    }
+
+    fn reserve(
+        &self,
+        key: &(JavaString, JavaString),
+        entry: &Entry,
+    ) -> Result<(), AttachmentError> {
+        if let Some(binding) = &self.budget {
+            binding.update(self.usage(Some((key, entry))), true)?;
+        }
+        Ok(())
+    }
+
+    fn refresh_budget(&self, enforce: bool) -> Result<(), AttachmentError> {
+        if let Some(binding) = &self.budget {
+            binding.update(self.usage(None), enforce)?;
+        }
+        Ok(())
+    }
+
     /// Read the namespaced attachment compound, leaving unknown data intact.
     pub fn from_nbt(raw: Compound) -> Self {
         let mut result = Self {
             entries: BTreeMap::new(),
             raw,
             pending: BTreeSet::new(),
+            budget: None,
         };
         for (namespace, tag) in &result.raw {
             if let Tag::Compound(names) = tag {
@@ -491,9 +838,20 @@ impl Attachments {
                 names.insert(name.clone(), Tag::Compound(value));
             }
         }
+        raw.retain(|namespace, tag| {
+            if !encodable_name(namespace) {
+                return encodable_entry(namespace, tag);
+            }
+            if let Tag::Compound(names) = tag {
+                names.retain(|name, value| encodable_entry(name, value));
+                true
+            } else {
+                encodable_entry(namespace, tag)
+            }
+        });
         raw
     }
-    /// Copy opted-in values through their disk encoding for a player respawn.
+    /// Copy values opted in by a current definition, never by saved flags alone.
     pub fn copy_on_death(&self) -> Result<Self, AttachmentError> {
         let mut copy = Self::default();
         for (key, entry) in &self.entries {
@@ -504,19 +862,15 @@ impl Attachments {
                 }
                 continue;
             }
-            let encoded = match entry {
-                Entry::Raw(raw)
-                    if matches!(raw.get(&"copy_on_death".into()), Some(Tag::Byte(1))) =>
-                {
-                    Some(raw.clone())
-                }
+            let copied = match entry {
                 Entry::Decoded(value) if value.copy_on_death() => {
-                    Some(envelope(value.as_ref()).ok_or(AttachmentError::InvalidCopyPolicy)?)
+                    envelope(value.as_ref()).ok_or(AttachmentError::InvalidCopyPolicy)?;
+                    Some(Entry::Decoded(value.clone_box()))
                 }
                 _ => None,
             };
-            if let Some(encoded) = encoded {
-                copy.entries.insert(key.clone(), Entry::Raw(encoded));
+            if let Some(copied) = copied {
+                copy.entries.insert(key.clone(), copied);
             }
         }
         Ok(copy)
@@ -524,6 +878,18 @@ impl Attachments {
 
     fn get_dynamic(
         &mut self,
+        ty: &DynamicAttachmentType,
+    ) -> Result<Option<Compound>, AttachmentError> {
+        let value = self.read_dynamic(ty)?;
+        if let Some(value) = &value {
+            self.insert_dynamic(ty, value.clone());
+            self.refresh_budget(false)?;
+        }
+        Ok(value)
+    }
+
+    fn read_dynamic(
+        &self,
         ty: &DynamicAttachmentType,
     ) -> Result<Option<Compound>, AttachmentError> {
         let key = ty.key();
@@ -547,7 +913,6 @@ impl Attachments {
                 return Ok(None);
             }
         };
-        self.insert_dynamic(ty, value.clone());
         Ok(Some(value))
     }
 
@@ -572,7 +937,19 @@ impl Attachments {
         ty: &DynamicAttachmentType,
         value: Compound,
     ) -> Result<(), AttachmentError> {
+        if ty.synced {
+            validate_synced_value(&ty.namespace, &ty.name, &value)?;
+        }
         self.get_dynamic(ty)?;
+        self.reserve(
+            &ty.key(),
+            &Entry::Dynamic(DynamicValue {
+                value: value.clone(),
+                persistent: ty.persistent,
+                synced: ty.synced,
+                copy_on_death: ty.copy_on_death,
+            }),
+        )?;
         self.insert_dynamic(ty, value);
         if ty.synced {
             self.pending.insert(ty.key());
@@ -591,6 +968,7 @@ impl Attachments {
             if ty.synced {
                 self.pending.insert(key);
             }
+            self.refresh_budget(false)?;
         }
         Ok(value)
     }
@@ -630,6 +1008,9 @@ impl Attachments {
             None => return Ok(None),
         };
         self.insert_decoded(ty, value.clone())?;
+        if let Some(Tag::Compound(names)) = self.raw.get_mut(&ty.namespace.into()) {
+            names.remove(&ty.name.into());
+        }
         Ok(Some(value))
     }
     /// Get an existing value or insert its default; saved values decode lazily.
@@ -704,6 +1085,7 @@ impl Attachments {
         if let Some(Tag::Compound(names)) = self.raw.get_mut(&ty.namespace.into()) {
             names.remove(&ty.name.into());
         }
+        self.refresh_budget(false)?;
         value
     }
     fn insert_decoded<T: Clone + Send + Sync + 'static>(
@@ -716,15 +1098,20 @@ impl Attachments {
             .as_ref()
             .map(|codec| (codec.encode)(&value))
             .transpose()?;
-        self.entries.insert(
-            (ty.namespace.into(), ty.name.into()),
-            Entry::Decoded(Box::new(TypedValue {
-                value,
-                encoded,
-                copy_on_death: ty.copy_on_death,
-                sync: ty.sync,
-            })),
-        );
+        if ty.sync {
+            if let Some(value) = &encoded {
+                validate_synced_value(ty.namespace, ty.name, value)?;
+            }
+        }
+        let key = (ty.namespace.into(), ty.name.into());
+        let entry = Entry::Decoded(Box::new(TypedValue {
+            value,
+            encoded,
+            copy_on_death: ty.copy_on_death,
+            sync: ty.sync,
+        }));
+        self.reserve(&key, &entry)?;
+        self.entries.insert(key, entry);
         Ok(())
     }
     /// Queue a value to be sent to clients again; nothing for an unsynced type.
@@ -735,15 +1122,16 @@ impl Attachments {
         }
         Ok(())
     }
-    /// The changes to send to clients since the last call: the current value
-    /// of each queued key, or `None` for one that is gone.
-    pub fn take_sync_changes(&mut self) -> Vec<AttachmentSync> {
-        std::mem::take(&mut self.pending)
-            .into_iter()
+    /// Read queued changes without acknowledging their delivery.
+    pub fn sync_changes(&self) -> Vec<AttachmentSync> {
+        self.pending
+            .iter()
+            .cloned()
             .map(|(namespace, name)| {
                 let value = self
                     .entries
                     .get(&(namespace.clone(), name.clone()))
+                    .filter(|entry| entry.is_synced())
                     .and_then(Entry::synced_value)
                     .cloned();
                 AttachmentSync {
@@ -753,6 +1141,19 @@ impl Attachments {
                 }
             })
             .collect()
+    }
+    /// Acknowledge changes after they have been queued for every recipient.
+    pub fn acknowledge_sync_changes(&mut self, changes: &[AttachmentSync]) {
+        for change in changes {
+            self.pending
+                .remove(&(change.namespace.clone(), change.name.clone()));
+        }
+    }
+    /// Take and acknowledge the current queued changes.
+    pub fn take_sync_changes(&mut self) -> Vec<AttachmentSync> {
+        let changes = self.sync_changes();
+        self.acknowledge_sync_changes(&changes);
+        changes
     }
     /// Every synced value, for a client that starts seeing the holder.
     pub fn synced(&self) -> Vec<AttachmentSync> {
@@ -807,6 +1208,191 @@ mod tests {
         }
     }
 
+    fn budget_host(registry: &DynamicAttachmentRegistry, holder: &str) -> DynamicHost {
+        let mut host = DynamicHost(Attachments::default());
+        registry.bind(&mut host.0, holder.to_owned());
+        Arc::get_mut(host.0.budget.as_mut().unwrap()).unwrap().limit = 1024;
+        host
+    }
+
+    fn payload(bytes: usize) -> Compound {
+        [("value".into(), Tag::ByteArray(vec![0; bytes]))].into()
+    }
+
+    #[test]
+    fn budget_is_shared_across_holders_but_not_packages_or_worlds() {
+        let mut registry = DynamicAttachmentRegistry::default();
+        let policy = dynamic_policy(AttachmentScope::Player);
+        let first = registry.define("test", "test:first", policy).unwrap();
+        let other = registry.define("other", "other:first", policy).unwrap();
+        let mut first_host = budget_host(&registry, "player:1");
+        let mut second_host = budget_host(&registry, "player:2");
+        first
+            .set(&mut first_host, Holder::Player(1), payload(600))
+            .unwrap();
+        assert_eq!(
+            first.set(&mut second_host, Holder::Player(2), payload(600)),
+            Err(AttachmentError::QuotaExceeded)
+        );
+        assert_eq!(first.get(&mut second_host, Holder::Player(2)), Ok(None));
+        other
+            .set(&mut second_host, Holder::Player(2), payload(600))
+            .unwrap();
+        let fresh_registry = DynamicAttachmentRegistry::default();
+        let mut fresh_host = budget_host(&fresh_registry, "player:1");
+        first
+            .set(&mut fresh_host, Holder::Player(1), payload(600))
+            .unwrap();
+    }
+
+    #[test]
+    fn budget_replacements_and_removals_are_atomic() {
+        let mut registry = DynamicAttachmentRegistry::default();
+        let definition = registry
+            .define("test", "test:value", dynamic_policy(AttachmentScope::Level))
+            .unwrap();
+        let mut host = budget_host(&registry, "level:test");
+        definition
+            .set(&mut host, Holder::Level, payload(600))
+            .unwrap();
+        definition
+            .set(&mut host, Holder::Level, payload(700))
+            .unwrap();
+        assert_eq!(
+            definition.set(&mut host, Holder::Level, payload(1000)),
+            Err(AttachmentError::QuotaExceeded)
+        );
+        assert_eq!(
+            definition.get(&mut host, Holder::Level),
+            Ok(Some(payload(700)))
+        );
+        definition.remove(&mut host, Holder::Level).unwrap();
+        definition
+            .set(&mut host, Holder::Level, payload(900))
+            .unwrap();
+    }
+
+    #[test]
+    fn budget_keeps_unloaded_persistent_data_and_releases_memory_only_data() {
+        let mut registry = DynamicAttachmentRegistry::default();
+        let policy = dynamic_policy(AttachmentScope::Player);
+        let persistent = registry.define("test", "test:saved", policy).unwrap();
+        let memory = registry
+            .define(
+                "test",
+                "test:memory",
+                DynamicAttachmentPolicy {
+                    persistent: false,
+                    ..policy
+                },
+            )
+            .unwrap();
+        let mut saved_host = budget_host(&registry, "player:1");
+        persistent
+            .set(&mut saved_host, Holder::Player(1), payload(600))
+            .unwrap();
+        let saved = saved_host.0.to_nbt();
+        drop(saved_host);
+        let mut host = budget_host(&registry, "player:2");
+        assert_eq!(
+            memory.set(&mut host, Holder::Player(2), payload(600)),
+            Err(AttachmentError::QuotaExceeded)
+        );
+        let mut reloaded = DynamicHost(Attachments::from_nbt(saved));
+        registry.bind(&mut reloaded.0, "player:1".into());
+        persistent.remove(&mut reloaded, Holder::Player(1)).unwrap();
+        memory
+            .set(&mut host, Holder::Player(2), payload(600))
+            .unwrap();
+        drop(host);
+        let mut next = budget_host(&registry, "player:3");
+        memory
+            .set(&mut next, Holder::Player(3), payload(600))
+            .unwrap();
+    }
+
+    #[test]
+    fn budget_counts_cold_unknown_and_malformed_saved_data() {
+        let mut registry = DynamicAttachmentRegistry::default();
+        let definition = registry
+            .define("test", "test:new", dynamic_policy(AttachmentScope::Level))
+            .unwrap();
+        registry.account_saved(
+            "level:cold".into(),
+            [("test".into(), Tag::ByteArray(vec![0; 900]))].into(),
+        );
+        let mut host = budget_host(&registry, "level:live");
+        assert_eq!(
+            definition.set(&mut host, Holder::Level, payload(100)),
+            Err(AttachmentError::QuotaExceeded)
+        );
+        registry.account_saved("level:cold".into(), Compound::new());
+        let unknown = Attachments::from_nbt(
+            [(
+                "test".into(),
+                Tag::compound([(
+                    "old",
+                    Tag::compound([("data", Tag::Compound(payload(900)))]),
+                )]),
+            )]
+            .into(),
+        );
+        registry.account_saved("level:cold".into(), unknown.to_nbt());
+        assert_eq!(
+            definition.set(&mut host, Holder::Level, payload(100)),
+            Err(AttachmentError::QuotaExceeded)
+        );
+    }
+
+    #[test]
+    fn budget_snapshots_do_not_own_the_live_holders_reservation() {
+        let mut registry = DynamicAttachmentRegistry::default();
+        let policy = DynamicAttachmentPolicy {
+            persistent: false,
+            ..dynamic_policy(AttachmentScope::Level)
+        };
+        let definition = registry.define("test", "test:value", policy).unwrap();
+        let mut live = budget_host(&registry, "level:one");
+        definition
+            .set(&mut live, Holder::Level, payload(600))
+            .unwrap();
+        let snapshot = live.0.clone();
+        assert!(snapshot.budget.is_none());
+        let mut replacement = DynamicHost(live.0.clone());
+        registry.bind(&mut replacement.0, "level:one".into());
+        drop(live);
+        let mut other = budget_host(&registry, "level:two");
+        assert_eq!(
+            definition.set(&mut other, Holder::Level, payload(600)),
+            Err(AttachmentError::QuotaExceeded)
+        );
+        drop(replacement);
+        definition
+            .set(&mut other, Holder::Level, payload(600))
+            .unwrap();
+    }
+
+    #[test]
+    fn incomplete_saved_usage_index_refuses_growth_but_allows_shrinking() {
+        let mut registry = DynamicAttachmentRegistry::default();
+        let definition = registry
+            .define("test", "test:value", dynamic_policy(AttachmentScope::Level))
+            .unwrap();
+        let mut host = budget_host(&registry, "level:one");
+        definition
+            .set(&mut host, Holder::Level, payload(600))
+            .unwrap();
+        registry.deny_growth();
+        definition
+            .set(&mut host, Holder::Level, payload(500))
+            .unwrap();
+        assert_eq!(
+            definition.set(&mut host, Holder::Level, payload(600)),
+            Err(AttachmentError::QuotaExceeded)
+        );
+        definition.remove(&mut host, Holder::Level).unwrap();
+    }
+
     #[test]
     fn dynamic_definitions_check_owner_identifier_and_holder_scope() {
         let mut registry = DynamicAttachmentRegistry::default();
@@ -842,6 +1428,50 @@ mod tests {
             definition.get(&mut host, Holder::Entity(1)),
             Err(AttachmentError::ScopeMismatch)
         );
+    }
+
+    #[test]
+    fn dynamic_ids_are_limited_by_bytes() {
+        let mut registry = DynamicAttachmentRegistry::default();
+        let policy = dynamic_policy(AttachmentScope::Level);
+        let longest = format!("test:{}", "a".repeat(123));
+        assert_eq!(longest.len(), MAX_ATTACHMENT_ID_BYTES);
+        assert!(registry.define("test", &longest, policy).is_ok());
+        assert!(matches!(
+            registry.define("test", &(longest + "a"), policy),
+            Err(AttachmentError::InvalidId)
+        ));
+    }
+
+    #[test]
+    fn saving_skips_unencodable_entries_without_losing_valid_unknown_data() {
+        let invalid_key = "x".repeat(65_536);
+        let raw: Compound = [(
+            "missing".into(),
+            Tag::Compound(
+                [
+                    ("valid".into(), Tag::compound([("data", Tag::Int(42))])),
+                    (
+                        invalid_key.as_str().into(),
+                        Tag::compound([("data", Tag::Int(1))]),
+                    ),
+                    ("invalid_value".into(), Tag::compound([("data", Tag::End)])),
+                ]
+                .into(),
+            ),
+        )]
+        .into();
+        let saved = Attachments::from_nbt(raw).to_nbt();
+        let Tag::Compound(entries) = saved.get(&"missing".into()).unwrap() else {
+            panic!("namespace retained");
+        };
+        assert_eq!(entries.len(), 1);
+        assert!(entries.contains_key(&"valid".into()));
+        let root = crate::nbt::NamedTag {
+            name: "".into(),
+            tag: Tag::Compound(saved),
+        };
+        assert!(crate::nbt::write_named(&root, crate::nbt::Limits::saved()).is_ok());
     }
 
     #[test]
@@ -1093,7 +1723,7 @@ mod tests {
         assert_eq!(reopened.get(&COUNTER), Ok(0));
     }
     #[test]
-    fn untouched_saved_value_copies_on_respawn() {
+    fn saved_values_only_copy_after_the_current_type_is_known() {
         let keep = AttachmentType {
             namespace: "test",
             name: "keep",
@@ -1105,7 +1735,9 @@ mod tests {
         let mut original = Attachments::default();
         original.set(&keep, 42).unwrap();
         original.set(&COUNTER, 5).unwrap();
-        let loaded = Attachments::from_nbt(original.to_nbt());
+        let mut loaded = Attachments::from_nbt(original.to_nbt());
+        assert!(loaded.copy_on_death().unwrap().to_nbt().is_empty());
+        assert_eq!(loaded.get_existing(&keep), Ok(Some(42)));
         let mut respawned = loaded.copy_on_death().unwrap();
         assert_eq!(respawned.get(&keep), Ok(42));
         assert_eq!(respawned.get(&COUNTER), Ok(0));
@@ -1172,6 +1804,39 @@ mod tests {
         assert!(map.take_sync_changes().is_empty());
     }
     #[test]
+    fn pending_sync_changes_remain_until_acknowledged() {
+        let mut map = Attachments::default();
+        map.set(&SYNCED, 2).unwrap();
+        let changes = map.sync_changes();
+        assert_eq!(changes, [change("synced", Some(2))]);
+        assert_eq!(map.sync_changes(), changes);
+        map.acknowledge_sync_changes(&changes);
+        assert!(map.sync_changes().is_empty());
+    }
+    #[test]
+    fn oversized_synced_dynamic_values_are_rejected_without_a_change() {
+        let mut registry = DynamicAttachmentRegistry::default();
+        let definition = registry
+            .define(
+                "test",
+                "test:large",
+                DynamicAttachmentPolicy {
+                    synced: true,
+                    ..dynamic_policy(AttachmentScope::Player)
+                },
+            )
+            .unwrap();
+        let mut host = DynamicHost(Attachments::default());
+        let value = [(
+            JavaString::from("data"),
+            Tag::ByteArray(vec![0; MAX_SYNCED_ATTACHMENT_BYTES + 1]),
+        )]
+        .into();
+        assert!(definition.set(&mut host, Holder::Player(1), value).is_err());
+        assert!(host.0.sync_changes().is_empty());
+        assert_eq!(definition.get(&mut host, Holder::Player(1)), Ok(None));
+    }
+    #[test]
     fn default_creation_is_synced_and_a_later_read_is_not() {
         let mut map = Attachments::default();
         assert_eq!(map.get(&SYNCED), Ok(7));
@@ -1207,7 +1872,7 @@ mod tests {
         assert!(map.take_sync_changes().is_empty());
     }
     #[test]
-    fn a_saved_sync_flag_puts_undecoded_values_in_the_snapshot() {
+    fn saved_flags_do_not_sync_unknown_types() {
         let mut map = Attachments::default();
         map.set(&SYNCED, 5).unwrap();
         map.set(&COUNTER, 6).unwrap();
@@ -1219,7 +1884,9 @@ mod tests {
             panic!("entry saved");
         };
         assert_eq!(envelope.get(&"sync".into()), Some(&Tag::Byte(1)));
-        let loaded = Attachments::from_nbt(saved);
+        let mut loaded = Attachments::from_nbt(saved);
+        assert!(loaded.synced().is_empty());
+        assert_eq!(loaded.get_existing(&SYNCED), Ok(Some(5)));
         assert_eq!(loaded.synced(), [change("synced", Some(5))]);
     }
     #[test]

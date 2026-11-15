@@ -509,44 +509,10 @@ impl Game<'_> {
         self.ui.registries.loot_tables = ids.loot_tables.clone();
         self.ui.registries.templates = ids.templates.clone();
         self.ui.registries.sounds = self.audio.event_names();
-        self.ui.registries.attributes = [
-            "armor",
-            "armor_toughness",
-            "attack_damage",
-            "attack_knockback",
-            "attack_speed",
-            "block_break_speed",
-            "block_interaction_range",
-            "burning_time",
-            "camera_distance",
-            "explosion_knockback_resistance",
-            "entity_interaction_range",
-            "fall_damage_multiplier",
-            "flying_speed",
-            "follow_range",
-            "gravity",
-            "jump_strength",
-            "knockback_resistance",
-            "luck",
-            "max_absorption",
-            "max_health",
-            "mining_efficiency",
-            "movement_efficiency",
-            "movement_speed",
-            "oxygen_bonus",
-            "safe_fall_distance",
-            "scale",
-            "sneaking_speed",
-            "spawn_reinforcements",
-            "step_height",
-            "submerged_mining_speed",
-            "sweeping_damage_ratio",
-            "tempt_range",
-            "water_movement_efficiency",
-        ]
-        .iter()
-        .map(|a| format!("minecraft:{a}"))
-        .collect();
+        self.ui.registries.attributes = horizon_mods::content::VANILLA_ATTRIBUTES
+            .iter()
+            .map(|a| format!("minecraft:{a}"))
+            .collect();
         let reg = &mut self.ui.registries;
         let mut items: Vec<String> = self
             .res
