@@ -147,13 +147,14 @@ fn image_at(bounds: Bounds<Pixels>, kind: Kind, fillet: f32) -> Option<Arc<Rende
 
 fn paint(bounds: Bounds<Pixels>, kind: Kind, corners: Corners<Pixels>, window: &mut Window) {
     if crate::glass_ui::light() {
-        // The light look: frosted white over the sky, with a white hairline.
+        // The light look: frosted white over the sky, with a white hairline. The sky's clouds and
+        // stars lie under it, so the frost is dense enough to hide them (there is no blur).
         let (fill, edge) = match kind {
-            Kind::Glass => (0.62, 0.8),
-            Kind::Float => (0.9, 0.9),
+            Kind::Glass => (0.88, 0.9),
+            Kind::Float => (0.96, 0.95),
         };
         window.paint_quad(
-            gpui::fill(bounds, gpui::white().opacity(fill))
+            gpui::fill(bounds, gpui::Hsla::from(gpui::rgb(0xf8f4fd)).opacity(fill))
                 .corner_radii(corners)
                 .border_widths(px(1.))
                 .border_color(gpui::white().opacity(edge)),

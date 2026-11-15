@@ -1251,5 +1251,6 @@
   "The list could not be verified; it may have been tampered with.": "Popis nije moguće provjeriti; možda je izmijenjen.",
   "This build has no distribution server configured.": "Ova verzija nema konfiguriran poslužitelj za distribuciju.",
   "Use": "Koristi",
-  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} treba {needs} {requirement}, što odabrana verzija ne zadovoljava."
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} treba {needs} {requirement}, što odabrana verzija ne zadovoljava.",
+  "Paste a friend's invite code": "Zalijepite kod pozivnice prijatelja"
 }

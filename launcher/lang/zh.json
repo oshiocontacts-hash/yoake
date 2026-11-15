@@ -1251,5 +1251,6 @@
   "The list could not be verified; it may have been tampered with.": "无法验证该列表，可能已被篡改。",
   "This build has no distribution server configured.": "此版本未配置分发服务器。",
   "Use": "使用",
-  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} 需要 {needs} {requirement}，而所选版本不符合要求。"
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} 需要 {needs} {requirement}，而所选版本不符合要求。",
+  "Paste a friend's invite code": "粘贴好友的邀请码"
 }

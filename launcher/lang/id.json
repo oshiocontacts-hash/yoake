@@ -1251,5 +1251,6 @@
   "The list could not be verified; it may have been tampered with.": "Daftar tidak dapat diverifikasi; mungkin telah diubah.",
   "This build has no distribution server configured.": "Build ini tidak memiliki server distribusi yang dikonfigurasi.",
   "Use": "Gunakan",
-  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} membutuhkan {needs} {requirement}, yang tidak dipenuhi versi yang dipilih."
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} membutuhkan {needs} {requirement}, yang tidak dipenuhi versi yang dipilih.",
+  "Paste a friend's invite code": "Tempel kode undangan teman"
 }

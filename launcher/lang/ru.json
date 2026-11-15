@@ -1251,5 +1251,6 @@
   "The list could not be verified; it may have been tampered with.": "Не удалось проверить список; возможно, он был изменён.",
   "This build has no distribution server configured.": "В этой сборке не настроен сервер распространения.",
   "Use": "Использовать",
-  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} требует {needs} {requirement}, чему выбранная версия не соответствует."
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} требует {needs} {requirement}, чему выбранная версия не соответствует.",
+  "Paste a friend's invite code": "Вставьте код приглашения друга"
 }

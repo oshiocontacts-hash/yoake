@@ -1251,5 +1251,6 @@
   "The list could not be verified; it may have been tampered with.": "सूची सत्यापित नहीं हो सकी; हो सकता है उसमें छेड़छाड़ हुई हो।",
   "This build has no distribution server configured.": "इस बिल्ड में कोई वितरण सर्वर कॉन्फ़िगर नहीं है।",
   "Use": "उपयोग करें",
-  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} को {needs} {requirement} चाहिए, जो चुना गया संस्करण पूरा नहीं करता।"
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} को {needs} {requirement} चाहिए, जो चुना गया संस्करण पूरा नहीं करता।",
+  "Paste a friend's invite code": "दोस्त का आमंत्रण कोड चिपकाएँ"
 }

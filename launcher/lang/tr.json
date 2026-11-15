@@ -1251,5 +1251,6 @@
   "The list could not be verified; it may have been tampered with.": "Liste doğrulanamadı; değiştirilmiş olabilir.",
   "This build has no distribution server configured.": "Bu sürümde dağıtım sunucusu yapılandırılmamış.",
   "Use": "Kullan",
-  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id}, {needs} {requirement} gerektiriyor; seçilen sürüm bunu karşılamıyor."
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id}, {needs} {requirement} gerektiriyor; seçilen sürüm bunu karşılamıyor.",
+  "Paste a friend's invite code": "Bir arkadaşın davet kodunu yapıştır"
 }

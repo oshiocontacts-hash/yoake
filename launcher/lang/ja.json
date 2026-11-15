@@ -833,7 +833,7 @@
   "Install to": "Install to",
   "Change…": "Change…",
   "Desktop shortcut": "Desktop shortcut",
-  "Update": "Update",
+  "Update": "アップデート",
   "Uninstall": "Uninstall",
   "Removes Horizon Launcher from this computer. Your worlds and the game's folder stay.": "Removes Horizon Launcher from this computer. Your worlds and the game's folder stay.",
   "Also delete the launcher's data": "Also delete the launcher's data",
@@ -1251,5 +1251,6 @@
   "The list could not be verified; it may have been tampered with.": "一覧を検証できませんでした。改ざんされている可能性があります。",
   "This build has no distribution server configured.": "このビルドには配布サーバーが設定されていません。",
   "Use": "使う",
-  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} には {needs} {requirement} が必要ですが、選んだバージョンは条件を満たしていません。"
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} には {needs} {requirement} が必要ですが、選んだバージョンは条件を満たしていません。",
+  "Paste a friend's invite code": "フレンドの招待コードを貼り付け"
 }

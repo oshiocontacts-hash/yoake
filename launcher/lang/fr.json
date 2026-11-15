@@ -1251,5 +1251,6 @@
   "The list could not be verified; it may have been tampered with.": "La liste n'a pas pu être vérifiée ; elle a peut-être été altérée.",
   "This build has no distribution server configured.": "Aucun serveur de distribution n'est configuré dans cette version.",
   "Use": "Utiliser",
-  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} nécessite {needs} {requirement}, que la version choisie ne satisfait pas."
+  "{id} needs {needs} {requirement}, which the chosen version does not match.": "{id} nécessite {needs} {requirement}, que la version choisie ne satisfait pas.",
+  "Paste a friend's invite code": "Collez le code d'invitation d'un ami"
 }
