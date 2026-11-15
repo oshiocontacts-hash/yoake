@@ -65,7 +65,8 @@ export_mod!(Hello);
   package name `mod`).
 
 In a mod project, `yoake check` validates the component's imports and exports against the same
-world and host linker used by the game, including its supported WASI subset.
+world and host linker used by the game, including its supported WASI subset, then calls `init`
+and validates its subscriptions against the hooks wired for that world and side.
 
 ## Packaging in a `.yak`
 
@@ -105,31 +106,47 @@ yoake pack
 yoake dev
 ```
 
+The `examples/hello` and `examples/full-demo` projects under `crates/yoake-wasm-sdk/` also
+include manifests. Run `yoake build` in either example before `yoake check`: a raw Cargo build
+alone does not place the components at the paths declared by `yak.toml`.
+
 `new` also accepts `minigame`, `custom-mob`, `utility` and `script`. These are starter projects,
 not complete game modes; mob data, models and script files are placeholders. The CLI embeds the
 SDK and WIT definitions in each generated project. Optionally set `YOAKE_SDK_PATH` when creating a
 project to use a local SDK checkout instead; that override stores its absolute path in the manifest.
 
-`build` compiles declared modules into `bin/wasm/` and checks them; it does not pack them. For a
-package declaring both a client and a server module, its Cargo project must define `client` and
-`server` features that select the respective worlds, as in `full-demo`. The CLI builds once with
-each feature in addition to the project's default features. Projects using another arrangement must
-build the two components separately before running `yoake check` or `yoake pack`.
-`pack` checks the existing modules and writes the unsigned `dist/<id>-<version>.yak`, replacing
-the previous package of that version. Signing remains an owner operation.
+`build` compiles declared modules into `bin/wasm/` and checks them; it does not pack them. Cargo
+uses `CARGO_TARGET_DIR` when set, or the project's `target/` directory otherwise. For a package
+declaring both a client and a server module, its Cargo project must define `client` and `server`
+features that select the respective worlds, as in `full-demo`. The CLI builds once with each
+feature in addition to the project's default features. Projects using another arrangement can
+build components separately and run `yoake check`, but must adapt their features for `yoake build`,
+`yoake dev` or `yoake pack`.
+`pack` builds declared Wasm modules first, checks the package, and writes the unsigned
+`dist/<id>-<version>.yak`, replacing the previous package of that version. Packages without `[wasm]`
+skip component validation and can be checked and packed without a Wasm build. Signing remains an
+owner operation.
 
 `check` validates the manifest, permissions and module sizes, then uses the game's Wasmtime
-configuration and host linker to instantiate each declared component against its world. A JSON
-summary reports the checked modules and nonempty lines from `WASM-NEEDS.md`, if present. Validation
-uses stub game hosts and does not call the mod's `init` or hooks, so it cannot establish whether a
-mod works correctly in a running game.
+configuration and host linker to instantiate each declared component against its world. It calls
+`init` with stub hosts and checks the returned hook names using the game's subscription rules.
+A JSON summary reports the checked modules and nonempty lines from `WASM-NEEDS.md`, if present.
+Stub hosts do not supply live game state, so initialization that depends on game services can fail
+or behave differently, and successful validation does not prove that hooks work in a running game.
 
-`dev` emits one JSON line with `ok`, `errors`, `tests` and `wasm_needs`. For a `client-mod` it
-builds, checks and installs `<id>.wasm` in `YOAKE_WASM_DEV_DIR`, creating the directory if needed.
+Every command emits exactly one JSON result line on stdout, including on failure; diagnostics go to
+stderr. `dev` includes `built`, `checked`, `installed`, `errors`, `notes`, `tests` and `wasm_needs`.
+For a `client-mod` with `YOAKE_WASM_DEV_DIR` set, it builds, checks and installs `<id>.wasm` there,
+creating the directory if needed. For `client-full`, server-only packages, or an unset directory,
+it reports a successful build and check with `installed: false` and a note instead.
 The engine discovers files at startup, so restart it if the file was not present then. The owner
 must explicitly enable unsigned developer mode, and installation does not confirm the engine
 accepted the reload. The offscreen test runner is not yet implemented, so `tests` remains empty even
 when the build, check and installation succeed.
+
+Projects beneath a link or Windows reparse point, including junctions and some synced folders, are
+rejected. The error identifies the affected path; move the project to a normal folder without links
+or reparse points before using the CLI.
 
 `#[yoake_test]`, `TestCase`, `TestWorld` and `TestDriver` provide a host-independent test interface.
 The generated example uses an explicit `YOAKE_TESTS` registry and a local mock driver. The marker

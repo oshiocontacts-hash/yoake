@@ -1,0 +1,18 @@
+format = 1
+id = "wasm-hello"
+version = "0.1.0"
+name = "Wasm Hello"
+authors = ["Yoake"]
+description = "A minimal client Wasm mod."
+
+[yoake]
+version = "*"
+
+[side]
+client = true
+server = false
+required_on_join = false
+
+[wasm]
+interface = "1.0"
+client = "bin/wasm/hello.wasm"

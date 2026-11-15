@@ -12,9 +12,10 @@ caller-provided driver; there is no engine test runner yet.
 ### 1. Start a project
 
 Run `yoake new utility my-mod`, edit its author and description, then run
-`yoake build` and `yoake check` inside the new directory. `check` currently
-exits unsuccessfully because full WIT verification is unavailable. A local SDK
-and the tools described in the generated README are required.
+`yoake build` and `yoake check` inside the new directory. The generated project
+includes the SDK and WIT definitions; `YOAKE_SDK_PATH` optionally selects a local
+SDK checkout instead. `check` runs `init` against stub hosts and validates its
+subscriptions, but does not run the mod in a game.
 
 ### 2. Run a timer
 
@@ -192,8 +193,9 @@ against a mock `TestDriver`; this does not yet run a real game world.
 
 ### 30. Iterate with developer reload
 
-Set `YOAKE_WASM_DEV_DIR` to the existing raw-Wasm watch directory and arrange
-for `<id>.wasm` to exist when a developer-mode game starts. `yoake dev` builds,
-packs and atomically updates that raw file, then emits one JSON result. It
-currently reports an error because the offscreen runner is not implemented;
-the copy alone does not prove that the game accepted the reload.
+Set `YOAKE_WASM_DEV_DIR` to the raw-Wasm watch directory and arrange for
+`<id>.wasm` to exist when a developer-mode game starts. `yoake dev` builds and
+checks the mod, then atomically updates that raw file; it does not pack. A
+`client-full` or server-only mod, or an unset `YOAKE_WASM_DEV_DIR`, succeeds
+without installing and reports a note in its JSON result. The offscreen runner
+is not implemented, and installation does not prove the game accepted a reload.

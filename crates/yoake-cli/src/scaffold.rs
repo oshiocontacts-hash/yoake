@@ -1,7 +1,9 @@
-use crate::Result;
+use crate::{Result, reserved_name};
+use horizon_mods::yak::check_plain_path;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub(super) fn write_bundled_sdk(root: &Path) -> Result<()> {
     let files = [
@@ -28,7 +30,7 @@ pub(super) fn write_bundled_sdk(root: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn create(template: &str, name: &str) -> Result<()> {
+pub fn create(template: &str, name: &str) -> Result<PathBuf> {
     let description = match template {
         "minigame" => "A client-side starting point for a minigame; server gameplay needs a server mod.",
         "hud-only" => "A client-side HUD starter.",
@@ -45,6 +47,9 @@ pub fn create(template: &str, name: &str) -> Result<()> {
         "script" => SCRIPT,
         _ => return Err("unknown template".into()),
     };
+    if reserved_name(name) {
+        return Err(format!("name {name:?} is a reserved Windows name"));
+    }
     if !(3..=48).contains(&name.len())
         || !name.bytes().next().is_some_and(|byte| byte.is_ascii_lowercase())
         || !name.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
@@ -66,18 +71,30 @@ pub fn create(template: &str, name: &str) -> Result<()> {
     } else {
         None
     };
-    let target = PathBuf::from(name);
-    fs::create_dir(&target).map_err(|error| format!("{}: {error}", target.display()))?;
+    let parent = env::current_dir().map_err(|error| error.to_string())?;
+    stage_project(&parent, name, |target| {
+        create_project_files(target, template, name, description, starter, sdk)
+    })
+}
+
+fn create_project_files(
+    target: &Path,
+    template: &str,
+    name: &str,
+    description: &str,
+    starter: &str,
+    sdk: Option<PathBuf>,
+) -> Result<()> {
     fs::create_dir(target.join("src")).map_err(|error| error.to_string())?;
     let sdk_path = if let Some(sdk) = sdk {
         serde_json::to_string(&sdk.to_string_lossy()).map_err(|error| error.to_string())?
     } else {
-        write_bundled_sdk(&target)?;
+        write_bundled_sdk(target)?;
         serde_json::to_string(".yoake/yoake-wasm-sdk").map_err(|error| error.to_string())?
     };
     let cargo = format!("[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\npublish = false\n\n[lib]\ncrate-type = [\"cdylib\", \"rlib\"]\n\n[dependencies]\nyoake-wasm-sdk = {{ path = {sdk_path} }}\n\n[profile.release]\nopt-level = \"s\"\nlto = true\nstrip = true\npanic = \"abort\"\n\n[workspace]\nexclude = [\".yoake/yoake-wasm-sdk\"]\n");
     let manifest = format!("format = 1\nid = \"{name}\"\nversion = \"0.1.0\"\nname = \"{name}\"\nauthors = [\"Replace with your name\"]\ndescription = \"{description}\"\n\n[yoake]\nversion = \"*\"\n\n[side]\nclient = true\nserver = false\nrequired_on_join = false\n\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/{name}.wasm\"\n");
-    let readme = format!("# {name}\n\n{description}\n\nEdit the author in `yak.toml`. Install Rust and the `wasm32-wasip2` target; no `wasm-tools` installation is needed. `yoake build` compiles and checks the component. `yoake check` validates its manifest and host-world compatibility using stub hosts; it does not call `init` or hooks. `yoake pack` checks it and writes `dist/{name}-0.1.0.yak` (using the version in `yak.toml`), replacing the previous package of that version. Packages are unsigned; signing is an owner operation. The project includes a copy of the SDK and WIT definitions. Optionally set `YOAKE_SDK_PATH` when creating a project to use a local SDK checkout instead.\n\nFor development, set `YOAKE_WASM_DEV_DIR` to the engine's raw-Wasm developer directory. `yoake dev` builds, checks and installs `{name}.wasm` there, but cannot confirm the engine accepted it. A newly installed file must be present when the engine starts for later hot reloads; enabling unsigned developer mode is an explicit owner decision.\n\n`cargo test` runs the local mock-driver test, not an engine world. `YOAKE_TESTS` registers an example for a future engine runner; the current engine cannot discover or run it. `yoake dev` reports an empty `tests` array until the engine runner exists.\n");
+    let readme = format!("# {name}\n\n{description}\n\nEdit the author in `yak.toml`. Install Rust and the `wasm32-wasip2` target; no `wasm-tools` installation is needed. `yoake build` compiles and checks the component. `yoake check` calls `init` using stub hosts and validates its hook subscriptions; it does not run hooks in a game. `yoake pack` builds, checks and writes `dist/{name}-0.1.0.yak` (using the version in `yak.toml`), replacing the previous package of that version. Packages are unsigned; signing is an owner operation. The project includes a copy of the SDK and WIT definitions. Optionally set `YOAKE_SDK_PATH` when creating a project to use a local SDK checkout instead.\n\nFor development, set `YOAKE_WASM_DEV_DIR` to the engine's raw-Wasm developer directory. `yoake dev` builds, checks and installs `{name}.wasm` there, but cannot confirm the engine accepted it. Without that setting it succeeds without installing and reports a note. A newly installed file must be present when the engine starts for later hot reloads; enabling unsigned developer mode is an explicit owner decision.\n\n`cargo test` runs the local mock-driver test, not an engine world. `YOAKE_TESTS` registers an example for a future engine runner; the current engine cannot discover or run it. `yoake dev` reports an empty `tests` array until the engine runner exists.\n");
     fs::write(target.join("Cargo.toml"), cargo).map_err(|error| error.to_string())?;
     fs::write(target.join("yak.toml"), manifest).map_err(|error| error.to_string())?;
     fs::write(target.join("README.md"), readme).map_err(|error| error.to_string())?;
@@ -93,8 +110,41 @@ pub fn create(template: &str, name: &str) -> Result<()> {
         fs::create_dir_all(target.join("assets/scripts")).map_err(|error| error.to_string())?;
         fs::write(target.join("assets/scripts/README.md"), "Script placeholder. Confirm yoake-script's format and loader before adding scripts.\n").map_err(|error| error.to_string())?;
     }
-    println!("created {}", target.display());
+    fs::write(target.join(".gitignore"), "target/\ndist/\n.yoake/\n").map_err(|error| error.to_string())?;
     Ok(())
+}
+
+struct Staging(Option<PathBuf>);
+
+impl Drop for Staging {
+    fn drop(&mut self) {
+        if let Some(path) = &self.0 {
+            if check_plain_path(path).is_ok() {
+                let _ = fs::remove_dir_all(path);
+            }
+        }
+    }
+}
+
+pub(super) fn stage_project(parent: &Path, name: &str, write: impl FnOnce(&Path) -> Result<()>) -> Result<PathBuf> {
+    check_plain_path(parent)?;
+    let target = parent.join(name);
+    check_plain_path(&target)?;
+    if target.exists() {
+        return Err(format!("{} already exists", target.display()));
+    }
+    let stamp = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|error| error.to_string())?.as_nanos();
+    let path = parent.join(format!(".yoake-{name}-{}-{stamp}.tmp", std::process::id()));
+    check_plain_path(&path)?;
+    fs::create_dir(&path).map_err(|error| format!("{}: {error}", path.display()))?;
+    let mut staging = Staging(Some(path.clone()));
+    write(&path)?;
+    if target.exists() {
+        return Err(format!("{} already exists", target.display()));
+    }
+    fs::rename(&path, &target).map_err(|error| format!("{}: {error}", target.display()))?;
+    staging.0 = None;
+    Ok(target)
 }
 
 const MINIGAME: &str = r##"use yoake_wasm_sdk::{hook, hud, Mod};
