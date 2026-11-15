@@ -9,7 +9,7 @@ MOD を作っているときに出会いやすいエラーメッセージと、�
 
 ### ① `unknown hook subscription: <name>`
 
-- **原因**: `subscriptions()` が返したフック名 `<name>` が存在しない名前（タイプミスなど）になっています。または、標準（`client-mod`）では使えないフック名を書いた場合にも発生します。
+- **原因**: `subscriptions()` が返したフック名 `<name>` が存在しない名前（タイプミスなど）になっています。または、WIT ワールドが `client-mod` の標準モジュールでは使えないフック名を書いた場合にも発生します。
 - **直し方**:
   - フック名を直接文字列（`"hudd"` など）で手書きせず、SDK が用意している定数 `hook::HUD` や `yoake_wasm_sdk::full::hook::*` を使ってください。
   - フルカタログのフックを使う場合は、`yak.toml` の `[wasm]` に `world = "client-full"` を指定し、`ClientMod` / `export_client_full!` を使っているか確認してください。
@@ -22,7 +22,7 @@ MOD を作っているときに出会いやすいエラーメッセージと、�
 
 ### ② `hook hud runs on the client side and cannot be subscribed from a server module`
 
-- **原因**: クライアント専用のフック（この例では `hud`）を、サーバーモジュール（`server-full`）の `subscriptions()` に登録してしまっています（逆に、サーバー専用のフックをクライアントモジュールで購読した場合は `hook <name> runs on the server side and cannot be subscribed from a client module` になります）。
+- **原因**: クライアント専用のフック（この例では `hud`）を、サーバーモジュール（WIT ワールド `server-full`）の `subscriptions()` に登録してしまっています（逆に、サーバー専用のフックをクライアントモジュールで購読した場合は `hook <name> runs on the server side and cannot be subscribed from a client module` になります）。
 - **直し方**:
   - 画面描画（`hook::HUD` など）はクライアントモジュール（`ClientMod`）側で購読してください。
   - サーバーモジュール（`ServerMod`）側では、`hook::REGISTER_COMMANDS` や `hook::PERFORM_COMMAND`、`hook::SERVER_TICK` などサーバー側または共通（both）のフックだけを購読してください。
@@ -49,12 +49,11 @@ yoake build
 yoake new hud-only my-hud
 ```
 
-### ⑤ `set YOAKE_WASM_DEV_DIR ...` / `YOAKE_WASM_DEV_DIR is unset; not installed`
+### ⑤ `YOAKE_WASM_DEV_DIR is unset; not installed`
 
-- **原因**: 環境変数 `YOAKE_WASM_DEV_DIR` が設定されていない状態で `yoake dev` を実行したため、ビルドと検査は完了したものの、開発用フォルダへの `.wasm` のコピー（インストール）が行われませんでした。
-- **直し方**:
-  - 開発用フォルダに自動コピーしてすぐ試したい場合は、環境変数 `YOAKE_WASM_DEV_DIR` にフォルダのパスを設定してから `yoake dev` を実行してください（ゲーム側にも `YOAKE_DLL_MODS_UNSIGNED=1` と同じ `YOAKE_WASM_DEV_DIR` を設定します）。
-  - コピーせずビルドとチェックだけしたい場合は `yoake build`、`.yak` ファイルを作りたい場合は `yoake pack` を使ってください。
+- **これはエラーではありません**。ビルドと検査は完了しており、結果は `ok:true`、`installed:false` です。開発フォルダが未設定なのでコピーしなかったという note です。[^dev-cli]
+- WIT ワールドが `client-mod` の MOD を開発フォルダにコピーしたい場合は、[3 章の安全上の注意と設定方法](./03-play.md)を確認し、その PowerShell ウィンドウだけで `$env:YOAKE_WASM_DEV_DIR='<フォルダのパス>'` を設定してから `yoake dev` を実行します。
+- `client-full` / `server-full` の MOD には、代わりに `raw Wasm hot reload only supports client-mod; not installed` という note が出ます。これも `ok:true`、`installed:false` の結果で、開発フォルダにはインストールされません。`yoake pack` で `.yak` を作り、ランチャーからインポートしてゲームを再起動してください。
 
 ### ⑥ `wasm32-wasip2` ターゲットが無いときの Cargo のエラー
 
@@ -68,7 +67,7 @@ rustup target add wasm32-wasip2
 
 ---
 
-## 5-3. `yak.toml` の書き間違い（`manifest.rs` / `config.rs` の代表的なエラー）
+## 5-3. `yak.toml` の書き間違い（代表的なエラー）[^validation]
 
 `yak.toml` に記入ミスがあると、`yoake check` や `yoake build`、ゲーム起動時の読み込みで次のようなエラーが出ます。
 
@@ -92,12 +91,12 @@ rustup target add wasm32-wasip2
 ### ⑩ `wasm.world must be "client-mod" or "client-full", not ...`
 
 - **原因**: `[wasm]` の `world` に `"client-mod"` と `"client-full"` 以外の文字（たとえば `"server-full"` など）を書いています。
-- **直し方**: `world` はクライアントモジュール用の設定です。`"client-mod"`（省略時のデフォルト）または `"client-full"` のどちらかを指定してください。サーバーモジュールは `server = "bin/wasm/..."` を書くだけで自動的に `server-full` になります。
+- **直し方**: `world` はクライアントモジュール用の設定です。`"client-mod"`（省略時のデフォルト）または `"client-full"` のどちらかを指定してください。サーバーモジュールは `server = "bin/wasm/..."` を書くだけで、WIT ワールドが自動的に `server-full` になります。
 
 ### ⑪ `wasm.world applies to the client module; declare wasm.client`
 
 - **原因**: サーバー専用の MOD（`wasm.client` が無い状態）なのに、`[wasm]` に `world = "..."` を書いてしまっています。
-- **直し方**: サーバー専用 MOD の場合は `[wasm]` から `world` の行を削除してください（`examples/server-storage/yak.toml` と同じ形にします）。
+- **直し方**: サーバー専用 MOD の場合は `[wasm]` から `world` の行を削除し、次の形にします。
 
 ```toml
 [wasm]
@@ -130,3 +129,6 @@ permissions = ["service.storage"]
 - `config <name>: integer outside declared range`（または `float outside declared range`）: `default` の数値が `min`〜`max` の範囲外になっています。
 - `invalid permission declaration: <name>`: `[permissions."<name>"]` の名前が不正か、`default_op_level` に `0`〜`4` 以外の数値を指定しています。
 - `"permission denied: ..."`（実行時エラー）: コード内で `services::config_get`、`services::storage_get`、`services::has_permission` などを呼び出しましたが、`yak.toml` の `[wasm] permissions` に対応する権限（`"service.config"`、`"service.storage"`、`"service.permissions"`）が書かれていません。
+
+[^dev-cli]: 確認元: `.lane/ref/p10-tools-yoake-cli-main.rs` の `dev_project`。
+[^validation]: 確認元: `crates/horizon-mods/src/yak/manifest.rs` と `crates/horizon-mods/src/yak/config.rs`。

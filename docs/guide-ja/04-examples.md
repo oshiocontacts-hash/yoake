@@ -7,7 +7,7 @@
 
 ## 4-1. サンプル一覧（何を見せているか・使うフックと service）
 
-| サンプル名 | ワールド | 何を見せているか | 主なフック（`hook::*`） | 主なサービス・ホスト呼び出し |
+| サンプル名 | WIT ワールド（MOD の種類） | 何を見せているか | 主なフック（`hook::*`） | 主なサービス・ホスト呼び出し |
 |---|---|---|---|---|
 | `hello`（および `hello-std`） | `client-mod` | 最小のクライアント MOD。ティック数を数えて HUD に背景矩形と文字を描画し、設定ボタン名を返す（`hello` は `#![no_std]`、`hello-std` は `std` 使用） | `TICK`, `HUD`, `SETTINGS`（`hello-std` は `TICK`, `KEY`, `HUD`） | `yoake_wasm_sdk::log`, `hud::rect`, `hud::text` |
 | `hud-item` | `client-full` | 毎フレーム HUD に半透明パネル・`minecraft:diamond` のアイテムアイコン・ラベル文字を描画する | `HUD` | なし（`et::HudOutcome` に `Rect`, `Item`, `Text` を詰めて返す） |
@@ -26,7 +26,7 @@
 - 19 個の基本フックだけで足りる場合は `hello` のように `yoake_wasm_sdk::Mod` と `export_mod!` を使います。
 - アイテムアイコン（`HudCommand::Item`）やツールチップ変更などフルカタログの機能を使う場合は、`hud-item` のように `yak.toml` に `world = "client-full"` を書き、`ClientMod` と `export_client_full!` を使います。
 
-`crates/yoake-wasm-sdk/examples/hud-item/src/lib.rs` より抜粋:
+`hud-item` の実装より抜粋:[^hud-item]
 
 ```rust
         // 2. A 16x16 item icon for "minecraft:diamond".
@@ -46,10 +46,10 @@
 
 ### ② `server-storage`（コマンド追加とデータ保存）
 
-サーバー側で動く MOD は `yak.toml` の `[wasm]` に `server = "bin/wasm/..."` を指定します（サーバーモジュールは常に `server-full` ワールドになります）。
+サーバー側で動く MOD は `yak.toml` の `[wasm]` に `server = "bin/wasm/..."` を指定します（サーバーモジュールの WIT ワールドは常に `server-full` です）。
 `storage_get` や `storage_put` を使うには、`yak.toml` の `[wasm]` に `permissions = ["service.storage"]` が必要です。
 
-`crates/yoake-wasm-sdk/examples/server-storage/src/lib.rs` より抜粋:
+`server-storage` の実装より抜粋:[^server-storage]
 
 ```rust
     fn register_commands(&mut self, mut commands: Vec<et::NativeCommand>) -> Vec<et::NativeCommand> {
@@ -80,7 +80,10 @@
         }
 ```
 
-- 保存先（`StorageScope`）は、サーバー側ではワールドごとの `World`（`<world>/yoake-data/<mod-id>/store.bin`）と全ワールド共通の `Global`（`<game>/yoake-data/<mod-id>/global/store.bin`）、クライアント側では `Client`（`<game>/yoake-data/<mod-id>/client/store.bin`）を選べます。
+- 保存先（`StorageScope`）は、サーバー側ではセーブデータのワールドごとの `World`（`<world>/yoake-data/<mod-id>/store.bin`）と全ワールド共通の `Global`（`<game>/yoake-data/<mod-id>/global/store.bin`）、クライアント側では `Client`（`<game>/yoake-data/<mod-id>/client/store.bin`）を選べます。現行実装では、各スコープの全キーを 1 つの `store.bin` に同期保存します。[^storage]
+
+> 保存ファイル（`store.bin`）の形は今後の版で変わる可能性があります。中身を直接書き換えたり、
+> 形に頼った道具を作ったりせず、必ず `storage_get` / `storage_put` を使ってください。
 
 ---
 
@@ -90,15 +93,15 @@ MOD が特別な機能（設定の読み書き、ストレージ保存、権限�
 
 ### `[wasm] permissions` の種類
 
-`crates/horizon-mods/src/yak/manifest.rs` で定義されている指定可能な権限（capability）は次の 5 つです。
+指定可能な権限（capability）は次の 5 つです。[^manifest]
 
 - `"service.config"`: `config_get` / `config_set` / `config_dir` の呼び出しと、同期設定の受信
 - `"service.storage"`: `storage_*` および `world_storage_*` / `config_read` / `config_write` の呼び出し
 - `"service.permissions"`: サーバーモジュールからの `has_permission` の呼び出し（`wasm.server` が必須）
 - `"service.commands"`: サーバーモジュールからの `run_command` の呼び出し（`wasm.server` が必須）
-- `"service.http"`: `[http] hosts` と対になる HTTP 権限宣言（ただし `docs/yoake-wasm-dev.md` の通り HTTP 通信自体は現時点では未接続）
+- `"service.http"`: `[http] hosts` と対になる HTTP 権限宣言（ただし HTTP 通信自体は現時点では未接続）[^dev-doc]
 
-### `[config]` の書き方（`examples/config-demo/yak.toml` より抜粋）
+### `[config]` の書き方（`config-demo` のマニフェストより抜粋）
 
 ```toml
 [wasm]
@@ -125,7 +128,7 @@ label.en_us = "HUD Colour"
 label.ja_jp = "HUD文字色"
 ```
 
-さらに数値範囲（`min` / `max`）やリスト（`type = "list"`）、サーバーからクライアントへ同期する `side = "synced"` なども使えます（`docs/yoake-wasm-dev.md` より抜粋）:
+さらに数値範囲（`min` / `max`）やリスト（`type = "list"`）、サーバーからクライアントへ同期する `side = "synced"` なども使えます。[^dev-doc]
 
 ```toml
 [config.enabled]
@@ -154,7 +157,7 @@ values = ["surface", "deep"]
 - **使えるサイド（`side`）**: `"client"`（クライアント専用）、`"server"`（サーバー専用）、`"synced"`（サーバーで管理し、接続中のクライアントへ自動同期）。
 - `[config]` を宣言した MOD は、ゲーム内の MOD 一覧画面の **Configure** ボタンから自動で設定画面が開けるようになります。
 
-### `[permissions."node"]` の書き方（`examples/permission-demo/yak.toml` より抜粋）
+### `[permissions."node"]` の書き方（`permission-demo` のマニフェストより抜粋）
 
 ```toml
 [wasm]
@@ -174,3 +177,9 @@ default_op_level = 2
 ## 次のステップ
 
 MOD を改造していてエラーに出会ったときは、[5. よくあるエラーと直し方（`05-errors.md`）](./05-errors.md) を開いて原因と直し方を確認しましょう。
+
+[^hud-item]: 確認元: `crates/yoake-wasm-sdk/examples/hud-item/src/lib.rs`。
+[^server-storage]: 確認元: `crates/yoake-wasm-sdk/examples/server-storage/src/lib.rs`。
+[^storage]: 確認元: `crates/yoake-wasm/src/host_services/storage.rs` の `DiskStorage::directory` / `open_scoped_with_quota` / `persist`。
+[^manifest]: 確認元: `crates/horizon-mods/src/yak/manifest.rs`。
+[^dev-doc]: 確認元: `docs/yoake-wasm-dev.md`。

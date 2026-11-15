@@ -11,7 +11,7 @@ A minimal server-side Yoake WebAssembly mod (`server-full` world) that registers
 - Replying to the command sender with `services::tell`.
 - Declaring `permissions = ["service.storage"]` in `yak.toml`.
 
-## Building and Checking
+## Building
 
 1. Compile the WebAssembly component for `wasm32-wasip2`:
 
@@ -19,15 +19,13 @@ A minimal server-side Yoake WebAssembly mod (`server-full` world) that registers
    cargo build --release --target wasm32-wasip2 --offline
    ```
 
-2. Copy the compiled `.wasm` artifact to the path declared in `yak.toml` (`bin/wasm/server-storage.wasm`):
+   `--offline` fails if `wit-bindgen` is not already in Cargo's cache. In that case, run the same build once without `--offline` while online, then retry the offline build.
+
+2. For a manual Cargo build, copy the compiled `.wasm` artifact to the path declared in `yak.toml` (`bin/wasm/server-storage.wasm`):
 
    ```sh
    mkdir -p bin/wasm
    cp target/wasm32-wasip2/release/yoake_wasm_server_storage.wasm bin/wasm/server-storage.wasm
    ```
 
-3. Validate the package manifest and WebAssembly component with the Yoake CLI:
-
-   ```sh
-   yoake check
-   ```
+This branch has no `yoake check` command. With the p10-tools CLI, `yoake build` compiles and validates the component and copies it to the manifest path, so the manual copy step is not needed there.

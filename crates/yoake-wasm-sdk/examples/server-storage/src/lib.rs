@@ -5,16 +5,20 @@
 //! Note: Using `services::storage_get` and `services::storage_put` requires
 //! `permissions = ["service.storage"]` under `[wasm]` in `yak.toml`.
 
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
 use yoake_wasm_sdk::export_server_full;
 use yoake_wasm_sdk::full::hook;
 use yoake_wasm_sdk::full::server::{ServerMod, et, services, types};
 
-/// State for our server mod.
-///
-/// Because the visit counts are persisted in world-scoped host storage, the
-/// mod struct itself does not need to hold any in-memory fields.
+const COMMAND_COOLDOWN: Duration = Duration::from_secs(1);
+
+/// State for our server mod. Visit counts are persisted in world storage;
+/// last-use times are only an in-memory, per-player command rate limit.
 #[derive(Default)]
-pub struct ServerStorageMod;
+pub struct ServerStorageMod {
+    last_use: HashMap<String, Instant>,
+}
 
 impl ServerMod for ServerStorageMod {
     /// Subscribe only to command registration and command execution hooks.
@@ -45,6 +49,13 @@ impl ServerMod for ServerStorageMod {
         }
 
         let uuid = format_player_uuid(&player.uuid);
+        let now = Instant::now();
+        if self.last_use.get(&uuid).is_some_and(|last| now.duration_since(*last) < COMMAND_COOLDOWN) {
+            let _ = services::tell("Please wait a second before using /visits again.", &uuid);
+            return true;
+        }
+        self.last_use.insert(uuid.clone(), now);
+
         // Storage keys are logical names scoped to this mod (no path separators
         // or colons needed). We store one 8-byte little-endian u64 per player.
         let key = format!("visits.{uuid}");
@@ -59,6 +70,8 @@ impl ServerMod for ServerStorageMod {
         };
 
         let next = current.saturating_add(1);
+        // Each put persists synchronously inside this server hook. Write on
+        // events, not every tick; cache or rate-limit hot paths to stay within time limits.
         if let Err(err) =
             services::storage_put(&key, types::StorageScope::World, &next.to_le_bytes())
         {
@@ -93,13 +106,15 @@ fn format_player_uuid(bytes: &[u8]) -> String {
     }
 }
 
-/// Decode an 8-byte little-endian `u64` from storage, returning `0` if the
-/// stored slice has an unexpected length.
+/// Decode an 8-byte little-endian `u64`, warning before using `0` for malformed data.
 fn decode_u64(bytes: &[u8]) -> u64 {
-    bytes
-        .get(..8)
-        .and_then(|slice| <[u8; 8]>::try_from(slice).ok())
-        .map_or(0, u64::from_le_bytes)
+    match <[u8; 8]>::try_from(bytes) {
+        Ok(array) => u64::from_le_bytes(array),
+        Err(_) => {
+            eprintln!("server-storage: malformed u64 value (expected 8 bytes, got {}); using 0", bytes.len());
+            0
+        }
+    }
 }
 
 export_server_full!(ServerStorageMod);

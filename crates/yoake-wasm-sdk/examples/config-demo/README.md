@@ -9,7 +9,7 @@ A minimal client-side Yoake WebAssembly mod (`client-full` world) that declares 
 - Reading initial config values in `ClientMod::init` with `yoake_wasm_sdk::full::client::services::config_get`.
 - Updating cached HUD state in `ClientMod::config_changed` from `types::ConfigValue` (`types::ConfigValueKind::String` and `types::ConfigValueKind::Enum`).
 
-## Building and Checking
+## Building
 
 1. Compile the WebAssembly component for `wasm32-wasip2`:
 
@@ -17,15 +17,13 @@ A minimal client-side Yoake WebAssembly mod (`client-full` world) that declares 
    cargo build --release --target wasm32-wasip2 --offline
    ```
 
-2. Copy the compiled `.wasm` artifact to the path declared in `yak.toml` (`bin/wasm/config-demo.wasm`):
+   `--offline` fails if `wit-bindgen` is not already in Cargo's cache. In that case, run the same build once without `--offline` while online, then retry the offline build.
+
+2. For a manual Cargo build, copy the compiled `.wasm` artifact to the path declared in `yak.toml` (`bin/wasm/config-demo.wasm`):
 
    ```sh
    mkdir -p bin/wasm
    cp target/wasm32-wasip2/release/yoake_wasm_config_demo.wasm bin/wasm/config-demo.wasm
    ```
 
-3. Validate the package manifest and WebAssembly component with the Yoake CLI:
-
-   ```sh
-   yoake check
-   ```
+This branch has no `yoake check` command. With the p10-tools CLI, `yoake build` compiles and validates the component and copies it to the manifest path, so the manual copy step is not needed there.

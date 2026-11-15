@@ -17,6 +17,7 @@ pub struct ConfigDemoMod {
 
 impl Default for ConfigDemoMod {
     fn default() -> Self {
+        // These defaults intentionally duplicate yak.toml; they are used until config_get answers.
         Self {
             text: "Config Demo HUD".to_owned(),
             color: color_from_preset("gold"),
@@ -31,7 +32,7 @@ impl ConfigDemoMod {
             ("text", types::ConfigValueKind::String) => {
                 self.text.clone_from(&value.string_value);
             }
-            ("color", types::ConfigValueKind::Enum | types::ConfigValueKind::String) => {
+            ("color", types::ConfigValueKind::Enum) => {
                 self.color = color_from_preset(&value.string_value);
             }
             _ => {}
@@ -48,8 +49,9 @@ impl ClientMod for ConfigDemoMod {
     /// Read the initial resolved config values when the component starts.
     fn init(&mut self) {
         for key in ["text", "color"] {
-            if let Ok(value) = services::config_get(key) {
-                self.apply_config(key, &value);
+            match services::config_get(key) {
+                Ok(value) => self.apply_config(key, &value),
+                Err(err) => eprintln!("config-demo: config_get({key}) failed: {err}"),
             }
         }
     }
@@ -63,7 +65,7 @@ impl ClientMod for ConfigDemoMod {
     /// Draw the HUD panel and the configured label each frame.
     fn hud(&mut self) -> et::HudOutcome {
         let panel_x = 8.0;
-        let panel_y = 8.0;
+        let panel_y = 36.0;
 
         let background = et::HudCommand::Rect(et::HudRect {
             x: panel_x,

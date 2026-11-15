@@ -9,7 +9,7 @@
 
 Yoake の MOD は、Rust で書いたプログラムを **`wasm32-wasip2` という種類の WebAssembly** にビルドし、設定ファイル（`yak.toml`）と一緒に `.yak` パッケージにまとめて配布・導入します。
 
-WebAssembly MOD はゲーム本体の中の安全なサンドボックス（隔離環境）で動きます。万が一 MOD の中でエラーや無限ループが起きても、ゲーム全体がクラッシュすることはなく、その MOD だけが自動的に停止する仕組みになっています。
+WebAssembly MOD はゲーム本体の中の安全なサンドボックス（隔離環境）で動きます。万が一 MOD の中で無限ループや時間切れが起きても、その MOD だけが止まる仕組みになっています。
 
 ---
 
@@ -40,12 +40,12 @@ WebAssembly MOD はゲーム本体の中の安全なサンドボックス（隔�
 
 ### 2. [最初の MOD を作る（`02-first-mod.md`）](./02-first-mod.md)
 - `yoake new hud-only my-hud` でひな形を作る（5 種類のテンプレート一覧つき）
-- 作られるファイル（`yak.toml` / `Cargo.toml` / `src/lib.rs` / `.gitignore`）の役割
+- 作られるファイル（`yak.toml` / `Cargo.toml` / `src/lib.rs` / `README.md` / `.yoake/` など）の役割
 - `yoake build` → `yoake check` → `yoake pack` の流れと、出力される `dist/<id>-<version>.yak` の確認
 
 ### 3. [ゲームに入れて遊ぶ・すぐ試す（`03-play.md`）](./03-play.md)
-- パッケージ（`.yak`）の配置場所とゲームの読み込みの仕組み
-- `YOAKE_WASM_DEV_DIR` と `yoake dev`（および `YOAKE_DLL_MODS_UNSIGNED=1`）を使って、ビルドした `.wasm` をすぐ試す・ホットリロードする方法
+- パッケージ（`.yak`）のインポートとゲームの読み込みの仕組み
+- WIT ワールドが `client-mod` の MOD を `YOAKE_WASM_DEV_DIR` と `yoake dev` でホットリロードする方法と、開発者モードの安全上の注意
 
 ### 4. [サンプル MOD 集を読む（`04-examples.md`）](./04-examples.md)
 - リポジトリ内の 7 つのサンプル（`hello`、`hud-item`、`server-storage`、`config-demo`、`permission-demo`、`full-demo`、`full-services`）の解説

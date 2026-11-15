@@ -42,7 +42,8 @@ impl ClientMod for HudItemMod {
 
         // 2. A 16x16 item icon for "minecraft:diamond".
         //    `components` holds optional binary item component data; an empty
-        //    Vec means a default stack with no extra components.
+        //    Vec means a default stack with no extra components. The host
+        //    currently ignores `decorations`, so no count or durability overlay is drawn.
         let icon = et::HudCommand::Item(et::HudItem {
             stack: et::ItemStack {
                 id: "minecraft:diamond".to_owned(),
@@ -54,8 +55,8 @@ impl ClientMod for HudItemMod {
             decorations: true,
         });
 
-        // 3. A text label next to the icon.
-        //    `HudText.text` expects a Minecraft JSON text component string.
+        // 3. A text label next to the icon. The host flattens the JSON text
+        //    component to plain text and drops the colour's alpha channel.
         let label = et::HudCommand::Text(et::HudText {
             text: "{\"text\":\"Diamond HUD\"}".to_owned(),
             x: panel_x + 24.0,
