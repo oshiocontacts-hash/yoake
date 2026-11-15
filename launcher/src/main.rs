@@ -2265,6 +2265,14 @@ fn text(step: theme::Step) -> Div {
     }
 }
 
+/// A release's tag as shown: a Nightly by its title, an import by its label, else the tag
+/// without its `v`.
+fn version_label(tag: &str) -> String {
+    horizon_launcher::nightly::label(tag)
+        .or_else(|| build_import::label(tag))
+        .unwrap_or_else(|| tag.trim_start_matches('v').to_string())
+}
+
 /// A release's tag as a title: mono, so its digits read at a glance.
 fn version_tag(tag: &str) -> Div {
     div()
@@ -2272,11 +2280,7 @@ fn version_tag(tag: &str) -> Div {
         .text_size(px(22.))
         .line_height(px(28.))
         .font_weight(FontWeight::MEDIUM)
-        .child(
-            horizon_launcher::nightly::label(tag)
-                .or_else(|| build_import::label(tag))
-                .unwrap_or_else(|| tag.trim_start_matches('v').to_string()),
-        )
+        .child(version_label(tag))
 }
 
 /// Horizon's mark: two stems, their reflection below, and the horizon across in the accent.
@@ -2660,6 +2664,42 @@ fn disabled(b: Stateful<Div>) -> Stateful<Div> {
 }
 
 /// A page's title in the pixel face and one line on what it is for.
+/// A glass page's head: the title large in Bricolage with its line under it, as the Friends
+/// page has it.
+fn glass_page_head(title: &str, description: &str) -> Div {
+    use horizon_theme::glass::ink;
+    div()
+        .flex()
+        .flex_col()
+        .min_w_0()
+        .child(
+            div()
+                .truncate()
+                .font_family(horizon_theme::glass::DISPLAY_FONT)
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_size(px(56.))
+                .line_height(px(56.))
+                .text_color(glass_ui::white(ink::FULL))
+                .child(tr(title).to_string()),
+        )
+        .child(
+            glass_ui::text(15., FontWeight::NORMAL, ink::NOTE)
+                // Kana and kanji fill the title's line to its edges: more air.
+                .mt(px(if i18n::current() == i18n::Language::Japanese {
+                    18.
+                } else {
+                    8.
+                }))
+                .max_w(px(520.))
+                .child(tr(description).to_string()),
+        )
+}
+
+/// A glass panel for one block of a page (a release, a notice): round at 20, content after it.
+fn glass_card() -> Div {
+    glass::plate(horizon_theme::glass::radius::PANEL)
+}
+
 fn page_header(title: &str, description: &str, t: &Theme) -> Div {
     div()
         .flex()
@@ -5060,9 +5100,10 @@ impl Launcher {
     }
 
     fn notes_page(&mut self, cx: &mut Context<Self>) -> Div {
+        use horizon_theme::glass::ink;
         let t = self.theme;
         let sponsor = (!yoake_page::enabled() && !self.links.sponsor.is_empty()).then(|| {
-            plate(&t)
+            glass_card()
                 .flex()
                 .items_center()
                 .justify_between()
@@ -5070,21 +5111,22 @@ impl Launcher {
                 .p(px(24.))
                 .child(
                     div()
+                        .relative()
                         .flex()
                         .flex_col()
                         .gap(px(4.))
+                        .min_w_0()
                         .child(
-                            text(theme::HEADING)
-                                .text_color(t.ink)
+                            glass_ui::text(16., FontWeight::SEMIBOLD, ink::FULL)
                                 .child(tr("Support the work below")),
                         )
-                        .child(text(theme::UI).text_color(t.muted).child(tr(
+                        .child(glass_ui::text(14., FontWeight::NORMAL, ink::NOTE).child(tr(
                             "Horizon is built in the open. Sponsors fund the next release.",
                         ))),
                 )
                 .child(
-                    button("sponsor", "Sponsor on GitHub", Kind::Secondary, &t)
-                        .bg(t.plate)
+                    glass_ui::quiet("sponsor", tr("Sponsor on GitHub"), 36., &t)
+                        .relative()
                         .on_click({
                             let url = self.links.sponsor.clone();
                             move |_: &ClickEvent, _, cx| cx.open_url(&url)
@@ -5094,37 +5136,57 @@ impl Launcher {
         let page = div()
             .flex()
             .flex_col()
-            .gap(px(32.))
-            .child(page_header(
+            .gap(px(28.))
+            .pt(px(36.))
+            .child(glass_page_head(
                 "Patch notes",
                 "What changed in each release, newest first.",
-                &t,
             ))
             .children(sponsor);
         let releases = match &self.releases {
-            Load::Loading => return page.child(centered(tr("Loading patch notes…"), &t)),
+            Load::Loading => {
+                return page.child(
+                    glass_card()
+                        .child(glass_ui::empty().relative().child(tr("Loading patch notes…"))),
+                )
+            }
             Load::Failed(e) => {
                 return page.child(
-                    centered(
-                        &trf("Couldn't load patch notes. {error}", &[("error", e)]),
-                        &t,
-                    )
-                    .child(
-                        button("retry-notes", "Try again", Kind::Secondary, &t).on_click(
-                            cx.listener(|this, _: &ClickEvent, _, cx| {
-                                this.fetch_releases();
-                                cx.notify();
-                            }),
-                        ),
+                    glass_card().child(
+                        div()
+                            .relative()
+                            .flex()
+                            .flex_col()
+                            .items_start()
+                            .child(glass_ui::empty().pb(px(16.)).child(trf(
+                                "Couldn't load patch notes. {error}",
+                                &[("error", e)],
+                            )))
+                            .child(
+                                div().px(px(12.)).pb(px(32.)).child(
+                                    glass_ui::quiet("retry-notes", tr("Try again"), 36., &t)
+                                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                                            this.fetch_releases();
+                                            cx.notify();
+                                        })),
+                                ),
+                            ),
                     ),
                 );
             }
             Load::Ready(r) => r,
         };
+        // The notes' markdown in the glass look's white at a few opacities.
+        let mut g = t;
+        g.ink = glass_ui::white(ink::FULL);
+        g.ink_soft = glass_ui::white(ink::SOFT);
+        g.muted = glass_ui::white(ink::DIM);
+        g.plate_soft = glass_ui::white(0.08);
+        g.rule = glass_ui::white(0.12);
         let list = self.long_list.clone().column(
             &self.content_scroll.handle,
             releases.len(),
-            10.,
+            12.,
             |_| false,
             |i| {
                 let release = &releases[i];
@@ -5133,19 +5195,15 @@ impl Launcher {
                     .split_once(": ")
                     .map(|(_, rest)| rest.to_string())
                     .unwrap_or_default();
-                div()
+                glass_card()
                     .flex()
                     .flex_col()
-                    .relative()
                     .gap(px(16.))
-                    .p(px(20.))
-                    .mb(px(10.))
-                    .bg(t.panel)
-                    .border_2()
-                    .border_color(t.outline)
-                    .children(blocks::edges(t.bevel, t.lip, theme::BEVEL))
+                    .p(px(24.))
+                    .mb(px(12.))
                     .child(
                         div()
+                            .relative()
                             .flex()
                             .items_center()
                             .gap(px(16.))
@@ -5155,24 +5213,36 @@ impl Launcher {
                                     .flex_col()
                                     .flex_1()
                                     .min_w_0()
-                                    .gap(px(4.))
-                                    .child(version_tag(&release.tag).text_color(t.ink))
+                                    .gap(px(2.))
+                                    .child(
+                                        glass_ui::text(22., FontWeight::SEMIBOLD, ink::FULL)
+                                            .line_height(px(30.))
+                                            .child(version_label(&release.tag)),
+                                    )
                                     .when(!summary.is_empty(), |d| {
-                                        d.child(text(theme::UI).text_color(t.muted).child(summary))
+                                        d.child(
+                                            glass_ui::text(14., FontWeight::NORMAL, ink::NOTE)
+                                                .child(summary),
+                                        )
                                     }),
                             )
-                            .child(caps(release.date.clone()).flex_none().text_color(t.muted)),
+                            .child(
+                                glass_ui::text(13., FontWeight::NORMAL, ink::DIM)
+                                    .flex_none()
+                                    .child(release.date.clone()),
+                            ),
                     )
                     .child(
                         div()
+                            .relative()
                             .max_w(px(640.))
+                            .font_family(horizon_theme::glass::FONT)
                             .child(if release.body.trim().is_empty() {
-                                text(theme::UI)
-                                    .text_color(t.muted)
+                                glass_ui::text(14., FontWeight::NORMAL, ink::NOTE)
                                     .child(tr("No notes for this release."))
                                     .into_any_element()
                             } else {
-                                markdown::render(&release.body, &t)
+                                markdown::render(&release.body, &g)
                             }),
                     )
             },
