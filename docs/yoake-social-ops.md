@@ -15,6 +15,20 @@ generate a private CA and a 30-day leaf:
 horizon-relay --gen-social-certs /secure/yoake-social-ca --host relay.example.org
 ```
 
+The host name is lower-cased; a trailing dot is refused. On Windows, create the
+folder first and lock it down before generating anything (key files inherit the
+folder's ACL):
+
+```bat
+mkdir C:\yoake-social-ca
+icacls C:\yoake-social-ca /inheritance:r /grant:r "%USERNAME%:(OI)(CI)F"
+```
+
+Do not use a synced folder (Google Drive, OneDrive, Dropbox): the keys would be
+copied to the cloud. On Unix the command creates a missing output directory with
+mode `0700`; `--renew-social-leaf` refuses a directory writable by group or others.
+If generation fails part-way it removes the files it created.
+
 The command refuses to overwrite any output. It creates:
 
 | File | Purpose | Where it belongs |
@@ -26,13 +40,23 @@ The command refuses to overwrite any output. It creates:
 
 The CA is valid for five years, has `pathLen: 0`, `keyCertSign` and `cRLSign`,
 and constrains DNS names to the selected hostname (excluding its subdomains).
-The leaf has that DNS SAN, `serverAuth`, and `digitalSignature`.
+The leaf has that DNS SAN, `serverAuth`, and `digitalSignature`. Its validity
+starts one hour in the past, so players whose clock runs slightly behind still
+accept it; it ends 30 days after issue.
 
 **Never copy `ca-key.der` to the relay or include it in a client.** Keep it
 offline, encrypted, and backed up. It is needed only to renew a leaf. On Unix the
 command creates both key files with mode `0600` at open time; it does not create
 them and chmod them later. Protect backups similarly. On Windows, restrict the
 files' ACLs to the signing/relay service account as appropriate.
+
+Send `leaf-key.der` to the relay only over a secure channel (scp/SSH, not chat or
+e-mail), then delete it from the CA machine, including `leaf-key.der.old`.
+
+**A leaked leaf key means impersonation for up to 30 days:** clients do not check
+revocation lists. Either rotate the CA (the emergency procedure below) or accept
+up to 30 days of exposure until the leaf expires. `leaf-key.der.old` is still a
+valid secret key until its leaf expires; protect and delete it like the current key.
 
 Copy only `leaf.der` and `leaf-key.der` to the relay. Give the service user read
 access, keep the key a regular file with mode `0600`, and make the certificate
@@ -63,9 +87,10 @@ accept checks (at most once an hour). Once expired, new handshakes are refused.
 
 ## Example social-enabled systemd unit
 
-This example does not alter the existing invite-only `horizon-relay.service`.
-Create a dedicated system user, install the binary and leaf pair, then use a unit
-such as `/etc/systemd/system/horizon-relay.service`:
+This example uses a different unit name and does not alter the existing
+invite-only `horizon-relay.service` (stop that one first if both would use the
+same `PORT`). Create a dedicated system user, install the binary and leaf pair,
+then use `/etc/systemd/system/horizon-relay-social.service`:
 
 ```ini
 [Unit]
@@ -100,7 +125,7 @@ For example, create the user with `useradd --system --home
 with `install -o horizon-relay -g horizon-relay -m 0644 leaf.der
 /var/lib/horizon-relay/leaf.der` and the corresponding `install -m 0600` command
 for `leaf-key.der`. Run `systemctl daemon-reload`, then `systemctl enable --now
-horizon-relay`. Open both required TCP ports in the firewall as applicable.
+horizon-relay-social`. Open both required TCP ports in the firewall as applicable.
 
 ## Routine leaf rotation
 
@@ -113,18 +138,29 @@ renewal requires no client change.
    horizon-relay --renew-social-leaf /secure/yoake-social-ca --host relay.example.org
    ```
 
-2. The command reads `ca.der` and `ca-key.der`, checks the CA, and writes a new
-   30-day pair. Each file is written to a temporary file and renamed into place.
-   The previous pair becomes `leaf.der.old` and `leaf-key.der.old`; a later
-   renewal replaces those backups. Preserve another backup if you need history.
+2. The command reads `ca.der` and `ca-key.der`, checks the CA, issues a new
+   30-day pair, and verifies it against `ca.der` and `--host` the way a client
+   would. A wrong `--host` (outside the CA's name constraint) fails and changes
+   nothing. The new files are written as `.new`, the old ones are kept as
+   `leaf.der.old` and `leaf-key.der.old` (hard link or copy), and each current file
+   is then replaced by a single rename, so `leaf.der` is never missing. Leftover
+   `.new` files are cleaned up. A later renewal replaces the `.old` backups.
+   It prints a warning when the CA has less than 90 days left.
 3. After the command finishes, copy only the new `leaf.der` and `leaf-key.der`
    to the relay, retaining the ownership and permissions above.
-4. Run `systemctl restart horizon-relay`. There is no certificate reload or
+4. Run `systemctl restart horizon-relay-social`. There is no certificate reload or
    reload command: a running relay keeps its old in-memory TLS configuration.
 5. Check the journal for startup errors and expiry warnings, and make a real
    pinned-CA TLS connection. Keep the previous offline pair until this succeeds.
 
 ## CA rotation and compromise
+
+The CA lives five years, and nothing warns clients when it ends: webpki does not
+check the trust anchor's expiry, so only `--renew-social-leaf` starts failing.
+Start the rotation months before the CA expires (the renew command warns at
+90 days, which is too late for a client update to reach everyone). The relay's
+host name is part of the CA's name constraint: changing the host name needs a new
+CA, which is a client update.
 
 For planned CA rotation, generate a new CA in a separate directory. Distribute
 its `ca.der` alongside the old CA: clients accept several pinned CAs. Wait for

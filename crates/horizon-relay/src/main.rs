@@ -6,6 +6,8 @@ use std::{io, net::TcpListener, path::Path, time::Duration};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    // No arguments (the systemd unit, the Dockerfile) starts the relay. Only the
+    // two certificate flags select certificate mode; anything else is an error.
     if !args.is_empty() {
         if let Err(error) = certificate_command(&args) {
             eprintln!("horizon-relay: {error}");
@@ -18,6 +20,9 @@ fn main() {
 
 fn certificate_command(args: &[String]) -> io::Result<()> {
     let usage = "usage: horizon-relay --gen-social-certs <dir> --host <dns-name> | --renew-social-leaf <dir> --host <dns-name>";
+    if !matches!(args[0].as_str(), "--gen-social-certs" | "--renew-social-leaf") {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("unknown argument {:?}; {usage}", args[0])));
+    }
     let [flag, dir, host_flag, host] = args else { return Err(io::Error::new(io::ErrorKind::InvalidInput, usage)); };
     if host_flag != "--host" { return Err(io::Error::new(io::ErrorKind::InvalidInput, usage)); }
     let dir = Path::new(dir);
