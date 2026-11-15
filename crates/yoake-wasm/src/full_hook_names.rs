@@ -452,6 +452,7 @@ pub const FULL_HOOKS: &[(&str, HookSide)] = &[
     ("potential_spawns", HookSide::Server),
     ("village_siege", HookSide::Server),
     ("overlay_drawn", HookSide::Client),
+    ("player_death_drops", HookSide::Server),
     ("player_permission_level", HookSide::Server),
     ("player_xp_change", HookSide::Server),
     ("recipe_book_categories", HookSide::Both),

@@ -15,6 +15,15 @@ use types::{
 
 const MAX_TEXTURES: usize = 64;
 
+macro_rules! timed_host_call {
+    ($call:expr) => {{
+        let started = std::time::Instant::now();
+        let result = $call;
+        crate::add_host_time(started.elapsed());
+        result
+    }};
+}
+
 macro_rules! host_methods {
     ($(fn $name:ident(&mut self $(, $arg:ident: $arg_type:ty)*) -> $result:ty;)*) => {
         $(
@@ -100,43 +109,43 @@ impl types::Host for ClientContext {}
 
 impl logging::Host for ClientContext {
     fn log(&mut self, target: String, message: String) -> Result<(), HostError> {
-        self.host.log(&target, &message)
+        timed_host_call!(self.host.log(&target, &message))
     }
 }
 
 impl feedback::Host for ClientContext {
     fn feedback(&mut self, text: String) -> Result<(), HostError> {
-        self.host.feedback(&text)
+        timed_host_call!(self.host.feedback(&text))
     }
 }
 
 impl hud::Host for ClientContext {
     fn text(&mut self, text: String, at: Point, rgb: u32, shadow: bool) -> Result<(), HostError> {
-        self.host.text(&text, at, rgb, shadow)
+        timed_host_call!(self.host.text(&text, at, rgb, shadow))
     }
 
     fn fill(&mut self, bounds: Rect, argb: u32) -> Result<(), HostError> {
-        self.host.fill(bounds, argb)
+        timed_host_call!(self.host.fill(bounds, argb))
     }
 
     fn text_width(&mut self, text: String) -> Result<Option<f32>, HostError> {
-        self.host.text_width(&text)
+        timed_host_call!(self.host.text_width(&text))
     }
 
     fn batch_len(&mut self) -> Result<u64, HostError> {
-        self.host.batch_len()
+        timed_host_call!(self.host.batch_len())
     }
 
     fn batch_scale_since(&mut self, start: u64, origin: Point, scale: Point) -> Result<(), HostError> {
-        self.host.batch_scale_since(start, origin, scale)
+        timed_host_call!(self.host.batch_scale_since(start, origin, scale))
     }
 
     fn batch_clip_since(&mut self, start: u64, bounds: Rect) -> Result<(), HostError> {
-        self.host.batch_clip_since(start, bounds)
+        timed_host_call!(self.host.batch_clip_since(start, bounds))
     }
 
     fn batch_tint_since(&mut self, start: u64, alpha: f32) -> Result<(), HostError> {
-        self.host.batch_tint_since(start, alpha)
+        timed_host_call!(self.host.batch_tint_since(start, alpha))
     }
 }
 
@@ -148,7 +157,7 @@ impl hud::HostGuiTexture for ClientContext {
         }).is_err() {
             return Err(HostError::Busy);
         }
-        let texture = match self.host.gui_texture_create(width, height, format, filter) {
+        let texture = match timed_host_call!(self.host.gui_texture_create(width, height, format, filter)) {
             Ok(texture) => texture,
             Err(error) => {
                 self.texture_count.fetch_sub(1, Ordering::AcqRel);
@@ -163,13 +172,13 @@ impl hud::HostGuiTexture for ClientContext {
 
     fn draw(&mut self, texture: Resource<hud::GuiTexture>, bounds: Rect, uv: Rect, argb: u32, nine_slice: Option<GuiNineSlice>) -> Result<bool, HostError> {
         let texture = *self.textures.get(&texture.rep()).ok_or(HostError::NotFound)?;
-        self.host.gui_texture_draw(texture, bounds, uv, argb, nine_slice)
+        timed_host_call!(self.host.gui_texture_draw(texture, bounds, uv, argb, nine_slice))
     }
 
     fn drop(&mut self, texture: Resource<hud::GuiTexture>) -> wasmtime::Result<()> {
         if let Some(texture) = self.textures.remove(&texture.rep()) {
             self.texture_count.fetch_sub(1, Ordering::AcqRel);
-            self.host.gui_texture_drop(texture);
+            timed_host_call!(self.host.gui_texture_drop(texture));
         }
         Ok(())
     }
@@ -177,49 +186,49 @@ impl hud::HostGuiTexture for ClientContext {
 
 impl network::Host for ClientContext {
     fn net_send_to_server(&mut self, channel: String, data: Vec<u8>) -> Result<(), SendError> {
-        self.host.net_send_to_server(&channel, &data)
+        timed_host_call!(self.host.net_send_to_server(&channel, &data))
     }
 }
 
 impl settings::Host for ClientContext {
     fn setting(&mut self, key: String) -> Result<Option<String>, HostError> {
-        self.host.setting(&self.id, &key)
+        timed_host_call!(self.host.setting(&self.id, &key))
     }
 
     fn set_setting(&mut self, key: String, value: String) -> Result<(), HostError> {
-        self.host.set_setting(&self.id, &key, &value)
+        timed_host_call!(self.host.set_setting(&self.id, &key, &value))
     }
 }
 
 impl client_world::Host for ClientContext {
     fn client_world_key(&mut self) -> Result<Option<WorldKey>, HostError> {
-        self.host.client_world_key()
+        timed_host_call!(self.host.client_world_key())
     }
 
     fn snapshot_client_world(&mut self) -> Result<WorldSnapshot, HostError> {
-        self.host.snapshot_client_world()
+        timed_host_call!(self.host.snapshot_client_world())
     }
 
     fn playing(&mut self) -> Result<bool, HostError> {
-        self.host.playing()
+        timed_host_call!(self.host.playing())
     }
 }
 
 impl player::Host for ClientContext {
     fn local_player_snapshot(&mut self) -> Result<Option<PlayerSnapshot>, HostError> {
-        self.host.local_player_snapshot()
+        timed_host_call!(self.host.local_player_snapshot())
     }
 }
 
 impl instance::Host for ClientContext {
     fn instance_dir(&mut self) -> Result<String, HostError> {
-        self.host.instance_dir()
+        timed_host_call!(self.host.instance_dir())
     }
 }
 
 impl accounts::Host for ClientContext {
     fn account(&mut self) -> Result<Option<AccountSnapshot>, HostError> {
-        self.host.account()
+        timed_host_call!(self.host.account())
     }
 }
 
@@ -228,25 +237,25 @@ impl screen::Host for ClientContext {
         if mod_id != self.id {
             return Err(HostError::Invalid);
         }
-        self.host.mod_screen_open(&self.id)
+        timed_host_call!(self.host.mod_screen_open(&self.id))
     }
 
     fn mod_screen_close(&mut self, mod_id: String) -> Result<(), HostError> {
         if mod_id != self.id {
             return Err(HostError::Invalid);
         }
-        self.host.mod_screen_close(&self.id)
+        timed_host_call!(self.host.mod_screen_close(&self.id))
     }
 
     fn mod_screen(&mut self) -> Result<Option<String>, HostError> {
-        self.host.mod_screen()
+        timed_host_call!(self.host.mod_screen())
     }
 
     fn mod_screen_open_anywhere(&mut self, mod_id: String) -> Result<bool, HostError> {
         if mod_id != self.id {
             return Err(HostError::Invalid);
         }
-        self.host.mod_screen_open_anywhere(&self.id)
+        timed_host_call!(self.host.mod_screen_open_anywhere(&self.id))
     }
 }
 

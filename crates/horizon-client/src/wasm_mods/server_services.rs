@@ -281,13 +281,26 @@ impl ServerHost for GameServerHost {
         read_service(|host| host.player_sneaking(uuid))
     }
 
-    fn player_stacks(&mut self, player: String) -> Result<Vec<Option<st::ItemStack>>, String> {
+    fn player_stacks(&mut self, player: String) -> Result<Vec<st::PlayerInventorySlot>, String> {
         let uuid = parse_uuid(&player)?;
-        if let Ok(slots) = read_service(|host| host.player_stacks(uuid).ok_or_else(|| "the player is not here".to_owned())) {
-            return Ok(st_slots(&slots));
-        }
-        // The acting player's state is swapped in (a hook of theirs): read their own main slots.
-        server_service(|host| host.player_main_slots(uuid).map(|slots| st_slots(&slots)))
+        let slots = read_service(|host| {
+            host.player_inventory_slots(uuid)
+                .ok_or_else(|| "the player is not here".to_owned())
+        })?;
+        Ok(slots
+            .iter()
+            .enumerate()
+            .map(|(id, stack)| st::PlayerInventorySlot {
+                id: id as u32,
+                stack: stack.as_ref().map(st_item),
+            })
+            .collect())
+    }
+
+    fn player_remove_slot(&mut self, expected: st::ItemStack, player: String, slot: u32) -> Result<bool, String> {
+        let uuid = parse_uuid(&player)?;
+        let expected = game_item(&expected)?;
+        server_service(|host| host.player_remove_slot(uuid, slot, expected))
     }
 
     fn player_teleport(&mut self, dimension: String, pitch: f32, player: String, position: st::Vec3, yaw: f32) -> Result<(), String> {

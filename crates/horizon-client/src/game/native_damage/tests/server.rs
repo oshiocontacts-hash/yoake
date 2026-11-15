@@ -170,6 +170,22 @@ fn velocity(game: &mut Game<'_>, conn: u32) -> Vec3 {
     player_state(game, conn, |game| game.player.as_ref().unwrap().velocity)
 }
 
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn owner_sneaking_uses_movement_state_without_a_guest_record() {
+    with_server(|game, _, _| {
+        game.lan.as_mut().unwrap().hub.guests.retain(|guest| guest.uuid != OWNER);
+        game.lan_acting_uuid = Some(OWNER);
+        game.player = Some(PlayerMotion::new(game.motion, Vec3::new(5.0, 64.0, 5.0)).unwrap());
+        game.player.as_mut().unwrap().shift_key_down = true;
+        assert!(game.native_player_sneaking(OWNER).unwrap());
+
+        game.player.as_mut().unwrap().shift_key_down = false;
+        game.keys.insert(winit::keyboard::KeyCode::ShiftLeft);
+        assert!(!game.native_player_sneaking(OWNER).unwrap());
+    });
+}
+
 fn motion_packets(receiver: &Receiver<Out>) -> Vec<(i32, [f64; 3])> {
     let mut motions = Vec::new();
     for outbound in receiver.try_iter() {

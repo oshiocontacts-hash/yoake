@@ -3423,8 +3423,9 @@ impl Hub {
                 }
                 S::PlayerInput(p) => {
                     let g = &mut self.guests[i];
-                    g.input = p.flags;
-                    if g.client_loaded() {
+                    let loaded = g.client_loaded();
+                    let sneaking_changed = apply_player_input(g, p.flags);
+                    if loaded {
                         // The events only tell the mods: nothing is queued with none loaded.
                         let listening = self.mods_loaded;
                         if listening {
@@ -3433,11 +3434,9 @@ impl Hub {
                                 flags: i32::from(p.flags),
                             });
                         }
-                        let sneaking = p.flags & 32 != 0;
-                        if g.sneaking != sneaking {
-                            g.sneaking = sneaking;
+                        if sneaking_changed {
                             if listening {
-                                events.push(HostEvent::Sneak { conn, sneaking });
+                                events.push(HostEvent::Sneak { conn, sneaking: g.sneaking });
                             }
                         }
                     }
@@ -4283,6 +4282,17 @@ fn noted_last_tick(noted: Option<(u64, Vec<EntityState>)>, ticks: u64) -> Vec<En
     }
 }
 
+/// `ServerboundPlayerInputPacket` updates the stored movement flags even before the client-loaded
+/// gate opens. World actions remain gated, but the first sneak bit cannot be lost if it arrives
+/// before the client sends `PlayerLoaded`.
+fn apply_player_input(guest: &mut Guest, flags: u8) -> bool {
+    guest.input = flags;
+    let sneaking = flags & 32 != 0;
+    let changed = guest.sneaking != sneaking;
+    guest.sneaking = sneaking;
+    changed
+}
+
 /// ClientboundTickingStatePacket: the tick rate and whether the game is frozen.
 fn ticking_state(rate: f32, frozen: bool) -> C {
     let mut w = horizon_protocol::buf::Writer::new();
@@ -4534,6 +4544,20 @@ mod tests {
         hub.guests[0].permission = 2;
         hub.ops.insert(1, 0);
         assert_eq!(hub.reported_permission(&hub.guests[0]), 2);
+    }
+
+    #[test]
+    fn player_input_keeps_sneak_state_if_sent_before_the_client_is_loaded() {
+        let (mut hub, _rx) = hub_with_a_guest();
+        let guest = &mut hub.guests[0];
+        assert!(!guest.client_loaded());
+
+        assert!(apply_player_input(guest, 32));
+        assert_eq!(guest.input, 32);
+        assert!(guest.sneaking);
+        assert!(!apply_player_input(guest, 32));
+        assert!(apply_player_input(guest, 0));
+        assert!(!guest.sneaking);
     }
 
     /// A mod's attack hit box is the box the player is attacked in, and only a Horizon client is

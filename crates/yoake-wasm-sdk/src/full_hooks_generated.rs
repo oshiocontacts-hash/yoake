@@ -443,6 +443,7 @@ pub const NOTE_BLOCK_CHANGE: &str = "note_block_change";
 pub const POTENTIAL_SPAWNS: &str = "potential_spawns";
 pub const VILLAGE_SIEGE: &str = "village_siege";
 pub const OVERLAY_DRAWN: &str = "overlay_drawn";
+pub const PLAYER_DEATH_DROPS: &str = "player_death_drops";
 pub const PLAYER_PERMISSION_LEVEL: &str = "player_permission_level";
 pub const PLAYER_XP_CHANGE: &str = "player_xp_change";
 pub const RECIPE_BOOK_CATEGORIES: &str = "recipe_book_categories";

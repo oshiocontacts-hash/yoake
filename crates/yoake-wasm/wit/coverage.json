@@ -1,11 +1,11 @@
 {
   "generated_by": "horizon-mod-api-gen",
-  "hook_count": 471,
-  "fully_typed": 443,
+  "hook_count": 472,
+  "fully_typed": 444,
   "partial": 13,
   "with_handles": 15,
   "client_hooks": 207,
-  "server_hooks": 378,
+  "server_hooks": 379,
   "named_types": 220,
   "handle_types": [
     {
@@ -4615,6 +4615,16 @@
       "partial_notes": [
         "WorldDrawn, HandDrawn, WorldPrePost, OverlayDrawn: wgpu device, encoder and depth access is deliberately not exposed; only whole-frame fills, tints and vignettes"
       ],
+      "handle_params": []
+    },
+    {
+      "name": "player_death_drops",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {

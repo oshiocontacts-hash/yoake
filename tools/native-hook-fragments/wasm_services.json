@@ -58,6 +58,14 @@
       "target": "horizon_client::game::native_wasm_services::Game<'_>::native_player_main_slots"
     },
     {
+      "name": "player_inventory_slots",
+      "target": "horizon_client::game::native_wasm_services::Game<'_>::native_player_inventory_slots"
+    },
+    {
+      "name": "player_remove_slot",
+      "target": "horizon_client::game::native_wasm_services::Game<'_>::native_player_remove_slot"
+    },
+    {
       "name": "player_set_slots",
       "target": "horizon_client::game::native_wasm_services::Game<'_>::native_player_set_slots"
     },
@@ -83,7 +91,7 @@
     }
   ],
   "rust_summary": "server helpers for the WebAssembly services: breaking a block as a player, sneaking, tags and tool requirements, attribute reads, dropped items, advancements, vitals, exact give and clear, player and container slots (`native_break_block_as`, `native_player_sneaking`, ...).",
-  "doc_summary": "On the authoritative server tick: `native_break_block_as(dimension, uuid, pos)` breaks a block as that player with their tool through the game's own player break (drops, Fortune and Silk Touch, tool damage, experience, statistics, the mods' destroy hooks); `native_player_sneaking(uuid)`; `native_block_tags`, `native_item_tags`, `native_block_tool_requirement`, `native_can_harvest`; `native_attribute_get(uuid, attribute)` (base and modified value); `native_item_entities_in`, `native_item_entity_move`, `native_item_entity_pickup`; `native_advancement_progress`, `native_advancement_grant`; `native_entity_vitals(dimension, id)` (health, max health, armor, absorption); `native_player_main_slots`, `native_player_set_slots` (the same items rearranged: totals are checked), `native_inventory_apply(uuid, give, stack, exact)` (exactly `stack.count` or nothing; `exact` compares the components too); `native_container_all_slots`, `native_container_replace_slots` (conserved totals, plain containers only, both halves of a double chest) and `native_containers_near`. Each helper that acts is limited to 1024 calls per mod per tick. Nothing changes unless a mod calls them. Bundles need fragment @API:wasm_services@.",
+  "doc_summary": "On the authoritative server tick: `native_break_block_as(dimension, uuid, pos)` breaks a block as that player with their tool through the game's own player break (drops, Fortune and Silk Touch, tool damage, experience, statistics, the mods' destroy hooks); `native_player_sneaking(uuid)`; `native_block_tags`, `native_item_tags`, `native_block_tool_requirement`, `native_can_harvest`; `native_attribute_get(uuid, attribute)` (base and modified value); `native_item_entities_in`, `native_item_entity_move`, `native_item_entity_pickup`; `native_advancement_progress`, `native_advancement_grant`; `native_entity_vitals(dimension, id)` (health, max health, armor, absorption); `native_player_main_slots`, `native_player_inventory_slots` (main, armor, off hand and cursor), `native_player_set_slots` (the main items rearranged: totals are checked), `native_player_remove_slot` (one exact slot, including components, all-or-nothing), `native_inventory_apply(uuid, give, stack, exact)` (exactly `stack.count` or nothing; `exact` compares the components too); `native_container_all_slots`, `native_container_replace_slots` (conserved totals, plain containers only, both halves of a double chest) and `native_containers_near`. Each helper that acts is limited to 1024 calls per mod per tick. Nothing changes unless a mod calls them. Bundles need fragment @API:wasm_services@.",
   "comments": [
     "crates/horizon-client/src/game/native_wasm_services.rs",
     "crates/horizon-client/src/game/machines/native_wasm_containers.rs"

@@ -268,6 +268,7 @@ fn every_storage_family_is_enumerated_with_its_box_policy() {
         frames: &frames,
         paintings: &paintings,
         potions: &potions,
+        include_transients: true,
         thrown_count: 1,
         end: &end,
         eye_count: 1,
@@ -312,6 +313,82 @@ fn every_storage_family_is_enumerated_with_its_box_policy() {
             .filter(|entity| entity.id != 12)
             .all(|entity| entity.player_uuid.is_none())
     );
+}
+
+#[test]
+fn a_mob_53_blocks_from_the_center_intersects_the_level_tick_query_sphere() {
+    let mut cow = mob(27);
+    cow.position = Vec3::new(5.3, 0.0, 0.0);
+    let candidate = Candidate::shared(&cow, OVERWORLD);
+    let result = query_entities(
+        &mut QueryBudgets::default(),
+        tick(1),
+        0,
+        OVERWORLD,
+        Sphere::new([0.0; 3], 5.0).unwrap(),
+        1,
+        |visit| visit(candidate),
+    )
+    .unwrap();
+
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].id, 27);
+    assert_eq!(result[0].position[0], 5.3);
+}
+
+#[test]
+fn parked_levels_do_not_block_current_level_mob_queries_on_unscoped_transients() {
+    let mobs = [mob(27)];
+    let mut potions = potions::PotionState::default();
+    potions.add_remote_thrown(28, "minecraft:splash_potion", Vec3::ZERO, Vec3::ZERO);
+    let mut end = end::EndState::default();
+    end.add_remote_eye(29, [0.0; 3], [0.0; 3]);
+    let sources = QuerySources {
+        dimension: OVERWORLD,
+        shared: EntityLists {
+            mobs: &mobs,
+            dropped: &[],
+            boats: &[],
+            carts: &[],
+            armor_stands: &[],
+            tnts: &[],
+            falling: &[],
+            orbs: &[],
+            projectiles: &[],
+            rockets: &[],
+            tridents: &[],
+        },
+        guests: &[],
+        others: &[],
+        cushions: &[],
+        frames: &[],
+        paintings: &[],
+        potions: &potions,
+        include_transients: false,
+        thrown_count: 0,
+        end: &end,
+        eye_count: 0,
+        bolts: std::iter::empty(),
+        dragon: None,
+        crystals: &[],
+        fireballs: &[],
+        clouds: &[],
+        knots: &HashMap::new(),
+        spawners: std::iter::empty(),
+        fangs: &[],
+    };
+    let result = query_entities(
+        &mut QueryBudgets::default(),
+        tick(1),
+        0,
+        OVERWORLD,
+        Sphere::new([0.0; 3], 5.0).unwrap(),
+        sources.candidate_count(),
+        |visit| sources.visit(visit),
+    )
+    .unwrap();
+
+    assert_eq!(result.iter().map(|entity| entity.id).collect::<Vec<_>>(), [27]);
 }
 
 #[test]

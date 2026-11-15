@@ -66,6 +66,16 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 type BuiltinCache = Vec<(std::path::PathBuf, Arc<Builtin>)>;
 static BUILTIN: std::sync::Mutex<BuiltinCache> = std::sync::Mutex::new(Vec::new());
 
+fn remote_input_flags(keys: Keys) -> u8 {
+    u8::from(keys.forward)
+        | u8::from(keys.backward) << 1
+        | u8::from(keys.left) << 2
+        | u8::from(keys.right) << 3
+        | u8::from(keys.jump) << 4
+        | u8::from(keys.shift) << 5
+        | u8::from(keys.sprint) << 6
+}
+
 /// The prepared resources' `registries.json`, parsed once per root: the
 /// file never changes while the game runs, and parsing it took about 3 ms
 /// of the frame that joins a server (or opens a single-player world).
@@ -6171,13 +6181,7 @@ impl Game<'_> {
             }
             keys.analog = Some([strafe, forward]);
         }
-        let input = u8::from(keys.forward)
-            | u8::from(keys.backward) << 1
-            | u8::from(keys.left) << 2
-            | u8::from(keys.right) << 3
-            | u8::from(keys.jump) << 4
-            | u8::from(keys.shift) << 5
-            | u8::from(keys.sprint) << 6;
+        let input = remote_input_flags(keys);
         // LocalPlayer.applyInput and aiStep: watching through another
         // entity, the player does not move itself; its keys still reach the
         // server, whose sneak check lets go of the camera.
@@ -11007,12 +11011,18 @@ mod mouse_buttons_tests;
 
 #[cfg(test)]
 mod tests {
-    use super::{hold_server_fire, keep_client_state, remote_use_swings, synced_local_use};
+    use super::{hold_server_fire, keep_client_state, remote_input_flags, remote_use_swings, synced_local_use};
     use horizon_client::{
         containers::{Beacon, BlockEntity},
         items::ItemStack,
     };
     use horizon_world::nbt::Tag;
+
+    #[test]
+    fn keyboard_and_control_sneak_state_uses_the_player_input_flag() {
+        assert_eq!(remote_input_flags(super::Keys { shift: true, ..Default::default() }), 32);
+        assert_eq!(remote_input_flags(super::Keys::default()), 0);
+    }
 
     /// `MultiPlayerGameMode.useItem`'s `shouldSwing`: the SUCCESS answers
     /// swing, CONSUME's do not (#6425).

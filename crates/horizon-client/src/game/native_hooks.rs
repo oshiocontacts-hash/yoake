@@ -7405,6 +7405,13 @@ impl Game<'_> {
     pub(super) fn native_player_died(&mut self, player: u128, cause: Option<&str>) {
         mod_api::dispatch_player_died(self, mod_api::mods(), player, cause);
     }
+    /// The eligible inventory stacks before a player's death drops spawn.
+    /// A shorter returned list leaves omitted stacks in their original slots.
+    /// Server-side, for every player whose drops are not suppressed.
+    /// API @API:player_death_drops@.
+    pub(super) fn native_player_death_drops(&mut self, player: u128, drops: &mut Vec<ItemStack>) {
+        mod_api::dispatch_player_death_drops(self, mod_api::mods(), player, drops);
+    }
     /// A new mob of `kind` joined `dimension` at `pos`: `natural` when the
     /// world's spawning made it, false when something else did (a breed, a
     /// raid, a spawner, a conversion, `/summon`, and the second mob of a

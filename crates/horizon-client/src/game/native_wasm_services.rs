@@ -22,6 +22,50 @@ const MAX_ITEM_ENTITIES: usize = 256;
 const MAX_RADIUS: f64 = 64.0;
 /// Slots of a player's main inventory (hotbar first).
 pub(crate) const MAIN_SLOTS: usize = 36;
+const ARMOR_SLOT_START: u32 = 36;
+const OFFHAND_SLOT: u32 = 40;
+const CURSOR_SLOT: u32 = 41;
+
+fn player_inventory_slots(
+    inventory: &[Option<ItemStack>],
+    armor: &[Option<ItemStack>; 4],
+    offhand: &Option<ItemStack>,
+    carried: &Option<ItemStack>,
+) -> Vec<Option<ItemStack>> {
+    let mut slots = inventory.to_vec();
+    slots.resize(MAIN_SLOTS, None);
+    slots.truncate(MAIN_SLOTS);
+    slots.extend(armor.iter().cloned());
+    slots.push(offhand.clone());
+    slots.push(carried.clone());
+    slots
+}
+
+fn clear_exact_inventory_slot(
+    inventory: &mut Vec<Option<ItemStack>>,
+    armor: &mut [Option<ItemStack>; 4],
+    offhand: &mut Option<ItemStack>,
+    carried: &mut Option<ItemStack>,
+    slot: u32,
+    expected: &ItemStack,
+) -> bool {
+    let current = match slot {
+        0..=35 => inventory.get_mut(slot as usize),
+        ARMOR_SLOT_START..=39 => armor.get_mut((slot - ARMOR_SLOT_START) as usize),
+        OFFHAND_SLOT => Some(offhand),
+        CURSOR_SLOT => Some(carried),
+        _ => None,
+    };
+    let Some(current) = current else {
+        return false;
+    };
+    if current.as_ref() == Some(expected) {
+        *current = None;
+        true
+    } else {
+        false
+    }
+}
 
 type Tick = (NativeWorldEpoch, NativeTickId);
 
@@ -226,9 +270,7 @@ impl Game<'_> {
         self.inventory.get(self.selected)?.clone()
     }
 
-    /// Whether the player is sneaking: the flag their client sent (the integrated server's owner,
-    /// the LAN host or single player, has a record like any guest); with no record, the held
-    /// sneak key of this machine for the owner who is acting.
+    /// Whether the player is sneaking, from their server-side movement state or guest record.
     pub(super) fn native_player_sneaking(&self, uuid: u128) -> Result<bool, String> {
         let host = self.lan.as_ref();
         if let Some(guest) = host
@@ -238,10 +280,10 @@ impl Game<'_> {
         {
             return Ok(guest.sneaking);
         }
-        if self.lan_acting.is_none() && self.player.is_some() && self.lan_acting_uuid == Some(uuid) {
-            return Ok(self
-                .keys
-                .contains(&winit::keyboard::KeyCode::ShiftLeft));
+        if self.lan_acting.is_none() && self.lan_acting_uuid == Some(uuid) {
+            if let Some(player) = self.player.as_ref() {
+                return Ok(player.shift_key_down);
+            }
         }
         Err("the player is not on the server".into())
     }
@@ -537,6 +579,70 @@ impl Game<'_> {
         })
     }
 
+    /// The main inventory, armor (head to feet), off hand and cursor, addressed by slot ids
+    /// 0..35, 36..39, 40 and 41. The active guest is read from the swapped-in player state.
+    pub(super) fn native_player_inventory_slots(
+        &self,
+        uuid: u128,
+    ) -> Option<Vec<Option<ItemStack>>> {
+        if self.lan_acting_uuid == Some(uuid)
+            && self.player.is_some()
+        {
+            return Some(player_inventory_slots(
+                &self.inventory,
+                &self.armor,
+                &self.offhand,
+                &self.carried,
+            ));
+        }
+        let host = self.lan.as_ref()?;
+        let guest = host
+            .hub
+            .guests
+            .iter()
+            .find(|guest| guest.placed && guest.uuid == uuid)?;
+        (!guest.dead && self.lan_acting != Some(guest.conn)).then(|| {
+            player_inventory_slots(
+                &guest.inventory,
+                &guest.armor,
+                &guest.offhand,
+                &guest.carried,
+            )
+        })
+    }
+
+    /// Clears one player slot only if its complete stack still equals `expected`.
+    /// Main slots are 0..35, armor is 36..39 (head to feet), off hand is 40 and cursor is 41.
+    pub(super) fn native_player_remove_slot(
+        &mut self,
+        uuid: u128,
+        slot: u32,
+        expected: ItemStack,
+    ) -> Result<bool, String> {
+        self.wasm_service("player_remove_slot")?;
+        if slot > CURSOR_SLOT {
+            return Err("a player slot id is 0 through 41".into());
+        }
+        let (target, conn, dimension) = self.native_player_target(uuid)?;
+        self.for_native_player(target, dimension, |game| {
+            let removed = clear_exact_inventory_slot(
+                &mut game.inventory,
+                &mut game.armor,
+                &mut game.offhand,
+                &mut game.carried,
+                slot,
+                &expected,
+            );
+            if removed {
+                game.native_player_ops.inventory_dirty.insert(conn);
+                if slot == game.selected as u32 || (ARMOR_SLOT_START..=OFFHAND_SLOT).contains(&slot) {
+                    game.apply_equipment();
+                }
+            }
+            removed
+        })
+    }
+
     /// Replaces the player's 36 main slots (hotbar first) with `slots`, which must hold exactly
     /// the items the slots hold now (in any arrangement) with no stack past its item's limit.
     pub(super) fn native_player_set_slots(
@@ -668,6 +774,61 @@ mod tests {
         assert!(add_all(&mut slots, &stack("a", 10), 64));
         assert_eq!(slots[0].as_ref().unwrap().count, 64);
         assert_eq!(slots[1].as_ref().unwrap().count, 6);
+    }
+
+    #[test]
+    fn player_slots_cover_main_armor_offhand_and_cursor_in_stable_order() {
+        let inventory = (0..MAIN_SLOTS)
+            .map(|slot| Some(stack(&format!("main_{slot}"), 1)))
+            .collect::<Vec<_>>();
+        let armor = std::array::from_fn(|slot| Some(stack(&format!("armor_{slot}"), 1)));
+        let offhand = Some(stack("offhand", 1));
+        let carried = Some(stack("cursor", 1));
+        let slots = player_inventory_slots(&inventory, &armor, &offhand, &carried);
+        assert_eq!(slots.len(), 42);
+        assert_eq!(&*slots[0].as_ref().unwrap().item, "main_0");
+        assert_eq!(&*slots[35].as_ref().unwrap().item, "main_35");
+        assert_eq!(&*slots[36].as_ref().unwrap().item, "armor_0");
+        assert_eq!(&*slots[39].as_ref().unwrap().item, "armor_3");
+        assert_eq!(&*slots[40].as_ref().unwrap().item, "offhand");
+        assert_eq!(&*slots[41].as_ref().unwrap().item, "cursor");
+    }
+
+    #[test]
+    fn player_slot_removal_checks_the_exact_stack_and_changes_one_slot() {
+        let mut inventory = vec![Some(stack("main", 3))];
+        let mut armor = std::array::from_fn(|_| None);
+        armor[0] = Some(stack("helmet", 1));
+        let mut offhand = Some(stack("shield", 1));
+        let mut carried = Some(stack("cursor", 2));
+
+        assert!(!clear_exact_inventory_slot(
+            &mut inventory,
+            &mut armor,
+            &mut offhand,
+            &mut carried,
+            41,
+            &stack("cursor", 1),
+        ));
+        assert!(carried.is_some(), "a mismatch leaves the cursor unchanged");
+        assert!(clear_exact_inventory_slot(
+            &mut inventory,
+            &mut armor,
+            &mut offhand,
+            &mut carried,
+            36,
+            &stack("helmet", 1),
+        ));
+        assert!(armor[0].is_none());
+        assert!(inventory[0].is_some());
+        assert!(!clear_exact_inventory_slot(
+            &mut inventory,
+            &mut armor,
+            &mut offhand,
+            &mut carried,
+            42,
+            &stack("x", 1),
+        ));
     }
 
     #[test]

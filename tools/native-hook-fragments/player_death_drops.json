@@ -1,0 +1,19 @@
+{
+  "hooks": [
+    {
+      "name": "player_death_drops",
+      "version": 1,
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_player_death_drops",
+      "side": "server",
+      "mod_api": {
+        "contract": "collect",
+        "out": "drops"
+      }
+    }
+  ],
+  "rust_summary": "a player's eligible inventory stacks before death drops spawn (`native_player_death_drops`).",
+  "doc_summary": "A player's eligible inventory stacks immediately before their death drops spawn. The hook can collect or replace the list; stacks omitted from the final list remain in their original slots. It is skipped for keepInventory and when nothing would drop. Bundles need fragment @API:player_death_drops@.",
+  "comments": [
+    "crates/horizon-client/src/game/native_hooks.rs"
+  ]
+}

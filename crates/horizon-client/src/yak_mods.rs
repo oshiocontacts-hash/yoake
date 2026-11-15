@@ -100,11 +100,6 @@ impl Runtime {
     }
 
     fn read(game: &Path, build: &Build, keys: &[PublicKey]) -> Self {
-        Self::read_as(game, build, keys, dedicated())
-    }
-
-    /// `read` for a client (`dedicated` false) or a dedicated server.
-    fn read_as(game: &Path, build: &Build, keys: &[PublicKey], dedicated: bool) -> Self {
         let mut runtime = Self::default();
         let file = match File::open(game.join("yoake-mods.txt")) {
             Ok(file) => file,
@@ -146,8 +141,6 @@ impl Runtime {
                     return Err("list and manifest identity differ".into());
                 }
                 build.check(&manifest)?;
-                // A dedicated server has no client: a server-only package is its whole business.
-                if !manifest.side.client && !(dedicated && manifest.side.server) { return Err("server-only YAK".into()); }
                 let content = root.join("content");
                 let (content, content_wasm) = if content.is_dir() {
                     let package = Package::read(&content)?;

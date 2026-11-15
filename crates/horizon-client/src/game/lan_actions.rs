@@ -4034,7 +4034,7 @@ impl Game<'_> {
             // the `deaths` statistic and the two timers it resets.
             self.as_guest(&mut host, conn, |game| {
                 if let Some(eyes) = drops {
-                    game.drop_inventory(eyes);
+                    game.drop_inventory(uuid, eyes);
                 }
                 game.score_player_died();
                 game.award_custom_stat("deaths", 1);

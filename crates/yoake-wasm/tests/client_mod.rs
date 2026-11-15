@@ -16,6 +16,18 @@ impl ClientHost for FakeHost {
     }
 }
 
+struct SlowHost {
+    calls: Arc<Mutex<Vec<String>>>,
+}
+
+impl ClientHost for SlowHost {
+    fn mod_screen_open(&mut self, mod_id: &str) -> Result<bool, HostError> {
+        std::thread::sleep(std::time::Duration::from_millis(60));
+        self.calls.lock().unwrap().push(mod_id.to_owned());
+        Ok(true)
+    }
+}
+
 fn read_leb(bytes: &[u8], position: &mut usize) -> u32 {
     let mut value = 0;
     let mut shift = 0;
@@ -258,6 +270,23 @@ fn subscribed_tick_runs_and_unsubscribed_key_is_skipped() {
     assert!(!guest.subscribed("key"));
     assert_eq!(guest.tick(0), Some(()));
     assert_eq!(guest.key("K", true), None);
+    assert_eq!(*calls.lock().unwrap(), ["mine"]);
+}
+
+#[test]
+fn slow_client_service_does_not_disable_the_guest() {
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let bytes = component("tick", |open| screen_tick(open, false));
+    let mut guest = ClientMod::instantiate(
+        &mut Sandbox::new(),
+        "mine",
+        &bytes,
+        Box::new(SlowHost { calls: calls.clone() }),
+    )
+    .unwrap();
+
+    assert_eq!(guest.tick(0), Some(()));
+    assert!(!guest.is_disabled());
     assert_eq!(*calls.lock().unwrap(), ["mine"]);
 }
 

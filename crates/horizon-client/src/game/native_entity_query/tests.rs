@@ -336,14 +336,6 @@ fn only_authoritative_server_contexts_with_the_host_in_place_are_allowed() {
 }
 
 #[test]
-fn unscoped_transients_are_not_assigned_to_arbitrary_dimensions() {
-    assert!(require_scoped_transients(1, 0, true).is_err());
-    assert!(require_scoped_transients(0, 1, true).is_err());
-    assert!(require_scoped_transients(1, 1, false).is_ok());
-    assert!(require_scoped_transients(0, 0, true).is_ok());
-}
-
-#[test]
 fn snapshots_and_player_ids_preserve_values_without_uuid_generation() {
     let snapshot = NativeEntityInfo::new(
         7,

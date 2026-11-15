@@ -1867,6 +1867,11 @@ interface server-types {
         yaw: f32,
     }
 
+    record player-inventory-slot {
+        id: u32,
+        stack: option<item-stack>,
+    }
+
     record player-motion {
         fall-distance: f64,
         horizontal-collision: bool,
@@ -1922,7 +1927,7 @@ interface server-types {
 
 /// Server services (value types only), listed in `abi-subset-server.json`.
 interface server-services {
-    use server-types.{attribute-operation, damage-kind, inventory-operation, team-operation, world-control-operation, advancement-state, attribute-value, block-edit, block-entity-create, block-entity-patch, block-entity-state, block-pos, block-run, bounds, chat-decision, chat-recipients, command-usage, container-ref, damage-decision, entity-snapshot, entity-vitals, inventory-change, item-entity, item-stack, knockback-decision, particle-request, player, player-motion, ray-hit, team-change, tool-requirement, vec3, world-border-state, world-control-change};
+    use server-types.{attribute-operation, damage-kind, inventory-operation, team-operation, world-control-operation, advancement-state, attribute-value, block-edit, block-entity-create, block-entity-patch, block-entity-state, block-pos, block-run, bounds, chat-decision, chat-recipients, command-usage, container-ref, damage-decision, entity-snapshot, entity-vitals, inventory-change, item-entity, item-stack, knockback-decision, particle-request, player, player-inventory-slot, player-motion, ray-hit, team-change, tool-requirement, vec3, world-border-state, world-control-change};
 
     acting-player: func() -> option<player>;
     held: func() -> option<item-stack>;
@@ -1930,7 +1935,7 @@ interface server-services {
     integrated-owner: func() -> option<string>;
     entities-in: func(center: vec3, dimension: string, radius: f64) -> result<list<entity-snapshot>, string>;
     clip: func(dimension: string, end: vec3, start: vec3) -> result<option<ray-hit>, string>;
-    player-stacks: func(player: string) -> result<list<option<item-stack>>, string>;
+    player-stacks: func(player: string) -> result<list<player-inventory-slot>, string>;
     player-teleport: func(dimension: string, pitch: f32, player: string, position: vec3, yaw: f32) -> result<_, string>;
     player-set-health: func(health: f32, player: string) -> result<_, string>;
     player-set-gamemode: func(game-mode: s32, player: string) -> result<_, string>;
@@ -2008,6 +2013,7 @@ interface server-services {
     world-border: func(dimension: string) -> result<world-border-state, string>;
     set-world-border: func(center-x: f64, center-z: f64, dimension: string, lerp-ticks: option<u64>, size: f64, target-size: option<f64>) -> result<_, string>;
     mod-call: func(method: string, payload: list<u8>, target-mod: string) -> result<list<u8>, string>;
+    player-remove-slot: func(expected: item-stack, player: string, slot: u32) -> result<bool, string>;
 }
 
 /// Hooks that run in the client.
@@ -6527,6 +6533,13 @@ interface server-hooks {
     ///
     /// Returns true to cancel (take) the event; the first mod that cancels wins.
     village-siege: func(dimension: string, player: list<u8>, attempted-pos: list<f64>) -> bool;
+    /// The eligible inventory stacks before a player's death drops spawn.
+    /// A shorter returned list leaves omitted stacks in their original slots.
+    /// Server-side, for every player whose drops are not suppressed.
+    /// API @API:player_death_drops@.
+    ///
+    /// Collect: `drops` is the aggregate so far; return the aggregate you want.
+    player-death-drops: func(player: list<u8>, drops: list<item-stack>) -> list<item-stack>;
     /// `MinecraftServer.getProfilePermissions`: the permission level a server gives a player.
     /// `vanilla` is what it computed (the ops list, the integrated owner, LAN guests' commands);
     /// `world_allow_commands` is the integrated world's Allow Commands state, or true on dedicated servers.

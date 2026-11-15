@@ -145,7 +145,8 @@ server_services! {
     integrated_owner() -> Option<String> = None;
     entities_in(center: st::Vec3, dimension: String, radius: f64) -> Result<Vec<st::EntitySnapshot>, String> = unsupported();
     clip(dimension: String, end: st::Vec3, start: st::Vec3) -> Result<Option<st::RayHit>, String> = unsupported();
-    player_stacks(player: String) -> Result<Vec<Option<st::ItemStack>>, String> = unsupported();
+    player_stacks(player: String) -> Result<Vec<st::PlayerInventorySlot>, String> = unsupported();
+    player_remove_slot(expected: st::ItemStack, player: String, slot: u32) -> Result<bool, String> = unsupported();
     player_teleport(dimension: String, pitch: f32, player: String, position: st::Vec3, yaw: f32) -> Result<(), String> = unsupported();
     player_set_health(health: f32, player: String) -> Result<(), String> = unsupported();
     player_set_gamemode(game_mode: i32, player: String) -> Result<(), String> = unsupported();

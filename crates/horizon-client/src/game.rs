@@ -4040,15 +4040,67 @@ impl Game<'_> {
     /// is on, `destroyVanishingCursedItems`, then `Inventory.dropAll` from
     /// `at` (the eyes less 0.3): slots 0..36, armor feet to head (36..39),
     /// the off hand (40), each thrown in a random direction.
-    fn drop_inventory(&mut self, at: [f64; 3]) {
+    fn drop_inventory(&mut self, player: u128, at: [f64; 3]) {
         if self.ui.rules.bool("keep_inventory") {
             return;
         }
-        let mut stacks: Vec<ItemStack> =
-            self.inventory.iter_mut().filter_map(Option::take).collect();
-        stacks.extend(self.armor.iter_mut().rev().filter_map(Option::take));
-        stacks.extend(self.offhand.take());
-        stacks.retain(|s| s.enchantment_level("minecraft:vanishing_curse") == 0);
+
+        // Destroy vanishing-cursed items before the drop hook, as
+        // ServerPlayer.dropAllDeathLoot does, but leave every other source
+        // slot intact until the hook decides what is actually dropped.
+        let mut originals = Vec::new();
+        let mut cursed_removed = false;
+        for slot in 0..self.inventory.len().min(36) {
+            if let Some(stack) = self.inventory[slot].clone() {
+                if stack.enchantment_level("minecraft:vanishing_curse") != 0 {
+                    self.inventory[slot] = None;
+                    cursed_removed = true;
+                } else {
+                    originals.push((slot as u32, stack));
+                }
+            }
+        }
+        for index in (0..self.armor.len()).rev() {
+            if let Some(stack) = self.armor[index].clone() {
+                let slot = 36 + index as u32;
+                if stack.enchantment_level("minecraft:vanishing_curse") != 0 {
+                    self.armor[index] = None;
+                    cursed_removed = true;
+                } else {
+                    originals.push((slot, stack));
+                }
+            }
+        }
+        if let Some(stack) = self.offhand.clone() {
+            if stack.enchantment_level("minecraft:vanishing_curse") != 0 {
+                self.offhand = None;
+                cursed_removed = true;
+            } else {
+                originals.push((40, stack));
+            }
+        }
+        let mut stacks: Vec<ItemStack> = originals.iter().map(|(_, stack)| stack.clone()).collect();
+        if stacks.is_empty() {
+            if cursed_removed {
+                self.apply_equipment();
+            }
+            return;
+        }
+
+        self.native_player_death_drops(player, &mut stacks);
+        for (slot, count) in death_drop_consumption(&originals, &stacks) {
+            let Some((_, expected)) = originals.iter().find(|(original_slot, _)| *original_slot == slot) else {
+                continue;
+            };
+            consume_death_slot(
+                &mut self.inventory,
+                &mut self.armor,
+                &mut self.offhand,
+                slot,
+                expected,
+                count,
+            );
+        }
         self.apply_equipment();
         for stack in stacks {
             let r = &mut self.world.random;
@@ -22999,5 +23051,90 @@ fn write_level_for_role(
         level.write(dir)
     } else {
         level.write_without_player(dir)
+    }
+}
+
+/// The original portions represented by the final death-drop list. Items a hook omits stay in
+/// their source slot; a partially returned stack consumes only that many items from that slot.
+fn death_drop_consumption(originals: &[(u32, ItemStack)], drops: &[ItemStack]) -> Vec<(u32, u32)> {
+    let mut consumed = vec![0u32; originals.len()];
+    for drop in drops {
+        let mut needed = drop.count;
+        for (index, (_, original)) in originals.iter().enumerate() {
+            if needed == 0 || original.item != drop.item || original.damage != drop.damage || original.extra != drop.extra {
+                continue;
+            }
+            let available = original.count.saturating_sub(consumed[index]);
+            let taken = available.min(needed);
+            consumed[index] += taken;
+            needed -= taken;
+        }
+    }
+    originals
+        .iter()
+        .zip(consumed)
+        .filter_map(|((slot, _), count)| (count > 0).then_some((*slot, count)))
+        .collect()
+}
+
+fn consume_death_slot(
+    inventory: &mut [Option<ItemStack>],
+    armor: &mut [Option<ItemStack>; 4],
+    offhand: &mut Option<ItemStack>,
+    slot: u32,
+    expected: &ItemStack,
+    count: u32,
+) {
+    let current = match slot {
+        0..=35 => inventory.get_mut(slot as usize),
+        36..=39 => armor.get_mut((slot - 36) as usize),
+        40 => Some(offhand),
+        _ => None,
+    };
+    let Some(current) = current else {
+        return;
+    };
+    let Some(stack) = current.as_ref() else {
+        return;
+    };
+    if stack.item != expected.item || stack.damage != expected.damage || stack.extra != expected.extra {
+        return;
+    }
+    let remaining = stack.count.saturating_sub(count);
+    if remaining == 0 {
+        *current = None;
+    } else if let Some(stack) = current.as_mut() {
+        stack.count = remaining;
+    }
+}
+
+#[cfg(test)]
+mod death_drop_tests {
+    use super::*;
+
+    fn stack(item: &str, count: u32) -> ItemStack {
+        ItemStack { item: item.into(), count, damage: 0, extra: None }
+    }
+
+    #[test]
+    fn omitted_death_drops_stay_in_their_original_slots() {
+        let stone = stack("minecraft:stone", 5);
+        let dirt = stack("minecraft:dirt", 3);
+        let originals = vec![(0, stone.clone()), (36, dirt.clone())];
+
+        assert_eq!(death_drop_consumption(&originals, &[stone]), [(0, 5)]);
+        assert_eq!(death_drop_consumption(&originals, &[]), []);
+    }
+
+    #[test]
+    fn death_drop_counts_and_components_match_source_stacks() {
+        let stone = stack("minecraft:stone", 5);
+        let originals = vec![(0, stone.clone()), (1, stone.clone())];
+        assert_eq!(death_drop_consumption(&originals, &[stack("minecraft:stone", 7)]), [(0, 5), (1, 2)]);
+        assert_eq!(death_drop_consumption(&originals, &[stack("minecraft:stone", 2)]), [(0, 2)]);
+
+        let mut different = stack("minecraft:stone", 5);
+        different.damage = 1;
+        assert!(death_drop_consumption(&originals, &[different]).is_empty());
     }
 }

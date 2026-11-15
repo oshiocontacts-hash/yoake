@@ -418,21 +418,17 @@ fn server_wasm_source(permissions: &str) -> String {
 }
 
 #[test]
-fn a_dedicated_server_loads_the_packages_of_its_game_folder_and_a_client_skips_server_only_ones() {
+fn server_only_wasm_is_discovered_without_loading_a_client_module() {
     let fixture = Fixture::new();
     let entry = fixture.install(&server_wasm_source(""));
     fixture.write(&entry.root.join("bin/wasm/server.wasm"), b"\0asm\x01\0\0\0");
     fixture.list("server_mod 1.2.3\n");
-    let client = Runtime::read_as(&fixture.0, &build(), &[], false);
-    assert!(client.entries.is_empty());
-    assert!(client.startup_log.iter().any(|line| line.contains("server-only")), "{:?}", client.startup_log);
-    let server = Runtime::read_as(&fixture.0, &build(), &[], true);
-    assert_eq!(server.entries.len(), 1, "{:?}", server.startup_log);
-    let found = wasm_mods_from(&server.entries, WasmSide::Server, &[], true);
+    let runtime = Runtime::read(&fixture.0, &build(), &[]);
+    assert_eq!(runtime.entries.len(), 1, "{:?}", runtime.startup_log);
+    let found = wasm_mods_from(&runtime.entries, WasmSide::Server, &[], true);
     assert_eq!(found.len(), 1);
     assert!(found[0].full && !found[0].commands);
-    // The client side of that package has no module.
-    assert!(wasm_mods_from(&server.entries, WasmSide::Client, &[], true).is_empty());
+    assert!(wasm_mods_from(&runtime.entries, WasmSide::Client, &[], true).is_empty());
 }
 
 #[test]

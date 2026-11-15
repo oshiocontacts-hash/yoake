@@ -276,6 +276,7 @@ struct QuerySources<'world, Bolts, Spawners> {
     frames: &'world [ItemFrame],
     paintings: &'world [Painting],
     potions: &'world potions::PotionState,
+    include_transients: bool,
     thrown_count: usize,
     end: &'world end::EndState,
     eye_count: usize,
@@ -378,16 +379,18 @@ where
                 coordinates(other.position),
             ))?;
         }
-        for (id, kind, _, position, _) in self.potions.thrown_tracked() {
-            visit(Candidate::point(id, dimension, kind, coordinates(position)))?;
-        }
-        for (id, position, _) in self.end.eyes_tracked() {
-            visit(Candidate::point(
-                id,
-                dimension,
-                "minecraft:eye_of_ender",
-                position,
-            ))?;
+        if self.include_transients {
+            for (id, kind, _, position, _) in self.potions.thrown_tracked() {
+                visit(Candidate::point(id, dimension, kind, coordinates(position)))?;
+            }
+            for (id, position, _) in self.end.eyes_tracked() {
+                visit(Candidate::point(
+                    id,
+                    dimension,
+                    "minecraft:eye_of_ender",
+                    position,
+                ))?;
+            }
         }
         for (id, position) in self.bolts {
             visit(Candidate::point(
@@ -466,20 +469,6 @@ pub(super) fn require_server_context(
     Ok(())
 }
 
-fn require_scoped_transients(
-    thrown_count: usize,
-    eye_count: usize,
-    has_parked_levels: bool,
-) -> Result<(), String> {
-    if has_parked_levels && (thrown_count != 0 || eye_count != 0) {
-        // CHECK: Thrown potions and eyes have no dimension and are not swapped with levels.
-        return Err(
-            "native entity query cannot attribute transient entities to a loaded level".into(),
-        );
-    }
-    Ok(())
-}
-
 fn query_entities<'world>(
     budgets: &mut QueryBudgets,
     tick: (NativeWorldEpoch, NativeTickId),
@@ -532,8 +521,11 @@ fn query_entities<'world>(
 }
 
 impl Game<'_> {
-    /// Entities whose boxes intersect a sphere in the current loaded server level.
-    /// API @API:entity_query@. No chunks are loaded and errors return no partial list.
+    /// Entities whose boxes intersect a sphere in the level currently in place.
+    /// Per-level hooks (`level_tick_pre/post`) run with their dimension in place, including the
+    /// restored mob list after the tick. Server lifecycle hooks have no per-level guarantee.
+    /// Potion and eye-of-ender transients are omitted while other levels are parked because their
+    /// stores do not carry a dimension. API @API:entity_query@. No chunks are loaded.
     pub(super) fn native_entities_in(
         &mut self,
         dimension: &str,
@@ -554,23 +546,14 @@ impl Game<'_> {
             .entity_query_tick()
             .ok_or("native entity queries require a ready server world")?;
         if dimension != self.dim.id() {
-            return query_entities(
-                &mut self.native_entity_queries,
-                tick,
-                caller.index,
-                dimension,
-                sphere,
-                0,
-                |_| Ok(()),
-            );
+            return Err(format!(
+                "native entity query can only read the level currently in place ({}); query from that level's hook",
+                self.dim.id()
+            ));
         }
-        let thrown_count = self.potions.thrown_ids().size_hint().0;
-        let eye_count = self.end.eye_ids().size_hint().0;
-        require_scoped_transients(
-            thrown_count,
-            eye_count,
-            self.levels.parked_worlds().next().is_some(),
-        )?;
+        let include_transients = self.levels.parked_worlds().next().is_none();
+        let thrown_count = if include_transients { self.potions.thrown_ids().size_hint().0 } else { 0 };
+        let eye_count = if include_transients { self.end.eye_ids().size_hint().0 } else { 0 };
         let sources = QuerySources {
             dimension: self.dim.id(),
             shared: entity_lists_of!(self),
@@ -594,6 +577,7 @@ impl Game<'_> {
                 .iter()
                 .map(|spawner| (spawner.id, spawner.position)),
             fangs: &self.fangs.list,
+            include_transients,
         };
         query_entities(
             &mut self.native_entity_queries,

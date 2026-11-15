@@ -150,6 +150,13 @@ mod server {
         slots.iter().flatten().map(|s| format!("{} x{}", s.item, s.count)).collect()
     }
 
+    fn player_slot_names(slots: &[types::PlayerInventorySlot]) -> Vec<String> {
+        slots
+            .iter()
+            .filter_map(|slot| slot.stack.as_ref().map(|stack| format!("{} [{}] x{}", stack.item, slot.id, stack.count)))
+            .collect()
+    }
+
     /// The services that work inside a player's hook (the player's own state is in place): one report
     /// line each.
     fn walk_hook(uuid: &str, dimension: &str) -> Vec<String> {
@@ -163,7 +170,7 @@ mod server {
         out.push(step("give-items cobblestone x5 (left over)", ext::give(uuid, "minecraft:cobblestone", 5)));
         out.push(step("inventory-apply take 60 (all or nothing, must be false)", ext::take(uuid, "minecraft:cobblestone", 60)));
         out.push(step("inventory-apply take 2", ext::take(uuid, "minecraft:cobblestone", 2)));
-        out.push(step("player-stacks (cobblestone left: 3)", services::player_stacks(uuid).map(|slots| names(&slots))));
+        out.push(step("player-stacks (cobblestone left: 3)", services::player_stacks(uuid).map(|slots| player_slot_names(&slots))));
         // Attributes.
         out.push(step("player-attribute-modifier-add", ext::add_attribute(uuid, "minecraft:max_health", "full_demo:bonus", 4.0)));
         out.push(step("attribute-get max_health (base, value)", services::attribute_get("minecraft:max_health", uuid).map(|v| (v.base, v.value))));
