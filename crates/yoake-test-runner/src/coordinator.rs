@@ -1,6 +1,6 @@
 //! The coordinator: lists the tests of a project, runs each in a worker process with its own temporary
 //! game folder and world, and builds the report.
-use std::fs::{self, File};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
@@ -8,16 +8,21 @@ use std::time::{Duration, Instant};
 use serde_json::{Value, json};
 use yoake_wasm::{Sandbox, TestHost, TestMod};
 
+use crate::guard::{self, Job, RESULT_FILE, TOKEN_ENV, TOKEN_FILE, Tail, random_hex};
 use crate::install::{self, Installed};
 use crate::plan::Plan;
 use crate::report::{self, TestRecord};
 
-/// The folder name of the test world inside the worker's `saves/`.
-pub const WORLD: &str = "yoake-test";
+pub use crate::guard::WORLD;
+
 /// Time a worker gets after its test's own limit to write its result and exit, before it is killed.
 pub const GRACE: Duration = Duration::from_secs(10);
+/// Time a worker that has written its result may take to exit before it is killed.
+pub const LINGER: Duration = Duration::from_secs(5);
 /// The tail of a silent worker's console output that goes into the failure.
 const OUTPUT_TAIL: usize = 1500;
+/// The largest result file the coordinator reads.
+const MAX_RESULT_BYTES: u64 = 1024 * 1024;
 
 /// The game process to start for a worker.
 #[derive(Clone, Debug)]
@@ -26,11 +31,14 @@ pub struct GameCommand {
     /// Arguments that come before everything else (tests use them to start a stand-in for the game).
     pub lead_args: Vec<String>,
     pub grace: Duration,
+    pub linger: Duration,
+    /// Asked while a worker runs: true when the user asked the coordinator to stop (Ctrl+C).
+    pub interrupted: fn() -> bool,
 }
 
 impl GameCommand {
     pub fn new(exe: impl Into<PathBuf>) -> Self {
-        Self { exe: exe.into(), lead_args: Vec::new(), grace: GRACE }
+        Self { exe: exe.into(), lead_args: Vec::new(), grace: GRACE, linger: LINGER, interrupted: || false }
     }
 }
 
@@ -46,7 +54,7 @@ impl TestHost for Listing {}
 
 /// Lists the test names of the module at `path`.
 pub fn list_tests(path: &Path, limit: Duration) -> Result<Vec<String>, String> {
-    let bytes = fs::read(path).map_err(|error| format!("{}: {error}", path.display()))?;
+    let bytes = crate::worker::read_module(path)?;
     let mut module = TestMod::instantiate(&mut Sandbox::new(), "yoake-test-list", &bytes, Box::new(Listing), limit)
         .map_err(|error| format!("{}: {error}", path.display()))?;
     module.tests()
@@ -54,6 +62,43 @@ pub fn list_tests(path: &Path, limit: Duration) -> Result<Vec<String>, String> {
 
 fn failed(errors: Vec<String>, extra: Value) -> Outcome {
     Outcome { report: report::report(&[], &errors, extra), code: 2 }
+}
+
+fn absolute(path: &Path) -> PathBuf {
+    std::path::absolute(path).unwrap_or_else(|_| path.to_owned())
+}
+
+/// The run's temporary folder: created new under an unpredictable name, deleted when this is dropped (also
+/// when the run ends early) unless it is to be kept.
+pub struct TempRoot {
+    path: PathBuf,
+    keep: bool,
+}
+
+impl TempRoot {
+    pub fn create(keep: bool) -> Result<Self, String> {
+        for _ in 0..16 {
+            let path = absolute(&std::env::temp_dir().join(format!("yoake-test-{}", random_hex(8))));
+            match fs::create_dir(&path) {
+                Ok(()) => return Ok(Self { path, keep }),
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => return Err(format!("{}: {error}", path.display())),
+            }
+        }
+        Err("could not create a temporary folder".into())
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for TempRoot {
+    fn drop(&mut self) {
+        if !self.keep {
+            remove_tree(&self.path);
+        }
+    }
 }
 
 /// Runs the plan. `prepare_world` makes the world folder it is given (`<game>/saves/yoake-test`) a fresh
@@ -68,6 +113,12 @@ pub fn run(plan: &Plan, game: &GameCommand, prepare_world: &dyn Fn(&Path) -> Res
             json!({"clients": plan.clients}),
         );
     }
+    // The game changes its working directory: every path the workers get is absolute.
+    let mut plan = plan.clone();
+    plan.target = absolute(&plan.target);
+    plan.with = plan.with.iter().map(|path| absolute(path)).collect();
+    plan.module = plan.module.as_deref().map(absolute);
+    let plan = &plan;
     let project = match install::describe(&plan.target) {
         Ok(project) => project,
         Err(error) => return failed(vec![error], json!({})),
@@ -100,24 +151,37 @@ pub fn run(plan: &Plan, game: &GameCommand, prepare_world: &dyn Fn(&Path) -> Res
         return Outcome { report: report::report(&[], &[], extra), code: 0 };
     }
 
-    let root = std::env::temp_dir().join(format!(
-        "yoake-test-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |elapsed| elapsed.as_nanos())
-    ));
+    let root = match TempRoot::create(plan.keep) {
+        Ok(root) => root,
+        Err(error) => return failed(vec![format!("no temporary folder: {error}")], extra),
+    };
+    let job = Job::new();
     let mut records = Vec::new();
+    let mut errors = Vec::new();
     for (index, name) in names.iter().enumerate() {
-        let record = run_one(plan, game, &module, &root.join(format!("t{index}")), name, prepare_world);
+        if (game.interrupted)() {
+            errors.push("interrupted".to_owned());
+            break;
+        }
+        let record = run_one(plan, game, &module, &root.path().join(format!("t{index}")), name, prepare_world, job.as_ref());
         eprintln!("yoake test: {} {} ({} ms)", if record.ok { "ok  " } else { "FAIL" }, record.name, record.ms);
         records.push(record);
     }
     if plan.keep {
-        extra["kept"] = json!(root.display().to_string());
-    } else {
-        remove_tree(&root);
+        extra["kept"] = json!(root.path().display().to_string());
     }
-    let code = report::exit_code(&records, &[]);
-    Outcome { report: report::report(&records, &[], extra), code }
+    let code = report::exit_code(&records, &errors);
+    Outcome { report: report::report(&records, &errors, extra), code }
+}
+
+/// A child process that is killed when it is dropped.
+struct Worker(Child);
+
+impl Drop for Worker {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
 }
 
 /// Runs one test in a worker and says how it went. Never panics: every failure is the test's record.
@@ -128,17 +192,20 @@ pub fn run_one(
     dir: &Path,
     name: &str,
     prepare_world: &dyn Fn(&Path) -> Result<(), String>,
+    job: Option<&Job>,
 ) -> TestRecord {
     let began = Instant::now();
     let fail = |error: String| TestRecord::fail(name, began.elapsed().as_millis() as u64, error);
+    let dir = absolute(dir);
+    let token = random_hex(16);
     let game_dir = dir.join("game");
     let home = dir.join("home");
-    let result = dir.join("result.json");
-    let output = dir.join("worker.out");
+    let result = dir.join(RESULT_FILE);
     let prepared = (|| -> Result<(), String> {
         for folder in [&game_dir, &home] {
             fs::create_dir_all(folder).map_err(|error| format!("{}: {error}", folder.display()))?;
         }
+        fs::write(dir.join(TOKEN_FILE), &token).map_err(|error| format!("{}: {error}", dir.display()))?;
         let mut installed: Vec<Installed> = Vec::new();
         for source in std::iter::once(&plan.target).chain(plan.with.iter()) {
             installed.push(install::install(source, &game_dir)?);
@@ -149,14 +216,20 @@ pub fn run_one(
         prepare_world(&world)
     })();
     if let Err(error) = prepared {
-        remove_unless_kept(plan, dir);
+        remove_unless_kept(plan, &dir);
         return fail(format!("could not prepare the test world: {error}"));
     }
-    let record = match spawn(plan, game, module, name, &game_dir, &home, &result, &output) {
-        Ok(child) => finish(plan, game, child, name, &result, &output, began),
+    let record = match spawn(plan, game, &absolute(module), name, &game_dir, &home, &result, &token) {
+        Ok(mut child) => {
+            if let Some(job) = job {
+                job.add(&child);
+            }
+            let tail = Tail::capture(&mut child);
+            finish(plan, game, Worker(child), name, &result, &tail, began)
+        }
         Err(error) => fail(error),
     };
-    remove_unless_kept(plan, dir);
+    remove_unless_kept(plan, &dir);
     record
 }
 
@@ -175,10 +248,8 @@ fn spawn(
     game_dir: &Path,
     home: &Path,
     result: &Path,
-    output: &Path,
+    token: &str,
 ) -> Result<Child, String> {
-    let stdout = File::create(output).map_err(|error| format!("{}: {error}", output.display()))?;
-    let stderr = stdout.try_clone().map_err(|error| error.to_string())?;
     let mut command = Command::new(&game.exe);
     command
         .args(&game.lead_args)
@@ -195,70 +266,88 @@ fn spawn(
         .arg("--yoake-test-result")
         .arg(result)
         .args(["--yoake-test-timeout-ms", &plan.timeout.as_millis().to_string()])
-        .args(&plan.game_args)
-        // Developer mode loads the unsigned package under test; it applies to this child only.
-        .env("YOAKE_DLL_MODS_UNSIGNED", "1")
+        .args(["--yoake-test-startup-seconds", &plan.startup.as_secs().max(1).to_string()])
+        .args(&plan.game_args);
+    // A worker inherits only what the system and the graphics driver need: no `HORIZON_*` or `YOAKE_*` switch
+    // of the coordinator's (session file, command script, DLL mods, developer mode, ...) reaches it.
+    command.env_clear();
+    for (variable, value) in guard::worker_env(std::env::vars_os()) {
+        command.env(variable, value);
+    }
+    command
+        .env(TOKEN_ENV, token)
         .env("HORIZON_NO_AUDIO", "1")
         .env("HORIZON_NO_FOCUS", "1")
         .env("HORIZON_HOME", home)
         .stdin(Stdio::null())
-        .stdout(stdout)
-        .stderr(stderr);
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     command.spawn().map_err(|error| format!("could not start {}: {error}", game.exe.display()))
-}
-
-fn finish(plan: &Plan, game: &GameCommand, mut child: Child, name: &str, result: &Path, output: &Path, began: Instant) -> TestRecord {
-    let deadline = began + plan.startup + plan.timeout + game.grace;
-    let ending = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break Ending::Exited(status.code()),
-            Ok(None) if Instant::now() >= deadline => {
-                let _ = child.kill();
-                let _ = child.wait();
-                break Ending::Killed;
-            }
-            Ok(None) => std::thread::sleep(Duration::from_millis(25)),
-            Err(error) => break Ending::Lost(error.to_string()),
-        }
-    };
-    let ms = began.elapsed().as_millis() as u64;
-    if let Ok(text) = fs::read_to_string(result) {
-        return match serde_json::from_str::<Value>(&text).map_err(|error| error.to_string()).and_then(|value| TestRecord::from_json(&value)) {
-            Ok(mut record) => {
-                // The worker names its test; the coordinator's name is the one reported.
-                record.name = name.to_owned();
-                record
-            }
-            Err(error) => TestRecord::fail(name, ms, format!("the worker's result is unreadable: {error}")),
-        };
-    }
-    let tail = output_tail(output);
-    let why = match ending {
-        Ending::Killed => format!(
-            "the worker did not finish within {} s and was killed",
-            (plan.startup + plan.timeout + game.grace).as_secs()
-        ),
-        Ending::Exited(Some(0)) => "the worker exited without writing a result".to_owned(),
-        Ending::Exited(Some(code)) => format!("the worker exited with code {code} before it ran the test"),
-        Ending::Exited(None) => "the worker was ended by a signal before it ran the test".to_owned(),
-        Ending::Lost(error) => format!("lost the worker: {error}"),
-    };
-    TestRecord::fail(name, ms, if tail.is_empty() { why } else { format!("{why}; its output ended: {tail}") })
 }
 
 enum Ending {
     Exited(Option<i32>),
     Killed,
+    Interrupted,
+    /// The worker wrote its result and did not exit: killed after the linger.
+    Lingered,
     Lost(String),
 }
 
-fn output_tail(path: &Path) -> String {
-    let Ok(bytes) = fs::read(path) else { return String::new() };
-    let text = String::from_utf8_lossy(&bytes);
-    let text: String = text.chars().map(|character| if character.is_control() && character != '\n' { ' ' } else { character }).collect();
-    let text = text.trim();
-    let skip = text.chars().count().saturating_sub(OUTPUT_TAIL);
-    text.chars().skip(skip).collect::<String>().trim().replace('\n', " | ")
+fn finish(plan: &Plan, game: &GameCommand, mut worker: Worker, name: &str, result: &Path, tail: &Tail, began: Instant) -> TestRecord {
+    let deadline = began + plan.startup + plan.timeout + game.grace;
+    let mut result_seen: Option<Instant> = None;
+    let ending = loop {
+        if (game.interrupted)() {
+            break Ending::Interrupted;
+        }
+        match worker.0.try_wait() {
+            Ok(Some(status)) => break Ending::Exited(status.code()),
+            Ok(None) => {}
+            Err(error) => break Ending::Lost(error.to_string()),
+        }
+        let now = Instant::now();
+        if result_seen.is_none() && result.exists() {
+            result_seen = Some(now);
+        }
+        if result_seen.is_some_and(|seen| now.duration_since(seen) >= game.linger) {
+            break Ending::Lingered;
+        }
+        if now >= deadline {
+            break Ending::Killed;
+        }
+        std::thread::sleep(Duration::from_millis(25));
+    };
+    // Every ending but a plain exit ends the worker here (dropping it would too).
+    if !matches!(ending, Ending::Exited(_)) {
+        let _ = worker.0.kill();
+    }
+    let _ = worker.0.wait();
+    let ms = began.elapsed().as_millis() as u64;
+    if result.exists() {
+        return match guard::read_limited(result, MAX_RESULT_BYTES) {
+            None => TestRecord::fail(name, ms, "the worker's result is unreadable or larger than 1 MiB"),
+            Some(text) => match serde_json::from_str::<Value>(&text).map_err(|error| error.to_string()).and_then(|value| TestRecord::from_json(&value)) {
+                Ok(mut record) => {
+                    // The worker names its test; the coordinator's name is the one reported.
+                    record.name = name.to_owned();
+                    record
+                }
+                Err(error) => TestRecord::fail(name, ms, format!("the worker's result is unreadable: {error}")),
+            },
+        };
+    }
+    let output = tail.text(OUTPUT_TAIL);
+    let why = match ending {
+        Ending::Killed => format!("the worker did not finish within {} s and was killed", (plan.startup + plan.timeout + game.grace).as_secs()),
+        Ending::Interrupted => "interrupted".to_owned(),
+        Ending::Lingered => "the worker's result vanished".to_owned(),
+        Ending::Exited(Some(0)) => "the worker exited without writing a result".to_owned(),
+        Ending::Exited(Some(code)) => format!("the worker exited with code {code} before it ran the test"),
+        Ending::Exited(None) => "the worker was ended by a signal before it ran the test".to_owned(),
+        Ending::Lost(error) => format!("lost the worker: {error}"),
+    };
+    TestRecord::fail(name, ms, if output.is_empty() { why } else { format!("{why}; its output ended: {output}") })
 }
 
 /// Removes `path` and everything under it; Windows may need a moment after the worker exits.
@@ -277,27 +366,41 @@ pub fn remove_tree(path: &Path) {
 mod tests {
     use super::*;
     use crate::install::tests::{project, scratch};
-    use crate::report::exit_code;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     const FAKE: &str = "coordinator::tests::fake_game";
 
     /// The stand-in for the game: this very test binary, started with `--exact <FAKE> --nocapture --` so
-    /// every game argument after it is a (harmless) test filter. As a child it reads its arguments like
-    /// the game's worker would and acts by the test name: `pass`, `fail`, `crash`, `silent`, `hang`,
-    /// `garbage`. Run normally (no `--yoake-test-run`) it does nothing.
+    /// every game argument after it is a (harmless) test filter. As a child it checks, as the game's own
+    /// start does, that it is a verified worker (`guard::verify_worker`) with an environment stripped of the
+    /// coordinator's switches, and then acts by the test name: `pass`, `fail`, `crash`, `silent`, `hang`,
+    /// `garbage`, `stall`, `huge`. Run normally (no `--yoake-test-run`) it does nothing.
     #[test]
     fn fake_game() {
         let args: Vec<String> = std::env::args().collect();
         let value = |flag: &str| args.iter().position(|argument| argument == flag).and_then(|index| args.get(index + 1)).cloned();
         let Some(test) = value("--yoake-test-run") else { return };
         let result = PathBuf::from(value("--yoake-test-result").expect("a result path"));
-        // What a real worker would find: its folders, the package, the world and the flags that keep it hidden.
         let game_dir = PathBuf::from(value("--game-dir").expect("a game dir"));
         let mut problems = Vec::new();
-        for flag in ["--offscreen", "--no-focus", "--no-pause"] {
-            if !args.iter().any(|argument| argument == flag) {
-                problems.push(format!("missing {flag}"));
+        match guard::verify_worker(&args[1..], std::env::var(TOKEN_ENV).ok().as_deref()) {
+            Ok(Some(worker)) => {
+                if !worker.module.as_deref().is_some_and(Path::is_absolute) {
+                    problems.push("module not absolute".to_owned());
+                }
             }
+            other => problems.push(format!("not a verified worker: {other:?}")),
+        }
+        if !value("--yoake-test-module").is_some_and(|module| Path::new(&module).is_absolute()) {
+            problems.push("the module path was not made absolute".into());
+        }
+        for forbidden in ["YOAKE_DLL_MODS", "YOAKE_DLL_MODS_UNSIGNED", "YOAKE_WASM_DEV_DIR", "HORIZON_SESSION_FILE", "HORIZON_COMMAND_SCRIPT"] {
+            if std::env::var_os(forbidden).is_some() {
+                problems.push(format!("{forbidden} leaked"));
+            }
+        }
+        if std::env::var_os("HORIZON_HOME").is_none() {
+            problems.push("HORIZON_HOME".into());
         }
         if fs::read_to_string(game_dir.join("yoake-mods.txt")).unwrap_or_default().trim() != "demo 1.2.3" {
             problems.push("yoake-mods.txt".into());
@@ -307,9 +410,6 @@ mod tests {
         }
         if !game_dir.join("saves").join(WORLD).join("prepared").is_file() {
             problems.push("the world".into());
-        }
-        if value("--world").as_deref() != Some(WORLD) || value("--seed").as_deref() != Some("0") {
-            problems.push("world or seed".into());
         }
         if !problems.is_empty() {
             let _ = crate::worker::write_result(&result, &TestRecord::fail(&test, 1, format!("bad worker setup: {problems:?}")));
@@ -334,6 +434,14 @@ mod tests {
                 let _ = fs::write(&result, "{not json");
                 std::process::exit(0);
             }
+            "huge" => {
+                let _ = fs::write(&result, vec![b' '; 2 * 1024 * 1024]);
+                std::process::exit(0);
+            }
+            "stall" => {
+                let _ = crate::worker::write_result(&result, &TestRecord::pass(&test, 3));
+                std::thread::sleep(Duration::from_secs(120));
+            }
             "hang" => std::thread::sleep(Duration::from_secs(120)),
             other => panic!("unknown fake test {other}"),
         }
@@ -344,6 +452,8 @@ mod tests {
             exe: std::env::current_exe().unwrap(),
             lead_args: vec!["--exact".into(), FAKE.into(), "--nocapture".into(), "--".into()],
             grace,
+            linger: Duration::from_millis(400),
+            interrupted: || false,
         }
     }
 
@@ -366,9 +476,10 @@ mod tests {
         fs::write(world.join("prepared"), "flat seed 0").map_err(|error| error.to_string())
     }
 
-    fn one(plan: &Plan, game: &GameCommand, name: &str) -> TestRecord {
+    fn one_with(plan: &Plan, game: &GameCommand, name: &str) -> TestRecord {
         let dir = scratch("one");
-        let record = run_one(plan, game, Path::new("tests.wasm"), &dir.join("t0"), name, &prepare);
+        // A relative module path, as a user types it: the worker must still find it.
+        let record = run_one(plan, game, Path::new("tests.wasm"), &dir.join("t0"), name, &prepare, None);
         let _ = fs::remove_dir_all(dir);
         record
     }
@@ -379,10 +490,10 @@ mod tests {
         project(&project_dir, "demo", false);
         let plan = plan(&project_dir);
         let game = game(GRACE);
-        let pass = one(&plan, &game, "pass");
+        let pass = one_with(&plan, &game, "pass");
         assert!(pass.ok, "{pass:?}");
         assert_eq!(pass.ms, 7, "the worker's own timing is reported");
-        let fail = one(&plan, &game, "fail");
+        let fail = one_with(&plan, &game, "fail");
         assert_eq!((fail.ok, fail.error.as_deref()), (false, Some("expected stone, got dirt")));
         let _ = fs::remove_dir_all(project_dir);
     }
@@ -392,13 +503,15 @@ mod tests {
         let project_dir = scratch("dies");
         project(&project_dir, "demo", false);
         let plan = plan(&project_dir);
-        let crash = one(&plan, &game(GRACE), "crash");
+        let crash = one_with(&plan, &game(GRACE), "crash");
         let error = crash.error.unwrap();
         assert!(!crash.ok && error.contains("exited with code 101") && error.contains("no GPU"), "{error}");
-        let silent = one(&plan, &game(GRACE), "silent");
+        let silent = one_with(&plan, &game(GRACE), "silent");
         assert!(silent.error.unwrap().contains("without writing a result"));
-        let garbage = one(&plan, &game(GRACE), "garbage");
+        let garbage = one_with(&plan, &game(GRACE), "garbage");
         assert!(garbage.error.unwrap().contains("unreadable"));
+        let huge = one_with(&plan, &game(GRACE), "huge");
+        assert!(huge.error.unwrap().contains("larger than 1 MiB"));
         let _ = fs::remove_dir_all(project_dir);
     }
 
@@ -410,9 +523,44 @@ mod tests {
         plan.startup = Duration::from_millis(700);
         plan.timeout = Duration::from_millis(300);
         let began = Instant::now();
-        let record = one(&plan, &game(Duration::from_millis(500)), "hang");
+        let record = one_with(&plan, &game(Duration::from_millis(500)), "hang");
         assert!(!record.ok && record.error.as_deref().unwrap().contains("was killed"), "{record:?}");
         assert!(began.elapsed() < Duration::from_secs(30), "{:?}", began.elapsed());
+    }
+
+    #[test]
+    fn a_worker_that_reported_but_does_not_exit_is_killed_after_the_linger() {
+        let project_dir = scratch("stall");
+        project(&project_dir, "demo", false);
+        let plan = plan(&project_dir);
+        let began = Instant::now();
+        // The grace is a minute: only the linger (400 ms here) can end this quickly.
+        let record = one_with(&plan, &game(Duration::from_secs(60)), "stall");
+        assert!(record.ok, "{record:?}");
+        assert!(began.elapsed() < Duration::from_secs(30), "{:?}", began.elapsed());
+        let _ = fs::remove_dir_all(project_dir);
+    }
+
+    static INTERRUPT: AtomicBool = AtomicBool::new(false);
+
+    #[test]
+    fn an_interrupt_ends_the_worker_and_the_run() {
+        let project_dir = scratch("interrupt");
+        project(&project_dir, "demo", false);
+        let plan = plan(&project_dir);
+        let mut command = game(GRACE);
+        command.interrupted = || INTERRUPT.load(Ordering::Relaxed);
+        let flag = std::thread::spawn(|| {
+            std::thread::sleep(Duration::from_millis(1500));
+            INTERRUPT.store(true, Ordering::Relaxed);
+        });
+        let began = Instant::now();
+        let record = one_with(&plan, &command, "hang");
+        assert_eq!(record.error.as_deref().map(|error| error.starts_with("interrupted")), Some(true), "{record:?}");
+        assert!(began.elapsed() < Duration::from_secs(30));
+        flag.join().unwrap();
+        INTERRUPT.store(false, Ordering::Relaxed);
+        let _ = fs::remove_dir_all(project_dir);
     }
 
     #[test]
@@ -421,19 +569,38 @@ mod tests {
         project(&project_dir, "demo", false);
         let plan = plan(&project_dir);
         let dir = scratch("setup-run");
-        let record = run_one(&plan, &game(GRACE), Path::new("t.wasm"), &dir.join("a"), "pass", &|_| Err("no flat preset".into()));
+        let record = run_one(&plan, &game(GRACE), Path::new("t.wasm"), &dir.join("a"), "pass", &|_| Err("no flat preset".into()), None);
         assert!(record.error.unwrap().contains("could not prepare the test world: no flat preset"));
         let missing = GameCommand::new(dir.join("no-such-game.exe"));
-        let record = run_one(&plan, &missing, Path::new("t.wasm"), &dir.join("b"), "pass", &prepare);
+        let record = run_one(&plan, &missing, Path::new("t.wasm"), &dir.join("b"), "pass", &prepare, None);
         assert!(record.error.unwrap().contains("could not start"));
         // The temporary folders are gone after a run, unless they were kept.
         assert!(!dir.join("a").exists() && !dir.join("b").exists());
         let mut kept = plan.clone();
         kept.keep = true;
-        let record = run_one(&kept, &game(GRACE), Path::new("t.wasm"), &dir.join("c"), "pass", &prepare);
+        let record = run_one(&kept, &game(GRACE), Path::new("t.wasm"), &dir.join("c"), "pass", &prepare, None);
         assert!(record.ok, "{record:?}");
         assert!(dir.join("c/game/yoake-mods.txt").is_file());
+        assert!(dir.join("c").join(TOKEN_FILE).is_file());
         let _ = (fs::remove_dir_all(project_dir), fs::remove_dir_all(dir));
+    }
+
+    #[test]
+    fn the_temporary_root_is_new_unpredictable_and_removed_with_its_guard() {
+        let (one, two) = (TempRoot::create(false).unwrap(), TempRoot::create(false).unwrap());
+        assert_ne!(one.path(), two.path());
+        assert!(one.path().is_dir() && one.path().is_absolute());
+        let name = one.path().file_name().unwrap().to_string_lossy().into_owned();
+        assert!(name.starts_with("yoake-test-") && name.len() == "yoake-test-".len() + 16, "{name}");
+        let path = one.path().to_owned();
+        drop(one);
+        assert!(!path.exists());
+        let kept = TempRoot::create(true).unwrap();
+        let path = kept.path().to_owned();
+        drop(kept);
+        assert!(path.is_dir());
+        remove_tree(&path);
+        drop(two);
     }
 
     #[test]
@@ -471,19 +638,17 @@ mod tests {
         project(&project_dir, "demo", false);
         fs::write(project_dir.join("bin/wasm/demo-tests.wasm"), bytes).unwrap();
         // The module under test declares `passes`, `fails`, `driver_roundtrip`, `traps`, `spins`; the stand-in
-        // game only knows `pass` and `fail`, so filter to the names the demo shares a prefix with.
+        // game only knows `pass` and `fail`, so `passes` (an unknown name for it) fails its worker.
         let mut plan = plan(&project_dir);
         plan.filter = Some("pass".into());
         let listed = list_tests(&project_dir.join("bin/wasm/demo-tests.wasm"), Duration::from_secs(20)).unwrap();
         assert_eq!(listed, ["passes", "fails", "driver_roundtrip", "traps", "spins"]);
-        // `passes` is not a name the stand-in knows: it panics, which is a failed worker, not a failed run.
         let outcome = run(&plan, &game(GRACE), &prepare);
         assert_eq!(outcome.code, 1, "{}", outcome.report);
         assert_eq!(outcome.report["declared"], json!(5));
         assert_eq!(outcome.report["tests"].as_array().unwrap().len(), 1);
         assert_eq!(outcome.report["tests"][0]["name"], json!("passes"));
         assert_eq!(outcome.report["tests"][0]["ok"], json!(false));
-        assert_eq!(exit_code(&[], &[]), 0);
         // A filter that matches nothing is not an error.
         plan.filter = Some("zzz".into());
         let outcome = run(&plan, &game(GRACE), &prepare);

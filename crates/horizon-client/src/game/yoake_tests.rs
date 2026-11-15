@@ -3,13 +3,11 @@
 use super::Game;
 
 impl Game<'_> {
-    /// Test mode: executes the driver operations that arrived since the last tick, with the game as the host
-    /// (the server services of a `server-full` mod, `wasm_mods/test_driver.rs`).
+    /// Test mode: executes the driver operations that arrived, with the game as the host (the server services
+    /// of a `server-full` mod, `wasm_mods/test_driver.rs`). While the test froze the world this waits for the
+    /// test's next call (up to 50 ms) instead of ticking, so a call costs what it costs and not a tick.
     pub(super) fn pump_yoake_test(&mut self) {
-        let Some(bridge) = crate::yoake_test::bridge() else {
-            return;
-        };
-        bridge.pump(&mut |op| crate::entry::run_test_op(self, op));
+        crate::yoake_test::serve(&mut |op| crate::entry::run_test_op(self, op));
     }
 
     /// Test mode: one server tick ran (an `advance-ticks` counts them).

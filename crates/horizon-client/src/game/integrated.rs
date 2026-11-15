@@ -1086,8 +1086,8 @@ impl Game<'_> {
         // The server thread's `WorldOpenReady` site, before the tick loop.
         self.native_lifecycle_world_ready();
         // `--yoake-test-run`: the test module starts once the world is up (a worker of `yoake test`).
-        if self.options.yoake_test.is_active() {
-            crate::yoake_test::start_worker(self.options.yoake_test.clone());
+        if let Some(worker) = crate::yoake_test::worker() {
+            crate::yoake_test::start_worker(worker.clone());
         }
         if let (Some(script), Some(output)) = (
             std::env::var_os("HORIZON_COMMAND_SCRIPT"),
@@ -1115,7 +1115,9 @@ impl Game<'_> {
                 self.wait_for_next_server_tick(&mut next, true);
                 continue;
             }
-            let paused = flags.paused.load(Ordering::Relaxed);
+            // A test worker never pauses (its window is hidden and unfocused by design).
+            let testing = crate::yoake_test::bridge().is_some();
+            let paused = flags.paused.load(Ordering::Relaxed) && !testing;
             if paused && !was_paused {
                 // IntegratedServer.tickServer: the tick the game pauses saves
                 // everything (saveEverything, without flushing), as an
@@ -1126,6 +1128,9 @@ impl Game<'_> {
             was_paused = paused;
             if paused {
                 // Only the connections run.
+                self.tick_server_timed(true)?;
+            } else if crate::yoake_test::frozen() {
+                // A test froze the world: only the connections run; it ticks for `advance-ticks` alone.
                 self.tick_server_timed(true)?;
             } else {
                 self.follow_distances(&flags);
@@ -1147,8 +1152,9 @@ impl Game<'_> {
             }
             self.apply_publish();
             self.publish_load_view();
-            if crate::yoake_test::ticking_fast() {
-                // A test waits for ticks: the next one at once, as `/tick sprint` does.
+            if testing && (crate::yoake_test::ticking_fast() || crate::yoake_test::frozen()) {
+                // A test waits for ticks (the next one at once, as `/tick sprint` does) or the frozen world
+                // already waited for the test's next call.
                 next = Instant::now();
             } else {
                 self.wait_for_next_server_tick(&mut next, paused);

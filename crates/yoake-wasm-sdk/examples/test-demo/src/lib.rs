@@ -19,7 +19,7 @@ fn fails(world: &mut TestWorld<'_>) -> TestResult {
 fn driver_roundtrip(world: &mut TestWorld<'_>) -> TestResult {
     world.break_block(ORIGIN)?;
     let pig = world.spawn_entity("minecraft:pig", ORIGIN)?;
-    let player = world.spawn_fake_player("Tester", ORIGIN)?;
+    let player = world.spawn_mannequin("Tester", ORIGIN)?;
     if pig == player {
         return Err("a pig and a player must not share an id".into());
     }

@@ -14,10 +14,13 @@ use crate::report::TestRecord;
 
 /// Longest a worker waits for the world's owner to join before the test starts.
 pub const OWNER_WAIT: Duration = Duration::from_secs(120);
-/// Extra time the watchdog gives after the test's own limit before it ends the process.
-const GRACE: Duration = Duration::from_secs(15);
+/// Real time the world runs after the owner joined, before it is frozen for the test: chunks around the
+/// spawn load and the first ticks run on their own.
+pub const WARMUP: Duration = Duration::from_secs(2);
+/// Extra time the watchdog gives after startup and the test's own limit before it ends the process.
+const GRACE: Duration = Duration::from_secs(10);
 
-fn read_module(path: &Path) -> Result<Vec<u8>, String> {
+pub(crate) fn read_module(path: &Path) -> Result<Vec<u8>, String> {
     let file = std::fs::File::open(path).map_err(|error| format!("{}: {error}", path.display()))?;
     let limit = horizon_mods::yak::MAX_WASM_SIZE;
     let mut bytes = Vec::new();
@@ -43,7 +46,7 @@ fn wait_for_owner(client: &Client, limit: Duration) -> Result<(), String> {
 }
 
 /// Runs the worker's test to its end and says how it went. Blocks; `client` talks to the server thread.
-pub fn run(args: &WorkerArgs, client: Client, owner_wait: Duration) -> TestRecord {
+pub fn run(args: &WorkerArgs, client: Client, owner_wait: Duration, warmup: Duration) -> TestRecord {
     let name = args.test.clone().unwrap_or_default();
     let Some(module) = &args.module else {
         return TestRecord::fail(&name, 0, "no test module given");
@@ -60,6 +63,10 @@ pub fn run(args: &WorkerArgs, client: Client, owner_wait: Duration) -> TestRecor
     if let Err(error) = wait_for_owner(&client, owner_wait) {
         return TestRecord::fail(&name, 0, error);
     }
+    // The world has run on its own while the owner joined and during the warm-up; from here it stands still
+    // and ticks only when the test says so.
+    std::thread::sleep(warmup);
+    client.freeze();
     let began = Instant::now();
     let outcome = module.run_test(&name);
     let ms = began.elapsed().as_millis() as u64;
@@ -79,7 +86,7 @@ pub fn write_result(path: &Path, record: &TestRecord) -> Result<(), String> {
 
 static FINISHED: AtomicBool = AtomicBool::new(false);
 
-/// Reports `record` once (the first caller wins) and ends the process: 0 for a pass, 1 for a failure.
+/// Reports `record` once (the first caller wins) and ends the process with `code`.
 fn finish(args: &WorkerArgs, record: &TestRecord, code: i32) {
     if FINISHED.swap(true, Ordering::SeqCst) {
         return;
@@ -92,22 +99,32 @@ fn finish(args: &WorkerArgs, record: &TestRecord, code: i32) {
     std::process::exit(code);
 }
 
-/// Starts the test thread and its watchdog. The game calls this once, when its integrated server is ready.
-/// The process exits when the test is over (the world is a temporary one that the coordinator deletes).
-pub fn start(args: WorkerArgs, client: Client) {
+/// Arms the worker's own limits the moment its options are known, before the game starts anything: a
+/// watchdog that ends it after `startup + timeout` (and a grace) whatever it is doing, and, where the
+/// system gives no other way, a check that its coordinator is still there.
+pub fn arm(args: &WorkerArgs) {
     let name = args.test.clone().unwrap_or_default();
-    let watch_args = args.clone();
-    let watch_name = name.clone();
-    let watchdog = std::thread::Builder::new().name("yoake-test-watchdog".into()).spawn(move || {
-        std::thread::sleep(OWNER_WAIT + watch_args.timeout + GRACE);
-        let record = TestRecord::fail(&watch_name, 0, "the test did not finish in time");
-        finish(&watch_args, &record, 3);
+    let watch = args.clone();
+    let _ = std::thread::Builder::new().name("yoake-test-watchdog".into()).spawn(move || {
+        std::thread::sleep(watch.startup + watch.timeout + GRACE);
+        finish(&watch, &TestRecord::fail(&name, 0, "the test did not finish in time"), 3);
     });
-    if let Err(error) = watchdog {
-        eprintln!("yoake-test: no watchdog: {error}");
-    }
+    let original = crate::guard::parent_id();
+    let orphaned = args.clone();
+    let name = args.test.clone().unwrap_or_default();
+    let _ = std::thread::Builder::new().name("yoake-test-parent".into()).spawn(move || {
+        while !crate::guard::parent_gone(original) {
+            std::thread::sleep(Duration::from_secs(1));
+        }
+        finish(&orphaned, &TestRecord::fail(&name, 0, "the coordinator went away"), 4);
+    });
+}
+
+/// Starts the test thread. The game calls this once, when its integrated server is ready. The process
+/// exits when the test is over (the world is a temporary one that the coordinator deletes).
+pub fn start(args: WorkerArgs, client: Client) {
     let spawned = std::thread::Builder::new().name("yoake-test".into()).spawn(move || {
-        let record = run(&args, client, OWNER_WAIT);
+        let record = run(&args, client, OWNER_WAIT, WARMUP);
         finish(&args, &record, if record.ok { 0 } else { 1 });
     });
     if let Err(error) = spawned {
@@ -145,7 +162,7 @@ mod tests {
                         }
                         Op::BlockAt(_) => Reply::Text(block.clone()),
                         Op::RunCommand(_) => Reply::Bool(true),
-                        Op::SpawnEntity { .. } | Op::SpawnFakePlayer { .. } => Reply::Id(10),
+                        Op::SpawnEntity { .. } | Op::SpawnMannequin { .. } => Reply::Id(10),
                         Op::EntitiesNear { center, .. } => Reply::Entities(vec![crate::bridge::EntityRow {
                             id: 10,
                             kind: "minecraft:pig".into(),
@@ -169,7 +186,7 @@ mod tests {
     }
 
     fn args(test: &str, module: &Path, timeout: Duration) -> WorkerArgs {
-        WorkerArgs { test: Some(test.into()), module: Some(module.into()), result: None, timeout }
+        WorkerArgs { test: Some(test.into()), module: Some(module.into()), timeout, ..WorkerArgs::default() }
     }
 
     fn demo_module() -> Option<std::path::PathBuf> {
@@ -185,10 +202,10 @@ mod tests {
         let (bridge, client) = channel(Duration::from_secs(20));
         let (bridge, stop) = (Arc::new(bridge), Arc::new(AtomicBool::new(false)));
         let world = serve(Arc::clone(&bridge), Arc::clone(&stop), 3);
-        let record = run(&args("passes", &module, Duration::from_secs(20)), client.clone(), Duration::from_secs(20));
+        let record = run(&args("passes", &module, Duration::from_secs(20)), client.clone(), Duration::from_secs(20), Duration::ZERO);
         assert!(record.ok, "{record:?}");
         assert!(client.ticks() >= 3, "the test advanced the world by 3 ticks, and the owner poll ran the loop");
-        let record = run(&args("fails", &module, Duration::from_secs(20)), client.clone(), Duration::from_secs(20));
+        let record = run(&args("fails", &module, Duration::from_secs(20)), client.clone(), Duration::from_secs(20), Duration::ZERO);
         assert!(!record.ok && record.error.as_deref().unwrap_or_default().contains("expected"), "{record:?}");
         stop.store(true, Ordering::Relaxed);
         world.join().unwrap();
@@ -202,10 +219,10 @@ mod tests {
         let (bridge, stop) = (Arc::new(bridge), Arc::new(AtomicBool::new(false)));
         let world = serve(Arc::clone(&bridge), Arc::clone(&stop), 0);
         let began = Instant::now();
-        let record = run(&args("spins", &module, Duration::from_millis(300)), client.clone(), Duration::from_secs(20));
+        let record = run(&args("spins", &module, Duration::from_millis(300)), client.clone(), Duration::from_secs(20), Duration::ZERO);
         assert!(!record.ok && record.error.as_deref().unwrap().contains("trapped or ran out of time"), "{record:?}");
         assert!(began.elapsed() < Duration::from_secs(15));
-        let record = run(&args("traps", &module, Duration::from_secs(20)), client, Duration::from_secs(20));
+        let record = run(&args("traps", &module, Duration::from_secs(20)), client, Duration::from_secs(20), Duration::ZERO);
         assert!(!record.ok && record.error.as_deref().unwrap().contains("trapped"), "{record:?}");
         stop.store(true, Ordering::Relaxed);
         world.join().unwrap();
@@ -219,17 +236,17 @@ mod tests {
         let (bridge, client) = channel(Duration::from_secs(5));
         let (bridge, stop) = (Arc::new(bridge), Arc::new(AtomicBool::new(false)));
         let world = serve(Arc::clone(&bridge), Arc::clone(&stop), u32::MAX);
-        let record = run(&args("passes", &module, Duration::from_secs(5)), client, Duration::from_millis(300));
+        let record = run(&args("passes", &module, Duration::from_secs(5)), client, Duration::from_millis(300), Duration::ZERO);
         assert!(!record.ok && record.error.as_deref().unwrap().contains("no player joined"), "{record:?}");
         stop.store(true, Ordering::Relaxed);
         world.join().unwrap();
         // No server thread at all.
         let (bridge, client) = channel(Duration::from_millis(50));
         drop(bridge);
-        let record = run(&args("passes", &module, Duration::from_secs(5)), client.clone(), Duration::from_millis(300));
+        let record = run(&args("passes", &module, Duration::from_secs(5)), client.clone(), Duration::from_millis(300), Duration::ZERO);
         assert!(!record.ok && record.error.as_deref().unwrap().contains("never answered"), "{record:?}");
         // A module that is not there.
-        let record = run(&args("passes", Path::new("no/such/module.wasm"), Duration::from_secs(5)), client.clone(), Duration::from_millis(300));
+        let record = run(&args("passes", Path::new("no/such/module.wasm"), Duration::from_secs(5)), client.clone(), Duration::from_millis(300), Duration::ZERO);
         assert!(!record.ok && record.error.as_deref().unwrap().contains("no/such/module.wasm"), "{record:?}");
         let _ = std::fs::remove_file(module);
     }

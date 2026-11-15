@@ -1,6 +1,21 @@
 //! The report: one JSON object, `{"ok": bool, "tests": [{"name", "ok", "ms", "error"?}], ...}`.
 use serde_json::{Value, json};
 
+/// The longest error text a record keeps, in bytes (a test or a worker cannot make the report huge).
+pub const MAX_ERROR: usize = 16 * 1024;
+
+/// `text` cut to [`MAX_ERROR`] bytes at a character boundary, with a mark where it was cut.
+pub fn clip(text: &str) -> String {
+    if text.len() <= MAX_ERROR {
+        return text.to_owned();
+    }
+    let mut end = MAX_ERROR;
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{} [cut: {} more bytes]", &text[..end], text.len() - end)
+}
+
 /// How one test ended.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TestRecord {
@@ -18,7 +33,7 @@ impl TestRecord {
     }
 
     pub fn fail(name: &str, ms: u64, error: impl Into<String>) -> Self {
-        Self { name: name.to_owned(), ok: false, ms, error: Some(error.into()) }
+        Self { name: name.to_owned(), ok: false, ms, error: Some(clip(&error.into())) }
     }
 
     pub fn to_json(&self) -> Value {
@@ -34,7 +49,7 @@ impl TestRecord {
         let name = value.get("name").and_then(Value::as_str).ok_or("the result has no name")?;
         let ok = value.get("ok").and_then(Value::as_bool).ok_or("the result has no ok")?;
         let ms = value.get("ms").and_then(Value::as_u64).unwrap_or(0);
-        let error = value.get("error").and_then(Value::as_str).map(str::to_owned);
+        let error = value.get("error").and_then(Value::as_str).map(clip);
         Ok(Self { name: name.to_owned(), ok, ms, error })
     }
 }
@@ -99,6 +114,19 @@ mod tests {
         let value = report(&[TestRecord::fail("a", 1, "no")], &[], json!({"ok": true, "tests": []}));
         assert_eq!(value["ok"], json!(false));
         assert_eq!(value["tests"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn long_errors_are_cut_at_a_character_boundary() {
+        assert_eq!(clip("short"), "short");
+        let long = "界".repeat(MAX_ERROR);
+        let clipped = clip(&long);
+        assert!(clipped.len() < MAX_ERROR + 64 && clipped.contains("[cut:"), "{}", clipped.len());
+        assert!(clipped.starts_with("界界"));
+        let record = TestRecord::fail("t", 1, "x".repeat(MAX_ERROR * 4));
+        assert!(record.error.unwrap().len() < MAX_ERROR + 64);
+        let from_file = TestRecord::from_json(&json!({"name": "t", "ok": false, "error": "y".repeat(MAX_ERROR * 4)})).unwrap();
+        assert!(from_file.error.unwrap().len() < MAX_ERROR + 64);
     }
 
     #[test]

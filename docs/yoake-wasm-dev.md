@@ -144,8 +144,8 @@ creating the directory if needed. For `client-full`, server-only packages, or an
 it reports a successful build and check with `installed: false` and a note instead.
 The engine discovers files at startup, so restart it if the file was not present then. The owner
 must explicitly enable unsigned developer mode, and installation does not confirm the engine
-accepted the reload. With a test module and `YOAKE_GAME` set it also runs the project's tests in the game
-and fills `tests` (see "Testing a mod in the engine"); otherwise `tests` stays empty and a note says why.
+accepted the reload. `yoake dev --test` also runs the project's tests in the game and fills `tests` (see
+"Testing a mod in the engine"); plain `yoake dev` never starts the game and leaves `tests` empty.
 
 Projects beneath a link or Windows reparse point, including junctions and some synced folders, are
 rejected. The error identifies the affected path; move the project to a normal folder without links
@@ -217,7 +217,7 @@ cannot ship inside a mod by accident.
 | `break_block(pos)` | breaks it, drops included | `/setblock x y z minecraft:air destroy` |
 | `block_at(pos)`, `assert_block(pos, text)` | the block state as text | the `block` server service (what a `server-full` mod gets) |
 | `spawn_entity(kind, pos)` | spawns, returns the entity id | `/summon` then `entities-in` (the newest of that kind there) |
-| `spawn_fake_player(name, pos)` | a mannequin for a stable fake UUID derived from `name`, returns its entity id | the `spawn-mannequin` service |
+| `spawn_mannequin(name, pos)` | a mannequin entity (not a player: it is not listed by `player_names`) for a stable UUID derived from `name`, returns its entity id | the `spawn-mannequin` service |
 | `entities_near(pos, radius)`, `assert_entity_count(kind, pos, radius, n)` | the kinds of the living entities near, at most 512 | the `entities-in` service |
 | `player_names()` | the players on the server, the world's owner first | the `server-players` service |
 | `run_command(line)`, `assert_command(line)` | runs a server command | the `run-command` service with the same denylist a mod has (`stop`, `op`, `ban`, `publish`, `transfer`, ... refuse) |
@@ -249,12 +249,15 @@ yoake test --filter places --timeout-ms 60000 -- --resources /path/to/prepared/r
  "errors": ["test breaks_it failed: block at BlockPos { .. }: expected ..."], "notes": []}
 ```
 
-Exit code 0 when every test passed, 1 otherwise. `yoake dev` fills the same `tests` array (and fails with
-the failures as `errors`) when the project has a test module and `YOAKE_GAME` is set; otherwise it adds a
-note and leaves `tests` empty. Extra arguments after `--` go to the game unchanged, which is how the game
+Exit code 0 when every test passed, 1 otherwise. `yoake dev --test` fills the same `tests` array (and fails
+with the failures as `errors`); it adds a note and leaves `tests` empty when the project has no test module
+or `YOAKE_GAME` is unset. Without `--test`, `yoake dev` does not start the game. Extra arguments after `--` go to the game unchanged, which is how the game
 finds its prepared vanilla data (`--resources`); `--headless` runs without even a GPU.
 
-The game's own interface is `horizon-client --yoake-test <project folder | .yak> [options]`:
+The game's own interface is `horizon-client --yoake-test <project folder | .yak> [options]` (`--yoake-test` must
+be the first argument; the game's own `--world`, `--seed`, `--game-dir`, `--home`, `--server`, `--dedicated`,
+`--fullscreen`, `--frames`, `--world-frames`, `--timeout-seconds`, `--test-terrain` and the like are refused, because
+each test gets its own world and folders):
 
 | option | meaning |
 | --- | --- |
@@ -282,14 +285,27 @@ test module once (to list the tests, calling no driver function), then for each 
    installed there;
 3. starts the same executable as a *worker*: `--offscreen --no-focus --no-pause --world yoake-test --seed 0
    --creative --time 6000 --weather clear --render-distance 4 --yoake-test-run <test> ...` with
-   `YOAKE_DLL_MODS_UNSIGNED=1` (so the unsigned package under test loads; set for that child only) and
-   `HORIZON_NO_AUDIO=1`, its own `--game-dir` and `--home`;
-4. the worker opens the world as a single-player game, and when its integrated server is up, starts the test
-   thread: it waits for the world's owner to join, runs the test, writes `result.json` and exits;
-5. the coordinator waits for the worker (killing it when it passes `startup + timeout + 10 s`), reads the
-   result, deletes the temporary folder and goes on.
+   its own `--game-dir` and `--home`, and a stripped environment: only the variables the system and the graphics
+   driver need are inherited (`PATH`, `SystemRoot`, `TEMP`, `VK_*`, `WGPU_*`, ...), plus `HORIZON_NO_AUDIO=1`, `HORIZON_HOME`
+   and a random token. No `HORIZON_*` or `YOAKE_*` switch of yours (session file, command script, `YOAKE_DLL_MODS`,
+   `YOAKE_DLL_MODS_UNSIGNED`, `YOAKE_WASM_DEV_DIR`, ...) reaches it. All paths are absolute (the game changes its
+   working directory);
+4. the worker checks it is a worker: the token in its environment equals the token file next to its result, it is
+   `--offscreen`, its world is `yoake-test` and its game folder is the `game` folder next to the result;
+   otherwise it refuses to start. A verified worker loads no DLL mod and accepts the unsigned package under test
+   (WebAssembly and data only: a separate switch that never reaches the DLL loader). It arms a watchdog
+   (`startup + timeout`) at once. It opens the world as a single-player game, and when its integrated server is up,
+   starts the test thread: it waits for the world's owner to join, lets the world run 2 s (chunks load), then
+   **freezes** it: from then on the server only services its connections and the test's calls, and the world ticks
+   exactly as often as `run_ticks` says (deterministic; a call costs what it costs, not a 50 ms tick). The test runs,
+   `result.json` is written and the worker exits;
+5. the coordinator waits for the worker. It kills it when it passes `startup + timeout + 10 s`, 5 s after the result
+   appears if it has not exited, or at once on Ctrl+C. Workers also die with the coordinator (a Windows job object with
+   kill-on-close; elsewhere the worker watches its parent). The result is read at most 1 MiB, error texts are cut at
+   16 KiB, and only the last 8 KiB of a worker's output are kept. The temporary folder (an unpredictable new name
+   under the system temp folder) is deleted and the next test starts.
 
-A worker that dies before it writes a result fails its test with the exit code and the tail of its output.
+A test name never starts with `-` (it travels on a command line). A worker that dies before it writes a result fails its test with the exit code and the tail of its output.
 One game start per test is the price of a guaranteed fresh world and of isolation: a test cannot spoil the
 next one, a hung test is just killed. It costs a game start and a world's worth of chunks per test, so keep
 tests few and each one focused.

@@ -54,8 +54,8 @@ impl TestHost for World {
         self.note(format!("spawn {kind} at {},{},{}", position.x, position.y, position.z));
         Ok(10)
     }
-    fn spawn_fake_player(&mut self, name: &str, _: Vec3) -> Result<u32, String> {
-        self.note(format!("fake player {name}"));
+    fn spawn_mannequin(&mut self, name: &str, _: Vec3) -> Result<u32, String> {
+        self.note(format!("mannequin {name}"));
         Ok(11)
     }
     fn entities_near(&mut self, center: Vec3, _: f64) -> Result<Vec<EntityInfo>, String> {
@@ -124,7 +124,7 @@ fn every_driver_call_reaches_the_host() {
     for expected in [
         "break 1,64,2",
         "spawn minecraft:pig at 1.5,64,2.5",
-        "fake player Tester",
+        "mannequin Tester",
         "command say hi",
         "mod-call demo echo",
         "log logged",

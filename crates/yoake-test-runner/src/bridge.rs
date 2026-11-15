@@ -8,7 +8,7 @@
 //! [`Bridge::ticking_fast`] tells the loop to skip its sleep, as vanilla's `/tick sprint` does.
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
 use sha2::{Digest, Sha256};
@@ -24,7 +24,7 @@ pub enum Op {
     BreakBlock([i32; 3]),
     BlockAt([i32; 3]),
     SpawnEntity { kind: String, position: [f64; 3] },
-    SpawnFakePlayer { name: String, position: [f64; 3] },
+    SpawnMannequin { name: String, position: [f64; 3] },
     EntitiesNear { center: [f64; 3], radius: f64 },
     Players,
     RunCommand(String),
@@ -72,6 +72,32 @@ pub struct Bridge {
     advance: Mutex<Option<(u32, SyncSender<Answer>)>>,
     fast: AtomicBool,
     ticks: Arc<AtomicU64>,
+    /// Set once the world is frozen: its ticks then run only for `advance-ticks`.
+    frozen: Arc<AtomicBool>,
+    signal: Arc<Signal>,
+}
+
+/// "A request arrived": lets the server thread sleep until one does, without losing a wake-up.
+#[derive(Default)]
+struct Signal {
+    arrived: Mutex<bool>,
+    changed: Condvar,
+}
+
+impl Signal {
+    fn notify(&self) {
+        *self.arrived.lock().unwrap_or_else(|error| error.into_inner()) = true;
+        self.changed.notify_one();
+    }
+
+    /// Waits up to `limit` for a notification; whether there was one.
+    fn wait(&self, limit: Duration) -> bool {
+        let mut arrived = self.arrived.lock().unwrap_or_else(|error| error.into_inner());
+        if !*arrived {
+            arrived = self.changed.wait_timeout(arrived, limit).unwrap_or_else(|error| error.into_inner()).0;
+        }
+        std::mem::take(&mut *arrived)
+    }
 }
 
 /// The test thread's end. Cloning it shares the queue and the tick counter.
@@ -79,6 +105,8 @@ pub struct Bridge {
 pub struct Client {
     outbox: Sender<Request>,
     ticks: Arc<AtomicU64>,
+    frozen: Arc<AtomicBool>,
+    signal: Arc<Signal>,
     wait: Duration,
 }
 
@@ -86,9 +114,18 @@ pub struct Client {
 pub fn channel(wait: Duration) -> (Bridge, Client) {
     let (outbox, inbox) = mpsc::channel();
     let ticks = Arc::new(AtomicU64::new(0));
+    let frozen = Arc::new(AtomicBool::new(false));
+    let signal = Arc::new(Signal::default());
     (
-        Bridge { inbox: Mutex::new(inbox), advance: Mutex::new(None), fast: AtomicBool::new(false), ticks: Arc::clone(&ticks) },
-        Client { outbox, ticks, wait },
+        Bridge {
+            inbox: Mutex::new(inbox),
+            advance: Mutex::new(None),
+            fast: AtomicBool::new(false),
+            ticks: Arc::clone(&ticks),
+            frozen: Arc::clone(&frozen),
+            signal: Arc::clone(&signal),
+        },
+        Client { outbox, ticks, frozen, signal, wait },
     )
 }
 
@@ -126,10 +163,11 @@ impl Bridge {
         if let Some((left, _)) = advance.as_mut() {
             *left = left.saturating_sub(1);
             if *left == 0 {
+                // The world stands still again before the test hears the ticks are done.
+                self.fast.store(false, Ordering::Relaxed);
                 if let Some((_, reply)) = advance.take() {
                     let _ = reply.send(Ok(Reply::Done));
                 }
-                self.fast.store(false, Ordering::Relaxed);
             }
         }
     }
@@ -139,6 +177,26 @@ impl Bridge {
         self.fast.load(Ordering::Relaxed)
     }
 
+    /// Whether the world stands still now: the test froze it and no `advance-ticks` is running. The server
+    /// loop then only services its connections and the bridge; no tick of the world runs.
+    pub fn frozen(&self) -> bool {
+        self.frozen.load(Ordering::Relaxed) && !self.fast.load(Ordering::Relaxed)
+    }
+
+    /// The server loop's serving step: executes the queued requests and, while the world is frozen, goes on
+    /// waiting for more (up to `idle` since the last one), so a test's calls cost what they cost and not
+    /// a tick each. Returns once the world should tick (an `advance-ticks` arrived), or nothing came for
+    /// `idle` (the loop then services its connections).
+    pub fn serve(&self, execute: &mut dyn FnMut(Op) -> Answer, idle: Duration) {
+        self.pump(execute);
+        while self.frozen() {
+            if !self.signal.wait(idle) {
+                return;
+            }
+            self.pump(execute);
+        }
+    }
+
     /// Ticks run since the bridge was made.
     pub fn ticks(&self) -> u64 {
         self.ticks.load(Ordering::Relaxed)
@@ -146,6 +204,13 @@ impl Bridge {
 }
 
 impl Client {
+    /// Freezes the world: from now on it ticks only for `advance-ticks`. The test thread does this once the
+    /// world is up and has had its warm-up.
+    pub fn freeze(&self) {
+        self.frozen.store(true, Ordering::Relaxed);
+        self.signal.notify();
+    }
+
     pub fn request(&self, op: Op) -> Answer {
         self.request_within(op, self.wait)
     }
@@ -153,6 +218,7 @@ impl Client {
     pub fn request_within(&self, op: Op, wait: Duration) -> Answer {
         let (reply, answer) = mpsc::sync_channel(1);
         self.outbox.send(Request { op, reply }).map_err(|_| "the test world is gone".to_owned())?;
+        self.signal.notify();
         match answer.recv_timeout(wait) {
             Ok(answer) => answer,
             Err(RecvTimeoutError::Timeout) => Err(format!("the test world did not answer within {} ms", wait.as_millis())),
@@ -208,15 +274,38 @@ pub fn summon_command(kind: &str, position: [f64; 3]) -> Result<String, String> 
     Ok(format!("summon {} {x} {y} {z}", registry_id(kind)?))
 }
 
+/// A block state as `(id, sorted properties)`: `stone` and `minecraft:stone[]` are the same, and so are
+/// `a[x=1,y=2]` and `minecraft:a[y=2,x=1]`.
+fn normalized_state(text: &str) -> (String, Vec<(String, String)>) {
+    let (id, properties) = match text.split_once('[') {
+        Some((id, rest)) => (id, rest.trim_end_matches(']')),
+        None => (text, ""),
+    };
+    let id = if id.contains(':') { id.to_owned() } else { format!("minecraft:{id}") };
+    let mut properties: Vec<(String, String)> = properties
+        .split(',')
+        .filter(|pair| !pair.is_empty())
+        .map(|pair| pair.split_once('=').map_or((pair.to_owned(), String::new()), |(key, value)| (key.to_owned(), value.to_owned())))
+        .collect();
+    properties.sort();
+    (id, properties)
+}
+
+/// Whether the block state text `actual` (what the game reports) is the state `wanted` (what a test asked
+/// for): `/setblock` of the state a block already has does not succeed, and that is not a failure here.
+pub fn same_state(actual: &str, wanted: &str) -> bool {
+    normalized_state(actual) == normalized_state(wanted)
+}
+
 /// A Minecraft player name: 1 to 16 letters, digits and underscores.
 pub fn player_name(name: &str) -> Result<&str, String> {
     let ok = (1..=16).contains(&name.len()) && name.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'_');
     if ok { Ok(name) } else { Err(format!("not a player name (1 to 16 letters, digits, _): {:.32}", name)) }
 }
 
-/// The UUID of a fake player: a version-4 shaped hash of its name, the same for every run.
-pub fn fake_player_uuid(name: &str) -> u128 {
-    let digest = Sha256::digest(format!("yoake-test:fake-player:{name}").as_bytes());
+/// The UUID of a mannequin: a version-4 shaped hash of its name, the same for every run.
+pub fn mannequin_uuid(name: &str) -> u128 {
+    let digest = Sha256::digest(format!("yoake-test:mannequin:{name}").as_bytes());
     let mut bytes = [0u8; 16];
     bytes.copy_from_slice(&digest[..16]);
     bytes[6] = bytes[6] & 0x0f | 0x40;
@@ -295,9 +384,9 @@ impl TestHost for ChannelHost {
         }
     }
 
-    fn spawn_fake_player(&mut self, name: &str, position: Vec3) -> Result<u32, String> {
+    fn spawn_mannequin(&mut self, name: &str, position: Vec3) -> Result<u32, String> {
         player_name(name)?;
-        match self.client.request(Op::SpawnFakePlayer { name: name.to_owned(), position: array(&position) })? {
+        match self.client.request(Op::SpawnMannequin { name: name.to_owned(), position: array(&position) })? {
             Reply::Id(id) => Ok(id),
             other => Err(format!("unexpected answer {other:?}")),
         }
@@ -459,6 +548,61 @@ mod tests {
     }
 
     #[test]
+    fn a_frozen_world_serves_many_calls_without_waiting_for_ticks() {
+        let (bridge, client) = channel(Duration::from_secs(20));
+        let (bridge, stop) = (Arc::new(bridge), Arc::new(AtomicBool::new(false)));
+        let server = {
+            let (bridge, stop) = (Arc::clone(&bridge), Arc::clone(&stop));
+            thread::spawn(move || {
+                let mut ticked_while_frozen = 0;
+                while !stop.load(Ordering::Relaxed) {
+                    // The server loop: serve (this blocks while frozen and idle), then a tick or just the connections.
+                    bridge.serve(&mut |_| Ok(Reply::Done), Duration::from_millis(50));
+                    if bridge.frozen() {
+                        continue;
+                    }
+                    if bridge.ticking_fast() {
+                        bridge.tick_done();
+                    } else {
+                        // Not frozen yet: the world ticks at its own pace.
+                        thread::sleep(Duration::from_millis(5));
+                        bridge.tick_done();
+                        ticked_while_frozen += usize::from(client_frozen(&bridge));
+                    }
+                }
+                ticked_while_frozen
+            })
+        };
+        fn client_frozen(bridge: &Bridge) -> bool {
+            bridge.frozen.load(Ordering::Relaxed)
+        }
+        client.freeze();
+        let began = Instant::now();
+        for _ in 0..2000 {
+            assert_eq!(client.request(Op::Players), Ok(Reply::Done));
+        }
+        // At one call per 50 ms tick these would take 100 s.
+        assert!(began.elapsed() < Duration::from_secs(10), "{:?}", began.elapsed());
+        let ticks = client.ticks();
+        assert_eq!(client.request(Op::Advance(3)), Ok(Reply::Done));
+        assert_eq!(client.ticks() - ticks, 3, "a frozen world ticks exactly as often as it was told to");
+        assert!(bridge.frozen(), "frozen again once the ticks are done");
+        stop.store(true, Ordering::Relaxed);
+        client.freeze();
+        assert_eq!(server.join().unwrap(), 0);
+    }
+
+    #[test]
+    fn block_states_compare_by_meaning() {
+        assert!(same_state("minecraft:stone", "stone"));
+        assert!(same_state("minecraft:oak_stairs[facing=north,half=top]", "oak_stairs[half=top,facing=north]"));
+        assert!(same_state("minecraft:stone[]", "minecraft:stone"));
+        assert!(!same_state("minecraft:dirt", "minecraft:stone"));
+        assert!(!same_state("minecraft:oak_stairs[facing=south]", "minecraft:oak_stairs[facing=north]"));
+        assert!(!same_state("minecraft:oak_stairs[facing=south]", "minecraft:oak_stairs"));
+    }
+
+    #[test]
     fn a_request_nobody_serves_times_out_with_a_clear_error() {
         let (_bridge, client) = channel(Duration::from_millis(50));
         let error = client.request(Op::Players).unwrap_err();
@@ -482,7 +626,7 @@ mod tests {
         // These fail on the check, not on the (absent) server's silence.
         assert!(host.place_block(BlockPos { x: 0, y: 0, z: 0 }, "stone 1 1 1").unwrap_err().starts_with("not a block state"));
         assert!(host.spawn_entity("Pig", here).unwrap_err().starts_with("not a registry id"));
-        assert!(host.spawn_fake_player("two words", here).unwrap_err().starts_with("not a player name"));
+        assert!(host.spawn_mannequin("two words", here).unwrap_err().starts_with("not a player name"));
     }
 
     #[test]
@@ -501,10 +645,10 @@ mod tests {
     }
 
     #[test]
-    fn a_fake_player_has_a_stable_version_4_uuid() {
-        let one = fake_player_uuid("Tester");
-        assert_eq!(one, fake_player_uuid("Tester"));
-        assert_ne!(one, fake_player_uuid("Other"));
+    fn a_mannequin_has_a_stable_version_4_uuid() {
+        let one = mannequin_uuid("Tester");
+        assert_eq!(one, mannequin_uuid("Tester"));
+        assert_ne!(one, mannequin_uuid("Other"));
         let text = format!("{one:032x}");
         assert_eq!(&text[12..13], "4", "version nibble: {text}");
         assert!(matches!(&text[16..17], "8" | "9" | "a" | "b"), "variant nibble: {text}");

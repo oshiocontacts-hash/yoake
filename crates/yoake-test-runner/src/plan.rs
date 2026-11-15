@@ -40,7 +40,8 @@ pub struct Plan {
 const OWNED: &[&str] = &[
     "--world", "--seed", "--game-dir", "--gameDir", "--home", "--player-dir", "--server", "--quickPlaySingleplayer",
     "--quickPlayMultiplayer", "--dedicated", "--benchmark", "--session-file", "--session-stdin", "--control",
-    "--control-socket", "--dev-mod", "--help", "-h", "--launch-api",
+    "--control-socket", "--dev-mod", "--help", "-h", "--launch-api", "--fullscreen", "--frames", "--world-frames",
+    "--timeout-seconds", "--test-terrain", "--offscreen", "--screenshot-after", "--smoke-report", "--session-file",
 ];
 
 fn number(flag: &str, value: &str, maximum: u64) -> Result<u64, String> {
@@ -51,10 +52,11 @@ fn number(flag: &str, value: &str, maximum: u64) -> Result<u64, String> {
     Ok(parsed)
 }
 
-/// Reads the coordinator's plan from the process arguments (without the program name). `Ok(None)` when
-/// `--yoake-test` is not among them: the process is a normal game or a worker.
+/// Reads the coordinator's plan from the process arguments (without the program name). `Ok(None)` unless
+/// `--yoake-test` is the **first** argument: the process is a normal game or a worker (a `--yoake-test`
+/// anywhere else is an unknown option for the game's own parser, which refuses it).
 pub fn parse(args: &[String]) -> Result<Option<Plan>, String> {
-    if !args.iter().any(|argument| argument == FLAG) {
+    if args.first().map(String::as_str) != Some(FLAG) {
         return Ok(None);
     }
     let mut plan = Plan {
@@ -120,17 +122,26 @@ pub struct WorkerArgs {
     pub module: Option<PathBuf>,
     pub result: Option<PathBuf>,
     pub timeout: Duration,
+    /// How long the worker may take to get to its test (game start, world, owner), counted from its start.
+    pub startup: Duration,
 }
 
 impl Default for WorkerArgs {
     fn default() -> Self {
-        Self { test: None, module: None, result: None, timeout: Duration::from_millis(DEFAULT_TIMEOUT_MS) }
+        Self {
+            test: None,
+            module: None,
+            result: None,
+            timeout: Duration::from_millis(DEFAULT_TIMEOUT_MS),
+            startup: Duration::from_secs(DEFAULT_STARTUP_SECONDS),
+        }
     }
 }
 
 impl WorkerArgs {
-    pub const FLAGS: [&'static str; 4] =
-        ["--yoake-test-run", "--yoake-test-module", "--yoake-test-result", "--yoake-test-timeout-ms"];
+    pub const FLAGS: [&'static str; 5] = [
+        "--yoake-test-run", "--yoake-test-module", "--yoake-test-result", "--yoake-test-timeout-ms", "--yoake-test-startup-seconds",
+    ];
 
     /// Whether `flag` is one of the worker's.
     pub fn is_flag(flag: &str) -> bool {
@@ -140,10 +151,17 @@ impl WorkerArgs {
     /// Takes `flag`'s value. `Ok(false)` when `flag` is not a worker flag.
     pub fn set(&mut self, flag: &str, value: String) -> Result<bool, String> {
         match flag {
-            "--yoake-test-run" => self.test = Some(value),
+            "--yoake-test-run" => {
+                // A name is never an option: other parts of the game look at the raw arguments.
+                if value.starts_with('-') {
+                    return Err(format!("a test name cannot start with '-': {value:.40}"));
+                }
+                self.test = Some(value)
+            }
             "--yoake-test-module" => self.module = Some(value.into()),
             "--yoake-test-result" => self.result = Some(value.into()),
             "--yoake-test-timeout-ms" => self.timeout = Duration::from_millis(number(flag, &value, MAX_TIMEOUT_MS)?),
+            "--yoake-test-startup-seconds" => self.startup = Duration::from_secs(number(flag, &value, MAX_TIMEOUT_MS / 1000)?),
             _ => return Ok(false),
         }
         Ok(true)
@@ -180,11 +198,13 @@ mod tests {
         // A worker's own flags do not make it a coordinator.
         assert_eq!(parse(&args(&["--yoake-test-run", "a", "--yoake-test-module", "m.wasm"])), Ok(None));
         assert_eq!(parse(&[]), Ok(None));
+        // The flag counts only as the first argument.
+        assert_eq!(parse(&args(&["--resources", "res", "--yoake-test", "proj"])), Ok(None));
     }
 
     #[test]
     fn a_plan_has_defaults_and_keeps_the_games_own_arguments_in_order() {
-        let plan = parse(&args(&["--resources", "res", "--yoake-test", "proj", "--headless"])).unwrap().unwrap();
+        let plan = parse(&args(&["--yoake-test", "proj", "--resources", "res", "--headless"])).unwrap().unwrap();
         assert_eq!(plan.target, PathBuf::from("proj"));
         assert_eq!(plan.game_args, ["--resources", "res", "--headless"]);
         assert_eq!(plan.clients, 1);
@@ -225,6 +245,10 @@ mod tests {
             (&["--yoake-test", "p", "--yoake-test-bogus"][..], "unknown test option"),
             (&["--yoake-test", "p", "--world", "mine"][..], "own world"),
             (&["--yoake-test", "p", "--dedicated"][..], "own world"),
+            (&["--yoake-test", "p", "--fullscreen"][..], "own world"),
+            (&["--yoake-test", "p", "--frames", "3"][..], "own world"),
+            (&["--yoake-test", "p", "--test-terrain"][..], "own world"),
+            (&["--yoake-test", "p", "--timeout-seconds", "3"][..], "own world"),
             (&["--yoake-test", ""][..], "needs a project"),
         ] {
             let error = parse(&args(bad)).unwrap_err();
@@ -246,6 +270,12 @@ mod tests {
         assert_eq!(worker.validate(), Ok(()));
         assert_eq!(worker.timeout, Duration::from_millis(2000));
         assert!(worker.set("--yoake-test-timeout-ms", "0".into()).is_err());
+        assert_eq!(worker.set("--yoake-test-startup-seconds", "9".into()), Ok(true));
+        assert_eq!(worker.startup, Duration::from_secs(9));
+        // A test name that looks like an option is refused before anything reads it.
+        for name in ["--game-dir", "-x", "--dedicated"] {
+            assert!(WorkerArgs::default().set("--yoake-test-run", name.into()).unwrap_err().contains("cannot start with"), "{name}");
+        }
         assert!(WorkerArgs::is_flag("--yoake-test-result") && !WorkerArgs::is_flag("--yoake-test"));
         // A process that is not a worker needs nothing.
         assert_eq!(WorkerArgs::default().validate(), Ok(()));

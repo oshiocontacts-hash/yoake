@@ -48,8 +48,9 @@ interface test-driver {
 
     /// Spawns an entity of `kind` (`minecraft:pig`) and returns its id.
     spawn-entity: func(kind: string, position: vec3) -> result<u32, string>;
-    /// Spawns a fake player (a mannequin that carries the player's name) and returns its entity id.
-    spawn-fake-player: func(name: string, position: vec3) -> result<u32, string>;
+    /// Spawns a mannequin (a standing figure entity for a stable UUID derived from `name`) and returns its entity
+    /// id. It is not a player: it does not appear in `players`. The engine has no in-process fake player.
+    spawn-mannequin: func(name: string, position: vec3) -> result<u32, string>;
     /// The entities within `radius` blocks of `center` (at most 512 of them).
     entities-near: func(center: vec3, radius: f64) -> result<list<entity-info>, string>;
     /// The players on the server: the test world's owner first.

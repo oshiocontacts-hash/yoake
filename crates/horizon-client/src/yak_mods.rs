@@ -316,7 +316,8 @@ pub(crate) fn wasm_client_mods() -> Vec<WasmMod> {
 pub(crate) fn wasm_mods(side: WasmSide) -> Vec<WasmMod> {
     let entries = entries();
     if !entries.iter().any(|entry| entry.manifest.wasm.is_some()) { return Vec::new(); }
-    wasm_mods_from(entries, side, &yak::trusted_keys(), unsigned_allowed())
+    // A verified test worker also takes the unsigned package under test; the DLL switch is not involved.
+    wasm_mods_from(entries, side, &yak::trusted_keys(), unsigned_allowed() || crate::yoake_test::is_worker())
 }
 
 pub(crate) fn wasm_mods_from(installed: &[Installed], side: WasmSide, keys: &[PublicKey], allow_unsigned: bool) -> Vec<WasmMod> {

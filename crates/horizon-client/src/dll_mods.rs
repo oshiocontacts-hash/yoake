@@ -125,7 +125,9 @@ fn load(path: &Path, allow_unsigned: bool) -> Result<Metadata, LoadError> {
 }
 
 pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mods, &'static [super::NativeMod]) {
+    // A test worker (`--yoake-test-run`, verified) runs WebAssembly and data packages only: no DLL is loaded.
     crate::yak_mods::initialize();
+    if crate::yoake_test::is_worker() { return (mods, identities); }
     let allow_unsigned = std::env::var_os("YOAKE_DLL_MODS_UNSIGNED").as_deref() == Some(OsStr::new("1"));
     let (mods, identities) = extend_paths(mods, identities, std::env::var_os("YOAKE_DLL_MODS").as_deref(), allow_unsigned);
     extend_yaks(mods, identities, crate::yak_mods::entries(), allow_unsigned)

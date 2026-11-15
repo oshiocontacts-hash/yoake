@@ -66,8 +66,8 @@ impl TestDriver for HostDriver {
         host::break_block(pos(position))
     }
 
-    fn spawn_fake_player(&mut self, name: &str, position: BlockPos) -> Result<u64, String> {
-        host::spawn_fake_player(name, center(position)).map(u64::from)
+    fn spawn_mannequin(&mut self, name: &str, position: BlockPos) -> Result<u64, String> {
+        host::spawn_mannequin(name, center(position)).map(u64::from)
     }
 
     fn run_command(&mut self, command: &str) -> Result<bool, String> {

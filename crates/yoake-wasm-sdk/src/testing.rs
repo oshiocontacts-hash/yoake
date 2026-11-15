@@ -28,10 +28,10 @@ pub trait TestDriver {
         let _ = position;
         Err(String::from("unsupported: break_block"))
     }
-    /// Spawns a fake player (a mannequin carrying `name`) and returns its entity id.
-    fn spawn_fake_player(&mut self, name: &str, position: BlockPos) -> Result<u64, String> {
+    /// Spawns a mannequin (not a player: it is not in `player_names`) for `name` and returns its entity id.
+    fn spawn_mannequin(&mut self, name: &str, position: BlockPos) -> Result<u64, String> {
         let _ = (name, position);
-        Err(String::from("unsupported: spawn_fake_player"))
+        Err(String::from("unsupported: spawn_mannequin"))
     }
     /// Runs a server command as the console; whether it succeeded.
     fn run_command(&mut self, command: &str) -> Result<bool, String> {
@@ -91,8 +91,8 @@ impl<'driver> TestWorld<'driver> {
         self.driver.break_block(position)
     }
 
-    pub fn spawn_fake_player(&mut self, name: &str, position: BlockPos) -> Result<u64, String> {
-        self.driver.spawn_fake_player(name, position)
+    pub fn spawn_mannequin(&mut self, name: &str, position: BlockPos) -> Result<u64, String> {
+        self.driver.spawn_mannequin(name, position)
     }
 
     pub fn run_command(&mut self, command: &str) -> Result<bool, String> {

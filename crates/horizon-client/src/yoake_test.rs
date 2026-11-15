@@ -12,11 +12,59 @@
 //! cheap check per tick and changes nothing.
 use std::path::Path;
 use std::sync::OnceLock;
+use std::time::Duration;
 
 use yoake_test_runner::coordinator::{self, GameCommand};
 use yoake_test_runner::{Bridge, Plan, WorkerArgs};
 
 static BRIDGE: OnceLock<Bridge> = OnceLock::new();
+/// The verified worker arguments of this process, decided once at startup (`None`: not a worker).
+static WORKER: OnceLock<Option<WorkerArgs>> = OnceLock::new();
+
+/// How long the frozen server loop waits for the next driver call before it services its connections.
+const IDLE: Duration = Duration::from_millis(50);
+
+/// Called first thing by `entry`, after [`coordinator_requested`]: decides whether this process is a test worker
+/// (the coordinator's token matches, offscreen, the test world, the coordinator's folders) and arms its
+/// watchdog. A process that carries worker flags without the proof stops here.
+pub(crate) fn init_worker() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let token = std::env::var(yoake_test_runner::guard::TOKEN_ENV).ok();
+    let verified = match yoake_test_runner::guard::verify_worker(&args, token.as_deref()) {
+        Ok(verified) => verified,
+        Err(error) => {
+            eprintln!("Horizon: {error}");
+            std::process::exit(crate::game::exit_code::USAGE);
+        }
+    };
+    if let Some(worker) = &verified {
+        yoake_test_runner::worker::arm(worker);
+    }
+    let _ = WORKER.set(verified);
+}
+
+/// Whether this process is a verified test worker. Workers load no DLL mod, take no developer-mode switch
+/// from the environment and accept the unsigned package under test (WebAssembly and data only).
+pub(crate) fn is_worker() -> bool {
+    WORKER.get().is_some_and(Option::is_some)
+}
+
+/// The verified worker arguments, with absolute paths.
+pub(crate) fn worker() -> Option<&'static WorkerArgs> {
+    WORKER.get().and_then(Option::as_ref)
+}
+
+/// Whether the integrated server of a worker stands still between `advance-ticks` calls.
+pub(crate) fn frozen() -> bool {
+    BRIDGE.get().is_some_and(Bridge::frozen)
+}
+
+/// The server loop's serving step (see `Bridge::serve`).
+pub(crate) fn serve(execute: &mut dyn FnMut(yoake_test_runner::Op) -> yoake_test_runner::bridge::Answer) {
+    if let Some(bridge) = BRIDGE.get() {
+        bridge.serve(execute, IDLE);
+    }
+}
 
 /// The server loop's end of the test bridge: `Some` only in a worker, once its server is ready.
 pub(crate) fn bridge() -> Option<&'static Bridge> {
@@ -59,7 +107,12 @@ pub(crate) fn coordinate(plan: &Plan) -> i32 {
             return 2;
         }
     };
-    let outcome = coordinator::run(plan, &GameCommand::new(exe), &prepare_world);
+    // Ctrl+C asks the run to stop: the worker is killed and the temporary folder removed as the run unwinds.
+    horizon_threads::catch_stop_signals();
+    yoake_test_runner::guard::install_interrupt_handler();
+    let mut game = GameCommand::new(exe);
+    game.interrupted = || horizon_threads::stop_requests() > 0 || yoake_test_runner::guard::interrupted();
+    let mut outcome = coordinator::run(plan, &game, &prepare_world);
     let text = outcome.report.to_string();
     if let Some(path) = &plan.json {
         let written = path
@@ -69,6 +122,8 @@ pub(crate) fn coordinate(plan: &Plan) -> i32 {
             .and_then(|()| std::fs::write(path, &text));
         if let Err(error) = written {
             eprintln!("yoake test: cannot write {}: {error}", path.display());
+            // A report nobody can read is a failed run, whatever the tests did.
+            outcome.code = 2;
         }
     }
     println!("{text}");
@@ -118,6 +173,9 @@ mod tests {
     fn nothing_is_active_in_a_normal_run() {
         assert!(bridge().is_none());
         assert!(!ticking_fast());
+        assert!(!frozen());
+        init_worker();
+        assert!(!is_worker() && worker().is_none());
         // Without a --yoake-test flag the coordinator hook does nothing (the test harness's own arguments
         // are not ours).
         coordinator_requested();

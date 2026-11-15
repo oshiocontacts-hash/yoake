@@ -18,6 +18,7 @@
 
 pub mod bridge;
 pub mod coordinator;
+pub mod guard;
 pub mod install;
 pub mod plan;
 pub mod report;

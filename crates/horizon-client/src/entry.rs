@@ -25,6 +25,7 @@ pub fn main() {
 pub fn main_with(mods: crate::mod_api::Mods) {
     // `--yoake-test`: this process is the test coordinator and never starts the game (nothing otherwise).
     crate::yoake_test::coordinator_requested();
+    crate::yoake_test::init_worker();
     if !mods.is_empty() {
         eprintln!("Native hooks without identities; the multiplayer mod check can't see them");
     }
@@ -39,6 +40,7 @@ pub fn main_with(mods: crate::mod_api::Mods) {
 /// Start with hook objects and the build-time identities of every native bundle.
 pub fn main_with_native(mods: crate::mod_api::Mods, identities: &'static [NativeMod]) {
     crate::yoake_test::coordinator_requested();
+    crate::yoake_test::init_worker();
     assert!(
         identities.len() >= mods.len(),
         "Missing native mod identities"

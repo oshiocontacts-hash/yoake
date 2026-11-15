@@ -17,7 +17,7 @@ use yoake_wasm::{ClientFullMod, ClientHost, ClientMod, Sandbox, ServerFullMod, S
 
 type Result<T> = std::result::Result<T, String>;
 const FULL_UNWIRED: &[&str] = &["input_key", "item_model_select"];
-const USAGE: &str = "usage: yoake new <minigame|hud-only|custom-mob|utility|script> <name> | yoake <build|pack|check|dev> | yoake test [--game EXE] [--filter TEXT] [--timeout-ms N] [--module WASM] [--keep] [-- GAME-ARGS...]";
+const USAGE: &str = "usage: yoake new <minigame|hud-only|custom-mob|utility|script> <name> | yoake <build|pack|check> | yoake dev [--test] | yoake test [--game EXE] [--filter TEXT] [--timeout-ms N] [--module WASM] [--keep] [-- GAME-ARGS...]";
 const CHECK_HELP: &str = "yoake check validates existing Wasm modules without rebuilding them; if src/**, Cargo.toml or yak.toml is newer, run yoake build first";
 
 fn main() {
@@ -277,8 +277,10 @@ fn install_for_reload(root: &Path, manifest: &Manifest, directory: &Path) -> Res
 }
 
 fn dev(arguments: &[String]) -> serde_json::Value {
-    if !arguments.is_empty() {
-        return dev_error("usage: yoake dev");
+    // The engine's tests start a game per test: they run only when asked (`--test`).
+    let with_tests = arguments == ["--test"];
+    if !arguments.is_empty() && !with_tests {
+        return dev_error("usage: yoake dev [--test]");
     }
     let root = match env::current_dir() {
         Ok(root) => root,
@@ -288,7 +290,8 @@ fn dev(arguments: &[String]) -> serde_json::Value {
         .filter(|value| !value.is_empty())
         .map(PathBuf::from);
     dev_project(&root, directory.as_deref(), build,
-        |root, manifest| check(root, manifest).map(|_| ()), install_for_reload, engine_test::dev_tests)
+        |root, manifest| check(root, manifest).map(|_| ()), install_for_reload,
+        move |root, manifest| if with_tests { engine_test::dev_tests(root, manifest) } else { Ok(engine_test::TestRun::default()) })
 }
 
 fn dev_error(error: &str) -> serde_json::Value {

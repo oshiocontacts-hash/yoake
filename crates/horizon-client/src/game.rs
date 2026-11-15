@@ -638,6 +638,14 @@ impl Options {
             Ok(None) => {}
             Err(e) => eprintln!("Horizon: not signed in: {e}"),
         }
+        // A test worker's paths are made absolute before the working directory changes below.
+        if o.yoake_test.is_active() {
+            if !crate::yoake_test::is_worker() {
+                return Err(launch_api::UsageError("--yoake-test-run is only for the workers of yoake test".into()).into());
+            }
+            o.yoake_test.module = o.yoake_test.module.map(std::path::absolute).transpose()?;
+            o.yoake_test.result = o.yoake_test.result.map(std::path::absolute).transpose()?;
+        }
         if let Some(dir) = o.game_dir.take() {
             // Paths given on the command line stay relative to where the game was started.
             o.resources = std::path::absolute(&o.resources)?;

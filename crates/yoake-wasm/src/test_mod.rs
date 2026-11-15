@@ -63,7 +63,7 @@ pub trait TestHost: Send {
         let _ = (kind, position);
         unsupported()
     }
-    fn spawn_fake_player(&mut self, name: &str, position: Vec3) -> Result<u32, String> {
+    fn spawn_mannequin(&mut self, name: &str, position: Vec3) -> Result<u32, String> {
         let _ = (name, position);
         unsupported()
     }
@@ -117,9 +117,9 @@ impl test_driver::Host for TestContext {
         finite(&position)?;
         self.host.spawn_entity(&kind, position)
     }
-    fn spawn_fake_player(&mut self, name: String, position: Vec3) -> Result<u32, String> {
+    fn spawn_mannequin(&mut self, name: String, position: Vec3) -> Result<u32, String> {
         finite(&position)?;
-        self.host.spawn_fake_player(&name, position)
+        self.host.spawn_mannequin(&name, position)
     }
     fn entities_near(&mut self, center: Vec3, radius: f64) -> Result<Vec<EntityInfo>, String> {
         finite(&center)?;
@@ -173,14 +173,15 @@ impl TestOutcome {
 }
 
 /// Checks the names a test module declares: 1 to [`MAX_TESTS`] names, each 1 to [`MAX_TEST_NAME`] bytes of
-/// plain text without control characters, no duplicates. Returns them unchanged.
+/// plain text without control characters and not starting with `-`, no duplicates. Returns them unchanged.
 pub fn validate_test_names(names: Vec<String>) -> Result<Vec<String>, String> {
     if names.len() > MAX_TESTS {
         return Err(format!("a test module declares at most {MAX_TESTS} tests"));
     }
     let mut seen = std::collections::HashSet::new();
     for name in &names {
-        if name.is_empty() || name.len() > MAX_TEST_NAME || name.chars().any(char::is_control) {
+        // A name never starts with '-': it travels on a command line, where it would read as an option.
+        if name.is_empty() || name.len() > MAX_TEST_NAME || name.starts_with('-') || name.chars().any(char::is_control) {
             return Err(format!("not a valid test name: {:?}", name.chars().take(40).collect::<String>()));
         }
         if !seen.insert(name.as_str()) {

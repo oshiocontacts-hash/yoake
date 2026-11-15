@@ -9,8 +9,8 @@
 use super::full::{GameServerHost, uuid_text};
 use super::*;
 use yoake_test_runner::bridge::{
-    Answer, EntityRow, MAX_ENTITIES, Op, PlayerRow, Reply, break_block_command, fake_player_uuid, place_block_command, player_name,
-    summon_command,
+    Answer, EntityRow, MAX_ENTITIES, Op, PlayerRow, Reply, break_block_command, mannequin_uuid, place_block_command, player_name,
+    same_state, summon_command,
 };
 use yoake_wasm::{ServerHost, server_types as st};
 
@@ -18,8 +18,8 @@ use yoake_wasm::{ServerHost, server_types as st};
 const CALLER: &str = "yoake-test";
 /// The test world is the overworld.
 const DIMENSION: &str = "minecraft:overworld";
-/// How far from where it was summoned a new entity is looked for.
-const SPAWN_SEARCH: f64 = 1.5;
+/// How far from where it was summoned a new entity is looked for (it may fall or be pushed a little).
+const SPAWN_SEARCH: f64 = 8.0;
 
 fn block_pos(position: [i32; 3]) -> st::BlockPos {
     st::BlockPos { x: position[0], y: position[1], z: position[2] }
@@ -49,26 +49,52 @@ fn run(services: &mut GameServerHost, op: Op) -> Answer {
     Ok(match op {
         Op::Advance(_) => return Err("advance-ticks is the bridge's".into()),
         Op::PlaceBlock { position, block } => {
-            command(services, place_block_command(position, &block)?, "placing the block (is the chunk loaded?)")?;
+            let line = place_block_command(position, &block)?;
+            // `/setblock` of the state a block already has "fails": that is a block that is there, not an error.
+            if !services.run_command(line.clone())? {
+                let actual = services.block(block_pos(position))?;
+                if !same_state(&actual, &block) {
+                    return Err(format!("could not place {block} at {position:?}: the block there is {actual} (is the chunk loaded?)"));
+                }
+            }
             Reply::Done
         }
         Op::BreakBlock(position) => {
-            command(services, break_block_command(position), "breaking the block (is the chunk loaded?)")?;
+            if !services.run_command(break_block_command(position))? {
+                // Breaking air does not succeed either.
+                let actual = services.block(block_pos(position))?;
+                if !same_state(&actual, "minecraft:air") {
+                    return Err(format!("could not break the block at {position:?}: it is {actual} (is the chunk loaded?)"));
+                }
+            }
             Reply::Done
         }
         Op::BlockAt(position) => Reply::Text(services.block(block_pos(position))?),
         Op::SpawnEntity { kind, position } => {
+            // The command does not say which entity it made: the entity of that kind that is new afterwards. A
+            // second new one (another mob spawned meanwhile) makes the answer ambiguous, so it is an error.
+            let known = |services: &mut GameServerHost| -> Result<std::collections::HashSet<u32>, String> {
+                Ok(services
+                    .entities_in(vec3(position), DIMENSION.to_owned(), SPAWN_SEARCH)?
+                    .into_iter()
+                    .filter(|entity| entity.kind == kind)
+                    .map(|entity| entity.handle)
+                    .collect())
+            };
+            let before = known(services)?;
             command(services, summon_command(&kind, position)?, "summoning the entity")?;
-            // The command does not say which entity it made: the newest of the kind where it was summoned.
-            let found = services.entities_in(vec3(position), DIMENSION.to_owned(), SPAWN_SEARCH)?;
-            let newest = found.iter().filter(|entity| entity.kind == kind && entity.alive).map(|entity| entity.handle).max();
-            Reply::Id(newest.ok_or_else(|| format!("the summoned {kind} was not found near {position:?}"))?)
+            let new: Vec<u32> = known(services)?.difference(&before).copied().collect();
+            match new[..] {
+                [id] => Reply::Id(id),
+                [] => return Err(format!("the summoned {kind} was not found near {position:?}")),
+                _ => return Err(format!("{} new {kind} entities appeared near {position:?}: cannot tell which one was summoned", new.len())),
+            }
         }
-        Op::SpawnFakePlayer { name, position } => {
-            let uuid = uuid_text(fake_player_uuid(player_name(&name)?));
+        Op::SpawnMannequin { name, position } => {
+            let uuid = uuid_text(mannequin_uuid(player_name(&name)?));
             match services.spawn_mannequin(uuid, "standing".into(), vec3(position), 0.0)? {
                 Some(id) => Reply::Id(id),
-                None => return Err("the server did not spawn the fake player".into()),
+                None => return Err("the server did not spawn the mannequin".into()),
             }
         }
         Op::EntitiesNear { center, radius } => Reply::Entities(
