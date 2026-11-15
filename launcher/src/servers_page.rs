@@ -895,6 +895,19 @@ impl Launcher {
         width: f32,
         cx: &mut Context<Self>,
     ) -> Stateful<Div> {
+        self.field_look(f, placeholder, width, false, cx)
+    }
+
+    /// [`Self::field`]; `glass` puts it in the glass look's `FIELD` for a page that is in that
+    /// look already, whichever field it is.
+    pub(super) fn field_look(
+        &mut self,
+        f: Field,
+        placeholder: &'static str,
+        width: f32,
+        glass_page: bool,
+        cx: &mut Context<Self>,
+    ) -> Stateful<Div> {
         let t = self.theme;
         let handle = self.focus_handle(f, cx);
         let focused = self.servers.focused == Some(f);
@@ -904,7 +917,8 @@ impl Launcher {
         // Home's Add server line is in the glass look already; the other fields follow with
         // their pages.
         let glass = t.dark
-            && matches!(
+            && (glass_page
+                || matches!(
                 f,
                 Field::ServerName
                     | Field::ServerAddress
@@ -913,7 +927,7 @@ impl Launcher {
                     | Field::InstanceName
                     | Field::InstanceGroup
                     | Field::InstanceVersion
-            );
+            ));
         let base = if glass {
             // The mods filter and the log search sit by buttons: the mockup's small `FIELD`, as
             // tall as they are.

@@ -232,7 +232,8 @@ impl Launcher {
 
     /// The row on Home, for the selected instance: the most memory its game may hold, from nothing
     /// to all of this computer's, kept with the instance.
-    pub(super) fn memory_row(&mut self, cx: &mut Context<Self>) -> Option<Div> {
+    pub(super) fn memory_row(&mut self, glass: bool, cx: &mut Context<Self>) -> Option<Div> {
+        use horizon_theme::glass::{ink, radius};
         let t = self.theme;
         let instance = self.selected_instance()?.clone();
         let java = instance.java.as_ref();
@@ -250,21 +251,40 @@ impl Launcher {
             _ => memory,
         };
         let unit = (memory.is_some() || self.servers.has_focus(Field::MemoryLimit))
-            .then(|| text(theme::LABEL).text_color(t.ink_soft).child("MB"));
-        let input = self.field(Field::MemoryLimit, tr("No limit"), 120., cx);
+            .then(|| {
+                if glass {
+                    crate::glass_ui::text(13., FontWeight::NORMAL, ink::MUTED).child("MB")
+                } else {
+                    text(theme::LABEL).text_color(t.ink_soft).child("MB")
+                }
+            });
+        let input = self.field_look(Field::MemoryLimit, tr("No limit"), 120., glass, cx);
         let about = match java {
             Some(_) => "How much memory Java may use (-Xmx). Set it too low and the game can crash.",
             None => "The game stays under this. Very low values make it slower, and it crashes only if it can't run at all. Change it while playing with /ramlimit.",
         };
-        let track = div()
-            .id("launch-memory")
-            .relative()
-            .w_full()
-            .h(px(20.))
-            .border_2()
-            .border_color(t.outline)
-            .bg(t.well)
-            .cursor_pointer()
+        let track = if glass {
+            // The glass `Bar`'s look, 8 px tall for the pointer: white at 12 %, the accent's soft
+            // shade filling it.
+            div()
+                .id("launch-memory")
+                .relative()
+                .w_full()
+                .h(px(8.))
+                .rounded_full()
+                .overflow_hidden()
+                .bg(crate::glass_ui::white(horizon_theme::glass::fill::ACTIVE))
+        } else {
+            div()
+                .id("launch-memory")
+                .relative()
+                .w_full()
+                .h(px(20.))
+                .border_2()
+                .border_color(t.outline)
+                .bg(t.well)
+        }
+        .cursor_pointer()
             .child(
                 canvas(
                     move |bounds, _, _| {
@@ -282,7 +302,8 @@ impl Launcher {
                     .top_0()
                     .bottom_0()
                     .w(relative(launch::memory_fraction(memory, total)))
-                    .bg(t.face),
+                    .when(glass, |d| d.bg(crate::glass_ui::color(self.look.accent_soft)))
+                    .when(!glass, |d| d.bg(t.face)),
             )
             .on_mouse_down(
                 MouseButton::Left,
@@ -308,37 +329,57 @@ impl Launcher {
                 MouseButton::Left,
                 cx.listener(|this, _: &MouseUpEvent, _, cx| this.finish_memory(cx)),
             );
+        let note = |bad: bool| {
+            if glass {
+                crate::glass_ui::text(13., FontWeight::NORMAL, ink::MUTED).when(bad, |d| {
+                    d.text_color(crate::glass_ui::color(horizon_theme::glass::DANGER))
+                })
+            } else {
+                text(theme::CAPTION).text_color(if bad { t.danger } else { t.muted })
+            }
+        };
         let result = self.memory_slider.saved.as_ref().map(|s| match s {
-            MemorySaved::Ok(Some(mb)) => text(theme::CAPTION).text_color(t.muted).child(trf(
+            MemorySaved::Ok(Some(mb)) => note(false).child(trf(
                 "Saved: the next Play uses at most {mb} MB.",
                 &[("mb", &mb.to_string())],
             )),
-            MemorySaved::Ok(None) => text(theme::CAPTION)
-                .text_color(t.muted)
+            MemorySaved::Ok(None) => note(false)
                 .child(tr("Saved: no memory limit on the next Play.")),
-            MemorySaved::Invalid => text(theme::CAPTION).text_color(t.danger).child(tr(
+            MemorySaved::Invalid => note(true).child(tr(
                 "Type a number of MB like 4096, or 4gb, or leave it empty for no limit.",
             )),
-            MemorySaved::Error(e) => text(theme::CAPTION).text_color(t.danger).child(e.clone()),
+            MemorySaved::Error(e) => note(true).child(e.clone()),
         });
-        Some(
+        let title = if glass {
+            crate::glass_ui::text(15., FontWeight::SEMIBOLD, ink::FULL)
+                .child(tr("Maximum memory"))
+        } else {
+            blocks::pixel(16., FontWeight::MEDIUM)
+                .text_color(t.ink)
+                .child(tr("Maximum memory"))
+        };
+        let panel = if glass {
+            crate::glass::plate(radius::PANEL)
+                .p(px(20.))
+                .gap(px(12.))
+        } else {
             blocks::panel(&t)
-                .flex()
-                .flex_col()
                 .gap(px(8.))
                 .mb(px(8.))
                 .px(px(16.))
                 .py(px(12.))
+        };
+        Some(
+            panel
+                .flex()
+                .flex_col()
                 .child(
                     div()
+                        .relative()
                         .flex()
                         .items_center()
                         .justify_between()
-                        .child(
-                            blocks::pixel(16., FontWeight::MEDIUM)
-                                .text_color(t.ink)
-                                .child(tr("Maximum memory")),
-                        )
+                        .child(title)
                         .child(
                             div()
                                 .flex()
@@ -349,7 +390,7 @@ impl Launcher {
                         ),
                 )
                 .child(track)
-                .child(text(theme::CAPTION).text_color(t.muted).child(tr(about)))
+                .child(note(false).relative().child(tr(about)))
                 .children(result),
         )
     }

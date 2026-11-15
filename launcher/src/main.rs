@@ -3405,7 +3405,50 @@ impl Launcher {
             .or_else(|| java.is_some().then(String::new))
         else {
             // No hero without a version: the page starts below the top bar like the others.
-            let memory = self.memory_row(cx);
+            let glass = t.dark;
+            let memory = self.memory_row(glass, cx);
+            if glass {
+                use horizon_theme::glass::ink;
+                return div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(28.))
+                    .pt(px(36.))
+                    .child(glass_page_head(
+                        "Play",
+                        "Start the game, or run a server for others to join.",
+                    ))
+                    .child(
+                        glass_card().child(
+                            div()
+                                .relative()
+                                .flex()
+                                .flex_col()
+                                .items_start()
+                                .gap(px(16.))
+                                .px(px(12.))
+                                .py(px(32.))
+                                .child(
+                                    glass_ui::text(14., FontWeight::NORMAL, ink::NOTE)
+                                        .child(tr("No version installed yet.")),
+                                )
+                                .child(
+                                    glass_ui::solid(
+                                        "go-versions",
+                                        tr("Choose a version"),
+                                        36.,
+                                        14.,
+                                        &t,
+                                    )
+                                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                                        this.go(Page::Versions);
+                                        cx.notify();
+                                    })),
+                                ),
+                        ),
+                    )
+                    .children(memory);
+            }
             return div()
                 .flex()
                 .flex_col()
@@ -3545,7 +3588,7 @@ impl Launcher {
             .children((!t.dark).then(|| self.instance_row(1, cx)).flatten())
             .children(self.export_panel(cx))
             .children(self.launch_panel(cx))
-            .children(self.memory_row(cx));
+            .children(self.memory_row(false, cx));
         rows = match &java {
             Some(java) => rows.child(index_row(
                 2,
