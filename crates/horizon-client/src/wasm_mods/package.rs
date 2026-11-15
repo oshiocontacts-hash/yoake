@@ -296,6 +296,26 @@ mod tests {
             .unwrap()
             .storage_put("value", StorageScope::World, b"first")
             .unwrap();
+        let client_context = NativeLifecycleContext {
+            authority: NativeAuthority::RemoteClient,
+            ..context
+        };
+        module.world_lifecycle(
+            &mut host,
+            &mut WorldLifecycleEvent {
+                context: &client_context,
+                phase: WorldPhase::WorldCloseFinal,
+                error_text: "",
+            },
+        );
+        assert_eq!(
+            handle
+                .lock()
+                .unwrap()
+                .storage_get("value", StorageScope::World)
+                .unwrap(),
+            Some(b"first".to_vec())
+        );
         module.server_stopping(&mut host, &mut ServerStoppingEvent { dedicated: true });
         handle
             .lock()
@@ -345,6 +365,29 @@ mod tests {
                 context: &context,
                 phase: WorldPhase::WorldCloseFailed,
                 error_text: "failed save",
+            },
+        );
+        assert!(
+            handle
+                .lock()
+                .unwrap()
+                .storage_get("value", StorageScope::World)
+                .is_err()
+        );
+        module.world_lifecycle(
+            &mut host,
+            &mut WorldLifecycleEvent {
+                context: &context,
+                phase: WorldPhase::WorldOpenReady,
+                error_text: "",
+            },
+        );
+        module.world_lifecycle(
+            &mut host,
+            &mut WorldLifecycleEvent {
+                context: &context,
+                phase: WorldPhase::WorldOpenFailed,
+                error_text: "failed open",
             },
         );
         assert!(

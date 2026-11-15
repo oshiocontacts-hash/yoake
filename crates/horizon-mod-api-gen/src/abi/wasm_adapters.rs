@@ -892,7 +892,7 @@ fn build_hook(
         body.push_str(&block);
     }
     if plan.name == "world_lifecycle" {
-        body.push_str("if event.phase != crate::mod_api::WorldPhase::WorldOpenReady && event.context.authority != crate::mod_api::NativeAuthority::RemoteClient { super::package::bind_world(&self.id, None); } ");
+        body.push_str("if matches!(event.phase, crate::mod_api::WorldPhase::WorldOpenFailed | crate::mod_api::WorldPhase::WorldCloseFinal | crate::mod_api::WorldPhase::WorldCloseFailed) && event.context.authority != crate::mod_api::NativeAuthority::RemoteClient { super::package::bind_world(&self.id, None); } ");
     }
     if ret.is_some() {
         body.push_str("out");

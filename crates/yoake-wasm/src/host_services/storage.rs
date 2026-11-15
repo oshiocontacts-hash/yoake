@@ -17,6 +17,30 @@ const MAX_PENDING_RANGES: usize = 4096;
 const MAGIC: &[u8; 5] = b"YWST\x01";
 const HEADER_BYTES: usize = MAGIC.len() + 4;
 const ENTRY_HEADER_BYTES: usize = 6;
+const MAX_QUARANTINED_ENTRIES: usize = 16;
+
+enum LoadError {
+    Invalid(String),
+    Retry(String),
+}
+
+impl From<std::io::Error> for LoadError {
+    fn from(error: std::io::Error) -> Self {
+        if error.kind() == std::io::ErrorKind::UnexpectedEof {
+            Self::Invalid(error.to_string())
+        } else {
+            Self::Retry(error.to_string())
+        }
+    }
+}
+
+impl std::fmt::Display for LoadError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Invalid(message) | Self::Retry(message) => formatter.write_str(message),
+        }
+    }
+}
 
 struct PendingBlob {
     key: String,
@@ -374,38 +398,64 @@ impl DiskStorage {
             entries: BTreeMap::new(),
             storage: Storage::new(quota).map_err(str::to_owned)?,
         };
-        for filename in result
+        let filenames = result
             .directory
             .entries()
-            .map_err(|error| error.to_string())?
-        {
+            .map_err(|error| error.to_string())?;
+        let mut quarantined = 0;
+        for filename in &filenames {
+            let name = filename.to_string_lossy();
+            if name.starts_with("entry-") && name.ends_with(".bin.corrupt") {
+                if quarantined < MAX_QUARANTINED_ENTRIES {
+                    quarantined += 1;
+                } else {
+                    result
+                        .directory
+                        .remove(filename)
+                        .map_err(|error| error.to_string())?;
+                }
+            }
+        }
+        for filename in filenames {
             let name = filename.to_string_lossy();
             if name.starts_with(".store-") && name.ends_with(".tmp") {
                 if let Err(error) = result.directory.remove(&filename) {
                     eprintln!("[yoake] storage {mod_id}: skipping {name}: {error}");
                 }
             } else if name.starts_with("entry-") && name.ends_with(".bin") {
-                let loaded = (|| -> Result<(), String> {
+                let loaded = (|| -> Result<(), LoadError> {
                     let mut file = result
                         .directory
-                        .read(&filename)
-                        .map_err(|error| error.to_string())?
-                        .ok_or("storage entry disappeared")?;
+                        .read(&filename)?
+                        .ok_or_else(|| LoadError::Retry("storage entry disappeared".into()))?;
                     let (key, length) = read_entry_header(&mut file, quota)?;
-                    if file.metadata().map_err(|error| error.to_string())?.len()
-                        != entry_cost(&key, length) as u64
-                    {
-                        return Err("invalid storage entry size".into());
+                    if file.metadata()?.len() != entry_cost(&key, length) as u64 {
+                        return Err(LoadError::Invalid("invalid storage entry size".into()));
                     }
-                    result.check_size(&key, length)?;
+                    result.check_size(&key, length).map_err(LoadError::Invalid)?;
                     if result.entries.contains_key(&key) {
-                        return Err("duplicate storage key".into());
+                        return Err(LoadError::Invalid("duplicate storage key".into()));
                     }
                     result.record(key, name.to_string(), length);
                     Ok(())
                 })();
                 if let Err(error) = loaded {
                     eprintln!("[yoake] storage {mod_id}: skipping {name}: {error}");
+                    if let LoadError::Retry(message) = error {
+                        return Err(message);
+                    }
+                    if quarantined < MAX_QUARANTINED_ENTRIES {
+                        result
+                            .directory
+                            .replace(&filename, OsStr::new(&format!("{name}.corrupt")))
+                            .map_err(|error| error.to_string())?;
+                        quarantined += 1;
+                    } else {
+                        result
+                            .directory
+                            .remove(&filename)
+                            .map_err(|error| error.to_string())?;
+                    }
                 }
             }
         }
@@ -416,8 +466,11 @@ impl DiskStorage {
             .is_none()
         {
             if scope != Some("client") {
-                if let Err(error) = result.import_store(quota) {
+                if let Err(error) = result.import_store() {
                     eprintln!("[yoake] storage {mod_id}: skipping store.bin: {error}");
+                    if let LoadError::Retry(message) = error {
+                        return Err(message);
+                    }
                 }
                 let legacy = match scope {
                     Some("global") => base_dir
@@ -432,11 +485,12 @@ impl DiskStorage {
                             eprintln!(
                                 "[yoake] storage {mod_id}: skipping legacy directory: {error}"
                             );
+                            return Err(error.to_string());
                         }
                     }
                     Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
                     Err(error) => {
-                        eprintln!("[yoake] storage {mod_id}: skipping legacy directory: {error}")
+                        return Err(error.to_string());
                     }
                 }
             }
@@ -447,36 +501,56 @@ impl DiskStorage {
         Ok(result)
     }
 
-    fn import_store(&mut self, quota: usize) -> Result<(), String> {
-        let Some(mut file) = self
-            .directory
-            .read(OsStr::new("store.bin"))
-            .map_err(|error| error.to_string())?
-        else {
+    fn import_store(&mut self) -> Result<(), LoadError> {
+        let Some(mut file) = self.directory.read(OsStr::new("store.bin"))? else {
             return Ok(());
         };
         let mut header = [0; HEADER_BYTES];
-        file.read_exact(&mut header)
-            .map_err(|error| error.to_string())?;
+        file.read_exact(&mut header)?;
         let count = u32::from_le_bytes(
             header[5..]
                 .try_into()
-                .map_err(|_| "invalid storage header")?,
+                .map_err(|_| LoadError::Invalid("invalid storage header".into()))?,
         ) as usize;
         if &header[..5] != MAGIC || count > MAX_KEYS {
-            return Err("invalid storage header".into());
+            return Err(LoadError::Invalid("invalid storage header".into()));
         }
+        let file_length = file.metadata()?.len();
         let mut keys = std::collections::BTreeSet::new();
         for _ in 0..count {
-            let (key, length) = read_entry_header(&mut file, quota)?;
-            if !keys.insert(key.clone()) {
-                return Err("duplicate storage key".into());
+            let mut entry_header = [0; ENTRY_HEADER_BYTES];
+            file.read_exact(&mut entry_header)?;
+            let key_length = u16::from_le_bytes([entry_header[0], entry_header[1]]) as usize;
+            let length = u32::from_le_bytes(entry_header[2..].try_into().unwrap()) as usize;
+            let end = file
+                .stream_position()?
+                .checked_add((key_length + length) as u64)
+                .filter(|end| *end <= file_length)
+                .ok_or_else(|| LoadError::Invalid("truncated legacy value".into()))?;
+            let imported = (|| -> Result<(), LoadError> {
+                if key_length == 0 || key_length > MAX_KEY_BYTES {
+                    return Err(LoadError::Invalid("invalid storage key length".into()));
+                }
+                let mut key = vec![0; key_length];
+                file.read_exact(&mut key)?;
+                let key = String::from_utf8(key)
+                    .map_err(|_| LoadError::Invalid("invalid storage key".into()))?;
+                if !keys.insert(key.clone()) {
+                    return Err(LoadError::Invalid("duplicate storage key".into()));
+                }
+                self.import(&key, length, &mut file)
+            })();
+            if let Err(error) = imported {
+                eprintln!("[yoake] storage: skipping legacy record: {error}");
+                if matches!(error, LoadError::Retry(_)) {
+                    return Err(error);
+                }
             }
-            self.import(&key, length, &mut file)?;
+            file.seek(SeekFrom::Start(end))?;
         }
         let mut extra = [0];
-        if file.read(&mut extra).map_err(|error| error.to_string())? != 0 {
-            return Err("trailing storage data".into());
+        if file.read(&mut extra)? != 0 {
+            return Err(LoadError::Invalid("trailing storage data".into()));
         }
         Ok(())
     }
@@ -512,39 +586,37 @@ impl DiskStorage {
         self.storage.entries.insert(key, Vec::new());
     }
 
-    fn import(&mut self, key: &str, length: usize, reader: &mut impl Read) -> Result<(), String> {
+    fn import(&mut self, key: &str, length: usize, reader: &mut impl Read) -> Result<(), LoadError> {
         if self.entries.contains_key(key) {
-            if std::io::copy(&mut reader.take(length as u64), &mut std::io::sink())
-                .map_err(|error| error.to_string())?
-                != length as u64
+            if std::io::copy(&mut reader.take(length as u64), &mut std::io::sink())? != length as u64
             {
-                return Err("truncated legacy value".into());
+                return Err(LoadError::Invalid("truncated legacy value".into()));
             }
             return Ok(());
         }
-        self.check_size(key, length)?;
-        let filename = self.persist(key, length, reader)?;
+        self.check_size(key, length).map_err(LoadError::Invalid)?;
+        let filename = self.persist(key, length, reader).map_err(LoadError::Retry)?;
         self.record(key.to_owned(), filename, length);
         Ok(())
     }
 
-    fn import_directory(&mut self, directory: &Dir, prefix: &str) -> Result<(), String> {
-        for name in directory.entries().map_err(|error| error.to_string())? {
-            let imported = (|| -> Result<(), String> {
-                let name_text = name.to_str().ok_or("invalid legacy filename")?;
+    fn import_directory(&mut self, directory: &Dir, prefix: &str) -> Result<(), LoadError> {
+        let mut retry = None;
+        for name in directory.entries()? {
+            let imported = (|| -> Result<(), LoadError> {
+                let name_text = name
+                    .to_str()
+                    .ok_or_else(|| LoadError::Invalid("invalid legacy filename".into()))?;
                 let key = format!("{prefix}{name_text}");
                 if let Ok(child) = directory.child(&name, false) {
-                    validate_key(&key).map_err(str::to_owned)?;
+                    validate_key(&key).map_err(|error| LoadError::Invalid(error.into()))?;
                     self.import_directory(&child, &format!("{key}/"))?;
-                } else if let Some(mut file) =
-                    directory.read(&name).map_err(|error| error.to_string())?
-                {
+                } else if let Some(mut file) = directory.read(&name)? {
                     let Some(key) = key.strip_suffix(".bin") else {
                         return Ok(());
                     };
-                    let length =
-                        usize::try_from(file.metadata().map_err(|error| error.to_string())?.len())
-                            .map_err(|_| "legacy value too large")?;
+                    let length = usize::try_from(file.metadata()?.len())
+                        .map_err(|_| LoadError::Invalid("legacy value too large".into()))?;
                     self.import(key, length, &mut file)?;
                 }
                 Ok(())
@@ -554,9 +626,16 @@ impl DiskStorage {
                     "[yoake] storage: skipping legacy {prefix}{}: {error}",
                     name.to_string_lossy()
                 );
+                if matches!(error, LoadError::Retry(_)) {
+                    retry = Some(error);
+                }
             }
         }
-        Ok(())
+        retry.map_or(Ok(()), Err)
+    }
+
+    pub(crate) fn value_len(&self, key: &str) -> Option<usize> {
+        self.entries.get(key).map(|entry| entry.length)
     }
 
     pub fn get(&self, key: &str) -> Result<Option<Vec<u8>>, String> {
@@ -729,30 +808,26 @@ impl DiskStorage {
     }
 }
 
-fn read_entry_header(reader: &mut impl Read, quota: usize) -> Result<(String, usize), String> {
+fn read_entry_header(reader: &mut impl Read, quota: usize) -> Result<(String, usize), LoadError> {
     let mut header = [0; ENTRY_HEADER_BYTES];
-    reader
-        .read_exact(&mut header)
-        .map_err(|error| error.to_string())?;
+    reader.read_exact(&mut header)?;
     let key_length = u16::from_le_bytes([header[0], header[1]]) as usize;
     let length = u32::from_le_bytes(
         header[2..]
             .try_into()
-            .map_err(|_| "invalid storage header")?,
+            .map_err(|_| LoadError::Invalid("invalid storage header".into()))?,
     ) as usize;
     if key_length == 0
         || key_length > MAX_KEY_BYTES
         || length > MAX_STORAGE_BYTES
         || ENTRY_HEADER_BYTES + key_length + length > quota
     {
-        return Err("invalid storage entry size".into());
+        return Err(LoadError::Invalid("invalid storage entry size".into()));
     }
     let mut key = vec![0; key_length];
-    reader
-        .read_exact(&mut key)
-        .map_err(|error| error.to_string())?;
-    let key = String::from_utf8(key).map_err(|_| "invalid storage key")?;
-    validate_key(&key).map_err(str::to_owned)?;
+    reader.read_exact(&mut key)?;
+    let key = String::from_utf8(key).map_err(|_| LoadError::Invalid("invalid storage key".into()))?;
+    validate_key(&key).map_err(|error| LoadError::Invalid(error.into()))?;
     Ok((key, length))
 }
 
@@ -955,6 +1030,81 @@ mod tests {
         assert_eq!(store.get("valid").unwrap(), Some(b"imported".to_vec()));
         assert_eq!(store.get("later").unwrap(), None);
         drop(store);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn migration_skips_invalid_records_and_keeps_later_valid_records() {
+        let root = temporary_root();
+        let directory = root.join("yoake-data/example");
+        std::fs::create_dir_all(&directory).unwrap();
+        let mut encoded = MAGIC.to_vec();
+        encoded.extend_from_slice(&3u32.to_le_bytes());
+        for (key, value) in [
+            (b"../bad".as_slice(), b"ignored".as_slice()),
+            (b"oversized".as_slice(), &[0; 128]),
+            (b"valid".as_slice(), b"imported".as_slice()),
+        ] {
+            encoded.extend_from_slice(&(key.len() as u16).to_le_bytes());
+            encoded.extend_from_slice(&(value.len() as u32).to_le_bytes());
+            encoded.extend_from_slice(key);
+            encoded.extend_from_slice(value);
+        }
+        std::fs::write(directory.join("store.bin"), encoded).unwrap();
+        let store = DiskStorage::open_with_quota(&root, "example", 64).unwrap();
+        assert_eq!(store.get("valid").unwrap(), Some(b"imported".to_vec()));
+        assert_eq!(store.get("oversized").unwrap(), None);
+        assert!(directory.join("migration-v2.done").exists());
+        drop(store);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn migration_retries_io_failures_without_writing_the_marker() {
+        let root = temporary_root();
+        let directory = root.join("yoake-data/example");
+        std::fs::create_dir_all(directory.join("store.bin")).unwrap();
+        assert!(DiskStorage::open(&root, "example").is_err());
+        assert!(!directory.join("migration-v2.done").exists());
+        std::fs::remove_dir(directory.join("store.bin")).unwrap();
+        let legacy = root.join("yoake-wasm/example");
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::write(legacy.join("recovered.bin"), b"recovered").unwrap();
+        let store = DiskStorage::open(&root, "example").unwrap();
+        assert_eq!(store.get("recovered").unwrap(), Some(b"recovered".to_vec()));
+        assert!(directory.join("migration-v2.done").exists());
+        drop(store);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn corrupt_entry_quarantine_is_bounded_across_reopens() {
+        let root = temporary_root();
+        let directory = root.join("yoake-data/example");
+        std::fs::create_dir_all(&directory).unwrap();
+        for batch in 0..2 {
+            for index in 0..20 {
+                std::fs::write(directory.join(format!("entry-{batch}-{index}.bin")), b"bad").unwrap();
+            }
+            let store = DiskStorage::open(&root, "example").unwrap();
+            let names = std::fs::read_dir(&directory)
+                .unwrap()
+                .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                names
+                    .iter()
+                    .filter(|name| name.ends_with(".bin.corrupt"))
+                    .count(),
+                16
+            );
+            assert!(
+                !names
+                    .iter()
+                    .any(|name| name.starts_with("entry-") && name.ends_with(".bin"))
+            );
+            drop(store);
+        }
         std::fs::remove_dir_all(root).unwrap();
     }
 

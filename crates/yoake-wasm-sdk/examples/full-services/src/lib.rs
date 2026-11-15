@@ -144,6 +144,20 @@ mod server {
                     "0123456789abcdef0123456789abcdef",
                 )?)]),
                 "changes" => Ok(self.changes.to_le_bytes().to_vec()),
+                "storage-spam" => {
+                    for completed in 0_u32..1024 {
+                        if let Err(error) = services::storage_put(
+                            "tiny",
+                            types::StorageScope::Global,
+                            &[1],
+                        ) {
+                            let mut payload = completed.to_le_bytes().to_vec();
+                            payload.extend_from_slice(error.as_bytes());
+                            return Ok(payload);
+                        }
+                    }
+                    Err("storage operation budget did not throttle".into())
+                }
                 _ => Err("unknown method".into()),
             }
         }

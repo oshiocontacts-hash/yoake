@@ -836,6 +836,12 @@ impl Game<'_> {
         options.server = None;
         options.world = None;
         self.join_world_rest()?;
+        if let Some(starting) = self.integrated_starting.take() {
+            starting.handle.stop()?;
+        }
+        if let Some(server) = self.integrated.take() {
+            server.stop()?;
+        }
         // The window plays against the world's own biome table (its chunks
         // carry the packs' ids past the built-in list, `set_registries`
         // names them through it), as the server thread's copy does.

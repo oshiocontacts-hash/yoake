@@ -52,6 +52,8 @@ thread_local! {
     /// bounded by fuel, and every service call burns some.
     static HOST_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
     static STORAGE_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
+    static STORAGE_THROTTLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static STORAGE_WINDOW: std::cell::Cell<Option<Instant>> = const { std::cell::Cell::new(None) };
 }
 
 /// The most host-service time that extends one call's deadline (a guest that loops over services cannot hold the
@@ -65,6 +67,14 @@ pub(crate) fn add_host_time(spent: Duration) {
 
 pub(crate) fn add_storage_time(spent: Duration) {
     STORAGE_TIME.with(|time| time.set(time.get() + spent));
+}
+
+pub(crate) fn storage_throttled() {
+    STORAGE_THROTTLED.with(|throttled| throttled.set(true));
+}
+
+pub(crate) fn storage_window_start() -> Instant {
+    STORAGE_WINDOW.with(std::cell::Cell::get).unwrap_or_else(Instant::now)
 }
 
 fn deadline_extension() -> Duration {
@@ -346,6 +356,8 @@ impl<T: 'static> ModInstance<T> {
         self.limits = after;
         self.window.spent = Duration::ZERO;
         self.window.started = Instant::now();
+        self.window.exceeded = false;
+        self.window.strikes = 0;
         result
     }
 
@@ -369,7 +381,7 @@ impl<T: 'static> ModInstance<T> {
     /// Whether the aggregate budget of the current window is used up (rolls the window first).
     fn over_aggregate(&mut self, now: Instant) -> bool {
         if now.duration_since(self.window.started) >= AGGREGATE_WINDOW {
-            if self.window.exceeded {
+            if self.window.exceeded || self.window.spent >= self.limits.aggregate {
                 self.window.strikes += 1;
             } else {
                 self.window.strikes = 0;
@@ -378,7 +390,7 @@ impl<T: 'static> ModInstance<T> {
             self.window.spent = Duration::ZERO;
             self.window.exceeded = false;
         }
-        self.window.spent >= self.limits.aggregate
+        self.window.exceeded || self.window.spent >= self.limits.aggregate
     }
 
     /// Complete lines the guest wrote to its WASI stdout and stderr since the last drain.
@@ -396,16 +408,15 @@ impl<T: 'static> ModInstance<T> {
             return None;
         }
         let began = Instant::now();
-        if self.over_aggregate(began) {
-            if !self.window.exceeded {
-                self.window.exceeded = true;
-                if self.window.strikes >= AGGREGATE_STRIKES {
-                    self.disabled = true;
-                    let id = self.id.replace(['\r', '\n'], " ");
-                    eprintln!("WebAssembly mod {id} disabled: over its time budget in {AGGREGATE_STRIKES} windows in a row");
-                    return None;
-                }
-            }
+        let over_aggregate = self.over_aggregate(began);
+        if self.window.strikes >= AGGREGATE_STRIKES {
+            self.disabled = true;
+            let id = self.id.replace(['\r', '\n'], " ");
+            eprintln!("WebAssembly mod {id} disabled: over its time budget in {AGGREGATE_STRIKES} windows in a row");
+            return None;
+        }
+        if over_aggregate {
+            self.window.exceeded = true;
             self.skipped += 1;
             if self.skipped == 1 {
                 let id = self.id.replace(['\r', '\n'], " ");
@@ -417,6 +428,9 @@ impl<T: 'static> ModInstance<T> {
         // Calls nest (a `mod-call` runs another module inside a service): each has its own host time.
         let outer_host_time = HOST_TIME.with(|time| time.replace(Duration::ZERO));
         let outer_storage_time = STORAGE_TIME.with(|time| time.replace(Duration::ZERO));
+        let outer_storage_throttled = STORAGE_THROTTLED.with(|throttled| throttled.replace(false));
+        let outer_storage_window =
+            STORAGE_WINDOW.with(|window| window.replace(Some(self.window.started)));
         let result = self
             .store
             .set_fuel(self.fuel)
@@ -427,6 +441,9 @@ impl<T: 'static> ModInstance<T> {
             });
         let host_time = HOST_TIME.with(|time| time.replace(outer_host_time));
         STORAGE_TIME.with(|time| time.set(outer_storage_time));
+        STORAGE_WINDOW.with(|window| window.set(outer_storage_window));
+        self.window.exceeded |=
+            STORAGE_THROTTLED.with(|throttled| throttled.replace(outer_storage_throttled));
         self.window.spent += began.elapsed().saturating_sub(host_time);
         match result {
             Ok(value) => Some(value),
@@ -495,6 +512,24 @@ mod tests {
             assert!(!module.disabled);
             assert!(module.window.spent >= Duration::from_millis(80));
         }
+    }
+
+    #[test]
+    fn slow_calls_accumulate_strikes_without_skipping_a_call() {
+        let mut module = Sandbox::new()
+            .compile(&tick_component())
+            .unwrap()
+            .instantiate("slow-storage", (), |_| Ok(()))
+            .unwrap();
+        for strike in 1..=AGGREGATE_STRIKES {
+            module.window.started = Instant::now() - AGGREGATE_WINDOW;
+            module.window.spent = module.limits.aggregate + Duration::from_millis(400);
+            let answer = module.call("tick", |_, _| Ok(()));
+            assert_eq!(module.window.strikes, strike);
+            assert_eq!(answer, (strike < AGGREGATE_STRIKES).then_some(()));
+        }
+        assert!(module.disabled);
+        assert_eq!(module.skipped, 0);
     }
 
     #[test]

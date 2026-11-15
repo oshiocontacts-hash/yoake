@@ -190,7 +190,10 @@ mod platform {
                 )
             } == 0
             {
-                directory.sync_all()
+                if let Err(error) = directory.sync_all() {
+                    eprintln!("[yoake] renamed storage file, but directory sync failed: {error}");
+                }
+                Ok(())
             } else {
                 Err(io::Error::last_os_error())
             }

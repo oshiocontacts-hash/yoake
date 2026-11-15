@@ -344,7 +344,10 @@ Each store has a 256 MiB quota, including serialized metadata and reserved pendi
 65,536 keys. Entries use host-generated filenames and one atomic file per key, so a mutation writes
 only that value and its metadata, not the whole store. Only keys and lengths stay resident; values and
 blob slices are read on demand. Encoded writes, including config writes, share a per-mod token bucket
-across scopes: 8 MiB per second sustained, with a 32 MiB burst. Exceeding that budget returns an error.
+across scopes: 8 MiB per second sustained, with a 32 MiB burst. Storage operations charge at least
+4 KiB each; larger reads also charge their requested available bytes. At most 64 storage operations
+are allowed per 50 ms hook window. Exceeding either budget returns an error and counts toward
+aggregate throttling; repeated over-budget windows disable the guest.
 Config and storage I/O extend the bounded per-call deadline but still count against the aggregate
 guest time budget. Store opening and migration happen when the package or world is bound, outside
 guest calls.
@@ -354,21 +357,30 @@ limit per mod** across all scopes. Buffers grow lazily on write, not at begin. W
 commit requires complete coverage. A failed commit retains the upload for completion or abort.
 `storage-blob-read` reads bounded slices of committed data. Uploads are not persisted and world uploads
 are discarded when changing worlds or creating, dropping, disabling or trapping a module instance.
-World storage binds after the world opens, stays bound through shutdown callbacks and saving, and
-unbinds after world close or failure. Starting another world first clears the previous binding.
+World storage first becomes available in `world_lifecycle(WorldOpenReady)`, stays bound through
+shutdown callbacks and saving, and unbinds after explicit open-failure, final-close or close-failure
+phases. It is unavailable in `server_about_to_start` and the initial level/chunk-load hooks before
+`WorldOpenReady`; those hooks can use global storage instead. Starting another world first clears the previous binding.
 Ordinary hooks and config notifications never change it.
 Put, delete and successful blob commit persist before
 reporting success. A store holds an exclusive lock for its lifetime; another process gets a clear
 error. Writes use a synced temporary file and rename; stale temporary files are removed on open.
-On Unix, renames also sync the containing directory. Reads of absent stores and opening settings do
-not create directories. An unchanged config write creates no lock file; changed config writes briefly
-retry a busy in-process lock.
+On Unix, renames also sync the containing directory; a sync failure after a successful rename is
+logged without reverting the visible in-memory update. Loading a package with `service.storage`
+creates its global or client directory, `store.lock` and migration marker; binding a world creates
+the corresponding world directory and files. Failed global/client store opens retry on a later call
+after a one-second backoff. With no mod installed, none of these directories or files are created.
+Opening settings does not create directories. An unchanged config write creates no lock file;
+changed config writes briefly retry a busy in-process lock.
 
 At bind time, existing `store.bin` data and legacy `<world>/yoake-wasm/<mod-id>/<key>.bin`
 or `<game>/config/yoake-wasm/<mod-id>/<key>.bin` entries are imported within quota, without replacing
 newer keys. The `.bin` suffix is stripped in both cases; client stores import neither legacy source.
-Malformed or unreadable entries are skipped with warnings so healthy entries remain usable, and a
-marker records completion. Legacy files and `store.bin` are deliberately retained as recovery backups;
+Corrupt and over-quota migration records are skipped with warnings, continuing with later records
+when their boundaries are recoverable. A marker records completion only if no retryable I/O failure
+occurred. Failed migrations retry when the store is reopened. Corrupt `entry-*.bin` files are renamed
+to `*.bin.corrupt`, retaining at most 16 per store; excess quarantined or corrupt files are deleted.
+Legacy files and `store.bin` are deliberately retained as recovery backups;
 the marker prevents repeated imports. Legacy `world-storage-read/write`
 and raw `config-read/write` now require `service.storage`; `config-dir` requires `service.config`.
 Those imports use the same quota, locking and no-follow rules as new stores.

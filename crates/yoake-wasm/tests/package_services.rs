@@ -156,6 +156,39 @@ fn server_guest_round_trips_config_storage_permissions_and_change_hooks() {
 }
 
 #[test]
+fn tiny_puts_throttle_and_disable_the_server_guest() {
+    let _test = GUEST_TEST.lock().unwrap();
+    let scratch = Scratch::new();
+    let services = scratch.services(ConfigRuntimeSide::Server, true);
+    let bytes = yoake_wasm::test_guests::load(&yoake_wasm::test_guests::FULL_SERVICES_SERVER)
+        .expect("services guest is required");
+    let mut guest = ServerFullMod::instantiate(
+        &mut Sandbox::new(),
+        "example",
+        &bytes,
+        Box::new(Server(services)),
+        &[],
+    )
+    .unwrap();
+    let mut throttled = 0;
+    for _ in 0..24 {
+        if let Some(answer) = guest.handle_call("test", "storage-spam", &[]) {
+            let payload = answer.unwrap();
+            let completed = u32::from_le_bytes(payload[..4].try_into().unwrap());
+            assert!(completed <= 64);
+            assert!(String::from_utf8_lossy(&payload[4..]).contains("budget"));
+            throttled += 1;
+        }
+        if guest.is_disabled() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    assert!(throttled >= 20);
+    assert!(guest.is_disabled());
+}
+
+#[test]
 fn server_guest_without_capabilities_is_denied_without_creating_files() {
     let _test = GUEST_TEST.lock().unwrap();
     let scratch = Scratch::new();

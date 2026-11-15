@@ -18,6 +18,9 @@ pub const STORAGE_CAPABILITY: &str = "service.storage";
 pub const MAX_SYNC_BYTES: usize = 1024 * 1024;
 pub const MAX_WRITE_BYTES_PER_SECOND: usize = 8 * 1024 * 1024;
 pub const MAX_WRITE_BURST_BYTES: usize = 32 * 1024 * 1024;
+pub const MIN_STORAGE_CHARGE: usize = 4 * 1024;
+pub const MAX_STORAGE_OPERATIONS_PER_WINDOW: usize = 64;
+const STORE_RETRY_BACKOFF: Duration = Duration::from_secs(1);
 
 struct WriteBudget {
     checked: Instant,
@@ -55,7 +58,7 @@ pub struct PackageServices {
     global: PathBuf,
     world: Option<PathBuf>,
     stores: BTreeMap<u8, DiskStorage>,
-    store_errors: BTreeMap<u8, String>,
+    store_errors: BTreeMap<u8, (String, Instant)>,
     tickets: BTreeMap<u64, (u8, u64)>,
     next_ticket: u64,
     ticket_owner: u64,
@@ -64,6 +67,8 @@ pub struct PackageServices {
     snapshot_cache: Option<(u64, Arc<Vec<u8>>)>,
     permission_cache: Option<PermissionCache>,
     write_budget: WriteBudget,
+    storage_window: Instant,
+    storage_operations: usize,
 }
 
 impl PackageServices {
@@ -100,6 +105,8 @@ impl PackageServices {
                 checked: Instant::now(),
                 available: MAX_WRITE_BURST_BYTES as f64,
             },
+            storage_window: Instant::now(),
+            storage_operations: 0,
         };
         services.prepare_store(match side {
             ConfigRuntimeSide::Server => 1,
@@ -293,11 +300,13 @@ impl PackageServices {
         };
         match result {
             Ok(store) => {
+                self.store_errors.remove(&scope);
                 self.stores.insert(scope, store);
             }
             Err(error) => {
                 eprintln!("[yoake] storage {}: {error}", self.id);
-                self.store_errors.insert(scope, error);
+                self.store_errors
+                    .insert(scope, (error, Instant::now() + STORE_RETRY_BACKOFF));
             }
         }
     }
@@ -311,7 +320,15 @@ impl PackageServices {
             (ConfigRuntimeSide::Server, 0 | 1) | (ConfigRuntimeSide::Client, 2) => {}
             _ => return Err("storage scope is unavailable on this side".into()),
         }
-        if let Some(error) = self.store_errors.get(&scope) {
+        if !self.stores.contains_key(&scope)
+            && self
+                .store_errors
+                .get(&scope)
+                .is_none_or(|(_, retry)| Instant::now() >= *retry)
+        {
+            self.prepare_store(scope);
+        }
+        if let Some((error, _)) = self.store_errors.get(&scope) {
             return Err(error.clone());
         }
         self.stores
@@ -327,7 +344,23 @@ impl PackageServices {
 
     fn charge_write(&mut self, bytes: usize) -> Result<(), String> {
         self.require(STORAGE_CAPABILITY)?;
-        self.write_budget.charge(bytes)
+        let window = crate::storage_window_start();
+        if window.saturating_duration_since(self.storage_window) >= crate::AGGREGATE_WINDOW {
+            self.storage_window = window;
+            self.storage_operations = 0;
+        }
+        if self.storage_operations >= MAX_STORAGE_OPERATIONS_PER_WINDOW {
+            crate::storage_throttled();
+            return Err("storage operation budget exceeded".into());
+        }
+        self.storage_operations += 1;
+        self.charge_storage_bytes(bytes.max(MIN_STORAGE_CHARGE))
+    }
+
+    fn charge_storage_bytes(&mut self, bytes: usize) -> Result<(), String> {
+        self.write_budget
+            .charge(bytes)
+            .inspect_err(|_| crate::storage_throttled())
     }
 
     pub(crate) fn claim_tickets(&mut self) -> u64 {
@@ -357,17 +390,16 @@ impl PackageServices {
         key: &str,
         scope: StorageScope,
     ) -> Result<Option<Vec<u8>>, String> {
+        self.charge_write(0)?;
         if !self.has_store(scope_id(scope), key)? {
             return Ok(None);
         }
-        let value = self.store(scope_id(scope))?.get(key)?;
-        if value
-            .as_ref()
-            .is_some_and(|value| value.len() > crate::host_services::MAX_MESSAGE_BYTES)
-        {
+        let length = self.store(scope_id(scope))?.value_len(key).unwrap_or_default();
+        if length > crate::host_services::MAX_MESSAGE_BYTES {
             return Err("value requires storage-blob-read".into());
         }
-        Ok(value)
+        self.charge_storage_bytes(length.saturating_sub(MIN_STORAGE_CHARGE))?;
+        self.store(scope_id(scope))?.get(key)
     }
 
     pub fn storage_put(
@@ -385,10 +417,10 @@ impl PackageServices {
     }
 
     pub fn storage_delete(&mut self, key: &str, scope: StorageScope) -> Result<bool, String> {
+        self.charge_write(key.len() + 6)?;
         if !self.has_store(scope_id(scope), key)? {
             return Ok(false);
         }
-        self.charge_write(key.len() + 6)?;
         self.store(scope_id(scope))?.delete(key)
     }
 
@@ -398,7 +430,7 @@ impl PackageServices {
         scope: StorageScope,
         total: u64,
     ) -> Result<u64, String> {
-        self.require(STORAGE_CAPABILITY)?;
+        self.charge_write(0)?;
         if self.tickets.len() >= 64 {
             return Err("too many blob tickets".into());
         }
@@ -430,6 +462,7 @@ impl PackageServices {
     }
 
     pub fn storage_blob_write(&mut self, data: &[u8], id: u64, offset: u64) -> Result<(), String> {
+        self.charge_write(data.len())?;
         let (scope, ticket) = self.ticket(id)?;
         let offset = usize::try_from(offset).map_err(|_| "invalid blob offset")?;
         self.store(scope)?
@@ -438,19 +471,20 @@ impl PackageServices {
     }
 
     pub fn storage_blob_commit(&mut self, id: u64) -> Result<(), String> {
+        self.charge_write(0)?;
         let (scope, ticket) = self.ticket(id)?;
         let bytes = self
             .store(scope)?
             .blob_size(ticket)
             .ok_or("unknown blob ticket")?;
-        self.charge_write(bytes + 262)?;
+        self.charge_storage_bytes((bytes + 262).saturating_sub(MIN_STORAGE_CHARGE))?;
         self.store(scope)?.commit_blob(ticket)?;
         self.tickets.remove(&id);
         Ok(())
     }
 
     pub fn storage_blob_abort(&mut self, id: u64) -> Result<bool, String> {
-        self.require(STORAGE_CAPABILITY)?;
+        self.charge_write(0)?;
         let Some((scope, ticket)) = self.tickets.remove(&id) else {
             return Ok(false);
         };
@@ -464,11 +498,17 @@ impl PackageServices {
         offset: u64,
         scope: StorageScope,
     ) -> Result<Vec<u8>, String> {
-        self.require(STORAGE_CAPABILITY)?;
+        self.charge_write(0)?;
+        if length as usize > MAX_SYNC_BYTES {
+            return Err("blob read exceeds per-call byte limit".into());
+        }
         if !self.has_store(scope_id(scope), key)? {
             return Ok(Vec::new());
         }
         let offset = usize::try_from(offset).map_err(|_| "invalid blob offset")?;
+        let bytes = self.store(scope_id(scope))?.value_len(key).unwrap_or_default()
+            .saturating_sub(offset).min(length as usize);
+        self.charge_storage_bytes(bytes.saturating_sub(MIN_STORAGE_CHARGE))?;
         Ok(self
             .store(scope_id(scope))?
             .read_blob(key, offset, length as usize)?
@@ -1023,11 +1063,11 @@ side = "synced"
                 .unwrap_err()
                 .contains("write budget")
         );
+        service.write_budget.checked = Instant::now() - Duration::from_secs(5);
         assert_eq!(
             service.storage_get("blob", StorageScope::World).unwrap(),
             None
         );
-        service.write_budget.checked = Instant::now() - Duration::from_secs(5);
         service.storage_blob_commit(ticket).unwrap();
         assert_eq!(
             service
@@ -1036,6 +1076,88 @@ side = "synced"
                 .unwrap(),
             b"data"
         );
+    }
+
+    #[test]
+    fn tiny_puts_have_a_minimum_charge_and_a_per_window_limit() {
+        let root = Scratch::new();
+        let mut service = open(&root.0, ConfigRuntimeSide::Server, &[STORAGE_CAPABILITY]);
+        service.storage_window = Instant::now() + Duration::from_secs(60);
+        for _ in 0..MAX_STORAGE_OPERATIONS_PER_WINDOW {
+            service.write_budget.checked = service.storage_window;
+            service
+                .storage_put("tiny", StorageScope::Global, &[1])
+                .unwrap();
+        }
+        assert_eq!(
+            service.write_budget.available,
+            (MAX_WRITE_BURST_BYTES - MIN_STORAGE_CHARGE * MAX_STORAGE_OPERATIONS_PER_WINDOW) as f64
+        );
+        assert!(
+            service
+                .storage_put("tiny", StorageScope::Global, &[1])
+                .unwrap_err()
+                .contains("operation budget")
+        );
+        service.storage_window = Instant::now() - crate::AGGREGATE_WINDOW;
+        service
+            .storage_put("tiny", StorageScope::Global, &[2])
+            .unwrap();
+        assert_eq!(service.storage_operations, 1);
+        assert_eq!(
+            service.storage_get("tiny", StorageScope::Global).unwrap(),
+            Some(vec![2])
+        );
+    }
+
+    #[test]
+    fn large_reads_charge_the_bytes_before_loading_them() {
+        let root = Scratch::new();
+        let mut service = open(&root.0, ConfigRuntimeSide::Server, &[STORAGE_CAPABILITY]);
+        service
+            .store(1)
+            .unwrap()
+            .put("large", &vec![7; 64 * 1024])
+            .unwrap();
+        for blob in [false, true] {
+            service.write_budget.available = MIN_STORAGE_CHARGE as f64;
+            service.write_budget.checked = Instant::now() + Duration::from_secs(60);
+            let error = if blob {
+                service
+                    .storage_blob_read("large", 64 * 1024, 0, StorageScope::Global)
+                    .unwrap_err()
+            } else {
+                service
+                    .storage_get("large", StorageScope::Global)
+                    .unwrap_err()
+            };
+            assert!(error.contains("write budget"));
+        }
+    }
+
+    #[test]
+    fn scoped_store_open_failures_retry_after_backoff() {
+        for (side, scope, scope_id) in [
+            (ConfigRuntimeSide::Server, StorageScope::Global, 1),
+            (ConfigRuntimeSide::Client, StorageScope::Client, 2),
+        ] {
+            let root = Scratch::new();
+            let owner = open(&root.0, side, &[STORAGE_CAPABILITY]);
+            let mut service = open(&root.0, side, &[STORAGE_CAPABILITY]);
+            assert!(
+                service
+                    .storage_get("missing", scope)
+                    .unwrap_err()
+                    .contains("already open")
+            );
+            drop(owner);
+            service.store_errors.get_mut(&scope_id).unwrap().1 =
+                Instant::now() + Duration::from_secs(60);
+            assert!(service.storage_get("missing", scope).is_err());
+            service.store_errors.get_mut(&scope_id).unwrap().1 = Instant::now() - Duration::from_secs(1);
+            assert_eq!(service.storage_get("missing", scope).unwrap(), None);
+            assert!(!service.store_errors.contains_key(&scope_id));
+        }
     }
 
     #[test]
