@@ -1,0 +1,24 @@
+[package]
+name = "yoake-wasm-tested-counter"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+yoake-wasm-sdk = { path = "../.." }
+
+[features]
+# `yoake test` builds the test module with this feature (it exports the tests instead of the mod).
+tests = ["yoake-wasm-sdk/test"]
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+panic = "abort"
+
+[workspace]
