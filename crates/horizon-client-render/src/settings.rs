@@ -650,6 +650,7 @@ impl Settings {
                 &binding.label,
             )?;
         }
+        updated.keys.preserve_mod_key_state(&self.keys);
         Ok(updated)
     }
     /// The `options.txt` text (Options.save).
@@ -860,11 +861,14 @@ mod tests {
             )
             .unwrap();
         assert_eq!(settings.keys.get("key.mod.test/open"), "key.mouse.4");
+        settings.keys.mod_key_event("key.mouse.4", true);
         let updated = settings.with_option("fov", "90").unwrap();
+        assert!(updated.keys.mod_key_state("test:open"));
         assert_eq!(updated.keys.mod_bindings(), settings.keys.mod_bindings());
         assert_eq!(updated.keys.get("key.forward"), "key.keyboard.up");
         let mut restored = Settings::parse(&updated.serialize());
         assert!(restored.keys.mod_bindings().is_empty());
+        assert!(!restored.keys.mod_key_state("test:open"));
         restored
             .keys
             .register_mod_binding(

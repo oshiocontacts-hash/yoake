@@ -3,6 +3,7 @@
 
 use super::{Blend, HudBatch, Rect};
 use std::{
+    collections::BTreeMap,
     ops::Range,
     sync::{
         Arc, Mutex, OnceLock, Weak,
@@ -235,6 +236,8 @@ struct Registration {
     texture: wgpu::Texture,
     group: wgpu::BindGroup,
     bytes: u64,
+    filter: NativeGuiTextureFilter,
+    pixels: Mutex<Option<Vec<u8>>>,
 }
 
 impl Drop for Registration {
@@ -265,8 +268,65 @@ impl NativeGuiTexture {
         &self.0.group
     }
 
-    pub(super) fn registration(&self) -> u64 {
+    pub fn registration(&self) -> u64 {
         self.0.id
+    }
+
+    pub(super) fn filter(&self) -> NativeGuiTextureFilter {
+        self.0.filter
+    }
+
+    pub(super) fn restore_source(&self) -> Result<Source<'_>, NativeGuiTextureError> {
+        if self.0.generation.epoch != device_epoch()
+            && self
+                .0
+                .pixels
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .is_none()
+        {
+            return Err(NativeGuiTextureError::StaleGeneration);
+        }
+        Ok(Source::Restore(self))
+    }
+
+    pub(super) fn needs_restore_upload(&self) -> bool {
+        self.0.generation.epoch != device_epoch()
+    }
+
+    pub(super) fn restore_upload(&self, queue: &wgpu::Queue) {
+        let pixels = self
+            .0
+            .pixels
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        if let Some(pixels) = pixels.as_ref() {
+            let row_bytes = pixels.len() / self.texture().height() as usize;
+            let rows = (MAX_UPLOAD_BYTES as usize / row_bytes).max(1);
+            for (index, chunk) in pixels.chunks(row_bytes * rows).enumerate() {
+                queue.write_texture(
+                    wgpu::TexelCopyTextureInfo {
+                        origin: wgpu::Origin3d {
+                            x: 0,
+                            y: (index * rows) as u32,
+                            z: 0,
+                        },
+                        ..self.texture().as_image_copy()
+                    },
+                    chunk,
+                    wgpu::TexelCopyBufferLayout {
+                        offset: 0,
+                        bytes_per_row: Some(row_bytes as u32),
+                        rows_per_image: None,
+                    },
+                    wgpu::Extent3d {
+                        width: self.texture().width(),
+                        height: (chunk.len() / row_bytes) as u32,
+                        depth_or_array_layers: 1,
+                    },
+                );
+            }
+        }
     }
 }
 
@@ -373,6 +433,7 @@ fn check_limits(
 pub(super) enum Source<'a> {
     Register(&'a wgpu::Texture),
     Create([u32; 2], wgpu::TextureFormat),
+    Restore(&'a NativeGuiTexture),
 }
 
 pub(super) struct NativeGuiTextures {
@@ -419,6 +480,21 @@ impl NativeGuiTextures {
             target.format(),
             bytes.len(),
         )?;
+        if let Some(pixels) = texture
+            .0
+            .pixels
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .as_mut()
+        {
+            let pixel_bytes = row_bytes as usize / size[0] as usize;
+            let target_row = target.width() as usize * pixel_bytes;
+            for (row, source) in bytes.chunks_exact(row_bytes as usize).enumerate() {
+                let offset =
+                    (origin[1] as usize + row) * target_row + origin[0] as usize * pixel_bytes;
+                pixels[offset..offset + source.len()].copy_from_slice(source);
+            }
+        }
         queue.write_texture(
             wgpu::TexelCopyTextureInfo {
                 origin: wgpu::Origin3d {
@@ -520,6 +596,11 @@ impl NativeGuiTextures {
                 )
             }
             Source::Create(size, format) => (*size, *format, 1),
+            Source::Restore(previous) => (
+                [previous.texture().width(), previous.texture().height()],
+                previous.texture().format(),
+                previous.texture().mip_level_count(),
+            ),
         };
         let max_side = device.limits().max_texture_dimension_2d;
         check_limits(size, max_side, 0, 0, 0)?;
@@ -547,16 +628,41 @@ impl NativeGuiTextures {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         registrations.retain(|registration| registration.strong_count() != 0);
-        let retained_bytes = registrations
+        let previous_id = match &source {
+            Source::Restore(previous) => Some(previous.registration()),
+            _ => None,
+        };
+        let retained: BTreeMap<_, _> = registrations
             .iter()
             .filter_map(Weak::upgrade)
-            .map(|registration| registration.bytes)
-            .sum();
-        check_limits(size, max_side, registrations.len(), retained_bytes, bytes)?;
+            .filter(|registration| Some(registration.id) != previous_id)
+            .map(|registration| (registration.id, registration.bytes))
+            .collect();
+        check_limits(
+            size,
+            max_side,
+            retained.len(),
+            retained.values().sum(),
+            bytes,
+        )?;
+        let pixels = match &source {
+            Source::Register(_) => None,
+            Source::Create(_, _) => Some(vec![0; bytes as usize]),
+            Source::Restore(previous) => previous
+                .0
+                .pixels
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .clone(),
+        };
         // CHECK: external textures must use this device; wgpu exposes no device identity query.
         let texture = match source {
             Source::Register(texture) => texture.clone(),
-            Source::Create([width, height], format) => {
+            Source::Restore(previous) if previous.0.generation.epoch == device_epoch() => {
+                previous.texture().clone()
+            }
+            Source::Create(_, _) | Source::Restore(_) => {
+                let [width, height] = size;
                 device.create_texture(&wgpu::TextureDescriptor {
                     label: Some("Native GUI texture"),
                     size: wgpu::Extent3d {
@@ -611,11 +717,13 @@ impl NativeGuiTextures {
             ],
         });
         let registration = Arc::new(Registration {
-            id: NEXT_REGISTRATION.fetch_add(1, Ordering::Relaxed),
+            id: previous_id.unwrap_or_else(|| NEXT_REGISTRATION.fetch_add(1, Ordering::Relaxed)),
             generation: self.generation.clone(),
             texture,
             group,
             bytes,
+            filter,
+            pixels: Mutex::new(pixels),
         });
         registrations.push(Arc::downgrade(&registration));
         Ok(NativeGuiTexture(registration))
@@ -1443,6 +1551,18 @@ mod tests {
         drop(replacement);
         drop(retained);
 
+        let saved = renderer
+            .native_gui_texture_create(
+                &device,
+                [1, 1],
+                wgpu::TextureFormat::Rgba8Unorm,
+                NativeGuiTextureFilter::Nearest,
+            )
+            .unwrap();
+        renderer
+            .native_gui_texture_write(&queue, &saved, [0, 0], [1, 1], &[255, 0, 0, 255])
+            .unwrap();
+
         device_lost();
         assert!(
             first
@@ -1483,6 +1603,37 @@ mod tests {
             &sampler,
         )
         .unwrap();
+        assert_eq!(
+            reloaded
+                .native_world_texture_restore(&device, &queue, &first)
+                .unwrap_err(),
+            NativeGuiTextureError::StaleGeneration
+        );
+        let restored = reloaded
+            .native_world_texture_restore(&device, &queue, &saved)
+            .unwrap();
+        assert_eq!(restored.registration(), saved.registration());
+        assert_eq!(restored.filter(), NativeGuiTextureFilter::Nearest);
+        let mut restored_batch = HudBatch::new([1, 1]);
+        assert!(restored_batch.native_gui_texture(
+            &restored,
+            [0.0, 0.0, 1.0, 1.0],
+            [0.0, 0.0, 1.0, 1.0],
+            u32::MAX,
+            None,
+        ));
+        assert_eq!(
+            render(
+                &mut reloaded,
+                &device,
+                &queue,
+                &restored_batch,
+                [1, 1],
+                false
+            )
+            .0,
+            [255, 0, 0, 255]
+        );
         let fresh = reloaded
             .native_gui_texture_create(
                 &device,

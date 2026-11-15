@@ -459,7 +459,10 @@ impl Game<'_> {
             // one was sized from (it drew a window-sized frame into the view, cut off).
             if let Some(old) = &self.renderer {
                 renderer.resize(old.config.width, old.config.height);
+                self.native_post_shaders.capture(&old.native_services.post);
+                self.native_world_lines.failures = old.native_services.draws.failures();
             }
+            self.restore_native_services(&mut renderer);
             self.renderer = Some(renderer);
             self.apply_ui_settings();
         }

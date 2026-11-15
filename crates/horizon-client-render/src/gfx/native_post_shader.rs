@@ -1,16 +1,267 @@
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    time::{Duration, Instant},
+};
 
 use wgpu::util::DeviceExt;
 
 use super::native_services::checked;
 
-pub const MAX_POST_SHADERS: usize = 32;
+pub const MAX_POST_SHADERS: usize = 4;
 pub const MAX_POST_SOURCE: usize = 65_536;
 pub const MAX_POST_UNIFORMS: u32 = 4096;
+const MAX_INVOCATION_COST: u64 = 8192;
+const MAX_IMAGE_SAMPLES: u64 = 64;
+const MAX_CALL_DEPTH: u32 = 16;
+
+#[derive(Clone, Copy, Default)]
+struct Cost {
+    expressions: u64,
+    samples: u64,
+    depth: u32,
+}
+
+fn calls(block: &naga::Block, output: &mut Vec<naga::Handle<naga::Function>>) {
+    for statement in block.iter() {
+        match statement {
+            naga::Statement::Call { function, .. } => output.push(*function),
+            naga::Statement::Block(block) => calls(block, output),
+            naga::Statement::If { accept, reject, .. } => {
+                calls(accept, output);
+                calls(reject, output);
+            }
+            naga::Statement::Switch { cases, .. } => {
+                for case in cases {
+                    calls(&case.body, output);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn invocation_cost(
+    module: &naga::Module,
+    function: &naga::Function,
+    cache: &mut BTreeMap<usize, Cost>,
+    ancestors: u32,
+) -> Result<Cost, String> {
+    if ancestors >= MAX_CALL_DEPTH {
+        return Err("post shader call depth exceeds 16".into());
+    }
+    let mut cost = Cost {
+        expressions: function.expressions.len() as u64,
+        samples: function
+            .expressions
+            .iter()
+            .filter(|(_, expression)| {
+                matches!(
+                    expression,
+                    naga::Expression::ImageSample { .. } | naga::Expression::ImageLoad { .. }
+                )
+            })
+            .count() as u64,
+        depth: 1,
+    };
+    let mut callees = Vec::new();
+    calls(&function.body, &mut callees);
+    for callee in callees {
+        let nested = if let Some(cached) = cache.get(&callee.index()) {
+            *cached
+        } else {
+            let nested = invocation_cost(module, &module.functions[callee], cache, ancestors + 1)?;
+            cache.insert(callee.index(), nested);
+            nested
+        };
+        cost.expressions = cost.expressions.saturating_add(nested.expressions);
+        cost.samples = cost.samples.saturating_add(nested.samples);
+        cost.depth = cost.depth.max(nested.depth.saturating_add(1));
+    }
+    if cost.expressions > MAX_INVOCATION_COST
+        || cost.samples > MAX_IMAGE_SAMPLES
+        || cost.depth > MAX_CALL_DEPTH
+    {
+        return Err(
+            "post shader exceeds 8192 expression-equivalents, 64 image fetches, or call depth 16"
+                .into(),
+        );
+    }
+    Ok(cost)
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct NativePostUniformLayout {
     pub size: u32,
+}
+
+struct SavedShader {
+    source: String,
+    layout: NativePostUniformLayout,
+    uniforms: Vec<u8>,
+    state: Result<bool, String>,
+}
+
+#[derive(Default)]
+struct ModBudget {
+    failed: u32,
+    since: Option<Instant>,
+    updates: u32,
+}
+
+impl ModBudget {
+    fn registration(&mut self, now: Instant) -> Result<(), String> {
+        if self
+            .since
+            .is_none_or(|since| now.duration_since(since) >= Duration::from_secs(60))
+        {
+            self.since = Some(now);
+            self.failed = 0;
+        }
+        if self.failed >= 8 {
+            return Err("post shader failed registration limit: 8 per mod per minute".into());
+        }
+        Ok(())
+    }
+
+    fn uniform_update(&mut self) -> Result<(), String> {
+        if self.updates >= 16 {
+            return Err("post uniform update limit: 16 per mod per frame".into());
+        }
+        self.updates += 1;
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct PostShaderRegistry {
+    shaders: BTreeMap<String, SavedShader>,
+    budgets: BTreeMap<String, ModBudget>,
+}
+
+impl PostShaderRegistry {
+    pub fn begin_frame(&mut self) {
+        for budget in self.budgets.values_mut() {
+            budget.updates = 0;
+        }
+    }
+
+    pub fn register(
+        &mut self,
+        post: &mut PostShaders,
+        device: &wgpu::Device,
+        format: wgpu::TextureFormat,
+        id: &str,
+        source: &str,
+        layout: NativePostUniformLayout,
+    ) -> Result<(), String> {
+        if id.is_empty() || id.len() > 256 || !id.contains(':') {
+            return Err("post shader id must be a namespaced id of at most 256 bytes".into());
+        }
+        let budget = self
+            .budgets
+            .entry(id.split(':').next().unwrap().into())
+            .or_default();
+        budget.registration(Instant::now())?;
+        let result = if self.shaders.contains_key(id) {
+            Err("post shader already registered".into())
+        } else if self
+            .shaders
+            .keys()
+            .filter(|registered| registered.split(':').next() == id.split(':').next())
+            .count()
+            >= MAX_POST_SHADERS
+        {
+            Err("post shader limit: 4 per mod".into())
+        } else {
+            post.register(device, format, id, source, layout)
+        };
+        if result.is_err() {
+            budget.failed += 1;
+        }
+        result?;
+        self.shaders.insert(
+            id.into(),
+            SavedShader {
+                source: source.into(),
+                layout,
+                uniforms: vec![0; layout.size as usize],
+                state: Ok(false),
+            },
+        );
+        Ok(())
+    }
+
+    pub fn set_uniforms(
+        &mut self,
+        post: &mut PostShaders,
+        queue: &wgpu::Queue,
+        id: &str,
+        bytes: &[u8],
+    ) -> Result<(), String> {
+        let saved = self.shaders.get_mut(id).ok_or("unknown post shader")?;
+        self.budgets
+            .entry(id.split(':').next().unwrap().into())
+            .or_default()
+            .uniform_update()?;
+        post.set_uniforms(queue, id, bytes)?;
+        saved.uniforms.copy_from_slice(bytes);
+        Ok(())
+    }
+
+    pub fn enable(
+        &mut self,
+        post: &mut PostShaders,
+        id: &str,
+        enabled: bool,
+    ) -> Result<(), String> {
+        let saved = self.shaders.get_mut(id).ok_or("unknown post shader")?;
+        saved.state.as_ref().map_err(Clone::clone)?;
+        post.enable(id, enabled)?;
+        saved.state = Ok(enabled);
+        Ok(())
+    }
+
+    pub fn state(&self, post: &PostShaders, id: &str) -> Result<bool, String> {
+        let saved = self.shaders.get(id).ok_or("unknown post shader")?;
+        saved.state.as_ref().map_err(Clone::clone)?;
+        post.state(id)
+    }
+
+    pub fn unregister(&mut self, post: &mut PostShaders, id: &str) -> Result<(), String> {
+        self.shaders.remove(id).ok_or("unknown post shader")?;
+        if post.shaders.contains_key(id) {
+            post.unregister(id)?;
+        }
+        Ok(())
+    }
+
+    pub fn capture(&mut self, post: &PostShaders) {
+        for (id, saved) in &mut self.shaders {
+            if saved.state.is_ok() {
+                saved.state = post.state(id);
+            }
+        }
+    }
+
+    pub fn restore(
+        &mut self,
+        post: &mut PostShaders,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        format: wgpu::TextureFormat,
+    ) {
+        for (id, saved) in &mut self.shaders {
+            let Ok(enabled) = saved.state else { continue };
+            let result = post
+                .register(device, format, id, &saved.source, saved.layout)
+                .and_then(|()| post.set_uniforms(queue, id, &saved.uniforms))
+                .and_then(|()| post.enable(id, enabled));
+            if let Err(error) = result {
+                post.disable(id, error.clone());
+                saved.state = Err(error);
+            }
+        }
+    }
 }
 
 fn loop_free(block: &naga::Block) -> bool {
@@ -60,6 +311,19 @@ fn validate(source: &str, layout: NativePostUniformLayout) -> Result<naga::Modul
     layouter
         .update(module.to_ctx())
         .map_err(|error| error.to_string())?;
+    if module
+        .types
+        .iter()
+        .any(|(handle, _)| layouter[handle].size > 16_384)
+    {
+        return Err("post shader type size exceeds 16384 bytes".into());
+    }
+    invocation_cost(
+        &module,
+        &module.entry_points[0].function,
+        &mut BTreeMap::new(),
+        0,
+    )?;
     let mut private_bytes = 0u64;
     for (_, variable) in module.global_variables.iter() {
         match variable.space {
@@ -142,6 +406,7 @@ struct Shader {
     uniforms: Option<wgpu::Buffer>,
     size: u32,
     enabled: bool,
+    failure: Option<String>,
 }
 
 struct Target {
@@ -174,7 +439,12 @@ impl PostShaders {
         if id.is_empty()
             || id.len() > 256
             || self.shaders.contains_key(id)
-            || self.shaders.len() >= MAX_POST_SHADERS
+            || self
+                .shaders
+                .keys()
+                .filter(|existing| existing.split(':').next() == id.split(':').next())
+                .count()
+                >= MAX_POST_SHADERS
         {
             return Err("invalid, duplicate or excessive post shader id".into());
         }
@@ -266,6 +536,7 @@ impl PostShaders {
                 uniforms,
                 size: uniforms_layout.size,
                 enabled: false,
+                failure: None,
             }
         })?;
         self.shaders.insert(id.into(), shader);
@@ -289,23 +560,67 @@ impl PostShaders {
     }
 
     pub fn enable(&mut self, id: &str, enabled: bool) -> Result<(), String> {
-        self.shaders
-            .get_mut(id)
-            .ok_or("unknown post shader")?
-            .enabled = enabled;
+        let shader = self.shaders.get_mut(id).ok_or("unknown post shader")?;
+        if enabled && let Some(error) = &shader.failure {
+            return Err(error.clone());
+        }
+        shader.enabled = enabled;
         Ok(())
+    }
+
+    pub fn unregister(&mut self, id: &str) -> Result<(), String> {
+        self.shaders
+            .remove(id)
+            .map(|_| ())
+            .ok_or("unknown post shader".into())
+    }
+
+    pub fn state(&self, id: &str) -> Result<bool, String> {
+        let shader = self.shaders.get(id).ok_or("unknown post shader")?;
+        match &shader.failure {
+            Some(error) => Err(error.clone()),
+            None => Ok(shader.enabled),
+        }
+    }
+
+    fn disable(&mut self, id: &str, error: String) {
+        if let Some(shader) = self.shaders.get_mut(id) {
+            if shader.failure.is_none() {
+                eprintln!("mod post shader {id}: {error}");
+                shader.failure = Some(error);
+            }
+            shader.enabled = false;
+        }
     }
 
     pub fn render(
         &mut self,
         device: &wgpu::Device,
-        encoder: &mut wgpu::CommandEncoder,
-        color: &wgpu::TextureView,
-    ) -> Result<(), String> {
-        if !self.active() {
-            return Ok(());
+        color: &wgpu::Texture,
+    ) -> Vec<wgpu::CommandBuffer> {
+        let ids: Vec<_> = self
+            .shaders
+            .iter()
+            .filter(|(_, shader)| shader.enabled)
+            .map(|(id, _)| id.clone())
+            .collect();
+        let mut commands = Vec::new();
+        for id in ids {
+            match self.encode(device, color, &id) {
+                Ok(buffer) => commands.push(buffer),
+                Err(error) => self.disable(&id, error),
+            }
         }
-        let texture = color.texture();
+        commands
+    }
+
+    fn encode(
+        &mut self,
+        device: &wgpu::Device,
+        color: &wgpu::Texture,
+        id: &str,
+    ) -> Result<wgpu::CommandBuffer, String> {
+        let texture = color;
         if !texture.usage().contains(wgpu::TextureUsages::COPY_SRC) {
             return Err("post world target cannot be copied".into());
         }
@@ -314,17 +629,21 @@ impl PostShaders {
         if texture.dimension() != wgpu::TextureDimension::D2
             || texture.sample_count() != 1
             || size.depth_or_array_layers != 1
+            || size.width == 0
+            || size.height == 0
+            || !matches!(
+                format,
+                wgpu::TextureFormat::Rgba8Unorm
+                    | wgpu::TextureFormat::Bgra8Unorm
+                    | wgpu::TextureFormat::Rgba16Float
+            )
             || !texture
                 .usage()
                 .contains(wgpu::TextureUsages::RENDER_ATTACHMENT)
         {
             return Err("post world target must be a single-sampled 2D color attachment".into());
         }
-        if self
-            .shaders
-            .values()
-            .any(|shader| shader.enabled && shader.format != format)
-        {
+        if self.shaders[id].format != format {
             return Err("post shader color format does not match the world target".into());
         }
         if !self.target.as_ref().is_some_and(|target| {
@@ -354,7 +673,18 @@ impl PostShaders {
             })?);
         }
         let target = self.target.as_ref().unwrap();
-        for shader in self.shaders.values().filter(|shader| shader.enabled) {
+        let shader = &self.shaders[id];
+        checked(device, || {
+            let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("isolated mod post shader"),
+            });
+            let color_view = color.create_view(&wgpu::TextureViewDescriptor {
+                format: Some(format),
+                dimension: Some(wgpu::TextureViewDimension::D2),
+                mip_level_count: Some(1),
+                array_layer_count: Some(1),
+                ..Default::default()
+            });
             encoder.copy_texture_to_texture(
                 texture.as_image_copy(),
                 target.texture.as_image_copy(),
@@ -376,18 +706,16 @@ impl PostShaders {
                     resource: buffer.as_entire_binding(),
                 });
             }
-            let group = checked(device, || {
-                device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("mod post group"),
-                    layout: &shader.layout,
-                    entries: &entries,
-                })
-            })?;
-            checked(device, || {
+            let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("mod post group"),
+                layout: &shader.layout,
+                entries: &entries,
+            });
+            {
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("mod post"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: color,
+                        view: &color_view,
                         resolve_target: None,
                         depth_slice: None,
                         ops: wgpu::Operations {
@@ -400,9 +728,9 @@ impl PostShaders {
                 pass.set_pipeline(&shader.pipeline);
                 pass.set_bind_group(0, &group, &[]);
                 pass.draw(0..3, 0..1);
-            })?;
-        }
-        Ok(())
+            }
+            encoder.finish()
+        })
     }
 }
 
@@ -452,5 +780,108 @@ mod tests {
         assert!(!shaders.active());
         assert!(shaders.target.is_none());
         assert!(shaders.enable("missing", true).is_err());
+    }
+
+    fn call_chain(levels: usize, fanout: usize, sampled: bool) -> String {
+        let leaf = if sampled {
+            "textureSample(image, nearest, uv)"
+        } else {
+            "vec4<f32>(uv, uv.x + uv.y, 1.0)"
+        };
+        let mut source = VALID.replace(
+            "textureSample(image, nearest, uv)",
+            &format!("level{}(uv)", levels - 1),
+        );
+        source.push_str(&format!(
+            "fn level0(uv: vec2<f32>) -> vec4<f32> {{ return {leaf}; }}"
+        ));
+        for level in 1..levels {
+            let expression = vec![format!("level{}(uv)", level - 1); fanout].join(" + ");
+            source.push_str(&format!(
+                "fn level{level}(uv: vec2<f32>) -> vec4<f32> {{ return {expression}; }}"
+            ));
+        }
+        source
+    }
+
+    #[test]
+    fn counts_every_call_in_sample_and_expression_dags() {
+        validate(&call_chain(3, 8, true), NativePostUniformLayout::default()).unwrap();
+        let samples =
+            validate(&call_chain(13, 8, true), NativePostUniformLayout::default()).unwrap_err();
+        assert!(samples.contains("64 image fetches"), "{samples}");
+        let expressions =
+            validate(&call_chain(7, 8, false), NativePostUniformLayout::default()).unwrap_err();
+        assert!(
+            expressions.contains("8192 expression-equivalents"),
+            "{expressions}"
+        );
+    }
+
+    #[test]
+    fn bounds_call_depth_even_without_fanout() {
+        validate(
+            &call_chain(15, 1, false),
+            NativePostUniformLayout::default(),
+        )
+        .unwrap();
+        let error = validate(
+            &call_chain(16, 1, false),
+            NativePostUniformLayout::default(),
+        )
+        .unwrap_err();
+        assert!(error.contains("depth"), "{error}");
+    }
+
+    #[test]
+    fn rejects_oversized_constant_argument_and_return_types_without_variables() {
+        for declaration in [
+            "const huge: array<vec4<f32>, 1025> = array<vec4<f32>, 1025>();",
+            "fn huge_arg(value: array<vec4<f32>, 1025>) -> f32 { return value[0].x; }",
+            "fn huge_return() -> array<vec4<f32>, 1025> { return array<vec4<f32>, 1025>(); }",
+        ] {
+            let source = format!("{declaration} {VALID}");
+            let module = naga::front::wgsl::parse_str(&source).unwrap();
+            naga::valid::Validator::new(
+                naga::valid::ValidationFlags::all(),
+                naga::valid::Capabilities::empty(),
+            )
+            .validate(&module)
+            .unwrap();
+            let error = validate(&source, NativePostUniformLayout::default()).unwrap_err();
+            assert!(error.contains("type size"), "{error}");
+        }
+    }
+
+    #[test]
+    fn failed_registration_and_uniform_budgets_are_bounded_and_reset() {
+        let now = Instant::now();
+        let mut budget = ModBudget::default();
+        for _ in 0..8 {
+            budget.registration(now).unwrap();
+            budget.failed += 1;
+        }
+        assert!(budget.registration(now + Duration::from_secs(59)).is_err());
+        budget.registration(now + Duration::from_secs(60)).unwrap();
+        assert_eq!(budget.failed, 0);
+        for _ in 0..16 {
+            budget.uniform_update().unwrap();
+        }
+        assert!(budget.uniform_update().is_err());
+        let mut registry = PostShaderRegistry::default();
+        registry.budgets.insert("first".into(), budget);
+        registry
+            .budgets
+            .entry("second".into())
+            .or_default()
+            .uniform_update()
+            .unwrap();
+        registry.begin_frame();
+        registry
+            .budgets
+            .get_mut("first")
+            .unwrap()
+            .uniform_update()
+            .unwrap();
     }
 }

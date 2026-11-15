@@ -4978,10 +4978,12 @@ Fragment `@API:world_lines@` adds these source-mod helpers, all returning
 Coordinates are world blocks, color is straight-alpha ARGB, UVs are normalized
 `[u0, v0, u1, v1]`, and billboard sizes are positive block dimensions up to 256.
 Line endpoints must be distinct; widths are 0.5 to 4 pixels. Coordinates and
-dimensions must be finite. There is one shared 256-primitive frame budget.
+dimensions must be finite. Each mod can queue up to 256 primitives per frame;
+the renderer selects at most 256 total in round-robin order across mods, rotating
+the first mod each frame so an earlier mod cannot exhaust another mod's share.
 Primitives farther than 256 blocks from the camera are discarded. Textures
 must be current, same-renderer GUI texture handles. Requests are accepted from
-the client world frame hook and consumed once in the existing world pass with
+the client world frame hook and consumed once after the world pass with
 the world's reverse-Z depth test, alpha blending, and no depth writes.
 
 For late submission, opt into `RenderNeeds::pre_post()` with fragment
@@ -4991,6 +4993,14 @@ transparency, before post-processing and the separately rendered first-person
 hand. Submit through this field, not the
 earlier frame-only host helpers. Empty queues allocate no world-draw GPU
 resources and add no render passes. Title/menu-only frames discard requests.
+
+World draws cache texture views and bind groups by texture registration. Mod
+commands are finished in a separate, checked encoder before submission; invalid
+attachments or GPU validation failures disable that mod's draw source, log once,
+and become observable through `world_draw_state() -> Result<(), String>`.
+Host-created world textures retain their pixels and filtering across resource
+reload and device replacement. GPU-imported textures cannot be reconstructed
+after device loss; their draw source is disabled rather than using a stale handle.
 
 `draw_post_tint(color: u32) -> Result<(), String>` and
 `draw_post_vignette(color: u32) -> Result<(), String>` submit full-screen ARGB
@@ -5002,9 +5012,10 @@ returns an error. These helpers are not exposed through the stable DLL SDK.
 
 Fragment `@API:post_shader@` adds source-mod helpers
 `register_post_shader(id, wgsl, NativePostUniformLayout { size })`,
-`set_post_shader_uniforms(id, bytes)`, and `enable_post_shader(id, enabled)`.
+`set_post_shader_uniforms(id, bytes)`, `enable_post_shader(id, enabled)`, and
+`unregister_post_shader(id)`.
 Each returns `Result<(), String>`; registration and mutation require the
-calling mod's namespaced ID. At most 32 shaders can be registered, each with
+calling mod's namespaced ID. At most four shaders per mod can be registered, each with
 at most 64 KiB of WGSL. Registration validates with Naga and captures wgpu
 pipeline errors instead of panicking. Shaders start disabled.
 
@@ -5014,10 +5025,20 @@ the fullscreen-triangle vertex stage. Group 0 reserves binding 0 for the input
 `texture_2d<f32>`, binding 1 for a non-filtering sampler, and optional binding 2
 for the uniform buffer. Uniform size is zero or a multiple of 16 bytes up to
 4096, and must exactly match the WGSL uniform type. Updates must supply exactly
-that many bytes. No storage buffers/textures, workgroup memory, additional
+that many bytes, with at most 16 update attempts per mod per frame. No storage buffers/textures, workgroup memory, additional
 entry points/bindings, loops, or excessive private/local allocations are
 accepted. Unknown IDs, duplicate registrations, bad layouts and invalid WGSL
 return errors without enabling a pass.
+
+Validation bounds the entire call graph, not just individual function bodies:
+the fragment entry point may execute at most 8192 expression-equivalents and
+64 image samples or loads, at a call depth of at most 16. Each call site adds
+the full callee cost using saturating arithmetic. There may be at most 64
+functions and 4096 expressions per function. Every declared type, including
+array, argument, return, and constant types, is limited to 16 KiB; aggregate
+private and local allocations are also limited to 16 KiB. A mod gets at most
+eight failed registration attempts per minute, including invalid WGSL,
+duplicates, and capacity failures. Unregistering a shader frees its slot.
 
 Enabled shaders run in ID order after world primitives and before the existing
 shader-pack/post-processing pipeline and HUD. Every pass samples a separate
@@ -5027,13 +5048,21 @@ or passes. `gfx::native_post_shader::PostShaders` owns registration and renderin
 independently of gameplay for reuse by later GPU APIs. These helpers are not
 part of the stable DLL ABI.
 
+The game retains shader IDs, sources, layouts, enablement, and last uniforms
+across resource-pack reload and device replacement, rebuilding healthy pipelines
+on the new renderer. Pass/copy commands are finished under error scopes and
+submitted only when valid. A rendering failure logs once and disables the shader
+persistently across recreation; `post_shader_state(id) -> Result<bool, String>`
+returns its enablement or failure. Unregister and register again to replace a
+failed shader; enabling a failed pipeline alone is rejected.
+
 ## Mod key bindings
 
 Fragment `@API:key_bindings@` adds source-mod helpers
 `register_key_binding(id, default_key, category, label) -> Result<(), String>`
 and `key_binding_state(id) -> bool`, plus the notification hook
 `key_binding_pressed(id)`. IDs must be namespaced by the calling mod; duplicate
-IDs, invalid keys, oversized metadata, and registrations beyond 256 are
+IDs, invalid keys, oversized metadata, and registrations beyond 32 per mod are
 rejected. Use vanilla key names such as `key.keyboard.g` or `key.mouse.4`;
 `key.keyboard.unknown` is unbound. Category and label are translation keys
 (literal fallback text is supported by the normal language lookup).
@@ -5044,10 +5073,17 @@ options entries are `key_key.mod.<namespace>/<path>:<key>`; all existing vanilla
 entries, defaults, order and migration rules are unchanged. Saved mod entries
 load before registration and remain available when that mod is absent.
 Registration reuses the saved value rather than overwriting it with a default.
+The saved table holds at most 256 entries; when full, registration evicts an
+entry whose binding is not registered this session. Mouse names
+`key.mouse.N` (1 through 65536) follow the same rule for registration, rebinding,
+and loading, including buttons 6 and above.
 
 The pressed hook fires on a physical up-to-down transition, not OS repeat.
+It reaches only the owning mod while playing or while that mod's own screen is
+open, never while a text field has focus or Controls is capturing a key.
 Held state clears on release, rebinding and loss of window focus. Unbound keys
-never fire. Without registrations the Controls layout, input handling and
+never fire. Held state is transient: it does not affect settings equality and
+survives unrelated option round trips without being saved. Without registrations the Controls layout, input handling and
 serialized options are unchanged. These helpers are not part of the stable
 DLL ABI.
 

@@ -55,6 +55,15 @@ impl Game<'_> {
             .renderer
             .as_ref()
             .ok_or(NativeGuiTextureError::RendererUnavailable)?;
+        let texture = self
+            .native_world_lines
+            .textures
+            .get(&texture.registration())
+            .filter(|(owner, _)| {
+                horizon_client::crash::native_mod_call().and_then(|call| call.id)
+                    == Some(owner.as_str())
+            })
+            .map_or(texture, |(_, restored)| restored);
         renderer
             .hud
             .native_gui_texture_write(&renderer.queue, texture, origin, size, bytes)

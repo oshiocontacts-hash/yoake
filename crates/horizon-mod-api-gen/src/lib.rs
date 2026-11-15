@@ -1031,11 +1031,17 @@ pub fn for_test({test_params}) -> Self {{ Self {{ {test_inits} }} }}
             ),
             _ => (String::new(), String::new(), String::new(), String::new()),
         };
+        let owner_filter = if name == "key_binding_pressed" {
+            format!("if !super::key_binding_owner({mod_index}, id) {{ continue; }}")
+        } else {
+            String::new()
+        };
         let body = format!(
             r#"{precondition}
 let Some({guard}) = super::guard_dispatch({mod_list}.len(), "{name}") else {{ return; }};
 {prepare} {pending_init} {build}
 for ({mod_index}, {mod_item}) in {each} {{
+    {owner_filter}
     match {guard}.call(super::guard_index({mod_index}), || {mod_item}.{name}({invoke})) {{
         super::GuardOutcome::Skipped => continue,
         super::GuardOutcome::Completed({replacement}) => {{ let _ = &{replacement}; {completed} }}

@@ -96,7 +96,7 @@ fn select_view_hit(
     block: Option<Hit>,
     entity: Option<(f64, u32, Option<u128>)>,
 ) -> Option<NativeViewHit> {
-    if let Some((distance, entity_id, uuid)) = entity
+    if let Some((distance, entity_id, Some(uuid))) = entity
         && block.is_none_or(|hit| {
             (0..3)
                 .map(|axis| (hit.point[axis] - eye[axis]).powi(2))
@@ -106,10 +106,7 @@ fn select_view_hit(
         })
     {
         return Some(NativeViewHit {
-            target: NativeViewTarget::Entity {
-                entity_id,
-                uuid: uuid?,
-            },
+            target: NativeViewTarget::Entity { entity_id, uuid },
             position: std::array::from_fn(|axis| eye[axis] + direction[axis] * distance),
         });
     }
@@ -346,7 +343,7 @@ mod tests {
         );
         assert_eq!(
             select_view_hit(eye, direction, Some(block), Some((2.0, 7, None))),
-            None
+            block_hit
         );
         assert_eq!(select_view_hit(eye, direction, None, None), None);
     }

@@ -3,6 +3,7 @@ use horizon_client::hud::native_textures::NativeGuiTexture;
 use horizon_client::{gfx::native_services::WorldDraws, hud::HudAtlas, screen_effects};
 
 use super::Game;
+use std::collections::BTreeMap;
 
 const MAX_POST_EFFECTS: usize = 16;
 
@@ -31,6 +32,8 @@ struct PostEffect {
 pub(super) struct WorldLines {
     accepting: bool,
     post_effects: Vec<PostEffect>,
+    pub(super) textures: BTreeMap<u64, (String, NativeGuiTexture)>,
+    pub(super) failures: BTreeMap<String, String>,
 }
 
 impl WorldLines {
@@ -45,7 +48,9 @@ impl WorldLines {
 
     fn push_post_effect(&mut self, effect: PostEffect) -> Result<(), String> {
         if !self.accepting {
-            return Err("post effects may only be submitted from the client world frame hook".into());
+            return Err(
+                "post effects may only be submitted from the client world frame hook".into(),
+            );
         }
         if self.post_effects.len() >= MAX_POST_EFFECTS {
             return Err("post effect frame limit reached".into());
@@ -62,7 +67,11 @@ impl WorldLines {
         output.extend(self.post_effects.drain(..).filter_map(|effect| {
             let name = effect.kind.sprite();
             let rect = atlas.sprites.get(name)?;
-            let sampling = atlas.flags.get(name).copied().map_or(0, screen_effects::sampling);
+            let sampling = atlas
+                .flags
+                .get(name)
+                .copied()
+                .map_or(0, screen_effects::sampling);
             Some(post_quad(
                 effect,
                 [rect.u0, rect.v0, rect.u1, rect.v1],
@@ -130,9 +139,9 @@ impl Game<'_> {
         color: u32,
         texture: &NativeGuiTexture,
     ) -> Result<(), String> {
-        self.native_world_texture(texture)?;
+        let texture = self.native_world_texture(texture)?;
         self.native_world_draws()?
-            .textured_quad(corners, uv, color, texture)
+            .textured_quad(corners, uv, color, &texture)
     }
 
     pub fn native_draw_world_billboard(
@@ -143,24 +152,42 @@ impl Game<'_> {
         color: u32,
         texture: Option<&NativeGuiTexture>,
     ) -> Result<(), String> {
-        if let Some(texture) = texture {
-            self.native_world_texture(texture)?;
-        }
+        let texture = texture
+            .map(|texture| self.native_world_texture(texture))
+            .transpose()?;
         self.native_world_draws()?
-            .billboard(center, size, uv, color, texture)
+            .billboard(center, size, uv, color, texture.as_ref())
     }
 
     fn native_world_draws(&mut self) -> Result<&mut WorldDraws, String> {
         if !self.native_world_lines.accepting {
             return Err("world drawing requires the client world frame hook".into());
         }
-        self.renderer
+        let owner = world_draw_owner()?;
+        let draws = self
+            .renderer
             .as_mut()
             .map(|renderer| &mut renderer.native_services.draws)
-            .ok_or("renderer unavailable".into())
+            .ok_or("renderer unavailable")?;
+        draws.set_owner(owner);
+        Ok(draws)
     }
 
-    fn native_world_texture(&self, texture: &NativeGuiTexture) -> Result<(), String> {
+    fn native_world_texture(
+        &mut self,
+        texture: &NativeGuiTexture,
+    ) -> Result<NativeGuiTexture, String> {
+        let owner = world_draw_owner()?;
+        if let Some((registered_owner, restored)) = self
+            .native_world_lines
+            .textures
+            .get(&texture.registration())
+        {
+            if registered_owner != owner {
+                return Err("world texture belongs to another mod".into());
+            }
+            return Ok(restored.clone());
+        }
         if !self
             .renderer
             .as_ref()
@@ -168,7 +195,20 @@ impl Game<'_> {
         {
             return Err("world texture must belong to the current renderer".into());
         }
-        Ok(())
+        self.native_world_lines
+            .textures
+            .insert(texture.registration(), (owner.into(), texture.clone()));
+        Ok(texture.clone())
+    }
+
+    pub fn native_world_draw_state(&self) -> Result<(), String> {
+        let owner = world_draw_owner()?;
+        self.renderer
+            .as_ref()
+            .ok_or("renderer unavailable")?
+            .native_services
+            .draws
+            .state(owner)
     }
 
     /// Add a full-screen ARGB tint after the world, before the HUD, for this client frame.
@@ -190,6 +230,12 @@ impl Game<'_> {
         self.native_world_lines
             .push_post_effect(PostEffect { kind, color })
     }
+}
+
+fn world_draw_owner() -> Result<&'static str, String> {
+    horizon_client::crash::native_mod_call()
+        .and_then(|call| call.id)
+        .ok_or("world draw requires a calling mod".into())
 }
 
 #[cfg(test)]
@@ -241,9 +287,19 @@ mod tests {
         assert_eq!(tint.vertices[2].pos, [1.0, -1.0]);
         assert_eq!(tint.vertices[0].rect, rect);
         assert_eq!(tint.vertices[0].color, [1.0, 0.0, 0.0, 128.0 / 255.0]);
-        let vignette = post_quad(PostEffect { kind: PostKind::Vignette, ..effect }, rect, 0);
+        let vignette = post_quad(
+            PostEffect {
+                kind: PostKind::Vignette,
+                ..effect
+            },
+            rect,
+            0,
+        );
         assert_eq!(vignette.blend, screen_effects::Blend::Vignette);
-        assert_eq!(vignette.vertices[0].color, [0.0, 128.0 / 255.0, 128.0 / 255.0, 1.0]);
+        assert_eq!(
+            vignette.vertices[0].color,
+            [0.0, 128.0 / 255.0, 128.0 / 255.0, 1.0]
+        );
         let black_vignette = post_quad(
             PostEffect {
                 kind: PostKind::Vignette,

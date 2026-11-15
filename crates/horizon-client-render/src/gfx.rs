@@ -121,7 +121,6 @@ fn translucent_split(batching: bool, flat_draws: bool, terrain: bool, shadow: bo
 mod animate;
 mod arena;
 pub mod capture;
-mod native_fixed;
 pub mod compositor;
 mod cull;
 mod end_sky;
@@ -132,6 +131,7 @@ mod gpu_culling;
 mod hdr;
 mod hdr_icc;
 mod hdr_stats;
+mod native_fixed;
 pub use hdr::Calibration as HdrCalibration;
 pub mod block_light;
 pub mod lightning;
@@ -139,9 +139,9 @@ mod lod;
 mod native_material;
 mod native_pack;
 mod native_post;
+pub mod native_post_shader;
 pub mod native_render;
 pub mod native_services;
-pub mod native_post_shader;
 #[cfg(test)]
 mod native_services_tests;
 mod native_shadow;
@@ -6021,12 +6021,7 @@ impl Renderer {
     }
     /// The views `render` draws `frame` from.
     pub fn views(&self, frame: &Frame) -> ViewSet {
-        let mut view = self.screen_view(
-            frame.fov_degrees,
-            frame.yaw,
-            frame.pitch,
-            frame.depth_far,
-        );
+        let mut view = self.screen_view(frame.fov_degrees, frame.yaw, frame.pitch, frame.depth_far);
         if frame.roll != 0.0 {
             view.view = Mat4::from_rotation_z(-frame.roll.to_radians()) * view.view;
         }
@@ -6392,7 +6387,10 @@ impl Renderer {
         let needs_readback =
             needs_readback || (self.capture_time.is_some() && self.capture.pending());
         let needs_readback = needs_readback
-            || self.native_fixed.as_ref().is_some_and(|output| output.capture.pending());
+            || self
+                .native_fixed
+                .as_ref()
+                .is_some_and(|output| output.capture.pending());
         let target_texture = match (&surface_frame, &mut self.hdr) {
             _ if let Some((real, _)) = &fg_frames => real.clone(),
             (Some(_), Some(hdr)) => hdr.frame(&self.device, size),
@@ -9152,29 +9150,30 @@ impl Renderer {
         } else if self.native_pre_post_previous.is_some() {
             self.native_pre_post_previous = None;
         }
+        let mut native_commands = Vec::new();
         if frame.title {
             self.native_services.draws.clear();
-        } else {
-            if let Err(error) = self.native_services.render(
+        } else if !self.native_services.draws.is_empty() || mod_post {
+            native_commands.push(encoder.finish());
+            if let Ok(Some(commands)) = self.native_services.render(
                 &self.device,
                 &self.queue,
-                &mut encoder,
-                world_view,
-                world_depth,
+                world_view.texture(),
+                world_depth.texture(),
                 jittered,
                 frame.camera,
                 self.config.format.remove_srgb_suffix(),
             ) {
-                eprintln!("mod world drawing: {error}");
+                native_commands.push(commands);
             }
-            if mod_post
-                && let Err(error) =
+            if mod_post {
+                native_commands.extend(
                     self.native_services
                         .post
-                        .render(&self.device, &mut encoder, world_view)
-            {
-                eprintln!("mod post shader: {error}");
+                        .render(&self.device, world_view.texture()),
+                );
             }
+            encoder = self.device.create_command_encoder(&Default::default());
         }
         if let Some((color, depth)) = &scaled
             && pack_post
@@ -9438,7 +9437,9 @@ impl Renderer {
             None
         };
         let native_readback = self.native_fixed.as_ref().and_then(|output| {
-            output.capture.copy(&self.device, &mut encoder, shown_texture)
+            output
+                .capture
+                .copy(&self.device, &mut encoder, shown_texture)
         });
         self.uploads.finish(&encoder);
         if has_section_copies {
@@ -9473,7 +9474,8 @@ impl Renderer {
         // submission needs this one: screenshots' readbacks, the error scopes (one per
         // thread), the first frame's startup log, VSync's frame callback, a reconfigure.
         // Frame generation presents its own frames (`frame_gen.present` below).
-        let can_defer = readback.is_none()
+        let can_defer = native_commands.is_empty()
+            && readback.is_none()
             && native_readback.is_none()
             && fg_frames.is_none()
             && hdr_readback.is_none()
@@ -9529,7 +9531,10 @@ impl Renderer {
             startup_step(format_args!("submitting the first frame"));
             self.first_frame = FirstFrame::Drawn;
         }
-        let submission = crate::spans::time("submit", || self.queue.submit([commands]));
+        let submission = crate::spans::time("submit", || {
+            self.queue
+                .submit(native_commands.into_iter().chain([commands]))
+        });
         if let Some(readback) = native_readback
             && let Some(output) = &self.native_fixed
         {

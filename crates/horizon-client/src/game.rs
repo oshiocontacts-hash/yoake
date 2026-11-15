@@ -3243,6 +3243,7 @@ struct Game<'a> {
     /// A native mod's sky tint for the next sky drawn (`native_set_sky_tint`).
     native_sky_tint: Option<native_sky_tint::Tint>,
     native_world_lines: native_world_draw::WorldLines,
+    native_post_shaders: horizon_client::gfx::native_post_shader::PostShaderRegistry,
     /// A guest's `/save-all`: saved once their turn ends (`run_guest_command`),
     /// when their own state is back in their record.
     save_after_guest_turn: bool,
@@ -14512,6 +14513,8 @@ impl Game<'_> {
             .ok_or("no renderer for graphics recovery")?;
         let screenshot = old.screenshot.take();
         let screenshot_result = old.screenshot_result.take();
+        self.native_post_shaders.capture(&old.native_services.post);
+        self.native_world_lines.failures = old.native_services.draws.failures();
         drop(old);
         let mut renderer = build_renderer(
             window,
@@ -14526,6 +14529,7 @@ impl Game<'_> {
         )?;
         renderer.screenshot = screenshot;
         renderer.screenshot_result = screenshot_result;
+        self.restore_native_services(&mut renderer);
         self.renderer = Some(renderer);
         #[cfg(feature = "dev-capture")]
         self.capture_install_output()?;
@@ -19651,6 +19655,7 @@ impl<'a> Game<'a> {
             attack_hitboxes: HashMap::new(),
             native_sky_tint: None,
             native_world_lines: Default::default(),
+            native_post_shaders: Default::default(),
             save_after_guest_turn: false,
             player_attachments: Default::default(),
             guest_attachments: HashMap::new(),

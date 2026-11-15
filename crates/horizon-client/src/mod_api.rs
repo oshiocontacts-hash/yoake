@@ -722,6 +722,15 @@ fn guard_index(index: usize) -> usize {
     index
 }
 
+fn key_binding_owner(index: usize, id: &str) -> bool {
+    id.split_once(':').is_some_and(|(owner, _)| {
+        MOD_IDS
+            .get()
+            .and_then(|ids| ids.get(index))
+            .is_some_and(|candidate| *candidate == owner)
+    })
+}
+
 /// `mods` in order, each marked as running `hook` until the next one is (or the loop ends), so a
 /// panic in it names the mod. The generated dispatch loops over it.
 fn entered<'a>(mods: &'a [Box<dyn Hooks>], hook: &'static str) -> Entered<'a> {
