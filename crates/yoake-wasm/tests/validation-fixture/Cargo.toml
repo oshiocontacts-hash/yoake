@@ -12,6 +12,7 @@ crate-type = ["cdylib"]
 typo = []
 trap = []
 unwired-client = []
+wrong-client = []
 wrong-server = []
 
 [dependencies]

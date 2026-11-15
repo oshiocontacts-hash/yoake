@@ -16,6 +16,8 @@ use yoake_wasm::{ClientFullMod, ClientHost, ClientMod, Sandbox, ServerFullMod, S
 
 type Result<T> = std::result::Result<T, String>;
 const FULL_UNWIRED: &[&str] = &["input_key", "item_model_select"];
+const USAGE: &str = "usage: yoake new <minigame|hud-only|custom-mob|utility|script> <name> | yoake <build|pack|check|dev>";
+const CHECK_HELP: &str = "yoake check validates existing Wasm modules without rebuilding them; if src/**, Cargo.toml or yak.toml is newer, run yoake build first";
 
 fn main() {
     let arguments: Vec<_> = env::args_os().skip(1).collect();
@@ -67,6 +69,8 @@ fn read_manifest(root: &Path) -> Result<Manifest> {
 
 fn run(arguments: &[String]) -> Result<serde_json::Value> {
     match arguments {
+        [flag] if flag == "--help" || flag == "-h" => Ok(json!({"ok": true, "errors": [], "help": format!("{USAGE}\n{CHECK_HELP}")})),
+        [command, flag] if command == "check" && (flag == "--help" || flag == "-h") => Ok(json!({"ok": true, "errors": [], "help": CHECK_HELP})),
         [command, template, name] if command == "new" => {
             let path = scaffold::create(template, name)?;
             Ok(json!({"ok": true, "errors": [], "path": path.display().to_string()}))
@@ -76,7 +80,7 @@ fn run(arguments: &[String]) -> Result<serde_json::Value> {
             let root = env::current_dir().map_err(|error| error.to_string())?;
             process_project(&root, command, build)
         }
-        _ => Err("usage: yoake new <minigame|hud-only|custom-mob|utility|script> <name> | yoake <build|pack|check|dev>".into()),
+        _ => Err(USAGE.into()),
     }
 }
 
@@ -116,6 +120,7 @@ fn build(root: &Path, manifest: &Manifest) -> Result<()> {
         if multi_module {
             command.args(["--features", side]);
         }
+        let build_started = SystemTime::now();
         let output = command.output().map_err(|error| format!("could not start cargo: {error}"))?;
         eprint!("{}", String::from_utf8_lossy(&output.stdout));
         if !output.status.success() {
@@ -125,6 +130,9 @@ fn build(root: &Path, manifest: &Manifest) -> Result<()> {
         let parent = destination.parent().ok_or("module has no parent directory")?;
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
         fs::copy(&artifact, &destination).map_err(|error| format!("{}: {error}", artifact.display()))?;
+        File::options().write(true).open(&destination)
+            .and_then(|file| file.set_modified(build_started))
+            .map_err(|error| format!("{}: {error}", destination.display()))?;
     }
     Ok(())
 }
@@ -145,6 +153,32 @@ impl ClientHost for StubClient {}
 struct StubServer;
 impl ServerHost for StubServer {}
 
+fn ensure_module_is_fresh(root: &Path, module_path: &Path, module_metadata: &fs::Metadata) -> Result<()> {
+    let module_modified = module_metadata.modified().map_err(|error| format!("{}: {error}", module_path.display()))?;
+    let source_root = root.join("src");
+    let mut pending = vec![root.join("yak.toml"), root.join("Cargo.toml"), source_root.clone()];
+    while let Some(path) = pending.pop() {
+        let metadata = match fs::symlink_metadata(&path) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(format!("{}: {error}", path.display())),
+        };
+        check_plain_path(&path)?;
+        let modified = metadata.modified().map_err(|error| format!("{}: {error}", path.display()))?;
+        if modified > module_modified {
+            return Err(format!("{} is stale because {} is newer; run yoake build", module_path.display(), path.display()));
+        }
+        if metadata.is_dir() && path.starts_with(&source_root) {
+            for entry in fs::read_dir(&path).map_err(|error| format!("{}: {error}", path.display()))? {
+                pending.push(entry.map_err(|error| format!("{}: {error}", path.display()))?.path());
+            }
+        } else if !metadata.is_file() {
+            return Err(format!("{} is not a regular source file", path.display()));
+        }
+    }
+    Ok(())
+}
+
 fn check(root: &Path, manifest: &Manifest) -> Result<serde_json::Value> {
     let mut sandbox = Sandbox::new();
     let mut checked = Vec::new();
@@ -156,6 +190,7 @@ fn check(root: &Path, manifest: &Manifest) -> Result<serde_json::Value> {
         if !metadata.is_file() || metadata.len() > MAX_WASM_SIZE {
             return Err(format!("{} is not a regular Wasm file within the {MAX_WASM_SIZE}-byte size limit", module_path.display()));
         }
+        ensure_module_is_fresh(root, &module_path, &metadata)?;
         let mut bytes = Vec::new();
         file.take(MAX_WASM_SIZE + 1).read_to_end(&mut bytes)
             .map_err(|error| format!("{}: {error}", module_path.display()))?;

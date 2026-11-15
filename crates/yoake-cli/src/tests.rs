@@ -27,18 +27,22 @@ impl Project {
             client.is_some(),
             server.is_some()
         );
-        if let Some(bytes) = client {
-            fs::write(root.join("bin/wasm/client.wasm"), bytes).unwrap();
+        if client.is_some() {
             manifest.push_str("client = \"bin/wasm/client.wasm\"\n");
         }
-        if let Some(bytes) = server {
-            fs::write(root.join("bin/wasm/server.wasm"), bytes).unwrap();
+        if server.is_some() {
             manifest.push_str("server = \"bin/wasm/server.wasm\"\n");
         }
         if let Some(world) = world {
             manifest.push_str(&format!("world = \"{world}\"\n"));
         }
         fs::write(root.join("yak.toml"), manifest).unwrap();
+        if let Some(bytes) = client {
+            fs::write(root.join("bin/wasm/client.wasm"), bytes).unwrap();
+        }
+        if let Some(bytes) = server {
+            fs::write(root.join("bin/wasm/server.wasm"), bytes).unwrap();
+        }
         Self { root }
     }
 }
@@ -262,24 +266,100 @@ fn content_demo_package_replaces_same_version() {
     assert_eq!(fs::read_dir(project.root.join("dist")).unwrap().count(), 1);
 }
 
+fn assert_invalid_init(guest: &Guest, side: &str, world: Option<&str>, expected: &str) {
+    let Some(bytes) = test_guests::load(guest) else {
+        return;
+    };
+    let project = if side == "client" {
+        Project::new("invalid-init", Some(&bytes), None, world)
+    } else {
+        Project::new("invalid-init", None, Some(&bytes), world)
+    };
+    let error = check_project(&project).unwrap_err();
+    assert!(error.contains(expected), "expected {expected:?} in {error:?}");
+    if expected == "hud" || expected == "server_about_to_start" {
+        assert!(error.contains("client") && error.contains("server"), "{error}");
+    }
+    if expected == "init" {
+        let json_error = json!({"ok": false, "errors": [explain_error(&error)]}).to_string();
+        assert!(json_error.len() < 512, "{json_error}");
+        assert!(!json_error.to_lowercase().contains("backtrace"), "{json_error}");
+    }
+}
+
 #[test]
 fn rejects_invalid_init_subscriptions_and_traps() {
-    for (guest, side, world, expected) in [
-        (&test_guests::INVALID_HOOK, "client", None, "tock"),
-        (&test_guests::TRAPPING_INIT, "client", None, "init"),
-        (&test_guests::UNWIRED_CLIENT_HOOK, "client", Some("client-full"), "input_key"),
-        (&test_guests::WRONG_SERVER_HOOK, "server", None, "hud"),
-    ] {
-        let Some(bytes) = test_guests::load(guest) else {
-            continue;
-        };
-        let project = if side == "client" {
-            Project::new("invalid-init", Some(&bytes), None, world)
-        } else {
-            Project::new("invalid-init", None, Some(&bytes), world)
-        };
+    assert_invalid_init(&test_guests::INVALID_HOOK, "client", None, "tock");
+    assert_invalid_init(&test_guests::TRAPPING_INIT, "client", None, "init");
+}
+
+#[test]
+fn rejects_unwired_client_hook() {
+    assert_invalid_init(&test_guests::UNWIRED_CLIENT_HOOK, "client", Some("client-full"), "input_key");
+}
+
+#[test]
+fn rejects_server_hook_on_client() {
+    assert_invalid_init(&test_guests::WRONG_CLIENT_HOOK, "client", Some("client-full"), "server_about_to_start");
+}
+
+#[test]
+fn rejects_client_hook_on_server() {
+    assert_invalid_init(&test_guests::WRONG_SERVER_HOOK, "server", None, "hud");
+}
+
+#[test]
+fn check_rejects_stale_wasm_for_each_source_kind() {
+    let project = Project::new("freshness", Some(b"not a component"), None, None);
+    fs::create_dir_all(project.root.join("src/nested")).unwrap();
+    for path in ["Cargo.toml", "src/lib.rs", "src/nested/module.rs"] {
+        fs::write(project.root.join(path), "fixture").unwrap();
+    }
+    let module = project.root.join("bin/wasm/client.wasm");
+    let old = UNIX_EPOCH + std::time::Duration::from_secs(1_600_000_000);
+    let built = std::time::SystemTime::now() + std::time::Duration::from_secs(60);
+    let newer = built + std::time::Duration::from_secs(60);
+    let set_modified = |path: &Path, time| {
+        File::options().write(true).open(path).unwrap().set_modified(time).unwrap();
+    };
+    let sources = ["yak.toml", "Cargo.toml", "src/lib.rs", "src/nested/module.rs"];
+    for source in sources {
+        set_modified(&project.root.join(source), old);
+    }
+    set_modified(&module, built);
+    ensure_module_is_fresh(&project.root, &module, &fs::metadata(&module).unwrap()).unwrap();
+    for source in sources {
+        let path = project.root.join(source);
+        set_modified(&path, newer);
         let error = check_project(&project).unwrap_err();
-        assert!(error.contains(expected), "expected {expected:?} in {error:?}");
+        assert!(error.contains("stale") && error.contains("run yoake build"), "{error}");
+        assert!(error.contains(path.file_name().unwrap().to_str().unwrap()), "{error}");
+        set_modified(&path, built);
+        ensure_module_is_fresh(&project.root, &module, &fs::metadata(&module).unwrap()).unwrap();
+    }
+}
+
+#[test]
+fn check_rejects_stale_server_wasm_and_documents_fix() {
+    let project = Project::new("server-freshness", None, Some(b"not a component"), None);
+    let module = project.root.join("bin/wasm/server.wasm");
+    let manifest = project.root.join("yak.toml");
+    let old = UNIX_EPOCH + std::time::Duration::from_secs(1_600_000_000);
+    File::options().write(true).open(module).unwrap().set_modified(old).unwrap();
+    File::options().write(true).open(manifest).unwrap().set_modified(old + std::time::Duration::from_secs(1)).unwrap();
+    let error = check_project(&project).unwrap_err();
+    assert!(error.contains("server.wasm") && error.contains("stale") && error.contains("run yoake build"), "{error}");
+    let summary = run(&["check".into(), "--help".into()]).unwrap();
+    assert!(summary["help"].as_str().unwrap().contains("run yoake build"));
+}
+
+#[test]
+fn example_wasm_artifacts_are_gitignored() {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    for path in ["examples/demo/bin/wasm/client.wasm", "crates/yoake-wasm-sdk/examples/demo/bin/wasm/client.wasm"] {
+        let status = Command::new("git").current_dir(&workspace)
+            .args(["check-ignore", "--no-index", "--quiet", path]).status().unwrap();
+        assert!(status.success(), "{path} is not ignored");
     }
 }
 

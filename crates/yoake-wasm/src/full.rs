@@ -54,7 +54,7 @@ impl ClientFullMod {
         unwired: &[&str],
     ) -> Result<Self, LoadError> {
         let (mut raw, exports) = Self::link(runtime, id.into(), component_bytes, host)?;
-        let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
+        let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| exports.call_init(store).map_err(|error| error.root_cause().to_string()));
         flush_output(&mut raw, |host, line| host.log_output(line));
         let names = names.ok_or_else(|| LoadError::new("mod init trapped or timed out"))?;
         let subscriptions = Subscriptions::for_full_world(FullWorld::Client, names, unwired).map_err(LoadError::new)?;
@@ -294,7 +294,7 @@ impl ServerFullMod {
         unwired: &[&str],
     ) -> Result<Self, LoadError> {
         let (mut raw, exports) = Self::link(runtime, id.into(), component_bytes, host)?;
-        let names = raw.call_init(crate::TimeLimits::SERVER, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
+        let names = raw.call_init(crate::TimeLimits::SERVER, |store, _| exports.call_init(store).map_err(|error| error.root_cause().to_string()));
         flush_output(&mut raw, |host, line| host.log_output(line));
         let names = names.ok_or_else(|| LoadError::new("mod init trapped or timed out"))?;
         let subscriptions = Subscriptions::for_full_world(FullWorld::Server, names, unwired).map_err(LoadError::new)?;

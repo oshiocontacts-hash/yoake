@@ -48,7 +48,7 @@ impl ClientMod {
         host: Box<dyn ClientHost>,
     ) -> Result<Self, LoadError> {
         let (mut raw, exports) = Self::link(runtime, id.into(), component_bytes, host)?;
-        let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
+        let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| exports.call_init(store).map_err(|error| error.root_cause().to_string()));
         flush_output(&mut raw);
         let names = names.ok_or_else(|| LoadError("mod init trapped or timed out".into()))?;
         let subscriptions = Subscriptions::from_hook_names(names).map_err(LoadError)?;

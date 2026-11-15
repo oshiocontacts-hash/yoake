@@ -587,6 +587,7 @@
     {
       "name": "hud",
       "version": 1,
+      "side": "client",
       "target": "horizon_client::game::native_hooks::Game<'_>::native_hud",
       "mod_api": {
         "contract": "listen"

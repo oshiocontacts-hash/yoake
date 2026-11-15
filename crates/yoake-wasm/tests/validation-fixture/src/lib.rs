@@ -22,7 +22,7 @@ mod frozen {
     yoake_wasm_sdk::export_mod!(Fixture);
 }
 
-#[cfg(feature = "unwired-client")]
+#[cfg(any(feature = "unwired-client", feature = "wrong-client"))]
 mod client {
     use yoake_wasm_sdk::full::client::ClientMod;
 
@@ -30,7 +30,12 @@ mod client {
     struct Fixture;
 
     impl ClientMod for Fixture {
-        fn subscriptions() -> &'static [&'static str] { &["input_key"] }
+        fn subscriptions() -> &'static [&'static str] {
+            #[cfg(feature = "unwired-client")]
+            { &["input_key"] }
+            #[cfg(feature = "wrong-client")]
+            { &["server_about_to_start"] }
+        }
     }
 
     yoake_wasm_sdk::export_client_full!(Fixture);

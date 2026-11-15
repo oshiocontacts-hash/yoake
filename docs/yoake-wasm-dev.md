@@ -67,6 +67,9 @@ export_mod!(Hello);
 In a mod project, `yoake check` validates the component's imports and exports against the same
 world and host linker used by the game, including its supported WASI subset, then calls `init`
 and validates its subscriptions against the hooks wired for that world and side.
+It does not rebuild: if `yak.toml`, `Cargo.toml`, or any file under `src/` is newer than a
+declared Wasm module, the check fails as stale and asks you to run `yoake build`. Freshness uses
+file modification times; equal timestamps are accepted. `yoake check --help` summarizes this rule.
 
 ## Packaging in a `.yak`
 

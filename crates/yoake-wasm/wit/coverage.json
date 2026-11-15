@@ -5,7 +5,7 @@
   "partial": 13,
   "with_handles": 15,
   "client_hooks": 207,
-  "server_hooks": 378,
+  "server_hooks": 377,
   "named_types": 220,
   "handle_types": [
     {
@@ -237,8 +237,8 @@
     },
     {
       "name": "hud",
-      "side": "both",
-      "side_source": "undecidable",
+      "side": "client",
+      "side_source": "explicit",
       "contract": "listen",
       "fully_typed": false,
       "partial": true,

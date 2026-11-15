@@ -39,6 +39,9 @@ pub const TRAPPING_INIT: Guest = Guest {
 pub const UNWIRED_CLIENT_HOOK: Guest = Guest {
     name: "unwired-client-hook", example: "validation-fixture", features: "unwired-client", artifact: "yoake_wasm_validation_fixture.wasm",
 };
+pub const WRONG_CLIENT_HOOK: Guest = Guest {
+    name: "wrong-client-hook", example: "validation-fixture", features: "wrong-client", artifact: "yoake_wasm_validation_fixture.wasm",
+};
 pub const WRONG_SERVER_HOOK: Guest = Guest {
     name: "wrong-server-hook", example: "validation-fixture", features: "wrong-server", artifact: "yoake_wasm_validation_fixture.wasm",
 };
@@ -80,7 +83,7 @@ pub fn load(guest: &Guest) -> Option<Vec<u8>> {
     };
     let mut command = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()));
     command
-        .args(["build", "--release", "--target", "wasm32-wasip2", "-j", "2"])
+        .args(["build", "--release", "--target", "wasm32-wasip2", "-j", "4"])
         .current_dir(&example)
         .env("CARGO_TARGET_DIR", &target)
         .env_remove("CARGO_ENCODED_RUSTFLAGS")
