@@ -29,11 +29,7 @@ impl Launcher {
             return None;
         }
         let t = self.theme;
-        let mut section = div().flex().flex_col().child(
-            section_title("Developer options", "terminal", &t)
-                .mt(px(20.))
-                .mb(px(12.)),
-        );
+        let mut section = glass_body();
         if !account::owner_required() {
             let toggle = switch("dev-offline", self.settings.dev_offline, &t).on_click(
                 cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -84,11 +80,12 @@ impl Launcher {
         if self.dev_unsigned_dll_confirmation {
             section = section.child(
                 div()
+                    .relative()
                     .flex()
                     .flex_col()
                     .gap(px(8.))
                     .p(px(12.))
-                    .child(shell::text(theme::night::UI, shell::c(t.night.warn)).child(tr(
+                    .child(glass_ui::text(13., FontWeight::NORMAL, 1.).relative().text_color(glass_ui::color(horizon_theme::glass::WARN)).child(tr(
                         "Lets you install and run unsigned .yak files that contain DLLs from your own PC. Do not use it for mods you got from someone else.",
                     )))
                     .child(
@@ -96,8 +93,7 @@ impl Launcher {
                             .flex()
                             .gap(px(8.))
                             .child(
-                                shell::action("confirm-unsigned-dll", shell::Action::Raised, &t)
-                                    .child(shell::label(tr("Turn on")))
+                                button("confirm-unsigned-dll", "Turn on", Kind::Primary, &t)
                                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                                         this.settings.dev_unsigned_dll = true;
                                         this.dev_unsigned_dll_confirmation = false;
@@ -106,8 +102,7 @@ impl Launcher {
                                     })),
                             )
                             .child(
-                                shell::action("cancel-unsigned-dll", shell::Action::Quiet, &t)
-                                    .child(shell::label(tr("Cancel activation")))
+                                button("cancel-unsigned-dll", "Cancel activation", Kind::Secondary, &t)
                                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                                         this.dev_unsigned_dll_confirmation = false;
                                         cx.notify();
@@ -116,6 +111,11 @@ impl Launcher {
                     ),
             );
         }
-        Some(section)
+        Some(glass_section(
+            "Developer options",
+            "terminal",
+            None,
+            section,
+        ))
     }
 }

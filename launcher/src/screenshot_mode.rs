@@ -68,7 +68,9 @@ mod imp {
     };
     use windows_sys::Win32::Storage::Xps::PrintWindow;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        GetWindowRect, SetWindowPos, ShowWindow, SWP_NOACTIVATE, SWP_NOZORDER, SW_SHOWNOACTIVATE,
+        GetWindowLongPtrW, GetWindowRect, SetWindowLongPtrW, SetWindowPos, ShowWindow, GWL_EXSTYLE,
+        SWP_NOACTIVATE, SWP_NOZORDER, SW_SHOWNOACTIVATE, WS_EX_APPWINDOW, WS_EX_NOACTIVATE,
+        WS_EX_TOOLWINDOW,
     };
 
     /// Where the window waits: far outside any arrangement of screens.
@@ -110,12 +112,28 @@ mod imp {
             ));
         }
         window.resize(gpui::size(gpui::px(shot.width), gpui::px(shot.height)));
+        // A tool window that never takes focus: no taskbar button, no Alt+Tab entry. Set before
+        // the window is shown, so it never appears in either.
+        unsafe {
+            let style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+            let style = (style | (WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE) as isize)
+                & !(WS_EX_APPWINDOW as isize);
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, style);
+        }
         unsafe { ShowWindow(hwnd, SW_SHOWNOACTIVATE) };
         Ok(())
     }
 
     fn grab(hwnd: HWND) -> Result<image::RgbaImage, String> {
         let r = rect(hwnd);
+        // The window must still be where we left it: if anything moved it onto a screen, take
+        // nothing rather than copy over what the user is looking at.
+        if r.left > FAR + 1000 || r.top > FAR + 1000 {
+            return Err(format!(
+                "the window is on screen ({}, {}): not taking the picture",
+                r.left, r.top
+            ));
+        }
         let (w, h) = ((r.right - r.left).max(0), (r.bottom - r.top).max(0));
         if w == 0 || h == 0 {
             return Err("the window has no size".into());

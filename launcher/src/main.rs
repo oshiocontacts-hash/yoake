@@ -344,6 +344,9 @@ struct Launcher {
     owner: Option<bool>,
     /// Play was refused (or Home's Sign in pressed): the owner gate's screen is open.
     owner_screen_open: bool,
+    /// Screenshot mode only: no first-run sheets over the page being drawn. Lives in memory; it is
+    /// never part of the saved settings.
+    quiet_sheets: bool,
     /// Clicks on the sidebar's launcher version, and whether they revealed the developer options
     /// (`dev_options`) for this run.
     dev_clicks: u8,
@@ -657,6 +660,7 @@ impl Launcher {
             keychain: None,
             owner: None,
             owner_screen_open: false,
+            quiet_sheets: false,
             dev_clicks: 0,
             dev_options: false,
             dev_unsigned_dll_confirmation: false,
@@ -4164,6 +4168,8 @@ impl Launcher {
     }
 
     fn settings_page(&mut self, cx: &mut Context<Self>) -> Div {
+        // Rows, buttons and switches built below take their glass form while this is held.
+        let _mode = GlassMode::enter(GLASS_PAGES);
         let t = self.theme;
         let toggle = switch("auto-install", self.settings.auto_install(), &t).on_click(
             cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -4310,154 +4316,193 @@ impl Launcher {
                 }
             },
         );
-        let group = |label: &'static str, icon: &'static str| {
-            section_title(label, icon, &t).mt(px(20.)).mb(px(12.))
+        // One glass panel per group of rows, under its title.
+        let group = |label: &'static str, icon: &'static str, rows: Vec<AnyElement>| {
+            glass_section(label, icon, None, glass_body().children(rows))
         };
+        let account = group(
+            "Account",
+            "user",
+            vec![accounts.into_any_element(), offline.into_any_element()],
+        );
+        let updates = group(
+            "Updates",
+            "reload",
+            vec![
+                index_row(
+                    n + 1,
+                    tr("Install new versions automatically"),
+                    Some(plain(
+                        "Your selected version only changes if you were playing the newest one.",
+                    )),
+                    Some(toggle.into_any_element()),
+                    &t,
+                )
+                .into_any_element(),
+                index_row(
+                    n + 2,
+                    tr("Delete old versions automatically"),
+                    Some(
+                        div()
+                            .child(trf(
+                                "Keeps the {count} newest, the one in use and the ones your instances use. Deleted versions install again from the Versions page.",
+                                &[("count", &self.settings.keep_newest().to_string())],
+                            ))
+                            .into_any_element(),
+                    ),
+                    Some(prune.into_any_element()),
+                    &t,
+                )
+                .into_any_element(),
+            ],
+        );
+        let launcher_group = group(
+            "Launcher",
+            "monitor",
+            vec![
+                index_row(
+                    n + 3,
+                    tr("Appearance"),
+                    Some(plain(
+                        "Dark by default. System follows your computer's light or dark.",
+                    )),
+                    Some(appearance.into_any_element()),
+                    &t,
+                )
+                .into_any_element(),
+                self.accent_row(cx).into_any_element(),
+                self.home_background_row(cx).into_any_element(),
+                self.language_row(cx).into_any_element(),
+                self.while_playing_row(n + 3, cx).into_any_element(),
+                index_row(
+                    n + 3,
+                    tr("Show the opening"),
+                    Some(plain("The wordmark, while the release list loads.")),
+                    Some(opening.into_any_element()),
+                    &t,
+                )
+                .into_any_element(),
+            ],
+        );
+        let network = group("Network", "globe", vec![self.proxy_row(n + 4, cx).into_any_element()]);
+        let game = group("Game", "gamepad", vec![self.game_args_row(n + 5, cx).into_any_element()]);
+        let ai = group("AI", "terminal", vec![self.no_ai_row(n + 6, cx).into_any_element()]);
+        let mut about = vec![
+            index_row(
+                n + 7,
+                horizon_launcher::brand::name(),
+                Some(plain(&horizon)),
+                horizon_action,
+                &t,
+            )
+            .into_any_element(),
+            index_row(
+                n + 8,
+                tr("Launcher"),
+                Some(plain(&launcher)),
+                launcher_action,
+                &t,
+            )
+            .into_any_element(),
+            index_row(
+                n + 9,
+                tr("Data folder"),
+                Some(mono(short(&backend::data_dir()))),
+                None,
+                &t,
+            )
+            .into_any_element(),
+            index_row(
+                n + 10,
+                tr("Logs"),
+                Some(mono(format!(
+                    "{}  ·  {}",
+                    short(&backend::logs_dir()),
+                    tr("crash reports beside it")
+                ))),
+                Some(
+                    button("open-logs", "Open", Kind::Secondary, &t)
+                        .on_click(|_, _, cx| {
+                            let dir = backend::logs_dir();
+                            let _ = std::fs::create_dir_all(&dir);
+                            cx.open_with_system(&dir);
+                        })
+                        .into_any_element(),
+                ),
+                &t,
+            )
+            .into_any_element(),
+        ];
+        if cfg!(target_os = "linux") {
+            about.push(
+                index_row(
+                    n + 11,
+                    tr("Applications menu"),
+                    Some(plain(if self.settings.desktop_entry() {
+                        "Horizon and its icon are in your desktop's menu."
+                    } else {
+                        "Not in your desktop's menu."
+                    })),
+                    Some(menu_entry.into_any_element()),
+                    &t,
+                )
+                .into_any_element(),
+            );
+        }
+        let about = group("About", "info-box", about);
         div()
             .flex()
             .flex_col()
-            .gap(px(32.))
-            .child(page_header(
+            .gap(px(28.))
+            .pt(px(36.))
+            .child(glass_page_head(
                 "Settings",
                 "Accounts, updates, and the launcher itself.",
-                &t,
             ))
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .child(group("Account", "user").mt_0())
-                    .child(accounts)
-                    .child(offline)
-                    .child(group("Updates", "reload"))
-                    .child(index_row(
-                        n + 1,
-                        tr("Install new versions automatically"),
-                        Some(plain(
-                            "Your selected version only changes if you were playing the newest one.",
-                        )),
-                        Some(toggle.into_any_element()),
-                        &t,
-                    ))
-                    .child(index_row(
-                        n + 2,
-                        tr("Delete old versions automatically"),
-                        Some(
-                            div()
-                                .child(trf(
-                                    "Keeps the {count} newest, the one in use and the ones your instances use. Deleted versions install again from the Versions page.",
-                                    &[("count", &self.settings.keep_newest().to_string())],
-                                ))
-                                .into_any_element(),
-                        ),
-                        Some(prune.into_any_element()),
-                        &t,
-                    ))
-                    .child(group("Launcher", "monitor"))
-                    .child(index_row(
-                        n + 3,
-                        tr("Appearance"),
-                        Some(plain("Dark by default. System follows your computer's light or dark.")),
-                        Some(appearance.into_any_element()),
-                        &t,
-                    ))
-                    .child(self.accent_row(cx))
-                    .child(self.home_background_row(cx))
-                    .child(self.language_row(cx))
-                    .child(self.while_playing_row(n + 3, cx))
-                    .child(index_row(
-                        n + 3,
-                        tr("Show the opening"),
-                        Some(plain("The wordmark, while the release list loads.")),
-                        Some(opening.into_any_element()),
-                        &t,
-                    ))
-                    .child(group("Network", "globe"))
-                    .child(self.proxy_row(n + 4, cx))
-                    .child(group("Game", "gamepad"))
-                    .child(self.game_args_row(n + 5, cx))
-                    .child(group("AI", "terminal"))
-                    .child(self.no_ai_row(n + 6, cx))
-                    .child(group("About", "info-box"))
-                    .child(index_row(
-                        n + 7,
-                        horizon_launcher::brand::name(),
-                        Some(plain(&horizon)),
-                        horizon_action,
-                        &t,
-                    ))
-                    .child(index_row(
-                        n + 8,
-                        tr("Launcher"),
-                        Some(plain(&launcher)),
-                        launcher_action,
-                        &t,
-                    ))
-                    .child(index_row(
-                        n + 9,
-                        tr("Data folder"),
-                        Some(mono(short(&backend::data_dir()))),
-                        None,
-                        &t,
-                    ))
-                    .child(index_row(
-                        n + 10,
-                        tr("Logs"),
-                        Some(mono(format!(
-                            "{}  ·  {}",
-                            short(&backend::logs_dir()),
-                            tr("crash reports beside it")
-                        ))),
-                        Some(
-                            button("open-logs", "Open", Kind::Secondary, &t)
-                                .on_click(|_, _, cx| {
-                                    let dir = backend::logs_dir();
-                                    let _ = std::fs::create_dir_all(&dir);
-                                    cx.open_with_system(&dir);
-                                })
-                                .into_any_element(),
-                        ),
-                        &t,
-                    ))
-                    .when(cfg!(target_os = "linux"), |d| {
-                        d.child(index_row(
-                            n + 11,
-                            tr("Applications menu"),
-                            Some(plain(if self.settings.desktop_entry() {
-                                "Horizon and its icon are in your desktop's menu."
-                            } else {
-                                "Not in your desktop's menu."
-                            })),
-                            Some(menu_entry.into_any_element()),
-                            &t,
-                        ))
-                    }),
-            )
+            .child(account)
+            .child(updates)
+            .child(launcher_group)
+            .child(network)
+            .child(game)
+            .child(ai)
+            .child(about)
             .when(yoake_page::enabled(), |page| {
-                page.child(
-                    plate(&t)
-                        .flex()
-                        .flex_col()
+                use horizon_theme::glass::ink;
+                page.child(glass_section(
+                    "About / licences",
+                    "info-box",
+                    None,
+                    glass_body()
                         .gap(px(12.))
-                        .p(px(24.))
-                        .child(section_title("About / licences", "info-box", &t))
-                        .child(text(theme::UI).text_color(t.ink).child(tr(
-                            "Yoake Launcher is built on Horizon (licence below)",
-                        )))
+                        .p(px(16.))
+                        .child(
+                            glass_ui::text(14., FontWeight::NORMAL, ink::FULL)
+                                .relative()
+                                .child(tr("Yoake Launcher is built on Horizon (licence below)")),
+                        )
                         .when(!horizon_launcher::brand::store_distribution(), |card| {
-                            card.child(button("yoake-check-launcher", "Check for launcher updates", Kind::Secondary, &t)
+                            card.child(
+                                button(
+                                    "yoake-check-launcher",
+                                    "Check for launcher updates",
+                                    Kind::Secondary,
+                                    &t,
+                                )
+                                .relative()
+                                .self_start()
                                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                                     this.yoake.check_launcher_update(true);
                                     this.go(Page::Yoake);
                                     cx.notify();
-                                })))
+                                })),
+                            )
                         })
                         .child(
-                            text(theme::UI)
-                                .text_color(t.muted)
+                            glass_ui::text(13., FontWeight::NORMAL, ink::NOTE)
+                                .relative()
                                 .child(include_str!("../../LICENSE")),
                         ),
-                )
+                ))
             })
             .when(!horizon_launcher::brand::yoake(), |view| {
                 view.child(self.collection_section(cx))
@@ -4839,15 +4884,16 @@ impl Launcher {
                     &[("link", &code.verification_uri)],
                 ))
                 .child(
-                    text(theme::HEADING)
+                    glass_ui::text(22., FontWeight::SEMIBOLD, horizon_theme::glass::ink::FULL)
                         .font_family(theme::MONO)
-                        .text_color(t.ink)
                         .child(code.user_code.clone()),
                 ),
             Some(SignInState::Done(Ok(a))) => {
                 div().child(trf("Signed in as {name}.", &[("name", &a.name)]))
             }
-            Some(SignInState::Done(Err(e))) => div().text_color(t.danger).child(e.clone()),
+            Some(SignInState::Done(Err(e))) => div()
+                .text_color(glass_ui::color(horizon_theme::glass::DANGER))
+                .child(e.clone()),
             None if self.accounts.accounts.is_empty() => div().child(tr(
                 "Horizon needs a Microsoft account that owns Minecraft: Java Edition, like other launchers. It also plays online servers with your name and skin.",
             )),
@@ -5087,13 +5133,13 @@ impl Launcher {
             .flex()
             .flex_col()
             .child(
-                glass_ui::list_row(key, hovered, hover, &t)
+                glass_ui::list_row_static(key, hovered, hover)
                     .child(glass_ui::list_text(version_label(tag), meta.join("  ·  ")))
                     .children(selected.then(|| {
                         glass_ui::text(13., FontWeight::MEDIUM, ink::FULL)
                             .relative()
                             .flex_none()
-                            .text_color(glass_ui::color(self.look.accent_soft))
+                            .text_color(glass_ui::accent_soft(self.look.accent_soft))
                             .child(tr("In use"))
                     }))
                     .child(
@@ -5331,7 +5377,7 @@ impl Launcher {
                 let status = if selected {
                     Some(glass_pill(
                         tr("In use"),
-                        glass_ui::color(self.look.accent_soft),
+                        glass_ui::accent_soft(self.look.accent_soft),
                         0.18,
                     ))
                 } else if installed {
@@ -5351,7 +5397,7 @@ impl Launcher {
                     .flex()
                     .flex_col()
                     .child(
-                        glass_ui::list_row(key, hovered, hover, &t)
+                        glass_ui::list_row_static(key, hovered, hover)
                             .child(
                                 // `ui::list_text`, with the state's badge after the name.
                                 div()
@@ -6055,7 +6101,7 @@ fn main() {
                             let mut launcher = Launcher::new(window, cx);
                             if shot.is_some() {
                                 // No first-run sheets over the page being drawn.
-                                launcher.settings.owner_notice_seen = true;
+                                launcher.quiet_sheets = true;
                                 // `HORIZON_LAUNCHER_SCREENSHOT_LANG=en|ja|…`
                                 if let Some(language) = std::env::var("HORIZON_LAUNCHER_SCREENSHOT_LANG")
                                     .ok()

@@ -2,7 +2,7 @@
 //! one tabbed panel as Home's (`glass_home_tabs.rs`): Friends (your code and your friends),
 //! Requests (add by code, incoming, outgoing), Groups (yours, one open at a time) and Blocked.
 //! Its parts are the glass look's own (`glass_ui`): rows, quiet and solid buttons, fields, the
-//! empty line and the danger line. Dark appearance only; Light says so.
+//! empty line and the danger line. Both appearances.
 use super::*;
 use crate::friends_page::{
     day, friend_note, request_note, role_word, Confirm, Copied, FriendAction, FriendsStatus,
@@ -17,21 +17,6 @@ use horizon_theme::glass::{ink, radius};
 impl Launcher {
     pub(super) fn friends_page(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
-        if !crate::GLASS_PAGES {
-            return div()
-                .flex()
-                .flex_col()
-                .gap(px(24.))
-                .child(page_header(
-                    "Friends",
-                    "Friends and groups you share through the Yoake portal.",
-                    &t,
-                ))
-                .child(quiet_note(
-                    tr("Friends is shown in the dark look for now. Choose Dark in Settings."),
-                    &t,
-                ));
-        }
         self.friends.note_focus(window, cx);
         if self.friends.status == FriendsStatus::Idle {
             self.friends_refresh();
@@ -47,7 +32,12 @@ impl Launcher {
             )
         });
         let tabs = [
-            (FriendsTab::Friends, "user", tr("Friends"), counts.map(|c| c.0)),
+            (
+                FriendsTab::Friends,
+                "user",
+                tr("Friends"),
+                counts.map(|c| c.0),
+            ),
             (
                 FriendsTab::Requests,
                 "user-add-01",
@@ -171,31 +161,26 @@ impl Launcher {
                     cx.notify();
                 })),
             );
-        div()
-            .flex()
-            .flex_col()
-            .pt(px(36.))
-            .child(head)
-            .child(
-                div()
-                    .relative()
-                    .mt(px(28.))
-                    .child(crate::glass::tabbed(self.friends.strip.clone()))
-                    .child(div().relative().flex().child(strip))
-                    .child(
-                        div().relative().p(px(8.)).child(
-                            div()
-                                .flex()
-                                .flex_col()
-                                .gap(px(12.))
-                                .min_h(px(340.))
-                                .px(px(4.))
-                                .pt(px(8.))
-                                .pb(px(4.))
-                                .child(body),
-                        ),
+        div().flex().flex_col().pt(px(36.)).child(head).child(
+            div()
+                .relative()
+                .mt(px(28.))
+                .child(crate::glass::tabbed(self.friends.strip.clone()))
+                .child(div().relative().flex().child(strip))
+                .child(
+                    div().relative().p(px(8.)).child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(12.))
+                            .min_h(px(340.))
+                            .px(px(4.))
+                            .pt(px(8.))
+                            .pb(px(4.))
+                            .child(body),
                     ),
-            )
+                ),
+        )
     }
 
     /// A state with nothing to list: what it is, what to do, and the way out.
@@ -253,7 +238,7 @@ impl Launcher {
                     .child(ui::icon(
                         "tick-02",
                         15.,
-                        ui::color(self.look.accent_soft),
+                        ui::accent_soft(self.look.accent_soft),
                     ))
                     .child(note),
             )
@@ -267,6 +252,7 @@ impl Launcher {
     fn friends_guarded(
         &self,
         id: String,
+        action: FriendAction,
         confirm: Confirm,
         label: &'static str,
         ask: &'static str,
@@ -276,22 +262,26 @@ impl Launcher {
     ) -> AnyElement {
         let t = self.theme;
         let id = SharedString::from(id);
+        // The write is on its way: the buttons stay, but dimmed and dead.
+        let busy = self.friends.is_busy(action);
         if self.friends.confirm.as_ref() == Some(&confirm) {
+            let yes = keyboard(danger_button(id.clone(), tr(ask).into()), &t);
+            let yes = if busy {
+                disabled(yes)
+            } else {
+                yes.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                    // A double click on the first button lands here too: not a yes.
+                    if this.friends.confirm_ready() {
+                        run(this);
+                    }
+                    cx.notify();
+                }))
+            };
             div()
                 .flex()
                 .items_center()
                 .gap(px(2.))
-                .child(
-                    keyboard(danger_button(id.clone(), tr(ask).into()), &t).on_click(
-                        cx.listener(move |this, _: &ClickEvent, _, cx| {
-                            // A double click on the first button lands here too: not a yes.
-                            if this.friends.confirm_ready() {
-                                run(this);
-                            }
-                            cx.notify();
-                        }),
-                    ),
-                )
+                .child(yes)
                 .child(
                     ui::icon_button(
                         SharedString::from(format!("{id}-back")),
@@ -313,15 +303,16 @@ impl Launcher {
                 this.friends.ask(confirm.clone());
                 cx.notify();
             });
-            if danger {
+            let button = if danger {
                 // What ends something for good wears the danger red from the start.
                 keyboard(danger_button(id, tr(label).into()), &t)
-                    .on_click(ask_first)
-                    .into_any_element()
             } else {
                 ui::quiet(id, tr(label), 36., &t)
-                    .on_click(ask_first)
-                    .into_any_element()
+            };
+            if busy {
+                disabled(button).into_any_element()
+            } else {
+                button.on_click(ask_first).into_any_element()
             }
         }
     }
@@ -351,11 +342,10 @@ impl Launcher {
         actions: Vec<AnyElement>,
         cx: &mut Context<Self>,
     ) -> Stateful<Div> {
-        let t = self.theme;
         let key = SharedString::from(key);
         let hovered = self.list_hover.as_ref() == Some(&key);
         let hover = self.list_hover_listener(key.clone(), cx);
-        ui::list_row(key, hovered, hover, &t)
+        ui::list_row_static(key, hovered, hover)
             .child(picture(None, icon))
             .child(
                 // `ui::list_text`, with the mark after the name.
@@ -391,17 +381,15 @@ impl Launcher {
                             .child(note),
                     ),
             )
-            .children(
-                (!actions.is_empty()).then(|| {
-                    div()
-                        .relative()
-                        .flex()
-                        .flex_none()
-                        .items_center()
-                        .gap(px(6.))
-                        .children(actions)
-                }),
-            )
+            .children((!actions.is_empty()).then(|| {
+                div()
+                    .relative()
+                    .flex()
+                    .flex_none()
+                    .items_center()
+                    .gap(px(6.))
+                    .children(actions)
+            }))
     }
 
     /// A member's menu button and its menu (the launcher's own popover, as a world's): role
@@ -461,14 +449,16 @@ impl Launcher {
                         false,
                         &t,
                     )
-                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                        let id = role_id.clone();
-                        this.list_menu = None;
-                        this.friends_group_act(FriendAction::SetRole, move |api, group| {
-                            api.set_role(group, &id, to).map(|()| Outcome::Done)
-                        });
-                        cx.notify();
-                    })),
+                    .on_click(cx.listener(
+                        move |this, _: &ClickEvent, _, cx| {
+                            let id = role_id.clone();
+                            this.list_menu = None;
+                            this.friends_group_act(FriendAction::SetRole, move |api, group| {
+                                api.set_role(group, &id, to).map(|()| Outcome::Done)
+                            });
+                            cx.notify();
+                        },
+                    )),
                 );
             if !member.principal.is_guest() {
                 menu = menu.child(
@@ -483,23 +473,25 @@ impl Launcher {
                         false,
                         &t,
                     )
-                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                        match this.list_menu.as_mut() {
-                            Some((_, confirm)) if !*confirm => *confirm = true,
-                            _ => {
-                                let id = owner_id.clone();
-                                this.list_menu = None;
-                                this.friends_group_act(
-                                    FriendAction::Transfer,
-                                    move |api, group| {
-                                        api.transfer_ownership(group, &id)
-                                            .map(|()| Outcome::Done)
-                                    },
-                                );
+                    .on_click(cx.listener(
+                        move |this, _: &ClickEvent, _, cx| {
+                            match this.list_menu.as_mut() {
+                                Some((_, confirm)) if !*confirm => *confirm = true,
+                                _ => {
+                                    let id = owner_id.clone();
+                                    this.list_menu = None;
+                                    this.friends_group_act(
+                                        FriendAction::Transfer,
+                                        move |api, group| {
+                                            api.transfer_ownership(group, &id)
+                                                .map(|()| Outcome::Done)
+                                        },
+                                    );
+                                }
                             }
-                        }
-                        cx.notify();
-                    })),
+                            cx.notify();
+                        },
+                    )),
                 );
             }
             holder = holder.child(
@@ -575,7 +567,7 @@ impl Launcher {
                 cx.notify();
             }))
         } else {
-            send.opacity(0.4).cursor_default()
+            disabled(send)
         };
         div()
             .flex()
@@ -624,6 +616,7 @@ impl Launcher {
             .unwrap_or_default();
         let new_code = self.friends_guarded(
             "friends-new-code".into(),
+            FriendAction::NewCode,
             Confirm::NewCode,
             "New code",
             "Click again to replace it",
@@ -685,12 +678,18 @@ impl Launcher {
         };
         body = body.child(
             ui::list_head(note).child(
-                ui::quiet_icon("friends-add", Some("user-add-01"), tr("Add friend"), 36., &t)
-                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                        this.friends_set_tab(FriendsTab::Requests);
-                        this.friends.focus_soon = Some(InputKind::AddFriend);
-                        cx.notify();
-                    })),
+                ui::quiet_icon(
+                    "friends-add",
+                    Some("user-add-01"),
+                    tr("Add friend"),
+                    36.,
+                    &t,
+                )
+                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                    this.friends_set_tab(FriendsTab::Requests);
+                    this.friends.focus_soon = Some(InputKind::AddFriend);
+                    cx.notify();
+                })),
             ),
         );
         if friends.is_empty() {
@@ -702,6 +701,7 @@ impl Launcher {
             let p = friend.principal.clone();
             let remove = self.friends_guarded(
                 format!("friend-{}-remove", p.id),
+                FriendAction::RemoveFriend,
                 Confirm::Remove(p.id.clone()),
                 "Remove",
                 "Click again to remove",
@@ -714,6 +714,7 @@ impl Launcher {
             );
             let block = self.friends_guarded(
                 format!("friend-{}-block", p.id),
+                FriendAction::Block,
                 Confirm::Block(p.id.clone()),
                 "Block",
                 "Click again to block",
@@ -770,23 +771,33 @@ impl Launcher {
                     36.,
                     14.,
                     &t,
-                )
-                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                    this.friends_answer(accept_id.clone(), Answer::Accept);
-                    cx.notify();
-                }))
-                .into_any_element();
+                );
+                let accept = if self.friends.is_busy(FriendAction::Accept) {
+                    disabled(accept).into_any_element()
+                } else {
+                    accept
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            this.friends_answer(accept_id.clone(), Answer::Accept);
+                            cx.notify();
+                        }))
+                        .into_any_element()
+                };
                 let decline = ui::quiet(
                     SharedString::from(format!("request-{}-decline", request.id)),
                     tr("Decline"),
                     36.,
                     &t,
-                )
-                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                    this.friends_answer(decline_id.clone(), Answer::Decline);
-                    cx.notify();
-                }))
-                .into_any_element();
+                );
+                let decline = if self.friends.is_busy(FriendAction::Decline) {
+                    disabled(decline).into_any_element()
+                } else {
+                    decline
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            this.friends_answer(decline_id.clone(), Answer::Decline);
+                            cx.notify();
+                        }))
+                        .into_any_element()
+                };
                 body = body.child(self.friends_row(
                     format!("fr-in-{}", request.id),
                     "user-add-01",
@@ -798,12 +809,10 @@ impl Launcher {
             }
         }
         if !outgoing.is_empty() {
-            body = body.child(
-                div().pt(px(8.)).child(ui::list_head(trf(
-                    "Sent · {count}",
-                    &[("count", &outgoing.len().to_string())],
-                ))),
-            );
+            body = body.child(div().pt(px(8.)).child(ui::list_head(trf(
+                "Sent · {count}",
+                &[("count", &outgoing.len().to_string())],
+            ))));
             for request in outgoing {
                 let id = request.id.clone();
                 let cancel = ui::quiet(
@@ -811,12 +820,17 @@ impl Launcher {
                     tr("Cancel request"),
                     36.,
                     &t,
-                )
-                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                    this.friends_answer(id.clone(), Answer::Cancel);
-                    cx.notify();
-                }))
-                .into_any_element();
+                );
+                let cancel = if self.friends.is_busy(FriendAction::Cancel) {
+                    disabled(cancel).into_any_element()
+                } else {
+                    cancel
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            this.friends_answer(id.clone(), Answer::Cancel);
+                            cx.notify();
+                        }))
+                        .into_any_element()
+                };
                 body = body.child(self.friends_row(
                     format!("fr-out-{}", request.id),
                     "user",
@@ -850,12 +864,17 @@ impl Launcher {
                 tr("Unblock"),
                 36.,
                 &t,
-            )
-            .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                this.friends_unblock(id.clone());
-                cx.notify();
-            }))
-            .into_any_element();
+            );
+            let unblock = if self.friends.is_busy(FriendAction::Unblock) {
+                disabled(unblock).into_any_element()
+            } else {
+                unblock
+                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        this.friends_unblock(id.clone());
+                        cx.notify();
+                    }))
+                    .into_any_element()
+            };
             body = body.child(self.friends_row(
                 format!("fr-block-{}", block.blocked.id),
                 "view-off-slash",
@@ -1043,6 +1062,7 @@ impl Launcher {
         if owner {
             ends = ends.child(self.friends_guarded(
                 "group-delete".into(),
+                FriendAction::DeleteGroup,
                 Confirm::DeleteGroup,
                 "Delete group",
                 "Click again to delete the group",
@@ -1057,6 +1077,7 @@ impl Launcher {
         } else {
             ends = ends.child(self.friends_guarded(
                 "group-leave".into(),
+                FriendAction::Leave,
                 Confirm::Leave,
                 "Leave group",
                 "Click again to leave",
@@ -1084,16 +1105,14 @@ impl Launcher {
                                 .truncate()
                                 .child(detail.name.clone()),
                         )
-                        .child(
-                            ui::text(13., FontWeight::NORMAL, ink::NOTE).child(trf(
-                                "{role} · {count} of {max} members",
-                                &[
-                                    ("role", tr(role_word(role))),
-                                    ("count", &detail.members.len().to_string()),
-                                    ("max", &social::MAX_GROUP_MEMBERS.to_string()),
-                                ],
-                            )),
-                        ),
+                        .child(ui::text(13., FontWeight::NORMAL, ink::NOTE).child(trf(
+                            "{role} · {count} of {max} members",
+                            &[
+                                ("role", tr(role_word(role))),
+                                ("count", &detail.members.len().to_string()),
+                                ("max", &social::MAX_GROUP_MEMBERS.to_string()),
+                            ],
+                        ))),
                 )
                 .child(ends),
         );
@@ -1204,7 +1223,9 @@ impl Launcher {
                 .invites
                 .iter()
                 .filter(|i| {
-                    i.revoked_at.is_none() && i.uses < i.max_uses && day(&i.expires_at) >= today.as_str()
+                    i.revoked_at.is_none()
+                        && i.uses < i.max_uses
+                        && day(&i.expires_at) >= today.as_str()
                 })
                 .cloned()
                 .collect();
@@ -1231,15 +1252,23 @@ impl Launcher {
                     tr("Revoke"),
                     36.,
                     &t,
-                )
-                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                    let id = id.clone();
-                    this.friends_group_act(FriendAction::RevokeInvite, move |api, group| {
-                        api.revoke_invite(group, &id).map(|()| Outcome::Done)
-                    });
-                    cx.notify();
-                }))
-                .into_any_element();
+                );
+                let revoke = if self.friends.is_busy(FriendAction::RevokeInvite) {
+                    disabled(revoke).into_any_element()
+                } else {
+                    revoke
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            let id = id.clone();
+                            this.friends_group_act(
+                                FriendAction::RevokeInvite,
+                                move |api, group| {
+                                    api.revoke_invite(group, &id).map(|()| Outcome::Done)
+                                },
+                            );
+                            cx.notify();
+                        }))
+                        .into_any_element()
+                };
                 body = body.child(self.friends_row(
                     format!("fr-invite-{}", invite.id),
                     "link-01",
@@ -1259,20 +1288,37 @@ impl Launcher {
         }
 
         // Members.
-        body = body.child(
-            div().pt(px(8.)).child(ui::list_head(trf(
-                "Members · {count}",
-                &[("count", &detail.members.len().to_string())],
-            ))),
-        );
+        body = body.child(div().pt(px(8.)).child(ui::list_head(trf(
+            "Members · {count}",
+            &[("count", &detail.members.len().to_string())],
+        ))));
         for member in detail.members.clone() {
             let p = member.principal.clone();
             let you = member.principal_id == me;
             let mut actions = Vec::new();
-            let known = self.friends.list.friends.iter().any(|f| f.principal.id == member.principal_id)
-                || self.friends.list.outgoing.iter().any(|r| r.to_id == member.principal_id)
-                || self.friends.list.incoming.iter().any(|r| r.from_id == member.principal_id)
-                || self.friends.blocks.iter().any(|b| b.blocked_id == member.principal_id);
+            let known = self
+                .friends
+                .list
+                .friends
+                .iter()
+                .any(|f| f.principal.id == member.principal_id)
+                || self
+                    .friends
+                    .list
+                    .outgoing
+                    .iter()
+                    .any(|r| r.to_id == member.principal_id)
+                || self
+                    .friends
+                    .list
+                    .incoming
+                    .iter()
+                    .any(|r| r.from_id == member.principal_id)
+                || self
+                    .friends
+                    .blocks
+                    .iter()
+                    .any(|b| b.blocked_id == member.principal_id);
             if !you && !known {
                 let id = member.principal_id.clone();
                 actions.push(
@@ -1297,6 +1343,7 @@ impl Launcher {
                     let id = member.principal_id.clone();
                     actions.push(self.friends_guarded(
                         format!("member-{}-kick", member.principal_id),
+                        FriendAction::Kick,
                         Confirm::Kick(member.principal_id.clone()),
                         "Kick",
                         "Click again to kick and ban",
@@ -1330,12 +1377,10 @@ impl Launcher {
 
         // Bans, for those who can lift them.
         if manages && !detail.bans.is_empty() {
-            body = body.child(
-                div().pt(px(8.)).child(ui::list_head(trf(
-                    "Banned · {count}",
-                    &[("count", &detail.bans.len().to_string())],
-                ))),
-            );
+            body = body.child(div().pt(px(8.)).child(ui::list_head(trf(
+                "Banned · {count}",
+                &[("count", &detail.bans.len().to_string())],
+            ))));
             for ban in detail.bans.clone() {
                 let id = ban.principal_id.clone();
                 let lift = ui::quiet(
@@ -1343,15 +1388,19 @@ impl Launcher {
                     tr("Lift ban"),
                     36.,
                     &t,
-                )
-                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                    let id = id.clone();
-                    this.friends_group_act(FriendAction::LiftBan, move |api, group| {
-                        api.lift_ban(group, &id).map(|()| Outcome::Done)
-                    });
-                    cx.notify();
-                }))
-                .into_any_element();
+                );
+                let lift = if self.friends.is_busy(FriendAction::LiftBan) {
+                    disabled(lift).into_any_element()
+                } else {
+                    lift.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        let id = id.clone();
+                        this.friends_group_act(FriendAction::LiftBan, move |api, group| {
+                            api.lift_ban(group, &id).map(|()| Outcome::Done)
+                        });
+                        cx.notify();
+                    }))
+                    .into_any_element()
+                };
                 body = body.child(self.friends_row(
                     format!("fr-ban-{}", ban.principal_id),
                     "view-off-slash",

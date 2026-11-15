@@ -302,7 +302,7 @@ impl Launcher {
                     .top_0()
                     .bottom_0()
                     .w(relative(launch::memory_fraction(memory, total)))
-                    .when(glass, |d| d.bg(crate::glass_ui::color(self.look.accent_soft)))
+                    .when(glass, |d| d.bg(crate::glass_ui::accent_soft(self.look.accent_soft)))
                     .when(!glass, |d| d.bg(t.face)),
             )
             .on_mouse_down(

@@ -16,72 +16,65 @@ fn choice_name(choice: Option<Language>) -> &'static str {
 
 impl Launcher {
     pub(super) fn language_row(&self, cx: &mut Context<Self>) -> Div {
+        use horizon_theme::glass::{ink, radius};
         let t = self.theme;
         let mut wrap = div().relative().child(
-            keyboard(div().id("language-picker"), &t)
-                .relative()
-                .flex()
-                .items_center()
-                .gap(px(10.))
-                .h(px(theme::CONTROL))
-                .px(px(14.))
-                .border_2()
-                .border_color(t.outline)
-                .bg(t.button)
-                .children(blocks::edges(t.button_bevel, t.lip, theme::LIP))
-                .cursor_pointer()
-                .hover(move |s| s.bg(t.raised))
-                .child(
-                    div()
-                        .flex_1()
-                        .font_family(theme::PIXEL)
-                        .text_size(px(15.))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(t.ink)
-                        .child(choice_name(self.settings.language)),
-                )
-                .child(blocks::icon("chevron-down", 16., t.muted))
-                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                    this.language_menu = !this.language_menu;
-                    cx.notify();
-                })),
+            glass_ui::quiet_icon(
+                "language-picker",
+                None,
+                choice_name(self.settings.language),
+                36.,
+                &t,
+            )
+            .relative()
+            .child(glass_ui::icon(
+                "arrow-down-01",
+                16.,
+                glass_ui::white(ink::NOTE),
+            ))
+            .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                this.language_menu = !this.language_menu;
+                cx.notify();
+            })),
         );
         if self.language_menu {
-            let mut menu = div()
+            let mut menu = glass_ui::popover(220.)
                 .id("language-menu")
                 .absolute()
-                .top(px(theme::CONTROL + 4.))
+                .top(px(40.))
                 .right_0()
-                .w(px(220.))
-                .p(px(6.))
-                .border_2()
-                .border_color(t.outline)
-                .bg(t.surface)
-                .flex()
-                .flex_col()
                 .occlude();
             for choice in std::iter::once(None).chain(Language::ALL.map(Some)) {
                 let chosen = choice == self.settings.language;
                 let id = choice.map_or("system", Language::code);
+                let row_id = SharedString::from(format!("language-pick-{id}"));
                 menu = menu.child(
                     div()
-                        .id(SharedString::from(format!("language-pick-{id}")))
+                        .id(row_id)
+                        .relative()
                         .flex()
                         .items_center()
                         .justify_between()
                         .gap(px(8.))
-                        .h(px(30.))
-                        .px(px(10.))
-                        .rounded(px(theme::RADIUS))
+                        .h(px(40.))
+                        .px(px(12.))
+                        .rounded(px(radius::CONTROL))
                         .cursor_pointer()
-                        .hover(move |s| s.bg(t.plate_soft))
+                        .hover(|s| s.bg(glass_ui::white(0.07)))
                         .child(
-                            text(theme::LABEL)
-                                .text_color(t.ink)
+                            glass_ui::text(14., FontWeight::NORMAL, ink::FULL)
+                                .relative()
                                 .child(choice_name(choice)),
                         )
                         .when(chosen, |d| {
-                            d.child(div().size(px(6.)).rounded_full().bg(t.accent))
+                            d.child(
+                                glass_ui::icon(
+                                    "tick-02",
+                                    16.,
+                                    glass_ui::accent_soft(self.look.accent_soft),
+                                )
+                                .relative(),
+                            )
                         })
                         .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.settings.language = choice;

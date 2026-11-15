@@ -550,16 +550,14 @@ impl Launcher {
             skin: None,
             status: match state.as_str() {
                 "offline" => Status::Offline,
-                "failed" => {
-                    Status::Failed(
-                        if horizon_launcher::brand::yoake() {
-                            "503 · 2026-11-02 21:40"
-                        } else {
-                            "cosmetics.playhorizon.dev · 503 · 2026-11-02 21:40"
-                        }
-                        .into(),
-                    )
-                }
+                "failed" => Status::Failed(
+                    if horizon_launcher::brand::yoake() {
+                        "503 · 2026-11-02 21:40"
+                    } else {
+                        "cosmetics.playhorizon.dev · 503 · 2026-11-02 21:40"
+                    }
+                    .into(),
+                ),
                 _ => Status::Ready,
             },
             busy: false,
@@ -618,14 +616,20 @@ impl Launcher {
     }
 
     pub(super) fn wardrobe_page(&mut self, cx: &mut Context<Self>) -> Div {
+        use horizon_theme::glass::ink;
+        let _mode = GlassMode::enter(GLASS_PAGES);
         let t = self.theme;
-        let header = page_header(
+        let header = glass_page_head(
             "Wardrobe",
             "What you wear in every Horizon world and server. Changes reach other players the next \
              time they see you.",
-            &t,
         );
-        let page = div().flex().flex_col().gap(px(24.)).child(header);
+        let page = div()
+            .flex()
+            .flex_col()
+            .gap(px(28.))
+            .pt(px(36.))
+            .child(header);
         if self.wardrobe.is_none() && self.wardrobe_account().is_none() {
             let sign_in = button(
                 "wardrobe-sign-in",
@@ -639,18 +643,18 @@ impl Launcher {
                 cx.notify();
             }));
             return page.child(
-                plate(&t)
+                glass_card()
                     .flex()
                     .items_center()
                     .justify_between()
                     .gap(px(16.))
                     .p(px(24.))
                     .child(
-                        text(theme::UI)
-                            .text_color(t.ink)
+                        glass_ui::text(14., FontWeight::NORMAL, ink::FULL)
+                            .relative()
                             .child(tr("Sign in to use cosmetics.")),
                     )
-                    .child(sign_in),
+                    .child(sign_in.relative()),
             );
         }
         if std::mem::take(&mut self.wardrobe_reload) || self.wardrobe.is_none() {
@@ -663,7 +667,13 @@ impl Launcher {
         let page = page.children(self.wardrobe_banner(w, cx));
         let Some(me) = w.saved.me.clone() else {
             // Nothing kept yet: the first answer is on its way.
-            let skeleton = |h: f32| div().h(px(h)).w_full().bg(t.well);
+            let skeleton = |h: f32| {
+                div()
+                    .h(px(h))
+                    .w_full()
+                    .rounded(px(horizon_theme::glass::radius::ROW))
+                    .bg(glass_ui::white(horizon_theme::glass::fill::FIELD))
+            };
             return page.child(
                 div()
                     .flex()
@@ -693,7 +703,7 @@ impl Launcher {
                 .map_or(id.to_owned(), |e| e.name(lang).to_owned())
         };
         // The slots, one row each.
-        let mut slots = plate(&t)
+        let mut slots = glass_card()
             .flex()
             .flex_col()
             .gap(px(4.))
@@ -712,14 +722,21 @@ impl Launcher {
             let chosen = w.slot == slot;
             slots = slots.child(
                 keyboard(div().id(("wardrobe-slot", i)), &t)
+                    .relative()
                     .flex()
                     .flex_col()
                     .px(px(12.))
                     .py(px(8.))
+                    .rounded(px(horizon_theme::glass::radius::ROW))
                     .cursor_pointer()
-                    .when(chosen, |d| d.bg(t.well))
-                    .child(text(theme::LABEL).text_color(t.ink).child(tr(label)))
-                    .child(text(theme::CAPTION).text_color(t.muted).child(under))
+                    .bg(glass_ui::white(if chosen {
+                        horizon_theme::glass::fill::SELECTED
+                    } else {
+                        0.
+                    }))
+                    .hover(|s| s.bg(glass_ui::white(horizon_theme::glass::fill::ROW_HOVER)))
+                    .child(glass_ui::text(14., FontWeight::MEDIUM, ink::FULL).child(tr(label)))
+                    .child(glass_ui::text(13., FontWeight::NORMAL, ink::QUIET).child(under))
                     .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                         if let Some(w) = &mut this.wardrobe {
                             w.slot = slot;
@@ -744,10 +761,12 @@ impl Launcher {
             .gap(px(6.))
             .px(px(8.))
             .py(px(3.))
+            .relative()
+            .rounded(px(horizon_theme::glass::radius::CONTROL))
             .bg(gpui::rgba(0x0000_0066))
             .children(mark.map(|m| gpui::img(m).size(px(16.))))
             .child(
-                text(theme::UI)
+                glass_ui::text(14., FontWeight::NORMAL, 1.)
                     .text_color(gpui::white())
                     .child(me.name.clone()),
             )
@@ -760,7 +779,7 @@ impl Launcher {
                 cx.notify();
             },
         ));
-        let player = plate(&t)
+        let player = glass_card()
             .flex()
             .flex_col()
             .items_center()
@@ -772,11 +791,12 @@ impl Launcher {
             .child(name_tag)
             .child(
                 div()
+                    .relative()
                     .w(px(W))
                     .h(px(H))
                     .children(picture.map(|i| gpui::img(i).w(px(W)).h(px(H)))),
             )
-            .child(turn);
+            .child(turn.relative());
         // What the account owns for the chosen slot, "Nothing" first.
         let slot = w.slot;
         let label = SLOTS.iter().find(|(s, _)| *s == slot).map_or("", |s| s.1);
@@ -785,17 +805,28 @@ impl Launcher {
         let mut cards = div().flex().flex_wrap().gap(px(8.));
         let card = |id: SharedString, title: String, under: String, on: bool| {
             keyboard(div().id(id), &t)
+                .relative()
                 .flex()
                 .flex_col()
                 .gap(px(2.))
                 .w(px(136.))
                 .p(px(12.))
+                .rounded(px(horizon_theme::glass::radius::ROW))
                 .cursor_pointer()
-                .bg(t.well)
-                .border_2()
-                .border_color(if on { t.accent } else { t.outline })
-                .child(text(theme::LABEL).text_color(t.ink).child(title))
-                .child(text(theme::CAPTION).text_color(t.muted).child(under))
+                .bg(glass_ui::white(if on {
+                    horizon_theme::glass::fill::SELECTED
+                } else {
+                    horizon_theme::glass::fill::FIELD
+                }))
+                .hover(|s| s.bg(glass_ui::white(horizon_theme::glass::fill::ACTIVE)))
+                .border_1()
+                .border_color(if on {
+                    glass_ui::accent_soft(self.look.accent_soft)
+                } else {
+                    glass_ui::white(0.)
+                })
+                .child(glass_ui::text(14., FontWeight::MEDIUM, ink::FULL).child(title))
+                .child(glass_ui::text(13., FontWeight::NORMAL, ink::QUIET).child(under))
         };
         cards = cards.child(
             card(
@@ -845,15 +876,19 @@ impl Launcher {
                 })),
             );
         }
-        let owned = plate(&t)
+        let owned = glass_card()
             .flex()
             .flex_col()
             .gap(px(12.))
             .p(px(16.))
             .w(px(312.))
             .flex_none()
-            .child(text(theme::HEADING).text_color(t.ink).child(tr(label)))
-            .child(cards);
+            .child(
+                glass_ui::text(18., FontWeight::SEMIBOLD, ink::FULL)
+                    .relative()
+                    .child(tr(label)),
+            )
+            .child(cards.relative());
         let page = page
             .child(
                 div()
@@ -870,27 +905,29 @@ impl Launcher {
             .filter(|(_, at)| at.elapsed() < TOAST)
             .map(|(s, _)| s.clone());
         page.children(toast.map(|s| {
-            plate(&t)
-                .px(px(16.))
-                .py(px(10.))
-                .child(text(theme::UI).text_color(t.ink).child(s))
+            glass_card().px(px(16.)).py(px(10.)).child(
+                glass_ui::text(14., FontWeight::NORMAL, ink::FULL)
+                    .relative()
+                    .child(s),
+            )
         }))
     }
 
     /// Over the page: the founder set's claim, offline, a failure.
     fn wardrobe_banner(&self, w: &Wardrobe, cx: &mut Context<Self>) -> Option<Div> {
+        use horizon_theme::glass::ink;
         let t = self.theme;
         let row = |said: String| {
-            plate(&t)
+            glass_card()
                 .flex()
                 .items_center()
                 .gap(px(16.))
                 .p(px(16.))
                 .child(
-                    text(theme::UI)
+                    glass_ui::text(14., FontWeight::NORMAL, ink::FULL)
+                        .relative()
                         .flex_1()
                         .min_w_0()
-                        .text_color(t.ink)
                         .child(said),
                 )
         };
@@ -989,6 +1026,7 @@ impl Launcher {
     /// Show my cosmetics (the account's, on the service), and the game's two switches about
     /// other players.
     fn wardrobe_switches(&self, visible: bool, cx: &mut Context<Self>) -> Div {
+        use horizon_theme::glass::ink;
         let t = self.theme;
         let home = backend::game_home();
         let prefs = Prefs::load(&home);
@@ -1000,13 +1038,16 @@ impl Launcher {
                 .items_center()
                 .gap(px(12.))
                 .cursor_pointer()
-                .child(switch(format!("{id}-switch"), on, &t))
+                .child(switch(format!("{id}-switch"), on, &t).relative())
                 .child(
                     div()
+                        .relative()
                         .flex()
                         .flex_col()
-                        .child(text(theme::LABEL).text_color(t.ink).child(tr(title)))
-                        .child(text(theme::CAPTION).text_color(t.muted).child(tr(under))),
+                        .child(glass_ui::text(14., FontWeight::MEDIUM, ink::FULL).child(tr(title)))
+                        .child(
+                            glass_ui::text(13., FontWeight::NORMAL, ink::QUIET).child(tr(under)),
+                        ),
                 )
         };
         let save = |prefs: Prefs| {
@@ -1017,7 +1058,7 @@ impl Launcher {
             }
         };
         let hidden = prefs.others == Others::Hidden;
-        plate(&t)
+        glass_card()
             .flex()
             .flex_wrap()
             .gap(px(24.))

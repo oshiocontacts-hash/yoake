@@ -791,7 +791,7 @@ impl Launcher {
                                 .child(ui::text(12., FontWeight::NORMAL, ink::FAINT).child(how)),
                         )
                         .when(chosen, |d| {
-                            d.child(ui::icon("tick-02", 16., ui::color(soft)).relative())
+                            d.child(ui::icon("tick-02", 16., ui::accent_soft(soft)).relative())
                         })
                         .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.play_as(who.clone());
