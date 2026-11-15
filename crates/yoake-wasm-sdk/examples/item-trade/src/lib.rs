@@ -2,7 +2,7 @@
 
 use yoake_wasm_sdk::export_server_full;
 use yoake_wasm_sdk::full::hook;
-use yoake_wasm_sdk::full::server::{ServerMod, et, ext, services};
+use yoake_wasm_sdk::full::server::{ServerMod, et, ext, services, types};
 
 const INPUT_ITEM: &str = "minecraft:cobblestone";
 const INPUT_COUNT: u32 = 16;
@@ -36,69 +36,51 @@ impl ServerMod for ItemTradeMod {
             return true;
         }
 
-        // ext::take uses inventory_apply with components: None, so any
-        // components match and the off hand is searched too. give_items fills
-        // only the 36 main slots. The clear below is exact and all-or-nothing.
-        match ext::take(&uuid, INPUT_ITEM, INPUT_COUNT) {
+        // Give the reward first with inventory_apply's Give: all-or-nothing and
+        // main slots only (services::give_items would also top up held and
+        // off-hand stacks, but it never fills an empty off hand). If it does
+        // not fit, nothing has changed yet.
+        let reward = types::InventoryChange {
+            operation: types::InventoryOperation::Give,
+            item: OUTPUT_ITEM.to_owned(),
+            count: OUTPUT_COUNT,
+            components: None,
+        };
+        match services::inventory_apply(&reward, &uuid) {
             Ok(true) => {}
             Ok(false) => {
-                let _ = services::tell(
-                    &format!("You need {INPUT_COUNT} {INPUT_ITEM} to trade."),
-                    &uuid,
-                );
+                let _ = services::tell("Your inventory is full; trade cancelled.", &uuid);
                 return true;
             }
             Err(err) => {
-                let _ = services::tell(&format!("Could not take trade items: {err}"), &uuid);
+                let _ = services::tell(&format!("Could not give the reward: {err}"), &uuid);
                 return true;
             }
         }
 
-        // Never keep the input when the complete reward was not delivered.
-        let reply = match services::give_items(&[ext::item(OUTPUT_ITEM, OUTPUT_COUNT)], &uuid) {
-            Ok(leftovers) => {
-                let left: u32 = leftovers.iter().map(|stack| stack.count).sum();
-                if left == 0 {
-                    format!("Traded {INPUT_COUNT} {INPUT_ITEM} for {OUTPUT_COUNT} {OUTPUT_ITEM}.")
-                } else {
-                    undo_trade(&uuid, OUTPUT_COUNT.saturating_sub(left), "Inventory full")
-                }
+        // Then take the input. ext::take matches any components and also
+        // searches the off hand. If it fails, take the reward back.
+        let reply = match ext::take(&uuid, INPUT_ITEM, INPUT_COUNT) {
+            Ok(true) => {
+                format!("Traded {INPUT_COUNT} {INPUT_ITEM} for {OUTPUT_COUNT} {OUTPUT_ITEM}.")
             }
-            Err(err) => undo_trade(&uuid, 0, &format!("Reward failed: {err}")),
+            Ok(false) => undo_reward(&uuid, &format!("You need {INPUT_COUNT} {INPUT_ITEM} to trade")),
+            Err(err) => undo_reward(&uuid, &format!("Could not take trade items: {err}")),
         };
         let _ = services::tell(&reply, &uuid);
         true
     }
 }
 
-/// Remove a partially given reward, return the input, and describe any failure.
-fn undo_trade(uuid: &str, reward_given: u32, reason: &str) -> String {
-    if reward_given > 0 {
-        match ext::take(uuid, OUTPUT_ITEM, reward_given) {
-            Ok(true) => {}
-            Ok(false) => return format!(
-                "{reason}; trade cancelled, but undo failed: you kept the {reward_given} {OUTPUT_ITEM} reward and none of the {INPUT_COUNT} {INPUT_ITEM} were returned."
-            ),
-            Err(err) => return format!(
-                "{reason}; trade cancelled, but undo failed: you kept the {reward_given} {OUTPUT_ITEM} reward and none of the {INPUT_COUNT} {INPUT_ITEM} were returned ({err})."
-            ),
-        }
-    }
-
-    match services::give_items(&[ext::item(INPUT_ITEM, INPUT_COUNT)], uuid) {
-        Ok(leftovers) => {
-            let missing: u32 = leftovers.iter().map(|stack| stack.count).sum();
-            if missing == 0 {
-                format!("{reason}; trade cancelled; your {INPUT_ITEM} were returned.")
-            } else {
-                let returned = INPUT_COUNT.saturating_sub(missing);
-                format!(
-                    "{reason}; trade cancelled, but undo was incomplete: no trade reward remains, {returned} of {INPUT_COUNT} {INPUT_ITEM} were returned, and {missing} were not."
-                )
-            }
-        }
+/// Take the just-given reward back and describe the outcome.
+fn undo_reward(uuid: &str, reason: &str) -> String {
+    match ext::take_exact(uuid, &ext::item(OUTPUT_ITEM, OUTPUT_COUNT)) {
+        Ok(true) => format!("{reason}; trade cancelled."),
+        Ok(false) => format!(
+            "{reason}; trade cancelled, but undo failed: the {OUTPUT_COUNT} {OUTPUT_ITEM} reward could not be taken back."
+        ),
         Err(err) => format!(
-            "{reason}; trade cancelled, but undo failed: no trade reward remains and none of the {INPUT_COUNT} {INPUT_ITEM} were returned ({err})."
+            "{reason}; trade cancelled, but undo failed: the {OUTPUT_COUNT} {OUTPUT_ITEM} reward could not be taken back ({err})."
         ),
     }
 }

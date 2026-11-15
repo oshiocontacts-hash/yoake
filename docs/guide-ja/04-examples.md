@@ -18,8 +18,8 @@
 | `full-services` | `client-full` / `server-full` | 設定・ストレージ（通常および分割 blob）・権限チェックの一連の操作と、権限未宣言時に `"permission denied: ..."` で拒否される動作の検証 | `CONFIG_CHANGED`（＋ client `init` / server `handle_call`） | `config_get`, `config_set`, `storage_get`, `storage_put`, `storage_delete`, `storage_blob_begin/write/commit/abort/read`, `has_permission` |
 | `mod-call-pair` | `server-full` | `caller` の `/ping <text>` から `responder` の `handle_call` を呼び、2 つの MOD で UTF-8 テキストをやり取りする | `REGISTER_COMMANDS`, `PERFORM_COMMAND` / `handle_call` | `services::mod_call`, `services::tell` |
 | `chest-count` | `server-full` | `/chestcount <x> <y> <z>` で指定した座標のコンテナを読み、アイテム ID ごとの合計を返答する | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::container_slots`, `services::tell` |
-| `item-trade` | `server-full` | `/trade` で丸石をちょうど 16 個、全部取れるときだけ取り出し（足りなければ何も取らない）、ダイヤモンド 1 個を与える | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `ext::take`（`inventory_apply`）, `services::give_items`, `services::tell` |
-| `player-vitals` | `server-full` | `/vitals` でプレイヤーの体力と `minecraft:story/root` 実績の `known` / `done` を返答する | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::advancement_progress`, `services::tell` |
+| `item-trade` | `server-full` | `/trade` で丸石をちょうど 16 個、全部取れるときだけ取り出し（足りなければ何も取らない）、ダイヤモンド 1 個を与える | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::inventory_apply`（`Give`）, `ext::take`, `ext::take_exact`, `services::tell` |
+| `player-vitals` | `server-full` | `/vitals` でプレイヤーの体力と `minecraft:story/root` 実績の `known` / `done` を返答する | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::advancement_progress`, `services::attribute_get`, `services::tell` |
 
 ---
 
@@ -95,15 +95,15 @@
 
 ### `chest-count`（コンテナのアイテムを数える）
 
-`/chestcount <x> <y> <z>` は、コマンドを実行したプレイヤーと同じディメンションの指定座標を `services::container_slots` で読みます。各スロットの `Option<types::ItemStack>` から中身だけを取り出し、アイテム ID ごとに `count` を合計します。チェスト以外のコンテナにも使えますが、コンテナが無い座標や読み込まれていないチャンクではエラーになり、コンポスターもコンテナとしては扱われません。
+`/chestcount <x> <y> <z>` は、コマンドを実行したプレイヤーと同じディメンションの指定座標を `services::container_slots` で読みます。各スロットの `Option<types::ItemStack>` から中身だけを取り出し、アイテム ID ごとに `count` を合計します。ラージチェストは両半分のスロットが返ります。対象はコマンドを実行したプレイヤーが今いるディメンションのコンテナだけです。チェスト以外のコンテナにも使えますが、コンテナが無い座標や読み込まれていないチャンクではエラーになり、コンポスターもコンテナとしては扱われません。
 
 ### `item-trade`（アイテムを交換する）
 
-`/trade` は `ext::take` で `minecraft:cobblestone` を 16 個ちょうど取り出し、`services::give_items` で `minecraft:diamond` を 1 個与えます。取り出しは `inventory_apply` による全量または無しの操作なので、所持数が足りなければ何も消費しません。報酬が入りきらない場合や付与に失敗した場合は、入った報酬を取り除いて丸石を返して取引を取り消し、取り消し自体に失敗したときは成功と言わず、返せた物と返せなかった物を知らせます。
+`/trade` は、先に `services::inventory_apply` の `Give` で `minecraft:diamond` を 1 個与えます（メインスロットだけが対象で、全量入るか何も入らないかのどちらかです）。入らなければ「インベントリがいっぱい」と知らせて終了し、何も変わりません。入ったら `ext::take` で `minecraft:cobblestone` を 16 個ちょうど取り出します。これも全量または無しの操作で、オフハンドも対象です。取り出しに失敗した（丸石が足りない）ときは、いま与えたダイヤモンドを `ext::take_exact` で取り戻して取引を取り消します。順序を「与えてから取る」にしているので、入力を返す処理は要りません。`ext::take` は名前やタグなどのコンポーネントが付いた丸石も取りますが、`ext::take_exact` はアイテム・個数・コンポーネントが完全に一致するスタックだけを取ります。
 
 ### `player-vitals`（体力と実績の進捗を読む）
 
-`/vitals` はコマンドフックの `player.health` から体力を読み、`services::advancement_progress` で `minecraft:story/root` の状態を読みます。返ってくる `types::AdvancementState` の `known` は実績を認識しているか、`done` は完了しているかを表します。実績の読み取りに失敗した場合も、取得できている体力は返答します。
+`/vitals` はコマンドフックの `player.health` から現在の体力を、`services::attribute_get("minecraft:max_health", ...)` から最大体力を読み、`services::advancement_progress` で `minecraft:story/root` の状態を読みます。返ってくる `types::AdvancementState` の `known` は実績を認識しているか、`done` は完了しているかを表します。実績や最大体力の読み取りに失敗した場合も、取得できている体力は返答します。
 
 ---
 

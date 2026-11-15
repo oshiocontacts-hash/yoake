@@ -35,15 +35,16 @@ impl ServerMod for PlayerVitalsMod {
 
         // The command hook's player record already contains current health.
         // advancement_progress also says whether this advancement is known.
+        let health = match services::attribute_get("minecraft:max_health", &uuid) {
+            Ok(max) => format!("health {:.1}/{:.1}", player.health, max.value),
+            Err(_) => format!("health {:.1}", player.health),
+        };
         let reply = match services::advancement_progress(ADVANCEMENT, &uuid) {
             Ok(state) => format!(
-                "{}: health {:.1}; {ADVANCEMENT} known={}, done={}.",
-                player.name, player.health, state.known, state.done
+                "{}: {health}; {ADVANCEMENT} known={}, done={}.",
+                player.name, state.known, state.done
             ),
-            Err(err) => format!(
-                "{}: health {:.1}; could not read {ADVANCEMENT}: {err}",
-                player.name, player.health
-            ),
+            Err(err) => format!("{}: {health}; could not read {ADVANCEMENT}: {err}", player.name),
         };
         let _ = services::tell(&reply, &uuid);
         true

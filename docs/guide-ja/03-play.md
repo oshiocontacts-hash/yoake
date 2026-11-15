@@ -57,9 +57,9 @@ raw Wasm hot reload only supports client-mod; not installed
 yoake pack
 ```
 
-### 4 つの新しいサンプルとフルカタログ MOD の手順
+### 新しいサンプルとフルカタログ MOD の手順
 
-`hud-item`、`server-storage`、`config-demo`、`permission-demo` はすべてフルカタログの MOD なので、開発フォルダではなく、必ず次の手順でインストールします。
+`hud-item`、`server-storage`、`config-demo`、`permission-demo`、`mod-call-pair`（`caller` と `responder`）、`chest-count`、`item-trade`、`player-vitals` はすべてフルカタログの MOD なので、開発フォルダではなく、必ず次の手順でインストールします。
 
 1. プロジェクトで `yoake pack` を実行します。
 2. 上の安全上の注意を確認し、ランチャーの設定の "Developer options"（サイドバーの "Launcher x.y.z" を 7 回クリックすると出てくる）→「自作の DLL MOD を試す（開発者モード）」を有効にします。

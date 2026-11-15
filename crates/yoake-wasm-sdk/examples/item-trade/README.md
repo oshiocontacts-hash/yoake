@@ -1,12 +1,12 @@
 # `yoake-wasm-item-trade`
 
-A server-side Yoake WebAssembly mod (`server-full` world) that registers `/trade`. It takes exactly 16 `minecraft:cobblestone` all-or-nothing with `ext::take` (the `inventory_apply` helper), then gives one `minecraft:diamond` with `services::give_items`. If the whole reward does not fit, it removes any delivered reward and returns the input to cancel the trade; incomplete undo attempts are reported explicitly.
+A server-side Yoake WebAssembly mod (`server-full` world) that registers `/trade`. It first gives one `minecraft:diamond` with `services::inventory_apply` (`Give`: all-or-nothing, main slots only); if it does not fit, the player is told the inventory is full and nothing changes. Then it takes exactly 16 `minecraft:cobblestone` all-or-nothing with `ext::take`; if that fails, the diamond is taken back with `ext::take_exact`, so no input ever has to be returned.
 
 ## What It Shows
 
-- Taking exactly 16 items all-or-nothing with `ext::take`; any components match, and the off hand is searched.
+- Giving first, then taking, so a failure never loses the input.
+- Taking exactly 16 items all-or-nothing with `ext::take`; it matches any components (named or tagged items too) and searches the off hand, while `ext::take_exact` matches only the exact item, count and components.
 - Creating a default `types::ItemStack` with `ext::item`.
-- Reading leftover stacks from `services::give_items` and undoing an incomplete trade without claiming success if the undo fails.
 - Using inventory services without an extra `[wasm] permissions` capability.
 
 ## Building

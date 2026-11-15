@@ -1,6 +1,6 @@
 # `yoake-wasm-player-vitals`
 
-A minimal server-side Yoake WebAssembly mod (`server-full` world) that registers `/vitals`. It reports health from the command hook's `et::NativeServerPlayer` record and reads whether `minecraft:story/root` is known and done with `services::advancement_progress`.
+A minimal server-side Yoake WebAssembly mod (`server-full` world) that registers `/vitals`. It reports current health from the command hook's `et::NativeServerPlayer` record and max health from `services::attribute_get("minecraft:max_health", ...)` and reads whether `minecraft:story/root` is known and done with `services::advancement_progress`.
 
 ## What It Shows
 

@@ -21,7 +21,7 @@ impl ServerMod for ResponderMod {
         // here makes the caller's services::mod_call return Err as well.
         let text = String::from_utf8(payload)
             .map_err(|_| "echo payload must be valid UTF-8".to_owned())?;
-        Ok(format!("pong from {caller}: {text}").into_bytes())
+        Ok(format!("pong to {caller}: {text}").into_bytes())
     }
 }
 
