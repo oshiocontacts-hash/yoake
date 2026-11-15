@@ -9,6 +9,8 @@ use std::time::{Duration, Instant};
 use yoake_wasm::{Sandbox, TestMod, TestOutcome};
 
 use crate::bridge::{ChannelHost, Client, Op, Reply};
+use crate::control_client::Control;
+use crate::guard::PORT_FILE;
 use crate::plan::WorkerArgs;
 use crate::report::TestRecord;
 
@@ -17,6 +19,8 @@ pub const OWNER_WAIT: Duration = Duration::from_secs(120);
 /// Real time the world runs after the owner joined, before it is frozen for the test: chunks around the
 /// spawn load and the first ticks run on their own.
 pub const WARMUP: Duration = Duration::from_secs(2);
+/// Longest the worker waits for the second client to join and to be in the world.
+pub const CLIENT_WAIT: Duration = Duration::from_secs(240);
 /// Extra time the watchdog gives after startup and the test's own limit before it ends the process.
 const GRACE: Duration = Duration::from_secs(10);
 
@@ -51,9 +55,14 @@ pub fn run(args: &WorkerArgs, client: Client, owner_wait: Duration, warmup: Dura
     let Some(module) = &args.module else {
         return TestRecord::fail(&name, 0, "no test module given");
     };
+    let control = args.client_control.clone().filter(|_| args.clients == 2).map(Control::new);
     let setup = || -> Result<TestMod, String> {
         let bytes = read_module(module)?;
-        TestMod::instantiate(&mut Sandbox::new(), "yoake-test", &bytes, Box::new(ChannelHost::new(client.clone())), args.timeout)
+        let mut host = ChannelHost::new(client.clone());
+        if let Some(control) = &control {
+            host = host.with_second_client(control.clone());
+        }
+        TestMod::instantiate(&mut Sandbox::new(), "yoake-test", &bytes, Box::new(host), args.timeout)
             .map_err(|error| format!("the test module did not load: {error}"))
     };
     let mut module = match setup() {
@@ -62,6 +71,11 @@ pub fn run(args: &WorkerArgs, client: Client, owner_wait: Duration, warmup: Dura
     };
     if let Err(error) = wait_for_owner(&client, owner_wait) {
         return TestRecord::fail(&name, 0, error);
+    }
+    if let Some(control) = &control {
+        if let Err(error) = open_to_second_client(args, &client, control) {
+            return TestRecord::fail(&name, 0, error);
+        }
     }
     // The world has run on its own while the owner joined and during the warm-up; from here it stands still
     // and ticks only when the test says so.
@@ -75,6 +89,36 @@ pub fn run(args: &WorkerArgs, client: Client, owner_wait: Duration, warmup: Dura
         TestOutcome::Fail(message) => TestRecord::fail(&name, ms, message),
         TestOutcome::Trap(message) => TestRecord::fail(&name, ms, format!("the test module trapped or ran out of time: {message}")),
     }
+}
+
+/// A two-client test's first step: opens the world to the loopback, tells the coordinator the port (the `port`
+/// file beside the result, which makes it start the second client) and waits until that client is in the world:
+/// two players on the server, and the client's own status shows its player.
+fn open_to_second_client(args: &WorkerArgs, client: &Client, control: &Control) -> Result<(), String> {
+    let port = match client.request_within(Op::Publish, Duration::from_secs(30))? {
+        Reply::Id(port) if port > 0 => port,
+        other => return Err(format!("the world was not opened to the loopback: {other:?}")),
+    };
+    let folder = args.result.as_deref().and_then(Path::parent).ok_or("no result folder")?;
+    std::fs::write(folder.join(PORT_FILE), port.to_string()).map_err(|error| format!("cannot write the port: {error}"))?;
+    let deadline = Instant::now() + CLIENT_WAIT;
+    loop {
+        let players = match client.request_within(Op::Players, Duration::from_secs(5))? {
+            Reply::Players(players) => players.len(),
+            _ => 0,
+        };
+        if players >= 2 {
+            break;
+        }
+        if Instant::now() >= deadline {
+            return Err("the second client did not join the world".into());
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    control
+        .wait("status", "\"player\":{", deadline.saturating_duration_since(Instant::now()).max(Duration::from_secs(5)))
+        .map(|_| ())
+        .map_err(|error| format!("the second client is not in the world: {error}"))
 }
 
 /// Writes the result file whole (a temporary file renamed over the path), so the coordinator never reads half.
@@ -117,6 +161,23 @@ pub fn arm(args: &WorkerArgs) {
             std::thread::sleep(Duration::from_secs(1));
         }
         finish(&orphaned, &TestRecord::fail(&name, 0, "the coordinator went away"), 4);
+    });
+}
+
+/// A second client's own limits: it ends after `lifetime` and when its coordinator is gone. It has no test and
+/// no result: the worker that drives it reports.
+pub fn arm_client(args: &WorkerArgs) {
+    let lifetime = args.lifetime + GRACE;
+    let _ = std::thread::Builder::new().name("yoake-test-client-watchdog".into()).spawn(move || {
+        std::thread::sleep(lifetime);
+        std::process::exit(3);
+    });
+    let original = crate::guard::parent_id();
+    let _ = std::thread::Builder::new().name("yoake-test-client-parent".into()).spawn(move || {
+        while !crate::guard::parent_gone(original) {
+            std::thread::sleep(Duration::from_secs(1));
+        }
+        std::process::exit(4);
     });
 }
 
@@ -174,6 +235,7 @@ mod tests {
                             Reply::Bytes(answer)
                         }
                         Op::BreakBlock(_) => Reply::Done,
+                        Op::Publish => Reply::Id(0),
                         Op::Advance(_) => unreachable!("the bridge handles it"),
                     })
                 }, Duration::from_millis(20));

@@ -17,6 +17,7 @@
 //! the `--yoake-test*` flags, and no mod, server or save can set them.
 
 pub mod bridge;
+pub mod control_client;
 pub mod coordinator;
 pub mod guard;
 pub mod install;

@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use serde_json::{Value, json};
 use yoake_wasm::{Sandbox, TestHost, TestMod};
 
-use crate::guard::{self, Job, RESULT_FILE, TOKEN_ENV, TOKEN_FILE, Tail, random_hex};
+use crate::guard::{self, CLIENT_FOLDER, CONTROL_FILE, Job, PORT_FILE, RESULT_FILE, TOKEN_ENV, TOKEN_FILE, Tail, random_hex};
 use crate::install::{self, Installed};
 use crate::plan::Plan;
 use crate::report::{self, TestRecord};
@@ -104,14 +104,8 @@ impl Drop for TempRoot {
 /// Runs the plan. `prepare_world` makes the world folder it is given (`<game>/saves/yoake-test`) a fresh
 /// superflat world with the fixed seed 0; the game supplies it (it writes the world's generator settings).
 pub fn run(plan: &Plan, game: &GameCommand, prepare_world: &dyn Fn(&Path) -> Result<(), String>) -> Outcome {
-    if plan.clients != 1 {
-        return failed(
-            vec![format!(
-                "--yoake-test-clients={} is not implemented yet: the two-client mode is designed in docs/yoake-wasm-dev.md but only one client runs",
-                plan.clients
-            )],
-            json!({"clients": plan.clients}),
-        );
+    if !(1..=2).contains(&plan.clients) {
+        return failed(vec![format!("--yoake-test-clients is 1 or 2, not {}", plan.clients)], json!({"clients": plan.clients}));
     }
     // The game changes its working directory: every path the workers get is absolute.
     let mut plan = plan.clone();
@@ -123,7 +117,7 @@ pub fn run(plan: &Plan, game: &GameCommand, prepare_world: &dyn Fn(&Path) -> Res
         Ok(project) => project,
         Err(error) => return failed(vec![error], json!({})),
     };
-    let extra = json!({"id": project.id, "version": project.version, "clients": 1});
+    let extra = json!({"id": project.id, "version": project.version, "clients": plan.clients});
     let module = match plan.module.clone() {
         Some(module) => module,
         None if plan.target.is_dir() => install::default_module(&plan.target, &project.id),
@@ -206,11 +200,23 @@ pub fn run_one(
             fs::create_dir_all(folder).map_err(|error| format!("{}: {error}", folder.display()))?;
         }
         fs::write(dir.join(TOKEN_FILE), &token).map_err(|error| format!("{}: {error}", dir.display()))?;
-        let mut installed: Vec<Installed> = Vec::new();
-        for source in std::iter::once(&plan.target).chain(plan.with.iter()) {
-            installed.push(install::install(source, &game_dir)?);
+        // Every game of the test has the packages installed: the worker's, and the second client's.
+        let mut folders = vec![game_dir.clone()];
+        if plan.clients == 2 {
+            let second = dir.join(CLIENT_FOLDER);
+            for folder in [second.join("game"), second.join("home")] {
+                fs::create_dir_all(&folder).map_err(|error| format!("{}: {error}", folder.display()))?;
+            }
+            fs::write(second.join(TOKEN_FILE), &token).map_err(|error| format!("{}: {error}", second.display()))?;
+            folders.push(second.join("game"));
         }
-        install::write_list(&game_dir, &installed)?;
+        for folder in folders {
+            let mut installed: Vec<Installed> = Vec::new();
+            for source in std::iter::once(&plan.target).chain(plan.with.iter()) {
+                installed.push(install::install(source, &folder)?);
+            }
+            install::write_list(&folder, &installed)?;
+        }
         let world = game_dir.join("saves").join(WORLD);
         fs::create_dir_all(&world).map_err(|error| format!("{}: {error}", world.display()))?;
         prepare_world(&world)
@@ -225,7 +231,8 @@ pub fn run_one(
                 job.add(&child);
             }
             let tail = Tail::capture(&mut child);
-            finish(plan, game, Worker(child), name, &result, &tail, began)
+            let mut second = (plan.clients == 2).then(|| Second::new(&dir, &token));
+            finish(plan, game, Worker(child), name, &result, &tail, began, second.as_mut(), job)
         }
         Err(error) => fail(error),
     };
@@ -266,8 +273,14 @@ fn spawn(
         .arg("--yoake-test-result")
         .arg(result)
         .args(["--yoake-test-timeout-ms", &plan.timeout.as_millis().to_string()])
-        .args(["--yoake-test-startup-seconds", &plan.startup.as_secs().max(1).to_string()])
-        .args(&plan.game_args);
+        .args(["--yoake-test-startup-seconds", &plan.startup.as_secs().max(1).to_string()]);
+    if plan.clients == 2 {
+        command
+            .args(["--yoake-test-clients", "2"])
+            .arg("--yoake-test-client-control")
+            .arg(result.parent().unwrap_or(Path::new("")).join(CLIENT_FOLDER).join(CONTROL_FILE));
+    }
+    command.args(&plan.game_args);
     // A worker inherits only what the system and the graphics driver need: no `HORIZON_*` or `YOAKE_*` switch
     // of the coordinator's (session file, command script, DLL mods, developer mode, ...) reaches it.
     command.env_clear();
@@ -294,10 +307,105 @@ enum Ending {
     Lost(String),
 }
 
-fn finish(plan: &Plan, game: &GameCommand, mut worker: Worker, name: &str, result: &Path, tail: &Tail, began: Instant) -> TestRecord {
+/// The second client of a two-client test: started once the worker has published its world and written the port.
+struct Second {
+    folder: PathBuf,
+    token: String,
+    started: Option<(Worker, Tail)>,
+    failure: Option<String>,
+}
+
+impl Second {
+    fn new(dir: &Path, token: &str) -> Self {
+        Self { folder: dir.to_owned(), token: token.to_owned(), started: None, failure: None }
+    }
+
+    /// Starts the client when the port file is there and it has not started yet.
+    fn poll(&mut self, plan: &Plan, game: &GameCommand, job: Option<&Job>) {
+        if self.started.is_some() || self.failure.is_some() {
+            return;
+        }
+        let Some(port) = guard::read_limited(&self.folder.join(PORT_FILE), 16).and_then(|text| text.trim().parse::<u16>().ok()) else { return };
+        match spawn_client(plan, game, &self.folder, port, &self.token) {
+            Ok(mut child) => {
+                if let Some(job) = job {
+                    job.add(&child);
+                }
+                let tail = Tail::capture(&mut child);
+                self.started = Some((Worker(child), tail));
+            }
+            Err(error) => self.failure = Some(error),
+        }
+    }
+
+    /// What to add to a failure: the client's trouble, and the end of its output.
+    fn note(&mut self) -> String {
+        let mut note = String::new();
+        if let Some(error) = &self.failure {
+            note += &format!("; the second client could not start: {error}");
+        }
+        if let Some((worker, tail)) = &mut self.started {
+            let state = match worker.0.try_wait() {
+                Ok(Some(status)) => format!("exited with {:?}", status.code()),
+                _ => "was still running".to_owned(),
+            };
+            let output = tail.text(OUTPUT_TAIL / 2);
+            note += &format!("; the second client {state}{}", if output.is_empty() { String::new() } else { format!(", its output ended: {output}") });
+        }
+        note
+    }
+}
+
+/// Starts the second client: a plain offscreen game that joins 127.0.0.1:port in its own folders.
+fn spawn_client(plan: &Plan, game: &GameCommand, dir: &Path, port: u16, token: &str) -> Result<Child, String> {
+    let folder = dir.join(CLIENT_FOLDER);
+    let mut command = Command::new(&game.exe);
+    command
+        .args(&game.lead_args)
+        .args(["--offscreen", "--no-focus", "--no-pause"])
+        .arg("--game-dir")
+        .arg(folder.join("game"))
+        .arg("--home")
+        .arg(folder.join("home"))
+        .args(["--server", &format!("127.0.0.1:{port}"), "--name", "TestB", "--render-distance", "4"])
+        .arg("--control-socket")
+        .arg(folder.join(CONTROL_FILE))
+        .args(["--yoake-test-client", "1"])
+        .args(["--yoake-test-lifetime-seconds", &(plan.startup + plan.timeout).as_secs().max(1).to_string()])
+        .args(&plan.game_args);
+    command.env_clear();
+    for (variable, value) in guard::worker_env(std::env::vars_os()) {
+        command.env(variable, value);
+    }
+    command
+        .env(TOKEN_ENV, token)
+        .env("HORIZON_NO_AUDIO", "1")
+        .env("HORIZON_NO_FOCUS", "1")
+        .env("HORIZON_HOME", folder.join("home"))
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    command.spawn().map_err(|error| format!("could not start {}: {error}", game.exe.display()))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn finish(
+    plan: &Plan,
+    game: &GameCommand,
+    mut worker: Worker,
+    name: &str,
+    result: &Path,
+    tail: &Tail,
+    began: Instant,
+    mut second: Option<&mut Second>,
+    job: Option<&Job>,
+) -> TestRecord {
     let deadline = began + plan.startup + plan.timeout + game.grace;
     let mut result_seen: Option<Instant> = None;
     let ending = loop {
+        if let Some(second) = second.as_deref_mut() {
+            second.poll(plan, game, job);
+        }
         if (game.interrupted)() {
             break Ending::Interrupted;
         }
@@ -324,6 +432,9 @@ fn finish(plan: &Plan, game: &GameCommand, mut worker: Worker, name: &str, resul
     }
     let _ = worker.0.wait();
     let ms = began.elapsed().as_millis() as u64;
+    let note = second.as_deref_mut().map(Second::note).unwrap_or_default();
+    // The second client goes with the worker (dropping it kills it).
+    drop(second.as_deref_mut().and_then(|second| second.started.take()));
     if result.exists() {
         return match guard::read_limited(result, MAX_RESULT_BYTES) {
             None => TestRecord::fail(name, ms, "the worker's result is unreadable or larger than 1 MiB"),
@@ -331,6 +442,9 @@ fn finish(plan: &Plan, game: &GameCommand, mut worker: Worker, name: &str, resul
                 Ok(mut record) => {
                     // The worker names its test; the coordinator's name is the one reported.
                     record.name = name.to_owned();
+                    if !record.ok && !note.is_empty() {
+                        record.error = Some(report::clip(&format!("{}{note}", record.error.unwrap_or_default())));
+                    }
                     record
                 }
                 Err(error) => TestRecord::fail(name, ms, format!("the worker's result is unreadable: {error}")),
@@ -347,7 +461,7 @@ fn finish(plan: &Plan, game: &GameCommand, mut worker: Worker, name: &str, resul
         Ending::Exited(None) => "the worker was ended by a signal before it ran the test".to_owned(),
         Ending::Lost(error) => format!("lost the worker: {error}"),
     };
-    TestRecord::fail(name, ms, if output.is_empty() { why } else { format!("{why}; its output ended: {output}") })
+    TestRecord::fail(name, ms, if output.is_empty() { format!("{why}{note}") } else { format!("{why}; its output ended: {output}{note}") })
 }
 
 /// Removes `path` and everything under it; Windows may need a moment after the worker exits.
@@ -379,6 +493,16 @@ mod tests {
     fn fake_game() {
         let args: Vec<String> = std::env::args().collect();
         let value = |flag: &str| args.iter().position(|argument| argument == flag).and_then(|index| args.get(index + 1)).cloned();
+        // The second client of a two-client test: it proves itself, leaves a marker in its folder and waits to be killed.
+        if value("--yoake-test-client").is_some() {
+            let proof = guard::verify_client(&args[1..], std::env::var(TOKEN_ENV).ok().as_deref());
+            let folder = PathBuf::from(value("--game-dir").expect("a game dir")).parent().unwrap().to_owned();
+            let server = value("--server").unwrap_or_default();
+            let note = if matches!(proof, Ok(Some(_))) && server.starts_with("127.0.0.1:4242") { "joined".to_owned() } else { format!("bad client: {proof:?} {server}") };
+            fs::write(folder.join("started"), note).unwrap();
+            std::thread::sleep(Duration::from_secs(120));
+            return;
+        }
         let Some(test) = value("--yoake-test-run") else { return };
         let result = PathBuf::from(value("--yoake-test-result").expect("a result path"));
         let game_dir = PathBuf::from(value("--game-dir").expect("a game dir"));
@@ -443,6 +567,20 @@ mod tests {
                 std::thread::sleep(Duration::from_secs(120));
             }
             "hang" => std::thread::sleep(Duration::from_secs(120)),
+            "two" => {
+                // The worker of a two-client test: publishes (a port file), waits for its client, then reports.
+                let folder = result.parent().unwrap().to_owned();
+                fs::write(folder.join(guard::PORT_FILE), "4242").unwrap();
+                let marker = folder.join(CLIENT_FOLDER).join("started");
+                let deadline = Instant::now() + Duration::from_secs(60);
+                while !marker.exists() && Instant::now() < deadline {
+                    std::thread::sleep(Duration::from_millis(50));
+                }
+                let said = fs::read_to_string(&marker).unwrap_or_else(|_| "the client never started".into());
+                let record = if said == "joined" { TestRecord::pass(&test, 5) } else { TestRecord::fail(&test, 5, said) };
+                let _ = crate::worker::write_result(&result, &record);
+                std::process::exit(if record.ok { 0 } else { 1 });
+            }
             other => panic!("unknown fake test {other}"),
         }
     }
@@ -587,6 +725,19 @@ mod tests {
     }
 
     #[test]
+    fn a_two_client_run_starts_the_second_client_when_the_port_appears_and_kills_it_with_the_worker() {
+        let project_dir = scratch("two");
+        project(&project_dir, "demo", false);
+        let mut plan = plan(&project_dir);
+        plan.clients = 2;
+        let began = Instant::now();
+        let record = one_with(&plan, &game(GRACE), "two");
+        assert!(record.ok, "{record:?}");
+        assert!(began.elapsed() < Duration::from_secs(40), "{:?}", began.elapsed());
+        let _ = fs::remove_dir_all(project_dir);
+    }
+
+    #[test]
     fn the_temporary_root_is_new_unpredictable_and_removed_with_its_guard() {
         let (one, two) = (TempRoot::create(false).unwrap(), TempRoot::create(false).unwrap());
         assert_ne!(one.path(), two.path());
@@ -608,11 +759,11 @@ mod tests {
     fn a_run_that_cannot_start_reports_why_and_exits_2() {
         let project_dir = scratch("cannot");
         project(&project_dir, "demo", false);
-        let mut two = plan(&project_dir);
-        two.clients = 2;
-        let outcome = run(&two, &game(GRACE), &prepare);
+        let mut three = plan(&project_dir);
+        three.clients = 3;
+        let outcome = run(&three, &game(GRACE), &prepare);
         assert_eq!(outcome.code, 2);
-        assert!(outcome.report["errors"][0].as_str().unwrap().contains("not implemented"), "{}", outcome.report);
+        assert!(outcome.report["errors"][0].as_str().unwrap().contains("1 or 2"), "{}", outcome.report);
         assert_eq!(outcome.report["ok"], json!(false));
         // A module that is not a component.
         let outcome = run(&plan(&project_dir), &game(GRACE), &prepare);
@@ -643,10 +794,10 @@ mod tests {
         let mut plan = plan(&project_dir);
         plan.filter = Some("pass".into());
         let listed = list_tests(&project_dir.join("bin/wasm/demo-tests.wasm"), Duration::from_secs(20)).unwrap();
-        assert_eq!(listed, ["passes", "fails", "driver_roundtrip", "traps", "spins"]);
+        assert_eq!(listed, ["passes", "fails", "driver_roundtrip", "two_clients", "traps", "spins"]);
         let outcome = run(&plan, &game(GRACE), &prepare);
         assert_eq!(outcome.code, 1, "{}", outcome.report);
-        assert_eq!(outcome.report["declared"], json!(5));
+        assert_eq!(outcome.report["declared"], json!(6));
         assert_eq!(outcome.report["tests"].as_array().unwrap().len(), 1);
         assert_eq!(outcome.report["tests"][0]["name"], json!("passes"));
         assert_eq!(outcome.report["tests"][0]["ok"], json!(false));

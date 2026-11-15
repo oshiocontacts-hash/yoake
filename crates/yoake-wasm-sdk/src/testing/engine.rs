@@ -93,6 +93,22 @@ impl TestDriver for HostDriver {
     fn log(&mut self, message: &str) {
         host::log(message)
     }
+
+    fn client_count(&mut self) -> u32 {
+        host::client_count()
+    }
+
+    fn client_call(&mut self, index: u32, command: &str) -> Result<String, String> {
+        host::client_call(index, command)
+    }
+
+    fn client_wait(&mut self, index: u32, command: &str, expect: &str, timeout_ms: u32) -> Result<String, String> {
+        host::client_wait(index, command, expect, timeout_ms)
+    }
+
+    fn client_player_names(&mut self, index: u32) -> Result<Vec<String>, String> {
+        host::client_player_names(index)
+    }
 }
 
 /// How many clients take part (1 unless the run asked for more).

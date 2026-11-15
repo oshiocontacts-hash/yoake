@@ -17,7 +17,7 @@ use yoake_wasm::{ClientFullMod, ClientHost, ClientMod, Sandbox, ServerFullMod, S
 
 type Result<T> = std::result::Result<T, String>;
 const FULL_UNWIRED: &[&str] = &["input_key", "item_model_select"];
-const USAGE: &str = "usage: yoake new <minigame|hud-only|custom-mob|utility|script> <name> | yoake <build|pack|check> | yoake dev [--test] | yoake test [--game EXE] [--filter TEXT] [--timeout-ms N] [--module WASM] [--keep] [-- GAME-ARGS...]";
+const USAGE: &str = "usage: yoake new <minigame|hud-only|custom-mob|utility|script> <name> | yoake <build|pack|check> | yoake dev [--test] | yoake test [--game EXE] [--filter TEXT] [--timeout-ms N] [--clients 1|2] [--module WASM] [--keep] [-- GAME-ARGS...]";
 const CHECK_HELP: &str = "yoake check validates existing Wasm modules without rebuilding them; if src/**, Cargo.toml or yak.toml is newer, run yoake build first";
 
 fn main() {

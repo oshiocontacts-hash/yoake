@@ -16,6 +16,8 @@ pub(crate) struct TestSettings {
     pub module: Option<PathBuf>,
     pub filter: Option<String>,
     pub timeout_ms: Option<String>,
+    /// `--clients 2`: a second game joins the test world (`--yoake-test-clients=2`).
+    pub clients: Option<String>,
     pub keep: bool,
     /// Arguments after `--`, handed to the game as they are (`--resources PATH`, `--headless`, ...).
     pub extra: Vec<String>,
@@ -31,6 +33,7 @@ pub(crate) fn parse(arguments: &[String]) -> Result<TestSettings> {
             "--module" => settings.module = Some(PathBuf::from(value("--module")?)),
             "--filter" => settings.filter = Some(value("--filter")?),
             "--timeout-ms" => settings.timeout_ms = Some(value("--timeout-ms")?),
+            "--clients" => settings.clients = Some(value("--clients")?),
             "--keep" => settings.keep = true,
             "--" => {
                 settings.extra = iterator.by_ref().cloned().collect();
@@ -133,6 +136,9 @@ pub(crate) fn run_game(root: &Path, game: &Path, lead: &[String], module: &Path,
     }
     if let Some(timeout) = &settings.timeout_ms {
         command.arg("--yoake-test-timeout-ms").arg(timeout);
+    }
+    if let Some(clients) = &settings.clients {
+        command.arg("--yoake-test-clients").arg(clients);
     }
     if settings.keep {
         command.arg("--yoake-test-keep");

@@ -15,11 +15,12 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 use yoake_test_runner::coordinator::{self, GameCommand};
+use yoake_test_runner::guard::Role;
 use yoake_test_runner::{Bridge, Plan, WorkerArgs};
 
 static BRIDGE: OnceLock<Bridge> = OnceLock::new();
-/// The verified worker arguments of this process, decided once at startup (`None`: not a worker).
-static WORKER: OnceLock<Option<WorkerArgs>> = OnceLock::new();
+/// What this process is, decided once at startup (`None`: a normal game).
+static ROLE: OnceLock<Option<Role>> = OnceLock::new();
 
 /// How long the frozen server loop waits for the next driver call before it services its connections.
 const IDLE: Duration = Duration::from_millis(50);
@@ -30,28 +31,34 @@ const IDLE: Duration = Duration::from_millis(50);
 pub(crate) fn init_worker() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let token = std::env::var(yoake_test_runner::guard::TOKEN_ENV).ok();
-    let verified = match yoake_test_runner::guard::verify_worker(&args, token.as_deref()) {
+    let verified = match yoake_test_runner::guard::verify_role(&args, token.as_deref()) {
         Ok(verified) => verified,
         Err(error) => {
             eprintln!("Horizon: {error}");
             std::process::exit(crate::game::exit_code::USAGE);
         }
     };
-    if let Some(worker) = &verified {
-        yoake_test_runner::worker::arm(worker);
+    match &verified {
+        Some(Role::Worker(worker)) => yoake_test_runner::worker::arm(worker),
+        Some(Role::Client(client)) => yoake_test_runner::worker::arm_client(client),
+        None => {}
     }
-    let _ = WORKER.set(verified);
+    let _ = ROLE.set(verified);
 }
 
-/// Whether this process is a verified test worker. Workers load no DLL mod, take no developer-mode switch
-/// from the environment and accept the unsigned package under test (WebAssembly and data only).
+/// Whether this process is a verified test process: a worker, or the second client of a two-client test. Both
+/// load no DLL mod, take no developer-mode switch from the environment and accept the unsigned package under
+/// test (WebAssembly and data only), and neither writes into the prepared folder.
 pub(crate) fn is_worker() -> bool {
-    WORKER.get().is_some_and(Option::is_some)
+    ROLE.get().is_some_and(Option::is_some)
 }
 
-/// The verified worker arguments, with absolute paths.
+/// The verified worker arguments, with absolute paths (`None` in a client or a normal game).
 pub(crate) fn worker() -> Option<&'static WorkerArgs> {
-    WORKER.get().and_then(Option::as_ref)
+    match ROLE.get() {
+        Some(Some(Role::Worker(worker))) => Some(worker),
+        _ => None,
+    }
 }
 
 /// Whether the integrated server of a worker stands still between `advance-ticks` calls.

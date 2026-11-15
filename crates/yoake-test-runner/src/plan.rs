@@ -124,6 +124,14 @@ pub struct WorkerArgs {
     pub timeout: Duration,
     /// How long the worker may take to get to its test (game start, world, owner), counted from its start.
     pub startup: Duration,
+    /// How many clients the test has (2: this worker publishes its world and waits for the second client).
+    pub clients: u32,
+    /// The second client's control endpoint (a `.json` file the client writes), for the driver's client calls.
+    pub client_control: Option<PathBuf>,
+    /// This process is a *client* of a two-client test (its index, 1), not a worker.
+    pub client: Option<u32>,
+    /// How long a client process may live at most.
+    pub lifetime: Duration,
 }
 
 impl Default for WorkerArgs {
@@ -134,13 +142,18 @@ impl Default for WorkerArgs {
             result: None,
             timeout: Duration::from_millis(DEFAULT_TIMEOUT_MS),
             startup: Duration::from_secs(DEFAULT_STARTUP_SECONDS),
+            clients: 1,
+            client_control: None,
+            client: None,
+            lifetime: Duration::from_secs(DEFAULT_STARTUP_SECONDS),
         }
     }
 }
 
 impl WorkerArgs {
-    pub const FLAGS: [&'static str; 5] = [
+    pub const FLAGS: [&'static str; 9] = [
         "--yoake-test-run", "--yoake-test-module", "--yoake-test-result", "--yoake-test-timeout-ms", "--yoake-test-startup-seconds",
+        "--yoake-test-clients", "--yoake-test-client-control", "--yoake-test-client", "--yoake-test-lifetime-seconds",
     ];
 
     /// Whether `flag` is one of the worker's.
@@ -162,23 +175,33 @@ impl WorkerArgs {
             "--yoake-test-result" => self.result = Some(value.into()),
             "--yoake-test-timeout-ms" => self.timeout = Duration::from_millis(number(flag, &value, MAX_TIMEOUT_MS)?),
             "--yoake-test-startup-seconds" => self.startup = Duration::from_secs(number(flag, &value, MAX_TIMEOUT_MS / 1000)?),
+            "--yoake-test-clients" => self.clients = clients(&value)?,
+            "--yoake-test-client-control" => self.client_control = Some(value.into()),
+            "--yoake-test-client" => match value.as_str() {
+                "1" => self.client = Some(1),
+                _ => return Err(format!("--yoake-test-client is 1, not {value:.20}")),
+            },
+            "--yoake-test-lifetime-seconds" => self.lifetime = Duration::from_secs(number(flag, &value, MAX_TIMEOUT_MS / 1000)?),
             _ => return Ok(false),
         }
         Ok(true)
     }
 
-    /// Whether this process is a worker.
+    /// Whether this process is a worker or the second client of a test.
     pub fn is_active(&self) -> bool {
-        self.test.is_some()
+        self.test.is_some() || self.client.is_some()
     }
 
-    /// A worker needs its module and its result path.
+    /// A worker needs its module and its result path; a client is not a worker.
     pub fn validate(&self) -> Result<(), String> {
-        if !self.is_active() {
-            return Ok(());
+        if self.test.is_some() && self.client.is_some() {
+            return Err("--yoake-test-run and --yoake-test-client exclude each other".into());
         }
-        if self.module.is_none() || self.result.is_none() {
+        if self.test.is_some() && (self.module.is_none() || self.result.is_none()) {
             return Err("--yoake-test-run needs --yoake-test-module and --yoake-test-result".into());
+        }
+        if self.test.is_some() && self.clients == 2 && self.client_control.is_none() {
+            return Err("two clients need --yoake-test-client-control".into());
         }
         Ok(())
     }

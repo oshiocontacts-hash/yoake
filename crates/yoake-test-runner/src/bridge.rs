@@ -29,6 +29,8 @@ pub enum Op {
     Players,
     RunCommand(String),
     ModCall { target: String, method: String, payload: Vec<u8> },
+    /// Opens the world to the loopback and answers the port (`Reply::Id`); a two-client test's first step.
+    Publish,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -343,11 +345,28 @@ pub const MAX_ENTITIES: usize = 512;
 /// The `test-driver` host of a worker: every call is an [`Op`] for the server thread.
 pub struct ChannelHost {
     client: Client,
+    clients: u32,
+    control: Option<crate::control_client::Control>,
 }
 
 impl ChannelHost {
     pub fn new(client: Client) -> Self {
-        Self { client }
+        Self { client, clients: 1, control: None }
+    }
+
+    /// A host of a two-client test: `control` is the second client's endpoint.
+    pub fn with_second_client(mut self, control: crate::control_client::Control) -> Self {
+        self.clients = 2;
+        self.control = Some(control);
+        self
+    }
+
+    fn second(&self, index: u32) -> Result<&crate::control_client::Control, String> {
+        match (index, &self.control) {
+            (1, Some(control)) => Ok(control),
+            (0, _) => Err("client 0 is the test's own process: use the driver's calls, not client-call".into()),
+            _ => Err(format!("there is no client {index} (client-count is {})", self.clients)),
+        }
     }
 
     fn done(&self, op: Op) -> Result<(), String> {
@@ -458,7 +477,20 @@ impl TestHost for ChannelHost {
     }
 
     fn client_count(&mut self) -> u32 {
-        1
+        self.clients
+    }
+
+    fn client_call(&mut self, index: u32, command: &str) -> Result<String, String> {
+        self.second(index)?.call(command, Duration::from_secs(30))
+    }
+
+    fn client_wait(&mut self, index: u32, command: &str, expect: &str, timeout: Duration) -> Result<String, String> {
+        self.second(index)?.wait(command, expect, timeout)
+    }
+
+    fn client_player_names(&mut self, index: u32) -> Result<Vec<String>, String> {
+        self.second(index)?;
+        Ok(self.players()?.into_iter().map(|player| player.name).collect())
     }
 }
 

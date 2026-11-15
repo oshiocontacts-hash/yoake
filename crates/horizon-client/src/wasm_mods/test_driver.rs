@@ -51,6 +51,7 @@ fn command(services: &mut GameServerHost, line: String, what: &str) -> Result<()
 fn run(services: &mut GameServerHost, op: Op) -> Answer {
     Ok(match op {
         Op::Advance(_) => return Err("advance-ticks is the bridge's".into()),
+        Op::Publish => return Err("opening the world to the loopback is the game's own step".into()),
         Op::PlaceBlock { position, block } => {
             let line = place_block_command(position, &block)?;
             // `/setblock` of the state a block already has "fails": that is a block that is there, not an error.

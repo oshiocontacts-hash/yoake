@@ -64,8 +64,19 @@ interface test-driver {
 
     /// A line for the test log (stdout and stderr of a test module go there too).
     log: func(message: string);
-    /// How many clients take part: 1 for a plain run, 2 with `--yoake-test-clients=2` (not implemented yet).
+    /// How many clients take part: 1 for a plain run, 2 with `--yoake-test-clients=2`. Client 0 is the world's
+    /// owner (the process that runs the test); client 1 is a second game that joined its world over loopback.
     client-count: func() -> u32;
+    /// Sends one command line of the game's control protocol to client `index` (1) and returns its JSON reply.
+    /// Only a few commands are open to tests: `getblock`, `chat`, `chat-log`, `wait-for`, `status`, `events`,
+    /// `key`, `release`, `look`, `turn`, `hotbar`, `mouse`, `tp`, `hello`.
+    client-call: func(index: u32, command: string) -> result<string, string>;
+    /// Repeats `command` on client `index` every 50 ms until its reply contains `expect`, for at most
+    /// `timeout-ms` (up to 120000); returns that reply. How a test waits until a client sees a server change.
+    client-wait: func(index: u32, command: string, expect: string, timeout-ms: u32) -> result<string, string>;
+    /// The names of the players connected to the world client `index` joined, as the server lists them (a
+    /// client's own tab list is not readable through its control endpoint).
+    client-player-names: func(index: u32) -> result<list<string>, string>;
 }
 
 world test-mod {

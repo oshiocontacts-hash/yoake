@@ -60,6 +60,25 @@ pub trait TestDriver {
     fn log(&mut self, message: &str) {
         let _ = message;
     }
+    /// How many clients take part: 1, or 2 in a two-client test (client 0 is the world's owner).
+    fn client_count(&mut self) -> u32 {
+        1
+    }
+    /// Sends one command line of the game's control protocol to client `index` (1); the JSON reply.
+    fn client_call(&mut self, index: u32, command: &str) -> Result<String, String> {
+        let _ = (index, command);
+        Err(String::from("unsupported: client_call"))
+    }
+    /// Repeats `command` on client `index` until its reply contains `expect`, for at most `timeout_ms`.
+    fn client_wait(&mut self, index: u32, command: &str, expect: &str, timeout_ms: u32) -> Result<String, String> {
+        let _ = (index, command, expect, timeout_ms);
+        Err(String::from("unsupported: client_wait"))
+    }
+    /// The names of the players on the world client `index` joined, as the server lists them.
+    fn client_player_names(&mut self, index: u32) -> Result<Vec<String>, String> {
+        let _ = index;
+        Err(String::from("unsupported: client_player_names"))
+    }
 }
 
 pub struct TestWorld<'driver> {
@@ -124,6 +143,16 @@ impl<'driver> TestWorld<'driver> {
         self.driver.tick()
     }
 
+    /// How many clients take part (2 in a two-client test).
+    pub fn client_count(&mut self) -> u32 {
+        self.driver.client_count()
+    }
+
+    /// Client `index` of a two-client test (1 is the second game, which joined the world over loopback).
+    pub fn client(&mut self, index: u32) -> ClientView<'_, 'driver> {
+        ClientView { world: self, index }
+    }
+
     pub fn log(&mut self, message: &str) {
         self.driver.log(message)
     }
@@ -145,6 +174,57 @@ impl<'driver> TestWorld<'driver> {
         } else {
             Err(format!("block at {position:?}: expected {expected:?}, got {actual:?}"))
         }
+    }
+}
+
+/// The text of the string field `name` of a JSON reply (`{"block":"minecraft:stone"}`), without unescaping:
+/// block ids and player names have nothing to escape.
+fn json_text_field(reply: &str, name: &str) -> Option<String> {
+    let key = format!("\"{name}\":\"");
+    let start = reply.find(&key)? + key.len();
+    let end = reply[start..].find('"')?;
+    Some(String::from(&reply[start..start + end]))
+}
+
+/// A second client of a two-client test, seen through its control endpoint.
+pub struct ClientView<'world, 'driver> {
+    world: &'world mut TestWorld<'driver>,
+    index: u32,
+}
+
+impl ClientView<'_, '_> {
+    /// Sends a control command line (`getblock`, `chat`, `chat-log`, `status`, ...) and returns the JSON reply.
+    pub fn call(&mut self, command: &str) -> Result<String, String> {
+        self.world.driver.client_call(self.index, command)
+    }
+
+    /// The block this client has at `position` (its own copy of the world, as the server sent it).
+    pub fn block_at(&mut self, position: BlockPos) -> Result<String, String> {
+        let reply = self.call(&format!("getblock {} {} {}", position.x, position.y, position.z))?;
+        json_text_field(&reply, "block").ok_or_else(|| format!("no block in the client's answer: {reply}"))
+    }
+
+    /// Waits (in real time, up to `timeout_ms`) until this client has `expected` at `position`: the way a test
+    /// waits for a server change to arrive. `expected` is an id (`minecraft:stone`); properties may follow it.
+    pub fn wait_block(&mut self, position: BlockPos, expected: &str, timeout_ms: u32) -> TestResult {
+        let command = format!("getblock {} {} {}", position.x, position.y, position.z);
+        let expect = format!("\"block\":\"{expected}");
+        self.world.driver.client_wait(self.index, &command, &expect, timeout_ms).map(|_| ())
+    }
+
+    /// Makes this client say `text` in chat (one line of plain text, no leading slash).
+    pub fn chat(&mut self, text: &str) -> TestResult {
+        self.call(&format!("chat {text}")).map(|_| ())
+    }
+
+    /// Waits until `text` is among this client's last 30 chat lines.
+    pub fn wait_chat(&mut self, text: &str, timeout_ms: u32) -> TestResult {
+        self.world.driver.client_wait(self.index, "chat-log 30", text, timeout_ms).map(|_| ())
+    }
+
+    /// The names of the players on the world this client joined, as the server lists them.
+    pub fn player_names(&mut self) -> Result<Vec<String>, String> {
+        self.world.driver.client_player_names(self.index)
     }
 }
 
@@ -213,6 +293,46 @@ mod tests {
         assert_eq!(case.run(&mut driver), Ok(()));
         assert_eq!(driver.spawned, Some(("minecraft:pig".to_string(), BlockPos { x: 1, y: 2, z: 3 })));
         assert_eq!(driver.ticks, 2);
+    }
+
+    #[test]
+    fn a_json_field_is_read_without_a_parser() {
+        assert_eq!(json_text_field("{\"block\":\"minecraft:stone\"}", "block").as_deref(), Some("minecraft:stone"));
+        assert_eq!(json_text_field("{\"ok\":true}", "block"), None);
+        assert_eq!(json_text_field("{\"a\":\"x\",\"block\":\"y[z=1]\"}", "block").as_deref(), Some("y[z=1]"));
+    }
+
+    #[test]
+    fn a_client_view_goes_through_the_driver_with_its_index() {
+        #[derive(Default)]
+        struct Calls(Vec<String>);
+        impl TestDriver for Calls {
+            fn place_block(&mut self, _: BlockPos, _: &str) -> TestResult { Ok(()) }
+            fn block_at(&mut self, _: BlockPos) -> Result<String, String> { Ok(String::new()) }
+            fn spawn_entity(&mut self, _: &str, _: BlockPos) -> Result<u64, String> { Ok(0) }
+            fn run_ticks(&mut self, _: u32) -> TestResult { Ok(()) }
+            fn client_count(&mut self) -> u32 { 2 }
+            fn client_call(&mut self, index: u32, command: &str) -> Result<String, String> {
+                self.0.push(format!("{index}:{command}"));
+                Ok(String::from("{\"block\":\"minecraft:stone\"}"))
+            }
+            fn client_wait(&mut self, index: u32, command: &str, expect: &str, timeout_ms: u32) -> Result<String, String> {
+                self.0.push(format!("{index}:{command}:{expect}:{timeout_ms}"));
+                Ok(String::new())
+            }
+        }
+        let mut driver = Calls::default();
+        let mut world = TestWorld::new(&mut driver);
+        assert_eq!(world.client_count(), 2);
+        let at = BlockPos { x: 1, y: -60, z: 2 };
+        assert_eq!(world.client(1).block_at(at).unwrap(), "minecraft:stone");
+        world.client(1).wait_block(at, "minecraft:stone", 500).unwrap();
+        world.client(1).chat("hello").unwrap();
+        world.client(1).wait_chat("hello", 700).unwrap();
+        assert_eq!(
+            driver.0,
+            ["1:getblock 1 -60 2", "1:getblock 1 -60 2:\"block\":\"minecraft:stone:500", "1:chat hello", "1:chat-log 30:hello:700"]
+        );
     }
 
     #[test]

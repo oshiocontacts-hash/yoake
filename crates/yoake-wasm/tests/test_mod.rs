@@ -94,7 +94,7 @@ fn load(calls: &Calls, per_test: Duration) -> Option<TestMod> {
 fn the_module_lists_its_tests_and_runs_them_against_the_host() {
     let calls = Calls::default();
     let Some(mut module) = load(&calls, Duration::from_secs(20)) else { return };
-    assert_eq!(module.tests().unwrap(), ["passes", "fails", "driver_roundtrip", "traps", "spins"]);
+    assert_eq!(module.tests().unwrap(), ["passes", "fails", "driver_roundtrip", "two_clients", "traps", "spins"]);
 
     assert_eq!(module.run_test("passes"), TestOutcome::Pass);
     assert_eq!(*calls.0.lock().unwrap(), ["place 1,64,2 minecraft:stone", "advance 3"]);
@@ -115,9 +115,10 @@ fn the_module_lists_its_tests_and_runs_them_against_the_host() {
 fn every_driver_call_reaches_the_host() {
     let calls = Calls::default();
     let Some(mut module) = load(&calls, Duration::from_secs(20)) else { return };
-    // The fake host's tick counter is 0 here: the guest's last check (tick == 7) fails after the rest ran.
-    match module.run_test("driver_roundtrip") {
-        TestOutcome::Fail(message) => assert_eq!(message, "tick should be 7"),
+    assert_eq!(module.run_test("driver_roundtrip"), TestOutcome::Pass);
+    // Without a second client the two-client test says what it needs.
+    match module.run_test("two_clients") {
+        TestOutcome::Fail(message) => assert!(message.contains("--yoake-test-clients=2"), "{message}"),
         other => panic!("{other:?}"),
     }
     let calls = calls.0.lock().unwrap();

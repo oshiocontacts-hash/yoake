@@ -21,6 +21,12 @@ pub const TOKEN_FILE: &str = "token";
 pub const WORLD: &str = "yoake-test";
 /// The name of a worker's result file.
 pub const RESULT_FILE: &str = "result.json";
+/// The file the second client's control endpoint is written to, in the client's folder.
+pub const CONTROL_FILE: &str = "control.json";
+/// The folder of the second client beside the worker's own (`<folder>/client1`).
+pub const CLIENT_FOLDER: &str = "client1";
+/// The file the worker writes the published port to, next to its result.
+pub const PORT_FILE: &str = "port";
 
 /// `bytes` random bytes as lowercase hex. Each `RandomState` is seeded by the operating system, so the
 /// value cannot be guessed from the time or the process id.
@@ -83,6 +89,68 @@ fn absolute(path: &str) -> Result<PathBuf, String> {
     std::path::absolute(path).map_err(|error| format!("{path}: {error}"))
 }
 
+/// What a verified test process is.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Role {
+    /// The process that runs the test (the world's server and its owner).
+    Worker(WorkerArgs),
+    /// The second client of a two-client test.
+    Client(WorkerArgs),
+}
+
+/// Decides which role the process has: none (a normal game), a worker (`--yoake-test-run`) or a client
+/// (`--yoake-test-client`); each is verified as [`verify_worker`] / [`verify_client`] say.
+pub fn verify_role(args: &[String], token: Option<&str>) -> Result<Option<Role>, String> {
+    let run = once(args, "--yoake-test-run")?.is_some();
+    let client = once(args, "--yoake-test-client")?.is_some();
+    match (run, client) {
+        (false, false) => Ok(None),
+        (true, true) => Err("--yoake-test-run and --yoake-test-client exclude each other".into()),
+        (true, false) => Ok(verify_worker(args, token)?.map(Role::Worker)),
+        (false, true) => Ok(verify_client(args, token)?.map(Role::Client)),
+    }
+}
+
+/// The proof of the second client: the token, `--offscreen`, a loopback server address, its own game folder
+/// (`<folder>/game`) next to the token file, and its control endpoint `<folder>/control.json`.
+pub fn verify_client(args: &[String], token: Option<&str>) -> Result<Option<WorkerArgs>, String> {
+    if once(args, "--yoake-test-client")?.is_none() {
+        return Ok(None);
+    }
+    let mut client = WorkerArgs::default();
+    for flag in ["--yoake-test-client", "--yoake-test-lifetime-seconds"] {
+        if let Some(value) = once(args, flag)? {
+            client.set(flag, value.to_owned())?;
+        }
+    }
+    let token = token.filter(|token| token.len() >= 32).ok_or("this is not a test client: the coordinator's token is missing")?;
+    let game = absolute(once(args, "--game-dir")?.ok_or("a test client has a --game-dir")?)?;
+    let folder = game.parent().ok_or("the game folder has no parent")?.to_owned();
+    if game.file_name() != Some(OsStr::new("game")) {
+        return Err("a test client's game folder is named game".into());
+    }
+    let written = std::fs::read_to_string(folder.join(TOKEN_FILE)).map_err(|_| "this is not a test client: no token file beside the game folder".to_owned())?;
+    if written.trim() != token {
+        return Err("this is not a test client: the token does not match".into());
+    }
+    if !args.iter().any(|argument| argument == "--offscreen") {
+        return Err("a test client runs with --offscreen".into());
+    }
+    let server = once(args, "--server")?.ok_or("a test client joins a server")?;
+    let port = server.strip_prefix("127.0.0.1:").and_then(|port| port.parse::<u16>().ok()).filter(|port| *port > 0);
+    if port.is_none() {
+        return Err("a test client joins 127.0.0.1:<port> only".into());
+    }
+    let control = absolute(once(args, "--control-socket")?.ok_or("a test client has a control endpoint")?)?;
+    if control != folder.join(CONTROL_FILE) {
+        return Err(format!("a test client's control endpoint is {CONTROL_FILE} in its folder"));
+    }
+    if args.iter().any(|argument| matches!(argument.as_str(), "--world" | "--dedicated" | "--yoake-test-run")) {
+        return Err("a test client joins; it opens no world".into());
+    }
+    Ok(Some(client))
+}
+
 /// Decides from the raw command line (without the program name) and the worker token of the environment
 /// whether this process is a test worker. `Ok(None)`: it is not one (no `--yoake-test-run`). `Ok(Some)`:
 /// the coordinator started it, with absolute paths. `Err`: the flags are there without the proof, and the
@@ -120,6 +188,15 @@ pub fn verify_worker(args: &[String], token: Option<&str>) -> Result<Option<Work
     let game = once(args, "--game-dir")?.ok_or("a test worker has a --game-dir")?;
     if absolute(game)? != folder.join("game") {
         return Err("a test worker's game folder is the game folder beside its result".into());
+    }
+    if worker.clients == 2 {
+        let control = worker.client_control.take().ok_or("two clients need --yoake-test-client-control")?;
+        if absolute(&control.to_string_lossy())? != folder.join(CLIENT_FOLDER).join(CONTROL_FILE) {
+            return Err("the second client's control endpoint is client1/control.json beside the result".into());
+        }
+        worker.client_control = Some(folder.join(CLIENT_FOLDER).join(CONTROL_FILE));
+    } else if worker.client_control.is_some() {
+        return Err("--yoake-test-client-control needs two clients".into());
     }
     worker.module = Some(module);
     worker.result = Some(result);
@@ -397,6 +474,66 @@ mod tests {
         fs::create_dir_all(bare.join("game")).unwrap();
         assert!(verify_worker(&worker_args(&bare), Some(&token)).unwrap_err().contains("no token file"));
         let _ = (fs::remove_dir_all(folder), fs::remove_dir_all(bare));
+    }
+
+    fn client_folder(token: &str) -> PathBuf {
+        let folder = std::env::temp_dir().join(format!("yoake-guard-client-{}", random_hex(6)));
+        fs::create_dir_all(folder.join("game")).unwrap();
+        fs::write(folder.join(TOKEN_FILE), token).unwrap();
+        folder
+    }
+
+    fn client_args(folder: &Path, server: &str) -> Vec<String> {
+        let path = |name: &str| folder.join(name).display().to_string();
+        args(&[
+            "--offscreen", "--no-focus", "--game-dir", &path("game"), "--server", server, "--name", "TestB", "--control-socket",
+            &path("control.json"), "--yoake-test-client", "1", "--yoake-test-lifetime-seconds", "60",
+        ])
+    }
+
+    #[test]
+    fn the_second_client_must_prove_it_too_and_can_only_join_the_loopback() {
+        let token = random_hex(16);
+        let folder = client_folder(&token);
+        let good = client_args(&folder, "127.0.0.1:25565");
+        let role = verify_role(&good, Some(&token)).unwrap().unwrap();
+        let Role::Client(client) = role else { panic!("a client") };
+        assert_eq!((client.client, client.lifetime), (Some(1), std::time::Duration::from_secs(60)));
+        let refused = |edit: &dyn Fn(&mut Vec<String>)| {
+            let mut changed = good.clone();
+            edit(&mut changed);
+            verify_role(&changed, Some(&token)).unwrap_err()
+        };
+        assert!(verify_role(&good, None).unwrap_err().contains("token is missing"));
+        assert!(verify_role(&good, Some(&random_hex(16))).unwrap_err().contains("does not match"));
+        assert!(refused(&|a| { let i = a.iter().position(|x| x == "--server").unwrap(); a[i + 1] = "example.com:25565".into(); }).contains("127.0.0.1"));
+        assert!(refused(&|a| { let i = a.iter().position(|x| x == "--server").unwrap(); a[i + 1] = "127.0.0.1:0".into(); }).contains("127.0.0.1"));
+        assert!(refused(&|a| a.retain(|x| x != "--offscreen")).contains("--offscreen"));
+        assert!(refused(&|a| a.extend(args(&["--world", "x"]))).contains("opens no world"));
+        assert!(refused(&|a| { let i = a.iter().position(|x| x == "--control-socket").unwrap(); a[i + 1] = std::env::temp_dir().join("control.json").display().to_string(); }).contains("control"));
+        assert!(refused(&|a| a.extend(args(&["--yoake-test-run", "x"]))).contains("exclude"));
+        let _ = fs::remove_dir_all(folder);
+    }
+
+    #[test]
+    fn a_two_client_worker_names_the_second_clients_endpoint_beside_its_result() {
+        let token = random_hex(16);
+        let folder = worker_folder(&token);
+        let mut two = worker_args(&folder);
+        two.extend(args(&["--yoake-test-clients", "2", "--yoake-test-client-control", &folder.join("client1").join("control.json").display().to_string()]));
+        let worker = verify_worker(&two, Some(&token)).unwrap().unwrap();
+        assert_eq!(worker.clients, 2);
+        assert_eq!(worker.client_control, Some(folder.join("client1").join("control.json")));
+        let mut elsewhere = worker_args(&folder);
+        elsewhere.extend(args(&["--yoake-test-clients", "2", "--yoake-test-client-control", &std::env::temp_dir().join("control.json").display().to_string()]));
+        assert!(verify_worker(&elsewhere, Some(&token)).unwrap_err().contains("client1/control.json"));
+        let mut missing = worker_args(&folder);
+        missing.extend(args(&["--yoake-test-clients", "2"]));
+        assert!(verify_worker(&missing, Some(&token)).unwrap_err().contains("--yoake-test-client-control"));
+        let mut stray = worker_args(&folder);
+        stray.extend(args(&["--yoake-test-client-control", "x"]));
+        assert!(verify_worker(&stray, Some(&token)).unwrap_err().contains("needs two clients"));
+        let _ = fs::remove_dir_all(folder);
     }
 
     #[test]

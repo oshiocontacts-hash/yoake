@@ -222,7 +222,7 @@ cannot ship inside a mod by accident.
 | `player_names()` | the players on the server, the world's owner first | the `server-players` service |
 | `run_command(line)`, `assert_command(line)` | runs a server command | the `run-command` service with the same denylist a mod has (`stop`, `op`, `ban`, `publish`, `transfer`, ... refuse) |
 | `mod_call(target, method, payload)` | calls another loaded server module's `handle-call` (the mod under test, or one added with `--yoake-test-with`) | the `mod-call` service, with the caller id `yoake-test` |
-| `tick()`, `log(text)`, `engine::client_count()` | ticks run since the test began; a line on stderr of the runner; 1 | |
+| `tick()`, `log(text)`, `client_count()`, `client(1)` | ticks run since the test began; a line on stderr of the runner; 1 or 2; the second game (below) | |
 
 Every operation runs on the integrated server thread between two ticks, with the game's own server
 services, so a test sees the world the way a `server-full` mod does. The driver is test-mode only: its WIT
@@ -268,7 +268,7 @@ each test gets its own world and folders):
 | `--yoake-test-timeout-ms N` | per test, default 30000 |
 | `--yoake-test-startup-seconds N` | per worker, from process start to the test starting, default 240 |
 | `--yoake-test-keep` | keep the temporary folders (game folder, world, log) and report their path |
-| `--yoake-test-clients=1\|2` | clients that take part; 2 is not implemented yet (see below) |
+| `--yoake-test-clients=1\|2` | clients that take part; 2 starts a second game that joins the world (see below) |
 
 Its exit code is 0 (all passed), 1 (a test failed) or 2 (nothing ran: bad command line, unreadable project,
 missing module). Any other argument is handed to every worker.
@@ -328,23 +328,49 @@ bottom (the exact height is not pinned here; read it with `block_at` if a test d
   and mod; the world is frozen, so every query of a test between two `run_ticks` shares one tick's budget (512
   to 1024 calls). Advance a tick to start a new budget.
 
-### Two clients (`--yoake-test-clients=2`): design, not implemented
+### Two clients (`--yoake-test-clients=2`, `yoake test --clients 2`)
 
-The flag is parsed and `client_count()` exists, but a run with 2 clients ends with exit code 2 and the error
-"not implemented". The design, for whoever builds it:
+A multiplayer test runs one server and two clients: client 0 is the world's owner (the worker, which runs the test),
+client 1 is a second game that joins over the loopback. In the test module, `world.client_count()` is 2 and
+`world.client(1)` is the second game:
 
-* The coordinator starts the worker as above and, once it reports the port of a world published on loopback
-  only (the server loop calls `Game::publish` with `loopback_only`, no announcement; the worker writes the
-  port next to `result.json`), starts a second game process as a plain client:
-  `--offscreen --no-focus --server 127.0.0.1:<port> --name TestB`, with its own `--game-dir`, `--home` and
-  `--player-dir`, the same package installed in it (the join check compares the packages), and
-  `YOAKE_DLL_MODS_UNSIGNED=1`.
-* The test module addresses the clients by index. The first client is the world's owner as now; client 1 is
-  driven through that process's `--control` socket (the commands `horizon-ctl` sends), which already offers
-  state reads and input. The WIT gets `client-call(index, command) -> result<string, string>` and the SDK a
-  `world.client(1)` handle; `run-ticks` stays the server's ticks.
-* Both clients' logs and the second process's exit are part of the result; the second process is killed with
-  the worker.
+```rust
+fn a_change_reaches_the_second_client(world: &mut TestWorld<'_>) -> TestResult {
+    let at = BlockPos { x: 3, y: -60, z: 3 };
+    world.place_block(at, "minecraft:stone")?;
+    world.run_ticks(2)?;                                       // the server sends the change
+    world.client(1).wait_block(at, "minecraft:stone", 20_000)?; // real time, up to 20 s
+    world.client(1).chat("hello")?;                             // client -> server -> everyone
+    world.run_ticks(2)?;
+    world.client(1).wait_chat("hello", 20_000)
+}
+```
+
+| `world.client(1)` | does |
+| --- | --- |
+| `call(line)` | sends one command line of the game's control protocol (the one `horizon-ctl` speaks) and returns the JSON reply. Open to tests: `getblock`, `chat`, `chat-log`, `wait-for`, `status`, `events`, `key`, `release`, `look`, `turn`, `hotbar`, `mouse`, `tp`, `hello`; the commands that end the game, change its connection or write files are refused |
+| `block_at(pos)`, `wait_block(pos, id, timeout_ms)` | the block the client has at `pos` (its own copy of the world, as the server sent it); wait until it is `id` |
+| `chat(text)`, `wait_chat(text, timeout_ms)` | the client says `text` (plain text); wait until `text` is among its last 30 chat lines |
+| `player_names()` | the players on the world the client joined, as the server lists them (the owner and `TestB`) |
+| `world.client_count()` | 1, or 2 with `--yoake-test-clients=2` |
+
+The waits repeat the command every 50 ms in real time (the second game is not frozen: the server world is, between
+`run_ticks`). The server sends block changes when it ticks, so `run_ticks` before waiting. Measured on the real
+game (debug build): a placed and a broken block both reached client 1, a chat line went client to server to client,
+and a `tellraw @a "..."` of the server reached client 1; `say` from the console did **not** reach the client's chat
+log (use `tellraw`).
+
+How it works: with `--yoake-test-clients=2` the worker also gets `--yoake-test-clients 2` and the path
+`client1/control.json` beside its result. When its owner has joined, the worker opens its world to `127.0.0.1`
+only (`Game::publish`, loopback, no announcement, a port the system picks), writes the port to a `port` file beside
+its result and waits until the server lists two players and the second game's status shows its player (up to 240 s).
+The coordinator sees the `port` file and starts the second game: `--offscreen --no-focus --no-pause --server
+127.0.0.1:<port> --name TestB --control-socket client1/control.json` with its own `--game-dir`, `--home` and the
+same packages installed, the same stripped environment and token. The second game proves itself as the worker does
+(token file in its folder, `--offscreen`, a loopback server address only, its control endpoint in its folder; no
+world, no `--dedicated`), loads no DLL mod and accepts the unsigned package under test, and ends with a lifetime
+limit and when the coordinator is gone. It is in the same Windows job object, so it dies with the coordinator.
+Its output tail goes into a failure, as the worker's does.
 
 ### Limits and what is not covered
 

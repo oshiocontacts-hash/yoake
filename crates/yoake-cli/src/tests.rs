@@ -518,10 +518,10 @@ fn strings(list: &[&str]) -> Vec<String> {
 
 #[test]
 fn test_options_are_read_and_the_game_comes_from_the_flag_or_the_environment() {
-    let settings = engine_test::parse(&strings(&["--game", "g.exe", "--filter", "place", "--timeout-ms", "5000", "--keep", "--module", "t.wasm", "--", "--resources", "res"])).unwrap();
+    let settings = engine_test::parse(&strings(&["--game", "g.exe", "--filter", "place", "--timeout-ms", "5000", "--clients", "2", "--keep", "--module", "t.wasm", "--", "--resources", "res"])).unwrap();
     assert_eq!(settings, TestSettings {
         game: Some("g.exe".into()), module: Some("t.wasm".into()), filter: Some("place".into()),
-        timeout_ms: Some("5000".into()), keep: true, extra: strings(&["--resources", "res"]),
+        timeout_ms: Some("5000".into()), clients: Some("2".into()), keep: true, extra: strings(&["--resources", "res"]),
     });
     assert!(engine_test::parse(&strings(&["--bogus"])).unwrap_err().contains("unknown option"));
     assert!(engine_test::parse(&strings(&["--game"])).unwrap_err().contains("missing value"));
@@ -611,13 +611,13 @@ fn fake_engine() {
 #[test]
 fn the_game_is_started_with_the_runner_flags() {
     let settings = TestSettings {
-        filter: Some("place".into()), timeout_ms: Some("900".into()), keep: true, extra: strings(&["--resources", "res"]), ..TestSettings::default()
+        filter: Some("place".into()), timeout_ms: Some("900".into()), clients: Some("2".into()), keep: true, extra: strings(&["--resources", "res"]), ..TestSettings::default()
     };
     let lead = strings(&["--exact", "tests::fake_engine", "--nocapture", "--"]);
     let report = engine_test::run_game(Path::new("project"), &env::current_exe().unwrap(), &lead, Path::new("t.wasm"), &settings).unwrap();
     assert_eq!(
         report["tests"][0]["error"],
-        "--yoake-test project --yoake-test-module t.wasm --yoake-test-filter place --yoake-test-timeout-ms 900 --yoake-test-keep --resources res"
+        "--yoake-test project --yoake-test-module t.wasm --yoake-test-filter place --yoake-test-timeout-ms 900 --yoake-test-clients 2 --yoake-test-keep --resources res"
     );
     let missing = engine_test::run_game(Path::new("project"), Path::new("no/such/game"), &[], Path::new("t.wasm"), &settings).unwrap_err();
     assert!(missing.contains("could not start"), "{missing}");

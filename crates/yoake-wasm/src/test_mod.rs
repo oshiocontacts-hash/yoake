@@ -88,7 +88,22 @@ pub trait TestHost: Send {
     fn client_count(&mut self) -> u32 {
         1
     }
+    fn client_call(&mut self, index: u32, command: &str) -> Result<String, String> {
+        let _ = (index, command);
+        unsupported()
+    }
+    fn client_wait(&mut self, index: u32, command: &str, expect: &str, timeout: Duration) -> Result<String, String> {
+        let _ = (index, command, expect, timeout);
+        unsupported()
+    }
+    fn client_player_names(&mut self, index: u32) -> Result<Vec<String>, String> {
+        let _ = index;
+        unsupported()
+    }
 }
+
+/// The longest a `client-wait` may wait.
+pub const MAX_CLIENT_WAIT: Duration = Duration::from_secs(120);
 
 struct TestContext {
     host: Box<dyn TestHost>,
@@ -145,6 +160,19 @@ impl test_driver::Host for TestContext {
     }
     fn client_count(&mut self) -> u32 {
         self.host.client_count()
+    }
+    fn client_call(&mut self, index: u32, command: String) -> Result<String, String> {
+        self.host.client_call(index, &command)
+    }
+    fn client_wait(&mut self, index: u32, command: String, expect: String, timeout_ms: u32) -> Result<String, String> {
+        let timeout = Duration::from_millis(u64::from(timeout_ms));
+        if expect.is_empty() || timeout.is_zero() || timeout > MAX_CLIENT_WAIT {
+            return Err(format!("client-wait needs a text to wait for and 1 to {} ms", MAX_CLIENT_WAIT.as_millis()));
+        }
+        self.host.client_wait(index, &command, &expect, timeout)
+    }
+    fn client_player_names(&mut self, index: u32) -> Result<Vec<String>, String> {
+        self.host.client_player_names(index)
     }
 }
 
@@ -341,6 +369,10 @@ mod tests {
         assert_eq!(context.spawn_entity("minecraft:pig".into(), here), Ok(3));
         assert!(context.entities_near(here, -1.0).is_err());
         assert!(context.entities_near(here, f64::INFINITY).is_err());
+        assert!(context.client_wait(1, "status".into(), String::new(), 100).is_err());
+        assert!(context.client_wait(1, "status".into(), "x".into(), 0).is_err());
+        assert!(context.client_wait(1, "status".into(), "x".into(), 1_000_000).is_err());
+        assert!(context.client_call(1, "status".into()).unwrap_err().starts_with("unsupported"));
         // What a host does not implement answers "unsupported".
         assert!(context.block_at(BlockPos { x: 0, y: 0, z: 0 }).unwrap_err().starts_with("unsupported"));
         assert_eq!(*calls.lock().unwrap(), ["advance 5", "command say hi", "spawn minecraft:pig"]);
