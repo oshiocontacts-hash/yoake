@@ -17,7 +17,7 @@ use horizon_theme::glass::{ink, radius};
 impl Launcher {
     pub(super) fn friends_page(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
-        if !t.dark {
+        if !crate::GLASS_PAGES {
             return div()
                 .flex()
                 .flex_col()

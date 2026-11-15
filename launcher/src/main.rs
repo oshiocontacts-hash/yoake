@@ -2715,6 +2715,10 @@ fn glass_page_head(title: &str, description: &str) -> Div {
         )
 }
 
+/// Whether the pages, the top bar and the sidebar are drawn in the glass look in both themes.
+/// (The light theme's sky stays the dawn one.)
+const GLASS_PAGES: bool = true;
+
 thread_local! {
     /// Set while a page that has moved to the glass look but still builds with the pixel look's
     /// helpers (`button`, `slot_row`, `notice`, ...) is drawn: they then give their glass form.
@@ -3665,7 +3669,7 @@ impl Launcher {
             .or_else(|| java.is_some().then(String::new))
         else {
             // No hero without a version: the page starts below the top bar like the others.
-            let glass = t.dark;
+            let glass = GLASS_PAGES;
             let memory = self.memory_row(glass, cx);
             if glass {
                 use horizon_theme::glass::ink;
@@ -3845,7 +3849,7 @@ impl Launcher {
             .flex()
             .flex_col()
             // The glass look's sidebar ⋮ menu holds what the Instance row offers.
-            .children((!t.dark).then(|| self.instance_row(1, cx)).flatten())
+            .children((!GLASS_PAGES).then(|| self.instance_row(1, cx)).flatten())
             .children(self.export_panel(cx))
             .children(self.launch_panel(cx))
             .children(self.memory_row(false, cx));
@@ -3930,7 +3934,7 @@ impl Launcher {
 
         // The glass look's head (the mockup's `HomeView`) replaces the banner; the preparation's
         // steps stay right under it, where the player looks after pressing Play.
-        let banner = if t.dark {
+        let banner = if GLASS_PAGES {
             div()
                 .flex()
                 .flex_col()
@@ -4018,7 +4022,7 @@ impl Launcher {
         if let Some(e) = self.prepare_error.clone() {
             page = page.child(notice(e, &t));
         }
-        page = page.child(if t.dark {
+        page = page.child(if GLASS_PAGES {
             self.glass_home_tabs(rows, cx)
         } else {
             self.home_tabs(rows, cx)
@@ -5604,6 +5608,8 @@ impl Render for Launcher {
         if std::mem::take(&mut self.restyle) {
             self.theme = self.settings_theme(window);
         }
+        // The glass look's inks, fills and plates follow the theme (see `glass_ui::white`).
+        glass_ui::set_light(!self.theme.dark);
         self.scale = window.scale_factor();
         self.perf.frame();
         if self.bench.as_ref().is_some_and(perf::Bench::scrolling) {
@@ -5665,7 +5671,7 @@ impl Render for Launcher {
             sky.into_any_element()
         };
         // Dark: the glass frame over the scene; Light keeps the night one over the dawn.
-        let (topbar, sidebar) = if t.dark {
+        let (topbar, sidebar) = if GLASS_PAGES {
             (
                 self.glass_topbar(cx),
                 self.glass_sidebar(window, cx).into_any_element(),
@@ -5673,7 +5679,7 @@ impl Render for Launcher {
         } else {
             (self.topbar(cx), self.sidebar(window, cx).into_any_element())
         };
-        let row_menu = if t.dark {
+        let row_menu = if GLASS_PAGES {
             self.row_menu(window, cx)
         } else {
             None

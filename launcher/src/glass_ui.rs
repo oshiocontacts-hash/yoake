@@ -8,13 +8,55 @@ use gpui::{
 };
 use horizon_theme::glass::{fill, ink, radius};
 
-/// White at `a`.
-pub fn white(a: f32) -> Hsla {
-    gpui::white().opacity(a)
+use std::sync::atomic::{AtomicBool, Ordering};
+
+/// Whether the launcher is in its light theme: the glass look's inks and fills then take their
+/// light values (see [`white`] and [`color`]). Set at the start of every frame from the theme.
+static LIGHT: AtomicBool = AtomicBool::new(false);
+
+pub fn set_light(on: bool) {
+    LIGHT.store(on, Ordering::Relaxed);
 }
 
-/// A colour of the look (`0xrrggbb`).
+pub fn light() -> bool {
+    LIGHT.load(Ordering::Relaxed)
+}
+
+/// The light look's ink: a deep violet-black, over frosted white plates.
+pub const INK_LIGHT: u32 = 0x1d1830;
+
+/// The look's ink or fill at strength `a`: white at `a` in the dark look (text at `ink::*`,
+/// fills at `fill::*`); in the light look the deep violet-black instead, fills (up to 0.2) as
+/// they are and the softer inks a little stronger, so they still read on white.
+pub fn white(a: f32) -> Hsla {
+    if light() {
+        let a = if a <= 0.2 {
+            a
+        } else if a < 0.6 {
+            a + 0.1
+        } else {
+            a
+        };
+        Hsla::from(rgb(INK_LIGHT)).opacity(a.min(1.))
+    } else {
+        gpui::white().opacity(a)
+    }
+}
+
+/// A colour of the look (`0xrrggbb`). In the light look the colours made for a dark sky (the
+/// danger red, the live green, the busy amber and the accent's soft shade) give a deeper one that
+/// reads on white; anything else is as given.
 pub fn color(c: u32) -> Hsla {
+    if light() {
+        let c = match c {
+            horizon_theme::glass::DANGER => 0xc23030,
+            horizon_theme::glass::LIVE => 0x15803d,
+            horizon_theme::glass::WARN => 0xa15c07,
+            c if c == horizon_theme::glass::Glass::default_look().accent_soft => 0x5a3fe0,
+            c => c,
+        };
+        return rgb(c).into();
+    }
     rgb(c).into()
 }
 
@@ -307,13 +349,21 @@ pub fn solid(
             .h(px(h))
             .px(px(16.))
             .rounded(px(radius::CONTROL))
-            .bg(gpui::white())
+            .bg(if light() {
+                color(INK_LIGHT)
+            } else {
+                gpui::white()
+            })
             .cursor_pointer()
             .hover(|s| s.opacity(0.9))
             .font_family(horizon_theme::glass::FONT)
             .text_size(px(size))
             .font_weight(FontWeight::MEDIUM)
-            .text_color(color(horizon_theme::glass::ON_LIGHT))
+            .text_color(if light() {
+                gpui::white()
+            } else {
+                color(horizon_theme::glass::ON_LIGHT)
+            })
             .child(label.into()),
         t,
     )
@@ -345,11 +395,12 @@ pub fn mark_tile(size: f32, accent_soft: u32) -> Div {
             div()
                 .relative()
                 .size(px(inner))
-                .child(bar(4., 3., 2., 4., white(1.)))
-                .child(bar(10., 3., 2., 4., white(1.)))
-                .child(bar(4., 8., 2., 4., white(0.4)))
-                .child(bar(10., 8., 2., 4., white(0.4)))
-                .child(bar(1., 7., 14., 1., color(accent_soft))),
+                // The tile is dark in both looks: its stems stay white.
+                .child(bar(4., 3., 2., 4., gpui::white()))
+                .child(bar(10., 3., 2., 4., gpui::white()))
+                .child(bar(4., 8., 2., 4., gpui::white().opacity(0.4)))
+                .child(bar(10., 8., 2., 4., gpui::white().opacity(0.4)))
+                .child(bar(1., 7., 14., 1., rgb(accent_soft).into())),
         )
 }
 

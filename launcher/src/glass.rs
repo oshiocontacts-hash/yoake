@@ -146,6 +146,20 @@ fn image_at(bounds: Bounds<Pixels>, kind: Kind, fillet: f32) -> Option<Arc<Rende
 }
 
 fn paint(bounds: Bounds<Pixels>, kind: Kind, corners: Corners<Pixels>, window: &mut Window) {
+    if crate::glass_ui::light() {
+        // The light look: frosted white over the sky, with a white hairline.
+        let (fill, edge) = match kind {
+            Kind::Glass => (0.62, 0.8),
+            Kind::Float => (0.9, 0.9),
+        };
+        window.paint_quad(
+            gpui::fill(bounds, gpui::white().opacity(fill))
+                .corner_radii(corners)
+                .border_widths(px(1.))
+                .border_color(gpui::white().opacity(edge)),
+        );
+        return;
+    }
     if let Some(image) = image_at(bounds, kind, 0.) {
         // The piece's border texels go just outside the plate (see [`piece`]).
         let (w, h) = (

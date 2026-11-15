@@ -920,7 +920,7 @@ impl Launcher {
         self.servers.text(f).show(((width - 24.) / 7.5) as usize);
         // Home's Add server line is in the glass look already; the other fields follow with
         // their pages.
-        let glass = t.dark
+        let glass = GLASS_PAGES
             && (glass_page
                 || matches!(
                 f,
