@@ -5,6 +5,7 @@
 //! (docs/play-with-friends.md): the relay can't read them, only count them.
 //! State is in memory; nothing about players is logged.
 pub mod limits;
+pub mod social;
 
 use horizon_friends::{
     code,
