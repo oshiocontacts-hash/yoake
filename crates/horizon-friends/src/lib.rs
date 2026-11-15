@@ -18,6 +18,7 @@ pub mod portmap;
 pub mod reach;
 mod session;
 pub mod social;
+pub mod social_channel;
 pub mod stun;
 pub mod wire;
 
