@@ -357,7 +357,7 @@ fn a_change_reaches_the_second_client(world: &mut TestWorld<'_>) -> TestResult {
 The waits repeat the command every 50 ms in real time (the second game is not frozen: the server world is, between
 `run_ticks`). The server sends block changes when it ticks, so `run_ticks` before waiting. Measured on the real
 game (debug build): a placed and a broken block both reached client 1, a chat line went client to server to client,
-and the server's `say` and `tellraw @a "..."` both reached client 1. (The console's `say` used to reach no one in a published world, because the command only wrote to the server's own chat; it now goes to every player, as the dedicated console's does.)
+and the server's `say` and `tellraw @a "..."` both reached client 1. (The console's `say` used to reach no one in a published world, because the command only wrote to the server's own chat; it now goes to every player, as the dedicated console's does; `me` likewise, and `msg`/`tell`/`w` from the server reach the players they name.)
 
 How it works: with `--yoake-test-clients=2` the worker also gets `--yoake-test-clients 2` and the path
 `client1/control.json` beside its result. When its owner has joined, the worker opens its world to `127.0.0.1`

@@ -3789,11 +3789,13 @@ impl Game<'_> {
             None => self.player_display_name(),
         };
         let (plain_name, plain_message) = (name.plain(), message.plain());
+        // The guests a `/msg` names (connections), for a message from the server itself.
+        let mut whisper_to: Vec<u32> = Vec::new();
         let line = match id {
             "say" => Text::translate("chat.type.announcement", &[name, message]),
             "me" => Text::translate("chat.type.emote", &[name, message]),
             _ => {
-                let _ = self.entities(ctx, "targets", true)?;
+                whisper_to = guest_connections(&self.entities(ctx, "targets", true)?);
                 // Whispering to yourself: the incoming and outgoing lines.
                 let out = Text::translate(
                     "commands.message.display.outgoing",
@@ -3816,10 +3818,13 @@ impl Game<'_> {
         // SayCommand from the server itself (the console, a native mod's command, the test driver) reaches every
         // player of a published world, as the dedicated console's `say` does (`Hub::say`); it used to reach
         // only the server's own chat, where no one reads it.
-        if announces_to_players(id, self.command_source.map(|s| s.entity), self.lan.is_some())
-            && let Some(host) = &self.lan
-        {
-            host.hub.say(&plain_name, &plain_message);
+        if let Some(host) = &self.lan {
+            match server_announcement(id, self.command_source.map(|s| s.entity)) {
+                Some(Announcement::Say) => host.hub.say(&plain_name, &plain_message),
+                Some(Announcement::Emote) => host.hub.emote(&plain_name, &plain_message),
+                Some(Announcement::Whisper) => host.hub.whisper_from_server(&whisper_to, &plain_name, &plain_message),
+                None => {}
+            }
         }
         let focused = self.screen == Screen::Chat;
         self.ui.chat.add(
@@ -4012,23 +4017,60 @@ mod percent_f_tests {
     }
 }
 
-/// Whether `/say` is a message to the players of a published world: the source is the server (no entity) and
-/// the world has a hub. A player's own `/say` goes out through its connection (`guest_message_command`).
-fn announces_to_players<T>(id: &str, source_entity: Option<Option<T>>, published: bool) -> bool {
-    id == "say" && published && matches!(source_entity, Some(None))
+/// How a message command of the server itself reaches the players of a published world.
+#[derive(Debug, PartialEq)]
+enum Announcement {
+    /// `/say`: to everyone, `chat.type.announcement`.
+    Say,
+    /// `/me`: to everyone, `chat.type.emote`.
+    Emote,
+    /// `/msg`, `/tell`, `/w`: the incoming line to the players it names.
+    Whisper,
+}
+
+/// What a message command is to the players of a published world: only when its source is the server itself
+/// (no entity). A player's own command goes out through its connection (`guest_message_command`).
+fn server_announcement<T>(id: &str, source_entity: Option<Option<T>>) -> Option<Announcement> {
+    if !matches!(source_entity, Some(None)) {
+        return None;
+    }
+    match id {
+        "say" => Some(Announcement::Say),
+        "me" => Some(Announcement::Emote),
+        "msg" => Some(Announcement::Whisper),
+        _ => None,
+    }
+}
+
+/// The connections of the guests among `targets` (the host's own player and mobs have none).
+fn guest_connections(targets: &[Target]) -> Vec<u32> {
+    targets
+        .iter()
+        .filter_map(|target| match target {
+            Target::Guest(conn) => Some(*conn),
+            _ => None,
+        })
+        .collect()
 }
 
 #[cfg(test)]
 mod say_tests {
-    use super::announces_to_players;
+    use super::{Announcement, Target, guest_connections, server_announcement};
 
     #[test]
-    fn only_the_servers_own_say_in_a_published_world_goes_to_the_players() {
-        assert!(announces_to_players::<u8>("say", Some(None), true));
-        assert!(!announces_to_players::<u8>("say", Some(None), false), "no hub, no one to tell");
-        assert!(!announces_to_players("say", Some(Some(1u8)), true), "an entity's say is its own connection's");
-        assert!(!announces_to_players::<u8>("say", None, true), "the window's player speaks for itself");
-        assert!(!announces_to_players::<u8>("me", Some(None), true));
-        assert!(!announces_to_players::<u8>("msg", Some(None), true));
+    fn only_the_servers_own_message_commands_go_to_the_players() {
+        assert_eq!(server_announcement::<u8>("say", Some(None)), Some(Announcement::Say));
+        assert_eq!(server_announcement::<u8>("me", Some(None)), Some(Announcement::Emote));
+        assert_eq!(server_announcement::<u8>("msg", Some(None)), Some(Announcement::Whisper));
+        assert_eq!(server_announcement("say", Some(Some(1u8))), None, "an entity's command is its own connection's");
+        assert_eq!(server_announcement::<u8>("me", None), None, "the window's player speaks for itself");
+        assert_eq!(server_announcement::<u8>("tell", Some(None)), None, "only the parsed id counts: msg");
+    }
+
+    #[test]
+    fn a_whisper_names_the_guests_among_its_targets() {
+        let targets = [Target::Guest(7), Target::Player, Target::Mob(3), Target::Guest(9)];
+        assert_eq!(guest_connections(&targets), [7, 9]);
+        assert!(guest_connections(&[Target::Player]).is_empty());
     }
 }

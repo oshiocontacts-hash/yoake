@@ -68,6 +68,12 @@ fn two_clients(world: &mut TestWorld<'_>) -> TestResult {
     world.assert_command("say hello-from-the-server")?;
     world.run_ticks(2)?;
     world.client(1).wait_chat("hello-from-the-server", 20_000)?;
+    // The console's `me`, `msg` and `tell` reach the players they name.
+    for (command, token) in [("me waves-at-everyone", "waves-at-everyone"), ("msg TestB whisper-by-msg", "whisper-by-msg"), ("tell TestB whisper-by-tell", "whisper-by-tell")] {
+        world.assert_command(command)?;
+        world.run_ticks(2)?;
+        world.client(1).wait_chat(token, 20_000)?;
+    }
     // The server module answers while both are connected.
     let answer = world.mod_call("demo", "echo", b"two")?;
     if !answer.ends_with(b"two") {
