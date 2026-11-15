@@ -318,10 +318,11 @@ pub enum ToRelay {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+// Empty struct variants, not unit variants: serde ignores deny_unknown_fields on internally tagged unit variants.
 pub enum FromRelay {
-    Waiting,
-    Bridged,
-    Rejected,
+    Waiting {},
+    Bridged {},
+    Rejected {},
 }
 
 #[cfg(test)]
@@ -428,7 +429,7 @@ mod tests {
         let injected = serialized.replacen('{', "{\"candidate\":\"192.0.2.1:1234\",", 1);
         assert!(serde_json::from_str::<ToRelay>(&injected).is_err());
         assert!(serde_json::from_str::<FromRelay>(r#"{"type":"bridged","observed":"192.0.2.1:1234"}"#).is_err());
-        assert_eq!(serde_json::to_string(&FromRelay::Bridged).unwrap(), r#"{"type":"bridged"}"#);
+        assert_eq!(serde_json::to_string(&FromRelay::Bridged {}).unwrap(), r#"{"type":"bridged"}"#);
     }
 
     struct FakePortal { available: bool }
