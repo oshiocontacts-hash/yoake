@@ -31,6 +31,11 @@ pub fn create(template: &str, name: &str) -> Result<()> {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../yoake-wasm-sdk")
     });
     let sdk = fs::canonicalize(&sdk).map_err(|error| format!("SDK {}: {error}", sdk.display()))?;
+    // Windows canonical paths carry the verbatim `\\?\` prefix; Cargo accepts it but other tools and readers do not.
+    let sdk = match sdk.to_str().and_then(|path| path.strip_prefix(r"\\?\")) {
+        Some(plain) if !plain.starts_with("UNC") => PathBuf::from(plain),
+        _ => sdk,
+    };
     if !sdk.join("Cargo.toml").is_file() {
         return Err(format!("{} is not an SDK crate", sdk.display()));
     }

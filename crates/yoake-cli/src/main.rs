@@ -61,7 +61,7 @@ fn build(root: &Path, manifest: &Manifest) -> Result<()> {
         return Err("build requires exactly one declared Wasm module; build multi-module projects separately and use yoake pack".into());
     }
     let cargo_file = fs::read_to_string(root.join("Cargo.toml")).map_err(|error| error.to_string())?;
-    let cargo: toml::Value = cargo_file.parse().map_err(|error| format!("Cargo.toml: {error}"))?;
+    let cargo: toml::Table = cargo_file.parse().map_err(|error| format!("Cargo.toml: {error}"))?;
     let package_name = cargo.get("package").and_then(|package| package.get("name")).and_then(toml::Value::as_str).ok_or("Cargo.toml needs package.name")?;
     let library_name = cargo.get("lib").and_then(|library| library.get("name")).and_then(toml::Value::as_str).unwrap_or(package_name).replace('-', "_");
     let target = root.join("target");
