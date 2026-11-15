@@ -408,6 +408,7 @@ impl Launcher {
         }
     }
 
+    /// A text field of the section, in the glass look's `FIELD` (36 px, by the buttons).
     fn config_field(&self, field: Field, cx: &mut Context<Self>) -> Stateful<Div> {
         let t = self.theme;
         let state = &self.yoake_configs;
@@ -429,24 +430,16 @@ impl Launcher {
                 320.,
             ),
         };
-        let element = div()
+        let element = glass_ui::field(focused, false)
             .id(id)
             .track_focus(focus)
-            .flex()
-            .items_center()
             .w(px(width))
-            .h(px(30.))
+            .h(px(36.))
             .px(px(12.))
-            .overflow_hidden()
-            .border_2()
-            .border_color(if focused { t.accent } else { t.outline })
-            .bg(t.well)
-            .font_family(if field == Field::Code {
-                theme::MONO
-            } else {
-                theme::FONT
+            .rounded(px(10.))
+            .when(field == Field::Code, |d| {
+                d.font_family(theme::MONO).text_size(px(13.))
             })
-            .text_size(px(12.))
             .cursor_text()
             .child(line_edit::content(edit, &t, focused, false, false, hint))
             .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
@@ -484,17 +477,33 @@ impl Launcher {
     }
 
     fn mod_badge(&self, kind: ModKind) -> Div {
-        let t = self.theme;
+        use horizon_theme::glass::ink;
         let label = match kind {
             ModKind::Builtin => tr("Built-in"),
             ModKind::Yak => tr(".yak"),
             ModKind::Wasm => tr("WASM"),
         };
         div()
-            .px(px(6.))
-            .border_1()
-            .border_color(t.outline)
-            .child(text(theme::CAPTION).text_color(t.accent).child(label))
+            .flex()
+            .items_center()
+            .px(px(8.))
+            .h(px(22.))
+            .rounded_full()
+            .bg(glass_ui::white(horizon_theme::glass::fill::BUTTON))
+            .child(glass_ui::text(12., FontWeight::NORMAL, ink::MUTED).child(label))
+    }
+
+    /// A card inside the section's panel (a share code, a code's preview): white at 6 %.
+    fn config_card() -> Div {
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(6.))
+            .mx(px(12.))
+            .mb(px(8.))
+            .p(px(14.))
+            .rounded(px(horizon_theme::glass::radius::ROW))
+            .bg(glass_ui::white(horizon_theme::glass::fill::FIELD))
     }
 
     /// The whole section, below the packs.
@@ -503,51 +512,41 @@ impl Launcher {
         window: &Window,
         cx: &mut Context<Self>,
     ) -> Div {
+        use horizon_theme::glass::ink;
         let t = self.theme;
         self.yoake_configs.name_focused = self.yoake_configs.name_focus.is_focused(window);
         self.yoake_configs.code_focused = self.yoake_configs.code_focus.is_focused(window);
         let language = i18n::current().code();
         let bases = self.yoake_bases();
-        let mut col = div().flex().flex_col().gap(px(12.)).child(
-            div()
-                .flex()
-                .items_center()
-                .justify_between()
-                .mt(px(12.))
-                .child(section_title("Yoake mods", "package", &t))
-                .child(
-                    button("yoake-mods-refresh", "Refresh", Kind::Ghost, &t).on_click(
-                        cx.listener(|this, _: &ClickEvent, _, cx| {
-                            this.yoake_configs.last_refresh = None;
-                            this.refresh_yoake_catalog();
-                            cx.notify();
-                        }),
-                    ),
-                ),
+        let refresh = glass_ui::quiet("yoake-mods-refresh", tr("Refresh"), 36., &t).on_click(
+            cx.listener(|this, _: &ClickEvent, _, cx| {
+                this.yoake_configs.last_refresh = None;
+                this.refresh_yoake_catalog();
+                cx.notify();
+            }),
         );
+        let mut col = glass_body();
         if let Some(error) = &self.yoake_configs.error {
-            col = col.child(text(theme::UI).text_color(t.danger).child(error.clone()));
+            col = col.child(glass_note(error.clone(), true));
         }
         if let Some(notice) = &self.yoake_configs.builtin_notice {
-            col = col.child(
-                text(theme::CAPTION)
-                    .text_color(t.muted)
-                    .child(trf("Built-in mods: {reason}", &[("reason", notice)])),
-            );
+            col = col.child(glass_note(
+                trf("Built-in mods: {reason}", &[("reason", notice)]),
+                false,
+            ));
         }
         if let Some(notice) = &self.yoake_configs.notice {
-            col = col.child(
-                text(theme::CAPTION)
-                    .text_color(t.muted)
-                    .child(trf(".yak mods are not listed: {reason}", &[("reason", notice)])),
-            );
+            col = col.child(glass_note(
+                trf(".yak mods are not listed: {reason}", &[("reason", notice)]),
+                false,
+            ));
         }
         if self.yoake_configs.task.is_some() && self.yoake_configs.catalog.is_empty() {
-            col = col.child(text(theme::UI).text_color(t.muted).child(tr("Checking the mods…")));
+            col = col.child(glass_ui::empty().py(px(16.)).child(tr("Checking the mods…")));
         } else if self.yoake_configs.catalog.is_empty() {
             col = col.child(
-                text(theme::UI)
-                    .text_color(t.muted)
+                glass_ui::empty()
+                    .py(px(16.))
                     .child(tr("No Yoake mods are listed yet. Sign in and refresh.")),
             );
         }
@@ -565,11 +564,7 @@ impl Launcher {
                 (name.clone(), native)
             })
             .collect();
-        let yak_installed: BTreeSet<String> = self
-            .yak_mods
-            .installed_ids()
-            .into_iter()
-            .collect();
+        let yak_installed: BTreeSet<String> = self.yak_mods.installed_ids().into_iter().collect();
         let catalog = self.yoake_configs.catalog.clone();
         for (n, entry) in catalog.iter().enumerate() {
             let picked = self.yoake_configs.selected.contains(&entry.id);
@@ -599,10 +594,14 @@ impl Launcher {
                             .filter(|base| base.native_mods.contains(&entry.id))
                             .map(|base| base.name.as_str())
                             .collect();
-                        (!builds.is_empty())
-                            .then(|| trf("In the build of: {packs}", &[("packs", &builds.join(", "))]))
+                        (!builds.is_empty()).then(|| {
+                            trf("In the build of: {packs}", &[("packs", &builds.join(", "))])
+                        })
                     } else {
-                        Some(trf("Installed in: {instances}", &[("instances", &here.join(", "))]))
+                        Some(trf(
+                            "Installed in: {instances}",
+                            &[("instances", &here.join(", "))],
+                        ))
                     }
                 }
                 _ => yak_installed
@@ -610,15 +609,19 @@ impl Launcher {
                     .then(|| tr("Installed in the selected instance").to_string()),
             };
             if let Some(state_text) = state_text {
-                detail = detail.child(text(theme::CAPTION).text_color(t.success).child(state_text));
+                detail = detail.child(
+                    div()
+                        .text_color(glass_ui::color(horizon_theme::glass::LIVE))
+                        .child(state_text),
+                );
             }
             let id = entry.id.clone();
-            let toggle = button(
-                SharedString::from(format!("yoake-mod-pick-{n}")),
-                if picked { "Remove" } else { "Add to configuration" },
-                if picked { Kind::Secondary } else { Kind::Ghost },
-                &t,
-            );
+            let toggle_id = SharedString::from(format!("yoake-mod-pick-{n}"));
+            let toggle = if picked {
+                glass_ui::solid(toggle_id, tr("Remove"), 36., 14., &t)
+            } else {
+                glass_ui::quiet(toggle_id, tr("Add to configuration"), 36., &t)
+            };
             let toggle = if required {
                 disabled(toggle)
             } else {
@@ -633,28 +636,20 @@ impl Launcher {
                 .gap(px(8.))
                 .child(self.mod_badge(entry.kind))
                 .child(toggle);
-            col = col.child(index_row(
-                n,
+            col = col.child(glass_index_row(
                 entry.name(language).to_string(),
                 Some(detail.into_any_element()),
                 Some(right.into_any_element()),
-                &t,
             ));
         }
 
         // ---- the builder
-        col = col.child(
-            text(theme::UI)
-                .text_color(t.ink)
-                .mt(px(12.))
-                .child(tr("Make a configuration")),
-        );
+        col = col.child(glass_subhead(tr("Make a configuration")));
         if self.yoake_configs.selected.is_empty() {
-            col = col.child(
-                text(theme::CAPTION)
-                    .text_color(t.muted)
-                    .child(tr("Pick mods above. Requirements are added for you.")),
-            );
+            col = col.child(glass_note(
+                tr("Pick mods above. Requirements are added for you."),
+                false,
+            ));
         } else {
             let names: Vec<String> = catalog
                 .iter()
@@ -667,7 +662,7 @@ impl Launcher {
                     }
                 })
                 .collect();
-            col = col.child(text(theme::UI).text_color(t.muted).child(names.join(" / ")));
+            col = col.child(glass_note(names.join(" / "), false));
         }
         if !bases.is_empty() {
             let chosen = self
@@ -675,24 +670,31 @@ impl Launcher {
                 .base
                 .clone()
                 .unwrap_or_else(|| bases[0].pack_id.clone());
-            let mut chips = div().flex().flex_wrap().gap(px(8.)).items_center().child(
-                text(theme::CAPTION).text_color(t.muted).child(tr("Base pack")),
-            );
+            let mut chips = div()
+                .flex()
+                .flex_wrap()
+                .gap(px(8.))
+                .items_center()
+                .px(px(12.))
+                .pb(px(8.))
+                .child(
+                    glass_ui::text(13., FontWeight::NORMAL, ink::NOTE).child(tr("Base pack")),
+                );
             for (n, base) in bases.iter().enumerate() {
                 let id = base.pack_id.clone();
-                chips = chips.child(
-                    button_label(
-                        SharedString::from(format!("yoake-config-base-{n}")),
-                        base.name.clone(),
-                        if base.pack_id == chosen { Kind::Secondary } else { Kind::Ghost },
-                        &t,
-                    )
-                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                let chip_id = SharedString::from(format!("yoake-config-base-{n}"));
+                let chip = if base.pack_id == chosen {
+                    glass_ui::solid(chip_id, base.name.clone(), 36., 14., &t)
+                } else {
+                    glass_ui::quiet(chip_id, base.name.clone(), 36., &t)
+                };
+                chips = chips.child(chip.on_click(cx.listener(
+                    move |this, _: &ClickEvent, _, cx| {
                         this.yoake_configs.base = Some(id.clone());
                         this.yoake_configs.share = None;
                         cx.notify();
-                    })),
-                );
+                    },
+                )));
             }
             col = col.child(chips);
         }
@@ -701,17 +703,18 @@ impl Launcher {
             .flex_wrap()
             .items_center()
             .gap(px(8.))
+            .px(px(12.))
+            .pb(px(8.))
             .child(self.config_field(Field::Name, cx))
             .child(
-                button("yoake-config-save", "Save configuration", Kind::Primary, &t).on_click(
-                    cx.listener(|this, _: &ClickEvent, _, cx| {
+                glass_ui::solid("yoake-config-save", tr("Save configuration"), 36., 14., &t)
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.save_draft();
                         cx.notify();
-                    }),
-                ),
+                    })),
             )
             .child(
-                button("yoake-config-share", "Share code", Kind::Secondary, &t).on_click(
+                glass_ui::quiet("yoake-config-share", tr("Share code"), 36., &t).on_click(
                     cx.listener(|this, _: &ClickEvent, _, cx| {
                         match this.draft() {
                             Ok(configuration) => this.share_configuration(&configuration),
@@ -725,28 +728,26 @@ impl Launcher {
         if let Some((name, code)) = self.yoake_configs.share.clone() {
             let copy = code.clone();
             col = col.child(
-                plate(&t)
-                    .flex()
-                    .flex_col()
-                    .gap(px(8.))
-                    .p(px(12.))
+                Self::config_card()
                     .child(
-                        text(theme::CAPTION)
-                            .text_color(t.muted)
+                        glass_ui::text(13., FontWeight::NORMAL, ink::NOTE)
                             .child(trf("Share code for {name}", &[("name", &name)])),
                     )
                     .child(
-                        div()
+                        glass_ui::text(13., FontWeight::NORMAL, ink::FULL)
                             .font_family(theme::MONO)
-                            .text_size(px(12.))
-                            .text_color(t.ink)
                             .child(code),
                     )
                     .child(
-                        button("yoake-config-copy", "Copy", Kind::Ghost, &t).on_click(
-                            cx.listener(move |_, _: &ClickEvent, _, cx| {
-                                copy_to_clipboard(cx, gpui::ClipboardItem::new_string(copy.clone()));
-                            }),
+                        div().flex().child(
+                            glass_ui::quiet("yoake-config-copy", tr("Copy"), 36., &t).on_click(
+                                cx.listener(move |_, _: &ClickEvent, _, cx| {
+                                    copy_to_clipboard(
+                                        cx,
+                                        gpui::ClipboardItem::new_string(copy.clone()),
+                                    );
+                                }),
+                            ),
                         ),
                     ),
             );
@@ -756,7 +757,8 @@ impl Launcher {
         let saved = self.yoake_configs.saved.clone();
         let bases_map = self.bases_by_pack();
         for (n, configuration) in saved.iter().enumerate() {
-            let preview = yoake_configs::resolve(configuration, &self.yoake_configs.catalog, &bases_map);
+            let preview =
+                yoake_configs::resolve(configuration, &self.yoake_configs.catalog, &bases_map);
             let names: Vec<String> = preview
                 .mods
                 .iter()
@@ -771,15 +773,20 @@ impl Launcher {
                 .collect();
             let mut detail = div().flex().flex_col().gap(px(2.)).child(names.join(" / "));
             for problem in &preview.problems {
-                detail = detail.child(text(theme::CAPTION).text_color(t.danger).child(problem_text(problem)));
+                detail = detail.child(
+                    div()
+                        .text_color(glass_ui::color(horizon_theme::glass::DANGER))
+                        .child(problem_text(problem)),
+                );
             }
             let busy = self.yoake_busy() || self.yoake_configs.pending.is_some();
             let (share_cfg, remove_name) = (configuration.clone(), configuration.name.clone());
             let install_preview = preview.clone();
-            let install = button(
+            let install = glass_ui::solid(
                 SharedString::from(format!("yoake-config-install-{n}")),
-                "Install as a new instance",
-                Kind::Primary,
+                tr("Install as a new instance"),
+                36.,
+                14.,
                 &t,
             );
             let install = if busy || !preview.installable() {
@@ -796,10 +803,10 @@ impl Launcher {
                 .gap(px(8.))
                 .child(install)
                 .child(
-                    button(
+                    glass_ui::quiet(
                         SharedString::from(format!("yoake-config-share-{n}")),
-                        "Share code",
-                        Kind::Secondary,
+                        tr("Share code"),
+                        36.,
                         &t,
                     )
                     .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
@@ -808,10 +815,10 @@ impl Launcher {
                     })),
                 )
                 .child(
-                    button(
+                    glass_ui::quiet(
                         SharedString::from(format!("yoake-config-delete-{n}")),
-                        "Delete",
-                        Kind::Ghost,
+                        tr("Delete"),
+                        36.,
                         &t,
                     )
                     .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
@@ -820,31 +827,26 @@ impl Launcher {
                         cx.notify();
                     })),
                 );
-            col = col.child(index_row(
-                n,
+            col = col.child(glass_index_row(
                 configuration.name.clone(),
                 Some(detail.into_any_element()),
                 Some(right.into_any_element()),
-                &t,
             ));
         }
 
         // ---- add by code
-        col = col.child(
-            text(theme::UI)
-                .text_color(t.ink)
-                .mt(px(12.))
-                .child(tr("Add by code")),
-        );
+        col = col.child(glass_subhead(tr("Add by code")));
         col = col.child(
             div()
                 .flex()
                 .flex_wrap()
                 .items_center()
                 .gap(px(8.))
+                .px(px(12.))
+                .pb(px(8.))
                 .child(self.config_field(Field::Code, cx))
                 .child(
-                    button("yoake-config-read", "Preview", Kind::Secondary, &t).on_click(
+                    glass_ui::quiet("yoake-config-read", tr("Preview"), 36., &t).on_click(
                         cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.read_code();
                             cx.notify();
@@ -853,12 +855,9 @@ impl Launcher {
                 ),
         );
         if let Some((configuration, preview)) = self.yoake_configs.preview.clone() {
-            let mut card = plate(&t)
-                .flex()
-                .flex_col()
-                .gap(px(6.))
-                .p(px(12.))
-                .child(text(theme::UI).text_color(t.ink).child(preview.name.clone()));
+            let mut card = Self::config_card().child(
+                glass_ui::text(14., FontWeight::MEDIUM, ink::FULL).child(preview.name.clone()),
+            );
             for entry in &preview.mods {
                 let name = self
                     .yoake_configs
@@ -868,18 +867,31 @@ impl Launcher {
                     .map(|m| m.name(language).to_owned())
                     .unwrap_or_else(|| entry.id.clone());
                 let line = if entry.auto_added {
-                    trf("{name} {version} (required)", &[("name", &name), ("version", &entry.version)])
+                    trf(
+                        "{name} {version} (required)",
+                        &[("name", &name), ("version", &entry.version)],
+                    )
                 } else {
                     format!("{name} {}", entry.version)
                 };
-                card = card.child(text(theme::CAPTION).text_color(t.muted).child(line));
+                card = card.child(glass_ui::text(13., FontWeight::NORMAL, ink::NOTE).child(line));
             }
             for problem in &preview.problems {
-                card = card.child(text(theme::CAPTION).text_color(t.danger).child(problem_text(problem)));
+                card = card.child(
+                    glass_ui::text(13., FontWeight::NORMAL, ink::FULL)
+                        .text_color(glass_ui::color(horizon_theme::glass::DANGER))
+                        .child(problem_text(problem)),
+                );
             }
             let busy = self.yoake_busy() || self.yoake_configs.pending.is_some();
             let install_preview = preview.clone();
-            let install = button("yoake-config-preview-install", "Install as a new instance", Kind::Primary, &t);
+            let install = glass_ui::solid(
+                "yoake-config-preview-install",
+                tr("Install as a new instance"),
+                36.,
+                14.,
+                &t,
+            );
             let install = if busy || !preview.installable() {
                 disabled(install)
             } else {
@@ -895,37 +907,39 @@ impl Launcher {
                     .gap(px(8.))
                     .child(install)
                     .child(
-                        button("yoake-config-preview-save", "Save configuration", Kind::Secondary, &t)
-                            .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                                match yoake_configs::save(&backend::data_dir(), keep.clone()) {
-                                    Ok(()) => {
-                                        this.yoake_configs.saved =
-                                            yoake_configs::load(&backend::data_dir());
-                                        this.yoake_configs.note =
-                                            Some((true, tr("Configuration saved.").to_string()));
-                                    }
-                                    Err(error) => this.yoake_configs.note = Some((false, error)),
+                        glass_ui::quiet(
+                            "yoake-config-preview-save",
+                            tr("Save configuration"),
+                            36.,
+                            &t,
+                        )
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            match yoake_configs::save(&backend::data_dir(), keep.clone()) {
+                                Ok(()) => {
+                                    this.yoake_configs.saved =
+                                        yoake_configs::load(&backend::data_dir());
+                                    this.yoake_configs.note =
+                                        Some((true, tr("Configuration saved.").to_string()));
                                 }
-                                cx.notify();
-                            })),
+                                Err(error) => this.yoake_configs.note = Some((false, error)),
+                            }
+                            cx.notify();
+                        })),
                     ),
             );
             col = col.child(card);
         }
         if self.yoake_configs.yak_task.is_some() || self.yoake_configs.pending.is_some() {
-            col = col.child(
-                text(theme::UI)
-                    .text_color(t.muted)
-                    .child(tr("Setting up the new instance…")),
-            );
+            col = col.child(glass_note(tr("Setting up the new instance…"), false));
         }
         if let Some((ok, note)) = &self.yoake_configs.note {
-            col = col.child(
-                text(theme::UI)
-                    .text_color(if *ok { t.success } else { t.danger })
-                    .child(note.clone()),
-            );
+            col = col.child(glass_note(note.clone(), !*ok));
         }
-        col
+        glass_section(
+            "Yoake mods",
+            "package-01",
+            Some(refresh.into_any_element()),
+            col,
+        )
     }
 }

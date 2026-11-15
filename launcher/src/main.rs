@@ -2689,6 +2689,104 @@ fn glass_card() -> Div {
     glass::plate(horizon_theme::glass::radius::PANEL)
 }
 
+/// A section of a glass page: its title (an icon and 18 px text) with an optional action at the
+/// right, over one glass panel that holds `body` (see [`glass_body`]).
+fn glass_section(
+    label: &str,
+    icon: &'static str,
+    right: Option<AnyElement>,
+    body: Div,
+) -> Div {
+    use horizon_theme::glass::ink;
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(12.))
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .justify_between()
+                .gap(px(12.))
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(10.))
+                        .child(glass_ui::icon(icon, 20., glass_ui::white(ink::NOTE)))
+                        .child(
+                            glass_ui::text(18., FontWeight::SEMIBOLD, ink::FULL)
+                                .child(tr(label).to_string()),
+                        ),
+                )
+                .children(right),
+        )
+        .child(glass_card().child(body))
+}
+
+/// The inside of a glass panel that lists things: 8 px around its rows.
+fn glass_body() -> Div {
+    div().relative().flex().flex_col().p(px(8.))
+}
+
+/// A row of a glass panel that is only read, with no hover or Tab stop of its own: a name over
+/// its detail, a value or control at the right. The glass `index_row`.
+fn glass_index_row(
+    name: impl IntoElement,
+    detail: Option<AnyElement>,
+    right: Option<AnyElement>,
+) -> Div {
+    use horizon_theme::glass::{ink, radius};
+    div()
+        .relative()
+        .flex()
+        .items_center()
+        .gap(px(12.))
+        .w_full()
+        .px(px(12.))
+        .py(px(10.))
+        .rounded(px(radius::ROW))
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .flex_1()
+                .min_w_0()
+                .child(
+                    glass_ui::text(14., FontWeight::MEDIUM, ink::FULL)
+                        .line_height(px(21.))
+                        .child(name),
+                )
+                .children(detail.map(|d| {
+                    glass_ui::text(13., FontWeight::NORMAL, ink::QUIET)
+                        .line_height(px(19.5))
+                        .child(d)
+                })),
+        )
+        .children(right.map(|r| div().flex().flex_none().items_center().child(r)))
+}
+
+/// A line of text inside a glass panel (`px-3 pb-2`): white at 60 %, or the danger red.
+fn glass_note(text_: impl Into<SharedString>, bad: bool) -> Div {
+    use horizon_theme::glass::ink;
+    div().px(px(12.)).pb(px(8.)).child(
+        glass_ui::text(13., FontWeight::NORMAL, ink::NOTE).when(bad, |d| {
+            d.text_color(glass_ui::color(horizon_theme::glass::DANGER))
+        })
+        .child(text_.into()),
+    )
+}
+
+/// A sub-heading inside a glass panel, over a group of its rows.
+fn glass_subhead(label: impl Into<SharedString>) -> Div {
+    use horizon_theme::glass::ink;
+    glass_ui::text(14., FontWeight::SEMIBOLD, ink::FULL)
+        .px(px(12.))
+        .pt(px(16.))
+        .pb(px(8.))
+        .child(label.into())
+}
+
 /// A page's title in the pixel face and one line on what it is for.
 fn page_header(title: &str, description: &str, t: &Theme) -> Div {
     div()
