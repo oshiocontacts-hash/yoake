@@ -11,7 +11,7 @@ mod permissions;
 
 pub use catalog::{CATALOG_PATH, Catalog, CatalogEntry, CatalogVersion, MAX_CATALOG_SIZE};
 pub use compatibility::{CompatibilityIssue, Environment, Resolution, ResolutionIssue, check_compatibility, check_data_compatibility, resolve};
-pub use config::{ConfigChange, ConfigField, ConfigKind, ConfigRuntimeSide, ConfigSide, ConfigState, PermissionNode, has_permission, parse_config, resolve_config, serialize_config};
+pub use config::{ConfigChange, ConfigField, ConfigFile, ConfigKind, ConfigRuntimeSide, ConfigSide, ConfigState, PermissionNode, has_permission, parse_config, resolve_config, serialize_config};
 pub use http_policy::{HttpsPolicy, validate_https_addresses};
 pub use installed::{check_installed_tree, check_plain_path, hash_installed_file, trusted_keys, verify_installed};
 pub use horizon_release_sign::{PublicKey, parse_keys};

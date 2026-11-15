@@ -6106,6 +6106,7 @@ dependencies = [
  "horizon-client-core",
  "horizon-items",
  "horizon-world",
+ "libc",
  "serde_json",
  "tokio",
  "wasmtime",

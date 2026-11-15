@@ -1,6 +1,11 @@
 use std::collections::BTreeMap;
+use std::ffi::OsStr;
+use std::fs::File;
 use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
+use super::storage_fs::Dir;
 use super::MAX_MESSAGE_BYTES;
 
 pub const MAX_STORAGE_BYTES: usize = 256 * 1024 * 1024;
@@ -252,20 +257,262 @@ impl Storage {
 }
 
 fn validate_key(key: &str) -> Result<(), &'static str> {
-    if key.is_empty() || key.len() > MAX_KEY_BYTES || key.chars().any(char::is_control) {
+    if key.is_empty() || key.len() > MAX_KEY_BYTES
+        || key.chars().any(|value| value.is_control() || matches!(value, '<' | '>' | ':' | '"' | '\\' | '|' | '?' | '*'))
+        || key.split('/').any(|part| part.is_empty() || part == "." || part == ".."
+            || part.ends_with('.') || part.ends_with(' ') || reserved_name(part))
+    {
         Err("invalid storage key")
     } else {
         Ok(())
     }
 }
 
+fn reserved_name(name: &str) -> bool {
+    let upper = name.split('.').next().unwrap_or("").trim_end_matches(' ').to_ascii_uppercase();
+    let port = upper.strip_prefix("COM").or_else(|| upper.strip_prefix("LPT"));
+    matches!(upper.as_str(), "CON" | "CONIN$" | "CONOUT$" | "PRN" | "AUX" | "NUL")
+        || matches!(port, Some("1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "¹" | "²" | "³"))
+}
+
 fn entry_cost(key: &str, value_len: usize) -> usize {
     ENTRY_HEADER_BYTES.saturating_add(key.len()).saturating_add(value_len)
+}
+
+static NEXT_TEMP_FILE: AtomicU64 = AtomicU64::new(0);
+
+pub struct DiskStorage {
+    base: PathBuf,
+    mod_id: String,
+    storage: Storage,
+}
+
+impl DiskStorage {
+    pub fn open(base: &Path, mod_id: &str) -> Result<Self, String> {
+        Self::open_with_quota(base, mod_id, MAX_STORAGE_BYTES)
+    }
+
+    pub fn open_with_quota(base: &Path, mod_id: &str, quota: usize) -> Result<Self, String> {
+        if !(3..=48).contains(&mod_id.len()) || reserved_name(mod_id)
+            || !mod_id.bytes().all(|value| value.is_ascii_lowercase() || value.is_ascii_digit() || matches!(value, b'_' | b'-'))
+        {
+            return Err("invalid storage mod ID".into());
+        }
+        let mut result = Self {
+            base: base.to_path_buf(),
+            mod_id: mod_id.to_owned(),
+            storage: Storage::new(quota).map_err(str::to_owned)?,
+        };
+        match result.directory(false) {
+            Ok(directory) => {
+                if let Some(file) = directory.read(OsStr::new("store.bin")).map_err(|error| error.to_string())? {
+                    result.storage = Storage::read_from(quota, file)?;
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                Dir::open(base, false).map_err(|error| error.to_string())?;
+            }
+            Err(error) => return Err(error.to_string()),
+        }
+        Ok(result)
+    }
+
+    fn directory(&self, create: bool) -> std::io::Result<Dir> {
+        Dir::open(&self.base, false)?
+            .child(OsStr::new("yoake-data"), create)?
+            .child(OsStr::new(&self.mod_id), create)
+    }
+
+    pub fn get(&self, key: &str) -> Result<Option<&[u8]>, &'static str> {
+        self.storage.get(key)
+    }
+
+    pub fn put(&mut self, key: &str, value: &[u8]) -> Result<(), String> {
+        validate_key(key).map_err(str::to_owned)?;
+        if value.len() > MAX_MESSAGE_BYTES {
+            return Err("value exceeds the message limit".into());
+        }
+        self.storage.require_unlocked(key).map_err(str::to_owned)?;
+        let old_cost = self.storage.entries.get(key).map_or(0, |old| entry_cost(key, old.len()));
+        if old_cost == 0 && self.storage.entries.len() + self.storage.pending.len() >= MAX_KEYS {
+            return Err("too many storage keys".into());
+        }
+        let next_used = self.storage.used - old_cost + entry_cost(key, value.len());
+        if next_used + self.storage.reserved > self.storage.quota {
+            return Err("storage quota exceeded".into());
+        }
+        let mut data = Vec::new();
+        data.try_reserve_exact(value.len()).map_err(|_| "storage allocation failed")?;
+        data.extend_from_slice(value);
+        self.persist(key, Some(&data))?;
+        self.storage.entries.insert(key.to_owned(), data);
+        self.storage.used = next_used;
+        Ok(())
+    }
+
+    pub fn delete(&mut self, key: &str) -> Result<bool, String> {
+        validate_key(key).map_err(str::to_owned)?;
+        self.storage.require_unlocked(key).map_err(str::to_owned)?;
+        let Some(old) = self.storage.entries.get(key) else { return Ok(false) };
+        let old_cost = entry_cost(key, old.len());
+        self.persist(key, None)?;
+        self.storage.entries.remove(key);
+        self.storage.used -= old_cost;
+        Ok(true)
+    }
+
+    pub fn begin_blob(&mut self, key: &str, total: usize) -> Result<u64, &'static str> {
+        self.storage.begin_blob(key, total)
+    }
+
+    pub fn write_blob(&mut self, ticket: u64, offset: usize, data: &[u8]) -> Result<(), &'static str> {
+        self.storage.write_blob(ticket, offset, data)
+    }
+
+    pub fn commit_blob(&mut self, ticket: u64) -> Result<(), String> {
+        let blob = self.storage.pending.get(&ticket).ok_or("unknown storage ticket")?;
+        let complete = blob.data.is_empty()
+            || (blob.ranges.len() == 1 && blob.ranges.get(&0) == Some(&blob.data.len()));
+        if !complete {
+            return Err("blob is incomplete".into());
+        }
+        self.persist(&blob.key, Some(&blob.data))?;
+        self.storage.commit_blob(ticket).map_err(str::to_owned)
+    }
+
+    pub fn abort_blob(&mut self, ticket: u64) -> bool {
+        self.storage.abort_blob(ticket)
+    }
+
+    pub fn read_blob(&self, key: &str, offset: usize, length: usize) -> Result<Option<&[u8]>, &'static str> {
+        self.storage.read_blob(key, offset, length)
+    }
+
+    fn persist(&self, key: &str, replacement: Option<&[u8]>) -> Result<(), String> {
+        let directory = self.directory(true).map_err(|error| error.to_string())?;
+        let mut created = None;
+        for _ in 0..32 {
+            let sequence = NEXT_TEMP_FILE.fetch_add(1, Ordering::Relaxed);
+            let name = format!(".store-{}-{sequence}.tmp", std::process::id());
+            match directory.create(OsStr::new(&name)) {
+                Ok(file) => { created = Some((name, file)); break; }
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+                Err(error) => return Err(error.to_string()),
+            }
+        }
+        let (name, mut file) = created.ok_or("could not create a storage temporary file")?;
+        let result = (|| -> Result<(), String> {
+            let count = self.storage.entries.len() - self.storage.entries.contains_key(key) as usize
+                + replacement.is_some() as usize;
+            file.write_all(MAGIC).and_then(|()| file.write_all(&(count as u32).to_le_bytes()))
+                .map_err(|error| error.to_string())?;
+            for (existing_key, data) in &self.storage.entries {
+                if existing_key != key {
+                    write_entry(&mut file, existing_key, data)?;
+                }
+            }
+            if let Some(data) = replacement {
+                write_entry(&mut file, key, data)?;
+            }
+            file.sync_all().map_err(|error| error.to_string())
+        })();
+        drop(file);
+        let result = result.and_then(|()| directory.replace(OsStr::new(&name), OsStr::new("store.bin"))
+            .map_err(|error| error.to_string()));
+        if result.is_err() {
+            let _ = directory.remove(OsStr::new(&name));
+        }
+        result
+    }
+}
+
+fn write_entry(file: &mut File, key: &str, data: &[u8]) -> Result<(), String> {
+    file.write_all(&(key.len() as u16).to_le_bytes())
+        .and_then(|()| file.write_all(&(data.len() as u32).to_le_bytes()))
+        .and_then(|()| file.write_all(key.as_bytes()))
+        .and_then(|()| file.write_all(data))
+        .map_err(|error| error.to_string())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn temporary_root() -> PathBuf {
+        let time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let sequence = NEXT_TEMP_FILE.fetch_add(1, Ordering::Relaxed);
+        let root = std::fs::canonicalize(std::env::temp_dir()).unwrap()
+            .join(format!("yoake-storage-{}-{time}-{sequence}", std::process::id()));
+        std::fs::create_dir(&root).unwrap();
+        root
+    }
+
+    #[test]
+    fn disk_storage_persists_and_isolates_scopes() {
+        let root = temporary_root();
+        let world = root.join("world");
+        let global = root.join("global");
+        std::fs::create_dir(&world).unwrap();
+        std::fs::create_dir(&global).unwrap();
+        let mut store = DiskStorage::open_with_quota(&world, "example", 128).unwrap();
+        assert!(!world.join("yoake-data").exists());
+        store.put("nest/config", b"hello").unwrap();
+        let ticket = store.begin_blob("blob", 6).unwrap();
+        store.write_blob(ticket, 3, b"def").unwrap();
+        assert!(store.commit_blob(ticket).is_err());
+        let restored = DiskStorage::open_with_quota(&world, "example", 128).unwrap();
+        assert_eq!(restored.get("blob").unwrap(), None);
+        store.write_blob(ticket, 0, b"abc").unwrap();
+        store.commit_blob(ticket).unwrap();
+        assert!(store.put("large", &[0; 128]).is_err());
+        let mut restored = DiskStorage::open_with_quota(&world, "example", 128).unwrap();
+        assert_eq!(restored.get("nest/config").unwrap(), Some(&b"hello"[..]));
+        assert_eq!(restored.read_blob("blob", 2, 3).unwrap(), Some(&b"cde"[..]));
+        assert_eq!(DiskStorage::open_with_quota(&global, "example", 128).unwrap().get("blob").unwrap(), None);
+        assert_eq!(DiskStorage::open_with_quota(&world, "other", 128).unwrap().get("blob").unwrap(), None);
+        assert!(restored.delete("blob").unwrap());
+        assert_eq!(DiskStorage::open_with_quota(&world, "example", 128).unwrap().get("blob").unwrap(), None);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn disk_storage_rejects_unsafe_names_and_failed_writes() {
+        let root = temporary_root();
+        for mod_id in ["../evil", "con", "com1", "Bad", "ab"] {
+            assert!(DiskStorage::open(&root, mod_id).is_err());
+        }
+        let mut store = DiskStorage::open_with_quota(&root, "example", 128).unwrap();
+        for key in ["../x", "C:/x", "/abs", "folder/..", "dir\\file", "CON", "nul.txt", "CON .txt", "COM¹", "lpt².txt", "CONIN$", "trail."] {
+            assert!(store.put(key, b"value").is_err(), "accepted {key}");
+        }
+        let folder = root.join("yoake-data").join("example");
+        std::fs::create_dir_all(folder.join("store.bin")).unwrap();
+        assert!(store.put("key", b"value").is_err());
+        assert_eq!(store.get("key").unwrap(), None);
+        std::fs::remove_dir(folder.join("store.bin")).unwrap();
+        std::fs::write(folder.join("store.bin"), b"broken").unwrap();
+        assert!(DiskStorage::open(&root, "example").is_err());
+        assert_eq!(std::fs::read(folder.join("store.bin")).unwrap(), b"broken");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn disk_storage_refuses_symlinked_mod_directories() {
+        use std::os::unix::fs::symlink;
+
+        let root = temporary_root();
+        let outside = root.join("outside");
+        std::fs::create_dir(&outside).unwrap();
+        std::fs::create_dir(root.join("yoake-data")).unwrap();
+        symlink(&outside, root.join("yoake-data").join("example")).unwrap();
+        assert!(DiskStorage::open(&root, "example").is_err());
+        assert!(std::fs::read_dir(&outside).unwrap().next().is_none());
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn roundtrip_preserves_committed_values_and_isolated_stores() {

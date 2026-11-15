@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 
 pub mod storage;
+mod storage_fs;
 pub mod tickets;
 
 pub const MAX_MESSAGE_BYTES: usize = 1024 * 1024;

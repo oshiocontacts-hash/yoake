@@ -17,6 +17,9 @@ wasmtime-wasi = { version = "=48.0.7", default-features = false, features = ["p2
 bytes = { version = "1", default-features = false }
 tokio = { version = "1", default-features = false }
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [features]
 # Test support: finds and builds the example guests (`test_guests`).
 test-guests = []

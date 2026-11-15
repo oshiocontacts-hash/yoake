@@ -163,7 +163,13 @@ pub struct Wasm {
 }
 
 /// The `[wasm] permissions` this build knows.
-pub const WASM_PERMISSIONS: [&str; 2] = ["service.commands", "service.http"];
+pub const WASM_PERMISSIONS: [&str; 5] = [
+    "service.commands",
+    "service.config",
+    "service.http",
+    "service.permissions",
+    "service.storage",
+];
 
 /// The WIT worlds a client module may target.
 pub const CLIENT_WASM_WORLDS: [&str; 2] = ["client-mod", "client-full"];
@@ -225,6 +231,9 @@ impl Wasm {
         }
         if self.permissions.iter().any(|permission| permission == "service.commands") && self.server.is_none() {
             return Err("wasm permission service.commands applies to the server module; declare wasm.server".into());
+        }
+        if self.permissions.iter().any(|permission| permission == "service.permissions") && self.server.is_none() {
+            return Err("wasm permission service.permissions applies to the server module; declare wasm.server".into());
         }
         let modules = self.modules();
         if modules.is_empty() {

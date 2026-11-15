@@ -173,6 +173,10 @@ server = \"bin/wasm/s.wasm\"
     let manifest = parse("permissions = [\"service.commands\"]
 ").unwrap();
     assert!(manifest.wasm.as_ref().unwrap().has_permission("service.commands"));
+    let manifest = parse("permissions = [\"service.config\", \"service.permissions\", \"service.storage\"]").unwrap();
+    for permission in ["service.config", "service.permissions", "service.storage"] {
+        assert!(manifest.wasm.as_ref().unwrap().has_permission(permission));
+    }
     assert!(!parse("").unwrap().wasm.unwrap().has_permission("service.commands"));
     assert!(parse("permissions = [\"service.everything\"]
 ").unwrap_err().contains("unknown wasm permission"));
@@ -182,6 +186,12 @@ interface = \"1.0\"
 client = \"bin/wasm/a.wasm\"
 permissions = [\"service.commands\"]
 ");
+    assert!(Manifest::parse(&client_only).unwrap_err().contains("server module"));
+    for permission in ["service.config", "service.storage"] {
+        let client_only = with_wasm(&format!("\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/a.wasm\"\npermissions = [\"{permission}\"]\n"));
+        assert!(Manifest::parse(&client_only).is_ok(), "{permission}");
+    }
+    let client_only = with_wasm("\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/a.wasm\"\npermissions = [\"service.permissions\"]\n");
     assert!(Manifest::parse(&client_only).unwrap_err().contains("server module"));
 }
 

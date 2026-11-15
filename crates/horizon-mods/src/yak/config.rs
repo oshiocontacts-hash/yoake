@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
 use toml::Value;
 
 const MAX_FIELDS: usize = 256;
@@ -289,6 +291,7 @@ pub struct ConfigChange {
     pub new: Value,
 }
 
+#[derive(Clone)]
 pub struct ConfigState {
     side: ConfigRuntimeSide,
     fields: BTreeMap<String, ConfigField>,
@@ -446,6 +449,91 @@ impl ConfigState {
     }
 }
 
+pub struct ConfigFile {
+    path: PathBuf,
+    fields: BTreeMap<String, ConfigField>,
+    state: ConfigState,
+}
+
+impl ConfigFile {
+    pub fn load(
+        game_dir: &Path,
+        mod_id: &str,
+        fields: &BTreeMap<String, ConfigField>,
+        side: ConfigRuntimeSide,
+    ) -> Result<Self, String> {
+        super::manifest::identifier(mod_id)?;
+        if reserved_file_name(mod_id) {
+            return Err("reserved config file name".into());
+        }
+        let path = game_dir.join("config").join(format!("{mod_id}.toml"));
+        let supplied = read_config_file(&path, fields)?;
+        let local = supplied.into_iter().filter(|(name, _)| {
+            fields.get(name).is_some_and(|field| ConfigState::is_local(side, field.side))
+        }).collect();
+        let state = ConfigState::new(fields, side, &local)?;
+        Ok(Self { path, fields: fields.clone(), state })
+    }
+
+    pub fn state(&self) -> &ConfigState {
+        &self.state
+    }
+
+    pub fn set_local(&mut self, name: &str, value: Value) -> Result<Option<ConfigChange>, String> {
+        let mut document = read_config_file(&self.path, &self.fields)?;
+        let mut candidate = self.state.clone();
+        let Some(change) = candidate.set_local(name, value)? else {
+            return Ok(None);
+        };
+        document.insert(name.to_owned(), change.new.clone());
+        let encoded = toml::to_string(&document).map_err(|error| error.to_string())?;
+        parse_config(&self.fields, &encoded)?;
+        let parent = self.path.parent().ok_or("config path has no parent")?;
+        horizon_release_sign::yak::check_plain_path(parent)?;
+        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+        horizon_release_sign::yak::atomic_write(&self.path, true, |file| {
+            file.write_all(encoded.as_bytes()).map_err(|error| error.to_string())
+        })?;
+        self.state = candidate;
+        Ok(Some(change))
+    }
+
+    pub fn apply_synced_snapshot(
+        &mut self,
+        snapshot: &BTreeMap<String, Value>,
+    ) -> Result<Vec<ConfigChange>, String> {
+        self.state.apply_synced_snapshot(snapshot)
+    }
+
+    pub fn clear_synced(&mut self) -> Vec<ConfigChange> {
+        self.state.clear_synced()
+    }
+}
+
+pub(super) fn reserved_file_name(name: &str) -> bool {
+    let upper = name.to_ascii_uppercase();
+    matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || (upper.len() == 4
+            && (upper.starts_with("COM") || upper.starts_with("LPT"))
+            && matches!(upper.as_bytes()[3], b'1'..=b'9'))
+}
+
+fn read_config_file(path: &Path, fields: &BTreeMap<String, ConfigField>) -> Result<BTreeMap<String, Value>, String> {
+    horizon_release_sign::yak::check_plain_path(path)?;
+    let file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeMap::new()),
+        Err(error) => return Err(format!("cannot open {}: {error}", path.display())),
+    };
+    let mut bytes = Vec::new();
+    file.take((MAX_CONFIG_BYTES + 1) as u64).read_to_end(&mut bytes)
+        .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+    let document = std::str::from_utf8(&bytes)
+        .map_err(|error| format!("invalid UTF-8 in {}: {error}", path.display()))?;
+    parse_config(fields, document).map_err(|error| format!("{}: {error}", path.display()))?;
+    toml::from_str(document).map_err(|error| format!("{}: {error}", path.display()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -549,6 +637,39 @@ type = "bool"
 side = "synced"
 default = false
 "#)).unwrap()
+    }
+
+    #[test]
+    fn config_file_preserves_other_sides_and_rejects_malformed_files() {
+        let root = std::fs::canonicalize(std::env::temp_dir()).unwrap().join(format!(
+            "yoake-config-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(),
+        ));
+        let manifest = side_manifest();
+        let mut client = ConfigFile::load(&root, "sample-mod", &manifest.config, ConfigRuntimeSide::Client).unwrap();
+        assert!(!root.exists());
+        client.set_local("client_setting", Value::Boolean(true)).unwrap();
+
+        let mut server = ConfigFile::load(&root, "sample-mod", &manifest.config, ConfigRuntimeSide::Server).unwrap();
+        server.set_local("shared", Value::Integer(5)).unwrap();
+        let reloaded_client = ConfigFile::load(&root, "sample-mod", &manifest.config, ConfigRuntimeSide::Client).unwrap();
+        let reloaded_server = ConfigFile::load(&root, "sample-mod", &manifest.config, ConfigRuntimeSide::Server).unwrap();
+        assert_eq!(reloaded_client.state().get("client_setting"), Some(&Value::Boolean(true)));
+        assert_eq!(reloaded_server.state().get("shared"), Some(&Value::Integer(5)));
+        assert!(client.set_local("shared", Value::Integer(4)).is_err());
+        assert!(server.set_local("shared", Value::Integer(6)).is_err());
+
+        let path = root.join("config").join("sample-mod.toml");
+        let malformed = "broken = [";
+        std::fs::write(&path, malformed).unwrap();
+        assert!(server.set_local("shared", Value::Integer(5)).is_err());
+        assert!(server.set_local("shared", Value::Integer(4)).is_err());
+        assert_eq!(server.state().get("shared"), Some(&Value::Integer(5)));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), malformed);
+        assert!(ConfigFile::load(&root, "sample-mod", &manifest.config, ConfigRuntimeSide::Server).is_err());
+        assert!(ConfigFile::load(&root, "con", &manifest.config, ConfigRuntimeSide::Client).is_err());
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
