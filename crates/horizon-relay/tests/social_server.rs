@@ -223,3 +223,101 @@ fn no_social_configuration_does_not_start_a_listener() {
     assert!(SocialServer::from_options(Some("127.0.0.1:0".into()), Some("nope.der".into()), Some("nope.key".into()), key).is_none());
     assert!(SocialServer::from_options(Some("127.0.0.1:0".into()), None, None, Some("\u{e9}".repeat(32))).is_none());
 }
+
+#[test]
+fn a_bridged_pair_idle_for_longer_than_the_first_message_timeout_stays_alive() {
+    let (_server, address, tls) = setup(Duration::from_secs(60));
+    let grant = signed("session-1", unix_time() + 120, 60);
+    let (mut guest, mut host) = bridge(address, &tls, &grant);
+    std::thread::sleep(Duration::from_millis(5600)); // longer than FIRST_MESSAGE_TIMEOUT (5 s)
+    guest.send_message(b"still here").unwrap();
+    assert_eq!(host.recv_message().unwrap(), b"still here");
+    host.send_message(b"yes").unwrap();
+    assert_eq!(guest.recv_message().unwrap(), b"yes");
+}
+
+fn numbered(index: usize) -> Vec<u8> {
+    let mut bytes = vec![(index % 251) as u8; 4096];
+    bytes[..4].copy_from_slice(&(index as u32).to_be_bytes());
+    bytes
+}
+
+#[test]
+fn a_slow_peer_behind_a_bandwidth_limited_bridge_gets_whole_messages_in_order() {
+    let (_server, address, tls) = setup_with(Duration::from_secs(30), 200_000, 20_000, 64);
+    let grant = signed("session-1", unix_time() + 120, 61);
+    let (mut guest, mut host) = bridge(address, &tls, &grant);
+    let started = std::time::Instant::now();
+    let sender = std::thread::spawn(move || {
+        for index in 0..40 { guest.send_message(&numbered(index)).unwrap(); }
+        guest
+    });
+    std::thread::sleep(Duration::from_millis(400)); // the host is slow to start reading
+    for index in 0..40 {
+        assert_eq!(host.recv_message().unwrap(), numbered(index), "message {index} arrived split, lost or out of order");
+    }
+    let _guest = sender.join().unwrap();
+    // ~164 kB at 200 kB/s behind a 20 kB burst: a real wait, but nowhere near a stall.
+    assert!(started.elapsed() < Duration::from_secs(20));
+}
+
+#[test]
+fn idle_pairs_do_not_take_the_sessions_bandwidth_from_an_active_pair() {
+    let (_server, address, tls) = setup_with(Duration::from_secs(60), 100_000, 32_768, 64);
+    let idle: Vec<_> = (100..108).map(|nonce| bridge(address, &tls, &signed("session-1", unix_time() + 120, nonce))).collect();
+    let (mut guest, mut host) = bridge(address, &tls, &signed("session-1", unix_time() + 120, 110));
+    let started = std::time::Instant::now();
+    let sender = std::thread::spawn(move || {
+        for index in 0..20 { guest.send_message(&numbered(index)).unwrap(); }
+        guest
+    });
+    for index in 0..20 {
+        assert_eq!(host.recv_message().unwrap(), numbered(index));
+    }
+    let _guest = sender.join().unwrap();
+    assert!(started.elapsed() < Duration::from_secs(10), "took {:?}", started.elapsed());
+    drop(idle);
+}
+
+#[test]
+fn an_empty_message_closes_the_bridge() {
+    let (_server, address, tls) = setup(Duration::from_secs(5));
+    let (mut guest, mut host) = bridge(address, &tls, &signed("session-1", unix_time() + 60, 62));
+    guest.send_message(&[]).unwrap();
+    assert_peer_closed(&mut host);
+    assert_peer_closed(&mut guest);
+}
+
+#[test]
+fn a_waiting_guest_is_dropped_after_a_few_wrong_host_tokens() {
+    let (_server, address, tls) = setup(Duration::from_secs(30));
+    let grant = signed("session-1", unix_time() + 60, 63);
+    let mut guest = guest(address, &tls, &grant);
+    assert!(matches!(recv_from(&mut guest), FromRelay::Waiting {}));
+    for _ in 0..3 {
+        let mut bad = host(address, &tls, &grant, &"cd".repeat(32));
+        assert_rejected(&mut bad);
+    }
+    assert_peer_closed(&mut guest);
+    let mut late = host(address, &tls, &grant, TOKEN);
+    assert_rejected(&mut late);
+}
+
+#[test]
+fn many_idle_pairs_cost_little_cpu_and_stay_responsive() {
+    let (server, address, tls) = setup_with(Duration::from_secs(120), 1_000_000, 64 * 1024, 256);
+    let mut pairs: Vec<_> = (0..100u8)
+        .map(|index| bridge(address, &tls, &signed("session-1", unix_time() + 200, 100 + index)))
+        .collect();
+    std::thread::sleep(Duration::from_millis(500)); // let every loop settle into its idle nap
+    let before = server.forward_ticks();
+    std::thread::sleep(Duration::from_secs(3));
+    let ticks = server.forward_ticks() - before;
+    // Napping up to 16 ms: about 19k loop passes for 100 pairs in 3 s. A 1 ms tick would be over 90k.
+    assert!(ticks < 45_000, "{ticks} forwarding passes in 3 s");
+    let (guest, host) = &mut pairs[50];
+    let started = std::time::Instant::now();
+    guest.send_message(b"ping").unwrap();
+    assert_eq!(host.recv_message().unwrap(), b"ping");
+    assert!(started.elapsed() < Duration::from_secs(1));
+}

@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use horizon_friends::social::{
-    GrantError, GrantVerifier, HostTokenVerifier, RegisterSession, SignedGrant, VerifiedGrant,
+    GrantError, GrantVerifier, MAX_GRANT_LIFETIME_SECS, HostTokenVerifier, RegisterSession, SignedGrant, VerifiedGrant,
 };
 
 mod forward;
@@ -75,13 +75,21 @@ struct Slot {
     id: u64,
     paired: bool,
     last_activity: Instant,
+    /// Host token failures while this guest waits.
+    failures: u8,
 }
+
+/// Wrong host tokens tolerated per waiting guest before it is dropped.
+const MAX_TOKEN_FAILURES: u8 = 3;
 
 struct Session {
     host_principal: String,
     token: HostTokenVerifier,
     limits: SessionLimits,
     active: bool,
+    /// Unix time until which a retired session's id stays reserved: no grant issued before the
+    /// retirement can still be valid after it, so the id is free again then.
+    retired_until: u64,
     used: HashMap<[u8; 32], u64>,
     slots: HashMap<[u8; 32], Slot>,
     next_slot_id: u64,
@@ -129,10 +137,12 @@ impl SocialRelay {
         }
         let token = HostTokenVerifier::new(host_token)?;
         let mut sessions = self.sessions.lock().map_err(|_| RelayError::Unavailable)?;
+        let unix_now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+        sessions.retain(|_, session| session.active || session.retired_until > unix_now);
         if sessions.contains_key(&request.session_id) {
             return Err(RelayError::SessionExists);
         }
-        if sessions.len() >= self.max_sessions {
+        if sessions.values().filter(|session| session.active).count() >= self.max_sessions {
             return Err(RelayError::SessionLimit);
         }
         sessions.insert(
@@ -142,6 +152,7 @@ impl SocialRelay {
                 token,
                 limits,
                 active: true,
+                retired_until: 0,
                 used: HashMap::new(),
                 slots: HashMap::new(),
                 next_slot_id: 0,
@@ -157,6 +168,9 @@ impl SocialRelay {
         let session = sessions.get_mut(session_id).ok_or(RelayError::UnknownSession)?;
         session.active = false;
         session.slots.clear();
+        session.used.clear();
+        let unix_now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+        session.retired_until = unix_now + MAX_GRANT_LIFETIME_SECS;
         Ok(())
     }
 
@@ -190,7 +204,7 @@ impl SocialRelay {
         let slot_id = session.next_slot_id.checked_add(1).ok_or(RelayError::Unavailable)?;
         session.next_slot_id = slot_id;
         session.used.insert(nonce, verified.expires_at());
-        session.slots.insert(nonce, Slot { id: slot_id, paired: false, last_activity: now });
+        session.slots.insert(nonce, Slot { id: slot_id, paired: false, last_activity: now, failures: 0 });
         Ok(PendingGuest {
             relay: self.clone(),
             signed: signed.clone(),
@@ -250,13 +264,18 @@ impl<GUEST> PendingGuest<GUEST> {
         if self.verified.expires_at() <= unix_time {
             return Err(RelayError::Grant(GrantError::Expired));
         }
-        if !session.token.verify(host_token) {
-            return Err(RelayError::WrongToken);
-        }
         session.prune(unix_time, now);
         let slot = session.slots.get_mut(&self.verified.nonce())
             .filter(|slot| slot.id == self.slot_id)
             .ok_or(RelayError::TimedOut)?;
+        if !session.token.verify(host_token) {
+            slot.failures += 1;
+            if slot.failures >= MAX_TOKEN_FAILURES {
+                // Too many guesses against this guest: drop it (its thread notices the gone slot).
+                session.slots.remove(&self.verified.nonce());
+            }
+            return Err(RelayError::WrongToken);
+        }
         if slot.paired {
             return Err(RelayError::PairingMismatch);
         }

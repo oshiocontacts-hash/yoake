@@ -62,14 +62,18 @@ pub fn tls_valid_between(name: &str, from: i32, to: i32) -> TestTls {
 pub fn portal_key() -> [u8; 32] { hex(PORTAL_PUBLIC) }
 
 pub fn provision(relay: &SocialRelay, idle: Duration) {
+    provision_with(relay, idle, 1_000_000, 64 * 1024, 64);
+}
+
+pub fn provision_with(relay: &SocialRelay, idle: Duration, bytes_per_second: u64, burst_bytes: usize, max_connections: usize) {
     relay.provision(
         &RegisterSession::relay_only("session-1".into(), "member:host".into()),
         TOKEN,
         SessionLimits {
-            max_connections: 64,
-            max_nonces: 16,
-            bytes_per_second: 1_000_000,
-            burst_bytes: 64 * 1024,
+            max_connections,
+            max_nonces: 1024,
+            bytes_per_second,
+            burst_bytes,
             idle_timeout: idle,
         },
         std::time::Instant::now(),
@@ -85,6 +89,14 @@ pub fn setup(idle: Duration) -> (SocialServer, SocketAddr, TestTls) {
     let tls = tls("relay.test");
     let server = server(&tls, HandshakeLimits::default());
     provision(server.relay(), idle);
+    let address = server.spawn_local().unwrap();
+    (server, address, tls)
+}
+
+pub fn setup_with(idle: Duration, bytes_per_second: u64, burst_bytes: usize, max_connections: usize) -> (SocialServer, SocketAddr, TestTls) {
+    let tls = tls("relay.test");
+    let server = server(&tls, HandshakeLimits::default());
+    provision_with(server.relay(), idle, bytes_per_second, burst_bytes, max_connections);
     let address = server.spawn_local().unwrap();
     (server, address, tls)
 }

@@ -7,11 +7,8 @@ use horizon_friends::social_tls::ControlChannel;
 
 type Channel = Box<dyn ControlChannel>;
 
-/// How long one forwarding read waits before the other direction gets its turn.
-const READ_TICK: Duration = Duration::from_millis(1);
-
-/// Message adapter for `PairedConnection`. A read that finds no whole message in
-/// one tick is `WouldBlock` (partial frames stay in the channel). A write sends a
+/// Message adapter for `PairedConnection`. A read that finds no whole message
+/// right now is `WouldBlock` (partial frames stay in the channel). A write sends a
 /// whole message or fails the connection; it never reports `WouldBlock`, so bytes
 /// are never offered twice.
 #[derive(Clone)]
@@ -40,11 +37,15 @@ impl MessageStream {
 
 impl Read for MessageStream {
     fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
-        while self.offset >= self.buffer.len() {
-            // An empty message carries nothing (and `Ok(0)` would read as EOF): skip it.
-            let Some(message) = self.lock().try_recv_message(READ_TICK)? else {
+        if self.offset >= self.buffer.len() {
+            // No waiting here: the forwarder owns the pacing and must not hold anything while idle.
+            let Some(message) = self.lock().try_recv_message(Duration::ZERO)? else {
                 return Err(io::ErrorKind::WouldBlock.into());
             };
+            if message.is_empty() {
+                // Nothing in the protocol sends one; a stream of them would cost nothing to send.
+                return Err(io::Error::new(io::ErrorKind::InvalidData, "empty social message"));
+            }
             self.buffer = message;
             self.offset = 0;
         }

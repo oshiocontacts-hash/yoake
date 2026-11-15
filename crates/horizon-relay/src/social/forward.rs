@@ -14,11 +14,13 @@ const BUFFER_BYTES: usize = 16 * 1024;
 struct Buffer {
     bytes: Vec<u8>,
     offset: usize,
+    /// The bandwidth for `bytes` was already taken.
+    paid: bool,
 }
 
 impl Buffer {
     fn new() -> Self {
-        Self { bytes: Vec::new(), offset: 0 }
+        Self { bytes: Vec::new(), offset: 0, paid: false }
     }
 }
 
@@ -32,7 +34,6 @@ pub enum Direction {
 pub enum ForwardProgress {
     Transferred(usize),
     Blocked,
-    Eof,
 }
 
 #[derive(Debug)]
@@ -62,8 +63,9 @@ impl<GUEST: Read + Write, HOST: Read + Write> PairedConnection<GUEST, HOST> {
         &self.verified
     }
 
-    /// Check the limits and take the byte budget for one transfer (lock held, no I/O).
-    fn reserve(&self, now: Instant) -> Result<usize, ForwardError> {
+    /// Check the slot and refill the bucket; with `need`, take that much if it is there.
+    /// Lock held, no I/O. `Ok(false)`: not enough bandwidth yet.
+    fn admit(&self, now: Instant, need: Option<usize>) -> Result<bool, ForwardError> {
         let unavailable = || ForwardError::Relay(RelayError::Unavailable);
         let mut sessions = self.relay.sessions.lock().map_err(|_| unavailable())?;
         let session = sessions
@@ -82,87 +84,94 @@ impl<GUEST: Read + Write, HOST: Read + Write> PairedConnection<GUEST, HOST> {
         session.tokens = (session.tokens + elapsed.as_secs_f64() * session.limits.bytes_per_second as f64)
             .min(session.limits.burst_bytes as f64);
         session.last_refill = now.max(session.last_refill);
-        let budget = (session.tokens as usize).min(BUFFER_BYTES);
-        session.tokens -= budget as f64;
-        Ok(budget)
+        let Some(need) = need else { return Ok(true); };
+        // A message bigger than the bucket can never be covered: it costs a full bucket.
+        let need = (need as f64).min(session.limits.burst_bytes as f64);
+        if session.tokens < need { return Ok(false); }
+        session.tokens -= need;
+        Ok(true)
     }
 
-    /// Return the unused part of the reservation and note activity (lock held, no I/O).
-    fn settle(&self, budget: usize, used: usize, now: Instant) {
+    fn note_activity(&self, now: Instant) {
         let Ok(mut sessions) = self.relay.sessions.lock() else { return; };
-        let Some(session) = sessions.get_mut(self.verified.session_id()) else { return; };
-        session.tokens = (session.tokens + (budget - used) as f64).min(session.limits.burst_bytes as f64);
-        if used > 0 {
+        if let Some(session) = sessions.get_mut(self.verified.session_id()) {
             if let Some(slot) = session.slots.get_mut(&self.verified.nonce()).filter(|slot| slot.id == self.slot_id) {
                 slot.last_activity = now;
             }
         }
     }
 
+    /// Move one chunk (one whole message for the TLS bridge). Nothing is reserved while
+    /// waiting for input: the read comes first with no wait, and bandwidth is charged for
+    /// the whole chunk only once it is in hand.
     pub fn forward_once(
         &mut self,
         direction: Direction,
         now: Instant,
     ) -> Result<ForwardProgress, ForwardError> {
-        let budget = self.reserve(now)?;
-        if budget == 0 {
-            return Ok(ForwardProgress::Blocked);
-        }
+        self.admit(now, None)?;
         let progress = match direction {
-            Direction::GuestToHost => transfer(&mut self.guest, &mut self.host, &mut self.guest_to_host, budget),
-            Direction::HostToGuest => transfer(&mut self.host, &mut self.guest, &mut self.host_to_guest, budget),
+            Direction::GuestToHost => self.step(Side::Guest, now),
+            Direction::HostToGuest => self.step(Side::Host, now),
+        }?;
+        if matches!(progress, ForwardProgress::Transferred(_)) { self.note_activity(now); }
+        Ok(progress)
+    }
+
+    fn step(&mut self, from: Side, now: Instant) -> Result<ForwardProgress, ForwardError> {
+        let buffer = match from { Side::Guest => &mut self.guest_to_host, Side::Host => &mut self.host_to_guest };
+        if buffer.bytes.is_empty() {
+            buffer.bytes.resize(BUFFER_BYTES, 0);
+            let read = match from { Side::Guest => self.guest.read(&mut buffer.bytes), Side::Host => self.host.read(&mut buffer.bytes) };
+            match read {
+                Ok(0) => {
+                    buffer.bytes.clear();
+                    return Err(ForwardError::Io(io::ErrorKind::UnexpectedEof.into()));
+                }
+                Ok(count) => {
+                    buffer.bytes.truncate(count);
+                    buffer.offset = 0;
+                    buffer.paid = false;
+                }
+                Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                    buffer.bytes.clear();
+                    return Ok(ForwardProgress::Blocked);
+                }
+                Err(error) => {
+                    buffer.bytes.clear();
+                    return Err(ForwardError::Io(error));
+                }
+            }
+        }
+        if !buffer.paid {
+            let need = buffer.bytes.len();
+            if !self.admit(now, Some(need))? { return Ok(ForwardProgress::Blocked); }
+            let buffer = match from { Side::Guest => &mut self.guest_to_host, Side::Host => &mut self.host_to_guest };
+            buffer.paid = true;
+        }
+        let buffer = match from { Side::Guest => &mut self.guest_to_host, Side::Host => &mut self.host_to_guest };
+        let written = match from {
+            Side::Guest => self.host.write(&buffer.bytes[buffer.offset..]),
+            Side::Host => self.guest.write(&buffer.bytes[buffer.offset..]),
         };
-        let used = match progress {
-            Ok(ForwardProgress::Transferred(written)) => written,
-            _ => 0,
+        let written = match written {
+            Ok(0) => return Err(ForwardError::Io(io::ErrorKind::WriteZero.into())),
+            Ok(written) => written,
+            Err(error) if error.kind() == io::ErrorKind::WouldBlock => return Ok(ForwardProgress::Blocked),
+            Err(error) => return Err(ForwardError::Io(error)),
         };
-        self.settle(budget, used, now);
-        progress
+        buffer.offset += written;
+        if buffer.offset == buffer.bytes.len() {
+            buffer.bytes.clear();
+            buffer.offset = 0;
+            buffer.paid = false;
+        }
+        Ok(ForwardProgress::Transferred(written))
     }
 }
 
-/// `writer` must follow the `Write` contract: bytes it accepted are never offered again,
-/// and `WouldBlock` means none were accepted.
-fn transfer<READER: Read, WRITER: Write>(
-    reader: &mut READER,
-    writer: &mut WRITER,
-    buffer: &mut Buffer,
-    budget: usize,
-) -> Result<ForwardProgress, ForwardError> {
-    if buffer.bytes.is_empty() {
-        buffer.bytes.resize(budget, 0);
-        match reader.read(&mut buffer.bytes) {
-            Ok(0) => {
-                buffer.bytes.clear();
-                return Ok(ForwardProgress::Eof);
-            }
-            Ok(read) => buffer.bytes.truncate(read),
-            Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
-                buffer.bytes.clear();
-                return Ok(ForwardProgress::Blocked);
-            }
-            Err(error) => {
-                buffer.bytes.clear();
-                return Err(ForwardError::Io(error));
-            }
-        }
-    }
-    let end = (buffer.offset + budget).min(buffer.bytes.len());
-    let written = match writer.write(&buffer.bytes[buffer.offset..end]) {
-        Ok(0) => return Err(ForwardError::Io(io::ErrorKind::WriteZero.into())),
-        Ok(written) => written,
-        Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
-            return Ok(ForwardProgress::Blocked);
-        }
-        Err(error) => return Err(ForwardError::Io(error)),
-    };
-    buffer.offset += written;
-    if buffer.offset == buffer.bytes.len() {
-        buffer.bytes.clear();
-        buffer.offset = 0;
-    }
-    Ok(ForwardProgress::Transferred(written))
-}
+#[derive(Clone, Copy)]
+enum Side { Guest, Host }
 
 impl<GUEST, HOST> Drop for PairedConnection<GUEST, HOST> {
     fn drop(&mut self) {

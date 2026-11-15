@@ -10,7 +10,7 @@ use std::{
     collections::HashMap,
     io,
     net::{SocketAddr, TcpListener, TcpStream},
-    sync::{Arc, Mutex, MutexGuard, atomic::{AtomicBool, Ordering}},
+    sync::{Arc, Mutex, MutexGuard, atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering}},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
@@ -32,6 +32,10 @@ type Key = (String, [u8; 32]);
 type PendingMap = Arc<Mutex<HashMap<Key, PendingEntry>>>;
 
 const PENDING_POLL: Duration = Duration::from_millis(20);
+/// Forwarding naps between 1 ms (after traffic) and this (long idle).
+const MAX_IDLE_NAP: Duration = Duration::from_millis(16);
+/// Live connection threads (handshaking, waiting or bridging) before new sockets are dropped unread.
+const DEFAULT_MAX_CONNECTIONS: usize = 2048;
 
 #[derive(Clone)]
 pub struct SocialServer {
@@ -39,6 +43,9 @@ pub struct SocialServer {
     acceptor: Arc<dyn ChannelAcceptor>,
     pending: PendingMap,
     stop: Arc<AtomicBool>,
+    live: Arc<AtomicUsize>,
+    max_connections: usize,
+    ticks: Arc<AtomicU64>,
 }
 
 struct PendingEntry {
@@ -54,8 +61,20 @@ impl SocialServer {
             acceptor,
             pending: Arc::new(Mutex::new(HashMap::new())),
             stop: Arc::new(AtomicBool::new(false)),
+            live: Arc::new(AtomicUsize::new(0)),
+            max_connections: DEFAULT_MAX_CONNECTIONS,
+            ticks: Arc::new(AtomicU64::new(0)),
         }
     }
+
+    /// Cap on connection threads; beyond it new sockets are closed before any work.
+    pub fn with_max_connections(mut self, max: usize) -> Self {
+        self.max_connections = max;
+        self
+    }
+
+    /// Forwarding loop iterations so far, across all bridges (a cheap measure of idle cost).
+    pub fn forward_ticks(&self) -> u64 { self.ticks.load(Ordering::Relaxed) }
 
     /// Portal-to-relay provisioning is intentionally still a function-call API;
     /// its authenticated network channel is not specified yet.
@@ -99,10 +118,17 @@ impl SocialServer {
         while !self.stop.load(Ordering::Relaxed) {
             match listener.accept() {
                 Ok((stream, _)) => {
+                    if self.live.fetch_add(1, Ordering::AcqRel) >= self.max_connections {
+                        self.live.fetch_sub(1, Ordering::AcqRel);
+                        let _ = stream.shutdown(std::net::Shutdown::Both);
+                        continue;
+                    }
                     let _ = stream.set_nonblocking(false);
                     let server = self.clone();
+                    let live = LiveGuard(self.live.clone());
+                    // If the spawn fails, the closure (and `live` with it) is dropped.
                     let _ = std::thread::Builder::new().name("relay-social".into())
-                        .spawn(move || { let _ = server.handle(stream); });
+                        .spawn(move || { let _live = live; let _ = server.handle(stream); });
                 }
                 Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
                     std::thread::sleep(Duration::from_millis(5));
@@ -190,7 +216,7 @@ impl SocialServer {
         let Ok(mut pair) = result else { return reject(host); };
         let bridged = host.send_from_relay(&FromRelay::Bridged {}).is_ok()
             && guest.send_from_relay(&FromRelay::Bridged {}).is_ok();
-        if bridged { forward(&mut pair); }
+        if bridged { forward(&mut pair, &self.ticks); }
         drop(pair);
         host.shutdown();
         guest.shutdown();
@@ -198,17 +224,31 @@ impl SocialServer {
     }
 }
 
-fn forward(pair: &mut PairedConnection<MessageStream, MessageStream>) {
+struct LiveGuard(Arc<AtomicUsize>);
+impl Drop for LiveGuard {
+    fn drop(&mut self) { self.0.fetch_sub(1, Ordering::AcqRel); }
+}
+
+/// Ends when either side closes or fails, or the slot expires. When both directions are
+/// idle it backs off, so many idle bridges cost little; traffic resets it to 1 ms.
+fn forward(pair: &mut PairedConnection<MessageStream, MessageStream>, ticks: &AtomicU64) {
+    let mut nap = Duration::from_millis(1);
     loop {
+        ticks.fetch_add(1, Ordering::Relaxed);
         let mut active = false;
         for direction in [Direction::GuestToHost, Direction::HostToGuest] {
             match pair.forward_once(direction, Instant::now()) {
                 Ok(ForwardProgress::Transferred(_)) => active = true,
                 Ok(ForwardProgress::Blocked) => {}
-                Ok(ForwardProgress::Eof) | Err(_) => return,
+                Err(_) => return,
             }
         }
-        if !active { std::thread::sleep(Duration::from_millis(1)); }
+        if active {
+            nap = Duration::from_millis(1);
+        } else {
+            std::thread::sleep(nap);
+            nap = (nap * 2).min(MAX_IDLE_NAP);
+        }
     }
 }
 

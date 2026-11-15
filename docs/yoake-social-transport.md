@@ -139,32 +139,52 @@ sessions, so their `channel_binding` values differ. The later end-to-end design
 must not assume both sides share it; it needs a value that both ends derive
 from their own secret.
 
-Handshake admission counts in-progress handshakes per source group (an IPv4
-address, or an IPv6 /64, after mapping IPv4-in-IPv6 back to IPv4): at most 4 per
-group, 256 in total. When the total is full the oldest in-progress handshake is
-dropped to admit the new one, so stalled connections cannot lock real clients
-out. The slot is released as soon as the handshake ends. These limits only mean
+Connection admission holds a slot from accept until the first control message
+arrives, so it covers the TLS handshake and the wait for that message. Slots are
+counted per source group (an IPv4 address, or an IPv6 /64, after mapping
+IPv4-in-IPv6 back to IPv4): at most 4 per group; per coarser net (IPv4 /24, IPv6
+/48): at most 32; and 256 in total. When the total is full the oldest connection
+of the net holding the most is dropped to admit the new one, so stalled
+connections, even spread over many sources, cannot lock real clients out. The
+listener also caps live connection threads (2048) and closes further sockets
+unread. The relay refuses new connections while its certificate is outside its
+validity period (checked on every accept, logged once); it does not reload a
+renewed certificate, so it must be restarted after one. These limits only mean
 something when clients reach the relay directly: behind a proxy or load
-balancer every client shares one address. The social listener must run without a
-proxy, or the PROXY protocol would have to be supported first (it is not).
+balancer every client shares one address. The social listener must run without
+a proxy, or the PROXY protocol would have to be supported first (it is not).
 
 The relay state machine verifies grants and the host token before producing a
 paired forwarding handle. It decrypts one outer TLS channel and re-encrypts into
 the other while preserving per-session connection, nonce, bandwidth, and
-inactivity limits; its locks are held only to check limits and reserve or settle
-budget, never across network I/O. Pending guests are keyed by session and
+inactivity limits. Its locks are held only to check limits and take budget, never
+across network I/O. The forwarder reads first, without waiting, and charges
+bandwidth for a whole message only once it holds one (a message larger than the
+burst costs one full burst), so idle pairs hold no budget and messages are never
+split. A message of zero length is a protocol violation and closes the bridge. The
+forwarding loop naps up to 16 ms when both directions are idle, so an idle pair
+costs little and the first message after a long silence can be delayed by that
+much; a readiness-based wait (mio or poll/WSAPoll) would remove the delay but
+would need a shared poller across channels and is not done. Pending guests are keyed by session and
 grant nonce, and a second guest with the same grant is refused. The guest gets
 `waiting` before it can be paired. A host with a wrong token, a different grant,
-or an expired grant is rejected without disturbing the waiting guest; a host
+or an expired grant is rejected without disturbing the waiting guest, except that
+three wrong tokens against one waiting guest drop that guest; a host
 that arrives before the guest is rejected (hosts do not queue). Nonces are
 accepted only as 64 lowercase hexadecimal characters. Known limits: a guest that
 disconnects while waiting is noticed only at the session's idle limit; a bridged
 connection is not cut when the grant's `exp` passes (`exp` is checked only at
 admission and pairing); and there is no clock-skew allowance, so the portal and
 relay clocks must agree. The listener actively expires pending and idle
-connections and closes both sockets. Retired session identifiers cannot be
-reused during the relay process lifetime and count toward the configured session
-limit after retirement.
+connections and closes both sockets. Closing is not a faithful signal: when one
+hop drops (TCP reset or EOF without close_notify) the relay closes the other hop
+with a proper close_notify, so the end-to-end layer must not treat a clean TLS
+close as proof that the peer ended the session deliberately or that all its data
+arrived. Before closing, the relay sends close_notify, half-closes, and waits
+briefly for the peer to finish, so unread data does not turn its close into a
+reset. A retired session's place is freed at once, but its identifier stays
+reserved for 300 s (the longest grant lifetime) so a grant issued before the
+retirement cannot be replayed against a re-provisioned session of the same id.
 
 A grant is a bearer authorization, not proof of possession of the guest's
 Minecraft account. Gameplay does not use the verified principal yet. The future

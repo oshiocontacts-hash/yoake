@@ -100,7 +100,7 @@ fn tls12_only_client_is_refused() {
 #[test]
 fn incomplete_handshake_times_out_and_closes() {
     let (_server, address, _tls) = custom_server(HandshakeLimits {
-        total: 2, per_ip: 2, timeout: Duration::from_millis(200),
+        total: 2, per_ip: 2, per_net: 100, timeout: Duration::from_millis(200),
     });
     let mut socket = TcpStream::connect(address).unwrap();
     assert_socket_closed(&mut socket, Duration::from_millis(1500));
@@ -246,7 +246,7 @@ fn a_flipped_byte_in_a_post_handshake_record_is_rejected() {
 #[test]
 fn per_source_limit_refuses_the_extra_connection_and_keeps_the_first() {
     let (_server, address, _tls) = custom_server(HandshakeLimits {
-        total: 8, per_ip: 1, timeout: Duration::from_secs(3),
+        total: 8, per_ip: 1, per_net: 100, timeout: Duration::from_secs(3),
     });
     let mut stalled = TcpStream::connect(address).unwrap();
     std::thread::sleep(Duration::from_millis(100));
@@ -258,7 +258,7 @@ fn per_source_limit_refuses_the_extra_connection_and_keeps_the_first() {
 #[test]
 fn a_full_total_limit_drops_the_oldest_handshake_for_the_new_one() {
     let (_server, address, _tls) = custom_server(HandshakeLimits {
-        total: 1, per_ip: 4, timeout: Duration::from_secs(3),
+        total: 1, per_ip: 4, per_net: 100, timeout: Duration::from_secs(3),
     });
     let mut oldest = TcpStream::connect(address).unwrap();
     std::thread::sleep(Duration::from_millis(100));
@@ -268,15 +268,47 @@ fn a_full_total_limit_drops_the_oldest_handshake_for_the_new_one() {
 }
 
 #[test]
-fn handshake_slots_are_released_once_the_handshake_completes() {
+fn a_slot_is_released_once_the_first_message_arrived() {
     let (_server, address, tls) = custom_server(HandshakeLimits {
-        total: 1, per_ip: 1, timeout: Duration::from_secs(3),
+        total: 1, per_ip: 1, per_net: 100, timeout: Duration::from_secs(3),
     });
-    let first = client(address, &tls);
-    std::thread::sleep(Duration::from_millis(300)); // the relay finishes its side
-    // `first` stays connected and idle; its handshake no longer counts.
-    let second = client(address, &tls);
-    drop((first, second));
+    let grant = signed("session-1", unix_time() + 60, 1);
+    let mut first = client(address, &tls);
+    send_to(&mut first, &horizon_friends::social::ToRelay::Guest { grant });
+    std::thread::sleep(Duration::from_millis(300)); // the relay has read it and let go of the slot
+    // The relay has no such session here, so `first` is rejected; use a second client to show
+    // the slot is free: it is admitted rather than refused or evicting anything.
+    let mut second = client(address, &tls);
+    send_to(&mut second, &horizon_friends::social::ToRelay::Guest { grant: signed("session-1", unix_time() + 60, 2) });
+    assert!(matches!(recv_from(&mut second), horizon_friends::social::FromRelay::Rejected {}));
+}
+
+#[test]
+fn connections_that_finish_tls_but_stay_silent_keep_their_slot_and_are_dropped_oldest_first() {
+    let (_server, address, tls) = custom_server(HandshakeLimits {
+        total: 2, per_ip: 4, per_net: 100, timeout: Duration::from_secs(3),
+    });
+    let mut oldest = client(address, &tls);
+    std::thread::sleep(Duration::from_millis(100));
+    let mut middle = client(address, &tls);
+    std::thread::sleep(Duration::from_millis(100));
+    let mut newest = client(address, &tls);
+    // Three silent connections, room for two: the oldest was dropped for the newest.
+    assert_peer_closed(&mut oldest);
+    assert!(middle.try_recv_message(Duration::from_millis(300)).unwrap().is_none());
+    assert!(newest.try_recv_message(Duration::from_millis(300)).unwrap().is_none());
+}
+
+#[test]
+fn the_connection_thread_cap_drops_sockets_without_work() {
+    let tls = tls("relay.test");
+    let server = server(&tls, HandshakeLimits::default()).with_max_connections(2);
+    let address = server.spawn_local().unwrap();
+    let _first = TcpStream::connect(address).unwrap();
+    let _second = TcpStream::connect(address).unwrap();
+    std::thread::sleep(Duration::from_millis(200));
+    let mut third = TcpStream::connect(address).unwrap();
+    assert_socket_closed(&mut third, Duration::from_millis(1500));
 }
 
 #[test]

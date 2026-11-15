@@ -18,6 +18,14 @@ use super::{CHANNEL_BINDING_LABEL, ChannelTimeouts, ControlChannel, MAX_MESSAGE_
 const TICK: Duration = Duration::from_millis(50);
 /// Longest nap between polls of an idle socket.
 const MAX_NAP: Duration = Duration::from_millis(10);
+/// How long `shutdown` lets the peer finish before closing, so unread data does not turn the close into an RST.
+const DRAIN_MAX: Duration = Duration::from_millis(100);
+
+/// `now + wait`, clamped instead of overflowing for absurd durations.
+fn after(wait: Duration) -> Instant {
+    let now = Instant::now();
+    now.checked_add(wait).unwrap_or_else(|| now + Duration::from_secs(86_400 * 365))
+}
 
 pub struct TlsChannel<C> {
     conn: C,
@@ -44,7 +52,7 @@ where
     sock.set_nonblocking(true)?;
     let _ = sock.set_nodelay(true);
     let mut channel = TlsChannel { conn, sock, incoming: Vec::new(), timeouts, broken: false };
-    let deadline = Instant::now() + handshake_timeout;
+    let deadline = after(handshake_timeout);
     while channel.conn.is_handshaking() {
         if Instant::now() >= deadline {
             return Err(io::Error::new(io::ErrorKind::TimedOut, "TLS handshake deadline elapsed"));
@@ -83,7 +91,7 @@ where
 
     /// Wait up to `wait` for TLS bytes, feed them to rustls. `Ok(false)` on timeout.
     fn read_step(&mut self, wait: Duration) -> io::Result<bool> {
-        let deadline = Instant::now() + wait;
+        let deadline = after(wait);
         let mut nap = Duration::from_millis(1);
         loop {
             match self.conn.read_tls(&mut self.sock) {
@@ -163,14 +171,14 @@ where
 
     fn recv_within(&mut self, wait: Duration) -> io::Result<Option<Vec<u8>>> {
         if self.broken { return Err(io::Error::new(io::ErrorKind::BrokenPipe, "social TLS channel is closed")); }
-        let deadline = Instant::now() + wait;
+        let deadline = after(wait);
         let result: io::Result<Option<Vec<u8>>> = (|| loop {
             if let Some(frame) = self.take_frame()? { return Ok(Some(frame)); }
             if self.drain_plaintext()? { continue; }
-            let now = Instant::now();
-            if now >= deadline { return Ok(None); }
             if self.conn.wants_write() { self.write_step()?; } // tickets, alerts, key updates
-            self.read_step(deadline - now)?;
+            // At least one read attempt, even with a zero wait.
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if !self.read_step(remaining)? && Instant::now() >= deadline { return Ok(None); }
         })();
         if result.is_err() { self.broken = true; }
         result
@@ -187,7 +195,7 @@ where
             return Err(io::Error::new(io::ErrorKind::InvalidInput, "social TLS message is too large"));
         }
         if self.broken { return Err(io::Error::new(io::ErrorKind::BrokenPipe, "social TLS channel is closed")); }
-        let deadline = Instant::now() + self.timeouts.write;
+        let deadline = after(self.timeouts.write);
         let mut frame = Vec::with_capacity(bytes.len() + 4);
         frame.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
         frame.extend_from_slice(bytes);
@@ -213,11 +221,27 @@ where
     fn channel_binding(&self) -> io::Result<[u8; 32]> { TlsChannel::channel_binding(self) }
 
     fn shutdown(&mut self) {
-        if !self.broken {
+        let clean = !self.broken;
+        if clean {
             self.conn.send_close_notify();
-            let _ = self.flush_until(Instant::now() + 2 * TICK);
+            let _ = self.flush_until(after(2 * TICK));
         }
         self.broken = true;
+        if clean {
+            // FIN after close_notify, then let the peer finish: closing with unread
+            // incoming data would reset the connection and could lose the close_notify.
+            let _ = self.sock.shutdown(Shutdown::Write);
+            let deadline = after(DRAIN_MAX);
+            let mut sink = [0; 4096];
+            while Instant::now() < deadline {
+                match io::Read::read(&mut self.sock, &mut sink) {
+                    Ok(0) => break,
+                    Ok(_) => {}
+                    Err(error) if is_timeout(&error) => std::thread::sleep(Duration::from_millis(2)),
+                    Err(_) => break,
+                }
+            }
+        }
         let _ = self.sock.shutdown(Shutdown::Both);
     }
 }

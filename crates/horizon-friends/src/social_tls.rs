@@ -1,9 +1,9 @@
 //! TLS 1.3 control channels authenticated by a private relay CA and checked SNI.
 //!
-//! Sockets stay blocking. The short socket timeout is only a polling tick; the
-//! real deadlines (handshake, first message, writes) are `Instant`s checked in
-//! the loops, so no helper thread exists per call and an idle channel is never
-//! killed. A write that misses its deadline is fatal: bytes handed to rustls are
+//! Sockets are nonblocking and waits are short sleep-polls (no kernel socket
+//! timeouts). The deadlines (handshake, first message, writes) are `Instant`s
+//! checked in the loops, so no helper thread exists per call and an idle channel
+//! is never killed. A write that misses its deadline is fatal: bytes handed to rustls are
 //! never handed again, so frames cannot be duplicated or misaligned.
 use std::{io, net::TcpStream, sync::Arc, time::Duration};
 

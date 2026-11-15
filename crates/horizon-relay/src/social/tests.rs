@@ -155,3 +155,63 @@ fn stale_handle_cannot_remove_a_reused_slot() {
     drop(stale);
     assert!(fresh.pair(&fresh_grant, &"ab".repeat(32), TestStream::empty(), 106, later).is_ok());
 }
+
+#[test]
+fn retiring_a_session_frees_its_place_but_not_its_id_for_a_while() {
+    let now = Instant::now();
+    let relay = SocialRelay::new(hex::<32>(PUBLIC), 1);
+    let limits = SessionLimits { max_connections: 1, max_nonces: 1, bytes_per_second: 1, burst_bytes: 1, idle_timeout: Duration::from_secs(5) };
+    let request = |id: &str| RegisterSession::relay_only(id.into(), "member:host".into());
+    relay.provision(&request("a"), &"ab".repeat(32), limits, now).unwrap();
+    assert!(matches!(relay.provision(&request("b"), &"ab".repeat(32), limits, now), Err(RelayError::SessionLimit)));
+    relay.retire("a").unwrap();
+    // The place is free again, so provisioning never fails forever ...
+    relay.provision(&request("b"), &"ab".repeat(32), limits, now).unwrap();
+    // ... but "a" cannot come back while a grant issued before the retirement could still be valid.
+    relay.retire("b").unwrap();
+    assert!(matches!(relay.provision(&request("a"), &"ab".repeat(32), limits, now), Err(RelayError::SessionExists)));
+}
+
+#[test]
+fn a_guest_is_dropped_after_repeated_wrong_tokens() {
+    let (relay, now) = setup(2, Duration::from_secs(30), 32, 32);
+    let grant = signed(1, 200);
+    let mut pending = relay.begin_guest(&grant, TestStream::empty(), 100, now).unwrap();
+    for _ in 0..3 {
+        assert!(matches!(pending.pair(&grant, &"cd".repeat(32), TestStream::empty(), 100, now), Err(RelayError::WrongToken)));
+    }
+    assert!(pending.is_expired(now));
+    assert!(matches!(pending.pair(&grant, &"ab".repeat(32), TestStream::empty(), 100, now), Err(RelayError::TimedOut)));
+}
+
+#[test]
+fn bandwidth_is_charged_per_whole_message_and_nothing_is_held_while_idle() {
+    let (relay, now) = setup(1, Duration::from_secs(30), 10, 10);
+    let grant = signed(1, 200);
+    let (guest, _) = TestStream::new(b"0123456789");
+    let host_output = Rc::new(RefCell::new(Vec::new()));
+    let host = Idle(host_output.clone());
+    let mut pending = relay.begin_guest(&grant, guest, 100, now).unwrap();
+    let mut pair = pending.pair(&grant, &"ab".repeat(32), host, 100, now).unwrap();
+    // Host side has nothing: no budget is taken for the empty read, however often it is polled.
+    for _ in 0..50 {
+        assert_eq!(pair.forward_once(Direction::HostToGuest, now).unwrap(), ForwardProgress::Blocked);
+    }
+    assert_eq!(pair.forward_once(Direction::GuestToHost, now).unwrap(), ForwardProgress::Transferred(10));
+    assert_eq!(host_output.borrow().as_slice(), b"0123456789");
+}
+
+/// A peer that never has anything to say.
+struct Idle(Rc<RefCell<Vec<u8>>>);
+
+impl Read for Idle {
+    fn read(&mut self, _: &mut [u8]) -> io::Result<usize> { Err(io::ErrorKind::WouldBlock.into()) }
+}
+
+impl Write for Idle {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        self.0.borrow_mut().extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> io::Result<()> { Ok(()) }
+}

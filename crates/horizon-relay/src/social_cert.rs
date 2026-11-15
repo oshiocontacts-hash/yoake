@@ -87,19 +87,28 @@ fn parse_validity(der: &[u8]) -> Option<(i64, i64)> {
 }
 
 fn parse_time(tag: u8, bytes: &[u8]) -> Option<i64> {
-    let text = std::str::from_utf8(bytes).ok()?;
-    let (year, rest) = match tag {
-        0x17 if text.len() == 13 => {
-            let year: i64 = text.get(..2)?.parse().ok()?;
-            (if year >= 50 { 1900 + year } else { 2000 + year }, &text[2..])
+    // Digits then `Z` only: no signs, spaces, offsets or fractions.
+    let (digits, zulu) = bytes.split_at(bytes.len().checked_sub(1)?);
+    if zulu != b"Z" || !digits.iter().all(u8::is_ascii_digit) { return None; }
+    let number = |range: std::ops::Range<usize>| -> Option<i64> { std::str::from_utf8(digits.get(range)?).ok()?.parse().ok() };
+    let (year, rest) = match (tag, digits.len()) {
+        (0x17, 12) => {
+            let year = number(0..2)?;
+            (if year >= 50 { 1900 + year } else { 2000 + year }, 2)
         }
-        0x18 if text.len() == 15 => (text.get(..4)?.parse().ok()?, &text[4..]),
+        (0x18, 14) => (number(0..4)?, 4),
         _ => return None,
     };
-    if !rest.ends_with('Z') || !rest[..10].bytes().all(|byte| byte.is_ascii_digit()) { return None; }
-    let field = |range: std::ops::Range<usize>| rest[range].parse::<i64>().ok();
-    let (month, day, hour, minute, second) = (field(0..2)?, field(2..4)?, field(4..6)?, field(6..8)?, field(8..10)?);
-    if !(1..=12).contains(&month) || !(1..=31).contains(&day) || hour > 23 || minute > 59 || second > 60 { return None; }
+    let (month, day, hour, minute, second) =
+        (number(rest..rest + 2)?, number(rest + 2..rest + 4)?, number(rest + 4..rest + 6)?, number(rest + 6..rest + 8)?, number(rest + 8..rest + 10)?);
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let month_days = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 => if leap { 29 } else { 28 },
+        _ => return None,
+    };
+    if !(1..=month_days).contains(&day) || hour > 23 || minute > 59 || second > 59 { return None; }
     // Days from civil (Howard Hinnant).
     let year = if month <= 2 { year - 1 } else { year };
     let era = year.div_euclid(400);
@@ -131,6 +140,21 @@ mod tests {
         assert!(check_validity(&der, 2_600_000_000).unwrap_err().to_string().contains("expired"));
         let old = cert((2010, 1, 1), (2020, 1, 1));
         assert!(check_validity(&old, 1_800_000_000).unwrap_err().to_string().contains("expired"));
+    }
+
+    #[test]
+    fn time_fields_must_be_plain_digits_and_real_dates() {
+        let time = |tag: u8, text: &str| parse_time(tag, text.as_bytes());
+        assert_eq!(time(0x17, "700101000000Z"), Some(0));
+        assert_eq!(time(0x18, "19700101000000Z"), Some(0));
+        assert_eq!(time(0x17, "+70101000000Z"), None); // a sign where a digit belongs
+        assert_eq!(time(0x18, "-970101000000Z"), None);
+        assert_eq!(time(0x17, "700230000000Z"), None); // 30 February
+        assert_eq!(time(0x17, "700101006000Z"), None);
+        assert_eq!(time(0x17, "700101000000+0100"), None);
+        assert_eq!(time(0x17, "7001010000Z"), None);
+        assert_eq!(time(0x18, "20000229000000Z"), Some(951_782_400));
+        assert_eq!(time(0x18, "21000229000000Z"), None); // 2100 is not a leap year
     }
 
     #[test]
