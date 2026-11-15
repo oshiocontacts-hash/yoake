@@ -152,7 +152,7 @@ fn expand_state(args: proc_macro2::TokenStream, mut item: ItemStruct) -> syn::Re
                         let minimum: #ty = #min;
                         let maximum: #ty = #max;
                         if minimum > maximum || candidate < minimum || candidate > maximum {
-                            return Err(format!("value for {} is out of range", #field_name));
+                            return ::core::result::Result::Err(::std::format!("value for {} is out of range", #field_name));
                         }
                     }
                 } else {
@@ -161,12 +161,12 @@ fn expand_state(args: proc_macro2::TokenStream, mut item: ItemStruct) -> syn::Re
                         let maximum: #ty = #max;
                         let raw = match value {
                             ::yoake_state::Value::Float(raw) => *raw,
-                            _ => return Err("expected a floating-point state value".to_owned()),
+                            _ => return ::core::result::Result::Err("expected a floating-point state value".to_owned()),
                         };
                         if !minimum.is_finite() || !maximum.is_finite() || minimum > maximum
                             || raw < f64::from(minimum) || raw > f64::from(maximum)
                         {
-                            return Err(format!("value for {} is out of range", #field_name));
+                            return ::core::result::Result::Err(::std::format!("value for {} is out of range", #field_name));
                         }
                     }
                 }
@@ -177,18 +177,18 @@ fn expand_state(args: proc_macro2::TokenStream, mut item: ItemStruct) -> syn::Re
                     let candidate = <#ty as ::yoake_state::Scalar>::from_state_value(value)?;
                     #check_bounds
                     let _ = candidate;
-                    Ok(())
+                    ::core::result::Result::Ok(())
                 }
             });
             setters.push(quote! {
                 #(#conditional_attrs)*
                 #field_name => {
                     self.#field_ident = <#ty as ::yoake_state::Scalar>::from_state_value(value)?;
-                    Ok(())
+                    ::core::result::Result::Ok(())
                 }
             });
         } else {
-            validators.push(quote! { #(#conditional_attrs)* #field_name => Err(format!("field {} is read-only", #field_name)) });
+            validators.push(quote! { #(#conditional_attrs)* #field_name => ::core::result::Result::Err(::std::format!("field {} is read-only", #field_name)) });
         }
     }
 
@@ -211,29 +211,29 @@ fn expand_state(args: proc_macro2::TokenStream, mut item: ItemStruct) -> syn::Re
                 &[#(#descriptors),*]
             }
 
-            fn snapshot(&self) -> Result<::yoake_state::Value, String> {
+            fn snapshot(&self) -> ::core::result::Result<::yoake_state::Value, ::std::string::String> {
                 #fields_init
                 #(#snapshots)*
-                Ok(::yoake_state::Value::Record(fields))
+                ::core::result::Result::Ok(::yoake_state::Value::Record(fields))
             }
 
-            fn validate_set(&self, path: &[String], value: &::yoake_state::Value) -> Result<(), String> {
+            fn validate_set(&self, path: &[::std::string::String], value: &::yoake_state::Value) -> ::core::result::Result<(), ::std::string::String> {
                 ::yoake_state::validate_path(path)?;
                 if path.len() != 1 {
-                    return Err("state write path must name exactly one field".to_owned());
+                    return ::core::result::Result::Err("state write path must name exactly one field".to_owned());
                 }
                 let _ = value;
                 match path[0].as_str() {
                     #(#validators,)*
-                    _ => Err("unknown state field".to_owned()),
+                    _ => ::core::result::Result::Err("unknown state field".to_owned()),
                 }
             }
 
-            fn set(&mut self, path: &[String], value: &::yoake_state::Value) -> Result<(), String> {
+            fn set(&mut self, path: &[::std::string::String], value: &::yoake_state::Value) -> ::core::result::Result<(), ::std::string::String> {
                 <Self as ::yoake_state::State>::validate_set(self, path, value)?;
                 match path[0].as_str() {
                     #(#setters,)*
-                    _ => Err("state field is not writable".to_owned()),
+                    _ => ::core::result::Result::Err("state field is not writable".to_owned()),
                 }
             }
         }
@@ -297,14 +297,14 @@ fn expand_const(args: proc_macro2::TokenStream, item: ItemConst) -> syn::Result<
     };
     let ty = &item.ty;
     let bounds = match (type_name.as_str(), minimum, maximum) {
-        ("bool", None, None) => quote! { (None, None) },
+        ("bool", None, None) => quote! { (::core::option::Option::None, ::core::option::Option::None) },
         ("bool", _, _) => return Err(syn::Error::new(item.span(), "boolean constants cannot have bounds")),
         (_, Some(minimum), Some(maximum)) => quote! {{
             let minimum: #ty = #minimum;
             let maximum: #ty = #maximum;
             (
-                Some(::yoake_state::Scalar::into_state_value(minimum)?),
-                Some(::yoake_state::Scalar::into_state_value(maximum)?),
+                ::core::option::Option::Some(::yoake_state::Scalar::into_state_value(minimum)?),
+                ::core::option::Option::Some(::yoake_state::Scalar::into_state_value(maximum)?),
             )
         }},
         _ => return Err(syn::Error::new(item.span(), "numeric constants require min and max")),
@@ -319,7 +319,7 @@ fn expand_const(args: proc_macro2::TokenStream, item: ItemConst) -> syn::Result<
         #item
 
         #(#conditional_attrs)*
-        #visibility fn #getter() -> Result<::yoake_state::ConstantDefinition, String> {
+        #visibility fn #getter() -> ::core::result::Result<::yoake_state::ConstantDefinition, ::std::string::String> {
             let (minimum, maximum) = #bounds;
             ::yoake_state::ConstantDefinition::new(
                 #id,
