@@ -8,6 +8,9 @@ use std::path::Path;
 use std::str::FromStr;
 use url::Url;
 
+use super::config::{ConfigField, PermissionNode, validate_declarations};
+use super::http_policy::HttpsPolicy;
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum Target {
     #[serde(rename = "windows-x64")]
@@ -96,10 +99,16 @@ pub struct Manifest {
     pub bin: Option<Bin>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub wasm: Option<Wasm>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub http: Option<Http>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub shaders: Vec<Shader>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub services: Vec<Service>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub config: BTreeMap<String, ConfigField>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub permissions: BTreeMap<String, PermissionNode>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -125,6 +134,12 @@ pub struct Bin {
     pub abi: u32,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Http {
+    pub hosts: Vec<String>,
+}
+
 /// Highest `yoake:mods` WebAssembly interface (major, minor) this build understands.
 pub const SUPPORTED_WASM_INTERFACE: (u32, u32) = (1, 0);
 /// Largest accepted `.wasm` module, in bytes.
@@ -142,14 +157,19 @@ pub struct Wasm {
     /// `client-full` (every client-side catalog hook). The server module always targets `server-full`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub world: Option<String>,
-    /// Powers beyond the safe set that the package asks for; an installer shows them. Today only
-    /// `service.commands` (the server module may run server commands: the dangerous ones stay denied).
+    /// Powers beyond the safe set that the package asks for; an installer shows them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub permissions: Vec<String>,
 }
 
 /// The `[wasm] permissions` this build knows.
-pub const WASM_PERMISSIONS: [&str; 1] = ["service.commands"];
+pub const WASM_PERMISSIONS: [&str; 5] = [
+    "service.commands",
+    "service.config",
+    "service.http",
+    "service.permissions",
+    "service.storage",
+];
 
 /// The WIT worlds a client module may target.
 pub const CLIENT_WASM_WORLDS: [&str; 2] = ["client-mod", "client-full"];
@@ -211,6 +231,9 @@ impl Wasm {
         }
         if self.permissions.iter().any(|permission| permission == "service.commands") && self.server.is_none() {
             return Err("wasm permission service.commands applies to the server module; declare wasm.server".into());
+        }
+        if self.permissions.iter().any(|permission| permission == "service.permissions") && self.server.is_none() {
+            return Err("wasm permission service.permissions applies to the server module; declare wasm.server".into());
         }
         let modules = self.modules();
         if modules.is_empty() {
@@ -341,6 +364,14 @@ impl Manifest {
         }
         if !self.side.client && !self.side.server {
             return Err("at least one side must be enabled".into());
+        }
+        validate_declarations(&self.config, &self.permissions)?;
+        let http_requested = self.wasm.as_ref().is_some_and(|wasm| wasm.has_permission("service.http"));
+        match (&self.http, http_requested) {
+            (Some(http), true) => { HttpsPolicy::new(&http.hosts)?; }
+            (Some(_), false) => return Err("[http] requires wasm permission service.http".into()),
+            (None, true) => return Err("service.http requires [http] hosts".into()),
+            (None, false) => {}
         }
         for requirements in [&self.dependencies, &self.optional, &self.conflicts] {
             if requirements.len() > 1024 {

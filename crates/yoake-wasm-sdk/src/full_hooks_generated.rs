@@ -472,3 +472,4 @@ pub const SERVER_CHAT_LISTENED: &str = "server_chat_listened";
 pub const SERVER_CHAT: &str = "server_chat";
 pub const TOOLTIP_COLOR: &str = "tooltip_color";
 pub const WORLD_PRE_POST: &str = "world_pre_post";
+pub const CONFIG_CHANGED: &str = "config_changed";

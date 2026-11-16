@@ -131,10 +131,11 @@ client module fails to load does not run its server module either.
   one module in a 50 ms window may use 10 ms (client) or 25 ms (server) of it;
   further calls in the window are skipped (a skipped hook answers its fallback) and counted, and a module
   that overruns in 20 windows in a row is disabled. `init` has 250 ms.
-* Time spent inside a server service (the game breaking a block, reading a container, another package's
-  `handle-call`) is the game's, not the guest's: it extends the call's deadline (by at most 400 ms in all)
-  and does not count against the aggregate budget; the guest's own work stays bounded by fuel and the
-  clock, and the native helpers allow 512 to 1024 calls per mod and server tick.
+* Time spent inside a server service (the game breaking a block, reading a container, another
+  package's `handle-call`) extends the call's deadline by at most 400 ms in all, including config and
+  storage I/O. Config and storage I/O still count against the aggregate budget; other server-service
+  time is the game's, not the guest's, and is excluded. The guest's own work stays bounded by fuel
+  and the clock, and the native helpers allow 512 to 1024 calls per mod and server tick.
 * A hook that finds its module busy (re-entered from the module's own service call) answers its fallback
   and is counted; the first drop is logged.
 * A guest's answers are checked before they touch the game: floats must be finite, strings at most
@@ -184,7 +185,7 @@ table, a data-defined mob, a sound and a creative tab, see mods.md) and a small 
   Skipped: `texture`, `highlight`, textured quads.
 * Model commands: push/pop/translate/rotate/scale/light/keep, quad, block. Skipped: cube, model, item.
 * Corner reservations: applied. Frame-stage commands (`world-drawn`, `hand-drawn`, ...): not applied yet.
-* Server services: all 88 of `server-services` (`crates/horizon-mod-api-gen/abi-subset-server.json`) answer,
+* Server services: `server-services` (`crates/horizon-mod-api-gen/abi-subset-server.json`) answers,
   except four (below). Each validates its arguments (finite numbers, sizes, registry ids, UUIDs) and fails
   closed (an `Err` changes nothing). Mods are trusted inside the game: they may change other players'
   inventories, break blocks and move items. The one hard line is the PC: storage is a per-package folder, commands
@@ -198,7 +199,8 @@ table, a data-defined mob, a sound and a creative tab, see mods.md) and a small 
   | `acting-player`, `server-players` (now with `sneaking`), `integrated-owner`, `held` (whole stack), `player-stacks`, `player-teleport`, `player-set-health`, `player-set-gamemode`, `player-clear-inventory`, `player-effect-give/clear`, `player-attribute-modifier-remove`, `tell`, `action-bar`, `player-title`, `player-clear-title`, `player-play-sound`, `bossbar-*` (7), `block`, `block-property`, `set-block-property`, `block-collision`, `edit-blocks`, `block-entity-sync`, `spawn-mannequin`, `remove-spawned-entity`, `net-send-to-player`, `world-dir`, `config-dir`, `entities-in`, `clip`, `run-command` (`service.commands`, denylist) | forwarded |
   | `player-attribute-modifier-add`, `hurt-entity`, `server-player-motion`, `set-server-player-velocity`, `set-player-attack-hitbox`, `clear-player-attack-hitbox`, `world-border`, `set-world-border`, `open-menu`, `menu-set-items`, `menu-close` | forwarded (native service of the engine) |
   | `world-control` (time, game rule, force-load), `team-apply`, `particle-spawn` | forwarded as typed changes written as the game's own commands (every word validated; no `service.commands` needed) |
-  | `world-storage-read/write`, `config-read/write` (per package folder `yoake-wasm/<id>`, keys of letters, digits `_ . -`, 1 MiB a value, 256 keys, 32 MiB), `asset-read` (`data/<key>` of the game's resources), `qa-mode-enabled` (false), `qa-record` (debug log) | forwarded (WASM layer) |
+  | `world-storage-read/write`, `config-read/write` (legacy raw blobs: world/global confined stores below, require `service.storage`), `asset-read` (`data/<key>` of the game's resources), `qa-mode-enabled` (false), `qa-record` (debug log) | forwarded (WASM layer) |
+  | `config-get/set`, `has-permission`, `storage-get/put/delete`, `storage-blob-begin/write/commit/abort/read` | new: typed, capability-gated package services (below) |
   | `play-sound-at` | new (WASM layer: every player in earshot) |
   | `break-block-as` (the game's own player break: drops with Fortune/Silk Touch, tool damage, XP, stats, mod events), `player-sneaking` (guests, the LAN host and single player's owner), `container-slots`, `container-set-slots` (same items, totals verified; plain containers, both halves of a double chest), `containers-in`, `player-set-slots` (36 main slots, totals verified), `player-remove-slot` (exact item, count and components; all-or-nothing across main, armor, off hand and cursor), `block-tags`, `item-tags`, `block-tool-requirement`, `can-harvest`, `attribute-get`, `item-entities-in`, `item-entity-move`, `item-entity-pickup`, `give-items` (remainder returned), `inventory-apply` (exact: id + count + components, all or nothing; `give` needs room for all), `advancement-progress`, `advancement-grant`, `entity-vitals-of` | new |
   | `mod-call` | new: `target-mod`, `method`, `payload` (1 MiB); the callee exports `handle-call(caller, method, payload)` of the `server-full` world; no call into a caller that is waiting (it is busy), at most 4 nested, never to itself |
@@ -208,7 +210,8 @@ table, a data-defined mob, a sound and a creative tab, see mods.md) and a small 
 
   `handle-call` is a new export of the `server-full` world: a module built before it cannot be loaded by
   this host (rebuild with the SDK). A service called from a read-only hook (the hook has no `&mut` host)
-  answers `Err("unsupported: ...")`; the services that change the game need a hook that may.
+  answers `Err("unsupported: ...")` for gameplay services that need a mutable host. Package config and
+  storage imports use the package service handle, so they also work from read-only hooks.
   `player-stacks` returns slot records: 0-35 main inventory, 36-39 armor (head to feet), 40 off hand,
   and 41 cursor. `entities-in` reads the level currently in place. Per-level hooks such as
   `level-tick-pre` and `level-tick-post` run with their dimension in place and include mobs after
@@ -217,9 +220,187 @@ table, a data-defined mob, a sound and a creative tab, see mods.md) and a small 
 * A guest that subscribes to a hook with no adapter is refused at load (`UNWIRED` in the generated code;
   `crates/horizon-client/src/wasm_mods/full_adapters_report.txt` lists them and the partial ones).
 * The adapters (`full_adapters.rs`) are generated by `horizon-mod-api-gen` and **committed**, like the WIT.
-  After a catalog or generator change run `YOAKE_UPDATE_WIT=1 cargo test -p horizon-mod-api-gen --lib`
+  After a catalog or generator change run `YOAKE_UPDATE_WIT=1 cargo test --offline -p horizon-mod-api-gen -j 4`
   (a test fails when the committed file is out of date). The game's build does not generate them.
 * A package takes part in the render pass only when its client module subscribed to a render-stage hook.
 * The guest examples used by the tests are built by `yoake_wasm::test_guests` (feature `test-guests`) into
-  `YOAKE_WASM_TARGET_DIR`, else a `target-wasm` folder next to the repository, else `target/wasm-guests`.
+  `CARGO_TARGET_DIR/wasm-guests`, else `YOAKE_WASM_TARGET_DIR`, else a `target-wasm` folder next to the
+  repository, else `target/wasm-guests`.
   With `YOAKE_CI=1` (or `CI`) a guest that cannot be built fails its test instead of skipping.
+
+## Package config, permissions and storage
+
+The generator consumes these declarations from `abi-subset-server.json`: ABI IDs 116–126 add the
+services below, and hook ID 42 adds `config-changed(key, value)`. Config and storage are imported by
+both `client-full` and `server-full`; `has-permission(node, player)` is server-only. The historical
+`abi-subset-w2d-services.json` remains an unconsumed proposal, not the runtime contract.
+
+Declare capabilities in `yak.toml`; every guest import checks them before touching config or disk:
+
+| Capability | Authorizes |
+| --- | --- |
+| `service.config` | `config-get`, `config-set`, `config-dir`, and receiving synced config |
+| `service.permissions` | `has-permission` for this package's declared permission nodes |
+| `service.storage` | All `storage-*` imports and legacy `world-storage-*` / raw `config-read/write` |
+
+Missing capability, invalid input, unavailable scope, or I/O failure returns the import's error result,
+not a panic. The host-owned config screen is a user action, not a guest import, and does not require
+granting the guest `service.config`.
+
+For example:
+
+```toml
+[wasm]
+permissions = ["service.config", "service.permissions", "service.storage"]
+
+[config.enabled]
+type = "bool"
+side = "server"
+default = true
+label.en_us = "Enabled"
+label.ja_jp = "有効"
+
+[config.radius]
+type = "int"
+side = "synced"
+default = 8
+min = 1
+max = 16
+
+[config.mode]
+type = "enum"
+side = "client"
+default = "simple"
+values = ["simple", "advanced"]
+
+[config.layers]
+type = "list"
+element = "enum"
+side = "server"
+default = ["surface"]
+values = ["surface", "deep"]
+
+[permissions."example.edit"]
+default_op_level = 2
+```
+
+Types are `bool`, `int`, `float`, `string`, `enum` and non-nested `list`. Numeric ranges use the same
+type as the value, and enum values must be declared. `comment` and `restart` are optional; restart is
+advisory and the screen labels it. Names contain dot-separated alphanumeric, `_` or `-` segments.
+There are at most 256 config keys, 128 bytes per key, 64 KiB per string and 4,096 list elements;
+resolved values/defaults and each config document are bounded to 1 MiB in aggregate.
+
+`ConfigValue` is a kind-tagged record, with separate bool/int/float/text/list payload fields; use the
+matching payload and leave other fields empty/default. `config-set` checks the manifest type, range,
+enum membership and side. Client modules can write `side = "client"`; server modules can write
+`server` and `synced`. Client reads of `synced` values use the server snapshot, never a local override.
+Persisted local settings live in `<game>/config/<mod-id>.toml`, with `[client]` and `[server]` tables.
+Writes lock the config file, re-read its latest values to preserve the other side, and replace it
+atomically. A concurrent writer gets an error instead of silently overwriting another process.
+Loading defaults does not create a file. Unknown/removed keys are dropped with a warning and invalid
+values fall back to their manifest defaults. An unreadable or malformed document is cached as a
+failure and logged once; it does not disable storage or permissions, or other mods' snapshots.
+
+The mod list's Configure button opens a generic screen for packages declaring `[config]`: bool
+toggles, numbers with bounds, text, enum cycles and lists edited as TOML array contents (for example,
+`"a,b", "quoted \"text\"", ""`). A package with native settings and `[config]` gets separate entries
+for both screens. Labels use the current language's `label`, then `en_us`, then the key. Done validates
+all values before saving; a bad field leaves the page and its draft open with an error, so it can be
+corrected without losing other edits;
+server/synced rows are read-only when connected to another server. There is no file-watcher: guest
+writes and config-screen saves produce coalesced `config-changed` notifications at dispatch boundaries.
+Writes made inside the hook are deferred to the next boundary rather than recursively dispatching.
+
+Servers send only `side = "synced"` keys over `yoake:config_sync`, on join and after changes, to Horizon
+clients. Snapshots are at most 1 MiB per mod, 256 mods / 8 MiB total; packets carry at most 28 KiB of
+snapshot data and the sender pumps four packets per connection per tick. The receiver requires ordered,
+complete packets and validates the entire snapshot before changing any values. Received values are
+memory-only and reset to defaults on disconnect; config changes also reach subscribed client hooks.
+Snapshots cache their revision and serialized bytes, and are rebuilt only when a synced value changes.
+A precomputed eligible-mod flag skips per-tick sync entirely when no installed server module has
+synced config. With no eligible mod, no config payload or config/storage file is created.
+
+`has-permission(node, player)` requires an online player's UUID, a node declared by this package, and
+an open world. It falls back to the node's `default_op_level` (0–4). Undeclared nodes return false.
+`<world>/permissions.toml` can override defaults without modifying mods, for example:
+
+```toml
+[mods.example.players.'01234567-89ab-cdef-0123-456789abcdef']
+'example.edit' = true
+
+[mods.example.groups.builders]
+'example.edit' = true
+
+[mods.example.members]
+'01234567-89ab-cdef-0123-456789abcdef' = ["builders"]
+```
+
+An explicit player rule wins; otherwise any matching group denial wins over group grants, then the
+op-level default applies. UUIDs accept compact or hyphenated forms in either case. Parsed overrides
+are cached; modification time and length are checked at most once per second and a change reloads the
+bounded file. Missing files mean defaults; malformed files return an error rather than granting access.
+
+`StorageScope` selects separate stores: `world` and `global` are server-only; `client` is client-only.
+All calls are confined to the current package's store:
+
+| Scope | Directory |
+| --- | --- |
+| world | `<world>/yoake-data/<mod-id>/` |
+| global | `<game>/yoake-data/<mod-id>/global/` |
+| client | `<game>/yoake-data/<mod-id>/client/` |
+
+Each store has a 256 MiB quota, including serialized metadata and reserved pending uploads, and at most
+65,536 keys. Entries use host-generated filenames and one atomic file per key, so a mutation writes
+only that value and its metadata, not the whole store. Only keys and lengths stay resident; values and
+blob slices are read on demand. Encoded writes, including config writes, share a per-mod token bucket
+across scopes: 8 MiB per second sustained, with a 32 MiB burst. Storage operations charge at least
+4 KiB each; larger reads also charge their requested available bytes. At most 64 storage operations
+are allowed per 50 ms hook window. Exceeding either budget returns an error and counts toward
+aggregate throttling; repeated over-budget windows disable the guest.
+Config and storage I/O extend the bounded per-call deadline but still count against the aggregate
+guest time budget. Store opening and migration happen when the package or world is bound, outside
+guest calls.
+Inline reads/writes and blob chunks are capped at 1 MiB. `storage-blob-begin` reserves quota and returns
+a package-owned upload ID (at most 64 outstanding), with a separate **32 MiB aggregate pending-blob
+limit per mod** across all scopes. Buffers grow lazily on write, not at begin. Writes may arrive out of order, but
+commit requires complete coverage. A failed commit retains the upload for completion or abort.
+`storage-blob-read` reads bounded slices of committed data. Uploads are not persisted and world uploads
+are discarded when changing worlds or creating, dropping, disabling or trapping a module instance.
+World storage first becomes available in `world_lifecycle(WorldOpenReady)`, stays bound through
+shutdown callbacks and saving, and unbinds after explicit open-failure, final-close or close-failure
+phases. It is unavailable in `server_about_to_start` and the initial level/chunk-load hooks before
+`WorldOpenReady`; those hooks can use global storage instead. Starting another world first clears the previous binding.
+Ordinary hooks and config notifications never change it.
+Put, delete and successful blob commit persist before
+reporting success. A store holds an exclusive lock for its lifetime; another process gets a clear
+error. Writes use a synced temporary file and rename; stale temporary files are removed on open.
+On Unix, renames also sync the containing directory; a sync failure after a successful rename is
+logged without reverting the visible in-memory update. Loading a package with `service.storage`
+creates its global or client directory, `store.lock` and migration marker; binding a world creates
+the corresponding world directory and files. Failed global/client store opens retry on a later call
+after a one-second backoff. With no mod installed, none of these directories or files are created.
+Opening settings does not create directories. An unchanged config write creates no lock file;
+changed config writes briefly retry a busy in-process lock.
+
+At bind time, existing `store.bin` data and legacy `<world>/yoake-wasm/<mod-id>/<key>.bin`
+or `<game>/config/yoake-wasm/<mod-id>/<key>.bin` entries are imported within quota, without replacing
+newer keys. The `.bin` suffix is stripped in both cases; client stores import neither legacy source.
+Corrupt and over-quota migration records are skipped with warnings, continuing with later records
+when their boundaries are recoverable. A marker records completion only if no retryable I/O failure
+occurred. Failed migrations retry when the store is reopened. Corrupt `entry-*.bin` files are renamed
+to `*.bin.corrupt`, retaining at most 16 per store; excess quarantined or corrupt files are deleted.
+Legacy files and `store.bin` are deliberately retained as recovery backups;
+the marker prevents repeated imports. Legacy `world-storage-read/write`
+and raw `config-read/write` now require `service.storage`; `config-dir` requires `service.config`.
+Those imports use the same quota, locking and no-follow rules as new stores.
+
+Keys are logical names, never paths. Traversal, absolute paths, Windows reserved names (including
+reserved superscript digits), symlinks and Windows reparse points are rejected. The disk layer holds
+directory handles on Windows and uses no-follow relative opens on Unix. The trusted game/world base
+is canonicalized before checks below it, so a linked/junctioned base or `..` in `--game-dir` is allowed.
+Unix ancestors use search-only handles (`O_PATH`/`O_SEARCH`). Permissions/config paths below the
+trusted base are also checked for links/reparse points.
+
+HTTP, general networking, chunk force-loading and the other W2D proposal entries are not connected by
+this work. `HttpsPolicy`, transfer accounting, `ChunkTickets` and `RequestTickets` remain standalone
+helpers, not transport implementations.

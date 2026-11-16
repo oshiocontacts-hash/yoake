@@ -15,16 +15,16 @@
 //! encapsulated structs, recursion) becomes a `u64` opaque handle, except the engine types of the
 //! table in `types.rs` (NBT, item stacks, text, JSON, mod block entities, `&mut` draw objects).
 use serde::Serialize;
+use std::rc::Rc;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
 };
-use std::rc::Rc;
 use syn::{FnArg, GenericArgument, Item, Pat, PathArguments, Type};
 
-mod types;
 pub(crate) mod shape;
+mod types;
 use shape::{ListKind, MapKind, NamedDef, RustPath, Shape, StrKind, VCase, WrapKind};
 use types::{Carrier, EFFECTS, Effect, ITEM_STACK_DOC, JSON_DOC, NBT_DOC, TABLE, TEXT_DOC, effect_of};
 
@@ -1642,26 +1642,53 @@ fn draft_services() -> Result<String, String> {
     }
     types = types.trim_end().to_owned();
     types.push_str("\n}\n\n");
-    let mut services = String::from("/// Server services (value types only), listed in `abi-subset-server.json`.\ninterface server-services {\n");
-    services.push_str(&format!("    use server-types.{{{}}};\n\n", names.iter().map(|n| escape(n)).collect::<Vec<_>>().join(", ")));
-    let type_names: HashSet<String> = names.iter().map(|n| kebab(n)).collect();
-    for service in draft["services"].as_array().ok_or("draft services missing")? {
-        let name = service["name"].as_str().ok_or("service name")?;
-        let mut args: Vec<(&String, &serde_json::Value)> = service["arguments"].as_object().ok_or("service args")?.iter().collect();
-        args.sort_by(|a, b| a.0.cmp(b.0));
-        let args: Vec<String> = args
-            .into_iter()
-            .map(|(n, t)| Ok(format!("{}: {}", escape(n), t.as_str().ok_or("arg type")?)))
-            .collect::<Result<_, String>>()?;
-        let result = service["result"].as_str().map(|r| format!(" -> {r}")).unwrap_or_default();
-        // A function may not share a name with a type of the interface.
-        let mut function = kebab(name);
-        if type_names.contains(&function) {
-            function.push_str("-call");
+    let mut services = String::new();
+    for side in ["server", "client"] {
+        services.push_str(&format!("interface {side}-services {{\n"));
+        services.push_str(&format!(
+            "    use server-types.{{{}}};\n\n",
+            names
+                .iter()
+                .map(|n| escape(n))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+        let type_names: HashSet<String> = names.iter().map(|n| kebab(n)).collect();
+        for service in draft["services"]
+            .as_array()
+            .ok_or("draft services missing")?
+        {
+            if side == "client" && service["side"].as_str() != Some("both") {
+                continue;
+            }
+            let name = service["name"].as_str().ok_or("service name")?;
+            let mut args: Vec<(&String, &serde_json::Value)> = service["arguments"]
+                .as_object()
+                .ok_or("service args")?
+                .iter()
+                .collect();
+            args.sort_by(|a, b| a.0.cmp(b.0));
+            let args: Vec<String> = args
+                .into_iter()
+                .map(|(n, t)| Ok(format!("{}: {}", escape(n), t.as_str().ok_or("arg type")?)))
+                .collect::<Result<_, String>>()?;
+            let result = service["result"]
+                .as_str()
+                .map(|r| format!(" -> {r}"))
+                .unwrap_or_default();
+            // A function may not share a name with a type of the interface.
+            let mut function = kebab(name);
+            if type_names.contains(&function) {
+                function.push_str("-call");
+            }
+            services.push_str(&format!(
+                "    {}: func({}){result};\n",
+                escape(&function),
+                args.join(", ")
+            ));
         }
-        services.push_str(&format!("    {}: func({}){result};\n", escape(&function), args.join(", ")));
+        services.push_str("}\n\n");
     }
-    services.push_str("}\n\n");
     Ok(format!("{types}{services}"))
 }
 
@@ -1739,13 +1766,22 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
     ] {
         wit.push_str(&format!("/// {doc}\ninterface {side}-hooks {{\n"));
         wit.push_str(&use_line(uses));
+        wit.push_str("    use server-types.{config-value};\n    config-changed: func(key: string, value: config-value);\n");
         wit.push_str(text);
         wit.push_str("}\n\n");
     }
 
     for (side, imports, extra) in [
-        ("client", CLIENT_IMPORTS, &[][..]),
-        ("server", SERVER_IMPORTS, &["server-types", "server-services"][..]),
+        (
+            "client",
+            CLIENT_IMPORTS,
+            &["server-types", "client-services"][..],
+        ),
+        (
+            "server",
+            SERVER_IMPORTS,
+            &["server-types", "server-services"][..],
+        ),
     ] {
         wit.push_str(&format!("world {side}-full {{\n    import engine-types;\n"));
         for import in imports.iter().chain(extra) {

@@ -30,6 +30,33 @@ pub struct ModList {
     pub keys: BTreeMap<String, BTreeMap<String, String>>,
     /// What the Mods page shows, filled by the game from the mods it found.
     pub installed: Vec<Installed>,
+    pub configs: BTreeMap<String, ConfigPage>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ConfigPage {
+    pub fields: Vec<ConfigField>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ConfigField {
+    pub key: String,
+    pub label: String,
+    pub value: String,
+    pub kind: ConfigKind,
+    pub choices: Vec<String>,
+    pub read_only: bool,
+    pub restart: bool,
+    pub range: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ConfigKind {
+    Bool,
+    Number,
+    Text,
+    Enum,
+    List,
 }
 
 /// One installed mod as the Mods page shows it.
@@ -90,6 +117,7 @@ impl ModList {
             disabled,
             keys,
             installed: Vec::new(),
+            configs: BTreeMap::new(),
         }
     }
     pub fn serialize(&self) -> String {

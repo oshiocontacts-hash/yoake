@@ -28,5 +28,8 @@ yak = ["dep:horizon-release-sign", "dep:semver", "dep:url"]
 # The mod registry's index (docs/api/mod-index.md): the launcher, the registry server and its CI.
 index = ["dep:sha2", "dep:minisign-verify", "dep:horizon-shader-api", "dep:wasmparser"]
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [lints]
 workspace = true

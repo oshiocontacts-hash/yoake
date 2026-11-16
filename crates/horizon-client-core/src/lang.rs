@@ -67,6 +67,9 @@ impl ResourceSource for Bundled {
             "assets/horizon/lang/en_us.json" => {
                 include_str!("../../horizon-client/assets/horizon/lang/en_us.json")
             }
+            "assets/horizon/lang/ja_jp.json" => {
+                include_str!("../../horizon-client/assets/horizon/lang/ja_jp.json")
+            }
             "assets/horizon/lang/zh_cn.json" => {
                 include_str!("../../horizon-client/assets/horizon/lang/zh_cn.json")
             }
@@ -383,6 +386,9 @@ mod tests {
         }
         assert_eq!(en.get("horizon.pages.mods"), Some("Mods"));
         assert_eq!(ru.get("horizon.pages.mods"), Some("Моды"));
+        let japanese = Language::load(&[&empty], "ja_jp");
+        assert_eq!(japanese.get("yoake.config.title"), Some("%s の設定"));
+        assert_eq!(japanese.get("horizon.pages.mods"), Some("Mods"));
         let zh = Language::load(&[&empty], "zh_cn");
         assert_eq!(zh.get("horizon.options.controller"), Some("手柄"));
         assert_eq!(zh.get("horizon.pages.mods"), Some("模组"));

@@ -1,0 +1,24 @@
+[package]
+name = "yoake-wasm-full-services"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+client = []
+server = []
+
+[dependencies]
+yoake-wasm-sdk = { path = "../..", features = ["full"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+panic = "abort"
+
+[workspace]

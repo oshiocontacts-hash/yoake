@@ -2,8 +2,8 @@
 //! Controls, Key Binds, Mouse Settings, Chat Settings, Accessibility,
 //! Language and Resource Packs, laid out like vanilla's HeaderAndFooter /
 //! OptionsList screens and drawn with the shared widgets.
-use std::time::Instant;
 use crate::capture_time::AnimationInstant;
+use std::time::Instant;
 
 pub use crate::settings::Opt;
 
@@ -1232,6 +1232,8 @@ pub enum Page {
     Mods,
     /// A native mod's settings page: its index in `mods.installed`.
     NativeMod(usize),
+    ModConfig(usize),
+    ConfigValue(usize, usize),
     /// Horizon's shader packs, either kind (`shader_pack_list`).
     ShaderPacks,
     /// The options of `s.shader_packs[.0]`, a Horizon pack: its `[[pages]]` entry `.1`, the
@@ -1302,6 +1304,8 @@ enum Act {
     ShaderReset,
     /// The installed native mod's settings page.
     ModSettings(usize),
+    NativeSettings(usize),
+    ConfigField(usize, usize),
     /// A native mod's key (mod, key) waits for a key; a button of its page.
     NativeKey(usize, usize),
     NativeButton(usize, usize),
@@ -1446,6 +1450,8 @@ pub enum Event {
     /// Native mod `.0`'s page opened: the game asks the mod for its labels
     /// again (they were made with the list, maybe in another language).
     NativeSettings(usize),
+    ConfigOpen(usize),
+    ConfigSave(usize),
     /// Button `.1` of native mod `.0`'s page was pressed: the game tells the
     /// mod and refreshes the page.
     NativeButton(usize, usize),
@@ -1526,6 +1532,7 @@ pub struct OptionsUi {
     pub languages: Vec<LanguageInfo>,
     language_choice: Option<String>,
     language_search: ui::EditBox,
+    config_edit: ui::EditBox,
     pub(crate) settings_search: ui::EditBox,
     /// Horizon's `packBrowser` extra: the pack screen's Add button.
     pub pack_browser: bool,
@@ -1591,6 +1598,8 @@ impl Default for OptionsUi {
         search.max_length = 32;
         let mut settings_search = ui::EditBox::new(0.0, 0.0, 200.0, 15.0);
         settings_search.focused = false;
+        let mut config_edit = ui::EditBox::new(0.0, 0.0, 310.0, 20.0);
+        config_edit.max_length = 65_536;
         Self {
             stack: vec![Page::Main],
             scroll: 0.0,
@@ -1606,6 +1615,7 @@ impl Default for OptionsUi {
             languages: Vec::new(),
             language_choice: None,
             language_search: search,
+            config_edit,
             settings_search,
             pack_browser: false,
             pack_infos: Vec::new(),
@@ -2076,6 +2086,7 @@ impl OptionsUi {
         self.resource_error.is_none()
             && match self.page() {
                 Page::Language => true,
+                Page::ConfigValue(..) => self.config_edit.focused,
                 Page::Packs => self
                     .pack_screen
                     .as_ref()
@@ -2237,6 +2248,13 @@ impl OptionsUi {
         let page = s.shader_packs.get(pack)?.pages.get(usize::from(at))?;
         Some(Text::literal(&page.name))
     }
+    fn config_page_title(settings: &Settings, page: Page) -> Option<Text> {
+        let (Page::ModConfig(index) | Page::ConfigValue(index, _)) = page else {
+            return None;
+        };
+        let installed = settings.mods.installed.get(index)?;
+        Some(Text::tr("yoake.config.title", &[&installed.title]))
+    }
     fn title(page: Page) -> &'static str {
         match page {
             Page::Main => "options.title",
@@ -2254,6 +2272,7 @@ impl OptionsUi {
             Page::Packs => "resourcePack.title",
             Page::Mods => "horizon.pages.mods",
             Page::NativeMod(_) => "Mod Settings",
+            Page::ModConfig(_) | Page::ConfigValue(..) => "yoake.config.title",
             Page::ShaderPacks => "horizon.pages.shader_packs",
             Page::ShaderOptions | Page::NativePackOptions(..) => "horizon.pages.shader_options",
             Page::Graphics | Page::GraphicsAdvanced | Page::GraphicsHdr | Page::HdrCalibration => {
@@ -2353,6 +2372,127 @@ impl OptionsUi {
             rows.push(Row::Buttons(widget, None));
         }
         rows
+    }
+
+    fn config_field<'a>(
+        &self,
+        settings: &'a Settings,
+        index: usize,
+        field_index: usize,
+    ) -> Option<&'a crate::mod_list::ConfigField> {
+        let installed = settings.mods.installed.get(index)?;
+        settings
+            .mods
+            .configs
+            .get(&installed.id)?
+            .fields
+            .get(field_index)
+    }
+
+    fn config_rows(&self, settings: &Settings, index: usize) -> Vec<Row> {
+        let Some(installed) = settings.mods.installed.get(index) else {
+            return Vec::new();
+        };
+        let Some(page) = settings.mods.configs.get(&installed.id) else {
+            return Vec::new();
+        };
+        let mut rows = vec![Row::Note(installed.title.clone())];
+        if installed.native.is_some() {
+            rows.push(Row::Buttons(
+                button(
+                    0.0,
+                    0.0,
+                    310.0,
+                    Text::tr("yoake.config.native_settings", &[]),
+                    Act::NativeSettings(index),
+                ),
+                None,
+            ));
+        }
+        for (field_index, field) in page.fields.iter().enumerate() {
+            let caption = inactive(button(
+                0.0,
+                0.0,
+                150.0,
+                Text::literal(field.label.clone()),
+                Act::None,
+            ));
+            let value = if field.kind == crate::mod_list::ConfigKind::Bool {
+                on_off(field.value == "true")
+            } else {
+                Text::literal(field.value.clone())
+            };
+            let change = button(0.0, 0.0, 150.0, value, Act::ConfigField(index, field_index));
+            rows.push(Row::Buttons(
+                caption,
+                Some(if field.read_only {
+                    inactive(change)
+                } else {
+                    change
+                }),
+            ));
+            if field.read_only {
+                rows.push(Row::Heading("yoake.config.read_only".into()));
+            }
+            if field.restart {
+                rows.push(Row::Heading("yoake.config.restart".into()));
+            }
+        }
+        rows
+    }
+
+    fn open_mod_settings(&mut self, settings: &Settings, index: usize) -> Event {
+        if settings
+            .mods
+            .installed
+            .get(index)
+            .is_some_and(|installed| settings.mods.configs.contains_key(&installed.id))
+        {
+            self.push(Page::ModConfig(index));
+            Event::ConfigOpen(index)
+        } else {
+            self.open_native_settings(index)
+        }
+    }
+
+    fn open_native_settings(&mut self, index: usize) -> Event {
+        self.push(Page::NativeMod(index));
+        Event::NativeSettings(index)
+    }
+
+    fn edit_config_field(&mut self, settings: &mut Settings, index: usize, field_index: usize) {
+        let Some(installed) = settings.mods.installed.get(index) else {
+            return;
+        };
+        let Some(field) = settings
+            .mods
+            .configs
+            .get_mut(&installed.id)
+            .and_then(|page| page.fields.get_mut(field_index))
+        else {
+            return;
+        };
+        if field.read_only {
+            return;
+        }
+        match field.kind {
+            crate::mod_list::ConfigKind::Bool => field.value = (field.value != "true").to_string(),
+            crate::mod_list::ConfigKind::Enum => {
+                if !field.choices.is_empty() {
+                    let next = field
+                        .choices
+                        .iter()
+                        .position(|value| value == &field.value)
+                        .map_or(0, |current| (current + 1) % field.choices.len());
+                    field.value = field.choices[next].clone();
+                }
+            }
+            _ => {
+                self.config_edit.set_value(&field.value);
+                self.config_edit.focused = true;
+                self.push(Page::ConfigValue(index, field_index));
+            }
+        }
     }
 
     fn list_rows(&self, s: &Settings) -> Vec<Row> {
@@ -2757,6 +2897,7 @@ impl OptionsUi {
                             .native
                             .as_ref()
                             .is_some_and(|page| !page.keys.is_empty() || !page.buttons.is_empty())
+                            || s.mods.configs.contains_key(&installed.id)
                         {
                             let toggle = button(0.0, 0.0, 150.0, label, Act::ToggleMod(i));
                             let settings = button(
@@ -2778,6 +2919,19 @@ impl OptionsUi {
                     .collect()
             }
             Page::NativeMod(i) => self.native_rows(s, i),
+            Page::ModConfig(index) => self.config_rows(s, index),
+            Page::ConfigValue(index, field_index) => self
+                .config_field(s, index, field_index)
+                .map_or_else(Vec::new, |field| {
+                    let mut rows = vec![Row::Note(field.label.clone())];
+                    if let Some(range) = &field.range {
+                        rows.push(Row::Note(range.clone()));
+                    }
+                    if field.kind == crate::mod_list::ConfigKind::List {
+                        rows.push(Row::Heading("yoake.config.list_hint".into()));
+                    }
+                    rows
+                }),
             Page::ShaderPacks => {
                 if s.shader_packs.is_empty() {
                     return vec![Row::Header("horizon.shader_packs.empty")];
@@ -2854,6 +3008,10 @@ impl OptionsUi {
         let mut rows = ListRows::default();
         let page = self.page();
         let cx = (w / 2.0).floor();
+        if matches!(page, Page::ConfigValue(..)) {
+            self.config_edit.x = cx - 155.0;
+            self.config_edit.y = 110.0;
+        }
         if matches!(page, Page::Video | Page::Controls | Page::KeyBinds) {
             self.settings_search.x = cx - 100.0;
             self.settings_search.y = 17.0;
@@ -3294,6 +3452,7 @@ impl OptionsUi {
                     h: 9.0,
                     kind: WKind::Text {
                         text: Self::pack_page_title(s, page)
+                            .or_else(|| Self::config_page_title(s, page))
                             .unwrap_or_else(|| tr(Self::title(page))),
                         color: u32::MAX,
                         centered: true,
@@ -3525,7 +3684,9 @@ impl OptionsUi {
         crate::widgets::begin_screen(|| {
             crate::widgets::ScreenInfo::new(
                 format!("options/{page:?}"),
-                tr(Self::title(page)).plain(),
+                Self::config_page_title(s, page)
+                    .unwrap_or_else(|| tr(Self::title(page)))
+                    .plain(),
             )
         });
         if self.page() == Page::HdrCalibration
@@ -3779,6 +3940,9 @@ impl OptionsUi {
             let sx = self.scrollbar_x(w);
             ui::scrollbar(batch, atlas, sx, top, bottom, content, self.scroll);
         }
+        if matches!(self.page(), Page::ConfigValue(..)) {
+            self.config_edit.draw(batch, atlas, None);
+        }
         if self.page() == Page::Language {
             let mut search = self.language_search.clone();
             if self.focus == Some(FocusId::Search) {
@@ -3959,6 +4123,14 @@ impl OptionsUi {
                 search.click(atlas, x, false, false);
                 self.scroll = 0.0;
                 events.push(Event::ButtonClick);
+                return events;
+            }
+        }
+        if !drag && matches!(self.page(), Page::ConfigValue(..)) {
+            let editor = &mut self.config_edit;
+            editor.focused = ui::hovered((x, y), editor.x, editor.y, editor.width, editor.height);
+            if editor.focused {
+                editor.click(atlas, x, false, false);
                 return events;
             }
         }
@@ -4150,8 +4322,14 @@ impl OptionsUi {
                         }
                         Act::ModSettings(i) => {
                             events.push(Event::ButtonClick);
-                            self.push(Page::NativeMod(i));
-                            events.push(Event::NativeSettings(i));
+                            events.push(self.open_mod_settings(s, i));
+                        }
+                        Act::NativeSettings(index) => {
+                            events.push(Event::ButtonClick);
+                            events.push(self.open_native_settings(index));
+                        }
+                        Act::ConfigField(index, field_index) => {
+                            self.edit_config_field(s, index, field_index)
                         }
                         Act::NativeKey(i, k) => {
                             self.selected_key = Some(NATIVE_KEY);
@@ -4535,6 +4713,9 @@ impl OptionsUi {
             .map(|c| c.picture(h))
     }
     pub fn back(&mut self, s: &mut Settings) -> Vec<Event> {
+        if let Page::ModConfig(index) = self.page() {
+            return vec![Event::ConfigSave(index)];
+        }
         let mut events = Vec::new();
         // A pack's screen goes back to the one that opened it.
         if self.page() == Page::ShaderOptions
@@ -4545,18 +4726,21 @@ impl OptionsUi {
             return events;
         }
         let page = self.stack.pop().unwrap_or(Page::Main);
-        self.scroll = 0.0;
-        self.scrollbar_drag_y = None;
-        self.dragging = None;
-        self.slider_value = None;
-        self.selected_key = None;
-        self.selected_pad_action = None;
-        self.focus = None;
-        self.focus_from_keyboard = false;
-        self.settings_search.focused = false;
-        self.language_search.focused = false;
-        self.can_change_value = false;
+        self.reset_page_navigation();
         match page {
+            Page::ConfigValue(index, field_index) => {
+                if let Some(installed) = s.mods.installed.get(index)
+                    && let Some(field) = s
+                        .mods
+                        .configs
+                        .get_mut(&installed.id)
+                        .and_then(|page| page.fields.get_mut(field_index))
+                    && !field.read_only
+                {
+                    field.value = self.config_edit.value.clone();
+                }
+                self.config_edit.focused = false;
+            }
             Page::ShaderOptions => {
                 if s.shader_options.as_ref().is_some_and(|o| o.changed) {
                     events.push(Event::ShaderOptions);
@@ -4599,6 +4783,38 @@ impl OptionsUi {
         }
         events
     }
+
+    fn reset_page_navigation(&mut self) {
+        self.scroll = 0.0;
+        self.scrollbar_drag_y = None;
+        self.dragging = None;
+        self.slider_value = None;
+        self.selected_key = None;
+        self.selected_pad_action = None;
+        self.focus = None;
+        self.focus_from_keyboard = false;
+        self.settings_search.focused = false;
+        self.language_search.focused = false;
+        self.can_change_value = false;
+    }
+
+    pub fn finish_config_save(&mut self, result: Result<(), String>) -> Vec<Event> {
+        if let Err(error) = result {
+            self.resource_error = Some(error);
+            return Vec::new();
+        }
+        if !matches!(self.page(), Page::ModConfig(_)) {
+            return Vec::new();
+        }
+        self.resource_error = None;
+        self.stack.pop();
+        self.reset_page_navigation();
+        let mut events = vec![Event::Changed];
+        if self.stack.is_empty() {
+            events.push(Event::Close);
+        }
+        events
+    }
     /// Typed text (the language search box).
     pub fn type_text(&mut self, atlas: &HudAtlas, text: &str) {
         if self.resource_error.is_some() {
@@ -4610,7 +4826,9 @@ impl OptionsUi {
             p.type_text(&crate::screen_draw::Measure(&atlas.font), text);
             return;
         }
-        if self.page() == Page::Language {
+        if matches!(self.page(), Page::ConfigValue(..)) {
+            self.config_edit.insert_text(text);
+        } else if self.page() == Page::Language {
             self.language_search.insert_text(text);
             self.scroll = 0.0;
         } else if self.page() == Page::SplitProfiles {
@@ -4638,6 +4856,9 @@ impl OptionsUi {
         {
             let m = crate::screen_draw::Measure(&atlas.font);
             return p.shortcut(&m, shortcut, clipboard);
+        }
+        if matches!(self.page(), Page::ConfigValue(..)) {
+            return self.config_edit.shortcut(shortcut, clipboard);
         }
         if self.page() == Page::Language {
             if self.language_search.shortcut(shortcut, clipboard) {
@@ -4720,6 +4941,13 @@ impl OptionsUi {
             if matches!(key, K::Escape | K::Enter | K::NumpadEnter) {
                 self.resource_error = None;
             }
+            return Vec::new();
+        }
+        if matches!(self.page(), Page::ConfigValue(..)) {
+            if matches!(key, K::Escape | K::Enter | K::NumpadEnter) {
+                return self.back(s);
+            }
+            self.config_edit.key(key, false, shift);
             return Vec::new();
         }
         if self.page() == Page::Packs
@@ -5059,8 +5287,16 @@ impl OptionsUi {
                             self.focus = None;
                             self.focus_from_keyboard = false;
                             self.can_change_value = false;
-                            self.push(Page::NativeMod(i));
-                            events.push(Event::NativeSettings(i));
+                            events.push(self.open_mod_settings(s, i));
+                        }
+                        Act::NativeSettings(index) => {
+                            self.focus = None;
+                            self.focus_from_keyboard = false;
+                            self.can_change_value = false;
+                            events.push(self.open_native_settings(index));
+                        }
+                        Act::ConfigField(index, field_index) => {
+                            self.edit_config_field(s, index, field_index)
                         }
                         Act::NativeKey(i, k) => {
                             self.selected_key = Some(NATIVE_KEY);
@@ -5160,6 +5396,166 @@ impl OptionsUi {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn config_test_settings() -> Settings {
+        use crate::mod_list::{ConfigField, ConfigKind, ConfigPage, Installed};
+
+        let mut settings = Settings::default();
+        settings.mods.installed.push(Installed {
+            id: "example".into(),
+            title: "Example".into(),
+            description: String::new(),
+            problem: None,
+            dev: false,
+            native: None,
+        });
+        let fields = [
+            ("enabled", ConfigKind::Bool, "false"),
+            ("mode", ConfigKind::Enum, "first"),
+            ("amount", ConfigKind::Number, "2"),
+            ("message", ConfigKind::Text, "hello"),
+            ("names", ConfigKind::List, "one, two"),
+        ]
+        .into_iter()
+        .map(|(key, kind, value)| ConfigField {
+            key: key.into(),
+            label: key.into(),
+            value: value.into(),
+            kind,
+            choices: vec!["first".into(), "second".into()],
+            read_only: false,
+            restart: false,
+            range: (kind == ConfigKind::Number).then(|| "1..10".into()),
+        })
+        .collect();
+        settings
+            .mods
+            .configs
+            .insert("example".into(), ConfigPage { fields });
+        settings
+    }
+
+    #[test]
+    fn mod_config_save_request_keeps_page_and_drafts_until_success() {
+        let mut settings = config_test_settings();
+        let mut ui = OptionsUi::default();
+        ui.open_at(false, Page::Mods);
+        ui.open_mod_settings(&settings, 0);
+        ui.edit_config_field(&mut settings, 0, 0);
+        assert_eq!(ui.back(&mut settings), vec![Event::ConfigSave(0)]);
+        assert_eq!(ui.page(), Page::ModConfig(0));
+        assert_eq!(ui.config_field(&settings, 0, 0).unwrap().value, "true");
+    }
+
+    #[test]
+    fn mod_config_edits_all_field_types_and_saves_on_done() {
+        let mut settings = config_test_settings();
+        let mut ui = OptionsUi::default();
+        ui.open_at(false, Page::Mods);
+        assert_eq!(ui.open_mod_settings(&settings, 0), Event::ConfigOpen(0));
+        assert_eq!(ui.page(), Page::ModConfig(0));
+        ui.edit_config_field(&mut settings, 0, 0);
+        assert_eq!(ui.config_field(&settings, 0, 0).unwrap().value, "true");
+        ui.edit_config_field(&mut settings, 0, 1);
+        assert_eq!(ui.config_field(&settings, 0, 1).unwrap().value, "second");
+        ui.edit_config_field(&mut settings, 0, 1);
+        assert_eq!(ui.config_field(&settings, 0, 1).unwrap().value, "first");
+        for (field_index, value) in [(2, "7"), (3, "こんにちは"), (4, "three, four")] {
+            ui.edit_config_field(&mut settings, 0, field_index);
+            assert_eq!(ui.page(), Page::ConfigValue(0, field_index));
+            assert!(ui.typing());
+            ui.config_edit.set_value(value);
+            assert_eq!(ui.back(&mut settings), vec![Event::Changed]);
+            assert_eq!(ui.page(), Page::ModConfig(0));
+            assert_eq!(ui.config_field(&settings, 0, field_index).unwrap().value, value);
+            assert!(!ui.typing());
+        }
+        for (language, expected) in [
+            ("en_us", "Configuration: Example"),
+            ("ja_jp", "Example の設定"),
+        ] {
+            lang::scoped(lang::Language::load(&[], language), || {
+                for page in [Page::ModConfig(0), Page::ConfigValue(0, 2)] {
+                    assert_eq!(
+                        OptionsUi::config_page_title(&settings, page).unwrap().plain(),
+                        expected
+                    );
+                }
+                let (widgets, ..) = ui.layout(&settings, 427.0, 240.0);
+                assert!(widgets.iter().any(|widget| matches!(
+                    &widget.kind, WKind::Text { text, .. } if text.plain() == expected
+                )));
+            });
+        }
+        assert_eq!(ui.back(&mut settings), vec![Event::ConfigSave(0)]);
+        assert_eq!(ui.page(), Page::ModConfig(0));
+        assert_eq!(ui.finish_config_save(Ok(())), vec![Event::Changed]);
+        assert_eq!(ui.page(), Page::Mods);
+    }
+
+    #[test]
+    fn mod_config_read_only_fields_and_native_fallback_stay_unchanged() {
+        let mut settings = config_test_settings();
+        for field in &mut settings.mods.configs.get_mut("example").unwrap().fields {
+            field.read_only = true;
+        }
+        let original = settings.mods.configs.clone();
+        let mut ui = OptionsUi::default();
+        ui.open_at(false, Page::Mods);
+        ui.open_mod_settings(&settings, 0);
+        for field_index in 0..5 {
+            ui.edit_config_field(&mut settings, 0, field_index);
+            assert_eq!(ui.page(), Page::ModConfig(0));
+            assert!(!ui.typing());
+        }
+        assert_eq!(settings.mods.configs, original);
+        assert_eq!(ui.back(&mut settings), vec![Event::ConfigSave(0)]);
+        ui.finish_config_save(Ok(()));
+        settings.mods.configs.clear();
+        assert_eq!(ui.open_mod_settings(&settings, 0), Event::NativeSettings(0));
+        assert_eq!(ui.page(), Page::NativeMod(0));
+        assert_eq!(ui.back(&mut settings), vec![Event::Changed]);
+        assert_eq!(ui.page(), Page::Mods);
+    }
+
+    #[test]
+    fn failed_config_save_preserves_drafts_and_shows_error() {
+        let mut settings = config_test_settings();
+        let mut ui = OptionsUi::default();
+        ui.open_at(false, Page::Mods);
+        ui.open_mod_settings(&settings, 0);
+        ui.edit_config_field(&mut settings, 0, 0);
+        let drafts = settings.mods.configs.clone();
+        assert_eq!(ui.back(&mut settings), vec![Event::ConfigSave(0)]);
+        assert!(
+            ui.finish_config_save(Err("invalid count".into()))
+                .is_empty()
+        );
+        assert_eq!(ui.page(), Page::ModConfig(0));
+        assert_eq!(settings.mods.configs, drafts);
+        assert_eq!(ui.resource_error.as_deref(), Some("invalid count"));
+        assert_eq!(ui.finish_config_save(Ok(())), vec![Event::Changed]);
+        assert_eq!(ui.page(), Page::Mods);
+        assert!(ui.resource_error.is_none());
+    }
+
+    #[test]
+    fn package_and_native_settings_are_both_reachable() {
+        let mut settings = config_test_settings();
+        settings.mods.installed[0].native = Some(Default::default());
+        let mut ui = OptionsUi::default();
+        ui.open_at(false, Page::Mods);
+        assert_eq!(ui.open_mod_settings(&settings, 0), Event::ConfigOpen(0));
+        assert_eq!(ui.page(), Page::ModConfig(0));
+        assert!(ui.config_rows(&settings, 0).iter().any(|row| matches!(
+            row, Row::Buttons(widget, _) if matches!(widget.kind,
+                WKind::Button { act: Act::NativeSettings(0), .. })
+        )));
+        assert_eq!(ui.open_native_settings(0), Event::NativeSettings(0));
+        assert_eq!(ui.page(), Page::NativeMod(0));
+        ui.back(&mut settings);
+        assert_eq!(ui.page(), Page::ModConfig(0));
+    }
 
     /// The window allows the input method only while `typing` says a search
     /// box has the focus (`Game::text_field_focused`), so a page without one

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use wasmtime::component::Resource;
 
@@ -36,6 +36,10 @@ macro_rules! host_methods {
 }
 
 pub trait ClientHost: Send {
+    fn services(&mut self) -> Result<crate::package_services::ServiceHandle, String> {
+        Err("package services unavailable".into())
+    }
+
     host_methods! {
         fn log(&mut self, target: &str, message: &str) -> ();
         fn feedback(&mut self, text: &str) -> ();
@@ -74,7 +78,7 @@ pub trait ClientHost: Send {
 
 pub struct ClientContext {
     id: String,
-    host: Box<dyn ClientHost>,
+    pub(crate) host: Box<dyn ClientHost>,
     textures: HashMap<u32, u64>,
     texture_count: Arc<AtomicUsize>,
     next_texture: u32,

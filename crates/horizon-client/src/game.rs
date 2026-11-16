@@ -12849,10 +12849,12 @@ impl Game<'_> {
         if let Some(server) = self.integrated.take() {
             // The server thread saves the world.
             server.stop()?;
+            self.clear_config_sync();
             self.saved_for_exit = true;
             return Ok(());
         }
         if let Some(mut remote) = self.remote.take() {
+            self.clear_config_sync();
             // Minecraft.disconnect closes the connection, so the host sees a clean leave.
             remote.session.disconnect();
             self.saved_for_exit = true;

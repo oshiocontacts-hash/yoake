@@ -1,0 +1,57 @@
+{
+  "fragment_version": 1,
+  "status": "proposed-only; not included by the generator or callable by mods",
+  "integration": "Merge into the appropriate client and server catalogs, allocate IDs, review types and capabilities, then regenerate WIT and adapters together.",
+  "enums": {
+    "config-value-kind": ["bool", "int", "float", "string", "enum", "bool-list", "int-list", "float-list", "string-list", "enum-list"],
+    "storage-scope": ["world", "global"],
+    "locate-kind": ["structure", "biome"],
+    "locate-status": ["pending", "not-found", "found"]
+  },
+  "types": {
+    "config-value": {"kind": "config-value-kind", "bool-value": "bool", "int-value": "s64", "float-value": "f64", "string-value": "string", "bool-list": "list<bool>", "int-list": "list<s64>", "float-list": "list<f64>", "string-list": "list<string>"},
+    "transfer-progress": {"id": "u64", "received": "u64", "total": "u64"},
+    "http-header": {"name": "string", "value": "string"},
+    "http-response": {"status": "u16", "headers": "list<http-header>", "body": "list<u8>"},
+    "server-performance": {"mspt": "f64", "tps": "f64"},
+    "located-position": {"dimension": "string", "x": "s32", "y": "s32", "z": "s32"},
+    "locate-result": {"status": "locate-status", "position": "option<located-position>"}
+  },
+  "hooks": [
+    {"name": "config_changed", "side": "client|server", "arguments": {"key": "string", "value": "config-value"}, "result": null, "contract": "Fired only after a validated change takes effect; synced keys are server-authoritative."},
+    {"name": "payload_received", "side": "client|server", "arguments": {"channel": "string", "payload": "list<u8>", "player": "option<string>"}, "result": null, "contract": "Deliver to the same mod on the receiving side; player is the authenticated sender on the server."},
+    {"name": "payload_transfer_progress", "side": "client|server", "arguments": {"progress": "transfer-progress"}, "result": null, "contract": "Progress is scoped to the mod, peer and transfer; a completed transfer is delivered once."}
+  ],
+  "services": [
+    {"name": "config_get", "side": "client|server", "arguments": {"key": "string"}, "result": "result<config-value, string>", "contract": "Read the calling mod's declared value. Exactly the field indicated by kind is meaningful."},
+    {"name": "config_set", "side": "client|server", "arguments": {"key": "string", "value": "config-value"}, "result": "result<_, string>", "contract": "Validate before persisting and notifying; clients cannot set server-authoritative keys."},
+    {"name": "has_permission", "side": "server", "arguments": {"node": "string", "player": "string"}, "result": "result<bool, string>", "contract": "Only declared nodes may be granted; explicit player rule overrides the declared op-level default."},
+    {"name": "mod_payload_to_server", "side": "client", "arguments": {"channel": "string", "payload": "list<u8>"}, "result": "result<_, string>", "contract": "Authenticated same-mod channel; maximum 1 MiB per message and subject to rate limits."},
+    {"name": "mod_payload_to_player", "side": "server", "arguments": {"channel": "string", "payload": "list<u8>", "player": "string"}, "result": "result<_, string>", "contract": "Authenticated same-mod channel; maximum 1 MiB per message and subject to rate limits."},
+    {"name": "mod_payload_broadcast", "side": "server", "arguments": {"channel": "string", "payload": "list<u8>"}, "result": "result<_, string>", "contract": "Send to eligible connected peers of the same mod, with per-peer and aggregate rate limits."},
+    {"name": "payload_transfer_begin", "side": "client|server", "arguments": {"channel": "string", "player": "option<string>", "total": "u64"}, "result": "result<u64, string>", "contract": "Reserve a bounded transfer of at most 64 MiB for an authenticated mod and peer."},
+    {"name": "payload_transfer_write", "side": "client|server", "arguments": {"data": "list<u8>", "id": "u64", "offset": "u64"}, "result": "result<transfer-progress, string>", "contract": "Accept chunks at 1 MiB-aligned offsets, with exactly 1 MiB except for the final chunk; identical retries are idempotent and mismatched retries fail."},
+    {"name": "payload_transfer_resume", "side": "client|server", "arguments": {"id": "u64"}, "result": "result<transfer-progress, string>", "contract": "Report progress only for the authorized owner and peer; retention lifetime needs agreement."},
+    {"name": "payload_transfer_missing_chunks", "side": "client|server", "arguments": {"id": "u64"}, "result": "result<list<u32>, string>", "contract": "Return missing zero-based chunk indices only to the authorized owner and peer."},
+    {"name": "payload_transfer_finish", "side": "client|server", "arguments": {"id": "u64"}, "result": "result<_, string>", "contract": "Deliver the complete authorized transfer once; reject incomplete or already completed transfers."},
+    {"name": "payload_transfer_cancel", "side": "client|server", "arguments": {"id": "u64"}, "result": "result<_, string>", "contract": "Release the authorized transfer's reservations."},
+    {"name": "http_request", "side": "client|server", "arguments": {"body": "list<u8>", "headers": "list<http-header>", "method": "string", "url": "string"}, "result": "result<u64, string>", "contract": "Requires declared service.http, per-mod user approval and a declared HTTPS host; validate every resolved address and redirect, pin the approved DNS result, and bound sizes, time and concurrency."},
+    {"name": "http_poll", "side": "client|server", "arguments": {"ticket": "u64"}, "result": "result<option<http-response>, string>", "contract": "Poll only a ticket owned by the calling mod; none means pending."},
+    {"name": "storage_get", "side": "client|server", "arguments": {"key": "string", "scope": "storage-scope"}, "result": "result<option<list<u8>>, string>", "contract": "Access only the calling mod's client or server store; missing keys return none and values over 1 MiB require blob reads."},
+    {"name": "storage_put", "side": "client|server", "arguments": {"key": "string", "scope": "storage-scope", "value": "list<u8>"}, "result": "result<_, string>", "contract": "Atomic bounded write; enforce at most 256 MiB per mod per world, without symlink or junction escape."},
+    {"name": "storage_delete", "side": "client|server", "arguments": {"key": "string", "scope": "storage-scope"}, "result": "result<bool, string>", "contract": "Delete only the calling mod's key and release its quota."},
+    {"name": "storage_blob_begin", "side": "client|server", "arguments": {"key": "string", "scope": "storage-scope", "total": "u64"}, "result": "result<u64, string>", "contract": "Reserve quota before receiving a blob; partial writes are not visible as committed values."},
+    {"name": "storage_blob_write", "side": "client|server", "arguments": {"data": "list<u8>", "id": "u64", "offset": "u64"}, "result": "result<_, string>", "contract": "Write bounded chunks to an owned pending blob; preserve its quota reservation."},
+    {"name": "storage_blob_commit", "side": "client|server", "arguments": {"id": "u64"}, "result": "result<_, string>", "contract": "Atomically publish only a complete, quota-reserved blob."},
+    {"name": "storage_blob_abort", "side": "client|server", "arguments": {"id": "u64"}, "result": "result<bool, string>", "contract": "Discard an owned pending blob and release its reserved quota."},
+    {"name": "storage_blob_read", "side": "client|server", "arguments": {"key": "string", "length": "u32", "offset": "u64", "scope": "storage-scope"}, "result": "result<list<u8>, string>", "contract": "Read a bounded slice of a committed value."},
+    {"name": "chunk_ticket_acquire", "side": "server", "arguments": {"dimension": "string", "x": "s32", "z": "s32"}, "result": "result<_, string>", "contract": "Idempotently hold a capped per-mod chunk ticket; release on unload or world shutdown."},
+    {"name": "chunk_ticket_release", "side": "server", "arguments": {"dimension": "string", "x": "s32", "z": "s32"}, "result": "result<bool, string>", "contract": "Release only the calling mod's ticket."},
+    {"name": "backup_request", "side": "server", "arguments": {}, "result": "result<u64, string>", "contract": "Use the existing save pipeline; rate-limit and report completion asynchronously."},
+    {"name": "backup_poll", "side": "server", "arguments": {"ticket": "u64"}, "result": "result<option<bool>, string>", "contract": "Poll only an owned backup ticket; none means pending, true means success and false means failure."},
+    {"name": "server_performance", "side": "server", "arguments": {}, "result": "result<server-performance, string>", "contract": "Report measured MSPT and TPS, with a documented sampling window."},
+    {"name": "locate_begin", "side": "server", "arguments": {"dimension": "string", "id": "string", "kind": "locate-kind", "radius": "u32", "x": "s32", "y": "s32", "z": "s32"}, "result": "result<u64, string>", "contract": "Bound radius, work and concurrency; do not block the game thread."},
+    {"name": "locate_poll", "side": "server", "arguments": {"ticket": "u64"}, "result": "result<locate-result, string>", "contract": "Poll only an owned ticket; the position is present if and only if the status is found."},
+    {"name": "client_mod_call", "side": "client", "arguments": {"method": "string", "payload": "list<u8>", "target-mod": "string"}, "result": "result<list<u8>, string>", "contract": "Match the server mod-call contract: 1 MiB request and response, bounded nesting and no re-entry into a waiting caller."}
+  ]
+}

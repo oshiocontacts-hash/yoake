@@ -125,6 +125,10 @@ impl Game<'_> {
         self.options_from_title = from_title;
         self.options_to_game = false;
         let minecart_improvements = self.minecart_improvements();
+        crate::entry::wasm_mods::package_ui::populate(
+            &mut self.settings,
+            self.integrated.is_some() || self.remote.is_none(),
+        );
         let ui = &mut self.ui.options;
         ui.open_at(!from_title && self.title.is_none(), page);
         ui.minecart_improvements = minecart_improvements;
@@ -416,6 +420,19 @@ impl Game<'_> {
                     super::packs::open_folder(&dir);
                 }
                 Event::NativeSettings(i) => self.native_settings_refresh(i),
+                Event::ConfigOpen(_) => crate::entry::wasm_mods::package_ui::populate(
+                    &mut self.settings,
+                    self.integrated.is_some() || self.remote.is_none(),
+                ),
+                Event::ConfigSave(index) => {
+                    let result = crate::entry::wasm_mods::package_ui::save(
+                        &self.settings,
+                        index,
+                        self.integrated.is_some() || self.remote.is_none(),
+                    );
+                    let events = self.ui.options.finish_config_save(result);
+                    self.handle_option_events(events)?;
+                }
                 Event::NativeButton(i, b) => self.native_settings_event(i, b),
                 Event::Credits => self.open_win_screen(false, super::win::Finish::Options),
                 // AccessibilityOptionsScreen's link button: ConfirmLinkScreen

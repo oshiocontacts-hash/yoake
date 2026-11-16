@@ -14,14 +14,14 @@
 //! or the other thread holding the lock) is dropped with the hook's documented fallback (no answer
 //! applied), and counted: the first drop of a module is logged.
 
-use super::*;
 use super::server_services::{ServerSlot, register_endpoint};
+use super::*;
 use crate::gfx::native_render::*;
 use horizon_client_core::text::Text;
 use horizon_items::items::ItemStack;
 use horizon_world::nbt::{Compound, Tag};
 use yoake_wasm::full_bindings::client::yoake::mods::engine_types as et;
-use yoake_wasm::{ClientFullMod, ServerFullMod, ServerHost, convert, server_types as st};
+use yoake_wasm::{ClientFullMod, ServerFullMod, convert, server_types as st};
 
 /// Commands a guest may return for one object in one call.
 const MAX_COMMANDS: usize = 8192;
@@ -86,7 +86,7 @@ use std::sync::atomic::AtomicU64;
 fn mask_of(subscribed: impl Fn(&str) -> bool) -> [AtomicU64; MASK_WORDS] {
     let words: [AtomicU64; MASK_WORDS] = std::array::from_fn(|_| AtomicU64::new(0));
     for (ordinal, (name, _)) in yoake_wasm::FULL_HOOK_LIST.iter().enumerate() {
-        if subscribed(name) {
+        if subscribed(name) || (*name == "tick_start" && subscribed("config_changed")) {
             words[ordinal / 64].fetch_or(1 << (ordinal % 64), Ordering::Relaxed);
         }
     }
@@ -151,9 +151,10 @@ impl FullMod {
         }
     }
 
-    /// Starts the server module afresh when it already served a world (the server runs one world at
+    /// Starts the server module afresh for every world (the server runs one world at
     /// a time and a guest keeps its state in its instance): called as a world's server starts.
-    fn reset_server(&self) {
+    fn reset_server(&self, world: Option<&std::path::Path>) {
+        super::package::bind_world(&self.id, world);
         let Some(source) = &self.server_source else { return };
         let Ok(mut state) = self.server.state.try_lock() else { return };
         self.server.dirty.store(false, Ordering::Relaxed);
@@ -181,6 +182,13 @@ impl FullMod {
     }
 
     fn disable(&self, side: Side) {
+        super::package::abort_tickets(
+            &self.id,
+            match side {
+                Side::Server => horizon_mods::yak::ConfigRuntimeSide::Server,
+                Side::Client => horizon_mods::yak::ConfigRuntimeSide::Client,
+            },
+        );
         for word in &self.masks[side as usize] {
             word.store(0, Ordering::Relaxed);
         }
@@ -823,6 +831,7 @@ mod tests {
     use crate::mod_api::AttachmentResult;
     use horizon_world::attachments::{AttachmentError, Attachments, Holder};
     use std::cell::RefCell;
+    use yoake_wasm::ServerHost as _;
 
     struct AttachmentServiceHost {
         attachments: Attachments,
@@ -997,39 +1006,67 @@ mod tests {
             commands: false,
         };
         let mut host = AttachmentServiceHost::new();
-        assert!(server.world_storage_read("state".into()).is_err());
-        assert!(server.config_read("state".into()).is_err());
-        assert!(server.world_storage_write(vec![1], "state".into()).is_err());
-        assert!(server.config_write(vec![2], "state".into()).is_err());
-        with_services(HostAccess::Read(&host), || {
-            assert_eq!(server.world_storage_read("state".into()).unwrap(), None);
-            assert_eq!(server.config_read("state".into()).unwrap(), None);
+        let world = host.root.join("world");
+        std::fs::create_dir_all(&world).unwrap();
+        let handles = ["cap-storage", "cap-storage-other"]
+            .into_iter()
+            .map(|id| {
+                let service = yoake_wasm::package_services::PackageServices::open(
+                    id,
+                    &[yoake_wasm::package_services::STORAGE_CAPABILITY.into()],
+                    &Default::default(),
+                    &Default::default(),
+                    horizon_mods::yak::ConfigRuntimeSide::Server,
+                    &host.root,
+                    Some(&world),
+                )
+                .unwrap();
+                (id.into(), std::sync::Arc::new(std::sync::Mutex::new(service)))
+            })
+            .collect();
+        super::super::package::with_test_services(handles, || {
+            assert!(server.world_storage_read("state".into()).is_err());
+            assert!(server.config_read("state".into()).is_err());
             assert!(server.world_storage_write(vec![1], "state".into()).is_err());
             assert!(server.config_write(vec![2], "state".into()).is_err());
-        });
-        assert!(!host.root.exists());
-        with_services(HostAccess::Write(&mut host), || {
-            server.world_storage_write(vec![1], "state".into()).unwrap();
-            server.config_write(vec![2], "state".into()).unwrap();
-            assert!(
-                server
-                    .world_storage_write(vec![9], "../other".into())
-                    .is_err()
-            );
-        });
-        with_services(HostAccess::Read(&host), || {
-            assert_eq!(
-                server.world_storage_read("state".into()).unwrap(),
-                Some(vec![1])
-            );
-            assert_eq!(server.config_read("state".into()).unwrap(), Some(vec![2]));
-            assert_eq!(other.world_storage_read("state".into()).unwrap(), None);
-            assert_eq!(other.config_read("state".into()).unwrap(), None);
+            with_services(HostAccess::Read(&host), || {
+                assert_eq!(server.world_storage_read("state".into()).unwrap(), None);
+                assert_eq!(server.config_read("state".into()).unwrap(), None);
+                assert!(server.world_storage_write(vec![1], "state".into()).is_err());
+                assert!(server.config_write(vec![2], "state".into()).is_err());
+            });
+            with_services(HostAccess::Write(&mut host), || {
+                assert_eq!(server.world_storage_read("state".into()).unwrap(), None);
+                assert_eq!(server.config_read("state".into()).unwrap(), None);
+                server.world_storage_write(vec![1], "state".into()).unwrap();
+                server.config_write(vec![2], "state".into()).unwrap();
+                assert!(
+                    server
+                        .world_storage_write(vec![9], "../other".into())
+                        .is_err()
+                );
+            });
+            with_services(HostAccess::Read(&host), || {
+                assert_eq!(
+                    server.world_storage_read("state".into()).unwrap(),
+                    Some(vec![1])
+                );
+                assert_eq!(server.config_read("state".into()).unwrap(), Some(vec![2]));
+                assert_eq!(other.world_storage_read("state".into()).unwrap(), None);
+                assert_eq!(other.config_read("state".into()).unwrap(), None);
+                assert!(server.world_storage_write(vec![3], "state".into()).is_err());
+                assert!(server.config_write(vec![4], "state".into()).is_err());
+            });
             assert!(server.world_storage_write(vec![3], "state".into()).is_err());
             assert!(server.config_write(vec![4], "state".into()).is_err());
+            with_services(HostAccess::Read(&host), || {
+                assert_eq!(
+                    server.world_storage_read("state".into()).unwrap(),
+                    Some(vec![1])
+                );
+                assert_eq!(server.config_read("state".into()).unwrap(), Some(vec![2]));
+            });
         });
-        assert!(server.world_storage_write(vec![3], "state".into()).is_err());
-        assert!(server.config_write(vec![4], "state".into()).is_err());
         assert!(host.root.starts_with(std::env::temp_dir()));
         std::fs::remove_dir_all(&host.root).unwrap();
     }
@@ -1101,6 +1138,7 @@ mod tests {
 
     #[test]
     fn a_guest_cancels_a_layer_draws_commands_and_mutates_values() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(mod_) = client() else { return };
         let mut host = FakeHost::default();
         let mut batch = HudBatch::new([854, 480]);
@@ -1128,6 +1166,7 @@ mod tests {
 
     #[test]
     fn a_server_guest_runs_server_tick_and_perform_command_on_the_server_thread() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(bytes) = module("server") else { return };
         let server = load_server(&ModuleSource { id: "demo", bytes: &bytes, commands: false }).expect("server-full loads");
         let mod_ = Arc::new(FullMod::new("demo".into(), None, Some(server)));
@@ -1166,6 +1205,7 @@ mod tests {
 
     #[test]
     fn a_thread_named_server_thread_is_not_the_server_without_the_scope() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(bytes) = module("server") else { return };
         let server = load_server(&ModuleSource { id: "demo", bytes: &bytes, commands: false }).expect("server-full loads");
         let mod_ = Arc::new(FullMod::new("demo".into(), None, Some(server)));
@@ -1182,6 +1222,7 @@ mod tests {
 
     #[test]
     fn a_busy_module_drops_the_hook_with_its_fallback_and_counts_it() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(mod_) = client() else { return };
         let mut host = FakeHost::default();
         let mut batch = HudBatch::new([854, 480]);
@@ -1201,6 +1242,7 @@ mod tests {
 
     #[test]
     fn a_package_without_a_render_hook_stays_out_of_the_render_pass() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(server_bytes) = module("server") else { return };
         let server = load_server(&ModuleSource { id: "demo", bytes: &server_bytes, commands: false }).unwrap();
         let server_only = FullMod::new("demo".into(), None, Some(server));
@@ -1213,7 +1255,10 @@ mod tests {
 
     #[test]
     fn the_server_module_starts_afresh_for_each_world() {
-        let Some(bytes) = module("server") else { return };
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+        let Some(bytes) = module("server") else {
+            return;
+        };
         let source = ServerSource::new("demo", bytes, false);
         let server = load_server(&source.module()).unwrap();
         let mod_ = Arc::new(FullMod::new("demo".into(), None, Some(server)).with_server_source(source));
@@ -1226,10 +1271,22 @@ mod tests {
             let mut lines = Vec::new();
             for world in 0..2 {
                 // A world's server starts: the guest's counter starts at zero in each.
-                runner.reset_server();
+                runner.reset_server(None);
                 let mut host = FakeHost::default();
-                runner.perform_command(&mut host, &mut PerformCommandEvent { player: &player, command: "wasmping" });
-                runner.perform_command(&mut host, &mut PerformCommandEvent { player: &player, command: "wasmping" });
+                runner.perform_command(
+                    &mut host,
+                    &mut PerformCommandEvent {
+                        player: &player,
+                        command: "wasmping",
+                    },
+                );
+                runner.perform_command(
+                    &mut host,
+                    &mut PerformCommandEvent {
+                        player: &player,
+                        command: "wasmping",
+                    },
+                );
                 lines.push((world, host.told.borrow().clone()));
             }
             lines
@@ -1241,6 +1298,7 @@ mod tests {
 
     #[test]
     fn mod_call_reaches_the_peers_handle_call_and_never_re_enters_a_waiting_caller() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(peer_bytes) = module("peer") else { return };
         let Some(demo_bytes) = module("server") else { return };
         let peer = load_server(&ModuleSource { id: "w2-peer", bytes: &peer_bytes, commands: false }).expect("peer loads");

@@ -46,6 +46,7 @@ horizon-narrator = { path = "../horizon-narrator" }
 # Sandboxed WebAssembly client mods of .yak files; runs nothing unless one is installed (docs/yoake-wasm.md).
 yoake-wasm = { path = "../yoake-wasm" }
 horizon-mods = { path = "../horizon-mods", default-features = false, features = ["index", "yak"] }
+toml = "1.1.6"
 wgpu = { version = "30.0.1", default-features = false, features = ["std", "parking_lot", "vulkan", "metal", "wgsl", "naga-ir"] }
 winit = "0.30.13"
 pollster = "0.4"

@@ -481,4 +481,5 @@ pub const FULL_HOOKS: &[(&str, HookSide)] = &[
     ("server_chat", HookSide::Server),
     ("tooltip_color", HookSide::Client),
     ("world_pre_post", HookSide::Client),
+    ("config_changed", HookSide::Both),
 ];
