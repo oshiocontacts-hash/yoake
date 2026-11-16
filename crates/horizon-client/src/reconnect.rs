@@ -295,7 +295,7 @@ mod tests {
 
     #[test]
     fn keys_decide_whatever_language_resolved_the_text() {
-        // A zh_cn client resolves the server's and the session service's
+        // A ja_jp client resolves the server's and the session service's
         // texts: the keyword scan of the text would see none of the
         // English words, the keys do. A tiny fake language file stands in
         // for vanilla's; Horizon's bundled strings come with the map.
@@ -308,25 +308,25 @@ mod tests {
             }
         }
         let mem = Mem(HashMap::from([(
-            "assets/minecraft/lang/zh_cn.json".into(),
+            "assets/minecraft/lang/ja_jp.json".into(),
             r#"{
-                "multiplayer.disconnect.server_shutdown": "服务器已关闭",
-                "multiplayer.disconnect.server_full": "服务器已满！",
-                "multiplayer.disconnect.slow_login": "登录超时",
-                "multiplayer.disconnect.kicked": "被管理员踢出游戏",
-                "multiplayer.disconnect.banned": "你已被此服务器封禁",
-                "multiplayer.disconnect.not_whitelisted": "你不在此服务器的白名单中！",
-                "disconnect.loginFailedInfo.invalidSession": "无效会话（请尝试重启游戏及启动器）"
+                "multiplayer.disconnect.server_shutdown": "サーバーが閉じられました",
+                "multiplayer.disconnect.server_full": "サーバーが満員です！",
+                "multiplayer.disconnect.slow_login": "ログインがタイムアウトしました",
+                "multiplayer.disconnect.kicked": "管理者によってキックされました",
+                "multiplayer.disconnect.banned": "あなたはこのサーバーからBANされています",
+                "multiplayer.disconnect.not_whitelisted": "あなたはこのサーバーのホワイトリストに登録されていません！",
+                "disconnect.loginFailedInfo.invalidSession": "無効なセッションです（ゲームとランチャーを再起動してください）"
             }"#
             .as_bytes()
             .to_vec(),
         )]));
-        let lang = Language::load(&[&mem], "zh_cn");
+        let lang = Language::load(&[&mem], "ja_jp");
         let zh = |key: &str| lang.get(key).unwrap_or(key).to_owned();
-        assert_eq!(zh("multiplayer.disconnect.server_shutdown"), "服务器已关闭");
+        assert_eq!(zh("multiplayer.disconnect.server_shutdown"), "サーバーが閉じられました");
         assert_eq!(
             zh("horizon.multiplayer.not_signed_in"),
-            "该服务器为在线模式服务器。请先在 Horizon 启动器中登录 Microsoft 账户再加入。"
+            "このサーバーはオンラインモードです。参加するにはHorizonランチャーでMicrosoftアカウントにサインインしてください。"
         );
         // Shutdowns, a full server and a slow login are retried, kicks and
         // bans are not — whatever the resolved text says.
