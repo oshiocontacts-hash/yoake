@@ -490,7 +490,7 @@ inactivity limits. Its locks are held only to check limits and take budget, neve
 across network I/O. The forwarder reads first, without waiting, and charges
 bandwidth for a whole message only once it holds one (a session's burst must be at least
 one maximum message, 16 KiB, or its limits are invalid), so idle pairs hold no budget and messages are never
-split. A message of zero length is a protocol violation and closes the bridge. The
+split. Each pair has separate directional buckets, each with half the session rate and half the burst (at least 16 KiB); a direction borrows the other's share only while nothing waits the other way. Ready directions alternate and eligible pairs take round-robin turns, so a host streaming at the cap cannot hold back a guest's input; the shared session bucket still caps all traffic at the portal-issued rate and burst. A message of zero length is a protocol violation and closes the bridge. The
 forwarding loop naps up to 16 ms when both directions are idle, so an idle pair
 costs little and the first message after a long silence can be delayed by that
 much; a readiness-based wait (mio or poll/WSAPoll) would remove the delay but

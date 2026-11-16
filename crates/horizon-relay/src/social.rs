@@ -92,6 +92,7 @@ struct Slot {
     id: u64,
     paired: bool,
     last_activity: Instant,
+    bandwidth: forward::PairBandwidth,
     /// Host token failures since the last lock-out.
     failures: u8,
     /// Host attempts on this slot are refused until then.
@@ -120,6 +121,7 @@ struct Session {
     used: HashMap<[u8; 32], u64>,
     slots: HashMap<[u8; 32], Slot>,
     next_slot_id: u64,
+    last_forwarded_slot: u64,
     tokens: f64,
     last_refill: Instant,
 }
@@ -144,6 +146,7 @@ impl Session {
             used: HashMap::new(),
             slots: HashMap::new(),
             next_slot_id: 0,
+            last_forwarded_slot: 0,
             tokens: limits.burst_bytes as f64,
             last_refill: now,
         }
@@ -373,7 +376,14 @@ impl SocialRelay {
         let slot_id = session.next_slot_id.checked_add(1).ok_or(RelayError::Unavailable)?;
         session.next_slot_id = slot_id;
         session.used.insert(nonce, verified.expires_at());
-        session.slots.insert(nonce, Slot { id: slot_id, paired: false, last_activity: now, failures: 0, locked_until: None });
+        session.slots.insert(nonce, Slot {
+            id: slot_id,
+            paired: false,
+            last_activity: now,
+            bandwidth: forward::PairBandwidth::new(session.limits, now),
+            failures: 0,
+            locked_until: None,
+        });
         Ok(PendingGuest {
             relay: self.clone(),
             signed: signed.clone(),

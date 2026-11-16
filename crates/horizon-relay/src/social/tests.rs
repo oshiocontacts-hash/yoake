@@ -6,6 +6,8 @@ use std::cell::RefCell;
 use std::io::Cursor;
 use std::rc::Rc;
 
+mod bandwidth;
+
 struct TestStream {
     incoming: Cursor<Vec<u8>>,
     outgoing: Rc<RefCell<Vec<u8>>>,
