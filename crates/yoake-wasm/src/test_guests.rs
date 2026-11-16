@@ -31,6 +31,12 @@ pub const HELLO_STD: Guest = Guest {
     features: "",
     artifact: "yoake_wasm_hello_std.wasm",
 };
+pub const TEST_DEMO: Guest = Guest {
+    name: "test-demo",
+    example: "test-demo",
+    features: "",
+    artifact: "yoake_wasm_test_demo.wasm",
+};
 pub const FULL_DEMO_CLIENT: Guest = Guest {
     name: "full-demo-client",
     example: "full-demo",

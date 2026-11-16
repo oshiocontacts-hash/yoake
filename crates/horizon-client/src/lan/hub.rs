@@ -909,9 +909,18 @@ impl Hub {
     /// SayCommand from a source without a player: a disguised chat of type
     /// say_command named after the source.
     pub fn say(&self, source: &str, text: &str) {
+        self.announce("minecraft:say_command", source, text);
+    }
+
+    /// EmoteCommands from a source without a player (`/me` of the console): the same, of type emote_command.
+    pub fn emote(&self, source: &str, text: &str) {
+        self.announce("minecraft:emote_command", source, text);
+    }
+
+    fn announce(&self, chat_type_name: &str, source: &str, text: &str) {
         let chat_type = self
             .sync
-            .id("minecraft:chat_type", "minecraft:say_command")
+            .id("minecraft:chat_type", chat_type_name)
             .unwrap_or(self.chat_type);
         self.broadcast(&C::DisguisedChat(play::DisguisedChat {
             message: literal(text),
@@ -921,6 +930,27 @@ impl Hub {
                 target: None,
             },
         }));
+    }
+
+    /// MsgCommand from a source without a player: the incoming line (`commands.message.display.incoming`), named
+    /// after the source, to the guests on connections `conns` and no one else.
+    pub fn whisper_from_server(&self, conns: &[u32], source: &str, text: &str) {
+        let chat_type = self
+            .sync
+            .id("minecraft:chat_type", "minecraft:msg_command_incoming")
+            .unwrap_or(self.chat_type);
+        for guest in &self.guests {
+            if guest.placed && conns.contains(&guest.conn) && guest.info.chat_visibility == 0 {
+                guest.send(&C::DisguisedChat(play::DisguisedChat {
+                    message: literal(text),
+                    chat_type: play::ChatTypeBound {
+                        chat_type,
+                        name: literal(source),
+                        target: None,
+                    },
+                }));
+            }
+        }
     }
     pub fn set_max_players(&mut self, max_players: usize) {
         self.config.max_players = max_players;

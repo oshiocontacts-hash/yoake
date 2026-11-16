@@ -392,6 +392,7 @@ mod win;
 mod wind;
 mod wither;
 mod world_loading;
+mod yoake_tests;
 mod zombie_reinforcements;
 mod zombie_villagers;
 use event_loop::EventLoopCtl;
@@ -586,6 +587,8 @@ struct Options {
     session_file: Option<String>,
     /// `--session-stdin`: the session file's JSON comes on standard input instead.
     session_stdin: bool,
+    /// `--yoake-test-run` and its companions: this process is a worker of `yoake test` (`yoake_test.rs`).
+    yoake_test: yoake_test_runner::WorkerArgs,
 }
 impl Options {
     /// The name to join servers with: the one given, else the offline name kept
@@ -634,6 +637,14 @@ impl Options {
             }
             Ok(None) => {}
             Err(e) => eprintln!("Horizon: not signed in: {e}"),
+        }
+        // A test worker's paths are made absolute before the working directory changes below.
+        if o.yoake_test.is_active() {
+            if !crate::yoake_test::is_worker() {
+                return Err(launch_api::UsageError("--yoake-test-run is only for the workers of yoake test".into()).into());
+            }
+            o.yoake_test.module = o.yoake_test.module.map(std::path::absolute).transpose()?;
+            o.yoake_test.result = o.yoake_test.result.map(std::path::absolute).transpose()?;
         }
         if let Some(dir) = o.game_dir.take() {
             // Paths given on the command line stay relative to where the game was started.
@@ -713,6 +724,7 @@ impl Options {
             quick_play: None,
             session_file: std::env::var("HORIZON_SESSION_FILE").ok(),
             session_stdin: false,
+            yoake_test: yoake_test_runner::WorkerArgs::default(),
         };
         while let Some(arg) = args.next() {
             match arg.as_str() {
@@ -822,6 +834,9 @@ impl Options {
                             "--name" => o.player_name = Some(value),
                             "--session-file" => o.session_file = Some(value),
                             "--control-socket" => o.control = Some(value.into()),
+                            flag if yoake_test_runner::WorkerArgs::is_flag(flag) => {
+                                o.yoake_test.set(flag, value)?;
+                            }
                             "--time" => o.time = Some(value.parse()?),
                             "--weather" => o.weather = Some(value),
                             "--dimension" => {
@@ -843,6 +858,11 @@ impl Options {
                     read().map_err(|e| format!("{arg}: {e}"))?;
                 }
             }
+        }
+        // Test mode is a single-player worker: never a dedicated server (which also takes the rest of the line).
+        o.yoake_test.validate()?;
+        if o.yoake_test.is_active() && o.dedicated.is_some() {
+            return Err("--yoake-test-run cannot be used with --dedicated".into());
         }
         Ok(Some(o))
     }
@@ -20742,6 +20762,10 @@ fn load_resources(
 /// the next starts read them from one file (#1961).
 fn write_prepared_files(root: PathBuf) {
     use horizon_core::prepared_files;
+    // A test worker (`yoake test`) reads the prepared folder in place and never writes into it.
+    if crate::yoake_test::is_worker() {
+        return;
+    }
     if prepared_files::open(&root).is_some() || !root.join("horizon-resources.json").is_file() {
         return;
     }

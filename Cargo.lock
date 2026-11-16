@@ -1656,6 +1656,7 @@ dependencies = [
  "wgpu",
  "winit",
  "winresource",
+ "yoake-test-runner",
  "yoake-wasm",
  "zip",
 ]
@@ -6126,6 +6127,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "yoake-test-runner"
+version = "0.1.0"
+dependencies = [
+ "horizon-mods",
+ "serde_json",
+ "sha2",
+ "windows-sys 0.61.2",
+ "yoake-wasm",
 ]
 
 [[package]]

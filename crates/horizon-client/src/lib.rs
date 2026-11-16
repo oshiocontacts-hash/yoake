@@ -8,3 +8,4 @@ pub mod game;
 pub mod mod_api;
 pub mod mod_guard;
 mod yak_mods;
+mod yoake_test;

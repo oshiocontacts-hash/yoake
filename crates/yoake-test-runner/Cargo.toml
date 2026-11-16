@@ -1,0 +1,24 @@
+[package]
+name = "yoake-test-runner"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version = "1.95"
+description = "The engine side of `yoake test`: plans, workers, the server-thread bridge and the report (docs/yoake-wasm-dev.md)"
+publish = false
+
+[dependencies]
+horizon-mods = { path = "../horizon-mods", features = ["yak"] }
+yoake-wasm = { path = "../yoake-wasm" }
+serde_json = "1"
+sha2 = "0.10"
+
+# Windows: a job object that kills the workers with the coordinator (already in the lock for horizon-threads).
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Console"] }
+
+[dev-dependencies]
+yoake-wasm = { path = "../yoake-wasm", features = ["test-guests"] }
+
+[lints]
+workspace = true

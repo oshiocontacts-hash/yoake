@@ -39,6 +39,7 @@ members = [
     "crates/yoake-state-macro",
     "crates/yoake-wasm",
     "crates/yoake-cli",
+    "crates/yoake-test-runner",
     "examples/dll-hello",
     "examples/dll-net-echo",
     "crates/cargo-horizon-mod",

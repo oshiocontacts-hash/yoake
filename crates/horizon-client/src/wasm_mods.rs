@@ -17,6 +17,9 @@ pub(crate) mod package;
 pub(crate) mod package_ui;
 #[path = "wasm_mods/server_services.rs"]
 mod server_services;
+// Test mode only (`--yoake-test`): the operations of the engine test driver (`yoake_test.rs`).
+#[path = "wasm_mods/test_driver.rs"]
+pub(super) mod test_driver;
 
 pub(crate) use server_services::{attachment_registry, prepare_attachments, reset_attachments};
 

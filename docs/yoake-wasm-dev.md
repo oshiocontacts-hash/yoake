@@ -144,18 +144,240 @@ creating the directory if needed. For `client-full`, server-only packages, or an
 it reports a successful build and check with `installed: false` and a note instead.
 The engine discovers files at startup, so restart it if the file was not present then. The owner
 must explicitly enable unsigned developer mode, and installation does not confirm the engine
-accepted the reload. The offscreen test runner is not yet implemented, so `tests` remains empty even
-when the build, check and installation succeed.
+accepted the reload. `yoake dev --test` also runs the project's tests in the game and fills `tests` (see
+"Testing a mod in the engine"); plain `yoake dev` never starts the game and leaves `tests` empty.
 
 Projects beneath a link or Windows reparse point, including junctions and some synced folders, are
 rejected. The error identifies the affected path; move the project to a normal folder without links
 or reparse points before using the CLI.
 
-`#[yoake_test]`, `TestCase`, `TestWorld` and `TestDriver` provide a host-independent test interface.
-The generated example uses an explicit `YOAKE_TESTS` registry and a local mock driver. The marker
-and registry are not exported to Wasm, and no engine driver or multiplayer runner currently executes
-them. See the [recipes](yoake-recipes.md) and [API index](yoake-api-index.md); the latter can be
-checked with `python tools/generate_yoake_api_index.py --check`.
+`#[yoake_test]`, `TestCase`, `TestWorld` and `TestDriver` are the test interface a test is written against. Run
+natively with a mock driver (`cargo test`) they check the logic of a scenario; compiled as a *test module*
+(below) the same code runs against a real world in the game. The marker `#[yoake_test]` only documents a
+test function; the explicit `YOAKE_TESTS` registry is what is exported. See the [recipes](yoake-recipes.md)
+and [API index](yoake-api-index.md); the latter can be checked with
+`python tools/generate_yoake_api_index.py --check`.
+
+## Testing a mod in the engine
+
+`yoake test` runs the tests of a project in the game itself: every test in a fresh, temporary, superflat
+world, in an offscreen game process that never shows a window or takes the focus. This is the engine side of
+`yoake dev`'s `tests` array (it needs the game, so it is a separate step from `yoake check`, which only loads
+the component against stub hosts).
+
+### Declaring tests: a test module
+
+A test is a function over a `TestWorld`; the tests of a project are a list, exported by a **test module**: a
+second component built from the same crate, of the WIT world `test-mod`
+(`crates/yoake-wasm/wit/yoake-test.wit`: exports `tests` and `run-test`, imports `test-driver`). It is
+built with the Cargo feature `tests`, placed at `bin/wasm/<id>-tests.wasm`, and is **not** declared in
+`yak.toml` and **not** packed into the `.yak`. `yoake new` projects are set up this way:
+
+```toml
+[features]
+tests = ["yoake-wasm-sdk/test"]
+```
+
+```rust
+use yoake_wasm_sdk::testing::{BlockPos, TestCase, TestResult, TestWorld};
+
+fn places_a_block(world: &mut TestWorld<'_>) -> TestResult {
+    let at = BlockPos { x: 0, y: -60, z: 0 };
+    world.place_block(at, "minecraft:stone")?;
+    world.run_ticks(2)?;                       // lets the server run 2 ticks
+    world.assert_block(at, "minecraft:stone")
+}
+
+pub const YOAKE_TESTS: &[TestCase] = &[TestCase { name: "places_a_block", run: places_a_block }];
+
+#[cfg(all(target_arch = "wasm32", not(feature = "tests")))]
+yoake_wasm_sdk::export_mod!(Starter);                // the mod
+#[cfg(all(target_arch = "wasm32", feature = "tests"))]
+yoake_wasm_sdk::export_tests!(YOAKE_TESTS);          // the test module
+```
+
+A test passes by returning `Ok(())` and fails by returning `Err(message)` (the `?` operator passes the
+driver's errors on; `assert_*` build messages). Names are 1 to 128 characters, unique, at most 1024 a module.
+A test that traps (panic, `unreachable`, out of fuel) or runs past its time limit fails with the trap as its
+message; the rest of that test's world is thrown away with it. A complete example is
+`crates/yoake-wasm-sdk/examples/test-demo`.
+
+Why a separate component rather than hooks in the mod: the mod's worlds (`client-mod`, `client-full`,
+`server-full`) stay exactly as they are, so nothing a mod can import or export changes, and the test code
+cannot ship inside a mod by accident.
+
+### The driver
+
+`TestWorld` forwards to the `TestDriver` the engine provides (`HostDriver`, SDK feature `test`):
+
+| `TestWorld` | does | in the engine |
+| --- | --- | --- |
+| `run_ticks(n)` | the server runs `n` more ticks (1 to 72000), as fast as it can, then the call returns | the bridge counts server ticks; the server loop skips its 50 ms wait meanwhile, as `/tick sprint` does |
+| `place_block(pos, "minecraft:oak_stairs[facing=north]")` | sets the block (overworld) | `/setblock x y z <block>` |
+| `break_block(pos)` | breaks it, drops included | `/setblock x y z minecraft:air destroy` |
+| `block_at(pos)`, `assert_block(pos, text)` | the block's id as text (`minecraft:oak_stairs`: measured, no properties) | the `block` server service (what a `server-full` mod gets) |
+| `spawn_entity(kind, pos)` | spawns, returns the entity id | `/summon` then `entities-in` (the newest of that kind there) |
+| `spawn_mannequin(name, pos)` | a mannequin entity (not a player: it is not listed by `player_names`) for a stable UUID derived from `name`, returns its entity id | the `spawn-mannequin` service |
+| `entities_near(pos, radius)`, `assert_entity_count(kind, pos, radius, n)` | the kinds of the living entities near, at most 512 | the `entities-in` service |
+| `player_names()` | the players on the server, the world's owner first | the `server-players` service |
+| `run_command(line)`, `assert_command(line)` | runs a server command | the `run-command` service with the same denylist a mod has (`stop`, `op`, `ban`, `publish`, `transfer`, ... refuse) |
+| `mod_call(target, method, payload)` | calls another loaded server module's `handle-call` (the mod under test, or one added with `--yoake-test-with`) | the `mod-call` service, with the caller id `yoake-test` |
+| `tick()`, `log(text)`, `client_count()`, `client(1)` | ticks run since the test began; a line on stderr of the runner; 1 or 2; the second game (below) | |
+
+Every operation runs on the integrated server thread between two ticks, with the game's own server
+services, so a test sees the world the way a `server-full` mod does. The driver is test-mode only: its WIT
+interface `yoake:mods/test-driver` is linked for test modules only, and the loader of every mod refuses a
+component that imports it. Test mode itself starts only from the command line of the game process
+(`--yoake-test*`, below); no mod, server, save or network message can turn it on, and without those flags
+the server loop does one empty check per tick and nothing else changes (no new file, no new behaviour).
+
+### Running
+
+```sh
+export YOAKE_GAME=/path/to/horizon-client      # the game executable (Yoake build)
+yoake test                                      # in the project folder: build, check, run the tests
+yoake test --filter places --timeout-ms 60000 -- --resources /path/to/prepared/resources
+```
+
+`yoake test` builds the mod and the test module (`cargo build --features tests`), checks the mod as
+`yoake check` does, runs the game and prints one JSON line:
+
+```json
+{"ok": false, "built": true, "checked": true, "id": "my-mod", "version": "0.1.0",
+ "tests": [{"name": "places_a_block", "ok": true, "ms": 412},
+           {"name": "breaks_it", "ok": false, "ms": 380, "error": "block at BlockPos { .. }: expected ..."}],
+ "errors": ["test breaks_it failed: block at BlockPos { .. }: expected ..."], "notes": []}
+```
+
+Exit code 0 when every test passed, 1 otherwise. `yoake dev --test` fills the same `tests` array (and fails
+with the failures as `errors`); it adds a note and leaves `tests` empty when the project has no test module
+or `YOAKE_GAME` is unset. Without `--test`, `yoake dev` does not start the game. Extra arguments after `--` go to the game unchanged, which is how the game
+finds its prepared vanilla data (`--resources`); `--headless` runs without even a GPU.
+
+The game's own interface is `horizon-client --yoake-test <project folder | .yak> [options]` (`--yoake-test` must
+be the first argument; the game's own `--world`, `--seed`, `--game-dir`, `--home`, `--server`, `--dedicated`,
+`--fullscreen`, `--frames`, `--world-frames`, `--timeout-seconds`, `--test-terrain` and the like are refused, because
+each test gets its own world and folders):
+
+| option | meaning |
+| --- | --- |
+| `--yoake-test-json FILE` | also write the report to `FILE` (it is always printed on stdout) |
+| `--yoake-test-module FILE` | the test module; default `bin/wasm/<id>-tests.wasm` of a project folder (a `.yak` carries no tests, so it needs this) |
+| `--yoake-test-with PATH` | install one more package (folder or `.yak`) next to the mod under test; repeatable |
+| `--yoake-test-filter TEXT` | only the tests whose name contains `TEXT` |
+| `--yoake-test-timeout-ms N` | per test, default 30000 |
+| `--yoake-test-startup-seconds N` | per worker, from process start to the test starting, default 240 |
+| `--yoake-test-keep` | keep the temporary folders (game folder, world, log) and report their path |
+| `--yoake-test-clients=1\|2` | clients that take part; 2 starts a second game that joins the world (see below) |
+
+Its exit code is 0 (all passed), 1 (a test failed) or 2 (nothing ran: bad command line, unreadable project,
+missing module). Any other argument is handed to every worker.
+
+### How a run works
+
+The process started with `--yoake-test` is the *coordinator*. It never starts the game itself: it loads the
+test module once (to list the tests, calling no driver function), then for each test, in order:
+
+1. makes a temporary folder with a game folder, a `home` for logs, and `saves/yoake-test` holding the
+   generator settings of a **superflat world with seed 0, structures off**;
+2. installs the project (or `.yak`) and the `--yoake-test-with` packages into that game folder exactly as the
+   game reads installed packages (`yoake-mods.txt`, `yoake-mods/<id>/<version>/`); the test module is not
+   installed there;
+3. starts the same executable as a *worker*: `--offscreen --no-focus --no-pause --world yoake-test --seed 0
+   --creative --time 6000 --weather clear --render-distance 4 --yoake-test-run <test> ...` with
+   its own `--game-dir` and `--home`, and a stripped environment: only the variables the system and the graphics
+   driver need are inherited (`PATH`, `SystemRoot`, `TEMP`, `VK_*`, `WGPU_*`, ...), plus `HORIZON_NO_AUDIO=1`, `HORIZON_HOME`
+   and a random token. No `HORIZON_*` or `YOAKE_*` switch of yours (session file, command script, `YOAKE_DLL_MODS`,
+   `YOAKE_DLL_MODS_UNSIGNED`, `YOAKE_WASM_DEV_DIR`, ...) reaches it. All paths are absolute (the game changes its
+   working directory);
+4. the worker checks it is a worker: the token in its environment equals the token file next to its result, it is
+   `--offscreen`, its world is `yoake-test` and its game folder is the `game` folder next to the result;
+   otherwise it refuses to start. A verified worker loads no DLL mod and accepts the unsigned package under test
+   (WebAssembly and data only: a separate switch that never reaches the DLL loader). It arms a watchdog
+   (`startup + timeout`) at once. It opens the world as a single-player game, and when its integrated server is up,
+   starts the test thread: it waits for the world's owner to join, lets the world run 2 s (chunks load), then
+   **freezes** it: from then on the server only services its connections and the test's calls, and the world ticks
+   exactly as often as `run_ticks` says (deterministic; a call costs what it costs, not a 50 ms tick). The test runs,
+   `result.json` is written and the worker exits;
+5. the coordinator waits for the worker. It kills it when it passes `startup + timeout + 10 s`, 5 s after the result
+   appears if it has not exited, or at once on Ctrl+C. Workers also die with the coordinator (a Windows job object with
+   kill-on-close; elsewhere the worker watches its parent). The result is read at most 1 MiB, error texts are cut at
+   16 KiB, and only the last 8 KiB of a worker's output are kept. The temporary folder (an unpredictable new name
+   under the system temp folder) is deleted and the next test starts.
+
+A test name never starts with `-` (it travels on a command line). A worker that dies before it writes a result fails its test with the exit code and the tail of its output.
+One game start per test is the price of a guaranteed fresh world and of isolation: a test cannot spoil the
+next one, a hung test is just killed. It costs a game start and a world's worth of chunks per test, so keep
+tests few and each one focused.
+
+World facts a test may rely on: the owner is in creative mode at the world spawn; the time is 6000 and the
+weather clear at the start; the render distance is 4 chunks. Tests should build what they use near the spawn
+(0, 0): the superflat layers are bedrock, two dirt and grass, so the ground is the layer above the world's
+bottom (the exact height is not pinned here; read it with `block_at` if a test depends on it).
+
+### Measured (Windows, debug build, RTX 2060, prepared data without `horizon-data.bin`)
+
+* A worker takes 90 to 100 s from start to the first driver call (loading the prepared data, the world and the
+  owner). Do one test per call of `yoake test --filter` while developing, and expect a full run to cost that per
+  test; a release build and a prepared folder that has its `horizon-data.bin` (a normal game start writes it) are
+  faster. A test itself takes milliseconds: a place, an advance of 3 ticks and a read took 150 ms the first time,
+  1000 `block_at` calls 96 ms, an advance of 20 ticks plus two spawns 1.5 s.
+* A worker never writes into the prepared folder (the game's own `horizon-data.bin` cache is skipped), reads it in
+  place, and leaves nothing outside its temporary folder.
+* The server's entity queries (`entities_near`, `spawn_entity`'s lookup) have the game's budget per server tick
+  and mod; the world is frozen, so every query of a test between two `run_ticks` shares one tick's budget (512
+  to 1024 calls). Advance a tick to start a new budget.
+
+### Two clients (`--yoake-test-clients=2`, `yoake test --clients 2`)
+
+A multiplayer test runs one server and two clients: client 0 is the world's owner (the worker, which runs the test),
+client 1 is a second game that joins over the loopback. In the test module, `world.client_count()` is 2 and
+`world.client(1)` is the second game:
+
+```rust
+fn a_change_reaches_the_second_client(world: &mut TestWorld<'_>) -> TestResult {
+    let at = BlockPos { x: 3, y: -60, z: 3 };
+    world.place_block(at, "minecraft:stone")?;
+    world.run_ticks(2)?;                                       // the server sends the change
+    world.client(1).wait_block(at, "minecraft:stone", 20_000)?; // real time, up to 20 s
+    world.client(1).chat("hello")?;                             // client -> server -> everyone
+    world.run_ticks(2)?;
+    world.client(1).wait_chat("hello", 20_000)
+}
+```
+
+| `world.client(1)` | does |
+| --- | --- |
+| `call(line)` | sends one command line of the game's control protocol (the one `horizon-ctl` speaks) and returns the JSON reply. Open to tests: `getblock`, `chat`, `chat-log`, `wait-for`, `status`, `events`, `key`, `release`, `look`, `turn`, `hotbar`, `mouse`, `tp`, `hello`; the commands that end the game, change its connection or write files are refused |
+| `block_at(pos)`, `wait_block(pos, id, timeout_ms)` | the block the client has at `pos` (its own copy of the world, as the server sent it); wait until it is `id` |
+| `chat(text)`, `wait_chat(text, timeout_ms)` | the client says `text` (plain text); wait until `text` is among its last 30 chat lines |
+| `player_names()` | the players on the world the client joined, as the server lists them (the owner and `TestB`) |
+| `world.client_count()` | 1, or 2 with `--yoake-test-clients=2` |
+
+The waits repeat the command every 50 ms in real time (the second game is not frozen: the server world is, between
+`run_ticks`). The server sends block changes when it ticks, so `run_ticks` before waiting. Measured on the real
+game (debug build): a placed and a broken block both reached client 1, a chat line went client to server to client,
+and the server's `say` and `tellraw @a "..."` both reached client 1. (The console's `say` used to reach no one in a published world, because the command only wrote to the server's own chat; it now goes to every player, as the dedicated console's does; `me` likewise, and `msg`/`tell`/`w` from the server reach the players they name.)
+
+How it works: with `--yoake-test-clients=2` the worker also gets `--yoake-test-clients 2` and the path
+`client1/control.json` beside its result. When its owner has joined, the worker opens its world to `127.0.0.1`
+only (`Game::publish`, loopback, no announcement, a port the system picks), writes the port to a `port` file beside
+its result and waits until the server lists two players and the second game's status shows its player (up to 240 s).
+The coordinator sees the `port` file and starts the second game: `--offscreen --no-focus --no-pause --server
+127.0.0.1:<port> --name TestB --control-socket client1/control.json` with its own `--game-dir`, `--home` and the
+same packages installed, the same stripped environment and token. The second game proves itself as the worker does
+(token file in its folder, `--offscreen`, a loopback server address only, its control endpoint in its folder; no
+world, no `--dedicated`), loads no DLL mod and accepts the unsigned package under test, and ends with a lifetime
+limit and when the coordinator is gone. It is in the same Windows job object, so it dies with the coordinator.
+Its output tail goes into a failure, as the worker's does.
+
+### Limits and what is not covered
+
+* Tests run on the server side of a single-player world; client-only hooks (HUD, keys) cannot be driven by
+  the driver (there is no input or screenshot call yet).
+* The driver talks to the overworld only.
+* A project with a native (DLL) package is not run (the test runner only starts data and Wasm packages).
+* The result of a test is only what the driver can read; there is no assertion on a rendered frame.
 
 ## Full-catalog mods (`client-full`, `server-full`)
 
