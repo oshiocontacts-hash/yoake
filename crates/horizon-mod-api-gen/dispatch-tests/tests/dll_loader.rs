@@ -25,6 +25,13 @@ pub struct NativeMod {
 #[path = "support/yak_stub.rs"]
 mod yak_mods;
 
+/// The loader asks whether this is a verified test worker; never, here.
+mod yoake_test {
+    pub(crate) fn is_worker() -> bool {
+        false
+    }
+}
+
 #[path = "../../../horizon-client/src/dll_mods.rs"]
 mod dll_mods;
 
