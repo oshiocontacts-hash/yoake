@@ -54,7 +54,7 @@ WebAssembly MOD はゲーム本体の中の安全なサンドボックス（隔�
 - WIT ワールドが `client-mod` の MOD を `YOAKE_WASM_DEV_DIR` と `yoake dev` でホットリロードする方法と、Wasm の開発者モードの安全上の注意
 
 ### 4. [サンプル MOD 集を読む（`04-examples.md`）](./04-examples.md)
-- リポジトリ内の 16 個のサンプル（`hello`、`hello-std`、`hud-item`、`server-storage`、`config-demo`、`permission-demo`、`full-demo`、`full-services`、`mod-call-pair`、`chest-count`、`item-trade`、`player-vitals`、`content-demo`、`mixin-demo`、`test-demo`、`tested-counter`）の解説
+- リポジトリ内の 18 個のサンプル（`hello`、`hello-std`、`hud-item`、`server-storage`、`config-demo`、`permission-demo`、`full-demo`、`full-services`、`mod-call-pair`、`chest-count`、`item-trade`、`player-vitals`、`content-demo`、`mixin-demo`、`test-demo`、`tested-counter`、`client-services-demo`、`gpu-demo`）の解説
 - 各サンプルが使うフック（`hook`）とホストサービス（`services`）の一覧
 - `yak.toml` での `[config]`、`[wasm] permissions`、`[permissions."<node>"]` の書き方
 

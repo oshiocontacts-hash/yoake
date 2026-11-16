@@ -105,7 +105,7 @@ server = "bin/wasm/server-storage.wasm"
 permissions = ["service.storage"]
 ```
 
-### ⑫ `unknown wasm permission "..." (known: service.chat, service.commands, service.config, service.http, service.permissions, service.storage)`
+### ⑫ `unknown wasm permission "..." (known: service.chat, service.commands, service.config, service.gpu, service.http, service.permissions, service.storage)`
 
 - **Cause**: The `permissions` list under `[wasm]` contains an unrecognized service permission name.
 - **How to fix**: Only `"service.chat"`, `"service.commands"`, `"service.config"`, `"service.http"`, `"service.permissions"`, and `"service.storage"` are valid (6 in all). Check the spelling.
