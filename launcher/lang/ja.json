@@ -34,7 +34,6 @@
   "System": "システム",
   "Dark by default. System follows your computer's light or dark.": "既定はダーク。システム設定に合わせてライト/ダークを自動で切り替えます。",
   "Language": "言語",
-  "System follows your computer's language: {language} here. A string not translated yet shows in English.": "システム設定（{language}）に従います。未翻訳のテキストは英語で表示されます。",
   "While playing": "プレイ中",
   "Stay": "維持",
   "Minimise": "最小化",

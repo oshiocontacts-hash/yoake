@@ -3501,7 +3501,8 @@ pub struct Settings {
     /// (`themes::keep_background`). Unset shows Horizon's landscape.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub background: Option<String>,
-    /// The window's language. Unset follows the system's (`i18n::Language::system`).
+    /// The window's language. Unset is English on an English system, else Japanese
+    /// (`i18n::Language::system`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub language: Option<crate::i18n::Language>,
     /// The player has read the notice before the first native mod (`native_status::NOTICE`).
@@ -3565,7 +3566,7 @@ impl Settings {
     pub fn desktop_entry(&self) -> bool {
         self.desktop_entry.unwrap_or(true)
     }
-    /// The window's language: the one picked, else the system's.
+    /// The window's language: the one picked, else the default for the system.
     pub fn language(&self) -> crate::i18n::Language {
         self.language.unwrap_or_else(crate::i18n::Language::system)
     }
@@ -4307,10 +4308,16 @@ pub fn {f}("
     fn the_language_follows_the_system_unless_picked() {
         use crate::i18n::Language;
         assert_eq!(Settings::parse("{}").language, None);
-        let fr = Settings::parse(r#"{"language": "fr"}"#);
-        assert_eq!(fr.language(), Language::French);
-        let future = Settings::parse(r#"{"language": "eo", "game_args": "--x"}"#);
-        assert_eq!((future.language, future.game_args.as_str()), (None, "--x"));
+        let en = Settings::parse(r#"{"language": "en"}"#);
+        assert_eq!(en.language(), Language::English);
+        let ja = Settings::parse(r#"{"language": "ja"}"#);
+        assert_eq!(ja.language(), Language::Japanese);
+        // A language the launcher no longer offers shows in Japanese; the file is not rewritten.
+        let other = Settings::parse(r#"{"language": "de", "game_args": "--x"}"#);
+        assert_eq!(
+            (other.language(), other.game_args.as_str()),
+            (Language::Japanese, "--x")
+        );
         let saved = serde_json::to_value(Settings::default()).unwrap();
         assert!(saved.get("language").is_none(), "unset is left out");
     }

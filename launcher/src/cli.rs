@@ -1058,7 +1058,7 @@ fn set_setting(s: &mut backend::Settings, key: &str, value: &str) -> Result<(), 
             s.language = match value.trim() {
                 "system" | "default" => None,
                 code => Some(Language::parse(code).ok_or_else(|| {
-                    format!("{value}: say system, en, fr, ru, de, zh, es, uk, pl or pt-br")
+                    format!("{value}: say system, ja or en")
                 })?),
             }
         }
@@ -3872,16 +3872,16 @@ mod tests {
     }
 
     #[test]
-    fn settings_accepts_german_and_chinese() {
+    fn settings_accepts_japanese_and_english_only() {
         use crate::i18n::Language;
         let mut settings = backend::Settings::default();
-        for (code, language) in [("de", Language::German), ("zh", Language::Chinese)] {
+        for (code, language) in [("ja", Language::Japanese), ("en", Language::English)] {
             set_setting(&mut settings, "language", code).unwrap();
             assert_eq!(settings.language, Some(language));
         }
         assert_eq!(
-            set_setting(&mut settings, "language", "xx").unwrap_err(),
-            "xx: say system, en, fr, ru, de, zh, es, uk, pl or pt-br"
+            set_setting(&mut settings, "language", "de").unwrap_err(),
+            "de: say system, ja or en"
         );
         set_setting(&mut settings, "language", "system").unwrap();
         assert_eq!(settings.language, None);
