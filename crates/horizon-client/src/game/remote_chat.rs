@@ -73,6 +73,7 @@ pub(super) enum Behind {
 /// The `ConfirmScreen` of ClientPacketListener.openSendConfirmationWindow.
 pub(super) struct CommandPrompt {
     command: String,
+    guest_scoped: bool,
     message: &'static str,
     accept: CommandAccept,
     /// A screen is open behind it: the second button says Back, not Cancel.
@@ -253,6 +254,10 @@ impl Game<'_> {
     /// signature list is empty, as in vanilla); any other command goes as the
     /// unsigned packet.
     pub(super) fn send_command(&mut self, command: &str) {
+        if yoake_inject_rt::guest_command_gate(command).is_err() {
+            self.command_failure(Text::tr("command.failed", &[]));
+            return;
+        }
         let Some(r) = self.remote.as_mut() else {
             return;
         };
@@ -302,6 +307,10 @@ impl Game<'_> {
     /// the player can only send it themselves, from the chat box. So neither
     /// a server nor a mod can have the player sign a message they never saw.
     pub(super) fn send_unattended_command(&mut self, command: &str) {
+        if yoake_inject_rt::guest_command_gate(command).is_err() {
+            self.command_failure(Text::tr("command.failed", &[]));
+            return;
+        }
         let command = command.trim();
         let command = command.strip_prefix('/').unwrap_or(command);
         if command.is_empty() || !self.chat_abilities().allows(&format!("/{command}")) {
@@ -344,6 +353,7 @@ impl Game<'_> {
         };
         self.command_prompt = Some(CommandPrompt {
             command: command.to_owned(),
+            guest_scoped: crate::mod_api::in_guest_command(),
             message,
             accept,
             over_screen,
@@ -423,9 +433,12 @@ impl Game<'_> {
         let Some(prompt) = self.command_prompt.take() else {
             return;
         };
+        let _scope = prompt.guest_scoped.then(crate::mod_api::guest_command_scope);
         match (yes, prompt.accept, prompt.behind) {
             (true, CommandAccept::Run, _) => {
-                if self.remote.is_some() {
+                if yoake_inject_rt::guest_command_gate(&prompt.command).is_err() {
+                    self.command_failure(Text::tr("command.failed", &[]));
+                } else if self.remote.is_some() {
                     self.send(S::ChatCommand(play::ChatCommand {
                         command: prompt.command,
                     }));

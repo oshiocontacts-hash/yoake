@@ -26,6 +26,11 @@ fn permitted_chat_message(message: &str) -> Option<String> {
         return None;
     }
     let message = normalize_chat_message(message);
+    let message = if crate::mod_api::in_guest_command() {
+        message.trim().to_owned()
+    } else {
+        message
+    };
     if let Some(command) = message.strip_prefix('/')
         && yoake_inject_rt::guest_command_gate(command).is_err()
     {
@@ -979,6 +984,7 @@ impl Game<'_> {
     #[yoake_inject_macro::yoake_inject(id = "game::chat::handle_chat_input", side = "both")]
     pub(super) fn handle_chat_input(&mut self, message: &str) {
         let Some(message) = permitted_chat_message(message) else {
+            self.command_failure(Text::tr("command.failed", &[]));
             return;
         };
         if message.is_empty() || !self.chat_abilities().allows(&message) {
@@ -1619,6 +1625,40 @@ mod tests {
             permitted_chat_message("  hello   world  ").as_deref(),
             Some("hello world")
         );
+    }
+
+    #[test]
+    fn guest_chat_gates_the_trimmed_remote_message() {
+        let _scope = crate::mod_api::guest_command_scope();
+        for whitespace in [
+            '\u{a0}', '\u{1680}', '\u{2000}', '\u{2001}', '\u{2002}', '\u{2003}',
+            '\u{2004}', '\u{2005}', '\u{2006}', '\u{2007}', '\u{2008}', '\u{2009}',
+            '\u{200a}', '\u{2028}', '\u{2029}', '\u{202f}', '\u{205f}', '\u{3000}',
+        ] {
+            for message in [
+                format!("{whitespace}/op Evil"),
+                format!("/op Evil{whitespace}"),
+                format!("{whitespace}/op Evil{whitespace}"),
+            ] {
+                assert_eq!(permitted_chat_message(&message), None, "{message:?}");
+            }
+            for message in [
+                format!("{whitespace}/say safe"),
+                format!("/say safe{whitespace}"),
+                format!("{whitespace}/say safe{whitespace}"),
+            ] {
+                assert_eq!(permitted_chat_message(&message).as_deref(), Some("/say safe"));
+            }
+        }
+        for whitespace in ['\t', '\n', '\r', '\u{b}', '\u{c}', '\u{85}'] {
+            for message in [
+                format!("{whitespace}/op Evil"),
+                format!("/op Evil{whitespace}"),
+                format!("{whitespace}/say safe{whitespace}"),
+            ] {
+                assert_eq!(permitted_chat_message(&message), None, "{message:?}");
+            }
+        }
     }
 
     #[test]

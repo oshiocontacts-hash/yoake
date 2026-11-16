@@ -159,6 +159,12 @@ pub const DENIED_COMMANDS: &[&str] = &[
     "test",
     "compute",
     "pregen",
+    "schedule",
+    "clone",
+    "data",
+    "item",
+    "reload",
+    "datapack",
 ];
 
 pub fn command_gate(line: &str, declared: bool) -> Result<(), String> {
@@ -171,21 +177,10 @@ pub fn command_gate(line: &str, declared: bool) -> Result<(), String> {
     if line.chars().any(char::is_control) {
         return Err("denied: a command is one line of plain text".into());
     }
-    let tokens: Vec<_> = line.split_whitespace().collect();
-    if tokens.is_empty() {
-        return Err("denied: empty command".into());
-    }
+    let mut remaining = line;
     let mut depth = 0;
-    for (index, token) in tokens.iter().enumerate() {
-        if index != 0 {
-            if !tokens[index - 1].eq_ignore_ascii_case("run") {
-                continue;
-            }
-            depth += 1;
-            if depth > 16 {
-                return Err("denied: commands nested too deep".into());
-            }
-        }
+    loop {
+        let token = required_argument(&mut remaining)?;
         let name = token.trim_start_matches('/').to_ascii_lowercase();
         let name = name.strip_prefix("minecraft:").unwrap_or(&name);
         if DENIED_COMMANDS.contains(&name) {
@@ -193,8 +188,151 @@ pub fn command_gate(line: &str, declared: bool) -> Result<(), String> {
                 "denied: /{name} is not available to WebAssembly mods"
             ));
         }
+        let nested = match name {
+            "execute" => execute_tail(&mut remaining)?,
+            "return" => command_argument(&mut remaining)? == Some("run"),
+            "setblock" | "fill" if !remaining.trim().is_empty() => {
+                placed_block_gate(&mut remaining, if name == "fill" { 6 } else { 3 })?;
+                false
+            }
+            "give" if !remaining.trim().is_empty() => {
+                required_argument(&mut remaining)?;
+                let item = required_argument(&mut remaining)?;
+                if item.contains(['[', '{']) {
+                    return Err("denied: item components can carry deferred commands".into());
+                }
+                false
+            }
+            "summon" if !remaining.trim().is_empty() => {
+                let entity = required_argument(&mut remaining)?;
+                if entity.trim_start_matches("minecraft:") == "command_block_minecart"
+                    || remaining.contains('{')
+                {
+                    return Err("denied: entity NBT can carry deferred commands".into());
+                }
+                false
+            }
+            _ => false,
+        };
+        if !nested {
+            return Ok(());
+        }
+        depth += 1;
+        if depth > 16 {
+            return Err("denied: commands nested too deep".into());
+        }
+    }
+}
+
+fn command_argument<'a>(remaining: &mut &'a str) -> Result<Option<&'a str>, String> {
+    let input = remaining.trim_start();
+    let mut brackets = Vec::new();
+    let mut quote = None;
+    let mut escaped = false;
+    for (index, character) in input.char_indices() {
+        if escaped {
+            escaped = false;
+        } else if quote.is_some() && character == '\\' {
+            escaped = true;
+        } else if quote == Some(character) {
+            quote = None;
+        } else if quote.is_none() {
+            match character {
+                '\'' | '"' => quote = Some(character),
+                '[' => brackets.push(']'),
+                '{' => brackets.push('}'),
+                '(' => brackets.push(')'),
+                ']' | '}' | ')' if brackets.pop() != Some(character) => {
+                    return Err("denied: malformed command argument".into());
+                }
+                _ if character.is_whitespace() && brackets.is_empty() => {
+                    *remaining = &input[index..];
+                    return Ok(Some(&input[..index]));
+                }
+                _ => {}
+            }
+        }
+    }
+    if quote.is_some() || !brackets.is_empty() {
+        return Err("denied: malformed command argument".into());
+    }
+    *remaining = "";
+    Ok((!input.is_empty()).then_some(input))
+}
+
+fn required_argument<'a>(remaining: &mut &'a str) -> Result<&'a str, String> {
+    command_argument(remaining)?.ok_or_else(|| "denied: missing command argument".into())
+}
+
+fn skip_arguments(remaining: &mut &str, count: usize) -> Result<(), String> {
+    for _ in 0..count {
+        required_argument(remaining)?;
     }
     Ok(())
+}
+
+fn placed_block_gate(remaining: &mut &str, coordinates: usize) -> Result<(), String> {
+    skip_arguments(remaining, coordinates)?;
+    let block = required_argument(remaining)?.to_ascii_lowercase();
+    let name = block.split(['[', '{']).next().unwrap_or_default();
+    let name = name.strip_prefix("minecraft:").unwrap_or(name);
+    if name.ends_with("command_block")
+        || name == "sign"
+        || name.ends_with("_sign")
+        || block.contains('{')
+    {
+        return Err("denied: command blocks, signs and block entity NBT require player commands".into());
+    }
+    Ok(())
+}
+
+fn execute_tail(remaining: &mut &str) -> Result<bool, String> {
+    while let Some(modifier) = command_argument(remaining)? {
+        match modifier {
+            "run" => return Ok(true),
+            "as" | "at" | "align" | "anchored" | "in" | "summon" | "on" => skip_arguments(remaining, 1)?,
+            "positioned" => {
+                let kind = required_argument(remaining)?;
+                skip_arguments(remaining, if matches!(kind, "as" | "over") { 1 } else { 2 })?;
+            }
+            "facing" => skip_arguments(remaining, 3)?,
+            "rotated" => skip_arguments(remaining, 2)?,
+            "store" => {
+                required_argument(remaining)?;
+                match required_argument(remaining)? {
+                    "score" | "bossbar" => skip_arguments(remaining, 2)?,
+                    _ => return Err("denied: execute store can write deferred command data".into()),
+                }
+            }
+            "if" | "unless" => {
+                let condition = required_argument(remaining)?;
+                match condition {
+                    "entity" | "predicate" | "function" | "dimension" => skip_arguments(remaining, 1)?,
+                    "stopwatch" => skip_arguments(remaining, 2)?,
+                    "loaded" => skip_arguments(remaining, 3)?,
+                    "block" | "biome" => skip_arguments(remaining, 4)?,
+                    "blocks" => skip_arguments(remaining, 10)?,
+                    "data" | "items" | "slots" => {
+                        let provider = required_argument(remaining)?;
+                        let count = match provider {
+                            "block" => 4,
+                            "entity" | "storage" if condition == "data" || provider == "entity" => 2,
+                            _ => return Err("denied: unsupported execute provider".into()),
+                        };
+                        skip_arguments(remaining, count + usize::from(condition == "items"))?;
+                    }
+                    "score" => {
+                        skip_arguments(remaining, 2)?;
+                        let comparison = required_argument(remaining)?;
+                        skip_arguments(remaining, if comparison == "matches" { 1 } else { 2 })?;
+                    }
+                    _ => return Err("denied: unsupported execute condition".into()),
+                }
+            }
+            _ => return Err("denied: unsupported execute modifier".into()),
+        }
+    }
+    Ok(false)
 }
 
 #[cfg(test)]
@@ -265,6 +403,69 @@ mod tests {
         assert!(command_gate(&format!("{prefix}stop"), true).is_err());
         assert!(command_gate(&format!("{prefix}execute run say safe"), true).is_err());
         assert!(command_gate(&format!("{permitted}a"), true).is_err());
+    }
+
+    #[test]
+    fn command_gate_only_follows_command_bearing_run_arguments() {
+        for line in [
+            "say please run stop",
+            "say I'm allowed to run stop",
+            "execute run say please run stop",
+            "execute as run run say stop",
+            "execute as @e[name=\"please run stop\"] run say safe",
+            "execute if score run stop matches 1 run say safe",
+            "execute if data storage ns:run \"run stop\" run say safe",
+            "execute store result score run stop run say safe",
+            "return run say please run stop",
+            "return 1",
+            "setblock ~ ~ ~ stone",
+            "fill ~ ~ ~ ~1 ~1 ~1 stone replace dirt",
+            "give @s stone 1",
+            "summon pig ~ ~ ~",
+        ] {
+            assert!(command_gate(line, true).is_ok(), "{line}");
+        }
+        for line in [
+            "execute as run run stop",
+            "execute run return run op Evil",
+            "return run execute at @s run stop",
+            "execute as @e[name=\"run stop\"] run stop",
+            "execute if score run stop matches 1 run op Evil",
+            "execute if data storage ns:run \"run stop\" run stop",
+            "execute as @e[name=\"unterminated] run say safe",
+        ] {
+            assert!(command_gate(line, true).is_err(), "{line}");
+        }
+    }
+
+    #[test]
+    fn command_gate_refuses_deferred_command_authoring() {
+        for line in [
+            "schedule function ns:f 1t",
+            "setblock ~ ~ ~ minecraft:command_block",
+            "fill ~ ~ ~ ~1 ~1 ~1 repeating_command_block[conditional=false]",
+            "setblock ~ ~ ~ chain_command_block{Command:'stop'}",
+            "setblock ~ ~ ~ oak_sign",
+            "fill ~ ~ ~ ~1 ~1 ~1 birch_wall_hanging_sign",
+            "setblock ~ ~ ~ chest{Items:[]}",
+            "clone ~ ~ ~ ~1 ~1 ~1 ~2 ~2 ~2",
+            "data merge block ~ ~ ~ {Command:'stop'}",
+            "item replace block ~ ~ ~ container.0 with command_block",
+            "execute store result block ~ ~ ~ Command int 1 run say safe",
+            "execute store success entity @s Command int 1 run say safe",
+            "execute store result storage ns:f Command int 1 run say safe",
+            "give @s oak_sign[minecraft:block_entity_data={id:'sign'}]",
+            "summon command_block_minecart",
+            "summon pig ~ ~ ~ {Passengers:[{id:'command_block_minecart',Command:'stop'}]}",
+            "reload",
+            "datapack enable file/commands",
+            "test run ns:t",
+            "compute 1 + 1",
+            "pregen start",
+        ] {
+            assert!(command_gate(line, true).is_err(), "{line}");
+            assert!(command_gate(&format!("execute as @s run {line}"), true).is_err(), "{line}");
+        }
     }
 
     #[test]

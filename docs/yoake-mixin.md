@@ -194,13 +194,36 @@ text rewriting. Other sites retain the ordinary injection capability set.
 
 A changed HEAD command argument passes the same shared `command_gate` as the
 command service: at most 64 KiB, no control characters, and at most 16 levels of
-nested `run` commands. Client chat may replace plain non-command text, but a
-leading-slash replacement goes through that gate too. The case-insensitive
-denylist (including `minecraft:` names and nested commands) is: `transfer`,
+nested commands after `execute ... run` or `return run`. Literal `run` arguments
+(for example, `/say please run stop`) do not start nested commands. Client chat
+uses the outgoing Unicode trim before checking slash commands, and both command
+send paths check again while guest-scoped. Denials show the translated command
+failure message. The case-insensitive denylist (including `minecraft:` names and
+nested commands) is: `transfer`,
 `fetchprofile`, `publish`, `unpublish`, `debug`, `jfr`, `perf`, `stop`, `save-off`,
 `save-on`, `op`, `deop`, `whitelist`, `ban`, `ban-ip`, `pardon`, `pardon-ip`,
-`setidletimeout`, `test`, `compute`, and `pregen`. These checks do not filter the
-player's unchanged native text, and cannot be bypassed by granting capabilities.
+`setidletimeout`, `test`, `compute`, `pregen`, `schedule`, `clone`, `data`, `item`,
+`reload`, and `datapack`. Guest-scoped commands also reject placing command
+blocks or signs, block-entity NBT in `setblock`/`fill`, item components in `give`,
+command-block minecarts or entity NBT in `summon`, and NBT destinations in
+`execute store`. The broad editing and reload restrictions conservatively block
+deferred command authoring, including function load-tag reloads. These checks do
+not filter the player's unchanged native text, and capabilities cannot bypass
+them.
+
+Guest provenance follows commands across the integrated server's in-memory
+connection, including signed commands and quiet batches, and is stored with
+queued commands. The server restores the scope before its command, function,
+leaf and native-hook checks. The internal envelope is rejected on TCP/LAN guest
+connections; a dedicated server is not trusted to honor a client flag. Existing
+chat signature and identity validation still applies to the enclosed packet.
+
+This scope is not persistent taint tracking. Deferred world work caused by an
+allowed command later runs at that work's own permission level. In particular,
+`run_command` click events authored by guest-scoped `tellraw` or `dialog` are not
+stripped: a later player click runs unscoped, with the player's permissions.
+Crafting count overrides must fit the live output item's maximum stack size;
+unchanged vanilla recipe counts retain their native behavior.
 
 ## Sandbox limits
 

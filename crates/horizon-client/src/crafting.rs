@@ -1754,7 +1754,11 @@ impl Recipes {
         for (name, recipe) in &self.crafting {
             if let Some(result) = Self::assemble_if_matches(&ctx, &input, recipe) {
                 return result.and_then(|mut result| {
-                    result.count = crafting_result_count(&result);
+                    let count = crafting_result_count(&result);
+                    if count != result.count && count > ctx.max_stack(&result.item) {
+                        return None;
+                    }
+                    result.count = count;
                     (result.count > 0).then_some((name.as_str(), result))
                 });
             }
@@ -2027,6 +2031,29 @@ mod tests {
             recipes.craft(&grid, 2),
             Some(ItemStack::new("test:ingot", 1))
         );
+        for max_stack in [1, 16, 64] {
+            recipes.facts.insert(
+                "test:ingot".into(),
+                Facts {
+                    max_stack,
+                    ..Facts::default()
+                },
+            );
+            let registry = override_result_count(max_stack);
+            assert_eq!(
+                recipes.craft(&grid, 2),
+                Some(ItemStack::new("test:ingot", max_stack))
+            );
+            drop(registry);
+            let registry = override_result_count(max_stack + 1);
+            assert!(recipes.craft(&grid, 2).is_none());
+            assert!(recipes.find(&grid, 2).is_none());
+            drop(registry);
+            assert_eq!(
+                recipes.craft(&grid, 2),
+                Some(ItemStack::new("test:ingot", 1))
+            );
+        }
     }
 
     #[test]

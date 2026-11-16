@@ -155,6 +155,7 @@ pub(super) struct GuestCommand {
     /// A mod's quiet command (game/lan_quiet.rs): its output suppressed, as
     /// `CommandSourceStack.withSuppressedOutput` does.
     pub(super) quiet: bool,
+    pub(super) guest_scoped: bool,
 }
 
 /// The game's own state while a guest's is swapped in (`enter_guest`), and
@@ -1771,6 +1772,21 @@ impl Game<'_> {
         let Some(gi) = host.hub.guests.iter().position(|g| g.conn == conn) else {
             return;
         };
+        let (packet, guest_scoped) = match packet {
+            S::CustomPayload(payload)
+                if payload.channel == horizon_client::net::GUEST_COMMAND_CHANNEL =>
+            {
+                let Some(command) = horizon_client::net::decode_guest_command(
+                    &payload,
+                    host.hub.guests[gi].address == horizon_client::lan::conn::MEMORY_ADDRESS,
+                ) else {
+                    return;
+                };
+                (command, true)
+            }
+            packet => (packet, false),
+        };
+        let _scope = guest_scoped.then(yoake_inject_rt::guest_command_scope);
         // A dead player acts no more, but the death screen still respawns and chats: its
         // commands run as anyone's (ServerGamePacketListenerImpl.handleChatCommand doesn't
         // look at the player's health).
@@ -3236,6 +3252,16 @@ impl Game<'_> {
         command: &str,
         signed: Option<Vec<(String, horizon_client::lan::hub::chat::ChatMessage)>>,
     ) {
+        if yoake_inject_rt::guest_command_gate(command).is_err() {
+            host.hub.send_to(
+                conn,
+                &C::SystemChat(play::SystemChat {
+                    content: horizon_protocol::text::translatable("command.failed", &[]),
+                    overlay: false,
+                }),
+            );
+            return;
+        }
         // The mods hear every command first, and may stop it.
         let mut canceled = false;
         let mut replies = Vec::new();
@@ -3294,6 +3320,7 @@ impl Game<'_> {
                 permission,
                 integrated,
                 quiet: false,
+                guest_scoped: yoake_inject_rt::in_guest_command(),
             });
             return;
         }
@@ -3323,6 +3350,7 @@ impl Game<'_> {
             permission,
             integrated,
             quiet: false,
+            guest_scoped: yoake_inject_rt::in_guest_command(),
         });
     }
 
@@ -3344,6 +3372,7 @@ impl Game<'_> {
     /// One guest's command as that guest, its feedback sent to them; false
     /// when it failed (or the guest is gone).
     pub(super) fn run_guest_command(&mut self, c: GuestCommand) -> bool {
+        let _scope = c.guest_scoped.then(yoake_inject_rt::guest_command_scope);
         let Some(mut host) = self.lan.take() else {
             return false;
         };
@@ -3354,7 +3383,10 @@ impl Game<'_> {
         self.lan = Some(host);
         self.chat_capture = Some(Vec::new());
         let level = std::mem::replace(&mut self.ui.registries.permission, c.permission);
-        let ok = if self.perform_native_command(c.conn, c.permission, &c.command) {
+        let ok = if yoake_inject_rt::guest_command_gate(&c.command).is_err() {
+            self.command_failure(horizon_client::text::Text::tr("command.failed", &[]));
+            false
+        } else if self.perform_native_command(c.conn, c.permission, &c.command) {
             true
         } else if c.quiet {
             self.run_command_quietly(&c.command)
