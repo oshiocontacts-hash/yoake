@@ -311,7 +311,7 @@ services `attachment-define(id, kind, persistent, synced, copy-on-death)`, `atta
 level. Holders resolve in the current hook's level; there is no dimension argument. Player holders cover online players
 only; other players return `MissingHolder`. A value is opaque bytes (64 KiB at most). `persistent` saves it with the holder (`horizon:attachments`),
 `synced` sends it to the clients that see the holder, `copy-on-death` carries it to the respawned player. Defining the
-same id twice with the same policy is fine; a different policy or another package's namespace is refused.
+same id twice with the same policy is fine; a different policy or another package's namespace is refused. On respawn a saved value that nothing has read yet follows its own `copy-on-death` (false is dropped); a value whose type is not defined (the mod is not loaded) is kept as it was. An id that a native mod already declares with a different `copy-on-death` is refused.
 
 Definitions are accepted only during the declaring module's initialization. The services require the `world-storage`
 capability: `attachment-get` also works in read-only hooks, while `attachment-set` and `attachment-remove` require a

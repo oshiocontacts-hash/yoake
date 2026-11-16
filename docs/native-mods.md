@@ -4453,7 +4453,8 @@ an error. On a server, a missing holder is an error, not a new phantom holder; a
 keeps a copy for any holder it is asked about (see the sync paragraph below).
 `AttachmentError` distinguishes `MissingHolder`, `TypeMismatch`, `Decode`, `Encode`,
 `InvalidNamespace` (a malformed saved compound), `InvalidCopyPolicy` (death-copy
-without a codec) and `InvalidSyncPolicy` (sync without a codec).
+without a codec), `InvalidSyncPolicy` (sync without a codec) and `ConflictingType`
+(the same `namespace:name` declared with two `copy_on_death` policies).
 
 Runtime-defined NBT values can instead use `DynamicAttachmentRegistry` and
 `DynamicAttachmentPolicy`. Define a namespaced ID once, retain the returned
@@ -4514,6 +4515,23 @@ as `{value: <compound>, copy_on_death: 1b, sync: 1b}` (a flag is omitted when fa
 Unknown mods' saved entries survive load and save without being decoded. Level
 attachments use the dimension's `data/minecraft/horizon_attachments.dat` SavedData
 file, not `level.dat`.
+
+**Respawn (copy on death).** A value nobody has read since loading is still
+judged by its type's `copy_on_death`, in this order: the dynamic registry
+(`DynamicAttachmentRegistry::copy_on_death` resolves registered definitions
+first; the engine's respawn calls it), then the static registry, then, if no type
+is known, the saved value is kept raw (uninterpreted, never typed from its saved
+flags). `false` is dropped, `true` is kept; an unknown type (its mod is not loaded)
+is kept, so the data is not lost. **A native mod must register every static
+`AttachmentType` when it initializes**, with `register_static(&TYPE)?`
+(`mod_api::register_static_attachment`). Using a type does not register it, so an
+unregistered static type is always treated as unknown and kept on respawn, even if
+it says `copy_on_death: false`. Registering the same `namespace:name` with another
+`copy_on_death`, or defining a dynamic type that disagrees with a registered
+static one, returns `AttachmentError::ConflictingType` (for a WebAssembly mod,
+`attachment-define` returns that error); if a conflict is found only at respawn,
+the dynamic definition wins and a warning is logged. Data under a namespace that
+is not a compound is not an attachment and is not copied.
 
 A type with `sync: true` sends its value to Horizon clients when `get` creates the
 default, on `set` and `remove`, and on demand with `AttachmentType::sync_data(host,

@@ -3,10 +3,54 @@ use std::{
     any::Any,
     collections::{BTreeMap, BTreeSet},
     fmt,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
 };
 
 use crate::nbt::{Compound, JavaString, Tag};
+
+/// `copy_on_death` of the static (native) attachment types a native mod
+/// registered, by namespace then name. Only `register_static` fills it: a
+/// type is never registered by being used, so a respawn judges an unread value
+/// the same whether or not the type ran before. Reads take a shared lock and
+/// look the pair up by `&str`, without allocating.
+static STATIC_TYPES: RwLock<BTreeMap<String, BTreeMap<String, bool>>> =
+    RwLock::new(BTreeMap::new());
+
+fn static_policy(namespace: &str, name: &str) -> Option<bool> {
+    STATIC_TYPES
+        .read()
+        .unwrap_or_else(|error| error.into_inner())
+        .get(namespace)?
+        .get(name)
+        .copied()
+}
+
+/// Declare a static type's `copy_on_death` so values saved under it are
+/// judged by it at respawn before anything reads them. A native mod calls this
+/// for each of its types when it initializes. Registering the same type again
+/// is fine; the same `namespace:name` with another policy is
+/// `AttachmentError::ConflictingType` and changes nothing. A static type that
+/// was never registered is treated as unknown: its saved values are kept.
+pub fn register_static<T>(ty: &AttachmentType<T>) -> Result<(), AttachmentError> {
+    use std::collections::btree_map::Entry as Slot;
+    let mut types = STATIC_TYPES
+        .write()
+        .unwrap_or_else(|error| error.into_inner());
+    match types
+        .entry(ty.namespace.to_owned())
+        .or_default()
+        .entry(ty.name.to_owned())
+    {
+        Slot::Occupied(known) if *known.get() != ty.copy_on_death => {
+            Err(AttachmentError::ConflictingType)
+        }
+        Slot::Occupied(_) => Ok(()),
+        Slot::Vacant(slot) => {
+            slot.insert(ty.copy_on_death);
+            Ok(())
+        }
+    }
+}
 
 /// An attachment operation could not be completed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,6 +68,9 @@ pub enum AttachmentError {
     InvalidNamespace,
     /// Copy-on-death requires a serializer.
     InvalidCopyPolicy,
+    /// Another definition of the same `namespace:name` (dynamic or static)
+    /// declares a different `copy_on_death`.
+    ConflictingType,
     /// Syncing to clients requires a serializer.
     InvalidSyncPolicy,
     /// The identifier is not a valid namespaced identifier.
@@ -311,6 +358,9 @@ impl DynamicAttachmentRegistry {
         if self.types.contains_key(&key) {
             return Err(AttachmentError::DuplicateType);
         }
+        if static_policy(namespace, name).is_some_and(|known| known != policy.copy_on_death) {
+            return Err(AttachmentError::ConflictingType);
+        }
         let definition = DynamicAttachmentType {
             namespace: key.0.clone(),
             name: key.1.clone(),
@@ -340,6 +390,28 @@ impl DynamicAttachmentRegistry {
     ) -> Result<(), AttachmentError> {
         let attachments = host.attachments(holder)?;
         self.reconcile_map(holder, attachments)
+    }
+
+    /// Respawn copy: resolve every saved value whose type is defined here, so
+    /// its own `copy_on_death` decides (even if nothing read it yet), then copy.
+    /// Values of unknown types are carried over raw.
+    pub fn copy_on_death(
+        &self,
+        holder: Holder,
+        attachments: &mut Attachments,
+    ) -> Result<Attachments, AttachmentError> {
+        for ((namespace, name), definition) in &self.types {
+            if let Some(known) = static_policy(namespace, name)
+                && known != definition.copy_on_death
+            {
+                log::warn!(
+                    "attachment {namespace}:{name} is defined with copy_on_death {} but a static type declares {known}; the dynamic definition wins",
+                    definition.copy_on_death
+                );
+            }
+        }
+        self.reconcile_map(holder, attachments)?;
+        attachments.copy_on_death()
     }
 
     /// Join a holder to this world's shared budget, retaining unloaded saved usage.
@@ -512,6 +584,10 @@ impl<T> AttachmentType<T> {
         }
         if self.sync && self.codec.is_none() {
             return Err(AttachmentError::InvalidSyncPolicy);
+        }
+        if static_policy(self.namespace, self.name).is_some_and(|known| known != self.copy_on_death)
+        {
+            return Err(AttachmentError::ConflictingType);
         }
         Ok(())
     }
@@ -851,7 +927,15 @@ impl Attachments {
         });
         raw
     }
-    /// Copy values opted in by a current definition, never by saved flags alone.
+    /// The attachments a respawned holder keeps. A value whose type is known
+    /// is kept only if that type opts in, never by a saved flag alone. An
+    /// unread saved value is judged by, in order: the dynamic registry (use
+    /// `DynamicAttachmentRegistry::copy_on_death`, which resolves those first),
+    /// then the static registry (`register_static`), then, with no type known
+    /// (a mod that is not loaded, a native type nobody registered), it is
+    /// carried over raw, uninterpreted: never decoded, never typed from its
+    /// saved flags. Data that is not a compound under a namespace compound is
+    /// not an attachment and is not copied.
     pub fn copy_on_death(&self) -> Result<Self, AttachmentError> {
         let mut copy = Self::default();
         for (key, entry) in &self.entries {
@@ -863,6 +947,11 @@ impl Attachments {
                 continue;
             }
             let copied = match entry {
+                // Dynamic types were resolved by the registry before this; a
+                // registered static type decides, and an unknown one is carried raw.
+                Entry::Raw(raw) => static_policy(&key.0.to_string_lossy(), &key.1.to_string_lossy())
+                    .unwrap_or(true)
+                    .then(|| Entry::Raw(raw.clone())),
                 Entry::Decoded(value) if value.copy_on_death() => {
                     envelope(value.as_ref()).ok_or(AttachmentError::InvalidCopyPolicy)?;
                     Some(Entry::Decoded(value.clone_box()))
@@ -1723,25 +1812,176 @@ mod tests {
         assert_eq!(reopened.get(&COUNTER), Ok(0));
     }
     #[test]
-    fn saved_values_only_copy_after_the_current_type_is_known() {
-        let keep = AttachmentType {
-            namespace: "test",
-            name: "keep",
+    fn unread_saved_values_are_copied_raw_and_never_typed_by_their_flags() {
+        let make = |name: &'static str, copy_on_death| AttachmentType {
+            namespace: "rawcopy",
+            name,
             default: || 0,
             codec: Some(AttachmentCodec { encode, decode }),
-            copy_on_death: true,
+            copy_on_death,
             sync: false,
         };
+        // `keep` opts in but is never registered; `known` opts out and is.
+        let (keep, known) = (make("keep", true), make("known", false));
+        register_static(&known).unwrap();
         let mut original = Attachments::default();
         original.set(&keep, 42).unwrap();
-        original.set(&COUNTER, 5).unwrap();
-        let mut loaded = Attachments::from_nbt(original.to_nbt());
-        assert!(loaded.copy_on_death().unwrap().to_nbt().is_empty());
-        assert_eq!(loaded.get_existing(&keep), Ok(Some(42)));
+        original.set(&known, 5).unwrap();
+        let loaded = Attachments::from_nbt(original.to_nbt());
+        // Unread: the unregistered one is carried over raw, the registered
+        // opt-out is dropped; the saved flags decide neither.
         let mut respawned = loaded.copy_on_death().unwrap();
         assert_eq!(respawned.get(&keep), Ok(42));
-        assert_eq!(respawned.get(&COUNTER), Ok(0));
+        assert_eq!(respawned.get(&known), Ok(0));
+        // A value that has been read follows its current type.
+        let mut read = Attachments::from_nbt(original.to_nbt());
+        assert_eq!(read.get_existing(&keep), Ok(Some(42)));
+        assert_eq!(read.get_existing(&known), Ok(Some(5)));
+        let mut respawned = read.copy_on_death().unwrap();
+        assert_eq!(respawned.get(&keep), Ok(42));
+        assert_eq!(respawned.get(&known), Ok(0));
+        // Copying never makes a value synced.
+        assert!(loaded.copy_on_death().unwrap().synced().is_empty());
     }
+
+    #[test]
+    fn unread_dynamic_values_follow_their_registered_policy_on_respawn() {
+        let holder = Holder::Player(1);
+        let mut registry = DynamicAttachmentRegistry::default();
+        let define = |registry: &mut DynamicAttachmentRegistry, id: &str, copy_on_death| {
+            registry
+                .define(
+                    id.split(':').next().unwrap(),
+                    id,
+                    DynamicAttachmentPolicy {
+                        scope: AttachmentScope::Player,
+                        persistent: true,
+                        synced: false,
+                        copy_on_death,
+                    },
+                )
+                .unwrap()
+        };
+        let kept = define(&mut registry, "dynresp:kept", true);
+        let dropped = define(&mut registry, "dynresp:dropped", false);
+        let mut host = DynamicHost(Attachments::default());
+        kept.set(&mut host, holder, payload(4)).unwrap();
+        dropped.set(&mut host, holder, payload(5)).unwrap();
+        let mut raw = host.0.to_nbt();
+        // A value whose type is not defined (its mod is not loaded).
+        raw.insert(
+            "gone".into(),
+            Tag::Compound(
+                [(
+                    "x".into(),
+                    Tag::Compound([("value".into(), Tag::Compound(payload(3)))].into()),
+                )]
+                .into(),
+            ),
+        );
+        // Nothing has read any of them since loading.
+        let mut loaded = Attachments::from_nbt(raw);
+        let mut copied = DynamicHost(registry.copy_on_death(holder, &mut loaded).unwrap());
+        assert_eq!(kept.get(&mut copied, holder), Ok(Some(payload(4))));
+        assert_eq!(dropped.get(&mut copied, holder), Ok(None));
+        // The unknown value stayed raw (and is saved as it was), then reads
+        // once its type is defined.
+        let mut saved = DynamicHost(Attachments::from_nbt(copied.0.to_nbt()));
+        let late = define(&mut registry, "gone:x", false);
+        assert_eq!(late.get(&mut saved, holder), Ok(Some(payload(3))));
+    }
+
+    #[test]
+    fn unread_static_values_follow_the_static_registry_on_respawn() {
+        let make = |name: &'static str, copy_on_death| AttachmentType {
+            namespace: "statreg",
+            name,
+            default: || 0,
+            codec: Some(AttachmentCodec { encode, decode }),
+            copy_on_death,
+            sync: false,
+        };
+        let (keep, drop_it) = (make("keep", true), make("drop", false));
+        register_static(&keep).unwrap();
+        register_static(&drop_it).unwrap();
+        let mut original = Attachments::default();
+        original.set(&keep, 1).unwrap();
+        original.set(&drop_it, 2).unwrap();
+        let mut raw = original.to_nbt();
+        let Some(Tag::Compound(names)) = raw.get_mut(&"statreg".into()) else {
+            panic!("namespace saved");
+        };
+        names.insert(
+            "other".into(),
+            Tag::Compound([("value".into(), Tag::Compound(encode(&7).unwrap()))].into()),
+        );
+        // Nothing reads any value after loading.
+        let loaded = Attachments::from_nbt(raw);
+        let mut copy = loaded.copy_on_death().unwrap();
+        assert!(copy.has(&keep));
+        assert!(!copy.has(&drop_it));
+        assert_eq!(copy.get_existing(&keep), Ok(Some(1)));
+        let other = AttachmentType { name: "other", ..make("other", false) };
+        assert!(copy.has(&other), "an unregistered type is carried raw");
+    }
+
+    #[test]
+    fn conflicting_registrations_are_errors_and_leave_the_registries_usable() {
+        let make = |name: &'static str, copy_on_death| AttachmentType::<i32> {
+            namespace: "statclash",
+            name,
+            default: || 0,
+            codec: Some(AttachmentCodec { encode, decode }),
+            copy_on_death,
+            sync: false,
+        };
+        assert_eq!(register_static(&make("same", true)), Ok(()));
+        assert_eq!(register_static(&make("same", true)), Ok(()));
+        assert_eq!(
+            register_static(&make("same", false)),
+            Err(AttachmentError::ConflictingType)
+        );
+        // A use that disagrees with the registered policy is refused too.
+        assert_eq!(
+            Attachments::default().set(&make("same", false), 1),
+            Err(AttachmentError::ConflictingType)
+        );
+        let mut registry = DynamicAttachmentRegistry::default();
+        let policy = |copy_on_death| DynamicAttachmentPolicy {
+            scope: AttachmentScope::Player,
+            persistent: true,
+            synced: false,
+            copy_on_death,
+        };
+        assert_eq!(
+            registry.define("statclash", "statclash:same", policy(false)).err(),
+            Some(AttachmentError::ConflictingType)
+        );
+        // Nothing was inserted, and the registry keeps working.
+        assert!(registry.get("statclash", "statclash:same").is_none());
+        assert!(registry.define("statclash", "statclash:other", policy(false)).is_ok());
+        assert!(registry.define("statclash", "statclash:same", policy(true)).is_ok());
+    }
+
+    #[test]
+    fn using_a_static_type_does_not_register_it() {
+        let ty = AttachmentType::<i32> {
+            namespace: "statnouse",
+            name: "v",
+            default: || 0,
+            codec: Some(AttachmentCodec { encode, decode }),
+            copy_on_death: false,
+            sync: false,
+        };
+        let mut map = Attachments::default();
+        map.set(&ty, 5).unwrap();
+        // Only a registered type is judged; this one is unknown, so kept raw.
+        let loaded = Attachments::from_nbt(map.to_nbt());
+        assert!(loaded.copy_on_death().unwrap().has(&ty));
+        assert_eq!(register_static(&ty), Ok(()));
+        assert!(!loaded.copy_on_death().unwrap().has(&ty));
+    }
+
     #[test]
     fn existing_reads_leave_an_absent_value_absent() {
         let mut map = Attachments::default();
