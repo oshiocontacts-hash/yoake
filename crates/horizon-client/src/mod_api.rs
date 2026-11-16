@@ -110,7 +110,7 @@ pub use horizon_world::{
     attachments::{
         AttachmentCodec, AttachmentError, AttachmentHost, AttachmentScope, AttachmentType,
         Attachments, DynamicAttachmentPolicy, DynamicAttachmentRegistry, DynamicAttachmentType,
-        Holder,
+        Holder, register_static as register_static_attachment,
     },
     collision_context::{CollisionContext, CollisionEntity, CollisionItem},
     entity_obstruction::EntityIdentity,

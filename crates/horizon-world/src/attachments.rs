@@ -8,6 +8,39 @@ use std::{
 
 use crate::nbt::{Compound, JavaString, Tag};
 
+/// Copy policy of every static (native) attachment type seen in this process,
+/// by namespace and name. Filled by `register_static`, which every use of a
+/// type calls, and which a native mod calls at startup for the types it
+/// declares so a type nothing has touched yet is still known at respawn.
+static STATIC_TYPES: Mutex<BTreeMap<(String, String), bool>> = Mutex::new(BTreeMap::new());
+
+fn static_policy(namespace: &str, name: &str) -> Option<bool> {
+    STATIC_TYPES
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .get(&(namespace.to_owned(), name.to_owned()))
+        .copied()
+}
+
+/// Record a static type's `copy_on_death` so values saved under it are judged
+/// by it before anything reads them. Registering the same type again is a
+/// no-op; a second type with the same `namespace:name` and another policy is a
+/// conflict and panics.
+pub fn register_static<T>(ty: &AttachmentType<T>) {
+    let mut types = STATIC_TYPES.lock().unwrap_or_else(|error| error.into_inner());
+    let key = (ty.namespace.to_owned(), ty.name.to_owned());
+    match types.get(&key) {
+        Some(&known) if known != ty.copy_on_death => panic!(
+            "conflicting attachment types for {}:{}: copy_on_death is both {known} and {}",
+            ty.namespace, ty.name, ty.copy_on_death
+        ),
+        Some(_) => {}
+        None => {
+            types.insert(key, ty.copy_on_death);
+        }
+    }
+}
+
 /// An attachment operation could not be completed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
@@ -311,6 +344,12 @@ impl DynamicAttachmentRegistry {
         if self.types.contains_key(&key) {
             return Err(AttachmentError::DuplicateType);
         }
+        if let Some(known) = static_policy(namespace, name) {
+            assert_eq!(
+                known, policy.copy_on_death,
+                "conflicting attachment types for {id}: a static type already declares copy_on_death {known}"
+            );
+        }
         let definition = DynamicAttachmentType {
             namespace: key.0.clone(),
             name: key.1.clone(),
@@ -350,6 +389,14 @@ impl DynamicAttachmentRegistry {
         holder: Holder,
         attachments: &mut Attachments,
     ) -> Result<Attachments, AttachmentError> {
+        for ((namespace, name), definition) in &self.types {
+            if let Some(known) = static_policy(namespace, name) {
+                assert_eq!(
+                    known, definition.copy_on_death,
+                    "conflicting attachment types for {namespace}:{name}: a static type declares copy_on_death {known}"
+                );
+            }
+        }
         self.reconcile_map(holder, attachments)?;
         attachments.copy_on_death()
     }
@@ -525,6 +572,7 @@ impl<T> AttachmentType<T> {
         if self.sync && self.codec.is_none() {
             return Err(AttachmentError::InvalidSyncPolicy);
         }
+        register_static(self);
         Ok(())
     }
 }
@@ -863,7 +911,9 @@ impl Attachments {
         });
         raw
     }
-    /// Copy values for a respawn. Values whose current type is known are copied
+    /// Order for an unread saved value: dynamic registry (see
+    /// `DynamicAttachmentRegistry::copy_on_death`), then the static registry,
+    /// then carried raw. Copy values for a respawn. Values whose current type is known are copied
     /// only when it opts in (never by a saved flag alone); a dynamic type is
     /// known once `DynamicAttachmentRegistry::reconcile_map` has run, which
     /// `DynamicAttachmentRegistry::copy_on_death` does first. A value that is
@@ -881,7 +931,11 @@ impl Attachments {
                 continue;
             }
             let copied = match entry {
-                Entry::Raw(raw) => Some(Entry::Raw(raw.clone())),
+                // Dynamic types were resolved by the registry before this; a
+                // registered static type decides, and an unknown one is carried raw.
+                Entry::Raw(raw) => static_policy(&key.0.to_string_lossy(), &key.1.to_string_lossy())
+                    .unwrap_or(true)
+                    .then(|| Entry::Raw(raw.clone())),
                 Entry::Decoded(value) if value.copy_on_death() => {
                     envelope(value.as_ref()).ok_or(AttachmentError::InvalidCopyPolicy)?;
                     Some(Entry::Decoded(value.clone_box()))
@@ -1755,10 +1809,12 @@ mod tests {
         original.set(&keep, 42).unwrap();
         original.set(&COUNTER, 5).unwrap();
         let mut loaded = Attachments::from_nbt(original.to_nbt());
-        // Still unread: carried over uninterpreted instead of vanishing.
+        // Still unread: `keep` is registered (it was set above) and opts in, so
+        // it is carried over uninterpreted; COUNTER is registered as not copied.
         let mut respawned = loaded.copy_on_death().unwrap();
-        assert_eq!(respawned.to_nbt(), original.to_nbt());
         assert_eq!(respawned.get(&keep), Ok(42));
+        assert_eq!(respawned.get(&COUNTER), Ok(0));
+        let mut loaded = Attachments::from_nbt(original.to_nbt());
         // A read value follows its current type: COUNTER opts out of copying.
         assert_eq!(loaded.get_existing(&COUNTER), Ok(Some(5)));
         let mut respawned = loaded.copy_on_death().unwrap();
@@ -1778,7 +1834,7 @@ mod tests {
     fn unread_dynamic_values_follow_their_registered_policy_on_respawn() {
         let holder = Holder::Player(1);
         let mut registry = DynamicAttachmentRegistry::default();
-        let mut define = |registry: &mut DynamicAttachmentRegistry, id: &str, copy_on_death| {
+        let define = |registry: &mut DynamicAttachmentRegistry, id: &str, copy_on_death| {
             registry
                 .define(
                     id.split(':').next().unwrap(),
@@ -1819,6 +1875,69 @@ mod tests {
         let mut saved = DynamicHost(Attachments::from_nbt(copied.0.to_nbt()));
         let late = define(&mut registry, "gone:x", false);
         assert_eq!(late.get(&mut saved, holder), Ok(Some(payload(3))));
+    }
+
+    #[test]
+    fn unread_static_values_follow_the_static_registry_on_respawn() {
+        let make = |name: &'static str, copy_on_death| AttachmentType {
+            namespace: "statreg",
+            name,
+            default: || 0,
+            codec: Some(AttachmentCodec { encode, decode }),
+            copy_on_death,
+            sync: false,
+        };
+        let (keep, drop_it, unknown) = (make("keep", true), make("drop", false), make("late", true));
+        let mut original = Attachments::default();
+        original.set(&keep, 1).unwrap();
+        original.set(&drop_it, 2).unwrap();
+        // `unknown` is never used, only saved by a raw entry, so it is not registered.
+        let mut raw = original.to_nbt();
+        let Some(Tag::Compound(names)) = raw.get_mut(&"statreg".into()) else {
+            panic!("namespace saved");
+        };
+        names.insert(
+            "other".into(),
+            Tag::Compound([("value".into(), Tag::Compound(encode(&7).unwrap()))].into()),
+        );
+        // Nothing reads any value after loading.
+        let loaded = Attachments::from_nbt(raw);
+        let mut copy = loaded.copy_on_death().unwrap();
+        assert!(copy.has(&keep));
+        assert!(!copy.has(&drop_it));
+        assert_eq!(copy.get_existing(&keep), Ok(Some(1)));
+        let other = AttachmentType { name: "other", ..make("other", false) };
+        assert!(copy.has(&other), "an unregistered type is carried raw");
+        let _ = unknown;
+    }
+
+    #[test]
+    fn conflicting_static_registrations_panic() {
+        let make = |name: &'static str, copy_on_death| AttachmentType::<i32> {
+            namespace: "statclash",
+            name,
+            default: || 0,
+            codec: Some(AttachmentCodec { encode, decode }),
+            copy_on_death,
+            sync: false,
+        };
+        register_static(&make("same", true));
+        register_static(&make("same", true));
+        assert!(std::panic::catch_unwind(|| register_static(&make("same", false))).is_err());
+        let mut registry = DynamicAttachmentRegistry::default();
+        let overlapping = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = registry.define(
+                "statclash",
+                "statclash:same",
+                DynamicAttachmentPolicy {
+                    scope: AttachmentScope::Player,
+                    persistent: true,
+                    synced: false,
+                    copy_on_death: false,
+                },
+            );
+        }));
+        assert!(overlapping.is_err());
     }
 
     #[test]
