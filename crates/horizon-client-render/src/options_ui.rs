@@ -5651,20 +5651,19 @@ mod tests {
         })
     }
 
-    /// Horizon's own options pages said "Splitscreen...", "Hide block-break particles" and
-    /// "Hotbar: Previous Slot" in every language (#1927).
+    /// Horizon's own options pages translate their captions and descriptions in Japanese.
     #[test]
     fn horizon_option_pages_follow_the_language() {
-        let (texts, missed) = page_texts("de_de", &[Page::Horizon, Page::Extras, Page::PadBinds]);
+        let (texts, missed) = page_texts("ja_jp", &[Page::Horizon, Page::Extras, Page::PadBinds]);
         for want in [
-            "Splitscreen …",
-            "Partikel",
-            "Blockpartikel weg: Aus",
-            "Weicher Chat: Aus",
-            "Nachrichtenmarkierung: An",
-            "Kanäle für UI-Töne: Aus",
-            "Schnellzugriffsleiste: Vorheriger Platz",
-            "Schnellzugriffsleiste: Nächster Platz",
+            "画面分割...",
+            "パーティクル",
+            "ブロック破壊時のパーティクルを隠す: オフ",
+            "滑らかなチャット: オフ",
+            "メッセージインジケーター: オン",
+            "UIサウンド用のチャンネルを確保: オフ",
+            "ホットバー: 前のスロット",
+            "ホットバー: 次のスロット",
         ] {
             assert!(texts.iter().any(|t| t == want), "{want:?} not in {texts:?}");
         }
@@ -5676,13 +5675,6 @@ mod tests {
             .filter(|k| k.starts_with("horizon.") || k.contains(' ') || !k.contains('.'))
             .collect();
         assert_eq!(missed, Vec::<String>::new());
-        let (texts, _) = page_texts("pl_pl", &[Page::Extras, Page::PadBinds]);
-        for want in [
-            "Ukryj cząstki bloków: Wył.",
-            "Pasek szybkiego wyboru: poprzednie pole",
-        ] {
-            assert!(texts.iter().any(|t| t == want), "{want:?} not in {texts:?}");
-        }
     }
 
     #[test]
@@ -7154,8 +7146,9 @@ mod tests {
     fn title_shortcuts_initialize_pages_and_return_directly_to_the_title() {
         let mut ui = OptionsUi::default();
         let mut s = Settings::default();
+        let default_language = s.language.clone();
         for page in [Page::Accessibility, Page::Language] {
-            ui.language_choice = Some("de_de".into());
+            ui.language_choice = Some("ja_jp".into());
             ui.language_search.set_value("old query");
             ui.open_at(false, page);
             assert_eq!(ui.page(), page);
@@ -7166,18 +7159,19 @@ mod tests {
                 assert!(ui.center_language);
             }
             assert!(ui.back(&mut s).contains(&Event::Close));
-            assert_eq!(s.language, "en_us");
+            assert_eq!(s.language, default_language);
             ui.open(false);
             ui.show(page);
             assert!(!ui.back(&mut s).contains(&Event::Close));
             assert_eq!(ui.page(), Page::Main);
         }
         ui.open_at(false, Page::Language);
-        ui.language_choice = Some("de_de".into());
+        s.language = "en_us".into();
+        ui.language_choice = Some("ja_jp".into());
         let events = ui.back(&mut s);
-        assert!(events.contains(&Event::Language("de_de".into())));
+        assert!(events.contains(&Event::Language("ja_jp".into())));
         assert!(events.contains(&Event::Close));
-        assert_eq!(s.language, "de_de");
+        assert_eq!(s.language, "ja_jp");
     }
 
     /// A content mod's set builds the block-state tables an open world's

@@ -16,7 +16,7 @@ pub(super) const ACCESSIBILITY_HELP_LINK: &str = "https://aka.ms/MinecraftJavaAc
 
 pub(super) const CONTROL_HELP: &[&str] = &[
     "options-get [KEY...]           options.txt values by key, with their type, range or choices",
-    "options-set KEY VALUE          set an option (enums by name, keys as key.keyboard.w, lists as JSON), apply and save it",
+    "options-set KEY VALUE          set an option (lang: ja_jp or en_us; enums by name, keys as key.keyboard.w, lists as JSON), apply and save it",
 ];
 
 impl Game<'_> {
@@ -129,7 +129,7 @@ impl Game<'_> {
         ui.open_at(!from_title && self.title.is_none(), page);
         ui.minecart_improvements = minecart_improvements;
         let root = self.options.resources.clone();
-        ui.languages = lang::available(&[&root]);
+        ui.languages = lang::selectable(&[&root]);
         self.refresh_pack_lists();
     }
     /// While the resource pack screen is open, `resourcepacks/` is looked at once a second

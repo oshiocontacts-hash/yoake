@@ -77,7 +77,7 @@ const HELP: &[&str] = &[
     "chat TEXT                      send a chat line or /command as if typed",
     "type TEXT                      type into the open chat box (key enter tap sends)",
     "chat-log [N]                   the newest N chat messages (default 10)",
-    "options [PAGE]                 open the options (video sound controls keybinds mouse chat accessibility language font packs mods graphics graphics-advanced graphics-hdr)",
+    "options [PAGE]                 open the options (video sound controls keybinds mouse chat accessibility language page: ja_jp or en_us font packs mods graphics graphics-advanced graphics-hdr)",
     "stats [reset] [raw]            frame-time summary since the last reset (raw: every frame time too)",
     "narration                      the narrator's status and the last messages it was asked to say",
     "bench SECONDS                  reset stats, wait, then reply with the summary",
