@@ -7,10 +7,12 @@
 //! is the authority, and what it says is what the page shows.
 use super::*;
 use crate::line_edit::LineEdit;
+use crate::social::rooms::{Audience, MyRoom, RoomInfo};
 use crate::social::{
     self, Answer, Block, Friend, FriendRequest, FriendsList, GroupDetail, GroupSummary,
     Me, Role, SocialBackend, SocialError, Target,
 };
+use std::path::{Path, PathBuf};
 use gpui::{Pixels, Size};
 use std::cell::Cell;
 use std::rc::Rc;
@@ -33,6 +35,19 @@ pub(super) enum FriendsTab {
     Requests,
     Groups,
     Blocked,
+    Rooms,
+}
+
+/// What the Rooms tab knows of the portal's rooms.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum RoomsStatus {
+    /// Not read yet.
+    Loading,
+    Ready,
+    /// The portal has no rooms API (yet).
+    NotAvailable,
+    /// The last read failed (offline, or an answer that was not the API's).
+    Failed,
 }
 
 /// What the page can show.
@@ -59,6 +74,7 @@ pub(super) enum Confirm {
     Kick(String),
     Leave,
     DeleteGroup,
+    CloseRoom,
 }
 
 /// The line the Groups tab has open above its list.
@@ -82,6 +98,7 @@ pub(super) enum InputKind {
     AddFriend,
     GroupName,
     JoinCode,
+    RoomName,
 }
 
 pub(super) struct Input {
@@ -136,10 +153,19 @@ pub(super) enum FriendAction {
     Kick,
     LiftBan,
     Transfer,
+    OpenRoom,
+    CloseRoom,
+    JoinRoom,
 }
 
 pub(super) enum Outcome {
     Done,
+    /// A room opened: what to show of it, and the hand-off file for the game that hosts it.
+    Hosted(MyRoom, PathBuf),
+    /// A grant for a room: the hand-off file for the game that joins it.
+    Joined(PathBuf),
+    /// The portal answered, but the file for the game could not be made (the room is closed).
+    HandoffFailed,
     Me(Me),
     /// A group to open: the one just made or joined.
     Group(String),
@@ -152,6 +178,7 @@ enum Event {
     Friends(social::Result<FriendsList>),
     Blocks(social::Result<Vec<Block>>),
     Groups(social::Result<Vec<GroupSummary>>),
+    Rooms(social::Result<Vec<RoomInfo>>),
     Detail(String, social::Result<GroupDetail>),
     /// One full read is over.
     Refreshed,
@@ -164,6 +191,8 @@ enum Follow {
     /// Read everything again.
     Refresh,
     OpenGroup(String),
+    /// Start the game with this hand-off file: the id of the room it hosts, or `None` to join.
+    Launch(Option<String>, PathBuf),
 }
 
 /// What the page keeps between frames.
@@ -182,6 +211,16 @@ pub(super) struct Friends {
     pub(super) list: FriendsList,
     pub(super) blocks: Vec<Block>,
     pub(super) groups: Vec<GroupSummary>,
+    /// The rooms the player may join (their own is `my_room`).
+    pub(super) rooms: Vec<RoomInfo>,
+    pub(super) rooms_status: RoomsStatus,
+    /// The player's own open room.
+    pub(super) my_room: Option<MyRoom>,
+    /// Whether the portal's list has shown the player's own room: then its absence closes it.
+    list_shows_own: bool,
+    /// The "open a room" line is open, and which audience it would use (0: friends, then groups).
+    pub(super) room_panel: bool,
+    pub(super) room_audience: usize,
     /// The group whose page is open, and what the portal said of it.
     pub(super) open_group: Option<String>,
     pub(super) detail: Option<GroupDetail>,
@@ -199,6 +238,7 @@ pub(super) struct Friends {
     pub(super) add: Input,
     pub(super) name: Input,
     pub(super) join: Input,
+    pub(super) room_name: Input,
     /// The tab strip's size, for the panel's plate.
     pub(super) strip: Rc<Cell<Option<Size<Pixels>>>>,
     /// A field to put the keyboard in on the next frame.
@@ -230,6 +270,12 @@ impl Friends {
             list: FriendsList::default(),
             blocks: Vec::new(),
             groups: Vec::new(),
+            rooms: Vec::new(),
+            rooms_status: RoomsStatus::Loading,
+            my_room: None,
+            list_shows_own: false,
+            room_panel: false,
+            room_audience: 0,
             open_group: None,
             detail: None,
             tab: FriendsTab::Friends,
@@ -243,6 +289,7 @@ impl Friends {
             add: Input::new(32),
             name: Input::new(social::MAX_GROUP_NAME),
             join: Input::new(32),
+            room_name: Input::new(social::MAX_GROUP_NAME),
             strip: Rc::new(Cell::new(None)),
             focus_soon: None,
             busy: 0,
@@ -255,7 +302,8 @@ impl Friends {
         }
     }
 
-    /// `HORIZON_LAUNCHER_FRIENDS_TAB=friends|requests|groups|blocked|group:<id, role or name>` and
+    /// `HORIZON_LAUNCHER_FRIENDS_TAB=friends|requests|groups|blocked|rooms|group:<id, role or name>`
+    /// (or `HORIZON_LAUNCHER_PAGE=rooms`) and
     /// `HORIZON_LAUNCHER_FRIENDS_NOTE=error|ok` start the page on a tab, a group or a message, for
     /// screenshots. Nothing happens without them.
     pub(super) fn from_env() -> Self {
@@ -265,6 +313,7 @@ impl Friends {
             Ok("requests") => page.tab = FriendsTab::Requests,
             Ok("groups") => page.tab = FriendsTab::Groups,
             Ok("blocked") => page.tab = FriendsTab::Blocked,
+            Ok("rooms") => page.tab = FriendsTab::Rooms,
             Ok(other) => {
                 if let Some(group) = other.strip_prefix("group:") {
                     page.tab = FriendsTab::Groups;
@@ -272,6 +321,9 @@ impl Friends {
                 }
             }
             Err(_) => {}
+        }
+        if std::env::var("HORIZON_LAUNCHER_PAGE").as_deref() == Ok("rooms") {
+            page.tab = FriendsTab::Rooms;
         }
         page.preview_menu = std::env::var_os("HORIZON_LAUNCHER_FRIENDS_MENU").is_some();
         page.preview_note = match std::env::var("HORIZON_LAUNCHER_FRIENDS_NOTE").as_deref() {
@@ -296,7 +348,12 @@ impl Friends {
             let handle = self.input(kind).handle(cx);
             window.focus(&handle, cx);
         }
-        for kind in [InputKind::AddFriend, InputKind::GroupName, InputKind::JoinCode] {
+        for kind in [
+            InputKind::AddFriend,
+            InputKind::GroupName,
+            InputKind::JoinCode,
+            InputKind::RoomName,
+        ] {
             self.input(kind).note_focus(window);
         }
     }
@@ -306,6 +363,7 @@ impl Friends {
             InputKind::AddFriend => &mut self.add,
             InputKind::GroupName => &mut self.name,
             InputKind::JoinCode => &mut self.join,
+            InputKind::RoomName => &mut self.room_name,
         }
     }
 
@@ -351,6 +409,13 @@ impl Friends {
         self.list = FriendsList::default();
         self.blocks.clear();
         self.groups.clear();
+        self.rooms.clear();
+        self.rooms_status = RoomsStatus::Loading;
+        self.my_room = None;
+        self.list_shows_own = false;
+        self.room_panel = false;
+        self.room_audience = 0;
+        self.room_name.edit.set(String::new());
         self.open_group = None;
         self.detail = None;
         self.new_invite = None;
@@ -379,6 +444,66 @@ impl Friends {
     /// Whether this write is on its way.
     pub(super) fn is_busy(&self, action: FriendAction) -> bool {
         self.in_flight.contains(&action)
+    }
+
+    /// Whether a room is being opened or joined: both start the game, so only one at a time.
+    pub(super) fn room_launching(&self) -> bool {
+        self.is_busy(FriendAction::OpenRoom) || self.is_busy(FriendAction::JoinRoom)
+    }
+
+    /// Whom a new room could be for: friends, then each group the player is in.
+    pub(super) fn audience_choices(&self) -> Vec<Audience> {
+        std::iter::once(Audience::Friends)
+            .chain(self.groups.iter().map(|g| Audience::Group {
+                id: g.id.clone(),
+                name: Some(g.name.clone()),
+            }))
+            .collect()
+    }
+
+    /// The audience the "open a room" line is on.
+    pub(super) fn chosen_audience(&self) -> Audience {
+        let choices = self.audience_choices();
+        let at = self.room_audience % choices.len();
+        choices[at].clone()
+    }
+
+    /// Takes in the portal's list of rooms: the player's own is told from the others by the
+    /// host's id. A portal that does not list the player's own room leaves the one the page
+    /// opened until it expires or is closed.
+    fn take_rooms(&mut self, list: Vec<RoomInfo>) {
+        let me = self.my_id().to_string();
+        let (mine, others): (Vec<_>, Vec<_>) = list
+            .into_iter()
+            .partition(|r| !me.is_empty() && r.host.principal == me);
+        self.rooms = others;
+        self.rooms_status = RoomsStatus::Ready;
+        match mine.into_iter().next() {
+            Some(room) => {
+                self.list_shows_own = true;
+                self.my_room = Some(MyRoom {
+                    session_id: room.session_id,
+                    audience: room.audience,
+                    name: room.name,
+                    opened_at: room
+                        .created_at
+                        .unix()
+                        .or_else(|| self.my_room.as_ref().map(|m| m.opened_at))
+                        .unwrap_or_else(now_unix),
+                    expires_at: room.expires_at.and_then(|at| at.unix()),
+                });
+            }
+            None => {
+                let expired = self
+                    .my_room
+                    .as_ref()
+                    .and_then(|m| m.expires_at)
+                    .is_some_and(|at| at <= now_unix());
+                if self.list_shows_own || expired {
+                    self.my_room = None;
+                }
+            }
+        }
     }
 
     /// Asks twice: `confirm` is what the next click would do.
@@ -413,6 +538,19 @@ impl Friends {
             Event::Friends(Ok(list)) => self.list = list,
             Event::Blocks(Ok(blocks)) => self.blocks = blocks,
             Event::Groups(Ok(groups)) => self.groups = groups,
+            Event::Rooms(Ok(list)) => self.take_rooms(list),
+            Event::Rooms(Err(SocialError::SignedOut)) => {
+                self.note_state(FriendAction::Load, SocialError::SignedOut)
+            }
+            // The rooms are one tab: a portal without them, or a failed read of them, does not
+            // take the friends away. What was shown stays.
+            Event::Rooms(Err(error)) => {
+                self.rooms_status = if error == SocialError::NotAvailable {
+                    RoomsStatus::NotAvailable
+                } else {
+                    RoomsStatus::Failed
+                };
+            }
             Event::Friends(Err(error)) | Event::Blocks(Err(error)) | Event::Groups(Err(error)) => {
                 self.note_state(FriendAction::Load, error);
                 if self.note.is_none() {
@@ -496,6 +634,21 @@ impl Friends {
                 follow.push(Follow::OpenGroup(id));
             }
             (A::NewCode, Outcome::Me(me)) => self.me = Some(me),
+            (A::OpenRoom, Outcome::Hosted(room, path)) => {
+                let id = room.session_id.clone();
+                self.my_room = Some(room);
+                self.room_panel = false;
+                self.room_name.edit.set(String::new());
+                follow.push(Follow::Launch(Some(id), path));
+            }
+            (A::JoinRoom, Outcome::Joined(path)) => follow.push(Follow::Launch(None, path)),
+            (A::OpenRoom | A::JoinRoom, Outcome::HandoffFailed) => {
+                self.note = Some((false, tr(HANDOFF_FAILED).to_string()));
+            }
+            (A::CloseRoom, _) => {
+                self.my_room = None;
+                self.list_shows_own = false;
+            }
             (A::CreateInvite, Outcome::Invite(code)) => {
                 if let Some(id) = self.open_group.clone() {
                     self.new_invite = Some((id, code));
@@ -543,6 +696,10 @@ pub(super) fn error_en(action: FriendAction, error: SocialError) -> Words {
                 "That is not a group invite code. It looks like YKG-ABCD-2345.",
                 &[],
             ),
+            (C::InvalidInput, A::OpenRoom) => (
+                "A room name is 1 to {max} characters, with no control characters.",
+                &[("max", "40")],
+            ),
             (C::InvalidInput, _) => ("The portal did not accept that.", &[]),
             (C::InvalidInvite, _) => (
                 "That invite does not work: it may be wrong, expired, used up or revoked.",
@@ -565,17 +722,27 @@ pub(super) fn error_en(action: FriendAction, error: SocialError) -> Words {
                 | A::Kick
                 | A::LiftBan,
             ) => ("You are not allowed to do that in this group.", &[]),
+            (C::Forbidden, A::JoinRoom) => (
+                "You cannot join that room. It is for friends or a group you are not part of.",
+                &[],
+            ),
+            (C::Forbidden, A::OpenRoom) => (
+                "You cannot open a room for that. Pick friends, or a group you are in.",
+                &[],
+            ),
             (C::Forbidden, _) => ("You are not allowed to do that.", &[]),
             (C::NotFound, A::SendRequest) => ("No one has that friend code.", &[]),
             (C::NotFound, A::Accept | A::Decline | A::Cancel) => {
                 ("That request is not there any more.", &[])
             }
+            (C::NotFound, A::JoinRoom | A::CloseRoom) => ("That room is closed.", &[]),
             (C::NotFound, _) => ("That is not there any more.", &[]),
             (C::Conflict, A::SendRequest) => (
                 "You are already friends, or a request is already waiting.",
                 &[],
             ),
             (C::Conflict, A::Join) => ("You are already in that group.", &[]),
+            (C::Conflict, A::OpenRoom) => ("You already have a room open. Close it first.", &[]),
             (C::Conflict, _) => ("That already exists.", &[]),
             (C::GroupFull, _) => ("That group already has {max} members.", &[("max", "100")]),
             (C::LimitReached, A::CreateInvite) => (
@@ -585,6 +752,10 @@ pub(super) fn error_en(action: FriendAction, error: SocialError) -> Words {
             (C::LimitReached, A::CreateGroup | A::Join) => (
                 "You can be in at most {max} groups. Leave one first.",
                 &[("max", "50")],
+            ),
+            (C::LimitReached, A::OpenRoom) => (
+                "You have as many rooms open as the portal allows. Close one first.",
+                &[],
             ),
             (C::LimitReached, _) => ("A limit of the portal is reached.", &[]),
             (C::RateLimited, A::SendRequest) => (
@@ -636,6 +807,37 @@ pub(super) fn done_en(action: FriendAction) -> &'static str {
         A::Kick => "Member kicked and banned. They cannot rejoin until the ban is lifted.",
         A::LiftBan => "Ban lifted.",
         A::Transfer => "You handed the group over.",
+        A::OpenRoom => "Room opened. Starting the game…",
+        A::CloseRoom => "Room closed.",
+        A::JoinRoom => "Joining the room. Starting the game…",
+    }
+}
+
+/// What a room's hand-off failing says: the portal's room was closed again.
+pub(super) const HANDOFF_FAILED: &str =
+    "Could not pass the room to the game. The room was closed. Try again.";
+
+pub(super) fn now_unix() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs() as i64)
+}
+
+/// A unix time as the player's clock reads it: `11/16 21:30`.
+pub(super) fn clock(unix: i64) -> String {
+    use chrono::TimeZone;
+    chrono::Local
+        .timestamp_opt(unix, 0)
+        .single()
+        .map_or_else(String::new, |t| t.format("%m/%d %H:%M").to_string())
+}
+
+/// Whom a room is for, in words: "Friends", or the group's name.
+pub(super) fn audience_label(audience: &Audience) -> String {
+    match audience {
+        Audience::Friends => tr("Friends").to_string(),
+        Audience::Group { name: Some(name), .. } => name.clone(),
+        Audience::Group { .. } => tr("Group").to_string(),
     }
 }
 
@@ -685,6 +887,7 @@ impl Launcher {
                     send(Event::Friends(backend.friends()));
                     send(Event::Blocks(backend.blocks()));
                     send(Event::Groups(backend.groups()));
+                    send(Event::Rooms(backend.rooms()));
                     if let Some(id) = open {
                         let detail = backend.group(&id);
                         send(Event::Detail(id, detail));
@@ -759,6 +962,32 @@ impl Launcher {
             InputKind::AddFriend => self.friends_send_request(),
             InputKind::GroupName => self.friends_create_group(),
             InputKind::JoinCode => self.friends_join(),
+            InputKind::RoomName => self.friends_open_room_if_able(),
+        }
+    }
+
+    /// Enter in the room name's field: opens the room when the buttons would.
+    fn friends_open_room_if_able(&mut self) {
+        if self.can_start_selected() {
+            self.friends_open_room();
+        }
+    }
+
+    /// Starts the game with a hand-off file (`social_handoff`): joining by default, hosting
+    /// the room `hosting` otherwise. A game that does not start does not read it: it goes.
+    fn social_launch(&mut self, hosting: Option<String>, path: PathBuf) {
+        self.set_social_handoff(path);
+        self.play();
+        if self.starting_client.is_none()
+            && !(yoake_page::enabled() && self.yoake_base_pending_play())
+        {
+            self.drop_social_handoff();
+            let text = if hosting.is_some() {
+                "The game could not start. Your room is open: close it, or try again."
+            } else {
+                "The game could not start. Close the running game, then try again."
+            };
+            self.friends.note = Some((false, tr(text).to_string()));
         }
     }
 
@@ -776,6 +1005,7 @@ impl Launcher {
                 social::normalize_code(self.friends.join.edit.text(), social::GROUP_PREFIX)
                     .is_some()
             }
+            InputKind::RoomName => room_name(self.friends.room_name.edit.text()).is_ok(),
         }
     }
 
@@ -897,6 +1127,48 @@ impl Launcher {
         });
     }
 
+    /// Opens a room for the chosen audience and starts the game as its host.
+    pub(super) fn friends_open_room(&mut self) {
+        if self.friends.my_room.is_some() || self.friends.room_launching() {
+            return;
+        }
+        let name = match room_name(self.friends.room_name.edit.text()) {
+            Ok(name) => name,
+            Err(()) => {
+                self.friends.note = Some((
+                    false,
+                    error_text(
+                        FriendAction::OpenRoom,
+                        SocialError::Api(social::ApiCode::InvalidInput),
+                    ),
+                ));
+                return;
+            }
+        };
+        let audience = self.friends.chosen_audience();
+        let folder = social::handoff::folder(&backend::data_dir());
+        self.friends_act(FriendAction::OpenRoom, move |api| {
+            host_room(api, &folder, &audience, name.as_deref())
+        });
+    }
+
+    /// Asks the portal to let the player into a room, and starts the game as its guest.
+    pub(super) fn friends_join_room(&mut self, session_id: String) {
+        if self.friends.room_launching() {
+            return;
+        }
+        let folder = social::handoff::folder(&backend::data_dir());
+        self.friends_act(FriendAction::JoinRoom, move |api| {
+            join_room(api, &folder, &session_id)
+        });
+    }
+
+    pub(super) fn friends_close_room(&mut self, session_id: String) {
+        self.friends_act(FriendAction::CloseRoom, move |api| {
+            api.close_room(&session_id).map(|()| Outcome::Done)
+        });
+    }
+
     pub(super) fn friends_leave(&mut self) {
         let me = self.friends.my_id().to_string();
         self.friends_group_act(FriendAction::Leave, move |api, group| {
@@ -929,6 +1201,7 @@ impl Launcher {
                 match follow {
                     Follow::Refresh => self.friends_refresh(),
                     Follow::OpenGroup(id) => self.friends_open_group(id),
+                    Follow::Launch(hosting, path) => self.social_launch(hosting, path),
                 }
             }
         }
@@ -1005,6 +1278,56 @@ impl Launcher {
     }
 }
 
+// ----- Rooms ------------------------------------------------------------------------------
+
+/// A room's name as the portal takes it: none when empty, else 1 to 40 characters.
+pub(super) fn room_name(input: &str) -> Result<Option<String>, ()> {
+    if input.trim().is_empty() {
+        return Ok(None);
+    }
+    social::clean_group_name(input).map(Some).ok_or(())
+}
+
+/// Opens a room on the portal and writes the host's hand-off file. When the file cannot be
+/// written the room is closed again: its host token came once and would be lost.
+pub(super) fn host_room(
+    api: &dyn SocialBackend,
+    folder: &Path,
+    audience: &Audience,
+    name: Option<&str>,
+) -> social::Result<Outcome> {
+    let room = api.create_room(audience, name)?;
+    match social::handoff::write_host(folder, &room) {
+        Ok(path) => Ok(Outcome::Hosted(
+            MyRoom {
+                session_id: room.session_id.clone(),
+                audience: audience.clone(),
+                name: name.map(str::to_string),
+                opened_at: now_unix(),
+                expires_at: room.expires_at.unix(),
+            },
+            path,
+        )),
+        Err(_) => {
+            let _ = api.close_room(&room.session_id);
+            Ok(Outcome::HandoffFailed)
+        }
+    }
+}
+
+/// Asks to join a room and writes the guest's hand-off file.
+pub(super) fn join_room(
+    api: &dyn SocialBackend,
+    folder: &Path,
+    session_id: &str,
+) -> social::Result<Outcome> {
+    let join = api.join_room(session_id)?;
+    match social::handoff::write_guest(folder, session_id, &join) {
+        Ok(path) => Ok(Outcome::Joined(path)),
+        Err(_) => Ok(Outcome::HandoffFailed),
+    }
+}
+
 // ----- Small views of the lists -----------------------------------------------------------
 
 /// A person's line under their name in a list.
@@ -1052,7 +1375,7 @@ mod tests {
     use horizon_launcher::i18n::{tr_in, Language};
     use social::ApiCode as C;
 
-    const ACTIONS: [FriendAction; 19] = [
+    const ACTIONS: [FriendAction; 22] = [
         FriendAction::Load,
         FriendAction::SendRequest,
         FriendAction::Accept,
@@ -1072,6 +1395,9 @@ mod tests {
         FriendAction::Kick,
         FriendAction::LiftBan,
         FriendAction::Transfer,
+        FriendAction::OpenRoom,
+        FriendAction::CloseRoom,
+        FriendAction::JoinRoom,
     ];
 
     fn errors() -> Vec<SocialError> {
@@ -1157,6 +1483,7 @@ mod tests {
         page.apply(Event::Friends(api.friends()));
         page.apply(Event::Blocks(api.blocks()));
         page.apply(Event::Groups(api.groups()));
+        page.apply(Event::Rooms(api.rooms()));
         page.apply(Event::Refreshed);
     }
 
@@ -1371,6 +1698,174 @@ mod tests {
         assert!(!page.is_busy(FriendAction::Kick));
         done(&mut page, FriendAction::CreateInvite, Err(SocialError::Invalid));
         assert!(!page.is_busy(FriendAction::CreateInvite));
+    }
+
+    fn scratch_folder(name: &str) -> PathBuf {
+        let mut random = [0_u8; 8];
+        getrandom::fill(&mut random).unwrap();
+        std::env::temp_dir().join(format!(
+            "yoake-rooms-{name}-{}",
+            random.iter().map(|b| format!("{b:02x}")).collect::<String>()
+        ))
+    }
+
+    fn rooms_page(api: &dyn SocialBackend) -> Friends {
+        let mut page = Friends::with_backend(Arc::new(MockSocial::blank()));
+        read_all(&mut page, api);
+        page
+    }
+
+    #[test]
+    fn the_rooms_tab_tells_mine_from_the_ones_to_join() {
+        let api = MockSocial::sample();
+        let page = rooms_page(&api);
+        assert_eq!(page.rooms_status, RoomsStatus::Ready);
+        assert_eq!((page.rooms.len(), page.my_room.is_none()), (3, true));
+
+        let api = MockSocial::sample().with_my_room_open();
+        let page = rooms_page(&api);
+        assert_eq!(page.rooms.len(), 3);
+        let mine = page.my_room.as_ref().expect("my room");
+        assert_eq!(mine.audience, Audience::Friends);
+        assert!(mine.opened_at < now_unix());
+        // Once the portal has listed my room, its absence means it is closed.
+        let mut page = page;
+        page.apply(Event::Rooms(Ok(Vec::new())));
+        assert!(page.my_room.is_none() && page.rooms.is_empty());
+    }
+
+    #[test]
+    fn a_room_the_portal_does_not_list_stays_until_closed_or_expired() {
+        let mut page = rooms_page(&MockSocial::sample());
+        let mine = MyRoom {
+            session_id: "r".into(),
+            audience: Audience::Friends,
+            name: None,
+            opened_at: now_unix(),
+            expires_at: Some(now_unix() + 3600),
+        };
+        page.my_room = Some(mine.clone());
+        page.apply(Event::Rooms(Ok(Vec::new())));
+        assert!(page.my_room.is_some());
+        page.my_room = Some(MyRoom { expires_at: Some(now_unix() - 1), ..mine });
+        page.apply(Event::Rooms(Ok(Vec::new())));
+        assert!(page.my_room.is_none());
+    }
+
+    #[test]
+    fn opening_a_room_writes_the_hand_off_and_launches_the_host() {
+        let api = MockSocial::sample();
+        let mut page = rooms_page(&api);
+        let folder = scratch_folder("host");
+        let groups = page.audience_choices();
+        assert_eq!(groups.len(), 3);
+        page.room_audience = 1;
+        let audience = page.chosen_audience();
+        assert!(matches!(&audience, Audience::Group { name: Some(n), .. } if n == "ゆにぽっぷ"));
+        let outcome = host_room(&api, &folder, &audience, Some("Night")).unwrap();
+        let Outcome::Hosted(room, path) = outcome else { panic!("not hosted") };
+        assert_eq!(room.name.as_deref(), Some("Night"));
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(text.contains("mock-host-token") && text.contains("\"role\":\"host\""));
+        let follow = done(&mut page, FriendAction::OpenRoom, Ok(Outcome::Hosted(room.clone(), path.clone())));
+        assert_eq!(
+            follow,
+            [Follow::Launch(Some(room.session_id.clone()), path.clone()), Follow::Refresh]
+        );
+        assert_eq!(page.my_room.as_ref().map(|r| r.session_id.clone()), Some(room.session_id));
+        assert!(!page.room_panel && page.room_name.edit.text().is_empty());
+        // The same write is not started twice, and joining waits for it.
+        page.in_flight.push(FriendAction::OpenRoom);
+        assert!(page.room_launching());
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
+    #[test]
+    fn a_room_whose_file_cannot_be_written_is_closed_again() {
+        let api = MockSocial::sample();
+        let folder = scratch_folder("blocked");
+        std::fs::create_dir_all(&folder).unwrap();
+        let file = folder.join("a-file");
+        std::fs::write(&file, "x").unwrap();
+        let outcome = host_room(&api, &file.join("inside"), &Audience::Friends, None).unwrap();
+        assert!(matches!(outcome, Outcome::HandoffFailed));
+        assert!(api.rooms().unwrap().iter().all(|r| r.host.principal != "me"), "closed again");
+        let mut page = rooms_page(&api);
+        let follow = done(&mut page, FriendAction::OpenRoom, Ok(Outcome::HandoffFailed));
+        assert!(follow.is_empty() || follow == [Follow::Refresh]);
+        assert_eq!(page.note, Some((false, tr(HANDOFF_FAILED).to_string())));
+        assert!(page.my_room.is_none());
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
+    #[test]
+    fn joining_writes_the_guest_hand_off_and_launches() {
+        let api = MockSocial::sample();
+        let folder = scratch_folder("guest");
+        let Outcome::Joined(path) = join_room(&api, &folder, "room-sora").unwrap() else {
+            panic!("not joined")
+        };
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(text.contains("\"role\":\"guest\"") && text.contains("room-sora"));
+        let mut page = rooms_page(&api);
+        let follow = done(&mut page, FriendAction::JoinRoom, Ok(Outcome::Joined(path.clone())));
+        assert_eq!(follow, [Follow::Launch(None, path), Follow::Refresh]);
+        // A room that is gone or not for me is a note, and no file stays behind.
+        let empty = scratch_folder("none");
+        assert_eq!(join_room(&api, &empty, "nope").err(), Some(SocialError::Api(C::NotFound)));
+        assert!(!empty.exists() || std::fs::read_dir(&empty).unwrap().next().is_none());
+        done(&mut page, FriendAction::JoinRoom, Err(SocialError::Api(C::NotFound)));
+        assert_eq!(page.note, Some((false, tr("That room is closed.").to_string())));
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
+    #[test]
+    fn closing_a_room_forgets_it() {
+        let api = MockSocial::sample().with_my_room_open();
+        let mut page = rooms_page(&api);
+        assert!(page.my_room.is_some());
+        api.close_room("room-me").unwrap();
+        let follow = done(&mut page, FriendAction::CloseRoom, Ok(Outcome::Done));
+        assert_eq!(follow, [Follow::Refresh]);
+        assert!(page.my_room.is_none());
+        // Closing is asked twice.
+        page.ask(Confirm::CloseRoom);
+        assert!(!page.confirm_ready());
+    }
+
+    #[test]
+    fn rooms_not_being_there_does_not_take_the_friends_away() {
+        let mut page = rooms_page(&MockSocial::sample());
+        page.apply(Event::Rooms(Err(SocialError::NotAvailable)));
+        assert_eq!((page.status, page.rooms_status), (FriendsStatus::Ready, RoomsStatus::NotAvailable));
+        page.apply(Event::Rooms(Err(SocialError::Offline)));
+        assert_eq!((page.status, page.rooms_status), (FriendsStatus::Ready, RoomsStatus::Failed));
+        assert_eq!(page.list.friends.len(), 2);
+        // A sign-out is the whole page's.
+        page.apply(Event::Rooms(Err(SocialError::SignedOut)));
+        assert_eq!(page.status, FriendsStatus::SignedOut);
+        assert!(page.rooms.is_empty() && page.my_room.is_none());
+    }
+
+    #[test]
+    fn room_names_are_the_portals_kind_of_name() {
+        assert_eq!(room_name("  "), Ok(None));
+        assert_eq!(room_name(" Night run "), Ok(Some("Night run".into())));
+        assert_eq!(room_name(&"あ".repeat(41)), Err(()));
+        assert_eq!(room_name("a\u{7}b"), Err(()));
+    }
+
+    #[test]
+    fn nothing_secret_is_in_a_message_or_a_follow() {
+        let path = PathBuf::from("handoff-x.json");
+        let shown = format!("{:?}", Follow::Launch(Some("room".into()), path));
+        assert!(!shown.contains("token") && !shown.contains("grant"));
+        for action in [FriendAction::OpenRoom, FriendAction::CloseRoom, FriendAction::JoinRoom] {
+            for error in errors() {
+                let text = error_text(action, error);
+                assert!(!text.contains("mock-"), "{text}");
+            }
+        }
     }
 
     #[test]

@@ -5,8 +5,8 @@
 //! empty line and the danger line. Both appearances.
 use super::*;
 use crate::friends_page::{
-    day, friend_note, request_note, role_word, Confirm, Copied, FriendAction, FriendsStatus,
-    FriendsTab, GroupPanel, InputKind, Outcome,
+    audience_label, clock, day, friend_note, request_note, role_word, Confirm, Copied,
+    FriendAction, FriendsStatus, FriendsTab, GroupPanel, InputKind, Outcome, RoomsStatus,
 };
 use crate::glass_home_lists::{danger_button, danger_line, picture};
 use crate::glass_ui::{self as ui, white};
@@ -29,6 +29,7 @@ impl Launcher {
                 l.incoming.len() + l.outgoing.len(),
                 self.friends.groups.len(),
                 self.friends.blocks.len(),
+                self.friends.rooms.len(),
             )
         });
         let tabs = [
@@ -55,6 +56,12 @@ impl Launcher {
                 "view-off-slash",
                 tr("Blocked"),
                 counts.map(|c| c.3),
+            ),
+            (
+                FriendsTab::Rooms,
+                "game-controller-01",
+                tr("Rooms"),
+                counts.map(|c| c.4),
             ),
         ];
         let open = self.friends.tab;
@@ -109,6 +116,7 @@ impl Launcher {
                 FriendsTab::Requests => self.requests_tab(cx).into_any_element(),
                 FriendsTab::Groups => self.groups_tab(cx).into_any_element(),
                 FriendsTab::Blocked => self.blocked_tab(cx).into_any_element(),
+                FriendsTab::Rooms => self.rooms_tab(cx).into_any_element(),
             },
         };
         let head = div()
@@ -844,6 +852,198 @@ impl Launcher {
         body
     }
 
+    // ----- Rooms ----------------------------------------------------------------------
+
+    /// Your room (open one, or close it) and the rooms of friends and groups to join. Opening
+    /// and joining start the game, so they wait for a game that can start.
+    fn rooms_tab(&mut self, cx: &mut Context<Self>) -> Div {
+        let t = self.theme;
+        let mut body = div().flex().flex_col();
+        body = body.children(self.friends_note_line());
+        let nothing = self.friends.rooms.is_empty() && self.friends.my_room.is_none();
+        match self.friends.rooms_status {
+            RoomsStatus::Loading => {
+                return body.child(ui::empty().child(tr("Loading…")));
+            }
+            RoomsStatus::NotAvailable => {
+                return body.child(self.friends_notice(
+                    tr("Rooms are not available yet."),
+                    tr("The portal has not turned them on. They will show up here once it does."),
+                    false,
+                    cx,
+                ));
+            }
+            RoomsStatus::Failed if nothing => {
+                return body.child(self.friends_notice(
+                    tr("Cannot reach the portal."),
+                    tr("Check the connection and try again."),
+                    false,
+                    cx,
+                ));
+            }
+            RoomsStatus::Failed => {
+                body = body.child(danger_line(
+                    tr("Cannot reach the portal. Check the connection.").to_string(),
+                ));
+            }
+            RoomsStatus::Ready => {}
+        }
+        let can_start = self.can_start_selected();
+        let launching = self.friends.room_launching();
+        let mine = self.friends.my_room.clone();
+
+        // Your room.
+        let open_toggle = {
+            let button = ui::quiet_icon(
+                "room-open",
+                Some("plus-sign"),
+                tr("Open a room"),
+                36.,
+                &t,
+            );
+            if mine.is_some() || launching || !can_start {
+                disabled(button)
+            } else {
+                button.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                    this.friends.room_panel = !this.friends.room_panel;
+                    this.friends.note = None;
+                    if this.friends.room_panel {
+                        this.friends.focus_soon = Some(InputKind::RoomName);
+                    }
+                    cx.notify();
+                }))
+            }
+        };
+        body = body.child(ui::list_head(tr("Your room")).child(open_toggle));
+        match mine {
+            Some(room) => {
+                let id = room.session_id.clone();
+                let close = self.friends_guarded(
+                    format!("room-{}-close", room.session_id),
+                    FriendAction::CloseRoom,
+                    Confirm::CloseRoom,
+                    "Close room",
+                    "Click again to close the room",
+                    true,
+                    cx,
+                    move |this| this.friends_close_room(id.clone()),
+                );
+                let name = room
+                    .name
+                    .clone()
+                    .unwrap_or_else(|| tr("Your room").to_string());
+                let note = room_note(&room.audience, Some(room.opened_at));
+                body = body.child(self.friends_row(
+                    format!("fr-myroom-{}", room.session_id),
+                    "game-controller-01",
+                    name,
+                    note,
+                    vec![close],
+                    cx,
+                ));
+            }
+            None if self.friends.room_panel => {
+                let choices = self.friends.audience_choices();
+                let audience = audience_label(&self.friends.chosen_audience());
+                let pick = ui::quiet_icon(
+                    "room-audience",
+                    Some("user-multiple-02"),
+                    audience,
+                    36.,
+                    &t,
+                );
+                let pick = if choices.len() > 1 {
+                    pick.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                        this.friends.room_audience += 1;
+                        cx.notify();
+                    }))
+                } else {
+                    pick
+                };
+                let field = self.friends_field(
+                    InputKind::RoomName,
+                    "Room name (optional)",
+                    260.,
+                    cx,
+                );
+                let go = ui::solid("room-open-go", tr("Open room"), 44., 14., &t);
+                let go = if launching || !can_start || !self.friends_input_ok(InputKind::RoomName)
+                {
+                    disabled(go)
+                } else {
+                    go.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                        this.friends_open_room();
+                        cx.notify();
+                    }))
+                };
+                body = body.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(8.))
+                        .px(px(12.))
+                        .pb(px(8.))
+                        .child(pick)
+                        .child(field)
+                        .child(go),
+                );
+            }
+            None => {
+                body = body.child(ui::empty().child(tr(
+                    "You have no room open. Open one to play with friends or a group.",
+                )));
+            }
+        }
+        if !can_start {
+            body = body.child(
+                div().px(px(12.)).pb(px(8.)).child(
+                    ui::text(13., FontWeight::NORMAL, ink::QUIET).child(tr(
+                        "The game cannot start right now. Close it or finish preparing, then try again.",
+                    )),
+                ),
+            );
+        }
+
+        // Rooms to join.
+        let rooms = self.friends.rooms.clone();
+        body = body.child(div().pt(px(8.)).child(ui::list_head(trf(
+            "Rooms you can join · {count}",
+            &[("count", &rooms.len().to_string())],
+        ))));
+        if rooms.is_empty() {
+            return body.child(ui::empty().child(tr("No rooms are open right now.")));
+        }
+        for room in rooms {
+            let id = room.session_id.clone();
+            let join = ui::solid(
+                SharedString::from(format!("room-{}-join", room.session_id)),
+                tr("Join"),
+                36.,
+                14.,
+                &t,
+            );
+            let join = if launching || !can_start {
+                disabled(join).into_any_element()
+            } else {
+                join.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                    this.friends_join_room(id.clone());
+                    cx.notify();
+                }))
+                .into_any_element()
+            };
+            body = body.child(self.friends_row_badged(
+                format!("fr-room-{}", room.session_id),
+                "game-controller-01",
+                room.host.name.clone(),
+                room.name.clone(),
+                room_note(&room.audience, room.created_at.unix()),
+                vec![join],
+                cx,
+            ));
+        }
+        body
+    }
+
     // ----- Blocked --------------------------------------------------------------------
 
     fn blocked_tab(&mut self, cx: &mut Context<Self>) -> Div {
@@ -1412,5 +1612,14 @@ impl Launcher {
             }
         }
         body
+    }
+}
+
+/// A room's line under its name: whom it is for, and when it opened.
+fn room_note(audience: &social::rooms::Audience, opened: Option<i64>) -> String {
+    let who = audience_label(audience);
+    match opened.map(clock).filter(|time| !time.is_empty()) {
+        Some(time) => trf("{audience} · opened {time}", &[("audience", &who), ("time", &time)]),
+        None => who,
     }
 }

@@ -137,7 +137,7 @@ impl Page {
             Ok("versions") => Page::Versions,
             Ok("notes") => Page::Notes,
             Ok("yoake") => Page::Yoake,
-            Ok("friends") => Page::Friends,
+            Ok("friends" | "rooms") => Page::Friends,
             Ok("settings") => Page::Settings,
             _ => Page::Play,
         }
@@ -366,6 +366,9 @@ struct Launcher {
     /// The window's width at the last frame: Home's head lays out by it, as the mockup's `xl`.
     window_width: f32,
     joining: Option<String>,
+    /// The file that hands a room to the game starting now (`social::handoff`), and when it was
+    /// asked for: its path is the game's `--yoake-social-handoff` argument.
+    social_handoff: Option<(std::path::PathBuf, Instant)>,
     /// Where the next start goes at once: `--world <folder>` or `--server <address>`.
     quick_play: Option<(&'static str, String)>,
     /// The instance the running game plays and when it started: its play time grows on exit.
@@ -672,6 +675,7 @@ impl Launcher {
             window_width: 0.,
             friend_focus: cx.focus_handle(),
             joining: None,
+            social_handoff: None,
             quick_play: None,
             client_run: None,
             client_vars: Vec::new(),
@@ -1210,6 +1214,7 @@ impl Launcher {
                             );
                             self.starting_pack = None;
                             self.joining = None;
+                            self.drop_social_handoff();
                             self.quick_play = None;
                             continue;
                         }
@@ -1234,6 +1239,7 @@ impl Launcher {
                                     });
                                     self.starting_pack = None;
                                     self.joining = None;
+                                    self.drop_social_handoff();
                                     self.quick_play = None;
                                     continue;
                                 }
@@ -1256,6 +1262,7 @@ impl Launcher {
                                 );
                                 self.starting_pack = None;
                                 self.joining = None;
+                                self.drop_social_handoff();
                                 self.quick_play = None;
                                 continue;
                             }
@@ -1264,6 +1271,7 @@ impl Launcher {
                                 self.client_error = Some(format!("Cannot launch Yoake: {error}"));
                                 self.starting_pack = None;
                                 self.joining = None;
+                                self.drop_social_handoff();
                                 self.quick_play = None;
                                 continue;
                             }
@@ -1276,6 +1284,7 @@ impl Launcher {
                                 self.client_error = Some(format!("{}.", tr(account::NEEDS_OWNER)));
                                 self.starting_pack = None;
                                 self.joining = None;
+                                self.drop_social_handoff();
                                 self.quick_play = None;
                                 continue;
                             }
@@ -1330,6 +1339,7 @@ impl Launcher {
                         };
                         if let Err(e) = profile {
                             self.client_error = Some(e);
+                            self.drop_social_handoff();
                             continue;
                         }
                         if yoake {
@@ -1343,6 +1353,11 @@ impl Launcher {
                         }
                         if let Some((flag, value)) = self.quick_play.take() {
                             cmd.arg(flag).arg(value);
+                        }
+                        // A room: the game gets the path of its private file and nothing else.
+                        let handoff = self.take_social_handoff();
+                        if let Some(path) = &handoff {
+                            cmd.arg(social::handoff::HANDOFF_ARG).arg(path);
                         }
                         backend::append_game_args(&mut cmd);
                         // Last, around every argument: the instance's pre-launch command,
@@ -1363,6 +1378,7 @@ impl Launcher {
                         cmd.envs(self.client_vars.iter().map(|(k, v)| (k, v)));
                         if let Err(error) = backend::check_client_args(&cmd) {
                             self.client_error = Some(error);
+                            handoff.iter().for_each(|path| social::handoff::discard(path));
                             continue;
                         }
                         let launch = instance.map(|i| i.launch).unwrap_or_default();
@@ -1379,7 +1395,10 @@ impl Launcher {
                                 self.client_run = run.map(|id| (id, Instant::now()));
                                 self.step_aside(cx);
                             }
-                            Err(e) => self.client_error = Some(e),
+                            Err(e) => {
+                                self.client_error = Some(e);
+                                handoff.iter().for_each(|path| social::handoff::discard(path));
+                            }
                         }
                     }
                 }
@@ -1908,6 +1927,7 @@ impl Launcher {
             // Mojang's game: no Horizon version or preparation, only no game already running.
             // It joins a server; a friend's code and opening a world are Horizon's.
             self.joining = None;
+            self.drop_social_handoff();
             let server = self
                 .quick_play
                 .take()
@@ -5034,6 +5054,30 @@ impl Launcher {
         }
     }
 
+    /// Asks for the hand-off file at `path` to go to the game that starts next.
+    pub(crate) fn set_social_handoff(&mut self, path: std::path::PathBuf) {
+        self.drop_social_handoff();
+        self.social_handoff = Some((path, Instant::now()));
+    }
+
+    /// The game will not read the pending hand-off file: delete it.
+    pub(crate) fn drop_social_handoff(&mut self) {
+        if let Some((path, _)) = self.social_handoff.take() {
+            social::handoff::discard(&path);
+        }
+    }
+
+    /// The pending hand-off file for the game starting now. One that has waited longer than
+    /// the portal's grant lasts is stale: it is deleted, not passed.
+    fn take_social_handoff(&mut self) -> Option<std::path::PathBuf> {
+        let (path, asked) = self.social_handoff.take()?;
+        if asked.elapsed() > Duration::from_secs(180) {
+            social::handoff::discard(&path);
+            return None;
+        }
+        Some(path)
+    }
+
     fn join_friend(&mut self) {
         if horizon_friends::invite::parse(self.friend_code.text()).is_none() {
             return;
@@ -6040,6 +6084,11 @@ fn main() {
     #[cfg(windows)]
     backend::remove_replaced_binaries();
     backend::cleanup_launcher_updates();
+    // Room files the game never read (it did not start, or the launcher was closed first).
+    social::handoff::sweep(
+        &social::handoff::folder(&backend::data_dir()),
+        social::handoff::MAX_AGE,
+    );
     // What the launcher downloads goes through the player's proxy, if they set one: the parts
     // that build their own agents (`horizon-port-pack`) are told before anything starts.
     horizon_launcher::proxy::announce(horizon_launcher::backend::Settings::load().proxy);
