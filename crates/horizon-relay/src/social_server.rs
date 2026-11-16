@@ -267,7 +267,7 @@ impl Drop for LiveGuard {
 }
 
 /// Ends when either side closes or fails, or the slot expires. When both directions are
-/// idle it backs off, so many idle bridges cost little; traffic resets it to 1 ms.
+/// idle it backs off; an over-share bridge also backs off on session budget contention.
 fn forward(pair: &mut PairedConnection<MessageStream, MessageStream>, ticks: &AtomicU64, relay: &SocialRelay) {
     let mut nap = Duration::from_millis(1);
     let mut last_sweep = Instant::now();
@@ -286,7 +286,10 @@ fn forward(pair: &mut PairedConnection<MessageStream, MessageStream>, ticks: &At
                 Err(_) => return,
             }
         }
-        if active {
+        if pair.take_contention_yield() {
+            std::thread::sleep(MAX_IDLE_NAP);
+            nap = Duration::from_millis(1);
+        } else if active {
             nap = Duration::from_millis(1);
         } else {
             std::thread::sleep(nap);

@@ -92,6 +92,8 @@ struct Slot {
     id: u64,
     paired: bool,
     last_activity: Instant,
+    previous: Option<[u8; 32]>,
+    next: Option<[u8; 32]>,
     bandwidth: forward::PairBandwidth,
     /// Host token failures since the last lock-out.
     failures: u8,
@@ -120,8 +122,10 @@ struct Session {
     retired_until: u64,
     used: HashMap<[u8; 32], u64>,
     slots: HashMap<[u8; 32], Slot>,
+    oldest_slot: Option<[u8; 32]>,
+    newest_slot: Option<[u8; 32]>,
+    active_pairs: usize,
     next_slot_id: u64,
-    last_forwarded_slot: u64,
     tokens: f64,
     last_refill: Instant,
 }
@@ -145,8 +149,10 @@ impl Session {
             retired_until: 0,
             used: HashMap::new(),
             slots: HashMap::new(),
+            oldest_slot: None,
+            newest_slot: None,
+            active_pairs: 0,
             next_slot_id: 0,
-            last_forwarded_slot: 0,
             tokens: limits.burst_bytes as f64,
             last_refill: now,
         }
@@ -157,17 +163,66 @@ impl Session {
     fn retire(&mut self, unix_time: u64) {
         self.active = false;
         self.slots = HashMap::new(); // not clear(): give the memory back
+        self.oldest_slot = None;
+        self.newest_slot = None;
+        self.active_pairs = 0;
         self.used = HashMap::new();
         self.retired_until = unix_time.saturating_add(MAX_GRANT_LIFETIME_SECS);
     }
 
     fn prune(&mut self, unix_time: u64, now: Instant) {
         self.used.retain(|_, expires| *expires > unix_time);
-        self.slots.retain(|_, slot| {
-            now.checked_duration_since(slot.last_activity)
-                .unwrap_or_default()
+        self.prune_idle(now);
+    }
+
+    fn prune_idle(&mut self, now: Instant) {
+        while let Some(nonce) = self.oldest_slot {
+            if now.checked_duration_since(self.slots[&nonce].last_activity).unwrap_or_default()
                 < self.limits.idle_timeout
-        });
+            {
+                break;
+            }
+            self.remove_slot(nonce);
+        }
+    }
+
+    fn unlink_slot(&mut self, nonce: [u8; 32]) {
+        let slot = &self.slots[&nonce];
+        let (previous, next) = (slot.previous, slot.next);
+        if let Some(previous) = previous {
+            self.slots.get_mut(&previous).unwrap().next = next;
+        } else {
+            self.oldest_slot = next;
+        }
+        if let Some(next) = next {
+            self.slots.get_mut(&next).unwrap().previous = previous;
+        } else {
+            self.newest_slot = previous;
+        }
+    }
+
+    fn touch_slot(&mut self, nonce: [u8; 32], now: Instant) {
+        let newest_activity = self.newest_slot.map(|newest| self.slots[&newest].last_activity)
+            .unwrap_or(now);
+        let activity = now.max(newest_activity).max(self.slots[&nonce].last_activity);
+        self.unlink_slot(nonce);
+        if let Some(newest) = self.newest_slot {
+            self.slots.get_mut(&newest).unwrap().next = Some(nonce);
+        } else {
+            self.oldest_slot = Some(nonce);
+        }
+        let slot = self.slots.get_mut(&nonce).unwrap();
+        slot.previous = self.newest_slot;
+        slot.next = None;
+        slot.last_activity = activity;
+        self.newest_slot = Some(nonce);
+    }
+
+    fn remove_slot(&mut self, nonce: [u8; 32]) {
+        self.unlink_slot(nonce);
+        if self.slots.remove(&nonce).unwrap().paired {
+            self.active_pairs -= 1;
+        }
     }
 }
 
@@ -376,14 +431,24 @@ impl SocialRelay {
         let slot_id = session.next_slot_id.checked_add(1).ok_or(RelayError::Unavailable)?;
         session.next_slot_id = slot_id;
         session.used.insert(nonce, verified.expires_at());
+        let last_activity = session.newest_slot.map(|newest| session.slots[&newest].last_activity)
+            .unwrap_or(now).max(now);
         session.slots.insert(nonce, Slot {
             id: slot_id,
             paired: false,
-            last_activity: now,
+            last_activity,
+            previous: session.newest_slot,
+            next: None,
             bandwidth: forward::PairBandwidth::new(session.limits, now),
             failures: 0,
             locked_until: None,
         });
+        if let Some(newest) = session.newest_slot {
+            session.slots.get_mut(&newest).unwrap().next = Some(nonce);
+        } else {
+            session.oldest_slot = Some(nonce);
+        }
+        session.newest_slot = Some(nonce);
         Ok(PendingGuest {
             relay: self.clone(),
             signed: signed.clone(),
@@ -486,7 +551,8 @@ impl<GUEST> PendingGuest<GUEST> {
         }
         let guest = self.guest.take().ok_or(RelayError::PairingMismatch)?;
         slot.paired = true;
-        slot.last_activity = now;
+        session.active_pairs += 1;
+        session.touch_slot(self.verified.nonce(), now);
         self.armed = false;
         Ok(PairedConnection::new(self.relay.clone(), self.verified.clone(), self.slot_id, guest, host))
     }
@@ -525,7 +591,7 @@ pub(super) fn release_slot(relay: &SocialRelay, verified: &VerifiedGrant, slot_i
     if let Ok(mut sessions) = relay.sessions.lock() {
         if let Some(session) = sessions.get_mut(verified.session_id()) {
             if session.slots.get(&verified.nonce()).is_some_and(|slot| slot.id == slot_id) {
-                session.slots.remove(&verified.nonce());
+                session.remove_slot(verified.nonce());
             }
         }
     }

@@ -490,7 +490,21 @@ inactivity limits. Its locks are held only to check limits and take budget, neve
 across network I/O. The forwarder reads first, without waiting, and charges
 bandwidth for a whole message only once it holds one (a session's burst must be at least
 one maximum message, 16 KiB, or its limits are invalid), so idle pairs hold no budget and messages are never
-split. Each pair has separate directional buckets, each with half the session rate and half the burst (at least 16 KiB); a direction borrows the other's share only while nothing waits the other way. Ready directions alternate and eligible pairs take round-robin turns, so a host streaming at the cap cannot hold back a guest's input; the shared session bucket still caps all traffic at the portal-issued rate and burst. A message of zero length is a protocol violation and closes the bridge. The
+split. Each pair has separate directional buckets, each with half the session
+rate and half the burst (at least 16 KiB). Borrowing is allowed unless the reverse
+direction has an unpaid message waiting that its own bucket can pay now; an
+already-paid, partially written message does not reserve that bucket. There is
+no strict alternation and no turn shared between pairs: an eligible message with
+enough session budget is admitted immediately, regardless of another pair's
+polling or blocked write. The shared session bucket still caps all admitted
+traffic at the portal-issued rate and burst. Cross-pair fairness is best-effort
+only under contention: when session budget cannot pay, a pair whose exponentially
+decaying recent usage (a one-second time constant) exceeds the session rate
+divided by the active paired-connection count backs off for 16 ms, giving others
+an opportunity to take the refill. Unpaired and idle-expired slots do not count.
+This is not a strict per-pair quota or an end-to-end input-latency guarantee;
+socket stalls and scheduling can still delay that pair's traffic. A message of
+zero length is a protocol violation and closes the bridge. The
 forwarding loop naps up to 16 ms when both directions are idle, so an idle pair
 costs little and the first message after a long silence can be delayed by that
 much; a readiness-based wait (mio or poll/WSAPoll) would remove the delay but

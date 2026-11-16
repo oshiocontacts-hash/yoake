@@ -1,7 +1,7 @@
 //! Forwarding between a paired guest and host.
 //!
-//! The sessions lock is held only to check limits and reserve budget, and again
-//! to settle it; the reads and writes in between run without it.
+//! The sessions lock is held only to check limits and charge budget, and again
+//! to record activity; the reads and writes in between run without it.
 use std::io::{self, Read, Write};
 use std::time::Instant;
 
@@ -13,6 +13,7 @@ const BUFFER_BYTES: usize = horizon_friends::social_tls::MAX_MESSAGE_SIZE;
 
 struct Buffer {
     bytes: Vec<u8>,
+    length: usize,
     offset: usize,
     /// The bandwidth for `bytes` was already taken.
     paid: bool,
@@ -21,28 +22,25 @@ struct Buffer {
 
 impl Buffer {
     fn new() -> Self {
-        Self { bytes: Vec::new(), offset: 0, paid: false, error: None }
+        Self { bytes: vec![0; BUFFER_BYTES], length: 0, offset: 0, paid: false, error: None }
     }
 
     fn read(&mut self, source: &mut impl Read) {
-        if !self.bytes.is_empty() || self.error.is_some() { return; }
-        self.bytes.resize(BUFFER_BYTES, 0);
+        if self.length != 0 || self.error.is_some() { return; }
         match source.read(&mut self.bytes) {
             Ok(0) => {
-                self.bytes.clear();
                 self.error = Some(io::ErrorKind::UnexpectedEof.into());
             }
-            Ok(count) => self.bytes.truncate(count),
-            Err(error) if error.kind() == io::ErrorKind::WouldBlock => self.bytes.clear(),
+            Ok(count) => self.length = count,
+            Err(error) if error.kind() == io::ErrorKind::WouldBlock => {}
             Err(error) => {
-                self.bytes.clear();
                 self.error = Some(error);
             }
         }
     }
 
     fn pending(&self) -> Option<usize> {
-        if self.bytes.is_empty() { None } else { Some(if self.paid { 0 } else { self.bytes.len() }) }
+        if self.length == 0 { None } else { Some(if self.paid { 0 } else { self.length }) }
     }
 }
 
@@ -62,13 +60,13 @@ pub(super) struct PairBandwidth {
     tokens: [f64; 2],
     last_refill: Instant,
     pending: [Option<usize>; 2],
-    last_direction: Option<Direction>,
+    recent_usage: f64,
 }
 
 impl PairBandwidth {
     pub(super) fn new(limits: SessionLimits, now: Instant) -> Self {
         let burst = (limits.burst_bytes as f64 / 2.0).max(BUFFER_BYTES as f64);
-        Self { tokens: [burst; 2], last_refill: now, pending: [None; 2], last_direction: None }
+        Self { tokens: [burst; 2], last_refill: now, pending: [None; 2], recent_usage: 0.0 }
     }
 
     fn refill(&mut self, limits: SessionLimits, now: Instant) {
@@ -77,6 +75,7 @@ impl PairBandwidth {
         for tokens in &mut self.tokens {
             *tokens = (*tokens + elapsed.as_secs_f64() * limits.bytes_per_second as f64 / 2.0).min(burst);
         }
+        self.recent_usage *= (-elapsed.as_secs_f64()).exp();
         self.last_refill = now.max(self.last_refill);
     }
 
@@ -84,8 +83,8 @@ impl PairBandwidth {
         let index = direction.index();
         let other = 1 - index;
         let Some(need) = self.pending[index].filter(|need| *need > 0) else { return false; };
-        if self.last_direction == Some(direction) && self.pending[other].is_some() { return false; }
-        let borrowed = if self.pending[other].is_none() { self.tokens[other] } else { 0.0 };
+        let waiting = self.pending[other].is_some_and(|need| need > 0 && self.tokens[other] >= need as f64);
+        let borrowed = if waiting { 0.0 } else { self.tokens[other] };
         self.tokens[index] + borrowed >= need as f64
     }
 
@@ -95,7 +94,7 @@ impl PairBandwidth {
         self.tokens[index] -= own;
         self.tokens[1 - index] -= need as f64 - own;
         self.pending[index] = Some(0);
-        self.last_direction = Some(direction);
+        self.recent_usage += need as f64;
     }
 }
 
@@ -119,11 +118,15 @@ pub struct PairedConnection<GUEST, HOST> {
     host: HOST,
     guest_to_host: Buffer,
     host_to_guest: Buffer,
+    contention_yield: bool,
 }
 
 impl<GUEST, HOST> PairedConnection<GUEST, HOST> {
     pub(super) fn new(relay: SocialRelay, verified: VerifiedGrant, slot_id: u64, guest: GUEST, host: HOST) -> Self {
-        Self { relay, verified, slot_id, guest, host, guest_to_host: Buffer::new(), host_to_guest: Buffer::new() }
+        Self {
+            relay, verified, slot_id, guest, host,
+            guest_to_host: Buffer::new(), host_to_guest: Buffer::new(), contention_yield: false,
+        }
     }
 }
 
@@ -132,9 +135,9 @@ impl<GUEST: Read + Write, HOST: Read + Write> PairedConnection<GUEST, HOST> {
         &self.verified
     }
 
-    /// Check the slot and refill the buckets; admit a pending direction on its turn.
+    /// Check the slot and refill only its buckets; admit a pending direction if funded.
     /// Lock held, no I/O. `Ok(false)`: not enough bandwidth yet.
-    fn admit(&self, now: Instant, direction: Option<Direction>) -> Result<bool, ForwardError> {
+    fn admit(&mut self, now: Instant, direction: Option<Direction>) -> Result<bool, ForwardError> {
         let unavailable = || ForwardError::Relay(RelayError::Unavailable);
         let mut sessions = self.relay.sessions.lock().map_err(|_| unavailable())?;
         let session = sessions
@@ -142,46 +145,41 @@ impl<GUEST: Read + Write, HOST: Read + Write> PairedConnection<GUEST, HOST> {
             .filter(|session| session.active)
             .ok_or(ForwardError::Relay(RelayError::UnknownSession))?;
         let nonce = self.verified.nonce();
-        let slot = session.slots.get(&nonce)
+        session.prune_idle(now);
+        session.slots.get(&nonce)
             .filter(|slot| slot.paired && slot.id == self.slot_id)
             .ok_or(ForwardError::Relay(RelayError::TimedOut))?;
-        if now.checked_duration_since(slot.last_activity).unwrap_or_default() >= session.limits.idle_timeout {
-            session.slots.remove(&nonce);
-            return Err(ForwardError::Relay(RelayError::TimedOut));
-        }
+        let Some(direction) = direction else { return Ok(true); };
         let elapsed = now.checked_duration_since(session.last_refill).unwrap_or_default();
         session.tokens = (session.tokens + elapsed.as_secs_f64() * session.limits.bytes_per_second as f64)
             .min(session.limits.burst_bytes as f64);
         session.last_refill = now.max(session.last_refill);
-        for slot in session.slots.values_mut() {
-            slot.bandwidth.refill(session.limits, now);
-        }
         let bandwidth = &mut session.slots.get_mut(&nonce).unwrap().bandwidth;
+        bandwidth.refill(session.limits, now);
         bandwidth.pending = [self.guest_to_host.pending(), self.host_to_guest.pending()];
-        let Some(direction) = direction else { return Ok(true); };
         let Some(need) = bandwidth.pending[direction.index()] else { return Ok(false); };
         if need == 0 { return Ok(true); }
+        if session.tokens < need as f64 {
+            self.contention_yield |= bandwidth.recent_usage
+                > session.limits.bytes_per_second as f64 / session.active_pairs as f64;
+            return Ok(false);
+        }
         if !bandwidth.available(direction) { return Ok(false); }
-        let next_slot = session.slots.values()
-            .filter(|slot| slot.paired
-                && now.checked_duration_since(slot.last_activity).unwrap_or_default() < session.limits.idle_timeout
-                && [Direction::GuestToHost, Direction::HostToGuest].into_iter()
-                    .any(|direction| slot.bandwidth.available(direction)))
-            .min_by_key(|slot| (slot.id <= session.last_forwarded_slot, slot.id))
-            .map(|slot| slot.id);
-        if next_slot != Some(self.slot_id) || session.tokens < need as f64 { return Ok(false); }
         session.tokens -= need as f64;
-        session.slots.get_mut(&nonce).unwrap().bandwidth.take(direction, need);
-        session.last_forwarded_slot = self.slot_id;
+        bandwidth.take(direction, need);
         Ok(true)
+    }
+
+    pub(crate) fn take_contention_yield(&mut self) -> bool {
+        std::mem::take(&mut self.contention_yield)
     }
 
     fn note_activity(&self, now: Instant) {
         let Ok(mut sessions) = self.relay.sessions.lock() else { return; };
         if let Some(session) = sessions.get_mut(self.verified.session_id()) {
             if let Some(slot) = session.slots.get_mut(&self.verified.nonce()).filter(|slot| slot.id == self.slot_id) {
-                slot.last_activity = now;
                 slot.bandwidth.pending = [self.guest_to_host.pending(), self.host_to_guest.pending()];
+                session.touch_slot(self.verified.nonce(), now);
             }
         }
     }
@@ -215,8 +213,8 @@ impl<GUEST: Read + Write, HOST: Read + Write> PairedConnection<GUEST, HOST> {
         };
         buffer.paid = true;
         let written = match direction {
-            Direction::GuestToHost => self.host.write(&buffer.bytes[buffer.offset..]),
-            Direction::HostToGuest => self.guest.write(&buffer.bytes[buffer.offset..]),
+            Direction::GuestToHost => self.host.write(&buffer.bytes[buffer.offset..buffer.length]),
+            Direction::HostToGuest => self.guest.write(&buffer.bytes[buffer.offset..buffer.length]),
         };
         let written = match written {
             Ok(0) => return Err(ForwardError::Io(io::ErrorKind::WriteZero.into())),
@@ -225,8 +223,8 @@ impl<GUEST: Read + Write, HOST: Read + Write> PairedConnection<GUEST, HOST> {
             Err(error) => return Err(ForwardError::Io(error)),
         };
         buffer.offset += written;
-        if buffer.offset == buffer.bytes.len() {
-            buffer.bytes.clear();
+        if buffer.offset == buffer.length {
+            buffer.length = 0;
             buffer.offset = 0;
             buffer.paid = false;
         }
