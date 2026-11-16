@@ -139,6 +139,11 @@ windows-mimalloc = []
 # Opt-in Windows heap experiment; see docs/windows-allocators.md.
 windows-segment-heap = []
 
+[lib]
+# Only re-exports horizon-client-lib (src/client_lib.rs is compiled there); a doctest
+# here would run the same docs a second time against a different crate name.
+doctest = false
+
 [[bin]]
 name = "horizon-client"
 path = "src/main.rs"

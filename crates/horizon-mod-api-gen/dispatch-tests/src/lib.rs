@@ -247,6 +247,11 @@ mod tests {
         index
     }
 
+    /// The real one matches the binding id's owner prefix to the mod's id; these tests register no ids.
+    fn key_binding_owner(_index: usize, _id: &str) -> bool {
+        true
+    }
+
     fn reset_guard() {
         crate::crash::install_hook();
         GUARD.with(|guard| {
