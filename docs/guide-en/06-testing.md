@@ -190,12 +190,12 @@ The world where your tests run follows these rules:[^wasm-dev][^real-run]
 
 1. **Superflat layers and coordinates**:
    - The world is a superflat world with seed `0` and structures turned off.
-   - The ground follows the standard superflat layering (bedrock, two dirt layers, grass); `docs/yoake-wasm-dev.md` does not pin the exact height (read it with `block_at` if a test depends on it). In this guide, the layers from bottom to top are: **`y = -64` is bedrock, `y = -63` and `y = -62` are dirt, `y = -61` is grass block, and `y = -60` and above are air**. Examples place blocks at `y = -60` because that is the first air layer right above the grass.
+   - The ground follows the standard superflat layering (bedrock, two dirt layers, grass); `docs/yoake-wasm-dev.md` does not pin the exact height (read it with `block_at` if a test depends on it). What the code confirms is only that **the grass block is at `y = -61` and `y = -60` above it is air** (the sample's `ground_is_grass` checks `y = -61`, and other tests place blocks at `y = -60`)[^layers]. The exact heights of bedrock and dirt are not pinned in code, so read lower layers with `block_at` if a test depends on them.
 2. **Initial state and working near spawn**:
    - The world owner joins near spawn (`0, 0`) in Creative mode (`--creative`), with time set to `6000` (`--time 6000`), clear weather (`--weather clear`), and a render distance of `4` chunks (`--render-distance 4`). Place blocks and entities used by your tests near `(0, 0)`.
-   - The owner joins with an automatically generated name (measured as the form **`PlayerNNNNN`**; needs confirmation).
+   - The owner's name is not fixed; do not write tests that depend on it[^layers].
 3. **The world is frozen and advances only when you call `run_ticks`**:
-   - After the owner joins, the world runs for 2 seconds of real time so chunks can finish loading (warmup). Because of this warmup, **the world has already advanced some ticks when your test function starts** (roughly 87–103 in a measured run, which could not be confirmed from this repository's code or docs (needs confirmation); do not assume `world.tick()` starts at `0`).
+   - After the owner joins, the world runs for 2 seconds of real time so chunks can finish loading (warmup). Because of this warmup, **the world has already advanced some ticks when your test function starts** (the count varies from run to run and has no fixed value; do not assume `world.tick()` starts at `0`, and instead record the starting value, e.g. `let before = world.tick();`, and compare differences).
    - Right after warmup, **the world is frozen**. While frozen, server ticks never advance on their own; they advance by the exact number of ticks you request via `world.run_ticks(n)` (skipping the normal 50 ms per-tick sleep to run as fast as possible).
 4. **Each test spawns a fresh process and world, which takes time**:
    - To completely isolate tests from leftover state or hangs, **every single test starts a brand-new worker process and temporary world**.
@@ -280,7 +280,8 @@ Once your mod passes its tests, continue to [7. Publishing Your Mod (`07-publish
 [^wasm-dev]: Source: `docs/yoake-wasm-dev.md` ("CLI and test scaffolding" and "Testing a mod in the engine").
 [^scaffold]: Source: `crates/yoake-cli/src/scaffold.rs`.
 [^engine-test]: Source: `crates/yoake-cli/src/engine_test.rs`.
-[^real-run]: Source: `docs/yoake-wasm-dev.md` (superflat, seed 0, structures off, Creative, time 6000, clear weather, render distance 4, frozen after a 2-second warmup). The layer heights, the post-warmup tick count, and the `PlayerNNNNN` name come from `docs/release/1.0-test-plan.md` and could not be confirmed in code (needs confirmation).
+[^real-run]: Source: `docs/yoake-wasm-dev.md` (superflat, seed 0, structures off, Creative, time 6000, clear weather, render distance 4, frozen after a 2-second warmup). The post-warmup tick count varies per run and has no fixed value.
 [^testing-rs]: Source: `crates/yoake-wasm-sdk/src/testing.rs`.
+[^layers]: Source: `crates/yoake-wasm-sdk/examples/tested-counter/src/lib.rs` (`ORIGIN` is at `y = -60`; `ground_is_grass` checks the grass block at `y = -61`) and `docs/yoake-wasm-dev.md` (layers are bedrock, two dirt, grass; exact height not pinned; the owner's name is not mentioned).
 [^coordinator]: Source: `crates/yoake-test-runner/src/coordinator.rs`.
 [^limits]: Source: `docs/yoake-wasm-dev.md`, "Limits and what is not covered".

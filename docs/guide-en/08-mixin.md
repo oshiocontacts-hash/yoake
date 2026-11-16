@@ -185,7 +185,7 @@ The table below lists common bounds. For other domains—such as experience, enc
 
 A `scoped<...>` handle is not a raw memory address; it is a read-only value valid only during the current call. When replacing arguments in HEAD, you must echo every original handle back unchanged, including its `scope`, `type`, and `snapshot` (the identity metadata carried by the handle). Caching a handle for later, reusing one across calls, or tampering with its contents is rejected.
 
-If a handler traps or returns an invalid response, that site, side, and injection point is disabled. How long it remains disabled is (undecided). The mod, target, and failure are logged, and the call uses the native fallback described in section 8-8. By contrast, if an engine argument or native result exceeds the conversion budget, the host simply skips the callback and falls back to native execution without disabling the handler.[^runtime]
+If a handler traps or returns an invalid response, that site, side, and injection point is disabled. It is not re-enabled by a timer: the code has no re-enable path, so it stays disabled for the rest of that game run (`crates/yoake-inject-rt/src/lib.rs`, `disable` at lines 327-328 and 406-411). The mod, target, and failure are logged, and the call uses the native fallback described in section 8-8. By contrast, if an engine argument or native result exceeds the conversion budget, the host simply skips the callback and falls back to native execution without disabling the handler.[^runtime]
 
 ## 8-6. Intercepting Commands and Chat
 
@@ -216,7 +216,7 @@ The main time and memory limits are listed below. Reaching 20 consecutive aggreg
 
 In addition, each callback value conversion is capped at 4,096 total nodes, depth 32, and 256 KiB of payload.
 
-**A trap or invalid response does not crash the game.** The host disables only that site, side, and injection point (for how long is (undecided)), logs the failure, and falls back to native execution. The exact fallback depends on where the failure occurred:[^runtime]
+**A trap or invalid response does not crash the game.** The host disables only that site, side, and injection point (it stays disabled for the rest of that game run; no re-enable path exists in `crates/yoake-inject-rt/src/lib.rs`, lines 327-328 and 406-411), logs the failure, and falls back to native execution. The exact fallback depends on where the failure occurred:[^runtime]
 
 1. **HEAD or overwrite fails**: Runs the native body once with the original arguments.
 2. **RETURN fails after the native body already ran with HEAD-modified arguments**: Uses the cached native result from that call. It does not re-run the native body and does not keep replacements from earlier RETURN handlers.
@@ -228,7 +228,7 @@ Side effects that have already occurred in the guest or native code are not roll
 
 When no handler is registered for a site, the function performs a single relaxed atomic load and branch before entering the original body—before any thread-local side check, lock acquisition, snapshot creation, argument construction, or memory allocation.[^macro]
 
-In Windows release microbenchmarks from development logs (median of 11 runs), the gate added **0.6194 ns/call** on a minimal function and **0.7934 ns/call** on a function matching `calculate_fall_damage`. That represents 40.53% and 9.84% respectively, showing a measurable relative cost on very short functions. However, these microbenchmarks do not measure full-game performance; whether whole-engine overhead with no mod installed stays below 1% is (undecided).[^overview]
+In Windows release microbenchmarks from development logs (median of 11 runs), the gate added **0.6194 ns/call** on a minimal function and **0.7934 ns/call** on a function matching `calculate_fall_damage`. That represents 40.53% and 9.84% respectively, showing a measurable relative cost on very short functions. However, these microbenchmarks do not measure full-game performance; whether whole-engine overhead with no mod installed stays below 1% is (undecided); `docs/yoake-mixin.md` also lists it as unmeasured.[^overview]
 
 ## 8-10. Common Pitfalls
 

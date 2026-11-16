@@ -135,6 +135,8 @@ Because the catalog's `size` and `sha256` cover all bytes of the `.yak` ZIP incl
 > **Wasm mods for players must be signed with Yoake's key.**
 > A `.yak` package created by `yoake pack` (or `cargo horizon-mod pack`) is **unsigned**[^api-yoake-mods][^yoake-cli]. An unsigned `.yak` runs only on the author's machine, with Wasm developer mode enabled (`YOAKE_WASM_UNSIGNED=1`, or the launcher's "Test your own WASM mods")[^yak-mods-client]. For players to run a Wasm mod in a normal game session, the `.yak` must carry a valid `SIGNATURE` signed with Yoake's key[^yak-mods-client][^yak-installed]. How mod authors submit a package to be signed with Yoake's key is (undecided).
 
+<!-- TODO(Yoake): Once the signing-request contact and the portal submission procedure are decided, rewrite this paragraph and the other (undecided) portal-submission spots in chapter 07. -->
+
 ### What the Launcher and Game Check
 
 1. **Launcher checks**:
