@@ -140,7 +140,7 @@ pub struct Reprovision {
     pub relay: String,
 }
 
-/// `POST /sessions/:id/join`' answer: the grant (good for about 120 seconds) and its signature.
+/// `POST /sessions/:id/join`' answer: the grant (good for about 240 seconds) and its signature.
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
 pub struct JoinGrant {
     #[serde(deserialize_with = "object")]
