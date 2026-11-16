@@ -7,24 +7,27 @@ MOD をビルドしたら、実際に Yoake のゲーム内で動かしてみま
 
 ## 3-1. `client-mod` を開発フォルダですぐ試す
 
-WIT ワールドが `client-mod` の MOD なら、毎回 `.yak` を導入し直す代わりに、生の `.wasm` を開発フォルダから読み込んでホットリロードできます。開発フォルダはマニフェストを読まず、モジュールは常に `client-mod` として扱われます。[^dev-dir]
+WIT ワールドが `client-mod` の MOD なら、毎回 `.yak` を導入し直す代わりに、生の `.wasm` を開発フォルダから読み込んでホットリロードできます。開発フォルダはマニフェストを読まず、モジュールは常に `client-mod` として扱われます。開発フォルダの MOD は ID に `dev-` が付き、同じ ID のインストール済み MOD があるときは読み込まれません（設定・ストレージは別になります）。また、バイト列が変わりうるので `required_on_join` のダイジェストは固定されません。[^dev-dir]
 
-> **注意**: 今の版では `YOAKE_DLL_MODS_UNSIGNED=1` は WebAssembly 専用のスイッチではありません。ゲームのプロセス全体に適用され、**PC 上のあらゆる操作が可能な、署名のないネイティブ DLL MOD も許可します**。WebAssembly だけを許可するスイッチは、エンジン側で追加が予定されています。[^unsigned]
+> [!WARNING]
+> 未署名の Wasm を開発で動かすには、Wasm 専用のスイッチ `YOAKE_WASM_UNSIGNED=1`（値は正確に `1`）を使います。このスイッチはネイティブ DLL を許可しません。Wasm はサンドボックスで動きますが、MOD が宣言したサービス権限（サーバーの `service.commands` など）は適用されます。他の人の MOD には使わないでください。[^unsigned]
 >
 > - **常駐させないでください**。`setx` は絶対に使わず、Windows やユーザーの環境変数にも登録しないでください。
-> - **推奨**: ランチャーの設定の "Developer options"（サイドバーの "Launcher x.y.z" を 7 回クリックすると出てくる）→「自作の DLL MOD を試す（開発者モード）」を使います。この設定はランチャーから起動したゲームだけに適用されます。[^launcher]
-> - 環境変数を使う場合は、その 1 つの PowerShell ウィンドウだけで `$env:YOAKE_DLL_MODS_UNSIGNED='1'` と設定し、**同じウィンドウからゲームを直接起動**します。ランチャーの設定がオフなら、ランチャーはゲームの起動環境からこの変数を削除します。[^launcher]
-> - 有効な間は**自分が作った `.yak` だけ**をインストールし、`YOAKE_DLL_MODS` は空に保ちます（PowerShell では `$env:YOAKE_DLL_MODS=''`）。終わったら PowerShell ウィンドウを閉じてください。
+> - **推奨**: ランチャーの設定の "Developer options"（サイドバーの "Launcher x.y.z" を 7 回クリックすると出てくる）→「自分の WASM MOD をテスト」（英語 UI では "Test your own WASM mods"）→ 確認で「オンにする」を使います。この設定はランチャーから起動したゲームだけに適用されます。[^launcher]
+> - 環境変数を使う場合は、その 1 つの PowerShell ウィンドウだけで `$env:YOAKE_WASM_UNSIGNED='1'` と設定し、**同じウィンドウからゲームを直接起動**します。ランチャーの設定がオフなら、ランチャーはゲームの起動環境からこの変数（と `YOAKE_DLL_MODS_UNSIGNED`）を削除します。[^launcher]
+> - 有効な間は**自分が作った `.yak` だけ**をインストールしてください。終わったら PowerShell ウィンドウを閉じてください。
+>
+> 開発者モードのスイッチは Wasm 用と DLL 用の 2 つあり、別々に切り替えます。DLL 用の `YOAKE_DLL_MODS_UNSIGNED=1`（ランチャーでは「自作の DLL MOD を試す（開発者モード）」）は Wasm 用の機能も含む上位互換ですが、**署名のないネイティブ DLL MOD も許可します**。DLL の MOD を開発するときだけ使い、このガイドの Wasm MOD には Wasm 用のスイッチを使ってください。
 
 ### 開発フォルダの設定と `yoake dev`
 
-ランチャーを通さずゲームを直接起動する場合は、上の注意に従って PowerShell で `YOAKE_DLL_MODS_UNSIGNED` を設定します。続けて、同じウィンドウで開発フォルダを指定します。
+ランチャーを通さずゲームを直接起動する場合は、上の注意に従って PowerShell で `YOAKE_WASM_UNSIGNED` を設定します。続けて、同じウィンドウで開発フォルダを指定します。
 
 ```powershell
 $env:YOAKE_WASM_DEV_DIR='<フォルダのパス>'
 ```
 
-**同じ PowerShell ウィンドウからゲームを直接起動**すると、指定フォルダの `<id>.wasm` を `.yak` なしで読み込めます。ランチャー経由では、ランチャー側の設定がオフのとき `YOAKE_DLL_MODS_UNSIGNED` が削除されるため、この PowerShell 設定は使えません。MOD のプロジェクトフォルダでは、次のコマンドを実行します。
+**同じ PowerShell ウィンドウからゲームを直接起動**すると、指定フォルダの `<id>.wasm` を `.yak` なしで読み込めます。ランチャー経由では、ランチャー側の設定がオフのとき `YOAKE_WASM_UNSIGNED`（と `YOAKE_DLL_MODS_UNSIGNED`）が削除されるため、この PowerShell 設定は使えません。MOD のプロジェクトフォルダでは、次のコマンドを実行します。
 
 ```sh
 yoake dev
@@ -59,10 +62,10 @@ yoake pack
 
 ### 新しいサンプルとフルカタログ MOD の手順
 
-`hud-item`、`server-storage`、`config-demo`、`permission-demo`、`mod-call-pair`（`caller` と `responder`）、`chest-count`、`item-trade`、`player-vitals` はすべてフルカタログの MOD なので、開発フォルダではなく、必ず次の手順でインストールします。
+`hud-item`、`server-storage`、`config-demo`、`permission-demo`、`mod-call-pair`（`caller` と `responder`）、`chest-count`、`item-trade`、`player-vitals` はすべてフルカタログ（client-full / server-full）の MOD なので、開発フォルダではなく、必ず次の手順でインストールします。
 
 1. プロジェクトで `yoake pack` を実行します。
-2. 上の安全上の注意を確認し、ランチャーの設定の "Developer options"（サイドバーの "Launcher x.y.z" を 7 回クリックすると出てくる）→「自作の DLL MOD を試す（開発者モード）」を有効にします。
+2. 上の安全上の注意を確認し、ランチャーの設定の "Developer options"（サイドバーの "Launcher x.y.z" を 7 回クリックすると出てくる）→「自分の WASM MOD をテスト」を有効にします（確認で「オンにする」）。
 3. ランチャーの MOD 画面から、ローカルの `.yak` ファイルを選んでインポートします。[^local-yak]
 4. ゲームを再起動します。
 
@@ -72,7 +75,7 @@ yoake pack
 
 - `.yak` の展開（`<game dir>/yoake-mods/<id>/<version>/` への配置と `yoake-mods/.cache/` へのアーカイブ保持）と `<game dir>/yoake-mods.txt`（1 行につき `<id> <version>`）の更新は**ランチャー**が行います。ゲーム本体は展開済みのフォルダを読み込みます。
 - 専用サーバー（`--dedicated`）でも、`--game-dir` の `yoake-mods.txt` に書かれたパッケージからサーバーモジュール（WIT ワールド `server-full`）を読み込みます。
-- 未署名の手作り `.yak` には開発者モードが必要です。有効な間は、インストール済み `.yak` 内の未署名 `client-mod` モジュールもホットリロード監視の対象になります。
+- 未署名の手作り `.yak` には Wasm の開発者モード（`YOAKE_WASM_UNSIGNED=1`、またはランチャーの「自分の WASM MOD をテスト」）が必要です。有効な間は、インストール済み `.yak` 内の未署名 `client-mod` モジュールもホットリロード監視の対象になります。署名が付いている `.yak` は、開発者モードでも署名の検証を通らなければ読み込まれません。
 
 ---
 
@@ -89,12 +92,12 @@ MOD の中から出力したログ（`yoake_wasm_sdk::log(...)` や、標準ラ�
 
 ## 次のステップ
 
-MOD の動かし方が分かったら、次は [4. サンプル MOD 集を読む（`04-examples.md`）](./04-examples.md) に進んで、アイテムアイコンの描画・コマンド追加・データ保存・設定画面・権限チェックの具体的な書き方を見ていきましょう。
+MOD の動かし方が分かったら、次は [4. サンプル MOD 集を読む（`04-examples.md`）](./04-examples.md) に進んで、アイテムアイコンの描画・コマンド追加・データ保存・設定画面・権限ノードのチェックの具体的な書き方を見ていきましょう。
 
-[^dev-dir]: 確認元: `crates/horizon-client/src/wasm_mods.rs` の `dev_sources`。
-[^unsigned]: 確認元: `crates/horizon-client/src/dll_mods.rs` と `docs/api/yoake-mods.md` の署名検証・ネイティブコードの説明。
-[^launcher]: 確認元: `launcher/src/dev_options.rs` と `launcher/src/backend.rs` の `set_unsigned_dll_env` / `client_command_for_program`。
-[^cli]: 確認元: `.lane/ref/p10-tools-yoake-cli-main.rs` の `dev_project` / `install_for_reload`。
+[^dev-dir]: 確認元: `crates/horizon-client/src/wasm_mods.rs` の `dev_sources_with`。
+[^unsigned]: 確認元: `crates/horizon-client/src/yak_mods.rs` の `UnsignedSwitches` と `docs/api/yoake-mods.md`、`docs/yoake-wasm-dev.md`。
+[^launcher]: 確認元: `launcher/src/dev_options.rs` と `launcher/src/backend.rs` の `set_unsigned_wasm_env` / `set_unsigned_dll_env` / `client_command_for_program`。
+[^cli]: 確認元: `crates/yoake-cli/src/main.rs` の `dev_project` / `install_for_reload`。
 [^watch]: 確認元: `crates/horizon-client/src/wasm_mods.rs` の `Watch::poll` / `spawn_watcher`。
 [^local-yak]: 確認元: `launcher/src/yoake_mods_page.rs` の `add_local_yak` / `choose_local_yak`。
 [^package]: 確認元: `docs/api/yoake-mods.md` と `docs/yoake-wasm-dev.md`。

@@ -51,7 +51,8 @@ Yoake 1.0 is the release of our Rust game client and launcher compatible with Mi
 
 ## 8. Japanese and English
 
-- The launcher interface is available in two languages: Japanese (`ja`) and English (`en`).
+- The launcher and the game are available in two languages, Japanese and English, with Japanese first. The launcher's language codes are `ja` and `en`; the game's are `ja_jp` and `en_us`.
+- The game's language picker also offers only Japanese and English, and the game starts in Japanese unless the system is English.
 - On first launch, the launcher starts in English if the system's preferred language is English, and in Japanese otherwise; you can switch languages at any time in Settings.
 - Any string not present in the Japanese translation table (`launcher/lang/ja.json`) falls back to English, and any saved language setting other than `ja` or `en` is displayed in Japanese.
 

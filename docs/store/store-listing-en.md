@@ -24,7 +24,7 @@ For mod development, Yoake provides a Rust SDK, examples, hot reload, and in-eng
 
 Modpacks from Modrinth and CurseForge can be imported, bringing over the data and asset content that Yoake supports. Resource packs, data packs, and shader packs are also supported. Extra settings—including graphics presets, distant terrain, and controller support—are available and default to off wherever they would alter the original look.
 
-From the launcher, you can also create, start, back up, and update servers, and invite friends over the internet using Tailscale. The launcher interface is available in Japanese and English, with dark, light, or system appearance options and a choice of accent colors. The Microsoft Store edition of the launcher does not self-update; package updates are handled by the Microsoft Store.
+From the launcher, you can also create, start, back up, and update servers, and invite friends over the internet using Tailscale. The launcher and the game are available in Japanese and English (Japanese first; they start in English on an English system). The launcher offers dark, light, or system appearance options and a choice of accent colors. The Microsoft Store edition of the launcher does not self-update; package updates are handled by the Microsoft Store.
 
 Cosmetics such as hats and pets are in preparation and are currently disabled.
 
@@ -41,7 +41,7 @@ Compatibility is based on verified areas, and some differences from the original
 - **Extra settings**: Graphics presets, distant terrain, and controller support, with anything that changes the original look off by default.
 - **Instance and version management**: Multiple instances, game asset preparation, and version selection and updates.
 - **Server management**: Create, start, back up, and update servers from the launcher, with support for Tailscale invites.
-- **Japanese and English launcher**: Choose dark, light, or system appearance and custom accent colors.
+- **Japanese and English**: The launcher and the game support Japanese and English (Japanese first). The launcher offers dark, light, or system appearance and custom accent colors.
 
 ## What's New
 

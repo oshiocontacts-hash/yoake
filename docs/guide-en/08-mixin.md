@@ -1,6 +1,6 @@
 # 8. Getting Started with Yoake Mixin
 
-Yoake Mixin lets a WebAssembly (Wasm) component in a signed `.yak` package intercept designated points in engine functions. Your mod can inspect or replace arguments, modify return values, or supply a result instead of running the original function body.[^overview]
+Yoake Mixin lets a WebAssembly (Wasm) component in a signed `.yak` package intercept designated points in engine functions. (During development, an unsigned package also loads when Wasm developer mode is on; see [7-3](./07-publishing.md).) Your mod can inspect or replace arguments, modify return values, or supply a result instead of running the original function body.[^overview]
 
 This chapter walks through the `mixin-demo` example to show how to write mixin handlers and the rules they must follow.
 
@@ -103,9 +103,9 @@ targets = [
 ]
 ```
 
-`targets` must contain 1 to 1,024 unique entries. Server-only mixins are also supported. A `side = "both"` site can run in the client module, the server module, or both, depending on what the package provides. Each module registers all declared targets, and the host activates only the registrations that match that module's side. The example uses the same component for both sides, so server-only targets are filtered out on the client side.[^manifest]
+`targets` must contain 1 to 1,024 unique entries. Server-only mixins are also supported, because `inject-mod` can be written on the server side too, in a client module or a server module, following the `side` of the sites in `[mixin] targets`. A `side = "both"` site can run in the client module, the server module, or both, depending on what the package provides. Each module registers all declared targets, and the host activates only the registrations that match that module's side. The example uses the same component for both sides, so server-only targets are filtered out on the client side.[^manifest]
 
-Build `mixin-demo` with the command below, then stage the output `yoake_mixin_demo.wasm` into a separate package folder as `bin/wasm/mixin-demo.wasm`. Official package signing and distribution follow the standard owner workflow.[^demo]
+Build `mixin-demo` with the command below, then stage the output `yoake_mixin_demo.wasm` into a separate package folder as `bin/wasm/mixin-demo.wasm`. The `yoake check`, `yoake build`, and `yoake pack` commands from [Chapter 2](./02-first-mod.md) do not accept the `inject-mod` WIT world yet, so build with Cargo directly as shown. Official package signing and distribution follow the standard owner workflow.[^demo][^cli]
 
 ```sh
 cargo build --offline -j 4 --release --target wasm32-wasip2
@@ -166,7 +166,7 @@ Doubling the bonemeal increment affects only this site; it does not double ordin
 
 Replaced numbers must fit both the exact integer or float width in the catalog and the site's allowed range. `usize` and `isize` use the host's pointer width. NaN and infinity are rejected by default, including inside vectors. Out-of-range values are **rejected, not clamped**.[^overview]
 
-The table below lists common bounds. For other domains—such as crafting, experience, enchanting, fall and jump inputs, or attack speed—check each site's `argument_rules` and `result_rule`.
+The table below lists common bounds. For other domains—such as experience, enchanting, fall and jump inputs, or attack speed—check each site's `argument_rules` and `result_rule`.
 
 | Replacement domain | Inclusive bounds |
 |---|---|
@@ -178,19 +178,20 @@ The table below lists common bounds. For other domains—such as crafting, exper
 | Damage amount | 0 to 1,000,000 |
 | Exhaustion / saturation modifier | 0 to 40 |
 | Food nutrition | 0 to 20 |
+| Crafting / smelting result count | 0 to 99 (and no more than the output item's maximum stack size) |
 | Positions / item velocity (per component) | -30,000,000 to 30,000,000 / -1024 to 1024 |
 
 `block-pos` is a 3-element list of signed 32-bit integers; `vec3` and `vec3-f32` are 3-element lists of floats. `block-state-id` is an unsigned 32-bit integer that must be smaller than the current world's state count. This live registry bound is checked for the two state arguments of `on_place` and the state arguments of `crop_random_tick`, `crop_bonemeal_increase`, and `drop_falling_block`. If the live bound is unavailable, the replacement is also rejected.
 
 A `scoped<...>` handle is not a raw memory address; it is a read-only value valid only during the current call. When replacing arguments in HEAD, you must echo every original handle back unchanged, including its `scope`, `type`, and `snapshot` (the identity metadata carried by the handle). Caching a handle for later, reusing one across calls, or tampering with its contents is rejected.
 
-If a handler traps or returns an invalid response, that site, side, and injection point is disabled (for how long is undecided), the mod, target, and failure are logged, and the call uses the native fallback described in section 8-8. By contrast, if an engine argument or native result exceeds the conversion budget, the host simply skips the callback and falls back to native execution without disabling the handler.[^runtime]
+If a handler traps or returns an invalid response, that site, side, and injection point is disabled. How long it remains disabled is (undecided). The mod, target, and failure are logged, and the call uses the native fallback described in section 8-8. By contrast, if an engine argument or native result exceeds the conversion budget, the host simply skips the callback and falls back to native execution without disabling the handler.[^runtime]
 
 ## 8-6. Intercepting Commands and Chat
 
-The sensitive command and chat sites are `game::commands::execute::execute_line`, `game::commands::execute_command`, and `game::chat::handle_chat_input`. Registering any injection point on these sites requires the service permission ([wasm] permissions) `["service.commands"]`, and client-side chat interception also requires `"service.chat"`. Even a read-only logger like the example must declare them.[^catalog] Note that declaring `service.chat` requires `wasm.client`, while `service.commands` requires `wasm.server` in WIT worlds other than `inject-mod` (`inject-mod` is an exception).[^manifest]
+The sensitive command and chat sites are `game::commands::execute::execute_line`, `game::commands::execute_command`, and `game::chat::handle_chat_input`. Registering any injection point on these sites requires the service permission (`[wasm] permissions`) `["service.commands"]`, and client-side chat interception also requires `"service.chat"`. Even a read-only logger like the example must declare them.[^catalog] Note that declaring `service.chat` requires `wasm.client`, while `service.commands` requires `wasm.server` in WIT worlds other than `inject-mod` (`inject-mod` is an exception, and needs no server module).[^manifest]
 
-Because command-side denylist checking is currently being reworked, details of the post-rewrite inspection procedure are **(being revised)**.
+A command line that a mixin has rewritten is checked at the very end of command execution (including functions and nested `run` commands) against the same denylist as the command service (`stop`, `op`, `ban`, `transfer`, `publish`, and others).[^overview] A rewritten line must be at most 64 KiB, contain no control characters, and nest `run` at most 16 levels deep; client chat that a mixin rewrote is also rejected if it contains control characters (checked in the game's `permitted_chat_message`). A literal `run` argument (for example, `/say please run stop`) does not start a nested command. A denied command fails with the usual command-failure message, a service permission cannot bypass these checks, and the player's own unchanged native text is not filtered.
 
 ## 8-7. Ordering and Conflicts
 
@@ -215,7 +216,7 @@ The main time and memory limits are listed below. Reaching 20 consecutive aggreg
 
 In addition, each callback value conversion is capped at 4,096 total nodes, depth 32, and 256 KiB of payload.
 
-**A trap or invalid response does not crash the game.** The host disables only that site, side, and injection point (for how long is undecided), logs the failure, and falls back to native execution. The exact fallback depends on where the failure occurred:[^runtime]
+**A trap or invalid response does not crash the game.** The host disables only that site, side, and injection point (for how long is (undecided)), logs the failure, and falls back to native execution. The exact fallback depends on where the failure occurred:[^runtime]
 
 1. **HEAD or overwrite fails**: Runs the native body once with the original arguments.
 2. **RETURN fails after the native body already ran with HEAD-modified arguments**: Uses the cached native result from that call. It does not re-run the native body and does not keep replacements from earlier RETURN handlers.
@@ -227,7 +228,7 @@ Side effects that have already occurred in the guest or native code are not roll
 
 When no handler is registered for a site, the function performs a single relaxed atomic load and branch before entering the original body—before any thread-local side check, lock acquisition, snapshot creation, argument construction, or memory allocation.[^macro]
 
-In Windows release microbenchmarks from development logs (median of 11 runs), the gate added **0.6194 ns/call** on a minimal function and **0.7934 ns/call** on a function matching `calculate_fall_damage`. That represents 40.53% and 9.84% respectively, showing a measurable relative cost on very short functions. However, these microbenchmarks do not measure full-game performance; whether whole-engine overhead with no mod installed stays below 1% is **(undecided)**.[^overview]
+In Windows release microbenchmarks from development logs (median of 11 runs), the gate added **0.6194 ns/call** on a minimal function and **0.7934 ns/call** on a function matching `calculate_fall_damage`. That represents 40.53% and 9.84% respectively, showing a measurable relative cost on very short functions. However, these microbenchmarks do not measure full-game performance; whether whole-engine overhead with no mod installed stays below 1% is (undecided).[^overview]
 
 ## 8-10. Common Pitfalls
 
@@ -240,14 +241,19 @@ In Windows release microbenchmarks from development logs (median of 11 runs), th
 | Disabled after returning a value | Check the `Value` variant, integer width, per-site numeric bounds, NaN/infinity, and live registry bounds for block-state IDs |
 | Replacing arguments with handles fails | Keep every original handle unchanged; handles cannot be cached, reused across calls, or modified |
 | Crop growth does not change as expected | `crop_bonemeal_increase` only changes the bonemeal increment; ordinary random-tick growth uses `crop_random_tick` |
-| Cannot register command or chat sites | Declare `service.commands` (plus `service.chat` for client chat), and check `wasm.client` for `service.chat` and `wasm.server` for `service.commands` outside `inject-mod`. Detailed rewrite checks are (being revised) |
+| Cannot register command or chat sites | Declare `service.commands` (plus `service.chat` for client chat), and check `wasm.client` for `service.chat` and `wasm.server` for `service.commands` outside `inject-mod` |
 
 ---
 
-[^overview]: Source: `docs/yoake-mixin.md` (scope, values, failure behavior, limits, benchmarks).
+## Next Steps
+
+You have now reached the end of the guide. To review a chapter or find the topic you need, return to the [README](./README.md).
+
+[^overview]: Source: `docs/yoake-mixin.md` (scope, values, failure behavior, limits, benchmarks, and the command gate).
 [^sdk]: Source: `crates/yoake-wasm-sdk/src/mixin.rs` (`Handler`, callback types, registration bits, `export_mixin!`).
 [^demo]: Source: `src/lib.rs`, `Cargo.toml`, `yak.toml`, and `README.md` in `crates/yoake-wasm-sdk/examples/mixin-demo/`.
 [^manifest]: Source: `Mixin`, `Wasm`, and `Manifest::validate` in `crates/horizon-mods/src/yak/manifest.rs`, and "Package and registration" in `docs/yoake-mixin.md`.
 [^catalog]: Source: `crates/yoake-wasm/wit/inject-sites.json` and `crates/horizon-mod-api-gen/src/inject_catalog.rs`.
 [^runtime]: Source: `crates/yoake-inject-rt/src/lib.rs`, `src/tests.rs`, `src/security_tests.rs`, `tests/macro_dispatch.rs`, and "Ordering, conflicts, and failure" in `docs/yoake-mixin.md`.
 [^macro]: Source: `crates/yoake-inject-macro/src/lib.rs`, `crates/yoake-inject-rt/src/lib.rs`, and "No-injection cost and measurement" in `docs/yoake-mixin.md`.
+[^cli]: Source: the world check in `check` in `crates/yoake-cli/src/main.rs`, which handles only `client-mod`, `client-full`, and `server-full`.

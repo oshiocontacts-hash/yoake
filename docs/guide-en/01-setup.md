@@ -34,7 +34,6 @@ rustup target add wasm32-wasip2
 
 - That is all you need to output WebAssembly components.
 - **Note**: You do not need to install external tools like `wasm-tools` separately.
-- **About the `yoake` CLI**: Because the CLI is not on this branch, how to obtain and install it is **(undecided)**. The CLI behavior described in the next chapter is based on the **`yoake/p10-tools` version**.
 
 When setting an environment variable in PowerShell, use this syntax:
 
@@ -46,7 +45,21 @@ This setting only applies to **that single PowerShell window** and disappears as
 
 ---
 
-## 1-3. Prepare a Text Editor
+## 1-3. Install the `yoake` CLI
+
+The `yoake` command-line tool (used in the next chapter for `yoake new`, `yoake build`, and so on) lives in this repository at `crates/yoake-cli` (package name `yoake`, Rust 1.95 or newer).[^cli] For now, you install it from the public repository. From the repository's root folder, run:
+
+```sh
+cargo install --path crates/yoake-cli
+```
+
+Cargo puts the built `yoake` executable in its `bin` folder (`~/.cargo/bin`), which `rustup` already adds to your `PATH`. After installing, open a new terminal and check that `yoake` runs.
+
+1.0 is planned to also put a Windows executable on GitHub Releases (undecided).
+
+---
+
+## 1-4. Prepare a Text Editor
 
 Mod source files (`.rs` files) and configuration files (`yak.toml`, `Cargo.toml`) are plain text files, so any text editor you like will work.
 
@@ -57,7 +70,7 @@ If you aren't sure which one to pick, **Visual Studio Code (VS Code)** is a grea
 
 ---
 
-## 1-4. Choose a Workspace Folder
+## 1-5. Choose a Workspace Folder
 
 Create a dedicated workspace folder where you'll keep your mod projects.
 
@@ -74,4 +87,5 @@ Create a dedicated workspace folder where you'll keep your mod projects.
 
 Once your environment is ready, head over to [2. Creating Your First Mod (`02-first-mod.md`)](./02-first-mod.md) to create and build your first HUD mod.
 
-[^rust-version]: The shared workspace `rust-version` is 1.85, while `horizon-mods` (used by the CLI) sets `rust-version` to 1.95. Source: `Cargo.toml` and `crates/horizon-mods/Cargo.toml`.
+[^rust-version]: The shared workspace `rust-version` is 1.85, while `horizon-mods` (used by the CLI) and the CLI itself set `rust-version` to 1.95. Source: `Cargo.toml`, `crates/horizon-mods/Cargo.toml`, and `crates/yoake-cli/Cargo.toml`.
+[^cli]: Source: `crates/yoake-cli/Cargo.toml` (`name = "yoake"`).
