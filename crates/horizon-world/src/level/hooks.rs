@@ -133,6 +133,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     }
 
     /// `BlockState.onPlace`.
+    #[yoake_inject_macro::yoake_inject(id = "world::level::on_place", side = "server")]
     pub fn on_place(&mut self, state: BlockStateId, pos: BlockPos, old: BlockStateId, moved: bool) {
         let b = self.b;
         let block = b.block(state);

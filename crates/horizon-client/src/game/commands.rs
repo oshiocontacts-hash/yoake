@@ -1046,7 +1046,11 @@ impl Game<'_> {
     }
     // ---- dispatch -------------------------------------------------------
 
+    #[yoake_inject_macro::yoake_inject(id = "game::commands::execute_command", side = "both")]
     fn execute_command(&mut self, id: &str, ctx: &Context) -> R<i32> {
+        if yoake_inject_rt::guest_command_leaf_gate(id).is_err() {
+            return Err(err("command.failed", &[]));
+        }
         match id {
             "help" => self.cmd_help(ctx),
             "gamemode" => self.cmd_gamemode(ctx),
@@ -2107,6 +2111,10 @@ impl Game<'_> {
         // An entity in another level is killed in the level that holds it.
         let _ = self.in_target_level(t, |g| g.kill_target_in_level(t));
     }
+    #[yoake_inject_macro::yoake_inject(
+        id = "game::commands::kill_target_in_level",
+        side = "server"
+    )]
     fn kill_target_in_level(&mut self, t: Target) {
         match t {
             Target::Guest(_) => {
@@ -2583,6 +2591,7 @@ impl Game<'_> {
     /// container: a roll the container still holds fires
     /// `player_generates_container_loot` for its table, and from then on the
     /// container saves its items, not the table.
+    #[yoake_inject_macro::yoake_inject(id = "game::commands::unpack_opened_loot", side = "server")]
     pub(super) fn unpack_opened_loot(&mut self, key: (i32, i32, i32), name: &str) {
         let Some(rolled) = self
             .world
@@ -3062,6 +3071,7 @@ impl Game<'_> {
     }
     /// ExperienceCommand's add and set on the player in place: false when
     /// the points to set do not fit the level.
+    #[yoake_inject_macro::yoake_inject(id = "game::commands::change_experience", side = "server")]
     fn change_experience(&mut self, add: bool, levels: bool, amount: i32) -> bool {
         let old_level = self.experience.level;
         if add {

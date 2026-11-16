@@ -13,6 +13,8 @@ horizon-mods = { path = "../horizon-mods", features = ["yak"] }
 horizon-world = { path = "../horizon-world" }
 serde_json = "1.0.151"
 toml = "1.1.6"
+yoake-inject-rt = { path = "../yoake-inject-rt" }
+yoake-value = { path = "../yoake-value" }
 wasmtime = { version = "=48.0.7", default-features = false, features = ["runtime", "cranelift", "component-model", "std"] }
 
 wasmtime-wasi = { version = "=48.0.7", default-features = false, features = ["p2"] }

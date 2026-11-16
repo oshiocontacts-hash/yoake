@@ -22,6 +22,7 @@ pub(super) struct QuietBatch {
     lines: VecDeque<String>,
     ran: usize,
     failed: usize,
+    guest_scoped: bool,
     /// Lines past [`PENDING`], never run.
     dropped: usize,
 }
@@ -57,6 +58,7 @@ impl Game<'_> {
             lines: batch.lines.into_iter().take(room).collect(),
             ran: 0,
             failed: 0,
+            guest_scoped: yoake_inject_rt::in_guest_command(),
             dropped,
         });
     }
@@ -92,6 +94,7 @@ impl Game<'_> {
             }
             *budget -= 1;
             let line = batch.lines.pop_front().expect("not empty");
+            let _scope = batch.guest_scoped.then(yoake_inject_rt::guest_command_scope);
             let ok = self.run_quiet_line(conn, &line);
             if let Some(batch) = self.lan.as_mut().and_then(|h| h.quiet.get_mut(i)) {
                 batch.ran += 1;
@@ -120,6 +123,9 @@ impl Game<'_> {
             return false;
         };
         let command = line.trim_start_matches('/');
+        if yoake_inject_rt::guest_command_gate(command).is_err() {
+            return false;
+        }
         if !self.signable_arguments(permission, command).is_empty() {
             return false;
         }
@@ -136,6 +142,7 @@ impl Game<'_> {
             permission,
             integrated,
             quiet: true,
+            guest_scoped: yoake_inject_rt::in_guest_command(),
         })
     }
 }
@@ -161,6 +168,7 @@ mod tests {
         let b = QuietBatch {
             conn: 1,
             mod_id: "orbital".into(),
+            guest_scoped: false,
             lines: VecDeque::new(),
             ran: 12,
             failed: 3,

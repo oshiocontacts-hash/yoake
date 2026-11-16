@@ -149,6 +149,7 @@ impl Fixture {
             bin: None,
             wasm: None,
             http: None,
+            mixin: None,
             shaders: Vec::new(),
             services: Vec::new(),
             config: BTreeMap::new(),

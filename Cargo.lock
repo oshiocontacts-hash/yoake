@@ -1656,6 +1656,8 @@ dependencies = [
  "wgpu",
  "winit",
  "winresource",
+ "yoake-inject-macro",
+ "yoake-inject-rt",
  "yoake-test-runner",
  "yoake-wasm",
  "zip",
@@ -1735,6 +1737,8 @@ dependencies = [
  "ureq",
  "wgpu",
  "winit",
+ "yoake-inject-macro",
+ "yoake-inject-rt",
  "yoake-state",
  "zip",
 ]
@@ -1808,6 +1812,7 @@ name = "horizon-core"
 version = "0.1.0"
 dependencies = [
  "libm",
+ "yoake-value",
 ]
 
 [[package]]
@@ -1870,6 +1875,8 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
+ "yoake-inject-macro",
+ "yoake-inject-rt",
 ]
 
 [[package]]
@@ -1896,6 +1903,7 @@ dependencies = [
  "serde_json",
  "syn 2.0.119",
  "wit-parser",
+ "yoake-inject-spec",
 ]
 
 [[package]]
@@ -1936,6 +1944,7 @@ dependencies = [
  "toml",
  "url",
  "wasmparser 0.254.2",
+ "yoake-inject-rt",
  "zip",
 ]
 
@@ -2132,7 +2141,10 @@ dependencies = [
  "serde_json",
  "sha2",
  "xxhash-rust",
+ "yoake-inject-macro",
+ "yoake-inject-rt",
  "yoake-state",
+ "yoake-value",
 ]
 
 [[package]]
@@ -6130,6 +6142,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "yoake-inject-macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+ "yoake-inject-spec",
+]
+
+[[package]]
+name = "yoake-inject-rt"
+version = "0.1.0"
+dependencies = [
+ "yoake-inject-macro",
+ "yoake-value",
+]
+
+[[package]]
+name = "yoake-inject-spec"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "sha2",
+ "syn 2.0.119",
+ "yoake-value",
+]
+
+[[package]]
 name = "yoake-state"
 version = "0.1.0"
 dependencies = [
@@ -6157,6 +6198,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "yoake-value"
+version = "0.1.0"
+
+[[package]]
 name = "yoake-wasm"
 version = "0.1.0"
 dependencies = [
@@ -6173,6 +6218,8 @@ dependencies = [
  "wasmtime-wasi",
  "wit-component",
  "wit-parser",
+ "yoake-inject-rt",
+ "yoake-value",
  "yoake-wasm",
 ]
 

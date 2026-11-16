@@ -18,6 +18,7 @@ runtime = []
 full = []
 # Test modules run by the engine (`yoake test`): `yoake_wasm_sdk::testing::engine` and `export_tests!`. Never part of a released mod.
 test = []
+mixin = []
 
 [dependencies]
 yoake-wasm-test-macros = { path = "test-macros" }

@@ -53,10 +53,12 @@ impl FoodData {
     pub fn eat(&mut self, nutrition: i32, saturation_modifier: f32) {
         self.eat_properties(nutrition, nutrition as f32 * saturation_modifier * 2.0);
     }
+    #[yoake_inject_macro::yoake_inject(id = "world::food::eat_properties", side = "server")]
     pub fn eat_properties(&mut self, nutrition: i32, saturation: f32) {
         self.food = nutrition.wrapping_add(self.food).clamp(0, 20);
         self.saturation = clamp(saturation + self.saturation, 0.0, self.food as f32);
     }
+    #[yoake_inject_macro::yoake_inject(id = "world::food::add_exhaustion", side = "server")]
     pub fn add_exhaustion(&mut self, value: f32) {
         self.exhaustion = min(self.exhaustion + value, 40.0);
     }

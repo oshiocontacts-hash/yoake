@@ -201,6 +201,7 @@ impl Game<'_> {
         self.swing_hand(self.hand, SwingAnimation::DEFAULT);
     }
     /// `Player.resetAttackStrengthTicker`.
+    #[yoake_inject_macro::yoake_inject(id = "game::hand::reset_attack_strength", side = "client")]
     pub(super) fn reset_attack_strength(&mut self) {
         self.attack_ticks = 0;
         self.hand_strength.reset();
@@ -443,6 +444,7 @@ impl Game<'_> {
     /// busy, and `LocalPlayer.itemUsed` drops the hand after a use that
     /// swung and spent (or, with infinite materials, kept) the item, or that
     /// started using it.
+    #[yoake_inject_macro::yoake_inject(id = "game::hand::use_with_hand", side = "client")]
     pub(super) fn use_with_hand(&mut self) -> Result<()> {
         if self.clicks.destroying.active || self.hands_busy() {
             return Ok(());
@@ -631,6 +633,7 @@ impl Game<'_> {
     /// `Attributes.ATTACK_SPEED` with the main-hand item's modifier and the
     /// Haste and Mining Fatigue modifiers (`ADD_MULTIPLIED_TOTAL`), clamped to
     /// the attribute's range.
+    #[yoake_inject_macro::yoake_inject(id = "game::hand::main_hand_attack_speed", side = "client")]
     pub(super) fn main_hand_attack_speed(&self) -> f64 {
         // The base comes from the player's attribute map so `/attribute ... base set` applies.
         let base = self
@@ -665,6 +668,7 @@ impl Game<'_> {
 
     /// `Player.attack`: the attack damage attribute, with the held weapon's
     /// and the effects' modifiers on it.
+    #[yoake_inject_macro::yoake_inject(id = "game::hand::attack_damage", side = "client")]
     pub(super) fn attack_damage(&mut self) -> f32 {
         self.player
             .as_mut()

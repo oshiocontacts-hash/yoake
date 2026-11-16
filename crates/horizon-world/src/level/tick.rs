@@ -681,7 +681,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     let test = pos.offset(xx, yy, zz);
                     let ignite = self.fire_ignite_odds_at(test);
                     if ignite > 0 {
-                        let mut odds = (ignite + 40 + self.level.difficulty() * 7) / (age + 30);
+                        let mut odds = ignite
+                            .saturating_add(40)
+                            .saturating_add(self.level.difficulty().saturating_mul(7))
+                            / (age + 30);
                         if burnout {
                             odds /= 2;
                         }
@@ -703,6 +706,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
     }
     /// `FireBlock.getIgniteOdds(level, pos)`: only for air with flammable neighbours.
+    #[yoake_inject_macro::yoake_inject(
+        id = "world::level::tick::fire_ignite_odds_at",
+        side = "server"
+    )]
     fn fire_ignite_odds_at(&self, pos: BlockPos) -> i32 {
         if !self.is_empty_block(pos) {
             return 0;
@@ -809,6 +816,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     // ---- crops and plants ----
 
     /// `CropBlock.getGrowthSpeed`.
+    #[yoake_inject_macro::yoake_inject(
+        id = "world::level::tick::crop_growth_speed",
+        side = "server"
+    )]
     pub(crate) fn crop_growth_speed(&self, block: super::states::BlockId, pos: BlockPos) -> f32 {
         let b = self.b;
         let mut speed = 1.0f32;
@@ -847,6 +858,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
         speed
     }
+    #[yoake_inject_macro::yoake_inject(
+        id = "world::level::tick::crop_random_tick",
+        side = "server"
+    )]
     fn crop_random_tick(&mut self, state: BlockStateId, pos: BlockPos) {
         let b = self.b;
         if self.raw_brightness(pos, 0) < 9 {
@@ -856,7 +871,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let max = self.crop_max_age(state);
         if age < max {
             let speed = self.crop_growth_speed(b.block(state), pos);
-            if self.rand_int((25.0 / speed) as i32 + 1) == 0 {
+            if self.rand_int(((25.0 / speed) as i32).saturating_add(1)) == 0 {
                 let next = self.crop_state_for_age(state, age + 1);
                 self.set_block(pos, next, 2);
             }
@@ -868,7 +883,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             return;
         }
         let speed = self.crop_growth_speed(b.block(state), pos);
-        if self.rand_int((25.0 / speed) as i32 + 1) != 0 {
+        if self.rand_int(((25.0 / speed) as i32).saturating_add(1)) != 0 {
             return;
         }
         let age = b.table.int(state, b.props.age);

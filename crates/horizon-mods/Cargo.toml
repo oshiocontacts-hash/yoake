@@ -22,9 +22,10 @@ horizon-shader-api = { path = "../horizon-shader-api", optional = true }
 horizon-release-sign = { path = "../horizon-release-sign", default-features = false, features = ["yak"], optional = true }
 semver = { version = "1", features = ["serde"], optional = true }
 url = { version = "2", optional = true }
+yoake-inject-rt = { path = "../yoake-inject-rt", optional = true }
 
 [features]
-yak = ["dep:horizon-release-sign", "dep:semver", "dep:url"]
+yak = ["dep:horizon-release-sign", "dep:semver", "dep:url", "dep:yoake-inject-rt"]
 # The mod registry's index (docs/api/mod-index.md): the launcher, the registry server and its CI.
 index = ["dep:sha2", "dep:minisign-verify", "dep:horizon-shader-api", "dep:wasmparser"]
 

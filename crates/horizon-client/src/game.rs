@@ -4148,6 +4148,7 @@ impl Game<'_> {
         let id = self.next_entity;
         self.dropped.last_mut().filter(|d| d.id == id)
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::spawn_item", side = "server")]
     fn spawn_item(
         &mut self,
         stack: ItemStack,
@@ -6099,6 +6100,7 @@ impl Game<'_> {
         })
     }
     /// `Entity.spawnAtLocation`: an item entity where the block was.
+    #[yoake_inject_macro::yoake_inject(id = "game::drop_falling_block", side = "server")]
     fn drop_falling_block(&mut self, state: BlockStateId, at: Vec3) {
         // Entity.spawnAtLocation: an item entity where the block was.
         let item = self.res.facts().get(state).item.clone();
@@ -6196,6 +6198,7 @@ impl Game<'_> {
         }
         self.award_stat("used", &stack.item, 1);
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::break_block", side = "server")]
     fn break_block(&mut self, pos: [i32; 3]) -> Result<()> {
         self.lan_break_pos = Some(pos);
         let broken = self.with_player_actor(|game| game.break_block_as_player(pos));
@@ -6509,6 +6512,7 @@ impl Game<'_> {
     /// `use_cooldown` component starts its entry (`UseCooldown.apply`). A
     /// server's guest also gets `ClientboundCooldownPacket`
     /// (`ServerItemCooldowns.onCooldownStarted`), queued for their turn's end.
+    #[yoake_inject_macro::yoake_inject(id = "game::apply_use_cooldown", side = "server")]
     pub(super) fn apply_use_cooldown(&mut self, stack: &ItemStack) {
         let default = self
             .res
@@ -7178,6 +7182,7 @@ impl Game<'_> {
             }
         }
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::consume_held", side = "server")]
     fn consume_held(&mut self) {
         if self.creative {
             return;
@@ -11911,6 +11916,7 @@ impl Game<'_> {
         (amount, scale, crit, enchant_bonus * scale > 0.0)
     }
     /// `Player.getAttackStrengthScale(0.5)`.
+    #[yoake_inject_macro::yoake_inject(id = "game::attack_strength_scale", side = "client")]
     fn attack_strength_scale(&self) -> f32 {
         let delay = horizon_client::attack_strength::delay(self.main_hand_attack_speed());
         ((self.attack_ticks as f32 + 0.5) / delay).clamp(0.0, 1.0)
@@ -13821,6 +13827,7 @@ impl Game<'_> {
     /// `ExperienceOrb.award`: orbs of the largest sizes; each draws the id
     /// `tryMergeToExisting` compares from the level random, then moves with
     /// its own random.
+    #[yoake_inject_macro::yoake_inject(id = "game::spawn_orbs", side = "server")]
     fn spawn_orbs(&mut self, at: [f64; 3], mut value: u32) {
         while value > 0 {
             let v = ExperienceOrb::split(value);
@@ -13966,6 +13973,7 @@ impl Game<'_> {
         };
         self.with_level(|b, level, ticks| b.fire_can_be_placed_at(level, ticks, pos, direction))
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::place_used_fire", side = "server")]
     fn place_used_fire(&mut self, target: [i32; 3]) -> Result<()> {
         let pos = BlockPos::new(target[0], target[1], target[2]);
         let state = self.with_level(|b, level, ticks| b.fire_state_for(level, ticks, pos));
@@ -14704,6 +14712,7 @@ impl Game<'_> {
     fn rain_height(&self, x: i32, z: i32) -> i32 {
         render_tick::motion_blocking_height(&self.world, &self.pack.assets.properties, x, z)
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::tick_weather_effects", side = "server")]
     fn tick_weather_effects(&mut self) {
         if self.flash > 0 {
             self.flash -= 1;
@@ -14811,6 +14820,7 @@ impl Game<'_> {
     /// ServerPlayer.startSleepInBed: in reach, not obstructed, night or thunder,
     /// and (outside creative) no monsters within 8 blocks; the bed becomes the
     /// respawn point either way.
+    #[yoake_inject_macro::yoake_inject(id = "game::try_sleep", side = "server")]
     fn try_sleep(&mut self, pos: [i32; 3]) {
         let Some((position, yaw)) = self.player.as_ref().map(|p| (p.position, p.yaw)) else {
             return;
@@ -22115,11 +22125,12 @@ fn player_arms(root: &std::path::Path, key: &str) -> [Option<horizon_client::mob
 }
 
 // Player.tick: cap the sleeping fade at 100, then fade out over 10 waking ticks.
+#[yoake_inject_macro::yoake_inject(id = "game::tick_sleep_timer", side = "server")]
 fn tick_sleep_timer(timer: u32, sleeping: bool) -> u32 {
     if sleeping {
-        (timer + 1).min(100)
+        timer.saturating_add(1).min(100)
     } else if (1..109).contains(&timer) {
-        timer + 1
+        timer.saturating_add(1)
     } else {
         0
     }
@@ -22798,6 +22809,8 @@ mod tests {
             _ => panic!("sleep overlay must be a full-screen fill"),
         };
         assert_eq!(tick_sleep_timer(0, false), 0);
+        assert_eq!(tick_sleep_timer(u32::MAX, true), 100);
+        assert_eq!(tick_sleep_timer(u32::MAX, false), 0);
         let mut timer = 0;
         for _ in 0..50 {
             timer = tick_sleep_timer(timer, true);

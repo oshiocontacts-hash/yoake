@@ -1,0 +1,29 @@
+format = 1
+id = "mixin-demo"
+version = "0.1.0"
+name = "Mixin demo"
+authors = ["Yoake contributors"]
+description = "Halves fall damage, doubles bonemeal crop growth, and logs chat."
+license = "MIT"
+
+[yoake]
+version = ">=0.2, <0.3"
+
+[side]
+client = true
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.1"
+world = "inject-mod"
+client = "bin/wasm/mixin-demo.wasm"
+server = "bin/wasm/mixin-demo.wasm"
+permissions = ["service.commands", "service.chat"]
+
+[mixin]
+targets = [
+    "world::living_fall::calculate_fall_damage#9a9a629c2a289ab6ffb883cb0cd5891af74587992a6e2da94d8090723ede5b94",
+    "world::level::bonemeal::crop_bonemeal_increase#b61d671fb9375f084f2bf026f466add0e8423efd996180dee3fb52ca18348fd1",
+    "game::chat::handle_chat_input#2d6b616020cec7006f8b8c6aeb2d8f9faf0caa7a8dbeb7f38b5a4d839b0d2e62",
+]

@@ -184,6 +184,36 @@ pub enum Event {
     },
 }
 
+pub const GUEST_COMMAND_CHANNEL: &str = "yoake:guest_command";
+
+fn is_command_packet(packet: &play::Serverbound) -> bool {
+    matches!(
+        packet,
+        play::Serverbound::ChatCommand(_) | play::Serverbound::ChatCommandSigned(_)
+    ) || matches!(packet, play::Serverbound::CustomPayload(payload) if payload.channel == horizon_protocol::quiet::CHANNEL)
+}
+
+fn scoped_command_packet(packet: play::Serverbound, local: bool) -> play::Serverbound {
+    if local && is_command_packet(&packet) && yoake_inject_rt::in_guest_command() {
+        play::Serverbound::CustomPayload(cfg::CustomPayload {
+            channel: GUEST_COMMAND_CHANNEL.into(),
+            data: packet.encode(),
+        })
+    } else {
+        packet
+    }
+}
+
+pub fn decode_guest_command(payload: &cfg::CustomPayload, local: bool) -> Option<play::Serverbound> {
+    if !local || payload.channel != GUEST_COMMAND_CHANNEL {
+        return None;
+    }
+    let mut reader = horizon_protocol::buf::Reader::new(&payload.data);
+    let id = reader.varint().ok()?;
+    let packet = play::Serverbound::decode(id, reader.rest()).ok()?;
+    is_command_packet(&packet).then_some(packet)
+}
+
 pub struct Session {
     events: Receiver<Event>,
     #[cfg(feature = "dev-capture")]
@@ -194,6 +224,7 @@ pub struct Session {
     configuring: Arc<AtomicBool>,
     capture_item_tags: bool,
     replay: bool,
+    local: bool,
     thread: Option<JoinHandle<()>>,
     pub address: String,
     pub name: String,
@@ -342,6 +373,7 @@ impl Session {
         replay: bool,
     ) -> Self {
         let (send, events) = channel();
+        let local_connection = local.is_some();
         #[cfg(feature = "dev-capture")]
         let capture_fences = local.as_ref().map(|pipe| pipe.capture_fences());
         let writer = Arc::new(Mutex::new(None));
@@ -406,6 +438,7 @@ impl Session {
             configuring,
             capture_item_tags,
             replay,
+            local: local_connection,
             thread,
             address: address.to_owned(),
             name: name.to_owned(),
@@ -477,6 +510,7 @@ impl Session {
         {
             return;
         }
+        let packet = scoped_command_packet(packet, self.local);
         if self.debug
             && !matches!(
                 packet,
@@ -1571,6 +1605,62 @@ mod tests {
     use super::*;
 
     #[test]
+    fn guest_command_provenance_is_local_and_preserves_signed_packets() {
+        let unsigned = play::Serverbound::ChatCommand(play::ChatCommand {
+            command: "function ns:f".into(),
+        });
+        assert_eq!(scoped_command_packet(unsigned.clone(), true), unsigned);
+        let scope = yoake_inject_rt::guest_command_scope();
+        assert_eq!(scoped_command_packet(unsigned.clone(), false), unsigned);
+        for packet in [
+            unsigned,
+            play::Serverbound::ChatCommandSigned(play::ChatCommandSigned {
+                command: "say signed".into(),
+                timestamp: 123,
+                salt: 456,
+                arguments: vec![("message".into(), vec![7; 256])],
+                last_seen: play::LastSeenUpdate {
+                    offset: 3,
+                    acknowledged: [1, 2, 3],
+                    checksum: 4,
+                },
+            }),
+            play::Serverbound::CustomPayload(cfg::CustomPayload {
+                channel: horizon_protocol::quiet::CHANNEL.into(),
+                data: vec![1, 2, 3],
+            }),
+        ] {
+            let wrapped = scoped_command_packet(packet.clone(), true);
+            let play::Serverbound::CustomPayload(payload) = wrapped else {
+                panic!("a local guest command must carry provenance");
+            };
+            assert_eq!(decode_guest_command(&payload, true), Some(packet));
+            assert_eq!(decode_guest_command(&payload, false), None);
+        }
+        drop(scope);
+        assert!(!yoake_inject_rt::in_guest_command());
+    }
+
+    #[test]
+    fn guest_command_provenance_rejects_non_commands_and_malformed_payloads() {
+        for data in [
+            Vec::new(),
+            vec![255],
+            play::Serverbound::ChatAck(play::ChatAck { offset: 0 }).encode(),
+        ] {
+            let payload = cfg::CustomPayload {
+                channel: GUEST_COMMAND_CHANNEL.into(),
+                data,
+            };
+            assert_eq!(decode_guest_command(&payload, true), None);
+        }
+        let scope = yoake_inject_rt::guest_command_scope();
+        let packet = play::Serverbound::ChatAck(play::ChatAck { offset: 0 });
+        assert_eq!(scoped_command_packet(packet.clone(), true), packet);
+        drop(scope);
+    }
+
+    #[test]
     fn snapshot_configuration_retention_is_disabled_without_a_listener_or_request() {
         assert!(!retain_snapshot_configuration(false, false));
         assert!(retain_snapshot_configuration(true, false));
@@ -2290,6 +2380,7 @@ mod tests {
                 configuring: Arc::new(AtomicBool::new(false)),
                 capture_item_tags: false,
                 replay: false,
+                local: true,
                 thread: Some(thread),
                 address: "local".into(),
                 name: "TestPlayer".into(),
@@ -2398,6 +2489,7 @@ mod tests {
             configuring: Arc::new(AtomicBool::new(false)),
             capture_item_tags: false,
             replay: false,
+            local: true,
             thread: None,
             address: "local".into(),
             name: "Player".into(),

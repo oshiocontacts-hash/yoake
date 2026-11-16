@@ -16,7 +16,8 @@ use std::{
 /// The loaded item table's ids with their stack limits, published for host-side checks of item
 /// stacks that come from untrusted code (WebAssembly mods). Nothing is built unless
 /// [`publish_registry_for_checks`] was called, so a game without such a mod pays nothing.
-static PUBLISHED: std::sync::RwLock<Option<Arc<HashMap<Arc<str>, u32>>>> = std::sync::RwLock::new(None);
+static PUBLISHED: std::sync::RwLock<Option<Arc<HashMap<Arc<str>, u32>>>> =
+    std::sync::RwLock::new(None);
 static PUBLISH_WANTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Asks the item loader to publish its ids and stack limits from now on.
@@ -28,7 +29,10 @@ fn publish_registry(items: &HashMap<Arc<str>, ItemInfo>) {
     if !PUBLISH_WANTED.load(std::sync::atomic::Ordering::Relaxed) {
         return;
     }
-    let table: HashMap<Arc<str>, u32> = items.iter().map(|(id, info)| (id.clone(), info.max_stack.max(1))).collect();
+    let table: HashMap<Arc<str>, u32> = items
+        .iter()
+        .map(|(id, info)| (id.clone(), info.max_stack.max(1)))
+        .collect();
     *PUBLISHED.write().unwrap_or_else(|error| error.into_inner()) = Some(Arc::new(table));
 }
 
@@ -369,6 +373,17 @@ pub struct ItemStack {
     pub damage: u32,
     /// Components beyond count and damage (see `item_data`); None when default.
     pub extra: Option<Box<crate::item_data::StackData>>,
+}
+
+impl yoake_inject_rt::InjectSnapshot for ItemStack {
+    fn inject_snapshot(&self) -> yoake_inject_rt::Value {
+        use yoake_inject_rt::Value;
+        Value::Record(std::collections::BTreeMap::from([
+            ("item".into(), Value::Text(self.item.to_string())),
+            ("count".into(), Value::Unsigned(u64::from(self.count))),
+            ("damage".into(), Value::Unsigned(u64::from(self.damage))),
+        ]))
+    }
 }
 /// `order`'s items in the registry's order (`command-registries.json`'s
 /// `items`, exported from the game); `order` itself when that is missing.

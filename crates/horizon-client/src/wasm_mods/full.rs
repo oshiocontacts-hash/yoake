@@ -20,6 +20,7 @@ use crate::gfx::native_render::*;
 use horizon_client_core::text::Text;
 use horizon_items::items::ItemStack;
 use horizon_world::nbt::{Compound, Tag};
+pub(super) use yoake_inject_rt::command_gate;
 use yoake_wasm::full_bindings::client::yoake::mods::engine_types as et;
 use yoake_wasm::{ClientFullMod, ServerFullMod, convert, server_types as st};
 
@@ -673,47 +674,6 @@ impl Drop for ServerInitScope {
 
 pub(super) fn initializing_server(owner: &str) -> bool {
     SERVER_INIT_OWNER.with(|active| active.borrow().as_deref() == Some(owner))
-}
-
-/// Commands no guest may run, whatever it declared: they open connections, change what the server
-/// is or who runs it, or write outside the world and the game folder's own files.
-const DENIED_COMMANDS: &[&str] = &[
-    "transfer", "fetchprofile", "publish", "unpublish", "debug", "jfr", "perf", "stop", "save-off", "save-on",
-    "op", "deop", "whitelist", "ban", "ban-ip", "pardon", "pardon-ip", "setidletimeout", "test", "compute", "pregen",
-];
-
-/// Whether a guest may run `line`: it declared `service.commands`, the line is plain text, and no
-/// command in it (a command after `run` of `execute`, `return run`... counts) is one of
-/// [`DENIED_COMMANDS`].
-pub(super) fn command_gate(line: &str, declared: bool) -> Result<(), String> {
-    if !declared {
-        return Err("denied: the package does not declare service.commands".into());
-    }
-    if line.len() > abi::MAX_TEXT_BYTES {
-        return Err("command too long".into());
-    }
-    if line.chars().any(char::is_control) {
-        return Err("denied: a command is one line of plain text".into());
-    }
-    fn check(line: &str, depth: usize) -> Result<(), String> {
-        if depth > 16 {
-            return Err("denied: commands nested too deep".into());
-        }
-        let tokens: Vec<&str> = line.split_whitespace().collect();
-        let Some(first) = tokens.first() else { return Err("denied: empty command".into()) };
-        let name = first.trim_start_matches('/');
-        let name = name.strip_prefix("minecraft:").unwrap_or(name).to_ascii_lowercase();
-        if DENIED_COMMANDS.contains(&name.as_str()) {
-            return Err(format!("denied: /{name} is not available to WebAssembly mods"));
-        }
-        for (index, token) in tokens.iter().enumerate() {
-            if *token == "run" && index + 1 < tokens.len() {
-                check(&tokens[index + 1..].join(" "), depth + 1)?;
-            }
-        }
-        Ok(())
-    }
-    check(line, 0)
 }
 
 /// A path as the guest may see it: relative to the game folder (the server's working directory), or

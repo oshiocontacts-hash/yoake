@@ -1,0 +1,15 @@
+[package]
+name = "yoake-inject-rt"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+yoake-value = { path = "../yoake-value" }
+
+[dev-dependencies]
+yoake-inject-macro = { path = "../yoake-inject-macro" }
+
+[lints]
+workspace = true

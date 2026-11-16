@@ -958,6 +958,10 @@ use std::{
 };
 use winit::{event::MouseButton, keyboard::KeyCode};
 
+pub(super) fn dispatch_client_mod_command(dispatch: impl FnOnce() -> bool) -> bool {
+    !crate::mod_api::in_guest_command() && dispatch()
+}
+
 pub(super) struct ObservedScreen {
     id: &'static str,
     menu: Option<String>,
@@ -8198,6 +8202,7 @@ impl Game<'_> {
 /// `native_living_knockback` for the knockback code (`health::KNOCKBACK`): whether it
 /// canceled the push. Its one caller. The pushed entity and the source are named as the
 /// damage hook names them.
+#[yoake_inject_macro::yoake_inject(id = "game::native_hooks::knockback", side = "server")]
 pub(super) fn knockback(pushed: Hurting<'_>, knock: &mut Knock) -> bool {
     if mod_api::mods().is_empty() {
         return false;
@@ -10984,13 +10989,11 @@ impl Game<'_> {
     }
     /// A native mod's command.
     pub(super) fn client_mod_command(&mut self, command: &str) -> bool {
-        // A WebAssembly guest's command never runs another mod's command hook.
-        if crate::mod_api::in_guest_command() {
-            return false;
-        }
-        let mut ran = false;
-        self.native_command(command, &mut ran);
-        ran
+        dispatch_client_mod_command(|| {
+            let mut ran = false;
+            self.native_command(command, &mut ran);
+            ran
+        })
     }
     /// The zoom in effect while playing (a native mod's); the spyglass's own
     /// view wins.

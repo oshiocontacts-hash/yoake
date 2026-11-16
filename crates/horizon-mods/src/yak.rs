@@ -30,7 +30,7 @@ pub use installed::{
     check_installed_tree, check_plain_path, hash_installed_file, trusted_keys, verify_installed,
 };
 pub use manifest::{
-    Bin, Http, MAX_WASM_SIZE, Manifest, OptionValue, SUPPORTED_WASM_INTERFACE, Service, Shader,
+    Bin, Http, MAX_WASM_SIZE, Manifest, Mixin, OptionValue, SUPPORTED_WASM_INTERFACE, Service, Shader,
     ShaderOption, Side, Target, Wasm, Yoake,
 };
 pub use pack::pack_directory;

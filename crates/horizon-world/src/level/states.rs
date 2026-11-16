@@ -16,6 +16,18 @@ use std::{collections::HashMap, io};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BlockId(pub u16);
 
+impl yoake_value::InjectValue for BlockId {
+    const TYPE: yoake_value::ValueType = yoake_value::ValueType::U16;
+
+    fn into_inject_value(self) -> yoake_value::Value {
+        self.0.into_inject_value()
+    }
+
+    fn from_inject_value(value: yoake_value::Value) -> Option<Self> {
+        u16::from_inject_value(value).map(Self)
+    }
+}
+
 /// Interned property name (`facing`, `waterlogged`, ...), shared by all blocks.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct PropKey(pub u16);

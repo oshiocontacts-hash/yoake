@@ -16,6 +16,7 @@ mod full_hook_names;
 mod hook_names;
 mod host;
 pub mod host_services;
+pub mod inject;
 pub mod package_services;
 mod subscriptions;
 mod test_mod;
@@ -152,12 +153,14 @@ impl Sandbox {
     }
 
     fn texture_count(&mut self, id: &str) -> Arc<AtomicUsize> {
-        self.texture_counts.retain(|_, count| count.strong_count() > 0);
+        self.texture_counts
+            .retain(|_, count| count.strong_count() > 0);
         if let Some(count) = self.texture_counts.get(id).and_then(Weak::upgrade) {
             return count;
         }
         let count = Arc::new(AtomicUsize::new(0));
-        self.texture_counts.insert(id.to_owned(), Arc::downgrade(&count));
+        self.texture_counts
+            .insert(id.to_owned(), Arc::downgrade(&count));
         count
     }
 
@@ -254,7 +257,11 @@ impl RuntimeEngine {
                 }
             })
             .map_err(|error| format!("could not start WebAssembly epoch timer: {error}"))?;
-        Ok(Self { engine, stop, timer: Some(timer) })
+        Ok(Self {
+            engine,
+            stop,
+            timer: Some(timer),
+        })
     }
 }
 
@@ -279,10 +286,14 @@ pub struct HostState<T> {
 
 impl<T: Send> WasiView for HostState<T> {
     fn ctx(&mut self) -> WasiCtxView<'_> {
-        WasiCtxView { ctx: &mut self.wasi, table: &mut self.table }
+        WasiCtxView {
+            ctx: &mut self.wasi,
+            table: &mut self.table,
+        }
     }
 }
 
+#[derive(Clone)]
 pub struct CompiledComponent {
     runtime: Arc<RuntimeEngine>,
     component: Component,
@@ -308,10 +319,19 @@ impl CompiledComponent {
             .allow_ip_name_lookup(false)
             .build();
         let deadline = Instant::now() + TimeLimits::INIT.call;
-        let state = HostState { host, limits, wasi, table: ResourceTable::new(), output, deadline };
+        let state = HostState {
+            host,
+            limits,
+            wasi,
+            table: ResourceTable::new(),
+            output,
+            deadline,
+        };
         let mut store = Store::new(&self.runtime.engine, state);
         store.limiter(|state| &mut state.limits);
-        store.set_fuel(FUEL_PER_CALL).map_err(|error| error.to_string())?;
+        store
+            .set_fuel(FUEL_PER_CALL)
+            .map_err(|error| error.to_string())?;
         store.epoch_deadline_callback(|context| {
             if Instant::now() >= context.data().deadline + deadline_extension() {
                 Ok(UpdateDeadline::Interrupt)
@@ -330,7 +350,12 @@ impl CompiledComponent {
             disabled: false,
             limits: TimeLimits::CLIENT,
             fuel: FUEL_PER_CALL,
-            window: Window { started: Instant::now(), spent: Duration::ZERO, exceeded: false, strikes: 0 },
+            window: Window {
+                started: Instant::now(),
+                spent: Duration::ZERO,
+                exceeded: false,
+                strikes: 0,
+            },
             skipped: 0,
             _runtime: self.runtime,
         })
@@ -422,8 +447,25 @@ impl<T: 'static> ModInstance<T> {
         hook: &str,
         invoke: impl FnOnce(&mut Store<HostState<T>>, &Instance) -> Result<R, String>,
     ) -> Option<R> {
+        self.call_bounded(hook, true, invoke).ok().flatten()
+    }
+
+    pub fn call_recoverable<R>(
+        &mut self,
+        hook: &str,
+        invoke: impl FnOnce(&mut Store<HostState<T>>, &Instance) -> Result<R, String>,
+    ) -> Result<Option<R>, String> {
+        self.call_bounded(hook, false, invoke)
+    }
+
+    fn call_bounded<R>(
+        &mut self,
+        hook: &str,
+        disable_on_trap: bool,
+        invoke: impl FnOnce(&mut Store<HostState<T>>, &Instance) -> Result<R, String>,
+    ) -> Result<Option<R>, String> {
         if self.disabled {
-            return None;
+            return Ok(None);
         }
         let began = Instant::now();
         let over_aggregate = self.over_aggregate(began);
@@ -431,16 +473,18 @@ impl<T: 'static> ModInstance<T> {
             self.disabled = true;
             let id = self.id.replace(['\r', '\n'], " ");
             eprintln!("WebAssembly mod {id} disabled: over its time budget in {AGGREGATE_STRIKES} windows in a row");
-            return None;
+            return Ok(None);
         }
         if over_aggregate {
             self.window.exceeded = true;
             self.skipped += 1;
             if self.skipped == 1 {
                 let id = self.id.replace(['\r', '\n'], " ");
-                eprintln!("WebAssembly mod {id}: calls skipped, it used its time budget for this window (further skips are only counted)");
+                eprintln!(
+                    "WebAssembly mod {id}: calls skipped, it used its time budget for this window (further skips are only counted)"
+                );
             }
-            return None;
+            return Ok(None);
         }
         self.store.data_mut().deadline = began + self.limits.call;
         // Calls nest (a `mod-call` runs another module inside a service): each has its own host time.
@@ -464,14 +508,17 @@ impl<T: 'static> ModInstance<T> {
             STORAGE_THROTTLED.with(|throttled| throttled.replace(outer_storage_throttled));
         self.window.spent += began.elapsed().saturating_sub(host_time);
         match result {
-            Ok(value) => Some(value),
+            Ok(value) => Ok(Some(value)),
             Err(error) => {
+                if !disable_on_trap {
+                    return Err(error);
+                }
                 self.disabled = true;
                 let id = self.id.replace(['\r', '\n'], " ");
                 let hook = hook.replace(['\r', '\n'], " ");
                 let reason = error.replace(['\r', '\n'], " ");
                 eprintln!("WebAssembly mod {id} disabled in {hook}: {reason}");
-                None
+                Err(error)
             }
         }
     }

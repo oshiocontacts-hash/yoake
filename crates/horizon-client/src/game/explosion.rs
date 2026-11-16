@@ -841,6 +841,7 @@ impl Game<'_> {
     }
     /// `Level.explode` on the server: positions, entities, blocks, fire; then
     /// the client's explosion sound.
+    #[yoake_inject_macro::yoake_inject(id = "game::explosion::server_explode", side = "server")]
     pub(super) fn server_explode(
         &mut self,
         center: [f64; 3],

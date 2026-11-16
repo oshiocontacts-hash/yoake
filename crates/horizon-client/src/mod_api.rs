@@ -779,28 +779,7 @@ impl AttachmentHost for dyn Host + '_ {
     }
 }
 
-thread_local! {
-    static GUEST_COMMAND: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
-}
-
-/// Marks the commands run on this thread as a WebAssembly guest's until dropped: they reach the
-/// game's own commands only, never another mod's command hook (`client_mod_command`).
-pub(crate) struct GuestCommandScope(bool);
-
-pub(crate) fn guest_command_scope() -> GuestCommandScope {
-    GuestCommandScope(GUEST_COMMAND.with(|flag| flag.replace(true)))
-}
-
-impl Drop for GuestCommandScope {
-    fn drop(&mut self) {
-        GUEST_COMMAND.with(|flag| flag.set(self.0));
-    }
-}
-
-/// Whether the command being run comes from a WebAssembly guest.
-pub(crate) fn in_guest_command() -> bool {
-    GUEST_COMMAND.with(std::cell::Cell::get)
-}
+pub(crate) use yoake_inject_rt::{guest_command_scope, in_guest_command};
 
 /// Read-only level services, like vanilla's `LevelReader`.
 pub trait LevelHost {

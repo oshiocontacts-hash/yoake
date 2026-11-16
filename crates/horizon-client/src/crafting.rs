@@ -1287,6 +1287,11 @@ pub struct CustomRecipe {
     pub json: Arc<Value>,
     pub decoded: Option<Arc<Value>>,
 }
+#[yoake_inject_macro::yoake_inject(id = "crafting::crafting_result_count", side = "both")]
+fn crafting_result_count(result: &ItemStack) -> u32 {
+    result.count
+}
+
 /// An item stack as a recipe's `result` names it (`ItemStackTemplate`); none
 /// with no `id` or a count outside 1 to 99.
 pub fn recipe_result(v: &Value) -> Option<ItemStack> {
@@ -1748,7 +1753,14 @@ impl Recipes {
         };
         for (name, recipe) in &self.crafting {
             if let Some(result) = Self::assemble_if_matches(&ctx, &input, recipe) {
-                return result.map(|r| (name.as_str(), r));
+                return result.and_then(|mut result| {
+                    let count = crafting_result_count(&result);
+                    if count != result.count && count > ctx.max_stack(&result.item) {
+                        return None;
+                    }
+                    result.count = count;
+                    (result.count > 0).then_some((name.as_str(), result))
+                });
             }
         }
         None
@@ -1950,6 +1962,99 @@ mod tests {
     use super::*;
     use crate::banner::BannerLayer;
     use std::fs;
+
+    struct ResultCount {
+        owner: std::thread::ThreadId,
+        count: u32,
+    }
+
+    impl yoake_inject_rt::Guest for ResultCount {
+        fn returned(
+            &self,
+            _: &str,
+            _: &yoake_inject_rt::Value,
+        ) -> std::result::Result<Option<yoake_inject_rt::Value>, yoake_inject_rt::CallbackError>
+        {
+            Ok((std::thread::current().id() == self.owner)
+                .then_some(yoake_inject_rt::Value::Unsigned(u64::from(self.count))))
+        }
+    }
+
+    fn override_result_count(count: u32) -> yoake_inject_rt::Registry {
+        use yoake_inject_rt::{Mod, RETURN, Registry, Side, Subscription};
+
+        let site = __yoake_inject_site_crafting_result_count();
+        let mut registry = Registry::new([site]).unwrap();
+        let module = Arc::new(Mod::new(
+            "result-count",
+            Arc::new(ResultCount {
+                owner: std::thread::current().id(),
+                count,
+            }),
+        ));
+        let prepared = registry
+            .prepare(
+                [Subscription {
+                    site_id: site.id(),
+                    side: Side::Server,
+                    points: RETURN,
+                    module,
+                }],
+                |_, _, _| true,
+            )
+            .unwrap();
+        registry.publish(prepared).unwrap();
+        registry
+    }
+
+    #[test]
+    fn replaced_zero_result_count_removes_the_crafting_result() {
+        let _side = yoake_inject_rt::enter_side(yoake_inject_rt::Side::Server);
+        let mut recipes = cooking_book();
+        recipes.crafting.push((
+            "test:ingot".into(),
+            Recipe::Shapeless {
+                ingredients: vec![ingredient(&["test:ore"])],
+                result: Template::parse(&serde_json::json!({"id": "test:ingot"})).unwrap(),
+            },
+        ));
+        let grid = [Some(ItemStack::new("test:ore", 1)), None, None, None];
+        assert_eq!(
+            recipes.craft(&grid, 2),
+            Some(ItemStack::new("test:ingot", 1))
+        );
+        let registry = override_result_count(0);
+        assert!(recipes.craft(&grid, 2).is_none());
+        assert!(recipes.find(&grid, 2).is_none());
+        drop(registry);
+        assert_eq!(
+            recipes.craft(&grid, 2),
+            Some(ItemStack::new("test:ingot", 1))
+        );
+        for max_stack in [1, 16, 64] {
+            recipes.facts.insert(
+                "test:ingot".into(),
+                Facts {
+                    max_stack,
+                    ..Facts::default()
+                },
+            );
+            let registry = override_result_count(max_stack);
+            assert_eq!(
+                recipes.craft(&grid, 2),
+                Some(ItemStack::new("test:ingot", max_stack))
+            );
+            drop(registry);
+            let registry = override_result_count(max_stack + 1);
+            assert!(recipes.craft(&grid, 2).is_none());
+            assert!(recipes.find(&grid, 2).is_none());
+            drop(registry);
+            assert_eq!(
+                recipes.craft(&grid, 2),
+                Some(ItemStack::new("test:ingot", 1))
+            );
+        }
+    }
 
     #[test]
     fn result_count_is_bounded_like_vanilla() {
