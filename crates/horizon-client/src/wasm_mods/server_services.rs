@@ -1150,7 +1150,13 @@ fn attachment_holder(kind: &str, holder: &str) -> Result<horizon_world::attachme
 }
 
 fn attachment_error(error: horizon_world::attachments::AttachmentError) -> String {
-    format!("attachment: {error:?}")
+    use horizon_world::attachments::AttachmentError;
+    match error {
+        AttachmentError::ConflictingType => {
+            "attachment: another definition of this id (native or from another package) declares a different copy_on_death".to_owned()
+        }
+        other => format!("attachment: {other:?}"),
+    }
 }
 
 fn attachment_type(owner: &str, id: &str) -> Result<horizon_world::attachments::DynamicAttachmentType, String> {
@@ -1270,6 +1276,51 @@ mod attachment_tests {
         assert!(attachment_holder("entity", "x").is_err());
         assert!(attachment_holder("chunk", "1,2,3").is_err());
         assert!(attachment_holder("planet", "").is_err());
+    }
+
+    #[test]
+    fn a_policy_conflict_with_a_static_type_is_an_error_not_a_poisoned_lock() {
+        use horizon_world::attachments::{AttachmentCodec, AttachmentType, register_static};
+        let _guard = ATTACHMENT_TEST_LOCK.lock().unwrap();
+        reset_attachments();
+        let native = AttachmentType::<i32> {
+            namespace: "wcf1",
+            name: "coins",
+            default: || 0,
+            codec: Some(AttachmentCodec {
+                encode: |n| Ok([("n".into(), horizon_world::nbt::Tag::Int(*n))].into()),
+                decode: |_| Ok(0),
+            }),
+            copy_on_death: true,
+            sync: false,
+        };
+        register_static(&native).unwrap();
+        let error = define_attachment("wcf1", "wcf1:coins", "player", true, false, false).unwrap_err();
+        assert!(error.contains("different copy_on_death"), "{error}");
+        // Neither lock is poisoned: this and other packages still define types.
+        define_attachment("wcf1", "wcf1:other", "player", true, false, false).unwrap();
+        define_attachment("wcf2", "wcf2:x", "player", true, false, true).unwrap();
+        define_attachment("wcf1", "wcf1:coins", "player", true, false, true).unwrap();
+        reset_attachments();
+    }
+
+    #[test]
+    fn respawn_copy_through_the_registry_judges_unread_values() {
+        let _guard = ATTACHMENT_TEST_LOCK.lock().unwrap();
+        reset_attachments();
+        define_attachment("wcf3", "wcf3:kept", "player", true, false, true).unwrap();
+        define_attachment("wcf3", "wcf3:dropped", "player", true, false, false).unwrap();
+        let (kept, dropped) = (attachment_type("wcf3", "wcf3:kept").unwrap(), attachment_type("wcf3", "wcf3:dropped").unwrap());
+        let holder = Holder::Player(9);
+        let mut host = One(Attachments::default());
+        kept.set(&mut host, holder, attachment_compound(&[1]).unwrap()).unwrap();
+        dropped.set(&mut host, holder, attachment_compound(&[2]).unwrap()).unwrap();
+        // Saved and loaded again: nothing has read either value.
+        let mut loaded = Attachments::from_nbt(host.0.to_nbt());
+        let mut copy = One(attachment_registry().copy_on_death(holder, &mut loaded).unwrap());
+        assert!(kept.get(&mut copy, holder).unwrap().is_some());
+        assert!(dropped.get(&mut copy, holder).unwrap().is_none());
+        reset_attachments();
     }
 
     #[test]

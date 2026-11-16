@@ -3585,20 +3585,34 @@ impl Game<'_> {
         }
         // PlayerList.respawn replaces the player, retaining only opted-in data.
         let uuid = host.hub.guests[i].uuid;
-        if let Some(attachments) = self.guest_attachments.get_mut(&uuid) {
+        // During this player's own turn their attachments are in
+        // `player_attachments` (the guest's entry is swapped out), and the copy
+        // must land there or the swap back would undo it.
+        let attachments = if self.lan_acting_uuid == Some(uuid) {
+            Some(&mut self.player_attachments)
+        } else {
+            self.guest_attachments.get_mut(&uuid)
+        };
+        if let Some(attachments) = attachments {
+            let holder = horizon_client::mod_api::Holder::Player(uuid);
             if let Err(error) = crate::entry::wasm_mods::prepare_attachments(
-                horizon_client::mod_api::Holder::Player(uuid),
+                holder,
                 attachments,
                 format!("player:{uuid}"),
             ) {
                 log::warn!("pre-respawn attachment reconciliation failed: {error:?}");
             }
-            *attachments = attachments.copy_on_death().unwrap_or_else(|error| {
+            // The registry resolves every saved value whose type is defined
+            // before the copy, so an unread one follows its own copy_on_death
+            // (false is dropped; true and an unknown type are kept).
+            let copied =
+                crate::entry::wasm_mods::attachment_registry().copy_on_death(holder, attachments);
+            *attachments = copied.unwrap_or_else(|error| {
                 log::warn!("respawn attachment copy failed: {error:?}");
                 Default::default()
             });
             if let Err(error) = crate::entry::wasm_mods::prepare_attachments(
-                horizon_client::mod_api::Holder::Player(uuid),
+                holder,
                 attachments,
                 format!("player:{uuid}"),
             ) {
