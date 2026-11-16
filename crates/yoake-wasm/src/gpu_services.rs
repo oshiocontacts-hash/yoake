@@ -13,30 +13,30 @@ macro_rules! services {
 
         impl gpu_services::Host for ClientContext {
             fn shader(&mut self, source: String) -> Result<u32, ShaderError> {
-                let began = std::time::Instant::now();
+                let started = std::time::Instant::now();
                 let result = match self.host.gpu_services() {
                     Some(host) => host.shader(source),
                     None => Err(ShaderError { message: "service.gpu permission is required".to_owned(), line: 0, column: 0 }),
                 };
-                crate::add_host_time(began.elapsed());
+                crate::add_counted_host_time(started.elapsed());
                 result
             }
             fn shader_file(&mut self, path: String, source: String) -> Result<u32, ShaderError> {
-                let began = std::time::Instant::now();
+                let started = std::time::Instant::now();
                 let result = match self.host.gpu_services() {
                     Some(host) => host.shader_file(path, source),
                     None => Err(ShaderError { message: "service.gpu permission is required".to_owned(), line: 0, column: 0 }),
                 };
-                crate::add_host_time(began.elapsed());
+                crate::add_counted_host_time(started.elapsed());
                 result
             }
             $(fn $name(&mut self, $($argument: $kind),*) -> Result<$result, String> {
-                let began = std::time::Instant::now();
+                let started = std::time::Instant::now();
                 let result = match self.host.gpu_services() {
                     Some(host) => host.$name($($argument),*),
                     None => Err("service.gpu permission is required".to_owned()),
                 };
-                crate::add_host_time(began.elapsed());
+                crate::add_counted_host_time(started.elapsed());
                 result
             })*
         }

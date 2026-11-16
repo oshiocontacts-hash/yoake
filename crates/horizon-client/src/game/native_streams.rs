@@ -152,7 +152,10 @@ impl Game<'_> {
     }
 
     pub(super) fn streams_close(&mut self, id: NativeAudioStreamId) -> bool {
-        let Ok(owner) = self.stream_caller() else {
+        if !self.options.execution_role.is_client() {
+            return false;
+        }
+        let Some(owner) = crate::mod_api::local_sound_caller() else {
             return false;
         };
         if !self.audio.close_audio_stream(owner, id) {
@@ -266,10 +269,12 @@ impl Game<'_> {
             return;
         }
         let statuses = crate::mod_guard::mod_statuses();
+        let wasm_owners = crate::entry::wasm_mods::resource_owners();
         let enabled = |owner| {
-            statuses
-                .iter()
-                .any(|status| status.index == owner && status.enabled)
+            wasm_owners.contains(&owner)
+                || statuses
+                    .iter()
+                    .any(|status| status.index == owner && status.enabled)
         };
         if let Some(state) = self.native_streams.as_mut() {
             state.streams.retain(|id, stream| {

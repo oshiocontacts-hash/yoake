@@ -9,13 +9,13 @@ use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
 mod client;
 mod client_services;
-mod gpu_services;
 pub mod convert;
 mod full;
-mod full_hook_names;
 pub mod full_bindings;
-mod host;
+mod full_hook_names;
+mod gpu_services;
 mod hook_names;
+mod host;
 mod subscriptions;
 #[cfg(feature = "test-guests")]
 pub mod test_guests;
@@ -30,10 +30,10 @@ pub mod bindings {
 
 pub use client::{ClientMod, LoadError};
 pub use client_services::{ClientServices, client_types};
-pub use gpu_services::{GpuServices, gpu_types};
 pub use full::{ClientFullMod, SERVER_SERVICES, ServerFullMod, ServerHost, server_types};
-pub use host::{ClientContext, ClientHost};
 pub use full_hook_names::{FULL_HOOKS as FULL_HOOK_LIST, HookSide};
+pub use gpu_services::{GpuServices, gpu_types};
+pub use host::{ClientContext, ClientHost};
 pub use subscriptions::FullWorld;
 
 pub use subscriptions::Subscriptions;
@@ -52,6 +52,7 @@ thread_local! {
     /// call's deadline and does not count against the aggregate budget. The guest's own work is still
     /// bounded by fuel, and every service call burns some.
     static HOST_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
+    static COUNTED_HOST_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
 }
 
 /// The most host-service time that extends one call's deadline (a guest that loops over services cannot hold the
@@ -61,6 +62,15 @@ pub const MAX_HOST_TIME: Duration = Duration::from_millis(400);
 /// Adds `spent` to the running call's host-service time (see [`HOST_TIME`]).
 pub(crate) fn add_host_time(spent: Duration) {
     HOST_TIME.with(|time| time.set(time.get() + spent));
+}
+
+pub(crate) fn add_counted_host_time(spent: Duration) {
+    COUNTED_HOST_TIME.with(|time| time.set(time.get() + spent));
+}
+
+fn deadline_extension() -> Duration {
+    (HOST_TIME.with(std::cell::Cell::get) + COUNTED_HOST_TIME.with(std::cell::Cell::get))
+        .min(MAX_HOST_TIME)
 }
 /// One client hook call may run this long of wall-clock time (plus one epoch tick) before it is
 /// stopped and the module disabled. A call is stopped by the clock, not by its CPU time, and a busy
@@ -89,11 +99,19 @@ pub struct TimeLimits {
 }
 
 impl TimeLimits {
-    pub const CLIENT: Self = Self { call: CLIENT_HOOK_BUDGET, aggregate: CLIENT_AGGREGATE_BUDGET };
-    pub const SERVER: Self = Self { call: SERVER_HOOK_BUDGET, aggregate: SERVER_AGGREGATE_BUDGET };
+    pub const CLIENT: Self = Self {
+        call: CLIENT_HOOK_BUDGET,
+        aggregate: CLIENT_AGGREGATE_BUDGET,
+    };
+    pub const SERVER: Self = Self {
+        call: SERVER_HOOK_BUDGET,
+        aggregate: SERVER_AGGREGATE_BUDGET,
+    };
     /// A module's `init` (and its start function): it runs once, while the game loads.
-    pub const INIT: Self = Self { call: Duration::from_millis(250), aggregate: Duration::from_secs(1) };
-
+    pub const INIT: Self = Self {
+        call: Duration::from_millis(250),
+        aggregate: Duration::from_secs(1),
+    };
 }
 
 /// The store limits every instance gets (also what the tests check).
@@ -123,12 +141,14 @@ impl Sandbox {
     }
 
     fn texture_count(&mut self, id: &str) -> Arc<AtomicUsize> {
-        self.texture_counts.retain(|_, count| count.strong_count() > 0);
+        self.texture_counts
+            .retain(|_, count| count.strong_count() > 0);
         if let Some(count) = self.texture_counts.get(id).and_then(Weak::upgrade) {
             return count;
         }
         let count = Arc::new(AtomicUsize::new(0));
-        self.texture_counts.insert(id.to_owned(), Arc::downgrade(&count));
+        self.texture_counts
+            .insert(id.to_owned(), Arc::downgrade(&count));
         count
     }
 
@@ -209,7 +229,11 @@ impl RuntimeEngine {
                 }
             })
             .map_err(|error| format!("could not start WebAssembly epoch timer: {error}"))?;
-        Ok(Self { engine, stop, timer: Some(timer) })
+        Ok(Self {
+            engine,
+            stop,
+            timer: Some(timer),
+        })
     }
 }
 
@@ -234,7 +258,10 @@ pub struct HostState<T> {
 
 impl<T: Send> WasiView for HostState<T> {
     fn ctx(&mut self) -> WasiCtxView<'_> {
-        WasiCtxView { ctx: &mut self.wasi, table: &mut self.table }
+        WasiCtxView {
+            ctx: &mut self.wasi,
+            table: &mut self.table,
+        }
     }
 }
 
@@ -263,12 +290,21 @@ impl CompiledComponent {
             .allow_ip_name_lookup(false)
             .build();
         let deadline = Instant::now() + TimeLimits::INIT.call;
-        let state = HostState { host, limits, wasi, table: ResourceTable::new(), output, deadline };
+        let state = HostState {
+            host,
+            limits,
+            wasi,
+            table: ResourceTable::new(),
+            output,
+            deadline,
+        };
         let mut store = Store::new(&self.runtime.engine, state);
         store.limiter(|state| &mut state.limits);
-        store.set_fuel(FUEL_PER_CALL).map_err(|error| error.to_string())?;
+        store
+            .set_fuel(FUEL_PER_CALL)
+            .map_err(|error| error.to_string())?;
         store.epoch_deadline_callback(|context| {
-            if Instant::now() >= context.data().deadline + HOST_TIME.with(std::cell::Cell::get).min(MAX_HOST_TIME) {
+            if Instant::now() >= context.data().deadline + deadline_extension() {
                 Ok(UpdateDeadline::Interrupt)
             } else {
                 Ok(UpdateDeadline::Continue(1))
@@ -285,7 +321,12 @@ impl CompiledComponent {
             disabled: false,
             limits: TimeLimits::CLIENT,
             fuel: FUEL_PER_CALL,
-            window: Window { started: Instant::now(), spent: Duration::ZERO, exceeded: false, strikes: 0 },
+            window: Window {
+                started: Instant::now(),
+                spent: Duration::ZERO,
+                exceeded: false,
+                strikes: 0,
+            },
             skipped: 0,
             _runtime: self.runtime,
         })
@@ -385,20 +426,25 @@ impl<T: 'static> ModInstance<T> {
                 if self.window.strikes >= AGGREGATE_STRIKES {
                     self.disabled = true;
                     let id = self.id.replace(['\r', '\n'], " ");
-                    eprintln!("WebAssembly mod {id} disabled: over its time budget in {AGGREGATE_STRIKES} windows in a row");
+                    eprintln!(
+                        "WebAssembly mod {id} disabled: over its time budget in {AGGREGATE_STRIKES} windows in a row"
+                    );
                     return None;
                 }
             }
             self.skipped += 1;
             if self.skipped == 1 {
                 let id = self.id.replace(['\r', '\n'], " ");
-                eprintln!("WebAssembly mod {id}: calls skipped, it used its time budget for this window (further skips are only counted)");
+                eprintln!(
+                    "WebAssembly mod {id}: calls skipped, it used its time budget for this window (further skips are only counted)"
+                );
             }
             return None;
         }
         self.store.data_mut().deadline = began + self.limits.call;
         // Calls nest (a `mod-call` runs another module inside a service): each has its own host time.
         let outer_host_time = HOST_TIME.with(|time| time.replace(Duration::ZERO));
+        let outer_counted_host_time = COUNTED_HOST_TIME.with(|time| time.replace(Duration::ZERO));
         let result = self
             .store
             .set_fuel(self.fuel)
@@ -408,6 +454,7 @@ impl<T: 'static> ModInstance<T> {
                 invoke(&mut self.store, &self.instance)
             });
         let host_time = HOST_TIME.with(|time| time.replace(outer_host_time));
+        COUNTED_HOST_TIME.with(|time| time.set(outer_counted_host_time));
         self.window.spent += began.elapsed().saturating_sub(host_time);
         match result {
             Ok(value) => Some(value),
@@ -420,5 +467,58 @@ impl<T: 'static> ModInstance<T> {
                 None
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod budget_tests {
+    use super::*;
+
+    #[test]
+    fn shader_host_time_stays_in_the_aggregate_budget() {
+        let mut resolve = wit_parser::Resolve::default();
+        let package = resolve
+            .push_str("test.wit", "package test:budget; world client-mod {}")
+            .unwrap();
+        let world = resolve
+            .select_world(&[package], Some("client-mod"))
+            .unwrap();
+        let mut module =
+            wit_component::dummy_module(&resolve, world, wit_parser::ManglingAndAbi::Standard32);
+        wit_component::embed_component_metadata(
+            &mut module,
+            &resolve,
+            world,
+            wit_component::StringEncoding::UTF8,
+        )
+        .unwrap();
+        let bytes = wit_component::ComponentEncoder::default()
+            .module(&module)
+            .unwrap()
+            .encode()
+            .unwrap();
+        let mut instance = Sandbox::new()
+            .compile(&bytes)
+            .unwrap()
+            .instantiate("budget", (), |_| Ok(()))
+            .unwrap();
+        let mut measured = Duration::ZERO;
+        assert_eq!(
+            instance.call("compile", |_, _| {
+                let began = Instant::now();
+                std::thread::sleep(Duration::from_millis(2));
+                measured = began.elapsed();
+                add_counted_host_time(measured);
+                assert!(deadline_extension() >= measured);
+                Ok(())
+            }),
+            Some(())
+        );
+        assert!(instance.window.spent >= measured);
+        instance.window.started = Instant::now();
+        instance.limits.aggregate = Duration::from_nanos(1);
+        assert_eq!(instance.call("tick", |_, _| Ok(())), None);
+        assert_eq!(instance.skipped, 1);
+        assert!(!instance.is_disabled());
     }
 }

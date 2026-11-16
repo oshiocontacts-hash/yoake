@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use super::{Allocation, Error, Gpu, ModId, Owned, Value, checked, texture_format};
 use crate::gfx::mod_gpu::{CommandKind, Stage};
@@ -98,6 +99,29 @@ pub(super) enum DrawTarget {
     },
 }
 
+fn validate_stage(mask: u32, stage: Stage) -> Result<(), Error> {
+    if mask & (1 << 3) != 0 && !matches!(stage, Stage::AfterWorld | Stage::WorldTranslucent)
+        || mask & (1 << 4) != 0 && stage != Stage::AfterWorld
+    {
+        return Err(Error::EngineBinding);
+    }
+    Ok(())
+}
+
+impl DrawTarget {
+    fn pixels(&self, width: u32, height: u32) -> Result<u64, Error> {
+        match self {
+            Self::Frame => Ok(u64::from(width).saturating_mul(u64::from(height))),
+            Self::Texture { color, .. } => match color.value() {
+                Value::Texture { descriptor, .. } => {
+                    Ok(u64::from(descriptor.width).saturating_mul(u64::from(descriptor.height)))
+                }
+                _ => Err(Error::Kind),
+            },
+        }
+    }
+}
+
 fn buffer(
     resource: &Owned,
     usage: wgpu::BufferUsages,
@@ -123,9 +147,7 @@ fn buffer(
 
 impl Gpu {
     pub fn begin_frame(&mut self) -> Result<(), Error> {
-        if !self.pending.is_empty() {
-            return Err(Error::Frame);
-        }
+        self.pending.clear();
         self.recorder.begin_frame()
     }
 
@@ -179,18 +201,20 @@ impl Gpu {
                             usage: wgpu::BufferUsages::COPY_SRC,
                             mapped_at_creation: true,
                         });
-                        buffer
+                        let mapped = buffer
                             .slice(..)
                             .get_mapped_range_mut()
-                            .unwrap()
-                            .copy_from_slice(bytes);
+                            .map_err(|error| Error::Host(error.to_string()))?;
+                        let mut mapped = mapped;
+                        mapped.copy_from_slice(bytes);
+                        drop(mapped);
                         buffer.unmap();
-                        Value::Buffer {
+                        Ok(Value::Buffer {
                             buffer,
                             size: bytes.len() as u64,
                             usage: wgpu::BufferUsages::COPY_SRC,
-                        }
-                    })
+                        })
+                    })?
                 })?;
         let resource = self.resources.get(owner, handle)?;
         self.resources.destroy(owner, handle)?;
@@ -263,7 +287,7 @@ impl Gpu {
             size,
         )?;
         self.recorder
-            .record(owner, stage, CommandKind::Upload(0), || Command::Copy {
+            .record(owner, stage, CommandKind::Copy(size), || Command::Copy {
                 source,
                 destination,
                 source_offset,
@@ -372,14 +396,47 @@ impl Gpu {
             .resources
             .get_kind(owner, pipeline, Allocation::ComputePipeline)?;
         let groups = self.groups(owner, &pipeline, groups)?;
-        self.recorder
-            .record(owner, stage, CommandKind::Dispatch(workgroups), || {
-                Command::Dispatch {
-                    pipeline,
-                    groups,
-                    workgroups,
-                }
-            })
+        let Value::Compute {
+            cost,
+            budget,
+            engine_mask,
+            ..
+        } = pipeline.value()
+        else {
+            return Err(Error::Kind);
+        };
+        validate_stage(*engine_mask, stage)?;
+        let amount = workgroups
+            .iter()
+            .try_fold(*cost, |total, groups| total.checked_mul(u64::from(*groups)))
+            .ok_or(Error::Workgroups)?;
+        let budget = budget.clone();
+        if !budget.lock().map_err(|_| Error::Disabled)?.check(
+            self.frame_index,
+            amount,
+            super::super::mod_gpu::MAX_WORKGROUPS,
+        ) {
+            return Err(Error::Workgroups);
+        }
+        let cost = *cost;
+        self.recorder.record(
+            owner,
+            stage,
+            CommandKind::Compute {
+                groups: workgroups,
+                cost,
+            },
+            || Command::Dispatch {
+                pipeline,
+                groups,
+                workgroups,
+            },
+        )?;
+        budget
+            .lock()
+            .map_err(|_| Error::Disabled)?
+            .charge(self.frame_index, amount);
+        Ok(())
     }
 
     pub fn draw(
@@ -393,9 +450,17 @@ impl Gpu {
         let pipeline = self
             .resources
             .get_kind(owner, draw.pipeline, Allocation::RenderPipeline)?;
-        let Value::Render { descriptor, .. } = pipeline.value() else {
+        let Value::Render {
+            descriptor,
+            budget,
+            engine_mask,
+            ..
+        } = pipeline.value()
+        else {
             return Err(Error::Kind);
         };
+        validate_stage(*engine_mask, stage)?;
+        let budget = budget.clone();
         if draw.count == 0 || draw.instances == 0 {
             return Err(Error::Vertices);
         }
@@ -441,7 +506,17 @@ impl Gpu {
             })
             .transpose()?;
         let target = match target {
-            Target::Frame => DrawTarget::Frame,
+            Target::Frame => {
+                let format = if stage == Stage::Hud {
+                    self.frame_limits.hud
+                } else {
+                    self.frame_limits.world
+                };
+                if format != Some(descriptor.color) || descriptor.depth && stage == Stage::Hud {
+                    return Err(Error::Descriptor);
+                }
+                DrawTarget::Frame
+            }
             Target::Texture {
                 color,
                 depth,
@@ -503,12 +578,37 @@ impl Gpu {
                 }
             }
         };
+        let vertices_per_primitive = match descriptor.topology {
+            wgpu::PrimitiveTopology::PointList => 1,
+            wgpu::PrimitiveTopology::LineList => 2,
+            wgpu::PrimitiveTopology::TriangleList => 3,
+            _ => return Err(Error::Descriptor),
+        };
+        let pixels = target
+            .pixels(self.frame_limits.width, self.frame_limits.height)?
+            .saturating_mul(u64::from(draw.count.div_ceil(vertices_per_primitive)))
+            .saturating_mul(u64::from(draw.instances));
+        let pixel_limit = self.pixel_limit();
+        if !budget.lock().map_err(|_| Error::Disabled)?.check(
+            self.frame_index,
+            pixels,
+            pixel_limit.saturating_mul(4),
+        ) {
+            return Err(Error::Pixels);
+        }
+        let new_pass = !self.recorder.previous(owner, stage).is_some_and(|command| {
+            matches!(command, Command::Draw { pipeline, .. } if matches!(pipeline.value(), Value::Render { descriptor: previous, .. } if previous.depth == descriptor.depth))
+                && command.merges_target(&target)
+        });
         self.recorder.record(
             owner,
             stage,
-            CommandKind::Draw {
+            CommandKind::Render {
                 count: draw.count,
                 instances: draw.instances,
+                pixels,
+                pixel_limit,
+                new_pass,
             },
             || Command::Draw {
                 pipeline,
@@ -519,7 +619,12 @@ impl Gpu {
                 instances: draw.instances,
                 target,
             },
-        )
+        )?;
+        budget
+            .lock()
+            .map_err(|_| Error::Disabled)?
+            .charge(self.frame_index, pixels);
+        Ok(())
     }
 
     pub fn read_buffer(
@@ -592,13 +697,11 @@ impl Gpu {
         let Value::Readback(ticket) = resource.value() else {
             return Err(Error::Kind);
         };
-        device
-            .poll(wgpu::PollType::Poll)
-            .map_err(|error| Error::Host(error.to_string()))?;
         let status = ticket.status.lock().map_err(|_| Error::Disabled)?.clone();
         let Some(status) = status else {
             return Ok(Readback::Pending);
         };
+        let mapped = status.is_ok();
         let result = status.map_err(Error::Host).and_then(|()| {
             checked(device, || {
                 ticket
@@ -609,7 +712,9 @@ impl Gpu {
             })?
             .map_err(|error| Error::Host(error.to_string()))
         });
-        ticket.buffer.unmap();
+        if mapped {
+            ticket.buffer.unmap();
+        }
         self.destroy(owner, handle)?;
         result.map(Readback::Ready)
     }
@@ -648,44 +753,67 @@ impl Gpu {
             }
             batches.entry(recorded.owner).or_default().push(recorded);
         }
+        let mut snapshots = super::engine::Snapshots::default();
         for (owner, batch) in batches {
-            let mut snapshots = super::engine::Snapshots::default();
+            snapshots.groups.clear();
+            let started = Instant::now();
             let mut submitted = false;
             let mut retained_timing = None;
             let result = checked(device, || -> Result<(), Error> {
                 let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("Yoake isolated mod GPU stage"),
                 });
-                let passes = batch
-                    .iter()
-                    .filter(|recorded| recorded.command.is_pass())
-                    .count() as u32;
+                let mut runs: Vec<Vec<&Command>> = Vec::new();
+                for recorded in &batch {
+                    if let Some(run) = runs.last_mut()
+                        && run
+                            .last()
+                            .is_some_and(|previous| previous.merges(&recorded.command))
+                    {
+                        run.push(&recorded.command);
+                    } else {
+                        runs.push(vec![&recorded.command]);
+                    }
+                }
+                let passes = runs.iter().filter(|run| run[0].is_pass()).count() as u32;
                 let timing = self.timing_ticket(device, queue, owner, passes)?;
                 let ticket = timing.as_ref().and_then(|resource| match resource.value() {
                     Value::Timing(ticket) => Some(ticket),
                     _ => None,
                 });
                 let mut query = 0;
-                for recorded in &batch {
-                    let groups = self.engine_groups(
-                        device,
-                        queue,
-                        &mut encoder,
-                        &recorded.command,
-                        stage,
-                        sources,
-                        &mut snapshots,
-                    )?;
-                    let timestamps = if recorded.command.is_pass() {
+                for run in runs {
+                    let mut draws = Vec::with_capacity(run.len());
+                    for command in run {
+                        let groups = self.engine_groups(
+                            device,
+                            queue,
+                            &mut encoder,
+                            command,
+                            stage,
+                            sources,
+                            &mut snapshots,
+                        )?;
+                        if let Some(ticket) = ticket
+                            && let Some(budget) = command.pipeline_budget()
+                            && let Ok(mut pipelines) = ticket.pipelines.lock()
+                            && !pipelines
+                                .iter()
+                                .any(|existing| Arc::ptr_eq(existing, budget))
+                        {
+                            pipelines.push(budget.clone());
+                        }
+                        draws.push((command, groups));
+                    }
+                    let (command, groups) = &draws[0];
+                    let timestamps = if command.is_pass() {
                         let timestamps = ticket.map(|ticket| (&ticket.queries, query));
                         query += 2;
                         timestamps
                     } else {
                         None
                     };
-                    recorded
-                        .command
-                        .encode(&mut encoder, frame, &groups, timestamps)?;
+                    command.encode(&mut encoder, frame, groups, &draws[1..], timestamps)?;
                 }
                 if let Some(ticket) = ticket {
                     encoder.resolve_query_set(&ticket.queries, 0..ticket.count, &ticket.resolve, 0);
@@ -729,8 +857,13 @@ impl Gpu {
                 Ok(())
             })
             .and_then(|result| result);
+            let elapsed = started.elapsed();
             if let Err(error) = result {
+                snapshots = Default::default();
                 self.disable(owner, error.to_string());
+                errors.push((owner, error));
+            }
+            if let Err(error) = self.charge_cpu(owner, elapsed) {
                 errors.push((owner, error));
             }
             if submitted {
@@ -749,6 +882,84 @@ impl Gpu {
 }
 
 impl Command {
+    pub(super) fn reads_scene(&self) -> bool {
+        self.engine_mask() & (1 << 4) != 0
+    }
+
+    fn engine_mask(&self) -> u32 {
+        match self {
+            Self::Dispatch { pipeline, .. } | Self::Draw { pipeline, .. } => match pipeline.value()
+            {
+                Value::Compute { engine_mask, .. } | Value::Render { engine_mask, .. } => {
+                    *engine_mask
+                }
+                _ => 0,
+            },
+            _ => 0,
+        }
+    }
+
+    fn pipeline_budget(&self) -> Option<&Arc<Mutex<super::timing::PipelineBudget>>> {
+        match self {
+            Self::Dispatch { pipeline, .. } | Self::Draw { pipeline, .. } => match pipeline.value()
+            {
+                Value::Compute { budget, .. } | Value::Render { budget, .. } => Some(budget),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn merges_target(&self, next: &DrawTarget) -> bool {
+        let Self::Draw { target, .. } = self else {
+            return false;
+        };
+        match (target, next) {
+            (DrawTarget::Frame, DrawTarget::Frame) => true,
+            (
+                DrawTarget::Texture { color, depth, .. },
+                DrawTarget::Texture {
+                    color: next_color,
+                    depth: next_depth,
+                    clear: None,
+                },
+            ) => {
+                Arc::ptr_eq(color, next_color)
+                    && match (depth, next_depth) {
+                        (None, None) => true,
+                        (Some(depth), Some(next_depth)) => Arc::ptr_eq(depth, next_depth),
+                        _ => false,
+                    }
+            }
+            _ => false,
+        }
+    }
+
+    fn merges(&self, next: &Self) -> bool {
+        let Self::Draw { pipeline, .. } = self else {
+            return false;
+        };
+        let Self::Draw {
+            pipeline: next_pipeline,
+            target,
+            ..
+        } = next
+        else {
+            return false;
+        };
+        let (
+            Value::Render { descriptor, .. },
+            Value::Render {
+                descriptor: next_descriptor,
+                ..
+            },
+        ) = (pipeline.value(), next_pipeline.value())
+        else {
+            return false;
+        };
+        descriptor.depth == next_descriptor.depth && self.merges_target(target)
+    }
+
     fn is_pass(&self) -> bool {
         matches!(self, Self::Dispatch { .. } | Self::Draw { .. })
     }
@@ -758,6 +969,7 @@ impl Command {
         encoder: &mut wgpu::CommandEncoder,
         frame: Option<&FrameTarget<'_>>,
         engine_groups: &[(u32, wgpu::BindGroup)],
+        following: &[(&Command, Vec<(u32, wgpu::BindGroup)>)],
         timestamps: Option<(&wgpu::QuerySet, u32)>,
     ) -> Result<(), Error> {
         match self {
@@ -879,20 +1091,9 @@ impl Command {
                 );
             }
             Self::Draw {
-                pipeline,
-                groups,
-                vertex,
-                index,
-                count,
-                instances,
-                target,
+                pipeline, target, ..
             } => {
-                let Value::Render {
-                    pipeline,
-                    descriptor,
-                    ..
-                } = pipeline.value()
-                else {
+                let Value::Render { descriptor, .. } = pipeline.value() else {
                     return Err(Error::Kind);
                 };
                 let (color, depth, clear) = match target {
@@ -967,38 +1168,65 @@ impl Command {
                     }),
                     ..Default::default()
                 });
-                pass.set_pipeline(pipeline);
-                for (index, group) in engine_groups {
-                    pass.set_bind_group(*index, group, &[]);
-                }
-                for group in groups {
-                    let Value::BindGroup { group, index, .. } = group.value() else {
-                        return Err(Error::Kind);
-                    };
-                    pass.set_bind_group(*index, group, &[]);
-                }
-                if let Some((resource, offset, size)) = vertex {
-                    pass.set_vertex_buffer(
-                        0,
-                        buffer(resource, wgpu::BufferUsages::VERTEX, *offset, *size)?
-                            .slice(*offset..*offset + *size),
-                    );
-                }
-                if let Some((resource, offset, size, wide)) = index {
-                    pass.set_index_buffer(
-                        buffer(resource, wgpu::BufferUsages::INDEX, *offset, *size)?
-                            .slice(*offset..*offset + *size),
-                        if *wide {
-                            wgpu::IndexFormat::Uint32
-                        } else {
-                            wgpu::IndexFormat::Uint16
-                        },
-                    );
-                    pass.draw_indexed(0..*count, 0, 0..*instances);
-                } else {
-                    pass.draw(0..*count, 0..*instances);
+                self.draw_in_pass(&mut pass, engine_groups)?;
+                for (command, groups) in following {
+                    command.draw_in_pass(&mut pass, groups)?;
                 }
             }
+        }
+        Ok(())
+    }
+
+    fn draw_in_pass(
+        &self,
+        pass: &mut wgpu::RenderPass<'_>,
+        engine_groups: &[(u32, wgpu::BindGroup)],
+    ) -> Result<(), Error> {
+        let Self::Draw {
+            pipeline,
+            groups,
+            vertex,
+            index,
+            count,
+            instances,
+            ..
+        } = self
+        else {
+            return Err(Error::Kind);
+        };
+        let Value::Render { pipeline, .. } = pipeline.value() else {
+            return Err(Error::Kind);
+        };
+        pass.set_pipeline(pipeline);
+        for (index, group) in engine_groups {
+            pass.set_bind_group(*index, group, &[]);
+        }
+        for group in groups {
+            let Value::BindGroup { group, index, .. } = group.value() else {
+                return Err(Error::Kind);
+            };
+            pass.set_bind_group(*index, group, &[]);
+        }
+        if let Some((resource, offset, size)) = vertex {
+            pass.set_vertex_buffer(
+                0,
+                buffer(resource, wgpu::BufferUsages::VERTEX, *offset, *size)?
+                    .slice(*offset..*offset + *size),
+            );
+        }
+        if let Some((resource, offset, size, wide)) = index {
+            pass.set_index_buffer(
+                buffer(resource, wgpu::BufferUsages::INDEX, *offset, *size)?
+                    .slice(*offset..*offset + *size),
+                if *wide {
+                    wgpu::IndexFormat::Uint32
+                } else {
+                    wgpu::IndexFormat::Uint16
+                },
+            );
+            pass.draw_indexed(0..*count, 0, 0..*instances);
+        } else {
+            pass.draw(0..*count, 0..*instances);
         }
         Ok(())
     }

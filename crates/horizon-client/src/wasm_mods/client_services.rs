@@ -295,11 +295,15 @@ impl ClientServices for GameHost {
                 &wgsl,
                 NativePostUniformLayout { size: uniform_size },
             )
-        })
+        })?;
+        self.resources.claim_shader(id);
+        Ok(())
     }
 
     fn unregister_post_shader(&mut self, id: String) -> Result<(), String> {
-        self.client_call(|invocation| write_host(invocation)?.unregister_post_shader(&id))
+        self.client_call(|invocation| write_host(invocation)?.unregister_post_shader(&id))?;
+        self.resources.remove_shader(&id);
+        Ok(())
     }
 
     fn set_post_shader_uniforms(&mut self, bytes: Vec<u8>, id: String) -> Result<(), String> {

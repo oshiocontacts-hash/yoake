@@ -1904,6 +1904,9 @@ async fn open_backend(
     };
     match opened {
         Ok((device, queue)) => {
+            device.on_uncaptured_error(Arc::new(|error| {
+                log::error!("Horizon renderer: uncaptured GPU error: {error}");
+            }));
             let device_lost = Arc::new(std::sync::atomic::AtomicBool::new(false));
             let lost = device_lost.clone();
             device.set_device_lost_callback(move |reason, message| {
@@ -1917,6 +1920,7 @@ async fn open_backend(
                 );
                 native_render::native_render_device_lost(&reason, &message);
                 lost.store(true, std::sync::atomic::Ordering::Relaxed);
+                mod_gpu_runtime::device_lost();
             });
             native_render::native_render_device_ready(&device, &queue);
             Ok(Opened {
@@ -7860,18 +7864,10 @@ impl Renderer {
                 .then(|| pack_timing::PassTiming::new(&self.device, &self.queue))
                 .flatten();
         }
-        let pack_reads_world =
-            pack_post || native_post || mod_post || (!frame.title && mod_gpu_runtime::active());
+        let pack_reads_world = pack_post || native_post || mod_post;
         laps.lap("r_uploads");
         let render_needs = native_render::render_needs();
         // Phase 2 of occlusion culling draws over the depth, and a shader pack or TAA reads it.
-        let keep_depth = pack_reads_world
-            || mod_draws
-            || (taa && self.world_post.taa)
-            || oit_on
-            || render_needs.world_depth
-            || render_needs.pre_post
-            || fg;
         // The pack's program reads the vertices this frame's draws bind.
         let pack_draws_terrain = pack_terrain && flat_frame == self.pack_terrain_flat;
         // The shadow camera's lists, drawn by the pack's shadow programs.
@@ -7918,14 +7914,14 @@ impl Renderer {
                 .as_ref()
                 .and_then(|p| p.1.as_ref())
                 .is_some_and(|p| p.has_weather());
-        let scaled = self.world_post.prepare(
+        let mut scaled = self.world_post.prepare(
             &self.device,
             [self.config.width, self.config.height],
             pack_reads_world || fg,
         );
-        let (world_view, world_depth) = match &scaled {
-            Some((color, depth)) => (color, depth),
-            None => (&view_target, &self.depth),
+        let world_view = match &scaled {
+            Some((color, _)) => color,
+            None => &view_target,
         };
         if mod_gpu_runtime::active() && !frame.title {
             mod_gpu_runtime::begin_frame(
@@ -7961,6 +7957,25 @@ impl Renderer {
                 },
             );
         }
+        let pack_reads_world = pack_reads_world || (!frame.title && mod_gpu_runtime::reads_scene());
+        if scaled.is_none() && pack_reads_world {
+            scaled = self.world_post.prepare(
+                &self.device,
+                [self.config.width, self.config.height],
+                true,
+            );
+        }
+        let (world_view, world_depth) = match &scaled {
+            Some((color, depth)) => (color, depth),
+            None => (&view_target, &self.depth),
+        };
+        let keep_depth = pack_reads_world
+            || mod_draws
+            || (taa && self.world_post.taa)
+            || oit_on
+            || render_needs.world_depth
+            || render_needs.pre_post
+            || fg;
         if culling && let Some(cull) = &mut self.cull {
             cull.bind_depth(&self.device, world_depth);
         }
@@ -9458,9 +9473,6 @@ impl Renderer {
                     hand_view_proj,
                     native_overlay: render_needs.overlay,
                 };
-                if mod_gpu_runtime::has_stage(mod_gpu::Stage::Hud) && !native_commands.is_empty() {
-                    self.queue.submit(native_commands.drain(..));
-                }
                 self.draw_overlay(&mut encoder, frame, &generated_view, generated, &overlay);
             }
         } else if scaled.is_some() {
@@ -10025,7 +10037,8 @@ impl Renderer {
         let menu_blur = frame
             .menu_blur
             .filter(|_| self.config.usage.contains(wgpu::TextureUsages::COPY_SRC));
-        let gpu_hud = !frame.title && mod_gpu_runtime::has_stage(mod_gpu::Stage::Hud);
+        let gpu_hud =
+            overlay.real && !frame.title && mod_gpu_runtime::has_stage(mod_gpu::Stage::Hud);
         let blur_at = if gpu_hud {
             frame.hud.blur_at
         } else {

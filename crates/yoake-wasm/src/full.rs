@@ -3,8 +3,8 @@
 //! time limits, WASI subset); a trap, a limit or a bad answer disables only that module. The typed
 //! hook calls are made by the host's generated adapters through [`ClientFullMod::dispatch`] and
 //! [`ServerFullMod::dispatch`], which only run a hook the module subscribed to.
-use wasmtime::component::HasSelf;
 use wasmtime::Store;
+use wasmtime::component::HasSelf;
 
 use crate::bindings::yoake::mods::types::HostError;
 use crate::full_bindings::{client as client_world, server as server_world};
@@ -49,21 +49,34 @@ impl ClientFullMod {
         let mut raw = runtime
             .compile(component_bytes)
             .map_err(LoadError::new)?
-            .instantiate(id.clone(), ClientContext::new(id, host, texture_count), |linker| {
-                client_world::ClientFull::add_to_linker::<HostState<ClientContext>, HasSelf<ClientContext>>(
-                    linker,
-                    |state| &mut state.host,
-                )
-                .map_err(|error| error.to_string())
-            })
+            .instantiate(
+                id.clone(),
+                ClientContext::new(id, host, texture_count),
+                |linker| {
+                    client_world::ClientFull::add_to_linker::<
+                        HostState<ClientContext>,
+                        HasSelf<ClientContext>,
+                    >(linker, |state| &mut state.host)
+                    .map_err(|error| error.to_string())
+                },
+            )
             .map_err(LoadError::new)?;
         let exports = client_world::ClientFull::new(&mut raw.store, &raw.instance)
             .map_err(|error| LoadError::new(error.to_string()))?;
-        let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
+        let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| {
+            exports
+                .call_init(store)
+                .map_err(|error| format!("{error:#}"))
+        });
         flush_output(&mut raw, |host, line| host.log_output(line));
         let names = names.ok_or_else(|| LoadError::new("mod init trapped or timed out"))?;
-        let subscriptions = Subscriptions::for_full_world(FullWorld::Client, names, unwired).map_err(LoadError::new)?;
-        Ok(Self { raw, exports, subscriptions })
+        let subscriptions = Subscriptions::for_full_world(FullWorld::Client, names, unwired)
+            .map_err(LoadError::new)?;
+        Ok(Self {
+            raw,
+            exports,
+            subscriptions,
+        })
     }
 
     pub fn subscribed(&self, hook: &str) -> bool {
@@ -87,13 +100,21 @@ impl ClientFullMod {
     pub fn dispatch<R>(
         &mut self,
         hook: &str,
-        call: impl FnOnce(&client_world::ClientFull, &mut Store<HostState<ClientContext>>) -> wasmtime::Result<R>,
+        call: impl FnOnce(
+            &client_world::ClientFull,
+            &mut Store<HostState<ClientContext>>,
+        ) -> wasmtime::Result<R>,
     ) -> Option<R> {
         if !self.subscribed(hook) {
             return None;
         }
         let exports = &self.exports;
-        let result = self.raw.call(hook, |store, _| call(exports, store).map_err(|error| format!("{error:#}")));
+        let result = self.raw.call(hook, |store, _| {
+            call(exports, store).map_err(|error| format!("{error:#}"))
+        });
+        if self.raw.is_disabled() {
+            self.raw.store.data_mut().host.release_resources();
+        }
         flush_output(&mut self.raw, |host, line| host.log_output(line));
         result
     }
@@ -275,20 +296,29 @@ impl ServerFullMod {
             .compile(component_bytes)
             .map_err(LoadError::new)?
             .instantiate(id.clone(), ServerContext::new(id, host), |linker| {
-                server_world::ServerFull::add_to_linker::<HostState<ServerContext>, HasSelf<ServerContext>>(
-                    linker,
-                    |state| &mut state.host,
-                )
+                server_world::ServerFull::add_to_linker::<
+                    HostState<ServerContext>,
+                    HasSelf<ServerContext>,
+                >(linker, |state| &mut state.host)
                 .map_err(|error| error.to_string())
             })
             .map_err(LoadError::new)?;
         let exports = server_world::ServerFull::new(&mut raw.store, &raw.instance)
             .map_err(|error| LoadError::new(error.to_string()))?;
-        let names = raw.call_init(crate::TimeLimits::SERVER, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
+        let names = raw.call_init(crate::TimeLimits::SERVER, |store, _| {
+            exports
+                .call_init(store)
+                .map_err(|error| format!("{error:#}"))
+        });
         flush_output(&mut raw, |host, line| host.log_output(line));
         let names = names.ok_or_else(|| LoadError::new("mod init trapped or timed out"))?;
-        let subscriptions = Subscriptions::for_full_world(FullWorld::Server, names, unwired).map_err(LoadError::new)?;
-        Ok(Self { raw, exports, subscriptions })
+        let subscriptions = Subscriptions::for_full_world(FullWorld::Server, names, unwired)
+            .map_err(LoadError::new)?;
+        Ok(Self {
+            raw,
+            exports,
+            subscriptions,
+        })
     }
 
     pub fn subscribed(&self, hook: &str) -> bool {
@@ -305,13 +335,20 @@ impl ServerFullMod {
 
     /// Calls the module's `handle-call` export (another package's `mod-call`). `None` when the
     /// module is disabled, trapped or ran out of its limits on this call (it is then disabled).
-    pub fn handle_call(&mut self, caller: &str, method: &str, payload: &[u8]) -> Option<Result<Vec<u8>, String>> {
+    pub fn handle_call(
+        &mut self,
+        caller: &str,
+        method: &str,
+        payload: &[u8],
+    ) -> Option<Result<Vec<u8>, String>> {
         if self.raw.is_disabled() {
             return None;
         }
         let exports = &self.exports;
         let result = self.raw.call("handle_call", |store, _| {
-            exports.call_handle_call(store, caller, method, payload).map_err(|error| format!("{error:#}"))
+            exports
+                .call_handle_call(store, caller, method, payload)
+                .map_err(|error| format!("{error:#}"))
         });
         flush_output(&mut self.raw, |host, line| host.log_output(line));
         result
@@ -321,13 +358,18 @@ impl ServerFullMod {
     pub fn dispatch<R>(
         &mut self,
         hook: &str,
-        call: impl FnOnce(&server_world::ServerFull, &mut Store<HostState<ServerContext>>) -> wasmtime::Result<R>,
+        call: impl FnOnce(
+            &server_world::ServerFull,
+            &mut Store<HostState<ServerContext>>,
+        ) -> wasmtime::Result<R>,
     ) -> Option<R> {
         if !self.subscribed(hook) {
             return None;
         }
         let exports = &self.exports;
-        let result = self.raw.call(hook, |store, _| call(exports, store).map_err(|error| format!("{error:#}")));
+        let result = self.raw.call(hook, |store, _| {
+            call(exports, store).map_err(|error| format!("{error:#}"))
+        });
         flush_output(&mut self.raw, |host, line| host.log_output(line));
         result
     }

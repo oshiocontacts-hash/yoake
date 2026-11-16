@@ -111,6 +111,7 @@ fn gpu_guests_render_compute_reload_trap_and_device_loss() {
     let Some(trap_bytes) = test_guests::load(&GPU_TRAP) else {
         return;
     };
+    assert_ne!(verify_bytes, reload_bytes);
     let scratch = std::env::temp_dir().join(format!(
         "yoake-gpu-guests-{}-{}",
         std::process::id(),
@@ -141,14 +142,20 @@ fn gpu_guests_render_compute_reload_trap_and_device_loss() {
         .with_gpu(true);
     let verifier_owner = verifier.gpu_owner.unwrap();
     for _ in 0..8 {
+        std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
         mod_gpu_runtime::begin_frame(frame(), engine_frame());
         mod_gpu_runtime::submit_stage(mod_gpu::Stage::WorldOpaque, None, engine_sources());
         device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+        std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
         if fov(&mut verifier) == 91.0 {
             break;
         }
     }
     assert_eq!(fov(&mut verifier), 91.0);
+    for _ in 0..256 {
+        mod_gpu_runtime::begin_frame(frame(), engine_frame());
+        mod_gpu_runtime::submit_stage(mod_gpu::Stage::WorldOpaque, None, engine_sources());
+    }
     let demo = guest("gpu-demo", &demo_bytes, true).with_gpu(true);
     let demo_owner = demo.gpu_owner.unwrap();
     let make_texture = |format| {
@@ -203,12 +210,24 @@ fn gpu_guests_render_compute_reload_trap_and_device_loss() {
     }
     queue.submit([encoder.finish()]);
     let mut previous = pixels(&device, &queue, &color);
-    mod_gpu_runtime::begin_frame(frame(), engine_frame());
     let target = mod_gpu_resources::FrameTarget {
         color: &color_view,
         depth: Some(&depth_view),
         format: wgpu::TextureFormat::Rgba8Unorm,
     };
+    for _ in 0..4 {
+        std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
+        mod_gpu_runtime::begin_frame(frame(), engine_frame());
+        for stage in [
+            mod_gpu::Stage::WorldOpaque,
+            mod_gpu::Stage::WorldTranslucent,
+            mod_gpu::Stage::AfterWorld,
+        ] {
+            mod_gpu_runtime::submit_stage(stage, Some(&target), engine_sources());
+        }
+    }
+    std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
+    mod_gpu_runtime::begin_frame(frame(), engine_frame());
     for stage in [
         mod_gpu::Stage::WorldOpaque,
         mod_gpu::Stage::WorldTranslucent,
@@ -246,10 +265,20 @@ fn gpu_guests_render_compute_reload_trap_and_device_loss() {
     );
     *reload.bytes.lock().unwrap() = Some(reload_bytes);
     reload.ready.store(true, Ordering::Release);
+    assert_eq!(
+        mod_gpu_runtime::with(observer, |gpu, _, _, _| {
+            Ok(gpu.disabled_reason(verifier_owner).map(str::to_owned))
+        })
+        .unwrap(),
+        None,
+        "verifier must not be suspended before reload"
+    );
     for _ in 0..8 {
+        std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
         mod_gpu_runtime::begin_frame(frame(), engine_frame());
         mod_gpu_runtime::submit_stage(mod_gpu::Stage::WorldOpaque, None, engine_sources());
         device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+        std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
         if fov(&mut verifier) == 92.0 {
             break;
         }

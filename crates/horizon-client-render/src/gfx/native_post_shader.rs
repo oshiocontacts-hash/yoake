@@ -135,6 +135,25 @@ pub(super) fn validate_cost(
     .map(|_| ())
 }
 
+pub(super) fn static_cost(
+    module: &naga::Module,
+    function: &naga::Function,
+    iterations: u32,
+) -> Result<u64, String> {
+    invocation_cost(
+        module,
+        function,
+        &mut BTreeMap::new(),
+        0,
+        u64::from(iterations),
+    )
+    .map(|cost| {
+        cost.expressions
+            .saturating_add(cost.samples.saturating_mul(32))
+            .max(1)
+    })
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct NativePostUniformLayout {
     pub size: u32,

@@ -5,10 +5,13 @@ pub const MAX_MOD_BYTES: u64 = 256 * 1024 * 1024;
 pub const MAX_TOTAL_BYTES: u64 = 1024 * 1024 * 1024;
 pub const MAX_HANDLES: u32 = 4096;
 pub const MAX_DRAWS: u32 = 4096;
+pub const MAX_INSTANCES: u32 = 65_536;
+pub const MAX_PASSES: u32 = 64;
 pub const MAX_VERTICES: u64 = 1 << 24;
 pub const MAX_WORKGROUPS: u64 = 65_536;
 pub const MAX_UPLOAD_BYTES: u64 = 16 * 1024 * 1024;
 pub const MAX_READ_BYTES: u64 = 1024 * 1024;
+pub const MAX_COPY_BYTES: u64 = 256 * 1024 * 1024;
 const ALLOCATION_ALIGNMENT: u64 = 65_536;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -27,6 +30,10 @@ pub enum Error {
     Frame,
     Commands,
     Draws,
+    Pixels,
+    Passes,
+    Copy,
+    CreationRate,
     Vertices,
     Workgroups,
     Upload,
@@ -242,7 +249,10 @@ impl<Value> Resources<Value> {
         if bytes > MAX_MOD_BYTES - usage.bytes || bytes > MAX_TOTAL_BYTES - ledger.total {
             return Err(Error::Memory);
         }
-        let handle = u32::try_from(ledger.next_handle + 1).map_err(|_| Error::HandleSpace)?;
+        let mut handle = (ledger.next_handle as u32).wrapping_add(1).max(1);
+        while self.values.contains_key(&handle) {
+            handle = handle.wrapping_add(1).max(1);
+        }
         ledger.next_handle = u64::from(handle);
         ledger.owners.insert(
             owner,
@@ -353,9 +363,24 @@ pub fn engine_binding(stage: Stage, resource: EngineResource, writable: bool) ->
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CommandKind {
-    Draw { count: u32, instances: u32 },
+    Draw {
+        count: u32,
+        instances: u32,
+    },
+    Render {
+        count: u32,
+        instances: u32,
+        pixels: u64,
+        pixel_limit: u64,
+        new_pass: bool,
+    },
     Dispatch([u32; 3]),
+    Compute {
+        groups: [u32; 3],
+        cost: u64,
+    },
     Upload(u64),
+    Copy(u64),
     Readback(u64),
 }
 
@@ -365,6 +390,9 @@ struct FrameUsage {
     vertices: u64,
     workgroups: u64,
     uploaded: u64,
+    copied: u64,
+    pixels: u64,
+    passes: u32,
     read: u64,
     commands: u32,
 }
@@ -373,26 +401,54 @@ impl FrameUsage {
     fn charge(self, kind: CommandKind) -> Result<Self, Error> {
         let mut next = self;
         match kind {
-            CommandKind::Draw { count, instances } => {
+            CommandKind::Draw { count, instances }
+            | CommandKind::Render {
+                count, instances, ..
+            } => {
+                if instances > MAX_INSTANCES {
+                    return Err(Error::Vertices);
+                }
                 next.draws += 1;
                 next.vertices = next
                     .vertices
                     .checked_add(u64::from(count) * u64::from(instances))
                     .ok_or(Error::Vertices)?;
+                if let CommandKind::Render {
+                    pixels,
+                    pixel_limit,
+                    new_pass,
+                    ..
+                } = kind
+                {
+                    next.pixels = next.pixels.checked_add(pixels).ok_or(Error::Pixels)?;
+                    if next.pixels > pixel_limit {
+                        return Err(Error::Pixels);
+                    }
+                    next.passes += u32::from(new_pass);
+                }
             }
-            CommandKind::Dispatch(groups) => {
+            CommandKind::Dispatch(groups) | CommandKind::Compute { groups, .. } => {
                 let groups = groups.into_iter().try_fold(1_u64, |product, axis| {
                     product
                         .checked_mul(u64::from(axis))
                         .ok_or(Error::Workgroups)
                 })?;
+                let cost = match kind {
+                    CommandKind::Compute { cost, .. } => cost.max(1),
+                    _ => 1,
+                };
+                let groups = groups.checked_mul(cost).ok_or(Error::Workgroups)?;
                 next.workgroups = next
                     .workgroups
                     .checked_add(groups)
                     .ok_or(Error::Workgroups)?;
+                next.passes += 1;
             }
             CommandKind::Upload(bytes) => {
                 next.uploaded = next.uploaded.checked_add(bytes).ok_or(Error::Upload)?;
+            }
+            CommandKind::Copy(bytes) => {
+                next.copied = next.copied.checked_add(bytes).ok_or(Error::Copy)?;
             }
             CommandKind::Readback(bytes) => {
                 next.read = next.read.checked_add(bytes).ok_or(Error::Readback)?;
@@ -403,6 +459,8 @@ impl FrameUsage {
             (next.vertices > MAX_VERTICES, Error::Vertices),
             (next.workgroups > MAX_WORKGROUPS, Error::Workgroups),
             (next.uploaded > MAX_UPLOAD_BYTES, Error::Upload),
+            (next.copied > MAX_COPY_BYTES, Error::Copy),
+            (next.passes > MAX_PASSES, Error::Passes),
             (next.read > MAX_READ_BYTES, Error::Readback),
             (next.commands >= MAX_DRAWS, Error::Commands),
         ] {
@@ -444,11 +502,29 @@ impl<Command> Recorder<Command> {
     }
 
     pub fn begin_frame(&mut self) -> Result<(), Error> {
-        if self.active {
-            return Err(Error::Frame);
-        }
         self.active = true;
         self.usage.clear();
+        self.commands.clear();
+        Ok(())
+    }
+
+    pub fn previous(&self, owner: ModId, stage: Stage) -> Option<&Command> {
+        self.commands
+            .iter()
+            .rev()
+            .find(|command| command.owner == owner && command.stage == stage)
+            .map(|command| &command.command)
+    }
+
+    pub fn check(&self, owner: ModId, kind: CommandKind) -> Result<(), Error> {
+        if !self.active {
+            return Err(Error::Frame);
+        }
+        self.usage
+            .get(&owner)
+            .copied()
+            .unwrap_or_default()
+            .charge(kind)?;
         Ok(())
     }
 

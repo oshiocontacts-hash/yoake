@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use super::mod_gpu::{Allocation, Error, Format, ModId, Resource, Resources, Texture, Usage};
 
@@ -36,16 +37,20 @@ enum Value {
     Shader {
         module: wgpu::ShaderModule,
         engine_masks: BTreeMap<String, u32>,
+        costs: BTreeMap<String, u64>,
     },
     Compute {
         pipeline: wgpu::ComputePipeline,
         engine_mask: u32,
+        cost: u64,
+        budget: Arc<Mutex<timing::PipelineBudget>>,
         _shader: Owned,
     },
     Render {
         pipeline: wgpu::RenderPipeline,
         descriptor: RenderDescriptor,
         engine_mask: u32,
+        budget: Arc<Mutex<timing::PipelineBudget>>,
         _shader: Owned,
     },
     BindGroup {
@@ -71,9 +76,105 @@ pub struct Gpu {
     budgets: BTreeMap<ModId, timing::Budget>,
     frame_index: u64,
     submission_hooks: Option<SubmissionHooks>,
+    creations: BTreeMap<ModId, CreationBudget>,
+    frame_limits: FrameLimits,
+}
+
+struct CreationBudget {
+    recent: std::collections::VecDeque<Instant>,
+    frame: u64,
+    count: u32,
+}
+
+impl CreationBudget {
+    fn charge(&mut self, now: Instant, frame: u64) -> Result<(), Error> {
+        while self
+            .recent
+            .front()
+            .is_some_and(|time| now.duration_since(*time) >= Duration::from_secs(60))
+        {
+            self.recent.pop_front();
+        }
+        if self.frame != frame {
+            self.frame = frame;
+            self.count = 0;
+        }
+        if self.count >= 2 || self.recent.len() >= 8 {
+            return Err(Error::CreationRate);
+        }
+        self.count += 1;
+        self.recent.push_back(now);
+        Ok(())
+    }
+}
+
+struct FrameLimits {
+    width: u32,
+    height: u32,
+    world: Option<Format>,
+    hud: Option<Format>,
+}
+
+impl Default for FrameLimits {
+    fn default() -> Self {
+        Self {
+            width: 1024,
+            height: 1024,
+            world: None,
+            hud: None,
+        }
+    }
 }
 
 impl Gpu {
+    pub fn configure_frame(
+        &mut self,
+        width: u32,
+        height: u32,
+        world: Option<Format>,
+        hud: Option<Format>,
+    ) {
+        self.frame_limits = FrameLimits {
+            width,
+            height,
+            world,
+            hud,
+        };
+    }
+
+    fn pixel_limit(&self) -> u64 {
+        u64::from(self.frame_limits.width)
+            .saturating_mul(u64::from(self.frame_limits.height))
+            .saturating_mul(4)
+            .clamp(1, 33_554_432)
+    }
+
+    fn creation(&mut self, owner: ModId) -> Result<(), Error> {
+        let now = Instant::now();
+        self.creations
+            .entry(owner)
+            .or_insert_with(|| CreationBudget {
+                recent: Default::default(),
+                frame: self.frame_index,
+                count: 0,
+            })
+            .charge(now, self.frame_index)
+    }
+
+    pub fn suspended(&self) -> BTreeMap<ModId, String> {
+        self.disabled.clone()
+    }
+
+    pub fn restore_suspended(&mut self, suspended: BTreeMap<ModId, String>) {
+        self.disabled.extend(suspended);
+    }
+
+    pub fn reads_scene(&self) -> bool {
+        self.pending
+            .iter()
+            .any(|recorded| recorded.command.reads_scene())
+    }
+
     pub fn set_submission_hooks(&mut self, hooks: SubmissionHooks) {
         self.submission_hooks = Some(hooks);
     }
@@ -113,6 +214,11 @@ impl Gpu {
     }
 
     pub fn device_lost(&mut self) {
+        for owner in self.creations.keys() {
+            self.disabled
+                .entry(*owner)
+                .or_insert_with(|| "GPU device lost".to_owned());
+        }
         self.lost = true;
         self.recorder = Default::default();
         self.pending.clear();
@@ -122,14 +228,19 @@ impl Gpu {
         self.resources = Default::default();
     }
 
-    pub fn remove_owner(&mut self, owner: ModId) {
+    pub fn reset_resources(&mut self, owner: ModId) {
         self.recorder.remove_owner(owner);
         self.pending.retain(|command| command.owner != owner);
         self.tickets.remove(&owner);
         self.timings.retain(|(identity, _)| *identity != owner);
-        self.budgets.remove(&owner);
         self.resources.remove_owner(owner);
+    }
+
+    pub fn remove_owner(&mut self, owner: ModId) {
+        self.reset_resources(owner);
+        self.budgets.remove(&owner);
         self.disabled.remove(&owner);
+        self.creations.remove(&owner);
     }
 
     pub fn destroy(&mut self, owner: ModId, handle: u32) -> Result<(), Error> {
@@ -267,10 +378,12 @@ impl Gpu {
         source: &str,
     ) -> Result<u32, Error> {
         self.available(owner)?;
+        self.creation(owner)?;
         self.resources
             .create(owner, Allocation::Shader(source.len()), || {
                 let shader = super::mod_gpu_shader::validate(source).map_err(Error::Shader)?;
                 let engine_masks = shader.engine_masks.clone();
+                let costs = shader.costs.clone();
                 checked(device, || Value::Shader {
                     module: device.create_shader_module(wgpu::ShaderModuleDescriptor {
                         label: Some("Yoake guarded mod shader"),
@@ -279,6 +392,7 @@ impl Gpu {
                         )),
                     }),
                     engine_masks,
+                    costs,
                 })
             })
     }

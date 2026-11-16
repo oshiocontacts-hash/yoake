@@ -1,4 +1,4 @@
-use super::native_post_shader::validate_cost;
+use super::native_post_shader::static_cost;
 
 pub const MAX_SHADER_BYTES: usize = 256 * 1024;
 pub const LOOP_ITERATIONS: u32 = 256;
@@ -24,6 +24,7 @@ impl From<String> for ValidationError {
 pub struct ValidatedShader {
     module: naga::Module,
     pub engine_masks: std::collections::BTreeMap<String, u32>,
+    pub costs: std::collections::BTreeMap<String, u64>,
 }
 
 impl ValidatedShader {
@@ -294,9 +295,38 @@ pub fn validate(source: &str) -> Result<ValidatedShader, ValidationError> {
             .to_owned()
             .into());
     }
-    for entry in &module.entry_points {
-        validate_cost(&module, &entry.function, LOOP_ITERATIONS)?;
+    let local_bytes = module
+        .functions
+        .iter()
+        .map(|(_, function)| function)
+        .chain(module.entry_points.iter().map(|entry| &entry.function))
+        .flat_map(|function| {
+            function
+                .local_variables
+                .iter()
+                .map(|(_, variable)| variable)
+        })
+        .map(|variable| u64::from(layout[variable.ty].size))
+        .sum::<u64>();
+    if local_bytes > 16384 {
+        return Err("shader function locals exceed 16384 bytes"
+            .to_owned()
+            .into());
     }
+    let costs = module
+        .entry_points
+        .iter()
+        .map(|entry| {
+            let invocations = entry
+                .workgroup_size
+                .into_iter()
+                .map(u64::from)
+                .product::<u64>()
+                .max(1);
+            static_cost(&module, &entry.function, LOOP_ITERATIONS)
+                .map(|cost| (entry.name.clone(), cost.saturating_mul(invocations)))
+        })
+        .collect::<Result<_, _>>()?;
     let engine_masks = module
         .entry_points
         .iter()
@@ -318,6 +348,7 @@ pub fn validate(source: &str) -> Result<ValidatedShader, ValidationError> {
     Ok(ValidatedShader {
         module,
         engine_masks,
+        costs,
     })
 }
 
@@ -373,6 +404,14 @@ mod tests {
                 .message
                 .contains("pipeline overrides")
         );
+    }
+
+    #[test]
+    fn function_locals_have_an_aggregate_storage_limit() {
+        let error = rejected(
+            "fn helper() { var first: array<u32, 3072>; first[0] = 1u; } @compute @workgroup_size(1) fn main() { var second: array<u32, 3072>; second[0] = 1u; helper(); }",
+        );
+        assert!(error.message.contains("locals"), "{}", error.message);
     }
 
     #[test]

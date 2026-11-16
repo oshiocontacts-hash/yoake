@@ -17,11 +17,10 @@ struct State {
     mesh: RenderPipeline,
     mesh_group: BindGroup,
     vertices: Buffer,
-    compute: ComputePipeline,
-    compute_group: BindGroup,
-    particles: RenderPipeline,
-    particle_group: BindGroup,
-    effect: RenderPipeline,
+    positions: Buffer,
+    compute: Option<(ComputePipeline, BindGroup)>,
+    particles: Option<(RenderPipeline, BindGroup)>,
+    effect: Option<RenderPipeline>,
 }
 
 fn render(
@@ -166,9 +165,23 @@ struct Vertex { @builtin(position) position: vec4<f32>, @location(0) color: vec3
         positions
             .write(Stage::WorldTranslucent, 0, &bytes(&particles))
             .unwrap();
-        let compute_shader = shader(
-            "compute.wgsl",
-            r#"
+        Self {
+            format,
+            mesh,
+            mesh_group,
+            vertices,
+            positions,
+            compute: None,
+            particles: None,
+            effect: None,
+        }
+    }
+
+    fn prepare(&mut self) -> bool {
+        if self.compute.is_none() {
+            let compute_shader = shader(
+                "compute.wgsl",
+                r#"
 struct Particle { position: vec4<f32>, velocity: vec4<f32> }
 @group(0) @binding(0) var<storage, read_write> particles: array<Particle>;
 @compute @workgroup_size(64) fn update(@builtin(global_invocation_id) invocation: vec3<u32>) {
@@ -177,20 +190,24 @@ struct Particle { position: vec4<f32>, velocity: vec4<f32> }
     if particles[index].position.y > 0.8 { particles[index].position.y = -0.8; }
 }
 "#,
-        );
-        let compute = ComputePipeline::create(&compute_shader, "update").unwrap();
-        let compute_group = BindGroup::create(
-            &compute,
-            0,
-            &[Binding::Buffer {
-                binding: 0,
-                range: positions.range(0, 64 * 32),
-            }],
-        )
-        .unwrap();
-        let particle_shader = shader(
-            "particles.wgsl",
-            r#"
+            );
+            let compute = ComputePipeline::create(&compute_shader, "update").unwrap();
+            let compute_group = BindGroup::create(
+                &compute,
+                0,
+                &[Binding::Buffer {
+                    binding: 0,
+                    range: self.positions.range(0, 64 * 32),
+                }],
+            )
+            .unwrap();
+            self.compute = Some((compute, compute_group));
+            return false;
+        }
+        if self.particles.is_none() {
+            let particle_shader = shader(
+                "particles.wgsl",
+                r#"
 struct Particle { position: vec4<f32>, velocity: vec4<f32> }
 @group(0) @binding(0) var<storage, read> particles: array<Particle>;
 @vertex fn vertex(@builtin(vertex_index) vertex_index: u32, @builtin(instance_index) instance_index: u32) -> @builtin(position) vec4<f32> {
@@ -199,20 +216,24 @@ struct Particle { position: vec4<f32>, velocity: vec4<f32> }
 }
 @fragment fn fragment() -> @location(0) vec4<f32> { return vec4<f32>(0.3, 0.8, 1.0, 0.65); }
 "#,
-        );
-        let particles = render(&particle_shader, 0, &[], format, true, true);
-        let particle_group = BindGroup::create(
-            &particles,
-            0,
-            &[Binding::Buffer {
-                binding: 0,
-                range: positions.range(0, 64 * 32),
-            }],
-        )
-        .unwrap();
-        let effect_shader = shader(
-            "effect.wgsl",
-            r#"
+            );
+            let particles = render(&particle_shader, 0, &[], self.format, true, true);
+            let particle_group = BindGroup::create(
+                &particles,
+                0,
+                &[Binding::Buffer {
+                    binding: 0,
+                    range: self.positions.range(0, 64 * 32),
+                }],
+            )
+            .unwrap();
+            self.particles = Some((particles, particle_group));
+            return false;
+        }
+        if self.effect.is_none() {
+            let effect_shader = shader(
+                "effect.wgsl",
+                r#"
 @group(3) @binding(3) var world_depth: texture_depth_2d;
 @group(3) @binding(4) var scene: texture_2d<f32>;
 @vertex fn vertex(@builtin(vertex_index) index: u32) -> @builtin(position) vec4<f32> {
@@ -226,19 +247,11 @@ struct Particle { position: vec4<f32>, velocity: vec4<f32> }
     return vec4<f32>(mix(color.rgb, color.rgb * vec3<f32>(0.85, 0.95, 1.0), (1.0 - depth) * 0.2), color.a);
 }
 "#,
-        );
-        let effect = render(&effect_shader, 0, &[], format, false, false);
-        Self {
-            format,
-            mesh,
-            mesh_group,
-            vertices,
-            compute,
-            compute_group,
-            particles,
-            particle_group,
-            effect,
+            );
+            self.effect = Some(render(&effect_shader, 0, &[], self.format, false, false));
+            return false;
         }
+        true
     }
 
     fn draw(&self) {
@@ -256,24 +269,28 @@ struct Particle { position: vec4<f32>, velocity: vec4<f32> }
                 &Target::default(),
             )
             .unwrap();
-        self.compute
-            .dispatch(Stage::WorldTranslucent, &[&self.compute_group], (1, 1, 1))
+        let (compute, compute_group) = self.compute.as_ref().unwrap();
+        compute
+            .dispatch(Stage::WorldTranslucent, &[compute_group], (1, 1, 1))
             .unwrap();
-        self.particles
+        let (particles, particle_group) = self.particles.as_ref().unwrap();
+        particles
             .draw(
                 Stage::WorldTranslucent,
                 &Draw {
-                    count: 6,
-                    instances: 64,
+                    count: 3,
+                    instances: 1,
                     vertex: None,
                     index: None,
                     index32: false,
-                    groups: &[&self.particle_group],
+                    groups: &[particle_group],
                 },
                 &Target::default(),
             )
             .unwrap();
         self.effect
+            .as_ref()
+            .unwrap()
             .draw(
                 Stage::AfterWorld,
                 &Draw {
@@ -294,8 +311,6 @@ impl Demo {
     fn verify(&mut self, frame: &gpu::FrameInfo) {
         assert_eq!(frame.version, 1);
         assert_eq!(frame.view_projection.len(), 16);
-        let malformed = Shader::create("@compute fn broken(").unwrap_err();
-        assert!(malformed.line > 0 && malformed.column > 0);
         let owner_buffer = Buffer::create(
             16,
             BufferUsage::STORAGE | BufferUsage::COPY_SRC | BufferUsage::COPY_DST,
@@ -352,6 +367,8 @@ impl ClientMod for Demo {
                 if let Some(bytes) = readback.poll().unwrap() {
                     assert_eq!(bytes, 42u32.to_le_bytes());
                     assert!(readback.poll().is_err());
+                    let malformed = Shader::create("@compute fn broken(").unwrap_err();
+                    assert!(malformed.line > 0 && malformed.column > 0);
                     self.verified = true;
                     self.readback = None;
                 }
@@ -365,8 +382,12 @@ impl ClientMod for Demo {
                 .is_none_or(|state| state.format != format)
             {
                 self.state = Some(State::new(format));
+                return;
             }
-            self.state.as_ref().unwrap().draw();
+            let state = self.state.as_mut().unwrap();
+            if state.prepare() {
+                state.draw();
+            }
         }
     }
 

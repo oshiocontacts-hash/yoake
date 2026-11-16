@@ -11,7 +11,7 @@ mod dll_mods;
 // current hook's host access (same pattern as dll_mods); nothing here runs without an installed wasm mod.
 #[allow(unsafe_code)]
 #[path = "wasm_mods.rs"]
-mod wasm_mods;
+pub(crate) mod wasm_mods;
 
 pub use horizon_protocol::mod_list::{Side as NativeSide, native::Mod as NativeMod};
 
@@ -29,7 +29,8 @@ pub fn main_with(mods: crate::mod_api::Mods) {
     let (mods, identities) = dll_mods::extend(mods, &[]);
     let (mods, identities) = wasm_mods::extend(mods, identities);
     if !identities.is_empty() {
-        horizon_protocol::mod_list::native::install(identities).expect("Invalid native mod identities");
+        horizon_protocol::mod_list::native::install(identities)
+            .expect("Invalid native mod identities");
     }
     run(mods);
 }

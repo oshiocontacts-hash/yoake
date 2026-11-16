@@ -40,6 +40,8 @@ pub struct EngineSources<'a> {
 pub(super) struct Snapshots {
     depth: Option<wgpu::TextureView>,
     scene: Option<wgpu::TextureView>,
+    uniform_written: bool,
+    pub(super) groups: BTreeMap<(usize, u8), Vec<(u32, wgpu::BindGroup)>>,
 }
 
 fn snapshot(
@@ -100,6 +102,14 @@ impl Gpu {
             } => (pipeline, groups),
             _ => return Ok(Vec::new()),
         };
+        let supplied = groups.iter().fold(0_u8, |mask, group| match group.value() {
+            Value::BindGroup { index, .. } => mask | (1 << index),
+            _ => mask,
+        });
+        let key = (Arc::as_ptr(pipeline) as usize, supplied);
+        if let Some(cached) = snapshots.groups.get(&key) {
+            return Ok(cached.clone());
+        }
         let (mask, layout) = match pipeline.value() {
             Value::Compute {
                 pipeline,
@@ -128,7 +138,10 @@ impl Gpu {
                     mapped_at_creation: false,
                 })
             });
-            queue.write_buffer(uniform, 0, bytemuck::bytes_of(&sources.frame));
+            if !snapshots.uniform_written {
+                queue.write_buffer(uniform, 0, bytemuck::bytes_of(&sources.frame));
+                snapshots.uniform_written = true;
+            }
         }
         if mask & (1 << 3) != 0 && snapshots.depth.is_none() {
             snapshots.depth = Some(snapshot(
@@ -195,6 +208,116 @@ impl Gpu {
             ));
         }
         result.push((3, engine));
+        snapshots.groups.insert(key, result.clone());
         Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn engine_snapshots_are_shared_and_groups_are_cached_per_batch() {
+        let (device, queue) = super::super::tests::gpu();
+        let mut gpu = Gpu::default();
+        gpu.begin_frame().unwrap();
+        for owner in [ModId(40), ModId(41)] {
+            let output = gpu
+                .create_buffer(&device, owner, 8, wgpu::BufferUsages::STORAGE.bits())
+                .unwrap();
+            let shader = gpu.create_shader(&device, owner, "@group(0) @binding(0) var<storage, read_write> output: array<u32>; @group(3) @binding(3) var depth: texture_depth_2d; @group(3) @binding(4) var scene: texture_2d<f32>; @compute @workgroup_size(1) fn main() { output[0] = u32(textureLoad(depth, vec2<i32>(0), 0) * 100.0); output[1] = u32(textureLoad(scene, vec2<i32>(0), 0).r * 255.0); }").unwrap();
+            let pipeline = gpu.create_compute(&device, owner, shader, "main").unwrap();
+            let group = gpu
+                .create_bind_group(
+                    &device,
+                    owner,
+                    pipeline,
+                    0,
+                    &[Binding::Buffer {
+                        binding: 0,
+                        handle: output,
+                        offset: 0,
+                        size: 8,
+                    }],
+                )
+                .unwrap();
+            assert_eq!(
+                gpu.dispatch(owner, Stage::WorldOpaque, pipeline, &[group], [1; 3]),
+                Err(Error::EngineBinding)
+            );
+            assert!(gpu.disabled_reason(owner).is_none());
+            gpu.dispatch(owner, Stage::AfterWorld, pipeline, &[group], [1; 3])
+                .unwrap();
+        }
+        gpu.finish_frame().unwrap();
+        let texture = |format| {
+            device.create_texture(&wgpu::TextureDescriptor {
+                label: None,
+                size: wgpu::Extent3d {
+                    width: 2,
+                    height: 2,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format,
+                usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            })
+        };
+        let depth = texture(wgpu::TextureFormat::Depth32Float);
+        let scene = texture(wgpu::TextureFormat::Rgba8Unorm);
+        let sources = EngineSources {
+            frame: EngineFrame::default(),
+            atlas: None,
+            sampler: None,
+            depth: Some(&depth),
+            scene: Some(&scene),
+            lightmap: None,
+        };
+        let mut encoder = device.create_command_encoder(&Default::default());
+        let mut snapshots = Snapshots::default();
+        let mut shared = None;
+        for recorded in std::mem::take(&mut gpu.pending) {
+            snapshots.groups.clear();
+            let first = gpu
+                .engine_groups(
+                    &device,
+                    &queue,
+                    &mut encoder,
+                    &recorded.command,
+                    Stage::AfterWorld,
+                    Some(&sources),
+                    &mut snapshots,
+                )
+                .unwrap();
+            let second = gpu
+                .engine_groups(
+                    &device,
+                    &queue,
+                    &mut encoder,
+                    &recorded.command,
+                    Stage::AfterWorld,
+                    Some(&sources),
+                    &mut snapshots,
+                )
+                .unwrap();
+            assert_eq!(first, second);
+            assert_eq!(snapshots.groups.len(), 1);
+            let views = (
+                snapshots.depth.clone().unwrap(),
+                snapshots.scene.clone().unwrap(),
+            );
+            if let Some(shared) = &shared {
+                assert_eq!(&views, shared);
+            } else {
+                shared = Some(views);
+            }
+        }
+        assert!(shared.is_some());
+        queue.submit([encoder.finish()]);
+        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
     }
 }

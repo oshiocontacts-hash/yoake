@@ -17,6 +17,8 @@ mod dev_shaders;
 mod full;
 #[path = "wasm_mods/gpu_services.rs"]
 mod gpu_services;
+#[path = "wasm_mods/resources.rs"]
+mod resources;
 #[path = "wasm_mods/server_services.rs"]
 mod server_services;
 
@@ -635,16 +637,27 @@ struct Scope {
 impl Scope {
     fn enter(invocation: &mut Invocation<'_>) -> Self {
         let pointer = (invocation as *mut Invocation<'_>).cast::<Invocation<'static>>();
-        Self {
+        let scope = Self {
             previous: ACTIVE.with(|active| active.replace(pointer)),
-        }
+        };
+        resources::drain();
+        scope
     }
 }
 
 impl Drop for Scope {
     fn drop(&mut self) {
+        resources::drain();
         ACTIVE.with(|active| active.set(self.previous));
     }
+}
+
+pub(crate) fn drain_resources(host: &mut dyn Host) {
+    resources::drain_with(host);
+}
+
+pub(crate) fn resource_owners() -> HashSet<usize> {
+    resources::owners()
 }
 
 /// Runs `operation` against the current hook's services. A service called while another is running
@@ -1068,6 +1081,7 @@ struct GameHost {
     gpu_enabled: bool,
     gpu_ready: Arc<AtomicBool>,
     dev_shaders: Option<Arc<Mutex<dev_shaders::DevShaders>>>,
+    resources: resources::Registration,
 }
 
 impl GameHost {
@@ -1084,6 +1098,7 @@ impl GameHost {
             gpu_enabled: false,
             gpu_ready: Arc::new(AtomicBool::new(true)),
             dev_shaders: None,
+            resources: resources::Registration::new(native_id, native_index),
         }
     }
 
@@ -1129,6 +1144,13 @@ fn batch_range<'borrow>(
 }
 
 impl ClientHost for GameHost {
+    fn release_resources(&mut self) {
+        self.textures.clear();
+        self.resources
+            .release(self.streams.drain().map(|(_, stream)| stream).collect());
+        resources::drain();
+    }
+
     fn client_services(&mut self) -> Option<&mut dyn yoake_wasm::ClientServices> {
         Some(self)
     }
@@ -1517,13 +1539,17 @@ impl ClientHost for GameHost {
     }
 
     fn mod_screen_open(&mut self, mod_id: &str) -> Result<bool, w::HostError> {
-        service(|invocation| {
+        let opened = service(|invocation| {
             Ok(invocation
                 .host
                 .write()
                 .ok_or(w::HostError::Unsupported)?
                 .mod_screen_open(mod_id))
-        })
+        })?;
+        if opened {
+            self.resources.claim_screen();
+        }
+        Ok(opened)
     }
 
     fn mod_screen_close(&mut self, mod_id: &str) -> Result<(), w::HostError> {
@@ -1534,7 +1560,9 @@ impl ClientHost for GameHost {
                 .ok_or(w::HostError::Unsupported)?
                 .mod_screen_close(mod_id);
             Ok(())
-        })
+        })?;
+        self.resources.close_screen();
+        Ok(())
     }
 
     fn mod_screen(&mut self) -> Result<Option<String>, w::HostError> {
@@ -1549,13 +1577,17 @@ impl ClientHost for GameHost {
     }
 
     fn mod_screen_open_anywhere(&mut self, mod_id: &str) -> Result<bool, w::HostError> {
-        service(|invocation| {
+        let opened = service(|invocation| {
             Ok(invocation
                 .host
                 .write()
                 .ok_or(w::HostError::Unsupported)?
                 .mod_screen_open_anywhere(mod_id))
-        })
+        })?;
+        if opened {
+            self.resources.claim_screen();
+        }
+        Ok(opened)
     }
 
     fn net_send_to_server(&mut self, channel: &str, data: &[u8]) -> Result<(), w::SendError> {

@@ -13,6 +13,7 @@ struct Observed {
     writes: usize,
     invalid_writes: usize,
     dropped: Vec<u64>,
+    released: usize,
     output: Vec<String>,
 }
 
@@ -43,6 +44,10 @@ impl ClientHost for Host {
 
     fn gui_texture_drop(&mut self, texture: u64) {
         self.0.lock().unwrap().dropped.push(texture);
+    }
+
+    fn release_resources(&mut self) {
+        self.0.lock().unwrap().released += 1;
     }
 }
 
@@ -160,10 +165,52 @@ fn guest_calls_client_imports_and_receives_validation_errors() {
         (1, 1, 1)
     );
     assert_eq!(observed.dropped, [73]);
+    assert_eq!(observed.released, 1);
     assert!(
         observed
             .output
             .iter()
             .any(|line| line.contains("client services: real imports passed"))
     );
+}
+
+#[test]
+fn trapping_guest_releases_client_resources_before_unload() {
+    let Some(bytes) = yoake_wasm::test_guests::load(&yoake_wasm::test_guests::CLIENT_SERVICES_DEMO)
+    else {
+        return;
+    };
+    let observed = Arc::new(Mutex::new(Observed::default()));
+    let mut guest = ClientFullMod::instantiate(
+        &mut Sandbox::new(),
+        "demo",
+        &bytes,
+        Box::new(Host(observed.clone())),
+        &[],
+    )
+    .unwrap();
+    assert!(
+        guest
+            .dispatch("hud", |exports, store| {
+                exports.yoake_mods_client_hooks().call_hud(store)
+            })
+            .is_some()
+    );
+    assert!(
+        guest
+            .dispatch("hud", |_, _| Err::<(), _>(wasmtime::Error::msg(
+                "deliberate trap"
+            )))
+            .is_none()
+    );
+    assert!(guest.is_disabled());
+    {
+        let observed = observed.lock().unwrap();
+        assert_eq!(observed.dropped, [73]);
+        assert_eq!(observed.released, 1);
+    }
+    drop(guest);
+    let observed = observed.lock().unwrap();
+    assert_eq!(observed.dropped, [73]);
+    assert_eq!(observed.released, 1);
 }

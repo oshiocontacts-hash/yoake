@@ -130,7 +130,7 @@ fn memory_caps_apply_per_mod_and_across_mods() {
 }
 
 #[test]
-fn handles_and_numeric_exhaustion_fail_closed() {
+fn handles_are_bounded_and_reused_after_numeric_wrap() {
     let mut resources = Resources::default();
     for _ in 0..4096 {
         resources
@@ -151,13 +151,13 @@ fn handles_and_numeric_exhaustion_fail_closed() {
     );
     assert_eq!(
         resources.create(ModId(2), Allocation::Sampler, || Ok(())),
-        Err(Error::HandleSpace)
+        Ok(1)
     );
     assert_eq!(
         resources.usage(ModId(2)),
         Usage {
-            bytes: 65_536,
-            handles: 1
+            bytes: 131_072,
+            handles: 2
         }
     );
 }
@@ -331,6 +331,64 @@ fn frame_limits_are_transactional_and_include_instances() {
 }
 
 #[test]
+fn raster_copy_and_compute_cost_limits_are_transactional() {
+    let empty = FrameUsage::default();
+    assert!(
+        empty
+            .charge(CommandKind::Draw {
+                count: 1,
+                instances: MAX_INSTANCES
+            })
+            .is_ok()
+    );
+    assert_eq!(
+        empty.charge(CommandKind::Draw {
+            count: 1,
+            instances: MAX_INSTANCES + 1
+        }),
+        Err(Error::Vertices)
+    );
+    let render = |pixels, new_pass| CommandKind::Render {
+        count: 3,
+        instances: 1,
+        pixels,
+        pixel_limit: 4096,
+        new_pass,
+    };
+    let raster = empty.charge(render(4096, true)).unwrap();
+    assert_eq!(raster.charge(render(1, false)), Err(Error::Pixels));
+    let mut merged = empty;
+    for index in 0..128 {
+        merged = merged.charge(render(1, index == 0)).unwrap();
+    }
+    assert_eq!(merged.passes, 1);
+    let mut separate = empty;
+    for _ in 0..MAX_PASSES {
+        separate = separate.charge(render(1, true)).unwrap();
+    }
+    assert_eq!(separate.charge(render(1, true)), Err(Error::Passes));
+    let copy = empty.charge(CommandKind::Copy(MAX_COPY_BYTES)).unwrap();
+    assert_eq!(copy.charge(CommandKind::Copy(1)), Err(Error::Copy));
+    assert_eq!(copy.charge(CommandKind::Copy(u64::MAX)), Err(Error::Copy));
+    assert!(
+        empty
+            .charge(CommandKind::Compute {
+                groups: [256, 1, 1],
+                cost: 256
+            })
+            .is_ok()
+    );
+    assert_eq!(
+        empty.charge(CommandKind::Compute {
+            groups: [257, 1, 1],
+            cost: 256
+        }),
+        Err(Error::Workgroups)
+    );
+    assert_eq!(empty, FrameUsage::default());
+}
+
+#[test]
 fn record_only_in_frame_and_reject_before_constructing_commands() {
     let mut recorder = Recorder::default();
     assert_eq!(
@@ -342,14 +400,14 @@ fn record_only_in_frame_and_reject_before_constructing_commands() {
     recorder
         .record(ModId(1), Stage::Hud, CommandKind::Upload(16_777_216), || ())
         .unwrap();
-    assert_eq!(recorder.begin_frame(), Err(Error::Frame));
     assert_eq!(
         recorder.record(ModId(1), Stage::Hud, CommandKind::Upload(1), || panic!(
             "budget failure must precede command construction"
         )),
         Err(Error::Upload)
     );
-    assert_eq!(recorder.finish_frame().unwrap().len(), 1);
+    assert_eq!(recorder.begin_frame(), Ok(()));
+    assert!(recorder.finish_frame().unwrap().is_empty());
     recorder.begin_frame().unwrap();
     recorder
         .record(ModId(1), Stage::Hud, CommandKind::Upload(16_777_216), || ())
@@ -374,12 +432,7 @@ fn draw_and_command_counts_are_bounded_independently_per_mod() {
             )
             .unwrap();
         recorder
-            .record(
-                ModId(2),
-                Stage::AfterWorld,
-                CommandKind::Dispatch([0, 0, 0]),
-                || (),
-            )
+            .record(ModId(2), Stage::AfterWorld, CommandKind::Upload(0), || ())
             .unwrap();
     }
     assert_eq!(
@@ -395,12 +448,7 @@ fn draw_and_command_counts_are_bounded_independently_per_mod() {
         Err(Error::Draws)
     );
     assert_eq!(
-        recorder.record(
-            ModId(2),
-            Stage::Hud,
-            CommandKind::Dispatch([0, 0, 0]),
-            || ()
-        ),
+        recorder.record(ModId(2), Stage::Hud, CommandKind::Upload(0), || ()),
         Err(Error::Commands)
     );
     assert_eq!(recorder.finish_frame().unwrap().len(), 8192);

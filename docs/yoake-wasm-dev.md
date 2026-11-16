@@ -320,7 +320,8 @@ tick words. The hook's `Frame.index` is the tick; `gpu::frame().index` is the GP
 
 ### Limits and failure isolation
 
-Handles are nonzero, owner-checked, kind-checked and never reused by the registry. Destroying a handle
+Handles are nonzero, owner-checked and kind-checked; on counter wrap the registry skips live IDs.
+Destroying a handle
 does not release memory still retained by a command, bind group, pipeline or readback. Accounting is
 logical allocation accounting rounded to 64 KiB, **not measured driver VRAM**: 256 MiB per mod,
 1 GiB shared, and 4,096 handles per instance. Allocation failure unwinds its reservation.
@@ -328,24 +329,46 @@ Buffers are 1 byte–256 MiB; textures are at most 8,192 pixels on either 2D axi
 or 512 on a 3D axis, with validated mip counts. WGSL source is at most 256 KiB.
 
 Each mod/frame permits 4,096 commands/draws, at most 2^24 vertices multiplied by instances,
-65,536 dispatched workgroups, 16 MiB uploads and 1 MiB requested readback bytes. A read is
+65,536 instances per draw, 16 MiB uploads, 256 MiB buffer copies and 1 MiB requested readback bytes. A read is
 1 byte–1 MiB; its retained source and staging storage remain charged while pending.
+Raster work charges target pixels multiplied by primitives (points, lines or triangles) and instances, with a four-screen budget
+capped at 32 Mi pixels. Consecutive draws to the same target share a render pass, with at most 64
+passes per mod/frame. Compute workgroups are weighted by the shader's static instruction, texture,
+loop and workgroup cost, within a 65,536-unit ceiling. Shader and pipeline creation attempts are
+limited to two per frame and eight per minute, including failed attempts and reloads. Depth and
+scene snapshots are shared once per stage across mods; engine bind groups are cached per pipeline
+within each owner's batch.
+
+At `after-world`, scene colour may intentionally be copied into a mod-owned texture and read back
+to the CPU; the same 1 MiB per-mod/frame readback limit applies. HUD-stage GPU commands run only on
+the real frame when frame generation is enabled, never on interpolated frames.
+
 The Naga IR guard caps loops at 256 iterations per function activation, including helper functions
 and continuing blocks. Static limits include 8,192 instructions, 64 texture fetches, call depth 16,
-64 helpers, 16 entry points, 4,096 expressions, 256 workgroup invocations and 16 KiB private storage.
+64 helpers, 16 entry points, 4,096 expressions, 256 workgroup invocations and 16 KiB combined private
+storage and function locals.
 Workgroup-size overrides, barriers, subgroup/ray operations and workgroup storage are rejected.
 Only the validated, rewritten Naga module is compiled; robustness checks are not relaxed.
 
-On adapters supporting `TIMESTAMP_QUERY`, GPU timestamps measure each owner's submitted work.
-A completed two-second measurement window averaging over 4 ms per frame suspends that owner's
-GPU API without suspending its other services. There is **no CPU-time substitute** when timestamps
-are unavailable. Timing instrumentation is bounded (256 pending samples, 32 owners per frame) and
-its query/readback buffers are charged. Actual driver/device-loss behavior still needs platform tests.
+New pipelines start with one screen's raster coverage (one quarter of the per-frame pixel budget)
+and one sixteenth of the compute budget. On adapters supporting
+`TIMESTAMP_QUERY`, eight distinct measured frames within 4 ms allow each doubling up to the full
+budget; measurements are accumulated per frame and slow frames reset the ramp. Without timestamps, pipelines permanently retain the
+small budget. GPU timestamps and host record/compile/encode/submit wall time count toward a
+two-second window averaging at most 4 ms per frame. Three frames over 50 ms also suspend that
+owner's GPU API without suspending its other services. Shader/pipeline compilation additionally
+counts against the WASM aggregate host/guest budget. CPU timing is **not a substitute for GPU
+timing**. Pending timing samples are limited per owner (32); each query set stays within wgpu's
+4,096-query ceiling, and timing storage is charged. Suspension survives renderer recreation.
+These limits reduce risk; actual driver/TDR behavior still needs platform tests.
 
-Before GPU submission, the host atomically persists registered owner identities in
-`<HORIZON_HOME>/state/wasm-gpu-inflight.json`; completion clears an owner only after all of its
-submissions finish. If the device is lost, the marker stays. The next start quarantines those
-identities and logs the marker path. Malformed/unwritable recovery state fails closed. Abnormal
+Before GPU submission, the host persists registered owner identities in
+`<HORIZON_HOME>/state/wasm-gpu-inflight.json` only when the identity set changes, without fsync on
+the frame path. An identity remains while work is outstanding, then for 120 idle frames (or until
+clean exit); unchanged active sets are not rewritten. Transient rename failures are logged and
+retried, not attributed to the mod. Device loss blocks all in-flight identities in memory and in
+the recovery file, including across renderer recreation. The next start quarantines those
+identities and logs the marker path. Malformed recovery state fails closed. Abnormal
 termination can also leave a marker: it is **not proof** that a listed mod caused a driver fault.
 Inspect the log and marker before manually removing it to retry; the host does not auto-clear it.
 

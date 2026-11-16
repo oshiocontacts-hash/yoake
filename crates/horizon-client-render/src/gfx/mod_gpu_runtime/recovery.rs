@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use super::*;
 
 const MAX_MARKER_BYTES: u64 = 1024 * 1024;
+const IDLE_FRAMES: u64 = 120;
 static RECOVERY: OnceLock<Result<Arc<Mutex<Recovery>>, String>> = OnceLock::new();
 
 struct Recovery {
@@ -13,6 +14,9 @@ struct Recovery {
     blocked: BTreeSet<String>,
     owners: BTreeMap<ModId, String>,
     inflight: BTreeMap<ModId, u32>,
+    retained: BTreeMap<ModId, u64>,
+    persisted: BTreeSet<String>,
+    frame: u64,
 }
 
 impl Recovery {
@@ -40,9 +44,12 @@ impl Recovery {
         };
         Ok(Self {
             path,
+            persisted: blocked.clone(),
             blocked,
             owners: BTreeMap::new(),
             inflight: BTreeMap::new(),
+            retained: BTreeMap::new(),
+            frame: 0,
         })
     }
 
@@ -60,15 +67,18 @@ impl Recovery {
         Ok(())
     }
 
-    fn persist(&self) -> Result<(), String> {
+    fn persist(&mut self) -> Result<(), String> {
         let mut identities = self.blocked.clone();
-        for owner in self.inflight.keys() {
+        for owner in self.retained.keys() {
             identities.insert(
                 self.owners
                     .get(owner)
                     .ok_or_else(|| "GPU owner is not registered".to_owned())?
                     .clone(),
             );
+        }
+        if identities == self.persisted {
+            return Ok(());
         }
         let bytes = serde_json::to_vec(&identities).map_err(|error| error.to_string())?;
         let parent = self
@@ -78,11 +88,40 @@ impl Recovery {
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
         let temporary = self.path.with_extension("tmp");
         let mut file = File::create(&temporary).map_err(|error| error.to_string())?;
-        file.write_all(&bytes)
-            .and_then(|()| file.sync_all())
-            .map_err(|error| error.to_string())?;
+        file.write_all(&bytes).map_err(|error| error.to_string())?;
         drop(file);
-        fs::rename(&temporary, &self.path).map_err(|error| error.to_string())
+        fs::rename(&temporary, &self.path).map_err(|error| error.to_string())?;
+        self.persisted = identities;
+        Ok(())
+    }
+
+    fn save(&mut self) {
+        if let Err(error) = self.persist() {
+            log::warn!("WASM GPU recovery marker could not be saved: {error}");
+        }
+    }
+
+    fn begin_frame(&mut self) {
+        self.frame = self.frame.saturating_add(1);
+        self.retained.retain(|owner, frame| {
+            self.inflight.contains_key(owner) || self.frame.saturating_sub(*frame) < IDLE_FRAMES
+        });
+        self.save();
+    }
+
+    fn device_lost(&mut self) {
+        for owner in self.inflight.keys() {
+            if let Some(identity) = self.owners.get(owner) {
+                self.blocked.insert(identity.clone());
+            }
+        }
+        self.save();
+    }
+
+    fn clean_exit(&mut self) {
+        self.retained
+            .retain(|owner, _| self.inflight.contains_key(owner));
+        self.save();
     }
 
     fn before(&mut self, owner: ModId) -> Result<(), String> {
@@ -100,7 +139,9 @@ impl Recovery {
                 .checked_add(1)
                 .ok_or_else(|| "too many GPU submissions".to_owned())?,
         );
-        self.persist()
+        self.retained.insert(owner, self.frame);
+        self.save();
+        Ok(())
     }
 
     fn complete(&mut self, owner: ModId) -> Result<(), String> {
@@ -111,12 +152,31 @@ impl Recovery {
         if *count == 0 {
             self.inflight.remove(&owner);
         }
-        self.persist()
+        self.retained.insert(owner, self.frame);
+        Ok(())
     }
 }
 
 fn valid_identity(identity: &str) -> bool {
     !identity.is_empty() && identity.len() <= 256 && !identity.chars().any(char::is_control)
+}
+
+fn update(operation: impl FnOnce(&mut Recovery)) {
+    if let Some(Ok(state)) = RECOVERY.get() {
+        operation(&mut state.lock().unwrap_or_else(|error| error.into_inner()));
+    }
+}
+
+pub(super) fn begin_frame() {
+    update(Recovery::begin_frame);
+}
+
+pub(super) fn device_lost() {
+    update(Recovery::device_lost);
+}
+
+pub(super) fn clean_exit() {
+    update(Recovery::clean_exit);
 }
 
 #[cfg(any(test, feature = "test-support"))]
@@ -178,6 +238,7 @@ pub(super) fn install(gpu: &mut Gpu, lost: Arc<AtomicBool>) {
         }),
         complete: Arc::new(move |owner| {
             if lost.load(Ordering::Acquire) {
+                device_lost();
                 return;
             }
             if let Err(error) = recovery
@@ -243,10 +304,71 @@ mod tests {
         state.complete(ModId(1)).unwrap();
         assert_eq!(
             Recovery::open(path.clone()).unwrap().blocked,
-            BTreeSet::from(["mesh".to_owned()])
+            BTreeSet::from(["mesh".to_owned(), "particles".to_owned()])
         );
         state.complete(ModId(2)).unwrap();
+        for _ in 0..IDLE_FRAMES {
+            state.begin_frame();
+        }
         assert!(Recovery::open(path.clone()).unwrap().blocked.is_empty());
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn unchanged_identity_set_does_not_rewrite_marker() {
+        let path = marker();
+        let mut state = Recovery::open(path.clone()).unwrap();
+        state.register(ModId(1), "particles").unwrap();
+        state.before(ModId(1)).unwrap();
+        fs::remove_file(&path).unwrap();
+        state.before(ModId(1)).unwrap();
+        state.complete(ModId(1)).unwrap();
+        state.begin_frame();
+        assert!(!path.exists());
+        state.complete(ModId(1)).unwrap();
+        state.clean_exit();
+        assert!(Recovery::open(path.clone()).unwrap().blocked.is_empty());
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn rename_failure_is_retryable_without_disabling_owner() {
+        let path = marker();
+        let mut state = Recovery::open(path.clone()).unwrap();
+        state.register(ModId(1), "particles").unwrap();
+        fs::create_dir(&path).unwrap();
+        state.before(ModId(1)).unwrap();
+        assert!(state.blocked.is_empty());
+        assert!(state.persisted.is_empty());
+        fs::remove_dir(&path).unwrap();
+        state.begin_frame();
+        assert!(
+            Recovery::open(path.clone())
+                .unwrap()
+                .blocked
+                .contains("particles")
+        );
+        state.complete(ModId(1)).unwrap();
+        state.clean_exit();
+        assert!(Recovery::open(path.clone()).unwrap().blocked.is_empty());
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn device_loss_quarantines_outstanding_work_in_memory_and_on_disk() {
+        let path = marker();
+        let mut state = Recovery::open(path.clone()).unwrap();
+        state.register(ModId(1), "particles").unwrap();
+        state.register(ModId(2), "mesh").unwrap();
+        state.before(ModId(1)).unwrap();
+        state.before(ModId(2)).unwrap();
+        state.complete(ModId(2)).unwrap();
+        state.device_lost();
+        assert_eq!(state.blocked, BTreeSet::from(["particles".to_owned()]));
+        assert!(state.before(ModId(1)).is_err());
+        state.complete(ModId(1)).unwrap();
+        state.clean_exit();
+        assert_eq!(Recovery::open(path.clone()).unwrap().blocked, state.blocked);
         fs::remove_file(path).unwrap();
     }
 

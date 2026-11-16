@@ -18985,6 +18985,7 @@ impl Game<'_> {
     }
     /// The loop ended: close the pads' output, save the world, write the perf report.
     pub(super) fn shut_down(&mut self) {
+        crate::gfx::mod_gpu_runtime::clean_exit();
         self.clear_native_streams();
         self.pad_close_output();
         if let Err(e) = self.save_for_exit() {
@@ -18997,6 +18998,7 @@ impl Game<'_> {
     /// save, world entry, the control socket, pads), then the next frame.
     pub(super) fn idle(&mut self, event_loop: &dyn EventLoopCtl) {
         crate::mod_guard::maintenance();
+        crate::entry::wasm_mods::drain_resources(self);
         self.maintain_native_streams();
         self.notify_native_audio_mix();
         for notice in crate::mod_guard::take_notices(false) {

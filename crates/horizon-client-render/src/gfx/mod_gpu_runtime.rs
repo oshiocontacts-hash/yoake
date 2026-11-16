@@ -53,8 +53,15 @@ pub fn set_recovery_path_for_tests(path: std::path::PathBuf) -> Result<(), Strin
 
 pub fn configure(device: &wgpu::Device, queue: &wgpu::Queue, lost: Arc<AtomicBool>) {
     let mut gpu = Gpu::default();
-    recovery::install(&mut gpu, lost.clone());
     let mut guard = runtime().lock().unwrap_or_else(|error| error.into_inner());
+    if let Some(previous) = guard.as_mut() {
+        if previous.lost.load(Ordering::Acquire) {
+            recovery::device_lost();
+            previous.gpu.device_lost();
+        }
+        gpu.restore_suspended(previous.gpu.suspended());
+    }
+    recovery::install(&mut gpu, lost.clone());
     *guard = Some(Runtime {
         device: device.clone(),
         queue: queue.clone(),
@@ -91,7 +98,7 @@ pub fn register(owner: ModId, identity: &str, callback: Callback) {
 
 pub fn reset_resources(owner: ModId) -> Result<(), String> {
     with(owner, |gpu, _, _, _| {
-        gpu.remove_owner(owner);
+        gpu.reset_resources(owner);
         Ok(())
     })
 }
@@ -144,11 +151,13 @@ pub fn with_error<R>(
         .as_mut()
         .ok_or_else(|| Error::Host("GPU device is not ready".to_owned()))?;
     if runtime.lost.load(Ordering::Relaxed) {
+        recovery::device_lost();
         runtime.gpu.device_lost();
     }
     if let Some(reason) = runtime.gpu.disabled_reason(owner) {
         return Err(Error::Host(format!("GPU disabled: {reason}")));
     }
+    let started = Instant::now();
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         operation(
             &mut runtime.gpu,
@@ -158,7 +167,10 @@ pub fn with_error<R>(
         )
     }));
     match result {
-        Ok(result) => result,
+        Ok(result) => {
+            runtime.gpu.charge_cpu(owner, started.elapsed())?;
+            result
+        }
         Err(_) => {
             runtime.gpu.disable(owner, "GPU host panic".to_owned());
             Err(Error::Host("GPU disabled after a host failure".to_owned()))
@@ -185,6 +197,7 @@ pub fn begin_frame(mut frame: Frame, mut engine_frame: EngineFrame) {
             return;
         };
         if runtime.lost.load(Ordering::Relaxed) {
+            recovery::device_lost();
             runtime.gpu.device_lost();
             return;
         }
@@ -214,7 +227,14 @@ pub fn begin_frame(mut frame: Frame, mut engine_frame: EngineFrame) {
         ];
         runtime.last_frame = Some(now);
         runtime.engine_frame = engine_frame;
+        runtime.gpu.configure_frame(
+            frame.width,
+            frame.height,
+            frame.world_format,
+            frame.hud_format,
+        );
         runtime.frame = frame;
+        recovery::begin_frame();
         runtime.gpu.collect_timings(&runtime.device);
         if let Err(error) = runtime.gpu.begin_frame() {
             log::warn!("WASM GPU frame rejected: {error}");
@@ -256,12 +276,30 @@ pub fn has_stage(stage: Stage) -> bool {
         })
 }
 
+pub fn reads_scene() -> bool {
+    active()
+        && runtime()
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .as_ref()
+            .is_some_and(|runtime| runtime.gpu.reads_scene())
+}
+
+pub fn clean_exit() {
+    recovery::clean_exit();
+}
+
+pub fn device_lost() {
+    recovery::device_lost();
+}
+
 pub fn submit_stage(stage: Stage, frame: Option<&FrameTarget<'_>>, mut sources: EngineSources<'_>) {
     let mut guard = runtime().lock().unwrap_or_else(|error| error.into_inner());
     let Some(runtime) = guard.as_mut() else {
         return;
     };
     if runtime.lost.load(Ordering::Relaxed) {
+        recovery::device_lost();
         runtime.gpu.device_lost();
         return;
     }
