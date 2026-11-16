@@ -214,6 +214,7 @@ fn read_bounded(path: &std::path::Path) -> Result<Vec<u8>, String> {
 /// identity the multiplayer check sees.
 struct Accepted {
     gpu: bool,
+    gpu_fingerprint: String,
     id: String,
     version: String,
     /// The module's SHA-256 when the package is required on join.
@@ -225,6 +226,16 @@ struct Accepted {
     /// The server module's bytes and its `service.commands` grant, kept to start each world afresh.
     server_source: Option<full::ServerSource>,
     worlds: Vec<&'static str>,
+}
+
+fn gpu_fingerprint(version: &str, bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+
+    let mut digest = Sha256::new();
+    digest.update((version.len() as u64).to_le_bytes());
+    digest.update(version.as_bytes());
+    digest.update(bytes);
+    format!("{:x}", digest.finalize())
 }
 
 pub(super) fn extend(
@@ -278,6 +289,7 @@ pub(super) fn extend(
             .then(|| source.sha256.clone())
             .flatten();
         let mut package = Accepted {
+            gpu_fingerprint: gpu_fingerprint(&source.version, &source.bytes),
             id: source.id.clone(),
             version: source.version.clone(),
             digest,
@@ -389,6 +401,7 @@ pub(super) fn extend(
         let mut package = match position {
             Some(position) => accepted.swap_remove(position),
             None => Accepted {
+                gpu_fingerprint: String::new(),
                 id: server.mod_id.clone(),
                 version: server.version.to_string(),
                 digest,
@@ -459,7 +472,7 @@ pub(super) fn extend(
                 package.server_full.take(),
             )
             .with_client_reload(package.client_reload.take())
-            .with_gpu(package.gpu);
+            .with_gpu(package.gpu, &package.version, &package.gpu_fingerprint);
             if let Some(source) = package.server_source.take() {
                 full_mod = full_mod.with_server_source(source);
             }
@@ -1616,6 +1629,15 @@ mod tests {
     use std::cell::RefCell;
 
     use yoake_wasm::test_guests::{Guest, HELLO, HELLO_STD};
+
+    #[test]
+    fn gpu_package_fingerprint_changes_with_version_or_module() {
+        let original = gpu_fingerprint("1.0.0", b"module-one");
+        assert_eq!(original, gpu_fingerprint("1.0.0", b"module-one"));
+        assert_ne!(original, gpu_fingerprint("1.0.1", b"module-one"));
+        assert_ne!(original, gpu_fingerprint("1.0.0", b"module-two"));
+        assert_ne!(gpu_fingerprint("ab", b"c"), gpu_fingerprint("a", b"bc"));
+    }
 
     #[derive(Default)]
     struct FakeHost {

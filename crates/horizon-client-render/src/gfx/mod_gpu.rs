@@ -372,12 +372,14 @@ pub enum CommandKind {
         instances: u32,
         pixels: u64,
         pixel_limit: u64,
+        vertex_limit: u64,
         new_pass: bool,
     },
     Dispatch([u32; 3]),
     Compute {
         groups: [u32; 3],
         cost: u64,
+        work_limit: u64,
     },
     Upload(u64),
     Copy(u64),
@@ -416,6 +418,7 @@ impl FrameUsage {
                 if let CommandKind::Render {
                     pixels,
                     pixel_limit,
+                    vertex_limit,
                     new_pass,
                     ..
                 } = kind
@@ -425,6 +428,9 @@ impl FrameUsage {
                         return Err(Error::Pixels);
                     }
                     next.passes += u32::from(new_pass);
+                    if next.vertices > vertex_limit {
+                        return Err(Error::Vertices);
+                    }
                 }
             }
             CommandKind::Dispatch(groups) | CommandKind::Compute { groups, .. } => {
@@ -442,6 +448,13 @@ impl FrameUsage {
                     .workgroups
                     .checked_add(groups)
                     .ok_or(Error::Workgroups)?;
+                let limit = match kind {
+                    CommandKind::Compute { work_limit, .. } => work_limit,
+                    _ => MAX_WORKGROUPS,
+                };
+                if next.workgroups > limit {
+                    return Err(Error::Workgroups);
+                }
                 next.passes += 1;
             }
             CommandKind::Upload(bytes) => {
@@ -457,7 +470,6 @@ impl FrameUsage {
         for (exceeded, error) in [
             (next.draws > MAX_DRAWS, Error::Draws),
             (next.vertices > MAX_VERTICES, Error::Vertices),
-            (next.workgroups > MAX_WORKGROUPS, Error::Workgroups),
             (next.uploaded > MAX_UPLOAD_BYTES, Error::Upload),
             (next.copied > MAX_COPY_BYTES, Error::Copy),
             (next.passes > MAX_PASSES, Error::Passes),

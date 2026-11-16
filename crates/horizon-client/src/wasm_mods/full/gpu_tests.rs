@@ -139,7 +139,7 @@ fn gpu_guests_render_compute_reload_trap_and_device_loss() {
     let reload = Arc::new(Reload::default());
     let mut verifier = guest("gpu-verify", &verify_bytes, true)
         .with_client_reload(Some(Arc::clone(&reload)))
-        .with_gpu(true);
+        .with_gpu(true, "1", "gpu-invalid-v1");
     let verifier_owner = verifier.gpu_owner.unwrap();
     for _ in 0..8 {
         std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
@@ -156,7 +156,7 @@ fn gpu_guests_render_compute_reload_trap_and_device_loss() {
         mod_gpu_runtime::begin_frame(frame(), engine_frame());
         mod_gpu_runtime::submit_stage(mod_gpu::Stage::WorldOpaque, None, engine_sources());
     }
-    let demo = guest("gpu-demo", &demo_bytes, true).with_gpu(true);
+    let demo = guest("gpu-demo", &demo_bytes, true).with_gpu(true, "1", "gpu-demo-v1");
     let demo_owner = demo.gpu_owner.unwrap();
     let make_texture = |format| {
         device.create_texture(&wgpu::TextureDescriptor {
@@ -284,7 +284,7 @@ fn gpu_guests_render_compute_reload_trap_and_device_loss() {
         }
     }
     assert_eq!(fov(&mut verifier), 92.0);
-    let trap = guest("gpu-trap", &trap_bytes, true).with_gpu(true);
+    let trap = guest("gpu-trap", &trap_bytes, true).with_gpu(true, "1", "gpu-trap-v1");
     let trap_owner = trap.gpu_owner.unwrap();
     mod_gpu_runtime::begin_frame(frame(), engine_frame());
     assert!(

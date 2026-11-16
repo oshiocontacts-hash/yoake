@@ -58,6 +58,7 @@ services! {
     write_texture(bytes: Vec<u8>, extent: (u32, u32, u32), handle: u32, mip: u32, origin: (u32, u32, u32), stage: Stage) -> ();
     dispatch(groups: Vec<u32>, pipeline: u32, stage: Stage, workgroups: (u32, u32, u32)) -> ();
     draw(desc: DrawDesc, stage: Stage, target: DrawTarget) -> ();
+    draw_region_call(desc: DrawDesc, region: DrawRegion, stage: Stage, target: DrawTarget) -> ();
     read(handle: u32, offset: u64, size: u64, stage: Stage) -> u32;
     poll(ticket: u32) -> Option<Vec<u8>>;
     frame() -> FrameInfo;

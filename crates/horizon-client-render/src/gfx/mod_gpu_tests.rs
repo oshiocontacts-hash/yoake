@@ -353,6 +353,7 @@ fn raster_copy_and_compute_cost_limits_are_transactional() {
         instances: 1,
         pixels,
         pixel_limit: 4096,
+        vertex_limit: MAX_VERTICES,
         new_pass,
     };
     let raster = empty.charge(render(4096, true)).unwrap();
@@ -374,14 +375,16 @@ fn raster_copy_and_compute_cost_limits_are_transactional() {
         empty
             .charge(CommandKind::Compute {
                 groups: [256, 1, 1],
-                cost: 256
+                cost: 256,
+                work_limit: MAX_WORKGROUPS,
             })
             .is_ok()
     );
     assert_eq!(
         empty.charge(CommandKind::Compute {
             groups: [257, 1, 1],
-            cost: 256
+            cost: 256,
+            work_limit: MAX_WORKGROUPS,
         }),
         Err(Error::Workgroups)
     );

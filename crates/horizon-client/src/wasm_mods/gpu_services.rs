@@ -82,6 +82,32 @@ impl GameHost {
             &runtime::Frame,
         ) -> Result<R, gpu::Error>,
     ) -> Result<R, gpu::Error> {
+        self.gpu_call_timed(false, operation)
+    }
+
+    fn gpu_creation<R>(
+        &self,
+        operation: impl FnOnce(
+            &mut resources::Gpu,
+            &wgpu::Device,
+            &wgpu::Queue,
+            &runtime::Frame,
+        ) -> Result<R, gpu::Error>,
+    ) -> Result<R, String> {
+        self.gpu_call_timed(true, operation)
+            .map_err(|error| error.to_string())
+    }
+
+    fn gpu_call_timed<R>(
+        &self,
+        creation: bool,
+        operation: impl FnOnce(
+            &mut resources::Gpu,
+            &wgpu::Device,
+            &wgpu::Queue,
+            &runtime::Frame,
+        ) -> Result<R, gpu::Error>,
+    ) -> Result<R, gpu::Error> {
         if !self.gpu_enabled {
             return Err(gpu::Error::Host(
                 "service.gpu permission is required".to_owned(),
@@ -92,23 +118,25 @@ impl GameHost {
                 "GPU services are unavailable during module initialization".to_owned(),
             ));
         }
-        runtime::with_error(
-            owner(&self.id)
-                .ok_or_else(|| gpu::Error::Host("GPU identity limit reached".to_owned()))?,
-            operation,
-        )
+        let owner = owner(&self.id)
+            .ok_or_else(|| gpu::Error::Host("GPU identity limit reached".to_owned()))?;
+        if creation {
+            runtime::with_creation_error(owner, operation)
+        } else {
+            runtime::with_error(owner, operation)
+        }
     }
 }
 
 impl yoake_wasm::GpuServices for GameHost {
     fn buffer(&mut self, size: u64, usage: u32) -> Result<u32, String> {
         let owner = owner(&self.id).ok_or("GPU identity limit reached")?;
-        self.gpu_call(|gpu, device, _, _| gpu.create_buffer(device, owner, size, usage))
+        self.gpu_creation(|gpu, device, _, _| gpu.create_buffer(device, owner, size, usage))
     }
 
     fn texture(&mut self, desc: types::TextureDesc) -> Result<u32, String> {
         let owner = owner(&self.id).ok_or("GPU identity limit reached")?;
-        self.gpu_call(|gpu, device, _, _| {
+        self.gpu_creation(|gpu, device, _, _| {
             gpu.create_texture(
                 device,
                 owner,
@@ -127,11 +155,11 @@ impl yoake_wasm::GpuServices for GameHost {
 
     fn sampler(&mut self, linear: bool, repeat: bool) -> Result<u32, String> {
         let owner = owner(&self.id).ok_or("GPU identity limit reached")?;
-        self.gpu_call(|gpu, device, _, _| gpu.create_sampler(device, owner, linear, repeat))
+        self.gpu_creation(|gpu, device, _, _| gpu.create_sampler(device, owner, linear, repeat))
     }
 
     fn shader(&mut self, source: String) -> Result<u32, types::ShaderError> {
-        self.gpu_call_error(|gpu, device, _, _| {
+        self.gpu_call_timed(true, |gpu, device, _, _| {
             let owner = owner(&self.id)
                 .ok_or_else(|| gpu::Error::Host("GPU identity limit reached".to_owned()))?;
             gpu.create_shader(device, owner, &source)
@@ -155,7 +183,7 @@ impl yoake_wasm::GpuServices for GameHost {
 
     fn compute(&mut self, entry: String, shader: u32) -> Result<u32, String> {
         let owner = owner(&self.id).ok_or("GPU identity limit reached")?;
-        self.gpu_call(|gpu, device, _, _| gpu.create_compute(device, owner, shader, &entry))
+        self.gpu_creation(|gpu, device, _, _| gpu.create_compute(device, owner, shader, &entry))
     }
 
     fn render(&mut self, desc: types::RenderDesc) -> Result<u32, String> {
@@ -179,7 +207,7 @@ impl yoake_wasm::GpuServices for GameHost {
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
-        self.gpu_call(|gpu, device, _, _| {
+        self.gpu_creation(|gpu, device, _, _| {
             gpu.create_render(
                 device,
                 owner,
@@ -230,7 +258,7 @@ impl yoake_wasm::GpuServices for GameHost {
                 },
             })
             .collect();
-        self.gpu_call(|gpu, device, _, _| {
+        self.gpu_creation(|gpu, device, _, _| {
             gpu.create_bind_group(device, owner, pipeline, index, &bindings)
         })
     }
@@ -325,9 +353,27 @@ impl yoake_wasm::GpuServices for GameHost {
         at: types::Stage,
         target: types::DrawTarget,
     ) -> Result<(), String> {
+        self.draw_region_call(
+            desc,
+            types::DrawRegion {
+                viewport: None,
+                scissor: None,
+            },
+            at,
+            target,
+        )
+    }
+
+    fn draw_region_call(
+        &mut self,
+        desc: types::DrawDesc,
+        region: types::DrawRegion,
+        at: types::Stage,
+        target: types::DrawTarget,
+    ) -> Result<(), String> {
         let owner = owner(&self.id).ok_or("GPU identity limit reached")?;
         self.gpu_call(|gpu, _, _, _| {
-            gpu.draw(
+            gpu.draw_region(
                 owner,
                 stage(at),
                 resources::Draw {
@@ -357,6 +403,20 @@ impl yoake_wasm::GpuServices for GameHost {
                         resources::Target::Frame
                     }
                     None => return Err(gpu::Error::Descriptor),
+                },
+                resources::Region {
+                    viewport: region.viewport.map(|rect| resources::Rect {
+                        x: rect.x,
+                        y: rect.y,
+                        width: rect.width,
+                        height: rect.height,
+                    }),
+                    scissor: region.scissor.map(|rect| resources::Rect {
+                        x: rect.x,
+                        y: rect.y,
+                        width: rect.width,
+                        height: rect.height,
+                    }),
                 },
             )
         })

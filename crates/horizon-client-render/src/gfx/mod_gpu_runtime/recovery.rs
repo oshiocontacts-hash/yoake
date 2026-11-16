@@ -9,19 +9,44 @@ const MAX_MARKER_BYTES: u64 = 1024 * 1024;
 const IDLE_FRAMES: u64 = 120;
 static RECOVERY: OnceLock<Result<Arc<Mutex<Recovery>>, String>> = OnceLock::new();
 
+#[derive(Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+struct Marker {
+    incomplete: BTreeSet<String>,
+    packages: BTreeMap<String, Package>,
+}
+
+#[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+struct Package {
+    fingerprint: String,
+    clean_sessions: u8,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum StoredMarker {
+    Current(Marker),
+    Legacy(BTreeSet<String>),
+}
+
 struct Recovery {
     path: PathBuf,
     blocked: BTreeSet<String>,
     owners: BTreeMap<ModId, String>,
     inflight: BTreeMap<ModId, u32>,
     retained: BTreeMap<ModId, u64>,
-    persisted: BTreeSet<String>,
+    packages: BTreeMap<String, Package>,
+    participants: BTreeSet<String>,
+    failed: BTreeSet<String>,
+    persisted: Marker,
     frame: u64,
+    retry_frame: u64,
+    last_warning: Option<Instant>,
+    finished: bool,
 }
 
 impl Recovery {
     fn open(path: PathBuf) -> Result<Self, String> {
-        let blocked = match File::open(&path) {
+        let marker = match File::open(&path) {
             Ok(file) => {
                 let mut bytes = Vec::new();
                 file.take(MAX_MARKER_BYTES + 1)
@@ -30,39 +55,99 @@ impl Recovery {
                 if bytes.len() as u64 > MAX_MARKER_BYTES {
                     return Err("GPU recovery marker exceeds its size limit".to_owned());
                 }
-                let identities: BTreeSet<String> =
-                    serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
-                if identities.len() > 4096
-                    || identities.iter().any(|identity| !valid_identity(identity))
+                let marker =
+                    match serde_json::from_slice(&bytes).map_err(|error| error.to_string())? {
+                        StoredMarker::Current(marker) => marker,
+                        StoredMarker::Legacy(incomplete) => Marker {
+                            incomplete,
+                            ..Marker::default()
+                        },
+                    };
+                if marker.incomplete.len() > 4096
+                    || marker.packages.len() > 4096
+                    || marker
+                        .incomplete
+                        .iter()
+                        .any(|identity| !valid_identity(identity))
+                    || marker.packages.iter().any(|(identity, package)| {
+                        !valid_identity(identity)
+                            || !valid_fingerprint(&package.fingerprint)
+                            || package.clean_sessions > 3
+                    })
                 {
                     return Err("GPU recovery marker contains invalid mod identities".to_owned());
                 }
-                identities
+                marker
             }
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => BTreeSet::new(),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Marker::default(),
             Err(error) => return Err(error.to_string()),
         };
         Ok(Self {
             path,
-            persisted: blocked.clone(),
-            blocked,
+            persisted: marker.clone(),
+            blocked: marker.incomplete,
+            packages: marker.packages,
+            participants: BTreeSet::new(),
+            failed: BTreeSet::new(),
             owners: BTreeMap::new(),
             inflight: BTreeMap::new(),
             retained: BTreeMap::new(),
             frame: 0,
+            retry_frame: 0,
+            last_warning: None,
+            finished: false,
         })
     }
 
+    #[cfg(test)]
     fn register(&mut self, owner: ModId, identity: &str) -> Result<(), String> {
-        if !valid_identity(identity) {
-            return Err("GPU recovery requires a valid mod identity".to_owned());
+        self.register_package(owner, identity, "test-package-v1")
+    }
+
+    fn register_package(
+        &mut self,
+        owner: ModId,
+        identity: &str,
+        fingerprint: &str,
+    ) -> Result<(), String> {
+        if !valid_identity(identity) || !valid_fingerprint(fingerprint) {
+            return Err(
+                "GPU recovery requires a valid mod identity and package fingerprint".to_owned(),
+            );
         }
+        if !self.packages.contains_key(identity) && self.packages.len() >= 4096 {
+            return Err("GPU recovery package limit exceeded".to_owned());
+        }
+        let changed = self
+            .packages
+            .get(identity)
+            .is_some_and(|package| package.fingerprint != fingerprint);
+        if changed
+            && self
+                .inflight
+                .keys()
+                .any(|owner| self.owners.get(owner).is_some_and(|name| name == identity))
+        {
+            return Err("cannot replace a package with outstanding GPU work".to_owned());
+        }
+        let package = self
+            .packages
+            .entry(identity.to_owned())
+            .or_insert_with(|| Package {
+                fingerprint: fingerprint.to_owned(),
+                clean_sessions: 0,
+            });
+        if package.fingerprint != fingerprint {
+            package.fingerprint = fingerprint.to_owned();
+            package.clean_sessions = 0;
+            self.blocked.remove(identity);
+            self.retained
+                .retain(|owner, _| self.owners.get(owner).is_none_or(|name| name != identity));
+        }
+        self.participants.insert(identity.to_owned());
         self.owners.insert(owner, identity.to_owned());
         if self.blocked.contains(identity) {
-            return Err(format!(
-                "previous GPU submission did not complete; inspect and remove {} to retry",
-                self.path.display()
-            ));
+            return Err("previous GPU submission did not complete; update the package or explicitly re-enable its GPU access".to_owned());
         }
         Ok(())
     }
@@ -77,10 +162,17 @@ impl Recovery {
                     .clone(),
             );
         }
-        if identities == self.persisted {
+        let marker = Marker {
+            incomplete: identities,
+            packages: self.packages.clone(),
+        };
+        if marker == self.persisted {
             return Ok(());
         }
-        let bytes = serde_json::to_vec(&identities).map_err(|error| error.to_string())?;
+        let bytes = serde_json::to_vec(&marker).map_err(|error| error.to_string())?;
+        if bytes.len() as u64 > MAX_MARKER_BYTES {
+            return Err("GPU recovery marker exceeds its size limit".to_owned());
+        }
         let parent = self
             .path
             .parent()
@@ -91,13 +183,33 @@ impl Recovery {
         file.write_all(&bytes).map_err(|error| error.to_string())?;
         drop(file);
         fs::rename(&temporary, &self.path).map_err(|error| error.to_string())?;
-        self.persisted = identities;
+        self.persisted = marker;
         Ok(())
     }
 
     fn save(&mut self) {
-        if let Err(error) = self.persist() {
-            log::warn!("WASM GPU recovery marker could not be saved: {error}");
+        self.save_at(Instant::now());
+    }
+
+    fn save_at(&mut self, now: Instant) -> bool {
+        if self.frame < self.retry_frame {
+            return false;
+        }
+        match self.persist() {
+            Ok(()) => false,
+            Err(error) => {
+                self.retry_frame = self.frame.saturating_add(IDLE_FRAMES);
+                if self
+                    .last_warning
+                    .is_none_or(|previous| now.saturating_duration_since(previous).as_secs() >= 60)
+                {
+                    self.last_warning = Some(now);
+                    log::warn!("WASM GPU recovery marker could not be saved: {error}");
+                    true
+                } else {
+                    false
+                }
+            }
         }
     }
 
@@ -113,15 +225,66 @@ impl Recovery {
         for owner in self.inflight.keys() {
             if let Some(identity) = self.owners.get(owner) {
                 self.blocked.insert(identity.clone());
+                self.failed.insert(identity.clone());
+                if let Some(package) = self.packages.get_mut(identity) {
+                    package.clean_sessions = 0;
+                }
             }
         }
         self.save();
     }
 
     fn clean_exit(&mut self) {
+        if self.finished {
+            return;
+        }
+        self.finished = true;
+        for identity in &self.participants {
+            if self.blocked.contains(identity)
+                && !self.failed.contains(identity)
+                && !self
+                    .inflight
+                    .keys()
+                    .any(|owner| self.owners.get(owner) == Some(identity))
+                && let Some(package) = self.packages.get_mut(identity)
+            {
+                package.clean_sessions = package.clean_sessions.saturating_add(1);
+                if package.clean_sessions >= 3 {
+                    self.blocked.remove(identity);
+                    package.clean_sessions = 0;
+                }
+            }
+        }
         self.retained
             .retain(|owner, _| self.inflight.contains_key(owner));
         self.save();
+    }
+
+    fn reenable(&mut self, identity: &str) -> Result<Vec<ModId>, String> {
+        if !valid_identity(identity) {
+            return Err("GPU recovery requires a valid mod identity".to_owned());
+        }
+        let owners: Vec<_> = self
+            .owners
+            .iter()
+            .filter_map(|(owner, name)| (name == identity).then_some(*owner))
+            .collect();
+        if owners.iter().any(|owner| self.inflight.contains_key(owner)) {
+            return Err("cannot re-enable a mod with outstanding GPU work".to_owned());
+        }
+        let blocked = self.blocked.remove(identity);
+        let retained: BTreeMap<_, _> = owners
+            .iter()
+            .filter_map(|owner| self.retained.remove(owner).map(|frame| (*owner, frame)))
+            .collect();
+        if let Err(error) = self.persist() {
+            self.retained.extend(retained);
+            if blocked {
+                self.blocked.insert(identity.to_owned());
+            }
+            return Err(error);
+        }
+        Ok(owners)
     }
 
     fn before(&mut self, owner: ModId) -> Result<(), String> {
@@ -161,6 +324,12 @@ fn valid_identity(identity: &str) -> bool {
     !identity.is_empty() && identity.len() <= 256 && !identity.chars().any(char::is_control)
 }
 
+fn valid_fingerprint(fingerprint: &str) -> bool {
+    !fingerprint.is_empty()
+        && fingerprint.len() <= 512
+        && !fingerprint.chars().any(char::is_control)
+}
+
 fn update(operation: impl FnOnce(&mut Recovery)) {
     if let Some(Ok(state)) = RECOVERY.get() {
         operation(&mut state.lock().unwrap_or_else(|error| error.into_inner()));
@@ -187,7 +356,7 @@ pub(super) fn configure(path: PathBuf) -> Result<(), String> {
         .map_err(|_| "GPU recovery path is already configured".to_owned())
 }
 
-pub(super) fn register(owner: ModId, identity: &str) -> Result<(), String> {
+pub(super) fn register(owner: ModId, identity: &str, fingerprint: &str) -> Result<(), String> {
     let recovery = RECOVERY.get_or_init(|| {
         Recovery::open(crate::logging::game_home().join("state/wasm-gpu-inflight.json"))
             .map(|recovery| Arc::new(Mutex::new(recovery)))
@@ -197,7 +366,34 @@ pub(super) fn register(owner: ModId, identity: &str) -> Result<(), String> {
         .map_err(Clone::clone)?
         .lock()
         .map_err(|_| "GPU recovery lock unavailable".to_owned())?
-        .register(owner, identity)
+        .register_package(owner, identity, fingerprint)
+}
+
+pub(super) fn reenable(identity: &str) -> Result<Vec<ModId>, String> {
+    RECOVERY
+        .get()
+        .ok_or_else(|| "GPU recovery is not initialized".to_owned())?
+        .as_ref()
+        .map_err(Clone::clone)?
+        .lock()
+        .map_err(|_| "GPU recovery lock unavailable".to_owned())?
+        .reenable(identity)
+}
+
+pub(super) fn replace_package(owner: ModId, fingerprint: &str) -> Result<(), String> {
+    let mut state = RECOVERY
+        .get()
+        .ok_or_else(|| "GPU recovery is not initialized".to_owned())?
+        .as_ref()
+        .map_err(Clone::clone)?
+        .lock()
+        .map_err(|_| "GPU recovery lock unavailable".to_owned())?;
+    let identity = state
+        .owners
+        .get(&owner)
+        .ok_or_else(|| "GPU owner is not registered".to_owned())?
+        .clone();
+    state.register_package(owner, &identity, fingerprint)
 }
 
 pub(super) fn install(gpu: &mut Gpu, lost: Arc<AtomicBool>) {
@@ -339,8 +535,12 @@ mod tests {
         fs::create_dir(&path).unwrap();
         state.before(ModId(1)).unwrap();
         assert!(state.blocked.is_empty());
-        assert!(state.persisted.is_empty());
+        assert!(state.persisted.incomplete.is_empty());
         fs::remove_dir(&path).unwrap();
+        for _ in 0..IDLE_FRAMES - 1 {
+            state.begin_frame();
+        }
+        assert!(!path.exists());
         state.begin_frame();
         assert!(
             Recovery::open(path.clone())
@@ -381,6 +581,104 @@ mod tests {
         assert!(Recovery::open(path.clone()).is_err());
         fs::write(&path, vec![b' '; MAX_MARKER_BYTES as usize + 1]).unwrap();
         assert!(Recovery::open(path.clone()).is_err());
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn changed_package_unblocks_only_after_outstanding_work_completes() {
+        let path = marker();
+        let mut state = Recovery::open(path.clone()).unwrap();
+        state
+            .register_package(ModId(1), "particles", "v1:hash1")
+            .unwrap();
+        state.before(ModId(1)).unwrap();
+        state.device_lost();
+        assert!(
+            state
+                .register_package(ModId(1), "particles", "v2:hash2")
+                .is_err()
+        );
+        state.complete(ModId(1)).unwrap();
+        assert!(
+            state
+                .register_package(ModId(1), "particles", "v1:hash1")
+                .is_err()
+        );
+        state
+            .register_package(ModId(1), "particles", "v2:hash2")
+            .unwrap();
+        state.persist().unwrap();
+        let mut restarted = Recovery::open(path.clone()).unwrap();
+        restarted
+            .register_package(ModId(2), "particles", "v2:hash2")
+            .unwrap();
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn three_later_clean_sessions_expire_quarantine() {
+        let path = marker();
+        let mut state = Recovery::open(path.clone()).unwrap();
+        state.register(ModId(1), "particles").unwrap();
+        state.before(ModId(1)).unwrap();
+        state.device_lost();
+        state.complete(ModId(1)).unwrap();
+        state.clean_exit();
+        assert_eq!(state.packages["particles"].clean_sessions, 0);
+        for session in 1..=3 {
+            let mut restarted = Recovery::open(path.clone()).unwrap();
+            assert!(restarted.register(ModId(1), "particles").is_err());
+            restarted.clean_exit();
+            restarted.clean_exit();
+            assert_eq!(restarted.blocked.contains("particles"), session < 3);
+        }
+        Recovery::open(path.clone())
+            .unwrap()
+            .register(ModId(1), "particles")
+            .unwrap();
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn reenable_is_persisted_and_rejects_outstanding_work() {
+        let path = marker();
+        let mut state = Recovery::open(path.clone()).unwrap();
+        state.register(ModId(1), "particles").unwrap();
+        state.before(ModId(1)).unwrap();
+        state.device_lost();
+        assert!(state.reenable("particles").is_err());
+        state.complete(ModId(1)).unwrap();
+        assert_eq!(state.reenable("particles").unwrap(), vec![ModId(1)]);
+        assert!(
+            !Recovery::open(path.clone())
+                .unwrap()
+                .blocked
+                .contains("particles")
+        );
+        state.before(ModId(1)).unwrap();
+        state.complete(ModId(1)).unwrap();
+        state.clean_exit();
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn persistence_failures_back_off_and_warn_at_most_once_per_minute() {
+        let path = marker();
+        let mut state = Recovery::open(path.clone()).unwrap();
+        state.register(ModId(1), "particles").unwrap();
+        fs::create_dir(&path).unwrap();
+        let now = Instant::now();
+        assert!(state.save_at(now));
+        assert_eq!(state.retry_frame, IDLE_FRAMES);
+        assert!(!state.save_at(now + std::time::Duration::from_secs(61)));
+        state.frame = IDLE_FRAMES;
+        assert!(!state.save_at(now + std::time::Duration::from_secs(59)));
+        assert_eq!(state.retry_frame, IDLE_FRAMES * 2);
+        state.frame = IDLE_FRAMES * 2;
+        assert!(state.save_at(now + std::time::Duration::from_secs(60)));
+        fs::remove_dir(&path).unwrap();
+        state.frame = IDLE_FRAMES * 3;
+        assert!(!state.save_at(now + std::time::Duration::from_secs(61)));
         fs::remove_file(path).unwrap();
     }
 }

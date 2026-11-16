@@ -11,104 +11,106 @@ pub(super) struct Ticket {
     status: Arc<Mutex<Option<Result<(), String>>>>,
     period: f64,
     pub frame: u64,
-    pub pipelines: Mutex<Vec<Arc<Mutex<PipelineBudget>>>>,
 }
 
 pub(super) struct Budget {
     started: Instant,
-    first_frame: u64,
-    milliseconds: f64,
-    peaks: std::collections::BTreeMap<u64, f64>,
-    peak_strikes: std::collections::BTreeSet<u64>,
-}
-
-#[derive(Default)]
-pub(super) struct PipelineBudget {
-    frame: u64,
-    used: u64,
+    frames: std::collections::VecDeque<(u64, Instant)>,
+    samples: std::collections::BTreeMap<u64, Sample>,
+    peak_strikes: std::collections::BTreeMap<u64, Instant>,
     growth: u32,
     good_frames: u32,
-    measured_frame: Option<u64>,
-    measured_milliseconds: f64,
 }
 
-impl PipelineBudget {
-    pub fn check(&self, frame: u64, amount: u64, maximum: u64) -> bool {
-        let used = if self.frame == frame { self.used } else { 0 };
-        let limit = (maximum / 16)
-            .max(1)
-            .saturating_mul(1 << self.growth)
-            .min(maximum);
-        used.saturating_add(amount) <= limit
-    }
-
-    pub fn charge(&mut self, frame: u64, amount: u64) {
-        if self.frame != frame {
-            self.frame = frame;
-            self.used = 0;
-        }
-        self.used = self.used.saturating_add(amount);
-    }
-
-    fn measured(&mut self, frame: u64, milliseconds: f64) {
-        if self.measured_frame.is_some_and(|latest| frame < latest) {
-            if milliseconds > 4.0 {
-                self.growth = 0;
-                self.good_frames = 0;
-            }
-            return;
-        }
-        let new_frame = self.measured_frame != Some(frame);
-        if new_frame {
-            self.measured_frame = Some(frame);
-            self.measured_milliseconds = 0.0;
-        }
-        self.measured_milliseconds += milliseconds;
-        if self.measured_milliseconds > 4.0 {
-            self.growth = 0;
-            self.good_frames = 0;
-        } else if new_frame {
-            self.good_frames += 1;
-            if self.good_frames >= 8 {
-                self.growth = (self.growth + 1).min(4);
-                self.good_frames = 0;
-            }
-        }
-    }
+struct Sample {
+    at: Instant,
+    milliseconds: f64,
+    complete: bool,
 }
 
 impl Budget {
     fn new(now: Instant, frame: u64) -> Self {
         Self {
             started: now,
-            first_frame: frame,
-            milliseconds: 0.0,
-            peaks: Default::default(),
+            frames: [(frame, now)].into_iter().collect(),
+            samples: Default::default(),
             peak_strikes: Default::default(),
+            growth: 0,
+            good_frames: 0,
         }
     }
 
+    pub fn divisor(&self) -> u64 {
+        16 >> self.growth
+    }
+
+    fn advance(&mut self, now: Instant, frame: u64) {
+        if self
+            .frames
+            .back()
+            .is_none_or(|(identity, _)| *identity != frame)
+        {
+            self.frames.push_back((frame, now));
+        }
+        while self
+            .frames
+            .front()
+            .is_some_and(|(_, at)| now.saturating_duration_since(*at) >= Duration::from_secs(2))
+        {
+            self.frames.pop_front();
+        }
+        self.peak_strikes
+            .retain(|_, at| now.saturating_duration_since(*at) < Duration::from_secs(60));
+        self.samples
+            .retain(|_, sample| now.saturating_duration_since(sample.at) < Duration::from_secs(2));
+    }
+
     fn sample(&mut self, now: Instant, frame: u64, sample_frame: u64, milliseconds: f64) -> bool {
-        let peak = self.peaks.entry(sample_frame).or_default();
-        *peak += milliseconds;
-        if *peak > 50.0 {
-            self.peak_strikes.insert(sample_frame);
+        self.advance(now, frame);
+        let sample = self.samples.entry(sample_frame).or_insert(Sample {
+            at: now,
+            milliseconds: 0.0,
+            complete: false,
+        });
+        sample.milliseconds += milliseconds;
+        if sample.milliseconds > 4.0 {
+            self.growth = 0;
+            self.good_frames = 0;
+        }
+        if sample.milliseconds > 50.0 {
+            self.peak_strikes.entry(sample_frame).or_insert(now);
             if self.peak_strikes.len() >= 3 {
                 return true;
             }
         }
-        self.peaks
-            .retain(|identity, _| identity.saturating_add(256) >= frame);
-        self.milliseconds += milliseconds;
-        let frames = frame.saturating_sub(self.first_frame);
-        if now.duration_since(self.started) < Duration::from_secs(2) || frames == 0 {
-            return false;
+        now.saturating_duration_since(self.started) >= Duration::from_secs(2)
+            && !self.frames.is_empty()
+            && self
+                .samples
+                .values()
+                .map(|sample| sample.milliseconds)
+                .sum::<f64>()
+                / self.frames.len() as f64
+                > 4.0
+    }
+
+    fn finish_frames(&mut self, frame: u64, pending: &std::collections::BTreeSet<u64>) {
+        for (identity, sample) in &mut self.samples {
+            if *identity >= frame || sample.complete || pending.contains(identity) {
+                continue;
+            }
+            sample.complete = true;
+            if sample.milliseconds <= 4.0 {
+                self.good_frames += 1;
+                if self.good_frames >= 8 {
+                    self.growth = (self.growth + 1).min(4);
+                    self.good_frames = 0;
+                }
+            } else {
+                self.growth = 0;
+                self.good_frames = 0;
+            }
         }
-        let over_budget = self.milliseconds / frames as f64 > 4.0;
-        self.started = now;
-        self.first_frame = frame;
-        self.milliseconds = 0.0;
-        over_budget
     }
 }
 
@@ -130,14 +132,14 @@ impl Gpu {
         let now = Instant::now();
         let frame = self.frame_index;
         if self
-            .budgets
+            .cpu_budgets
             .entry(owner)
             .or_insert_with(|| Budget::new(now, frame))
             .sample(now, frame, frame, elapsed.as_secs_f64() * 1000.0)
         {
             self.disable(
                 owner,
-                "GPU host and device work exceeded the frame time budget".to_owned(),
+                "GPU host work exceeded the frame time budget".to_owned(),
             );
             return Err(Error::Disabled);
         }
@@ -146,11 +148,18 @@ impl Gpu {
 
     pub fn collect_timings(&mut self, device: &wgpu::Device) {
         self.frame_index = self.frame_index.saturating_add(1);
+        let now = Instant::now();
+        for budget in self
+            .budgets
+            .values_mut()
+            .chain(self.cpu_budgets.values_mut())
+        {
+            budget.advance(now, self.frame_index);
+        }
         if self.timings.is_empty() {
             return;
         }
         let _ = device.poll(wgpu::PollType::Poll);
-        let now = Instant::now();
         let mut disabled = Vec::new();
         for (owner, resource) in std::mem::take(&mut self.timings) {
             let Value::Timing(ticket) = resource.value() else {
@@ -193,13 +202,6 @@ impl Gpu {
                         .sum();
                     drop(bytes);
                     ticket.read.unmap();
-                    if let Ok(pipelines) = ticket.pipelines.lock() {
-                        for pipeline in pipelines.iter() {
-                            if let Ok(mut pipeline) = pipeline.lock() {
-                                pipeline.measured(ticket.frame, milliseconds);
-                            }
-                        }
-                    }
                     let budget = self
                         .budgets
                         .entry(owner)
@@ -213,6 +215,21 @@ impl Gpu {
                     }
                 }
             }
+        }
+        for (owner, budget) in &mut self.budgets {
+            let pending = self
+                .timings
+                .iter()
+                .filter_map(|(identity, resource)| {
+                    if identity == owner {
+                        if let Value::Timing(ticket) = resource.value() {
+                            return Some(ticket.frame);
+                        }
+                    }
+                    None
+                })
+                .collect();
+            budget.finish_frames(self.frame_index, &pending);
         }
         for (owner, reason) in disabled {
             log::warn!("WASM GPU mod {} disabled: {reason}", owner.0);
@@ -230,6 +247,9 @@ impl Gpu {
         if passes == 0 || !device.features().contains(wgpu::Features::TIMESTAMP_QUERY) {
             return Ok(None);
         }
+        self.budgets
+            .entry(owner)
+            .or_insert_with(|| Budget::new(Instant::now(), self.frame_index));
         let count = query_count(
             owner,
             passes,
@@ -261,7 +281,6 @@ impl Gpu {
                     status: Arc::new(Mutex::new(None)),
                     period: f64::from(queue.get_timestamp_period()),
                     frame: self.frame_index,
-                    pipelines: Default::default(),
                 }))
             })?;
         let resource = self.resources.get(owner, handle)?;
@@ -323,35 +342,64 @@ mod tests {
         for frame in 1..=120 {
             assert_eq!(
                 budget.sample(start + Duration::from_millis(frame * 17), frame, frame, 5.0),
-                frame == 118
+                frame >= 118
             );
         }
     }
 
     #[test]
-    fn pipelines_ramp_only_after_safe_timestamp_samples() {
-        let mut pipeline = PipelineBudget::default();
-        assert!(pipeline.check(1, 4, 64));
-        assert!(!pipeline.check(1, 5, 64));
-        pipeline.charge(1, 4);
-        assert!(!pipeline.check(1, 1, 64));
-        for frame in 2..10 {
-            pipeline.measured(frame, 1.0);
+    fn mods_ramp_only_after_complete_used_measured_frames() {
+        let start = Instant::now();
+        let mut budget = Budget::new(start, 0);
+        budget.finish_frames(1000, &Default::default());
+        assert_eq!(budget.divisor(), 16);
+        for frame in 1..=8 {
+            budget.sample(start, frame, frame, 1.0);
+            budget.finish_frames(frame + 1, &[frame].into_iter().collect());
         }
-        assert!(pipeline.check(10, 8, 64));
-        pipeline.measured(10, 4.1);
-        assert!(!pipeline.check(11, 5, 64));
-        for frame in 11..19 {
-            pipeline.measured(frame, 3.0);
+        assert_eq!(budget.divisor(), 16);
+        budget.sample(start, 8, 8, 3.1);
+        budget.finish_frames(9, &Default::default());
+        assert_eq!(budget.divisor(), 16);
+        for frame in 9..=16 {
+            budget.sample(start, frame, frame, 1.0);
+            budget.finish_frames(frame + 1, &Default::default());
         }
-        assert!(pipeline.check(19, 8, 64));
-        pipeline.measured(18, 2.0);
-        assert!(!pipeline.check(19, 5, 64));
-        for _ in 0..8 {
-            pipeline.measured(17, 1.0);
+        assert_eq!(budget.divisor(), 8);
+        assert_eq!(Budget::new(start, 0).divisor(), 16);
+        budget.sample(start, 17, 17, 4.1);
+        assert_eq!(budget.divisor(), 16);
+    }
+
+    #[test]
+    fn peak_strikes_expire_and_windows_roll() {
+        let start = Instant::now();
+        let mut budget = Budget::new(start, 0);
+        assert!(!budget.sample(start, 1, 1, 51.0));
+        assert!(!budget.sample(start, 2, 2, 51.0));
+        for frame in 3..4000 {
+            budget.advance(start + Duration::from_millis(frame * 16), frame);
         }
-        assert!(!pipeline.check(19, 5, 64));
-        let unmeasured = PipelineBudget::default();
-        assert!(!unmeasured.check(10_000, 5, 64));
+        assert!(!budget.sample(start + Duration::from_secs(64), 4000, 4000, 51.0));
+        assert_eq!(budget.peak_strikes.len(), 1);
+        assert!(!budget.sample(start + Duration::from_secs(65), 4060, 4060, 1.0));
+        assert_eq!(budget.samples.len(), 2);
+    }
+
+    #[test]
+    fn idle_history_does_not_dilute_a_later_expensive_window() {
+        let start = Instant::now();
+        let mut budget = Budget::new(start, 0);
+        for frame in 1..=1000 {
+            budget.advance(start + Duration::from_millis(frame * 17), frame);
+        }
+        for frame in 1001..=1120 {
+            let exceeded =
+                budget.sample(start + Duration::from_millis(frame * 17), frame, frame, 5.0);
+            if frame == 1120 {
+                assert!(exceeded);
+            }
+        }
+        assert!(budget.frames.len() <= 118);
     }
 }

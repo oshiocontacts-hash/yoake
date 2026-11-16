@@ -1904,9 +1904,6 @@ async fn open_backend(
     };
     match opened {
         Ok((device, queue)) => {
-            device.on_uncaptured_error(Arc::new(|error| {
-                log::error!("Horizon renderer: uncaptured GPU error: {error}");
-            }));
             let device_lost = Arc::new(std::sync::atomic::AtomicBool::new(false));
             let lost = device_lost.clone();
             device.set_device_lost_callback(move |reason, message| {
@@ -7914,16 +7911,17 @@ impl Renderer {
                 .as_ref()
                 .and_then(|p| p.1.as_ref())
                 .is_some_and(|p| p.has_weather());
-        let mut scaled = self.world_post.prepare(
+        let mod_gpu_frame = mod_gpu_runtime::active() && !frame.title;
+        let scaled = self.world_post.prepare(
             &self.device,
             [self.config.width, self.config.height],
-            pack_reads_world || fg,
+            pack_reads_world || fg || (mod_gpu_frame && mod_gpu_runtime::scene_target_required()),
         );
         let world_view = match &scaled {
             Some((color, _)) => color,
             None => &view_target,
         };
-        if mod_gpu_runtime::active() && !frame.title {
+        if mod_gpu_frame {
             mod_gpu_runtime::begin_frame(
                 mod_gpu_runtime::Frame {
                     index: frame.ticks,
@@ -7958,13 +7956,6 @@ impl Renderer {
             );
         }
         let pack_reads_world = pack_reads_world || (!frame.title && mod_gpu_runtime::reads_scene());
-        if scaled.is_none() && pack_reads_world {
-            scaled = self.world_post.prepare(
-                &self.device,
-                [self.config.width, self.config.height],
-                true,
-            );
-        }
         let (world_view, world_depth) = match &scaled {
             Some((color, depth)) => (color, depth),
             None => (&view_target, &self.depth),
