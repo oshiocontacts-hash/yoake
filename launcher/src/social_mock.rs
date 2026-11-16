@@ -206,6 +206,7 @@ impl MockSocial {
         self.state.lock().unwrap().fail_ack_once = true;
     }
 
+    #[allow(dead_code)]
     pub fn fail_next(&self, error: SocialError) {
         self.state.lock().unwrap().fail_next = Some(error);
     }

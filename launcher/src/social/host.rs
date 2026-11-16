@@ -19,8 +19,8 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::mpsc::{self, RecvTimeoutError, Sender, SyncSender};
-use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{self, RecvTimeoutError, Sender, SyncSender, TrySendError};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 /// How often the portal is asked for guests, when it answers.
@@ -58,6 +58,15 @@ pub enum Note {
 }
 
 // ----- The game's stdin -------------------------------------------------------------------
+
+/// What became of a line given to the game's stdin.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Queued {
+    Yes,
+    /// The queue is full: try again later.
+    Full,
+    Broken,
+}
 
 struct Sink {
     lines: SyncSender<String>,
@@ -108,18 +117,24 @@ impl Sink {
                 .is_some_and(|since| now.saturating_duration_since(since) >= self.stall)
     }
 
-    /// Queues a line; false when the game cannot take it.
-    fn send(&self, line: String) -> bool {
+    /// Queues a line. A full queue is not a broken game: the line is left for a later try, and
+    /// only [`STALL`] (a write that does not finish) says the game is gone.
+    fn send(&self, line: String) -> Queued {
         if self.broken(Instant::now()) {
-            return false;
+            return Queued::Broken;
         }
         self.queued.fetch_add(1, Ordering::SeqCst);
-        if self.lines.try_send(line).is_ok() {
-            true
-        } else {
-            self.queued.fetch_sub(1, Ordering::SeqCst);
-            self.failed.store(true, Ordering::SeqCst);
-            false
+        match self.lines.try_send(line) {
+            Ok(()) => Queued::Yes,
+            Err(TrySendError::Full(_)) => {
+                self.queued.fetch_sub(1, Ordering::SeqCst);
+                Queued::Full
+            }
+            Err(TrySendError::Disconnected(_)) => {
+                self.queued.fetch_sub(1, Ordering::SeqCst);
+                self.failed.store(true, Ordering::SeqCst);
+                Queued::Broken
+            }
         }
     }
 
@@ -283,15 +298,19 @@ impl Host {
             }
         };
         self.interval = POLL;
-        for join in joins.iter().take(MAX_JOINS) {
-            if !self.acceptable(join, now_unix) {
-                continue;
-            }
+        // The limit comes after the check: a bad join in front cannot crowd out a good one.
+        let fresh: Vec<&PendingJoin> = joins
+            .iter()
+            .filter(|join| {
+                self.acceptable(join, now_unix) && !self.seen.contains_key(join.grant.expose().nonce())
+            })
+            .take(MAX_JOINS)
+            .collect();
+        for join in fresh {
             let nonce = join.grant.expose().nonce();
-            if self.seen.contains_key(nonce) {
-                continue;
-            }
-            if !self.sink.send(pair_line(join)) {
+            // A full queue: this round goes no further. The rest is neither remembered nor
+            // acknowledged, and comes again with the next answer.
+            if self.sink.send(pair_line(join)) != Queued::Yes {
                 break;
             }
             self.seen.insert(nonce.to_string(), Seen { expires_at: join.expires_at, acked: false });
@@ -352,7 +371,7 @@ impl Host {
 
     /// The player closes the room: the game is told, then the portal.
     pub fn close(&mut self) -> super::Result<()> {
-        if self.sink.send(end_line()) {
+        if self.sink.send(end_line()) == Queued::Yes {
             self.sink.drain(Duration::from_secs(1));
         }
         closed_ok(self.api.close_room(&self.session_id))
@@ -397,18 +416,63 @@ impl HostHandle {
     }
 }
 
-/// The room being hosted now, for the launcher's own quit.
-static ACTIVE: Mutex<Option<HostHandle>> = Mutex::new(None);
+/// The drivers running, for the launcher's own quit. Each driver takes its entry out when it
+/// ends, so nothing here keeps one alive: a driver stops only by `close` or `game_ended`.
+#[derive(Default)]
+pub struct Registry {
+    entries: Mutex<Vec<(u64, HostHandle)>>,
+    next: AtomicUsize,
+}
+
+impl Registry {
+    fn add(&self, handle: HostHandle) -> u64 {
+        let id = self.next.fetch_add(1, Ordering::SeqCst) as u64;
+        if let Ok(mut entries) = self.entries.lock() {
+            entries.push((id, handle));
+        }
+        id
+    }
+
+    fn remove(&self, id: u64) {
+        if let Ok(mut entries) = self.entries.lock() {
+            entries.retain(|(entry, _)| *entry != id);
+        }
+    }
+
+    #[cfg(test)]
+    pub fn len(&self) -> usize {
+        self.entries.lock().map_or(0, |entries| entries.len())
+    }
+
+    /// Closes every room here, for up to [`CLOSE_WAIT`] each.
+    pub fn close_all(&self) {
+        let all: Vec<_> = self
+            .entries
+            .lock()
+            .map(|mut entries| entries.drain(..).collect())
+            .unwrap_or_default();
+        for (_, handle) in all {
+            let _ = handle.close_within(CLOSE_WAIT);
+        }
+    }
+}
+
+fn active() -> Arc<Registry> {
+    static ACTIVE: OnceLock<Arc<Registry>> = OnceLock::new();
+    ACTIVE.get_or_init(Default::default).clone()
+}
 
 /// The launcher is quitting: the hosted room (if any) is closed, for up to [`CLOSE_WAIT`].
 pub fn close_on_quit() {
-    close_slot(&ACTIVE);
+    active().close_all();
 }
 
-fn close_slot(slot: &Mutex<Option<HostHandle>>) {
-    let handle = slot.lock().ok().and_then(|mut slot| slot.take());
-    if let Some(handle) = handle {
-        let _ = handle.close_within(CLOSE_WAIT);
+/// Takes the driver's entry out of its registry when the driver's thread ends.
+struct Unregister(Arc<Registry>, u64);
+
+impl Drop for Unregister {
+    fn drop(&mut self) {
+        self.0.remove(self.1);
     }
 }
 
@@ -420,9 +484,21 @@ fn unix_now() -> i64 {
 
 /// Runs `host` on its own thread until the room is closed or the game ends. `notify` is called
 /// from that thread.
-pub fn spawn(mut host: Host, notify: impl Fn(Note) + Send + 'static) -> HostHandle {
+pub fn spawn(host: Host, notify: impl Fn(Note) + Send + 'static) -> HostHandle {
+    spawn_in(active(), host, notify)
+}
+
+/// [`spawn`], listed in `registry` (the launcher has one; tests bring their own).
+pub fn spawn_in(
+    registry: Arc<Registry>,
+    mut host: Host,
+    notify: impl Fn(Note) + Send + 'static,
+) -> HostHandle {
     let (commands, inbox) = mpsc::channel();
+    let handle = HostHandle { commands };
+    let entry = Unregister(registry.clone(), registry.add(handle.clone()));
     std::thread::spawn(move || {
+        let _entry = entry;
         let mut next_poll = Instant::now();
         loop {
             let now = Instant::now();
@@ -459,10 +535,6 @@ pub fn spawn(mut host: Host, notify: impl Fn(Note) + Send + 'static) -> HostHand
             }
         }
     });
-    let handle = HostHandle { commands };
-    if let Ok(mut active) = ACTIVE.lock() {
-        *active = Some(handle.clone());
-    }
     handle
 }
 
@@ -664,17 +736,142 @@ mod tests {
         assert_eq!(mock.pending_joins(&id).unwrap().len(), 6);
     }
 
+    /// A game that reads its stdin only once the gate is opened.
+    #[derive(Clone, Default)]
+    struct Gated {
+        open: Arc<(Mutex<bool>, std::sync::Condvar)>,
+        lines: Lines,
+    }
+
+    impl Write for Gated {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            let (flag, signal) = &*self.open;
+            let mut open = flag.lock().unwrap();
+            while !*open {
+                open = signal.wait(open).unwrap();
+            }
+            drop(open);
+            self.lines.write(bytes)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl Gated {
+        fn open(&self) {
+            *self.open.0.lock().unwrap() = true;
+            self.open.1.notify_all();
+        }
+    }
+
     #[test]
-    fn at_most_32_joins_are_taken_from_one_answer() {
+    fn forty_guests_are_all_handed_over_over_a_few_rounds_and_the_room_stays() {
         let (mock, id, expires) = hosted();
         let lines = Lines::default();
         let mut host = host_of(&mock, &id, lines.clone(), expires, 0);
         for n in 0..40 {
             mock.guest_joins(&id, &format!("g{n}"), &format!("Guest {n}"));
         }
-        assert_eq!(poll(&mut host).len(), MAX_JOINS);
-        assert_eq!(mock.pending_joins(&id).unwrap().len(), 8);
-        assert_eq!(poll(&mut host).len(), 8);
+        let mut handed = 0;
+        for _ in 0..40 {
+            let names = poll(&mut host);
+            assert!(names.len() <= MAX_JOINS);
+            handed += names.len();
+            if mock.pending_joins(&id).unwrap().is_empty() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert_eq!(handed, 40);
+        settle(&host);
+        assert!(!host.broken(Instant::now()));
+        assert!(mock.pending_joins(&id).unwrap().is_empty());
+        assert_eq!(mock.rooms().unwrap().len(), 1);
+        let written = lines.json();
+        let mut nonces: Vec<_> =
+            written.iter().map(|line| line["grant"]["grant"]["nonce"].to_string()).collect();
+        nonces.sort();
+        nonces.dedup();
+        assert_eq!((written.len(), nonces.len()), (40, 40));
+    }
+
+    #[test]
+    fn a_full_queue_is_not_a_dead_game() {
+        let (mock, id, expires) = hosted();
+        let game = Gated::default();
+        let host = Host::with_stall(
+            mock.clone(),
+            id.clone(),
+            game.clone(),
+            expires,
+            0,
+            Duration::from_secs(60),
+        );
+        let mut host = host;
+        for n in 0..40 {
+            mock.guest_joins(&id, &format!("g{n}"), &format!("Guest {n}"));
+        }
+        // The game reads nothing: its first line is stuck in the write, 16 wait in the queue,
+        // and the rest is left for later.
+        let handed = poll(&mut host).len();
+        assert!((16..=17).contains(&handed), "{handed}");
+        assert!(!host.broken(Instant::now()));
+        let left = mock.pending_joins(&id).unwrap().len();
+        assert_eq!(left, 40 - handed);
+        assert_eq!(mock.rooms().unwrap().len(), 1);
+        // Once the game reads again, the rest comes over, each once.
+        game.open();
+        let mut total = handed;
+        for _ in 0..60 {
+            total += poll(&mut host).len();
+            if mock.pending_joins(&id).unwrap().is_empty() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert_eq!(total, 40);
+        settle(&host);
+        assert_eq!(game.lines.json().len(), 40);
+        assert!(!host.broken(Instant::now()));
+    }
+
+    #[test]
+    fn bad_joins_in_front_do_not_crowd_out_good_ones() {
+        let (mock, id, expires) = hosted();
+        let mut host = host_of(&mock, &id, Lines::default(), expires, 0);
+        for _ in 0..MAX_JOINS + 5 {
+            mock.guest_joins_custom(&id, json!({ "session_id": "elsewhere" }), &"ab".repeat(64), "Bad", unix_now() + 240);
+        }
+        mock.guest_joins(&id, "g", "Good");
+        assert_eq!(poll(&mut host), vec!["Good".to_string()]);
+    }
+
+    #[test]
+    fn a_driver_that_ends_leaves_the_registry_and_is_not_kept_alive_by_it() {
+        let (mock, id, expires) = hosted();
+        let registry = Arc::new(Registry::default());
+        let (tx, rx) = mpsc::channel();
+        let handle = spawn_in(
+            registry.clone(),
+            host_of(&mock, &id, Lines::default(), expires, unix_now()),
+            move |note| {
+                let _ = tx.send(note);
+            },
+        );
+        assert_eq!(registry.len(), 1);
+        // Dropping the handle does not stop it (the registry's copy lives): `game_ended` does.
+        let copy = handle.clone();
+        drop(handle);
+        assert!(rx.recv_timeout(Duration::from_millis(1500)).is_err());
+        copy.game_ended();
+        assert_eq!(rx.recv_timeout(Duration::from_secs(10)).unwrap(), Note::Ended);
+        let until = Instant::now() + Duration::from_secs(5);
+        while registry.len() > 0 && Instant::now() < until {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert_eq!(registry.len(), 0);
+        assert!(mock.rooms().unwrap().is_empty());
     }
 
     #[test]
@@ -864,10 +1061,16 @@ mod tests {
     fn quitting_the_launcher_closes_the_hosted_room() {
         let (mock, id, expires) = hosted();
         let lines = Lines::default();
-        let handle = spawn(host_of(&mock, &id, lines.clone(), expires, unix_now()), |_| {});
-        let slot = Mutex::new(Some(handle));
-        close_slot(&slot);
-        assert!(slot.lock().unwrap().is_none());
+        let registry = Arc::new(Registry::default());
+        let handle = spawn_in(
+            registry.clone(),
+            host_of(&mock, &id, lines.clone(), expires, unix_now()),
+            |_| {},
+        );
+        assert_eq!(registry.len(), 1);
+        registry.close_all();
+        assert_eq!(registry.len(), 0);
+        let _ = handle;
         assert_eq!(lines.json().last().unwrap()["type"], "end");
         assert!(mock.rooms().unwrap().is_empty());
     }

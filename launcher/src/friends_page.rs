@@ -424,7 +424,7 @@ impl Friends {
         self.rooms.clear();
         self.rooms_status = RoomsStatus::Loading;
         self.my_room = None;
-        self.host = None;
+        self.stop_host();
         self.accepted.clear();
         self.list_shows_own = false;
         self.room_panel = false;
@@ -463,6 +463,13 @@ impl Friends {
     /// The player's game is hosting the room and the launcher is carrying guests to it.
     pub(super) fn hosting(&self) -> bool {
         self.host.is_some()
+    }
+
+    /// Stops the host driver, if any: the room is deleted on the portal and polling ends.
+    fn stop_host(&mut self) {
+        if let Some(host) = self.host.take() {
+            host.game_ended();
+        }
     }
 
     /// Whether a room is being opened or joined: both start the game, so only one at a time.
@@ -513,9 +520,10 @@ impl Friends {
                     .is_some_and(|at| at <= now_unix());
                 if self.list_shows_own || expired {
                     self.my_room = None;
-                    // The room is gone: its driver goes with it (dropping the handle ends it,
-                    // and it deletes the room if the portal still has it).
-                    self.host = None;
+                    // The room is gone: its driver is stopped (it deletes the room if the
+                    // portal still has it). Dropping the handle would not: the launcher's
+                    // registry keeps the driver's channel open.
+                    self.stop_host();
                     self.accepted.clear();
                 }
             }
