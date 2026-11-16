@@ -83,24 +83,177 @@ interoperability testing.
 
 ## Session registration
 
-The host registration request contains `session_id`, `host_principal`, and
-`relay_only: true`. A successful response contains those same fields and
-`host_token`; unregistering identifies the session. The session
-token is 32 random bytes encoded as lowercase hexadecimal, and must be handled
-as a secret. Registration is represented by a client trait; the repository
-does not provide a production HTTP client or portal authentication.
+The portal never connects to the relay. A host opens its own session on the relay
+with a portal-signed **provision ticket**, so no portal-to-relay channel, relay
+credential or relay-side portal client exists.
 
-Registration with the portal and provisioning the relay must be authenticated,
-confidential, tied to the same host and session, and fail closed. Portal-to-relay
-provisioning, token delivery, key rotation, and authorization are not specified
-by this code and must be agreed before deployment.
+1. The host asks the portal to host a session (`POST /api/social/v1/sessions`).
+   The portal answers with `session_id`, a `host_token` and a signed provision
+   ticket. The `host_token` is 32 random bytes as 64 lowercase hex characters, is
+   returned once, and the portal keeps only its SHA-256.
+2. The host connects to the relay (TLS control channel) and sends `provision`
+   with the ticket, its signature and the `host_token`. The relay replies
+   `provisioned` (or `rejected`) and closes that connection.
+3. A guest asks the portal to join (`POST /api/social/v1/sessions/:id/join`). The
+   portal checks friendship, group membership and blocks, and returns a grant
+   (valid for at most 120 s in practice; the relay accepts up to 300 s) with the
+   relay's address.
+4. The guest connects to the relay with the grant; the host pairs it over a
+   `host` connection with the grant and `host_token`, exactly as in
+   [Relay messages and pairing](#relay-messages-and-pairing).
+
+### Provision message
+
+JSON like the other social messages: internally tagged by `type`, and unknown
+fields are refused at every level.
+
+```json
+{
+  "type": "provision",
+  "ticket": {
+    "v": 1,
+    "session_id": "session-1",
+    "host_principal": "member:host",
+    "token_sha256": "<64 lowercase hex>",
+    "bytes_per_second": 1000000,
+    "burst_bytes": 65536,
+    "max_connections": 8,
+    "idle_secs": 60,
+    "exp": 1700000120,
+    "nonce": "<64 lowercase hex>"
+  },
+  "signature": "<128 lowercase hex>",
+  "host_token": "<64 lowercase hex>"
+}
+```
+
+The reply is `{"type":"provisioned"}` or `{"type":"rejected"}`; like every other
+rejection, `rejected` carries no reason. Representation follows the grant: byte
+strings (`token_sha256`, `nonce`, `signature`, `host_token`) are lowercase hex
+only, the signed values are plain JSON fields (the ticket is a struct, not an
+opaque blob), and the signature is over the binary encoding below, never over the
+JSON text.
+
+### Signed bytes
+
+All integers are big-endian. The Ed25519 signature covers, in this order:
+
+1. ASCII `yoake-social-provision-v1` followed by one zero byte.
+2. `v`, `u32`, currently `1`.
+3. `session_id`: `u16` length, then the UTF-8 bytes.
+4. `host_principal`: `u16` length, then the UTF-8 bytes.
+5. `token_sha256`: the raw 32 bytes.
+6. `bytes_per_second`, `u64`.
+7. `burst_bytes`, `u64` (at least 16384).
+8. `max_connections`, `u32`.
+9. `idle_secs`, `u32`.
+10. `exp`, `u64`, Unix seconds.
+11. `nonce`: the raw 32 bytes.
+
+The key is the same pinned portal key as for grants (`HORIZON_RELAY_PORTAL_KEY`).
+`token_sha256` is SHA-256 of the **32 raw bytes** the `host_token` hex decodes to
+(not of the hex text).
+
+### What the relay checks
+
+Any failure is `rejected`, and nothing is stored:
+
+- the signature verifies and `v` is `1`;
+- `exp` is in the future and at most 300 s ahead (a ticket's lifetime is short, so
+  portal and relay clocks must agree; there is no skew allowance);
+- `host_token` is 64 lowercase hex characters and SHA-256 of its bytes equals
+  `token_sha256`;
+- the limits are valid: `burst_bytes` at least 16384 (one maximum message), and
+  every value nonzero and no larger than the relay's caps (`bytes_per_second` at
+  most 2^30, `burst_bytes` at most 64 MiB, `max_connections` at most 256,
+  `idle_secs` at most 3600);
+- `session_id` and `host_principal` follow the identifier rules (nonempty, at
+  most 128 UTF-8 bytes, no control characters);
+- the nonce was not used to open a session before, and the nonce cache is not
+  full; and the session limit is not reached.
+
+### Idempotence and the nonce
+
+A host may repeat a `provision` (for example when the reply was lost). The relay
+decides in this order, after the signature, time, token and limits checks:
+
+1. If the session id is already open (not retired) with the same
+   `host_principal` and the same `token_sha256`, the reply is `provisioned` and
+   nothing changes: the limits keep their first values, and the nonce is neither
+   stored nor checked. So resending the same ticket is accepted, and so is a new
+   ticket for the same session and token.
+2. If the session id exists in any other way (another token or principal, or a
+   retired id that is still reserved for 300 s), the reply is `rejected`.
+3. Otherwise the nonce must be new. It is stored (with the ticket's `exp`) only
+   when the session is actually created, so a refused ticket does not burn its
+   nonce.
+
+This is the safe choice for a lost reply: a captured ticket on its own opens
+nothing without the `host_token`, a repeat cannot change a session, and a nonce
+can create at most one session. The cache holds at most 4096 nonces; entries are
+dropped once their `exp` has passed, and a full cache refuses new sessions
+(idempotent repeats still work). It is in memory: after a relay restart a ticket
+that is still within its 300 s can be used again, which is why the portal keeps
+the lifetime short and the ticket is useless without the token.
+
+Registration with the portal, token delivery and key rotation remain the portal's
+concern. The relay also keeps the function-call `provision` used by tests and
+embedding.
+
+### Provision test vector
+
+Portal key: RFC 8032 TEST 1.
+
+```text
+secret key  9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60
+public key  d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a
+```
+
+Input values:
+
+```text
+v                 1
+session_id        "session-1"
+host_principal    "member:host"
+host_token        abababababababababababababababababababababababababababababababab
+token_sha256      9a2db2e23f1504cd056606553ac049c5e718e8f9ce9233876df1a7a1821af885
+bytes_per_second  1000000
+burst_bytes       65536
+max_connections   8
+idle_secs         60
+exp               1700000120
+nonce             1111111111111111111111111111111111111111111111111111111111111111
+```
+
+Signed bytes (150 bytes, concatenated; lines are the fields in order):
+
+```text
+796f616b652d736f6369616c2d70726f766973696f6e2d763100
+00000001
+000973657373696f6e2d31
+000b6d656d6265723a686f7374
+9a2db2e23f1504cd056606553ac049c5e718e8f9ce9233876df1a7a1821af885
+00000000000f4240
+0000000000010000
+00000008
+0000003c
+000000006553f178
+1111111111111111111111111111111111111111111111111111111111111111
+```
+
+Signature (Ed25519 is deterministic), 128 hex characters:
+
+```text
+90143bbd0158a9150a62429dd1cf41a77298ebbb36aa405f8bd73023d8986b18c635711d077cd2b4669d90bfde9e52416af2acefebd33fb674f354a1a3ef4e03
+```
 
 ## Relay messages and pairing
 
 Social relay control messages are a separate, strictly decoded protocol, not
-an extension of the legacy invite-code wire format. A guest presents a signed
+an extension of the legacy invite-code wire format. A host opens its session with
+`provision` (see above); a guest presents a signed
 grant; the host presents that same signed grant and its session token. Responses
-are `waiting`, `bridged`, or `rejected`. These message types have no fields for
+are `waiting`, `bridged`, `provisioned`, or `rejected`. These message types have no fields for
 direct addresses, observed addresses, or ICE candidates, and unknown fields are
 rejected.
 

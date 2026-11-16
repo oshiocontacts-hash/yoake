@@ -1,6 +1,6 @@
 use std::io::{self, Read, Write};
 use super::*;
-use horizon_friends::social::Grant;
+use horizon_friends::social::{Grant, ToRelay};
 use ring::signature::Ed25519KeyPair;
 use std::cell::RefCell;
 use std::io::Cursor;
@@ -232,4 +232,232 @@ impl Write for Idle {
         Ok(bytes.len())
     }
     fn flush(&mut self) -> io::Result<()> { Ok(()) }
+}
+
+const TICKET_NOW: u64 = 1_700_000_000;
+const TICKET_TOKEN: &str = "abababababababababababababababababababababababababababababababab";
+
+fn to_hex(bytes: &[u8]) -> String { bytes.iter().map(|byte| format!("{byte:02x}")).collect() }
+
+fn ticket(session: &str, nonce: u8) -> ProvisionTicket {
+    ticket_for(session, TICKET_TOKEN, nonce, TICKET_NOW + 120)
+}
+
+fn ticket_for(session: &str, token: &str, nonce: u8, exp: u64) -> ProvisionTicket {
+    let digest = ring::digest::digest(&ring::digest::SHA256, &hex::<32>(token));
+    ProvisionTicket {
+        v: 1,
+        session_id: session.into(),
+        host_principal: "member:host".into(),
+        token_sha256: to_hex(digest.as_ref()),
+        bytes_per_second: 1_000_000,
+        burst_bytes: 65_536,
+        max_connections: 8,
+        idle_secs: 60,
+        exp,
+        nonce: format!("{nonce:02x}").repeat(32),
+    }
+}
+
+/// Signed with the portal test key; a ticket that cannot be encoded gets a junk signature.
+fn sign_ticket(ticket: &ProvisionTicket) -> String {
+    match ticket.signing_bytes() {
+        Ok(bytes) => {
+            let key = Ed25519KeyPair::from_seed_unchecked(&hex::<32>(SEED)).unwrap();
+            to_hex(key.sign(&bytes).as_ref())
+        }
+        Err(_) => "00".repeat(64),
+    }
+}
+
+fn open(relay: &SocialRelay, ticket: &ProvisionTicket, token: &str, unix: u64) -> Result<(), RelayError> {
+    relay.provision_ticket(ticket, &sign_ticket(ticket), token, unix, Instant::now())
+}
+
+fn ticket_relay() -> SocialRelay { SocialRelay::new(hex::<32>(PUBLIC), 8) }
+
+#[test]
+fn a_valid_ticket_opens_a_session_that_pairs_with_the_ticket_token() {
+    let relay = ticket_relay();
+    let now = Instant::now();
+    open(&relay, &ticket("session-1", 1), TICKET_TOKEN, TICKET_NOW).unwrap();
+    let grant = signed(1, TICKET_NOW + 60);
+    let mut pending = relay.begin_guest(&grant, TestStream::empty(), TICKET_NOW, now).unwrap();
+    assert!(matches!(pending.pair(&grant, &"cd".repeat(32), TestStream::empty(), TICKET_NOW, now), Err(RelayError::WrongToken)));
+    assert!(pending.pair(&grant, TICKET_TOKEN, TestStream::empty(), TICKET_NOW, now).is_ok());
+}
+
+#[test]
+fn a_ticket_with_a_bad_signature_is_refused() {
+    let relay = ticket_relay();
+    let good = ticket("session-1", 1);
+    let signature = sign_ticket(&good);
+    let mut altered = good.clone();
+    altered.max_connections = 9;
+    let result = relay.provision_ticket(&altered, &signature, TICKET_TOKEN, TICKET_NOW, Instant::now());
+    assert!(matches!(result, Err(RelayError::Grant(GrantError::InvalidSignature))));
+    let result = relay.provision_ticket(&good, &"00".repeat(64), TICKET_TOKEN, TICKET_NOW, Instant::now());
+    assert!(matches!(result, Err(RelayError::Grant(GrantError::InvalidSignature))));
+    let other_key = SocialRelay::new([7; 32], 8);
+    assert!(matches!(open(&other_key, &good, TICKET_TOKEN, TICKET_NOW), Err(RelayError::Grant(GrantError::InvalidSignature))));
+    // Nothing was opened by any of that.
+    assert!(open(&relay, &good, TICKET_TOKEN, TICKET_NOW).is_ok());
+}
+
+#[test]
+fn expired_and_too_far_ahead_tickets_are_refused() {
+    let relay = ticket_relay();
+    let at = |exp: u64, nonce: u8| ticket_for("session-1", TICKET_TOKEN, nonce, exp);
+    assert!(matches!(open(&relay, &at(TICKET_NOW, 1), TICKET_TOKEN, TICKET_NOW), Err(RelayError::Grant(GrantError::Expired))));
+    assert!(matches!(open(&relay, &at(TICKET_NOW - 5, 2), TICKET_TOKEN, TICKET_NOW), Err(RelayError::Grant(GrantError::Expired))));
+    assert!(matches!(open(&relay, &at(TICKET_NOW + 301, 3), TICKET_TOKEN, TICKET_NOW), Err(RelayError::Grant(GrantError::LifetimeTooLong))));
+    assert!(open(&relay, &at(TICKET_NOW + 300, 4), TICKET_TOKEN, TICKET_NOW).is_ok());
+}
+
+#[test]
+fn a_used_nonce_cannot_open_another_session() {
+    let relay = ticket_relay();
+    open(&relay, &ticket("session-1", 1), TICKET_TOKEN, TICKET_NOW).unwrap();
+    let result = open(&relay, &ticket("session-2", 1), TICKET_TOKEN, TICKET_NOW);
+    assert!(matches!(result, Err(RelayError::Grant(GrantError::Replay))));
+    assert!(open(&relay, &ticket("session-2", 2), TICKET_TOKEN, TICKET_NOW).is_ok());
+}
+
+#[test]
+fn a_refused_ticket_does_not_burn_its_nonce() {
+    let relay = SocialRelay::new(hex::<32>(PUBLIC), 1);
+    open(&relay, &ticket("session-1", 1), TICKET_TOKEN, TICKET_NOW).unwrap();
+    let second = ticket("session-2", 2);
+    assert!(matches!(open(&relay, &second, TICKET_TOKEN, TICKET_NOW), Err(RelayError::SessionLimit)));
+    relay.retire("session-1").unwrap();
+    assert!(open(&relay, &second, TICKET_TOKEN, TICKET_NOW).is_ok());
+}
+
+#[test]
+fn a_full_nonce_cache_refuses_until_entries_expire() {
+    let relay = SocialRelay::new(hex::<32>(PUBLIC), MAX_TICKET_NONCES + 8);
+    let numbered = |index: usize, exp: u64| {
+        let mut ticket = ticket_for(&format!("s{index}"), TICKET_TOKEN, 0, exp);
+        ticket.nonce = format!("{index:064x}");
+        ticket
+    };
+    for index in 0..MAX_TICKET_NONCES {
+        open(&relay, &numbered(index, TICKET_NOW + 100), TICKET_TOKEN, TICKET_NOW).unwrap();
+    }
+    let extra = numbered(MAX_TICKET_NONCES, TICKET_NOW + 100);
+    assert!(matches!(open(&relay, &extra, TICKET_TOKEN, TICKET_NOW), Err(RelayError::Grant(GrantError::ReplayCacheFull))));
+    // An idempotent repeat needs no new entry, so a full cache does not stop it.
+    assert!(open(&relay, &numbered(0, TICKET_NOW + 100), TICKET_TOKEN, TICKET_NOW).is_ok());
+    // Once the remembered tickets have expired they are forgotten.
+    let later = numbered(MAX_TICKET_NONCES, TICKET_NOW + 250);
+    assert!(open(&relay, &later, TICKET_TOKEN, TICKET_NOW + 150).is_ok());
+}
+
+#[test]
+fn a_token_that_does_not_match_the_signed_digest_is_refused() {
+    let relay = ticket_relay();
+    let ticket = ticket("session-1", 1);
+    for wrong in [&"cd".repeat(32)[..], "", "not hex", &TICKET_TOKEN.to_uppercase(), &TICKET_TOKEN[2..]] {
+        assert!(matches!(open(&relay, &ticket, wrong, TICKET_NOW), Err(RelayError::WrongToken)), "{wrong}");
+    }
+    assert!(open(&relay, &ticket, TICKET_TOKEN, TICKET_NOW).is_ok());
+}
+
+#[test]
+fn invalid_limits_are_refused() {
+    let relay = ticket_relay();
+    let edits: [(&str, fn(&mut ProvisionTicket)); 11] = [
+        ("small burst", |t| t.burst_bytes = 16 * 1024 - 1),
+        ("zero burst", |t| t.burst_bytes = 0),
+        ("huge burst", |t| t.burst_bytes = MAX_TICKET_BURST_BYTES + 1),
+        ("zero rate", |t| t.bytes_per_second = 0),
+        ("huge rate", |t| t.bytes_per_second = MAX_TICKET_BYTES_PER_SECOND + 1),
+        ("rate max u64", |t| t.bytes_per_second = u64::MAX),
+        ("zero connections", |t| t.max_connections = 0),
+        ("many connections", |t| t.max_connections = MAX_TICKET_CONNECTIONS + 1),
+        ("zero idle", |t| t.idle_secs = 0),
+        ("long idle", |t| t.idle_secs = MAX_TICKET_IDLE_SECS + 1),
+        ("burst max u64", |t| t.burst_bytes = u64::MAX),
+    ];
+    for (name, edit) in edits {
+        let mut ticket = ticket("session-1", 1);
+        edit(&mut ticket);
+        assert!(matches!(open(&relay, &ticket, TICKET_TOKEN, TICKET_NOW), Err(RelayError::InvalidLimits)), "{name}");
+    }
+    let mut edge = ticket("session-1", 1);
+    edge.burst_bytes = 16 * 1024;
+    assert!(open(&relay, &edge, TICKET_TOKEN, TICKET_NOW).is_ok());
+}
+
+#[test]
+fn ids_must_follow_the_identifier_rules() {
+    let relay = ticket_relay();
+    let long = "x".repeat(129);
+    for (index, id) in ["", "has\ncontrol", "tab\there", long.as_str()].into_iter().enumerate() {
+        let mut ticket = ticket("session-1", index as u8 + 1);
+        ticket.session_id = id.into();
+        assert!(matches!(open(&relay, &ticket, TICKET_TOKEN, TICKET_NOW), Err(RelayError::Grant(_))), "session {id:?}");
+        let mut ticket = ticket_for("session-1", TICKET_TOKEN, index as u8 + 10, TICKET_NOW + 120);
+        ticket.host_principal = id.into();
+        assert!(matches!(open(&relay, &ticket, TICKET_TOKEN, TICKET_NOW), Err(RelayError::Grant(_))), "host {id:?}");
+    }
+    let mut longest = ticket("s", 30);
+    longest.session_id = "y".repeat(128);
+    assert!(open(&relay, &longest, TICKET_TOKEN, TICKET_NOW).is_ok());
+}
+
+#[test]
+fn only_version_one_is_accepted() {
+    let relay = ticket_relay();
+    for version in [0, 2, u32::MAX] {
+        let mut ticket = ticket("session-1", 1);
+        ticket.v = version;
+        assert!(matches!(open(&relay, &ticket, TICKET_TOKEN, TICKET_NOW), Err(RelayError::Grant(GrantError::UnsupportedVersion))));
+    }
+}
+
+#[test]
+fn a_repeated_provision_is_idempotent_but_a_different_token_or_host_is_not() {
+    let relay = ticket_relay();
+    let first = ticket("session-1", 1);
+    open(&relay, &first, TICKET_TOKEN, TICKET_NOW).unwrap();
+    // The very same ticket again (a retry after a lost reply): provisioned, nothing changes.
+    assert!(open(&relay, &first, TICKET_TOKEN, TICKET_NOW + 5).is_ok());
+    // A fresh ticket with the same token digest for the same session is a repeat too.
+    let mut again = ticket("session-1", 2);
+    again.max_connections = 2;
+    assert!(open(&relay, &again, TICKET_TOKEN, TICKET_NOW + 5).is_ok());
+    // ... and it did not replace the limits: three guests still fit (limit 8, not 2).
+    let now = Instant::now();
+    let _guests: Vec<_> = (1..=3)
+        .map(|nonce| relay.begin_guest(&signed(nonce, TICKET_NOW + 60), TestStream::empty(), TICKET_NOW, now).unwrap())
+        .collect();
+    // Another token for the same session id, or another host principal, is refused.
+    let other_token = "cd".repeat(32);
+    let different = ticket_for("session-1", &other_token, 3, TICKET_NOW + 120);
+    assert!(matches!(open(&relay, &different, &other_token, TICKET_NOW), Err(RelayError::SessionExists)));
+    let mut other_host = ticket("session-1", 4);
+    other_host.host_principal = "member:other".into();
+    assert!(matches!(open(&relay, &other_host, TICKET_TOKEN, TICKET_NOW), Err(RelayError::SessionExists)));
+    // A retired id stays reserved: the repeat no longer succeeds.
+    relay.retire("session-1").unwrap();
+    assert!(matches!(open(&relay, &first, TICKET_TOKEN, TICKET_NOW), Err(RelayError::SessionExists)));
+}
+
+#[test]
+fn an_expired_repeat_is_refused_even_for_an_open_session() {
+    let relay = ticket_relay();
+    let first = ticket("session-1", 1);
+    open(&relay, &first, TICKET_TOKEN, TICKET_NOW).unwrap();
+    assert!(matches!(open(&relay, &first, TICKET_TOKEN, TICKET_NOW + 120), Err(RelayError::Grant(GrantError::Expired))));
+}
+
+#[test]
+fn ticket_messages_reject_unknown_fields() {
+    let ticket = ticket("session-1", 1);
+    let message = ToRelay::Provision { ticket, signature: "00".repeat(64), host_token: TICKET_TOKEN.into() };
+    let text = serde_json::to_string(&message).unwrap();
+    assert!(serde_json::from_str::<ToRelay>(&text).is_ok());
+    assert!(serde_json::from_str::<ToRelay>(&text.replacen('{', "{\"relay\":\"x\",", 1)).is_err());
+    assert!(serde_json::from_str::<ToRelay>(&text.replacen("\"v\":1", "\"v\":1,\"limits\":{}", 1)).is_err());
 }

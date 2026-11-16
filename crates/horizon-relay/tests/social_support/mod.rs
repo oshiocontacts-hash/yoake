@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use horizon_friends::{
-    social::{FromRelay, Grant, RegisterSession, SignedGrant, ToRelay},
+    social::{FromRelay, Grant, ProvisionTicket, RegisterSession, SignedGrant, ToRelay},
     social_tls::{ClientChannel, ControlChannel, client_channel},
 };
 use horizon_relay::{
@@ -91,6 +91,42 @@ pub fn setup(idle: Duration) -> (SocialServer, SocketAddr, TestTls) {
     provision(server.relay(), idle);
     let address = server.spawn_local().unwrap();
     (server, address, tls)
+}
+
+/// A relay with no session: hosts have to open one with a ticket.
+pub fn setup_unprovisioned() -> (SocialServer, SocketAddr, TestTls) {
+    let tls = tls("relay.test");
+    let server = server(&tls, HandshakeLimits::default());
+    let address = server.spawn_local().unwrap();
+    (server, address, tls)
+}
+
+/// A provision message signed with the portal test key, for the host token `token`.
+pub fn provision_message(session: &str, exp: u64, nonce: u8, token: &str) -> ToRelay {
+    let digest = ring::digest::digest(&ring::digest::SHA256, &hex::<32>(token));
+    let ticket = ProvisionTicket {
+        v: 1,
+        session_id: session.into(),
+        host_principal: "member:host".into(),
+        token_sha256: digest.as_ref().iter().map(|byte| format!("{byte:02x}")).collect(),
+        bytes_per_second: 1_000_000,
+        burst_bytes: 64 * 1024,
+        max_connections: 64,
+        idle_secs: 5,
+        exp,
+        nonce: format!("{nonce:02x}").repeat(32),
+    };
+    let key = Ed25519KeyPair::from_seed_unchecked(&hex::<32>(PORTAL_SEED)).unwrap();
+    let signature = key.sign(&ticket.signing_bytes().unwrap()).as_ref().iter()
+        .map(|byte| format!("{byte:02x}")).collect();
+    ToRelay::Provision { ticket, signature, host_token: token.into() }
+}
+
+/// Send one message on a fresh connection and return the relay's first reply.
+pub fn ask(address: SocketAddr, tls: &TestTls, message: &ToRelay) -> FromRelay {
+    let mut channel = client(address, tls);
+    send_to(&mut channel, message);
+    recv_from(&mut channel)
 }
 
 pub fn setup_with(idle: Duration, bytes_per_second: u64, burst_bytes: usize, max_connections: usize) -> (SocialServer, SocketAddr, TestTls) {

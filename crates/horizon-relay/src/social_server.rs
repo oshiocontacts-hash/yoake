@@ -15,7 +15,7 @@ use std::{
 };
 
 use horizon_friends::{
-    social::{FromRelay, SignedGrant, ToRelay, decode_hex},
+    social::{FromRelay, ProvisionTicket, SignedGrant, ToRelay, decode_hex},
     social_tls::{ChannelAcceptor, ControlChannel},
 };
 use crate::social::{Direction, ForwardProgress, PairedConnection, PendingGuest, SocialRelay};
@@ -76,8 +76,8 @@ impl SocialServer {
     /// Forwarding loop iterations so far, across all bridges (a cheap measure of idle cost).
     pub fn forward_ticks(&self) -> u64 { self.ticks.load(Ordering::Relaxed) }
 
-    /// Portal-to-relay provisioning is intentionally still a function-call API;
-    /// its authenticated network channel is not specified yet.
+    /// Function-call provisioning (tests and embedding). Hosts open sessions over the network
+    /// with a portal-signed `Provision` ticket instead.
     pub fn relay(&self) -> &SocialRelay { &self.relay }
 
     /// Missing or invalid settings disable only this independent listener.
@@ -148,11 +148,24 @@ impl SocialServer {
         match request {
             Ok(ToRelay::Guest { grant }) => self.guest(channel, grant),
             Ok(ToRelay::Host { grant, token }) => self.host(channel, grant, token),
+            Ok(ToRelay::Provision { ticket, signature, host_token }) => self.provision(channel, &ticket, &signature, &host_token),
             Err(error) => {
                 channel.shutdown();
                 Err(error)
             }
         }
+    }
+
+    /// One reply and the connection is closed: the host then pairs guests over its own
+    /// `Host` connections, as before. Nothing about why a ticket failed is sent back.
+    fn provision(&self, channel: Channel, ticket: &ProvisionTicket, signature: &str, host_token: &str) -> io::Result<()> {
+        let stream = MessageStream::new(channel);
+        if self.relay.provision_ticket(ticket, signature, host_token, unix_time(), Instant::now()).is_err() {
+            return reject(stream);
+        }
+        let sent = stream.send_from_relay(&FromRelay::Provisioned {});
+        stream.shutdown();
+        sent
     }
 
     fn guest(&self, channel: Channel, grant: SignedGrant) -> io::Result<()> {

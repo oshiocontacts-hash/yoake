@@ -75,7 +75,10 @@ HORIZON_RELAY_PORTAL_KEY=<64 lowercase hex characters>
 ```
 
 The certificate and key variables are **file paths**, not inline DER. The portal
-variable is the portal's public grant-verification key in hex, not a file path.
+variable is the portal's public key in hex, not a file path; it verifies both guest
+grants and host provision tickets (the portal never connects to the relay, so
+there is no relay credential for it; see "Session registration" in
+[yoake-social-transport.md](yoake-social-transport.md)).
 The social address is a socket address. `PORT`, `RELAY_BIND`, and the other
 `RELAY_*` variables continue to configure the separate invite relay; see
 [play-with-friends.md](play-with-friends.md).

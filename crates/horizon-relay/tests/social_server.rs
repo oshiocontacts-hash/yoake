@@ -1,5 +1,5 @@
 mod social_support;
-use horizon_friends::{social::FromRelay, social_tls::{ClientChannel, ControlChannel, client_channel}};
+use horizon_friends::{social::{FromRelay, ToRelay}, social_tls::{ClientChannel, ControlChannel, client_channel}};
 use horizon_relay::social_server::SocialServer;
 use rustls::{CertificateError, Error as TlsError};
 use social_support::*;
@@ -321,4 +321,71 @@ fn many_idle_pairs_cost_little_cpu_and_stay_responsive() {
     guest.send_message(b"ping").unwrap();
     assert_eq!(host.recv_message().unwrap(), b"ping");
     assert!(started.elapsed() < Duration::from_secs(1));
+}
+
+#[test]
+fn a_host_opens_its_session_with_a_ticket_and_a_guest_then_bridges_with_a_grant() {
+    let (_server, address, tls) = setup_unprovisioned();
+    // Without a session, a guest grant finds nothing.
+    let grant = signed("session-1", unix_time() + 60, 61);
+    let mut early = guest(address, &tls, &grant);
+    assert_rejected(&mut early);
+
+    let mut control = client(address, &tls);
+    send_to(&mut control, &provision_message("session-1", unix_time() + 60, 1, TOKEN));
+    assert!(matches!(recv_from(&mut control), FromRelay::Provisioned {}));
+    assert_peer_closed(&mut control);
+
+    let (mut guest, mut host) = bridge(address, &tls, &signed("session-1", unix_time() + 60, 62));
+    guest.send_message(b"hello host").unwrap();
+    assert_eq!(host.recv_message().unwrap(), b"hello host");
+    host.send_message(b"hello guest").unwrap();
+    assert_eq!(guest.recv_message().unwrap(), b"hello guest");
+}
+
+#[test]
+fn repeating_a_ticket_is_provisioned_again_and_leaves_the_session_alone() {
+    let (_server, address, tls) = setup_unprovisioned();
+    let message = provision_message("session-1", unix_time() + 60, 2, TOKEN);
+    assert!(matches!(ask(address, &tls, &message), FromRelay::Provisioned {}));
+    let (mut guest, _host) = bridge(address, &tls, &signed("session-1", unix_time() + 60, 63));
+    assert!(matches!(ask(address, &tls, &message), FromRelay::Provisioned {}));
+    // The bridge made before the repeat still works.
+    guest.send_message(b"still here").unwrap();
+}
+
+#[test]
+fn bad_tickets_get_rejected_and_close_the_connection() {
+    let (_server, address, tls) = setup_unprovisioned();
+    let other_token = "cd".repeat(32);
+    let ToRelay::Provision { ticket, signature, host_token } = provision_message("session-1", unix_time() + 60, 3, TOKEN) else { unreachable!() };
+    let wrong_token = ToRelay::Provision { ticket: ticket.clone(), signature: signature.clone(), host_token: other_token };
+    let mut tampered = ticket.clone();
+    tampered.max_connections = 65;
+    let tampered = ToRelay::Provision { ticket: tampered, signature: signature.clone(), host_token: host_token.clone() };
+    let expired = provision_message("session-1", unix_time().saturating_sub(5), 4, TOKEN);
+    let too_far = provision_message("session-1", unix_time() + 400, 5, TOKEN);
+    for message in [wrong_token, tampered, expired, too_far] {
+        let mut channel = client(address, &tls);
+        send_to(&mut channel, &message);
+        assert_rejected(&mut channel);
+        assert_peer_closed(&mut channel);
+    }
+    // None of that opened the session or used the nonces.
+    assert!(matches!(ask(address, &tls, &ToRelay::Provision { ticket, signature, host_token }), FromRelay::Provisioned {}));
+}
+
+#[test]
+fn a_ticket_nonce_works_once_across_sessions_and_unknown_fields_are_refused() {
+    let (_server, address, tls) = setup_unprovisioned();
+    assert!(matches!(ask(address, &tls, &provision_message("session-1", unix_time() + 60, 6, TOKEN)), FromRelay::Provisioned {}));
+    assert!(matches!(ask(address, &tls, &provision_message("session-2", unix_time() + 60, 6, TOKEN)), FromRelay::Rejected {}));
+    // A different token for the open session is refused.
+    assert!(matches!(ask(address, &tls, &provision_message("session-1", unix_time() + 60, 7, &"cd".repeat(32))), FromRelay::Rejected {}));
+    // A ticket with an extra field is not even decoded.
+    let mut text = serde_json::to_string(&provision_message("session-3", unix_time() + 60, 8, TOKEN)).unwrap();
+    text = text.replacen('{', "{\"candidate\":\"192.0.2.1:1\",", 1);
+    let mut channel = client(address, &tls);
+    channel.send_message(text.as_bytes()).unwrap();
+    assert_peer_closed(&mut channel);
 }
