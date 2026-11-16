@@ -73,6 +73,15 @@ jobs:
             echo "fetch $m"; cargo fetch --manifest-path "$m" --target wasm32-wasip2 || cargo fetch --manifest-path "$m" --target wasm32-wasip2 || true
           done
 
+      # The DLL loader tests (horizon-mod-api-gen-tests, dll_loader) load these example DLLs.
+      - name: Build example DLLs
+        if: ${{ runner.os == 'Windows' }}
+        shell: bash
+        run: |
+          if cargo metadata --no-deps --format-version 1 | grep -q '"name":"yoake-dll-hello"'; then
+            cargo build --locked -p yoake-dll-hello -p yoake-dll-net-echo
+          fi
+
       - name: Check
         if: ${{ inputs.check != '' }}
         shell: bash
