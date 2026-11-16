@@ -17,6 +17,7 @@ pub use pipelines::{Binding, RenderDescriptor, VertexAttribute};
 pub struct SubmissionHooks {
     pub before: Arc<dyn Fn(ModId) -> Result<(), String> + Send + Sync>,
     pub complete: Arc<dyn Fn(ModId) + Send + Sync>,
+    pub fault: Arc<dyn Fn(ModId) + Send + Sync>,
 }
 
 type Owned = Arc<Resource<Value>>;
@@ -71,6 +72,7 @@ pub struct Gpu {
     tickets: BTreeMap<ModId, std::collections::BTreeSet<u32>>,
     engine_uniform: Option<wgpu::Buffer>,
     timings: Vec<(ModId, Owned)>,
+    completions: Vec<(ModId, timing::Completion)>,
     budgets: BTreeMap<ModId, timing::Budget>,
     cpu_budgets: BTreeMap<ModId, timing::Budget>,
     timestamps: bool,
@@ -154,7 +156,7 @@ impl Gpu {
         u64::from(self.frame_limits.width)
             .saturating_mul(u64::from(self.frame_limits.height))
             .max(1)
-            .saturating_mul(64)
+            .saturating_mul(1024)
             / self.budget_divisor(owner, timestamps)
     }
 
@@ -226,6 +228,7 @@ impl Gpu {
         self.pending.retain(|command| command.owner != owner);
         self.tickets.remove(&owner);
         self.timings.retain(|(identity, _)| *identity != owner);
+        self.completions.retain(|(identity, _)| *identity != owner);
         self.budgets.remove(&owner);
         self.cpu_budgets.remove(&owner);
         self.disabled.entry(owner).or_insert(reason);
@@ -242,6 +245,7 @@ impl Gpu {
         self.pending.clear();
         self.tickets.clear();
         self.timings.clear();
+        self.completions.clear();
         self.budgets.clear();
         self.cpu_budgets.clear();
         self.resources = Default::default();
@@ -251,12 +255,13 @@ impl Gpu {
         self.recorder.remove_owner(owner);
         self.pending.retain(|command| command.owner != owner);
         self.tickets.remove(&owner);
-        self.timings.retain(|(identity, _)| *identity != owner);
         self.resources.remove_owner(owner);
     }
 
     pub fn remove_owner(&mut self, owner: ModId) {
         self.reset_resources(owner);
+        self.timings.retain(|(identity, _)| *identity != owner);
+        self.completions.retain(|(identity, _)| *identity != owner);
         self.budgets.remove(&owner);
         self.cpu_budgets.remove(&owner);
         self.disabled.remove(&owner);

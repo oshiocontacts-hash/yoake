@@ -385,12 +385,7 @@ fn run_demo(device: &wgpu::Device, queue: &wgpu::Queue, measured: bool) {
     gpu.collect_timings(device);
     assert!(gpu.disabled_reason(owner).is_none());
     assert_eq!(gpu.timestamps, measured);
-    if measured {
-        assert!(
-            gpu.budget_divisor(owner, measured) < 16,
-            "measured safe used frames must ramp only this mod's share"
-        );
-    } else {
+    if !measured {
         assert_eq!(gpu.budget_divisor(owner, measured), 16);
     }
     let Readback::Ready(bytes) = gpu

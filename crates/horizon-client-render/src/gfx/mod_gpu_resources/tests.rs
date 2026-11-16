@@ -480,8 +480,8 @@ fn fragment_budget_counts_primitives_for_every_supported_topology() {
         for (primitives, pixels) in [
             (2048, Some(1)),
             (2049, Some(2)),
-            (8192, Some(4)),
-            (8193, None),
+            (131072, Some(64)),
+            (131073, None),
         ] {
             gpu.begin_frame().unwrap();
             let result = gpu.draw(
@@ -494,7 +494,7 @@ fn fragment_budget_counts_primitives_for_every_supported_topology() {
                 result.unwrap();
                 gpu.finish_frame().unwrap();
                 assert!(
-                    matches!(gpu.pending[0].kind, crate::gfx::mod_gpu::CommandKind::Render { pixels, .. } if pixels == expected)
+                    matches!(gpu.pending[0].kind, crate::gfx::mod_gpu::CommandKind::Render { fragment_work, .. } if fragment_work.div_ceil(2048) == expected)
                 );
             } else {
                 assert_eq!(result, Err(Error::Pixels));
@@ -504,6 +504,54 @@ fn fragment_budget_counts_primitives_for_every_supported_topology() {
         }
         assert!(gpu.disabled_reason(owner).is_none());
     }
+}
+
+#[test]
+fn frame_fragment_budget_rounds_once_across_small_mesh_draws() {
+    let (device, _queue) = gpu();
+    let mut gpu = Gpu::default();
+    let owner = ModId(16);
+    gpu.configure_frame(
+        1280,
+        720,
+        Some(Format::Rgba8Unorm),
+        Some(Format::Rgba8Unorm),
+    );
+    let pipeline = render_pipeline(
+        &mut gpu,
+        &device,
+        owner,
+        wgpu::PrimitiveTopology::TriangleList,
+    );
+    gpu.begin_frame().unwrap();
+    for _ in 0..200 {
+        gpu.draw(owner, Stage::Hud, draw(pipeline, 500 * 3), Target::Frame)
+            .unwrap();
+    }
+    gpu.finish_frame().unwrap();
+    assert_eq!(gpu.pending.len(), 200);
+    let fragment_work: u64 = gpu
+        .pending
+        .iter()
+        .map(|command| match command.kind {
+            crate::gfx::mod_gpu::CommandKind::Render { fragment_work, .. } => fragment_work,
+            _ => panic!("expected mesh draws"),
+        })
+        .sum();
+    assert_eq!(
+        fragment_work.div_ceil(2048),
+        (1280_u64 * 720 * 100_000).div_ceil(2048)
+    );
+    gpu.begin_frame().unwrap();
+    assert_eq!(
+        (0..500).try_for_each(|_| {
+            gpu.draw(owner, Stage::Hud, draw(pipeline, 2000 * 3), Target::Frame)
+        }),
+        Err(Error::Pixels)
+    );
+    gpu.finish_frame().unwrap();
+    assert!(gpu.pending.len() < 500);
+    assert!(gpu.disabled_reason(owner).is_none());
 }
 
 #[test]

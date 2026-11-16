@@ -272,6 +272,16 @@ impl Recovery {
         self.save();
     }
 
+    fn fault(&mut self, owner: ModId) {
+        if let Some(identity) = self.owners.get(&owner) {
+            self.blocked.insert(identity.clone());
+            if let Some(package) = self.packages.get_mut(identity) {
+                package.quarantine();
+            }
+        }
+        self.save();
+    }
+
     fn clean_exit(&mut self) {
         if self.finished {
             return;
@@ -454,12 +464,20 @@ pub(super) fn install(gpu: &mut Gpu, lost: Arc<AtomicBool>) {
         }
     }
     let before = recovery.clone();
+    let fault = recovery.clone();
     gpu.set_submission_hooks(super::super::mod_gpu_resources::SubmissionHooks {
         before: Arc::new(move |owner| {
             before
                 .lock()
                 .map_err(|_| "GPU recovery lock unavailable".to_owned())?
                 .before(owner)
+        }),
+        fault: Arc::new(move |owner| {
+            if let Ok(mut state) = fault.lock() {
+                state.fault(owner);
+            } else {
+                log::warn!("WASM GPU fault marker could not be saved: recovery lock unavailable");
+            }
         }),
         complete: Arc::new(move |owner| {
             if lost.load(Ordering::Acquire) {
@@ -665,6 +683,48 @@ mod tests {
                 1
             );
         }
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn measured_gpu_faults_quarantine_completed_work_and_preserve_repeat_history() {
+        let path = marker();
+        let mut state = Recovery::open(path.clone()).unwrap();
+        state
+            .register_package(ModId(1), "particles", "v1:hash1")
+            .unwrap();
+        state.register_package(ModId(2), "hud", "v1:hash2").unwrap();
+        state.before(ModId(1)).unwrap();
+        state.complete(ModId(1)).unwrap();
+        assert!(state.inflight.is_empty());
+        state.fault(ModId(1));
+        state.fault(ModId(1));
+        assert_eq!(state.packages["particles"].quarantines["v1:hash1"], 1);
+        assert!(state.before(ModId(1)).is_err());
+        state.before(ModId(2)).unwrap();
+        state.complete(ModId(2)).unwrap();
+        state
+            .register_package(ModId(1), "particles", "v2:hash2")
+            .unwrap();
+        state
+            .register_package(ModId(1), "particles", "v1:hash1")
+            .unwrap();
+        state.before(ModId(1)).unwrap();
+        state.complete(ModId(1)).unwrap();
+        state.fault(ModId(1));
+        state.clean_exit();
+        let mut restarted = Recovery::open(path.clone()).unwrap();
+        assert_eq!(restarted.packages["particles"].quarantines["v1:hash1"], 2);
+        assert!(
+            restarted
+                .register_package(ModId(99), "particles", "v2:hash2")
+                .is_err()
+        );
+        assert!(restarted.before(ModId(99)).is_err());
+        assert_eq!(restarted.reenable("particles").unwrap(), vec![ModId(99)]);
+        restarted.before(ModId(99)).unwrap();
+        restarted.complete(ModId(99)).unwrap();
+        restarted.clean_exit();
         fs::remove_file(path).unwrap();
     }
 

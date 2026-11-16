@@ -370,7 +370,7 @@ pub enum CommandKind {
     Render {
         count: u32,
         instances: u32,
-        pixels: u64,
+        fragment_work: u64,
         pixel_limit: u64,
         vertex_limit: u64,
         new_pass: bool,
@@ -393,7 +393,7 @@ struct FrameUsage {
     workgroups: u64,
     uploaded: u64,
     copied: u64,
-    pixels: u64,
+    fragment_work: u64,
     passes: u32,
     read: u64,
     commands: u32,
@@ -416,15 +416,18 @@ impl FrameUsage {
                     .checked_add(u64::from(count) * u64::from(instances))
                     .ok_or(Error::Vertices)?;
                 if let CommandKind::Render {
-                    pixels,
+                    fragment_work,
                     pixel_limit,
                     vertex_limit,
                     new_pass,
                     ..
                 } = kind
                 {
-                    next.pixels = next.pixels.checked_add(pixels).ok_or(Error::Pixels)?;
-                    if next.pixels > pixel_limit {
+                    next.fragment_work = next
+                        .fragment_work
+                        .checked_add(fragment_work)
+                        .ok_or(Error::Pixels)?;
+                    if next.fragment_work.div_ceil(2048) > pixel_limit {
                         return Err(Error::Pixels);
                     }
                     next.passes += u32::from(new_pass);

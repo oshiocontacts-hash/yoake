@@ -220,6 +220,12 @@ mod tests {
     #[test]
     fn unavailable_scene_reads_skip_without_disabling_other_work() {
         let (device, queue) = super::super::tests::gpu();
+        for case in 0..4 {
+            unavailable_scene_read_case(&device, &queue, case);
+        }
+    }
+
+    fn unavailable_scene_read_case(device: &wgpu::Device, queue: &wgpu::Queue, case: usize) {
         let mut gpu = Gpu::default();
         let owner = ModId(42);
         let output = gpu
@@ -315,40 +321,39 @@ mod tests {
         let missing = sources(None);
         let uncopyable = sources(Some(&uncopyable));
         let copyable = sources(Some(&copyable));
-        for (index, (sources, expected_scene)) in [
+        let (sources, expected_scene) = [
             (None, 0),
             (Some(&missing), 0),
             (Some(&uncopyable), 0),
             (Some(&copyable), 255),
         ]
         .into_iter()
-        .enumerate()
-        {
-            gpu.collect_timings(&device);
-            gpu.begin_frame().unwrap();
-            for (pipeline, group) in [scene_pipeline, plain_pipeline].into_iter().zip(&groups) {
-                gpu.dispatch(owner, Stage::AfterWorld, pipeline, &[*group], [1; 3])
-                    .unwrap();
-            }
-            let ticket = gpu
-                .read_buffer(&device, owner, Stage::AfterWorld, output, 0, 8)
+        .nth(case)
+        .unwrap();
+        gpu.collect_timings(&device);
+        gpu.begin_frame().unwrap();
+        for (pipeline, group) in [scene_pipeline, plain_pipeline].into_iter().zip(&groups) {
+            gpu.dispatch(owner, Stage::AfterWorld, pipeline, &[*group], [1; 3])
                 .unwrap();
-            gpu.finish_frame().unwrap();
-            assert!(gpu.reads_scene());
-            assert!(
-                gpu.submit_stage_with_engine(&device, &queue, Stage::AfterWorld, None, sources,)
-                    .is_empty()
-            );
-            assert!(gpu.disabled_reason(owner).is_none());
-            device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
-            let Readback::Ready(bytes) = gpu.poll_readback(&device, owner, ticket).unwrap() else {
-                panic!("readback remained pending");
-            };
-            assert_eq!(
-                bytemuck::cast_slice::<u8, u32>(&bytes),
-                &[expected_scene, index as u32 + 1]
-            );
         }
+        let ticket = gpu
+            .read_buffer(&device, owner, Stage::AfterWorld, output, 0, 8)
+            .unwrap();
+        gpu.finish_frame().unwrap();
+        assert!(gpu.reads_scene());
+        assert!(
+            gpu.submit_stage_with_engine(&device, &queue, Stage::AfterWorld, None, sources,)
+                .is_empty()
+        );
+        assert!(gpu.disabled_reason(owner).is_none());
+        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+        let Readback::Ready(bytes) = gpu.poll_readback(&device, owner, ticket).unwrap() else {
+            panic!("readback remained pending");
+        };
+        assert_eq!(
+            bytemuck::cast_slice::<u8, u32>(&bytes),
+            &[expected_scene, 1]
+        );
     }
 
     #[test]

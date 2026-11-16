@@ -632,9 +632,10 @@ impl Gpu {
             wgpu::PrimitiveTopology::TriangleStrip => draw.count.saturating_sub(2),
         };
         let total_primitives = u64::from(primitives).saturating_mul(u64::from(draw.instances));
-        let pixels = viewport
+        let fragment_work = viewport
             .covered_pixels(scissor)
-            .saturating_mul(total_primitives.div_ceil(2048));
+            .checked_mul(total_primitives)
+            .ok_or(Error::Pixels)?;
         let pixel_limit = self.pixel_limit(owner, self.timestamps);
         let vertex_limit = self.vertex_limit(owner, self.timestamps);
         let new_pass = !self.recorder.previous(owner, stage).is_some_and(|command| {
@@ -647,7 +648,7 @@ impl Gpu {
             CommandKind::Render {
                 count: draw.count,
                 instances: draw.instances,
-                pixels,
+                fragment_work,
                 pixel_limit,
                 vertex_limit,
                 new_pass,
@@ -802,6 +803,9 @@ impl Gpu {
         }
         let mut snapshots = super::engine::Snapshots::default();
         for (owner, batch) in batches {
+            if !self.submission_ready(owner) {
+                continue;
+            }
             snapshots.groups.clear();
             let started = Instant::now();
             let mut submitted = false;
@@ -870,7 +874,13 @@ impl Gpu {
                 if let Some(hooks) = &self.submission_hooks {
                     (hooks.before)(owner).map_err(Error::Host)?;
                 }
+                let completion = self.submission_started(owner, ticket.is_none());
                 queue.submit([command_buffer]);
+                queue.on_submitted_work_done(move || {
+                    if let Ok(mut finished) = completion.lock() {
+                        *finished = Some(Instant::now());
+                    }
+                });
                 submitted = true;
                 retained_timing = timing.clone();
                 if let Some(ticket) = ticket {

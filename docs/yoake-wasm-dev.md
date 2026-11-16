@@ -334,13 +334,15 @@ source and staging storage remain charged while pending. Upload budgets are chec
 allocating staging buffers or padded texture data.
 
 Static safety caps reject clearly excessive work rather than charging every triangle as a
-full-screen draw. The full per-mod/frame caps are 64 screens of estimated fragment work and
+full-screen draw. The full per-mod/frame caps are 1,024 screens of estimated fragment work and
 2^24 vertices multiplied by instances. Fragment work is the viewport/scissor intersection's
-covered pixels multiplied by `ceil(total_primitives / 2048)`, where the topology determines
-the primitive count and `total_primitives` includes all instances. This assumes meshes have
-an overdraw depth of 2,048 primitives, rather than charging a whole viewport per instance.
-`draw_region` narrows that rectangle, while `draw` uses the whole target. Compute charges total invocations multiplied by the shader's static
-instruction, texture and loop cost, with a 64 Mi-unit cap. Its allowance always admits at
+covered pixels multiplied by the primitive count, accumulated across all draws of a mod/frame,
+then divided by 2,048 once, rounding up at the end. Topology determines the primitive count,
+including all instances. This assumes meshes have an overdraw depth of 2,048 primitives,
+rather than charging a whole viewport or a separate rounding penalty per draw or instance.
+`draw_region` narrows that rectangle, while `draw` uses the whole target. Compute charges total
+invocations multiplied by the shader's static instruction, texture and loop cost, with a
+64 Mi-unit cap. Its allowance always admits at
 least one maximum-size workgroup (256 invocations at the maximum static cost of 8,192).
 Consecutive draws to the same target share a render pass, with at most 64 passes per mod/frame.
 Shader and pipeline creation attempts remain limited to two per frame and eight per minute,
@@ -363,15 +365,22 @@ storage and function locals.
 Workgroup-size overrides, barriers, subgroup/ray operations and workgroup storage are rejected.
 Only the validated, rewritten Naga module is compiled; robustness checks are not relaxed.
 
-On adapters supporting `TIMESTAMP_QUERY`, measured GPU time is the main per-mod budget:
+Measured GPU time is the main per-mod budget on every adapter. With `TIMESTAMP_QUERY`, the host
+uses pass timestamps. Without it, each mod's command batch is submitted separately and timed
+from its submission to `on_submitted_work_done`. This fallback is a conservative completion
+latency, not isolated GPU execution time: earlier queued engine work and delayed callback
+delivery can increase the charge. Both measurements enforce the same rules:
 at most 4 ms per frame averaged over a rolling two-second window. Three frames over 50 ms
 within 60 seconds suspend that owner's GPU API without suspending its other services; older
-strikes expire. New mods start at one sixteenth of the static caps, then eight distinct safe
-measured frames allow each doubling up to the full caps. Each qualifying frame must use at
-least one quarter of its current fragment, vertex-instance or compute allowance, aggregated
+strikes expire. Each peak immediately pauses new submissions for at least 50 ms. A mod cannot
+submit a newer frame until its outstanding older frame completes and its measurements are
+collected, so a slow mod cannot queue an unbounded backlog ahead of enforcement.
+New mods start at one sixteenth of the static caps, then eight distinct safe measured frames
+allow each doubling up to the full caps. Each qualifying frame must measure at least 0.25 ms
+and use at least one quarter of its current fragment, vertex-instance or compute allowance, aggregated
 across all measured stages. The ramp is per mod, not per pipeline, and slow frames reset it;
-idle, skipped and underused frames do not grow it. The initial one-sixteenth allowance is
-four screens, 2^20 vertex-instances and 4 Mi compute-cost units, with the same minimum workgroup
+idle, zero-cost, skipped, unmeasured and underused frames do not grow it. The initial one-sixteenth
+allowance is 64 screens, 2^20 vertex-instances and 4 Mi compute-cost units, with the same minimum workgroup
 allowance. Without timestamps, each mod permanently receives that initial allowance.
 There is no CPU-timing-based GPU ramp on those adapters.
 
@@ -385,6 +394,16 @@ Suspension survives renderer recreation. The engine's default uncaptured-error h
 unchanged; mod resource creation errors are captured in mod scopes. These limits reduce risk,
 but actual driver/TDR behavior still needs platform tests.
 
+Accepted residual risk: a static estimate cannot both admit large meshes and reject every
+pathological shader workload. On adapters with or without timestamps, a hostile mod can cause
+one very slow submitted frame before its completion is observed; it is then throttled, not
+allowed an unlimited stream of unchecked frames. The third peak strike, or a sustained average
+violation, disables GPU work and quarantines the package fingerprint. A repeated fault for the
+same fingerprint requires explicit owner re-enable, even after a package change. Already
+submitted work cannot be preempted: one frame may include several stage batches, and its
+duration has no hard upper bound. These controls do not guarantee immunity to a driver hang
+or OS TDR before completion. A device loss or abnormal exit uses the recovery marker below.
+
 Before GPU submission, the host persists registered owner identities in
 `<HORIZON_HOME>/state/wasm-gpu-inflight.json` only when the identity set changes, without fsync on
 the frame path. An identity remains while work is outstanding, then for 120 idle frames (or until
@@ -394,8 +413,10 @@ the recovery file, including across renderer recreation. The next start quaranti
 identities and logs the marker path. Malformed recovery state fails closed. Abnormal
 termination can also leave a marker: it is **not proof** that a listed mod caused a driver fault.
 Quarantine does not expire through clean launches in which the blocked mod cannot run GPU work.
-Fault counts persist per package-version/module-SHA-256 fingerprint, including across package
-changes and explicit re-enables. After a fingerprint's first fault, changing the package can
+Measured-budget suspension also immediately quarantines its registered owner, even when its
+submission has already completed. Fault counts persist per package-version/module-SHA-256
+fingerprint, including across package changes and explicit re-enables. After a fingerprint's first
+fault, changing the package can
 automatically clear quarantine. After its second fault, only an explicit owner action can clear
 quarantine, even if the package changes. Repeated observations of the same outstanding fault
 do not increment its count.
