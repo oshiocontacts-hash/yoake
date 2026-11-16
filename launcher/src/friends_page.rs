@@ -513,6 +513,10 @@ impl Friends {
                     .is_some_and(|at| at <= now_unix());
                 if self.list_shows_own || expired {
                     self.my_room = None;
+                    // The room is gone: its driver goes with it (dropping the handle ends it,
+                    // and it deletes the room if the portal still has it).
+                    self.host = None;
+                    self.accepted.clear();
                 }
             }
         }
@@ -1226,14 +1230,20 @@ impl Launcher {
 
     /// Closing the room tells the game first (`end` on its stdin), then the portal.
     pub(super) fn friends_close_room(&mut self, session_id: String) {
+        // The same close is not sent twice: the driver is kept for the one in flight.
+        if self.friends.in_flight.contains(&FriendAction::CloseRoom) {
+            return;
+        }
         let host = self.friends.host.take();
         self.friends.accepted.clear();
         self.friends_act(FriendAction::CloseRoom, move |api| {
-            match host.and_then(|host| host.close()) {
+            // The driver closes it (`end`, then DELETE); with no driver, or one that does not
+            // answer in time, the portal is asked directly. A room closed already is closed.
+            let result = match host.and_then(|host| host.close()) {
                 Some(result) => result,
                 None => api.close_room(&session_id),
-            }
-            .map(|()| Outcome::Done)
+            };
+            social::host::closed_ok(result).map(|()| Outcome::Done)
         });
     }
 
@@ -1821,6 +1831,38 @@ mod tests {
         let mut page = Friends::with_backend(Arc::new(MockSocial::blank()));
         read_all(&mut page, api);
         page
+    }
+
+    #[test]
+    fn a_room_that_leaves_the_list_takes_the_host_driver_with_it() {
+        let mock = Arc::new(MockSocial::blank());
+        let room = mock.create_room(&Audience::Friends, None).unwrap();
+        let mut page = Friends::with_backend(mock.clone());
+        page.my_room = Some(MyRoom {
+            session_id: room.session_id.clone(),
+            audience: Audience::Friends,
+            name: None,
+            opened_at: now_unix(),
+            expires_at: Some(room.expires_at),
+        });
+        page.list_shows_own = true;
+        page.accepted.push("Mika".into());
+        let host = social::host::Host::new(
+            mock.clone(),
+            room.session_id.clone(),
+            std::io::sink(),
+            room.expires_at,
+            now_unix(),
+        );
+        page.host = Some(social::host::spawn(host, |_| {}));
+        page.take_rooms(Vec::new());
+        assert!(page.my_room.is_none() && page.host.is_none() && page.accepted.is_empty());
+        // The driver is dropped with the handle, and deletes the room.
+        let until = Instant::now() + Duration::from_secs(10);
+        while !mock.rooms().unwrap().is_empty() && Instant::now() < until {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        assert!(mock.rooms().unwrap().is_empty());
     }
 
     #[test]

@@ -186,7 +186,16 @@ pub struct Grant(Value);
 
 /// Whether `text` is a grant nonce: 64 lowercase hex digits.
 pub fn is_nonce(text: &str) -> bool {
-    text.len() == 64 && text.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+    is_lower_hex(text, 64)
+}
+
+/// Whether `text` is a grant's signature: 128 lowercase hex digits (an Ed25519 signature).
+pub fn is_signature(text: &str) -> bool {
+    is_lower_hex(text, 128)
+}
+
+fn is_lower_hex(text: &str, length: usize) -> bool {
+    text.len() == length && text.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
 impl Grant {

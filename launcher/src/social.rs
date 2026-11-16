@@ -1061,6 +1061,38 @@ mod tests {
     }
 
     #[test]
+    fn the_pending_and_ack_calls_are_the_portals() {
+        let nonce = "a".repeat(64);
+        let script = Script::new(vec![
+            ok(json!({ "joins": [
+                { "grant": { "nonce": nonce, "session_id": "s1" }, "signature": "ab".repeat(64),
+                  "guest": { "principal": "g", "name": "Mika" }, "expires_at": 5, "new": 1 },
+                { "grant": { "nonce": "short" }, "signature": "s",
+                  "guest": { "principal": "g", "name": "Bad" }, "expires_at": 5 }
+            ] })),
+            Ok(Reply { status: 204, body: Value::Null }),
+            Ok(Reply { status: 404, body: json!({ "error": { "code": "NOT_FOUND" } }) }),
+            Ok(Reply { status: 404, body: json!({ "error": { "code": "NOT_FOUND" } }) }),
+            Ok(Reply { status: 401, body: json!({ "error": { "code": "UNAUTHENTICATED" } }) }),
+        ]);
+        let api = HttpSocial::new(&script);
+        let joins = api.pending_joins("s1").unwrap();
+        // The one with a nonce that is not 64 lowercase hex digits is left out.
+        assert_eq!(joins.len(), 1);
+        assert_eq!(joins[0].guest.name, "Mika");
+        api.ack_joins("s1", &[nonce.clone()]).unwrap();
+        assert_eq!(api.pending_joins("gone").err(), Some(SocialError::Api(ApiCode::NotFound)));
+        assert_eq!(api.ack_joins("gone", &[]).err(), Some(SocialError::Api(ApiCode::NotFound)));
+        assert_eq!(api.pending_joins("s1").err(), Some(SocialError::SignedOut));
+        let calls = script.calls.lock().unwrap();
+        assert_eq!((calls[0].0, calls[0].1.join("/"), calls[0].2.clone()), (Method::Get, "sessions/s1/pending".into(), None));
+        assert_eq!(
+            (calls[1].0, calls[1].1.join("/"), calls[1].2.clone()),
+            (Method::Post, "sessions/s1/pending/ack".into(), Some(json!({ "nonces": [nonce] })))
+        );
+    }
+
+    #[test]
     fn room_answers_that_are_not_the_apis_are_invalid_and_ids_stay_in_the_path() {
         let script = Script::new(vec![
             ok(json!({ "session_id": "s1" })),

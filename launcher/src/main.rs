@@ -6070,6 +6070,8 @@ actions!(horizon_launcher, [Quit, CloseWindow]);
 /// What closing the last window does: stop the servers this launcher started, send the telemetry,
 /// exit. A game that is running keeps running. Cmd+Q goes through here too.
 fn shut_down(cx: &mut App) {
+    // A room the player hosts is closed first (the game is told, then the portal).
+    social::host::close_on_quit();
     servers_page::stop_on_quit();
     telemetry::send_before_exit();
     cx.quit()
