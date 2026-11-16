@@ -267,7 +267,7 @@ fn pending_reverse_message_prevents_borrowing_its_unused_share() {
 }
 
 #[test]
-fn unfunded_reverse_message_does_not_reserve_its_remaining_tokens() {
+fn unpaid_unfunded_reverse_message_preserves_its_remaining_tokens() {
     let (relay, now) = setup(1, Duration::from_secs(30), 4 * BURST, 2 * BURST as u64);
     let mut bridge = Bridge::new(&relay, 1, now);
     bridge.queue(Direction::HostToGuest, &vec![1; BURST], 1);
@@ -291,8 +291,115 @@ fn unfunded_reverse_message_does_not_reserve_its_remaining_tokens() {
     );
     assert_eq!(
         bridge.poll(Direction::GuestToHost, now),
+        ForwardProgress::Blocked
+    );
+    let refilled = now + Duration::from_secs(1);
+    assert_eq!(
+        bridge.poll(Direction::HostToGuest, refilled),
+        ForwardProgress::Transferred(BURST)
+    );
+    assert_eq!(
+        bridge.poll(Direction::GuestToHost, refilled),
         ForwardProgress::Transferred(100)
     );
+}
+
+#[test]
+fn large_reverse_messages_pass_a_sustained_small_message_flood() {
+    for flooded in [Direction::GuestToHost, Direction::HostToGuest] {
+        let (relay, now) = setup(1, Duration::from_secs(30), 4 * BURST, 256 * 1024);
+        let mut bridge = Bridge::new(&relay, 1, now);
+        let reverse = opposite(flooded);
+        for direction in [flooded, reverse] {
+            bridge.queue(direction, &vec![1; BURST], 2);
+        }
+        for _ in 0..2 {
+            for direction in [flooded, reverse] {
+                assert_eq!(bridge.poll(direction, now), ForwardProgress::Transferred(BURST));
+            }
+        }
+        bridge.queue(flooded, &[2; 1024], 1024);
+        bridge.queue(reverse, &vec![3; BURST], 8);
+        let mut delivered = 0;
+        let mut last_delivery_ms = 0;
+        let mut flooded_bytes = 0;
+        for elapsed_ms in 0..=2000 {
+            let tick = now + Duration::from_millis(elapsed_ms);
+            while let ForwardProgress::Transferred(count) = bridge.poll(flooded, tick) {
+                flooded_bytes += count;
+            }
+            if bridge.poll(reverse, tick) == ForwardProgress::Transferred(BURST) {
+                assert!(elapsed_ms - last_delivery_ms <= 150);
+                last_delivery_ms = elapsed_ms;
+                delivered += 1;
+            }
+        }
+        assert_eq!(delivered, 8);
+        assert!(flooded_bytes >= 256 * 1024);
+        let expected: Vec<_> = std::iter::repeat_n(vec![1; BURST], 2)
+            .chain(std::iter::repeat_n(vec![3; BURST], 8)).collect();
+        assert_eq!(bridge.received(reverse), expected);
+    }
+}
+
+#[test]
+fn large_under_share_pair_passes_a_small_message_flood_within_one_second() {
+    for rate in [1_000_000, 256 * 1024] {
+        let burst = 65_536;
+        let (relay, now) = setup(2, Duration::from_secs(30), burst, rate);
+        let mut flooded = Bridge::new(&relay, 1, now);
+        let mut waiting = Bridge::new(&relay, 2, now);
+        flooded.queue(Direction::GuestToHost, &[1; 1024], 4096);
+        waiting.queue(Direction::HostToGuest, &vec![2; BURST], 8);
+        let mut total_bytes = 0;
+        while let ForwardProgress::Transferred(count) = flooded.poll(Direction::GuestToHost, now) {
+            total_bytes += count;
+        }
+        assert_eq!(total_bytes, burst);
+        assert_eq!(waiting.poll(Direction::HostToGuest, now), ForwardProgress::Blocked);
+        let mut delivered = 0;
+        let mut last_delivery_ms = 0;
+        let mut flooded_bytes = 0;
+        for elapsed_ms in 1..=2000 {
+            let tick = now + Duration::from_millis(elapsed_ms);
+            while let ForwardProgress::Transferred(count) = flooded.poll(Direction::GuestToHost, tick) {
+                total_bytes += count;
+                flooded_bytes += count;
+            }
+            if waiting.poll(Direction::HostToGuest, tick) == ForwardProgress::Transferred(BURST) {
+                assert!(elapsed_ms - last_delivery_ms <= 1000);
+                last_delivery_ms = elapsed_ms;
+                total_bytes += BURST;
+                delivered += 1;
+            }
+            assert!(total_bytes as u64 <= burst as u64 + rate * elapsed_ms / 1000);
+        }
+        assert_eq!(delivered, 8);
+        assert!(flooded_bytes >= rate as usize);
+        assert_eq!(waiting.received(Direction::HostToGuest), vec![vec![2; BURST]; 8]);
+    }
+}
+
+#[test]
+fn stopped_waiter_reservation_expires_without_an_inter_pair_turn() {
+    let (relay, now) = setup(2, Duration::from_secs(30), 4 * BURST, 256 * 1024);
+    let mut flooded = Bridge::new(&relay, 1, now);
+    let mut stopped = Bridge::new(&relay, 2, now);
+    flooded.queue(Direction::GuestToHost, &[1; 1024], 256);
+    stopped.queue(Direction::HostToGuest, &vec![2; BURST], 1);
+    while flooded.poll(Direction::GuestToHost, now) == ForwardProgress::Transferred(1024) {}
+    assert_eq!(stopped.poll(Direction::HostToGuest, now), ForwardProgress::Blocked);
+    for elapsed_ms in 1..100 {
+        let tick = now + Duration::from_millis(elapsed_ms);
+        while flooded.poll(Direction::GuestToHost, tick) == ForwardProgress::Transferred(1024) {}
+    }
+    let mut released = 0;
+    let expired = now + Duration::from_millis(100);
+    while let ForwardProgress::Transferred(count) = flooded.poll(Direction::GuestToHost, expired) {
+        released += count;
+    }
+    assert!(released >= BURST);
+    assert!(stopped.received(Direction::HostToGuest).is_empty());
 }
 
 #[test]
@@ -338,7 +445,7 @@ fn contention_yield_uses_recent_usage_without_blocking_a_full_bucket() {
         busy.poll(Direction::HostToGuest, now),
         ForwardProgress::Blocked
     );
-    assert!(busy.pair.take_contention_yield());
+    assert!(!busy.pair.take_contention_yield());
     assert_eq!(
         quiet.poll(Direction::HostToGuest, now),
         ForwardProgress::Blocked
@@ -348,6 +455,11 @@ fn contention_yield_uses_recent_usage_without_blocking_a_full_bucket() {
         quiet.poll(Direction::HostToGuest, now + Duration::from_millis(10)),
         ForwardProgress::Transferred(100)
     );
+    assert_eq!(
+        busy.poll(Direction::HostToGuest, now + Duration::from_millis(10)),
+        ForwardProgress::Blocked
+    );
+    assert!(busy.pair.take_contention_yield());
     assert_eq!(
         busy.poll(Direction::HostToGuest, now + Duration::from_secs(1)),
         ForwardProgress::Blocked
@@ -362,7 +474,7 @@ fn contention_yield_uses_recent_usage_without_blocking_a_full_bucket() {
         busy.poll(Direction::HostToGuest, refilled),
         ForwardProgress::Blocked
     );
-    assert!(busy.pair.take_contention_yield());
+    assert!(!busy.pair.take_contention_yield());
     assert_eq!(
         busy.poll(Direction::HostToGuest, refilled + Duration::from_secs(1)),
         ForwardProgress::Transferred(BURST)

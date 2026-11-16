@@ -29,6 +29,33 @@ const PUBLIC: &str = "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f7
 const SESSION: &str = "session-client-test";
 const PRINCIPAL: &str = "member:private-test-host";
 
+#[test]
+fn forwarding_alternates_the_first_direction_after_each_nap() {
+    let mut schedule = ForwardSchedule::new();
+    let mut first = Direction::GuestToHost;
+    for milliseconds in [1, 2, 4, 8, 16, 16] {
+        assert_eq!(schedule.directions(), [first, first.opposite()]);
+        assert_eq!(schedule.pause(false, false), Some(Duration::from_millis(milliseconds)));
+        first = first.opposite();
+    }
+    assert_eq!(schedule.directions(), [first, first.opposite()]);
+    assert_eq!(schedule.pause(false, true), Some(MAX_IDLE_NAP));
+    assert_eq!(schedule.directions(), [first.opposite(), first]);
+}
+
+#[test]
+fn reverse_progress_prevents_the_saturated_direction_contention_nap() {
+    for progressed in [Direction::GuestToHost, Direction::HostToGuest] {
+        let mut schedule = ForwardSchedule::new();
+        assert_eq!(schedule.pause(false, true), Some(MAX_IDLE_NAP));
+        let directions = schedule.directions();
+        let active = directions.into_iter().any(|direction| direction == progressed);
+        assert_eq!(schedule.pause(active, true), None);
+        assert_eq!(schedule.directions(), directions);
+        assert_eq!(schedule.pause(false, false), Some(Duration::from_millis(1)));
+    }
+}
+
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }

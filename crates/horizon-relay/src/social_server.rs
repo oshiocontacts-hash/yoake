@@ -266,10 +266,42 @@ impl Drop for LiveGuard {
     fn drop(&mut self) { self.0.fetch_sub(1, Ordering::AcqRel); }
 }
 
+struct ForwardSchedule {
+    first: Direction,
+    nap: Duration,
+}
+
+impl ForwardSchedule {
+    fn new() -> Self {
+        Self { first: Direction::GuestToHost, nap: Duration::from_millis(1) }
+    }
+
+    fn directions(&self) -> [Direction; 2] {
+        [self.first, self.first.opposite()]
+    }
+
+    fn pause(&mut self, active: bool, contention: bool) -> Option<Duration> {
+        if active {
+            self.nap = Duration::from_millis(1);
+            return None;
+        }
+        let pause = if contention {
+            self.nap = Duration::from_millis(1);
+            MAX_IDLE_NAP
+        } else {
+            let pause = self.nap;
+            self.nap = (self.nap * 2).min(MAX_IDLE_NAP);
+            pause
+        };
+        self.first = self.first.opposite();
+        Some(pause)
+    }
+}
+
 /// Ends when either side closes or fails, or the slot expires. When both directions are
 /// idle it backs off; an over-share bridge also backs off on session budget contention.
 fn forward(pair: &mut PairedConnection<MessageStream, MessageStream>, ticks: &AtomicU64, relay: &SocialRelay) {
-    let mut nap = Duration::from_millis(1);
+    let mut schedule = ForwardSchedule::new();
     let mut last_sweep = Instant::now();
     loop {
         ticks.fetch_add(1, Ordering::Relaxed);
@@ -279,21 +311,15 @@ fn forward(pair: &mut PairedConnection<MessageStream, MessageStream>, ticks: &At
             last_sweep = Instant::now();
         }
         let mut active = false;
-        for direction in [Direction::GuestToHost, Direction::HostToGuest] {
+        for direction in schedule.directions() {
             match pair.forward_once(direction, Instant::now()) {
                 Ok(ForwardProgress::Transferred(_)) => active = true,
                 Ok(ForwardProgress::Blocked) => {}
                 Err(_) => return,
             }
         }
-        if pair.take_contention_yield() {
-            std::thread::sleep(MAX_IDLE_NAP);
-            nap = Duration::from_millis(1);
-        } else if active {
-            nap = Duration::from_millis(1);
-        } else {
-            std::thread::sleep(nap);
-            nap = (nap * 2).min(MAX_IDLE_NAP);
+        if let Some(pause) = schedule.pause(active, pair.take_contention_yield()) {
+            std::thread::sleep(pause);
         }
     }
 }

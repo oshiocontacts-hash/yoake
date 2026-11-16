@@ -7,7 +7,7 @@ use std::time::Instant;
 
 use horizon_friends::social::VerifiedGrant;
 
-use super::{RelayError, SessionLimits, SocialRelay, release_slot};
+use super::{BandwidthReservation, RESERVATION_LIFETIME, RelayError, SessionLimits, SocialRelay, release_slot};
 
 const BUFFER_BYTES: usize = horizon_friends::social_tls::MAX_MESSAGE_SIZE;
 
@@ -54,6 +54,10 @@ impl Direction {
     fn index(self) -> usize {
         match self { Self::GuestToHost => 0, Self::HostToGuest => 1 }
     }
+
+    pub(crate) fn opposite(self) -> Self {
+        match self { Self::GuestToHost => Self::HostToGuest, Self::HostToGuest => Self::GuestToHost }
+    }
 }
 
 pub(super) struct PairBandwidth {
@@ -83,7 +87,7 @@ impl PairBandwidth {
         let index = direction.index();
         let other = 1 - index;
         let Some(need) = self.pending[index].filter(|need| *need > 0) else { return false; };
-        let waiting = self.pending[other].is_some_and(|need| need > 0 && self.tokens[other] >= need as f64);
+        let waiting = self.pending[other].is_some_and(|need| need > 0);
         let borrowed = if waiting { 0.0 } else { self.tokens[other] };
         self.tokens[index] + borrowed >= need as f64
     }
@@ -154,19 +158,39 @@ impl<GUEST: Read + Write, HOST: Read + Write> PairedConnection<GUEST, HOST> {
         session.tokens = (session.tokens + elapsed.as_secs_f64() * session.limits.bytes_per_second as f64)
             .min(session.limits.burst_bytes as f64);
         session.last_refill = now.max(session.last_refill);
-        let bandwidth = &mut session.slots.get_mut(&nonce).unwrap().bandwidth;
+        let slot = session.slots.get_mut(&nonce);
+        debug_assert!(slot.is_some());
+        let slot = slot.ok_or_else(unavailable)?;
+        let recently_active = slot.last_transfer.is_some();
+        let bandwidth = &mut slot.bandwidth;
         bandwidth.refill(session.limits, now);
         bandwidth.pending = [self.guest_to_host.pending(), self.host_to_guest.pending()];
         let Some(need) = bandwidth.pending[direction.index()] else { return Ok(false); };
         if need == 0 { return Ok(true); }
-        if session.tokens < need as f64 {
-            self.contention_yield |= bandwidth.recent_usage
-                > session.limits.bytes_per_second as f64 / session.active_pairs as f64;
+        if !bandwidth.available(direction) { return Ok(false); }
+        let over_share = session.active_pairs > 1 && bandwidth.recent_usage
+            > session.limits.bytes_per_second as f64 / session.active_pairs as f64;
+        let reserved = session.reservation.as_ref()
+            .filter(|reservation| reservation.nonce != nonce)
+            .filter(|_| over_share || (session.active_pairs == 1 && recently_active))
+            .map_or(0, |reservation| reservation.need);
+        if session.tokens < (need + reserved) as f64 {
+            self.contention_yield |= over_share;
+            if !over_share && session.tokens < need as f64 && session.reservation.is_none() {
+                session.reservation = Some(BandwidthReservation {
+                    nonce, direction, need,
+                    expires_at: now.checked_add(RESERVATION_LIFETIME).unwrap_or(now),
+                });
+            }
             return Ok(false);
         }
-        if !bandwidth.available(direction) { return Ok(false); }
         session.tokens -= need as f64;
         bandwidth.take(direction, need);
+        if session.reservation.as_ref().is_some_and(|reservation|
+            reservation.nonce == nonce && reservation.direction == direction
+        ) {
+            session.reservation = None;
+        }
         Ok(true)
     }
 
@@ -179,7 +203,7 @@ impl<GUEST: Read + Write, HOST: Read + Write> PairedConnection<GUEST, HOST> {
         if let Some(session) = sessions.get_mut(self.verified.session_id()) {
             if let Some(slot) = session.slots.get_mut(&self.verified.nonce()).filter(|slot| slot.id == self.slot_id) {
                 slot.bandwidth.pending = [self.guest_to_host.pending(), self.host_to_guest.pending()];
-                session.touch_slot(self.verified.nonce(), now);
+                session.note_transfer(self.verified.nonce(), now);
             }
         }
     }

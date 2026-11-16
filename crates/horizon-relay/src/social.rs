@@ -94,6 +94,9 @@ struct Slot {
     last_activity: Instant,
     previous: Option<[u8; 32]>,
     next: Option<[u8; 32]>,
+    last_transfer: Option<Instant>,
+    active_previous: Option<[u8; 32]>,
+    active_next: Option<[u8; 32]>,
     bandwidth: forward::PairBandwidth,
     /// Host token failures since the last lock-out.
     failures: u8,
@@ -107,6 +110,15 @@ const MAX_TOKEN_FAILURES: u8 = 3;
 const TOKEN_LOCKOUT: Duration = Duration::from_secs(30);
 /// Smallest burst: it must cover the biggest message, or one message could exceed the rate cap.
 const MIN_BURST_BYTES: usize = horizon_friends::social_tls::MAX_MESSAGE_SIZE;
+const SHARE_WINDOW: Duration = Duration::from_secs(1);
+const RESERVATION_LIFETIME: Duration = Duration::from_millis(100);
+
+struct BandwidthReservation {
+    nonce: [u8; 32],
+    direction: Direction,
+    need: usize,
+    expires_at: Instant,
+}
 
 struct Session {
     host_principal: String,
@@ -124,7 +136,10 @@ struct Session {
     slots: HashMap<[u8; 32], Slot>,
     oldest_slot: Option<[u8; 32]>,
     newest_slot: Option<[u8; 32]>,
+    oldest_active: Option<[u8; 32]>,
+    newest_active: Option<[u8; 32]>,
     active_pairs: usize,
+    reservation: Option<BandwidthReservation>,
     next_slot_id: u64,
     tokens: f64,
     last_refill: Instant,
@@ -151,7 +166,10 @@ impl Session {
             slots: HashMap::new(),
             oldest_slot: None,
             newest_slot: None,
+            oldest_active: None,
+            newest_active: None,
             active_pairs: 0,
+            reservation: None,
             next_slot_id: 0,
             tokens: limits.burst_bytes as f64,
             last_refill: now,
@@ -165,7 +183,10 @@ impl Session {
         self.slots = HashMap::new(); // not clear(): give the memory back
         self.oldest_slot = None;
         self.newest_slot = None;
+        self.oldest_active = None;
+        self.newest_active = None;
         self.active_pairs = 0;
+        self.reservation = None;
         self.used = HashMap::new();
         self.retired_until = unix_time.saturating_add(MAX_GRANT_LIFETIME_SECS);
     }
@@ -177,52 +198,135 @@ impl Session {
 
     fn prune_idle(&mut self, now: Instant) {
         while let Some(nonce) = self.oldest_slot {
-            if now.checked_duration_since(self.slots[&nonce].last_activity).unwrap_or_default()
+            let slot = self.slots.get(&nonce);
+            debug_assert!(slot.is_some());
+            let Some(slot) = slot else { break; };
+            if now.checked_duration_since(slot.last_activity).unwrap_or_default()
                 < self.limits.idle_timeout
             {
                 break;
             }
-            self.remove_slot(nonce);
+            if !self.remove_slot(nonce) { break; }
+        }
+        self.prune_active(now);
+        if self.reservation.as_ref().is_some_and(|reservation| now >= reservation.expires_at) {
+            self.reservation = None;
         }
     }
 
-    fn unlink_slot(&mut self, nonce: [u8; 32]) {
-        let slot = &self.slots[&nonce];
+    fn unlink_slot(&mut self, nonce: [u8; 32]) -> bool {
+        let slot = self.slots.get(&nonce);
+        debug_assert!(slot.is_some());
+        let Some(slot) = slot else { return false; };
         let (previous, next) = (slot.previous, slot.next);
+        let linked = previous.is_none_or(|previous| self.slots.contains_key(&previous))
+            && next.is_none_or(|next| self.slots.contains_key(&next));
+        debug_assert!(linked);
+        if !linked { return false; }
         if let Some(previous) = previous {
-            self.slots.get_mut(&previous).unwrap().next = next;
+            if let Some(slot) = self.slots.get_mut(&previous) { slot.next = next; }
         } else {
             self.oldest_slot = next;
         }
         if let Some(next) = next {
-            self.slots.get_mut(&next).unwrap().previous = previous;
+            if let Some(slot) = self.slots.get_mut(&next) { slot.previous = previous; }
         } else {
             self.newest_slot = previous;
         }
+        true
     }
 
     fn touch_slot(&mut self, nonce: [u8; 32], now: Instant) {
-        let newest_activity = self.newest_slot.map(|newest| self.slots[&newest].last_activity)
+        let slot = self.slots.get(&nonce);
+        let newest = self.newest_slot.and_then(|newest| self.slots.get(&newest));
+        debug_assert!(slot.is_some() && (self.newest_slot.is_none() || newest.is_some()));
+        let Some(slot) = slot else { return; };
+        if self.newest_slot.is_some() && newest.is_none() { return; }
+        let newest_activity = newest.map(|slot| slot.last_activity)
             .unwrap_or(now);
-        let activity = now.max(newest_activity).max(self.slots[&nonce].last_activity);
-        self.unlink_slot(nonce);
+        let activity = now.max(newest_activity).max(slot.last_activity);
+        if !self.unlink_slot(nonce) { return; }
         if let Some(newest) = self.newest_slot {
-            self.slots.get_mut(&newest).unwrap().next = Some(nonce);
+            if let Some(slot) = self.slots.get_mut(&newest) { slot.next = Some(nonce); }
         } else {
             self.oldest_slot = Some(nonce);
         }
-        let slot = self.slots.get_mut(&nonce).unwrap();
+        let Some(slot) = self.slots.get_mut(&nonce) else { return; };
         slot.previous = self.newest_slot;
         slot.next = None;
         slot.last_activity = activity;
         self.newest_slot = Some(nonce);
     }
 
-    fn remove_slot(&mut self, nonce: [u8; 32]) {
-        self.unlink_slot(nonce);
-        if self.slots.remove(&nonce).unwrap().paired {
-            self.active_pairs -= 1;
+    fn unlink_active(&mut self, nonce: [u8; 32]) -> bool {
+        let slot = self.slots.get(&nonce);
+        debug_assert!(slot.is_some());
+        let Some(slot) = slot else { return false; };
+        if slot.last_transfer.is_none() { return true; }
+        let (previous, next) = (slot.active_previous, slot.active_next);
+        let linked = previous.is_none_or(|previous| self.slots.contains_key(&previous))
+            && next.is_none_or(|next| self.slots.contains_key(&next));
+        debug_assert!(linked);
+        if !linked { return false; }
+        if let Some(previous) = previous {
+            if let Some(slot) = self.slots.get_mut(&previous) { slot.active_next = next; }
+        } else {
+            self.oldest_active = next;
         }
+        if let Some(next) = next {
+            if let Some(slot) = self.slots.get_mut(&next) { slot.active_previous = previous; }
+        } else {
+            self.newest_active = previous;
+        }
+        if let Some(slot) = self.slots.get_mut(&nonce) {
+            slot.last_transfer = None;
+            slot.active_previous = None;
+            slot.active_next = None;
+        }
+        debug_assert!(self.active_pairs > 0);
+        self.active_pairs = self.active_pairs.saturating_sub(1);
+        true
+    }
+
+    fn prune_active(&mut self, now: Instant) {
+        while let Some(nonce) = self.oldest_active {
+            let last_transfer = self.slots.get(&nonce).and_then(|slot| slot.last_transfer);
+            debug_assert!(last_transfer.is_some());
+            let Some(last_transfer) = last_transfer else { break; };
+            if now.checked_duration_since(last_transfer).unwrap_or_default() < SHARE_WINDOW { break; }
+            if !self.unlink_active(nonce) { break; }
+        }
+    }
+
+    fn note_transfer(&mut self, nonce: [u8; 32], now: Instant) {
+        self.touch_slot(nonce, now);
+        let newest = self.newest_active.and_then(|newest| self.slots.get(&newest))
+            .and_then(|slot| slot.last_transfer);
+        debug_assert!(self.newest_active.is_none() || newest.is_some());
+        if self.newest_active.is_some() && newest.is_none() { return; }
+        let transfer = now.max(newest.unwrap_or(now));
+        if !self.unlink_active(nonce) { return; }
+        if let Some(newest) = self.newest_active {
+            if let Some(slot) = self.slots.get_mut(&newest) { slot.active_next = Some(nonce); }
+        } else {
+            self.oldest_active = Some(nonce);
+        }
+        let Some(slot) = self.slots.get_mut(&nonce) else { return; };
+        slot.active_previous = self.newest_active;
+        slot.active_next = None;
+        slot.last_transfer = Some(transfer);
+        self.newest_active = Some(nonce);
+        self.active_pairs += 1;
+    }
+
+    fn remove_slot(&mut self, nonce: [u8; 32]) -> bool {
+        if !self.unlink_active(nonce) || !self.unlink_slot(nonce) { return false; }
+        let removed = self.slots.remove(&nonce);
+        debug_assert!(removed.is_some());
+        if self.reservation.as_ref().is_some_and(|reservation| reservation.nonce == nonce) {
+            self.reservation = None;
+        }
+        removed.is_some()
     }
 }
 
@@ -428,23 +532,28 @@ impl SocialRelay {
         if session.slots.len() >= session.limits.max_connections {
             return Err(RelayError::ConnectionLimit);
         }
+        let newest = session.newest_slot.and_then(|newest| session.slots.get(&newest));
+        debug_assert!(session.newest_slot.is_none() || newest.is_some());
+        if session.newest_slot.is_some() && newest.is_none() { return Err(RelayError::Unavailable); }
+        let last_activity = newest.map(|slot| slot.last_activity).unwrap_or(now).max(now);
         let slot_id = session.next_slot_id.checked_add(1).ok_or(RelayError::Unavailable)?;
         session.next_slot_id = slot_id;
         session.used.insert(nonce, verified.expires_at());
-        let last_activity = session.newest_slot.map(|newest| session.slots[&newest].last_activity)
-            .unwrap_or(now).max(now);
         session.slots.insert(nonce, Slot {
             id: slot_id,
             paired: false,
             last_activity,
             previous: session.newest_slot,
             next: None,
+            last_transfer: None,
+            active_previous: None,
+            active_next: None,
             bandwidth: forward::PairBandwidth::new(session.limits, now),
             failures: 0,
             locked_until: None,
         });
         if let Some(newest) = session.newest_slot {
-            session.slots.get_mut(&newest).unwrap().next = Some(nonce);
+            if let Some(slot) = session.slots.get_mut(&newest) { slot.next = Some(nonce); }
         } else {
             session.oldest_slot = Some(nonce);
         }
@@ -551,7 +660,6 @@ impl<GUEST> PendingGuest<GUEST> {
         }
         let guest = self.guest.take().ok_or(RelayError::PairingMismatch)?;
         slot.paired = true;
-        session.active_pairs += 1;
         session.touch_slot(self.verified.nonce(), now);
         self.armed = false;
         Ok(PairedConnection::new(self.relay.clone(), self.verified.clone(), self.slot_id, guest, host))
