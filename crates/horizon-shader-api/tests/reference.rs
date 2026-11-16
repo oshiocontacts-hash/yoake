@@ -31,6 +31,10 @@ fn vanilla(kind: StageKind) -> &'static str {
             "fn material(input: MaterialInput) -> Surface {\n    \
              return Surface(input.albedo * input.tint * vec4<f32>(input.lightmap, 1.0));\n}\n"
         }
+        StageKind::EntityMaterial => {
+            "fn entity_material(input: EntityMaterialInput) -> Surface {\n    \
+             return Surface(input.albedo * vec4<f32>(input.lightmap, 1.0));\n}\n"
+        }
         StageKind::Vertex => {
             "fn vertex(input: VertexInput) -> vec3<f32> { return input.position; }\n"
         }
@@ -53,6 +57,20 @@ fn every_stage_compiles_with_vanilla_s_function() {
                 .all(|e| e.name.starts_with("horizon_")),
             "{kind:?}"
         );
+    }
+}
+
+#[test]
+fn optional_world_inputs_compile_in_supported_stages() {
+    let dir = root().join("crates/horizon-shader-api/packs/world_inputs");
+    let mut pack = Pack::read(&dir).unwrap();
+    for kind in [StageKind::Material, StageKind::EntityMaterial, StageKind::Post] {
+        let source = format!(
+            "{}\nfn world_probe(position: vec3<f32>) -> u32 {{\n    return voxel_at(position + light_list[0].position);\n}}\n",
+            vanilla(kind)
+        );
+        pack.files.insert("post.wgsl".into(), source.into_bytes());
+        validate(&compose(&pack, kind, "post.wgsl").text);
     }
 }
 

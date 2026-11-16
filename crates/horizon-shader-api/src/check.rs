@@ -152,8 +152,8 @@ pub fn decode_png(bytes: &[u8]) -> Result<Image, String> {
     })
 }
 
-/// Checks every stage of `pack`, and that each option is an `override` of
-/// its type in some stage. Returns every problem found, not just the first.
+/// Checks every stage of `pack`, and that each option is used by a stage or
+/// by the shadow resolution. Returns every problem found, not just the first.
 pub fn check(pack: &Pack) -> Result<Report, Vec<Problem>> {
     let m = &pack.manifest;
     let stages = m
@@ -162,6 +162,11 @@ pub fn check(pack: &Pack) -> Result<Report, Vec<Problem>> {
         .map(|s| (StageKind::Sky, s))
         .chain(m.vertex.iter().map(|s| (StageKind::Vertex, s)))
         .chain(m.material.iter().map(|s| (StageKind::Material, s)))
+        .chain(
+            m.entity_material
+                .iter()
+                .map(|s| (StageKind::EntityMaterial, s)),
+        )
         .chain(m.weather.iter().map(|s| (StageKind::Weather, s)))
         .chain(m.post.iter().map(|s| (StageKind::Post, s)));
     let (mut checked, mut problems) = (Vec::new(), Vec::new());
@@ -176,12 +181,18 @@ pub fn check(pack: &Pack) -> Result<Report, Vec<Problem>> {
     }
     if problems.is_empty() {
         for option in &m.options {
-            let used = checked.iter().any(|c| {
-                c.module
-                    .overrides
-                    .iter()
-                    .any(|(_, o)| o.name.as_deref() == Some(&option.id))
-            });
+            let used_by_shadow = m
+                .shadow
+                .as_ref()
+                .and_then(|shadow| shadow.resolution_option.as_deref())
+                == Some(option.id.as_str());
+            let used = used_by_shadow
+                || checked.iter().any(|c| {
+                    c.module
+                        .overrides
+                        .iter()
+                        .any(|(_, o)| o.name.as_deref() == Some(&option.id))
+                });
             if !used {
                 problems.push(problem(
                     crate::MANIFEST,

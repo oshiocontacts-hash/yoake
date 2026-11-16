@@ -85,6 +85,14 @@ pub(super) struct EntityBatch {
 }
 
 impl EntityBatch {
+    pub(super) fn entity_runs(&self) -> &[(usize, usize)] {
+        &self.runs[0]
+    }
+
+    pub(super) fn translucent_item_runs(&self) -> &[(usize, usize)] {
+        &self.runs[8]
+    }
+
     /// After `update`: quads only a native pack's shadow pass draws, at the buffer's end.
     pub(super) fn append_shadow_only(&mut self, shadow_only: &[Vertex]) {
         self.combined.extend_from_slice(shadow_only);

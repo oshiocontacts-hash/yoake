@@ -790,6 +790,11 @@ impl MeshTables {
             tint_sources: i.tint_count,
         })
     }
+    pub(crate) fn voxel_occupied(&self, state: BlockStateId) -> bool {
+        self.info.get(state.0 as usize).is_some_and(|info| {
+            info.model || info.block_entity || info.fluid.kind() != FluidKind::Empty
+        })
+    }
     /// Whether `state` is a full opaque cube: the only block leaf culling
     /// treats as a solid neighbour. Glass, fluids, slabs, stairs and models
     /// that only partly fill their block are not.
