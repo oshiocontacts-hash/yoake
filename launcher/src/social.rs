@@ -14,9 +14,10 @@
 //! `HORIZON_LAUNCHER_SOCIAL=mock`, which shows the page before the portal has the API.
 use crate::yoake_auth::{AuthError, TokenFileAuth, YoakeAuth};
 pub mod handoff;
+pub mod host;
 pub mod rooms;
 
-use rooms::{Audience, CreateRequest, HostedRoom, JoinGrant, Reprovision, RoomInfo};
+use rooms::{Audience, CreateRequest, HostedRoom, JoinGrant, Pending, PendingJoin, Reprovision, RoomInfo};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::io::Read;
@@ -368,15 +369,18 @@ pub trait SocialBackend: Send + Sync {
     // ----- Rooms (`rooms.rs`) -----
     /// Opens a room. The host token in the answer comes only once.
     fn create_room(&self, audience: &Audience, name: Option<&str>) -> Result<HostedRoom>;
-    /// A new ticket for a room whose relay restarted (the host only). No page asks yet: the game
-    /// will, through the launcher, when the relay forgets the room.
-    #[allow(dead_code)]
+    /// A new ticket (the host only): the launcher asks shortly before the room's time is up
+    /// and hands it to the game (`host.rs`).
     fn reprovision_room(&self, session_id: &str) -> Result<Reprovision>;
     /// The rooms the player may join.
     fn rooms(&self) -> Result<Vec<RoomInfo>>;
     /// Asks to join: the grant, good for about two minutes.
     fn join_room(&self, session_id: &str) -> Result<JoinGrant>;
     fn close_room(&self, session_id: &str) -> Result<()>;
+    /// The guests who asked to join and were not acknowledged yet (the host only).
+    fn pending_joins(&self, session_id: &str) -> Result<Vec<PendingJoin>>;
+    /// Marks these grants (by nonce) as handed to the game: they leave `pending_joins`.
+    fn ack_joins(&self, session_id: &str, nonces: &[String]) -> Result<()>;
 }
 
 /// A backend whose every call fails the same way: what a build with no portal has (`NO_PORTAL`),
@@ -418,6 +422,8 @@ impl SocialBackend for Failing {
         rooms() -> Result<Vec<RoomInfo>>;
         join_room(session_id: &str) -> Result<JoinGrant>;
         close_room(session_id: &str) -> Result<()>;
+        pending_joins(session_id: &str) -> Result<Vec<PendingJoin>>;
+        ack_joins(session_id: &str, nonces: &[String]) -> Result<()>;
     }
 }
 
@@ -683,6 +689,20 @@ impl<T: Transport> SocialBackend for HttpSocial<T> {
 
     fn close_room(&self, session_id: &str) -> Result<()> {
         self.done(Method::Delete, &["sessions", session_id], None)
+    }
+
+    fn pending_joins(&self, session_id: &str) -> Result<Vec<PendingJoin>> {
+        let pending: Pending =
+            self.read(Method::Get, &["sessions", session_id, "pending"], None, "")?;
+        Ok(pending.joins)
+    }
+
+    fn ack_joins(&self, session_id: &str, nonces: &[String]) -> Result<()> {
+        self.done(
+            Method::Post,
+            &["sessions", session_id, "pending", "ack"],
+            Some(json!({ "nonces": nonces })),
+        )
     }
 }
 
@@ -1038,6 +1058,38 @@ mod tests {
         assert_eq!(line(3), (Method::Get, "sessions".into(), None));
         assert_eq!(line(4), (Method::Post, "sessions/a/join".into(), None));
         assert_eq!(line(5), (Method::Delete, "sessions/s1".into(), None));
+    }
+
+    #[test]
+    fn the_pending_and_ack_calls_are_the_portals() {
+        let nonce = "a".repeat(64);
+        let script = Script::new(vec![
+            ok(json!({ "joins": [
+                { "grant": { "nonce": nonce, "session_id": "s1" }, "signature": "ab".repeat(64),
+                  "guest": { "principal": "g", "name": "Mika" }, "expires_at": 5, "new": 1 },
+                { "grant": { "nonce": "short" }, "signature": "s",
+                  "guest": { "principal": "g", "name": "Bad" }, "expires_at": 5 }
+            ] })),
+            Ok(Reply { status: 204, body: Value::Null }),
+            Ok(Reply { status: 404, body: json!({ "error": { "code": "NOT_FOUND" } }) }),
+            Ok(Reply { status: 404, body: json!({ "error": { "code": "NOT_FOUND" } }) }),
+            Ok(Reply { status: 401, body: json!({ "error": { "code": "UNAUTHENTICATED" } }) }),
+        ]);
+        let api = HttpSocial::new(&script);
+        let joins = api.pending_joins("s1").unwrap();
+        // The one with a nonce that is not 64 lowercase hex digits is left out.
+        assert_eq!(joins.len(), 1);
+        assert_eq!(joins[0].guest.name, "Mika");
+        api.ack_joins("s1", &[nonce.clone()]).unwrap();
+        assert_eq!(api.pending_joins("gone").err(), Some(SocialError::Api(ApiCode::NotFound)));
+        assert_eq!(api.ack_joins("gone", &[]).err(), Some(SocialError::Api(ApiCode::NotFound)));
+        assert_eq!(api.pending_joins("s1").err(), Some(SocialError::SignedOut));
+        let calls = script.calls.lock().unwrap();
+        assert_eq!((calls[0].0, calls[0].1.join("/"), calls[0].2.clone()), (Method::Get, "sessions/s1/pending".into(), None));
+        assert_eq!(
+            (calls[1].0, calls[1].1.join("/"), calls[1].2.clone()),
+            (Method::Post, "sessions/s1/pending/ack".into(), Some(json!({ "nonces": [nonce] })))
+        );
     }
 
     #[test]

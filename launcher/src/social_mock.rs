@@ -3,7 +3,8 @@
 //! code. The tests use it, and `HORIZON_LAUNCHER_SOCIAL=mock` shows the page with sample data
 //! while the real portal has no API. It never touches the network or the sign-in.
 use crate::social::rooms::{
-    Audience, HostedRoom, JoinGrant, Provision, Redacted, Reprovision, RoomHost, RoomInfo,
+    Audience, Grant, HostedRoom, JoinGrant, PendingJoin, Provision, Redacted, Reprovision, RoomHost,
+    RoomInfo,
 };
 use crate::social::*;
 use std::collections::HashMap;
@@ -43,11 +44,15 @@ struct MockRoom {
     audience: Audience,
     name: Option<String>,
     created: i64,
+    /// What the next ticket says the room lasts to; four hours from `created` when not set.
+    session_exp: Option<i64>,
 }
 
 #[derive(Default)]
 struct State {
     rooms: Vec<MockRoom>,
+    /// Guests waiting at a room of mine, not acknowledged yet: (room id, the join).
+    pending: Vec<(String, PendingJoin)>,
     people: Vec<Principal>,
     codes: HashMap<String, String>,
     my_code: String,
@@ -59,6 +64,8 @@ struct State {
     groups: Vec<MockGroup>,
     next: u32,
     fail_next: Option<SocialError>,
+    /// The next acknowledgement of guests answers 500 once (it changes nothing).
+    fail_ack_once: bool,
 }
 
 pub struct MockSocial {
@@ -193,6 +200,13 @@ impl MockSocial {
 
     /// The next call fails with `error` (once).
     #[cfg(test)]
+    /// The next `ack_joins` fails once with the portal's 500, and does not acknowledge.
+    #[allow(dead_code)]
+    pub fn fail_ack_once(&self) {
+        self.state.lock().unwrap().fail_ack_once = true;
+    }
+
+    #[allow(dead_code)]
     pub fn fail_next(&self, error: SocialError) {
         self.state.lock().unwrap().fail_next = Some(error);
     }
@@ -288,6 +302,7 @@ impl MockSocial {
                     audience,
                     name: name.map(str::to_string),
                     created: now - ago,
+                    session_exp: None,
                 });
             }
         }
@@ -305,9 +320,63 @@ impl MockSocial {
                 audience: Audience::Friends,
                 name: Some("Yuki room".into()),
                 created,
+                session_exp: None,
             });
         }
         self
+    }
+
+    /// A guest asks to join my room `room`: the portal now has a grant for the host to pick up.
+    /// Returns the grant's nonce. (Tests and the mock's own sample.)
+    #[allow(dead_code)]
+    pub fn guest_joins(&self, room: &str, _principal: &str, name: &str) -> String {
+        self.guest_joins_custom(
+            room,
+            serde_json::json!({ "session_id": room, "mock": "grant" }),
+            &"ab".repeat(64),
+            name,
+            now_secs() + 240,
+        )
+    }
+
+    /// A join with the grant, signature and times given (the nonce is made unless the grant has
+    /// one): for the shapes a portal should never send.
+    #[allow(dead_code)]
+    pub fn guest_joins_custom(
+        &self,
+        room: &str,
+        mut grant: serde_json::Value,
+        signature: &str,
+        name: &str,
+        expires_at: i64,
+    ) -> String {
+        let mut s = self.state.lock().unwrap();
+        s.next += 1;
+        let made = format!("{:064x}", u128::from(s.next) * 0x1_0000_0001);
+        if grant.get("nonce").is_none() {
+            grant["nonce"] = serde_json::Value::from(made);
+        }
+        let nonce = grant["nonce"].as_str().unwrap().to_string();
+        let grant: Grant = serde_json::from_value(grant).unwrap();
+        s.pending.push((
+            room.into(),
+            PendingJoin {
+                grant: Redacted::new(grant),
+                signature: Redacted::new(signature.into()),
+                guest: RoomHost { principal: "guest".into(), name: name.into() },
+                expires_at,
+            },
+        ));
+        nonce
+    }
+
+    /// The `session_exp` the next ticket of `room` carries (unix seconds).
+    #[allow(dead_code)]
+    pub fn set_session_exp(&self, room: &str, at: i64) {
+        let mut s = self.state.lock().unwrap();
+        if let Some(room) = s.rooms.iter_mut().find(|r| r.id == room) {
+            room.session_exp = Some(at);
+        }
     }
 
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, State>> {
@@ -804,7 +873,7 @@ impl SocialBackend for MockSocial {
         };
         let id = s.id("room-");
         let created = now_secs();
-        s.rooms.push(MockRoom { id: id.clone(), host: ME.into(), audience, name, created });
+        s.rooms.push(MockRoom { id: id.clone(), host: ME.into(), audience, name, created, session_exp: None });
         Ok(HostedRoom {
             session_id: id,
             host_principal: ME.into(),
@@ -821,16 +890,20 @@ impl SocialBackend for MockSocial {
 
     fn reprovision_room(&self, session_id: &str) -> Result<Reprovision> {
         let s = self.lock()?;
-        s.rooms
+        let room = s
+            .rooms
             .iter()
             .find(|r| r.id == session_id && r.host == ME)
             .ok_or(api(ApiCode::NotFound))?;
+        // As the portal's: the answer has no `expires_at`; the ticket's `session_exp` is the end.
+        let exp = room.session_exp.unwrap_or(room.created + 4 * 3600);
         Ok(Reprovision {
             provision: Provision {
-                ticket: Redacted::new(serde_json::json!({ "mock": true })),
+                ticket: Redacted::new(serde_json::json!({ "mock": true, "session_exp": exp })),
                 signature: Redacted::new("mock-signature".into()),
             },
             relay: "relay.mock.invalid:7000".into(),
+            expires_at: None,
         })
     }
 
@@ -883,6 +956,34 @@ impl SocialBackend for MockSocial {
         if s.rooms.len() == before {
             return Err(api(ApiCode::NotFound));
         }
+        s.pending.retain(|(room, _)| room != session_id);
+        Ok(())
+    }
+
+    fn pending_joins(&self, session_id: &str) -> Result<Vec<PendingJoin>> {
+        let s = self.lock()?;
+        s.rooms
+            .iter()
+            .find(|r| r.id == session_id && r.host == ME)
+            .ok_or(api(ApiCode::NotFound))?;
+        Ok(s.pending
+            .iter()
+            .filter(|(room, _)| room == session_id)
+            .map(|(_, join)| join.clone())
+            .collect())
+    }
+
+    fn ack_joins(&self, session_id: &str, nonces: &[String]) -> Result<()> {
+        let mut s = self.lock()?;
+        s.rooms
+            .iter()
+            .find(|r| r.id == session_id && r.host == ME)
+            .ok_or(api(ApiCode::NotFound))?;
+        if std::mem::take(&mut s.fail_ack_once) {
+            return Err(api(ApiCode::Internal));
+        }
+        s.pending
+            .retain(|(room, join)| !(room == session_id && nonces.iter().any(|n| n == join.grant.expose().nonce())));
         Ok(())
     }
 }

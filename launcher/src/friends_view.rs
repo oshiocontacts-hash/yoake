@@ -235,6 +235,25 @@ impl Launcher {
     }
 
     /// The last result, over the list: red when it failed.
+    /// "Accepting joins", and the names of the guests whose grants went to the game.
+    fn friends_accepting_line(&self) -> Div {
+        let mut text = tr("Accepting joins").to_string();
+        if !self.friends.accepted.is_empty() {
+            text = trf(
+                "Accepting joins · joined: {names}",
+                &[("names", &self.friends.accepted.join(", "))],
+            );
+        }
+        div().px(px(12.)).pb(px(8.)).child(
+            ui::text(13., FontWeight::NORMAL, ink::MUTED)
+                .flex()
+                .items_center()
+                .gap(px(6.))
+                .child(ui::icon("user-add-01", 15., ui::accent_soft(self.look.accent_soft)))
+                .child(text),
+        )
+    }
+
     fn friends_note_line(&self) -> Option<Div> {
         let (good, note) = self.friends.note.clone()?;
         Some(if good {
@@ -942,6 +961,9 @@ impl Launcher {
                     vec![close],
                     cx,
                 ));
+                if self.friends.hosting() {
+                    body = body.child(self.friends_accepting_line());
+                }
             }
             None if self.friends.room_panel => {
                 let choices = self.friends.audience_choices();

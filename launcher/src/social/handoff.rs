@@ -17,6 +17,15 @@ use std::time::{Duration, SystemTime};
 /// with the game's side (GALLERIA's Codex).
 pub const HANDOFF_ARG: &str = "--yoake-social-handoff";
 
+/// The host's game also gets this flag (with no value): it then reads the launcher's control
+/// lines on its stdin (`pair`, `reprovision`, `end`; see `host.rs`). Keep it the same as the
+/// game's. The host's session goes by `--session-file`, never `--session-stdin`, since stdin is
+/// the control channel.
+pub const CONTROL_STDIN_ARG: &str = "--yoake-social-control-stdin";
+
+/// A hand-off file is at most this big; the game refuses a bigger one.
+pub const MAX_BYTES: usize = 64 * 1024;
+
 /// The folder, under the launcher's data folder.
 const FOLDER: &str = "social-handoff";
 const PREFIX: &str = "handoff-";
@@ -77,6 +86,9 @@ fn write(folder: &Path, body: &Value) -> Result<PathBuf, HandoffError> {
     let name: String = random.iter().map(|byte| format!("{byte:02x}")).collect();
     let path = folder.join(format!("{PREFIX}{name}{SUFFIX}"));
     let bytes = serde_json::to_vec(body).map_err(|_| HandoffError::Unwritable)?;
+    if bytes.len() > MAX_BYTES {
+        return Err(HandoffError::Unwritable);
+    }
     let result = (|| {
         let mut file =
             crate::yoake_auth::create_private_file(&path).map_err(|_| HandoffError::Unwritable)?;
@@ -252,6 +264,18 @@ mod tests {
         drop(file);
         let fresh = write_host(&folder, &room()).unwrap();
         assert!(!old.exists() && fresh.exists());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_file_over_64_kib_is_refused_and_nothing_is_left() {
+        let dir = scratch("big");
+        let folder = folder(&dir);
+        let mut big = room();
+        big.provision.ticket =
+            super::super::rooms::Redacted::new(json!({ "x": "a".repeat(MAX_BYTES) }));
+        assert_eq!(write_host(&folder, &big), Err(HandoffError::Unwritable));
+        assert_eq!(std::fs::read_dir(&folder).unwrap().count(), 0);
         let _ = std::fs::remove_dir_all(dir);
     }
 

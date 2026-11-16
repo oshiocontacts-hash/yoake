@@ -164,6 +164,8 @@ pub(super) enum Outcome {
     Hosted(MyRoom, PathBuf),
     /// A grant for a room: the hand-off file for the game that joins it.
     Joined(PathBuf),
+    /// The game cannot be given a session file, so no room was opened (the portal was not asked).
+    NoSession,
     /// The portal answered, but the file for the game could not be made (the room is closed).
     HandoffFailed,
     /// The game did not start, so the room it hosted was closed.
@@ -185,6 +187,8 @@ enum Event {
     /// One full read is over.
     Refreshed,
     Done(FriendAction, social::Result<Outcome>),
+    /// The host driver of the room `0` has something to say.
+    Host(String, social::host::Note),
 }
 
 /// What the page does next, after an event changed its state.
@@ -218,6 +222,10 @@ pub(super) struct Friends {
     pub(super) rooms_status: RoomsStatus,
     /// The player's own open room.
     pub(super) my_room: Option<MyRoom>,
+    /// The driver that carries guests' grants to the game hosting `my_room`.
+    host: Option<social::host::HostHandle>,
+    /// Names of guests whose grants went to the game (the latest few), for "accepting joins".
+    pub(super) accepted: Vec<String>,
     /// Whether the portal's list has shown the player's own room: then its absence closes it.
     list_shows_own: bool,
     /// The "open a room" line is open, and which audience it would use (0: friends, then groups).
@@ -275,6 +283,8 @@ impl Friends {
             rooms: Vec::new(),
             rooms_status: RoomsStatus::Loading,
             my_room: None,
+            host: None,
+            accepted: Vec::new(),
             list_shows_own: false,
             room_panel: false,
             room_audience: 0,
@@ -414,6 +424,8 @@ impl Friends {
         self.rooms.clear();
         self.rooms_status = RoomsStatus::Loading;
         self.my_room = None;
+        self.stop_host();
+        self.accepted.clear();
         self.list_shows_own = false;
         self.room_panel = false;
         self.room_audience = 0;
@@ -446,6 +458,18 @@ impl Friends {
     /// Whether this write is on its way.
     pub(super) fn is_busy(&self, action: FriendAction) -> bool {
         self.in_flight.contains(&action)
+    }
+
+    /// The player's game is hosting the room and the launcher is carrying guests to it.
+    pub(super) fn hosting(&self) -> bool {
+        self.host.is_some()
+    }
+
+    /// Stops the host driver, if any: the room is deleted on the portal and polling ends.
+    fn stop_host(&mut self) {
+        if let Some(host) = self.host.take() {
+            host.game_ended();
+        }
     }
 
     /// Whether a room is being opened or joined: both start the game, so only one at a time.
@@ -496,6 +520,11 @@ impl Friends {
                     .is_some_and(|at| at <= now_unix());
                 if self.list_shows_own || expired {
                     self.my_room = None;
+                    // The room is gone: its driver is stopped (it deletes the room if the
+                    // portal still has it). Dropping the handle would not: the launcher's
+                    // registry keeps the driver's channel open.
+                    self.stop_host();
+                    self.accepted.clear();
                 }
             }
         }
@@ -581,6 +610,27 @@ impl Friends {
                     follow.push(Follow::Refresh);
                 }
             }
+            Event::Host(id, note) => {
+                if self.my_room.as_ref().is_none_or(|room| room.session_id != id) {
+                    return follow;
+                }
+                match note {
+                    social::host::Note::Guest(name) => {
+                        self.accepted.retain(|n| *n != name);
+                        self.accepted.push(name);
+                        let extra = self.accepted.len().saturating_sub(5);
+                        self.accepted.drain(..extra);
+                    }
+                    social::host::Note::Ended => {
+                        // The game is gone and the room was deleted on the portal.
+                        self.host = None;
+                        self.accepted.clear();
+                        self.my_room = None;
+                        self.list_shows_own = false;
+                        follow.push(Follow::Refresh);
+                    }
+                }
+            }
             Event::Done(action, result) => {
                 self.busy = self.busy.saturating_sub(1);
                 if let Some(at) = self.in_flight.iter().position(|a| *a == action) {
@@ -637,11 +687,16 @@ impl Friends {
                 follow.push(Follow::Launch(Some(id), path));
             }
             (A::JoinRoom, Outcome::Joined(path)) => follow.push(Follow::Launch(None, path)),
+            (A::OpenRoom, Outcome::NoSession) => {
+                self.note = Some((false, tr(NEEDS_SESSION).to_string()));
+            }
             (A::OpenRoom | A::JoinRoom, Outcome::HandoffFailed) => {
                 self.note = Some((false, tr(HANDOFF_FAILED).to_string()));
             }
             (A::CloseRoom, outcome) => {
                 self.my_room = None;
+                self.host = None;
+                self.accepted.clear();
                 self.list_shows_own = false;
                 if matches!(outcome, Outcome::ClosedAfterFailure) {
                     self.note = Some((false, tr(ROOM_CLOSED_AFTER_FAILURE).to_string()));
@@ -814,6 +869,11 @@ pub(super) fn done_en(action: FriendAction) -> &'static str {
 /// What the Rooms tab says when the game did not start and the room it hosted was closed.
 pub(super) const ROOM_CLOSED_AFTER_FAILURE: &str =
     "The game could not start, so your room was closed.";
+
+/// What opening a room says when the game would have no session file: the host's game carries
+/// the player's session, and a room is never opened for a game without one.
+pub(super) const NEEDS_SESSION: &str =
+    "Hosting a room needs a signed-in Minecraft account. Sign in on the Accounts page, then try again.";
 
 /// What a room's hand-off failing says: the portal's room was closed again.
 pub(super) const HANDOFF_FAILED: &str =
@@ -1153,7 +1213,8 @@ impl Launcher {
         let audience = self.friends.chosen_audience();
         let folder = social::handoff::folder(&backend::data_dir());
         self.friends_act(FriendAction::OpenRoom, move |api| {
-            host_room(api, &folder, &audience, name.as_deref())
+            // Read in the background: it opens the keychain.
+            host_room(api, &folder, &audience, name.as_deref(), account::can_give_session())
         });
     }
 
@@ -1175,10 +1236,58 @@ impl Launcher {
         });
     }
 
+    /// Closing the room tells the game first (`end` on its stdin), then the portal.
     pub(super) fn friends_close_room(&mut self, session_id: String) {
+        // The same close is not sent twice: the driver is kept for the one in flight.
+        if self.friends.in_flight.contains(&FriendAction::CloseRoom) {
+            return;
+        }
+        let host = self.friends.host.take();
+        self.friends.accepted.clear();
         self.friends_act(FriendAction::CloseRoom, move |api| {
-            api.close_room(&session_id).map(|()| Outcome::Done)
+            // The driver closes it (`end`, then DELETE); with no driver, or one that does not
+            // answer in time, the portal is asked directly. A room closed already is closed.
+            let result = match host.and_then(|host| host.close()) {
+                Some(result) => result,
+                None => api.close_room(&session_id),
+            };
+            social::host::closed_ok(result).map(|()| Outcome::Done)
         });
+    }
+
+    /// The game hosting `session_id` started: its stdin is the driver's now. Without the stdin
+    /// the game cannot be told of guests, so the room is closed.
+    pub(super) fn friends_start_host(
+        &mut self,
+        session_id: String,
+        stdin: Option<std::process::ChildStdin>,
+    ) {
+        let Some(stdin) = stdin else {
+            self.friends_close_room_after_failure(session_id);
+            return;
+        };
+        let expires = self
+            .friends
+            .my_room
+            .as_ref()
+            .and_then(|room| room.expires_at)
+            .unwrap_or_else(|| now_unix() + 30 * 60);
+        let api = self.friends.backend();
+        let tx = self.friends.tx.clone();
+        let epoch = self.friends.epoch;
+        let id = session_id.clone();
+        let host = social::host::Host::new(api, session_id, stdin, expires, now_unix());
+        self.friends.accepted.clear();
+        self.friends.host = Some(social::host::spawn(host, move |note| {
+            let _ = tx.send((epoch, Event::Host(id.clone(), note)));
+        }));
+    }
+
+    /// The game ended: its room is deleted on the portal and polling stops.
+    pub(super) fn friends_game_ended(&mut self) {
+        if let Some(host) = self.friends.host.take() {
+            host.game_ended();
+        }
     }
 
     pub(super) fn friends_leave(&mut self) {
@@ -1307,7 +1416,12 @@ pub(super) fn host_room(
     folder: &Path,
     audience: &Audience,
     name: Option<&str>,
+    has_session: bool,
 ) -> social::Result<Outcome> {
+    // Before the portal is asked: a room whose game cannot carry a session is never opened.
+    if !has_session {
+        return Ok(Outcome::NoSession);
+    }
     let room = api.create_room(audience, name)?;
     match social::handoff::write_host(folder, &room) {
         Ok(path) => Ok(Outcome::Hosted(
@@ -1728,6 +1842,61 @@ mod tests {
     }
 
     #[test]
+    fn a_room_that_leaves_the_list_takes_the_host_driver_with_it() {
+        let mock = Arc::new(MockSocial::blank());
+        let room = mock.create_room(&Audience::Friends, None).unwrap();
+        let mut page = Friends::with_backend(mock.clone());
+        page.my_room = Some(MyRoom {
+            session_id: room.session_id.clone(),
+            audience: Audience::Friends,
+            name: None,
+            opened_at: now_unix(),
+            expires_at: Some(room.expires_at),
+        });
+        page.list_shows_own = true;
+        page.accepted.push("Mika".into());
+        let host = social::host::Host::new(
+            mock.clone(),
+            room.session_id.clone(),
+            std::io::sink(),
+            room.expires_at,
+            now_unix(),
+        );
+        page.host = Some(social::host::spawn_in(
+            Arc::new(social::host::Registry::default()),
+            host,
+            |_| {},
+        ));
+        page.take_rooms(Vec::new());
+        assert!(page.my_room.is_none() && page.host.is_none() && page.accepted.is_empty());
+        // The driver is dropped with the handle, and deletes the room.
+        let until = Instant::now() + Duration::from_secs(10);
+        while !mock.rooms().unwrap().is_empty() && Instant::now() < until {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        assert!(mock.rooms().unwrap().is_empty());
+    }
+
+    #[test]
+    fn without_a_session_file_no_room_is_opened_and_the_reason_is_shown() {
+        let api = MockSocial::sample();
+        let before = api.rooms().unwrap().len();
+        let dir = scratch_folder("nosession");
+        let outcome = host_room(&api, &dir, &Audience::Friends, None, false).unwrap();
+        assert!(matches!(outcome, Outcome::NoSession));
+        // The portal was not asked: no room was made, and no file was written.
+        assert_eq!(api.rooms().unwrap().len(), before);
+        assert!(!dir.exists());
+        let mut page = rooms_page(&api);
+        let follow = page.done(FriendAction::OpenRoom, outcome);
+        assert!(page.my_room.is_none());
+        assert!(!follow.iter().any(|f| matches!(f, Follow::Launch(..))));
+        let (good, note) = page.note.clone().unwrap();
+        assert!(!good && note == tr(NEEDS_SESSION), "{note}");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
     fn the_rooms_tab_tells_mine_from_the_ones_to_join() {
         let api = MockSocial::sample();
         let page = rooms_page(&api);
@@ -1774,7 +1943,7 @@ mod tests {
         page.room_audience = 1;
         let audience = page.chosen_audience();
         assert!(matches!(&audience, Audience::Group { name: Some(n), .. } if n == "ゆにぽっぷ"));
-        let outcome = host_room(&api, &folder, &audience, Some("Night")).unwrap();
+        let outcome = host_room(&api, &folder, &audience, Some("Night"), true).unwrap();
         let Outcome::Hosted(room, path) = outcome else { panic!("not hosted") };
         assert_eq!(room.name.as_deref(), Some("Night"));
         let text = std::fs::read_to_string(&path).unwrap();
@@ -1799,7 +1968,7 @@ mod tests {
         std::fs::create_dir_all(&folder).unwrap();
         let file = folder.join("a-file");
         std::fs::write(&file, "x").unwrap();
-        let outcome = host_room(&api, &file.join("inside"), &Audience::Friends, None).unwrap();
+        let outcome = host_room(&api, &file.join("inside"), &Audience::Friends, None, true).unwrap();
         assert!(matches!(outcome, Outcome::HandoffFailed));
         assert!(api.rooms().unwrap().iter().all(|r| r.host.principal != "me"), "closed again");
         let mut page = rooms_page(&api);

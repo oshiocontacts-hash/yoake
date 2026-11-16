@@ -1291,6 +1291,17 @@ impl Launcher {
                                 continue;
                             }
                         };
+                        // The host's game carries the player's session: with none, no room.
+                        if file.is_none()
+                            && self.social_handoff.as_ref().is_some_and(|h| h.hosting.is_some())
+                        {
+                            self.client_error = Some(tr(friends_page::NEEDS_SESSION).to_string());
+                            self.starting_pack = None;
+                            self.joining = None;
+                            self.drop_social_handoff();
+                            self.quick_play = None;
+                            continue;
+                        }
                         // Past the gate by the developer option alone is no owner.
                         if !account::dev_offline_enabled(self.settings.dev_offline) {
                             self.owner = Some(true);
@@ -1358,9 +1369,14 @@ impl Launcher {
                         }
                         // A room: the game gets the path of its private file and nothing else.
                         let handoff = self.take_social_handoff();
-                        if let Some((path, _)) = &handoff {
+                        if let Some((path, hosting)) = &handoff {
                             cmd.arg(social::handoff::HANDOFF_ARG).arg(path);
+                            // The host's game reads the launcher's lines on its stdin.
+                            if hosting.is_some() {
+                                cmd.arg(social::handoff::CONTROL_STDIN_ARG);
+                            }
                         }
+                        let hosting = handoff.as_ref().and_then(|(_, hosting)| hosting.clone());
                         backend::append_game_args(&mut cmd);
                         // Last, around every argument: the instance's pre-launch command,
                         // wrapper and variables.
@@ -1396,6 +1412,12 @@ impl Launcher {
                                 self.client = Some(r);
                                 self.client_run = run.map(|id| (id, Instant::now()));
                                 self.step_aside(cx);
+                                if let Some(room) = hosting {
+                                    // The game's stdin goes to the room's driver.
+                                    let stdin =
+                                        self.client.as_mut().and_then(|c| c.stdin.take());
+                                    self.friends_start_host(room, stdin);
+                                }
                             }
                             Err(e) => {
                                 self.client_error = Some(e);
@@ -1569,6 +1591,7 @@ impl Launcher {
                         }
                         Job::Client => {
                             self.client = None;
+                            self.friends_game_ended();
                             self.come_back(cx);
                             // The game saved: last played, sizes and pictures changed.
                             self.worlds.stale();
@@ -6049,6 +6072,8 @@ actions!(horizon_launcher, [Quit, CloseWindow]);
 /// What closing the last window does: stop the servers this launcher started, send the telemetry,
 /// exit. A game that is running keeps running. Cmd+Q goes through here too.
 fn shut_down(cx: &mut App) {
+    // A room the player hosts is closed first (the game is told, then the portal).
+    social::host::close_on_quit();
     servers_page::stop_on_quit();
     telemetry::send_before_exit();
     cx.quit()
@@ -6100,6 +6125,9 @@ struct SocialHandoff {
 const SOCIAL_HANDOFF_TTL: Duration = Duration::from_secs(230);
 
 fn main() {
+    // Signing out (or in as another account) first closes the room this launcher hosts, while
+    // the old sign-in can still delete it.
+    yoake_auth::set_before_change(social::host::close_on_quit);
     if let Err(error) = console::attach_for_cli() {
         eprintln!("Could not restore the launcher's terminal streams: {error}");
         std::process::exit(1);
