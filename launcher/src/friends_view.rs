@@ -59,7 +59,7 @@ impl Launcher {
             ),
             (
                 FriendsTab::Rooms,
-                "dashboard-square-01",
+                "home-01",
                 tr("Rooms"),
                 counts.map(|c| c.4),
             ),
@@ -936,7 +936,7 @@ impl Launcher {
                 let note = room_note(&room.audience, Some(room.opened_at));
                 body = body.child(self.friends_row(
                     format!("fr-myroom-{}", room.session_id),
-                    "dashboard-square-01",
+                    "home-01",
                     name,
                     note,
                     vec![close],
@@ -990,7 +990,8 @@ impl Launcher {
                 );
             }
             None => {
-                body = body.child(ui::empty().child(tr(
+                // Between two headings: the small version of a tab's empty line.
+                body = body.child(ui::empty().py(px(16.)).child(tr(
                     "You have no room open. Open one to play with friends or a group.",
                 )));
             }
@@ -1012,7 +1013,7 @@ impl Launcher {
             &[("count", &rooms.len().to_string())],
         ))));
         if rooms.is_empty() {
-            return body.child(ui::empty().child(tr("No rooms are open right now.")));
+            return body.child(ui::empty().py(px(16.)).child(tr("No rooms are open right now.")));
         }
         for room in rooms {
             let id = room.session_id.clone();
@@ -1034,7 +1035,7 @@ impl Launcher {
             };
             body = body.child(self.friends_row_badged(
                 format!("fr-room-{}", room.session_id),
-                "dashboard-square-01",
+                "home-01",
                 room.host.name.clone(),
                 room.name.clone(),
                 room_note(&room.audience, Some(room.created_at)),
