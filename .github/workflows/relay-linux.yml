@@ -1,0 +1,42 @@
+name: relay-linux
+
+# Builds the horizon-relay binary for the Linux relay server (x86_64, glibc 2.35+) from a chosen ref.
+# Only public code is built; no secrets are used. The binary is uploaded as an artifact.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to build
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build
+        run: cargo build --locked --release -p horizon-relay
+      - name: Test
+        run: cargo test --locked --release -p horizon-relay
+      - name: Checksum
+        run: |
+          cd target/release
+          sha256sum horizon-relay > horizon-relay.sha256
+          cat horizon-relay.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: horizon-relay-linux-x86_64
+          path: |
+            target/release/horizon-relay
+            target/release/horizon-relay.sha256
+          retention-days: 14
