@@ -6089,6 +6089,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "yoake"
+version = "0.1.0"
+dependencies = [
+ "horizon-mods",
+ "serde_json",
+ "toml",
+ "yoake-wasm",
+]
+
+[[package]]
 name = "yoake-dll-hello"
 version = "0.1.0"
 dependencies = [

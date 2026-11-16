@@ -18,6 +18,7 @@ runtime = []
 full = []
 
 [dependencies]
+yoake-wasm-test-macros = { path = "test-macros" }
 # default features off: the SDK decides about std itself.
 wit-bindgen = { version = "=0.57.1", default-features = false, features = ["realloc", "macros"] }
 

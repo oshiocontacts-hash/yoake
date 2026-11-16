@@ -61,6 +61,22 @@ pub const FULL_SERVICES_SERVER: Guest = Guest {
 pub const FULL_DEMO_PEER: Guest =
     Guest { name: "full-demo-peer", example: "full-demo", features: "peer", artifact: "yoake_wasm_full_demo.wasm" };
 
+pub const INVALID_HOOK: Guest = Guest {
+    name: "invalid-hook", example: "validation-fixture", features: "typo", artifact: "yoake_wasm_validation_fixture.wasm",
+};
+pub const TRAPPING_INIT: Guest = Guest {
+    name: "trapping-init", example: "validation-fixture", features: "trap", artifact: "yoake_wasm_validation_fixture.wasm",
+};
+pub const UNWIRED_CLIENT_HOOK: Guest = Guest {
+    name: "unwired-client-hook", example: "validation-fixture", features: "unwired-client", artifact: "yoake_wasm_validation_fixture.wasm",
+};
+pub const WRONG_CLIENT_HOOK: Guest = Guest {
+    name: "wrong-client-hook", example: "validation-fixture", features: "wrong-client", artifact: "yoake_wasm_validation_fixture.wasm",
+};
+pub const WRONG_SERVER_HOOK: Guest = Guest {
+    name: "wrong-server-hook", example: "validation-fixture", features: "wrong-server", artifact: "yoake_wasm_validation_fixture.wasm",
+};
+
 static BUILD: Mutex<()> = Mutex::new(());
 
 fn workspace() -> PathBuf {
@@ -94,7 +110,11 @@ pub fn load(guest: &Guest) -> Option<Vec<u8>> {
     let target = target_dir();
     let built = target.join("wasm32-wasip2/release").join(guest.artifact);
     let copy = target.join("wasm32-wasip2/release").join(format!("{}.wasm", guest.name.replace('-', "_")));
-    let example = workspace().join("crates/yoake-wasm-sdk/examples").join(guest.example);
+    let example = if guest.example == "validation-fixture" {
+        workspace().join("crates/yoake-wasm/tests/validation-fixture")
+    } else {
+        workspace().join("crates/yoake-wasm-sdk/examples").join(guest.example)
+    };
     let mut command = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()));
     command
         .args([
@@ -107,6 +127,7 @@ pub fn load(guest: &Guest) -> Option<Vec<u8>> {
             "4",
         ])
         .current_dir(&example)
+        .env("CARGO_TARGET_DIR", &target)
         .env_remove("CARGO_ENCODED_RUSTFLAGS")
         .env_remove("RUSTFLAGS");
     if !guest.features.is_empty() {

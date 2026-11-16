@@ -32,13 +32,35 @@ pub struct ClientMod {
 }
 
 impl ClientMod {
+    pub fn validate_component(
+        runtime: &mut Sandbox,
+        id: impl Into<String>,
+        component_bytes: &[u8],
+        host: Box<dyn ClientHost>,
+    ) -> Result<(), LoadError> {
+        Self::link(runtime, id.into(), component_bytes, host).map(|_| ())
+    }
+
     pub fn instantiate(
         runtime: &mut Sandbox,
         id: impl Into<String>,
         component_bytes: &[u8],
         host: Box<dyn ClientHost>,
     ) -> Result<Self, LoadError> {
-        let id = id.into();
+        let (mut raw, exports) = Self::link(runtime, id.into(), component_bytes, host)?;
+        let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| exports.call_init(store).map_err(|error| error.root_cause().to_string()));
+        flush_output(&mut raw);
+        let names = names.ok_or_else(|| LoadError("mod init trapped or timed out".into()))?;
+        let subscriptions = Subscriptions::from_hook_names(names).map_err(LoadError)?;
+        Ok(Self { raw, exports, subscriptions })
+    }
+
+    fn link(
+        runtime: &mut Sandbox,
+        id: String,
+        component_bytes: &[u8],
+        host: Box<dyn ClientHost>,
+    ) -> Result<(ModInstance<ClientContext>, bindings::ClientMod), LoadError> {
         let texture_count = runtime.texture_count(&id);
         let mut raw = runtime
             .compile(component_bytes)
@@ -48,16 +70,12 @@ impl ClientMod {
                     linker,
                     |state| &mut state.host,
                 )
-                .map_err(|error| error.to_string())
+                .map_err(|error| format!("{error:#}"))
             })
             .map_err(LoadError)?;
         let exports = bindings::ClientMod::new(&mut raw.store, &raw.instance)
-            .map_err(|error| LoadError(error.to_string()))?;
-        let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
-        flush_output(&mut raw);
-        let names = names.ok_or_else(|| LoadError("mod init trapped or timed out".into()))?;
-        let subscriptions = Subscriptions::from_hook_names(names).map_err(LoadError)?;
-        Ok(Self { raw, exports, subscriptions })
+            .map_err(|error| LoadError(format!("invalid client-mod exports: {error:#}")))?;
+        Ok((raw, exports))
     }
 
     pub fn subscribed(&self, hook: &str) -> bool {

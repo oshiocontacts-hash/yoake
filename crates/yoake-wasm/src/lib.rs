@@ -165,7 +165,7 @@ impl Sandbox {
         }
         let runtime = Arc::clone(self.runtime.as_ref().expect("runtime was just initialized"));
         let component = Component::new(&runtime.engine, bytes)
-            .map_err(|error| format!("not a valid component: {error}"))?;
+            .map_err(|error| format!("not a valid component: {error:#}"))?;
         for (name, _) in component.component_type().imports(&runtime.engine) {
             check_import(name)?;
         }
@@ -304,7 +304,7 @@ impl CompiledComponent {
         store.set_epoch_deadline(1);
         let instance = linker
             .instantiate(&mut store, &self.component)
-            .map_err(|error| format!("component instantiation failed: {error}"))?;
+            .map_err(|error| format!("component instantiation failed: {error:#}"))?;
         Ok(ModInstance {
             id: id.into(),
             store,

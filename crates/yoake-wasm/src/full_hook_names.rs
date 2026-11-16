@@ -24,7 +24,7 @@ pub const FULL_HOOKS: &[(&str, HookSide)] = &[
     ("random_tick", HookSide::Server),
     ("tick_block", HookSide::Server),
     ("update_shape", HookSide::Server),
-    ("hud", HookSide::Both),
+    ("hud", HookSide::Client),
     ("key", HookSide::Both),
     ("wheel", HookSide::Both),
     ("command", HookSide::Both),
