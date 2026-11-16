@@ -457,11 +457,7 @@ impl Serving {
     }
 }
 fn integrated_owner_in_context(server_tick: bool, owner: Option<u128>) -> Option<u128> {
-    if server_tick {
-        owner
-    } else {
-        None
-    }
+    if server_tick { owner } else { None }
 }
 
 const OWNER_QUERIES_PER_MOD: usize = 512;
@@ -1247,13 +1243,14 @@ impl Game<'_> {
             bypasses_limit: Some(Arc::new(move |uuid| {
                 local_players.split_players.lock().unwrap().contains(&uuid)
             })),
-            gate: Some(Arc::new(move |address, uuid, name| {
+            gate: Some(Arc::new(move |address, uuid, name, social| {
                 let memory = address == horizon_client::lan::conn::MEMORY_ADDRESS;
                 (refused(
                     uuid == owner,
                     published.published.load(Ordering::Relaxed) != 0,
                     published.split_players.lock().unwrap().contains(&uuid),
                     memory,
+                    social,
                 ) || not_the_test_client(testing, uuid == owner, memory, name))
                 .then(|| translatable("multiplayer.disconnect.not_whitelisted", &[]))
             })),
@@ -1766,19 +1763,18 @@ fn server_game(
     Game::new(res, pack, gui, options, settings, audio, None)
 }
 
-/// Who the integrated server turns away: anyone but the owner until it is opened to the LAN,
-/// except a splitscreen seat. A seat's name is let in only through memory, so a LAN player
-/// logging in under it never gets its place or the owner's permissions it holds.
+/// The owner and splitscreen seats join only through memory. Other players need
+/// LAN publication or a social bridge and never acquire a local player's identity.
 /// The login a test worker's published world takes: its owner, and the second client named `TestB`.
 fn not_the_test_client(testing: bool, owner: bool, memory: bool, name: &str) -> bool {
     testing && !owner && !memory && name != "TestB"
 }
 
-fn refused(owner: bool, published: bool, split_seat: bool, memory: bool) -> bool {
-    if split_seat {
+fn refused(owner: bool, published: bool, split_seat: bool, memory: bool, social: bool) -> bool {
+    if owner || split_seat {
         !memory
     } else {
-        !owner && !published
+        !published && !social
     }
 }
 
@@ -1876,19 +1872,40 @@ mod tests {
 
     #[test]
     fn a_splitscreen_seat_is_let_in_only_through_memory() {
-        // (owner, published, seat, memory)
-        assert!(!refused(false, false, true, true), "a local seat joins");
+        // (owner, published, seat, memory, social)
         assert!(
-            refused(false, true, true, false),
+            !refused(false, false, true, true, false),
+            "a local seat joins"
+        );
+        assert!(
+            refused(false, true, true, false, false),
             "a LAN player under a seat's name"
         );
-        assert!(refused(false, false, true, false));
+        assert!(refused(false, false, true, false, false));
         assert!(
-            !refused(false, true, false, false),
+            !refused(false, true, false, false, false),
             "anyone once open to the LAN"
         );
-        assert!(refused(false, false, false, false), "nobody else before");
-        assert!(!refused(true, false, false, true), "the owner");
+        assert!(
+            refused(false, false, false, false, false),
+            "nobody else before"
+        );
+        assert!(!refused(true, false, false, true, false), "the owner");
+    }
+
+    #[test]
+    fn social_guests_do_not_need_lan_publication_or_gain_local_seat_privileges() {
+        for owner in [false, true] {
+            for published in [false, true] {
+                assert_eq!(refused(owner, published, false, false, true), owner);
+                assert!(refused(owner, published, true, false, true));
+                assert!(!refused(owner, published, false, true, true));
+                assert_eq!(
+                    refused(owner, published, false, false, false),
+                    owner || !published
+                );
+            }
+        }
     }
 
     #[test]

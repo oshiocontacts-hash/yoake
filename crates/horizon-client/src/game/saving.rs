@@ -30,6 +30,7 @@ const SNAPSHOT_BUDGET: Duration = Duration::from_millis(2);
 
 impl Game<'_> {
     pub(super) fn begin_closing_save(&mut self, quit: bool) -> Result<()> {
+        self.social_relay.end();
         #[cfg(feature = "dev-capture")]
         let _ = self.capture_cancel();
         if let Some(save) = &mut self.pending_save {

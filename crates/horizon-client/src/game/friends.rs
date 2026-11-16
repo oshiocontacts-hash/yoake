@@ -135,6 +135,9 @@ impl Game<'_> {
 
     /// The LAN server is closing: the code goes with it.
     pub(super) fn friends_lan_closed(&mut self) {
+        if self.social_relay.had_world() {
+            self.social_relay.end();
+        }
         if let Some(mut sharing) = self.friends.take() {
             sharing.host.stop();
         }

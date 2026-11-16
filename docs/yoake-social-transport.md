@@ -1,9 +1,12 @@
-# Yoake social transport: draft protocol
+# Yoake social transport and game handoff
 
-This document specifies the social transport primitives. The relay has an opt-in
-social listener, but the launcher and game do not use it yet. Social joins must
-remain unavailable until the portal, host connection handling, and end-to-end
-encryption are integrated; the existing invite-code and LAN paths remain separate.
+This document specifies the social transport primitives and the opt-in game
+client. Without an explicit social handoff the game does not contact the social
+relay or open additional listeners. The existing invite-code and LAN paths remain
+separate. The launcher/portal handoff producer still needs to integrate the
+client contract below before exposing this flow to players. The owner supplies
+the production trust pins at build time; their values are not committed here.
+TLS protects each hop; it does not provide end-to-end encryption against the relay.
 For certificate generation, deployment, rotation, and monitoring, see
 [Yoake social relay operations](yoake-social-ops.md).
 
@@ -26,8 +29,11 @@ is a JSON object with exactly these fields:
 All identifiers are nonempty UTF-8 strings of at most 128 bytes and cannot
 contain Unicode control characters. They must be opaque and must not encode an
 IP address, port, hostname, or other direct connection information. Unknown
-fields and versions are rejected. The verifier requires `exp` to be no more
-than 300 seconds in the future, but this alone does not establish the time of
+fields and versions are rejected. The relay requires `exp` to be no more than
+300 seconds in the future; the provisioning contract asks the portal to issue
+grants expiring after 240 seconds. The client permits an additional 60 seconds
+on this upper bound for clock skew, without accepting an already expired grant
+or relaxing the relay's checks. This alone does not establish the time of
 issuance. Issuers and verifiers need trustworthy clocks.
 
 The signed envelope has exactly `grant` and `signature` fields. The signature
@@ -45,11 +51,14 @@ characters. It covers this binary encoding, not serialized JSON:
 7. The 32 decoded nonce bytes.
 
 The host pins the portal public key independently of the grant and checks the
-signature, session, host, expiration, and nonce before accepting a guest. Its
-bounded nonce cache rejects repeated grants and fails closed when full. The
-relay independently checks the signature, session, host, expiration, and nonce.
-Both replay caches are in memory: a production integration must invalidate
-old sessions and grants after restart, or provide durable replay protection.
+signature, session, host, expiration, and nonce before accepting a guest. It
+reserves a nonce while pairing and records it as used only after `bridged`.
+Failed pairing releases the reservation so the same grant can be retried. Its
+bounded cache rejects concurrent reservations and used grants, and fails closed
+when full. The relay independently checks the signature, session, host,
+expiration, and nonce. Both replay caches are in memory: a production integration
+must invalidate old sessions and grants after restart, or provide durable replay
+protection.
 
 ### Test vectors
 
@@ -81,7 +90,7 @@ This second vector is for an empty message, not for the example grant. A
 portal-generated signed grant vector is still needed for cross-implementation
 interoperability testing.
 
-## Session registration
+## Session provisioning
 
 The portal never connects to the relay. A host opens its own session on the relay
 with a portal-signed **provision ticket**, so no portal-to-relay channel, relay
@@ -295,20 +304,133 @@ Signature (Ed25519 is deterministic), 128 hex characters:
 be08b6aa9568a50ce5437cefdb5b0786a03ca454edb6d492c25181052aa8894631bfa72daae84a22473abd95c39666610c385fb2323c93b4c6efda8e0cb0f205
 ```
 
+## Client hand-off and launcher contract
+
+Launch the game with `--yoake-social-handoff PATH`. A host also needs an
+authenticated `--session-file PATH` and `--yoake-social-control-stdin`; the host
+must be signed in (online-mode). A guest does not use the control stream.
+`--session-stdin` cannot share stdin with social control. The launcher is the
+only writer of social control; it must never put credentials on argv or in logs.
+
+The canonical parent of the hand-off must be exactly
+`<launcher data>/social-handoff/`, and its basename must be
+`handoff-<32 hex>.json`. The game and launcher resolve launcher data from
+`HORIZON_LAUNCHER_HOME`, or their matching platform default (`%APPDATA%/horizon-launcher`
+on Windows). The game's `--home` is not a launcher-data override: set the same
+`HORIZON_LAUNCHER_HOME` for both processes when overriding the location.
+Hand-offs are limited to 64 KiB. Create a fresh, exclusive private file, not a
+symlink or reparse point: on Unix it must be owned by the current user, have
+mode `0600`, and have exactly one link; on Windows it must have the private
+current-user DACL checked by the hand-off reader.
+
+The reader validates the directory and the opened file before consuming it.
+Windows opens with DELETE access and uses `FILE_DISPOSITION_INFO` on that handle;
+Unix keeps the directory fd, compares device/inode with `fstatat`, then calls
+`unlinkat`. An outside-directory file, invalid basename, or file that fails
+private-file validation is never deleted. A validated private hand-off is
+consumed even if its JSON is malformed or too large; errors do not echo its
+contents.
+
+The JSON has a `role` discriminator and rejects unknown fields:
+
+| Role | Required fields besides `role` |
+|---|---|
+| `host` | `session_id`, `host_principal`, `host_token`, `provision`, `relay` |
+| `guest` | `session_id`, `grant`, `signature`, `relay` |
+
+`host_token` is the 32-byte token encoded as 64 lowercase hex characters.
+`provision` is `{ "ticket": <ProvisionTicket>, "signature": <Ed25519 hex> }`;
+the ticket is the shared final relay type described above, including
+`session_exp` and `relay_id`. `relay` is an allowlisted `"name:port"` string; its hostname
+is also the TLS SNI/server name.
+The guest's `grant` and `signature` are the signed grant described above.
+Token-bearing hand-offs, control messages, signed grants, and relay requests do
+not implement an unredacted `Debug` representation.
+
+### Production trust
+
+All of these build-time inputs are required for the production social path:
+
+| Build-time environment variable | Format |
+|---|---|
+| `YOAKE_SOCIAL_PORTAL_KEY` | Pinned Ed25519 public key, 32 bytes as lowercase hex |
+| `YOAKE_SOCIAL_RELAY_CA` | Pinned relay CA certificate, DER as lowercase hex |
+| `YOAKE_SOCIAL_RELAY_CA_SHA256` | SHA-256 of that DER, 32 bytes as lowercase hex |
+| `YOAKE_SOCIAL_RELAYS` | Comma-separated allowlist of relay host names |
+
+Missing or invalid pins disable the production social path. A hand-off cannot
+choose a new public key, CA, or allowed relay name. The client checks the relay
+name against the allowlist, then performs normal certificate-chain and SNI name
+verification with only the pinned private roots; there is no public-root or
+custom-verifier fallback. Client ticket validation permits 60 seconds of skew
+on future `exp` and `session_exp` bounds, while the relay retains its strict
+ticket validation and expired tickets remain invalid.
+
+Only developer/test builds (`debug_assertions` or tests) accept
+`--yoake-social-trust PATH`. Such a file must pass the same opened-file privacy
+checks as a hand-off; it is not consumed, and is limited to 1 MiB. Its JSON fields
+are `portal_public_key` (lowercase key hex), `ca_certificates` (one to eight
+DER-hex roots), and `relay_hosts` (allowed host names). Release builds reject a
+runtime trust file rather than overriding the compiled pins.
+
+### Control, renewal, and shutdown
+
+Each stdin command is one newline-terminated JSON object:
+
+```text
+{"type":"pair","grant":{"grant":<Grant>,"signature":<Ed25519 hex>}}
+{"type":"reprovision","provision":{"ticket":<ProvisionTicket>,"signature":<Ed25519 hex>}}
+{"type":"end"}
+```
+
+Malformed or oversized lines are dropped individually, not treated as session
+failure. EOF (including an unterminated final line) or control-queue overflow
+ends the social session. The launcher must keep its writer alive for the host
+session and serialize all commands through that writer.
+
+Before the current `session_exp`, the launcher requests a fresh ticket with
+`POST /api/social/v1/sessions/:id/provision` and sends `reprovision`. It must keep
+the same session, host principal, host token, and relay identity. Successful
+renewal updates the expiration shared by existing bridges. The client can also
+replay its cached, still-valid provision ticket while retrying a Host request
+after a relay restart; once that ticket expires, recovery needs a fresh ticket
+from the launcher. Host pairing retries for up to three seconds within the
+grant/session lifetime; each `paired()` wait is at most two seconds. Failed
+connections are reported to the host no more than once every five seconds.
+
+On quit, the game cancels active transports, sends `retire`, and waits at most
+about two seconds for its Retire worker. The host is marked retired only after
+a successful `retired` reply; failure does not prevent a subsequent attempt.
+
+### Social login and server-directed actions
+
+The owner and split-screen owner seats are admitted only over the in-memory
+connection. Social hosting refuses to start without an online-mode host. A
+social login with an already-online UUID is refused without kicking the
+existing player. These restrictions do not change ordinary LAN duplicate-login
+behavior. During a `social` session, server `Transfer` packets and literal-address
+automatic reconnects are ignored. Resource-pack pushes always require a prompt,
+even when a prior server preference allowed packs, and social acceptance never
+persists an always-allow preference.
+
+Client integration tests use the real `SocialServer::new(portal_key, relay_id,
+acceptor)` and the relay's `from_options` path with `HORIZON_RELAY_ID`; there is
+no alternate test protocol or provisioning adapter.
+
 ## Relay messages and pairing
 
 Social relay control messages are a separate, strictly decoded protocol, not
 an extension of the legacy invite-code wire format. A host opens its session with
 `provision` and may close it with `retire` (see above); a guest presents a signed
 grant; the host presents that same signed grant and its session token. Responses
-are `waiting`, `bridged`, `provisioned`, `retired`, or `rejected`. These message types have no fields for
-direct addresses, observed addresses, or ICE candidates, and unknown fields are
-rejected.
+are `waiting`, `bridged`, `provisioned`, `retired`, or `rejected`. These message
+types have no fields for direct addresses, observed addresses, or ICE candidates,
+and unknown fields are rejected.
 
 The control channel is TLS 1.3 only, implemented by rustls with ring; the crypto
 provider is named explicitly in every config, so another provider in the
-dependency graph cannot change or break it. A client trusts only the
-caller-supplied Yoake private CA certificates and verifies the relay's DNS name
+dependency graph cannot change or break it. A production client trusts only its
+compiled-in Yoake private CA and verifies the allowlisted relay's DNS name
 (SNI); it does not use public WebPKI roots or a custom verifier. Several CA
 certificates may be given at once so a CA can be rotated with an overlap. The
 relay's leaf certificate (with a SAN for the relay name and the serverAuth
@@ -323,7 +445,8 @@ relay refuses a certificate that does not match the key or is outside its
 validity period, and says which. With none of the social variables set the relay
 only logs that the listener is disabled; a partial or unusable setting is
 logged with the reason. The binary can create a private CA and leaf and renew
-the leaf offline; no production CA is embedded in clients yet.
+the leaf offline; the owner supplies the client CA and portal pins at build
+time, and production values are not committed to this repository.
 
 Messages use a four-byte big-endian length and at most 16 KiB of payload, with
 the length checked before allocation. Sockets are nonblocking and every wait is a
@@ -394,9 +517,10 @@ retirement cannot be replayed against a re-provisioned session of the same id.
 Live sessions plus these reservations are capped at four times the session limit.
 
 A grant is a bearer authorization, not proof of possession of the guest's
-Minecraft account. Gameplay does not use the verified principal yet. The future
-integration must bind that principal to the host-side player, prove the Minecraft
-identity, and establish end-to-end encryption using a separate per-guest secret.
+Minecraft account. Social streams retain the normal Minecraft login and online
+authentication path, but gameplay does not bind the verified portal principal to
+that Minecraft identity yet. A future integration must add that binding and
+establish end-to-end encryption using a separate per-guest secret.
 Neither the relay token, signed grant, nor TLS channel binding alone is that
 secret. Portal provisioning, unavailable credentials, failed verification, and
 unavailable social transport must never fall back to an unauthenticated join.

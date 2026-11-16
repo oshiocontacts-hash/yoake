@@ -25,6 +25,10 @@ mod config;
 mod stream;
 use stream::MessageStream;
 
+#[cfg(test)]
+#[path = "social_client_tests.rs"]
+mod client_tests;
+
 type Channel = Box<dyn ControlChannel>;
 type Pending = PendingGuest<MessageStream>;
 type Key = (String, [u8; 32]);

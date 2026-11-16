@@ -820,7 +820,7 @@ impl Game<'_> {
             return Ok(());
         }
         self.join_world_rest()?;
-        if let Err(error) = self.join_server(address, name, None, cookies, lan) {
+        if let Err(error) = self.join_server(address, name, None, None, cookies, lan) {
             log::warn!("Horizon: could not join server: {error}");
             if self.title.is_none() {
                 self.title = Some(
@@ -846,7 +846,7 @@ impl Game<'_> {
         pipe: horizon_protocol::connection::Pipe,
         name: &str,
     ) -> Result<()> {
-        self.join_server("local", name, Some(pipe), None, false)
+        self.join_server("local", name, Some(pipe), None, None, false)
     }
 
     pub(super) fn connect_replay(&mut self, title: &str, name: &str) -> Result<()> {
@@ -861,7 +861,18 @@ impl Game<'_> {
             .native_session
             .take_replay_pipe()
             .ok_or("Replay pipe is no longer available")?;
-        self.join_server("replay", name, Some(pipe), None, false)
+        self.join_server("replay", name, Some(pipe), None, None, false)
+    }
+
+    pub(super) fn connect_social(
+        &mut self,
+        bridge: horizon_friends::social_stream::Bridge,
+    ) -> Result<()> {
+        super::world_loading::preload_server_loot(&self.options.resources);
+        self.join_world_rest()?;
+        self.native_client_state.enter_social();
+        let name = self.options.player_name();
+        self.join_server("social", &name, None, Some(bridge), None, false)
     }
 
     fn join_server(
@@ -869,6 +880,7 @@ impl Game<'_> {
         address: &str,
         name: &str,
         local: Option<horizon_protocol::connection::Pipe>,
+        social: Option<horizon_friends::social_stream::Bridge>,
         cookies: Option<horizon_client::net::Cookies>,
         lan: bool,
     ) -> Result<()> {
@@ -912,50 +924,62 @@ impl Game<'_> {
             |a| (a.name.clone(), a.uuid),
         );
         self.server_packs_connect(local.is_none().then_some(address), user);
-        let session = match local {
-            Some(pipe) => {
-                let connect = if replay {
-                    Session::connect_replay
-                } else {
-                    Session::connect_local
-                };
-                connect(
-                    pipe,
-                    name,
-                    info.clone(),
-                    lang.clone(),
-                    root.clone(),
-                    capture_item_tags,
-                )
-            }
-            None => {
-                self.extras_connecting(address, name, lan);
-                match cookies {
-                    Some(cookies) => Session::connect_transferred(
-                        address,
+        let session = if let Some(bridge) = social {
+            Session::connect_social(
+                bridge,
+                name,
+                auth.clone(),
+                info.clone(),
+                lang.clone(),
+                root.clone(),
+                capture_item_tags,
+            )
+        } else {
+            match local {
+                Some(pipe) => {
+                    let connect = if replay {
+                        Session::connect_replay
+                    } else {
+                        Session::connect_local
+                    };
+                    connect(
+                        pipe,
                         name,
-                        auth.clone(),
                         info.clone(),
                         lang.clone(),
-                        cookies,
                         root.clone(),
                         capture_item_tags,
-                    ),
-                    None => {
-                        let connect = if lan {
-                            Session::connect_lan
-                        } else {
-                            Session::connect
-                        };
-                        connect(
+                    )
+                }
+                None => {
+                    self.extras_connecting(address, name, lan);
+                    match cookies {
+                        Some(cookies) => Session::connect_transferred(
                             address,
                             name,
                             auth.clone(),
                             info.clone(),
                             lang.clone(),
+                            cookies,
                             root.clone(),
                             capture_item_tags,
-                        )
+                        ),
+                        None => {
+                            let connect = if lan {
+                                Session::connect_lan
+                            } else {
+                                Session::connect
+                            };
+                            connect(
+                                address,
+                                name,
+                                auth.clone(),
+                                info.clone(),
+                                lang.clone(),
+                                root.clone(),
+                                capture_item_tags,
+                            )
+                        }
                     }
                 }
             }
@@ -2041,6 +2065,7 @@ impl Game<'_> {
                 Event::Transfer { host, port } => {
                     if let Some(r) = self.remote.as_mut()
                         && r.session.address != "local"
+                        && r.session.address != "social"
                     {
                         r.transfer = Some(format!("{host}:{port}"));
                     }
@@ -2077,11 +2102,15 @@ impl Game<'_> {
                     // instead of showing the disconnect, the stored cookies
                     // carried over (ClientCommonPacketListenerImpl.
                     // handleTransfer → ConnectScreen.startConnecting).
-                    let transfer = self.remote.as_mut().and_then(|r| {
-                        r.transfer.take().map(|address| {
-                            (address, r.session.name.clone(), r.session.cookies.clone())
-                        })
-                    });
+                    let transfer = self
+                        .remote
+                        .as_mut()
+                        .filter(|remote| remote.session.address != "social")
+                        .and_then(|r| {
+                            r.transfer.take().map(|address| {
+                                (address, r.session.name.clone(), r.session.cookies.clone())
+                            })
+                        });
                     if let Some((address, name, cookies)) = transfer {
                         self.leave_server(None)?;
                         self.connect_server_with_cookies(&address, &name, Some(cookies))?;
@@ -3182,7 +3211,11 @@ impl Game<'_> {
     }
 
     fn handle_packet(&mut self, packet: C) -> Result<()> {
-        if let Some(snapshot) = self.remote.as_mut().and_then(|remote| remote.snapshot.as_mut()) {
+        if let Some(snapshot) = self
+            .remote
+            .as_mut()
+            .and_then(|remote| remote.snapshot.as_mut())
+        {
             snapshot.observe(&packet);
         }
         match packet {
@@ -3207,7 +3240,8 @@ impl Game<'_> {
                     && p.channel == horizon_client::native_inventory::MENU_CHANNEL =>
             {
                 if let Some(remote) = self.remote.as_mut() {
-                    remote.pending_menu = horizon_client::native_inventory::MenuOpening::decode(&p.data);
+                    remote.pending_menu =
+                        horizon_client::native_inventory::MenuOpening::decode(&p.data);
                 }
             }
             C::CustomPayload(p) if p.channel == horizon_protocol::mod_net::CHANNEL => {
@@ -5471,7 +5505,9 @@ impl Game<'_> {
                 let live_appearance = if host.hub.singleplayer_owner == Some(guest.uuid) {
                     self.player_model.as_ref()
                 } else {
-                    self.mobs.iter().find(|mob| mob.id == guest.entity_id as u32)
+                    self.mobs
+                        .iter()
+                        .find(|mob| mob.id == guest.entity_id as u32)
                 }
                 .and_then(|mob| mob.skin.clone().map(|skin| (skin, mob.slim)));
                 let appearance = live_appearance
@@ -5491,8 +5527,7 @@ impl Game<'_> {
                             signature,
                             &horizon_client::skins::TEXTURE_URIS,
                         );
-                        let hash =
-                            horizon_client::skins::texture_hash(textures.skin.as_deref()?)?;
+                        let hash = horizon_client::skins::texture_hash(textures.skin.as_deref()?)?;
                         Some((horizon_client::skins::skin_location(&hash), textures.slim))
                     })
                     .or(live_appearance);
@@ -7436,7 +7471,11 @@ impl Game<'_> {
                 && let Some(behavior) =
                     native_block_behaviors::lookup(self.pack.assets.registry, state)
             {
-                behavior.attack(self, BlockPos::new(hit.pos[0], hit.pos[1], hit.pos[2]), state);
+                behavior.attack(
+                    self,
+                    BlockPos::new(hit.pos[0], hit.pos[1], hit.pos[2]),
+                    state,
+                );
             }
             if progress >= 1.0 {
                 // startDestroyBlock: instant survival breaks have no destroy delay.
@@ -9445,7 +9484,13 @@ impl Game<'_> {
         {
             self.send_clicks(
                 container,
-                vec![(*slot, *button, Input::QuickMove, changed, self.carried.clone())],
+                vec![(
+                    *slot,
+                    *button,
+                    Input::QuickMove,
+                    changed,
+                    self.carried.clone(),
+                )],
             );
             return true;
         }
@@ -10191,10 +10236,7 @@ impl Game<'_> {
                 .and_then(|uuid| Some((*uuid, remote.level_player_name(id, uuid)?.to_owned())));
             let team = match &profile {
                 Some((_, name)) => self.score.board.players_team(name),
-                None => mob.map_or_else(
-                    || self.mob_team(id as u32),
-                    |mob| self.mob_team_of(mob),
-                ),
+                None => mob.map_or_else(|| self.mob_team(id as u32), |mob| self.mob_team_of(mob)),
             };
             let spectator = profile
                 .as_ref()
