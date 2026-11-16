@@ -135,6 +135,8 @@ horizon-release-sign verify --tag yoake-mods-v1 --key <base64-public-key> path/t
 > **プレイヤーに配る WebAssembly MOD には、Yoake の署名鍵による署名が必須です。**
 > `yoake pack`（や `cargo horizon-mod pack`）が出力した `.yak` は**未署名（unsigned）**です[^api-yoake-mods][^yoake-cli]。未署名の `.yak` は、作者自身のマシンで Wasm の開発者モード（`YOAKE_WASM_UNSIGNED=1`、またはランチャーの「自分の WASM MOD をテスト」）を有効にしたときにしかゲーム内で動作しません[^yak-mods-client]。他のプレイヤーが通常環境で WebAssembly MOD を動かすには、ピン留めされた Yoake の署名鍵による有効な `SIGNATURE` がパッケージに入っている必要があります[^yak-mods-client][^yak-installed]。なお、MOD 作者がパッケージを提出して Yoake の署名を受ける具体的な手順・窓口は（未確定）です。
 
+<!-- TODO(Yoake): 署名の依頼窓口とポータルへの提出手順を決めたら、ここと 07-x（ポータル申請・更新提出の（未確定）箇所）を書き換える -->
+
 ### ランチャーとゲームが検査すること
 
 1. **ランチャーの検査**:
