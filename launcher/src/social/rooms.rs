@@ -80,26 +80,6 @@ impl<'de> Deserialize<'de> for Audience {
     }
 }
 
-/// A time as the portal writes it: unix seconds, or text.
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
-#[serde(untagged)]
-pub enum Stamp {
-    Unix(i64),
-    Text(String),
-}
-
-impl Stamp {
-    /// Unix seconds, when the portal gave them or an RFC 3339 time.
-    pub fn unix(&self) -> Option<i64> {
-        match self {
-            Stamp::Unix(secs) => Some(*secs),
-            Stamp::Text(text) => chrono::DateTime::parse_from_rfc3339(text)
-                .ok()
-                .map(|t| t.timestamp()),
-        }
-    }
-}
-
 /// `POST /sessions`' body.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct CreateRequest<'a> {
@@ -148,7 +128,8 @@ pub struct HostedRoom {
     pub provision: Provision,
     #[serde(deserialize_with = "relay")]
     pub relay: String,
-    pub expires_at: Stamp,
+    /// Unix seconds.
+    pub expires_at: i64,
 }
 
 /// `POST /sessions/:id/provision`' answer: a new ticket, for a relay that restarted.
@@ -183,9 +164,13 @@ pub struct RoomInfo {
     pub audience: Audience,
     #[serde(default)]
     pub name: Option<String>,
-    pub created_at: Stamp,
+    /// Unix seconds (a number: text is refused).
+    pub created_at: i64,
     #[serde(default)]
-    pub expires_at: Option<Stamp>,
+    pub expires_at: Option<i64>,
+    /// The portal marks the player's own room.
+    #[serde(default)]
+    pub mine: bool,
 }
 
 /// The player's own open room, as the page keeps it: what to show and what to close.
@@ -233,7 +218,7 @@ mod tests {
         body["provision"]["extra"] = json!(1);
         let room: HostedRoom = serde_json::from_value(body).unwrap();
         assert_eq!((room.session_id.as_str(), room.relay.as_str()), ("s1", "relay.example:7000"));
-        assert_eq!(room.expires_at.unix(), Some(1_800_000_000));
+        assert_eq!(room.expires_at, 1_800_000_000);
 
         let join: JoinGrant = serde_json::from_value(json!({
             "grant": { "g": 1 }, "signature": "s", "relay": "r.example:1", "more": true
@@ -248,14 +233,24 @@ mod tests {
 
         let list: Vec<RoomInfo> = serde_json::from_value(json!([
             { "session_id": "a", "host": { "principal": "p", "name": "Sora", "x": 1 },
-              "audience": "friends", "name": null, "created_at": "2026-11-16T01:02:03Z", "expires_at": 5 },
+              "audience": "friends", "name": null, "created_at": 1_800_000_000, "expires_at": 5, "mine": true },
             { "session_id": "b", "host": { "principal": "q", "name": "Mika" },
               "audience": { "group": "g", "name": "Crew" }, "created_at": 7 }
         ]))
         .unwrap();
         assert_eq!(list[0].audience, Audience::Friends);
         assert_eq!(list[1].audience, Audience::Group { id: "g".into(), name: Some("Crew".into()) });
-        assert!(list[0].created_at.unix().is_some());
+        assert_eq!(list[0].created_at, 1_800_000_000);
+        assert!(list[0].mine && !list[1].mine);
+        // Times are numbers: text is refused.
+        assert!(serde_json::from_value::<RoomInfo>(json!({
+            "session_id": "a", "host": { "principal": "p", "name": "n" },
+            "audience": "friends", "created_at": "2026-11-16T01:02:03Z"
+        }))
+        .is_err());
+        let mut text = hosted();
+        text["expires_at"] = json!("2026-11-16T01:02:03Z");
+        assert!(serde_json::from_value::<HostedRoom>(text).is_err());
     }
 
     #[test]

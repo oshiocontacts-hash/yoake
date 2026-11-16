@@ -368,7 +368,7 @@ struct Launcher {
     joining: Option<String>,
     /// The file that hands a room to the game starting now (`social::handoff`), and when it was
     /// asked for: its path is the game's `--yoake-social-handoff` argument.
-    social_handoff: Option<(std::path::PathBuf, Instant)>,
+    social_handoff: Option<SocialHandoff>,
     /// Where the next start goes at once: `--world <folder>` or `--server <address>`.
     quick_play: Option<(&'static str, String)>,
     /// The instance the running game plays and when it started: its play time grows on exit.
@@ -1356,7 +1356,7 @@ impl Launcher {
                         }
                         // A room: the game gets the path of its private file and nothing else.
                         let handoff = self.take_social_handoff();
-                        if let Some(path) = &handoff {
+                        if let Some((path, _)) = &handoff {
                             cmd.arg(social::handoff::HANDOFF_ARG).arg(path);
                         }
                         backend::append_game_args(&mut cmd);
@@ -1378,7 +1378,7 @@ impl Launcher {
                         cmd.envs(self.client_vars.iter().map(|(k, v)| (k, v)));
                         if let Err(error) = backend::check_client_args(&cmd) {
                             self.client_error = Some(error);
-                            handoff.iter().for_each(|path| social::handoff::discard(path));
+                            self.fail_social_handoff(handoff);
                             continue;
                         }
                         let launch = instance.map(|i| i.launch).unwrap_or_default();
@@ -1397,7 +1397,7 @@ impl Launcher {
                             }
                             Err(e) => {
                                 self.client_error = Some(e);
-                                handoff.iter().for_each(|path| social::handoff::discard(path));
+                                self.fail_social_handoff(handoff);
                             }
                         }
                     }
@@ -5054,28 +5054,45 @@ impl Launcher {
         }
     }
 
-    /// Asks for the hand-off file at `path` to go to the game that starts next.
-    pub(crate) fn set_social_handoff(&mut self, path: std::path::PathBuf) {
+    /// Asks for the hand-off file at `path` to go to the game that starts next; `hosting` is
+    /// the room that game opens.
+    pub(crate) fn set_social_handoff(&mut self, path: std::path::PathBuf, hosting: Option<String>) {
         self.drop_social_handoff();
-        self.social_handoff = Some((path, Instant::now()));
+        self.social_handoff = Some(SocialHandoff { path, asked: Instant::now(), hosting });
     }
 
-    /// The game will not read the pending hand-off file: delete it.
+    /// The game will not read the pending hand-off file: delete it, and close the room the
+    /// game was to host.
     pub(crate) fn drop_social_handoff(&mut self) {
-        if let Some((path, _)) = self.social_handoff.take() {
-            social::handoff::discard(&path);
+        if let Some(handoff) = self.social_handoff.take() {
+            self.fail_social_handoff(Some((handoff.path, handoff.hosting)));
         }
     }
 
-    /// The pending hand-off file for the game starting now. One that has waited longer than
-    /// the portal's grant lasts is stale: it is deleted, not passed.
-    fn take_social_handoff(&mut self) -> Option<std::path::PathBuf> {
-        let (path, asked) = self.social_handoff.take()?;
-        if asked.elapsed() > Duration::from_secs(180) {
-            social::handoff::discard(&path);
+    /// A launch with a hand-off file failed: delete it, and close the room it was for.
+    fn fail_social_handoff(&mut self, handoff: Option<(std::path::PathBuf, Option<String>)>) {
+        let Some((path, hosting)) = handoff else {
+            return;
+        };
+        social::handoff::discard(&path);
+        if let Some(room) = hosting {
+            self.friends_close_room_after_failure(room);
+        }
+    }
+
+    /// The pending hand-off file for the game starting now, and the room it hosts. One that has
+    /// waited as long as the portal's grant lasts is stale: it is deleted, not passed.
+    fn take_social_handoff(&mut self) -> Option<(std::path::PathBuf, Option<String>)> {
+        let handoff = self.social_handoff.take()?;
+        if handoff.asked.elapsed() > SOCIAL_HANDOFF_TTL {
+            self.fail_social_handoff(Some((handoff.path, handoff.hosting)));
+            self.friends.note = Some((
+                false,
+                tr("The room's pass ran out before the game started. Try again.").to_string(),
+            ));
             return None;
         }
-        Some(path)
+        Some((handoff.path, handoff.hosting))
     }
 
     fn join_friend(&mut self) {
@@ -6067,6 +6084,18 @@ fn menus() -> Vec<Menu> {
         },
     ]
 }
+
+/// A hand-off file asked for, the time it was asked, and the room the game is to host (to close
+/// it again when the game does not start).
+struct SocialHandoff {
+    path: std::path::PathBuf,
+    asked: Instant,
+    hosting: Option<String>,
+}
+
+/// A hand-off file older than this is not passed on: the portal's grant lasts 240 seconds from
+/// the moment it is asked for, and the file is written right after.
+const SOCIAL_HANDOFF_TTL: Duration = Duration::from_secs(230);
 
 fn main() {
     if let Err(error) = console::attach_for_cli() {

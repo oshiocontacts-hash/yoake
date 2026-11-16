@@ -1075,10 +1075,10 @@
   "Confirm": "確認",
   "Help": "ヘルプ",
   "Sign in": "サインイン",
-  "News": "\u30cb\u30e5\u30fc\u30b9",
-  "Links": "\u30ea\u30f3\u30af",
-  "Other": "\u305d\u306e\u4ed6",
-  "This Yoake feed needs a newer Yoake — update from the Microsoft Store / download page": "\u3053\u306eYoake\u30d5\u30a3\u30fc\u30c9\u306b\u306f\u65b0\u3057\u3044Yoake\u304c\u5fc5\u8981\u3067\u3059\u3002Microsoft Store / \u30c0\u30a6\u30f3\u30ed\u30fc\u30c9\u30da\u30fc\u30b8\u304b\u3089\u66f4\u65b0\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+  "News": "ニュース",
+  "Links": "リンク",
+  "Other": "その他",
+  "This Yoake feed needs a newer Yoake — update from the Microsoft Store / download page": "このYoakeフィードには新しいYoakeが必要です。Microsoft Store / ダウンロードページから更新してください。",
   "Checking the mods…": "MOD を確認しています…",
   "No Yoake mods are listed yet. Sign in and refresh.": "Yoake の MOD はまだ載っていません。サインインして更新してください。",
   ".yak mods are not listed: {reason}": ".yak の MOD は表示できません: {reason}",
@@ -1274,6 +1274,7 @@
   "Room closed.": "部屋を閉じました。",
   "Joining the room. Starting the game…": "部屋に参加します。ゲームを起動します…",
   "Could not pass the room to the game. The room was closed. Try again.": "部屋の情報をゲームに渡せませんでした。部屋は閉じました。もう一度お試しください。",
-  "The game could not start. Your room is open: close it, or try again.": "ゲームを起動できませんでした。部屋は開いたままです。閉じるか、もう一度お試しください。",
-  "The game could not start. Close the running game, then try again.": "ゲームを起動できませんでした。起動中のゲームを閉じてから、もう一度お試しください。"
+  "The game could not start. Close the running game, then try again.": "ゲームを起動できませんでした。起動中のゲームを閉じてから、もう一度お試しください。",
+  "The game could not start, so your room was closed.": "ゲームを起動できなかったため、部屋を閉じました。",
+  "The room's pass ran out before the game started. Try again.": "ゲームの起動前に部屋の参加証が期限切れになりました。もう一度お試しください。"
 }

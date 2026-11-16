@@ -59,7 +59,7 @@ impl Launcher {
             ),
             (
                 FriendsTab::Rooms,
-                "game-controller-01",
+                "dashboard-square-01",
                 tr("Rooms"),
                 counts.map(|c| c.4),
             ),
@@ -893,7 +893,8 @@ impl Launcher {
         let mine = self.friends.my_room.clone();
 
         // Your room.
-        let open_toggle = {
+        // One room a person: while one is open there is nothing to open.
+        let open_toggle = mine.is_none().then(|| {
             let button = ui::quiet_icon(
                 "room-open",
                 Some("plus-sign"),
@@ -901,7 +902,7 @@ impl Launcher {
                 36.,
                 &t,
             );
-            if mine.is_some() || launching || !can_start {
+            if launching || !can_start {
                 disabled(button)
             } else {
                 button.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -913,8 +914,8 @@ impl Launcher {
                     cx.notify();
                 }))
             }
-        };
-        body = body.child(ui::list_head(tr("Your room")).child(open_toggle));
+        });
+        body = body.child(ui::list_head(tr("Your room")).children(open_toggle));
         match mine {
             Some(room) => {
                 let id = room.session_id.clone();
@@ -935,7 +936,7 @@ impl Launcher {
                 let note = room_note(&room.audience, Some(room.opened_at));
                 body = body.child(self.friends_row(
                     format!("fr-myroom-{}", room.session_id),
-                    "game-controller-01",
+                    "dashboard-square-01",
                     name,
                     note,
                     vec![close],
@@ -1033,10 +1034,10 @@ impl Launcher {
             };
             body = body.child(self.friends_row_badged(
                 format!("fr-room-{}", room.session_id),
-                "game-controller-01",
+                "dashboard-square-01",
                 room.host.name.clone(),
                 room.name.clone(),
-                room_note(&room.audience, room.created_at.unix()),
+                room_note(&room.audience, Some(room.created_at)),
                 vec![join],
                 cx,
             ));

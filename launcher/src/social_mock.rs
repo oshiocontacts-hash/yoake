@@ -3,7 +3,7 @@
 //! code. The tests use it, and `HORIZON_LAUNCHER_SOCIAL=mock` shows the page with sample data
 //! while the real portal has no API. It never touches the network or the sign-in.
 use crate::social::rooms::{
-    Audience, HostedRoom, JoinGrant, Provision, Redacted, Reprovision, RoomHost, RoomInfo, Stamp,
+    Audience, HostedRoom, JoinGrant, Provision, Redacted, Reprovision, RoomHost, RoomInfo,
 };
 use crate::social::*;
 use std::collections::HashMap;
@@ -815,7 +815,7 @@ impl SocialBackend for MockSocial {
                 signature: Redacted::new("mock-signature".into()),
             },
             relay: "relay.mock.invalid:7000".into(),
-            expires_at: Stamp::Unix(created + 4 * 3600),
+            expires_at: created + 4 * 3600,
         })
     }
 
@@ -852,8 +852,9 @@ impl SocialBackend for MockSocial {
                     other => other.clone(),
                 },
                 name: r.name.clone(),
-                created_at: Stamp::Unix(r.created),
-                expires_at: Some(Stamp::Unix(r.created + 4 * 3600)),
+                created_at: r.created,
+                expires_at: Some(r.created + 4 * 3600),
+                mine: r.host == ME,
             })
             .collect())
     }

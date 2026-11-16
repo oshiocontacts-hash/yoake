@@ -166,6 +166,8 @@ pub(super) enum Outcome {
     Joined(PathBuf),
     /// The portal answered, but the file for the game could not be made (the room is closed).
     HandoffFailed,
+    /// The game did not start, so the room it hosted was closed.
+    ClosedAfterFailure,
     Me(Me),
     /// A group to open: the one just made or joined.
     Group(String),
@@ -468,14 +470,11 @@ impl Friends {
         choices[at].clone()
     }
 
-    /// Takes in the portal's list of rooms: the player's own is told from the others by the
-    /// host's id. A portal that does not list the player's own room leaves the one the page
-    /// opened until it expires or is closed.
+    /// Takes in the portal's list of rooms: the player's own room is the one the portal marks
+    /// `mine`. Should the list have none, the room the page opened stays until it expires or
+    /// is closed.
     fn take_rooms(&mut self, list: Vec<RoomInfo>) {
-        let me = self.my_id().to_string();
-        let (mine, others): (Vec<_>, Vec<_>) = list
-            .into_iter()
-            .partition(|r| !me.is_empty() && r.host.principal == me);
+        let (mine, others): (Vec<_>, Vec<_>) = list.into_iter().partition(|r| r.mine);
         self.rooms = others;
         self.rooms_status = RoomsStatus::Ready;
         match mine.into_iter().next() {
@@ -485,12 +484,8 @@ impl Friends {
                     session_id: room.session_id,
                     audience: room.audience,
                     name: room.name,
-                    opened_at: room
-                        .created_at
-                        .unix()
-                        .or_else(|| self.my_room.as_ref().map(|m| m.opened_at))
-                        .unwrap_or_else(now_unix),
-                    expires_at: room.expires_at.and_then(|at| at.unix()),
+                    opened_at: room.created_at,
+                    expires_at: room.expires_at,
                 });
             }
             None => {
@@ -645,9 +640,12 @@ impl Friends {
             (A::OpenRoom | A::JoinRoom, Outcome::HandoffFailed) => {
                 self.note = Some((false, tr(HANDOFF_FAILED).to_string()));
             }
-            (A::CloseRoom, _) => {
+            (A::CloseRoom, outcome) => {
                 self.my_room = None;
                 self.list_shows_own = false;
+                if matches!(outcome, Outcome::ClosedAfterFailure) {
+                    self.note = Some((false, tr(ROOM_CLOSED_AFTER_FAILURE).to_string()));
+                }
             }
             (A::CreateInvite, Outcome::Invite(code)) => {
                 if let Some(id) = self.open_group.clone() {
@@ -813,6 +811,10 @@ pub(super) fn done_en(action: FriendAction) -> &'static str {
     }
 }
 
+/// What the Rooms tab says when the game did not start and the room it hosted was closed.
+pub(super) const ROOM_CLOSED_AFTER_FAILURE: &str =
+    "The game could not start, so your room was closed.";
+
 /// What a room's hand-off failing says: the portal's room was closed again.
 pub(super) const HANDOFF_FAILED: &str =
     "Could not pass the room to the game. The room was closed. Try again.";
@@ -976,18 +978,21 @@ impl Launcher {
     /// Starts the game with a hand-off file (`social_handoff`): joining by default, hosting
     /// the room `hosting` otherwise. A game that does not start does not read it: it goes.
     fn social_launch(&mut self, hosting: Option<String>, path: PathBuf) {
-        self.set_social_handoff(path);
+        let hosted = hosting.is_some();
+        self.set_social_handoff(path, hosting);
         self.play();
         if self.starting_client.is_none()
             && !(yoake_page::enabled() && self.yoake_base_pending_play())
         {
+            // A room that was to be hosted is closed (its note says so when that is done).
             self.drop_social_handoff();
-            let text = if hosting.is_some() {
-                "The game could not start. Your room is open: close it, or try again."
-            } else {
-                "The game could not start. Close the running game, then try again."
-            };
-            self.friends.note = Some((false, tr(text).to_string()));
+            if !hosted {
+                self.friends.note = Some((
+                    false,
+                    tr("The game could not start. Close the running game, then try again.")
+                        .to_string(),
+                ));
+            }
         }
     }
 
@@ -1163,6 +1168,13 @@ impl Launcher {
         });
     }
 
+    /// The game that was to host `session_id` did not start: close the room.
+    pub(super) fn friends_close_room_after_failure(&mut self, session_id: String) {
+        self.friends_act(FriendAction::CloseRoom, move |api| {
+            api.close_room(&session_id).map(|()| Outcome::ClosedAfterFailure)
+        });
+    }
+
     pub(super) fn friends_close_room(&mut self, session_id: String) {
         self.friends_act(FriendAction::CloseRoom, move |api| {
             api.close_room(&session_id).map(|()| Outcome::Done)
@@ -1304,7 +1316,7 @@ pub(super) fn host_room(
                 audience: audience.clone(),
                 name: name.map(str::to_string),
                 opened_at: now_unix(),
-                expires_at: room.expires_at.unix(),
+                expires_at: Some(room.expires_at),
             },
             path,
         )),
@@ -1817,6 +1829,40 @@ mod tests {
         done(&mut page, FriendAction::JoinRoom, Err(SocialError::Api(C::NotFound)));
         assert_eq!(page.note, Some((false, tr("That room is closed.").to_string())));
         let _ = std::fs::remove_dir_all(folder);
+    }
+
+    #[test]
+    fn a_room_whose_game_did_not_start_is_closed_and_the_tab_says_so() {
+        let api = MockSocial::sample();
+        let mut page = rooms_page(&api);
+        let room = api.create_room(&Audience::Friends, None).unwrap();
+        page.my_room = Some(MyRoom {
+            session_id: room.session_id.clone(),
+            audience: Audience::Friends,
+            name: None,
+            opened_at: now_unix(),
+            expires_at: None,
+        });
+        // What the launcher asks for when the game's start fails: DELETE, then this outcome.
+        api.close_room(&room.session_id).unwrap();
+        let follow = done(&mut page, FriendAction::CloseRoom, Ok(Outcome::ClosedAfterFailure));
+        assert_eq!(follow, [Follow::Refresh]);
+        assert!(page.my_room.is_none());
+        assert_eq!(page.note, Some((false, tr(ROOM_CLOSED_AFTER_FAILURE).to_string())));
+        assert_ne!(tr_in(Language::Japanese, ROOM_CLOSED_AFTER_FAILURE), ROOM_CLOSED_AFTER_FAILURE);
+        assert!(api.rooms().unwrap().iter().all(|r| !r.mine));
+    }
+
+    #[test]
+    fn the_room_the_portal_marks_mine_is_mine_and_not_in_the_list_to_join() {
+        // The mock marks it; the page keeps it apart even when the host id is not known yet.
+        let api = MockSocial::sample().with_my_room_open();
+        let mut page = Friends::with_backend(Arc::new(MockSocial::blank()));
+        page.apply(Event::Rooms(api.rooms()));
+        assert_eq!(page.rooms.len(), 3);
+        assert!(page.rooms.iter().all(|r| !r.mine));
+        assert_eq!(page.my_room.as_ref().map(|r| r.session_id.as_str()), Some("room-me"));
+        assert_eq!(page.my_room.as_ref().and_then(|r| r.name.as_deref()), Some("Yuki room"));
     }
 
     #[test]

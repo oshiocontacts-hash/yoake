@@ -1011,7 +1011,7 @@ mod tests {
             Ok(Reply { status: 201, body: hosted }),
             ok(json!({ "provision": { "ticket": {}, "signature": "S2" }, "relay": "r:1" })),
             ok(json!({ "sessions": [{ "session_id": "a", "host": { "principal": "p", "name": "Sora" },
-                "audience": { "group": "g", "name": "Crew" }, "name": null, "created_at": 1, "expires_at": 2 }] })),
+                "audience": { "group": "g", "name": "Crew" }, "name": null, "created_at": 1, "expires_at": 2, "mine": false }] })),
             ok(json!({ "grant": { "g": 1 }, "signature": "S3", "relay": "r:2" })),
             Ok(Reply { status: 204, body: Value::Null }),
         ]);
