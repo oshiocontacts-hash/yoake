@@ -21,7 +21,7 @@ yoake new <minigame|hud-only|custom-mob|utility|script> <name>
 
 ### The 5 Available Templates
 
-The CLI behavior and generated files below are verified against the **`yoake/p10-tools` version**.[^cli] Every template scaffolds a client-side project, and `script` and `custom-mob` are currently placeholders.
+The CLI behavior and generated files below are based on `crates/yoake-cli/src/scaffold.rs` and `main.rs`.[^cli] Every template scaffolds a client-side project, and `script` and `custom-mob` are currently placeholders.
 
 | Template Name | What It Generates |
 |---|---|
@@ -32,17 +32,18 @@ The CLI behavior and generated files below are verified against the **`yoake/p10
 | `script` | Placeholder (scripting integration not implemented) |
 
 > [!IMPORTANT]
-> `<name>` must be **3 to 48 characters long**, **start with a lowercase ASCII letter, and contain only lowercase ASCII letters, digits, and single hyphens**. Underscores (`_`), trailing hyphens, and consecutive hyphens (`--`) are not allowed. Windows reserved names (`con`, `prn`, `aux`, `nul`, `com1`–`com9`, `lpt1`–`lpt9`) are also rejected.
+> `<name>` must be **3 to 48 characters long**, **start with a lowercase ASCII letter, and contain only lowercase ASCII letters, digits, and single hyphens**. Underscores (`_`), trailing hyphens, and consecutive hyphens (`--`) are not allowed in the `<name>` of `yoake new`. Windows reserved names (`con`, `prn`, `aux`, `nul`, `com1`–`com9`, `lpt1`–`lpt9`) are also rejected.
 >
-> `<name>` is used directly as the **`id`** in `yak.toml`, the Rust **crate name**, and the filename in **`bin/wasm/<name>.wasm`**.
+> `<name>` is used directly as the **`id`** in `yak.toml`, the Rust **crate name**, and the filename in **`bin/wasm/<name>.wasm`**. The `id` field in `yak.toml` itself also accepts underscores (see [5-3 ⑦](./05-errors.md)); for example, a package with data content such as `content-demo` uses its `id` as a namespace, so its `id` takes only `[a-z0-9_]`.[^id-namespace]
 
 > [!NOTE]
 > A **WIT world (mod kind)** defines which combination of hooks and services a mod can use. Not to be confused with a save-game world.
 >
 > - **`client-mod`**: Pick this when the 19 core client hooks are enough. It is the default when `world` is omitted in `yak.toml`, and it supports hot-reloading raw `.wasm` files.
-> - **`client-full`**: Pick this when you need full-catalog features such as item icons, custom tooltips, or FOV adjustments. You install and test it as a `.yak` package.
+> - **`client-full`**: Pick this when you need full-catalog (`client-full` / `server-full`) features such as item icons, custom tooltips, or FOV adjustments. You install and test it as a `.yak` package.
+> - **`inject-mod`**: Pick this when you want to intercept engine functions with Mixin. It needs `interface = "1.1"` and can be written on the client side, the server side, or both, following the `side` of the sites listed under `[mixin] targets` (see [8. Getting Started with Yoake Mixin](./08-mixin.md)).
 >
-> Server modules always use the `server-full` WIT world.
+> Except for `inject-mod`, server modules use the `server-full` WIT world.
 
 ---
 
@@ -51,8 +52,8 @@ The CLI behavior and generated files below are verified against the **`yoake/p10
 Running `yoake new hud-only my-hud` creates the following files and folders:
 
 1. **`yak.toml`** — The mod manifest declaring its ID, version, display name, authors, runtime side, and bundled `.wasm` path.
-2. **`Cargo.toml`** — The Rust build configuration specifying the SDK path and output crate types.
-3. **`src/lib.rs`** — Your mod's implementation and a unit test that runs against a local mock.
+2. **`Cargo.toml`** — The Rust build configuration specifying the SDK path, output crate types, and the `tests` feature.
+3. **`src/lib.rs`** — Your mod's implementation, an engine test, and a unit test that runs against a local mock.
 4. **`README.md`** — Quick reference instructions for building, checking, packaging, and installing for development.
 5. **`.gitignore`** — Excludes `target/`, `dist/`, and `.yoake/` from Git version control.
 6. **`.yoake/`** — A local copy of the SDK and WIT definitions. If you set `YOAKE_SDK_PATH` when running `yoake new`, the project references that path instead of copying the SDK here.
@@ -99,6 +100,10 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 yoake-wasm-sdk = { path = ".yoake/yoake-wasm-sdk" }
 
+[features]
+# `yoake test` builds the test module with this feature (it exports the tests instead of the mod).
+tests = ["yoake-wasm-sdk/test"]
+
 [profile.release]
 opt-level = "s"
 lto = true
@@ -109,7 +114,7 @@ panic = "abort"
 exclude = [".yoake/yoake-wasm-sdk"]
 ```
 
-Setting `crate-type = ["cdylib", "rlib"]` allows building both a WebAssembly component and a Rust library.
+Setting `crate-type = ["cdylib", "rlib"]` allows building both a WebAssembly component and a Rust library. The `tests` feature is switched on only when `yoake test` builds your engine tests (see [6. Testing Your Mod Inside the Game Engine](./06-testing.md)).
 
 #### `src/lib.rs`
 
@@ -129,8 +134,11 @@ impl Mod for Starter {
 
 use yoake_wasm_sdk::testing::{BlockPos, TestCase, TestResult, TestWorld};
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", not(feature = "tests")))]
 yoake_wasm_sdk::export_mod!(Starter);
+
+#[cfg(all(target_arch = "wasm32", feature = "tests"))]
+yoake_wasm_sdk::export_tests!(YOAKE_TESTS);
 
 #[yoake_wasm_sdk::yoake_test]
 fn example_world_test(world: &mut TestWorld<'_>) -> TestResult {
@@ -171,10 +179,11 @@ mod tests {
 }
 ```
 
-- **`subscriptions`**: Lists the hooks your mod wants the game to call. Here, it subscribes only to `hook::HUD`.
+- **`subscriptions`**: Lists the hooks your mod wants the game to subscribe to. Here, it subscribes only to `hook::HUD`.
 - **`hud` method**: Draws the string `"my-hud"` in white (`0xffffff`) with a drop shadow at `(10.0, 10.0)` from the top-left corner of the screen.
-- **`export_mod!`**: Exports your mod on WebAssembly builds so the game engine can load and call it.
-- **Tests**: Running `cargo test` executes the scenario against the in-file `MockWorld` rather than launching the full game.
+- **`export_mod!`**: Exports your mod on WebAssembly builds so the game engine can load and call it. It is compiled only when the `tests` feature is off.
+- **`export_tests!`**: Exports `YOAKE_TESTS` as a separate test module instead of the mod, and is compiled only when the `tests` feature is on. This is what `yoake test` builds (details in Chapter 6).
+- **Tests**: Running `cargo test` executes the scenario against the in-file `MockWorld` rather than launching the full game. To run the tests inside the real game engine, use `yoake test` ([Chapter 6](./06-testing.md)). The template's `y: 64` is high up in the air; in the superflat test world, the first air layer just above the ground is `y: -60`.
 
 ---
 
@@ -227,4 +236,5 @@ Each `yoake` command prints its result to standard output (stdout) as **a single
 
 Now that you have a `.yak` package and `.wasm` binary, continue to [3. Playing and Quick-Testing in the Game (`03-play.md`)](./03-play.md) to see your mod running live in Yoake.
 
-[^cli]: Source: `.lane/ref/p10-tools-yoake-cli-scaffold.rs` (name validation, templates, generated files) and `.lane/ref/p10-tools-yoake-cli-main.rs` (build, check, pack).
+[^cli]: Source: `crates/yoake-cli/src/scaffold.rs` (name validation, templates, generated files) and `crates/yoake-cli/src/main.rs` (build, check, pack).
+[^id-namespace]: Source: `docs/yoake-wasm-dev.md` ("Writing one (SDK feature `full`)": the package `id` of `content-demo` is a namespace, so `[a-z0-9_]` only) and `identifier` in `crates/horizon-mods/src/yak/manifest.rs`.

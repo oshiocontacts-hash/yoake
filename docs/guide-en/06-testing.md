@@ -1,12 +1,12 @@
-# Chapter 6: Testing Your Mod Inside the Game Engine
+# 6. Testing Your Mod Inside the Game Engine
 
-In the previous chapters, you learned how to create, build, and package a WebAssembly (Wasm) mod. This chapter explains how to **automatically test world-manipulation scenarios (and `mod_call` invocations into server-side mods) inside the real game engine (`horizon-client`)**. Note that because a test module runs as a separate component that only drives the server-side world, **it cannot test client-only mod behavior (such as HUD rendering)**.
+In the previous chapters, you learned how to create, build, and package a WebAssembly (Wasm) mod. This chapter explains how to **automatically test world-manipulation scenarios (and `mod_call` invocations into server-side mods) inside the real game engine (`horizon-client`)**. Note that because a test module runs as a separate component that drives the server-side world, **it cannot directly drive your mod's client-only hooks (such as HUD rendering)**; see 6-7 for what is not covered.
 
 When you run Yoake's test runner (`yoake test`), the game launches offscreen without opening a window (`--offscreen`), generates a fresh superflat world for each test, and runs your test functions. You can also test world-interaction scenarios quickly against a local mock driver without starting the game at all.
 
 ---
 
-## 1. Preparing to Write Tests
+## 6-1. Preparing to Write Tests
 
 ### How Test Modules Work
 
@@ -18,7 +18,7 @@ In Yoake, tests are compiled as a separate WebAssembly component called a **test
 
 ### Configuring `Cargo.toml` (the `tests` Feature)
 
-Projects created with `yoake new` already include this, but if you are adding it by hand, define `tests = ["yoake-wasm-sdk/test"]` in `Cargo.toml` (source: `docs/yoake-wasm-dev.md` / `crates/yoake-cli/src/scaffold.rs`):
+Projects created with `yoake new` already include this, but if you are adding it by hand, define `tests = ["yoake-wasm-sdk/test"]` in `Cargo.toml`:[^wasm-dev][^scaffold]
 
 ```toml
 [features]
@@ -31,7 +31,7 @@ This enables the SDK's `test` feature (`yoake_wasm_sdk::testing::engine` and the
 
 Each test is a function that takes `&mut TestWorld<'_>` and returns `TestResult` (`Result<(), String>`). Returning `Ok(())` passes the test, while returning `Err(message)` fails it (you can use the `?` operator to propagate driver errors directly).
 
-Here is the setup from `docs/yoake-wasm-dev.md` (replace `Starter` with your mod's struct name):
+Here is the setup (replace `Starter` with your mod's struct name):[^wasm-dev]
 
 ```rust
 use yoake_wasm_sdk::testing::{BlockPos, TestCase, TestResult, TestWorld};
@@ -51,7 +51,7 @@ yoake_wasm_sdk::export_mod!(Starter);                // the mod
 yoake_wasm_sdk::export_tests!(YOAKE_TESTS);          // the test module
 ```
 
-As in the `yoake new` template (`crates/yoake-cli/src/scaffold.rs`), you can also annotate test functions with `#[yoake_wasm_sdk::yoake_test]` (or `#[yoake_test]` after `use yoake_wasm_sdk::yoake_test;`):
+As in the `yoake new` template, you can also annotate test functions with `#[yoake_wasm_sdk::yoake_test]` (or `#[yoake_test]` after `use yoake_wasm_sdk::yoake_test;`):[^scaffold]
 
 ```rust
 #[yoake_wasm_sdk::yoake_test]
@@ -65,7 +65,8 @@ fn example_world_test(world: &mut TestWorld<'_>) -> TestResult {
 pub const YOAKE_TESTS: &[TestCase] = &[TestCase { name: "example_world_test", run: example_world_test }];
 ```
 
-Note: The `yoake new` starter template uses `y: 64` (high up in the air), whereas if you want to place blocks right on the ground surface in the superflat test world, use `y: -60` as in the earlier example.
+> [!NOTE]
+> The `yoake new` starter template uses `y: 64` (high up in the air), whereas if you want to place blocks right on the ground surface in the superflat test world, use `y: -60` as in the earlier example.
 
 - **`#[yoake_test]`**: A marker attribute indicating a test function (it takes no arguments; passing arguments fails compilation with `"yoake_test does not accept arguments"`). Because this attribute alone does not auto-register the function, you must still list every test in the `YOAKE_TESTS` slice (`&[TestCase]`).
 - **`export_tests!(YOAKE_TESTS)`**: Exports `YOAKE_TESTS` as the test module's `tests` and `run-test` exports when compiled with `feature = "tests"`.
@@ -73,7 +74,7 @@ Note: The `yoake new` starter template uses `y: 64` (high up in the air), wherea
 
 ---
 
-## 2. Complete `TestWorld` and `TestDriver` Reference
+## 6-2. Complete `TestWorld` and `TestDriver` Reference
 
 The `TestWorld` passed to your test function forwards every action to an underlying `TestDriver` trait implementation (`engine::HostDriver` inside the real game, or your own mock struct during `cargo test`). Inside the game, all operations run between ticks on the integrated server thread.
 
@@ -122,11 +123,11 @@ When writing a mock for `cargo test`, implement the `TestDriver` trait. The firs
 
 ---
 
-## 3. Running Tests
+## 6-3. Running Tests
 
 ### Running with `yoake test`
 
-Running `yoake test` inside your project folder builds your mod, runs `yoake check`, compiles the test module with `--features tests`, and launches the game to execute your tests (source: `docs/yoake-wasm-dev.md`):
+Running `yoake test` inside your project folder builds your mod, runs `yoake check`, compiles the test module with `--features tests`, and launches the game to execute your tests:[^wasm-dev]
 
 ```sh
 export YOAKE_GAME=/path/to/horizon-client      # the game executable (Yoake build)
@@ -134,17 +135,24 @@ yoake test                                      # in the project folder: build, 
 yoake test --filter places --timeout-ms 60000 -- --resources /path/to/prepared/resources
 ```
 
-Main `yoake test` options (`crates/yoake-cli/src/engine_test.rs`):
+On Windows PowerShell, set the environment variable like this instead (in that single window):
+
+```powershell
+$env:YOAKE_GAME='C:\path\to\horizon-client.exe'
+```
+
+Main `yoake test` options:[^engine-test]
 - `--game EXE`: Path to the game executable (defaults to the `YOAKE_GAME` environment variable)
 - `--filter TEXT`: Runs only tests whose name contains `TEXT`
 - `--timeout-ms N`: Per-test timeout in milliseconds (forwarded to the game's `--yoake-test-timeout-ms`; defaults to `30000`)
 - `--module WASM`: Explicitly specifies the path to the test module
+- `--clients N`: The number of participating clients, `1` or `2` (forwarded to `--yoake-test-clients`; defaults to `1`; `2` is described in 6-5)
 - `--keep`: Keeps the temporary test folders on disk instead of deleting them
 - `-- GAME-ARGS...`: Forwards any arguments after `--` (such as `--resources <PATH>`, GPU-free `--headless`, or `--yoake-test-startup-seconds <N>`) directly to the game executable
 
 **Output**:
 - Standard error (`stderr`) prints per-test progress lines (`yoake test: ok   <name> (<ms> ms)` or `yoake test: FAIL <name> (<ms> ms)`) and error diagnostics.
-- Standard output (`stdout`) prints **a single line of JSON** at the end (exit code `0` if all tests pass, or `1` otherwise), which also includes `game` and `wasm_needs` (`crates/yoake-cli/src/engine_test.rs`):
+- Standard output (`stdout`) prints **a single line of JSON** at the end (exit code `0` if all tests pass, or `1` otherwise), which also includes `game` and `wasm_needs`:[^engine-test]
 
 ```json
 {"ok": false, "built": true, "checked": true, "id": "my-mod", "version": "0.1.0",
@@ -162,13 +170,13 @@ The game executable's direct test interface is `horizon-client --yoake-test <pro
 | Option | Meaning |
 | --- | --- |
 | `--yoake-test-json FILE` | Writes the JSON result report to `FILE` in addition to standard output |
-| `--yoake-test-module FILE` | Path to the test module (defaults to `bin/wasm/<id>-tests.wasm` for a project folder; required when testing a `.yak` because `.yak` archives do not bundle tests) |
+| `--yoake-test-module FILE` | Path to the test module (defaults to `bin/wasm/<id>-tests.wasm` for a project folder; required when testing a `.yak` because `.yak` packages do not bundle tests) |
 | `--yoake-test-with PATH` | Additional mod package (folder or `.yak`) to load alongside the mod under test; can be passed multiple times |
 | `--yoake-test-filter TEXT` | Runs only tests whose name contains `TEXT` |
 | `--yoake-test-timeout-ms N` | Per-test timeout in milliseconds (default: `30000`) |
 | `--yoake-test-startup-seconds N` | Grace period from worker launch until the test starts (default: `240` seconds) |
 | `--yoake-test-keep` | Preserves temporary folders (game directory, world, logs) and records their path under `"kept"` in the JSON output |
-| `--yoake-test-clients=1\|2` | Number of participating clients (`2` is available on `yoake/p10-test-runner` @ `bdc976398` and newer; see Section 5) |
+| `--yoake-test-clients=1\|2` | Number of participating clients (`2` runs two clients; see Section 6-5) |
 
 **Output**:
 - Prints `yoake test: ok  ` / `FAIL` lines for each test to standard error (`stderr`), and a single-line JSON report `{"ok": ..., "id": ..., "version": ..., "clients": 1, "module": ..., "declared": ..., "tests": [...], "errors": [...]}` to standard output (`stdout`).
@@ -176,18 +184,18 @@ The game executable's direct test interface is `horizon-client --yoake-test <pro
 
 ---
 
-## 4. Superflat World Assumptions and Execution Rules
+## 6-4. Superflat World Assumptions and Execution Rules
 
-The world where your tests run follows these rules (source: `docs/yoake-wasm-dev.md` and verified in a real run (2026-11-16)):
+The world where your tests run follows these rules:[^wasm-dev][^real-run]
 
-1. **Superflat layers and coordinates (verified in a real run (2026-11-16))**:
+1. **Superflat layers and coordinates**:
    - The world is a superflat world with seed `0` and structures turned off.
-   - Its ground layers from bottom to top are: **`y = -64` is bedrock, `y = -63` and `y = -62` are dirt, `y = -61` is grass block, and `y = -60` and above are air**. Examples place blocks at `y = -60` because that is the first air layer right above the grass.
+   - The ground follows the standard superflat layering (bedrock, two dirt layers, grass); `docs/yoake-wasm-dev.md` does not pin the exact height (read it with `block_at` if a test depends on it). In this guide, the layers from bottom to top are: **`y = -64` is bedrock, `y = -63` and `y = -62` are dirt, `y = -61` is grass block, and `y = -60` and above are air**. Examples place blocks at `y = -60` because that is the first air layer right above the grass.
 2. **Initial state and working near spawn**:
    - The world owner joins near spawn (`0, 0`) in Creative mode (`--creative`), with time set to `6000` (`--time 6000`), clear weather (`--weather clear`), and a render distance of `4` chunks (`--render-distance 4`). Place blocks and entities used by your tests near `(0, 0)`.
-   - The owner joins with an automatically generated name matching **`PlayerNNNNN`** (verified in a real run (2026-11-16)).
+   - The owner joins with an automatically generated name (measured as the form **`PlayerNNNNN`**; needs confirmation).
 3. **The world is frozen and advances only when you call `run_ticks`**:
-   - After the owner joins, the world runs for 2 seconds of real time so chunks can finish loading (warmup). Because of this warmup, **the world has already advanced by roughly 87–103 ticks when your test function starts** (do not assume `world.tick()` starts at `0`; verified in a real run (2026-11-16)).
+   - After the owner joins, the world runs for 2 seconds of real time so chunks can finish loading (warmup). Because of this warmup, **the world has already advanced some ticks when your test function starts** (roughly 87–103 in a measured run, which could not be confirmed from this repository's code or docs (needs confirmation); do not assume `world.tick()` starts at `0`).
    - Right after warmup, **the world is frozen**. While frozen, server ticks never advance on their own; they advance by the exact number of ticks you request via `world.run_ticks(n)` (skipping the normal 50 ms per-tick sleep to run as fast as possible).
 4. **Each test spawns a fresh process and world, which takes time**:
    - To completely isolate tests from leftover state or hangs, **every single test starts a brand-new worker process and temporary world**.
@@ -196,9 +204,7 @@ The world where your tests run follows these rules (source: `docs/yoake-wasm-dev
 
 ---
 
-## 5. Two-Client Multiplayer Tests
-
-Note: This feature requires commit `bdc976398` or newer on `yoake/p10-test-runner` (the SDK on this branch is older, so update to `bdc976398` or later to use it).
+## 6-5. Two-Client Multiplayer Tests
 
 Passing `yoake test --clients 2` or `horizon-client --yoake-test <target> --yoake-test-clients=2` (`--yoake-test-clients 2`) runs multiplayer tests with 1 server and 2 clients. Client `0` is the world owner (the worker itself), and client `1` is a second game process (player name `TestB`) that joins over loopback (`127.0.0.1`).
 
@@ -214,7 +220,9 @@ fn a_change_reaches_the_second_client(world: &mut TestWorld<'_>) -> TestResult {
 }
 ```
 
-### `world.client_count()` and `world.client(1)` (`ClientView`) Methods (`testing.rs` @ `bdc976398`)
+### `world.client_count()` and `world.client(1)` (`ClientView`) Methods
+
+The methods below are defined in `crates/yoake-wasm-sdk/src/testing.rs`.[^testing-rs]
 
 | Function / Signature | Behavior |
 | --- | --- |
@@ -230,21 +238,21 @@ fn a_change_reaches_the_second_client(world: &mut TestWorld<'_>) -> TestResult {
 (The `TestDriver` trait for mocks also includes `client_count`, `client_call`, `client_wait`, and `client_player_names` with default implementations.)
 
 - **Wait functions (`wait_block` / `wait_chat`) and real time**: While the server world is frozen between `run_ticks` calls, the second client process is not frozen. `wait_*` polls every 50 ms in **real time** up to `timeout_ms` milliseconds. Because the server only broadcasts changes when ticks advance, always call `world.run_ticks(...)` before waiting on client `1`.
-- **Known caveat with the `say` console command (under investigation)**: Running `say` from the server console does not reach the second client's chat log (under investigation). To broadcast a message from the server so that client `1` receives it, use `tellraw @a "..."` instead.
+- **Console chat commands reach the second client**: The server console's `say` and `me`, `msg` / `tell` / `w` addressed to a named player, and `tellraw @a "..."` all reach client `1`'s chat log, so you can use whichever fits your test.
 
 ---
 
-## 6. Common Failures and How to Fix Them
+## 6-6. Common Failures and How to Fix Them
 
 | Error Message / Symptom | Cause and Fix |
 | --- | --- |
 | `yoake test needs the game: pass --game <executable> or set YOAKE_GAME` | No path to the game executable was given. Set the `YOAKE_GAME` environment variable to your `horizon-client` path or pass `yoake test --game <path>`. |
 | `the project has no tests: add a tests Cargo feature that calls export_tests!, or pass --module` | `Cargo.toml` is missing `[features] tests = ["yoake-wasm-sdk/test"]` or no test module was built. Add the feature and `export_tests!(YOAKE_TESTS);`. |
 | `the test module ... does not exist: run yoake build (or give --yoake-test-module)` / `the <side> module ... is missing: run yoake build first` | You ran `horizon-client --yoake-test` directly before building the `.wasm` files into `bin/wasm/`. Run `yoake build` first or pass `--yoake-test-module`. |
-| `a .yak carries no tests: pass the test module with --yoake-test-module` | `.yak` archives do not include test modules. When testing a `.yak` directly, also pass `--yoake-test-module bin/wasm/<id>-tests.wasm`. |
+| `a .yak carries no tests: pass the test module with --yoake-test-module` | `.yak` packages do not include test modules. When testing a `.yak` directly, also pass `--yoake-test-module bin/wasm/<id>-tests.wasm`. |
 | `... is a link or reparse point; move the project to a normal folder without links or reparse points` | Your project sits under a symbolic link, Windows junction, or synced cloud folder. Move it to a regular directory. |
 | `<option> cannot be used with --yoake-test: each test gets its own world and game folder` | Options like `--world`, `--seed`, `--game-dir`, `--dedicated`, and `--fullscreen` are managed by the test runner and cannot be overridden. To point at prepared vanilla assets, pass `-- --resources <PATH>`. |
-| A typo in `--filter` matches 0 tests, yet the command exits with code `0` and `"ok": true` | Matching 0 tests is not treated as an error; it exits cleanly with `"notes": ["no test matches the filter"]` (or `"note": "no test matches the filter"` when invoked directly; `coordinator.rs`). Check that the `tests` array in the JSON output is not empty. |
+| A typo in `--filter` matches 0 tests, yet the command exits with code `0` and `"ok": true` | Matching 0 tests is not treated as an error; it exits cleanly with `"notes": ["no test matches the filter"]` (or `"note": "no test matches the filter"` when invoked directly).[^coordinator] Check that the `tests` array in the JSON output is not empty. |
 | `block at ...: expected "minecraft:oak_stairs[facing=north]", got "minecraft:oak_stairs"` | `block_at` and `assert_block` return only the base block ID (`minecraft:oak_stairs`) without state properties. Pass only the block ID (such as `"minecraft:oak_stairs"`) to `assert_block`. |
 | `not a block state: ...` / `not a registry id (namespace:path): ...` / `not a player name (1 to 16 letters, digits, _): ...` | Argument format error. Use lowercase `namespace:path` IDs like `"minecraft:pig"` for entity kinds, and 1–16 ASCII letters, digits, or `_` for mannequin names. |
 | `the test module trapped or ran out of time: ...` / `the worker did not finish within ... s and was killed` | The test hit a `panic!`, entered an infinite loop, or timed out. On slower machines, increase startup grace time via `yoake test -- --yoake-test-startup-seconds 600` (after `--`), or raise `--timeout-ms` for long tests. |
@@ -252,13 +260,27 @@ fn a_change_reaches_the_second_client(world: &mut TestWorld<'_>) -> TestResult {
 
 ---
 
-## 7. Features Not Yet Implemented
+## 6-7. Features Not Yet Implemented
 
-The following features are not implemented yet (source: `docs/yoake-wasm-dev.md`, "Limits and what is not covered"):
+The following are not covered yet:[^limits]
 
-- **Driving client-only hooks (HUD rendering, key input, etc.) or asserting on rendered frames (not implemented)**:
-  - Tests run on the server side of a single-player world, so key input, screenshots, and rendered frames cannot be checked, and there is no way for the test driver to trigger client-only hooks such as HUD rendering (not implemented).
+- **Directly driving client-only hooks, and asserting on rendered frames (not implemented)**:
+  - Tests run on the server side of the game, so the test driver has no call that triggers client-only hooks such as HUD rendering, takes screenshots, or reads rendered frames (not implemented). In two-client mode (6-5), `ClientView::call` can send control commands (such as `key`, `look`, `hotbar`, and `mouse`) to the second client, but there is still no assertion on a rendered frame.
 - **Operating on dimensions other than the Overworld (not implemented)**:
   - The test driver can only operate on the Overworld (not implemented).
 - **Running tests for native (DLL) mod packages (not implemented)**:
-  - The test runner only loads data packages and Wasm packages; native (DLL) packages are not executed (`native (DLL) packages are not run by the test runner`).
+  - The test runner only loads data packages and Wasm packages; native (DLL) packages are not run by the test runner.
+
+---
+
+## Next Steps
+
+Once your mod passes its tests, continue to [7. Publishing Your Mod (`07-publishing.md`)](./07-publishing.md) to learn how to version, sign, and publish it.
+
+[^wasm-dev]: Source: `docs/yoake-wasm-dev.md` ("CLI and test scaffolding" and "Testing a mod in the engine").
+[^scaffold]: Source: `crates/yoake-cli/src/scaffold.rs`.
+[^engine-test]: Source: `crates/yoake-cli/src/engine_test.rs`.
+[^real-run]: Source: `docs/yoake-wasm-dev.md` (superflat, seed 0, structures off, Creative, time 6000, clear weather, render distance 4, frozen after a 2-second warmup). The layer heights, the post-warmup tick count, and the `PlayerNNNNN` name come from `docs/release/1.0-test-plan.md` and could not be confirmed in code (needs confirmation).
+[^testing-rs]: Source: `crates/yoake-wasm-sdk/src/testing.rs`.
+[^coordinator]: Source: `crates/yoake-test-runner/src/coordinator.rs`.
+[^limits]: Source: `docs/yoake-wasm-dev.md`, "Limits and what is not covered".

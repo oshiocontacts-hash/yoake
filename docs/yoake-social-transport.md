@@ -105,7 +105,7 @@ credential or relay-side portal client exists.
    `provisioned` (or `rejected`) and closes that connection.
 3. A guest asks the portal to join (`POST /api/social/v1/sessions/:id/join`). The
    portal checks friendship, group membership and blocks, and returns a grant
-   (120 s in practice; the relay accepts up to 300 s) with the relay's address.
+   (240 s, as the portal issues it; the relay accepts up to 300 s) with the relay's address.
 4. The guest connects to the relay with the grant; the host pairs it over a
    `host` connection with the grant and `host_token`, exactly as in
    [Relay messages and pairing](#relay-messages-and-pairing).

@@ -1,7 +1,7 @@
 # Yoake WebAssembly MOD 制作入門ガイド
 
 このガイドは、**Yoake** 向けの MOD をはじめて作る方のための日本語入門書です。
-プログラミングに少し触れたことがあれば、**Rust** や **WebAssembly（WASM）** を使うのが初めてでも順番に読み進められるように書いています。
+プログラミングに少し触れたことがあれば、**Rust** や **WebAssembly（Wasm）** を使うのが初めてでも順番に読み進められるように書いています。
 
 ---
 
@@ -10,6 +10,9 @@
 Yoake の MOD は、Rust で書いたプログラムを **`wasm32-wasip2` という種類の WebAssembly** にビルドし、設定ファイル（`yak.toml`）と一緒に `.yak` パッケージにまとめて配布・導入します。
 
 WebAssembly MOD はゲーム本体の中の安全なサンドボックス（隔離環境）で動きます。万が一 MOD の中で無限ループや時間切れが起きても、その MOD だけが止まる仕組みになっています。
+
+> [!NOTE]
+> このガイドは `.yak`（Wasm）で MOD を作る方法を説明します。DLL のネイティブ MOD も使えますが、持ち主や開発者向けの上級の道で、署名のない DLL は開発者モードでしか動きません。このガイドでは扱いません（署名の考え方だけ [7. MOD を公開する](./07-publishing.md) で触れます）。
 
 ---
 
@@ -24,18 +27,21 @@ WebAssembly MOD はゲーム本体の中の安全なサンドボックス（隔�
    - `/visits` のような独自コマンドを追加し、ワールドごと・プレイヤーごとの記録を保存してチャットで返事をする
 3. **ゲーム内設定画面（Configure）との連動**
    - `yak.toml` の `[config]` に設定項目（文字列や選択肢など）を定義し、MOD 一覧の「Configure」ボタンから変更した内容を即座に MOD に反映する
-4. **権限（パーミッション）のチェック**
-   - `yak.toml` の `[permissions]` で権限ノードを定義し、OP レベルやワールドごとの `permissions.toml` に応じて `/secret` などのコマンド実行を許可・拒否する
+4. **権限ノード（`[permissions."<node>"]`）のチェック**
+   - `yak.toml` の `[permissions."<node>"]` で権限ノードを定義し、OP レベルやワールドごとの `permissions.toml` に応じて `/secret` などのコマンド実行を許可・拒否する
+5. **テスト・公開・エンジン関数への割り込み**
+   - ゲームエンジンの中で自動テストを実行し、署名とランチャーのカタログの仕組みを学び、Mixin でエンジンの関数に割り込む
 
 ---
 
 ## 目次と読む順番
 
-上から順番に読むことで、環境づくりから MOD の作成・テスト・応用まで一通り体験できます。
+上から順番に読むことで、環境づくりから MOD の作成・テスト・公開・応用まで一通り体験できます。
 
 ### 1. [環境準備（`01-setup.md`）](./01-setup.md)
 - Rust ツールチェーン（`rustup`）のインストール
 - WebAssembly ビルド用ターゲット（`rustup target add wasm32-wasip2`）の追加
+- `yoake` CLI の入れ方（`cargo install --path crates/yoake-cli`）
 - エディタと作業フォルダの準備（Windows を中心に、macOS / Linux も補足）
 
 ### 2. [最初の MOD を作る（`02-first-mod.md`）](./02-first-mod.md)
@@ -45,12 +51,12 @@ WebAssembly MOD はゲーム本体の中の安全なサンドボックス（隔�
 
 ### 3. [ゲームに入れて遊ぶ・すぐ試す（`03-play.md`）](./03-play.md)
 - パッケージ（`.yak`）のインポートとゲームの読み込みの仕組み
-- WIT ワールドが `client-mod` の MOD を `YOAKE_WASM_DEV_DIR` と `yoake dev` でホットリロードする方法と、開発者モードの安全上の注意
+- WIT ワールドが `client-mod` の MOD を `YOAKE_WASM_DEV_DIR` と `yoake dev` でホットリロードする方法と、Wasm の開発者モードの安全上の注意
 
 ### 4. [サンプル MOD 集を読む（`04-examples.md`）](./04-examples.md)
-- リポジトリ内の 12 のサンプル（`hello`、`hud-item`、`server-storage`、`config-demo`、`permission-demo`、`full-demo`、`full-services`、`mod-call-pair`、`chest-count`、`item-trade`、`player-vitals`）の解説
-- 各サンプルが使うフック（`hook`）とサービス（`services`）の一覧
-- `yak.toml` での `[config]`、`[wasm] permissions`、`[permissions."node"]` の書き方
+- リポジトリ内の 16 個のサンプル（`hello`、`hello-std`、`hud-item`、`server-storage`、`config-demo`、`permission-demo`、`full-demo`、`full-services`、`mod-call-pair`、`chest-count`、`item-trade`、`player-vitals`、`content-demo`、`mixin-demo`、`test-demo`、`tested-counter`）の解説
+- 各サンプルが使うフック（`hook`）とホストサービス（`services`）の一覧
+- `yak.toml` での `[config]`、`[wasm] permissions`、`[permissions."<node>"]` の書き方
 
 ### 5. [よくあるエラーと直し方（`05-errors.md`）](./05-errors.md)
 - フック名の書き間違いや、クライアント／サーバーのフック取り違え
@@ -58,11 +64,21 @@ WebAssembly MOD はゲーム本体の中の安全なサンドボックス（隔�
 - `YOAKE_WASM_DEV_DIR` 未設定や `wasm32-wasip2` 未追加のエラー
 - `yak.toml` の代表的なバリデーションエラーと修正方法
 
-### 6. [Modをゲームエンジンの中でテストする（`06-testing.md`）](./06-testing.md)
+### 6. [MOD をゲームエンジンの中でテストする（`06-testing.md`）](./06-testing.md)
 - `yoake test` と `horizon-client --yoake-test` によるゲームエンジン内の自動テスト
 - `TestWorld` と `TestDriver` の全関数リファレンス、スーパーフラットワールドの前提
 - 2 クライアントのマルチプレイテスト（`--clients 2` と `ClientView`）
 - よくある失敗と未実装の機能
+
+### 7. [MOD を公開する（`07-publishing.md`）](./07-publishing.md)
+- `yak.toml` のバージョンの付け方と、`.yak` パッケージの中身・サイズ上限
+- 署名の仕組みと、署名のない MOD を開発で動かすための 2 つのスイッチ
+- ランチャーの MOD カタログ（`index.json`）への載せ方、更新の出し方、公開時にやってはいけないこと
+
+### 8. [Yoake Mixin 入門（`08-mixin.md`）](./08-mixin.md)
+- エンジン関数の決められた場所へ割り込む仕組み（HEAD・RETURN・overwrite）
+- `inject-mod` の `yak.toml` の書き方、値の範囲と拒否、コマンド・チャットへの割り込み
+- 順番と競合、上限とトラップ、よくある失敗
 
 ---
 
@@ -70,4 +86,6 @@ WebAssembly MOD はゲーム本体の中の安全なサンドボックス（隔�
 
 - **まずは動かしてみたい方**: [`01-setup.md`](./01-setup.md) → [`02-first-mod.md`](./02-first-mod.md) → [`03-play.md`](./03-play.md) の順に進めて自分の画面に文字を出したあと、[`06-testing.md`](./06-testing.md) でゲームエンジン内の自動テストを試してみましょう。
 - **作りたい機能が決まっている方**: 一通り動かしたあと、[`04-examples.md`](./04-examples.md) から近いサンプルを探してコードを真似し、[`06-testing.md`](./06-testing.md) でサーバー側の動作を自動検証するのが近道です。
-- **エラーが出たとき**: コマンドが出力するメッセージやゲームのログを見て、[`05-errors.md`](./05-errors.md)（テスト実行時のエラーは [`06-testing.md`](./06-testing.md) の第 6 節）を辞書代わりに引いてください。
+- **作った MOD を他の人に配りたい方**: [`07-publishing.md`](./07-publishing.md) で、バージョンの付け方・署名・更新の出し方を確認しましょう。
+- **ゲームの処理そのものに割り込みたい方**: [`08-mixin.md`](./08-mixin.md) で Mixin（`inject-mod`）の書き方を読みましょう。
+- **エラーが出たとき**: コマンドが出力するメッセージやゲームのログを見て、[`05-errors.md`](./05-errors.md)（テスト実行時のエラーは [`06-testing.md`](./06-testing.md) の 6-6 節）を辞書代わりに引いてください。

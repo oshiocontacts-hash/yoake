@@ -7,7 +7,7 @@ Yoake の MOD は **Rust** というプログラミング言語で書き、**Web
 
 ## 1-1. Rust（rustup）をインストールする
 
-まずは Rust の公式インストーラである **rustup** を入れます。このガイドの CLI が依存するクレートに合わせ、**Rust 1.95 以降**を用意してください。[^rust-version]
+まずは Rust の公式インストーラである **rustup** を入れます。このガイドの CLI（`yoake`）に合わせ、**Rust 1.95 以降**を用意してください。[^rust-version]
 
 ### Windows の場合
 
@@ -34,7 +34,6 @@ rustup target add wasm32-wasip2
 
 - これだけで WebAssembly コンポーネントを出力できるようになります。
 - **補足**: `wasm-tools` などの外部ツールを別途インストールする必要はありません。
-- **`yoake` CLI について**: このブランチには CLI が無いため、入手・インストール方法は **（未確定）** です。次の章の CLI 仕様は **`yoake/p10-tools` の版**に基づきます。
 
 PowerShell で環境変数を設定するときは、次の形式を使います。
 
@@ -46,7 +45,21 @@ $env:NAME='value'
 
 ---
 
-## 1-3. エディタを用意する
+## 1-3. `yoake` CLI を入れる
+
+`yoake` コマンド（次の章の `yoake new`、`yoake build` などで使うツール）は、このリポジトリの `crates/yoake-cli`（パッケージ名 `yoake`、Rust 1.95 以降）です。[^cli] 今のところは、公開されているリポジトリから入れます。リポジトリのルートフォルダで、次のコマンドを実行してください。
+
+```sh
+cargo install --path crates/yoake-cli
+```
+
+ビルドされた `yoake` の実行ファイルは Cargo の `bin` フォルダ（`~/.cargo/bin`）に置かれます。このフォルダは `rustup` がすでに `PATH` に追加しています。入れたあとは、ターミナルを新しく開いて `yoake` が動くか確かめてください。
+
+1.0 では GitHub Releases に Windows 用の実行ファイルも置く予定です（未確定）。
+
+---
+
+## 1-4. エディタを用意する
 
 MOD のプログラム（`.rs` ファイル）や設定ファイル（`yak.toml`、`Cargo.toml`）は、普通のテキストファイルです。使い慣れたテキストエディタがあればどれでも構いません。
 
@@ -57,7 +70,7 @@ MOD のプログラム（`.rs` ファイル）や設定ファイル（`yak.toml`
 
 ---
 
-## 1-4. 作業フォルダを決める
+## 1-5. 作業フォルダを決める
 
 自分の MOD を作るための作業フォルダ（ワークスペース）を用意しましょう。
 
@@ -74,4 +87,5 @@ MOD のプログラム（`.rs` ファイル）や設定ファイル（`yak.toml`
 
 準備ができたら、次は [2. 最初の MOD を作る（`02-first-mod.md`）](./02-first-mod.md) に進んで、実際に最初の HUD MOD を作成・ビルドしてみましょう。
 
-[^rust-version]: ワークスペース共通の `rust-version` は 1.85 ですが、CLI が使う `horizon-mods` の `rust-version` が 1.95 です。確認元: `Cargo.toml` と `crates/horizon-mods/Cargo.toml`。
+[^rust-version]: ワークスペース共通の `rust-version` は 1.85 ですが、CLI（`crates/yoake-cli`）と、それが使う `horizon-mods` の `rust-version` は 1.95 です。確認元: `Cargo.toml`、`crates/yoake-cli/Cargo.toml`、`crates/horizon-mods/Cargo.toml`。
+[^cli]: 確認元: `crates/yoake-cli/Cargo.toml`（`name = "yoake"`）。
