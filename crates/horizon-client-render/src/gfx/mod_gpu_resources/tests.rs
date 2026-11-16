@@ -467,7 +467,7 @@ fn consecutive_draws_share_passes_and_reject_incompatible_frames() {
 }
 
 #[test]
-fn overdraw_budget_admits_meshes_and_refuses_pathological_instances() {
+fn fragment_budget_counts_primitives_for_every_supported_topology() {
     let (device, _queue) = gpu();
     for (owner, topology, vertices) in [
         (ModId(10), wgpu::PrimitiveTopology::PointList, 1),
@@ -477,22 +477,106 @@ fn overdraw_budget_admits_meshes_and_refuses_pathological_instances() {
         let mut gpu = Gpu::default();
         gpu.configure_frame(1, 1, Some(Format::Rgba8Unorm), Some(Format::Rgba8Unorm));
         let pipeline = render_pipeline(&mut gpu, &device, owner, topology);
-        gpu.begin_frame().unwrap();
+        for (primitives, pixels) in [
+            (2048, Some(1)),
+            (2049, Some(2)),
+            (8192, Some(4)),
+            (8193, None),
+        ] {
+            gpu.begin_frame().unwrap();
+            let result = gpu.draw(
+                owner,
+                Stage::Hud,
+                draw(pipeline, primitives * vertices),
+                Target::Frame,
+            );
+            if let Some(expected) = pixels {
+                result.unwrap();
+                gpu.finish_frame().unwrap();
+                assert!(
+                    matches!(gpu.pending[0].kind, crate::gfx::mod_gpu::CommandKind::Render { pixels, .. } if pixels == expected)
+                );
+            } else {
+                assert_eq!(result, Err(Error::Pixels));
+                gpu.finish_frame().unwrap();
+                assert!(gpu.pending.is_empty());
+            }
+        }
+        assert!(gpu.disabled_reason(owner).is_none());
+    }
+}
+
+#[test]
+fn new_mod_fragment_budget_admits_meshes_and_small_instanced_quads() {
+    let (device, _queue) = gpu();
+    let mut gpu = Gpu::default();
+    let owner = ModId(15);
+    gpu.configure_frame(100, 100, Some(Format::Rgba8Unorm), Some(Format::Rgba8Unorm));
+    let pipeline = render_pipeline(
+        &mut gpu,
+        &device,
+        owner,
+        wgpu::PrimitiveTopology::TriangleList,
+    );
+    gpu.begin_frame().unwrap();
+    gpu.draw(owner, Stage::Hud, draw(pipeline, 2048 * 3), Target::Frame)
+        .unwrap();
+    gpu.finish_frame().unwrap();
+    gpu.begin_frame().unwrap();
+    assert_eq!(
         gpu.draw(
             owner,
             Stage::Hud,
-            draw(pipeline, vertices * 4096),
+            draw(pipeline, 1_000_000 * 3),
+            Target::Frame
+        ),
+        Err(Error::Pixels)
+    );
+    gpu.finish_frame().unwrap();
+    for instances in [10_000, 65_536] {
+        gpu.begin_frame().unwrap();
+        let mut particles = draw(pipeline, 6);
+        particles.instances = instances;
+        gpu.draw_region(
+            owner,
+            Stage::Hud,
+            particles,
             Target::Frame,
+            Region {
+                viewport: Some(Rect {
+                    x: 0,
+                    y: 0,
+                    width: 10,
+                    height: 10,
+                }),
+                scissor: None,
+            },
         )
         .unwrap();
-        let mut pathological = draw(pipeline, vertices);
-        pathological.instances = 65;
-        assert_eq!(
-            gpu.draw(owner, Stage::Hud, pathological, Target::Frame),
-            Err(Error::Pixels)
-        );
-        assert!(gpu.disabled_reason(owner).is_none());
+        gpu.finish_frame().unwrap();
     }
+    gpu.begin_frame().unwrap();
+    let mut vertex_heavy = draw(pipeline, 6);
+    vertex_heavy.instances = 200_000;
+    assert_eq!(
+        gpu.draw_region(
+            owner,
+            Stage::Hud,
+            vertex_heavy,
+            Target::Frame,
+            Region {
+                viewport: Some(Rect {
+                    x: 0,
+                    y: 0,
+                    width: 1,
+                    height: 1
+                }),
+                scissor: None,
+            }
+        ),
+        Err(Error::Vertices)
+    );
+    assert!(gpu.disabled_reason(owner).is_none());
 }
 
 #[test]

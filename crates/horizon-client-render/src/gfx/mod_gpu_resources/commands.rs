@@ -624,9 +624,17 @@ impl Gpu {
         };
         let viewport = region.viewport.unwrap_or(full).validate(width, height)?;
         let scissor = region.scissor.unwrap_or(full).validate(width, height)?;
+        let primitives = match descriptor.topology {
+            wgpu::PrimitiveTopology::PointList => draw.count,
+            wgpu::PrimitiveTopology::LineList => draw.count / 2,
+            wgpu::PrimitiveTopology::LineStrip => draw.count.saturating_sub(1),
+            wgpu::PrimitiveTopology::TriangleList => draw.count / 3,
+            wgpu::PrimitiveTopology::TriangleStrip => draw.count.saturating_sub(2),
+        };
+        let total_primitives = u64::from(primitives).saturating_mul(u64::from(draw.instances));
         let pixels = viewport
             .covered_pixels(scissor)
-            .saturating_mul(u64::from(draw.instances));
+            .saturating_mul(total_primitives.div_ceil(2048));
         let pixel_limit = self.pixel_limit(owner, self.timestamps);
         let vertex_limit = self.vertex_limit(owner, self.timestamps);
         let new_pass = !self.recorder.previous(owner, stage).is_some_and(|command| {
@@ -783,6 +791,13 @@ impl Gpu {
                 self.pending.push(recorded);
                 continue;
             }
+            if recorded.command.reads_scene()
+                && sources
+                    .and_then(|sources| sources.scene)
+                    .is_none_or(|scene| !scene.usage().contains(wgpu::TextureUsages::COPY_SRC))
+            {
+                continue;
+            }
             batches.entry(recorded.owner).or_default().push(recorded);
         }
         let mut snapshots = super::engine::Snapshots::default();
@@ -808,7 +823,10 @@ impl Gpu {
                     }
                 }
                 let passes = runs.iter().filter(|run| run[0].is_pass()).count() as u32;
-                let timing = self.timing_ticket(device, queue, owner, passes)?;
+                let workload = super::timing::Workload::from_commands(
+                    batch.iter().map(|recorded| recorded.kind),
+                );
+                let timing = self.timing_ticket(device, queue, owner, passes, workload)?;
                 let ticket = timing.as_ref().and_then(|resource| match resource.value() {
                     Value::Timing(ticket) => Some(ticket),
                     _ => None,

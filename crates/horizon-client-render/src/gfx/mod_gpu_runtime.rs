@@ -25,14 +25,9 @@ pub struct Frame {
 
 type Callback = Arc<dyn Fn() + Send + Sync>;
 
+#[derive(Default)]
 pub(super) struct SceneReads {
     remaining: u32,
-}
-
-impl Default for SceneReads {
-    fn default() -> Self {
-        Self { remaining: 120 }
-    }
 }
 
 impl SceneReads {

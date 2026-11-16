@@ -18,7 +18,23 @@ struct Marker {
 #[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 struct Package {
     fingerprint: String,
-    clean_sessions: u8,
+    #[serde(default)]
+    quarantines: BTreeMap<String, u8>,
+    #[serde(default)]
+    quarantined: bool,
+}
+
+impl Package {
+    fn quarantine(&mut self) {
+        if !self.quarantined {
+            let count = self
+                .quarantines
+                .entry(self.fingerprint.clone())
+                .or_default();
+            *count = count.saturating_add(1).min(2);
+            self.quarantined = true;
+        }
+    }
 }
 
 #[derive(serde::Deserialize)]
@@ -35,8 +51,6 @@ struct Recovery {
     inflight: BTreeMap<ModId, u32>,
     retained: BTreeMap<ModId, u64>,
     packages: BTreeMap<String, Package>,
-    participants: BTreeSet<String>,
-    failed: BTreeSet<String>,
     persisted: Marker,
     frame: u64,
     retry_frame: u64,
@@ -46,7 +60,7 @@ struct Recovery {
 
 impl Recovery {
     fn open(path: PathBuf) -> Result<Self, String> {
-        let marker = match File::open(&path) {
+        let mut marker = match File::open(&path) {
             Ok(file) => {
                 let mut bytes = Vec::new();
                 file.take(MAX_MARKER_BYTES + 1)
@@ -72,7 +86,10 @@ impl Recovery {
                     || marker.packages.iter().any(|(identity, package)| {
                         !valid_identity(identity)
                             || !valid_fingerprint(&package.fingerprint)
-                            || package.clean_sessions > 3
+                            || package.quarantines.len() > 4096
+                            || package.quarantines.iter().any(|(fingerprint, count)| {
+                                !valid_fingerprint(fingerprint) || !(1..=2).contains(count)
+                            })
                     })
                 {
                     return Err("GPU recovery marker contains invalid mod identities".to_owned());
@@ -82,13 +99,17 @@ impl Recovery {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Marker::default(),
             Err(error) => return Err(error.to_string()),
         };
+        let persisted = marker.clone();
+        for identity in &marker.incomplete {
+            if let Some(package) = marker.packages.get_mut(identity) {
+                package.quarantine();
+            }
+        }
         Ok(Self {
             path,
-            persisted: marker.clone(),
+            persisted,
             blocked: marker.incomplete,
             packages: marker.packages,
-            participants: BTreeSet::new(),
-            failed: BTreeSet::new(),
             owners: BTreeMap::new(),
             inflight: BTreeMap::new(),
             retained: BTreeMap::new(),
@@ -130,22 +151,40 @@ impl Recovery {
         {
             return Err("cannot replace a package with outstanding GPU work".to_owned());
         }
+        self.owners.insert(owner, identity.to_owned());
         let package = self
             .packages
             .entry(identity.to_owned())
             .or_insert_with(|| Package {
                 fingerprint: fingerprint.to_owned(),
-                clean_sessions: 0,
+                quarantines: BTreeMap::new(),
+                quarantined: false,
             });
+        if self.blocked.contains(identity) {
+            package.quarantine();
+        }
         if package.fingerprint != fingerprint {
+            if self.blocked.contains(identity)
+                && package
+                    .quarantines
+                    .get(&package.fingerprint)
+                    .copied()
+                    .unwrap_or(0)
+                    >= 2
+            {
+                return Err(
+                    "repeated GPU quarantine requires explicitly re-enabling GPU access".to_owned(),
+                );
+            }
+            if !package.quarantines.contains_key(fingerprint) && package.quarantines.len() >= 4096 {
+                return Err("GPU recovery fingerprint limit exceeded".to_owned());
+            }
             package.fingerprint = fingerprint.to_owned();
-            package.clean_sessions = 0;
+            package.quarantined = false;
             self.blocked.remove(identity);
             self.retained
                 .retain(|owner, _| self.owners.get(owner).is_none_or(|name| name != identity));
         }
-        self.participants.insert(identity.to_owned());
-        self.owners.insert(owner, identity.to_owned());
         if self.blocked.contains(identity) {
             return Err("previous GPU submission did not complete; update the package or explicitly re-enable its GPU access".to_owned());
         }
@@ -225,9 +264,8 @@ impl Recovery {
         for owner in self.inflight.keys() {
             if let Some(identity) = self.owners.get(owner) {
                 self.blocked.insert(identity.clone());
-                self.failed.insert(identity.clone());
                 if let Some(package) = self.packages.get_mut(identity) {
-                    package.clean_sessions = 0;
+                    package.quarantine();
                 }
             }
         }
@@ -239,22 +277,6 @@ impl Recovery {
             return;
         }
         self.finished = true;
-        for identity in &self.participants {
-            if self.blocked.contains(identity)
-                && !self.failed.contains(identity)
-                && !self
-                    .inflight
-                    .keys()
-                    .any(|owner| self.owners.get(owner) == Some(identity))
-                && let Some(package) = self.packages.get_mut(identity)
-            {
-                package.clean_sessions = package.clean_sessions.saturating_add(1);
-                if package.clean_sessions >= 3 {
-                    self.blocked.remove(identity);
-                    package.clean_sessions = 0;
-                }
-            }
-        }
         self.retained
             .retain(|owner, _| self.inflight.contains_key(owner));
         self.save();
@@ -273,6 +295,10 @@ impl Recovery {
             return Err("cannot re-enable a mod with outstanding GPU work".to_owned());
         }
         let blocked = self.blocked.remove(identity);
+        let quarantined = self
+            .packages
+            .get_mut(identity)
+            .is_some_and(|package| std::mem::replace(&mut package.quarantined, false));
         let retained: BTreeMap<_, _> = owners
             .iter()
             .filter_map(|owner| self.retained.remove(owner).map(|frame| (*owner, frame)))
@@ -281,6 +307,9 @@ impl Recovery {
             self.retained.extend(retained);
             if blocked {
                 self.blocked.insert(identity.to_owned());
+            }
+            if let Some(package) = self.packages.get_mut(identity) {
+                package.quarantined = quarantined;
             }
             return Err(error);
         }
@@ -616,7 +645,7 @@ mod tests {
     }
 
     #[test]
-    fn three_later_clean_sessions_expire_quarantine() {
+    fn blocked_sessions_never_expire_quarantine_or_count_as_new_faults() {
         let path = marker();
         let mut state = Recovery::open(path.clone()).unwrap();
         state.register(ModId(1), "particles").unwrap();
@@ -624,17 +653,85 @@ mod tests {
         state.device_lost();
         state.complete(ModId(1)).unwrap();
         state.clean_exit();
-        assert_eq!(state.packages["particles"].clean_sessions, 0);
-        for session in 1..=3 {
+        for _ in 0..5 {
             let mut restarted = Recovery::open(path.clone()).unwrap();
             assert!(restarted.register(ModId(1), "particles").is_err());
+            assert!(restarted.before(ModId(1)).is_err());
             restarted.clean_exit();
             restarted.clean_exit();
-            assert_eq!(restarted.blocked.contains("particles"), session < 3);
+            assert!(restarted.blocked.contains("particles"));
+            assert_eq!(
+                restarted.packages["particles"].quarantines["test-package-v1"],
+                1
+            );
         }
-        Recovery::open(path.clone())
-            .unwrap()
-            .register(ModId(1), "particles")
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn repeated_fingerprint_faults_require_owner_action_even_after_package_changes() {
+        let path = marker();
+        let mut state = Recovery::open(path.clone()).unwrap();
+        state
+            .register_package(ModId(1), "particles", "v1:hash1")
+            .unwrap();
+        state.before(ModId(1)).unwrap();
+        state.device_lost();
+        state.device_lost();
+        state.complete(ModId(1)).unwrap();
+        assert_eq!(state.packages["particles"].quarantines["v1:hash1"], 1);
+        state
+            .register_package(ModId(1), "particles", "v2:hash2")
+            .unwrap();
+        state
+            .register_package(ModId(1), "particles", "v1:hash1")
+            .unwrap();
+        state.before(ModId(1)).unwrap();
+        state.device_lost();
+        state.complete(ModId(1)).unwrap();
+        state.clean_exit();
+        let mut restarted = Recovery::open(path.clone()).unwrap();
+        assert!(
+            restarted
+                .register_package(ModId(99), "particles", "v2:hash2")
+                .is_err()
+        );
+        assert!(restarted.before(ModId(99)).is_err());
+        assert_eq!(restarted.packages["particles"].quarantines["v1:hash1"], 2);
+        assert_eq!(restarted.reenable("particles").unwrap(), vec![ModId(99)]);
+        restarted
+            .register_package(ModId(99), "particles", "v2:hash2")
+            .unwrap();
+        restarted.before(ModId(99)).unwrap();
+        restarted.complete(ModId(99)).unwrap();
+        restarted.clean_exit();
+        assert_eq!(
+            Recovery::open(path.clone()).unwrap().packages["particles"].quarantines["v1:hash1"],
+            2
+        );
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn old_clean_session_markers_remain_quarantined_until_package_change() {
+        let path = marker();
+        fs::write(&path, br#"{"incomplete":["particles"],"packages":{"particles":{"fingerprint":"v1:hash1","clean_sessions":3}}}"#).unwrap();
+        let mut state = Recovery::open(path.clone()).unwrap();
+        assert!(
+            state
+                .register_package(ModId(1), "particles", "v1:hash1")
+                .is_err()
+        );
+        state.clean_exit();
+        let mut restarted = Recovery::open(path.clone()).unwrap();
+        assert!(
+            restarted
+                .register_package(ModId(1), "particles", "v1:hash1")
+                .is_err()
+        );
+        assert_eq!(restarted.packages["particles"].quarantines["v1:hash1"], 1);
+        restarted
+            .register_package(ModId(1), "particles", "v2:hash2")
             .unwrap();
         fs::remove_file(path).unwrap();
     }
@@ -649,6 +746,10 @@ mod tests {
         assert!(state.reenable("particles").is_err());
         state.complete(ModId(1)).unwrap();
         assert_eq!(state.reenable("particles").unwrap(), vec![ModId(1)]);
+        assert_eq!(
+            state.packages["particles"].quarantines["test-package-v1"],
+            1
+        );
         assert!(
             !Recovery::open(path.clone())
                 .unwrap()

@@ -336,8 +336,10 @@ allocating staging buffers or padded texture data.
 Static safety caps reject clearly excessive work rather than charging every triangle as a
 full-screen draw. The full per-mod/frame caps are 64 screens of estimated fragment work and
 2^24 vertices multiplied by instances. Fragment work is the viewport/scissor intersection's
-covered pixels multiplied by instances; `draw_region` narrows that rectangle, while `draw`
-uses the whole target. Compute charges total invocations multiplied by the shader's static
+covered pixels multiplied by `ceil(total_primitives / 2048)`, where the topology determines
+the primitive count and `total_primitives` includes all instances. This assumes meshes have
+an overdraw depth of 2,048 primitives, rather than charging a whole viewport per instance.
+`draw_region` narrows that rectangle, while `draw` uses the whole target. Compute charges total invocations multiplied by the shader's static
 instruction, texture and loop cost, with a 64 Mi-unit cap. Its allowance always admits at
 least one maximum-size workgroup (256 invocations at the maximum static cost of 8,192).
 Consecutive draws to the same target share a render pass, with at most 64 passes per mod/frame.
@@ -347,9 +349,12 @@ across mods; engine bind groups are cached per pipeline within each owner's batc
 
 At `after-world`, scene colour may intentionally be copied into a mod-owned texture and read back
 to the CPU; the same 1 MiB per-mod/frame readback limit applies. HUD-stage GPU commands run only on
-the real frame when frame generation is enabled, never on interpolated frames. Scene-read targets
-stay allocated until 120 consecutive frames without a read; the frame descriptor reports the
-actual render target's dimensions and format.
+the real frame when frame generation is enabled, never on interpolated frames. Mods that never
+read scene colour do not force a scene-read target. Scene-read targets stay allocated until
+120 consecutive frames without a read. If a read is requested after that target has lapsed,
+or the source lacks `COPY_SRC`, scene-reading commands are skipped for that frame without an
+error or suspension; other commands still run, and the request makes the target sticky again
+for subsequent frames. The frame descriptor reports the actual render target's dimensions and format.
 
 The Naga IR guard caps loops at 256 iterations per function activation, including helper functions
 and continuing blocks. Static limits include 8,192 instructions, 64 texture fetches, call depth 16,
@@ -362,10 +367,12 @@ On adapters supporting `TIMESTAMP_QUERY`, measured GPU time is the main per-mod 
 at most 4 ms per frame averaged over a rolling two-second window. Three frames over 50 ms
 within 60 seconds suspend that owner's GPU API without suspending its other services; older
 strikes expire. New mods start at one sixteenth of the static caps, then eight distinct safe
-measured frames in which that mod actually used the GPU allow each doubling up to the full caps.
-The ramp is per mod, not per pipeline, and slow frames reset it; idle frames do not grow it.
-Without timestamps, each mod permanently receives one quarter of the static caps (16 screens,
-2^22 vertices and 16 Mi compute-cost units, with the same minimum workgroup allowance).
+measured frames allow each doubling up to the full caps. Each qualifying frame must use at
+least one quarter of its current fragment, vertex-instance or compute allowance, aggregated
+across all measured stages. The ramp is per mod, not per pipeline, and slow frames reset it;
+idle, skipped and underused frames do not grow it. The initial one-sixteenth allowance is
+four screens, 2^20 vertex-instances and 4 Mi compute-cost units, with the same minimum workgroup
+allowance. Without timestamps, each mod permanently receives that initial allowance.
 There is no CPU-timing-based GPU ramp on those adapters.
 
 Host recording/encoding/submission CPU time has a separate rolling two-second 4 ms/frame
@@ -386,10 +393,15 @@ with warnings limited to once per minute, and are not attributed to the mod. Dev
 the recovery file, including across renderer recreation. The next start quarantines those
 identities and logs the marker path. Malformed recovery state fails closed. Abnormal
 termination can also leave a marker: it is **not proof** that a listed mod caused a driver fault.
-Quarantine is cleared when that identity's package version or module SHA-256 fingerprint changes,
-or after three later clean sessions in which the package is registered without another GPU fault.
+Quarantine does not expire through clean launches in which the blocked mod cannot run GPU work.
+Fault counts persist per package-version/module-SHA-256 fingerprint, including across package
+changes and explicit re-enables. After a fingerprint's first fault, changing the package can
+automatically clear quarantine. After its second fault, only an explicit owner action can clear
+quarantine, even if the package changes. Repeated observations of the same outstanding fault
+do not increment its count.
 `mod_gpu_runtime::reenable(identity)` explicitly clears quarantine and the live GPU suspension;
-it rejects identities with outstanding work and persists the change before enabling them.
+it rejects identities with outstanding work and persists the change before enabling them,
+without erasing fault history.
 This is the API for a future launcher/developer-screen re-enable control; no UI is added here.
 
 ### Development shaders and demo

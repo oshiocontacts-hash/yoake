@@ -640,6 +640,14 @@ mod tests {
         };
         let mut post = Post::new(&device, wgpu::TextureFormat::Rgba8Unorm);
         let mut reads = super::super::mod_gpu_runtime::SceneReads::default();
+        for _frame in 0..240 {
+            assert!(
+                post.prepare(&device, [320, 180], reads.required())
+                    .is_none()
+            );
+            reads.observe(false);
+        }
+        reads.observe(true);
         let mut first_target = None;
         for _frame in 0..240 {
             let (color, _) = post.prepare(&device, [320, 180], reads.required()).unwrap();

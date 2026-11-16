@@ -319,8 +319,8 @@ fn run_demo(device: &wgpu::Device, queue: &wgpu::Queue, measured: bool) {
                     groups: vec![particle_group],
                     vertex: None,
                     index: None,
-                    count: 6,
-                    instances: 65_536
+                    count: 3_000_000,
+                    instances: 1
                 },
                 Target::Frame
             ),
@@ -368,15 +368,17 @@ fn run_demo(device: &wgpu::Device, queue: &wgpu::Queue, measured: bool) {
             multiview_mask: None,
         }));
         queue.submit([encoder.finish()]);
+        let errors = gpu.submit_stage_with_engine(
+            device,
+            queue,
+            Stage::AfterWorld,
+            Some(&target),
+            Some(&sources),
+        );
         assert!(
-            gpu.submit_stage_with_engine(
-                device,
-                queue,
-                Stage::AfterWorld,
-                Some(&target),
-                Some(&sources)
-            )
-            .is_empty()
+            errors.is_empty(),
+            "gpu-demo frame {frame}, measured={measured}: {errors:?}; disabled: {:?}",
+            gpu.disabled_reason(owner)
         );
         device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
     }
@@ -389,7 +391,7 @@ fn run_demo(device: &wgpu::Device, queue: &wgpu::Queue, measured: bool) {
             "measured safe used frames must ramp only this mod's share"
         );
     } else {
-        assert_eq!(gpu.budget_divisor(owner, measured), 4);
+        assert_eq!(gpu.budget_divisor(owner, measured), 16);
     }
     let Readback::Ready(bytes) = gpu
         .poll_readback(device, owner, final_ticket.unwrap())

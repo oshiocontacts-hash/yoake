@@ -488,6 +488,7 @@ impl FrameUsage {
 pub struct Recorded<Command> {
     pub owner: ModId,
     pub stage: Stage,
+    pub kind: CommandKind,
     pub command: Command,
 }
 
@@ -559,6 +560,7 @@ impl<Command> Recorder<Command> {
         self.commands.push(Recorded {
             owner,
             stage,
+            kind,
             command: create(),
         });
         self.usage.insert(owner, next);

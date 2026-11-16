@@ -11,6 +11,64 @@ pub(super) struct Ticket {
     status: Arc<Mutex<Option<Result<(), String>>>>,
     period: f64,
     pub frame: u64,
+    workload: Workload,
+    allowance: Workload,
+}
+
+#[derive(Clone, Copy, Default)]
+pub(super) struct Workload {
+    pixels: u64,
+    vertices: u64,
+    compute: u64,
+}
+
+impl Workload {
+    pub fn from_commands(
+        commands: impl IntoIterator<Item = super::super::mod_gpu::CommandKind>,
+    ) -> Self {
+        use super::super::mod_gpu::CommandKind;
+
+        let mut workload = Self::default();
+        for command in commands {
+            match command {
+                CommandKind::Render {
+                    count,
+                    instances,
+                    pixels,
+                    ..
+                } => {
+                    workload.pixels = workload.pixels.saturating_add(pixels);
+                    workload.vertices = workload
+                        .vertices
+                        .saturating_add(u64::from(count) * u64::from(instances));
+                }
+                CommandKind::Compute { groups, cost, .. } => {
+                    let work = groups.into_iter().fold(cost.max(1), |work, group| {
+                        work.saturating_mul(u64::from(group))
+                    });
+                    workload.compute = workload.compute.saturating_add(work);
+                }
+                _ => {}
+            }
+        }
+        workload
+    }
+
+    fn add(&mut self, other: Self) {
+        self.pixels = self.pixels.saturating_add(other.pixels);
+        self.vertices = self.vertices.saturating_add(other.vertices);
+        self.compute = self.compute.saturating_add(other.compute);
+    }
+
+    fn uses_quarter(self, allowance: Self) -> bool {
+        [
+            (self.pixels, allowance.pixels),
+            (self.vertices, allowance.vertices),
+            (self.compute, allowance.compute),
+        ]
+        .into_iter()
+        .any(|(used, limit)| limit > 0 && u128::from(used) * 4 >= u128::from(limit))
+    }
 }
 
 pub(super) struct Budget {
@@ -26,6 +84,8 @@ struct Sample {
     at: Instant,
     milliseconds: f64,
     complete: bool,
+    workload: Workload,
+    allowance: Workload,
 }
 
 impl Budget {
@@ -71,6 +131,8 @@ impl Budget {
             at: now,
             milliseconds: 0.0,
             complete: false,
+            workload: Workload::default(),
+            allowance: Workload::default(),
         });
         sample.milliseconds += milliseconds;
         if sample.milliseconds > 4.0 {
@@ -100,13 +162,13 @@ impl Budget {
                 continue;
             }
             sample.complete = true;
-            if sample.milliseconds <= 4.0 {
+            if sample.milliseconds <= 4.0 && sample.workload.uses_quarter(sample.allowance) {
                 self.good_frames += 1;
                 if self.good_frames >= 8 {
                     self.growth = (self.growth + 1).min(4);
                     self.good_frames = 0;
                 }
-            } else {
+            } else if sample.milliseconds > 4.0 {
                 self.growth = 0;
                 self.good_frames = 0;
             }
@@ -213,6 +275,10 @@ impl Gpu {
                                 .to_owned(),
                         ));
                     }
+                    if let Some(sample) = budget.samples.get_mut(&ticket.frame) {
+                        sample.workload.add(ticket.workload);
+                        sample.allowance = ticket.allowance;
+                    }
                 }
             }
         }
@@ -243,6 +309,7 @@ impl Gpu {
         queue: &wgpu::Queue,
         owner: ModId,
         passes: u32,
+        workload: Workload,
     ) -> Result<Option<Owned>, Error> {
         if passes == 0 || !device.features().contains(wgpu::Features::TIMESTAMP_QUERY) {
             return Ok(None);
@@ -256,10 +323,17 @@ impl Gpu {
             self.timings.iter().map(|(identity, _)| *identity),
         )?;
         let size = (u64::from(count) * 8).div_ceil(256) * 256;
+        let allowance = Workload {
+            pixels: self.pixel_limit(owner, true),
+            vertices: self.vertex_limit(owner, true),
+            compute: self.compute_limit(owner, true),
+        };
         let handle = self
             .resources
             .create(owner, Allocation::Buffer(size * 3), || {
                 Ok(Value::Timing(Ticket {
+                    workload,
+                    allowance,
                     queries: device.create_query_set(&wgpu::QuerySetDescriptor {
                         label: Some("Yoake mod GPU timestamps"),
                         ty: wgpu::QueryType::Timestamp,
@@ -351,10 +425,21 @@ mod tests {
     fn mods_ramp_only_after_complete_used_measured_frames() {
         let start = Instant::now();
         let mut budget = Budget::new(start, 0);
+        let workload = Workload {
+            pixels: 100,
+            ..Default::default()
+        };
+        let allowance = Workload {
+            pixels: 400,
+            ..Default::default()
+        };
         budget.finish_frames(1000, &Default::default());
         assert_eq!(budget.divisor(), 16);
         for frame in 1..=8 {
             budget.sample(start, frame, frame, 1.0);
+            let sample = budget.samples.get_mut(&frame).unwrap();
+            sample.workload = workload;
+            sample.allowance = allowance;
             budget.finish_frames(frame + 1, &[frame].into_iter().collect());
         }
         assert_eq!(budget.divisor(), 16);
@@ -363,12 +448,89 @@ mod tests {
         assert_eq!(budget.divisor(), 16);
         for frame in 9..=16 {
             budget.sample(start, frame, frame, 1.0);
+            let sample = budget.samples.get_mut(&frame).unwrap();
+            sample.workload = workload;
+            sample.allowance = allowance;
             budget.finish_frames(frame + 1, &Default::default());
         }
         assert_eq!(budget.divisor(), 8);
         assert_eq!(Budget::new(start, 0).divisor(), 16);
         budget.sample(start, 17, 17, 4.1);
         assert_eq!(budget.divisor(), 16);
+    }
+
+    #[test]
+    fn ramp_requires_a_quarter_of_the_current_allowance() {
+        let start = Instant::now();
+        for category in 0..3 {
+            let mut budget = Budget::new(start, 0);
+            for frame in 1..=48 {
+                let (used, limit, expected) = match frame {
+                    1..=16 => (99, 400, 16),
+                    17..=23 => (100, 400, 16),
+                    24 => (100, 400, 8),
+                    25..=40 => (100, 800, 8),
+                    41..=47 => (200, 800, 8),
+                    _ => (200, 800, 4),
+                };
+                budget.sample(start, frame, frame, 1.0);
+                let sample = budget.samples.get_mut(&frame).unwrap();
+                match category {
+                    0 => {
+                        sample.workload.pixels = used;
+                        sample.allowance.pixels = limit;
+                    }
+                    1 => {
+                        sample.workload.vertices = used;
+                        sample.allowance.vertices = limit;
+                    }
+                    _ => {
+                        sample.workload.compute = used;
+                        sample.allowance.compute = limit;
+                    }
+                }
+                budget.finish_frames(frame + 1, &Default::default());
+                assert_eq!(
+                    budget.divisor(),
+                    expected,
+                    "category {category}, frame {frame}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn ramp_aggregates_work_across_measured_stages_but_not_idle_frames() {
+        use super::super::super::mod_gpu::CommandKind;
+
+        let start = Instant::now();
+        let mut budget = Budget::new(start, 0);
+        for frame in 1..=64 {
+            budget.sample(start, frame, frame, 0.1);
+            let sample = budget.samples.get_mut(&frame).unwrap();
+            sample.allowance.pixels = 400;
+            budget.finish_frames(frame + 1, &Default::default());
+        }
+        assert_eq!(budget.divisor(), 16);
+        for frame in 65..=72 {
+            for _ in 0..2 {
+                budget.sample(start, frame, frame, 0.5);
+                let sample = budget.samples.get_mut(&frame).unwrap();
+                sample
+                    .workload
+                    .add(Workload::from_commands([CommandKind::Render {
+                        count: 6,
+                        instances: 1,
+                        pixels: 50,
+                        pixel_limit: 400,
+                        vertex_limit: 400,
+                        new_pass: true,
+                    }]));
+                sample.allowance.pixels = 400;
+            }
+            budget.finish_frames(frame + 1, &Default::default());
+        }
+        assert_eq!(budget.divisor(), 8);
     }
 
     #[test]

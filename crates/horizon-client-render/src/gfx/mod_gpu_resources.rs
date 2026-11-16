@@ -146,7 +146,7 @@ impl Gpu {
         if timestamps {
             self.budgets.get(&owner).map_or(16, timing::Budget::divisor)
         } else {
-            4
+            16
         }
     }
 
