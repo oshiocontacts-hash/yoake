@@ -269,15 +269,21 @@ pub enum MotionEvent {
     /// around a drowning player.
     Drown,
 }
+#[yoake_state::yoake_state(read_only)]
 #[derive(Clone)]
 pub struct PlayerMotion {
+    #[yoake_state]
     pub swimming: bool,
     /// `Entity.isPassenger()`: this body rides a vehicle. `Entity.updateSwimming`
     /// needs it false, so the server's copy of a guest who boards a boat while
     /// swimming is not left in the swimming box in the seat (#4427).
+    #[yoake_state]
     pub is_passenger: bool,
+    #[yoake_state]
     pub fire_ticks: i32,
+    #[yoake_state]
     pub air: i32,
+    #[yoake_state]
     pub respiration: i32,
 
     pub position: Vec3,
@@ -285,6 +291,7 @@ pub struct PlayerMotion {
     pub ground: GroundState,
     pub collision: CollisionFlags,
     pub history: MovementHistory,
+    #[yoake_state]
     pub fall_distance: f64,
     /// The block fallOn currently running, consumed by its damage call.
     pub(crate) block_landing: Option<(BlockStateId, BlockPos, f64)>,
@@ -292,22 +299,33 @@ pub struct PlayerMotion {
     /// `Entity.pistonDeltas` and `pistonDeltasGameTime`: how far a moving
     /// block has pushed this entity this tick (0.51 at most on any axis).
     pub piston: horizon_world::piston_movement::PistonMovement,
+    #[yoake_state]
     pub yaw: f32,
+    #[yoake_state]
     pub head_yaw: f32,
+    #[yoake_state]
     pub jumping: bool,
+    #[yoake_state]
     pub no_jump_delay: i32,
+    #[yoake_state]
     pub jump_trigger_time: i32,
     /// Abilities.mayfly / flying (creative flight).
+    #[yoake_state]
     pub may_fly: bool,
     /// `Player.isMobilityRestricted`: blindness, which keeps a sprint from
     /// starting and stops one (`LocalPlayer.isSprintingPossible`).
+    #[yoake_state]
     pub mobility_restricted: bool,
     /// Abilities.invulnerable (creative): only damage bypassing invulnerability hurts.
+    #[yoake_state]
     pub invulnerable: bool,
     /// Spectator mode: no physics, always flying (`Player.tick`).
+    #[yoake_state]
     pub spectator: bool,
+    #[yoake_state]
     pub flying: bool,
     /// Client-side `Abilities.flyingSpeed`, adjusted by the spectator scroll wheel.
+    #[yoake_state]
     pub flying_speed: f32,
     /// The jump key last tick (LocalPlayer.aiStep's wasJumping).
     pub was_jumping: bool,
@@ -321,13 +339,18 @@ pub struct PlayerMotion {
     /// `LocalPlayer.xxa` / `zza`: the move vector after `modifyInput`.
     pub applied_input: [f32; 2],
     /// A usable glider (elytra) is worn; the game sets it each tick.
+    #[yoake_state]
     pub glider: bool,
     /// The view pitch (xRot), for gliding.
+    #[yoake_state]
     pub pitch: f32,
     /// Gliding (shared flag 7) and LivingEntity.fallFlyTicks.
+    #[yoake_state]
     pub fall_flying: bool,
     /// Asleep in a bed (`LivingEntity.isSleeping`): the sleeping pose.
+    #[yoake_state]
     pub sleeping: bool,
+    #[yoake_state]
     pub fall_fly_ticks: i32,
     /// The server saw the glide end last tick (`updateFallFlying`'s `canGlide`
     /// failed): the cleared flag reaches the client at its next tick.
@@ -350,8 +373,10 @@ pub struct PlayerMotion {
     pub spin_targets: Vec<(u32, Aabb)>,
     /// The entity the spin touched this tick (`doAutoAttackOnTouch`).
     pub spin_hit: Option<u32>,
+    #[yoake_state]
     pub sprinting: bool,
     pub sprint_input: crate::sprint::SprintState,
+    #[yoake_state]
     pub shift_key_down: bool,
     pub local_crouching: bool,
     pub pose: crate::pose::Pose,
@@ -359,7 +384,9 @@ pub struct PlayerMotion {
     /// The `minecraft:scale` the dimensions were last built with
     /// (`Entity.refreshDimensions`), for the poses the body takes before it
     /// next refreshes.
+    #[yoake_state]
     pub scale: f32,
+    #[yoake_state]
     pub speed: f32,
     /// `LocalPlayer.itemUseSpeedMultiplier` while using an item (not riding).
     pub item_use_speed: Option<f32>,

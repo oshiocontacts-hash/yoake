@@ -1180,6 +1180,7 @@ impl Extra {
     }
 }
 
+#[yoake_state::yoake_state(read_only)]
 #[derive(Clone, Debug)]
 pub struct Mob {
     /// When it joined its list ([`crate::join_seq`]); set by the list, not by the spawn site.
@@ -1209,6 +1210,7 @@ pub struct Mob {
     /// items it wears or holds, which the game works out each tick for a mob
     /// that has any (the mob itself knows no item): `None` for the rest.
     pub gear_knockback_resistance: Option<f64>,
+    #[yoake_state]
     pub health: f32,
     pub hurt_time: i32,
     pub invulnerable: i32,
@@ -1246,6 +1248,7 @@ pub struct Mob {
     pub was_eye_in_water: bool,
     /// `Entity.firstTick`: no splash for a mob that appears in water.
     pub first_tick: bool,
+    #[yoake_state]
     pub no_gravity: bool,
     /// `Entity.mainSupportingBlockPos`: the block it stood on after its last
     /// move.
@@ -1254,10 +1257,13 @@ pub struct Mob {
     /// packs' random-model rules (`rule_index`); `None` without rules or off the ground.
     pub standing_on: Option<String>,
     /// `NoAI`: no goals and no movement.
+    #[yoake_state]
     pub no_ai: bool,
     /// `Silent`.
+    #[yoake_state]
     pub silent: bool,
     /// `Invulnerable`: immune to damage (but not to `/kill`).
+    #[yoake_state]
     pub invulnerable_flag: bool,
     pub native_damage_immune: bool,
     /// The entity that causes the blow being dealt (`source.getEntity()`): its eye, view
@@ -1269,18 +1275,24 @@ pub struct Mob {
     /// way it was travelling. None for any other direct entity.
     pub projectile_motion: Option<[f64; 2]>,
     pub climbing: bool,
+    #[yoake_state]
     pub fire_ticks: i32,
+    #[yoake_state]
     pub ticks_frozen: i32,
+    #[yoake_state]
     pub glowing: bool,
+    #[yoake_state]
     pub air: i32,
     pub last_hurt: f32,
     /// `LivingEntity.getAbsorptionAmount`: golden hearts that soak damage before health.
+    #[yoake_state]
     pub absorption: f32,
     pub last_damage: Option<(Damage, i64)>,
     pub native_last_player_attacker: u32,
     /// `LivingEntity.combatTracker`: the hits taken lately.
     pub combat: combat::Tracker,
     /// Set by `remove`: the mob disappears without dying (conversion, despawn, pickup).
+    #[yoake_state]
     pub removed: bool,
     /// Client-side animation clocks (attack swing, eating, shaking...).
     pub anim: anim::AnimState,

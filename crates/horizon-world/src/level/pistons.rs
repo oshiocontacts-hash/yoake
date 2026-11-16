@@ -18,17 +18,23 @@ use horizon_core::{geometry::Direction, position::BlockPos, random::RandomSource
 use std::cmp::Ordering;
 
 /// `PistonMovingBlockEntity` state, owned by [`Ticks::moving_pistons`].
+#[yoake_state::yoake_state(read_only)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MovingPiston {
     pub moved_state: BlockStateId,
     pub direction: Direction,
+    #[yoake_state(read_only)]
     pub extending: bool,
+    #[yoake_state(read_only)]
     pub source: bool,
+    #[yoake_state(read_only)]
     pub progress: f32,
+    #[yoake_state(read_only)]
     pub progress_o: f32,
     pub last_ticked: i64,
     /// `PistonMovingBlockEntity.deathTicks`: on a client the entity waits
     /// five ticks past progress 1.0 before placing the block itself.
+    #[yoake_state(read_only)]
     pub death_ticks: i32,
     /// Identity of this block entity (a replaced entity is a new ticker).
     pub id: u64,

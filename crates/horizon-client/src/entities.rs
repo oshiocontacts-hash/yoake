@@ -1138,10 +1138,14 @@ fn towards_closest_space(
     }
 }
 /// Player experience (Player.giveExperiencePoints / getXpNeededForNextLevel).
+#[yoake_state::yoake_state(read_only)]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Experience {
+    #[yoake_state]
     pub level: i32,
+    #[yoake_state]
     pub progress: f32,
+    #[yoake_state]
     pub total: i32,
 }
 impl Experience {

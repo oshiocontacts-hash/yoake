@@ -35,6 +35,8 @@ members = [
     "crates/horizon-mod-api-gen/dispatch-tests",
     "crates/horizon-mod-abi",
     "crates/horizon-mod-sdk",
+    "crates/yoake-state",
+    "crates/yoake-state-macro",
     "crates/yoake-wasm",
     "examples/dll-hello",
     "examples/dll-net-echo",
