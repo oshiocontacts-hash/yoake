@@ -164,6 +164,8 @@ pub(super) enum Outcome {
     Hosted(MyRoom, PathBuf),
     /// A grant for a room: the hand-off file for the game that joins it.
     Joined(PathBuf),
+    /// The game cannot be given a session file, so no room was opened (the portal was not asked).
+    NoSession,
     /// The portal answered, but the file for the game could not be made (the room is closed).
     HandoffFailed,
     /// The game did not start, so the room it hosted was closed.
@@ -673,6 +675,9 @@ impl Friends {
                 follow.push(Follow::Launch(Some(id), path));
             }
             (A::JoinRoom, Outcome::Joined(path)) => follow.push(Follow::Launch(None, path)),
+            (A::OpenRoom, Outcome::NoSession) => {
+                self.note = Some((false, tr(NEEDS_SESSION).to_string()));
+            }
             (A::OpenRoom | A::JoinRoom, Outcome::HandoffFailed) => {
                 self.note = Some((false, tr(HANDOFF_FAILED).to_string()));
             }
@@ -852,6 +857,11 @@ pub(super) fn done_en(action: FriendAction) -> &'static str {
 /// What the Rooms tab says when the game did not start and the room it hosted was closed.
 pub(super) const ROOM_CLOSED_AFTER_FAILURE: &str =
     "The game could not start, so your room was closed.";
+
+/// What opening a room says when the game would have no session file: the host's game carries
+/// the player's session, and a room is never opened for a game without one.
+pub(super) const NEEDS_SESSION: &str =
+    "Hosting a room needs a signed-in Minecraft account. Sign in on the Accounts page, then try again.";
 
 /// What a room's hand-off failing says: the portal's room was closed again.
 pub(super) const HANDOFF_FAILED: &str =
@@ -1191,7 +1201,8 @@ impl Launcher {
         let audience = self.friends.chosen_audience();
         let folder = social::handoff::folder(&backend::data_dir());
         self.friends_act(FriendAction::OpenRoom, move |api| {
-            host_room(api, &folder, &audience, name.as_deref())
+            // Read in the background: it opens the keychain.
+            host_room(api, &folder, &audience, name.as_deref(), account::can_give_session())
         });
     }
 
@@ -1387,7 +1398,12 @@ pub(super) fn host_room(
     folder: &Path,
     audience: &Audience,
     name: Option<&str>,
+    has_session: bool,
 ) -> social::Result<Outcome> {
+    // Before the portal is asked: a room whose game cannot carry a session is never opened.
+    if !has_session {
+        return Ok(Outcome::NoSession);
+    }
     let room = api.create_room(audience, name)?;
     match social::handoff::write_host(folder, &room) {
         Ok(path) => Ok(Outcome::Hosted(
@@ -1808,6 +1824,25 @@ mod tests {
     }
 
     #[test]
+    fn without_a_session_file_no_room_is_opened_and_the_reason_is_shown() {
+        let api = MockSocial::sample();
+        let before = api.rooms().unwrap().len();
+        let dir = scratch_folder("nosession");
+        let outcome = host_room(&api, &dir, &Audience::Friends, None, false).unwrap();
+        assert!(matches!(outcome, Outcome::NoSession));
+        // The portal was not asked: no room was made, and no file was written.
+        assert_eq!(api.rooms().unwrap().len(), before);
+        assert!(!dir.exists());
+        let mut page = rooms_page(&api);
+        let follow = page.done(FriendAction::OpenRoom, outcome);
+        assert!(page.my_room.is_none());
+        assert!(!follow.iter().any(|f| matches!(f, Follow::Launch(..))));
+        let (good, note) = page.note.clone().unwrap();
+        assert!(!good && note == tr(NEEDS_SESSION), "{note}");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
     fn the_rooms_tab_tells_mine_from_the_ones_to_join() {
         let api = MockSocial::sample();
         let page = rooms_page(&api);
@@ -1854,7 +1889,7 @@ mod tests {
         page.room_audience = 1;
         let audience = page.chosen_audience();
         assert!(matches!(&audience, Audience::Group { name: Some(n), .. } if n == "ゆにぽっぷ"));
-        let outcome = host_room(&api, &folder, &audience, Some("Night")).unwrap();
+        let outcome = host_room(&api, &folder, &audience, Some("Night"), true).unwrap();
         let Outcome::Hosted(room, path) = outcome else { panic!("not hosted") };
         assert_eq!(room.name.as_deref(), Some("Night"));
         let text = std::fs::read_to_string(&path).unwrap();
@@ -1879,7 +1914,7 @@ mod tests {
         std::fs::create_dir_all(&folder).unwrap();
         let file = folder.join("a-file");
         std::fs::write(&file, "x").unwrap();
-        let outcome = host_room(&api, &file.join("inside"), &Audience::Friends, None).unwrap();
+        let outcome = host_room(&api, &file.join("inside"), &Audience::Friends, None, true).unwrap();
         assert!(matches!(outcome, Outcome::HandoffFailed));
         assert!(api.rooms().unwrap().iter().all(|r| r.host.principal != "me"), "closed again");
         let mut page = rooms_page(&api);

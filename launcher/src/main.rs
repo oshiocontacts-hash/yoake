@@ -1289,6 +1289,17 @@ impl Launcher {
                                 continue;
                             }
                         };
+                        // The host's game carries the player's session: with none, no room.
+                        if file.is_none()
+                            && self.social_handoff.as_ref().is_some_and(|h| h.hosting.is_some())
+                        {
+                            self.client_error = Some(tr(friends_page::NEEDS_SESSION).to_string());
+                            self.starting_pack = None;
+                            self.joining = None;
+                            self.drop_social_handoff();
+                            self.quick_play = None;
+                            continue;
+                        }
                         // Past the gate by the developer option alone is no owner.
                         if !account::dev_offline_enabled(self.settings.dev_offline) {
                             self.owner = Some(true);

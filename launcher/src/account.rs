@@ -2158,6 +2158,19 @@ fn session_file(game_home: &Path, pass: Launch) -> (Option<PathBuf>, Option<Stri
     }
 }
 
+/// Whether the next game can be given a session file: the selected account is signed in on this
+/// computer (its sign-in is in the keychain). The renewal at launch can still fail; this is the
+/// early check before something is opened for the game, such as a room.
+pub fn can_give_session() -> bool {
+    session_possible(&Accounts::load(), store())
+}
+
+fn session_possible(accounts: &Accounts, store: &dyn SecretStore) -> bool {
+    accounts
+        .selected()
+        .is_some_and(|account| secrets_in(store, &account.uuid).is_some())
+}
+
 /// Who plays the real Minecraft: Java Edition (a Java instance), past the owner gate itself
 /// ([`launch`]): the selected account when it owns the game, else one that does. With no answer
 /// from the services, an account that owned it plays with its last token. Mojang's game takes the

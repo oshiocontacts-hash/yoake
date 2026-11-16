@@ -1278,5 +1278,6 @@
   "The game could not start, so your room was closed.": "ゲームを起動できなかったため、部屋を閉じました。",
   "The room's pass ran out before the game started. Try again.": "ゲームの起動前に部屋の参加証が期限切れになりました。もう一度お試しください。",
   "Accepting joins": "参加の受け付け中",
-  "Accepting joins · joined: {names}": "参加の受け付け中・参加した人：{names}"
+  "Accepting joins · joined: {names}": "参加の受け付け中・参加した人：{names}",
+  "Hosting a room needs a signed-in Minecraft account. Sign in on the Accounts page, then try again.": "部屋を開くには、サインイン済みの Minecraft アカウントが必要です。アカウントのページでサインインしてから、もう一度お試しください。"
 }

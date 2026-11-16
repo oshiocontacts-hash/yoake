@@ -330,6 +330,29 @@ mod tests {
     }
 
     #[test]
+    fn a_failed_acknowledgement_is_sent_again_without_writing_the_pair_twice() {
+        let (mock, id, expires) = hosted();
+        let lines = Lines::default();
+        let mut host = host_of(&mock, &id, lines.clone(), expires, 0);
+        let nonce = mock.guest_joins(&id, "g1", "Mika");
+        mock.fail_ack_once();
+        // The pair is written; the ack gets a 500, so the portal still lists the guest.
+        assert_eq!(host.poll(), vec!["Mika".to_string()]);
+        assert_eq!(lines.json().len(), 1);
+        assert_eq!(mock.pending_joins(&id).unwrap().len(), 1);
+        assert_eq!(host.interval(), Duration::from_secs(4));
+        // The next round only acknowledges: nothing is written again, and the guest is gone.
+        assert!(host.poll().is_empty());
+        assert_eq!(lines.json().len(), 1);
+        assert_eq!(lines.json()[0]["grant"]["grant"]["nonce"], nonce);
+        assert!(mock.pending_joins(&id).unwrap().is_empty());
+        assert_eq!(host.interval(), POLL);
+        // And it stays gone.
+        assert!(host.poll().is_empty());
+        assert_eq!(lines.json().len(), 1);
+    }
+
+    #[test]
     fn the_wait_grows_on_errors_and_comes_back() {
         let (mock, id, expires) = hosted();
         let mut host = host_of(&mock, &id, Lines::default(), expires, 0);

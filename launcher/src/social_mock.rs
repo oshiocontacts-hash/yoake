@@ -62,6 +62,8 @@ struct State {
     groups: Vec<MockGroup>,
     next: u32,
     fail_next: Option<SocialError>,
+    /// The next acknowledgement of guests answers 500 once (it changes nothing).
+    fail_ack_once: bool,
 }
 
 pub struct MockSocial {
@@ -196,6 +198,12 @@ impl MockSocial {
 
     /// The next call fails with `error` (once).
     #[cfg(test)]
+    /// The next `ack_joins` fails once with the portal's 500, and does not acknowledge.
+    #[allow(dead_code)]
+    pub fn fail_ack_once(&self) {
+        self.state.lock().unwrap().fail_ack_once = true;
+    }
+
     pub fn fail_next(&self, error: SocialError) {
         self.state.lock().unwrap().fail_next = Some(error);
     }
@@ -933,6 +941,9 @@ impl SocialBackend for MockSocial {
             .iter()
             .find(|r| r.id == session_id && r.host == ME)
             .ok_or(api(ApiCode::NotFound))?;
+        if std::mem::take(&mut s.fail_ack_once) {
+            return Err(api(ApiCode::Internal));
+        }
         s.pending
             .retain(|(room, join)| !(room == session_id && nonces.iter().any(|n| n == join.grant.expose().nonce())));
         Ok(())
