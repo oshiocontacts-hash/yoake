@@ -9,7 +9,7 @@ on:
         description: Branch, tag or commit to test
         required: true
       packages:
-        description: Space-separated crates to test (passed as -p each)
+        description: Space-separated crates to test (passed as -p each), or 'workspace' for every crate (add '!crate' entries to exclude)
         required: true
       check:
         description: Space-separated crates to cargo-check only (optional)
@@ -87,7 +87,15 @@ jobs:
         env:
           CRATES: ${{ inputs.packages }}
         run: |
-          args=(); for p in $CRATES; do args+=(-p "$p"); done
+          args=()
+          for p in $CRATES; do
+            case "$p" in
+              workspace) args+=(--workspace) ;;
+              '!'*) args+=(--exclude "${p#!}") ;;
+              *) args+=(-p "$p") ;;
+            esac
+          done
+          set -o pipefail
           cargo test --locked --no-fail-fast "${args[@]}" 2>&1 | tee test-output.txt
 
       - name: Summary
