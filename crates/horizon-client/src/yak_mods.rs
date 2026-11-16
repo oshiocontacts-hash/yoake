@@ -76,6 +76,11 @@ impl Installed {
                     .any(|field| field.side == yak::ConfigSide::Synced)
         })
     }
+
+    #[cfg(test)]
+    pub(crate) fn new_for_test(root: PathBuf, manifest: Manifest) -> Self {
+        Self { root, manifest, content: None, content_wasm: false, signed: false }
+    }
 }
 
 #[derive(Default)]
@@ -355,8 +360,29 @@ pub(crate) struct WasmMod {
     pub(crate) signed: bool,
 }
 
-pub(crate) fn unsigned_allowed() -> bool {
-    std::env::var_os("YOAKE_DLL_MODS_UNSIGNED").as_deref() == Some(std::ffi::OsStr::new("1"))
+/// Developer switches for unsigned code. The legacy DLL switch remains a superset so existing
+/// native-mod workflows keep their previous WASM behavior.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct UnsignedSwitches {
+    pub(crate) dll: bool,
+    pub(crate) wasm: bool,
+}
+
+impl UnsignedSwitches {
+    pub(crate) fn from_env() -> Self {
+        let dll = std::env::var_os("YOAKE_DLL_MODS_UNSIGNED");
+        let wasm = std::env::var_os("YOAKE_WASM_UNSIGNED");
+        Self::from_values(dll.as_deref(), wasm.as_deref())
+    }
+
+    pub(crate) fn from_values(
+        dll: Option<&std::ffi::OsStr>,
+        wasm: Option<&std::ffi::OsStr>,
+    ) -> Self {
+        let dll = dll == Some(std::ffi::OsStr::new("1"));
+        let wasm = wasm == Some(std::ffi::OsStr::new("1"));
+        Self { dll, wasm: dll || wasm }
+    }
 }
 
 /// Client-side WebAssembly modules of the enabled .yak files; empty when there are none.
@@ -369,7 +395,7 @@ pub(crate) fn wasm_mods(side: WasmSide) -> Vec<WasmMod> {
     let entries = entries();
     if !entries.iter().any(|entry| entry.manifest.wasm.is_some()) { return Vec::new(); }
     // A verified test worker also takes the unsigned package under test; the DLL switch is not involved.
-    wasm_mods_from(entries, side, &yak::trusted_keys(), unsigned_allowed() || crate::yoake_test::is_worker())
+    wasm_mods_from(entries, side, &yak::trusted_keys(), UnsignedSwitches::from_env().wasm || crate::yoake_test::is_worker())
 }
 
 pub(crate) fn wasm_mods_from(installed: &[Installed], side: WasmSide, keys: &[PublicKey], allow_unsigned: bool) -> Vec<WasmMod> {
@@ -423,12 +449,24 @@ fn wasm_preflight(entry: &Installed, name: &str, side: WasmSide, keys: &[PublicK
     file.take(yak::MAX_WASM_SIZE + 1).read_to_end(&mut bytes).map_err(|error| error.to_string())?;
     if bytes.len() as u64 > yak::MAX_WASM_SIZE { return Err("wasm module exceeds 32 MiB".into()); }
     let digest: String = <sha2::Sha256 as sha2::Digest>::digest(&bytes).iter().map(|byte| format!("{byte:02x}")).collect();
-    let mut signed = true;
-    if let Err(error) = yak::verify_installed(&entry.root, &[name], keys) {
-        if !allow_unsigned { return Err(error); }
-        signed = false;
-        log::warn!("YAK {}: developer unsigned override: {error}", manifest.id);
-    }
+    let signed = if allow_unsigned {
+        match std::fs::symlink_metadata(entry.root.join("SIGNATURE")) {
+            Ok(_) => {
+                // The developer override is for packages with no signature. A present signature
+                // must still be trusted and match every installed file.
+                yak::verify_installed(&entry.root, &[name], keys)?;
+                true
+            }
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                log::warn!("YAK {}: developer unsigned override: no SIGNATURE file", manifest.id);
+                false
+            }
+            Err(error) => return Err(format!("SIGNATURE: {error}")),
+        }
+    } else {
+        yak::verify_installed(&entry.root, &[name], keys)?;
+        true
+    };
     if yak::hash_installed_file(&entry.root, name)? != digest {
         return Err("wasm module changed while loading".into());
     }

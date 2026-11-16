@@ -128,12 +128,22 @@ pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mo
     // A test worker (`--yoake-test-run`, verified) runs WebAssembly and data packages only: no DLL is loaded.
     crate::yak_mods::initialize();
     if crate::yoake_test::is_worker() { return (mods, identities); }
-    let allow_unsigned = std::env::var_os("YOAKE_DLL_MODS_UNSIGNED").as_deref() == Some(OsStr::new("1"));
+    let allow_unsigned = crate::yak_mods::UnsignedSwitches::from_env().dll;
     let (mods, identities) = extend_paths(mods, identities, std::env::var_os("YOAKE_DLL_MODS").as_deref(), allow_unsigned);
     extend_yaks(mods, identities, crate::yak_mods::entries(), allow_unsigned)
 }
 
 fn extend_yaks(mods: Mods, identities: &'static [super::NativeMod], entries: &[crate::yak_mods::Installed], allow_unsigned: bool) -> (Mods, &'static [super::NativeMod]) {
+    extend_yaks_with_loader(mods, identities, entries, allow_unsigned, load)
+}
+
+fn extend_yaks_with_loader(
+    mods: Mods,
+    identities: &'static [super::NativeMod],
+    entries: &[crate::yak_mods::Installed],
+    allow_unsigned: bool,
+    load_mod: impl Fn(&Path, bool) -> Result<Metadata, LoadError>,
+) -> (Mods, &'static [super::NativeMod]) {
     if !entries.iter().any(|entry| entry.manifest.bin.is_some()) { return (mods, identities); }
     // A dedicated server has no client: native libraries are client code.
     if crate::yak_mods::dedicated() { return (mods, identities); }
@@ -155,7 +165,7 @@ fn extend_yaks(mods: Mods, identities: &'static [super::NativeMod], entries: &[c
                 return Err("duplicate or too many native identities".to_owned());
             }
             let (path, digest) = crate::yak_mods::binary_preflight(entry, &build, &keys, allow_unsigned)?;
-            let mut metadata = load(&path, true).map_err(|error| format!("{error:?}"))?;
+            let mut metadata = load_mod(&path, true).map_err(|error| format!("{error:?}"))?;
             if metadata.id != entry.manifest.id || metadata.version != entry.manifest.version.to_string() {
                 return Err("DLL descriptor identity differs from yak.toml".to_owned());
             }
@@ -871,6 +881,26 @@ mod tests {
     }
 
     #[test]
+    fn wasm_only_switch_does_not_authorize_external_dll_paths() {
+        let switches = crate::yak_mods::UnsignedSwitches::from_values(
+            None,
+            Some(OsStr::new("1")),
+        );
+        assert!(switches.wasm);
+        assert!(!switches.dll);
+
+        let path = std::env::temp_dir().join("yoake-wasm-switch-must-not-load.dll");
+        assert_eq!(verify(&path, switches.dll), Err(LoadError::Unsigned));
+
+        let paths = std::env::join_paths([path]).unwrap();
+        let mods: Mods = Arc::from(Vec::<Box<dyn Hooks>>::new());
+        let identities: &'static [super::super::NativeMod] = &[];
+        let (result, result_ids) = extend_paths(mods.clone(), identities, Some(&paths), switches.dll);
+        assert!(Arc::ptr_eq(&mods, &result));
+        assert!(std::ptr::eq(identities, result_ids));
+    }
+
+    #[test]
     fn absent_or_empty_paths_preserve_the_original_arc_and_identities() {
         let mods: Mods = Arc::from(Vec::<Box<dyn Hooks>>::new());
         let identities: &'static [super::super::NativeMod] = &[];
@@ -888,6 +918,93 @@ mod tests {
         let (result, result_ids) = extend_yaks(mods.clone(), identities, &[], false);
         assert!(Arc::ptr_eq(&mods, &result));
         assert!(std::ptr::eq(identities, result_ids));
+    }
+
+    #[test]
+    fn wasm_only_switch_refuses_a_mixed_unsigned_yak_before_loading_its_dll() {
+        use horizon_mods::yak::Manifest;
+        use std::{
+            fs,
+            sync::atomic::{AtomicBool, Ordering},
+            time::{SystemTime, UNIX_EPOCH},
+        };
+
+        let build = crate::yak_mods::Build::current().unwrap();
+        let target = build.target.expect("test host has a supported YAK target");
+        let binary_manifest = format!(
+            r#"format = 1
+id = "mixed_mod"
+version = "1.2.3"
+name = "Mixed package"
+authors = ["Test"]
+description = "Unsigned mixed-package loader test."
+[yoake]
+version = "={version}"
+[side]
+client = true
+server = true
+required_on_join = false
+[bin]
+library = "fixture"
+targets = ["{target}"]
+engine = "{engine}"
+abi = {abi}
+"#,
+            version = build.version,
+            target = target,
+            engine = build.engine,
+            abi = build.abi,
+        );
+        let manifest = Manifest::parse(&binary_manifest).unwrap();
+        let mixed_manifest = format!(
+            "{binary_manifest}\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/fixture.wasm\"\n"
+        );
+        let stamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let folder = std::env::temp_dir().join(format!("yoake-mixed-mod-{}-{stamp}", std::process::id()));
+        let root = folder.join("yoake-mods/mixed_mod/1.2.3");
+        fs::create_dir_all(root.join(format!("bin/{target}"))).unwrap();
+        fs::create_dir_all(root.join("bin/wasm")).unwrap();
+        fs::write(root.join("yak.toml"), mixed_manifest).unwrap();
+        fs::write(root.join(format!("bin/{}/{}", target, target.library_filename("fixture"))), b"must not be loaded").unwrap();
+        fs::write(root.join("bin/wasm/fixture.wasm"), b"\0asm\x01\0\0\0").unwrap();
+        let entry = crate::yak_mods::Installed::new_for_test(root.clone(), manifest);
+
+        let switches = crate::yak_mods::UnsignedSwitches::from_values(
+            None,
+            Some(OsStr::new("1")),
+        );
+        assert!(switches.wasm);
+        assert!(!switches.dll);
+        assert!(crate::yak_mods::binary_preflight(&entry, &build, &[], switches.dll)
+            .unwrap_err()
+            .contains("not both"));
+
+        let mods: Mods = Arc::from(Vec::<Box<dyn Hooks>>::new());
+        let identities: &'static [super::super::NativeMod] = &[];
+        let attempted_load = AtomicBool::new(false);
+        let (result, result_ids) = extend_yaks_with_loader(
+            mods.clone(),
+            identities,
+            std::slice::from_ref(&entry),
+            switches.dll,
+            |_, _| {
+                attempted_load.store(true, Ordering::Relaxed);
+                Err(LoadError::Platform)
+            },
+        );
+        assert!(!attempted_load.load(Ordering::Relaxed));
+        assert!(Arc::ptr_eq(&mods, &result));
+        assert!(std::ptr::eq(identities, result_ids));
+
+        let (production_result, production_ids) = extend_yaks(
+            mods.clone(),
+            identities,
+            std::slice::from_ref(&entry),
+            switches.dll,
+        );
+        assert!(Arc::ptr_eq(&mods, &production_result));
+        assert!(std::ptr::eq(identities, production_ids));
+        fs::remove_dir_all(folder).unwrap();
     }
 
     #[test]

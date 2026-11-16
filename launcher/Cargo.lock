@@ -2764,6 +2764,7 @@ version = "0.1.0"
 dependencies = [
  "horizon-release-sign",
  "horizon-shader-api",
+ "libc",
  "log",
  "minisign-verify",
  "semver",
@@ -2871,6 +2872,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "xxhash-rust",
+ "yoake-state",
 ]
 
 [[package]]
@@ -7433,6 +7435,22 @@ dependencies = [
  "dlib",
  "once_cell",
  "pkg-config",
+]
+
+[[package]]
+name = "yoake-state"
+version = "0.1.0"
+dependencies = [
+ "yoake-state-macro",
+]
+
+[[package]]
+name = "yoake-state-macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]

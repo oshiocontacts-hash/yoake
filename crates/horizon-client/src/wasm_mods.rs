@@ -5,9 +5,12 @@
 //! runs: no Engine, no thread, no wrapper around the existing hooks. A trap (or fuel/time/memory limit)
 //! disables only that mod, with one log line.
 //!
-//! Developer mode (`YOAKE_DLL_MODS_UNSIGNED=1`) additionally watches unsigned local wasm files and,
-//! when one changes on disk, swaps in a fresh instance at the next frame or tick on the main thread.
+//! Developer mode (`YOAKE_WASM_UNSIGNED=1`, or the legacy superset
+//! `YOAKE_DLL_MODS_UNSIGNED=1`) additionally watches unsigned local wasm files and, when one changes
+//! on disk, swaps in a fresh instance at the next frame or tick on the main thread.
 //! `YOAKE_WASM_DEV_DIR` names a folder of raw `<id>.wasm` components that are loaded the same way.
+//! Raw file ids use a `dev-` prefix and cannot reuse an installed YAK id, keeping settings and
+//! storage namespaces separate from installed mods.
 
 #[path = "wasm_mods/full.rs"]
 mod full;
@@ -126,8 +129,13 @@ struct Source {
     watch: Option<PathBuf>,
 }
 
-fn dev_sources() -> Vec<Source> {
-    let Some(dir) = std::env::var_os("YOAKE_WASM_DEV_DIR").filter(|dir| !dir.is_empty()) else { return Vec::new() };
+fn dev_sources_with(
+    developer: bool,
+    dir: impl FnOnce() -> Option<std::ffi::OsString>,
+    reserved_ids: &HashSet<String>,
+) -> Vec<Source> {
+    if !developer { return Vec::new(); }
+    let Some(dir) = dir().filter(|dir| !dir.is_empty()) else { return Vec::new() };
     let Ok(entries) = std::fs::read_dir(&dir) else {
         emit(format!("wasm: YOAKE_WASM_DEV_DIR {} cannot be read", PathBuf::from(&dir).display()));
         return Vec::new();
@@ -137,14 +145,19 @@ fn dev_sources() -> Vec<Source> {
     let mut sources = Vec::new();
     for path in files {
         if path.extension().and_then(|extension| extension.to_str()) != Some("wasm") { continue; }
-        let Some(id) = path.file_stem().and_then(|stem| stem.to_str()).map(str::to_owned) else { continue };
+        let Some(name) = path.file_stem().and_then(|stem| stem.to_str()) else { continue };
+        let id = format!("dev-{}", name.replace('.', "-"));
         if !safe_component(&id) {
             emit(format!("wasm: dev module {} skipped: unsafe id", path.display()));
             continue;
         }
+        if reserved_ids.contains(&id) {
+            emit(format!("wasm: dev module {} skipped: id conflicts with an installed mod", path.display()));
+            continue;
+        }
         match read_bounded(&path) {
             Ok(bytes) => sources.push(Source {
-                id: id.replace('.', "-"), version: "0.0.0-dev".into(), sha256: None, required_on_join: false, full: false,
+                id, version: "0.0.0-dev".into(), sha256: None, required_on_join: false, full: false,
                 bytes, watch: Some(path),
             }),
             Err(error) => emit(format!("wasm: dev module {} skipped: {error}", path.display())),
@@ -155,11 +168,30 @@ fn dev_sources() -> Vec<Source> {
 
 fn read_bounded(path: &std::path::Path) -> Result<Vec<u8>, String> {
     use std::io::Read;
+    let metadata = std::fs::symlink_metadata(path).map_err(|error| error.to_string())?;
+    if !metadata.is_file() { return Err("module is not a regular file".into()); }
     let file = std::fs::File::open(path).map_err(|error| error.to_string())?;
+    if !file.metadata().map_err(|error| error.to_string())?.is_file() {
+        return Err("module is not a regular file".into());
+    }
     let mut bytes = Vec::new();
     file.take(horizon_mods::yak::MAX_WASM_SIZE + 1).read_to_end(&mut bytes).map_err(|error| error.to_string())?;
     if bytes.len() as u64 > horizon_mods::yak::MAX_WASM_SIZE { return Err("module exceeds 32 MiB".into()); }
     Ok(bytes)
+}
+
+fn installed_source(module: crate::yak_mods::WasmMod, developer: bool) -> Source {
+    let watch = (developer && !module.signed).then(|| module.path.clone());
+    Source {
+        id: module.mod_id,
+        version: module.version.to_string(),
+        sha256: Some(module.sha256),
+        // Hot reload changes the bytes during development, so this digest cannot be a stable join requirement.
+        required_on_join: module.required_on_join && watch.is_none(),
+        full: module.full,
+        bytes: module.bytes,
+        watch,
+    }
 }
 
 /// One package's modules once accepted: its hook objects, its client module's world and the
@@ -178,19 +210,15 @@ struct Accepted {
 }
 
 pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mods, &'static [super::NativeMod]) {
-    let developer = crate::yak_mods::unsigned_allowed();
+    let developer = crate::yak_mods::UnsignedSwitches::from_env().wasm;
     // A dedicated server has no client: its client modules only give the package's identity.
     let dedicated = crate::yak_mods::dedicated();
-    let mut sources: Vec<Source> = crate::yak_mods::wasm_client_mods().into_iter().map(|module| Source {
-        id: module.mod_id,
-        version: module.version.to_string(),
-        sha256: Some(module.sha256),
-        required_on_join: module.required_on_join,
-        full: module.full,
-        bytes: module.bytes,
-        watch: (developer && !module.signed).then_some(module.path),
-    }).collect();
-    if developer { sources.extend(dev_sources()); }
+    let entries = crate::yak_mods::entries();
+    let mut reserved_ids: HashSet<String> = identities.iter().map(|identity| identity.id.to_owned()).collect();
+    reserved_ids.extend(entries.iter().map(|entry| entry.manifest.id.clone()));
+    let mut sources: Vec<Source> = crate::yak_mods::wasm_client_mods().into_iter()
+        .map(|module| installed_source(module, developer)).collect();
+    sources.extend(dev_sources_with(developer, || std::env::var_os("YOAKE_WASM_DEV_DIR"), &reserved_ids));
     let servers = crate::yak_mods::wasm_mods(crate::yak_mods::WasmSide::Server);
     if sources.is_empty() && servers.is_empty() {
         emit("wasm: no mods (engine not started)".into());
@@ -344,7 +372,8 @@ impl Watch {
     }
 
     fn stat(path: &std::path::Path) -> Option<(SystemTime, u64)> {
-        let metadata = std::fs::metadata(path).ok()?;
+        let metadata = std::fs::symlink_metadata(path).ok()?;
+        if !metadata.is_file() { return None; }
         Some((metadata.modified().ok()?, metadata.len()))
     }
 
@@ -1036,6 +1065,101 @@ mod tests {
         let (result, result_ids) = extend(mods.clone(), identities);
         assert!(Arc::ptr_eq(&mods, &result));
         assert!(std::ptr::eq(identities, result_ids));
+    }
+
+    #[test]
+    fn wasm_dev_directory_is_not_read_without_wasm_developer_mode() {
+        let switches = crate::yak_mods::UnsignedSwitches::from_values(None, None);
+        let reserved = HashSet::new();
+        let disabled = dev_sources_with(switches.wasm, || panic!("disabled WASM developer mode read the path"), &reserved);
+        assert!(disabled.is_empty());
+    }
+
+    #[test]
+    fn wasm_dev_directory_loads_raw_modules_when_wasm_developer_mode_is_enabled() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("yoake-wasm-dev-{}-{stamp}", std::process::id()));
+        std::fs::create_dir(&dir).unwrap();
+        let module = dir.join("hello.wasm");
+        std::fs::write(&module, b"raw wasm dev fixture").unwrap();
+
+        let switches = crate::yak_mods::UnsignedSwitches::from_values(
+            None,
+            Some(std::ffi::OsStr::new("1")),
+        );
+        let reserved = HashSet::new();
+        let sources = dev_sources_with(switches.wasm, || Some(dir.clone().into_os_string()), &reserved);
+        assert_eq!(sources.len(), 1);
+        assert_eq!(sources[0].id, "dev-hello");
+        assert_eq!(sources[0].bytes, b"raw wasm dev fixture");
+        assert_eq!(sources[0].watch.as_deref(), Some(module.as_path()));
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn wasm_dev_directory_cannot_reuse_an_installed_mod_id() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("yoake-wasm-dev-collision-{}-{stamp}", std::process::id()));
+        std::fs::create_dir(&dir).unwrap();
+        std::fs::write(dir.join("hello.wasm"), b"raw wasm dev fixture").unwrap();
+        let reserved = HashSet::from(["dev-hello".to_owned()]);
+        let sources = dev_sources_with(true, || Some(dir.clone().into_os_string()), &reserved);
+        assert!(sources.is_empty());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn wasm_dev_reads_and_watches_only_regular_files() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("yoake-wasm-regular-{}-{stamp}", std::process::id()));
+        std::fs::create_dir(&dir).unwrap();
+        let file = dir.join("module.wasm");
+        std::fs::write(&file, b"regular wasm file").unwrap();
+        assert_eq!(read_bounded(&file).unwrap(), b"regular wasm file");
+        assert!(read_bounded(&dir).unwrap_err().contains("regular file"));
+        assert!(Watch::stat(&file).is_some());
+        assert!(Watch::stat(&dir).is_none());
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            let link = dir.join("linked.wasm");
+            symlink(&file, &link).unwrap();
+            assert!(read_bounded(&link).unwrap_err().contains("regular file"));
+            assert!(Watch::stat(&link).is_none());
+        }
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn unsigned_hot_reload_does_not_pin_a_required_join_digest() {
+        let module = crate::yak_mods::WasmMod {
+            mod_id: "sample_mod".into(),
+            version: horizon_mods::yak::Version::parse("1.2.3").unwrap(),
+            sha256: "ab".repeat(32),
+            bytes: b"wasm fixture".to_vec(),
+            side: crate::yak_mods::WasmSide::Client,
+            full: false,
+            required_on_join: true,
+            commands: false,
+            path: PathBuf::from("sample.wasm"),
+            signed: false,
+        };
+        let source = installed_source(module, true);
+        assert!(!source.required_on_join);
+        assert!(source.sha256.is_some());
+        assert!(source.watch.is_some());
     }
 
     #[test]

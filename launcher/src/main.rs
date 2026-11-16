@@ -339,6 +339,7 @@ struct Launcher {
     dev_clicks: u8,
     dev_options: bool,
     dev_unsigned_dll_confirmation: bool,
+    dev_unsigned_wasm_confirmation: bool,
     /// The game is waiting for its session (a token renewal), or a Java instance for its files
     /// and Java (`start_java`), before it starts.
     starting_client: Option<String>,
@@ -647,6 +648,7 @@ impl Launcher {
             dev_clicks: 0,
             dev_options: false,
             dev_unsigned_dll_confirmation: false,
+            dev_unsigned_wasm_confirmation: false,
             starting_client: None,
             starting_yoake_home: None,
             play_when_prepared: None,
@@ -3152,7 +3154,7 @@ impl Launcher {
                             cx.notify();
                         })),
                 )
-                .when(self.settings.dev_unsigned_dll, |row| {
+                .when(self.settings.dev_unsigned_dll || self.settings.dev_unsigned_wasm, |row| {
                     row.child(
                         shell::text(theme::night::CAPTION, shell::c(n.warn))
                             .child(tr("Developer mode")),
