@@ -1,0 +1,20 @@
+format = 1
+id = "mod-call-caller"
+version = "0.1.0"
+name = "Mod Call Caller Demo"
+authors = ["Yoake SDK Examples"]
+description = "Server-side WebAssembly example whose /ping command calls the mod-call-responder package."
+license = "MIT"
+
+[yoake]
+version = ">=0.1"
+
+[side]
+client = false
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.0"
+server = "bin/wasm/mod-call-caller.wasm"
+permissions = []

@@ -1,0 +1,20 @@
+format = 1
+id = "chest-count"
+version = "0.1.0"
+name = "Chest Count Demo"
+authors = ["Yoake SDK Examples"]
+description = "Server-side WebAssembly example that totals items in a container at given coordinates."
+license = "MIT"
+
+[yoake]
+version = ">=0.1"
+
+[side]
+client = false
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.0"
+server = "bin/wasm/chest-count.wasm"
+permissions = []

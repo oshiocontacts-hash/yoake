@@ -1,0 +1,38 @@
+format = 1
+id = "config-demo"
+version = "0.1.0"
+name = "Config HUD Demo"
+authors = ["Yoake SDK Examples"]
+description = "Client-side WebAssembly example whose HUD text and colour come from [config] settings and refresh on config_changed."
+license = "MIT"
+
+[yoake]
+version = ">=0.1"
+
+[side]
+client = true
+server = false
+required_on_join = false
+
+[wasm]
+interface = "1.0"
+client = "bin/wasm/config-demo.wasm"
+world = "client-full"
+permissions = ["service.config"]
+
+[config.text]
+type = "string"
+side = "client"
+default = "Config Demo HUD"
+comment = "Text shown on the HUD banner."
+label.en_us = "HUD Text"
+label.ja_jp = "HUDテキスト"
+
+[config.color]
+type = "enum"
+side = "client"
+default = "gold"
+values = ["gold", "aqua", "lime", "white"]
+comment = "Colour preset for the HUD banner text."
+label.en_us = "HUD Colour"
+label.ja_jp = "HUD文字色"
