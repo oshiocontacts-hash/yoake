@@ -188,7 +188,7 @@ fn write_private(data_dir: &Path, name: &str, bytes: &[u8]) -> Result<(), AuthEr
 }
 
 #[cfg(unix)]
-fn create_private_file(path: &Path) -> io::Result<File> {
+pub fn create_private_file(path: &Path) -> io::Result<File> {
     use std::os::unix::fs::OpenOptionsExt;
     OpenOptions::new()
         .read(true)
@@ -199,19 +199,19 @@ fn create_private_file(path: &Path) -> io::Result<File> {
 }
 
 #[cfg(windows)]
-fn create_private_file(path: &Path) -> io::Result<File> {
+pub fn create_private_file(path: &Path) -> io::Result<File> {
     windows_acl::create_private_file(path)
 }
 
 #[cfg(not(any(unix, windows)))]
-fn create_private_file(_path: &Path) -> io::Result<File> {
+pub fn create_private_file(_path: &Path) -> io::Result<File> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "private files unsupported",
     ))
 }
 
-fn check_private_file(file: &File, path: &Path) -> Result<(), AuthError> {
+pub fn check_private_file(file: &File, path: &Path) -> Result<(), AuthError> {
     let path_metadata = std::fs::symlink_metadata(path).map_err(|_| AuthError::Unreadable)?;
     let metadata = file.metadata().map_err(|_| AuthError::Unreadable)?;
     if path_metadata.file_type().is_symlink() || !metadata.is_file() {

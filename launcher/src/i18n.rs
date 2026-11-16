@@ -1,153 +1,72 @@
-//! The launcher's languages: English (the strings in the code), French, Russian, German and
-//! Spanish, the languages Horizon's own game menus have, Simplified Chinese, Ukrainian,
-//! Polish, Brazilian Portuguese, Japanese, Turkish, Korean and Croatian. A table per language (`launcher/lang/<code>.json`) maps each English string to its
-//! translation; a string the table lacks shows in English.
+//! The launcher's languages: Japanese (first) and English (the strings in the code). The Japanese
+//! table (`launcher/lang/ja.json`) maps each English string to its translation; a string it lacks
+//! shows in English. The other `lang/*.json` files are kept for merging with upstream but are not
+//! loaded or offered.
 //!
-//! The language follows the system's unless the player picks one in Settings
-//! (`Settings::language`). Translations are Horizon's own, written for this launcher.
+//! The first run starts in English on an English system, else in Japanese; the player can pick
+//! one in Settings (`Settings::language`). Translations are Horizon's own, written for this launcher.
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 pub enum Language {
     #[default]
-    #[serde(rename = "en")]
-    English,
-    #[serde(rename = "fr")]
-    French,
-    #[serde(rename = "ru")]
-    Russian,
-    #[serde(rename = "de")]
-    German,
-    #[serde(rename = "zh")]
-    Chinese,
-    #[serde(rename = "es")]
-    Spanish,
-    #[serde(rename = "uk")]
-    Ukrainian,
-    #[serde(rename = "pl")]
-    Polish,
-    #[serde(rename = "pt-br")]
-    PortugueseBrazil,
     #[serde(rename = "ja")]
     Japanese,
-    #[serde(rename = "tr")]
-    Turkish,
-    #[serde(rename = "ko")]
-    Korean,
-    #[serde(rename = "hr")]
-    Croatian,
-    #[serde(rename = "ar")]
-    Arabic,
-    #[serde(rename = "hi")]
-    Hindi,
-    #[serde(rename = "id")]
-    Indonesian,
-    #[serde(rename = "pt")]
-    Portuguese,
+    #[serde(rename = "en")]
+    English,
+}
+
+/// A saved language other than `en` is shown in Japanese; the settings file is left as it is.
+impl<'de> Deserialize<'de> for Language {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let code = String::deserialize(deserializer)?;
+        Ok(Self::parse(&code).unwrap_or(Self::Japanese))
+    }
 }
 
 impl Language {
-    pub const ALL: [Language; 17] = [
-        Self::English,
-        Self::French,
-        Self::Russian,
-        Self::German,
-        Self::Chinese,
-        Self::Spanish,
-        Self::Ukrainian,
-        Self::Polish,
-        Self::PortugueseBrazil,
-        Self::Japanese,
-        Self::Turkish,
-        Self::Korean,
-        Self::Croatian,
-        Self::Arabic,
-        Self::Hindi,
-        Self::Indonesian,
-        Self::Portuguese,
-    ];
+    pub const ALL: [Language; 2] = [Self::Japanese, Self::English];
 
     /// Its code in `settings.json` and on the command line.
     pub fn code(self) -> &'static str {
         match self {
-            Self::English => "en",
-            Self::French => "fr",
-            Self::Russian => "ru",
-            Self::German => "de",
-            Self::Chinese => "zh",
-            Self::Spanish => "es",
-            Self::Ukrainian => "uk",
-            Self::Polish => "pl",
-            Self::PortugueseBrazil => "pt-br",
             Self::Japanese => "ja",
-            Self::Turkish => "tr",
-            Self::Korean => "ko",
-            Self::Croatian => "hr",
-            Self::Arabic => "ar",
-            Self::Hindi => "hi",
-            Self::Indonesian => "id",
-            Self::Portuguese => "pt",
+            Self::English => "en",
         }
     }
 
     /// Its name in itself: what a player looks for in a list of languages.
     pub fn name(self) -> &'static str {
         match self {
-            Self::English => "English",
-            Self::French => "Français",
-            Self::Russian => "Русский",
-            Self::German => "Deutsch",
-            Self::Chinese => "简体中文",
-            Self::Spanish => "Español",
-            Self::Ukrainian => "Українська",
-            Self::Polish => "Polski",
-            Self::PortugueseBrazil => "Português (Brasil)",
             Self::Japanese => "日本語",
-            Self::Turkish => "Türkçe",
-            Self::Korean => "한국어",
-            Self::Croatian => "Hrvatski",
-            Self::Arabic => "العربية",
-            Self::Hindi => "हिन्दी",
-            Self::Indonesian => "Bahasa Indonesia",
-            Self::Portuguese => "Português (Portugal)",
+            Self::English => "English",
         }
     }
 
-    /// Parses a language code (e.g. `fr`, `fr-CH`, `pt-BR`, or `pt_BR.UTF-8`)
-    /// if the launcher supports it.
-    ///
-    /// Underscores are normalized to hyphens to support locale formats commonly
-    /// returned by operating systems. Brazilian Portuguese (`pt-BR`) is matched
-    /// explicitly, while other Portuguese variants (such as `pt-PT`) are not
-    /// mapped to it.
+    /// Parses `ja` or `en` (also `ja-JP`, `en_US.UTF-8`); any other language is `None`.
     pub fn parse(code: &str) -> Option<Self> {
         let lower = code.trim().to_ascii_lowercase();
         let clean = lower.split(['.', '@']).next().unwrap_or("");
         let normalized = clean.replace('_', "-");
-
-        if normalized == "pt-br" {
-            return Some(Self::PortugueseBrazil);
-        }
-
         let base = normalized.split('-').next().unwrap_or("");
-
         Self::ALL
             .into_iter()
             .find(|language| language.code() == base)
     }
 
-    /// The first of the system's preferred languages the launcher has, else English.
+    /// The first of the system's preferred languages decides: English if it is English, else
+    /// Japanese (also when there is none).
     pub fn pick<'a>(preferred: impl IntoIterator<Item = &'a str>) -> Self {
-        preferred
-            .into_iter()
-            .find_map(Self::parse)
-            .unwrap_or_default()
+        match preferred.into_iter().next().and_then(Self::parse) {
+            Some(Self::English) => Self::English,
+            _ => Self::Japanese,
+        }
     }
 
-    /// The system's language, as far as the launcher has it.
+    /// The default language: English on an English system, Japanese otherwise.
     pub fn system() -> Self {
         let locales: Vec<String> = sys_locale::get_locales().collect();
         Self::pick(locales.iter().map(String::as_str))
@@ -157,27 +76,13 @@ impl Language {
     fn source(self) -> &'static str {
         match self {
             Self::English => "{}",
-            Self::French => include_str!("../lang/fr.json"),
-            Self::Russian => include_str!("../lang/ru.json"),
-            Self::German => include_str!("../lang/de.json"),
-            Self::Chinese => include_str!("../lang/zh.json"),
-            Self::Spanish => include_str!("../lang/es.json"),
-            Self::Ukrainian => include_str!("../lang/uk.json"),
-            Self::Polish => include_str!("../lang/pl.json"),
-            Self::PortugueseBrazil => include_str!("../lang/pt-br.json"),
             Self::Japanese => include_str!("../lang/ja.json"),
-            Self::Turkish => include_str!("../lang/tr.json"),
-            Self::Korean => include_str!("../lang/ko.json"),
-            Self::Croatian => include_str!("../lang/hr.json"),
-            Self::Arabic => include_str!("../lang/ar.json"),
-            Self::Hindi => include_str!("../lang/hi.json"),
-            Self::Indonesian => include_str!("../lang/id.json"),
-            Self::Portuguese => include_str!("../lang/pt.json"),
         }
     }
 }
 
-static CURRENT: AtomicU8 = AtomicU8::new(0);
+/// English (the strings in the code) until the window sets its language.
+static CURRENT: AtomicU8 = AtomicU8::new(1);
 
 /// Shows the launcher in `language` from now on.
 pub fn set(language: Language) {

@@ -2654,6 +2654,7 @@ name = "horizon-core"
 version = "0.1.0"
 dependencies = [
  "libm",
+ "yoake-value",
 ]
 
 [[package]]
@@ -2676,6 +2677,8 @@ dependencies = [
  "getrandom 0.3.4",
  "hkdf",
  "if-addrs",
+ "ring",
+ "rustls",
  "serde",
  "serde_json",
  "sha2",
@@ -2756,6 +2759,7 @@ dependencies = [
  "serde",
  "serde_json",
  "syn 2.0.119",
+ "yoake-inject-spec",
 ]
 
 [[package]]
@@ -2774,6 +2778,7 @@ dependencies = [
  "toml 1.1.8+spec-1.1.0",
  "url",
  "wasmparser",
+ "yoake-inject-rt",
  "zip",
 ]
 
@@ -2872,7 +2877,10 @@ dependencies = [
  "serde_json",
  "sha2",
  "xxhash-rust",
+ "yoake-inject-macro",
+ "yoake-inject-rt",
  "yoake-state",
+ "yoake-value",
 ]
 
 [[package]]
@@ -7438,6 +7446,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "yoake-inject-macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+ "yoake-inject-spec",
+]
+
+[[package]]
+name = "yoake-inject-rt"
+version = "0.1.0"
+dependencies = [
+ "yoake-value",
+]
+
+[[package]]
+name = "yoake-inject-spec"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "sha2",
+ "syn 2.0.119",
+ "yoake-value",
+]
+
+[[package]]
 name = "yoake-state"
 version = "0.1.0"
 dependencies = [
@@ -7452,6 +7488,10 @@ dependencies = [
  "quote",
  "syn 2.0.119",
 ]
+
+[[package]]
+name = "yoake-value"
+version = "0.1.0"
 
 [[package]]
 name = "yoke"

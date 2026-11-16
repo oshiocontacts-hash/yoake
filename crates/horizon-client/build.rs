@@ -1,15 +1,26 @@
-//! Embeds Horizon's icon (`packaging/icons/horizon.ico`) in the Windows executables, as icon
-//! resource 1: Explorer and the task bar show it, and the window takes it as its icon.
+//! Embeds Horizon's icon (`packaging/icons/horizon.ico`, or `yoake.ico` in a Yoake build) in the
+//! Windows executables, as icon resource 1: Explorer and the task bar show it, and the window takes it as its icon.
 //! The optional Segment Heap manifest is embedded in the same resource compilation.
+#[path = "../../packaging/yoake_icon.rs"]
+mod yoake_icon;
+
 fn main() {
+    println!("cargo:rerun-if-env-changed=YOAKE_FEED_URL");
+    println!("cargo:rerun-if-env-changed=YOAKE_PORTAL_URL");
     let root =
         std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("../..");
     let out_dir = std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
     horizon_mod_api_gen::generate(&root, &out_dir, horizon_mod_api_gen::Target::Client)
         .expect("generating native mod API");
     let dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default();
-    let ico = format!("{dir}/../../packaging/icons/horizon.ico");
-    println!("cargo:rerun-if-changed={ico}");
+    // Yoake builds (YOAKE_FEED_URL or YOAKE_PORTAL_URL set) carry Yoake's icon, as the launcher does.
+    for icon in ["horizon.ico", "yoake.ico"] {
+        println!("cargo:rerun-if-changed={dir}/../../packaging/icons/{icon}");
+    }
+    let ico = format!(
+        "{dir}/../../packaging/icons/{}",
+        yoake_icon::icon_file_from_env()
+    );
     // The game's main thread gets 8 MB of stack on Windows as on macOS and Linux (Windows gives 1
     // MB): splitscreen builds a joining player's `Game`, ~67 KB, deep in the event loop.
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {

@@ -27,7 +27,7 @@ fn main() -> ExitCode {
         Some("keygen") => keygen(&args[1..]),
         _ => Err(
             "usage: horizon-release-sign verify --tag <tag> [--key <base64>]... [--publishing] \
-             <folder-or-file> | sign --tag <yoake-index-v1|yoake-index-v2|yoake-yak-v1|yoake-mods-v1|yoake-launcher-version> --key-file <file> <folder-or-file> | \
+             <folder-or-file> | sign --tag <yoake-index-v1|yoake-index-v2|yoake-yak-v1|yoake-mods-v1|yoake-builtin-v1|yoake-launcher-version> --key-file <file> <folder-or-file> | \
              keygen --public-out <file>"
                 .into(),
         ),
@@ -52,7 +52,7 @@ fn sign_folder(args: &[String]) -> Result<(), String> {
     }
     let key = std::fs::read_to_string(&paths[0]).map_err(|e| format!("key: {e}"))?;
     let key = SigningKey::from_base64(&key)?;
-    if matches!(tags[0].as_str(), "yoake-yak-v1" | "yoake-mods-v1") {
+    if matches!(tags[0].as_str(), "yoake-yak-v1" | "yoake-mods-v1" | "yoake-builtin-v1") {
         #[cfg(feature = "yak")]
         {
             yak_cli::sign(&tags[0], Path::new(&rest[0]), &key)?;
@@ -76,7 +76,7 @@ fn sign_folder(args: &[String]) -> Result<(), String> {
 }
 
 fn allowed_signing_tag(tag: &str) -> bool {
-    if matches!(tag, "yoake-index-v1" | "yoake-index-v2" | "yoake-yak-v1" | "yoake-mods-v1") {
+    if matches!(tag, "yoake-index-v1" | "yoake-index-v2" | "yoake-yak-v1" | "yoake-mods-v1" | "yoake-builtin-v1") {
         return true;
     }
     let Some(version) = tag.strip_prefix("yoake-launcher-") else {
@@ -132,6 +132,7 @@ mod signing_tag_tests {
             "yoake-index-v2",
             "yoake-yak-v1",
             "yoake-mods-v1",
+            "yoake-builtin-v1",
             "yoake-launcher-0.2.0",
             "yoake-launcher-1.2.3-rc.1+build.42",
             "yoake-launcher-1.2.3-this-is-a-long-but-valid-prerelease",
@@ -207,7 +208,7 @@ fn check_folder(args: &[String]) -> Result<(), String> {
     } else {
         parse_keys(&keys.join("\n"))?
     };
-    if matches!(tag.as_str(), "yoake-yak-v1" | "yoake-mods-v1") {
+    if matches!(tag.as_str(), "yoake-yak-v1" | "yoake-mods-v1" | "yoake-builtin-v1") {
         if publishing || rest.len() != 1 {
             return Err("YAK/catalog verify needs one file and does not allow --publishing".into());
         }

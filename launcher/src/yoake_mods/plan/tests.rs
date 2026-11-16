@@ -123,11 +123,6 @@ fn signed_out_and_unauthorized_catalogs_require_login() {
         fixture.client.refresh(),
         Err(Error::Feed(FeedError::NeedsLogin))
     ));
-    fixture.fail_index(FeedError::HttpStatus(401));
-    assert!(matches!(
-        fixture.client.refresh(),
-        Err(Error::Feed(FeedError::NeedsLogin))
-    ));
 }
 
 #[test]

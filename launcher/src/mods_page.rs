@@ -106,6 +106,8 @@ pub(super) struct Mods {
     pub(super) about: HashMap<String, Vec<String>>,
     /// The project page, filters and images.
     pub(super) browse: super::mods_project::Browse,
+    /// The size of the tab strip, for the glass panel under it (`glass::tabbed`).
+    strip: std::rc::Rc<std::cell::Cell<Option<gpui::Size<Pixels>>>>,
     pub(super) tx: Sender<Event>,
     rx: Receiver<Event>,
 }
@@ -185,6 +187,7 @@ impl Mods {
             checks: HashMap::new(),
             about: HashMap::new(),
             browse: Default::default(),
+            strip: Default::default(),
             tx,
             rx,
         }
@@ -824,22 +827,31 @@ impl Launcher {
         let t = self.theme;
         let m = &self.mods;
         let focused = m.focused;
-        let field = div()
+        let base = if glass_mode() {
+            glass_ui::field(focused, false).gap(px(10.)).w(px(320.))
+        } else {
+            div()
+                .flex()
+                .items_center()
+                .gap(px(10.))
+                .w(px(320.))
+                .h(px(theme::FIELD + 4.))
+                .px(px(12.))
+                .overflow_hidden()
+                .border_2()
+                .border_color(if focused { t.accent } else { t.outline })
+                .bg(t.well)
+                .text_size(px(theme::UI.px))
+        };
+        let field = base
             .id("mods-search")
             .track_focus(&m.focus)
-            .flex()
-            .items_center()
-            .gap(px(10.))
-            .w(px(320.))
-            .h(px(theme::FIELD + 4.))
-            .px(px(12.))
-            .overflow_hidden()
-            .border_2()
-            .border_color(if focused { t.accent } else { t.outline })
-            .bg(t.well)
-            .text_size(px(theme::UI.px))
             .cursor_text()
-            .child(blocks::icon("search", 18., t.muted))
+            .child(if glass_mode() {
+                glass_ui::icon("search-01", 17., glass_ui::white(0.6)).into_any_element()
+            } else {
+                blocks::icon("search", 18., t.muted).into_any_element()
+            })
             .child(line_edit::content(
                 &m.text,
                 &t,
@@ -893,28 +905,28 @@ impl Launcher {
     }
 
     pub(super) fn mods_page(&mut self, cx: &mut Context<Self>) -> Div {
+        // The page's look, in one place: true draws it in the glass look (the pixel look's
+        // helpers then give their glass form, see `GlassMode`), false as it was.
+        let glass = true;
+        let _mode = GlassMode::enter(glass);
         let t = self.theme;
         self.mods_load();
         if !self.mods.asked {
             self.mods.asked = true;
             self.mods_search(0);
         }
-        let header = page_header(
-            "Mods",
-            "Mods and shader packs made for Horizon from its own reviewed registry, and \
+        let description = "Mods and shader packs made for Horizon from its own reviewed registry, and \
              resource packs from Modrinth. Each file is checked against its source's checksum \
-             before it reaches your game folder.",
-            &t,
-        );
+             before it reaches your game folder.";
         let this = cx.entity().downgrade();
         let open = self.mods.kind;
         let shown: Vec<_> = KINDS
             .into_iter()
             .filter(|&(kind, ..)| SHOWN.contains(&kind) || kind == open)
             .collect();
-        let kinds = blocks::tabs("mods-kind", &shown, open, &t, {
+        let pick = {
             let this = this.clone();
-            move |kind, _, cx| {
+            move |kind: PackKind, _: &mut Window, cx: &mut App| {
                 let _ = this.update(cx, |this, cx| {
                     if this.mods.kind != kind {
                         this.mods.kind = kind;
@@ -927,7 +939,40 @@ impl Launcher {
                     cx.notify();
                 });
             }
-        });
+        };
+        let kinds = if glass {
+            div()
+                .relative()
+                .flex()
+                .flex_none()
+                .items_center()
+                .gap(px(4.))
+                .px(px(8.))
+                .pt(px(8.))
+                .pb(px(4.))
+                .child(glass::measure(self.mods.strip.clone()))
+                .children(shown.iter().map(|&(kind, label, _)| {
+                    let pick = pick.clone();
+                    let icon = match kind {
+                        PackKind::Mod => "puzzle",
+                        PackKind::Modpack => "package-01",
+                        PackKind::ResourcePack => "image-01",
+                        PackKind::Shader => "color-picker",
+                        PackKind::DataPack => "dashboard-square-01",
+                    };
+                    glass_ui::count_tab(
+                        format!("mods-kind-{label}"),
+                        Some(icon),
+                        tr(label),
+                        None,
+                        kind == open,
+                        &t,
+                    )
+                    .on_click(move |_: &ClickEvent, window, cx| pick(kind, window, cx))
+                }))
+        } else {
+            blocks::tabs("mods-kind", &shown, open, &t, pick)
+        };
         let everything = self.mods.everything;
         let toggle = div()
             .id("mods-everything")
@@ -974,15 +1019,36 @@ impl Launcher {
             .children(source_note)
             .children(filters)
             .children(self.mods_target_line(cx));
-        // The kinds are inventory tabs on the panel that holds the open one.
-        let body = blocks::panel(&t).flex().flex_col().gap(px(24.)).p(px(20.));
+        // The kinds are tabs on the panel that holds the open one.
+        let body = if glass {
+            div().relative().flex().flex_col().gap(px(24.)).min_h(px(340.)).px(px(4.)).pt(px(8.)).pb(px(4.))
+        } else {
+            blocks::panel(&t).flex().flex_col().gap(px(24.)).p(px(20.))
+        };
+        let strip = self.mods.strip.clone();
         let page = |body: Div| {
-            div()
-                .flex()
-                .flex_col()
-                .gap(px(32.))
-                .child(header)
-                .child(div().flex().flex_col().child(kinds).child(body))
+            if glass {
+                div()
+                    .flex()
+                    .flex_col()
+                    .pt(px(36.))
+                    .child(glass_page_head("Mods", description))
+                    .child(
+                        div()
+                            .relative()
+                            .mt(px(28.))
+                            .child(glass::tabbed(strip))
+                            .child(div().relative().flex().child(kinds))
+                            .child(div().relative().p(px(8.)).child(body)),
+                    )
+            } else {
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(32.))
+                    .child(page_header("Mods", description, &t))
+                    .child(div().flex().flex_col().child(kinds).child(body))
+            }
         };
         let body = body.children(self.native_notice(cx));
         if let Some(project) = self.mods_project_page(cx) {
@@ -992,7 +1058,7 @@ impl Launcher {
         if self.mods.kind == PackKind::Modpack {
             body = body
                 .child(self.imported_packs(cx))
-                .child(div().h(px(2.)).bg(t.rule))
+                .child(if glass { div().h(px(1.)).bg(glass_ui::white(0.1)) } else { div().h(px(2.)).bg(t.rule) })
                 .child(section_title("Browse modpacks", "search", &t));
         }
         body = body.child(controls);
@@ -1048,10 +1114,14 @@ impl Launcher {
                 button(
                     SharedString::from(format!("mods-world-{i}")),
                     name.clone(),
-                    if on { Kind::Secondary } else { Kind::Ghost },
+                    match (on, glass_mode()) {
+                        (true, true) => Kind::Primary,
+                        (true, false) => Kind::Secondary,
+                        (false, _) => Kind::Ghost,
+                    },
                     &t,
                 )
-                .when(on, |b| b.border_color(t.accent))
+                .when(on && !glass_mode(), |b| b.border_color(t.accent))
                 .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                     this.mods.world = Some(path.clone());
                     cx.notify();

@@ -229,6 +229,7 @@ pub(super) fn install_text(error: &InstallError) -> String {
 
 fn feed_text(error: &FeedError) -> String {
     match error {
+        FeedError::NeedsUpdate => tr("This Yoake feed needs a newer Yoake — update from the Microsoft Store / download page").to_string(),
         FeedError::NeedsLogin | FeedError::Authentication(_) | FeedError::HttpStatus(401 | 403) => {
             tr("Sign in to see the packs.").to_string()
         }
@@ -379,7 +380,15 @@ impl Launcher {
         if let Some(rx) = &self.yoake.catalog_task {
             match rx.try_recv() {
                 Ok(result) => {
-                    self.yoake.catalog = Some(result);
+                    if matches!(&result, Err(FeedError::NeedsUpdate)) {
+                        if let Some(Ok(feed)) = &mut self.yoake.catalog {
+                            feed.needs_update = true;
+                        } else {
+                            self.yoake.catalog = Some(result);
+                        }
+                    } else {
+                        self.yoake.catalog = Some(result);
+                    }
                     self.yoake.catalog_task = None;
                     changed = true;
                 }
@@ -649,24 +658,57 @@ impl Launcher {
     }
 
     /// Installs `version` of pack `id` into a new instance named after the pack.
-    fn yoake_install_new(&mut self, id: String, name: String, version: String) {
+    pub(super) fn yoake_install_new(
+        &mut self,
+        id: String,
+        name: String,
+        version: String,
+    ) -> Option<PathBuf> {
         let (Ok(Some(client)), Some(Ok(feed))) = (FeedClient::configured(), &self.yoake.catalog)
         else {
-            return;
+            return None;
         };
         let instance = match instances::create(&name, None) {
             Ok(instance) => instance,
             Err(e) => {
                 self.yoake.note = Some((false, e));
-                return;
+                return None;
             }
         };
         let home = instance.home.clone();
         let task = yoake_install::start_install(&client, feed.clone(), id, version, home.clone());
-        self.yoake.job = Some((home, task));
+        self.yoake.job = Some((home.clone(), task));
         self.yoake.progress = Some((0., String::new()));
         self.yoake.note = None;
         self.reload_instances();
+        Some(home)
+    }
+
+    /// Each pack of the feed with its newest build's built-in mods, for the configuration builder.
+    pub(super) fn yoake_bases(&self) -> Vec<yoake_configs_page::BaseInfo> {
+        let Some(Ok(feed)) = &self.yoake.catalog else {
+            return Vec::new();
+        };
+        let ParsedFeedIndex::V2(index) = &feed.index else {
+            return Vec::new();
+        };
+        index
+            .packs
+            .iter()
+            .filter_map(|pack| {
+                let version = newest(pack)?;
+                let base = index
+                    .bases
+                    .iter()
+                    .find(|base| base.version == version.base_version)?;
+                Some(yoake_configs_page::BaseInfo {
+                    pack_id: pack.id.clone(),
+                    name: pack.name.clone(),
+                    version: version.version.clone(),
+                    native_mods: base.native_mods.clone(),
+                })
+            })
+            .collect()
     }
 
     /// Updates the instance in `home` to `version` of its pack.
@@ -690,32 +732,46 @@ impl Launcher {
     }
 
     pub(super) fn yoake_page(&mut self, window: &Window, cx: &mut Context<Self>) -> Div {
+        use horizon_theme::glass::ink;
         let t = self.theme;
         self.yoake.code_focused = self.yoake.code_focus.is_focused(window);
         self.yoake.name_focused = self.yoake.name_focus.is_focused(window);
         if self.yoake.catalog.is_none() && self.yoake.catalog_task.is_none() && signed_in() {
             self.yoake_refresh();
         }
-        let mut page = div().flex().flex_col().gap(px(24.)).child(page_header(
-            "Yoake",
-            "The group's modpacks. Sign in once; packs install and update from here.",
-            &t,
-        ));
+        let danger = glass_ui::color(horizon_theme::glass::DANGER);
+        let mut page = div()
+            .flex()
+            .flex_col()
+            .gap(px(28.))
+            .pt(px(36.))
+            .child(glass_page_head(
+                "Yoake",
+                "The group's modpacks. Sign in once; packs install and update from here.",
+            ));
         if horizon_launcher::brand::store_distribution() {
             page = page.child(
-                text(theme::UI)
-                    .text_color(t.muted)
+                glass_ui::text(14., FontWeight::NORMAL, ink::NOTE)
                     .child(tr("The Microsoft Store updates Yoake.")),
             );
         }
+        // A notice over the page: a glass panel, its lines, then its buttons.
+        let banner = || {
+            glass_card()
+                .flex()
+                .flex_col()
+                .items_start()
+                .gap(px(12.))
+                .p(px(20.))
+        };
         if let Some((version, url)) = self.yoake.launcher_update.clone().filter(|_| {
             signed_in()
                 || self.yoake.launcher_job.is_some()
                 || self.yoake.launcher_ready
                 || self.yoake.launcher_error.is_some()
         }) {
-            let mut banner = plate(&t).flex().flex_col().gap(px(12.)).p(px(16.)).child(
-                text(theme::UI).text_color(t.ink).child(trf(
+            let mut banner = banner().child(
+                glass_ui::text(15., FontWeight::SEMIBOLD, ink::FULL).child(trf(
                     "A new launcher ({version}) is available.",
                     &[("version", &version)],
                 )),
@@ -723,16 +779,15 @@ impl Launcher {
             if self.yoake.launcher_job.is_some() {
                 banner = banner
                     .child(
-                        text(theme::UI)
-                            .text_color(t.muted)
+                        glass_ui::text(14., FontWeight::NORMAL, ink::NOTE)
                             .child(tr("Downloading launcher update...")),
                     )
-                    .child(crate::glass_ui::bar(
+                    .child(div().w_full().child(crate::glass_ui::bar(
                         self.yoake.launcher_progress,
                         self.look.accent_soft,
-                    ))
+                    )))
                     .child(
-                        button("yoake-launcher-cancel", "Cancel", Kind::Secondary, &t).on_click(
+                        glass_ui::quiet("yoake-launcher-cancel", tr("Cancel"), 36., &t).on_click(
                             cx.listener(|this, _: &ClickEvent, _, cx| {
                                 if let Some(job) = &this.yoake.launcher_job {
                                     let _ = job.state.compare_exchange(
@@ -749,64 +804,59 @@ impl Launcher {
             } else if self.yoake.launcher_ready {
                 banner = banner
                     .child(
-                        text(theme::UI)
-                            .text_color(t.muted)
+                        glass_ui::text(14., FontWeight::NORMAL, ink::NOTE)
                             .child(tr("The game keeps running while the launcher restarts.")),
                     )
                     .child(
-                        button(
+                        glass_ui::solid(
                             "yoake-launcher-restart",
-                            "Restart to update",
-                            Kind::Primary,
+                            tr("Restart to update"),
+                            36.,
+                            14.,
                             &t,
                         )
-                        .on_click(cx.listener(
-                            |this, _: &ClickEvent, _, cx| {
-                                this.yoake.launcher_error = Some(backend::restart());
-                                cx.notify();
-                            },
-                        )),
+                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                            this.yoake.launcher_error = Some(backend::restart());
+                            cx.notify();
+                        })),
                     );
             } else {
                 banner = banner.child(
-                    button(
-                        "yoake-launcher-update",
-                        "Update launcher",
-                        Kind::Primary,
-                        &t,
-                    )
-                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                        this.begin_launcher_update();
-                        cx.notify();
-                    })),
+                    glass_ui::solid("yoake-launcher-update", tr("Update launcher"), 36., 14., &t)
+                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                            this.begin_launcher_update();
+                            cx.notify();
+                        })),
                 );
             }
             if let Some(error) = &self.yoake.launcher_error {
-                banner = banner.child(text(theme::UI).text_color(t.danger).child(error.clone()));
+                banner = banner.child(
+                    glass_ui::text(14., FontWeight::NORMAL, ink::FULL)
+                        .text_color(danger)
+                        .child(error.clone()),
+                );
             }
             page = page.child(banner.child(
-                button("yoake-launcher-portal", "View on portal", Kind::Ghost, &t).on_click(
+                glass_ui::quiet("yoake-launcher-portal", tr("View on portal"), 36., &t).on_click(
                     cx.listener(move |_, _: &ClickEvent, _, cx| {
                         cx.open_url(&url);
                     }),
                 ),
             ));
         } else if let Some(error) = &self.yoake.launcher_error {
-            let mut banner = plate(&t)
-                .flex()
-                .flex_col()
-                .gap(px(12.))
-                .p(px(16.))
-                .child(text(theme::UI).text_color(t.danger).child(error.clone()));
+            let mut banner = banner().child(
+                glass_ui::text(14., FontWeight::NORMAL, ink::FULL)
+                    .text_color(danger)
+                    .child(error.clone()),
+            );
             if let Some(url) =
                 option_env!("YOAKE_PORTAL_URL").and_then(yoake_launcher_update::portal_page)
             {
                 banner = banner.child(
-                    button("yoake-launcher-portal", "View on portal", Kind::Ghost, &t).on_click(
-                        cx.listener(move |_, _: &ClickEvent, _, cx| {
+                    glass_ui::quiet("yoake-launcher-portal", tr("View on portal"), 36., &t)
+                        .on_click(cx.listener(move |_, _: &ClickEvent, _, cx| {
                             cx.open_url(&url);
-                        }),
-                    ),
+                        })),
                 );
             }
             page = page.child(banner);
@@ -819,27 +869,29 @@ impl Launcher {
                 file
             };
             page = page.child(
-                plate(&t)
-                    .flex()
-                    .flex_col()
-                    .gap(px(8.))
-                    .p(px(16.))
+                banner()
+                    .items_stretch()
                     .child(
                         div()
                             .flex()
+                            .items_center()
                             .justify_between()
                             .gap(px(12.))
-                            .child(text(theme::UI).text_color(t.ink).truncate().child(label))
                             .child(
-                                button("yoake-job-cancel", "Cancel", Kind::Secondary, &t).on_click(
-                                    cx.listener(|this, _: &ClickEvent, _, cx| {
+                                glass_ui::text(14., FontWeight::NORMAL, ink::FULL)
+                                    .min_w_0()
+                                    .truncate()
+                                    .child(label),
+                            )
+                            .child(
+                                glass_ui::quiet("yoake-job-cancel", tr("Cancel"), 36., &t)
+                                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                                         if let Some((_, task)) = &this.yoake.job {
                                             task.cancel();
                                         }
                                         this.cancel_yoake_base();
                                         cx.notify();
-                                    }),
-                                ),
+                                    })),
                             ),
                     )
                     .child(crate::glass_ui::bar(done, self.look.accent_soft)),
@@ -847,28 +899,91 @@ impl Launcher {
         }
         if let Some((good, note)) = &self.yoake.note {
             page = page.child(
-                text(theme::UI)
-                    .text_color(if *good { t.ink } else { t.danger })
+                glass_ui::text(14., FontWeight::NORMAL, ink::FULL)
+                    .when(!*good, |d| d.text_color(danger))
                     .child(note.clone()),
             );
         }
-        page.child(self.yoake_packs(cx))
+        if let Some(Ok(feed)) = &self.yoake.catalog {
+            if feed.needs_update {
+                page = page.child(
+                    glass_ui::text(14., FontWeight::NORMAL, ink::FULL)
+                        .text_color(danger)
+                        .child(feed_text(&FeedError::NeedsUpdate)),
+                );
+            }
+            if let Some(presentation) = &feed.presentation {
+                let language = i18n::current().code();
+                if !presentation.news.is_empty() {
+                    let mut news = glass_body();
+                    for (number, item) in presentation.news.iter().enumerate() {
+                        let right = item.link.clone().map(|url| {
+                            glass_ui::quiet(
+                                SharedString::from(format!("yoake-news-link-{number}")),
+                                tr("Open link"),
+                                36.,
+                                &t,
+                            )
+                            .on_click(cx.listener(move |_, _: &ClickEvent, _, cx| {
+                                cx.open_url(&url);
+                            }))
+                            .into_any_element()
+                        });
+                        news = news.child(glass_index_row(
+                            yoake_feed::localized(&item.title, language).to_string(),
+                            Some(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(2.))
+                                    .child(item.date.clone())
+                                    .child(yoake_feed::localized(&item.body, language).to_string())
+                                    .into_any_element(),
+                            ),
+                            right,
+                        ));
+                    }
+                    page = page.child(glass_section("News", "information-circle", None, news));
+                }
+                if !presentation.links.is_empty() {
+                    let mut links = glass_body().flex_row().flex_wrap().gap(px(8.)).px(px(12.));
+                    for (number, link) in presentation.links.iter().enumerate() {
+                        let url = link.url.clone();
+                        links = links.child(
+                            glass_ui::quiet(
+                                SharedString::from(format!("yoake-presentation-link-{number}")),
+                                yoake_feed::localized(&link.label, language).to_string(),
+                                36.,
+                                &t,
+                            )
+                            .on_click(cx.listener(move |_, _: &ClickEvent, _, cx| {
+                                cx.open_url(&url);
+                            })),
+                        );
+                    }
+                    page = page.child(glass_section("Links", "link-01", None, links));
+                }
+            }
+        }
+        let packs = self.yoake_packs(cx);
+        let configs = self.yoake_configs_section(window, cx);
+        page.child(packs).child(configs)
     }
 
     /// Who is signed in, or the two ways to sign in.
     fn yoake_account(&mut self, cx: &mut Context<Self>) -> Div {
+        let rows = self.yoake_account_rows(cx);
+        glass_section("Account", "user", None, rows)
+    }
+
+    fn yoake_account_rows(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
-        let mut col = div()
-            .flex()
-            .flex_col()
-            .child(section_title("Account", "user", &t).mb(px(12.)));
+        let mut col = glass_body();
         if option_env!("YOAKE_PORTAL_URL").is_none() {
-            return col.child(index_row(
-                0,
+            return col.child(glass_index_row(
                 tr("No portal in this build").to_string(),
                 None,
                 None,
-                &t,
             ));
         }
         // Signing in now: the code to check and a way to reopen the page.
@@ -882,7 +997,7 @@ impl Launcher {
             let mut right = div().flex().gap(px(8.));
             if code.is_some() {
                 right = right.child(
-                    button("yoake-reopen", "Open the page again", Kind::Secondary, &t).on_click(
+                    glass_ui::quiet("yoake-reopen", tr("Open the page again"), 36., &t).on_click(
                         cx.listener(|this, _: &ClickEvent, _, cx| {
                             if let Some(yoake_login::LoginEvent::VerificationRequired {
                                 url, ..
@@ -903,7 +1018,7 @@ impl Launcher {
                 );
             }
             right = right.child(
-                button("yoake-cancel", "Cancel", Kind::Secondary, &t).on_click(cx.listener(
+                glass_ui::quiet("yoake-cancel", tr("Cancel"), 36., &t).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         if let Some(task) = &this.yoake_login_task {
                             task.cancel();
@@ -916,12 +1031,10 @@ impl Launcher {
                 Some(code) => trf("Code {code}", &[("code", &code)]),
                 None => tr("Signing in…").to_string(),
             };
-            return col.child(index_row(
-                0,
+            return col.child(glass_index_row(
                 name,
                 Some(div().child(detail).into_any_element()),
                 Some(right.into_any_element()),
-                &t,
             ));
         }
         if signed_in() {
@@ -947,7 +1060,7 @@ impl Launcher {
                     tr("Your Discord membership keeps this sign-in valid.").to_string(),
                 ),
             };
-            let logout = button("yoake-logout", "Sign out", Kind::Secondary, &t).on_click(
+            let logout = glass_ui::quiet("yoake-logout", tr("Sign out"), 36., &t).on_click(
                 cx.listener(|this, _: &ClickEvent, _, cx| {
                     this.yoake_login_event = match yoake_auth::logout(&backend::data_dir()) {
                         Ok(()) => None,
@@ -967,27 +1080,20 @@ impl Launcher {
                     cx.notify();
                 }),
             );
-            return col.child(index_row(
-                0,
+            return col.child(glass_index_row(
                 name,
                 (!detail.is_empty()).then(|| div().child(detail).into_any_element()),
                 Some(logout.into_any_element()),
-                &t,
             ));
         }
         // Signed out: members in the browser, friends with a code.
         if let Some(event) = &self.yoake_login_event {
             if !matches!(event, yoake_login::LoginEvent::Success(_)) {
-                col = col.child(
-                    text(theme::UI)
-                        .mb(px(8.))
-                        .text_color(t.danger)
-                        .child(login_text(event)),
-                );
+                col = col.child(glass_note(login_text(event), true).pt(px(4.)));
             }
         }
-        let member = button("yoake-login", "Sign in with Discord", Kind::Primary, &t).on_click(
-            cx.listener(|this, _: &ClickEvent, _, cx| {
+        let member = glass_ui::solid("yoake-login", tr("Sign in with Discord"), 36., 14., &t)
+            .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                 match yoake_login::PortalClient::configured() {
                     Ok(Some(client)) => {
                         this.yoake_login_task = Some(client.start_device_login(&device_label()));
@@ -997,10 +1103,8 @@ impl Launcher {
                     _ => this.yoake_login_event = Some(yoake_login::LoginEvent::InvalidResponse),
                 }
                 cx.notify();
-            }),
-        );
-        col = col.child(index_row(
-            0,
+            }));
+        col = col.child(glass_index_row(
             tr("Members").to_string(),
             Some(
                 div()
@@ -1010,13 +1114,12 @@ impl Launcher {
                     .into_any_element(),
             ),
             Some(member.into_any_element()),
-            &t,
         ));
         let code = self.yoake_field(true, cx);
         let name = self.yoake_field(false, cx);
         let ready = !self.yoake.invite_code.text().trim().is_empty()
             && !self.yoake.invite_name.text().trim().is_empty();
-        let join = button("yoake-redeem", "Join with the invite", Kind::Secondary, &t);
+        let join = glass_ui::quiet("yoake-redeem", tr("Join with the invite"), 36., &t);
         let join = if ready {
             join.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.yoake_redeem();
@@ -1025,8 +1128,7 @@ impl Launcher {
         } else {
             disabled(join)
         };
-        col.child(index_row(
-            0,
+        col.child(glass_index_row(
             tr("Friends").to_string(),
             Some(
                 div()
@@ -1041,7 +1143,6 @@ impl Launcher {
                     .into_any_element(),
             ),
             Some(join.into_any_element()),
-            &t,
         ))
     }
 
@@ -1062,7 +1163,7 @@ impl Launcher {
         }
     }
 
-    /// The invite code (`code`) or the friend's name field.
+    /// The invite code (`code`) or the friend's name field, in the glass look's `FIELD`.
     fn yoake_field(&self, code: bool, cx: &mut Context<Self>) -> Stateful<Div> {
         let t = self.theme;
         let (focused, focus, edit, hint, id) = if code {
@@ -1082,20 +1183,14 @@ impl Launcher {
                 "yoake-name",
             )
         };
-        let field = div()
+        let field = glass_ui::field(focused, false)
             .id(id)
             .track_focus(focus)
-            .flex()
-            .items_center()
-            .w(px(180.))
-            .h(px(30.))
+            .w(px(200.))
+            .h(px(36.))
             .px(px(12.))
-            .overflow_hidden()
-            .border_2()
-            .border_color(if focused { t.accent } else { t.outline })
-            .bg(t.well)
-            .font_family(if code { theme::MONO } else { theme::FONT })
-            .text_size(px(12.))
+            .rounded(px(10.))
+            .when(code, |d| d.font_family(theme::MONO).text_size(px(13.)))
             .cursor_text()
             .child(line_edit::content(edit, &t, focused, false, false, hint))
             .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
@@ -1132,7 +1227,7 @@ impl Launcher {
     /// The feed's packs: each with its installed instances (update, roll back) or Install.
     fn yoake_packs(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
-        let refresh = button("yoake-refresh", "Refresh", Kind::Ghost, &t);
+        let refresh = glass_ui::quiet("yoake-refresh", tr("Refresh"), 36., &t);
         let refresh = if self.yoake.catalog_task.is_some() {
             disabled(refresh)
         } else {
@@ -1142,67 +1237,51 @@ impl Launcher {
                 cx.notify();
             }))
         };
-        let mut col = div().flex().flex_col().child(
-            div()
-                .flex()
-                .items_center()
-                .justify_between()
-                .mb(px(12.))
-                .child(section_title("Packs", "package", &t))
-                .child(refresh),
-        );
+        let rows = self.yoake_pack_rows(cx);
+        glass_section("Packs", "package-01", Some(refresh.into_any_element()), rows)
+    }
+
+    fn yoake_pack_rows(&mut self, cx: &mut Context<Self>) -> Div {
+        let t = self.theme;
+        let mut col = glass_body();
         if option_env!("YOAKE_COMPILED_FEED_URL").is_none() {
-            return col.child(index_row(
-                0,
+            return col.child(glass_index_row(
                 tr("No pack server in this build").to_string(),
                 None,
                 None,
-                &t,
             ));
         }
         let index = match &self.yoake.catalog {
             _ if self.yoake.catalog_task.is_some() => {
-                return col.child(index_row(
-                    0,
+                return col.child(glass_index_row(
                     tr("Checking the packs…").to_string(),
                     None,
                     None,
-                    &t,
                 ));
             }
             None => {
-                return col.child(index_row(
-                    0,
+                return col.child(glass_index_row(
                     tr("Sign in to see the packs.").to_string(),
                     None,
                     None,
-                    &t,
                 ));
             }
             Some(Err(e)) => {
-                return col.child(index_row(0, feed_text(e), None, None, &t));
+                return col.child(glass_index_row(feed_text(e), None, None));
             }
             Some(Ok(feed)) => match &feed.index {
                 ParsedFeedIndex::V2(index) => index.clone(),
                 ParsedFeedIndex::V1(_) => {
-                    return col.child(index_row(
-                        0,
+                    return col.child(glass_index_row(
                         tr("This pack server is too old for this launcher.").to_string(),
                         None,
                         None,
-                        &t,
                     ));
                 }
             },
         };
         if index.packs.is_empty() {
-            return col.child(index_row(
-                0,
-                tr("No packs yet.").to_string(),
-                None,
-                None,
-                &t,
-            ));
+            return col.child(glass_index_row(tr("No packs yet.").to_string(), None, None));
         }
         // Installed Yoake instances, by pack id.
         let installed: Vec<(instances::Instance, yoake_install::InstalledPack)> = instances::list()
@@ -1213,48 +1292,64 @@ impl Launcher {
             })
             .collect();
         let busy = self.yoake_busy();
-        for (n, pack) in index.packs.iter().enumerate() {
-            let Some(latest) = newest(pack) else {
-                continue;
-            };
-            let mut detail = div()
-                .flex()
-                .flex_col()
-                .gap(px(2.))
-                .child(trf("Newest {version}", &[("version", &latest.version)]));
-            if !latest.description.is_empty() {
-                detail = detail.child(latest.description.clone());
+        let presentation = self
+            .yoake
+            .catalog
+            .as_ref()
+            .and_then(|catalog| catalog.as_ref().ok().and_then(|feed| feed.presentation.as_ref()));
+        let groups = yoake_feed::pack_groups(&index.packs, presentation);
+        let grouped = groups.iter().any(|(category, _)| category.is_some());
+        for (category, packs) in groups {
+            if grouped {
+                let label = category
+                    .map(|category| {
+                        yoake_feed::localized(&category.label, i18n::current().code()).to_string()
+                    })
+                    .unwrap_or_else(|| tr("Other").to_string());
+                col = col.child(glass_ui::list_head(label).pt(px(12.)));
             }
-            let install = button(
-                SharedString::from(format!("yoake-install-{n}")),
-                "Install",
-                Kind::Primary,
-                &t,
-            );
-            let install = if busy {
-                disabled(install)
-            } else {
-                let (id, name, version) =
-                    (pack.id.clone(), pack.name.clone(), latest.version.clone());
-                install.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                    this.yoake_install_new(id.clone(), name.clone(), version.clone());
-                    cx.notify();
-                }))
-            };
-            let mine: Vec<_> = installed
-                .iter()
-                .filter(|(_, p)| p.pack_id == pack.id)
-                .collect();
-            col = col.child(index_row(
-                n,
-                pack.name.clone(),
-                Some(detail.into_any_element()),
-                mine.is_empty().then(|| install.into_any_element()),
-                &t,
-            ));
-            for (m, (instance, installed)) in mine.into_iter().enumerate() {
-                col =
-                    col.child(self.yoake_instance_row(n * 100 + m, pack, instance, installed, cx));
+            for (n, pack) in packs {
+                let Some(latest) = newest(pack) else {
+                    continue;
+                };
+                let mut detail = div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(2.))
+                    .child(trf("Newest {version}", &[("version", &latest.version)]));
+                if !latest.description.is_empty() {
+                    detail = detail.child(latest.description.clone());
+                }
+                let install = glass_ui::solid(
+                    SharedString::from(format!("yoake-install-{n}")),
+                    tr("Install"),
+                    36.,
+                    14.,
+                    &t,
+                );
+                let install = if busy {
+                    disabled(install)
+                } else {
+                    let (id, name, version) =
+                        (pack.id.clone(), pack.name.clone(), latest.version.clone());
+                    install.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        this.yoake_install_new(id.clone(), name.clone(), version.clone());
+                        cx.notify();
+                    }))
+                };
+                let mine: Vec<_> = installed
+                    .iter()
+                    .filter(|(_, p)| p.pack_id == pack.id)
+                    .collect();
+                col = col.child(glass_index_row(
+                    pack.name.clone(),
+                    Some(detail.into_any_element()),
+                    mine.is_empty().then(|| install.into_any_element()),
+                ));
+                for (m, (instance, installed)) in mine.into_iter().enumerate() {
+                    col = col
+                        .child(self.yoake_instance_row(n * 100 + m, pack, instance, installed, cx));
+                }
             }
         }
         col
@@ -1289,10 +1384,11 @@ impl Launcher {
         };
         let mut right = div().flex().gap(px(8.));
         if let Some(yoake_update::UpdateState::Available { to, .. }) = state {
-            let update = button(
+            let update = glass_ui::solid(
                 SharedString::from(format!("yoake-update-{n}")),
-                "Update",
-                Kind::Primary,
+                tr("Update"),
+                36.,
+                14.,
                 &t,
             );
             right = right.child(if busy {
@@ -1306,10 +1402,10 @@ impl Launcher {
             });
         }
         if instance.home.join("yoake-pack.previous.json").is_file() {
-            let back = button(
+            let back = glass_ui::quiet(
                 SharedString::from(format!("yoake-back-{n}")),
-                "Go back a version",
-                Kind::Ghost,
+                tr("Go back a version"),
+                36.,
                 &t,
             );
             right = right.child(if busy {
@@ -1329,13 +1425,11 @@ impl Launcher {
                 ("version", &installed.pack_version),
             ],
         );
-        index_row(
-            n,
+        glass_index_row(
             name,
             (!detail.is_empty()).then(|| div().child(detail).into_any_element()),
             Some(right.into_any_element()),
-            &t,
         )
-        .ml(px(24.))
+        .pl(px(36.))
     }
 }

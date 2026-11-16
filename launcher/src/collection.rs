@@ -47,6 +47,9 @@ fn kind_id(prefix: &str, kind: DataKind) -> &'static str {
 
 /// Where a switch would be: the ping has none.
 fn always_on(t: &Theme) -> Div {
+    if glass_mode() {
+        return caps(tr("Always on")).flex_none();
+    }
     caps(tr("Always on")).flex_none().text_color(t.muted)
 }
 
@@ -82,6 +85,34 @@ fn ping_row(t: &Theme) -> Div {
 
 /// The exact JSON, in mono, scrolling inside a plate.
 fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
+    if glass_mode() {
+        use horizon_theme::glass::{fill, ink, radius};
+        return div()
+            .relative()
+            .flex()
+            .flex_col()
+            .gap(px(8.))
+            .px(px(12.))
+            .pb(px(8.))
+            .child(glass_ui::text(13., FontWeight::NORMAL, ink::NOTE).child(view.0.clone()))
+            .child(
+                scroll.wrap(
+                    div()
+                        .id("data-json")
+                        .max_h(px(260.))
+                        .overflow_y_scroll()
+                        .p(px(16.))
+                        .rounded(px(radius::ROW))
+                        .bg(glass_ui::white(fill::FIELD))
+                        .font_family(theme::MONO)
+                        .text_size(px(12.))
+                        .line_height(px(18.))
+                        .text_color(glass_ui::white(ink::BODY))
+                        .children(view.1.lines().map(|l| div().child(l.to_string()))),
+                    t,
+                ),
+            );
+    }
     div()
         .flex()
         .flex_col()
@@ -274,7 +305,7 @@ impl Launcher {
     pub(crate) fn collection_section(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let consent = self.collection.consent.clone();
-        let mut list = div().flex().flex_col().border_t_1().border_color(t.rule);
+        let mut list = div().flex().flex_col();
         for (i, &(kind, name, what)) in telemetry::SWITCHES.iter().enumerate() {
             let on = !consent.needs_asking() && consent.choices.allows(kind);
             let toggle = switch(kind_id("data", kind), on, &t).on_click(cx.listener(
@@ -376,41 +407,29 @@ impl Launcher {
             Some(actions.into_any_element()),
             &t,
         ));
-        div()
-            .flex()
-            .flex_col()
-            .gap(px(16.))
-            .child(
-                text(theme::HEADING)
-                    .text_color(t.ink)
-                    .child(tr("Data collection")),
-            )
-            .child(
-                text(theme::UI)
-                    .max_w(px(600.))
-                    .text_color(t.muted)
-                    .child(tr(
-                        "Each switch is off unless you turn it on. What it sends is below it; the privacy page on playhorizon.dev says how long it is kept.",
-                    )),
-            )
-            .child(list)
-            .child(
-                text(theme::CAPTION)
-                    .max_w(px(600.))
-                    .text_color(t.muted)
-                    .child(tr(telemetry::NEVER)),
-            )
-            .children(
-                self.collection
-                    .note
-                    .clone()
-                    .map(|n| text(theme::UI).text_color(t.ink).child(n)),
-            )
-            .children(
-                self.collection
-                    .view
-                    .as_ref()
-                    .map(|v| json_view(v, &t, &self.collection.json_scroll)),
-            )
+        glass_section(
+            "Data collection",
+            "information-circle",
+            None,
+            glass_body()
+                .child(glass_note(
+                    tr("Each switch is off unless you turn it on. What it sends is below it; the privacy page on playhorizon.dev says how long it is kept.").to_string(),
+                    false,
+                ))
+                .child(list)
+                .child(glass_note(tr(telemetry::NEVER).to_string(), false))
+                .children(
+                    self.collection
+                        .note
+                        .clone()
+                        .map(|n| glass_note(n, false)),
+                )
+                .children(
+                    self.collection
+                        .view
+                        .as_ref()
+                        .map(|v| json_view(v, &t, &self.collection.json_scroll)),
+                ),
+        )
     }
 }

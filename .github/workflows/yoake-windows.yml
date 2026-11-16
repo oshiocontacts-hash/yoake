@@ -82,7 +82,10 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item -LiteralPath 'launcher/target/release/horizon-launcher.exe' -Destination 'dist/YoakeLauncher.exe'
           Copy-Item -LiteralPath 'target/release/horizon-client.exe' -Destination 'dist/yoake.exe'
-          $hashes = foreach ($file in @('YoakeLauncher.exe', 'yoake.exe')) {
+          Copy-Item -LiteralPath 'LICENSE' -Destination 'dist/LICENSE'
+          Copy-Item -LiteralPath 'THIRD_PARTY_NOTICES.md' -Destination 'dist/THIRD_PARTY_NOTICES.md'
+          Copy-Item -LiteralPath 'packaging/windows/README.txt' -Destination 'dist/README.txt'
+          $hashes = foreach ($file in @('YoakeLauncher.exe', 'yoake.exe', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'README.txt')) {
             $hash = (Get-FileHash -LiteralPath (Join-Path 'dist' $file) -Algorithm SHA256).Hash.ToLowerInvariant()
             "$hash  $file"
           }
@@ -202,6 +205,8 @@ jobs:
           $stage = Join-Path $env:RUNNER_TEMP 'yoake-msix-staging'
           Copy-Item -LiteralPath 'launcher/target/release/horizon-launcher.exe' -Destination (Join-Path $stage 'YoakeLauncher.exe')
           Copy-Item -LiteralPath 'target/release/horizon-client.exe' -Destination (Join-Path $stage 'yoake.exe')
+          Copy-Item -LiteralPath 'LICENSE' -Destination (Join-Path $stage 'LICENSE')
+          Copy-Item -LiteralPath 'THIRD_PARTY_NOTICES.md' -Destination (Join-Path $stage 'THIRD_PARTY_NOTICES.md')
           $manifest = Get-Content -LiteralPath 'packaging/msix/AppxManifest.xml.in' -Raw
           $manifest = $manifest.Replace('@IDENTITY_NAME@', [Security.SecurityElement]::Escape($env:YOAKE_MSIX_IDENTITY_NAME))
           $manifest = $manifest.Replace('@PUBLISHER@', [Security.SecurityElement]::Escape($env:YOAKE_MSIX_PUBLISHER))

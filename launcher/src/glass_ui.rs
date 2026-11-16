@@ -8,14 +8,161 @@ use gpui::{
 };
 use horizon_theme::glass::{fill, ink, radius};
 
-/// White at `a`.
-pub fn white(a: f32) -> Hsla {
-    gpui::white().opacity(a)
+use std::sync::atomic::{AtomicBool, Ordering};
+
+/// Whether the launcher is in its light theme: the glass look's inks and fills then take their
+/// light values (see [`white`] and [`color`]). Set at the start of every frame from the theme.
+static LIGHT: AtomicBool = AtomicBool::new(false);
+
+pub fn set_light(on: bool) {
+    LIGHT.store(on, Ordering::Relaxed);
 }
 
-/// A colour of the look (`0xrrggbb`).
+pub fn light() -> bool {
+    LIGHT.load(Ordering::Relaxed)
+}
+
+/// The light look's ink: a deep violet-black, over frosted white plates.
+pub const INK_LIGHT: u32 = 0x1d1830;
+
+/// The look's ink or fill at strength `a`: white at `a` in the dark look (text at `ink::*`,
+/// fills at `fill::*`); in the light look the deep violet-black instead, fills (up to 0.2) as
+/// they are and the softer inks a little stronger, so they still read on white.
+pub fn white(a: f32) -> Hsla {
+    if light() {
+        Hsla::from(rgb(INK_LIGHT)).opacity(light_alpha(a))
+    } else {
+        gpui::white().opacity(a)
+    }
+}
+
+/// The light look's strength for the dark look's `a`: fills (up to 0.2) as they are; anything
+/// stronger is text, which keeps its order (stronger stays stronger) but starts at 0.62, so the
+/// faintest text still reads at 4.5:1 or better on a frosted plate.
+pub fn light_alpha(a: f32) -> f32 {
+    if a <= 0.2 {
+        a
+    } else {
+        (0.62 + 0.38 * (a.min(1.) - 0.2) / 0.8).min(1.)
+    }
+}
+
+/// A colour of the look (`0xrrggbb`). In the light look the colours made for a dark sky (the
+/// danger red, the live green, the busy amber and the accent's soft shade) give a deeper one that
+/// reads on white; anything else is as given.
 pub fn color(c: u32) -> Hsla {
+    if light() {
+        let c = match c {
+            horizon_theme::glass::DANGER => 0xc23030,
+            horizon_theme::glass::LIVE => 0x15803d,
+            horizon_theme::glass::WARN => 0xa15c07,
+            c if c == horizon_theme::glass::Glass::default_look().accent_soft => 0x5a3fe0,
+            c => c,
+        };
+        return rgb(c).into();
+    }
     rgb(c).into()
+}
+
+/// The accent's soft shade as a colour of the look: as given in the dark look; in the light one
+/// deep enough to read on a white plate, whatever the accent.
+pub fn accent_soft(c: u32) -> Hsla {
+    if light() {
+        rgb(deepen_for_white(c)).into()
+    } else {
+        rgb(c).into()
+    }
+}
+
+/// A pastel colour (an accent's soft shade, a tinted state) made deep enough to read on a white
+/// plate: darkened until its contrast with white is at least 4.5:1. Colours already deep enough
+/// are kept.
+fn deepen_for_white(c: u32) -> u32 {
+    let mut c = c;
+    for _ in 0..40 {
+        if contrast(c, 0xf2f4fa) >= 4.5 {
+            break;
+        }
+        let k = |s: u32| ((((c >> s) & 255) as f32) * 0.94).round() as u32;
+        c = (k(16) << 16) | (k(8) << 8) | k(0);
+    }
+    c
+}
+
+/// WCAG relative luminance of `0xrrggbb`.
+fn luminance(c: u32) -> f32 {
+    let f = |s: u32| {
+        let v = ((c >> s) & 255) as f32 / 255.;
+        if v <= 0.03928 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    0.2126 * f(16) + 0.7152 * f(8) + 0.0722 * f(0)
+}
+
+/// WCAG contrast ratio of two colours.
+fn contrast(a: u32, b: u32) -> f32 {
+    let (x, y) = (luminance(a), luminance(b));
+    (x.max(y) + 0.05) / (x.min(y) + 0.05)
+}
+
+#[cfg(test)]
+mod light_ink_tests {
+    use super::*;
+
+    /// The ink at strength `a` over `plate`, as a colour.
+    fn over(a: f32, plate: u32) -> u32 {
+        let mix = |s: u32| {
+            let (p, i) = (((plate >> s) & 255) as f32, ((INK_LIGHT >> s) & 255) as f32);
+            (p + (i - p) * a).round() as u32
+        };
+        (mix(16) << 16) | (mix(8) << 8) | mix(0)
+    }
+
+    #[test]
+    fn light_ink_never_gets_fainter_as_it_gets_stronger() {
+        let mut last = 0.;
+        for i in 0..=100 {
+            let v = light_alpha(i as f32 / 100.);
+            assert!(v + 1e-6 >= last, "not monotonic at {i}: {v} < {last}");
+            last = v;
+        }
+    }
+
+    #[test]
+    fn light_text_reads_on_a_frosted_plate() {
+        // The plate: 88 % of #f8f4fd over the darkest part of the sky stays above this.
+        let plate = 0xe6e8f2;
+        for ink in [
+            horizon_theme::glass::ink::FULL,
+            horizon_theme::glass::ink::STRONG,
+            horizon_theme::glass::ink::BODY,
+            horizon_theme::glass::ink::NOTE,
+            horizon_theme::glass::ink::QUIET,
+            horizon_theme::glass::ink::FAINT,
+            horizon_theme::glass::ink::DIM,
+        ] {
+            let c = over(light_alpha(ink), plate);
+            assert!(
+                contrast(c, plate) >= 4.5,
+                "ink {ink} reads {}",
+                contrast(c, plate)
+            );
+        }
+    }
+
+    #[test]
+    fn pastel_accents_are_deepened_on_white() {
+        for soft in [0xb5a5ff_u32, 0xf2c46b, 0x4ade80, 0xffd1dc, 0x9fe8ff] {
+            assert!(
+                contrast(deepen_for_white(soft), 0xf2f4fa) >= 4.5,
+                "{soft:06x}"
+            );
+        }
+        assert!(contrast(0x5a3fe0, 0xf2f4fa) >= 4.5);
+    }
 }
 
 /// Text at `size` px in Geist, white at `a`, at `weight`.
@@ -64,14 +211,14 @@ pub fn dot(tone: Tone) -> Div {
     let c = match tone {
         Tone::Live => color(horizon_theme::glass::LIVE),
         Tone::Busy | Tone::Warn => color(horizon_theme::glass::WARN),
-        Tone::Accent(soft) => color(soft),
+        Tone::Accent(soft) => accent_soft(soft),
         Tone::Off => white(0.35),
     };
     div().flex_none().size(px(7.)).rounded_full().bg(c)
 }
 
 /// The progress bar (`Bar`): 4 px, white at 12 %, filled in the accent's soft shade.
-pub fn bar(value: f32, accent_soft: u32) -> Div {
+pub fn bar(value: f32, soft: u32) -> Div {
     div()
         .h(px(4.))
         .w_full()
@@ -83,7 +230,7 @@ pub fn bar(value: f32, accent_soft: u32) -> Div {
                 .h_full()
                 .rounded_full()
                 .w(gpui::relative(value.clamp(0., 1.)))
-                .bg(color(accent_soft)),
+                .bg(accent_soft(soft)),
         )
 }
 
@@ -307,13 +454,21 @@ pub fn solid(
             .h(px(h))
             .px(px(16.))
             .rounded(px(radius::CONTROL))
-            .bg(gpui::white())
+            .bg(if light() {
+                color(INK_LIGHT)
+            } else {
+                gpui::white()
+            })
             .cursor_pointer()
             .hover(|s| s.opacity(0.9))
             .font_family(horizon_theme::glass::FONT)
             .text_size(px(size))
             .font_weight(FontWeight::MEDIUM)
-            .text_color(color(horizon_theme::glass::ON_LIGHT))
+            .text_color(if light() {
+                gpui::white()
+            } else {
+                color(horizon_theme::glass::ON_LIGHT)
+            })
             .child(label.into()),
         t,
     )
@@ -345,11 +500,12 @@ pub fn mark_tile(size: f32, accent_soft: u32) -> Div {
             div()
                 .relative()
                 .size(px(inner))
-                .child(bar(4., 3., 2., 4., white(1.)))
-                .child(bar(10., 3., 2., 4., white(1.)))
-                .child(bar(4., 8., 2., 4., white(0.4)))
-                .child(bar(10., 8., 2., 4., white(0.4)))
-                .child(bar(1., 7., 14., 1., color(accent_soft))),
+                // The tile is dark in both looks: its stems stay white.
+                .child(bar(4., 3., 2., 4., gpui::white()))
+                .child(bar(10., 3., 2., 4., gpui::white()))
+                .child(bar(4., 8., 2., 4., gpui::white().opacity(0.4)))
+                .child(bar(10., 8., 2., 4., gpui::white().opacity(0.4)))
+                .child(bar(1., 7., 14., 1., rgb(accent_soft).into())),
         )
 }
 
@@ -482,6 +638,16 @@ pub fn list_row(
     on_hover: impl Fn(&bool, &mut Window, &mut App) + 'static,
     t: &Theme,
 ) -> Stateful<Div> {
+    keyboard(list_row_static(id, held, on_hover), t)
+}
+
+/// A list row nothing can click (a version in a list, a friend): it shows the hover fill, but
+/// takes no Tab stop. Its buttons are the stops.
+pub fn list_row_static(
+    id: impl Into<SharedString>,
+    held: bool,
+    on_hover: impl Fn(&bool, &mut Window, &mut App) + 'static,
+) -> Stateful<Div> {
     let id = id.into();
     let key = id.clone();
     let fill = if held && !hover_is(&id) {
@@ -491,7 +657,7 @@ pub fn list_row(
     } else {
         hover_fill(&id, radius::ROW, 0., fill::ROW_HOVER)
     };
-    let d = div()
+    div()
         .id(id.clone())
         .relative()
         .flex()
@@ -505,8 +671,7 @@ pub fn list_row(
         .on_hover(move |hovered, window, cx| {
             note_hover(&key, *hovered, window);
             on_hover(hovered, window, cx);
-        });
-    keyboard(d, t)
+        })
 }
 
 /// A list row's two lines: the name (14 px medium) and a note (13 px, white at 55 %).

@@ -586,7 +586,7 @@ impl Launcher {
                 menu = menu.child(
                     ui::menu_item(format!("pick-{tag}"), name.into(), note, false, &t)
                         .when(chosen, |d| {
-                            d.child(ui::icon("tick-02", 17., ui::color(soft)).relative())
+                            d.child(ui::icon("tick-02", 17., ui::accent_soft(soft)).relative())
                         })
                         .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.pin_version((!latest).then(|| pick.clone()));
