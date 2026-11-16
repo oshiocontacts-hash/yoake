@@ -6123,6 +6123,9 @@ struct SocialHandoff {
 const SOCIAL_HANDOFF_TTL: Duration = Duration::from_secs(230);
 
 fn main() {
+    // Signing out (or in as another account) first closes the room this launcher hosts, while
+    // the old sign-in can still delete it.
+    yoake_auth::set_before_change(social::host::close_on_quit);
     if let Err(error) = console::attach_for_cli() {
         eprintln!("Could not restore the launcher's terminal streams: {error}");
         std::process::exit(1);

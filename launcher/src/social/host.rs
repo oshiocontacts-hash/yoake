@@ -353,7 +353,12 @@ impl Host {
         }
         let wait = match self.api.reprovision_room(&self.session_id) {
             Ok(answer) => {
-                self.sink.send(reprovision_line(&answer.provision));
+                // A line the game could not take now (the queue is full) is not lost: the
+                // ticket is asked for again after the minimum wait.
+                if self.sink.send(reprovision_line(&answer.provision)) == Queued::Full {
+                    self.extend_due = now + MIN_EXTEND;
+                    return;
+                }
                 match session_exp(&answer.provision).or(answer.expires_at) {
                     Some(at) => {
                         Duration::from_secs((extend_time(at, now_unix) - now_unix).max(0) as u64)
@@ -405,9 +410,14 @@ impl HostHandle {
     }
 
     pub fn close_within(&self, wait: Duration) -> Option<super::Result<()>> {
+        self.ask_close()?.recv_timeout(wait).ok()
+    }
+
+    /// Asks the driver to close the room; the answer comes on the receiver.
+    fn ask_close(&self) -> Option<mpsc::Receiver<super::Result<()>>> {
         let (reply, answer) = mpsc::channel();
         self.commands.send(Command::Close(reply)).ok()?;
-        answer.recv_timeout(wait).ok()
+        Some(answer)
     }
 
     /// The game ended: stop polling and delete the room.
@@ -444,15 +454,22 @@ impl Registry {
         self.entries.lock().map_or(0, |entries| entries.len())
     }
 
-    /// Closes every room here, for up to [`CLOSE_WAIT`] each.
+    /// Closes every room here, for up to [`CLOSE_WAIT`] in all: every driver is asked first, and
+    /// the answers are waited for until one common deadline.
     pub fn close_all(&self) {
+        self.close_all_within(CLOSE_WAIT);
+    }
+
+    fn close_all_within(&self, wait: Duration) {
         let all: Vec<_> = self
             .entries
             .lock()
             .map(|mut entries| entries.drain(..).collect())
             .unwrap_or_default();
-        for (_, handle) in all {
-            let _ = handle.close_within(CLOSE_WAIT);
+        let deadline = Instant::now() + wait;
+        let asked: Vec<_> = all.iter().filter_map(|(_, handle)| handle.ask_close()).collect();
+        for answer in asked {
+            let _ = answer.recv_timeout(deadline.saturating_duration_since(Instant::now()));
         }
     }
 }
@@ -462,7 +479,8 @@ fn active() -> Arc<Registry> {
     ACTIVE.get_or_init(Default::default).clone()
 }
 
-/// The launcher is quitting: the hosted room (if any) is closed, for up to [`CLOSE_WAIT`].
+/// The launcher is quitting, or the sign-in is about to go: the hosted room (if any) is closed,
+/// for up to [`CLOSE_WAIT`].
 pub fn close_on_quit() {
     active().close_all();
 }
@@ -588,6 +606,12 @@ mod tests {
         fn flush(&mut self) -> std::io::Result<()> {
             Ok(())
         }
+    }
+
+    /// [`super::spawn`] with a registry of its own: tests that quit or sign out elsewhere in
+    /// parallel do not close these rooms.
+    fn spawn(host: Host, notify: impl Fn(Note) + Send + 'static) -> HostHandle {
+        spawn_in(Arc::new(Registry::default()), host, notify)
     }
 
     fn hosted() -> (Arc<MockSocial>, String, i64) {
@@ -834,6 +858,128 @@ mod tests {
         settle(&host);
         assert_eq!(game.lines.json().len(), 40);
         assert!(!host.broken(Instant::now()));
+    }
+
+    #[test]
+    fn a_reprovision_line_is_not_lost_to_a_full_queue() {
+        let (mock, id, expires) = hosted();
+        let game = Gated::default();
+        let mut host = Host::with_stall(
+            mock.clone(),
+            id.clone(),
+            game.clone(),
+            expires,
+            0,
+            // The test's clock jumps far ahead: a stall limit that cannot be reached by that.
+            Duration::from_secs(1 << 40),
+        );
+        for n in 0..40 {
+            mock.guest_joins(&id, &format!("g{n}"), &format!("Guest {n}"));
+        }
+        poll(&mut host);
+        assert!(!host.broken(Instant::now()));
+        // The queue is full: the ticket's line cannot go. It is asked for again later.
+        let due = host.extend_due();
+        host.extend_if_due(due, unix_now());
+        assert_eq!(host.extend_due(), due + MIN_EXTEND);
+        assert!(!host.broken(Instant::now()));
+        game.open();
+        settle(&host);
+        let reprovisions =
+            |game: &Gated| game.lines.json().iter().filter(|l| l["type"] == "reprovision").count();
+        assert_eq!(reprovisions(&game), 0);
+        // The next chance: the line is written, once.
+        host.extend_if_due(due + MIN_EXTEND + Duration::from_secs(1), unix_now());
+        settle(&host);
+        assert_eq!(reprovisions(&game), 1);
+        assert_eq!(game.lines.json().last().unwrap()["type"], "reprovision");
+    }
+
+    /// A portal that answers nothing for a DELETE, for this long.
+    struct Hanging;
+
+    impl crate::social::Transport for Hanging {
+        fn call(
+            &self,
+            method: crate::social::Method,
+            _: &[&str],
+            _: Option<Value>,
+        ) -> Result<crate::social::Reply, crate::social::TransportError> {
+            if method == crate::social::Method::Delete {
+                std::thread::sleep(Duration::from_secs(3));
+            }
+            Ok(crate::social::Reply { status: 200, body: json!({ "joins": [] }) })
+        }
+    }
+
+    #[test]
+    fn closing_all_waits_once_for_all_the_drivers_together() {
+        let registry = Arc::new(Registry::default());
+        for n in 0..3 {
+            let api = Arc::new(crate::social::HttpSocial::new(Hanging));
+            let host = Host::new(api, format!("s{n}"), Lines::default(), unix_now() + 3600, unix_now());
+            let _ = spawn_in(registry.clone(), host, |_| {});
+        }
+        assert_eq!(registry.len(), 3);
+        let started = Instant::now();
+        registry.close_all_within(Duration::from_millis(700));
+        // One shared deadline: about 0.7 s, not 3 x 0.7 s.
+        assert!(started.elapsed() < Duration::from_millis(1400), "{:?}", started.elapsed());
+        assert_eq!(registry.len(), 0);
+    }
+
+    /// Records each call and whether the saved sign-in still stood when it was made.
+    struct Watching {
+        token: std::path::PathBuf,
+        calls: Arc<Mutex<Vec<(crate::social::Method, String, bool)>>>,
+    }
+
+    impl crate::social::Transport for Watching {
+        fn call(
+            &self,
+            method: crate::social::Method,
+            segments: &[&str],
+            _: Option<Value>,
+        ) -> Result<crate::social::Reply, crate::social::TransportError> {
+            self.calls.lock().unwrap().push((method, segments.join("/"), self.token.exists()));
+            Ok(crate::social::Reply { status: 200, body: json!({ "joins": [] }) })
+        }
+    }
+
+    #[test]
+    fn signing_out_closes_the_hosted_room_while_the_token_still_stands() {
+        crate::yoake_auth::set_before_change(close_on_quit);
+        let mut random = [0_u8; 8];
+        getrandom::fill(&mut random).unwrap();
+        let dir = std::env::temp_dir().join(format!(
+            "yoake-host-signout-{}",
+            random.iter().map(|b| format!("{b:02x}")).collect::<String>()
+        ));
+        let account = crate::yoake_auth::YoakeAccount {
+            kind: "friend".into(),
+            expires_at: json!("2027-01-01T00:00:00Z"),
+        };
+        crate::yoake_auth::save_credentials(&dir, "secret-token", &account).unwrap();
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let api = Arc::new(crate::social::HttpSocial::new(Watching {
+            token: dir.join("yoake-token"),
+            calls: calls.clone(),
+        }));
+        let lines = Lines::default();
+        let host = Host::new(api, "s1".into(), lines.clone(), unix_now() + 3600, unix_now());
+        // The launcher's own registry, as the page's driver is in it.
+        let _handle = super::spawn(host, |_| {});
+        crate::yoake_auth::logout(&dir).unwrap();
+        assert!(!dir.join("yoake-token").exists());
+        let calls = calls.lock().unwrap();
+        let delete = calls
+            .iter()
+            .find(|(method, path, _)| *method == crate::social::Method::Delete && path == "sessions/s1")
+            .expect("the room was deleted");
+        // The sign-in was still there when the DELETE went out.
+        assert!(delete.2);
+        assert_eq!(lines.json().last().unwrap()["type"], "end");
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

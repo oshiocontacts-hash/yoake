@@ -1862,7 +1862,11 @@ mod tests {
             room.expires_at,
             now_unix(),
         );
-        page.host = Some(social::host::spawn(host, |_| {}));
+        page.host = Some(social::host::spawn_in(
+            Arc::new(social::host::Registry::default()),
+            host,
+            |_| {},
+        ));
         page.take_rooms(Vec::new());
         assert!(page.my_room.is_none() && page.host.is_none() && page.accepted.is_empty());
         // The driver is dropped with the handle, and deletes the room.
