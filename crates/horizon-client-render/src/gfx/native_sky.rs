@@ -263,7 +263,8 @@ mod tests {
             Default::default(),
             None,
             &manifest,
-        );
+        )
+        .unwrap();
         queue.write_buffer(
             &frame.buffer,
             0,

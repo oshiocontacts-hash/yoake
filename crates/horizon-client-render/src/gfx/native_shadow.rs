@@ -15,6 +15,12 @@ use super::wgsl_prefix::{TERRAIN, prefixed, section};
 
 const PREFIX: &str = "horizon_terrain_";
 
+pub(super) fn dynamic_entities(vertices: &[crate::mesher::Vertex]) -> bool {
+    vertices
+        .chunks_exact(4)
+        .any(|quad| !matches!(quad[0].layer & 0xffff, 2 | 4 | 6 | 9..=12))
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) struct CacheKey {
     cell: [i64; 3],
@@ -845,6 +851,36 @@ mod tests {
             assert!(cache.dirty);
             cache.prepare(key, camera, large_motion, Mat4::IDENTITY, true, false);
             assert!(cache.dirty);
+        }
+    }
+
+    #[test]
+    fn moving_non_shadow_layers_preserve_the_shadow_cache() {
+        let camera = DVec3::ZERO;
+        let key = CacheKey::new(camera, (0, 0), 0);
+        assert!(!dynamic_entities(&[]));
+        for layer in 0..=13 {
+            let mut vertices = [crate::mesher::Vertex {
+                layer: layer | (37 << 16),
+                ..bytemuck::Zeroable::zeroed()
+            }; 4];
+            let expected_dynamic = ![2, 4, 6, 9, 10, 11, 12].contains(&layer);
+            assert_eq!(dynamic_entities(&vertices), expected_dynamic, "{layer}");
+            let mut cache = Cache::default();
+            cache.prepare(key, camera, Vec3::Y, Mat4::IDENTITY, true, false);
+            for vertex in &mut vertices {
+                vertex.pos = [8.0, 9.0, 10.0];
+                vertex.uv = [0.5, 0.75];
+            }
+            cache.prepare(
+                key,
+                camera,
+                Vec3::Y,
+                Mat4::IDENTITY,
+                true,
+                dynamic_entities(&vertices),
+            );
+            assert_eq!(cache.dirty, expected_dynamic, "{layer}");
         }
     }
 }

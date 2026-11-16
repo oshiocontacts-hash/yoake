@@ -17141,9 +17141,6 @@ impl Game<'_> {
         self.streaming
             .extra
             .extend(waiting.into_iter().map(|chunk| (chunk, 0)));
-        if let Some(renderer) = &mut self.renderer {
-            renderer.observe_native_world_changes(&self.world);
-        }
         let (uploads, unloaded) =
             horizon_client::spans::time("streaming", || self.streaming.update(&mut self.world));
         self.streaming.extra.truncate(areas);

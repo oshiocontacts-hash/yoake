@@ -522,6 +522,9 @@ impl Manifest {
         if raw.name.trim().is_empty() || raw.version.trim().is_empty() {
             return Err(err("name and version can't be empty".into()));
         }
+        if raw.taa_jitter && raw.post.is_empty() {
+            return Err(err("taa_jitter = true needs a [[post]] resolve stage".into()));
+        }
         if raw.sky.is_none()
             && raw.material.is_none()
             && raw.entity_material.is_none()

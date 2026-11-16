@@ -8,6 +8,7 @@ pub const SECTION_SIDE: i32 = 16;
 pub const MAX_SIDE: u32 = 256;
 /// The largest allowed number of voxels in a voxel window.
 pub const MAX_VOXELS: u64 = 256 * 128 * 256;
+pub const VALIDITY_VECTORS: usize = 16;
 
 /// Approximate geometry encoded in bits 0–3 of a voxel.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -23,6 +24,10 @@ pub enum Shape {
     StairsWest = 7,
     Thin = 8,
     Pane = 9,
+    StairsTopNorth = 10,
+    StairsTopEast = 11,
+    StairsTopSouth = 12,
+    StairsTopWest = 13,
 }
 
 /// A voxel's packed representation. Tint is quantized from 8-bit to 6-bit RGB;
@@ -117,6 +122,47 @@ impl Window {
         std::mem::take(&mut self.dirty).into_iter().collect()
     }
 
+    /// Take at most `budget` sections, nearest the camera's section first.
+    pub fn take_dirty_nearest(&mut self, camera_block: [i32; 3], budget: usize) -> Vec<[i32; 3]> {
+        let camera = camera_block.map(|coordinate| coordinate.div_euclid(SECTION_SIDE));
+        let mut pending: Vec<_> = self.dirty.iter().copied().collect();
+        pending.sort_unstable_by_key(|section| {
+            let distance: i64 = (0..3)
+                .map(|axis| (i64::from(section[axis]) - i64::from(camera[axis])).pow(2))
+                .sum();
+            (distance, *section)
+        });
+        pending.truncate(budget);
+        for section in &pending {
+            self.dirty.remove(section);
+        }
+        pending
+    }
+
+    /// Physical texture slot of the minimum block, without floating-point world coordinates.
+    pub fn origin_slot(&self) -> [u32; 3] {
+        std::array::from_fn(|axis| {
+            self.origin[axis].rem_euclid(self.extent[axis]) as u32 * SECTION_SIDE as u32
+        })
+    }
+
+    /// One bit per physical section slot (x + width * (y + height * z)).
+    /// Pending sections are invalid, including slots evicted by camera movement.
+    pub fn validity(&self) -> [[u32; 4]; VALIDITY_VECTORS] {
+        let mut validity = [[0; 4]; VALIDITY_VECTORS];
+        for section in Self::sections(self.origin, self.extent) {
+            if self.dirty.contains(&section) {
+                continue;
+            }
+            let slot = self.section_slot(section).unwrap();
+            let index =
+                slot[0] + self.extent[0] as u32 * (slot[1] + self.extent[1] as u32 * slot[2]);
+            let word = index as usize / 32;
+            validity[word / 4][word % 4] |= 1 << (index % 32);
+        }
+        validity
+    }
+
     /// Minimum world block included in the window.
     pub fn origin(&self) -> [i32; 3] {
         self.origin.map(|coordinate| coordinate * SECTION_SIDE)
@@ -149,6 +195,43 @@ impl Window {
 #[cfg(test)]
 mod tests {
     use super::{Shape, Voxel, Window};
+
+    #[test]
+    fn uploads_are_bounded_nearest_first_and_evicted_slots_are_invalid() {
+        let mut window = Window::new([32; 3], [30_000_001, 65, -30_000_001]).unwrap();
+        assert_eq!(window.validity(), [[0; 4]; 16]);
+        let first = window.take_dirty_nearest([30_000_001, 65, -30_000_001], 1);
+        assert_eq!(first, [[1_875_000, 4, -1_875_001]]);
+        assert_eq!(window.validity()[0][0].count_ones(), 1);
+        assert_eq!(window.take_dirty_nearest([30_000_001, 65, -30_000_001], 3).len(), 3);
+        assert_eq!(window.take_dirty().len(), 4);
+        assert_eq!(window.validity()[0][0], 255);
+        assert!(window.take_dirty_nearest([30_000_001, 65, -30_000_001], 8).is_empty());
+        window.move_camera([30_000_017, 65, -30_000_001]);
+        assert_eq!(window.validity()[0][0].count_ones(), 4);
+        assert_eq!(window.origin_slot(), [0, 16, 0]);
+        assert_eq!(window.take_dirty_nearest([30_000_017, 65, -30_000_001], 2).len(), 2);
+        assert_eq!(window.validity()[0][0].count_ones(), 6);
+        assert_eq!(window.take_dirty().len(), 2);
+        window.invalidate();
+        assert_eq!(window.validity(), [[0; 4]; 16]);
+    }
+
+    #[test]
+    fn integer_slots_preserve_adjacent_blocks_far_from_origin() {
+        for camera in [[30_000_001, 65, -30_000_001], [-30_000_001, -65, 30_000_001]] {
+            let mut window = Window::new([128; 3], camera).unwrap();
+            window.take_dirty();
+            let origin = window.origin();
+            let origin_slot = window.origin_slot();
+            for position in [camera, camera.map(|coordinate| coordinate + 1)] {
+                let addressed: [u32; 3] = std::array::from_fn(|axis| {
+                    ((position[axis] - origin[axis]) as u32 + origin_slot[axis]) % 128
+                });
+                assert_eq!(addressed, position.map(|coordinate| coordinate.rem_euclid(128) as u32));
+            }
+        }
+    }
 
     #[test]
     fn encodes_shapes_tint_translucency_and_emission() {

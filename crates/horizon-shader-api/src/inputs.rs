@@ -58,6 +58,7 @@ wgsl_types! {
     [f32; 4] => "vec4<f32>",
     [[f32; 4]; 4] => "mat4x4<f32>",
     [[f32; 4]; 8] => "array<vec4<f32>, 8>",
+    [[u32; 4]; 16] => "array<vec4<u32>, 16>",
 }
 
 /// A uniform struct: the Rust type the renderer uploads, and its WGSL.
@@ -216,7 +217,7 @@ uniform! {
         voxel_size: [u32; 3],
         /// One when the pack has an allocated voxel input, otherwise zero.
         has_voxels: u32,
-        /// Inclusive grid minimum relative to the camera. Address world cells modulo voxel_size.
+        /// Inclusive grid minimum relative to the camera; use voxel_at for precision-safe lookup.
         voxel_origin: [f32; 3],
         /// Number of initialized entries in light_list, including the held light.
         light_count: u32,
@@ -224,6 +225,13 @@ uniform! {
         voxel_center: [f32; 3],
         /// Blocks per voxel (one when available, zero otherwise).
         voxel_cell_size: f32,
+        /// Physical block slot of voxel_origin; integer modulo by voxel_size.
+        voxel_origin_slot: [u32; 3],
+        /// Reserved, zero.
+        voxel_padding: u32,
+        /// Valid physical section slots, x + width * (y + height * z), packed into 32-bit words.
+        /// Pending uploads are invalid and voxel_at returns zero for them.
+        voxel_validity: [[u32; 4]; 16],
     }
 }
 

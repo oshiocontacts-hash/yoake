@@ -221,6 +221,19 @@ fn the_smallest_manifest() {
 }
 
 #[test]
+fn projection_jitter_requires_a_post_resolve() {
+    let head = "schema = 1\nid = \"p\"\nname = \"P\"\nversion = \"1\"\napi = \"0.1\"\ntaa_jitter = true\n";
+    for stage in ["[material]", "[entity_material]", "[sky]"] {
+        assert!(refused(&format!("{head}{stage}\nfile = \"a.wgsl\"\n")).contains("[[post]] resolve"));
+    }
+    assert!(
+        Manifest::parse(&format!("{head}[[post]]\nfile = \"a.wgsl\"\n"))
+            .unwrap()
+            .taa_jitter
+    );
+}
+
+#[test]
 fn shadow_caching_requires_an_explicit_declaration() {
     let text = "schema = 1\nid = \"p\"\nname = \"P\"\nversion = \"1\"\napi = \"0.1\"\n\
                 [[post]]\nfile = \"a.wgsl\"\n[shadow]\nresolution = 1024\n";

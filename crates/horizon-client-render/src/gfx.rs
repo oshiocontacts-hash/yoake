@@ -5380,6 +5380,7 @@ impl Renderer {
         {
             section.leaving = Some(now);
             self.lod_leaving.push((key, now));
+            self.shadow_mesh_revision = self.shadow_mesh_revision.wrapping_add(1);
         }
     }
     /// Releases the sections that have faded out (`leave_section`).
@@ -5405,6 +5406,9 @@ impl Renderer {
     }
     pub fn remove_columns(&mut self, columns: impl IntoIterator<Item = (i32, i32)>) {
         let columns: Vec<(i32, i32)> = columns.into_iter().collect();
+        if !columns.is_empty() {
+            self.shadow_mesh_revision = self.shadow_mesh_revision.wrapping_add(1);
+        }
         // Most of the view at once (a teleport at render distance 32 drops some 3700
         // columns): a pass over each store instead of a lookup per section key, which
         // took 10 ms of one frame. Far terrain fades the sections out instead.
@@ -5458,6 +5462,9 @@ impl Renderer {
     /// `remove_columns` for a large share of the resident sections: each store filtered
     /// once by column.
     fn remove_columns_at_once(&mut self, columns: &[(i32, i32)]) {
+        if !columns.is_empty() {
+            self.shadow_mesh_revision = self.shadow_mesh_revision.wrapping_add(1);
+        }
         let gone: crate::fast_hash::FxHashSet<(i32, i32)> = columns.iter().copied().collect();
         let complete = self.complete_column();
         for &(x, z) in columns {
@@ -5891,7 +5898,7 @@ impl Renderer {
         camera: glam::DVec3,
         world: &crate::world::World,
         tables: &crate::mesher::MeshTables,
-        registry: &horizon_world::registry::BlockRegistry,
+        registry: &'static horizon_world::registry::BlockRegistry,
         held: Option<([f32; 3], u8)>,
     ) {
         if let Some(native) = &mut self.native {
@@ -5899,15 +5906,13 @@ impl Renderer {
                 .frame
                 .world
                 .update(&self.queue, camera, world, tables, registry);
-            native
-                .frame
-                .world
-                .update_lights(&self.queue, camera, &self.light_blocks, held);
-        }
-    }
-    pub fn observe_native_world_changes(&mut self, world: &crate::world::World) {
-        if let Some(native) = &mut self.native {
-            native.frame.world.observe_dirty_sections(world);
+            native.frame.world.update_lights(
+                &self.queue,
+                camera,
+                &self.light_blocks,
+                self.light_revision,
+                held,
+            );
         }
     }
     /// What a shader pack's gbuffers programs read from Horizon's geometry: the sky's, and
@@ -6518,23 +6523,37 @@ impl Renderer {
                 .native
                 .as_ref()
                 .is_none_or(|native| native.post.is_none() && !native.frame.taa_jitter);
-        let native_jitter =
-            self.native
-                .as_ref()
-                .filter(|_| !frame.title)
-                .map_or(glam::Mat4::IDENTITY, |native| {
-                    native
-                        .frame
-                        .projection_jitter([self.config.width, self.config.height])
-                });
-        let jittered = native_jitter
-            * self.world_post.jitter(
+        let jittered = self
+            .world_post
+            .jitter(
                 [self.config.width, self.config.height],
                 taa,
                 view_proj,
                 frame.camera,
             )
             * view_proj;
+        let pack_reads_world = !frame.title
+            && (self.pack_post.as_ref().is_some_and(|pack| pack.1.is_some())
+                || self.native.as_ref().is_some_and(|native| native.post.is_some()));
+        let scaled = self.world_post.prepare(
+            &self.device,
+            [self.config.width, self.config.height],
+            pack_reads_world || fg,
+        );
+        let world_size = self
+            .world_post
+            .size()
+            .filter(|_| scaled.is_some())
+            .unwrap_or([self.config.width, self.config.height]);
+        let jittered = native_post::NativeFrame::jitter_projection(
+            self.native
+                .as_mut()
+                .filter(|_| !frame.title)
+                .map(|native| &mut native.frame),
+            self.capture_time,
+            world_size,
+            jittered,
+        );
         if frame.title {
             self.panorama.prepare(
                 &self.device,
@@ -8002,11 +8021,6 @@ impl Renderer {
                 .as_ref()
                 .and_then(|p| p.1.as_ref())
                 .is_some_and(|p| p.has_weather());
-        let scaled = self.world_post.prepare(
-            &self.device,
-            [self.config.width, self.config.height],
-            pack_reads_world || fg,
-        );
         let (world_view, world_depth) = match &scaled {
             Some((color, depth)) => (color, depth),
             None => (&view_target, &self.depth),
@@ -8095,15 +8109,7 @@ impl Renderer {
         if !frame.title
             && let Some(native) = &mut self.native
         {
-            let size = self
-                .world_post
-                .size()
-                .filter(|_| scaled.is_some())
-                .unwrap_or([self.config.width, self.config.height]);
-            native
-                .frame
-                .set_capture_presentation_time(self.capture_time);
-            native.frame.write(&self.queue, frame, size);
+            native.frame.write(&self.queue, frame, world_size);
             native.frame.block_light.update(
                 &self.queue,
                 frame.camera,

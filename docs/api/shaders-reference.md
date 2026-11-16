@@ -317,10 +317,13 @@ The frame, as `frame` in every stage. Positions and directions are in world axes
 | `jitter` | `vec4<f32>` | 880 | Current xy and previous zw Halton offsets, in pixels; zero unless opted in. |
 | `voxel_size` | `vec3<u32>` | 896 | Actual toroidal voxel texture dimensions, in blocks, not the declared maximum. |
 | `has_voxels` | `u32` | 908 | One when the pack has an allocated voxel input, otherwise zero. |
-| `voxel_origin` | `vec3<f32>` | 912 | Inclusive grid minimum relative to the camera. Address world cells modulo voxel_size. |
+| `voxel_origin` | `vec3<f32>` | 912 | Inclusive grid minimum relative to the camera; use voxel_at for precision-safe lookup. |
 | `light_count` | `u32` | 924 | Number of initialized entries in light_list, including the held light. |
 | `voxel_center` | `vec3<f32>` | 928 | Grid centre relative to the camera. |
 | `voxel_cell_size` | `f32` | 940 | Blocks per voxel (one when available, zero otherwise). |
+| `voxel_origin_slot` | `vec3<u32>` | 944 | Physical block slot of voxel_origin; integer modulo by voxel_size. |
+| `voxel_padding` | `u32` | 956 | Reserved, zero. |
+| `voxel_validity` | `array<vec4<u32>, 16>` | 960 | Valid physical section slots, x + width * (y + height * z), packed into 32-bit words. Pending uploads are invalid and voxel_at returns zero for them. |
 
 ## Options
 

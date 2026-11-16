@@ -101,6 +101,31 @@ pub struct NativePost {
     format: wgpu::TextureFormat,
 }
 
+struct ProjectionJitter {
+    offset: [f32; 2],
+    matrix: Mat4,
+}
+
+impl ProjectionJitter {
+    fn new(enabled: bool, counter: u32, size: [u32; 2]) -> Self {
+        if !enabled {
+            return Self {
+                offset: [0.0; 2],
+                matrix: Mat4::IDENTITY,
+            };
+        }
+        let offset = horizon_shader_api::jitter::halton_2_3(counter);
+        Self {
+            offset,
+            matrix: Mat4::from_translation(Vec3::new(
+                2.0 * offset[0] / size[0].max(1) as f32,
+                -2.0 * offset[1] / size[1].max(1) as f32,
+                0.0,
+            )),
+        }
+    }
+}
+
 struct FrameHistory {
     view_projection: [[f32; 4]; 4],
     unjittered_view_projection: [[f32; 4]; 4],
@@ -140,6 +165,7 @@ pub struct NativeFrame {
     pub block_light: super::block_light::BlockLight,
     pub(super) world: super::native_world::NativeWorld,
     pub(super) taa_jitter: bool,
+    jitter: ProjectionJitter,
     pub group: wgpu::BindGroup,
     /// The world's depth before translucent terrain (the material stage's `opaque_depth`,
     /// binding 6), copied each frame.
@@ -257,7 +283,7 @@ impl NativeFrame {
         lights: super::block_light::LightTable,
         pbr: Option<&[wgpu::Texture; 2]>,
         manifest: &horizon_shader_api::Manifest,
-    ) -> Self {
+    ) -> Result<Self, String> {
         let world = super::native_world::NativeWorld::new(
             device,
             manifest,
@@ -266,7 +292,7 @@ impl NativeFrame {
             } else {
                 Default::default()
             },
-        );
+        )?;
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Native shader pack frame"),
             size: size_of::<FrameInputs>() as u64,
@@ -373,11 +399,12 @@ impl NativeFrame {
             &pbr,
             &world.bindings,
         );
-        Self {
+        Ok(Self {
             textures,
             block_light,
             world,
             taa_jitter: manifest.taa_jitter,
+            jitter: ProjectionJitter::new(false, 0, [1; 2]),
             pbr,
             buffer,
             layout,
@@ -402,7 +429,7 @@ impl NativeFrame {
             frames: 0,
             capture_time: None,
             wetness: (0.0, None),
-        }
+        })
     }
 
     /// What the shadow camera sees this frame, for the renderer's shadow lists.
@@ -414,10 +441,7 @@ impl NativeFrame {
         let dynamic = enabled
             && (self.shadow_animated
                 || !frame.shadow_only.is_empty()
-                || frame
-                    .entities
-                    .chunks_exact(4)
-                    .any(|quad| !matches!(quad[0].layer & 0xffff, 2 | 4 | 6 | 9..=12)));
+                || super::native_shadow::dynamic_entities(frame.entities));
         self.shadow_cache.prepare(
             super::native_shadow::CacheKey::new(
                 frame.camera,
@@ -600,17 +624,32 @@ impl NativeFrame {
         self.capture_time = time;
     }
 
-    pub(super) fn projection_jitter(&self, size: [u32; 2]) -> Mat4 {
-        if !self.taa_jitter {
-            return Mat4::IDENTITY;
-        }
+    pub(super) fn prepare_frame(
+        &mut self,
+        time: Option<super::capture::PresentationTime>,
+        size: [u32; 2],
+    ) -> Mat4 {
+        self.set_capture_presentation_time(time);
         let counter = self.capture_time.map_or(self.frames, |clock| clock.frame());
-        let offset = horizon_shader_api::jitter::halton_2_3(counter);
-        Mat4::from_translation(Vec3::new(
-            2.0 * offset[0] / size[0].max(1) as f32,
-            -2.0 * offset[1] / size[1].max(1) as f32,
-            0.0,
-        ))
+        self.jitter = ProjectionJitter::new(self.taa_jitter, counter, size);
+        self.jitter.matrix
+    }
+
+    pub(super) fn jitter_projection(
+        frame: Option<&mut Self>,
+        time: Option<super::capture::PresentationTime>,
+        size: [u32; 2],
+        projection: Mat4,
+    ) -> Mat4 {
+        let Some(frame) = frame else {
+            return projection;
+        };
+        let jitter = frame.prepare_frame(time, size);
+        if frame.taa_jitter {
+            jitter * projection
+        } else {
+            projection
+        }
     }
 
     /// Writes this frame's inputs, for a world of `size`.
@@ -636,14 +675,9 @@ impl NativeFrame {
         }
         self.world.write_frame(&mut inputs);
         let unjittered = inputs.unjittered_view_projection;
-        let jitter = if self.taa_jitter {
-            horizon_shader_api::jitter::halton_2_3(counter)
-        } else {
-            [0.0; 2]
-        };
+        let jitter = self.jitter.offset;
         inputs.jitter = [jitter[0], jitter[1], jitter[0], jitter[1]];
-        let projection =
-            self.projection_jitter(size) * Mat4::from_cols_array_2d(&inputs.projection);
+        let projection = self.jitter.matrix * Mat4::from_cols_array_2d(&inputs.projection);
         inputs.projection = projection.to_cols_array_2d();
         inputs.projection_inverse = projection.inverse().to_cols_array_2d();
         inputs.wetness = self.wetness.0;
@@ -1300,6 +1334,9 @@ pub fn frame_inputs(
             let k = super::native_shadow::distortion(s.distance, s.resolution);
             2.0 * s.distance / s.resolution.max(1) as f32 * (1.0 - k)
         }),
+        voxel_origin_slot: [0; 3],
+        voxel_padding: 0,
+        voxel_validity: [[0; 4]; 16],
     }
 }
 
@@ -1433,6 +1470,61 @@ mod tests {
     use horizon_shader_api::{MANIFEST, Pack, check};
 
     #[test]
+    fn no_pack_preserves_the_projection_without_multiplication() {
+        let mut columns = Mat4::IDENTITY.to_cols_array();
+        columns[5] = f32::NAN;
+        let projection = Mat4::from_cols_array(&columns);
+        let actual = NativeFrame::jitter_projection(None, None, [640, 360], projection);
+        assert_eq!(
+            actual.to_cols_array().map(f32::to_bits),
+            columns.map(f32::to_bits)
+        );
+    }
+
+    #[test]
+    fn capture_jitter_is_prepared_once_at_the_world_target_size() {
+        let Some((device, _queue)) = device() else {
+            return;
+        };
+        let manifest = horizon_shader_api::Manifest::parse(
+            "schema=1\nid=\"test_capture\"\nname=\"Capture\"\nversion=\"0.1.0\"\napi=\"0.1\"\ntaa_jitter=true\n[[post]]\nfile=\"post.wgsl\"",
+        )
+        .unwrap();
+        let mut frame = NativeFrame::new(
+            &device,
+            None,
+            Vec::new(),
+            Default::default(),
+            None,
+            &manifest,
+        )
+        .unwrap();
+        frame.frames = 7;
+        let mut clock = None;
+        for seconds in [1, 2, 3] {
+            super::super::capture::PresentationTime::set(
+                &mut clock,
+                Some(std::time::Duration::from_secs(seconds)),
+            );
+        }
+        let projection = Mat4::from_scale(Vec3::new(2.0, 3.0, 4.0));
+        let actual = NativeFrame::jitter_projection(
+            Some(&mut frame),
+            clock,
+            [640, 360],
+            projection,
+        );
+        assert_eq!(frame.capture_time.unwrap().frame(), 1);
+        assert!((frame.jitter.offset[0] + 0.25).abs() < 1e-6);
+        assert!((frame.jitter.offset[1] - 1.0 / 6.0).abs() < 1e-6);
+        let expected = Mat4::from_translation(Vec3::new(-1.0 / 1280.0, -1.0 / 1080.0, 0.0));
+        assert!(frame.jitter.matrix.abs_diff_eq(expected, 1e-6));
+        assert!(actual.abs_diff_eq(expected * projection, 1e-6));
+        frame.frames = 100;
+        assert!(actual.abs_diff_eq(frame.jitter.matrix * projection, 1e-6));
+    }
+
+    #[test]
     fn temporal_history_resets_after_resizing_or_a_long_gap() {
         let time = std::time::Instant::now();
         let history = FrameHistory {
@@ -1537,7 +1629,8 @@ mod tests {
             Default::default(),
             None,
             &report.manifest,
-        );
+        )
+        .unwrap();
         queue.write_buffer(
             &frame.buffer,
             0,
@@ -1664,7 +1757,8 @@ file = \"b.wgsl\"
             Default::default(),
             None,
             &report.manifest,
-        );
+        )
+        .unwrap();
         let mut post = NativePost::new(
             &device,
             report.stages,

@@ -162,6 +162,9 @@ Shadow caching is opt-in (`cache = false` by default). A cached map survives sma
 and camera movement within the same 8-block snapped cell; its matrix is rebased to the current camera. Nearby mesh
 changes invalidate it. Animated vertex stages, shadow-only geometry and moving entity geometry bypass the cache.
 
+Unlit entity overlays (layers 2, 4, 6 and 9–12, including glint and eyes) do not cast shadows, so their animation does
+not invalidate a cached map.
+
 ## Optional world inputs
 
 World inputs are opt-in at the top level of `horizon-shaders.toml`:
@@ -171,6 +174,9 @@ light_list = true
 taa_jitter = true
 entity_material = { file = "entities.wgsl" }
 
+[[post]]
+file = "resolve.wgsl"
+
 [voxels]
 size = [128, 128, 128]
 ```
@@ -178,20 +184,35 @@ size = [128, 128, 128]
 Omitting `[voxels]`, `light_list`, `taa_jitter` and `entity_material` keeps their corresponding rendering behavior
 disabled. An empty `[voxels]` table requests the default 128³ window. Dimensions must be positive multiples of 16,
 each at most 256 blocks, and total at most 256 × 128 × 256 voxels. If the requested size exceeds the GPU's 3D texture
-limit, each dimension is reduced to at most 64 blocks (and the device limit, rounded down to a multiple of 16).
+limit, only axes exceeding that limit are reduced to at most 64 blocks (and the device limit, rounded down to a
+multiple of 16). Already supported axes keep their requested size.
 `frame.voxel_size` reports the actual dimensions; `frame.has_voxels` is 1 only with an enabled voxel input, otherwise 0.
 
 `@group(3) @binding(14) var voxels: texture_3d<u32>` is a camera-centered toroidal `R32Uint` texture, one block per cell.
-Only entering or dirty 16³ sections are uploaded after initialization. `frame.voxel_origin` and `frame.voxel_center`
-are camera-relative block positions, and `frame.voxel_cell_size` is 1. Check that a camera-relative position lies in
-`[frame.voxel_origin, frame.voxel_origin + vec3<f32>(frame.voxel_size))` before loading. Add `frame.camera_position`
-to obtain world coordinates, floor to integer block coordinates, then use positive modulo by `frame.voxel_size` for
-the texture coordinates. Read with `textureLoad(voxels, coordinates, 0)`; the integer texture has no filtering sampler.
-Material, entity and post-process stages can read it. Each voxel is a four-byte little-endian word:
+Only entering or explicitly dirtied 16³ sections are uploaded, nearest to the camera first, with at most 16 sections
+per frame. Remaining sections stay queued and invalid until uploaded. Uniform-air sections are written as zeroes.
+`frame.voxel_origin` and `frame.voxel_center` are camera-relative block positions; `frame.voxel_cell_size` is 1.
+Material, entity and post-process stages can read the texture through the precision-safe helper:
+
+```wgsl
+let word = voxel_at(input.position);
+let shape = word & 15u;
+```
+
+`voxel_at(position: vec3<f32>) -> u32` takes a camera-relative block position and returns zero outside the window or
+in a pending section. It never reconstructs large world coordinates from `frame.camera_position`. The integer
+`frame.voxel_origin_slot` gives the physical block slot of the grid minimum. The helper combines that slot with the
+small camera-relative offset, retaining block precision far from the origin.
+
+Direct `textureLoad` users must also check `frame.voxel_validity` to avoid reading evicted toroidal slots. Physical
+section slots are flattened as `x + width * (y + height * z)`, where `width` and `height` are the texture dimensions
+divided by 16. For section index `index`, word `index / 32` is stored at `frame.voxel_validity[word / 4][word % 4]`;
+bit `index % 32` must be set. A clear bit means unavailable, not confirmed air. The integer texture has no filtering
+sampler. Each voxel is a four-byte little-endian word:
 
 | Bits | Meaning |
 | --- | --- |
-| 0–3 | Shape: 0 empty, 1 full, 2 bottom slab, 3 top slab, 4–7 stairs facing north, east, south, west, 8 thin/fence, 9 pane |
+| 0–3 | Shape: 0 empty, 1 full, 2 bottom slab, 3 top slab, 4–7 bottom stairs facing north, east, south, west, 8 thin/fence, 9 pane, 10–13 top stairs in the same order, 14–15 reserved |
 | 4 | Translucent |
 | 5–8 | Emission level, clamped to 0–15 |
 | 9–14 | Red tint, quantized to 6 bits |
@@ -202,12 +223,16 @@ Material, entity and post-process stages can read it. Each voxel is a four-byte 
 Empty voxels are zero. Each 8-bit tint component is converted with `(component * 63 + 127) / 255`, using integer
 division. Tint is a block-color approximation (including stained glass), not an atlas sample or baked lighting.
 
-`@group(3) @binding(15) var<storage, read> light_list: array<WorldLight>` exposes up to 2048 nearby block lights from the
-existing CPU light list, plus one combined held-item light. `frame.light_count` bounds valid entries. A `WorldLight`
+`@group(3) @binding(15) var<storage, read> light_list: array<WorldLight>` exposes the nearest 2048 block lights whose
+radius intersects a 128-block camera distance, plus one combined held-item light. Ties are deterministic. Selection
+is rebuilt only when the CPU light revision or camera block cell changes; positions are rebased otherwise.
+`frame.light_count` bounds valid entries. A `WorldLight`
 occupies 48 bytes: `position: vec3<f32>`, `level: f32`, `color: vec3<f32>`, `radius: f32`, `held: u32` and three padding
 words. Positions are camera-relative, levels are 0–15, radii are in blocks and `held` is 1 for the held light (0 for
 block lights). Emissive blocks default to white; `[[lights]]` entries override their colors. This input is available
 to material, entity and post-process stages.
+
+The [World Inputs example](../crates/horizon-shader-api/packs/world_inputs/) demonstrates voxel lookup and the light list.
 
 ## Projection jitter
 
@@ -216,6 +241,8 @@ is the current offset in pixels and `.zw` is the previous offset. `frame.unjitte
 `frame.previous_unjittered_view_projection` expose the corresponding camera matrices without jitter. A resized target
 or a history reset also resets the previous jitter and matrix. Jitter defaults to false and does not enable a pack's
 temporal accumulation automatically; the pack must implement its own resolve/history passes.
+Enabling jitter requires at least one `[[post]]` resolve stage. Geometry and `Frame` use the same world-target size
+and the same stored offset, computed once per frame after applying the capture presentation clock.
 
 ## Entity material
 

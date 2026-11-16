@@ -61,6 +61,20 @@ fn every_stage_compiles_with_vanilla_s_function() {
 }
 
 #[test]
+fn optional_world_inputs_compile_in_supported_stages() {
+    let dir = root().join("crates/horizon-shader-api/packs/world_inputs");
+    let mut pack = Pack::read(&dir).unwrap();
+    for kind in [StageKind::Material, StageKind::EntityMaterial, StageKind::Post] {
+        let source = format!(
+            "{}\nfn world_probe(position: vec3<f32>) -> u32 {{\n    return voxel_at(position + light_list[0].position);\n}}\n",
+            vanilla(kind)
+        );
+        pack.files.insert("post.wgsl".into(), source.into_bytes());
+        validate(&compose(&pack, kind, "post.wgsl").text);
+    }
+}
+
+#[test]
 fn the_frame_s_wgsl_layout_is_the_uploaded_struct_s() {
     let text = format!("{}{}", StageKind::Sky.prelude(), vanilla(StageKind::Sky));
     let module = validate(&text);

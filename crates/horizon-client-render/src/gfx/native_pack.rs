@@ -65,7 +65,7 @@ impl NativePack {
             lights,
             terrain.pbr,
             &report.manifest,
-        );
+        )?;
         frame.shadow_animated = report
             .stages
             .iter()

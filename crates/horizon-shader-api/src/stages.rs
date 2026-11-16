@@ -594,6 +594,23 @@ pub fn world_input_declarations(manifest: &crate::manifest::Manifest) -> String 
     let mut out = String::new();
     if manifest.voxels.is_some() {
         out += "@group(3) @binding(14) var voxels: texture_3d<u32>;\n";
+        out += r#"
+fn voxel_at(camera_relative_position: vec3<f32>) -> u32 {
+    let local = camera_relative_position - frame.voxel_origin;
+    if frame.has_voxels == 0u || any(local < vec3<f32>(0.0)) || any(local >= vec3<f32>(frame.voxel_size)) {
+        return 0u;
+    }
+    let slot = (vec3<u32>(floor(local)) + frame.voxel_origin_slot) % frame.voxel_size;
+    let section = slot / 16u;
+    let extent = frame.voxel_size / 16u;
+    let index = section.x + extent.x * (section.y + extent.y * section.z);
+    let word = index / 32u;
+    if (frame.voxel_validity[word / 4u][word % 4u] & (1u << (index % 32u))) == 0u {
+        return 0u;
+    }
+    return textureLoad(voxels, vec3<i32>(slot), 0).x;
+}
+"#;
     }
     if manifest.light_list {
         out += "struct WorldLight { position: vec3<f32>, level: f32, color: vec3<f32>, radius: f32, held: u32, padding0: u32, padding1: u32, padding2: u32, }\n";
