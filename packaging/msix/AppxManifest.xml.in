@@ -20,7 +20,7 @@
         <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png"
                          Square71x71Logo="Assets\Square71x71Logo.png"
                          Square310x310Logo="Assets\Square310x310Logo.png" />
-        <uap:SplashScreen BackgroundColor="transparent" Image="Assets\SplashScreen.png" />
+        <uap:SplashScreen BackgroundColor="#34224d" Image="Assets\SplashScreen.png" />
       </uap:VisualElements>
     </Application>
   </Applications>

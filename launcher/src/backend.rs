@@ -4236,6 +4236,26 @@ pub fn {f}("
         assert!(logos.contains("_altform-unplated"), "no unplated app-list icons");
         assert!(manifest.contains("Executable=\"YoakeLauncher.exe\""));
         assert!(manifest.contains("<uap:SplashScreen"));
+        // The splash screen is filled with a real colour, the same one make_logos.py checks.
+        let splash = manifest
+            .split("<uap:SplashScreen")
+            .nth(1)
+            .and_then(|rest| rest.split("BackgroundColor=\"").nth(1))
+            .and_then(|rest| rest.split('"').next())
+            .expect("a splash background colour");
+        assert!(
+            splash.len() == 7
+                && splash.starts_with('#')
+                && splash[1..].chars().all(|c| c.is_ascii_hexdigit()),
+            "the splash background is {splash}"
+        );
+        assert!(logos.contains(&format!("SPLASH_BACKGROUND = \"{splash}\"")));
+        // Pixel art: whole-number enlargement and nearest neighbour only, and a filled wide tile.
+        assert!(logos.contains("Image.Resampling.NEAREST"));
+        assert!(
+            !logos.contains("LANCZOS") && !logos.contains("BICUBIC") && !logos.contains("thumbnail")
+        );
+        assert!(logos.contains("FILLED = (\"Wide310x150Logo\", \"SplashScreen\")"));
 
         // The zip-style artifact carries the license, the notices and the README; the MSIX carries
         // the license and the notices beside the executables, and no README.
