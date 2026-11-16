@@ -60,6 +60,10 @@ impl Game<'_> {
     /// The nearest boat, minecart, item frame, armor stand or painting the
     /// view hits within reach; also End crystals when attacking, and fence knots when using.
     pub(super) fn remote_object_hit(&self, attacking: bool) -> Option<ObjectHit> {
+        self.remote_object_hit_at(attacking, self.entity_reach)
+    }
+
+    pub(super) fn remote_object_hit_at(&self, attacking: bool, reach: f64) -> Option<ObjectHit> {
         let (eye, dir) = self.aim()?;
         let at = |d: f64| {
             [
@@ -76,35 +80,34 @@ impl Game<'_> {
             ]
         };
         let mut hits: Vec<(i32, f64, [f64; 3])> = Vec::new();
-        if let Some((i, d)) = self.painting_hit() {
+        if let Some((i, d)) = self.painting_hit_at(reach) {
             let p = &self.paintings[i];
             hits.push((p.id as i32, d, block_centre(p.pos)));
         }
-        if let Some((i, d)) = self.frame_hit() {
+        if let Some((i, d)) = self.frame_hit_at(reach) {
             let f = &self.item_frames[i];
             hits.push((f.id as i32, d, block_centre(f.pos)));
         }
-        if let Some((i, d, _)) = self.armor_stand_hit() {
+        if let Some((i, d, _)) = self.armor_stand_hit_at(reach) {
             let a = &self.armor_stands[i];
             let p = a.position;
             hits.push((a.id as i32, d, [p.x, p.y, p.z]));
         }
-        if let Some((i, d, _)) = self.cushion_hit() {
+        if let Some((i, d, _)) = self.cushion_hit_at(reach) {
             let c = &self.cushions[i];
             let p = c.position;
             hits.push((c.id as i32, d, [p.x, p.y, p.z]));
         }
-        if let Some((i, d)) = self.boat_hit() {
+        if let Some((i, d)) = self.boat_hit_at(reach) {
             let p = self.boats[i].position;
             hits.push((self.boats[i].id as i32, d, [p.x, p.y, p.z]));
         }
-        if let Some((i, d)) = self.cart_hit() {
+        if let Some((i, d)) = self.cart_hit_at(reach) {
             let p = self.carts[i].position;
             hits.push((self.carts[i].id as i32, d, [p.x, p.y, p.z]));
         }
         // Interaction.isPickable: an invisible box the server clicks through
         // to its scripts, for both uses and attacks.
-        let reach = self.entity_reach;
         for (&id, i) in &self.interactions {
             if let Some(d) = ray_box(eye, dir, reach, i.bounds()) {
                 let p = i.position;
@@ -118,7 +121,6 @@ impl Game<'_> {
             // EndCrystal.isPickable: its 2 x 2 box, with the server's entity
             // id, not special_targets' local projectile target id.
             // Entity.interact passes on a crystal, so right clicks use the item.
-            let reach = self.entity_reach;
             for c in self.crystals.iter().filter(|c| c.id != 0) {
                 let p = c.position;
                 let bounds = Aabb::new(

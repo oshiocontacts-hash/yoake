@@ -62,10 +62,45 @@ pub const FULL_SERVICES_SERVER: Guest = Guest {
     features: "server",
     artifact: "yoake_wasm_full_services.wasm",
 };
+pub const CLIENT_SERVICES_DEMO: Guest = Guest {
+    name: "client-services-demo",
+    example: "client-services-demo",
+    features: "",
+    artifact: "yoake_wasm_client_services_demo.wasm",
+};
+
+pub const GPU_DEMO: Guest = Guest {
+    name: "gpu-demo",
+    example: "gpu-demo",
+    features: "",
+    artifact: "yoake_wasm_gpu_demo.wasm",
+};
+pub const GPU_VERIFY: Guest = Guest {
+    name: "gpu-verify",
+    example: "gpu-demo",
+    features: "verify",
+    artifact: "yoake_wasm_gpu_demo.wasm",
+};
+pub const GPU_RELOAD: Guest = Guest {
+    name: "gpu-reload",
+    example: "gpu-demo",
+    features: "reload",
+    artifact: "yoake_wasm_gpu_demo.wasm",
+};
+pub const GPU_TRAP: Guest = Guest {
+    name: "gpu-trap",
+    example: "gpu-demo",
+    features: "trap",
+    artifact: "yoake_wasm_gpu_demo.wasm",
+};
 
 /// The second package of the `mod-call` tests: only answers `handle-call`.
-pub const FULL_DEMO_PEER: Guest =
-    Guest { name: "full-demo-peer", example: "full-demo", features: "peer", artifact: "yoake_wasm_full_demo.wasm" };
+pub const FULL_DEMO_PEER: Guest = Guest {
+    name: "full-demo-peer",
+    example: "full-demo",
+    features: "peer",
+    artifact: "yoake_wasm_full_demo.wasm",
+};
 
 pub const INVALID_HOOK: Guest = Guest {
     name: "invalid-hook", example: "validation-fixture", features: "typo", artifact: "yoake_wasm_validation_fixture.wasm",
@@ -141,16 +176,22 @@ pub fn load(guest: &Guest) -> Option<Vec<u8>> {
     }
     let build = command.output();
     let bytes = match &build {
-        Ok(output) if output.status.success() => std::fs::copy(&built, &copy).ok().and_then(|_| std::fs::read(&copy).ok()),
+        Ok(output) if output.status.success() => std::fs::copy(&built, &copy)
+            .ok()
+            .and_then(|_| std::fs::read(&copy).ok()),
         _ => None,
     };
-    let bytes = bytes.or_else(|| std::fs::read(&copy).ok());
+    let bytes = bytes.or_else(|| (!strict()).then(|| std::fs::read(&copy).ok()).flatten());
     if bytes.is_none() {
         let why = match &build {
-            Ok(output) => String::from_utf8_lossy(&output.stderr).lines().last().unwrap_or("").to_owned(),
+            Ok(output) => String::from_utf8_lossy(&output.stderr).into_owned(),
             Err(error) => error.to_string(),
         };
-        let message = format!("guest {} is not available (building it in {} failed: {why})", guest.name, example.display());
+        let message = format!(
+            "guest {} is not available (building it in {} failed: {why})",
+            guest.name,
+            example.display()
+        );
         assert!(!strict(), "{message}");
         eprintln!("skipped: {message}");
     }

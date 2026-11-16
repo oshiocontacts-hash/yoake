@@ -1216,8 +1216,11 @@ impl Game<'_> {
         Some(boat)
     }
     pub(super) fn boat_hit(&self) -> Option<(usize, f64)> {
+        self.boat_hit_at(self.entity_reach)
+    }
+
+    pub(super) fn boat_hit_at(&self, reach: f64) -> Option<(usize, f64)> {
         let (eye, dir) = self.aim()?;
-        let reach: f64 = self.entity_reach;
         let mut best: Option<(usize, f64)> = None;
         for (i, b) in self.boats.iter().enumerate() {
             if Some(b.id) == self.riding {

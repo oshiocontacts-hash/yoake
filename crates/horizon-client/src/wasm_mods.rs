@@ -12,12 +12,20 @@
 //! Raw file ids use a `dev-` prefix and cannot reuse an installed YAK id, keeping settings and
 //! storage namespaces separate from installed mods.
 
+#[path = "wasm_mods/client_services.rs"]
+mod client_services;
+#[path = "wasm_mods/dev_shaders.rs"]
+mod dev_shaders;
 #[path = "wasm_mods/full.rs"]
 mod full;
 #[path = "wasm_mods/package.rs"]
 pub(crate) mod package;
 #[path = "wasm_mods/package_ui.rs"]
 pub(crate) mod package_ui;
+#[path = "wasm_mods/gpu_services.rs"]
+mod gpu_services;
+#[path = "wasm_mods/resources.rs"]
+mod resources;
 #[path = "wasm_mods/server_services.rs"]
 mod server_services;
 // Test mode only (`--yoake-test`): the operations of the engine test driver (`yoake_test.rs`).
@@ -25,7 +33,6 @@ mod server_services;
 pub(super) mod test_driver;
 
 pub(crate) use server_services::{attachment_registry, prepare_attachments, reset_attachments};
-
 use super::dll_mods::{StaticMod, frame_time, native_identity, safe_component};
 use crate::mod_api::*;
 use horizon_mod_abi as abi;
@@ -147,6 +154,7 @@ struct Source {
     full: bool,
     mixin_targets: Vec<String>,
     permissions: Vec<String>,
+    gpu: bool,
     bytes: Vec<u8>,
     /// Watched for hot reload (developer mode and not signed).
     watch: Option<PathBuf>,
@@ -172,6 +180,8 @@ fn dev_sources_with(
     };
     let mut files: Vec<_> = entries.flatten().map(|entry| entry.path()).collect();
     files.sort();
+    let full = std::env::var("YOAKE_WASM_DEV_FULL").is_ok_and(|value| value == "1");
+    let gpu = full && std::env::var("YOAKE_WASM_DEV_GPU").is_ok_and(|value| value == "1");
     let mut sources = Vec::new();
     for path in files {
         if path.extension().and_then(|extension| extension.to_str()) != Some("wasm") {
@@ -198,7 +208,8 @@ fn dev_sources_with(
                 version: "0.0.0-dev".into(),
                 sha256: None,
                 required_on_join: false,
-                full: false,
+                full,
+                gpu,
                 mixin_targets: Vec::new(),
                 permissions: Vec::new(),
                 bytes,
@@ -240,6 +251,7 @@ fn installed_source(module: crate::yak_mods::WasmMod, developer: bool) -> Source
         // Hot reload changes the bytes during development, so this digest cannot be a stable join requirement.
         required_on_join: module.required_on_join && watch.is_none(),
         full: module.full,
+        gpu: module.gpu,
         mixin_targets: module.mixin_targets,
         permissions: module.permissions,
         bytes: module.bytes,
@@ -250,12 +262,14 @@ fn installed_source(module: crate::yak_mods::WasmMod, developer: bool) -> Source
 /// One package's modules once accepted: its hook objects, its client module's world and the
 /// identity the multiplayer check sees.
 struct Accepted {
+    gpu: bool,
     id: String,
     version: String,
     /// The module's SHA-256 when the package is required on join.
     digest: Option<String>,
     hooks: Vec<Box<dyn Hooks>>,
     client_full: Option<yoake_wasm::ClientFullMod>,
+    client_reload: Option<Arc<Reload>>,
     server_full: Option<yoake_wasm::ServerFullMod>,
     /// The server module's bytes and its `service.commands` grant, kept to start each world afresh.
     server_source: Option<full::ServerSource>,
@@ -279,7 +293,6 @@ fn load_injection(
     Injection::instantiate_with_permissions(&mut sandbox, id, bytes, targets, side, permissions)
         .map_err(|error| error.to_string())
 }
-
 pub(super) fn extend(
     mods: Mods,
     identities: &'static [super::NativeMod],
@@ -332,9 +345,11 @@ pub(super) fn extend(
             digest,
             hooks: Vec::new(),
             client_full: None,
+            client_reload: None,
             server_full: None,
             server_source: None,
             worlds: Vec::new(),
+            gpu: source.gpu,
         };
         if dedicated {
             accepted.push(package);
@@ -362,13 +377,32 @@ pub(super) fn extend(
                 }
             }
         } else if source.full {
-            match full::load_client(&full::ModuleSource {
-                id: &source.id,
-                bytes: &source.bytes,
-                commands: false,
-            }) {
+            let reload = source.watch.as_ref().map(|path| {
+                Arc::new(Reload {
+                    shaders: source
+                        .gpu
+                        .then(|| dev_shaders::DevShaders::new(path, &source.id))
+                        .flatten()
+                        .map(|shaders| Arc::new(Mutex::new(shaders))),
+                    ..Reload::default()
+                })
+            });
+            match full::load_client_with_shaders(
+                &full::ModuleSource {
+                    id: &source.id,
+                    bytes: &source.bytes,
+                    commands: false,
+                    gpu: source.gpu,
+                },
+                reload.as_ref().and_then(|reload| reload.shaders.clone()),
+            ) {
                 Ok(module) => {
                     package.client_full = Some(module);
+                    package.client_reload =
+                        source.watch.as_ref().zip(reload).map(|(path, reload)| {
+                            watches.push(Watch::new(path.clone(), Arc::clone(&reload)));
+                            reload
+                        });
                     package.worlds.push("client-full");
                 }
                 Err(error) => {
@@ -443,6 +477,8 @@ pub(super) fn extend(
                 digest,
                 hooks: Vec::new(),
                 client_full: None,
+                client_reload: None,
+                gpu: false,
                 server_full: None,
                 server_source: None,
                 worlds: Vec::new(),
@@ -531,7 +567,9 @@ pub(super) fn extend(
                 package.id.clone(),
                 package.client_full.take(),
                 package.server_full.take(),
-            );
+            )
+            .with_client_reload(package.client_reload.take())
+            .with_gpu(package.gpu);
             if let Some(source) = package.server_source.take() {
                 full_mod = full_mod.with_server_source(source);
             }
@@ -562,6 +600,7 @@ pub(super) fn extend(
 struct Reload {
     ready: AtomicBool,
     bytes: Mutex<Option<Vec<u8>>>,
+    shaders: Option<Arc<Mutex<dev_shaders::DevShaders>>>,
 }
 
 struct Watch {
@@ -570,6 +609,7 @@ struct Watch {
     /// The file as it was last seen, and as it was last handed over.
     seen: Option<(SystemTime, u64)>,
     applied: Option<(SystemTime, u64)>,
+    shaders_pending: bool,
 }
 
 impl Watch {
@@ -580,6 +620,7 @@ impl Watch {
             reload,
             seen: state,
             applied: state,
+            shaders_pending: false,
         }
     }
 
@@ -591,13 +632,20 @@ impl Watch {
 
     /// A change counts once the file has stayed the same for a whole poll (a build may still be writing).
     fn poll(&mut self) {
+        self.shaders_pending |= self.reload.shaders.as_ref().is_some_and(|shaders| {
+            shaders
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .poll()
+        });
         let now = Self::stat(&self.path);
         if now != self.seen {
             self.seen = now;
-        } else if now.is_some() && now != self.applied {
+        } else if now.is_some() && (now != self.applied || self.shaders_pending) {
             self.applied = now;
             match read_bounded(&self.path) {
                 Ok(bytes) => {
+                    self.shaders_pending = false;
                     *self
                         .reload
                         .bytes
@@ -676,6 +724,17 @@ struct Invocation<'call> {
     host: HostAccess<'call>,
     batch: Option<&'call mut HudBatch>,
     batch_start: usize,
+    client: ClientExtras<'call>,
+}
+
+#[derive(Default)]
+struct ClientExtras<'call> {
+    world_draws: Option<&'call mut crate::gfx::native_services::WorldDraws>,
+    screen_kind: Option<String>,
+    corners: Option<&'call mut Corners>,
+    mob: Option<&'call NativeMobRender<'call>>,
+    mob_draw: Option<&'call mut BlockEntityDraw>,
+    camera: Option<&'call mut Option<CameraOverride>>,
 }
 
 thread_local! {
@@ -689,16 +748,27 @@ struct Scope {
 impl Scope {
     fn enter(invocation: &mut Invocation<'_>) -> Self {
         let pointer = (invocation as *mut Invocation<'_>).cast::<Invocation<'static>>();
-        Self {
+        let scope = Self {
             previous: ACTIVE.with(|active| active.replace(pointer)),
-        }
+        };
+        resources::drain();
+        scope
     }
 }
 
 impl Drop for Scope {
     fn drop(&mut self) {
+        resources::drain();
         ACTIVE.with(|active| active.set(self.previous));
     }
+}
+
+pub(crate) fn drain_resources(host: &mut dyn Host) {
+    resources::drain_with(host);
+}
+
+pub(crate) fn resource_owners() -> HashSet<usize> {
+    resources::owners()
 }
 
 /// Runs `operation` against the current hook's services. A service called while another is running
@@ -770,6 +840,7 @@ impl WasmMod {
             host,
             batch,
             batch_start,
+            client: ClientExtras::default(),
         };
         let result = {
             let _scope = Scope::enter(&mut invocation);
@@ -818,6 +889,7 @@ impl WasmMod {
             host: HostAccess::Write(host),
             batch: None,
             batch_start: 0,
+            client: ClientExtras::default(),
         };
         let result = {
             let _scope = Scope::enter(&mut invocation);
@@ -1113,15 +1185,37 @@ struct GameHost {
     id: String,
     textures: HashMap<u64, NativeGuiTexture>,
     next_texture: u64,
+    native_id: &'static str,
+    native_index: usize,
+    streams: HashMap<u32, NativeAudioStreamId>,
+    next_stream: u32,
+    gpu_enabled: bool,
+    gpu_ready: Arc<AtomicBool>,
+    dev_shaders: Option<Arc<Mutex<dev_shaders::DevShaders>>>,
+    resources: resources::Registration,
 }
 
 impl GameHost {
     fn new(id: &str) -> Self {
+        let (native_id, native_index) = client_services::identity(id).unwrap_or(("", usize::MAX));
         Self {
             id: id.to_owned(),
             textures: HashMap::new(),
             next_texture: 1,
+            native_id,
+            native_index,
+            streams: HashMap::new(),
+            next_stream: 1,
+            gpu_enabled: false,
+            gpu_ready: Arc::new(AtomicBool::new(true)),
+            dev_shaders: None,
+            resources: resources::Registration::new(native_id, native_index),
         }
+    }
+
+    fn with_gpu(mut self, enabled: bool) -> Self {
+        self.gpu_enabled = enabled;
+        self
     }
 }
 
@@ -1163,6 +1257,20 @@ fn batch_range<'borrow>(
 impl ClientHost for GameHost {
     fn services(&mut self) -> Result<yoake_wasm::package_services::ServiceHandle, String> {
         package::services(&self.id, horizon_mods::yak::ConfigRuntimeSide::Client)
+    }
+    fn release_resources(&mut self) {
+        self.textures.clear();
+        self.resources
+            .release(self.streams.drain().map(|(_, stream)| stream).collect());
+        resources::drain();
+    }
+
+    fn client_services(&mut self) -> Option<&mut dyn yoake_wasm::ClientServices> {
+        Some(self)
+    }
+
+    fn gpu_services(&mut self) -> Option<&mut dyn yoake_wasm::GpuServices> {
+        if self.gpu_enabled { Some(self) } else { None }
     }
     fn log(&mut self, target: &str, message: &str) -> Result<(), w::HostError> {
         let clean = |text: &str| -> String {
@@ -1318,16 +1426,19 @@ impl ClientHost for GameHost {
             w::TextureFilter::Nearest => NativeGuiTextureFilter::Nearest,
             w::TextureFilter::Linear => NativeGuiTextureFilter::Linear,
         };
-        let texture = service(|invocation| {
-            invocation
-                .host
-                .read()
-                .ok_or(w::HostError::Unsupported)?
-                .gui_texture_create([width, height], format, filter)
-                .map_err(|_| w::HostError::HostError)
-        })?;
         let id = self.next_texture;
-        self.next_texture = id.checked_add(1).ok_or(w::HostError::Disabled)?;
+        let next = id.checked_add(1).ok_or(w::HostError::Disabled)?;
+        let texture = self
+            .client_call(|invocation| {
+                invocation
+                    .host
+                    .read()
+                    .ok_or_else(|| "client host unavailable".to_owned())?
+                    .gui_texture_create([width, height], format, filter)
+                    .map_err(|error| format!("{error:?}"))
+            })
+            .map_err(|_| w::HostError::HostError)?;
+        self.next_texture = next;
         self.textures.insert(id, texture);
         Ok(id)
     }
@@ -1541,13 +1652,17 @@ impl ClientHost for GameHost {
     }
 
     fn mod_screen_open(&mut self, mod_id: &str) -> Result<bool, w::HostError> {
-        service(|invocation| {
+        let opened = service(|invocation| {
             Ok(invocation
                 .host
                 .write()
                 .ok_or(w::HostError::Unsupported)?
                 .mod_screen_open(mod_id))
-        })
+        })?;
+        if opened {
+            self.resources.claim_screen();
+        }
+        Ok(opened)
     }
 
     fn mod_screen_close(&mut self, mod_id: &str) -> Result<(), w::HostError> {
@@ -1558,7 +1673,9 @@ impl ClientHost for GameHost {
                 .ok_or(w::HostError::Unsupported)?
                 .mod_screen_close(mod_id);
             Ok(())
-        })
+        })?;
+        self.resources.close_screen();
+        Ok(())
     }
 
     fn mod_screen(&mut self) -> Result<Option<String>, w::HostError> {
@@ -1573,13 +1690,17 @@ impl ClientHost for GameHost {
     }
 
     fn mod_screen_open_anywhere(&mut self, mod_id: &str) -> Result<bool, w::HostError> {
-        service(|invocation| {
+        let opened = service(|invocation| {
             Ok(invocation
                 .host
                 .write()
                 .ok_or(w::HostError::Unsupported)?
                 .mod_screen_open_anywhere(mod_id))
-        })
+        })?;
+        if opened {
+            self.resources.claim_screen();
+        }
+        Ok(opened)
     }
 
     fn net_send_to_server(&mut self, channel: &str, data: &[u8]) -> Result<(), w::SendError> {
@@ -1607,7 +1728,7 @@ mod tests {
     use super::*;
     use std::cell::RefCell;
 
-    const WASM_DIR: &str = "C:/Users/USER/NestgateHorizon/target-wasm/wasm32-wasip2/release/";
+    use yoake_wasm::test_guests::{Guest, HELLO, HELLO_STD};
 
     #[derive(Default)]
     struct FakeHost {
@@ -1629,8 +1750,8 @@ mod tests {
         }
     }
 
-    fn load(file: &str, id: &str, reload: Option<Arc<Reload>>) -> Option<WasmMod> {
-        let bytes = std::fs::read(format!("{WASM_DIR}{file}")).ok()?;
+    fn load(guest: &Guest, id: &str, reload: Option<Arc<Reload>>) -> Option<WasmMod> {
+        let bytes = yoake_wasm::test_guests::load(guest)?;
         let module = {
             let mut sandbox = sandbox().lock().unwrap();
             ClientMod::instantiate(&mut sandbox, id, &bytes, Box::new(GameHost::new(id)))
@@ -1746,6 +1867,7 @@ mod tests {
             full: false,
             required_on_join: true,
             commands: false,
+            gpu: false,
             path: PathBuf::from("sample.wasm"),
             signed: false,
             mixin_targets: Vec::new(),
@@ -1769,7 +1891,7 @@ mod tests {
     #[test]
     fn wasm_hello_draws_through_the_hud_hook_slot() {
         let _serial = GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
-        let Some(module) = load("yoake_wasm_hello.wasm", "hello", None) else {
+        let Some(module) = load(&HELLO, "hello", None) else {
             eprintln!("skipped: hello.wasm is not built");
             return;
         };
@@ -1794,11 +1916,11 @@ mod tests {
     fn wasm_hot_reload_swaps_the_instance_at_the_next_tick() {
         let _serial = GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let reload = Arc::new(Reload::default());
-        let Some(module) = load("yoake_wasm_hello.wasm", "hello", Some(Arc::clone(&reload))) else {
+        let Some(module) = load(&HELLO, "hello", Some(Arc::clone(&reload))) else {
             eprintln!("skipped: hello.wasm is not built");
             return;
         };
-        let Ok(replacement) = std::fs::read(format!("{WASM_DIR}yoake_wasm_hello_std.wasm")) else {
+        let Some(replacement) = yoake_wasm::test_guests::load(&HELLO_STD) else {
             eprintln!("skipped: hello_std.wasm is not built");
             return;
         };

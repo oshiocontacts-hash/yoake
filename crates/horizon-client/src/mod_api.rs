@@ -61,12 +61,14 @@ pub use crate::game::{
     NativeAccount, NativeClientWorld, NativeJoinPoll, NativeMannequinPose, NativeSoundCategory,
 };
 pub use crate::game::{NativeBlast, NativeDamage, NativeDamageActor, NativeDamageKind};
-pub use crate::game::{NativeChatRecipients, NativeCrosshairEntity};
+pub use crate::game::{NativeChatRecipients, NativeCrosshairEntity, NativeViewHit, NativeViewTarget};
 pub use crate::game::{FixedFrame, FrameAdvance, LocalPlayerSnapshot, SnapshotReport};
 pub use crate::gfx::native_render::{
     BlockSpriteArrays, RenderHooks, RenderNeeds, RenderNeedsEvent, WorldDrawn, WorldDrawnEvent,
-    wgpu,
+    WorldPrePost, wgpu,
 };
+pub use crate::gfx::native_post_shader::NativePostUniformLayout;
+pub use crate::gfx::native_services::WorldDraws;
 pub use crate::hud::HudBatch;
 pub use crate::hud::native_textures::{
     NativeGuiNineSlice, NativeGuiTexture, NativeGuiTextureError, NativeGuiTextureFilter,
@@ -263,6 +265,12 @@ pub struct NativeScreenView<'a> {
     /// `multiplayer`, `add_server`, `direct_connect`…, with no menu, no title
     /// and no slots.
     pub id: &'static str,
+    /// The specific screen or vanilla menu type, including locally opened
+    /// inventory and station screens. Ambiguous containers and mod screens
+    /// return None. Menu types use registry IDs such as `minecraft:furnace`;
+    /// generic chest menus use IDs such as `minecraft:generic_9x3`.
+    /// API @API:screen_slot_rects@.
+    pub kind: Option<&'a str>,
     /// The type id of the menu the server opened for this screen
     /// (`minecraft:generic_9x3`, `minecraft:furnace`, a mod's own id; a mount's
     /// inventory is `horizon:mount<n>`). None on a screen without one (the
@@ -304,6 +312,7 @@ impl NativeScreenView<'_> {
         // CHECK: Compile an external test-support consumer after native API generation.
         Self {
             id,
+            kind: None,
             menu: None,
             title: None,
             extra: &[],
@@ -689,6 +698,10 @@ pub(crate) fn local_sound_caller() -> Option<usize> {
     LOCAL_SOUND_CALLER.with(Cell::get)
 }
 
+pub(crate) fn enter_local_sound_caller(index: usize) -> impl Drop {
+    LocalSoundScope(LOCAL_SOUND_CALLER.with(|caller| caller.replace(Some(index))))
+}
+
 struct LocalSoundScope(Option<usize>);
 
 impl Drop for LocalSoundScope {
@@ -713,6 +726,15 @@ fn guard_dispatch(count: usize, hook: &'static str) -> Option<crate::mod_guard::
 
 fn guard_index(index: usize) -> usize {
     index
+}
+
+fn key_binding_owner(index: usize, id: &str) -> bool {
+    id.split_once(':').is_some_and(|(owner, _)| {
+        MOD_IDS
+            .get()
+            .and_then(|ids| ids.get(index))
+            .is_some_and(|candidate| *candidate == owner)
+    })
 }
 
 /// `mods` in order, each marked as running `hook` until the next one is (or the loop ends), so a

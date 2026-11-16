@@ -14,7 +14,7 @@ use crate::{HostState, LoadError, ModInstance, OutputLine, Sandbox, Subscription
 
 pub use crate::full_bindings::server::yoake::mods::server_types;
 
-fn service_call<T>(
+pub(crate) fn service_call<T>(
     handle: Result<crate::package_services::ServiceHandle, String>,
     call: impl FnOnce(&mut crate::package_services::PackageServices) -> Result<T, String>,
 ) -> Result<T, String> {
@@ -138,10 +138,9 @@ macro_rules! package_imports {
     };
 }
 
+pub(crate) use package_imports;
+
 impl client_world::yoake::mods::server_types::Host for ClientContext {}
-impl client_world::yoake::mods::client_services::Host for ClientContext {
-    package_imports!();
-}
 
 fn flush_output<T: 'static>(raw: &mut ModInstance<T>, mut log: impl FnMut(&mut T, &OutputLine)) {
     for line in raw.drain_output() {
@@ -272,19 +271,31 @@ impl ClientFullMod {
         }
     }
 
+    pub fn gpu_frame(&mut self) {
+        self.dispatch("gpu_frame", |exports, store| exports.call_gpu_frame(store));
+    }
+
     /// Runs `call` against the guest's exports if it subscribed to `hook`; `None` when it did not
     /// subscribe, trapped, or ran out of fuel or time (the module is then disabled).
     pub fn dispatch<R>(
         &mut self,
         hook: &str,
-        call: impl FnOnce(&client_world::ClientFull, &mut Store<HostState<ClientContext>>) -> wasmtime::Result<R>,
+        call: impl FnOnce(
+            &client_world::ClientFull,
+            &mut Store<HostState<ClientContext>>,
+        ) -> wasmtime::Result<R>,
     ) -> Option<R> {
         self.notify_config_changes();
         if !self.subscribed(hook) {
             return None;
         }
         let exports = &self.exports;
-        let result = self.raw.call(hook, |store, _| call(exports, store).map_err(|error| format!("{error:#}")));
+        let result = self.raw.call(hook, |store, _| {
+            call(exports, store).map_err(|error| format!("{error:#}"))
+        });
+        if self.raw.is_disabled() {
+            self.raw.store.data_mut().host.release_resources();
+        }
         flush_output(&mut self.raw, |host, line| host.log_output(line));
         self.notify_config_changes();
         result
@@ -721,7 +732,9 @@ impl ServerFullMod {
         }
         let exports = &self.exports;
         let result = self.raw.call("handle_call", |store, _| {
-            exports.call_handle_call(store, caller, method, payload).map_err(|error| format!("{error:#}"))
+            exports
+                .call_handle_call(store, caller, method, payload)
+                .map_err(|error| format!("{error:#}"))
         });
         flush_output(&mut self.raw, |host, line| host.log_output(line));
         self.notify_config_changes();
@@ -763,14 +776,19 @@ impl ServerFullMod {
     pub fn dispatch<R>(
         &mut self,
         hook: &str,
-        call: impl FnOnce(&server_world::ServerFull, &mut Store<HostState<ServerContext>>) -> wasmtime::Result<R>,
+        call: impl FnOnce(
+            &server_world::ServerFull,
+            &mut Store<HostState<ServerContext>>,
+        ) -> wasmtime::Result<R>,
     ) -> Option<R> {
         self.notify_config_changes();
         if !self.subscribed(hook) {
             return None;
         }
         let exports = &self.exports;
-        let result = self.raw.call(hook, |store, _| call(exports, store).map_err(|error| format!("{error:#}")));
+        let result = self.raw.call(hook, |store, _| {
+            call(exports, store).map_err(|error| format!("{error:#}"))
+        });
         flush_output(&mut self.raw, |host, line| host.log_output(line));
         self.notify_config_changes();
         result

@@ -1666,6 +1666,10 @@ API 312 adds a server player's ender pearl landed: `native_ender_pearl_teleport(
 
 API 313 adds drawing an item stack on a screen: `native_item_stack(batch, stack, at, size)` draws its model, glint, damage bar, cooldown and mod decorations, but not its count. It draws nothing and returns false for an unknown item or an empty stack (air, or a count of 0). Bundles need "hooks": 313.
 
+API @API:gui_item@ adds `draw_gui_item(batch, stack, at: [f32; 2], scale: f32) -> bool` for HUD and mod-screen batches. It uses the same item and decoration drawing as the hotbar, including count; `scale = 1` is a 16-pixel icon. It returns false and adds nothing for empty or unknown stacks, non-finite coordinates or scale, coordinates whose absolute value exceeds 1,000,000, a scale outside `(0, 64]`, or a nested call while this helper is already drawing an item. The helper is named `draw_gui_item` because `draw_item` already names a block-entity drawing service.
+
+This helper is available to source mods only; the stable DLL SDK and ABI do not expose it yet.
+
 API 314 adds hiding a player (a vanish): `native_hide_player(uuid, level)` hides that player, from the next tick, from the players below permission `level` (None shows them again): they leave those players' Tab list and world (their clients stop tracking them, as they do a spectator) and those players don't read them joining or leaving. Players of `level` or more still see them; a player made an operator sees them again. It is kept by UUID, for a player who is off too, until a mod sets it again or the server stops. Server only; false on a client. Bundles need "hooks": 314.
 
 API 315 adds a player's item breaking: `native_player_destroy_item(player, name, item, slot)` is heard for a server player whose tool, shield, rod or armour piece ran out of durability (`LivingEntity.onEquippedItemBroken`, Bukkit's `PlayerItemBreakEvent`), with the item that broke and the slot it was in (`mainhand`, `offhand`, `head`, `chest`, `legs`, `feet`, `body`, `saddle`); armour has a slot rather than a hand. `native_item_damaged` is the wear, this is only the break. Listen only. The player's state is swapped in. Not heard for a creative player or for the host of a LAN world. Bundles that use it need `"hooks": 315`.
@@ -3597,6 +3601,10 @@ renders each frame). API @API:gui_textures@.
   units wide. The draw keeps its place among the batch's other draws (translucent draws are not sorted), clipping and
   the blur behind a screen included. It returns false and appends nothing for a stale or another renderer's handle,
   a non-finite or empty rectangle, UVs outside 0 to 1, or borders wider than the source.
+- `native_gui_texture_write(&texture, [x, y], [width, height], bytes)` uploads a tightly packed rectangle on the
+  renderer's queue. The handle must be current, owned by that renderer, and have `COPY_DST` usage. The rectangle
+  must be nonempty, in bounds, and contain exactly four bytes per pixel for RGBA/BGRA or eight for `Rgba16Float`.
+  Each upload is capped at 16 MiB; invalid requests return `NativeGuiTextureError` without submitting an upload.
 - Order in a frame: register or create the texture first, then append its draws while the GUI is built, then render
   its contents in `WorldPrePost` (the GUI batch is prepared before that hook and samples the texture after the world
   passes). Don't append GUI draws from `WorldPrePost`.
@@ -5011,3 +5019,196 @@ world-snapshot callbacks to SDK-owned data, and adapt the UI executor to
 verify recording/playback parity before choosing the DLL variant. This is an
 ABI prerequisite, not a claim that the current recorder compiles unchanged as
 a DLL or that replay DLL parity has already been tested.
+
+## Bounded world drawing
+
+Fragment `@API:world_lines@` adds these source-mod helpers, all returning
+`Result<(), String>`:
+
+- `draw_world_line(start: [f64; 3], end: [f64; 3], color: u32, width: f32)`.
+- `draw_world_quad(corners: [[f64; 3]; 4], color: u32)`.
+- `draw_world_textured_quad(corners: [[f64; 3]; 4], uv: [f32; 4], color: u32, texture: &NativeGuiTexture)`.
+- `draw_world_billboard(center: [f64; 3], size: [f32; 2], uv: [f32; 4], color: u32, texture: Option<&NativeGuiTexture>)`.
+
+Coordinates are world blocks, color is straight-alpha ARGB, UVs are normalized
+`[u0, v0, u1, v1]`, and billboard sizes are positive block dimensions up to 256.
+Line endpoints must be distinct; widths are 0.5 to 4 pixels. Coordinates and
+dimensions must be finite. Each mod can queue up to 256 primitives per frame;
+the renderer selects at most 256 total in round-robin order across mods, rotating
+the first mod each frame so an earlier mod cannot exhaust another mod's share.
+Primitives farther than 256 blocks from the camera are discarded. Textures
+must be current, same-renderer GUI texture handles. Requests are accepted from
+the client world frame hook and consumed once after the world pass with
+the world's reverse-Z depth test, alpha blending, and no depth writes.
+
+For late submission, opt into `RenderNeeds::pre_post()` with fragment
+`@API:world_pre_post@`: `WorldPrePost.draws` exposes the same bounded
+`WorldDraws::{line, quad, textured_quad, billboard}` queue after world
+transparency, before post-processing and the separately rendered first-person
+hand. Submit through this field, not the
+earlier frame-only host helpers. Empty queues allocate no world-draw GPU
+resources and add no render passes. Title/menu-only frames discard requests.
+
+World draws cache texture views and bind groups by texture registration. Mod
+commands are finished in a separate, checked encoder before submission; invalid
+attachments or GPU validation failures disable that mod's draw source, log once,
+and become observable through `world_draw_state() -> Result<(), String>`.
+Host-created world textures retain their pixels and filtering across resource
+reload and device replacement. GPU-imported textures cannot be reconstructed
+after device loss; their draw source is disabled rather than using a stale handle.
+
+`draw_post_tint(color: u32) -> Result<(), String>` and
+`draw_post_vignette(color: u32) -> Result<(), String>` submit full-screen ARGB
+effects after the world and before the HUD. Vignette alpha controls darkening
+strength. At most 16 effects are accepted per frame, and a missing texture
+returns an error. These helpers are not exposed through the stable DLL SDK.
+
+## Mod post-process shaders
+
+Fragment `@API:post_shader@` adds source-mod helpers
+`register_post_shader(id, wgsl, NativePostUniformLayout { size })`,
+`set_post_shader_uniforms(id, bytes)`, `enable_post_shader(id, enabled)`, and
+`unregister_post_shader(id)`.
+Each returns `Result<(), String>`; registration and mutation require the
+calling mod's namespaced ID. At most four shaders per mod can be registered, each with
+at most 64 KiB of WGSL. Registration validates with Naga and captures wgpu
+pipeline errors instead of panicking. Shaders start disabled.
+
+Supply exactly one fragment entry point named `fs_main`, accepting
+`@location(0)` UV coordinates and returning `@location(0)` color. The host owns
+the fullscreen-triangle vertex stage. Group 0 reserves binding 0 for the input
+`texture_2d<f32>`, binding 1 for a non-filtering sampler, and optional binding 2
+for the uniform buffer. Uniform size is zero or a multiple of 16 bytes up to
+4096, and must exactly match the WGSL uniform type. Updates must supply exactly
+that many bytes, with at most 16 update attempts per mod per frame. No storage buffers/textures, workgroup memory, additional
+entry points/bindings, loops, or excessive private/local allocations are
+accepted. Unknown IDs, duplicate registrations, bad layouts and invalid WGSL
+return errors without enabling a pass.
+
+Validation bounds the entire call graph, not just individual function bodies:
+the fragment entry point may execute at most 8192 expression-equivalents and
+64 image samples or loads, at a call depth of at most 16. Each call site adds
+the full callee cost using saturating arithmetic. There may be at most 64
+functions and 4096 expressions per function. Every declared type, including
+array, argument, return, and constant types, is limited to 16 KiB; aggregate
+private and local allocations are also limited to 16 KiB. A mod gets at most
+eight failed registration attempts per minute, including invalid WGSL,
+duplicates, and capacity failures. Unregistering a shader frees its slot.
+
+Enabled shaders run in ID order after world primitives and before the existing
+shader-pack/post-processing pipeline and HUD. Every pass samples a separate
+copy of its input, so there is no read/write texture aliasing. Targets are
+recreated on resize; disabled or unregistered shaders add no copies, targets,
+or passes. `gfx::native_post_shader::PostShaders` owns registration and rendering
+independently of gameplay for reuse by later GPU APIs. These helpers are not
+part of the stable DLL ABI.
+
+The game retains shader IDs, sources, layouts, enablement, and last uniforms
+across resource-pack reload and device replacement, rebuilding healthy pipelines
+on the new renderer. Pass/copy commands are finished under error scopes and
+submitted only when valid. A rendering failure logs once and disables the shader
+persistently across recreation; `post_shader_state(id) -> Result<bool, String>`
+returns its enablement or failure. Unregister and register again to replace a
+failed shader; enabling a failed pipeline alone is rejected.
+
+## Mod key bindings
+
+Fragment `@API:key_bindings@` adds source-mod helpers
+`register_key_binding(id, default_key, category, label) -> Result<(), String>`
+and `key_binding_state(id) -> bool`, plus the notification hook
+`key_binding_pressed(id)`. IDs must be namespaced by the calling mod; duplicate
+IDs, invalid keys, oversized metadata, and registrations beyond 32 per mod are
+rejected. Use vanilla key names such as `key.keyboard.g` or `key.mouse.4`;
+`key.keyboard.unknown` is unbound. Category and label are translation keys
+(literal fallback text is supported by the normal language lookup).
+
+Registered bindings appear in vanilla Controls grouped by category, with the
+usual conflict indication, rebinding, individual reset and Reset All. Their
+options entries are `key_key.mod.<namespace>/<path>:<key>`; all existing vanilla
+entries, defaults, order and migration rules are unchanged. Saved mod entries
+load before registration and remain available when that mod is absent.
+Registration reuses the saved value rather than overwriting it with a default.
+The saved table holds at most 256 entries; when full, registration evicts an
+entry whose binding is not registered this session. Mouse names
+`key.mouse.N` (1 through 65536) follow the same rule for registration, rebinding,
+and loading, including buttons 6 and above.
+
+The pressed hook fires on a physical up-to-down transition, not OS repeat.
+It reaches only the owning mod while playing or while that mod's own screen is
+open, never while a text field has focus or Controls is capturing a key.
+Held state clears on release, rebinding and loss of window focus. Unbound keys
+never fire. Held state is transient: it does not affect settings equality and
+survives unrelated option round trips without being saved. Without registrations the Controls layout, input handling and
+serialized options are unchanged. These helpers are not part of the stable
+DLL ABI.
+
+## HUD corner placement
+
+Fragment `@API:hud_layout@` adds `hud_place(corners, corner, [width, height])`
+and `gui_size()`. Pass the shared `Corners` received by the HUD hook. Placement
+reserves the requested box in the real stack, including the minimap and status
+effect reservations, and returns `Some([left, top])` in scaled GUI pixels.
+`gui_size()` returns the current scaled `[width, height]` in those same units.
+Hidden debug corners return `None`; non-finite, non-positive or oversized
+dimensions also return `None` without consuming space. The helpers neither
+draw nor modify the layout when unused. They are source-mod helpers, not part
+of the stable DLL ABI.
+
+## Screen slot rectangles
+
+The screen kind and slot-rectangle additions are available to source mods only;
+the stable DLL SDK and ABI do not expose them yet.
+
+`NativeScreenView.kind: Option<&str>` identifies a specific screen or vanilla
+menu type. Inventory and creative use `inventory` and `creative`; known menu
+types use IDs such as `minecraft:furnace` and `minecraft:generic_9x3`.
+Locally opened stations, chests, shulker boxes, machine menus and mounted
+inventories are identified when their type is known. Mount menus use
+`minecraft:horse_inventory`; lecterns use `minecraft:lectern`. Ambiguous
+container representations, unknown menus, and mod screens return `None`
+rather than guessing. Other screens use their normal screen ID.
+
+Fragment `@API:screen_slot_rects@` adds `screen_slot_rects() -> Option<Vec<(usize, [f32; 4])>>`.
+While an inventory, container, or creative screen is open, it returns the game's
+slot IDs and their `[x, y, width, height]` icon rectangles in GUI coordinates.
+The positions use the same layout as the current screen, including recipe-book
+and modded inventory layout changes. Mounted inventories include equipment
+and storage slots; lecterns return an empty vector because they have no item
+slots. Other screens return `None`.
+
+## Registry names and ownership
+
+These helpers are available to source mods only; the stable DLL SDK and ABI do
+not expose them yet.
+
+Fragment `@API:registry_names@` adds `display_name(registry, id) -> String`.
+It accepts every engine registry, including a `minecraft:` prefix on the
+registry name. IDs without a namespace use `minecraft`. Names use the selected
+language and the existing English fallback. Vanilla translation-key aliases
+cover `entity_type`, `mob_effect`, `worldgen/biome`, `custom_stat` and
+`attribute`; other registries use their namespaced translation key. Enchantments
+and jukebox songs use their registered description components when present.
+Registries or entries without a display translation return the ID, not an
+invented human-readable name; items retain the existing item-name fallback.
+
+`owner_mod(namespace) -> Option<(String, String)>` returns the owner ID and
+manifest name of an accepted content mod, including its declared namespace
+aliases. `minecraft` returns `Some(("minecraft", "Minecraft"))`; unknown
+namespaces, native-only mods without an accepted content manifest, and rejected
+content return `None`. Ownership follows the loaded content root and reloads.
+
+## View raycast
+
+Fragment `@API:view_raycast@` adds the source-mod helper
+`client_view_hit(max_distance: f64) -> Option<NativeViewHit>`. It uses the client view
+and crosshair picking, including attack-hitbox overrides, and reports the first
+block or entity intersection in world coordinates. Blocks include their
+position and face; entities always include their ID and UUID. Candidates with
+no resolvable UUID are excluded, and dragon-part hits report the parent's UUID.
+Entity selection uses the same picker as crosshair attack targeting, including
+its hitbox overrides, nearest-distance ordering and block occlusion. The
+distance must be finite, positive, and at most 128 blocks.
+Queries run during client frame hooks and share the per-mod, eight-query frame
+budget with `crosshair_entity`. The stable DLL SDK and ABI do not expose this
+helper yet. The existing `view_hit` catalog helper keeps its original meaning;
+`client_view_hit` is the new world-raycast helper, not a rename of `view_hit`.

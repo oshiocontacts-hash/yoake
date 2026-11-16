@@ -1,0 +1,9 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "hud_place", "target": "horizon_client::game::native_hud_layout::Game<'_>::native_hud_place"},
+    {"name": "gui_size", "target": "horizon_client::game::native_hud_layout::Game<'_>::native_gui_size"}
+  ],
+  "rust_summary": "Shared HUD corner placement and scaled GUI dimensions.",
+  "doc_summary": "In the HUD hook, `hud_place(corners, corner, [width, height])` reserves space in the actual shared stack and returns its top-left GUI-pixel position. Hidden debug corners and invalid sizes return None without reserving space. `gui_size()` returns [width, height] in scaled GUI pixels. Requires API @API:hud_layout@."
+}

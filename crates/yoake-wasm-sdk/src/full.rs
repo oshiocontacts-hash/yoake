@@ -40,8 +40,19 @@ pub mod client {
     pub use bindings::yoake::mods::client_services as services;
     /// The engine value types of the hooks (records, enums, variants).
     pub use bindings::yoake::mods::engine_types as et;
-    pub use bindings::yoake::mods::server_types as types;
+    pub mod types {
+        pub use super::bindings::yoake::mods::client_types::*;
+        pub use super::bindings::yoake::mods::server_types::{
+            ConfigValue, ConfigValueKind, StorageScope,
+        };
+    }
     pub use bindings::yoake::mods::{feedback, hud, logging, network, settings};
+    pub use bindings::yoake::mods::{gpu_services as gpu_raw, gpu_types};
+
+    /// Owned GPU resources and checked command descriptors. Raw imports remain in `gpu_raw`.
+    pub mod gpu {
+        include!("gpu.rs");
+    }
 
     #[allow(unused_imports)]
     use crate::prelude::*;
@@ -84,7 +95,11 @@ pub mod server {
 
         /// An item stack with default components.
         pub fn item(id: &str, count: u32) -> types::ItemStack {
-            types::ItemStack { item: id.to_owned(), count, components: Vec::new() }
+            types::ItemStack {
+                item: id.to_owned(),
+                count,
+                components: Vec::new(),
+            }
         }
 
         pub fn block_pos(x: i32, y: i32, z: i32) -> types::BlockPos {
@@ -96,7 +111,11 @@ pub mod server {
         }
 
         /// Breaks a block as the player with their tool: drops, durability, experience, statistics, events.
-        pub fn break_block_as(dimension: &str, player: &str, at: (i32, i32, i32)) -> Result<bool, String> {
+        pub fn break_block_as(
+            dimension: &str,
+            player: &str,
+            at: (i32, i32, i32),
+        ) -> Result<bool, String> {
             services::break_block_as(dimension, player, block_pos(at.0, at.1, at.2))
         }
 
@@ -109,7 +128,12 @@ pub mod server {
         /// Takes exactly `count` of an item from the player (any components), all or nothing.
         pub fn take(player: &str, id: &str, count: u32) -> Result<bool, String> {
             services::inventory_apply(
-                &types::InventoryChange { operation: types::InventoryOperation::Clear, item: id.to_owned(), count, components: None },
+                &types::InventoryChange {
+                    operation: types::InventoryOperation::Clear,
+                    item: id.to_owned(),
+                    count,
+                    components: None,
+                },
                 player,
             )
         }
@@ -128,18 +152,36 @@ pub mod server {
         }
 
         /// Every slot of the container at the position (both halves of a double chest).
-        pub fn container(dimension: &str, at: (i32, i32, i32)) -> Result<Vec<Option<types::ItemStack>>, String> {
+        pub fn container(
+            dimension: &str,
+            at: (i32, i32, i32),
+        ) -> Result<Vec<Option<types::ItemStack>>, String> {
             services::container_slots(dimension, block_pos(at.0, at.1, at.2))
         }
 
         /// Rearranges the container: the same items in other slots (the host checks the totals).
-        pub fn set_container(dimension: &str, at: (i32, i32, i32), slots: &[Option<types::ItemStack>]) -> Result<(), String> {
+        pub fn set_container(
+            dimension: &str,
+            at: (i32, i32, i32),
+            slots: &[Option<types::ItemStack>],
+        ) -> Result<(), String> {
             services::container_set_slots(dimension, block_pos(at.0, at.1, at.2), slots)
         }
 
         /// A transient `add-value` attribute modifier.
-        pub fn add_attribute(player: &str, attribute: &str, id: &str, amount: f64) -> Result<(), String> {
-            services::player_attribute_modifier_add(amount, attribute, id, types::AttributeOperation::AddValue, player)
+        pub fn add_attribute(
+            player: &str,
+            attribute: &str,
+            id: &str,
+            amount: f64,
+        ) -> Result<(), String> {
+            services::player_attribute_modifier_add(
+                amount,
+                attribute,
+                id,
+                types::AttributeOperation::AddValue,
+                player,
+            )
         }
 
         /// Calls another package's `handle_call`.

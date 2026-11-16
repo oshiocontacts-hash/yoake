@@ -31,7 +31,7 @@ fn vec3(position: [f64; 3]) -> st::Vec3 {
 
 /// Runs `op` with `host` as the game. `Op::Advance` is the bridge's own and never gets here.
 pub(in crate::entry) fn execute(host: &mut dyn Host, op: Op) -> Answer {
-    let mut invocation = Invocation { host: HostAccess::Write(host), batch: None, batch_start: 0 };
+    let mut invocation = Invocation { host: HostAccess::Write(host), batch: None, batch_start: 0, client: ClientExtras::default() };
     let _scope = Scope::enter(&mut invocation);
     // The game's native entity queries (and the guard around native mods) want a mod call to be active: the
     // driver is one, under a mod index no real mod has.

@@ -1,0 +1,11 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "screen_slot_rects", "target": "horizon_client::game::native_screen_slots::Game<'_>::native_screen_slot_rects"}
+  ],
+  "rust_summary": "querying the current inventory screen's slot rectangles (`native_screen_slot_rects`).",
+  "doc_summary": "`NativeScreenView.kind` identifies specific vanilla screens or menu types when known; ambiguous and mod screens have no kind. `screen_slot_rects()` returns the open inventory or creative screen's `(slot_id, [x, y, width, height])` entries in GUI pixels, or `None` when no known vanilla slot screen is visible. The IDs are game inventory slot IDs, not necessarily network menu indices. Bundles need fragment @API:screen_slot_rects@.",
+  "comments": [
+    "crates/horizon-client/src/game/native_screen_slots.rs"
+  ]
+}

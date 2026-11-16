@@ -174,10 +174,11 @@ pub struct Wasm {
 }
 
 /// The `[wasm] permissions` this build knows.
-pub const WASM_PERMISSIONS: [&str; 6] = [
+pub const WASM_PERMISSIONS: [&str; 7] = [
     "service.chat",
     "service.commands",
     "service.config",
+    "service.gpu",
     "service.http",
     "service.permissions",
     "service.storage",

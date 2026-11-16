@@ -137,10 +137,18 @@ pub mod block_light;
 pub mod lightning;
 mod lod;
 mod native_entity;
+pub mod mod_gpu;
+pub mod mod_gpu_resources;
+pub mod mod_gpu_runtime;
+pub mod mod_gpu_shader;
 mod native_material;
 mod native_pack;
 mod native_post;
+pub mod native_post_shader;
 pub mod native_render;
+pub mod native_services;
+#[cfg(test)]
+mod native_services_tests;
 mod native_shadow;
 mod native_sky;
 mod native_world;
@@ -1100,6 +1108,7 @@ pub struct Renderer {
     /// Resolution scale, FXAA and TAA (Horizon settings).
     world_post: world_post::Post,
     native_pre_post_previous: Option<(Mat4, DVec3)>,
+    pub native_services: native_services::WorldServices,
     native_pre_post_frame: u64,
     /// Frame generation (Horizon setting).
     frame_gen: frame_gen::FrameGen,
@@ -1898,6 +1907,9 @@ async fn open_backend(
     };
     match opened {
         Ok((device, queue)) => {
+            device.on_uncaptured_error(Arc::new(|error| {
+                log::error!("Horizon renderer: uncaptured GPU error: {error}");
+            }));
             let device_lost = Arc::new(std::sync::atomic::AtomicBool::new(false));
             let lost = device_lost.clone();
             device.set_device_lost_callback(move |reason, message| {
@@ -1911,6 +1923,7 @@ async fn open_backend(
                 );
                 native_render::native_render_device_lost(&reason, &message);
                 lost.store(true, std::sync::atomic::Ordering::Relaxed);
+                mod_gpu_runtime::device_lost();
             });
             native_render::native_render_device_ready(&device, &queue);
             Ok(Opened {
@@ -4000,6 +4013,7 @@ impl Renderer {
                 on_off(gpu_timer.is_some()),
             ));
         }
+        mod_gpu_runtime::configure(&device, &queue, device_lost.clone());
         Ok(Self {
             display: DisplayWatch::default(),
             display_fresh: false,
@@ -4191,6 +4205,7 @@ impl Renderer {
             layout: crate::chunk::ColumnLayout::VANILLA,
             world_post,
             native_pre_post_previous: None,
+            native_services: native_services::WorldServices::default(),
             native_pre_post_frame: 0,
             frame_gen: frame_gen::FrameGen::new(),
             entity_atlas: atlas_view.clone(),
@@ -7957,6 +7972,8 @@ impl Renderer {
         let pack_post = !frame.title && self.pack_post.as_ref().is_some_and(|p| p.1.is_some());
         // One of Horizon's own packs reads the same world target.
         let native_post = !frame.title && self.native.as_ref().is_some_and(|n| n.post.is_some());
+        let mod_post = !frame.title && self.native_services.post.active();
+        let mod_draws = !frame.title && !self.native_services.draws.is_empty();
         if let Some(timer) = Self::pass_timer(&mut self.pack_post, &mut self.native)
             && timer.is_some() != self.pass_timing
         {
@@ -7965,16 +7982,10 @@ impl Renderer {
                 .then(|| pack_timing::PassTiming::new(&self.device, &self.queue))
                 .flatten();
         }
-        let pack_reads_world = pack_post || native_post;
+        let pack_reads_world = pack_post || native_post || mod_post;
         laps.lap("r_uploads");
         let render_needs = native_render::render_needs();
         // Phase 2 of occlusion culling draws over the depth, and a shader pack or TAA reads it.
-        let keep_depth = pack_reads_world
-            || (taa && self.world_post.taa)
-            || oit_on
-            || render_needs.world_depth
-            || render_needs.pre_post
-            || fg;
         // The pack's program reads the vertices this frame's draws bind.
         let pack_draws_terrain = pack_terrain && flat_frame == self.pack_terrain_flat;
         // The shadow camera's lists, drawn by the pack's shadow programs.
@@ -8021,10 +8032,68 @@ impl Renderer {
                 .as_ref()
                 .and_then(|p| p.1.as_ref())
                 .is_some_and(|p| p.has_weather());
+        let mut scaled = self.world_post.prepare(
+            &self.device,
+            [self.config.width, self.config.height],
+            pack_reads_world || fg,
+        );
+        let world_view = match &scaled {
+            Some((color, _)) => color,
+            None => &view_target,
+        };
+        if mod_gpu_runtime::active() && !frame.title {
+            mod_gpu_runtime::begin_frame(
+                mod_gpu_runtime::Frame {
+                    index: frame.ticks,
+                    width: world_view.texture().width(),
+                    height: world_view.texture().height(),
+                    view_projection: jittered.to_cols_array(),
+                    camera: frame.camera.to_array(),
+                    delta_seconds: 0.0,
+                    world_format: mod_gpu_resources::frame_format(world_view.texture().format()),
+                    hud_format: mod_gpu_resources::frame_format(self.config.format),
+                },
+                mod_gpu_resources::EngineFrame {
+                    view: (pose * views.primary().view).to_cols_array(),
+                    projection: views.primary().projection.to_cols_array(),
+                    view_projection: view_proj.to_cols_array(),
+                    inverse_view_projection: view_proj.inverse().to_cols_array(),
+                    jittered_view_projection: jittered.to_cols_array(),
+                    inverse_jittered_view_projection: jittered.inverse().to_cols_array(),
+                    camera_time: [
+                        frame.camera.x as f32,
+                        frame.camera.y as f32,
+                        frame.camera.z as f32,
+                        0.0,
+                    ],
+                    sun: [sun.x, sun.y, sun.z, 1.0],
+                    moon: [-sun.x, -sun.y, -sun.z, 1.0],
+                    fog_color,
+                    fog_range: fog,
+                    jitter: (jittered * view_proj.inverse()).w_axis.to_array(),
+                    ..Default::default()
+                },
+            );
+        }
+        let pack_reads_world = pack_reads_world || (!frame.title && mod_gpu_runtime::reads_scene());
+        if scaled.is_none() && pack_reads_world {
+            scaled = self.world_post.prepare(
+                &self.device,
+                [self.config.width, self.config.height],
+                true,
+            );
+        }
         let (world_view, world_depth) = match &scaled {
             Some((color, depth)) => (color, depth),
             None => (&view_target, &self.depth),
         };
+        let keep_depth = pack_reads_world
+            || mod_draws
+            || (taa && self.world_post.taa)
+            || oit_on
+            || render_needs.world_depth
+            || render_needs.pre_post
+            || fg;
         if culling && let Some(cull) = &mut self.cull {
             cull.bind_depth(&self.device, world_depth);
         }
@@ -8038,6 +8107,7 @@ impl Renderer {
             // Frame generation draws the hand over the real and the made frame after the world.
             && fg_frames.is_none()
             && !render_needs.pre_post
+            && !mod_draws
             && !native_render::world_drawn_hooked();
         if oit_on {
             let size = self
@@ -8927,6 +8997,31 @@ impl Renderer {
                 pass.set_bind_group(0, &self.group, &[]);
                 pack_frame(&mut pass);
             }
+            if !frame.title && mod_gpu_runtime::has_stage(mod_gpu::Stage::WorldOpaque) {
+                drop(pass);
+                self.queue.submit([encoder.finish()]);
+                mod_gpu_runtime::submit_stage(
+                    mod_gpu::Stage::WorldOpaque,
+                    Some(&mod_gpu_resources::FrameTarget {
+                        color: world_view,
+                        depth: Some(world_depth),
+                        format: world_view.texture().format().remove_srgb_suffix(),
+                    }),
+                    self.mod_gpu_sources(Some(world_depth), None),
+                );
+                encoder = self.device.create_command_encoder(&Default::default());
+                pass = world_pass_after_culling(
+                    &mut encoder,
+                    world_view,
+                    world_depth,
+                    keep_depth,
+                    self.own_timing.as_mut(),
+                    "World after WASM opaque",
+                );
+                pass.set_bind_group(0, &self.group, &[]);
+                pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint32);
+                pack_frame(&mut pass);
+            }
             match self.flat.as_ref().filter(|_| flat_frame) {
                 // The pack draws translucent terrain after its deferred programs.
                 _ if pack_draws_water => {}
@@ -9243,6 +9338,31 @@ impl Renderer {
                     0..1,
                 );
             }
+            if !frame.title && mod_gpu_runtime::has_stage(mod_gpu::Stage::WorldTranslucent) {
+                drop(pass);
+                self.queue.submit([encoder.finish()]);
+                mod_gpu_runtime::submit_stage(
+                    mod_gpu::Stage::WorldTranslucent,
+                    Some(&mod_gpu_resources::FrameTarget {
+                        color: world_view,
+                        depth: Some(world_depth),
+                        format: world_view.texture().format().remove_srgb_suffix(),
+                    }),
+                    self.mod_gpu_sources(Some(world_depth), None),
+                );
+                encoder = self.device.create_command_encoder(&Default::default());
+                pass = world_pass_after_culling(
+                    &mut encoder,
+                    world_view,
+                    world_depth,
+                    keep_depth,
+                    self.own_timing.as_mut(),
+                    "World after WASM translucent",
+                );
+                pass.set_bind_group(0, &self.group, &[]);
+                pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint32);
+                pack_frame(&mut pass);
+            }
             if hand_in_world {
                 pass.set_pipeline(&self.depth_reset);
                 pass.set_bind_group(0, &self.group, &[]);
@@ -9256,6 +9376,7 @@ impl Renderer {
                 device: &self.device,
                 queue: &self.queue,
                 encoder: &mut encoder,
+                draws: &mut self.native_services.draws,
                 color: world_view.texture(),
                 color_view: world_view,
                 color_format: self.config.format.remove_srgb_suffix(),
@@ -9290,6 +9411,45 @@ impl Renderer {
             self.native_pre_post_frame = self.native_pre_post_frame.wrapping_add(1);
         } else if self.native_pre_post_previous.is_some() {
             self.native_pre_post_previous = None;
+        }
+        let mut native_commands = Vec::new();
+        if frame.title {
+            self.native_services.draws.clear();
+        } else if !self.native_services.draws.is_empty() || mod_post {
+            native_commands.push(encoder.finish());
+            if let Ok(Some(commands)) = self.native_services.render(
+                &self.device,
+                &self.queue,
+                world_view.texture(),
+                world_depth.texture(),
+                jittered,
+                frame.camera,
+                self.config.format.remove_srgb_suffix(),
+            ) {
+                native_commands.push(commands);
+            }
+            if mod_post {
+                native_commands.extend(
+                    self.native_services
+                        .post
+                        .render(&self.device, world_view.texture()),
+                );
+            }
+            encoder = self.device.create_command_encoder(&Default::default());
+        }
+        if !frame.title && mod_gpu_runtime::has_stage(mod_gpu::Stage::AfterWorld) {
+            self.queue
+                .submit(native_commands.drain(..).chain([encoder.finish()]));
+            mod_gpu_runtime::submit_stage(
+                mod_gpu::Stage::AfterWorld,
+                Some(&mod_gpu_resources::FrameTarget {
+                    color: world_view,
+                    depth: Some(world_depth),
+                    format: world_view.texture().format().remove_srgb_suffix(),
+                }),
+                self.mod_gpu_sources(Some(world_depth), Some(world_view)),
+            );
+            encoder = self.device.create_command_encoder(&Default::default());
         }
         if let Some((color, depth)) = &scaled
             && pack_post
@@ -9523,6 +9683,9 @@ impl Renderer {
             hand_view_proj,
             native_overlay: render_needs.overlay,
         };
+        if mod_gpu_runtime::has_stage(mod_gpu::Stage::Hud) && !native_commands.is_empty() {
+            self.queue.submit(native_commands.drain(..));
+        }
         let readback =
             self.draw_overlay(&mut encoder, frame, &view_target, &target_texture, &overlay);
         if culling && let Some(cull) = &mut self.cull {
@@ -9590,7 +9753,8 @@ impl Renderer {
         // submission needs this one: screenshots' readbacks, the error scopes (one per
         // thread), the first frame's startup log, VSync's frame callback, a reconfigure.
         // Frame generation presents its own frames (`frame_gen.present` below).
-        let can_defer = readback.is_none()
+        let can_defer = native_commands.is_empty()
+            && readback.is_none()
             && native_readback.is_none()
             && fg_frames.is_none()
             && hdr_readback.is_none()
@@ -9646,7 +9810,10 @@ impl Renderer {
             startup_step(format_args!("submitting the first frame"));
             self.first_frame = FirstFrame::Drawn;
         }
-        let submission = crate::spans::time("submit", || self.queue.submit([commands]));
+        let submission = crate::spans::time("submit", || {
+            self.queue
+                .submit(native_commands.into_iter().chain([commands]))
+        });
         if let Some(readback) = native_readback
             && let Some(output) = &self.native_fixed
         {
@@ -9750,6 +9917,21 @@ impl Renderer {
     }
 }
 impl Renderer {
+    fn mod_gpu_sources<'a>(
+        &'a self,
+        depth: Option<&'a wgpu::TextureView>,
+        scene: Option<&'a wgpu::TextureView>,
+    ) -> mod_gpu_resources::EngineSources<'a> {
+        mod_gpu_resources::EngineSources {
+            frame: Default::default(),
+            atlas: self.sprite_views.first(),
+            sampler: Some(&self.sprite_sampler),
+            depth: depth.map(wgpu::TextureView::texture),
+            scene: scene.map(wgpu::TextureView::texture),
+            lightmap: Some(&self.lightmap_view),
+        }
+    }
+
     /// What draws over the world, on the real frame and frame generation's made one:
     /// the hand, entity outlines, post effects, screen effects, the debug crosshair and
     /// the HUD. Returns the world icon's readback, taken on the real frame.
@@ -10012,7 +10194,13 @@ impl Renderer {
         let menu_blur = frame
             .menu_blur
             .filter(|_| self.config.usage.contains(wgpu::TextureUsages::COPY_SRC));
-        let blur_at = menu_blur.map_or(0, |_| frame.hud.blur_at);
+        let gpu_hud =
+            overlay.real && !frame.title && mod_gpu_runtime::has_stage(mod_gpu::Stage::Hud);
+        let blur_at = if gpu_hud {
+            frame.hud.blur_at
+        } else {
+            menu_blur.map_or(0, |_| frame.hud.blur_at)
+        };
         self.hud.draw_range(
             encoder,
             view_target,
@@ -10022,6 +10210,20 @@ impl Renderer {
             0..blur_at,
             timing.as_mut(),
         );
+        if gpu_hud {
+            let replacement = self.device.create_command_encoder(&Default::default());
+            self.queue
+                .submit([std::mem::replace(encoder, replacement).finish()]);
+            mod_gpu_runtime::submit_stage(
+                mod_gpu::Stage::Hud,
+                Some(&mod_gpu_resources::FrameTarget {
+                    color: view_target,
+                    depth: None,
+                    format: self.config.format.remove_srgb_suffix(),
+                }),
+                self.mod_gpu_sources(None, None),
+            );
+        }
         if let Some(radius) = menu_blur {
             let format = self.config.format;
             let device = &self.device;

@@ -43,6 +43,10 @@ impl Subscriptions {
         for name in names {
             let name = name.as_ref();
             let Some((_, side)) = FULL_HOOKS.iter().find(|(hook, _)| *hook == name) else {
+                if world == FullWorld::Client && name == "gpu_frame" {
+                    hooks.insert(name.to_owned());
+                    continue;
+                }
                 return Err(format!("unknown hook subscription: {name}"));
             };
             let runs_here = matches!(

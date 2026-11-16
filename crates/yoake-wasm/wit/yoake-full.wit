@@ -1326,6 +1326,7 @@ interface engine-types {
 
     record native-screen-view {
         id: string,
+        kind: option<string>,
         menu: option<string>,
         title: option<text-json>,
         extra: list<u8>,
@@ -1956,6 +1957,7 @@ interface server-types {
     }
 }
 
+/// Services listed in `abi-subset-server.json`.
 interface server-services {
     use server-types.{attribute-operation, config-value-kind, damage-kind, inventory-operation, storage-scope, team-operation, world-control-operation, advancement-state, attribute-value, block-edit, block-entity-create, block-entity-patch, block-entity-state, block-pos, block-run, bounds, chat-decision, chat-recipients, command-usage, config-value, container-ref, damage-decision, entity-snapshot, entity-vitals, inventory-change, item-entity, item-stack, knockback-decision, particle-request, player, player-inventory-slot, player-motion, ray-hit, team-change, tool-requirement, vec3, world-border-state, world-control-change};
 
@@ -2061,9 +2063,147 @@ interface server-services {
     storage-blob-read: func(key: string, length: u32, offset: u64, scope: storage-scope) -> result<list<u8>, string>;
 }
 
-interface client-services {
-    use server-types.{attribute-operation, config-value-kind, damage-kind, inventory-operation, storage-scope, team-operation, world-control-operation, advancement-state, attribute-value, block-edit, block-entity-create, block-entity-patch, block-entity-state, block-pos, block-run, bounds, chat-decision, chat-recipients, command-usage, config-value, container-ref, damage-decision, entity-snapshot, entity-vitals, inventory-change, item-entity, item-stack, knockback-decision, particle-request, player, player-inventory-slot, player-motion, ray-hit, team-change, tool-requirement, vec3, world-border-state, world-control-change};
+interface client-types {
+    enum hud-corner {
+        top-left,
+        top-right,
+        bottom-left,
+        bottom-right,
+    }
 
+    record box2 {
+        height: f32,
+        width: f32,
+        x: f32,
+        y: f32,
+    }
+
+    record camera-override {
+        fov-degrees: f32,
+        pitch: f32,
+        position: vec3,
+        roll: f32,
+        yaw: f32,
+    }
+
+    record camera-state {
+        dimension: string,
+        eye-height: f32,
+        far: f32,
+        fov-degrees: f32,
+        near: f32,
+        partial-tick: f32,
+        pitch: f32,
+        position: vec3,
+        projection: list<f32>,
+        view: list<f32>,
+        yaw: f32,
+    }
+
+    record item-stack {
+        components: list<u8>,
+        count: u32,
+        item: string,
+    }
+
+    record key-state {
+        down: bool,
+    }
+
+    record map-entity {
+        id: u32,
+        kind: string,
+        position: vec3,
+        yaw: f32,
+    }
+
+    record map-player {
+        dimension: string,
+        name: string,
+        position: vec3,
+        uuid: string,
+        yaw: f32,
+    }
+
+    record map-tile {
+        color: list<u8>,
+        depth: list<u8>,
+        height: list<s16>,
+    }
+
+    record pcm-anchor {
+        entity: option<u32>,
+        position: option<vec3>,
+    }
+
+    record slot-rect {
+        bounds: box2,
+        slot: u32,
+    }
+
+    record vec2 {
+        x: f32,
+        y: f32,
+    }
+
+    record vec3 {
+        x: f64,
+        y: f64,
+        z: f64,
+    }
+
+    record view-hit {
+        block: option<tuple<s32, s32, s32>>,
+        entity: option<u32>,
+        face: option<tuple<s32, s32, s32>>,
+        position: vec3,
+        uuid: option<string>,
+    }
+}
+
+/// Services listed in `abi-subset-client.json`.
+interface client-services {
+    use client-types.{hud-corner, box2, camera-override, camera-state, item-stack, key-state, map-entity, map-player, map-tile, pcm-anchor, slot-rect, vec2, vec3, view-hit};
+
+    use hud.{gui-texture};
+
+    use server-types.{storage-scope, config-value};
+
+    register-key-binding: func(category: string, default-key: string, id: string, label: string) -> result<_, string>;
+    key-binding-state: func(id: string) -> result<key-state, string>;
+    client-view-hit: func(max-distance: f64) -> result<option<view-hit>, string>;
+    display-name: func(id: string, registry: string) -> result<string, string>;
+    owner-mod: func(namespace: string) -> result<option<tuple<string, string>>, string>;
+    draw-gui-item: func(at: vec2, scale: f32, stack: item-stack) -> result<bool, string>;
+    screen-kind: func() -> result<option<string>, string>;
+    screen-slot-rects: func() -> result<option<list<slot-rect>>, string>;
+    draw-world-line: func(color: u32, end: vec3, start: vec3, width: f32) -> result<_, string>;
+    draw-world-quad: func(color: u32, corners: list<vec3>) -> result<_, string>;
+    draw-world-textured-quad: func(color: u32, corners: list<vec3>, texture: borrow<gui-texture>, uv: box2) -> result<_, string>;
+    draw-world-billboard: func(center: vec3, color: u32, size: vec2, texture: borrow<gui-texture>, uv: box2) -> result<_, string>;
+    draw-post-tint: func(color: u32) -> result<_, string>;
+    draw-post-vignette: func(color: u32) -> result<_, string>;
+    register-post-shader: func(id: string, uniform-size: u32, wgsl: string) -> result<_, string>;
+    unregister-post-shader: func(id: string) -> result<_, string>;
+    set-post-shader-uniforms: func(bytes: list<u8>, id: string) -> result<_, string>;
+    enable-post-shader: func(enabled: bool, id: string) -> result<_, string>;
+    post-shader-state: func(id: string) -> result<bool, string>;
+    map-columns: func(below: option<s32>, chunk: tuple<s32, s32>) -> result<option<map-tile>, string>;
+    client-players: func() -> result<list<map-player>, string>;
+    client-entities-in: func(center: vec3, radius: f64) -> result<list<map-entity>, string>;
+    camera: func() -> result<option<camera-state>, string>;
+    camera-override-call: func(value: option<camera-override>) -> result<_, string>;
+    gui-texture-write: func(bytes: list<u8>, origin: tuple<u32, u32>, size: tuple<u32, u32>, texture: borrow<gui-texture>) -> result<_, string>;
+    audio-stream-open: func(anchor: pcm-anchor, category: string, channels: u16, sample-rate: u32) -> result<u32, string>;
+    audio-stream-push: func(samples: list<f32>, %stream: u32) -> result<u32, string>;
+    audio-stream-push-i16: func(samples: list<s16>, %stream: u32) -> result<u32, string>;
+    audio-stream-queued: func(%stream: u32) -> result<option<u32>, string>;
+    audio-stream-dropped: func(%stream: u32) -> result<option<u64>, string>;
+    audio-stream-move: func(anchor: pcm-anchor, %stream: u32) -> result<_, string>;
+    audio-stream-close: func(%stream: u32) -> result<bool, string>;
+    hud-place: func(corner: hud-corner, size: vec2) -> result<option<vec2>, string>;
+    map-colors: func() -> result<list<u32>, string>;
+    draw-mob-as-player: func(appearance: list<u8>) -> result<bool, string>;
     config-get: func(key: string) -> result<config-value, string>;
     config-set: func(key: string, value: config-value) -> result<_, string>;
     storage-get: func(key: string, scope: storage-scope) -> result<option<list<u8>>, string>;
@@ -2074,6 +2214,134 @@ interface client-services {
     storage-blob-commit: func(id: u64) -> result<_, string>;
     storage-blob-abort: func(id: u64) -> result<bool, string>;
     storage-blob-read: func(key: string, length: u32, offset: u64, scope: storage-scope) -> result<list<u8>, string>;
+}
+
+interface gpu-types {
+    enum binding-kind {
+        buffer,
+        texture,
+        sampler,
+    }
+
+    enum pixel-format {
+        rgba8,
+        rgba8-srgb,
+        rgba16f,
+        rgba32f,
+        r32f,
+        rg16f,
+        depth32f,
+        bgra8,
+        rgb10a2,
+    }
+
+    enum stage {
+        world-opaque,
+        world-translucent,
+        after-world,
+        hud,
+    }
+
+    record attribute {
+        components: u8,
+        location: u32,
+        offset: u64,
+    }
+
+    record binding {
+        binding: u32,
+        handle: u32,
+        kind: binding-kind,
+        offset: u64,
+        size: u64,
+    }
+
+    record buffer-range {
+        handle: u32,
+        offset: u64,
+        size: u64,
+    }
+
+    record draw-desc {
+        count: u32,
+        groups: list<u32>,
+        index: option<buffer-range>,
+        index32: bool,
+        instances: u32,
+        pipeline: u32,
+        vertex: option<buffer-range>,
+    }
+
+    record draw-target {
+        clear: option<tuple<f64, f64, f64, f64>>,
+        color: option<u32>,
+        depth: option<u32>,
+    }
+
+    record frame-info {
+        camera: tuple<f64, f64, f64>,
+        delta-seconds: f32,
+        height: u32,
+        hud-format: option<pixel-format>,
+        index: u64,
+        version: u32,
+        view-projection: list<f32>,
+        width: u32,
+        world-format: option<pixel-format>,
+    }
+
+    record render-desc {
+        attributes: list<attribute>,
+        blend: bool,
+        cull: bool,
+        depth: bool,
+        depth-write: bool,
+        format: pixel-format,
+        fragment-entry: string,
+        lines: bool,
+        shader: u32,
+        stride: u64,
+        vertex-entry: string,
+    }
+
+    record shader-error {
+        column: u32,
+        line: u32,
+        message: string,
+    }
+
+    record texture-desc {
+        depth: u32,
+        format: pixel-format,
+        height: u32,
+        mips: u32,
+        usage: u32,
+        volume: bool,
+        width: u32,
+    }
+}
+
+/// Services listed in `abi-subset-gpu.json`.
+interface gpu-services {
+    use gpu-types.{binding-kind, pixel-format, stage, attribute, binding, buffer-range, draw-desc, draw-target, frame-info, render-desc, shader-error, texture-desc};
+
+    buffer: func(size: u64, usage: u32) -> result<u32, string>;
+    texture: func(desc: texture-desc) -> result<u32, string>;
+    sampler: func(linear: bool, repeat: bool) -> result<u32, string>;
+    shader: func(source: string) -> result<u32, shader-error>;
+    compute: func(entry: string, shader: u32) -> result<u32, string>;
+    render: func(desc: render-desc) -> result<u32, string>;
+    bind-group: func(bindings: list<binding>, index: u32, pipeline: u32) -> result<u32, string>;
+    destroy: func(handle: u32) -> result<_, string>;
+    write-buffer: func(bytes: list<u8>, handle: u32, offset: u64, stage: stage) -> result<_, string>;
+    copy-buffer: func(destination: u32, destination-offset: u64, size: u64, source: u32, source-offset: u64, stage: stage) -> result<_, string>;
+    write-texture: func(bytes: list<u8>, extent: tuple<u32, u32, u32>, handle: u32, mip: u32, origin: tuple<u32, u32, u32>, stage: stage) -> result<_, string>;
+    dispatch: func(groups: list<u32>, pipeline: u32, stage: stage, workgroups: tuple<u32, u32, u32>) -> result<_, string>;
+    draw: func(desc: draw-desc, stage: stage, target: draw-target) -> result<_, string>;
+    read: func(handle: u32, offset: u64, size: u64, stage: stage) -> result<u32, string>;
+    poll: func(ticket: u32) -> result<option<list<u8>>, string>;
+    frame: func() -> result<frame-info, string>;
+    shader-file: func(path: string, source: string) -> result<u32, shader-error>;
 }
 
 /// Hooks that run in the client.
@@ -3546,6 +3814,7 @@ interface client-hooks {
     ///
     /// Collect: `listened` is the current value; return Some to change it (None keeps it).
     item-slot-cooldown-listened: func(listened: bool) -> option<bool>;
+    key-binding-pressed: func(id: string);
     /// `LivingEntity.getProjectile(weapon)` (NeoForge's
     /// `LivingGetProjectileEvent`) for a player (`player` and `name`) or a
     /// mob (`entity`, `kind`): a skeleton or illusioner's shot, or the crossbow
@@ -6653,10 +6922,14 @@ world client-full {
     import accounts;
     import screen;
     import server-types;
+    import client-types;
     import client-services;
+    import gpu-types;
+    import gpu-services;
     export client-hooks;
     /// Returns catalog hook names with underscores, such as `net_frames_listened`.
     export init: func() -> list<string>;
+    export gpu-frame: func();
 }
 
 world server-full {

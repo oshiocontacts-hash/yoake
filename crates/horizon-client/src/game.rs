@@ -212,6 +212,7 @@ pub mod native_block_behaviors;
 pub mod native_block_entity_draw;
 mod native_block_sprites;
 pub mod native_capabilities;
+mod native_camera;
 mod native_chat;
 mod native_claimed_items;
 mod native_client_items;
@@ -221,6 +222,8 @@ mod native_components;
 mod native_cooldowns;
 mod native_criteria;
 mod native_crosshair;
+mod native_key_bindings;
+mod native_post_shader;
 mod native_damage;
 mod native_data_maps;
 pub mod native_data_menus;
@@ -234,9 +237,11 @@ mod native_explosions;
 mod native_falling;
 mod native_fluids;
 mod native_frames;
+mod native_gui_item;
 mod native_gui_textures;
-pub(crate) mod native_hooks;
+mod native_hud_layout;
 mod native_hud_visibility;
+pub(crate) mod native_hooks;
 mod native_inventories;
 mod native_inventory_rules;
 pub(crate) mod native_inventory_screen;
@@ -282,8 +287,11 @@ mod native_team;
 mod native_ticks;
 mod native_title_screen;
 mod native_visuals;
+mod native_registry_names;
+mod native_screen_slots;
 mod native_world_border;
 mod native_world_columns;
+mod native_world_draw;
 mod native_world_edit;
 mod native_wasm_services;
 mod native_world_read;
@@ -467,7 +475,7 @@ pub use native_chat::NativeChatRecipients;
 pub use native_claimed_items::{NativeHeldItem, NativeHit, NativeModEvent};
 pub use native_client_state::{NativeClientWorld, NativeSoundCategory};
 pub use native_cooldowns::NativeCooldownTarget;
-pub use native_crosshair::NativeCrosshairEntity;
+pub use native_crosshair::{NativeCrosshairEntity, NativeViewHit, NativeViewTarget};
 pub use native_damage::{NativeDamage, NativeDamageActor, NativeDamageKind};
 pub use native_data_maps::NativeDataMapType;
 pub use native_explosions::NativeBlast;
@@ -2250,6 +2258,7 @@ pub struct PackResources {
     /// Item definitions, baked item models and special renderers.
     item_renderer: Arc<horizon_client::item_render::ItemRenderer>,
     names: Arc<Names>,
+    mod_owners: Arc<mods::ModOwners>,
     /// clouds.png: (width, height, filled cells).
     clouds: Arc<(u32, u32, Vec<bool>)>,
     /// misc/forcefield.png: (width, height, RGBA) for the world border wall.
@@ -2327,6 +2336,7 @@ impl PackResources {
             render,
             item_renderer: Arc::new(item_renderer),
             names: Arc::new(Names::load(root)),
+            mod_owners: Arc::default(),
             clouds: Arc::new(load_clouds(root)),
             forcefield: Arc::new(load_forcefield(root)),
         }
@@ -3253,6 +3263,8 @@ struct Game<'a> {
     attack_hitboxes: HashMap<i32, (f32, f32)>,
     /// A native mod's sky tint for the next sky drawn (`native_set_sky_tint`).
     native_sky_tint: Option<native_sky_tint::Tint>,
+    native_world_lines: native_world_draw::WorldLines,
+    native_post_shaders: horizon_client::gfx::native_post_shader::PostShaderRegistry,
     /// A guest's `/save-all`: saved once their turn ends (`run_guest_command`),
     /// when their own state is back in their record.
     save_after_guest_turn: bool,
@@ -11859,8 +11871,11 @@ impl Game<'_> {
         if let Some(hit) = self.tick_mob {
             return hit;
         }
+        self.mob_hit_at(self.entity_reach)
+    }
+
+    fn mob_hit_at(&self, reach: f64) -> Option<(usize, f64)> {
         let (eye, dir) = self.aim()?;
-        let reach: f64 = self.entity_reach;
         let mut best: Option<(usize, f64)> = None;
         for (i, m) in self.mobs.iter().enumerate() {
             // ProjectileUtil.getEntityHitResult: the mob the player rides
@@ -14586,6 +14601,8 @@ impl Game<'_> {
             .ok_or("no renderer for graphics recovery")?;
         let screenshot = old.screenshot.take();
         let screenshot_result = old.screenshot_result.take();
+        self.native_post_shaders.capture(&old.native_services.post);
+        self.native_world_lines.failures = old.native_services.draws.failures();
         drop(old);
         let mut renderer = build_renderer(
             window,
@@ -14600,6 +14617,7 @@ impl Game<'_> {
         )?;
         renderer.screenshot = screenshot;
         renderer.screenshot_result = screenshot_result;
+        self.restore_native_services(&mut renderer);
         self.renderer = Some(renderer);
         #[cfg(feature = "dev-capture")]
         self.capture_install_output()?;
@@ -16082,7 +16100,8 @@ impl Game<'_> {
         lines.extend(g.lines);
         let on_top = g.on_top;
         let colored_lights = if self.title.is_none() {
-            self.native_frame_visuals(camera, alpha, &mut lines)
+            let colored_lights = self.native_frame_visuals(camera, alpha, &mut lines);
+            colored_lights
         } else {
             Vec::new()
         };
@@ -16243,30 +16262,18 @@ impl Game<'_> {
         // Only native mods read it: no matrices or allocation per frame without one.
         let mods_read_camera = !horizon_client::mod_api::mods().is_empty();
         self.native_camera_frame = (mods_read_camera && !title).then(|| {
-            let partial = camera_alpha as f32;
-            horizon_client::mod_api::NativeCamera {
+            native_camera::snapshot(native_camera::CameraFrame {
                 position: camera.to_array(),
-                eye_height: self.view.eye_height_old
-                    + (self.view.eye_height - self.view.eye_height_old) * partial,
-                partial_tick: partial,
-                yaw,
-                pitch,
+                eye_height: [self.view.eye_height_old, self.view.eye_height],
+                partial_tick: camera_alpha as f32,
+                angles: [yaw, pitch, roll],
                 fov_degrees,
-                near: 0.05,
                 far: depth_far,
-                view: (bob
-                    * spin
-                    * horizon_client::camera::view_matrix_with_roll(yaw, pitch, roll))
-                .to_cols_array(),
-                projection: glam::Mat4::perspective_rh(
-                    fov_degrees.to_radians(),
-                    size[0] as f32 / size[1].max(1) as f32,
-                    depth_far,
-                    0.05,
-                )
-                .to_cols_array(),
-                dimension: self.dim.id().to_string(),
-            }
+                size,
+                bob,
+                spin,
+                dimension: self.dim.id(),
+            })
         });
         let cull_pose = if roll == 0.0 {
             bob * spin
@@ -16335,7 +16342,7 @@ impl Game<'_> {
             let aspect = size[0] as f32 / size[1].max(1) as f32;
             self.item_activation_geometry(camera_alpha as f32, view, aspect, &mut hand);
         }
-        let screen = if title {
+        let mut screen = if title {
             Vec::new()
         } else {
             let scale = self
@@ -16345,6 +16352,10 @@ impl Game<'_> {
                 .unwrap_or(1.0) as f32;
             self.screen_quads(alpha as f32, size, scale)
         };
+        if !title {
+            self.native_world_lines
+                .append_post_effects(&self.gui.atlas, &mut screen);
+        }
         if !title {
             self.end_geometry(camera, &mut entities);
         }
@@ -17621,6 +17632,22 @@ impl Game<'_> {
                 self.physical_buttons.remove(button);
             }
         }
+        match &event {
+            WindowEvent::KeyboardInput { event, .. } if !event.repeat => {
+                if let PhysicalKey::Code(key) = event.physical_key
+                    && let Some(name) = horizon_client::keybinds::key_name(key)
+                {
+                    self.native_mod_binding_event(name, event.state == ElementState::Pressed);
+                }
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                self.native_mod_binding_event(
+                    &horizon_client::keybinds::mouse_name(*button),
+                    *state == ElementState::Pressed,
+                );
+            }
+            _ => {}
+        }
         let mouse = if !self.pad_synthetic_input()
             && let WindowEvent::MouseInput { state, button, .. } = &event
         {
@@ -17646,6 +17673,7 @@ impl Game<'_> {
     }
     fn handle_window_event_inner(&mut self, event_loop: &dyn EventLoopCtl, mut event: WindowEvent) {
         if let WindowEvent::Focused(false) = &event {
+            self.settings.keys.release_mod_keys();
             self.physical_keys.clear();
             self.physical_buttons.clear();
             self.drag_button = None;
@@ -19069,6 +19097,7 @@ impl Game<'_> {
     }
     /// The loop ended: close the pads' output, save the world, write the perf report.
     pub(super) fn shut_down(&mut self) {
+        crate::gfx::mod_gpu_runtime::clean_exit();
         self.clear_native_streams();
         self.pad_close_output();
         if let Err(e) = self.save_for_exit() {
@@ -19081,6 +19110,7 @@ impl Game<'_> {
     /// save, world entry, the control socket, pads), then the next frame.
     pub(super) fn idle(&mut self, event_loop: &dyn EventLoopCtl) {
         crate::mod_guard::maintenance();
+        crate::entry::wasm_mods::drain_resources(self);
         self.maintain_native_streams();
         self.notify_native_audio_mix();
         for notice in crate::mod_guard::take_notices(false) {
@@ -19740,6 +19770,8 @@ impl<'a> Game<'a> {
             lan_acting: None,
             attack_hitboxes: HashMap::new(),
             native_sky_tint: None,
+            native_world_lines: Default::default(),
+            native_post_shaders: Default::default(),
             save_after_guest_turn: false,
             player_attachments: Default::default(),
             guest_attachments: HashMap::new(),
@@ -20546,7 +20578,7 @@ fn gameplay_tables(
 /// the launch opens, whose data is preloaded meanwhile.
 #[allow(clippy::too_many_arguments)]
 fn load_resources(
-    mut root: PathBuf,
+    root: impl Into<mods::ContentRoot>,
     launch_world: Option<&str>,
     vanilla_root: &std::path::Path,
     settings: &Settings,
@@ -20556,6 +20588,10 @@ fn load_resources(
     progress: &Progress,
     publish: &mut dyn FnMut(UiResources, &std::path::Path),
 ) -> Result<Loaded> {
+    let mods::ContentRoot {
+        path: mut root,
+        owners: mut mod_owners,
+    } = root.into();
     let threads = settings.horizon.worker_threads();
     // One pool of workers for every level's streaming, the client's and the
     // server thread's (horizon_threads::jobs), sized before any world opens.
@@ -20626,6 +20662,7 @@ fn load_resources(
         );
         pack_error = Some(failure);
         root = vanilla_root.to_path_buf();
+        mod_owners = Arc::default();
     };
     log::info!("load core tables: {:.2}s", started.elapsed().as_secs_f32());
     let CoreTables {
@@ -20654,7 +20691,7 @@ fn load_resources(
         MeshTables::new(&assets, &render, &facts, visibility)
     })?);
     let pack_step = startup::step("pack.assemble");
-    let pack = PackResources::assemble(
+    let mut pack = PackResources::assemble(
         &root,
         assets.clone(),
         render,
@@ -20663,6 +20700,7 @@ fn load_resources(
         biomes.clone(),
         Arc::new(light),
     );
+    pack.mod_owners = mod_owners;
     drop(pack_step);
     log::info!("load pack tables: {:.2}s", started.elapsed().as_secs_f32());
     progress.set(4);
@@ -22062,13 +22100,14 @@ pub fn run_with() -> Result<()> {
             pack_error = Some(e.to_string());
             vanilla_root.clone()
         });
-    options.resources = mods::content_root(
+    let content_root = mods::content_root(
         &options.resources,
         &early_settings.mods.enabled,
         &options.dev_mods,
     );
+    options.resources = content_root.path.clone();
     let loaded = load_resources(
-        options.resources.clone(),
+        content_root,
         launch_world(&options),
         &vanilla_root,
         &early_settings,

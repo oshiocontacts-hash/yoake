@@ -21,7 +21,7 @@ use horizon_client_core::text::Text;
 use horizon_items::items::ItemStack;
 use horizon_world::nbt::{Compound, Tag};
 pub(super) use yoake_inject_rt::command_gate;
-use yoake_wasm::full_bindings::client::yoake::mods::engine_types as et;
+pub(super) use yoake_wasm::full_bindings::client::yoake::mods::engine_types as et;
 use yoake_wasm::{ClientFullMod, ServerFullMod, convert, server_types as st};
 
 /// Commands a guest may return for one object in one call.
@@ -52,15 +52,14 @@ pub(super) struct SideState<M> {
 
 pub(super) struct FullMod {
     id: String,
-    client: Mutex<SideState<ClientFullMod>>,
+    client: Arc<Mutex<SideState<ClientFullMod>>>,
+    gpu_owner: Option<crate::gfx::mod_gpu::ModId>,
     server: Arc<ServerSlot>,
     /// One bit per catalog hook, per side: the guest subscribed and has not been disabled.
-    masks: [[AtomicU64; MASK_WORDS]; 2],
+    masks: Arc<[[AtomicU64; MASK_WORDS]; 2]>,
     /// Hooks dropped because the module was busy, per side.
     dropped: [AtomicU64; 2],
-    /// The client module subscribed to a render hook: only then does this mod take part in the
-    /// render pass (`Hooks::render`), so a package without one costs the frame nothing.
-    render_wanted: bool,
+    client_reload: Option<Arc<Reload>>,
     /// What starts the server module afresh at each world start.
     server_source: Option<ServerSource>,
 }
@@ -74,11 +73,20 @@ pub(super) struct ServerSource {
 
 impl ServerSource {
     pub(super) fn new(id: &str, bytes: Vec<u8>, commands: bool) -> Self {
-        Self { id: id.to_owned(), bytes: Arc::new(bytes), commands }
+        Self {
+            id: id.to_owned(),
+            bytes: Arc::new(bytes),
+            commands,
+        }
     }
 
     pub(super) fn module(&self) -> ModuleSource<'_> {
-        ModuleSource { id: &self.id, bytes: &self.bytes, commands: self.commands }
+        ModuleSource {
+            id: &self.id,
+            bytes: &self.bytes,
+            commands: self.commands,
+            gpu: false,
+        }
     }
 }
 
@@ -102,7 +110,11 @@ fn side_name(side: Side) -> &'static str {
 }
 
 impl FullMod {
-    pub(super) fn new(id: String, client: Option<ClientFullMod>, server: Option<ServerFullMod>) -> Self {
+    pub(super) fn new(
+        id: String,
+        client: Option<ClientFullMod>,
+        server: Option<ServerFullMod>,
+    ) -> Self {
         let client_mask = match &client {
             Some(module) => mask_of(|name| module.subscribed(name)),
             None => mask_of(|_| false),
@@ -111,18 +123,98 @@ impl FullMod {
             Some(module) => mask_of(|name| module.subscribed(name)),
             None => mask_of(|_| false),
         };
-        let render_wanted = RENDER_HOOKS.iter().any(|hook| client_mask[hook / 64].load(Ordering::Relaxed) >> (hook % 64) & 1 != 0);
-        let server = Arc::new(ServerSlot { state: Mutex::new(SideState { module: server, reported: false }), dirty: std::sync::atomic::AtomicBool::new(false) });
+        let server = Arc::new(ServerSlot {
+            state: Mutex::new(SideState {
+                module: server,
+                reported: false,
+            }),
+            dirty: std::sync::atomic::AtomicBool::new(false),
+        });
         register_endpoint(&id, &server);
         Self {
             id,
-            client: Mutex::new(SideState { module: client, reported: false }),
+            client: Arc::new(Mutex::new(SideState {
+                module: client,
+                reported: false,
+            })),
+            gpu_owner: None,
             server,
-            masks: [client_mask, server_mask],
+            masks: Arc::new([client_mask, server_mask]),
             dropped: [AtomicU64::new(0), AtomicU64::new(0)],
-            render_wanted,
+            client_reload: None,
             server_source: None,
         }
+    }
+
+    pub(super) fn with_gpu(mut self, enabled: bool) -> Self {
+        if !enabled {
+            return self;
+        }
+        let Some(owner) = super::gpu_services::owner(&self.id) else {
+            return self;
+        };
+        let client = Arc::downgrade(&self.client);
+        let id = self.id.clone();
+        let masks = Arc::clone(&self.masks);
+        let reload = self.client_reload.clone();
+        crate::gfx::mod_gpu_runtime::register(
+            owner,
+            &self.id,
+            Arc::new(move || {
+                let Some(client) = client.upgrade() else {
+                    return;
+                };
+                reload_client(&id, &client, &masks, reload.as_deref(), Some(owner));
+                let mut state = match client.try_lock() {
+                    Ok(state) => state,
+                    Err(std::sync::TryLockError::WouldBlock) => return,
+                    Err(std::sync::TryLockError::Poisoned(error)) => {
+                        for word in &masks[Side::Client as usize] {
+                            word.store(0, Ordering::Relaxed);
+                        }
+                        crate::gfx::mod_gpu_runtime::disable(owner, "WASM client lock poisoned");
+                        let mut state = error.into_inner();
+                        if !state.reported {
+                            state.reported = true;
+                            log::error!(
+                                "wasm mod {id} (client) disabled after its GPU callback lock was poisoned"
+                            );
+                        }
+                        return;
+                    }
+                };
+                let Some(module) = state.module.as_mut() else {
+                    return;
+                };
+                if !module.subscribed("gpu_frame") {
+                    return;
+                }
+                let mut invocation = Invocation {
+                    host: HostAccess::None,
+                    batch: None,
+                    batch_start: 0,
+                    client: ClientExtras::default(),
+                };
+                {
+                    let _scope = Scope::enter(&mut invocation);
+                    module.gpu_frame();
+                }
+                if module.is_disabled() {
+                    for word in &masks[Side::Client as usize] {
+                        word.store(0, Ordering::Relaxed);
+                    }
+                    crate::gfx::mod_gpu_runtime::disable(owner, "WASM client trapped");
+                    if !state.reported {
+                        state.reported = true;
+                        log::error!(
+                            "wasm mod {id} (client) disabled during its GPU frame callback"
+                        );
+                    }
+                }
+            }),
+        );
+        self.gpu_owner = Some(owner);
+        self
     }
 
     pub(super) fn with_server_source(mut self, source: ServerSource) -> Self {
@@ -130,9 +222,28 @@ impl FullMod {
         self
     }
 
+    pub(super) fn with_client_reload(mut self, reload: Option<Arc<Reload>>) -> Self {
+        self.client_reload = reload;
+        self
+    }
+
+    fn reload_client(&self) {
+        reload_client(
+            &self.id,
+            &self.client,
+            &self.masks,
+            self.client_reload.as_deref(),
+            self.gpu_owner,
+        );
+    }
+
     /// Whether this package takes part in the render pass.
     fn render_wanted(&self) -> bool {
-        self.render_wanted
+        self.reload_client();
+        RENDER_HOOKS.iter().any(|hook| {
+            self.masks[Side::Client as usize][hook / 64].load(Ordering::Relaxed) >> (hook % 64) & 1
+                != 0
+        })
     }
 
     /// How many hooks of `side` were dropped because the module was busy.
@@ -144,10 +255,13 @@ impl FullMod {
     /// A hook found the module busy: its answer is the hook's fallback, and the drop is counted.
     fn busy(&self, side: Side, hook: usize) {
         if self.dropped[side as usize].fetch_add(1, Ordering::Relaxed) == 0 {
-            let name = yoake_wasm::FULL_HOOK_LIST.get(hook).map_or("?", |(name, _)| *name);
+            let name = yoake_wasm::FULL_HOOK_LIST
+                .get(hook)
+                .map_or("?", |(name, _)| *name);
             log::warn!(
                 "wasm mod {} ({}): hook {name} dropped, the module was busy or re-entered; the hook's fallback applies (further drops are only counted)",
-                self.id, side_name(side)
+                self.id,
+                side_name(side)
             );
         }
     }
@@ -161,17 +275,26 @@ impl FullMod {
         self.server.dirty.store(false, Ordering::Relaxed);
         match load_server(&source.module()) {
             Ok(module) => {
-                for (word, fresh) in self.masks[Side::Server as usize].iter().zip(mask_of(|name| module.subscribed(name))) {
+                for (word, fresh) in self.masks[Side::Server as usize]
+                    .iter()
+                    .zip(mask_of(|name| module.subscribed(name)))
+                {
                     word.store(fresh.load(Ordering::Relaxed), Ordering::Relaxed);
                 }
                 state.module = Some(module);
                 state.reported = false;
-                log::info!("wasm mod {} (server): started afresh for the new world", self.id);
+                log::info!(
+                    "wasm mod {} (server): started afresh for the new world",
+                    self.id
+                );
             }
             Err(error) => {
                 state.module = None;
                 self.disable(Side::Server);
-                log::error!("wasm mod {} (server) could not start afresh and is off: {error}", self.id);
+                log::error!(
+                    "wasm mod {} (server) could not start afresh and is off: {error}",
+                    self.id
+                );
             }
         }
     }
@@ -179,6 +302,9 @@ impl FullMod {
     /// Whether this module's `side` instance subscribed to the hook with this catalog ordinal.
     #[inline]
     fn wants(&self, side: Side, hook: usize) -> bool {
+        if side == Side::Client {
+            self.reload_client();
+        }
         self.masks[side as usize][hook / 64].load(Ordering::Relaxed) >> (hook % 64) & 1 != 0
     }
 
@@ -193,6 +319,11 @@ impl FullMod {
         for word in &self.masks[side as usize] {
             word.store(0, Ordering::Relaxed);
         }
+        if matches!(side, Side::Client) {
+            if let Some(owner) = self.gpu_owner {
+                crate::gfx::mod_gpu_runtime::disable(owner, "WASM client disabled");
+            }
+        }
     }
 
     fn with_client<'call, R>(
@@ -200,8 +331,10 @@ impl FullMod {
         hook: usize,
         host: HostAccess<'call>,
         batch: Option<&'call mut HudBatch>,
+        client: ClientExtras<'call>,
         call: impl FnOnce(&mut ClientFullMod) -> Option<R>,
     ) -> Option<R> {
+        self.reload_client();
         let mut state = match self.client.try_lock() {
             Ok(state) => state,
             Err(TryLockError::WouldBlock) => {
@@ -216,7 +349,12 @@ impl FullMod {
         };
         let module = state.module.as_mut()?;
         let batch_start = batch.as_deref().map_or(0, |batch| batch.vertices.len());
-        let mut invocation = Invocation { host, batch, batch_start };
+        let mut invocation = Invocation {
+            host,
+            batch,
+            batch_start,
+            client,
+        };
         let result = {
             let _scope = Scope::enter(&mut invocation);
             call(module)
@@ -225,7 +363,10 @@ impl FullMod {
             self.disable(Side::Client);
             if !state.reported {
                 state.reported = true;
-                log::error!("wasm mod {} (client) disabled: trapped or exceeded its limits (see the line above)", self.id);
+                log::error!(
+                    "wasm mod {} (client) disabled: trapped or exceeded its limits (see the line above)",
+                    self.id
+                );
             }
         }
         result
@@ -253,7 +394,12 @@ impl FullMod {
         let module = state.module.as_mut()?;
         self.server.dirty.store(true, Ordering::Relaxed);
         let batch_start = batch.as_deref().map_or(0, |batch| batch.vertices.len());
-        let mut invocation = Invocation { host, batch, batch_start };
+        let mut invocation = Invocation {
+            host,
+            batch,
+            batch_start,
+            client: ClientExtras::default(),
+        };
         let result = {
             let _scope = Scope::enter(&mut invocation);
             call(module)
@@ -262,10 +408,80 @@ impl FullMod {
             self.disable(Side::Server);
             if !state.reported {
                 state.reported = true;
-                log::error!("wasm mod {} (server) disabled: trapped or exceeded its limits (see the line above)", self.id);
+                log::error!(
+                    "wasm mod {} (server) disabled: trapped or exceeded its limits (see the line above)",
+                    self.id
+                );
             }
         }
         result
+    }
+}
+
+impl Drop for FullMod {
+    fn drop(&mut self) {
+        if let Some(owner) = self.gpu_owner {
+            crate::gfx::mod_gpu_runtime::remove(owner);
+        }
+    }
+}
+
+fn reload_client(
+    id: &str,
+    client: &Mutex<SideState<ClientFullMod>>,
+    masks: &[[AtomicU64; MASK_WORDS]; 2],
+    reload: Option<&Reload>,
+    owner: Option<crate::gfx::mod_gpu::ModId>,
+) {
+    let Some(reload) = reload else { return };
+    if !reload.ready.load(Ordering::Acquire) {
+        return;
+    }
+    let Ok(mut state) = client.try_lock() else {
+        return;
+    };
+    if !reload.ready.swap(false, Ordering::Acquire) {
+        return;
+    }
+    let Some(bytes) = reload
+        .bytes
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .take()
+    else {
+        return;
+    };
+    match load_client_with_shaders(
+        &ModuleSource {
+            id,
+            bytes: &bytes,
+            commands: false,
+            gpu: owner.is_some(),
+        },
+        reload.shaders.clone(),
+    ) {
+        Ok(module) => {
+            if let Some(owner) = owner {
+                if let Err(error) = crate::gfx::mod_gpu_runtime::reset_resources(owner) {
+                    log::warn!(
+                        "wasm mod {id} (client): reload rejected; keeping the previous module: {error}"
+                    );
+                    return;
+                }
+            }
+            for (word, fresh) in masks[Side::Client as usize]
+                .iter()
+                .zip(mask_of(|name| module.subscribed(name)))
+            {
+                word.store(fresh.load(Ordering::Relaxed), Ordering::Relaxed);
+            }
+            state.module = Some(module);
+            state.reported = false;
+            log::info!("wasm mod {id} (client): reloaded successfully");
+        }
+        Err(error) => log::warn!(
+            "wasm mod {id} (client): reload rejected; keeping the previous module: {error}"
+        ),
     }
 }
 
@@ -282,7 +498,9 @@ trait Val {
 macro_rules! val {
     ($($ty:ty),*) => {$(impl Val for $ty { type Out = $ty; #[inline] fn val(&self) -> $ty { *self } })*};
 }
-val!(bool, char, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64);
+val!(
+    bool, char, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64
+);
 
 impl<T: Val + ?Sized> Val for &T {
     type Out = T::Out;
@@ -322,8 +540,12 @@ fn take_encode_failure() -> bool {
 fn note_encode_skip(hook: usize) {
     static SKIPPED: AtomicU64 = AtomicU64::new(0);
     if SKIPPED.fetch_add(1, Ordering::Relaxed) == 0 {
-        let name = yoake_wasm::FULL_HOOK_LIST.get(hook).map_or("?", |(name, _)| *name);
-        log::warn!("wasm: hook {name} skipped, an NBT argument did not encode (further skips are only counted)");
+        let name = yoake_wasm::FULL_HOOK_LIST
+            .get(hook)
+            .map_or("?", |(name, _)| *name);
+        log::warn!(
+            "wasm: hook {name} skipped, an NBT argument did not encode (further skips are only counted)"
+        );
     }
 }
 
@@ -378,8 +600,16 @@ fn json_map_from(json: &str) -> Option<serde_json::Map<String, serde_json::Value
 
 pub(super) fn item_w(stack: &ItemStack) -> et::ItemStack {
     match convert::item_to_wire(stack) {
-        Ok(wire) => et::ItemStack { id: wire.id, count: wire.count, components: wire.components },
-        Err(_) => et::ItemStack { id: String::new(), count: 0, components: Vec::new() },
+        Ok(wire) => et::ItemStack {
+            id: wire.id,
+            count: wire.count,
+            components: wire.components,
+        },
+        Err(_) => et::ItemStack {
+            id: String::new(),
+            count: 0,
+            components: Vec::new(),
+        },
     }
 }
 
@@ -408,12 +638,18 @@ fn bounded_string(text: String) -> Option<String> {
 
 /// Whether `id` is a syntactically valid `namespace:path` resource location of reasonable length.
 pub(super) fn valid_item_id(id: &str) -> bool {
-    let Some((namespace, path)) = id.split_once(':') else { return false };
+    let Some((namespace, path)) = id.split_once(':') else {
+        return false;
+    };
     id.len() <= MAX_ITEM_ID
         && !namespace.is_empty()
         && !path.is_empty()
-        && namespace.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'-' | b'.'))
-        && path.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'-' | b'.' | b'/'))
+        && namespace.bytes().all(|b| {
+            b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'-' | b'.')
+        })
+        && path.bytes().all(|b| {
+            b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'-' | b'.' | b'/')
+        })
 }
 
 /// A guest's item stack is only accepted when its id is a registered item (when the table is
@@ -499,33 +735,68 @@ enum Pending {
 
 /// Applies a guest's HUD commands to `batch` through the game's own draw services. Commands that
 /// have no service (textures registered by another API, text highlights) are skipped.
-pub(super) fn apply_hud(host: Option<&dyn Host>, batch: &mut HudBatch, commands: &[et::HudCommand]) {
+pub(super) fn apply_hud(
+    host: Option<&dyn Host>,
+    batch: &mut HudBatch,
+    commands: &[et::HudCommand],
+) {
     let Some(host) = host else { return };
     let mut pending: Vec<(Pending, usize)> = Vec::new();
     for command in commands.iter().take(MAX_COMMANDS) {
         match command {
             et::HudCommand::Text(text) => {
-                let line = text_from(&text.text).map(|text| text.plain()).unwrap_or_default();
+                let line = text_from(&text.text)
+                    .map(|text| text.plain())
+                    .unwrap_or_default();
                 if line.len() <= abi::MAX_TEXT_BYTES {
-                    host.text(batch, &line, [gui_scalar(text.x), gui_scalar(text.y)], text.color & 0x00ff_ffff, text.shadow);
+                    host.text(
+                        batch,
+                        &line,
+                        [gui_scalar(text.x), gui_scalar(text.y)],
+                        text.color & 0x00ff_ffff,
+                        text.shadow,
+                    );
                 }
             }
             et::HudCommand::Rect(rect) => {
-                host.fill(batch, [gui_scalar(rect.x), gui_scalar(rect.y), gui_scalar(rect.width), gui_scalar(rect.height)], rect.color);
+                host.fill(
+                    batch,
+                    [
+                        gui_scalar(rect.x),
+                        gui_scalar(rect.y),
+                        gui_scalar(rect.width),
+                        gui_scalar(rect.height),
+                    ],
+                    rect.color,
+                );
             }
             et::HudCommand::Gradient(gradient) => {
-                let (x, y, w, h) = (gui_scalar(gradient.x), gui_scalar(gradient.y), gui_scalar(gradient.width), gui_scalar(gradient.height));
+                let (x, y, w, h) = (
+                    gui_scalar(gradient.x),
+                    gui_scalar(gradient.y),
+                    gui_scalar(gradient.width),
+                    gui_scalar(gradient.height),
+                );
                 // The game's fill has no gradient service: strips of at most 2 pixels.
                 let strips = (h / 2.0).ceil().clamp(1.0, 128.0) as u32;
                 let step = h / strips as f32;
                 for index in 0..strips {
-                    let t = if strips == 1 { 0.0 } else { index as f32 / (strips - 1) as f32 };
-                    host.fill(batch, [x, y + step * index as f32, w, step.max(1.0)], mix(gradient.top, gradient.bottom, t));
+                    let t = if strips == 1 {
+                        0.0
+                    } else {
+                        index as f32 / (strips - 1) as f32
+                    };
+                    host.fill(
+                        batch,
+                        [x, y + step * index as f32, w, step.max(1.0)],
+                        mix(gradient.top, gradient.bottom, t),
+                    );
                 }
             }
             et::HudCommand::Quad(quad) => {
                 if quad.corners.len() == 4 && quad.sprite.is_none() {
-                    let p = |i: usize| [gui_scalar(quad.corners[i].0), gui_scalar(quad.corners[i].1)];
+                    let p =
+                        |i: usize| [gui_scalar(quad.corners[i].0), gui_scalar(quad.corners[i].1)];
                     host.quad(batch, [p(0), p(1), p(2), p(3)], quad.color);
                 }
             }
@@ -535,19 +806,40 @@ pub(super) fn apply_hud(host: Option<&dyn Host>, batch: &mut HudBatch, commands:
                     Some(region) => [region.x, region.y, region.width, region.height],
                     None => [0.0, 0.0, gui_scalar(width), gui_scalar(height)],
                 };
-                host.sprite(batch, &sprite.name, src, [gui_scalar(sprite.x), gui_scalar(sprite.y), gui_scalar(width), gui_scalar(height)]);
+                host.sprite(
+                    batch,
+                    &sprite.name,
+                    src,
+                    [
+                        gui_scalar(sprite.x),
+                        gui_scalar(sprite.y),
+                        gui_scalar(width),
+                        gui_scalar(height),
+                    ],
+                );
             }
             et::HudCommand::Item(item) => {
                 if let Some(stack) = item_from(&item.stack) {
-                    host.item_stack(batch, &stack, [gui_scalar(item.x), gui_scalar(item.y)], 16.0);
+                    host.item_stack(
+                        batch,
+                        &stack,
+                        [gui_scalar(item.x), gui_scalar(item.y)],
+                        16.0,
+                    );
                 }
             }
             et::HudCommand::Texture(_) | et::HudCommand::Highlight(_) => {}
             et::HudCommand::BeginClip(bounds) => {
-                pending.push((Pending::Clip([bounds.x0, bounds.y0, bounds.x1, bounds.y1]), batch.vertices.len()));
+                pending.push((
+                    Pending::Clip([bounds.x0, bounds.y0, bounds.x1, bounds.y1]),
+                    batch.vertices.len(),
+                ));
             }
             et::HudCommand::BeginScale(scale) => {
-                pending.push((Pending::Scale([scale.center_x, scale.center_y, scale.scale_x, scale.scale_y]), batch.vertices.len()));
+                pending.push((
+                    Pending::Scale([scale.center_x, scale.center_y, scale.scale_x, scale.scale_y]),
+                    batch.vertices.len(),
+                ));
             }
             et::HudCommand::BeginBlend(blend) => {
                 let blend = match blend {
@@ -559,11 +851,19 @@ pub(super) fn apply_hud(host: Option<&dyn Host>, batch: &mut HudBatch, commands:
                 pending.push((Pending::Blend(blend), batch.vertices.len()));
             }
             et::HudCommand::EndClip | et::HudCommand::EndScale | et::HudCommand::EndBlend => {
-                let Some((run, start)) = pending.pop() else { continue };
+                let Some((run, start)) = pending.pop() else {
+                    continue;
+                };
                 match (command, run) {
-                    (et::HudCommand::EndClip, Pending::Clip(b)) => batch.clip_since(start, b[0], b[1], b[2], b[3]),
-                    (et::HudCommand::EndScale, Pending::Scale(s)) => batch.scale_since(start, s[0], s[1], s[2], s[3]),
-                    (et::HudCommand::EndBlend, Pending::Blend(blend)) => batch.blend_since(start, blend),
+                    (et::HudCommand::EndClip, Pending::Clip(b)) => {
+                        batch.clip_since(start, b[0], b[1], b[2], b[3])
+                    }
+                    (et::HudCommand::EndScale, Pending::Scale(s)) => {
+                        batch.scale_since(start, s[0], s[1], s[2], s[3])
+                    }
+                    (et::HudCommand::EndBlend, Pending::Blend(blend)) => {
+                        batch.blend_since(start, blend)
+                    }
                     // A mismatched end closes nothing.
                     _ => {}
                 }
@@ -573,7 +873,11 @@ pub(super) fn apply_hud(host: Option<&dyn Host>, batch: &mut HudBatch, commands:
 }
 
 /// Applies a guest's pose-stack commands to a block entity, mob, player or item draw.
-pub(super) fn apply_model(host: Option<&dyn Host>, draw: &mut BlockEntityDraw, commands: &[et::ModelCommand]) {
+pub(super) fn apply_model(
+    host: Option<&dyn Host>,
+    draw: &mut BlockEntityDraw,
+    commands: &[et::ModelCommand],
+) {
     let mut depth = 0usize;
     for command in commands.iter().take(MAX_COMMANDS) {
         match command {
@@ -601,12 +905,23 @@ pub(super) fn apply_model(host: Option<&dyn Host>, draw: &mut BlockEntityDraw, c
                 let Some(host) = host else { continue };
                 if quad.corners.len() == 4 && quad.uv.len() == 4 {
                     let c = |i: usize| [quad.corners[i].0, quad.corners[i].1, quad.corners[i].2];
-                    host.draw_quad(draw, &quad.sprite, [c(0), c(1), c(2), c(3)], [quad.uv[0], quad.uv[1], quad.uv[2], quad.uv[3]], quad.tint);
+                    host.draw_quad(
+                        draw,
+                        &quad.sprite,
+                        [c(0), c(1), c(2), c(3)],
+                        [quad.uv[0], quad.uv[1], quad.uv[2], quad.uv[3]],
+                        quad.tint,
+                    );
                 }
             }
             et::ModelCommand::Block(block) => {
                 let Some(host) = host else { continue };
-                let properties: Vec<(&str, &str)> = block.properties.iter().take(64).map(|(k, v)| (k.as_str(), v.as_str())).collect();
+                let properties: Vec<(&str, &str)> = block
+                    .properties
+                    .iter()
+                    .take(64)
+                    .map(|(k, v)| (k.as_str(), v.as_str()))
+                    .collect();
                 host.draw_block(draw, &block.block, &properties);
             }
             // Cubes, standalone models and items need engine objects the guest cannot name here.
@@ -629,7 +944,11 @@ pub(super) fn apply_corners(corners: &mut Corners, commands: &[et::CornerCommand
             et::HudCorner::BottomLeft => crate::extras::Corner::BottomLeft,
             et::HudCorner::BottomRight => crate::extras::Corner::BottomRight,
         };
-        corners.place(corner, gui_scalar(reserve.width), gui_scalar(reserve.height));
+        corners.place(
+            corner,
+            gui_scalar(reserve.width),
+            gui_scalar(reserve.height),
+        );
     }
 }
 
@@ -638,7 +957,9 @@ pub(super) fn apply_corners(corners: &mut Corners, commands: &[et::CornerCommand
 pub(super) fn apply_frame_stage(commands: &[et::FrameCommand]) {
     static REPORTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
     if !commands.is_empty() && !REPORTED.swap(true, Ordering::Relaxed) {
-        log::warn!("wasm: frame-stage commands are not applied yet (this build has no render-target service)");
+        log::warn!(
+            "wasm: frame-stage commands are not applied yet (this build has no render-target service)"
+        );
     }
 }
 
@@ -681,15 +1002,30 @@ pub(super) fn initializing_server(owner: &str) -> bool {
 pub(super) fn game_relative(path: &std::path::Path) -> Option<String> {
     let relative = std::env::current_dir()
         .ok()
-        .and_then(|game| path.strip_prefix(game).ok().map(std::path::Path::to_path_buf))
+        .and_then(|game| {
+            path.strip_prefix(game)
+                .ok()
+                .map(std::path::Path::to_path_buf)
+        })
         .or_else(|| path.file_name().map(std::path::PathBuf::from))?;
     let text = relative.to_str()?.replace('\\', "/");
-    Some(if text.is_empty() { ".".to_owned() } else { text })
+    Some(if text.is_empty() {
+        ".".to_owned()
+    } else {
+        text
+    })
 }
 
 pub(super) fn uuid_text(uuid: u128) -> String {
     let hex = format!("{uuid:032x}");
-    format!("{}-{}-{}-{}-{}", &hex[0..8], &hex[8..12], &hex[12..16], &hex[16..20], &hex[20..32])
+    format!(
+        "{}-{}-{}-{}-{}",
+        &hex[0..8],
+        &hex[8..12],
+        &hex[12..16],
+        &hex[16..20],
+        &hex[20..32]
+    )
 }
 
 pub(super) fn parse_uuid(text: &str) -> Result<u128, String> {
@@ -708,14 +1044,20 @@ pub(super) fn st_player_with(player: &NativeServerPlayer, sneaking: bool) -> st:
         name: player.name.clone(),
         permission_level: player.permission,
         pitch: player.pitch,
-        position: st::Vec3 { x: player.position[0], y: player.position[1], z: player.position[2] },
+        position: st::Vec3 {
+            x: player.position[0],
+            y: player.position[1],
+            z: player.position[2],
+        },
         sneaking,
         uuid: uuid_text(player.uuid),
         yaw: player.yaw,
     }
 }
 
-pub(super) fn server_service<R>(operation: impl FnOnce(&mut dyn Host) -> Result<R, String>) -> Result<R, String> {
+pub(super) fn server_service<R>(
+    operation: impl FnOnce(&mut dyn Host) -> Result<R, String>,
+) -> Result<R, String> {
     service(|invocation| {
         let Some(host) = invocation.host.write() else { return Ok(Err("unsupported: this hook may not change the game (a read-only hook), or this is not inside a server hook".to_owned())) };
         Ok(operation(host))
@@ -723,16 +1065,24 @@ pub(super) fn server_service<R>(operation: impl FnOnce(&mut dyn Host) -> Result<
     .map_err(|error| format!("{error:?}"))?
 }
 
-pub(super) fn read_service<R>(operation: impl FnOnce(&dyn Host) -> Result<R, String>) -> Result<R, String> {
+pub(super) fn read_service<R>(
+    operation: impl FnOnce(&dyn Host) -> Result<R, String>,
+) -> Result<R, String> {
     service(|invocation| {
-        let Some(host) = invocation.host.read() else { return Ok(Err("unsupported: not inside a server hook".to_owned())) };
+        let Some(host) = invocation.host.read() else {
+            return Ok(Err("unsupported: not inside a server hook".to_owned()));
+        };
         Ok(operation(host))
     })
     .map_err(|error| format!("{error:?}"))?
 }
 
 pub(super) fn checked(done: bool, what: &str) -> Result<(), String> {
-    if done { Ok(()) } else { Err(format!("{what} did not apply")) }
+    if done {
+        Ok(())
+    } else {
+        Err(format!("{what} did not apply"))
+    }
 }
 
 pub(super) fn message_text(message: &str) -> Result<Text, String> {
@@ -745,7 +1095,10 @@ pub(super) fn message_text(message: &str) -> Result<Text, String> {
 /// The server services that answer "unsupported" in this build (see `docs/yoake-wasm-dev.md`); every other
 /// service of `server-services` is forwarded (`server_services.rs`).
 pub(super) const UNSUPPORTED_SERVER_SERVICES: &[&str] = &[
-    "block_entity_read", "block_entity_patch_call", "range_override_set", "range_override_clear",
+    "block_entity_read",
+    "block_entity_patch_call",
+    "range_override_set",
+    "range_override_clear",
 ];
 
 // ---------------------------------------------------------------------------------------------
@@ -758,14 +1111,35 @@ pub(super) struct ModuleSource<'a> {
     pub bytes: &'a [u8],
     /// The package declared `service.commands` (server module).
     pub commands: bool,
+    pub gpu: bool,
 }
 
+#[cfg(test)]
 pub(super) fn load_client(source: &ModuleSource<'_>) -> Result<ClientFullMod, String> {
+    load_client_with_shaders(source, None)
+}
+
+pub(super) fn load_client_with_shaders(
+    source: &ModuleSource<'_>,
+    shaders: Option<Arc<Mutex<super::dev_shaders::DevShaders>>>,
+) -> Result<ClientFullMod, String> {
     // A full module's `ItemStack` answers are checked against the item table, so it is published.
     horizon_items::items::publish_registry_for_checks();
     let mut sandbox = sandbox().lock().unwrap_or_else(|error| error.into_inner());
-    ClientFullMod::instantiate(&mut sandbox, source.id, source.bytes, Box::new(GameHost::new(source.id)), UNWIRED)
-        .map_err(|error| error.to_string())
+    let mut host = GameHost::new(source.id).with_gpu(source.gpu);
+    host.dev_shaders = shaders;
+    host.gpu_ready.store(false, Ordering::Release);
+    let ready = Arc::clone(&host.gpu_ready);
+    let module = ClientFullMod::instantiate(
+        &mut sandbox,
+        source.id,
+        source.bytes,
+        Box::new(host),
+        UNWIRED,
+    )
+    .map_err(|error| error.to_string())?;
+    ready.store(true, Ordering::Release);
+    Ok(module)
 }
 
 pub(super) fn load_server(source: &ModuleSource<'_>) -> Result<ServerFullMod, String> {
@@ -784,6 +1158,10 @@ pub(super) fn wired_hooks() -> usize {
 // Generated by `horizon-mod-api-gen` and committed (`cargo test -p horizon-mod-api-gen --lib
 // committed_wasm_adapters` checks it is current; YOAKE_UPDATE_WIT=1 rewrites it).
 include!("full_adapters.rs");
+
+#[cfg(test)]
+#[path = "full/gpu_tests.rs"]
+mod gpu_tests;
 
 #[cfg(test)]
 mod tests {
@@ -845,6 +1223,7 @@ mod tests {
             host,
             batch: None,
             batch_start: 0,
+            client: ClientExtras::default(),
         };
         let _scope = Scope::enter(&mut invocation);
         operation()
@@ -1039,7 +1418,9 @@ mod tests {
     }
 
     impl Host for FakeHost {
-        fn window(&self) -> bool { true }
+        fn window(&self) -> bool {
+            true
+        }
         fn text(&self, _batch: &mut HudBatch, text: &str, _at: [f32; 2], _rgb: u32, _shadow: bool) {
             self.texts.borrow_mut().push(text.to_owned());
         }
@@ -1047,7 +1428,9 @@ mod tests {
             *self.fills.borrow_mut() += 1;
         }
         fn tell(&mut self, uuid: u128, line: Text) -> bool {
-            self.told.borrow_mut().push(format!("{uuid:032x}:{}", line.plain()));
+            self.told
+                .borrow_mut()
+                .push(format!("{uuid:032x}:{}", line.plain()));
             true
         }
     }
@@ -1063,7 +1446,13 @@ mod tests {
 
     fn client() -> Option<FullMod> {
         let bytes = module("client")?;
-        let client = load_client(&ModuleSource { id: "demo", bytes: &bytes, commands: false }).expect("client-full loads");
+        let client = load_client(&ModuleSource {
+            id: "demo",
+            bytes: &bytes,
+            commands: false,
+            gpu: false,
+        })
+        .expect("client-full loads");
         Some(FullMod::new("demo".into(), Some(client), None))
     }
 
@@ -1074,7 +1463,12 @@ mod tests {
         let wire = item_w(&stack);
         assert_eq!(wire.id, "minecraft:diamond_sword");
         assert!(!wire.components.is_empty());
-        assert_eq!(item_from(&wire).unwrap().enchantment_level("minecraft:sharpness"), 5);
+        assert_eq!(
+            item_from(&wire)
+                .unwrap()
+                .enchantment_level("minecraft:sharpness"),
+            5
+        );
         let tag = Tag::compound([("n", Tag::Int(7)), ("s", Tag::String("x".into()))]);
         assert_eq!(nbt_tag_from(&nbt_tag(&tag)), Some(tag));
         assert!(nbt_tag_from(&[99]).is_none());
@@ -1085,8 +1479,20 @@ mod tests {
         let host = FakeHost::default();
         let mut batch = HudBatch::new([854, 480]);
         let commands = vec![
-            et::HudCommand::Rect(et::HudRect { x: 0.0, y: 0.0, width: 10.0, height: 10.0, color: 0xff000000 }),
-            et::HudCommand::Text(et::HudText { text: "{\"text\":\"hi\"}".into(), x: 1.0, y: 1.0, color: 0xffffff, shadow: true }),
+            et::HudCommand::Rect(et::HudRect {
+                x: 0.0,
+                y: 0.0,
+                width: 10.0,
+                height: 10.0,
+                color: 0xff000000,
+            }),
+            et::HudCommand::Text(et::HudText {
+                text: "{\"text\":\"hi\"}".into(),
+                x: 1.0,
+                y: 1.0,
+                color: 0xffffff,
+                shadow: true,
+            }),
             et::HudCommand::EndClip,
         ];
         apply_hud(Some(&host), &mut batch, &commands);
@@ -1103,23 +1509,51 @@ mod tests {
         let mut host = FakeHost::default();
         let mut batch = HudBatch::new([854, 480]);
         // Cancel: the demo hides `hotbar` only.
-        let mut hotbar = GuiLayerPreEvent { layer: "hotbar", batch: &mut batch };
-        assert!(matches!(mod_.gui_layer_pre(&mut host, &mut hotbar), Flow::Cancel));
-        let mut chat = GuiLayerPreEvent { layer: "chat", batch: &mut batch };
-        assert!(matches!(mod_.gui_layer_pre(&mut host, &mut chat), Flow::Continue));
+        let mut hotbar = GuiLayerPreEvent {
+            layer: "hotbar",
+            batch: &mut batch,
+        };
+        assert!(matches!(
+            mod_.gui_layer_pre(&mut host, &mut hotbar),
+            Flow::Cancel
+        ));
+        let mut chat = GuiLayerPreEvent {
+            layer: "chat",
+            batch: &mut batch,
+        };
+        assert!(matches!(
+            mod_.gui_layer_pre(&mut host, &mut chat),
+            Flow::Continue
+        ));
         // Command list: the hud hook's rect, gradient strips and text.
         let mut corners = Corners::new(854.0, 480.0, 0.0);
-        mod_.hud(&mut host, &mut HudEvent { batch: &mut batch, corners: &mut corners });
+        mod_.hud(
+            &mut host,
+            &mut HudEvent {
+                batch: &mut batch,
+                corners: &mut corners,
+            },
+        );
         assert!(*host.fills.borrow() >= 2);
         assert_eq!(host.texts.borrow().len(), 1);
         // Mutate outcome: the demo adds 10 degrees to the field of view.
-        let mut fov = ComputeFovEvent { partial: 0.0, camera: [0.0; 3], degrees: 70.0 };
+        let mut fov = ComputeFovEvent {
+            partial: 0.0,
+            camera: [0.0; 3],
+            degrees: 70.0,
+        };
         mod_.compute_fov(&host, &mut fov);
         assert_eq!(fov.degrees, 80.0);
         // Collect with an item stack in and text out.
         let stack = ItemStack::new("minecraft:stone", 3);
         let mut lines = vec![(Text::literal("Stone"), 0xffffff)];
-        mod_.tooltip(&host, &mut TooltipEvent { stack: &stack, lines: &mut lines });
+        mod_.tooltip(
+            &host,
+            &mut TooltipEvent {
+                stack: &stack,
+                lines: &mut lines,
+            },
+        );
         assert_eq!(lines.len(), 2);
         assert!(lines[1].0.plain().contains("minecraft:stone x3"));
     }
@@ -1128,36 +1562,100 @@ mod tests {
     fn a_server_guest_runs_server_tick_and_perform_command_on_the_server_thread() {
         let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(bytes) = module("server") else { return };
-        let server = load_server(&ModuleSource { id: "demo", bytes: &bytes, commands: false }).expect("server-full loads");
+        let server = load_server(&ModuleSource {
+            id: "demo",
+            bytes: &bytes,
+            commands: false,
+            gpu: false,
+        })
+        .expect("server-full loads");
         let mod_ = Arc::new(FullMod::new("demo".into(), None, Some(server)));
         let runner = Arc::clone(&mod_);
         // The server loop's scope, not the thread's name, routes a shared hook to the server module.
-        let handle = std::thread::Builder::new().name("not called Server thread".into()).spawn(move || {
-            let _server = crate::mod_guard::enter_thread(crate::mod_guard::ModThread::Server);
-            let mut host = FakeHost::default();
-            let player = NativeServerPlayer {
-                uuid: 0x1122_3344_5566_7788_99aa_bbcc_ddee_ff00, name: "Guest".into(), permission: 0,
-                dimension: "minecraft:overworld".into(), position: [0.0; 3], game_mode: 1, health: 20.0, yaw: 0.0, pitch: 0.0,
-            };
-            let taken = runner.perform_command(&mut host, &mut PerformCommandEvent { player: &player, command: "wasmping" });
-            let other = runner.perform_command(&mut host, &mut PerformCommandEvent { player: &player, command: "other" });
-            let mut commands = Vec::new();
-            runner.register_commands(&mut host, &mut RegisterCommandsEvent { commands: &mut commands });
-            let told = host.told.borrow().clone();
-            (matches!(taken, Flow::Cancel), matches!(other, Flow::Continue), commands, told)
-        }).unwrap();
+        let handle = std::thread::Builder::new()
+            .name("not called Server thread".into())
+            .spawn(move || {
+                let _server = crate::mod_guard::enter_thread(crate::mod_guard::ModThread::Server);
+                let mut host = FakeHost::default();
+                let player = NativeServerPlayer {
+                    uuid: 0x1122_3344_5566_7788_99aa_bbcc_ddee_ff00,
+                    name: "Guest".into(),
+                    permission: 0,
+                    dimension: "minecraft:overworld".into(),
+                    position: [0.0; 3],
+                    game_mode: 1,
+                    health: 20.0,
+                    yaw: 0.0,
+                    pitch: 0.0,
+                };
+                let taken = runner.perform_command(
+                    &mut host,
+                    &mut PerformCommandEvent {
+                        player: &player,
+                        command: "wasmping",
+                    },
+                );
+                let other = runner.perform_command(
+                    &mut host,
+                    &mut PerformCommandEvent {
+                        player: &player,
+                        command: "other",
+                    },
+                );
+                let mut commands = Vec::new();
+                runner.register_commands(
+                    &mut host,
+                    &mut RegisterCommandsEvent {
+                        commands: &mut commands,
+                    },
+                );
+                let told = host.told.borrow().clone();
+                (
+                    matches!(taken, Flow::Cancel),
+                    matches!(other, Flow::Continue),
+                    commands,
+                    told,
+                )
+            })
+            .unwrap();
         let (taken, other_continues, commands, told) = handle.join().unwrap();
         assert!(taken && other_continues);
-        assert_eq!(commands.iter().map(|c| c.usage.as_str()).collect::<Vec<_>>(), ["wasmping", "wasmsvc"]);
+        assert_eq!(
+            commands
+                .iter()
+                .map(|c| c.usage.as_str())
+                .collect::<Vec<_>>(),
+            ["wasmping", "wasmsvc"]
+        );
         assert_eq!(told.len(), 1);
-        assert!(told[0].starts_with("112233445566778899aabbccddeeff00:pong #1"), "{told:?}");
+        assert!(
+            told[0].starts_with("112233445566778899aabbccddeeff00:pong #1"),
+            "{told:?}"
+        );
         // On a thread that did not enter the server scope a hook of the shared code does not reach the server module.
         let mut host = FakeHost::default();
         let player = NativeServerPlayer {
-            uuid: 1, name: "G".into(), permission: 0, dimension: "d".into(), position: [0.0; 3], game_mode: 0, health: 1.0, yaw: 0.0, pitch: 0.0,
+            uuid: 1,
+            name: "G".into(),
+            permission: 0,
+            dimension: "d".into(),
+            position: [0.0; 3],
+            game_mode: 0,
+            health: 1.0,
+            yaw: 0.0,
+            pitch: 0.0,
         };
         // perform_command is shared code: on this thread the client slot is asked, and there is none.
-        assert!(matches!(mod_.perform_command(&mut host, &mut PerformCommandEvent { player: &player, command: "wasmping" }), Flow::Continue));
+        assert!(matches!(
+            mod_.perform_command(
+                &mut host,
+                &mut PerformCommandEvent {
+                    player: &player,
+                    command: "wasmping"
+                }
+            ),
+            Flow::Continue
+        ));
     }
 
     // -----------------------------------------------------------------------------------------
@@ -1167,17 +1665,48 @@ mod tests {
     fn a_thread_named_server_thread_is_not_the_server_without_the_scope() {
         let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(bytes) = module("server") else { return };
-        let server = load_server(&ModuleSource { id: "demo", bytes: &bytes, commands: false }).expect("server-full loads");
+        let server = load_server(&ModuleSource {
+            id: "demo",
+            bytes: &bytes,
+            commands: false,
+            gpu: false,
+        })
+        .expect("server-full loads");
         let mod_ = Arc::new(FullMod::new("demo".into(), None, Some(server)));
         let runner = Arc::clone(&mod_);
-        let flow = std::thread::Builder::new().name("Server thread".into()).spawn(move || {
-            let mut host = FakeHost::default();
-            let player = NativeServerPlayer {
-                uuid: 1, name: "G".into(), permission: 0, dimension: "d".into(), position: [0.0; 3], game_mode: 0, health: 1.0, yaw: 0.0, pitch: 0.0,
-            };
-            matches!(runner.perform_command(&mut host, &mut PerformCommandEvent { player: &player, command: "wasmping" }), Flow::Continue)
-        }).unwrap().join().unwrap();
-        assert!(flow, "the thread's name alone must not route a hook to the server module");
+        let flow = std::thread::Builder::new()
+            .name("Server thread".into())
+            .spawn(move || {
+                let mut host = FakeHost::default();
+                let player = NativeServerPlayer {
+                    uuid: 1,
+                    name: "G".into(),
+                    permission: 0,
+                    dimension: "d".into(),
+                    position: [0.0; 3],
+                    game_mode: 0,
+                    health: 1.0,
+                    yaw: 0.0,
+                    pitch: 0.0,
+                };
+                matches!(
+                    runner.perform_command(
+                        &mut host,
+                        &mut PerformCommandEvent {
+                            player: &player,
+                            command: "wasmping"
+                        }
+                    ),
+                    Flow::Continue
+                )
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+        assert!(
+            flow,
+            "the thread's name alone must not route a hook to the server module"
+        );
     }
 
     #[test]
@@ -1188,15 +1717,33 @@ mod tests {
         let mut batch = HudBatch::new([854, 480]);
         // Hold the client module's lock, as a re-entry from a guest's own service call would.
         let held = mod_.client.lock().unwrap();
-        let mut hotbar = GuiLayerPreEvent { layer: "hotbar", batch: &mut batch };
-        assert!(matches!(mod_.gui_layer_pre(&mut host, &mut hotbar), Flow::Continue), "the fallback is no answer");
-        let mut hotbar = GuiLayerPreEvent { layer: "hotbar", batch: &mut batch };
-        assert!(matches!(mod_.gui_layer_pre(&mut host, &mut hotbar), Flow::Continue));
+        let mut hotbar = GuiLayerPreEvent {
+            layer: "hotbar",
+            batch: &mut batch,
+        };
+        assert!(
+            matches!(mod_.gui_layer_pre(&mut host, &mut hotbar), Flow::Continue),
+            "the fallback is no answer"
+        );
+        let mut hotbar = GuiLayerPreEvent {
+            layer: "hotbar",
+            batch: &mut batch,
+        };
+        assert!(matches!(
+            mod_.gui_layer_pre(&mut host, &mut hotbar),
+            Flow::Continue
+        ));
         drop(held);
         assert_eq!(mod_.dropped_hooks(Side::Client), 2);
         // Not busy any more: the guest answers again.
-        let mut hotbar = GuiLayerPreEvent { layer: "hotbar", batch: &mut batch };
-        assert!(matches!(mod_.gui_layer_pre(&mut host, &mut hotbar), Flow::Cancel));
+        let mut hotbar = GuiLayerPreEvent {
+            layer: "hotbar",
+            batch: &mut batch,
+        };
+        assert!(matches!(
+            mod_.gui_layer_pre(&mut host, &mut hotbar),
+            Flow::Cancel
+        ));
         assert_eq!(mod_.dropped_hooks(Side::Client), 2);
     }
 
@@ -1204,12 +1751,23 @@ mod tests {
     fn a_package_without_a_render_hook_stays_out_of_the_render_pass() {
         let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(server_bytes) = module("server") else { return };
-        let server = load_server(&ModuleSource { id: "demo", bytes: &server_bytes, commands: false }).unwrap();
+        let server = load_server(&ModuleSource {
+            id: "demo",
+            bytes: &server_bytes,
+            commands: false,
+            gpu: false,
+        })
+        .unwrap();
         let server_only = FullMod::new("demo".into(), None, Some(server));
-        assert!(server_only.render().is_none(), "a server-only package has nothing to draw");
+        assert!(
+            server_only.render().is_none(),
+            "a server-only package has nothing to draw"
+        );
         let Some(mod_) = client() else { return };
         // The demo's client module subscribes to hud and gui layers, not to a render-stage hook.
-        let wants_render = RENDER_HOOKS.iter().any(|hook| mod_.wants(Side::Client, *hook));
+        let wants_render = RENDER_HOOKS
+            .iter()
+            .any(|hook| mod_.wants(Side::Client, *hook));
         assert_eq!(mod_.render().is_some(), wants_render);
     }
 
@@ -1221,12 +1779,21 @@ mod tests {
         };
         let source = ServerSource::new("demo", bytes, false);
         let server = load_server(&source.module()).unwrap();
-        let mod_ = Arc::new(FullMod::new("demo".into(), None, Some(server)).with_server_source(source));
+        let mod_ =
+            Arc::new(FullMod::new("demo".into(), None, Some(server)).with_server_source(source));
         let runner = Arc::clone(&mod_);
         let told = std::thread::spawn(move || {
             let _server = crate::mod_guard::enter_thread(crate::mod_guard::ModThread::Server);
             let player = NativeServerPlayer {
-                uuid: 7, name: "G".into(), permission: 0, dimension: "d".into(), position: [0.0; 3], game_mode: 0, health: 1.0, yaw: 0.0, pitch: 0.0,
+                uuid: 7,
+                name: "G".into(),
+                permission: 0,
+                dimension: "d".into(),
+                position: [0.0; 3],
+                game_mode: 0,
+                health: 1.0,
+                yaw: 0.0,
+                pitch: 0.0,
             };
             let mut lines = Vec::new();
             for world in 0..2 {
@@ -1250,9 +1817,17 @@ mod tests {
                 lines.push((world, host.told.borrow().clone()));
             }
             lines
-        }).join().unwrap();
-        assert!(told[0].1[0].ends_with("pong #1 from the full-demo WASM server module"), "{told:?}");
-        assert!(told[1].1[0].contains("pong #1 "), "the second world began with a fresh instance: {told:?}");
+        })
+        .join()
+        .unwrap();
+        assert!(
+            told[0].1[0].ends_with("pong #1 from the full-demo WASM server module"),
+            "{told:?}"
+        );
+        assert!(
+            told[1].1[0].contains("pong #1 "),
+            "the second world began with a fresh instance: {told:?}"
+        );
         assert!(told[1].1[1].contains("pong #2 "), "{told:?}");
     }
 
@@ -1261,35 +1836,81 @@ mod tests {
         let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let Some(peer_bytes) = module("peer") else { return };
         let Some(demo_bytes) = module("server") else { return };
-        let peer = load_server(&ModuleSource { id: "w2-peer", bytes: &peer_bytes, commands: false }).expect("peer loads");
+        let peer = load_server(&ModuleSource {
+            id: "w2-peer",
+            bytes: &peer_bytes,
+            commands: false,
+            gpu: false,
+        })
+        .expect("peer loads");
         let peer = FullMod::new("w2-peer".into(), None, Some(peer));
-        let demo = load_server(&ModuleSource { id: "w2-caller", bytes: &demo_bytes, commands: false }).expect("caller loads");
+        let demo = load_server(&ModuleSource {
+            id: "w2-caller",
+            bytes: &demo_bytes,
+            commands: false,
+            gpu: false,
+        })
+        .expect("caller loads");
         let _demo = FullMod::new("w2-caller".into(), None, Some(demo));
         let mut host = FakeHost::default();
-        let mut invocation = Invocation { host: HostAccess::Write(&mut host), batch: None, batch_start: 0 };
+        let mut invocation = Invocation {
+            host: HostAccess::Write(&mut host),
+            batch: None,
+            batch_start: 0,
+            client: ClientExtras::default(),
+        };
         let _scope = Scope::enter(&mut invocation);
-        let answer = super::server_services::call_mod("w2-caller", "w2-peer", "echo", b"hi").expect("the peer answers");
+        let answer = super::server_services::call_mod("w2-caller", "w2-peer", "echo", b"hi")
+            .expect("the peer answers");
         assert_eq!(String::from_utf8(answer).unwrap(), "w2-caller said: hi");
-        let counted = super::server_services::call_mod("w2-caller", "w2-peer", "count", b"").unwrap();
+        let counted =
+            super::server_services::call_mod("w2-caller", "w2-peer", "count", b"").unwrap();
         assert_eq!(String::from_utf8(counted).unwrap(), "2 call(s) so far");
         // The peer's own error comes back as the caller's error.
-        assert!(super::server_services::call_mod("w2-caller", "w2-peer", "nope", b"").unwrap_err().contains("unknown method"));
+        assert!(
+            super::server_services::call_mod("w2-caller", "w2-peer", "nope", b"")
+                .unwrap_err()
+                .contains("unknown method")
+        );
         // A callee that is busy (waiting, mid-hook) is refused, not waited for.
         let held = peer.server.state.lock().unwrap();
-        assert!(super::server_services::call_mod("w2-caller", "w2-peer", "echo", b"x").unwrap_err().contains("busy"));
+        assert!(
+            super::server_services::call_mod("w2-caller", "w2-peer", "echo", b"x")
+                .unwrap_err()
+                .contains("busy")
+        );
         drop(held);
         assert!(super::server_services::call_mod("w2-caller", "w2-peer", "echo", b"x").is_ok());
     }
 
     #[test]
     fn guest_commands_are_gated_by_permission_and_a_denylist() {
-        assert!(command_gate("say hi", false).unwrap_err().contains("service.commands"));
+        assert!(
+            command_gate("say hi", false)
+                .unwrap_err()
+                .contains("service.commands")
+        );
         assert!(command_gate("say hi", true).is_ok());
         assert!(command_gate("/give @a minecraft:stone", true).is_ok());
         for denied in [
-            "transfer example.com 25565", "fetchprofile name Steve", "publish", "unpublish", "debug start", "jfr start", "perf start",
-            "stop", "save-off", "op Steve", "whitelist add Steve", "ban Steve", "/stop", "STOP", "minecraft:stop",
-            "execute as @a run stop", "execute as @a at @s run execute if entity @e run transfer a 1", "return run stop",
+            "transfer example.com 25565",
+            "fetchprofile name Steve",
+            "publish",
+            "unpublish",
+            "debug start",
+            "jfr start",
+            "perf start",
+            "stop",
+            "save-off",
+            "op Steve",
+            "whitelist add Steve",
+            "ban Steve",
+            "/stop",
+            "STOP",
+            "minecraft:stop",
+            "execute as @a run stop",
+            "execute as @a at @s run execute if entity @e run transfer a 1",
+            "return run stop",
         ] {
             assert!(command_gate(denied, true).is_err(), "{denied}");
         }
@@ -1298,10 +1919,24 @@ mod tests {
         assert!(command_gate("", true).is_err());
         assert!(command_gate(&"a".repeat(abi::MAX_TEXT_BYTES + 1), true).is_err());
         // The host refuses before it touches any service.
-        let mut host = GameServerHost { id: "m".into(), commands: false };
-        assert!(host.run_command("say hi".into()).unwrap_err().contains("service.commands"));
-        let mut host = GameServerHost { id: "m".into(), commands: true };
-        assert!(host.run_command("stop".into()).unwrap_err().contains("not available"));
+        let mut host = GameServerHost {
+            id: "m".into(),
+            commands: false,
+        };
+        assert!(
+            host.run_command("say hi".into())
+                .unwrap_err()
+                .contains("service.commands")
+        );
+        let mut host = GameServerHost {
+            id: "m".into(),
+            commands: true,
+        };
+        assert!(
+            host.run_command("stop".into())
+                .unwrap_err()
+                .contains("not available")
+        );
     }
 
     #[test]
@@ -1322,18 +1957,28 @@ mod tests {
     fn guest_visible_paths_are_relative_to_the_game_folder() {
         let game = std::env::current_dir().unwrap();
         assert_eq!(game_relative(&game.join("world")).as_deref(), Some("world"));
-        assert_eq!(game_relative(&game.join("config").join("mods")).as_deref(), Some("config/mods"));
+        assert_eq!(
+            game_relative(&game.join("config").join("mods")).as_deref(),
+            Some("config/mods")
+        );
         assert_eq!(game_relative(&game).as_deref(), Some("."));
         // Elsewhere: only the last component, never the account's folder.
         let elsewhere = std::path::Path::new("C:/Users/Someone/Documents/server/world");
         let shown = game_relative(elsewhere).unwrap();
-        assert!(!shown.contains("Someone") && !shown.contains(':'), "{shown}");
+        assert!(
+            !shown.contains("Someone") && !shown.contains(':'),
+            "{shown}"
+        );
     }
 
     #[test]
     fn guest_answers_are_checked_for_meaning() {
         // Item stacks: syntax, count, size.
-        let stack = |id: &str, count: u32| et::ItemStack { id: id.into(), count, components: Vec::new() };
+        let stack = |id: &str, count: u32| et::ItemStack {
+            id: id.into(),
+            count,
+            components: Vec::new(),
+        };
         assert!(item_from(&stack("minecraft:stone", 1)).is_some());
         assert!(item_from(&stack("minecraft:stone", 0)).is_none());
         assert!(item_from(&stack("minecraft:stone", MAX_STACK_COUNT + 1)).is_none());
@@ -1341,7 +1986,11 @@ mod tests {
         assert!(item_from(&stack("stone", 1)).is_none());
         assert!(item_from(&stack("Minecraft:Stone", 1)).is_none());
         assert!(item_from(&stack(&format!("minecraft:{}", "a".repeat(MAX_ITEM_ID)), 1)).is_none());
-        let big = et::ItemStack { id: "minecraft:stone".into(), count: 1, components: vec![0; MAX_ITEM_COMPONENTS + 1] };
+        let big = et::ItemStack {
+            id: "minecraft:stone".into(),
+            count: 1,
+            components: vec![0; MAX_ITEM_COMPONENTS + 1],
+        };
         assert!(item_from(&big).is_none());
         // Floats and lengths.
         assert_eq!(finite_f32(1.5), Some(1.5));
@@ -1357,7 +2006,13 @@ mod tests {
     #[test]
     fn leaked_strings_are_capped_in_size_count_and_total() {
         assert_eq!(leak_static("wasmping".into()), Some("wasmping"));
-        assert!(std::ptr::eq(leak_static("wasmping".into()).unwrap(), leak_static("wasmping".into()).unwrap()), "deduplicated");
+        assert!(
+            std::ptr::eq(
+                leak_static("wasmping".into()).unwrap(),
+                leak_static("wasmping".into()).unwrap()
+            ),
+            "deduplicated"
+        );
         assert!(leak_static("x".repeat(LEAK_MAX_LEN + 1)).is_none());
         assert!(leak_static("bad\nline".into()).is_none());
         // A guest cannot make the process keep more than the pool allows.

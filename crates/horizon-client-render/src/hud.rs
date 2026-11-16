@@ -604,7 +604,9 @@ fn atlas_sprites(root: &Path, packed: &[PackedImage]) -> (Vec<PackedImage>, Vec<
             names.push((texture.clone(), Vec::new()));
             names.len() - 1
         });
-        names[slot].1.push((order, SpriteOrigin::File(texture.clone())));
+        names[slot]
+            .1
+            .push((order, SpriteOrigin::File(texture.clone())));
         order += 1;
     }
     let load = |texture: &str, directory: &str| {
@@ -2663,6 +2665,34 @@ impl HudRenderer {
             .is_some_and(|textures| textures.owns(texture))
     }
 
+    pub fn native_world_texture_restore(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        texture: &NativeGuiTexture,
+    ) -> std::result::Result<NativeGuiTexture, NativeGuiTextureError> {
+        let restored =
+            self.native_gui_texture_insert(device, texture.restore_source()?, texture.filter())?;
+        if texture.needs_restore_upload() {
+            restored.restore_upload(queue);
+        }
+        Ok(restored)
+    }
+
+    pub fn native_gui_texture_write(
+        &self,
+        queue: &wgpu::Queue,
+        texture: &NativeGuiTexture,
+        origin: [u32; 2],
+        size: [u32; 2],
+        bytes: &[u8],
+    ) -> std::result::Result<(), NativeGuiTextureError> {
+        self.native_textures
+            .get()
+            .ok_or(NativeGuiTextureError::StaleGeneration)?
+            .write(queue, texture, origin, size, bytes)
+    }
+
     fn native_gui_texture_insert(
         &self,
         device: &wgpu::Device,
@@ -3497,8 +3527,8 @@ mod tests {
     }
     #[test]
     fn item_textures_without_content_namespace_are_not_implicitly_packed() {
-        let root = std::env::temp_dir()
-            .join(format!("horizon-atlas-unowned-item-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("horizon-atlas-unowned-item-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let item = root.join("assets/gems/textures/item");
         fs::create_dir_all(&item).unwrap();
@@ -3510,8 +3540,10 @@ mod tests {
     }
     #[test]
     fn content_mod_item_fallback_preserves_declared_sprite_precedence() {
-        let root = std::env::temp_dir()
-            .join(format!("horizon-atlas-item-priority-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!(
+            "horizon-atlas-item-priority-{}",
+            std::process::id()
+        ));
         let _ = fs::remove_dir_all(&root);
         let atlases = root.join("assets/minecraft/atlases");
         let item = root.join("assets/gems/textures/item");
@@ -3537,8 +3569,8 @@ mod tests {
     }
     #[test]
     fn content_mod_nested_item_texture_keeps_its_animation() {
-        let root = std::env::temp_dir()
-            .join(format!("horizon-atlas-mod-animated-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("horizon-atlas-mod-animated-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let item = root.join("assets/gems/textures/item/nested");
         fs::create_dir_all(&item).unwrap();

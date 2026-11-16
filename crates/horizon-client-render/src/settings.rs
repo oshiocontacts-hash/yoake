@@ -423,6 +423,9 @@ impl Settings {
         for (name, _, _) in crate::keybinds::MAPPINGS {
             keys.set(name, &f.key_binding(name));
         }
+        for (name, key) in f.mod_key_bindings() {
+            keys.load_mod_key(name, key);
+        }
         let mut volumes = [1.0; 11];
         for (i, source) in SOUND_SOURCES.iter().enumerate() {
             volumes[i] = f.double(&format!("soundCategory_{source}")) as f32;
@@ -639,14 +642,24 @@ impl Settings {
     pub fn with_option(&self, key: &str, value: &str) -> Result<Self, String> {
         let mut file = self.to_file();
         file.set_text(key, value)?;
-        Ok(Self {
+        let mut updated = Self {
             horizon: self.horizon.clone(),
             controller: self.controller.clone(),
             extras: self.extras.clone(),
             mods: self.mods.clone(),
             video_modes: self.video_modes.clone(),
             ..Self::from_file(file)
-        })
+        };
+        for binding in self.keys.mod_bindings() {
+            updated.keys.register_mod_binding(
+                &binding.id,
+                &binding.default_key,
+                &binding.category,
+                &binding.label,
+            )?;
+        }
+        updated.keys.preserve_mod_key_state(&self.keys);
+        Ok(updated)
     }
     /// The `options.txt` text (Options.save).
     pub fn serialize(&self) -> String {
@@ -838,6 +851,50 @@ pub enum Opt {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn mod_bindings_preserve_options_and_rebinds_across_registration_and_updates() {
+        let options = Settings::default().serialize().replace(
+            "key_key.forward:key.keyboard.w\n",
+            "key_key.forward:key.keyboard.up\n",
+        );
+        let mut settings =
+            Settings::parse(&format!("{options}key_key.mod.test/open:key.mouse.4\n"));
+        settings
+            .keys
+            .register_mod_binding(
+                "test:open",
+                "key.keyboard.r",
+                "key.categories.test",
+                "key.test.open",
+            )
+            .unwrap();
+        assert_eq!(settings.keys.get("key.mod.test/open"), "key.mouse.4");
+        settings.keys.mod_key_event("key.mouse.4", true);
+        let updated = settings.with_option("fov", "90").unwrap();
+        assert!(updated.keys.mod_key_state("test:open"));
+        assert_eq!(updated.keys.mod_bindings(), settings.keys.mod_bindings());
+        assert_eq!(updated.keys.get("key.forward"), "key.keyboard.up");
+        let mut restored = Settings::parse(&updated.serialize());
+        assert!(restored.keys.mod_bindings().is_empty());
+        assert!(!restored.keys.mod_key_state("test:open"));
+        restored
+            .keys
+            .register_mod_binding(
+                "test:open",
+                "key.keyboard.r",
+                "key.categories.test",
+                "key.test.open",
+            )
+            .unwrap();
+        assert_eq!(restored.keys.mod_bindings(), settings.keys.mod_bindings());
+        let vanilla = Settings::default();
+        assert_eq!(
+            Settings::parse(&vanilla.serialize()).serialize(),
+            vanilla.serialize()
+        );
+        assert!(vanilla.keys.mod_bindings().is_empty());
+    }
+
     #[test]
     fn the_narrator_reads_its_status_and_the_voice_under_master() {
         let s = Settings::parse("narrator:2\nsoundCategory_master:0.5\nsoundCategory_voice:0.5\n");

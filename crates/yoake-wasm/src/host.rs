@@ -40,6 +40,14 @@ pub trait ClientHost: Send {
         Err("package services unavailable".into())
     }
 
+    fn gpu_services(&mut self) -> Option<&mut dyn crate::GpuServices> {
+        None
+    }
+
+    fn client_services(&mut self) -> Option<&mut dyn crate::ClientServices> {
+        None
+    }
+
     host_methods! {
         fn log(&mut self, target: &str, message: &str) -> ();
         fn feedback(&mut self, text: &str) -> ();
@@ -74,19 +82,45 @@ pub trait ClientHost: Send {
     }
 
     fn gui_texture_drop(&mut self, _texture: u64) {}
+
+    fn release_resources(&mut self) {}
 }
 
 pub struct ClientContext {
     id: String,
     pub(crate) host: Box<dyn ClientHost>,
-    textures: HashMap<u32, u64>,
+    pub(crate) textures: HashMap<u32, u64>,
     texture_count: Arc<AtomicUsize>,
     next_texture: u32,
+    released: bool,
 }
 
 impl ClientContext {
-    pub(crate) fn new(id: String, host: Box<dyn ClientHost>, texture_count: Arc<AtomicUsize>) -> Self {
-        Self { id, host, textures: HashMap::new(), texture_count, next_texture: 0 }
+    pub(crate) fn new(
+        id: String,
+        host: Box<dyn ClientHost>,
+        texture_count: Arc<AtomicUsize>,
+    ) -> Self {
+        Self {
+            id,
+            host,
+            textures: HashMap::new(),
+            texture_count,
+            next_texture: 0,
+            released: false,
+        }
+    }
+
+    pub(crate) fn release_resources(&mut self) {
+        if self.released {
+            return;
+        }
+        self.released = true;
+        for (_, texture) in self.textures.drain() {
+            self.texture_count.fetch_sub(1, Ordering::AcqRel);
+            self.host.gui_texture_drop(texture);
+        }
+        self.host.release_resources();
     }
 }
 
@@ -102,10 +136,7 @@ impl ClientContext {
 
 impl Drop for ClientContext {
     fn drop(&mut self) {
-        for (_, texture) in self.textures.drain() {
-            self.texture_count.fetch_sub(1, Ordering::AcqRel);
-            self.host.gui_texture_drop(texture);
-        }
+        self.release_resources();
     }
 }
 
@@ -154,11 +185,21 @@ impl hud::Host for ClientContext {
 }
 
 impl hud::HostGuiTexture for ClientContext {
-    fn create(&mut self, width: u32, height: u32, format: TextureFormat, filter: TextureFilter) -> Result<Resource<hud::GuiTexture>, HostError> {
+    fn create(
+        &mut self,
+        width: u32,
+        height: u32,
+        format: TextureFormat,
+        filter: TextureFilter,
+    ) -> Result<Resource<hud::GuiTexture>, HostError> {
         let next = self.next_texture.checked_add(1).ok_or(HostError::Busy)?;
-        if self.texture_count.fetch_update(Ordering::AcqRel, Ordering::Acquire, |count| {
-            (count < MAX_TEXTURES).then_some(count + 1)
-        }).is_err() {
+        if self
+            .texture_count
+            .try_update(Ordering::AcqRel, Ordering::Acquire, |count| {
+                (count < MAX_TEXTURES).then_some(count + 1)
+            })
+            .is_err()
+        {
             return Err(HostError::Busy);
         }
         let texture = match timed_host_call!(self.host.gui_texture_create(width, height, format, filter)) {
@@ -274,7 +315,13 @@ mod tests {
     }
 
     impl ClientHost for FakeHost {
-        fn gui_texture_create(&mut self, _: u32, _: u32, _: TextureFormat, _: TextureFilter) -> Result<u64, HostError> {
+        fn gui_texture_create(
+            &mut self,
+            _: u32,
+            _: u32,
+            _: TextureFormat,
+            _: TextureFilter,
+        ) -> Result<u64, HostError> {
             let texture = self.next_texture;
             self.next_texture += 1;
             self.calls.lock().unwrap().push(format!("create:{texture}"));
@@ -301,13 +348,27 @@ mod tests {
         }
 
         fn set_setting(&mut self, id: &str, key: &str, value: &str) -> Result<(), HostError> {
-            self.calls.lock().unwrap().push(format!("set:{id}:{key}:{value}"));
+            self.calls
+                .lock()
+                .unwrap()
+                .push(format!("set:{id}:{key}:{value}"));
             Ok(())
         }
     }
 
-    fn context(runtime: &mut crate::Sandbox, id: &str, calls: Arc<Mutex<Vec<String>>>) -> ClientContext {
-        ClientContext::new(id.into(), Box::new(FakeHost { calls, next_texture: 0 }), runtime.texture_count(id))
+    fn context(
+        runtime: &mut crate::Sandbox,
+        id: &str,
+        calls: Arc<Mutex<Vec<String>>>,
+    ) -> ClientContext {
+        ClientContext::new(
+            id.into(),
+            Box::new(FakeHost {
+                calls,
+                next_texture: 0,
+            }),
+            runtime.texture_count(id),
+        )
     }
 
     #[test]
@@ -319,45 +380,97 @@ mod tests {
         let mut other = context(&mut runtime, "other", calls.clone());
         let mut textures = Vec::new();
         for _ in 0..64 {
-            textures.push(<ClientContext as hud::HostGuiTexture>::create(
-                &mut first, 1, 1, TextureFormat::Rgba8, TextureFilter::Nearest,
-            ).unwrap());
+            textures.push(
+                <ClientContext as hud::HostGuiTexture>::create(
+                    &mut first,
+                    1,
+                    1,
+                    TextureFormat::Rgba8,
+                    TextureFilter::Nearest,
+                )
+                .unwrap(),
+            );
         }
         assert!(matches!(
             <ClientContext as hud::HostGuiTexture>::create(
-                &mut second, 1, 1, TextureFormat::Rgba8, TextureFilter::Nearest,
+                &mut second,
+                1,
+                1,
+                TextureFormat::Rgba8,
+                TextureFilter::Nearest,
             ),
             Err(HostError::Busy)
         ));
         let other_texture = <ClientContext as hud::HostGuiTexture>::create(
-            &mut other, 1, 1, TextureFormat::Rgba8, TextureFilter::Nearest,
-        ).unwrap();
+            &mut other,
+            1,
+            1,
+            TextureFormat::Rgba8,
+            TextureFilter::Nearest,
+        )
+        .unwrap();
         <ClientContext as hud::HostGuiTexture>::drop(&mut other, other_texture).unwrap();
         <ClientContext as hud::HostGuiTexture>::drop(&mut first, textures.remove(0)).unwrap();
         <ClientContext as hud::HostGuiTexture>::create(
-            &mut second, 1, 1, TextureFormat::Rgba8, TextureFilter::Nearest,
-        ).unwrap();
+            &mut second,
+            1,
+            1,
+            TextureFormat::Rgba8,
+            TextureFilter::Nearest,
+        )
+        .unwrap();
         drop(first);
         <ClientContext as hud::HostGuiTexture>::create(
-            &mut second, 1, 1, TextureFormat::Rgba8, TextureFilter::Nearest,
-        ).unwrap();
+            &mut second,
+            1,
+            1,
+            TextureFormat::Rgba8,
+            TextureFilter::Nearest,
+        )
+        .unwrap();
         drop(second);
         drop(other);
         let calls = calls.lock().unwrap();
-        assert_eq!(calls.iter().filter(|call| call.starts_with("create:")).count(), 67);
-        assert_eq!(calls.iter().filter(|call| call.starts_with("drop:")).count(), 67);
+        assert_eq!(
+            calls
+                .iter()
+                .filter(|call| call.starts_with("create:"))
+                .count(),
+            67
+        );
+        assert_eq!(
+            calls
+                .iter()
+                .filter(|call| call.starts_with("drop:"))
+                .count(),
+            67
+        );
     }
 
     #[test]
     fn screen_and_settings_are_bound_to_the_calling_mod() {
         let calls = Arc::new(Mutex::new(Vec::new()));
         let mut context = context(&mut crate::Sandbox::new(), "mine", calls.clone());
-        assert!(matches!(screen::Host::mod_screen_close(&mut context, "other".into()), Err(HostError::Invalid)));
-        assert!(matches!(screen::Host::mod_screen_open_anywhere(&mut context, "other".into()), Err(HostError::Invalid)));
+        assert!(matches!(
+            screen::Host::mod_screen_close(&mut context, "other".into()),
+            Err(HostError::Invalid)
+        ));
+        assert!(matches!(
+            screen::Host::mod_screen_open_anywhere(&mut context, "other".into()),
+            Err(HostError::Invalid)
+        ));
         screen::Host::mod_screen_close(&mut context, "mine".into()).unwrap();
         assert!(screen::Host::mod_screen_open_anywhere(&mut context, "mine".into()).unwrap());
         settings::Host::setting(&mut context, "key".into()).unwrap();
         settings::Host::set_setting(&mut context, "key".into(), "value".into()).unwrap();
-        assert_eq!(*calls.lock().unwrap(), ["close:mine", "anywhere:mine", "get:mine:key", "set:mine:key:value"]);
+        assert_eq!(
+            *calls.lock().unwrap(),
+            [
+                "close:mine",
+                "anywhere:mine",
+                "get:mine:key",
+                "set:mine:key:value"
+            ]
+        );
     }
 }

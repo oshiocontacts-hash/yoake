@@ -9,6 +9,7 @@ use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
 mod client;
 pub mod config_sync;
+mod client_services;
 pub mod convert;
 mod full;
 pub mod full_bindings;
@@ -18,6 +19,7 @@ mod host;
 pub mod host_services;
 pub mod inject;
 pub mod package_services;
+mod gpu_services;
 mod subscriptions;
 mod test_mod;
 #[cfg(feature = "test-guests")]
@@ -32,8 +34,10 @@ pub mod bindings {
 }
 
 pub use client::{ClientMod, LoadError};
+pub use client_services::{ClientServices, client_types};
 pub use full::{ClientFullMod, SERVER_SERVICES, ServerFullMod, ServerHost, server_types};
 pub use full_hook_names::{FULL_HOOKS as FULL_HOOK_LIST, HookSide};
+pub use gpu_services::{GpuServices, gpu_types};
 pub use host::{ClientContext, ClientHost};
 pub use subscriptions::FullWorld;
 
@@ -57,6 +61,7 @@ thread_local! {
     static STORAGE_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
     static STORAGE_THROTTLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static STORAGE_WINDOW: std::cell::Cell<Option<Instant>> = const { std::cell::Cell::new(None) };
+    static COUNTED_HOST_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
 }
 
 /// The most host-service time that extends one call's deadline (a guest that loops over services cannot hold the
@@ -66,6 +71,10 @@ pub const MAX_HOST_TIME: Duration = Duration::from_millis(400);
 /// Adds `spent` to the running call's host-service time (see [`HOST_TIME`]).
 pub(crate) fn add_host_time(spent: Duration) {
     HOST_TIME.with(|time| time.set(time.get() + spent));
+}
+
+pub(crate) fn add_counted_host_time(spent: Duration) {
+    COUNTED_HOST_TIME.with(|time| time.set(time.get() + spent));
 }
 
 pub(crate) fn add_storage_time(spent: Duration) {
@@ -81,7 +90,7 @@ pub(crate) fn storage_window_start() -> Instant {
 }
 
 fn deadline_extension() -> Duration {
-    (HOST_TIME.with(std::cell::Cell::get) + STORAGE_TIME.with(std::cell::Cell::get))
+    (HOST_TIME.with(std::cell::Cell::get) + STORAGE_TIME.with(std::cell::Cell::get) + COUNTED_HOST_TIME.with(std::cell::Cell::get))
         .min(MAX_HOST_TIME)
 }
 /// One client hook call may run this long of wall-clock time (plus one epoch tick) before it is
@@ -493,6 +502,7 @@ impl<T: 'static> ModInstance<T> {
         let outer_storage_throttled = STORAGE_THROTTLED.with(|throttled| throttled.replace(false));
         let outer_storage_window =
             STORAGE_WINDOW.with(|window| window.replace(Some(self.window.started)));
+        let outer_counted_host_time = COUNTED_HOST_TIME.with(|time| time.replace(Duration::ZERO));
         let result = self
             .store
             .set_fuel(self.fuel)
@@ -506,6 +516,7 @@ impl<T: 'static> ModInstance<T> {
         STORAGE_WINDOW.with(|window| window.set(outer_storage_window));
         self.window.exceeded |=
             STORAGE_THROTTLED.with(|throttled| throttled.replace(outer_storage_throttled));
+        COUNTED_HOST_TIME.with(|time| time.set(outer_counted_host_time));
         self.window.spent += began.elapsed().saturating_sub(host_time);
         match result {
             Ok(value) => Ok(Some(value)),
@@ -604,5 +615,58 @@ mod tests {
         assert_eq!(deadline_extension(), Duration::from_millis(400));
         HOST_TIME.with(|time| time.set(previous_host));
         STORAGE_TIME.with(|time| time.set(previous_storage));
+    }
+}
+
+#[cfg(test)]
+mod budget_tests {
+    use super::*;
+
+    #[test]
+    fn shader_host_time_stays_in_the_aggregate_budget() {
+        let mut resolve = wit_parser::Resolve::default();
+        let package = resolve
+            .push_str("test.wit", "package test:budget; world client-mod {}")
+            .unwrap();
+        let world = resolve
+            .select_world(&[package], Some("client-mod"))
+            .unwrap();
+        let mut module =
+            wit_component::dummy_module(&resolve, world, wit_parser::ManglingAndAbi::Standard32);
+        wit_component::embed_component_metadata(
+            &mut module,
+            &resolve,
+            world,
+            wit_component::StringEncoding::UTF8,
+        )
+        .unwrap();
+        let bytes = wit_component::ComponentEncoder::default()
+            .module(&module)
+            .unwrap()
+            .encode()
+            .unwrap();
+        let mut instance = Sandbox::new()
+            .compile(&bytes)
+            .unwrap()
+            .instantiate("budget", (), |_| Ok(()))
+            .unwrap();
+        let mut measured = Duration::ZERO;
+        assert_eq!(
+            instance.call("compile", |_, _| {
+                let began = Instant::now();
+                std::thread::sleep(Duration::from_millis(2));
+                measured = began.elapsed();
+                add_counted_host_time(measured);
+                assert!(deadline_extension() >= measured);
+                Ok(())
+            }),
+            Some(())
+        );
+        assert!(instance.window.spent >= measured);
+        instance.window.started = Instant::now();
+        instance.limits.aggregate = Duration::from_nanos(1);
+        assert_eq!(instance.call("tick", |_, _| Ok(())), None);
+        assert_eq!(instance.skipped, 1);
+        assert!(!instance.is_disabled());
     }
 }

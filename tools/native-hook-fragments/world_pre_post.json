@@ -9,8 +9,8 @@
       }
     }
   ],
-  "rust_summary": "the render hook point `native_world_pre_post(world)`: the world is drawn, before finishing passes (`WorldPrePost`).",
-  "doc_summary": "the render hook point `native_world_pre_post(world)`, after world transparency and before shader-pack post passes\nor built-in world post/TAA, with writable world depth, camera history and frame lighting (`WorldPrePost`). Bundles need `\"hooks\": @API:world_pre_post@`.",
+  "rust_summary": "the render hook point `native_world_pre_post(world)`: the world is drawn, before finishing passes (`WorldPrePost`), with bounded late world submissions through `world.draws`.",
+  "doc_summary": "the render hook point `native_world_pre_post(world)`, after world transparency and before mod or shader-pack post passes\nor built-in world post/TAA, with writable world depth, camera history and frame lighting (`WorldPrePost`). Submit depth-tested world quads, lines and billboards through `world.draws`; these share the frame's 256-draw budget with the Game world drawing helpers. Bundles need `\"hooks\": @API:world_pre_post@`.",
   "comments": [
     "crates/horizon-client-render/src/gfx/native_render.rs"
   ]
