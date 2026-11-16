@@ -1,0 +1,18 @@
+format = 1
+id = "tested-counter"
+version = "0.1.0"
+name = "Tested Counter"
+authors = ["Yoake"]
+description = "A small client Wasm mod with engine tests."
+
+[yoake]
+version = "*"
+
+[side]
+client = true
+server = false
+required_on_join = false
+
+[wasm]
+interface = "1.0"
+client = "bin/wasm/tested-counter.wasm"
