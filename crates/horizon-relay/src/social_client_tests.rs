@@ -379,7 +379,12 @@ fn social_client_stalled_write_does_not_block_reads() {
         FromRelay::Bridged {}
     ));
     let mut writer = bridge.try_clone().unwrap();
-    let writing = thread::spawn(move || writer.write_all(&vec![57; 16 * 1024 * 1024]));
+    // The test relay forwards 1 MB/s and the guest never reads, so the write
+    // stalls once the sockets on the way are full. How much they take is up
+    // to the OS (Windows grows loopback send buffers past 16 MiB), so the
+    // payload is far more than any of them holds and the write can only end
+    // by the bridge being cut.
+    let writing = thread::spawn(move || writer.write_all(&vec![57; 128 * 1024 * 1024]));
     thread::sleep(Duration::from_millis(100));
     assert!(!writing.is_finished());
     guest.send_message(b"read while writing").unwrap();
