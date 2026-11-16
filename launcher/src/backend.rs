@@ -4115,9 +4115,8 @@ pub fn {f}("
         body
     }
 
-    /// What Yoake 1.0 needs in every distribution that yoake-windows.yml does not publish yet.
-    /// Reported, not fixed here: the workflow is not this test's to change.
-    /// `yoake_windows_workflow_publishes_the_missing_files` (ignored) fails until the list is empty.
+    /// What Yoake 1.0 needs in every distribution: the license and the third-party notices, in
+    /// dist/ and in the MSIX.
     fn yoake_windows_missing_files(workflow: &str) -> Vec<String> {
         let build = workflow_job(workflow, "build");
         let msix = workflow_job(workflow, "msix");
@@ -4206,45 +4205,78 @@ pub fn {f}("
         }
         let manifest = read("packaging/msix/AppxManifest.xml.in");
         let logos = read("packaging/msix/make_logos.py");
-        let mut named = 0;
-        for part in manifest.split('"') {
+        // Every `Assets\Name.png` the manifest references (attributes and <Logo> text) has a
+        // LOGOS entry in make_logos.py, which writes Name.scale-N.png for each scale.
+        let mut referenced = std::collections::BTreeSet::new();
+        for part in manifest.split(['"', '<', '>']) {
             if let Some(name) = part.strip_prefix("Assets\\") {
-                named += 1;
-                assert!(
-                    logos.contains(&format!("\"{name}\"")),
-                    "make_logos.py makes no {name}"
-                );
+                referenced.insert(name.strip_suffix(".png").expect("a .png logo").to_string());
             }
         }
-        assert!(named >= 3, "the manifest names only {named} logo attributes");
-        // The package logo is element text, not an attribute.
-        assert!(manifest.contains("<Logo>Assets\\StoreLogo.png</Logo>"));
-        assert!(logos.contains("\"StoreLogo.png\""));
+        for name in [
+            "Square44x44Logo",
+            "Square71x71Logo",
+            "Square150x150Logo",
+            "Wide310x150Logo",
+            "Square310x310Logo",
+            "StoreLogo",
+            "SplashScreen",
+        ] {
+            assert!(referenced.contains(name), "the manifest does not reference {name}");
+        }
+        for name in &referenced {
+            assert!(
+                logos.contains(&format!("\"{name}\": (")),
+                "make_logos.py makes no {name}"
+            );
+        }
+        assert!(logos.contains("SCALES = (100, 150, 200, 400)"));
+        assert!(logos.contains("\"SplashScreen\": (620, 300)"));
+        assert!(logos.contains("targetsize-"), "no app-list target sizes");
+        assert!(logos.contains("_altform-unplated"), "no unplated app-list icons");
         assert!(manifest.contains("Executable=\"YoakeLauncher.exe\""));
+        assert!(manifest.contains("<uap:SplashScreen"));
 
-        for line in yoake_windows_missing_files(&workflow) {
-            eprintln!("Yoake 1.0, not yet published: {line}");
+        // The zip-style artifact carries the license, the notices and the README; the MSIX carries
+        // the license and the notices beside the executables, and no README.
+        for file in ["LICENSE", "THIRD_PARTY_NOTICES.md"] {
+            assert!(
+                build.contains(&format!("-Destination 'dist/{file}'")),
+                "{file} is not in dist/"
+            );
+            assert!(
+                msix.contains(&format!("-Destination (Join-Path $stage '{file}')")),
+                "{file} is not in the MSIX"
+            );
         }
-    }
+        assert!(build.contains("'packaging/windows/README.txt' -Destination 'dist/README.txt'"));
+        assert!(!msix.contains("README.txt"));
+        // They are checksummed with the executables.
+        let hashed = build.split("$hashes = foreach").nth(1).expect("a checksum loop");
+        let hashed = &hashed[..hashed.find('{').unwrap()];
+        for file in ["LICENSE", "THIRD_PARTY_NOTICES.md", "README.txt"] {
+            assert!(hashed.contains(&format!("'{file}'")), "{file} is not in SHA256SUMS");
+        }
+        let readme = read("packaging/windows/README.txt");
+        for needle in [
+            "YoakeLauncher.exe",
+            "LICENSE",
+            "THIRD_PARTY_NOTICES.md",
+            "This app is not an official Minecraft product and is not approved by or associated with Microsoft.",
+            "本アプリは Minecraft の公式製品ではなく、Microsoft の承認・提携を受けたものではありません。",
+        ] {
+            assert!(readme.contains(needle), "README.txt lacks {needle}");
+        }
+        assert!(!readme.contains("Mojang"));
 
-    /// The 1.0 files yoake-windows.yml still lacks. Ignored until the workflow stages them; run
-    /// with `--ignored` to see the list.
-    #[test]
-    #[ignore = "yoake-windows.yml does not yet stage LICENSE and THIRD_PARTY_NOTICES.md"]
-    fn yoake_windows_workflow_publishes_the_missing_files() {
-        let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
-        let path = repo.join(".github/workflows/yoake-windows.yml");
-        if !path.exists() {
-            eprintln!("skipped: this tree has no yoake-windows.yml (upstream Horizon)");
-            return;
-        }
-        let missing = yoake_windows_missing_files(&fs::read_to_string(path).unwrap().replace("\r\n", "\n"));
+        let missing = yoake_windows_missing_files(&workflow);
         assert!(
             missing.is_empty(),
             "missing from the Yoake release:\n{}",
             missing.join("\n")
         );
     }
+
     #[test]
     fn the_game_plays_under_its_own_audio_stream_name() {
         if std::env::var_os("PIPEWIRE_PROPS").is_some() {

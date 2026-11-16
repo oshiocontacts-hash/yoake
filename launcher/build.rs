@@ -1,5 +1,8 @@
 //! Embeds Horizon's icon (`packaging/icons/horizon.ico`) in the Windows executables, as icon
 //! resource 1: Explorer and the task bar show it, and the window takes it as its icon.
+#[path = "../packaging/yoake_icon.rs"]
+mod yoake_icon;
+
 fn main() {
     println!("cargo:rerun-if-env-changed=YOAKE_FEED_URL");
     println!("cargo:rerun-if-env-changed=YOAKE_PUBLIC_KEYS_FILE");
@@ -8,7 +11,6 @@ fn main() {
     println!("cargo:rerun-if-env-changed=YOAKE_DISTRIBUTION");
     println!("cargo:rerun-if-env-changed=YOAKE_VERSION");
     let feed_url = std::env::var("YOAKE_FEED_URL").ok();
-    let yoake = feed_url.is_some() || std::env::var_os("YOAKE_PORTAL_URL").is_some();
     let keys_path = std::env::var("YOAKE_PUBLIC_KEYS_FILE").ok();
     match (feed_url, keys_path) {
         (None, None) => {}
@@ -41,7 +43,7 @@ fn main() {
     let dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default();
     println!("cargo:rerun-if-changed={dir}/../packaging/icons/horizon.ico");
     println!("cargo:rerun-if-changed={dir}/../packaging/icons/yoake.ico");
-    let icon = if yoake { "yoake.ico" } else { "horizon.ico" };
+    let icon = yoake_icon::icon_file_from_env();
     let ico = format!("{dir}/../packaging/icons/{icon}");
     #[cfg(windows)]
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {

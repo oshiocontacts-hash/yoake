@@ -1,5 +1,8 @@
 //! The launcher's core, shared by the GUI, the CLI and the MCP server.
 pub mod account;
+#[cfg(test)]
+#[path = "../../packaging/yoake_icon.rs"]
+mod yoake_icon_shared;
 pub mod agents;
 pub mod backend;
 pub mod brand;
