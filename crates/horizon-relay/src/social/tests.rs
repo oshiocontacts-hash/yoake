@@ -78,7 +78,7 @@ fn setup(max_connections: usize, idle_timeout: Duration, burst_bytes: usize, rat
         bytes_per_second: rate,
         burst_bytes,
         idle_timeout,
-    }, now).unwrap();
+    }, 100, now).unwrap();
     (relay, now)
 }
 
@@ -163,20 +163,20 @@ fn retiring_a_session_frees_its_place_but_not_its_id_for_a_while() {
     let relay = SocialRelay::new(hex::<32>(PUBLIC), 1);
     let limits = SessionLimits { max_connections: 1, max_nonces: 1, bytes_per_second: 1, burst_bytes: BURST, idle_timeout: Duration::from_secs(5) };
     let request = |id: &str| RegisterSession::relay_only(id.into(), "member:host".into());
-    relay.provision(&request("a"), &"ab".repeat(32), limits, now).unwrap();
-    assert!(matches!(relay.provision(&request("b"), &"ab".repeat(32), limits, now), Err(RelayError::SessionLimit)));
-    relay.retire("a").unwrap();
+    relay.provision(&request("a"), &"ab".repeat(32), limits, TICKET_NOW, now).unwrap();
+    assert!(matches!(relay.provision(&request("b"), &"ab".repeat(32), limits, TICKET_NOW, now), Err(RelayError::SessionLimit)));
+    relay.retire("a", TICKET_NOW).unwrap();
     // The place is free again, so provisioning never fails forever ...
-    relay.provision(&request("b"), &"ab".repeat(32), limits, now).unwrap();
+    relay.provision(&request("b"), &"ab".repeat(32), limits, TICKET_NOW, now).unwrap();
     // ... but "a" cannot come back while a grant issued before the retirement could still be valid.
-    relay.retire("b").unwrap();
-    assert!(matches!(relay.provision(&request("a"), &"ab".repeat(32), limits, now), Err(RelayError::SessionExists)));
+    relay.retire("b", TICKET_NOW).unwrap();
+    assert!(matches!(relay.provision(&request("a"), &"ab".repeat(32), limits, TICKET_NOW, now), Err(RelayError::SessionExists)));
     // Retired ids are bounded too: live sessions plus tombstones stay under 4 x max_sessions.
-    relay.provision(&request("c"), &"ab".repeat(32), limits, now).unwrap();
-    relay.retire("c").unwrap();
-    relay.provision(&request("d"), &"ab".repeat(32), limits, now).unwrap();
-    relay.retire("d").unwrap();
-    assert!(matches!(relay.provision(&request("e"), &"ab".repeat(32), limits, now), Err(RelayError::SessionLimit)));
+    relay.provision(&request("c"), &"ab".repeat(32), limits, TICKET_NOW, now).unwrap();
+    relay.retire("c", TICKET_NOW).unwrap();
+    relay.provision(&request("d"), &"ab".repeat(32), limits, TICKET_NOW, now).unwrap();
+    relay.retire("d", TICKET_NOW).unwrap();
+    assert!(matches!(relay.provision(&request("e"), &"ab".repeat(32), limits, TICKET_NOW, now), Err(RelayError::SessionLimit)));
 }
 
 #[test]
@@ -199,7 +199,7 @@ fn a_burst_smaller_than_one_message_is_not_a_valid_limit() {
     let relay = SocialRelay::new(hex::<32>(PUBLIC), 1);
     let limits = SessionLimits { max_connections: 1, max_nonces: 1, bytes_per_second: 1, burst_bytes: BURST - 1, idle_timeout: Duration::from_secs(5) };
     let request = RegisterSession::relay_only("a".into(), "member:host".into());
-    assert!(matches!(relay.provision(&request, &"ab".repeat(32), limits, Instant::now()), Err(RelayError::InvalidLimits)));
+    assert!(matches!(relay.provision(&request, &"ab".repeat(32), limits, 100, Instant::now()), Err(RelayError::InvalidLimits)));
 }
 
 #[test]
@@ -254,6 +254,8 @@ fn ticket_for(session: &str, token: &str, nonce: u8, exp: u64) -> ProvisionTicke
         burst_bytes: 65_536,
         max_connections: 8,
         idle_secs: 60,
+        session_exp: TICKET_NOW + 3600,
+        relay_id: "relay-1".into(),
         exp,
         nonce: format!("{nonce:02x}").repeat(32),
     }
@@ -274,7 +276,11 @@ fn open(relay: &SocialRelay, ticket: &ProvisionTicket, token: &str, unix: u64) -
     relay.provision_ticket(ticket, &sign_ticket(ticket), token, unix, Instant::now())
 }
 
-fn ticket_relay() -> SocialRelay { SocialRelay::new(hex::<32>(PUBLIC), 8) }
+fn ticket_relay() -> SocialRelay { ticket_relay_with(hex::<32>(PUBLIC), 8) }
+
+fn ticket_relay_with(key: [u8; 32], max_sessions: usize) -> SocialRelay {
+    SocialRelay::new(key, max_sessions).with_relay_id("relay-1").unwrap()
+}
 
 #[test]
 fn a_valid_ticket_opens_a_session_that_pairs_with_the_ticket_token() {
@@ -298,7 +304,7 @@ fn a_ticket_with_a_bad_signature_is_refused() {
     assert!(matches!(result, Err(RelayError::Grant(GrantError::InvalidSignature))));
     let result = relay.provision_ticket(&good, &"00".repeat(64), TICKET_TOKEN, TICKET_NOW, Instant::now());
     assert!(matches!(result, Err(RelayError::Grant(GrantError::InvalidSignature))));
-    let other_key = SocialRelay::new([7; 32], 8);
+    let other_key = ticket_relay_with([7; 32], 8);
     assert!(matches!(open(&other_key, &good, TICKET_TOKEN, TICKET_NOW), Err(RelayError::Grant(GrantError::InvalidSignature))));
     // Nothing was opened by any of that.
     assert!(open(&relay, &good, TICKET_TOKEN, TICKET_NOW).is_ok());
@@ -325,20 +331,21 @@ fn a_used_nonce_cannot_open_another_session() {
 
 #[test]
 fn a_refused_ticket_does_not_burn_its_nonce() {
-    let relay = SocialRelay::new(hex::<32>(PUBLIC), 1);
+    let relay = ticket_relay_with(hex::<32>(PUBLIC), 1);
     open(&relay, &ticket("session-1", 1), TICKET_TOKEN, TICKET_NOW).unwrap();
     let second = ticket("session-2", 2);
     assert!(matches!(open(&relay, &second, TICKET_TOKEN, TICKET_NOW), Err(RelayError::SessionLimit)));
-    relay.retire("session-1").unwrap();
+    relay.retire("session-1", TICKET_NOW).unwrap();
     assert!(open(&relay, &second, TICKET_TOKEN, TICKET_NOW).is_ok());
 }
 
 #[test]
 fn a_full_nonce_cache_refuses_until_entries_expire() {
-    let relay = SocialRelay::new(hex::<32>(PUBLIC), MAX_TICKET_NONCES + 8);
+    let relay = ticket_relay_with(hex::<32>(PUBLIC), MAX_TICKET_NONCES + 8);
     let numbered = |index: usize, exp: u64| {
         let mut ticket = ticket_for(&format!("s{index}"), TICKET_TOKEN, 0, exp);
         ticket.nonce = format!("{index:064x}");
+        ticket.host_principal = format!("member:h{index}"); // one host holds at most 3 sessions
         ticket
     };
     for index in 0..MAX_TICKET_NONCES {
@@ -440,7 +447,7 @@ fn a_repeated_provision_is_idempotent_but_a_different_token_or_host_is_not() {
     other_host.host_principal = "member:other".into();
     assert!(matches!(open(&relay, &other_host, TICKET_TOKEN, TICKET_NOW), Err(RelayError::SessionExists)));
     // A retired id stays reserved: the repeat no longer succeeds.
-    relay.retire("session-1").unwrap();
+    relay.retire("session-1", TICKET_NOW).unwrap();
     assert!(matches!(open(&relay, &first, TICKET_TOKEN, TICKET_NOW), Err(RelayError::SessionExists)));
 }
 
@@ -460,4 +467,136 @@ fn ticket_messages_reject_unknown_fields() {
     assert!(serde_json::from_str::<ToRelay>(&text).is_ok());
     assert!(serde_json::from_str::<ToRelay>(&text.replacen('{', "{\"relay\":\"x\",", 1)).is_err());
     assert!(serde_json::from_str::<ToRelay>(&text.replacen("\"v\":1", "\"v\":1,\"limits\":{}", 1)).is_err());
+}
+
+/// A ticket for host `host` that expires at `exp` and whose session ends at `session_exp`.
+fn ticket_timed(session: &str, host: &str, nonce: u8, exp: u64, session_exp: u64) -> ProvisionTicket {
+    let mut ticket = ticket_for(session, TICKET_TOKEN, nonce, exp);
+    ticket.host_principal = host.into();
+    ticket.session_exp = session_exp;
+    ticket
+}
+
+fn guest_can_join(relay: &SocialRelay, nonce: u8, unix: u64) -> Result<(), RelayError> {
+    relay.begin_guest(&signed(nonce, unix + 60), TestStream::empty(), unix, Instant::now()).map(drop)
+}
+
+#[test]
+fn a_session_ends_at_its_session_exp_and_frees_its_place() {
+    let relay = ticket_relay_with(hex::<32>(PUBLIC), 1);
+    let end = TICKET_NOW + 600;
+    open(&relay, &ticket_timed("session-1", "member:host", 1, TICKET_NOW + 120, end), TICKET_TOKEN, TICKET_NOW).unwrap();
+    assert!(guest_can_join(&relay, 1, end - 1).is_ok());
+    let other = |nonce, exp, session_exp| ticket_timed("session-2", "member:other", nonce, exp, session_exp);
+    assert!(matches!(open(&relay, &other(2, end + 60, end + 3600), TICKET_TOKEN, end - 1), Err(RelayError::SessionLimit)));
+    // At session_exp the room is over: a new session fits, and guests can no longer join the old one.
+    assert!(open(&relay, &other(2, end + 60, end + 3600), TICKET_TOKEN, end).is_ok());
+    assert!(matches!(guest_can_join(&relay, 2, end), Err(RelayError::UnknownSession)));
+}
+
+#[test]
+fn an_ended_session_keeps_its_id_reserved_for_300_seconds_then_can_be_opened_again() {
+    let relay = ticket_relay();
+    let end = TICKET_NOW + 600;
+    open(&relay, &ticket_timed("session-1", "member:host", 1, TICKET_NOW + 120, end), TICKET_TOKEN, TICKET_NOW).unwrap();
+    let again = |nonce: u8, at: u64| ticket_timed("session-1", "member:host", nonce, at + 120, at + 3600);
+    // The reservation, as for `retire`: a grant issued just before the end could still be valid.
+    assert!(matches!(open(&relay, &again(2, end), TICKET_TOKEN, end), Err(RelayError::SessionExists)));
+    assert!(matches!(open(&relay, &again(2, end + 299), TICKET_TOKEN, end + 299), Err(RelayError::SessionExists)));
+    assert!(open(&relay, &again(2, end + 300), TICKET_TOKEN, end + 300).is_ok());
+    assert!(guest_can_join(&relay, 3, end + 300).is_ok());
+}
+
+#[test]
+fn a_repeat_with_a_newer_ticket_extends_the_session_but_never_shortens_it() {
+    let relay = ticket_relay();
+    let first_end = TICKET_NOW + 600;
+    let open_with = |nonce: u8, at: u64, session_exp: u64| {
+        open(&relay, &ticket_timed("session-1", "member:host", nonce, at + 120, session_exp), TICKET_TOKEN, at)
+    };
+    open_with(1, TICKET_NOW, first_end).unwrap();
+    open_with(2, TICKET_NOW + 10, TICKET_NOW + 1200).unwrap();
+    open_with(3, TICKET_NOW + 20, TICKET_NOW + 400).unwrap();
+    assert!(guest_can_join(&relay, 1, first_end + 100).is_ok());
+    assert!(guest_can_join(&relay, 2, TICKET_NOW + 1199).is_ok());
+    assert!(matches!(guest_can_join(&relay, 3, TICKET_NOW + 1200), Err(RelayError::UnknownSession)));
+}
+
+#[test]
+fn a_host_may_have_three_sessions_open_at_once() {
+    let relay = ticket_relay();
+    for index in 0..3u8 {
+        open(&relay, &ticket(&format!("room-{index}"), index + 1), TICKET_TOKEN, TICKET_NOW).unwrap();
+    }
+    assert!(matches!(open(&relay, &ticket("room-3", 4), TICKET_TOKEN, TICKET_NOW), Err(RelayError::HostLimit)));
+    // A repeat of an open room is not a fourth room.
+    assert!(open(&relay, &ticket("room-0", 5), TICKET_TOKEN, TICKET_NOW).is_ok());
+    // Another host is unaffected, and a closed room gives its place back.
+    let mut other = ticket("room-x", 6);
+    other.host_principal = "member:other".into();
+    assert!(open(&relay, &other, TICKET_TOKEN, TICKET_NOW).is_ok());
+    relay.retire("room-1", TICKET_NOW).unwrap();
+    assert!(open(&relay, &ticket("room-3", 4), TICKET_TOKEN, TICKET_NOW).is_ok());
+}
+
+#[test]
+fn the_host_token_retires_a_ticket_session_early() {
+    let relay = ticket_relay();
+    open(&relay, &ticket("session-1", 1), TICKET_TOKEN, TICKET_NOW).unwrap();
+    assert!(matches!(relay.retire_with_token("session-1", &"cd".repeat(32), TICKET_NOW), Err(RelayError::WrongToken)));
+    assert!(matches!(relay.retire_with_token("session-1", "", TICKET_NOW), Err(RelayError::WrongToken)));
+    assert!(guest_can_join(&relay, 1, TICKET_NOW).is_ok());
+    assert!(matches!(relay.retire_with_token("nope", TICKET_TOKEN, TICKET_NOW), Err(RelayError::UnknownSession)));
+    relay.retire_with_token("session-1", TICKET_TOKEN, TICKET_NOW).unwrap();
+    assert!(matches!(guest_can_join(&relay, 2, TICKET_NOW), Err(RelayError::UnknownSession)));
+    assert!(matches!(relay.retire_with_token("session-1", TICKET_TOKEN, TICKET_NOW), Err(RelayError::UnknownSession)));
+    // The place is free again but the id is reserved for a while.
+    assert!(matches!(open(&relay, &ticket("session-1", 3), TICKET_TOKEN, TICKET_NOW), Err(RelayError::SessionExists)));
+}
+
+#[test]
+fn a_session_opened_by_function_call_is_not_reachable_by_tickets_or_token_retire() {
+    let relay = ticket_relay();
+    let request = RegisterSession::relay_only("session-1".into(), "member:host".into());
+    let limits = SessionLimits { max_connections: 4, max_nonces: 8, bytes_per_second: 1000, burst_bytes: BURST, idle_timeout: Duration::from_secs(5) };
+    relay.provision(&request, TICKET_TOKEN, limits, TICKET_NOW, Instant::now()).unwrap();
+    // Same principal, same token: a ticket still does not adopt (or extend) it.
+    assert!(matches!(open(&relay, &ticket("session-1", 1), TICKET_TOKEN, TICKET_NOW), Err(RelayError::SessionExists)));
+    assert!(matches!(relay.retire_with_token("session-1", TICKET_TOKEN, TICKET_NOW), Err(RelayError::UnknownSession)));
+}
+
+#[test]
+fn grant_and_ticket_signatures_do_not_cross_over() {
+    let relay = ticket_relay();
+    let grant = signed(1, TICKET_NOW + 60);
+    let good = ticket("session-1", 1);
+    let result = relay.provision_ticket(&good, &grant.signature, TICKET_TOKEN, TICKET_NOW, Instant::now());
+    assert!(matches!(result, Err(RelayError::Grant(GrantError::InvalidSignature))));
+    open(&relay, &good, TICKET_TOKEN, TICKET_NOW).unwrap();
+    let forged = SignedGrant { grant: grant.grant.clone(), signature: sign_ticket(&good) };
+    let result = relay.begin_guest(&forged, TestStream::empty(), TICKET_NOW, Instant::now());
+    assert!(matches!(result, Err(RelayError::Grant(GrantError::InvalidSignature))));
+}
+
+#[test]
+fn a_ticket_for_another_relay_is_refused() {
+    let relay = ticket_relay();
+    let mut elsewhere = ticket("session-1", 1);
+    elsewhere.relay_id = "relay-staging".into();
+    assert!(matches!(open(&relay, &elsewhere, TICKET_TOKEN, TICKET_NOW), Err(RelayError::WrongRelay)));
+    // A relay with no id of its own takes no tickets at all.
+    let nameless = SocialRelay::new(hex::<32>(PUBLIC), 8);
+    assert!(matches!(open(&nameless, &ticket("session-1", 1), TICKET_TOKEN, TICKET_NOW), Err(RelayError::WrongRelay)));
+    assert!(SocialRelay::new(hex::<32>(PUBLIC), 8).with_relay_id("").is_err());
+    assert!(open(&relay, &ticket("session-1", 1), TICKET_TOKEN, TICKET_NOW).is_ok());
+}
+
+#[test]
+fn session_exp_is_at_most_twelve_hours_ahead_and_in_the_future() {
+    let relay = ticket_relay();
+    let at = |nonce: u8, session_exp: u64| ticket_timed("session-1", "member:host", nonce, TICKET_NOW + 120, session_exp);
+    assert!(matches!(open(&relay, &at(1, TICKET_NOW + 43_201), TICKET_TOKEN, TICKET_NOW), Err(RelayError::Grant(GrantError::LifetimeTooLong))));
+    assert!(matches!(open(&relay, &at(2, TICKET_NOW), TICKET_TOKEN, TICKET_NOW), Err(RelayError::Grant(GrantError::Expired))));
+    assert!(matches!(open(&relay, &at(3, 0), TICKET_TOKEN, TICKET_NOW), Err(RelayError::Grant(GrantError::Expired))));
+    assert!(open(&relay, &at(4, TICKET_NOW + 43_200), TICKET_TOKEN, TICKET_NOW).is_ok());
 }

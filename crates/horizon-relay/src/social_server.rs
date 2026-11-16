@@ -18,7 +18,7 @@ use horizon_friends::{
     social::{FromRelay, ProvisionTicket, SignedGrant, ToRelay, decode_hex},
     social_tls::{ChannelAcceptor, ControlChannel},
 };
-use crate::social::{Direction, ForwardProgress, PairedConnection, PendingGuest, SocialRelay};
+use crate::social::{Direction, ForwardProgress, PairedConnection, PendingGuest, RelayError, SocialRelay};
 #[path = "social_server_config.rs"]
 mod config;
 #[path = "social_server_stream.rs"]
@@ -55,16 +55,17 @@ struct PendingEntry {
 }
 
 impl SocialServer {
-    pub fn new(portal_key: [u8; 32], acceptor: Arc<dyn ChannelAcceptor>) -> Self {
-        Self {
-            relay: SocialRelay::new(portal_key, 1024),
+    /// `relay_id` is the name provision tickets must carry for this relay.
+    pub fn new(portal_key: [u8; 32], relay_id: &str, acceptor: Arc<dyn ChannelAcceptor>) -> Result<Self, RelayError> {
+        Ok(Self {
+            relay: SocialRelay::new(portal_key, 1024).with_relay_id(relay_id)?,
             acceptor,
             pending: Arc::new(Mutex::new(HashMap::new())),
             stop: Arc::new(AtomicBool::new(false)),
             live: Arc::new(AtomicUsize::new(0)),
             max_connections: DEFAULT_MAX_CONNECTIONS,
             ticks: Arc::new(AtomicU64::new(0)),
-        }
+        })
     }
 
     /// Cap on connection threads; beyond it new sockets are closed before any work.
@@ -88,12 +89,19 @@ impl SocialServer {
             var("HORIZON_RELAY_SOCIAL_CERT"),
             var("HORIZON_RELAY_SOCIAL_CERT_KEY"),
             var("HORIZON_RELAY_PORTAL_KEY"),
+            var("HORIZON_RELAY_ID"),
         )
     }
 
-    pub fn from_options(address: Option<String>, cert: Option<String>, key: Option<String>, portal: Option<String>) -> Option<(SocketAddr, Self)> {
-        match config::settings(address, cert, key, portal) {
-            Ok(Some(settings)) => Some((settings.address, Self::new(settings.portal_key, Arc::new(settings.acceptor)))),
+    pub fn from_options(address: Option<String>, cert: Option<String>, key: Option<String>, portal: Option<String>, relay_id: Option<String>) -> Option<(SocketAddr, Self)> {
+        match config::settings(address, cert, key, portal, relay_id) {
+            Ok(Some(settings)) => match Self::new(settings.portal_key, &settings.relay_id, Arc::new(settings.acceptor)) {
+                Ok(server) => Some((settings.address, server)),
+                Err(error) => {
+                    eprintln!("horizon-relay: social listener disabled: {error}");
+                    None
+                }
+            },
             Ok(None) => {
                 println!("horizon-relay: social listener disabled (not configured)");
                 None
@@ -149,6 +157,7 @@ impl SocialServer {
             Ok(ToRelay::Guest { grant }) => self.guest(channel, grant),
             Ok(ToRelay::Host { grant, token }) => self.host(channel, grant, token),
             Ok(ToRelay::Provision { ticket, signature, host_token }) => self.provision(channel, &ticket, &signature, &host_token),
+            Ok(ToRelay::Retire { session_id, host_token }) => self.retire(channel, &session_id, &host_token),
             Err(error) => {
                 channel.shutdown();
                 Err(error)
@@ -164,6 +173,17 @@ impl SocialServer {
             return reject(stream);
         }
         let sent = stream.send_from_relay(&FromRelay::Provisioned {});
+        stream.shutdown();
+        sent
+    }
+
+    /// Ends a ticket-opened session early; waiting guests of it are dropped by their own polling.
+    fn retire(&self, channel: Channel, session_id: &str, host_token: &str) -> io::Result<()> {
+        let stream = MessageStream::new(channel);
+        if self.relay.retire_with_token(session_id, host_token, unix_time()).is_err() {
+            return reject(stream);
+        }
+        let sent = stream.send_from_relay(&FromRelay::Retired {});
         stream.shutdown();
         sent
     }
@@ -229,7 +249,7 @@ impl SocialServer {
         let Ok(mut pair) = result else { return reject(host); };
         let bridged = host.send_from_relay(&FromRelay::Bridged {}).is_ok()
             && guest.send_from_relay(&FromRelay::Bridged {}).is_ok();
-        if bridged { forward(&mut pair, &self.ticks); }
+        if bridged { forward(&mut pair, &self.ticks, &self.relay); }
         drop(pair);
         host.shutdown();
         guest.shutdown();
@@ -244,10 +264,16 @@ impl Drop for LiveGuard {
 
 /// Ends when either side closes or fails, or the slot expires. When both directions are
 /// idle it backs off, so many idle bridges cost little; traffic resets it to 1 ms.
-fn forward(pair: &mut PairedConnection<MessageStream, MessageStream>, ticks: &AtomicU64) {
+fn forward(pair: &mut PairedConnection<MessageStream, MessageStream>, ticks: &AtomicU64, relay: &SocialRelay) {
     let mut nap = Duration::from_millis(1);
+    let mut last_sweep = Instant::now();
     loop {
         ticks.fetch_add(1, Ordering::Relaxed);
+        // A bridge ends when its session passes `session_exp`; sweeping retires the session.
+        if last_sweep.elapsed() >= Duration::from_secs(1) {
+            relay.expire_sessions(unix_time());
+            last_sweep = Instant::now();
+        }
         let mut active = false;
         for direction in [Direction::GuestToHost, Direction::HostToGuest] {
             match pair.forward_once(direction, Instant::now()) {

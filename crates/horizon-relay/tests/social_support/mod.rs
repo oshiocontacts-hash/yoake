@@ -13,6 +13,7 @@ use ring::signature::Ed25519KeyPair;
 use rustls::{ClientConfig, ClientConnection, RootCertStore, StreamOwned, pki_types::{CertificateDer, ServerName}};
 use std::{io::ErrorKind, net::{SocketAddr, TcpStream}, sync::Arc, time::{Duration, Instant, SystemTime, UNIX_EPOCH}};
 
+pub const RELAY_ID: &str = "relay-1";
 pub const TOKEN: &str = "abababababababababababababababababababababababababababababababab";
 const PORTAL_SEED: &str = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60";
 const PORTAL_PUBLIC: &str = "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a";
@@ -76,13 +77,14 @@ pub fn provision_with(relay: &SocialRelay, idle: Duration, bytes_per_second: u64
             burst_bytes,
             idle_timeout: idle,
         },
+        unix_time(),
         std::time::Instant::now(),
     ).unwrap();
 }
 
 pub fn server(tls: &TestTls, limits: HandshakeLimits) -> SocialServer {
     let acceptor = TlsAcceptor::from_der(tls.cert.clone(), tls.key.clone(), limits).unwrap();
-    SocialServer::new(portal_key(), Arc::new(acceptor))
+    SocialServer::new(portal_key(), RELAY_ID, Arc::new(acceptor)).unwrap()
 }
 
 pub fn setup(idle: Duration) -> (SocialServer, SocketAddr, TestTls) {
@@ -103,16 +105,22 @@ pub fn setup_unprovisioned() -> (SocialServer, SocketAddr, TestTls) {
 
 /// A provision message signed with the portal test key, for the host token `token`.
 pub fn provision_message(session: &str, exp: u64, nonce: u8, token: &str) -> ToRelay {
+    provision_message_for(session, "member:host", RELAY_ID, exp, nonce, token)
+}
+
+pub fn provision_message_for(session: &str, host: &str, relay_id: &str, exp: u64, nonce: u8, token: &str) -> ToRelay {
     let digest = ring::digest::digest(&ring::digest::SHA256, &hex::<32>(token));
     let ticket = ProvisionTicket {
         v: 1,
         session_id: session.into(),
-        host_principal: "member:host".into(),
+        host_principal: host.into(),
         token_sha256: digest.as_ref().iter().map(|byte| format!("{byte:02x}")).collect(),
         bytes_per_second: 1_000_000,
         burst_bytes: 64 * 1024,
         max_connections: 64,
         idle_secs: 5,
+        session_exp: unix_time() + 3600,
+        relay_id: relay_id.into(),
         exp,
         nonce: format!("{nonce:02x}").repeat(32),
     };

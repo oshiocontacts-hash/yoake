@@ -14,6 +14,8 @@ const TOKEN_DOMAIN: &[u8] = b"yoake-social-host-token-v1";
 pub const PROVISION_VERSION: u32 = 1;
 /// A provision ticket may not expire further ahead than this.
 pub const MAX_PROVISION_LIFETIME_SECS: u64 = 300;
+/// A provisioned session may not be set to end further ahead than this.
+pub const MAX_SESSION_LIFETIME_SECS: u64 = 12 * 60 * 60;
 /// Smallest burst a ticket may grant: one maximum control message.
 pub const MIN_PROVISION_BURST_BYTES: u64 = 16 * 1024;
 const PROVISION_DOMAIN: &[u8] = b"yoake-social-provision-v1\0";
@@ -95,6 +97,11 @@ pub fn decode_hex<const LENGTH: usize>(value: &str) -> Option<[u8; LENGTH]> {
     Some(result)
 }
 
+/// The identifier rule shared by every id in the social protocol.
+pub fn validate_identifier(value: &str) -> Result<(), GrantError> {
+    append_identifier(&mut Vec::new(), value)
+}
+
 fn append_identifier(output: &mut Vec<u8>, value: &str) -> Result<(), GrantError> {
     if value.is_empty() || value.len() > MAX_IDENTIFIER_BYTES || value.chars().any(char::is_control) {
         return Err(GrantError::InvalidFormat);
@@ -146,6 +153,10 @@ pub struct ProvisionTicket {
     pub burst_bytes: u64,
     pub max_connections: u32,
     pub idle_secs: u32,
+    /// Unix time at which the session itself ends (at most 12 hours ahead).
+    pub session_exp: u64,
+    /// The relay this ticket is for; the relay refuses any other id.
+    pub relay_id: String,
     pub exp: u64,
     pub nonce: String,
 }
@@ -167,6 +178,8 @@ impl ProvisionTicket {
         output.extend_from_slice(&self.burst_bytes.to_be_bytes());
         output.extend_from_slice(&self.max_connections.to_be_bytes());
         output.extend_from_slice(&self.idle_secs.to_be_bytes());
+        output.extend_from_slice(&self.session_exp.to_be_bytes());
+        append_identifier(&mut output, &self.relay_id)?;
         output.extend_from_slice(&self.exp.to_be_bytes());
         output.extend_from_slice(&nonce);
         Ok(output)
@@ -267,6 +280,8 @@ impl GrantVerifier {
             .map_err(|_| GrantError::InvalidSignature)?;
         if ticket.exp <= now { return Err(GrantError::Expired); }
         if ticket.exp - now > MAX_PROVISION_LIFETIME_SECS { return Err(GrantError::LifetimeTooLong); }
+        if ticket.session_exp <= now { return Err(GrantError::Expired); }
+        if ticket.session_exp - now > MAX_SESSION_LIFETIME_SECS { return Err(GrantError::LifetimeTooLong); }
         Ok(VerifiedTicket {
             ticket: ticket.clone(),
             token_sha256: decode_hex::<32>(&ticket.token_sha256).ok_or(GrantError::InvalidFormat)?,
@@ -424,6 +439,8 @@ pub enum ToRelay {
     Host { grant: SignedGrant, token: String },
     /// A host opens its own session with a portal-signed ticket and the token the ticket commits to.
     Provision { ticket: ProvisionTicket, signature: String, host_token: String },
+    /// A host closes a session it opened with a ticket, before its `session_exp`.
+    Retire { session_id: String, host_token: String },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -434,6 +451,7 @@ pub enum FromRelay {
     Bridged {},
     Rejected {},
     Provisioned {},
+    Retired {},
 }
 
 #[cfg(test)]
@@ -462,6 +480,8 @@ mod tests {
             burst_bytes: 65_536,
             max_connections: 8,
             idle_secs: 60,
+            session_exp: 1_700_043_200,
+            relay_id: "relay-1".into(),
             exp: 1_700_000_120,
             nonce: "11".repeat(32),
         }
@@ -477,12 +497,14 @@ mod tests {
         "0000000000010000",
         "00000008",
         "0000003c",
+        "00000000655499c0",
+        "000772656c61792d31",
         "000000006553f178",
         "1111111111111111111111111111111111111111111111111111111111111111",
     );
     const VECTOR_SIGNATURE: &str = concat!(
-        "90143bbd0158a9150a62429dd1cf41a77298ebbb36aa405f8bd73023d8986b18",
-        "c635711d077cd2b4669d90bfde9e52416af2acefebd33fb674f354a1a3ef4e03",
+        "be08b6aa9568a50ce5437cefdb5b0786a03ca454edb6d492c25181052aa88946",
+        "31bfa72daae84a22473abd95c39666610c385fb2323c93b4c6efda8e0cb0f205",
     );
 
     fn to_hex(bytes: &[u8]) -> String { bytes.iter().map(|byte| format!("{byte:02x}")).collect() }
@@ -513,7 +535,22 @@ mod tests {
         let now = 1_700_000_000;
         assert!(matches!(verifier.verify_ticket(&ticket, VECTOR_SIGNATURE, 1_700_000_120), Err(GrantError::Expired)));
         assert!(matches!(verifier.verify_ticket(&ticket, VECTOR_SIGNATURE, 1_699_999_819), Err(GrantError::LifetimeTooLong)));
-        assert!(verifier.verify_ticket(&ticket, VECTOR_SIGNATURE, 1_699_999_820).is_ok());
+        assert!(verifier.verify_ticket(&ticket, VECTOR_SIGNATURE, 1_700_000_000).is_ok());
+        // session_exp: not past, and at most 12 hours ahead. It is signed, so test it by re-signing.
+        let key = Ed25519KeyPair::from_seed_unchecked(&decode_hex::<32>(SEED).unwrap()).unwrap();
+        let resign = |edit: &dyn Fn(&mut ProvisionTicket)| {
+            let mut changed = ticket.clone();
+            edit(&mut changed);
+            let signature = to_hex(key.sign(&changed.signing_bytes().unwrap_or_default()).as_ref());
+            verifier.verify_ticket(&changed, &signature, now)
+        };
+        assert!(matches!(resign(&|t| t.session_exp = now), Err(GrantError::Expired)));
+        assert!(matches!(resign(&|t| t.session_exp = now + 43_201), Err(GrantError::LifetimeTooLong)));
+        assert!(resign(&|t| t.session_exp = now + 43_200).is_ok());
+        assert!(matches!(resign(&|t| t.relay_id = String::new()), Err(GrantError::InvalidFormat)));
+        let mut altered = ticket.clone();
+        altered.relay_id = "relay-2".into();
+        assert!(matches!(verifier.verify_ticket(&altered, VECTOR_SIGNATURE, now), Err(GrantError::InvalidSignature)));
         let mut altered = ticket.clone();
         altered.max_connections = 9;
         assert!(matches!(verifier.verify_ticket(&altered, VECTOR_SIGNATURE, now), Err(GrantError::InvalidSignature)));
@@ -538,6 +575,22 @@ mod tests {
         assert!(serde_json::from_str::<ToRelay>(&text.replacen("\"v\":1,", "\"v\":1,\"extra\":1,", 1)).is_err());
         assert_eq!(serde_json::to_string(&FromRelay::Provisioned {}).unwrap(), r#"{"type":"provisioned"}"#);
         assert!(serde_json::from_str::<FromRelay>(r#"{"type":"provisioned","x":1}"#).is_err());
+    }
+
+    #[test]
+    fn grant_and_ticket_signatures_are_not_interchangeable() {
+        let verifier = GrantVerifier::new(decode_hex::<32>(PUBLIC).unwrap());
+        let grant = signed_grant();
+        // A grant's signature does not pass as a ticket's ...
+        assert!(matches!(
+            verifier.verify_ticket(&vector_ticket(), &grant.signature, 1_700_000_000),
+            Err(GrantError::InvalidSignature)
+        ));
+        // ... and a ticket's signature does not pass as a grant's.
+        let forged = SignedGrant { grant: grant.grant.clone(), signature: VECTOR_SIGNATURE.into() };
+        assert!(matches!(verifier.verify_at(&forged, "session-1", "member:host", 1_700_000_000), Err(GrantError::InvalidSignature)));
+        // The domains differ, so no encoding of one can equal an encoding of the other.
+        assert_ne!(grant.grant.signing_bytes().unwrap()[..21], vector_ticket().signing_bytes().unwrap()[..21]);
     }
 
     #[test]

@@ -217,11 +217,11 @@ fn idle_bridged_pair_is_closed() {
 
 #[test]
 fn no_social_configuration_does_not_start_a_listener() {
-    assert!(SocialServer::from_options(None, None, None, None).is_none());
+    assert!(SocialServer::from_options(None, None, None, None, None).is_none());
     // Something set but unusable disables it too.
     let key = Some("ab".repeat(32));
-    assert!(SocialServer::from_options(Some("127.0.0.1:0".into()), Some("nope.der".into()), Some("nope.key".into()), key).is_none());
-    assert!(SocialServer::from_options(Some("127.0.0.1:0".into()), None, None, Some("\u{e9}".repeat(32))).is_none());
+    assert!(SocialServer::from_options(Some("127.0.0.1:0".into()), Some("nope.der".into()), Some("nope.key".into()), key, Some(RELAY_ID.into())).is_none());
+    assert!(SocialServer::from_options(Some("127.0.0.1:0".into()), None, None, Some("\u{e9}".repeat(32)), Some(RELAY_ID.into())).is_none());
 }
 
 #[test]
@@ -388,4 +388,36 @@ fn a_ticket_nonce_works_once_across_sessions_and_unknown_fields_are_refused() {
     let mut channel = client(address, &tls);
     channel.send_message(text.as_bytes()).unwrap();
     assert_peer_closed(&mut channel);
+}
+
+#[test]
+fn a_ticket_for_another_relay_or_a_fourth_room_is_rejected_over_tls() {
+    let (_server, address, tls) = setup_unprovisioned();
+    let now = unix_time();
+    let wrong_relay = provision_message_for("session-1", "member:host", "relay-staging", now + 60, 9, TOKEN);
+    assert!(matches!(ask(address, &tls, &wrong_relay), FromRelay::Rejected {}));
+    for (index, nonce) in [(1, 10), (2, 11), (3, 12)] {
+        let message = provision_message(&format!("room-{index}"), now + 60, nonce, TOKEN);
+        assert!(matches!(ask(address, &tls, &message), FromRelay::Provisioned {}));
+    }
+    let fourth = provision_message("room-4", now + 60, 13, TOKEN);
+    assert!(matches!(ask(address, &tls, &fourth), FromRelay::Rejected {}));
+}
+
+#[test]
+fn retire_with_the_host_token_closes_the_session_and_drops_a_waiting_guest() {
+    let (_server, address, tls) = setup_unprovisioned();
+    assert!(matches!(ask(address, &tls, &provision_message("session-1", unix_time() + 60, 14, TOKEN)), FromRelay::Provisioned {}));
+    let mut waiting = guest(address, &tls, &signed("session-1", unix_time() + 60, 70));
+    assert!(matches!(recv_from(&mut waiting), FromRelay::Waiting {}));
+
+    let retire = |token: &str| ToRelay::Retire { session_id: "session-1".into(), host_token: token.into() };
+    assert!(matches!(ask(address, &tls, &retire(&"cd".repeat(32))), FromRelay::Rejected {}));
+    assert!(waiting.try_recv_message(Duration::from_millis(300)).unwrap().is_none());
+    assert!(matches!(ask(address, &tls, &retire(TOKEN)), FromRelay::Retired {}));
+    assert_peer_closed(&mut waiting);
+    // Gone: no second retire, and no new guest.
+    assert!(matches!(ask(address, &tls, &retire(TOKEN)), FromRelay::Rejected {}));
+    let mut late = guest(address, &tls, &signed("session-1", unix_time() + 60, 71));
+    assert_rejected(&mut late);
 }

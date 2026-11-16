@@ -96,11 +96,13 @@ credential or relay-side portal client exists.
    `provisioned` (or `rejected`) and closes that connection.
 3. A guest asks the portal to join (`POST /api/social/v1/sessions/:id/join`). The
    portal checks friendship, group membership and blocks, and returns a grant
-   (valid for at most 120 s in practice; the relay accepts up to 300 s) with the
-   relay's address.
+   (120 s in practice; the relay accepts up to 300 s) with the relay's address.
 4. The guest connects to the relay with the grant; the host pairs it over a
    `host` connection with the grant and `host_token`, exactly as in
    [Relay messages and pairing](#relay-messages-and-pairing).
+5. The session ends at its `session_exp`, or earlier when the host sends `retire`
+   (below). The portal's own `DELETE` and 12-hour limit never reach the relay, so
+   the relay enforces `session_exp` itself.
 
 ### Provision message
 
@@ -119,6 +121,8 @@ fields are refused at every level.
     "burst_bytes": 65536,
     "max_connections": 8,
     "idle_secs": 60,
+    "session_exp": 1700043200,
+    "relay_id": "relay-1",
     "exp": 1700000120,
     "nonce": "<64 lowercase hex>"
   },
@@ -134,6 +138,9 @@ only, the signed values are plain JSON fields (the ticket is a struct, not an
 opaque blob), and the signature is over the binary encoding below, never over the
 JSON text.
 
+`exp` is the ticket's own lifetime (when it may still be presented);
+`session_exp` is when the session it opens ends.
+
 ### Signed bytes
 
 All integers are big-endian. The Ed25519 signature covers, in this order:
@@ -147,58 +154,92 @@ All integers are big-endian. The Ed25519 signature covers, in this order:
 7. `burst_bytes`, `u64` (at least 16384).
 8. `max_connections`, `u32`.
 9. `idle_secs`, `u32`.
-10. `exp`, `u64`, Unix seconds.
-11. `nonce`: the raw 32 bytes.
+10. `session_exp`, `u64`, Unix seconds.
+11. `relay_id`: `u16` length, then the UTF-8 bytes.
+12. `exp`, `u64`, Unix seconds.
+13. `nonce`: the raw 32 bytes.
 
 The key is the same pinned portal key as for grants (`HORIZON_RELAY_PORTAL_KEY`).
-`token_sha256` is SHA-256 of the **32 raw bytes** the `host_token` hex decodes to
-(not of the hex text).
+The domain strings differ (`yoake-social-join-v1` for grants), so a signature for
+one kind of message never verifies as the other. `token_sha256` is SHA-256 of the
+**32 raw bytes** the `host_token` hex decodes to (not of the hex text).
 
-### What the relay checks
+### What the relay checks, in order
 
 Any failure is `rejected`, and nothing is stored:
 
-- the signature verifies and `v` is `1`;
-- `exp` is in the future and at most 300 s ahead (a ticket's lifetime is short, so
-  portal and relay clocks must agree; there is no skew allowance);
-- `host_token` is 64 lowercase hex characters and SHA-256 of its bytes equals
-  `token_sha256`;
-- the limits are valid: `burst_bytes` at least 16384 (one maximum message), and
-  every value nonzero and no larger than the relay's caps (`bytes_per_second` at
-  most 2^30, `burst_bytes` at most 64 MiB, `max_connections` at most 256,
-  `idle_secs` at most 3600);
-- `session_id` and `host_principal` follow the identifier rules (nonempty, at
-  most 128 UTF-8 bytes, no control characters);
-- the nonce was not used to open a session before, and the nonce cache is not
-  full; and the session limit is not reached.
+1. Signature and format: `v` is `1`, hex fields are well formed, `session_id`,
+   `host_principal` and `relay_id` follow the identifier rules (nonempty, at most
+   128 UTF-8 bytes, no control characters), and the Ed25519 signature verifies.
+2. Time: `exp` is in the future and at most 300 s ahead; `session_exp` is in the
+   future and at most 12 hours ahead. There is no clock-skew allowance, so portal
+   and relay clocks must agree.
+3. `relay_id` equals this relay's `HORIZON_RELAY_ID`. A ticket for another relay
+   (staging, say) that happens to share the portal key is refused.
+4. `host_token` is 64 lowercase hex characters and SHA-256 of its bytes equals
+   `token_sha256`.
+5. The limits are valid: `burst_bytes` at least 16384 (one maximum message), and
+   every value nonzero and no larger than the relay's caps (`bytes_per_second` at
+   most 2^30, `burst_bytes` at most 64 MiB, `max_connections` at most 256,
+   `idle_secs` at most 3600).
+6. The session id: if it is already open with the same `host_principal` and the
+   same `token_sha256` (and was itself opened by ticket), the reply is
+   `provisioned` and the session is extended (below). Any other existing id,
+   including a retired one still reserved and one opened by function call, is
+   refused.
+7. Per-host cap: one `host_principal` may have at most 3 sessions open at once;
+   a fourth is refused.
+8. The relay's session limit is not reached, the nonce was not used to open a
+   session before, and the nonce cache is not full.
+
+### Expiry, extension and early retire
+
+- **Expiry.** A session whose `session_exp` has passed is ended like a retired one:
+  its place is freed, waiting and bridged guests are dropped, and its id becomes a
+  tombstone. The relay checks with the current Unix time (passed in, never read
+  inside the check) whenever a session is provisioned, a guest arrives, or
+  `retire` is called, and once a second inside every running bridge. A session
+  nobody touches therefore lingers in memory until the next such event, but never
+  holds capacity against a new session, because the check runs first.
+- **Extension.** Presenting a new ticket for the same open session (same principal
+  and token digest) moves `session_exp` to the later of the two values. It never
+  shortens it, and it changes no limit. This is how a host keeps a long session
+  going: the portal issues a fresh ticket and the host sends it again.
+- **Retire.** `{"type":"retire","session_id":"...","host_token":"..."}` ends a
+  session opened by ticket before its `session_exp`. The token authenticates it.
+  The reply is `{"type":"retired"}`, or `{"type":"rejected"}` for a wrong token,
+  an unknown or already ended session, or a session not opened by ticket. The
+  connection is closed after the reply.
+- **Tombstone.** An ended session's id stays reserved for 300 s (the longest grant
+  lifetime), so no grant issued before the end can be valid for a new session
+  with the same id. After that the id is free and a new ticket can open it again;
+  this is safe, since every grant for the old session has expired by then.
 
 ### Idempotence and the nonce
 
-A host may repeat a `provision` (for example when the reply was lost). The relay
-decides in this order, after the signature, time, token and limits checks:
-
-1. If the session id is already open (not retired) with the same
-   `host_principal` and the same `token_sha256`, the reply is `provisioned` and
-   nothing changes: the limits keep their first values, and the nonce is neither
-   stored nor checked. So resending the same ticket is accepted, and so is a new
-   ticket for the same session and token.
-2. If the session id exists in any other way (another token or principal, or a
-   retired id that is still reserved for 300 s), the reply is `rejected`.
-3. Otherwise the nonce must be new. It is stored (with the ticket's `exp`) only
-   when the session is actually created, so a refused ticket does not burn its
-   nonce.
+A host may repeat a `provision` (for example when the reply was lost). Steps 1 to
+5 above run first; then step 6 decides. For an open session with the same
+principal and token digest the reply is `provisioned`, the nonce is neither stored
+nor checked, and the only change is a possible extension of `session_exp`. So
+resending the same ticket is accepted, and so is a new ticket for the same session
+and token. For a new session the nonce must be unused, and it is stored (with the
+ticket's `exp`) only when the session is actually created, so a refused ticket
+does not burn its nonce.
 
 This is the safe choice for a lost reply: a captured ticket on its own opens
-nothing without the `host_token`, a repeat cannot change a session, and a nonce
-can create at most one session. The cache holds at most 4096 nonces; entries are
-dropped once their `exp` has passed, and a full cache refuses new sessions
-(idempotent repeats still work). It is in memory: after a relay restart a ticket
-that is still within its 300 s can be used again, which is why the portal keeps
-the lifetime short and the ticket is useless without the token.
+nothing without the `host_token`, a repeat cannot change a session's limits or
+principal, and a nonce can create at most one session. The nonce cache holds at
+most 4096 entries, dropped once their `exp` has passed; because a ticket's `exp`
+is at most 300 s ahead and a host holds at most 3 sessions, the cache is a second
+line of defence rather than a limit anyone meets. A full cache refuses new
+sessions (repeats still work). It is in memory: after a relay restart a ticket
+still within its 300 s can be used again, which is why the lifetime is short and
+the ticket is useless without the token.
 
 Registration with the portal, token delivery and key rotation remain the portal's
-concern. The relay also keeps the function-call `provision` used by tests and
-embedding.
+concern. The relay also keeps a function-call `provision` used by tests and
+embedding; such sessions never end by `session_exp`, cannot be adopted or
+extended by tickets, and cannot be retired with `retire`.
 
 ### Provision test vector
 
@@ -221,11 +262,16 @@ bytes_per_second  1000000
 burst_bytes       65536
 max_connections   8
 idle_secs         60
+session_exp       1700043200
+relay_id          "relay-1"
 exp               1700000120
 nonce             1111111111111111111111111111111111111111111111111111111111111111
 ```
 
-Signed bytes (150 bytes, concatenated; lines are the fields in order):
+(Valid when the verifier's clock is 1700000000: `exp` is 120 s ahead and
+`session_exp` exactly 12 hours ahead.)
+
+Signed bytes (167 bytes; each line is one field in order, to be concatenated):
 
 ```text
 796f616b652d736f6369616c2d70726f766973696f6e2d763100
@@ -237,6 +283,8 @@ Signed bytes (150 bytes, concatenated; lines are the fields in order):
 0000000000010000
 00000008
 0000003c
+00000000655499c0
+000772656c61792d31
 000000006553f178
 1111111111111111111111111111111111111111111111111111111111111111
 ```
@@ -244,16 +292,16 @@ Signed bytes (150 bytes, concatenated; lines are the fields in order):
 Signature (Ed25519 is deterministic), 128 hex characters:
 
 ```text
-90143bbd0158a9150a62429dd1cf41a77298ebbb36aa405f8bd73023d8986b18c635711d077cd2b4669d90bfde9e52416af2acefebd33fb674f354a1a3ef4e03
+be08b6aa9568a50ce5437cefdb5b0786a03ca454edb6d492c25181052aa8894631bfa72daae84a22473abd95c39666610c385fb2323c93b4c6efda8e0cb0f205
 ```
 
 ## Relay messages and pairing
 
 Social relay control messages are a separate, strictly decoded protocol, not
 an extension of the legacy invite-code wire format. A host opens its session with
-`provision` (see above); a guest presents a signed
+`provision` and may close it with `retire` (see above); a guest presents a signed
 grant; the host presents that same signed grant and its session token. Responses
-are `waiting`, `bridged`, `provisioned`, or `rejected`. These message types have no fields for
+are `waiting`, `bridged`, `provisioned`, `retired`, or `rejected`. These message types have no fields for
 direct addresses, observed addresses, or ICE candidates, and unknown fields are
 rejected.
 
