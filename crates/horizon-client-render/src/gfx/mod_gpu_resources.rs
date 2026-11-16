@@ -4,10 +4,19 @@ use std::sync::Arc;
 use super::mod_gpu::{Allocation, Error, Format, ModId, Resource, Resources, Texture, Usage};
 
 mod commands;
+mod engine;
 mod pipelines;
+mod timing;
 
 pub use commands::{Draw, FrameTarget, Index, Readback, Target};
+pub use engine::{EngineFrame, EngineSources};
 pub use pipelines::{Binding, RenderDescriptor, VertexAttribute};
+
+#[derive(Clone)]
+pub struct SubmissionHooks {
+    pub before: Arc<dyn Fn(ModId) -> Result<(), String> + Send + Sync>,
+    pub complete: Arc<dyn Fn(ModId) + Send + Sync>,
+}
 
 type Owned = Arc<Resource<Value>>;
 
@@ -24,14 +33,19 @@ enum Value {
         usage: wgpu::TextureUsages,
     },
     Sampler(wgpu::Sampler),
-    Shader(wgpu::ShaderModule),
+    Shader {
+        module: wgpu::ShaderModule,
+        engine_masks: BTreeMap<String, u32>,
+    },
     Compute {
         pipeline: wgpu::ComputePipeline,
+        engine_mask: u32,
         _shader: Owned,
     },
     Render {
         pipeline: wgpu::RenderPipeline,
         descriptor: RenderDescriptor,
+        engine_mask: u32,
         _shader: Owned,
     },
     BindGroup {
@@ -41,6 +55,7 @@ enum Value {
         _resources: Vec<Owned>,
     },
     Readback(commands::Ticket),
+    Timing(timing::Ticket),
 }
 
 #[derive(Default)]
@@ -51,9 +66,18 @@ pub struct Gpu {
     recorder: super::mod_gpu::Recorder<commands::Command>,
     pending: Vec<super::mod_gpu::Recorded<commands::Command>>,
     tickets: BTreeMap<ModId, std::collections::BTreeSet<u32>>,
+    engine_uniform: Option<wgpu::Buffer>,
+    timings: Vec<(ModId, Owned)>,
+    budgets: BTreeMap<ModId, timing::Budget>,
+    frame_index: u64,
+    submission_hooks: Option<SubmissionHooks>,
 }
 
 impl Gpu {
+    pub fn set_submission_hooks(&mut self, hooks: SubmissionHooks) {
+        self.submission_hooks = Some(hooks);
+    }
+
     fn available(&self, owner: ModId) -> Result<(), Error> {
         if self.lost || self.disabled.contains_key(&owner) {
             Err(Error::Disabled)
@@ -83,6 +107,8 @@ impl Gpu {
         self.recorder.remove_owner(owner);
         self.pending.retain(|command| command.owner != owner);
         self.tickets.remove(&owner);
+        self.timings.retain(|(identity, _)| *identity != owner);
+        self.budgets.remove(&owner);
         self.disabled.entry(owner).or_insert(reason);
     }
 
@@ -91,6 +117,8 @@ impl Gpu {
         self.recorder = Default::default();
         self.pending.clear();
         self.tickets.clear();
+        self.timings.clear();
+        self.budgets.clear();
         self.resources = Default::default();
     }
 
@@ -98,6 +126,8 @@ impl Gpu {
         self.recorder.remove_owner(owner);
         self.pending.retain(|command| command.owner != owner);
         self.tickets.remove(&owner);
+        self.timings.retain(|(identity, _)| *identity != owner);
+        self.budgets.remove(&owner);
         self.resources.remove_owner(owner);
         self.disabled.remove(&owner);
     }
@@ -239,19 +269,16 @@ impl Gpu {
         self.available(owner)?;
         self.resources
             .create(owner, Allocation::Shader(source.len()), || {
-                let shader = super::mod_gpu_shader::validate(source).map_err(|error| {
-                    Error::Host(format!(
-                        "{}:{}: {}",
-                        error.line, error.column, error.message
-                    ))
-                })?;
-                checked(device, || {
-                    Value::Shader(device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                let shader = super::mod_gpu_shader::validate(source).map_err(Error::Shader)?;
+                let engine_masks = shader.engine_masks.clone();
+                checked(device, || Value::Shader {
+                    module: device.create_shader_module(wgpu::ShaderModuleDescriptor {
                         label: Some("Yoake guarded mod shader"),
                         source: wgpu::ShaderSource::Naga(std::borrow::Cow::Owned(
                             shader.into_module(),
                         )),
-                    }))
+                    }),
+                    engine_masks,
                 })
             })
     }
@@ -270,6 +297,18 @@ pub fn texture_format(format: Format) -> wgpu::TextureFormat {
         Format::R32Float => wgpu::TextureFormat::R32Float,
         Format::Rg16Float => wgpu::TextureFormat::Rg16Float,
         Format::Depth32Float => wgpu::TextureFormat::Depth32Float,
+        Format::Bgra8Unorm => wgpu::TextureFormat::Bgra8Unorm,
+        Format::Rgb10a2Unorm => wgpu::TextureFormat::Rgb10a2Unorm,
+    }
+}
+
+pub fn frame_format(format: wgpu::TextureFormat) -> Option<Format> {
+    match format.remove_srgb_suffix() {
+        wgpu::TextureFormat::Rgba8Unorm => Some(Format::Rgba8Unorm),
+        wgpu::TextureFormat::Bgra8Unorm => Some(Format::Bgra8Unorm),
+        wgpu::TextureFormat::Rgb10a2Unorm => Some(Format::Rgb10a2Unorm),
+        wgpu::TextureFormat::Rgba16Float => Some(Format::Rgba16Float),
+        _ => None,
     }
 }
 

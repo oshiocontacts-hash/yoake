@@ -621,11 +621,23 @@ impl Gpu {
         stage: Stage,
         frame: Option<&FrameTarget<'_>>,
     ) -> Vec<(ModId, Error)> {
+        self.submit_stage_with_engine(device, queue, stage, frame, None)
+    }
+
+    pub fn submit_stage_with_engine(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        stage: Stage,
+        frame: Option<&FrameTarget<'_>>,
+        sources: Option<&super::EngineSources<'_>>,
+    ) -> Vec<(ModId, Error)> {
         if !self.has_stage(stage) {
             return Vec::new();
         }
         let pending = std::mem::take(&mut self.pending);
         let mut errors = Vec::new();
+        let mut batches = std::collections::BTreeMap::<_, Vec<_>>::new();
         for recorded in pending {
             if self.disabled.contains_key(&recorded.owner) {
                 continue;
@@ -634,32 +646,102 @@ impl Gpu {
                 self.pending.push(recorded);
                 continue;
             }
+            batches.entry(recorded.owner).or_default().push(recorded);
+        }
+        for (owner, batch) in batches {
+            let mut snapshots = super::engine::Snapshots::default();
+            let mut submitted = false;
+            let mut retained_timing = None;
             let result = checked(device, || -> Result<(), Error> {
                 let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Yoake isolated mod GPU command"),
+                    label: Some("Yoake isolated mod GPU stage"),
                 });
-                recorded.command.encode(&mut encoder, frame)?;
-                queue.submit([encoder.finish()]);
-                if let Command::Read { ticket, .. } = &recorded.command {
-                    let Value::Readback(ticket) = ticket.value() else {
-                        return Err(Error::Kind);
+                let passes = batch
+                    .iter()
+                    .filter(|recorded| recorded.command.is_pass())
+                    .count() as u32;
+                let timing = self.timing_ticket(device, queue, owner, passes)?;
+                let ticket = timing.as_ref().and_then(|resource| match resource.value() {
+                    Value::Timing(ticket) => Some(ticket),
+                    _ => None,
+                });
+                let mut query = 0;
+                for recorded in &batch {
+                    let groups = self.engine_groups(
+                        device,
+                        queue,
+                        &mut encoder,
+                        &recorded.command,
+                        stage,
+                        sources,
+                        &mut snapshots,
+                    )?;
+                    let timestamps = if recorded.command.is_pass() {
+                        let timestamps = ticket.map(|ticket| (&ticket.queries, query));
+                        query += 2;
+                        timestamps
+                    } else {
+                        None
                     };
-                    let status = ticket.status.clone();
-                    ticket
-                        .buffer
-                        .slice(..)
-                        .map_async(wgpu::MapMode::Read, move |result| {
-                            if let Ok(mut slot) = status.lock() {
-                                *slot = Some(result.map_err(|error| error.to_string()));
-                            }
-                        });
+                    recorded
+                        .command
+                        .encode(&mut encoder, frame, &groups, timestamps)?;
+                }
+                if let Some(ticket) = ticket {
+                    encoder.resolve_query_set(&ticket.queries, 0..ticket.count, &ticket.resolve, 0);
+                    encoder.copy_buffer_to_buffer(
+                        &ticket.resolve,
+                        0,
+                        &ticket.read,
+                        0,
+                        u64::from(ticket.count) * 8,
+                    );
+                }
+                let command_buffer = encoder.finish();
+                if let Some(hooks) = &self.submission_hooks {
+                    (hooks.before)(owner).map_err(Error::Host)?;
+                }
+                queue.submit([command_buffer]);
+                submitted = true;
+                retained_timing = timing.clone();
+                if let Some(ticket) = ticket {
+                    ticket.map();
+                }
+                if let Some(timing) = timing {
+                    self.timings.push((owner, timing));
+                }
+                for recorded in &batch {
+                    if let Command::Read { ticket, .. } = &recorded.command {
+                        let Value::Readback(ticket) = ticket.value() else {
+                            return Err(Error::Kind);
+                        };
+                        let status = ticket.status.clone();
+                        ticket
+                            .buffer
+                            .slice(..)
+                            .map_async(wgpu::MapMode::Read, move |result| {
+                                if let Ok(mut slot) = status.lock() {
+                                    *slot = Some(result.map_err(|error| error.to_string()));
+                                }
+                            });
+                    }
                 }
                 Ok(())
             })
             .and_then(|result| result);
             if let Err(error) = result {
-                self.disable(recorded.owner, format!("{error:?}"));
-                errors.push((recorded.owner, error));
+                self.disable(owner, error.to_string());
+                errors.push((owner, error));
+            }
+            if submitted {
+                let hooks = self.submission_hooks.clone();
+                queue.on_submitted_work_done(move || {
+                    if let Some(hooks) = hooks {
+                        (hooks.complete)(owner);
+                    }
+                    drop(retained_timing);
+                    drop(batch);
+                });
             }
         }
         errors
@@ -667,10 +749,16 @@ impl Gpu {
 }
 
 impl Command {
+    fn is_pass(&self) -> bool {
+        matches!(self, Self::Dispatch { .. } | Self::Draw { .. })
+    }
+
     fn encode(
         &self,
         encoder: &mut wgpu::CommandEncoder,
         frame: Option<&FrameTarget<'_>>,
+        engine_groups: &[(u32, wgpu::BindGroup)],
+        timestamps: Option<(&wgpu::QuerySet, u32)>,
     ) -> Result<(), Error> {
         match self {
             Self::Write {
@@ -754,9 +842,18 @@ impl Command {
                 };
                 let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                     label: Some("Yoake mod compute"),
-                    timestamp_writes: None,
+                    timestamp_writes: timestamps.map(|(query_set, first)| {
+                        wgpu::ComputePassTimestampWrites {
+                            query_set,
+                            beginning_of_pass_write_index: Some(first),
+                            end_of_pass_write_index: Some(first + 1),
+                        }
+                    }),
                 });
                 pass.set_pipeline(pipeline);
+                for (index, group) in engine_groups {
+                    pass.set_bind_group(*index, group, &[]);
+                }
                 for group in groups {
                     let Value::BindGroup { group, index, .. } = group.value() else {
                         return Err(Error::Kind);
@@ -835,6 +932,13 @@ impl Command {
                 };
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("Yoake mod render"),
+                    timestamp_writes: timestamps.map(|(query_set, first)| {
+                        wgpu::RenderPassTimestampWrites {
+                            query_set,
+                            beginning_of_pass_write_index: Some(first),
+                            end_of_pass_write_index: Some(first + 1),
+                        }
+                    }),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: color,
                         depth_slice: None,
@@ -864,6 +968,9 @@ impl Command {
                     ..Default::default()
                 });
                 pass.set_pipeline(pipeline);
+                for (index, group) in engine_groups {
+                    pass.set_bind_group(*index, group, &[]);
+                }
                 for group in groups {
                     let Value::BindGroup { group, index, .. } = group.value() else {
                         return Err(Error::Kind);

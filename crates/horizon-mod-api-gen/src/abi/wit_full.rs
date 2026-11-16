@@ -15,18 +15,18 @@
 //! encapsulated structs, recursion) becomes a `u64` opaque handle, except the engine types of the
 //! table in `types.rs` (NBT, item stacks, text, JSON, mod block entities, `&mut` draw objects).
 use serde::Serialize;
+use std::rc::Rc;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
 };
-use std::rc::Rc;
 use syn::{FnArg, GenericArgument, Item, Pat, PathArguments, Type};
 
-mod types;
 pub(crate) mod shape;
+mod types;
 use shape::{ListKind, MapKind, NamedDef, RustPath, Shape, StrKind, VCase, WrapKind};
-use types::{Carrier, EFFECTS, Effect, ITEM_STACK_DOC, JSON_DOC, NBT_DOC, TABLE, TEXT_DOC, effect_of};
+use types::{Carrier, Effect, ITEM_STACK_DOC, JSON_DOC, NBT_DOC, TABLE, TEXT_DOC, effect_of};
 
 const SERVER_DRAFT: &str = include_str!("../../abi-subset-server.json");
 const CLIENT_DRAFT: &str = include_str!("../../abi-subset-client.json");
@@ -50,11 +50,51 @@ const CLIENT_IMPORTS: &[&str] = &[
 const SERVER_IMPORTS: &[&str] = &["types", "logging"];
 
 const KEYWORDS: &[&str] = &[
-    "as", "async", "bool", "borrow", "char", "constructor", "enum", "export", "f32", "f64",
-    "flags", "from", "func", "future", "import", "include", "interface", "list", "option", "own",
-    "package", "record", "resource", "result", "s8", "s16", "s32", "s64", "static", "stream",
-    "string", "tuple", "type", "u8", "u16", "u32", "u64", "use", "variant", "with", "world",
-    "error-context", "u128", "s128", "map",
+    "as",
+    "async",
+    "bool",
+    "borrow",
+    "char",
+    "constructor",
+    "enum",
+    "export",
+    "f32",
+    "f64",
+    "flags",
+    "from",
+    "func",
+    "future",
+    "import",
+    "include",
+    "interface",
+    "list",
+    "option",
+    "own",
+    "package",
+    "record",
+    "resource",
+    "result",
+    "s8",
+    "s16",
+    "s32",
+    "s64",
+    "static",
+    "stream",
+    "string",
+    "tuple",
+    "type",
+    "u8",
+    "u16",
+    "u32",
+    "u64",
+    "use",
+    "variant",
+    "with",
+    "world",
+    "error-context",
+    "u128",
+    "s128",
+    "map",
 ];
 
 const MAX_NAMED_FIELDS: usize = 40;
@@ -132,7 +172,13 @@ fn unique(base: String, used: &mut HashSet<String>) -> String {
 
 fn sanitize_doc(text: &str) -> String {
     text.chars()
-        .map(|c| if c.is_control() && c != '\n' && c != '\t' { ' ' } else { c })
+        .map(|c| {
+            if c.is_control() && c != '\n' && c != '\t' {
+                ' '
+            } else {
+                c
+            }
+        })
         .filter(|c| !matches!(*c, '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}'))
         .collect()
 }
@@ -195,7 +241,11 @@ fn is_test_item(attrs: &[syn::Attribute]) -> bool {
     })
 }
 
-fn flatten_use(tree: &syn::UseTree, prefix: &mut Vec<String>, out: &mut HashMap<String, Vec<String>>) {
+fn flatten_use(
+    tree: &syn::UseTree,
+    prefix: &mut Vec<String>,
+    out: &mut HashMap<String, Vec<String>>,
+) {
     match tree {
         syn::UseTree::Path(path) => {
             prefix.push(path.ident.to_string());
@@ -252,7 +302,9 @@ fn parse_file_context(path: &Path) -> Rc<ParsedFile> {
 }
 
 fn identifier_after(text: &str) -> String {
-    text.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect()
+    text.chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect()
 }
 
 /// Workspace type definitions, found by a cheap text scan and parsed only when a hook needs them.
@@ -287,37 +339,59 @@ impl TypeIndex {
             .collect();
         dirs.sort();
         for dir in dirs {
-            let krate = dir.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_owned();
+            let krate = dir
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default()
+                .to_owned();
             index.walk(&dir.join("src"), &dir.join("src"), &krate);
         }
         Ok(index)
     }
 
     fn walk(&mut self, dir: &Path, src: &Path, krate: &str) {
-        let Ok(entries) = fs::read_dir(dir) else { return };
-        let mut paths: Vec<_> = entries.filter_map(|entry| entry.ok().map(|e| e.path())).collect();
+        let Ok(entries) = fs::read_dir(dir) else {
+            return;
+        };
+        let mut paths: Vec<_> = entries
+            .filter_map(|entry| entry.ok().map(|e| e.path()))
+            .collect();
         paths.sort();
         for path in paths {
             if path.is_dir() {
                 self.walk(&path, src, krate);
             } else if path.extension().is_some_and(|ext| ext == "rs") {
-                let Ok(source) = fs::read_to_string(&path) else { continue };
+                let Ok(source) = fs::read_to_string(&path) else {
+                    continue;
+                };
                 let relative = path.strip_prefix(src).unwrap_or(&path).with_extension("");
-                let mut module: Vec<String> =
-                    relative.components().map(|c| c.as_os_str().to_string_lossy().into_owned()).collect();
-                if matches!(module.last().map(String::as_str), Some("mod" | "lib" | "main")) {
+                let mut module: Vec<String> = relative
+                    .components()
+                    .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                    .collect();
+                if matches!(
+                    module.last().map(String::as_str),
+                    Some("mod" | "lib" | "main")
+                ) {
                     module.pop();
                 }
-                self.origins.insert(path.clone(), (krate.to_owned(), module.join("::")));
+                self.origins
+                    .insert(path.clone(), (krate.to_owned(), module.join("::")));
                 for line in source.lines() {
                     let mut rest = line.trim_start();
                     if let Some(after) = rest.strip_prefix("pub") {
                         rest = after.trim_start();
                         if rest.starts_with('(') {
-                            rest = rest.split_once(')').map_or("", |(_, tail)| tail).trim_start();
+                            rest = rest
+                                .split_once(')')
+                                .map_or("", |(_, tail)| tail)
+                                .trim_start();
                         }
                     }
-                    if let Some(rest) = ["struct ", "enum ", "type "].iter().find_map(|k| rest.strip_prefix(k)) {
+                    if let Some(rest) = ["struct ", "enum ", "type "]
+                        .iter()
+                        .find_map(|k| rest.strip_prefix(k))
+                    {
                         let name = identifier_after(rest);
                         if !name.is_empty() {
                             let files = self.files.entry(name).or_default();
@@ -339,7 +413,9 @@ impl TypeIndex {
                         let original: String = reversed.chars().rev().collect();
                         let local = identifier_after(right.trim_start());
                         if !original.is_empty() && !local.is_empty() {
-                            self.aliases.entry(local).or_insert((original, path.clone()));
+                            self.aliases
+                                .entry(local)
+                                .or_insert((original, path.clone()));
                         }
                     }
                 }
@@ -357,13 +433,22 @@ impl TypeIndex {
     }
 
     fn context(&mut self, path: &Path) -> Context {
-        let krate = self.origins.get(path).map(|(krate, _)| krate.clone()).unwrap_or_default();
-        Context { file: path.to_owned(), krate, parsed: self.parsed(path) }
+        let krate = self
+            .origins
+            .get(path)
+            .map(|(krate, _)| krate.clone())
+            .unwrap_or_default();
+        Context {
+            file: path.to_owned(),
+            krate,
+            parsed: self.parsed(path),
+        }
     }
 
     /// The workspace crates `krate` depends on, read from its manifest.
     fn dependencies(&self, krate: &str) -> HashSet<String> {
-        let manifest = fs::read_to_string(self.crates_dir.join(krate).join("Cargo.toml")).unwrap_or_default();
+        let manifest =
+            fs::read_to_string(self.crates_dir.join(krate).join("Cargo.toml")).unwrap_or_default();
         manifest
             .lines()
             .filter_map(|line| line.split(['=', '.', ' ']).next())
@@ -382,20 +467,38 @@ impl TypeIndex {
         let mut name = name.to_owned();
         let mut hint = from.parsed.imports.get(&name).cloned();
         if !self.files.contains_key(&name) {
-            if let Some(last) = hint.as_ref().and_then(|path| path.last()).filter(|last| self.files.contains_key(*last)) {
+            if let Some(last) = hint
+                .as_ref()
+                .and_then(|path| path.last())
+                .filter(|last| self.files.contains_key(*last))
+            {
                 name = last.clone();
             } else if let Some((original, file)) = self.aliases.get(&name).cloned() {
                 hint = self.parsed(&file).imports.get(&name).cloned();
                 name = original;
             }
-        } else if let Some(last) = hint.as_ref().and_then(|path| path.last()).filter(|last| **last != name && self.files.contains_key(*last)) {
+        } else if let Some(last) = hint
+            .as_ref()
+            .and_then(|path| path.last())
+            .filter(|last| **last != name && self.files.contains_key(*last))
+        {
             name = last.clone();
         }
-        let files = self.files.get(&name).ok_or("not found in workspace sources")?.clone();
+        let files = self
+            .files
+            .get(&name)
+            .ok_or("not found in workspace sources")?
+            .clone();
         let mut found: Vec<Candidate> = Vec::new();
         for file in files {
             let parsed = self.parsed(&file);
-            found.extend(parsed.defs.iter().filter(|d| d.name() == name).map(|d| (file.clone(), d.clone())));
+            found.extend(
+                parsed
+                    .defs
+                    .iter()
+                    .filter(|d| d.name() == name)
+                    .map(|d| (file.clone(), d.clone())),
+            );
         }
         if found.is_empty() {
             return Err("not found in workspace sources");
@@ -411,7 +514,11 @@ impl TypeIndex {
             }
         };
         // 1. defined in the same file
-        let local: Vec<Candidate> = found.iter().filter(|(file, _)| *file == from.file).cloned().collect();
+        let local: Vec<Candidate> = found
+            .iter()
+            .filter(|(file, _)| *file == from.file)
+            .cloned()
+            .collect();
         if !local.is_empty() {
             return choose(local);
         }
@@ -422,10 +529,18 @@ impl TypeIndex {
                 Some("crate" | "super" | "self") | None => from.krate.clone(),
                 Some(first) => first.replace('_', "-"),
             };
-            let middle = if path.len() > 2 { path[1..path.len() - 1].join("::") } else { String::new() };
-            let mut by_crate: Vec<Candidate> =
-                found.iter().filter(|(file, _)| self.crate_of(file) == Some(krate.as_str())).cloned().collect();
-            if by_crate.len() > 1 && !middle.is_empty() && !matches!(first, Some("super" | "self")) {
+            let middle = if path.len() > 2 {
+                path[1..path.len() - 1].join("::")
+            } else {
+                String::new()
+            };
+            let mut by_crate: Vec<Candidate> = found
+                .iter()
+                .filter(|(file, _)| self.crate_of(file) == Some(krate.as_str()))
+                .cloned()
+                .collect();
+            if by_crate.len() > 1 && !middle.is_empty() && !matches!(first, Some("super" | "self"))
+            {
                 let by_module: Vec<Candidate> = by_crate
                     .iter()
                     .filter(|(file, _)| {
@@ -450,7 +565,8 @@ impl TypeIndex {
                         || middle.starts_with(&format!("{module}::"))
                 })
             };
-            let own_module_fits = middle.is_empty() || by_crate.iter().any(|(file, _)| module_matches(file));
+            let own_module_fits =
+                middle.is_empty() || by_crate.iter().any(|(file, _)| module_matches(file));
             if !by_crate.is_empty() && own_module_fits {
                 return choose(by_crate);
             }
@@ -458,7 +574,11 @@ impl TypeIndex {
                 let dependencies = self.dependencies(&from.krate);
                 let by_dependency: Vec<Candidate> = found
                     .iter()
-                    .filter(|(file, _)| self.crate_of(file).is_some_and(|k| dependencies.contains(k)) && module_matches(file))
+                    .filter(|(file, _)| {
+                        self.crate_of(file)
+                            .is_some_and(|k| dependencies.contains(k))
+                            && module_matches(file)
+                    })
                     .cloned()
                     .collect();
                 if !by_dependency.is_empty() {
@@ -476,7 +596,8 @@ impl TypeIndex {
                 let by_module: Vec<Candidate> = found
                     .iter()
                     .filter(|(file, _)| {
-                        self.crate_of(file).is_some_and(|k| dependencies.contains(k))
+                        self.crate_of(file)
+                            .is_some_and(|k| dependencies.contains(k))
                             && self.origins.get(file).is_some_and(|(_, module)| {
                                 *module == middle || module.ends_with(&format!("::{middle}"))
                             })
@@ -489,8 +610,11 @@ impl TypeIndex {
             }
         }
         // 3. the file's own crate
-        let by_crate: Vec<Candidate> =
-            found.iter().filter(|(file, _)| self.crate_of(file) == Some(from.krate.as_str())).cloned().collect();
+        let by_crate: Vec<Candidate> = found
+            .iter()
+            .filter(|(file, _)| self.crate_of(file) == Some(from.krate.as_str()))
+            .cloned()
+            .collect();
         if !by_crate.is_empty() {
             return choose(by_crate);
         }
@@ -498,7 +622,10 @@ impl TypeIndex {
         let dependencies = self.dependencies(&from.krate);
         let by_dependency: Vec<Candidate> = found
             .iter()
-            .filter(|(file, _)| self.crate_of(file).is_some_and(|krate| dependencies.contains(krate)))
+            .filter(|(file, _)| {
+                self.crate_of(file)
+                    .is_some_and(|krate| dependencies.contains(krate))
+            })
             .cloned()
             .collect();
         if !by_dependency.is_empty() {
@@ -526,7 +653,10 @@ struct Mapped {
 
 impl Mapped {
     fn plain(wit: &str) -> Self {
-        Self { wit: wit.into(), ..Self::default() }
+        Self {
+            wit: wit.into(),
+            ..Self::default()
+        }
     }
 
     fn shaped(mut self, shape: Shape) -> Self {
@@ -545,7 +675,10 @@ impl Mapped {
     }
 
     fn wrap(wit: String, inner: Vec<Mapped>) -> Self {
-        let mut mapped = Self { wit, ..Self::default() };
+        let mut mapped = Self {
+            wit,
+            ..Self::default()
+        };
         for inner in inner {
             mapped.uses.extend(inner.uses);
             mapped.direct.extend(inner.direct);
@@ -599,7 +732,10 @@ fn scalar(ty: &Type) -> Option<&'static str> {
         && path.qself.is_none()
         && let Some(name) = path.path.get_ident()
     {
-        return SCALARS.iter().find(|(rust, _)| name == rust).map(|(_, wit)| *wit);
+        return SCALARS
+            .iter()
+            .find(|(rust, _)| name == rust)
+            .map(|(_, wit)| *wit);
     }
     None
 }
@@ -607,18 +743,27 @@ fn scalar(ty: &Type) -> Option<&'static str> {
 fn label(ty: &Type) -> String {
     use quote::ToTokens;
     match ty {
-        Type::Path(path) if path.qself.is_none() => {
-            path.path.segments.last().map(|s| s.ident.to_string()).unwrap_or_default()
-        }
+        Type::Path(path) if path.qself.is_none() => path
+            .path
+            .segments
+            .last()
+            .map(|s| s.ident.to_string())
+            .unwrap_or_default(),
         Type::Reference(reference) => {
             let inner = label(&reference.elem);
-            if reference.mutability.is_some() { format!("&mut {inner}") } else { inner }
+            if reference.mutability.is_some() {
+                format!("&mut {inner}")
+            } else {
+                inner
+            }
         }
         Type::Slice(slice) => format!("[{}]", label(&slice.elem)),
         other => {
             let text = other.to_token_stream().to_string();
             // Lifetimes carry no information for the report.
-            text.replace("'_ ", "").replace("' a ", "").replace(" < '_ >", "")
+            text.replace("'_ ", "")
+                .replace("' a ", "")
+                .replace(" < '_ >", "")
         }
     }
 }
@@ -659,12 +804,17 @@ fn glam(name: &str) -> Option<String> {
 
 impl Mapper {
     fn new(index: TypeIndex) -> Self {
-        Self { index, ..Self::default() }
+        Self {
+            index,
+            ..Self::default()
+        }
     }
 
     fn handle(&mut self, ty: &Type, reason: &str) -> Mapped {
         let label = label(ty);
-        self.reasons.entry(label.clone()).or_insert_with(|| reason.to_owned());
+        self.reasons
+            .entry(label.clone())
+            .or_insert_with(|| reason.to_owned());
         Mapped::handle(label)
     }
 
@@ -705,7 +855,14 @@ impl Mapper {
                     return self.handle(ty, "unit type");
                 }
                 let inner: Vec<_> = tuple.elems.iter().map(|elem| self.map(elem)).collect();
-                let wit = format!("tuple<{}>", inner.iter().map(|m| m.wit.as_str()).collect::<Vec<_>>().join(", "));
+                let wit = format!(
+                    "tuple<{}>",
+                    inner
+                        .iter()
+                        .map(|m| m.wit.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
                 let shape = Shape::Tuple(inner.iter().map(|m| m.shape.clone()).collect());
                 Mapped::wrap(wit, inner).shaped(shape)
             }
@@ -728,28 +885,54 @@ impl Mapper {
         let name = last.ident.to_string();
         let args = type_args(&last.arguments);
         if let Some(wit) = scalar(ty) {
-            let rust = SCALARS.iter().find(|(r, _)| *r == name).map(|(r, _)| *r).unwrap_or("u64");
+            let rust = SCALARS
+                .iter()
+                .find(|(r, _)| *r == name)
+                .map(|(r, _)| *r)
+                .unwrap_or("u64");
             return Mapped::plain(wit).shaped(Shape::Scalar { rust });
         }
         if matches!(name.as_str(), "u128" | "i128") && args.is_empty() {
             // 16 bytes in big-endian order, like the UUIDs of the frozen client ABI.
-            return Mapped::plain("list<u8>").shaped(Shape::Wide { signed: name == "i128" });
+            return Mapped::plain("list<u8>").shaped(Shape::Wide {
+                signed: name == "i128",
+            });
         }
         if args.is_empty()
-            && (self.context.last().and_then(|c| c.parsed.imports.get(&name)).is_some_and(|p| p.first().is_some_and(|f| f == "glam"))
-                || (path.path.segments.len() > 1 && path.path.segments.first().is_some_and(|s| s.ident == "glam")))
+            && (self
+                .context
+                .last()
+                .and_then(|c| c.parsed.imports.get(&name))
+                .is_some_and(|p| p.first().is_some_and(|f| f == "glam"))
+                || (path.path.segments.len() > 1
+                    && path
+                        .path
+                        .segments
+                        .first()
+                        .is_some_and(|s| s.ident == "glam")))
             && let Some(wit) = glam(&name)
         {
             let count = wit.matches(',').count() + 1;
-            return Mapped::plain(&wit).shaped(Shape::Glam { rust: format!("glam::{name}"), count });
+            return Mapped::plain(&wit).shaped(Shape::Glam {
+                rust: format!("glam::{name}"),
+                count,
+            });
         }
-        if name == "Duration" && args.is_empty() && self.comes_from(path, &name, &["time", "std", "core"]) {
+        if name == "Duration"
+            && args.is_empty()
+            && self.comes_from(path, &name, &["time", "std", "core"])
+        {
             // `std::time::Duration` as nanoseconds, like the frozen client world's `frame`.
             return Mapped::plain("u64").shaped(Shape::Duration);
         }
         if name == "Map" && args.len() == 2 && self.comes_from(path, &name, &["serde_json"]) {
             self.declare("json", JSON_DOC);
-            return Mapped { wit: "json".into(), uses: BTreeSet::from(["json".to_owned()]), shape: Shape::JsonMap, ..Mapped::default() };
+            return Mapped {
+                wit: "json".into(),
+                uses: BTreeSet::from(["json".to_owned()]),
+                shape: Shape::JsonMap,
+                ..Mapped::default()
+            };
         }
         match (name.as_str(), args.as_slice()) {
             ("String" | "str" | "Uuid", []) => {
@@ -794,7 +977,11 @@ impl Mapper {
                     "BTreeMap" => MapKind::BTreeMap,
                     _ => MapKind::Other,
                 };
-                let shape = Shape::Map(Box::new(key.shape.clone()), Box::new(value.shape.clone()), kind);
+                let shape = Shape::Map(
+                    Box::new(key.shape.clone()),
+                    Box::new(value.shape.clone()),
+                    kind,
+                );
                 return Mapped::wrap(wit, vec![key, value]).shaped(shape);
             }
             ("Result", [ok, err]) => {
@@ -806,11 +993,18 @@ impl Mapper {
             // Shared immutable data is read as its value.
             ("Rc" | "Arc", [inner]) => {
                 let inner = self.map(inner);
-                let kind = if name == "Rc" { WrapKind::Rc } else { WrapKind::Arc };
+                let kind = if name == "Rc" {
+                    WrapKind::Rc
+                } else {
+                    WrapKind::Arc
+                };
                 let shape = Shape::Wrap(Box::new(inner.shape.clone()), kind);
                 return inner.shaped(shape);
             }
-            ("RefCell" | "Cell" | "Mutex" | "RwLock" | "PhantomData" | "Instant" | "Rc" | "Arc", _) => {
+            (
+                "RefCell" | "Cell" | "Mutex" | "RwLock" | "PhantomData" | "Instant" | "Rc" | "Arc",
+                _,
+            ) => {
                 return self.handle(ty, "shared or runtime-only type");
             }
             _ => {}
@@ -836,11 +1030,15 @@ impl Mapper {
             .and_then(|c| c.parsed.imports.get(name))
             .into_iter()
             .flat_map(|p| p.iter().cloned());
-        written.chain(imported).any(|segment| origin.iter().any(|o| segment == *o))
+        written
+            .chain(imported)
+            .any(|segment| origin.iter().any(|o| segment == *o))
     }
 
     fn declare(&mut self, name: &str, declaration: &str) {
-        self.named.entry(name.to_owned()).or_insert_with(|| Named { declaration: declaration.to_owned() });
+        self.named.entry(name.to_owned()).or_insert_with(|| Named {
+            declaration: declaration.to_owned(),
+        });
         self.names.insert(name.to_owned());
     }
 
@@ -852,11 +1050,19 @@ impl Mapper {
             let from = self.context.last().cloned()?;
             let (file, _) = self.index.resolve(name, &from).ok()?;
             let krate = self.index.crate_of(&file)?;
-            if !matches!(krate, "horizon-world" | "horizon-items" | "horizon-client-core") {
+            if !matches!(
+                krate,
+                "horizon-world" | "horizon-items" | "horizon-client-core"
+            ) {
                 return None;
             }
         }
-        let referenced = |wit: &str, shape: Shape| Mapped { wit: wit.to_owned(), uses: BTreeSet::from([wit.to_owned()]), shape, ..Mapped::default() };
+        let referenced = |wit: &str, shape: Shape| Mapped {
+            wit: wit.to_owned(),
+            uses: BTreeSet::from([wit.to_owned()]),
+            shape,
+            ..Mapped::default()
+        };
         Some(match row.carrier {
             Carrier::Alias(alias) => {
                 let doc = match alias {
@@ -900,10 +1106,19 @@ impl Mapper {
         for (index, name) in effect.names.iter().enumerate() {
             // The declaration is one text block shared by the names; it is stored once under the first.
             let declaration = if index == 0 { effect.declaration } else { "" };
-            self.named.entry((*name).to_owned()).or_insert_with(|| Named { declaration: declaration.to_owned() });
+            self.named
+                .entry((*name).to_owned())
+                .or_insert_with(|| Named {
+                    declaration: declaration.to_owned(),
+                });
             self.names.insert((*name).to_owned());
         }
-        Mapped { wit: format!("list<{}>", effect.wit), uses: BTreeSet::from([effect.wit.to_owned()]), shape: Shape::Unsupported, ..Mapped::default() }
+        Mapped {
+            wit: format!("list<{}>", effect.wit),
+            uses: BTreeSet::from([effect.wit.to_owned()]),
+            shape: Shape::Unsupported,
+            ..Mapped::default()
+        }
     }
 
     /// The generated named type for the workspace type `name`, or a handle.
@@ -942,10 +1157,17 @@ impl Mapper {
             closure.extend(inner.closure.iter().cloned());
             uses.extend(inner.uses.iter().cloned());
         }
-        self.named.insert(wit_name.clone(), Named { declaration: text });
+        self.named
+            .insert(wit_name.clone(), Named { declaration: text });
         let mut set = BTreeSet::new();
         set.insert(wit_name.clone());
-        Mapped { wit: escape(&wit_name), uses: set, direct: BTreeSet::new(), closure, shape: Shape::Named(wit_name) }
+        Mapped {
+            wit: escape(&wit_name),
+            uses: set,
+            direct: BTreeSet::new(),
+            closure,
+            shape: Shape::Named(wit_name),
+        }
     }
 
     fn fresh_name(&mut self, rust: &str) -> String {
@@ -956,7 +1178,14 @@ impl Mapper {
         unique(base, &mut self.names)
     }
 
-    fn rust_path(&self, file: &Path, name: &str, written: &str, generics: &syn::Generics, attrs: &[syn::Attribute]) -> RustPath {
+    fn rust_path(
+        &self,
+        file: &Path,
+        name: &str,
+        written: &str,
+        generics: &syn::Generics,
+        attrs: &[syn::Attribute],
+    ) -> RustPath {
         let (krate, module) = self.index.origins.get(file).cloned().unwrap_or_default();
         RustPath {
             file: file.to_owned(),
@@ -965,35 +1194,63 @@ impl Mapper {
             name: written.to_owned(),
             alias: name.to_owned(),
             lifetimes: generics.lifetimes().count(),
-            non_exhaustive: attrs.iter().any(|attr| attr.path().is_ident("non_exhaustive")),
+            non_exhaustive: attrs
+                .iter()
+                .any(|attr| attr.path().is_ident("non_exhaustive")),
         }
     }
 
     fn build(&mut self, ty: &Type, name: &str, def: &Def, file: &Path) -> Mapped {
         match def {
             Def::Alias(item) => {
-                if item.generics.params.iter().any(|p| !matches!(p, syn::GenericParam::Lifetime(_))) {
+                if item
+                    .generics
+                    .params
+                    .iter()
+                    .any(|p| !matches!(p, syn::GenericParam::Lifetime(_)))
+                {
                     return self.handle(ty, "generic type alias");
                 }
                 let target = (*item.ty).clone();
                 self.map(&target)
             }
             Def::Struct(item) => {
-                let path = self.rust_path(file, name, &item.ident.to_string(), &item.generics, &item.attrs);
+                let path = self.rust_path(
+                    file,
+                    name,
+                    &item.ident.to_string(),
+                    &item.generics,
+                    &item.attrs,
+                );
                 self.build_struct(ty, name, item, path)
             }
             Def::Enum(item) => {
-                let path = self.rust_path(file, name, &item.ident.to_string(), &item.generics, &item.attrs);
+                let path = self.rust_path(
+                    file,
+                    name,
+                    &item.ident.to_string(),
+                    &item.generics,
+                    &item.attrs,
+                );
                 self.build_enum(ty, name, item, path)
             }
         }
     }
 
     fn generic(generics: &syn::Generics) -> bool {
-        generics.params.iter().any(|p| !matches!(p, syn::GenericParam::Lifetime(_)))
+        generics
+            .params
+            .iter()
+            .any(|p| !matches!(p, syn::GenericParam::Lifetime(_)))
     }
 
-    fn build_struct(&mut self, ty: &Type, name: &str, item: &syn::ItemStruct, path: RustPath) -> Mapped {
+    fn build_struct(
+        &mut self,
+        ty: &Type,
+        name: &str,
+        item: &syn::ItemStruct,
+        path: RustPath,
+    ) -> Mapped {
         if Self::generic(&item.generics) {
             return self.handle(ty, "generic type");
         }
@@ -1001,7 +1258,14 @@ impl Mapper {
             syn::Fields::Unit => {
                 let wit_name = self.fresh_name(name);
                 let text = format!("    enum {} {{\n        unit,\n    }}\n", escape(&wit_name));
-                self.defs.insert(wit_name.clone(), NamedDef::Unit { wit: wit_name.clone(), rust: path, braced: false });
+                self.defs.insert(
+                    wit_name.clone(),
+                    NamedDef::Unit {
+                        wit: wit_name.clone(),
+                        rust: path,
+                        braced: false,
+                    },
+                );
                 self.reference((wit_name, text), Vec::new())
             }
             syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
@@ -1009,7 +1273,11 @@ impl Mapper {
                 let public = !matches!(fields.unnamed[0].vis, syn::Visibility::Inherited);
                 let inner_ty = fields.unnamed[0].ty.clone();
                 let inner = self.map(&inner_ty);
-                let shape = Shape::Newtype { rust: path, inner: Box::new(inner.shape.clone()), public };
+                let shape = Shape::Newtype {
+                    rust: path,
+                    inner: Box::new(inner.shape.clone()),
+                    public,
+                };
                 inner.shaped(shape)
             }
             fields => {
@@ -1017,7 +1285,10 @@ impl Mapper {
                 if list.len() > MAX_NAMED_FIELDS {
                     return self.handle(ty, "too many fields for a plain record");
                 }
-                if list.iter().any(|f| matches!(f.vis, syn::Visibility::Inherited)) {
+                if list
+                    .iter()
+                    .any(|f| matches!(f.vis, syn::Visibility::Inherited))
+                {
                     return self.handle(ty, "struct with private fields");
                 }
                 let tuple = matches!(fields, syn::Fields::Unnamed(_));
@@ -1027,8 +1298,16 @@ impl Mapper {
                     .collect();
                 if list.is_empty() {
                     let wit_name = self.fresh_name(name);
-                    let text = format!("    enum {} {{\n        unit,\n    }}\n", escape(&wit_name));
-                    self.defs.insert(wit_name.clone(), NamedDef::Unit { wit: wit_name.clone(), rust: path, braced: !tuple });
+                    let text =
+                        format!("    enum {} {{\n        unit,\n    }}\n", escape(&wit_name));
+                    self.defs.insert(
+                        wit_name.clone(),
+                        NamedDef::Unit {
+                            wit: wit_name.clone(),
+                            rust: path,
+                            braced: !tuple,
+                        },
+                    );
                     return self.reference((wit_name, text), Vec::new());
                 }
                 let wit_name = self.fresh_name(name);
@@ -1046,22 +1325,44 @@ impl Mapper {
                     for handle in &mapped.direct {
                         text.push_str(&format!("        /// opaque engine handle ({handle})\n"));
                     }
-                    text.push_str(&format!("        {}: {},\n", escape(&wit_field), mapped.wit));
+                    text.push_str(&format!(
+                        "        {}: {},\n",
+                        escape(&wit_field),
+                        mapped.wit
+                    ));
                     let rust_field = match &field.ident {
                         Some(ident) => ident.to_string(),
                         None => index.to_string(),
                     };
-                    shaped.push(shape::Field { rust: rust_field, wit: wit_field, shape: mapped.shape.clone() });
+                    shaped.push(shape::Field {
+                        rust: rust_field,
+                        wit: wit_field,
+                        shape: mapped.shape.clone(),
+                    });
                     inner.push(mapped);
                 }
                 text.push_str("    }\n");
-                self.defs.insert(wit_name.clone(), NamedDef::Record { wit: wit_name.clone(), rust: path, fields: shaped, tuple });
+                self.defs.insert(
+                    wit_name.clone(),
+                    NamedDef::Record {
+                        wit: wit_name.clone(),
+                        rust: path,
+                        fields: shaped,
+                        tuple,
+                    },
+                );
                 self.reference((wit_name, text), inner)
             }
         }
     }
 
-    fn build_enum(&mut self, ty: &Type, name: &str, item: &syn::ItemEnum, path: RustPath) -> Mapped {
+    fn build_enum(
+        &mut self,
+        ty: &Type,
+        name: &str,
+        item: &syn::ItemEnum,
+        path: RustPath,
+    ) -> Mapped {
         if Self::generic(&item.generics) {
             return self.handle(ty, "generic type");
         }
@@ -1070,7 +1371,10 @@ impl Mapper {
         }
         let wit_name = self.fresh_name(name);
         let mut used = HashSet::new();
-        let all_unit = item.variants.iter().all(|v| matches!(v.fields, syn::Fields::Unit));
+        let all_unit = item
+            .variants
+            .iter()
+            .all(|v| matches!(v.fields, syn::Fields::Unit));
         let mut inner = Vec::new();
         let mut text;
         if all_unit {
@@ -1081,7 +1385,14 @@ impl Mapper {
                 text.push_str(&format!("        {},\n", escape(&case)));
                 cases.push((variant.ident.to_string(), case));
             }
-            self.defs.insert(wit_name.clone(), NamedDef::UnitEnum { wit: wit_name.clone(), rust: path, cases });
+            self.defs.insert(
+                wit_name.clone(),
+                NamedDef::UnitEnum {
+                    wit: wit_name.clone(),
+                    rust: path,
+                    cases,
+                },
+            );
         } else {
             text = format!("    variant {} {{\n", escape(&wit_name));
             let mut cases = Vec::new();
@@ -1095,8 +1406,16 @@ impl Mapper {
                         (Some(mapped), VCase::Single(shape))
                     }
                     syn::Fields::Unnamed(fields) => {
-                        let parts: Vec<_> = fields.unnamed.iter().map(|f| self.map(&f.ty)).collect();
-                        let wit = format!("tuple<{}>", parts.iter().map(|m| m.wit.as_str()).collect::<Vec<_>>().join(", "));
+                        let parts: Vec<_> =
+                            fields.unnamed.iter().map(|f| self.map(&f.ty)).collect();
+                        let wit = format!(
+                            "tuple<{}>",
+                            parts
+                                .iter()
+                                .map(|m| m.wit.as_str())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        );
                         let shapes = parts.iter().map(|m| m.shape.clone()).collect();
                         (Some(Mapped::wrap(wit, parts)), VCase::Tuple(shapes))
                     }
@@ -1112,10 +1431,20 @@ impl Mapper {
                             let rust_field = field.ident.as_ref().unwrap().to_string();
                             let wit_field = unique(kebab(&rust_field), &mut field_names);
                             for handle in &mapped.direct {
-                                body.push_str(&format!("        /// opaque engine handle ({handle})\n"));
+                                body.push_str(&format!(
+                                    "        /// opaque engine handle ({handle})\n"
+                                ));
                             }
-                            body.push_str(&format!("        {}: {},\n", escape(&wit_field), mapped.wit));
-                            shaped.push(shape::Field { rust: rust_field, wit: wit_field, shape: mapped.shape.clone() });
+                            body.push_str(&format!(
+                                "        {}: {},\n",
+                                escape(&wit_field),
+                                mapped.wit
+                            ));
+                            shaped.push(shape::Field {
+                                rust: rust_field,
+                                wit: wit_field,
+                                shape: mapped.shape.clone(),
+                            });
                             parts.push(mapped);
                         }
                         if parts.is_empty() {
@@ -1128,10 +1457,23 @@ impl Mapper {
                                 closure.extend(part.closure.iter().cloned());
                                 uses.extend(part.uses.iter().cloned());
                             }
-                            self.named.insert(record.clone(), Named { declaration: body });
+                            self.named
+                                .insert(record.clone(), Named { declaration: body });
                             uses.insert(record.clone());
-                            let mapped = Mapped { wit: escape(&record), uses, direct: BTreeSet::new(), closure, shape: Shape::Named(record.clone()) };
-                            (Some(mapped), VCase::Struct { record, fields: shaped })
+                            let mapped = Mapped {
+                                wit: escape(&record),
+                                uses,
+                                direct: BTreeSet::new(),
+                                closure,
+                                shape: Shape::Named(record.clone()),
+                            };
+                            (
+                                Some(mapped),
+                                VCase::Struct {
+                                    record,
+                                    fields: shaped,
+                                },
+                            )
                         }
                     }
                 };
@@ -1139,7 +1481,9 @@ impl Mapper {
                 match payload {
                     Some(mapped) => {
                         for handle in &mapped.direct {
-                            text.push_str(&format!("        /// opaque engine handle ({handle})\n"));
+                            text.push_str(&format!(
+                                "        /// opaque engine handle ({handle})\n"
+                            ));
                         }
                         text.push_str(&format!("        {}({}),\n", escape(&case), mapped.wit));
                         inner.push(mapped);
@@ -1147,7 +1491,14 @@ impl Mapper {
                     None => text.push_str(&format!("        {},\n", escape(&case))),
                 }
             }
-            self.defs.insert(wit_name.clone(), NamedDef::Variant { wit: wit_name.clone(), rust: path, cases });
+            self.defs.insert(
+                wit_name.clone(),
+                NamedDef::Variant {
+                    wit: wit_name.clone(),
+                    rust: path,
+                    cases,
+                },
+            );
         }
         text.push_str("    }\n");
         self.reference((wit_name, text), inner)
@@ -1223,7 +1574,8 @@ fn load_hooks(root: &Path) -> Result<Vec<HookSig>, String> {
                 .join(krate)
                 .join("src")
                 .join(format!("{}.rs", module.replace("::", "/")));
-            let source = fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+            let source =
+                fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
             source_path = path.clone();
             let file = syn::parse_file(&source).map_err(|e| e.to_string())?;
             let functions: Vec<_> = file
@@ -1240,7 +1592,10 @@ fn load_hooks(root: &Path) -> Result<Vec<HookSig>, String> {
         };
         let is_level = target.contains("::GameLevel<");
         let api = &hook["mod_api"];
-        let contract = api["contract"].as_str().ok_or("contract missing")?.to_owned();
+        let contract = api["contract"]
+            .as_str()
+            .ok_or("contract missing")?
+            .to_owned();
         let out_name = api["out"].as_str();
         let mut params = Vec::new();
         for arg in &method.sig.inputs {
@@ -1267,8 +1622,21 @@ fn load_hooks(root: &Path) -> Result<Vec<HookSig>, String> {
         };
         let (side, side_source) = side_of(&hook, target, is_level);
         let docs = crate::doc_comments(&method.attrs, &name, false).unwrap_or_default();
-        let docs = docs.lines().map(|line| line.strip_prefix("///").unwrap_or(line)).collect::<Vec<_>>().join("\n");
-        result.push(HookSig { name, side, side_source, contract, docs, params, out, source: source_path });
+        let docs = docs
+            .lines()
+            .map(|line| line.strip_prefix("///").unwrap_or(line))
+            .collect::<Vec<_>>()
+            .join("\n");
+        result.push(HookSig {
+            name,
+            side,
+            side_source,
+            contract,
+            docs,
+            params,
+            out,
+            source: source_path,
+        });
     }
     Ok(result)
 }
@@ -1361,13 +1729,17 @@ pub(crate) enum Main {
     /// `option<T>` of the answer; the shape is the Rust answer type (an `Option`).
     Replace(Shape),
     /// The collected value: `list<..>` is returned whole, anything else as `option<..>`.
-    Collect { field: String, shape: Shape, list: bool, scalar: bool },
+    Collect {
+        field: String,
+        shape: Shape,
+        list: bool,
+        scalar: bool,
+    },
 }
 
 #[derive(Clone, Debug)]
 pub(crate) struct EffectPlan {
     pub field: String,
-    pub effect: usize,
     /// The field of the outcome record that carries its commands.
     pub wit_field: String,
 }
@@ -1404,7 +1776,6 @@ pub(crate) struct HookPlan {
     pub result: ResultForm,
     /// The WIT result type (the command list, the answer or the outcome record), if any.
     pub result_wit: Option<String>,
-    pub unsupported: Vec<String>,
 }
 
 fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -> Rendered {
@@ -1425,9 +1796,15 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
     let mut plan_extras: Vec<ExtraPlan> = Vec::new();
     let mut plan_main = Main::None;
 
-    let record_handles = |name: &str, mapped: &Mapped, handle_params: &mut Vec<HandleParam>, all: &mut BTreeSet<String>| {
+    let record_handles = |name: &str,
+                          mapped: &Mapped,
+                          handle_params: &mut Vec<HandleParam>,
+                          all: &mut BTreeSet<String>| {
         if !mapped.closure.is_empty() {
-            handle_params.push(HandleParam { param: name.to_owned(), rust_types: mapped.closure.iter().cloned().collect() });
+            handle_params.push(HandleParam {
+                param: name.to_owned(),
+                rust_types: mapped.closure.iter().cloned().collect(),
+            });
             all.extend(mapped.closure.iter().cloned());
         }
     };
@@ -1436,7 +1813,10 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
         let wit_name = unique(kebab(name), &mut used_params);
         if let Some(effect) = effect_of(ty) {
             let mapped = mapper.effect(effect);
-            notes.push(format!("`{wit_name}` is applied by the host: return `{}` commands for it.", effect.wit));
+            notes.push(format!(
+                "`{wit_name}` is applied by the host: return `{}` commands for it.",
+                effect.wit
+            ));
             if let Some(note) = effect.partial {
                 let note = note.to_owned();
                 if !entry.partial_notes.contains(&note) {
@@ -1445,8 +1825,10 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
                 entry.partial = true;
             }
             uses.extend(mapped.uses.iter().cloned());
-            let index = EFFECTS.iter().position(|candidate| std::ptr::eq(candidate, effect)).expect("effect is in the table");
-            plan_effects.push(EffectPlan { field: name.clone(), effect: index, wit_field: String::new() });
+            plan_effects.push(EffectPlan {
+                field: name.clone(),
+                wit_field: String::new(),
+            });
             effects.push((wit_name, mapped));
             continue;
         }
@@ -1459,14 +1841,24 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
             Some(elem) if scalar(elem).is_some() => {
                 let mapped = mapper.map(elem);
                 extras.push((wit_name.clone(), mapped.clone()));
-                plan_extras.push(ExtraPlan { field: name.clone(), scalar: true, shape: mapped.shape.clone(), wit_field: String::new() });
+                plan_extras.push(ExtraPlan {
+                    field: name.clone(),
+                    scalar: true,
+                    shape: mapped.shape.clone(),
+                    wit_field: String::new(),
+                });
                 mapped
             }
             Some(elem) => {
                 let mapped = mapper.map(elem);
                 if mapped.closure.is_empty() {
                     extras.push((wit_name.clone(), mapped.clone()));
-                    plan_extras.push(ExtraPlan { field: name.clone(), scalar: false, shape: mapped.shape.clone(), wit_field: String::new() });
+                    plan_extras.push(ExtraPlan {
+                        field: name.clone(),
+                        scalar: false,
+                        shape: mapped.shape.clone(),
+                        wit_field: String::new(),
+                    });
                     mapped
                 } else {
                     mapper.map(ty)
@@ -1475,12 +1867,19 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
             None => mapper.map(ty),
         };
         for handle in &mapped.direct {
-            notes.push(format!("`{wit_name}` is an opaque engine handle ({handle})."));
+            notes.push(format!(
+                "`{wit_name}` is an opaque engine handle ({handle})."
+            ));
         }
         record_handles(&wit_name, &mapped, &mut handle_params, &mut all_handles);
         uses.extend(mapped.uses.iter().cloned());
         params.push(format!("{}: {}", escape(&wit_name), mapped.wit));
-        plan_params.push(ParamPlan { field: name.clone(), name: wit_name.clone(), wit: mapped.wit.clone(), shape: mapped.shape.clone() });
+        plan_params.push(ParamPlan {
+            field: name.clone(),
+            name: wit_name.clone(),
+            wit: mapped.wit.clone(),
+            shape: mapped.shape.clone(),
+        });
     }
 
     // The contract's answer.
@@ -1490,7 +1889,9 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
         ("cancel", _) => {
             main_field = Some(("cancel", "bool".into()));
             plan_main = Main::Cancel;
-            notes.push("Returns true to cancel (take) the event; the first mod that cancels wins.".into());
+            notes.push(
+                "Returns true to cancel (take) the event; the first mod that cancels wins.".into(),
+            );
         }
         ("replace", Some((name, ty))) => {
             let inner = match ty {
@@ -1500,10 +1901,16 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
             let mapped = mapper.map(inner);
             record_handles(name, &mapped, &mut handle_params, &mut all_handles);
             uses.extend(mapped.uses.iter().cloned());
-            let wit = if mapped.wit.starts_with("option<") { mapped.wit.clone() } else { format!("option<{}>", mapped.wit) };
+            let wit = if mapped.wit.starts_with("option<") {
+                mapped.wit.clone()
+            } else {
+                format!("option<{}>", mapped.wit)
+            };
             main_field = Some(("value", wit));
             plan_main = Main::Replace(mapped.shape.clone());
-            notes.push(format!("Returns Some to set `{name}` (None keeps it); the first mod that answers wins."));
+            notes.push(format!(
+                "Returns Some to set `{name}` (None keeps it); the first mod that answers wins."
+            ));
         }
         ("collect", Some((name, ty))) => {
             let inner = match ty {
@@ -1516,11 +1923,26 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
             // The current aggregate goes in, the mod's version comes back.
             let param = unique(kebab(name), &mut used_params);
             params.push(format!("{}: {}", escape(&param), mapped.wit));
-            plan_params.push(ParamPlan { field: name.clone(), name: param.clone(), wit: mapped.wit.clone(), shape: mapped.shape.clone() });
+            plan_params.push(ParamPlan {
+                field: name.clone(),
+                name: param.clone(),
+                wit: mapped.wit.clone(),
+                shape: mapped.shape.clone(),
+            });
             let is_list = mapped.wit.starts_with("list<");
-            let scalar_out = matches!(ty, Type::Reference(reference) if scalar(&reference.elem).is_some());
-            plan_main = Main::Collect { field: name.clone(), shape: mapped.shape.clone(), list: is_list, scalar: scalar_out };
-            let wit = if is_list { mapped.wit.clone() } else { format!("option<{}>", mapped.wit) };
+            let scalar_out =
+                matches!(ty, Type::Reference(reference) if scalar(&reference.elem).is_some());
+            plan_main = Main::Collect {
+                field: name.clone(),
+                shape: mapped.shape.clone(),
+                list: is_list,
+                scalar: scalar_out,
+            };
+            let wit = if is_list {
+                mapped.wit.clone()
+            } else {
+                format!("option<{}>", mapped.wit)
+            };
             main_field = Some(("value", wit));
             notes.push(if is_list {
                 format!("Collect: `{param}` is the aggregate so far; return the aggregate you want.")
@@ -1545,7 +1967,11 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
         Some(effects[0].1.wit.clone())
     } else {
         let record = format!("{wit_name}-outcome");
-        let record = if mapper.reserved.contains(&record) { format!("{record}-type") } else { record };
+        let record = if mapper.reserved.contains(&record) {
+            format!("{record}-type")
+        } else {
+            record
+        };
         let mut text = format!("    record {} {{\n", escape(&record));
         let mut used = HashSet::new();
         if let Some((field, wit)) = &main_field {
@@ -1554,8 +1980,14 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
         }
         let single = effects.len() == 1;
         for (index, (name, mapped)) in effects.iter().enumerate() {
-            let field = if single { unique("commands".into(), &mut used) } else { unique(format!("{name}-commands"), &mut used) };
-            text.push_str(&format!("        /// Commands to apply to `{name}`, in order.\n"));
+            let field = if single {
+                unique("commands".into(), &mut used)
+            } else {
+                unique(format!("{name}-commands"), &mut used)
+            };
+            text.push_str(&format!(
+                "        /// Commands to apply to `{name}`, in order.\n"
+            ));
             text.push_str(&format!("        {}: {},\n", escape(&field), mapped.wit));
             plan_effects[index].wit_field = field;
         }
@@ -1565,19 +1997,34 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
             for handle in &mapped.direct {
                 text.push_str(&format!("        /// opaque engine handle ({handle})\n"));
             }
-            text.push_str(&format!("        /// The new `{name}`, or none to leave it unchanged.\n"));
-            text.push_str(&format!("        {}: option<{}>,\n", escape(&field), mapped.wit));
+            text.push_str(&format!(
+                "        /// The new `{name}`, or none to leave it unchanged.\n"
+            ));
+            text.push_str(&format!(
+                "        {}: option<{}>,\n",
+                escape(&field),
+                mapped.wit
+            ));
         }
         text.push_str("    }\n");
         for (_, mapped) in &extras {
             uses.extend(mapped.uses.iter().cloned());
         }
-        mapper.named.insert(record.clone(), Named { declaration: text });
+        mapper
+            .named
+            .insert(record.clone(), Named { declaration: text });
         mapper.names.insert(record.clone());
         uses.insert(record.clone());
         result_form = ResultForm::Outcome(record.clone());
         if !extras.is_empty() {
-            notes.push(format!("Also returns the changed values of {}.", extras.iter().map(|(n, _)| format!("`{n}`")).collect::<Vec<_>>().join(", ")));
+            notes.push(format!(
+                "Also returns the changed values of {}.",
+                extras
+                    .iter()
+                    .map(|(n, _)| format!("`{n}`"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
         }
         Some(escape(&record))
     };
@@ -1593,7 +2040,11 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
     }
     let result_wit = result.clone();
     let result = result.map(|r| format!(" -> {r}")).unwrap_or_default();
-    let text = format!("{doc}    {}: func({}){result};\n", ident(&hook.name), params.join(", "));
+    let text = format!(
+        "{doc}    {}: func({}){result};\n",
+        ident(&hook.name),
+        params.join(", ")
+    );
     handle_params.sort_by(|a, b| a.param.cmp(&b.param));
     handle_params.dedup_by(|a, b| a.param == b.param);
     entry.fully_typed = all_handles.is_empty() && !entry.partial;
@@ -1608,7 +2059,6 @@ fn render_hook(mapper: &mut Mapper, hook: &HookSig, entry: &mut CoverageEntry) -
         extras: plan_extras,
         result: result_form,
         result_wit,
-        unsupported: Vec::new(),
     };
     Rendered { text, uses, plan }
 }
@@ -1629,7 +2079,10 @@ fn draft_services(source: &str, side: &str) -> Result<String, String> {
         names.push(name.clone());
         types.push_str(&format!("    enum {} {{\n", escape(name)));
         for case in values.as_array().ok_or("enum cases")? {
-            types.push_str(&format!("        {},\n", escape(case.as_str().ok_or("enum case")?)));
+            types.push_str(&format!(
+                "        {},\n",
+                escape(case.as_str().ok_or("enum case")?)
+            ));
         }
         types.push_str("    }\n\n");
     }
@@ -1638,33 +2091,59 @@ fn draft_services(source: &str, side: &str) -> Result<String, String> {
         types.push_str(&format!("    record {} {{\n", escape(name)));
         let fields = fields.as_object().ok_or("draft fields")?;
         for (field, ty) in fields {
-            types.push_str(&format!("        {}: {},\n", escape(field), ty.as_str().ok_or("draft field type")?));
+            types.push_str(&format!(
+                "        {}: {},\n",
+                escape(field),
+                ty.as_str().ok_or("draft field type")?
+            ));
         }
         types.push_str("    }\n\n");
     }
     types = types.trim_end().to_owned();
     types.push_str("\n}\n\n");
-    let mut services = format!("/// Services listed in `abi-subset-{side}.json`.\ninterface {side}-services {{\n");
-    services.push_str(&format!("    use {side}-types.{{{}}};\n\n", names.iter().map(|n| escape(n)).collect::<Vec<_>>().join(", ")));
+    let mut services =
+        format!("/// Services listed in `abi-subset-{side}.json`.\ninterface {side}-services {{\n");
+    services.push_str(&format!(
+        "    use {side}-types.{{{}}};\n\n",
+        names
+            .iter()
+            .map(|n| escape(n))
+            .collect::<Vec<_>>()
+            .join(", ")
+    ));
     if side == "client" {
         services.push_str("    use hud.{gui-texture};\n\n");
     }
     let type_names: HashSet<String> = names.iter().map(|n| kebab(n)).collect();
-    for service in draft["services"].as_array().ok_or("draft services missing")? {
+    for service in draft["services"]
+        .as_array()
+        .ok_or("draft services missing")?
+    {
         let name = service["name"].as_str().ok_or("service name")?;
-        let mut args: Vec<(&String, &serde_json::Value)> = service["arguments"].as_object().ok_or("service args")?.iter().collect();
+        let mut args: Vec<(&String, &serde_json::Value)> = service["arguments"]
+            .as_object()
+            .ok_or("service args")?
+            .iter()
+            .collect();
         args.sort_by(|a, b| a.0.cmp(b.0));
         let args: Vec<String> = args
             .into_iter()
             .map(|(n, t)| Ok(format!("{}: {}", escape(n), t.as_str().ok_or("arg type")?)))
             .collect::<Result<_, String>>()?;
-        let result = service["result"].as_str().map(|r| format!(" -> {r}")).unwrap_or_default();
+        let result = service["result"]
+            .as_str()
+            .map(|r| format!(" -> {r}"))
+            .unwrap_or_default();
         // A function may not share a name with a type of the interface.
         let mut function = kebab(name);
         if type_names.contains(&function) {
             function.push_str("-call");
         }
-        services.push_str(&format!("    {}: func({}){result};\n", escape(&function), args.join(", ")));
+        services.push_str(&format!(
+            "    {}: func({}){result};\n",
+            escape(&function),
+            args.join(", ")
+        ));
     }
     services.push_str("}\n\n");
     Ok(format!("{types}{services}"))
@@ -1714,12 +2193,20 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
         entries.push(entry);
     }
 
-    let mut wit = String::from("package yoake:mods@1.0.0;\n\n// @generated by horizon-mod-api-gen; do not edit.\n");
+    let mut wit = String::from(
+        "package yoake:mods@1.0.0;\n\n// @generated by horizon-mod-api-gen; do not edit.\n",
+    );
     wit.push_str("// Every native hook of the catalog, typed from the Rust hook signatures.\n");
-    wit.push_str("// Side rule: an explicit catalog side wins; else the Rust target path decides\n");
-    wit.push_str("// (render/lib crates are client, world/server crates and GameLevel hooks are server);\n");
+    wit.push_str(
+        "// Side rule: an explicit catalog side wins; else the Rust target path decides\n",
+    );
+    wit.push_str(
+        "// (render/lib crates are client, world/server crates and GameLevel hooks are server);\n",
+    );
     wit.push_str("// the remaining Game hooks run on both and appear in both interfaces.\n");
-    wit.push_str("// Types: plain Rust structs/enums become records/enums/variants; NBT is `nbt` (network\n");
+    wit.push_str(
+        "// Types: plain Rust structs/enums become records/enums/variants; NBT is `nbt` (network\n",
+    );
     wit.push_str("// bytes), item stacks `item-stack`, text `text-json`, JSON values `json`; `&mut` draw objects\n");
     wit.push_str("// become command lists the guest returns; anything else is a `u64` opaque engine handle\n");
     wit.push_str("// (documented per field). See coverage.json.\n");
@@ -1727,7 +2214,11 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
 
     wit.push_str("interface engine-types {\n");
     let mut first = true;
-    for (_, named) in mapper.named.iter().filter(|(_, named)| !named.declaration.is_empty()) {
+    for (_, named) in mapper
+        .named
+        .iter()
+        .filter(|(_, named)| !named.declaration.is_empty())
+    {
         if !first {
             wit.push('\n');
         }
@@ -1742,7 +2233,11 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
 
     for (side, (text, uses), doc) in [
         ("client", &client, "Hooks that run in the client."),
-        ("server", &server, "Hooks that run in the server (integrated or dedicated)."),
+        (
+            "server",
+            &server,
+            "Hooks that run in the server (integrated or dedicated).",
+        ),
     ] {
         wit.push_str(&format!("/// {doc}\ninterface {side}-hooks {{\n"));
         wit.push_str(&use_line(uses));
@@ -1751,8 +2246,21 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
     }
 
     for (side, imports, extra) in [
-        ("client", CLIENT_IMPORTS, &["client-types", "client-services", "gpu-types", "gpu-services"][..]),
-        ("server", SERVER_IMPORTS, &["server-types", "server-services"][..]),
+        (
+            "client",
+            CLIENT_IMPORTS,
+            &[
+                "client-types",
+                "client-services",
+                "gpu-types",
+                "gpu-services",
+            ][..],
+        ),
+        (
+            "server",
+            SERVER_IMPORTS,
+            &["server-types", "server-services"][..],
+        ),
     ] {
         wit.push_str(&format!("world {side}-full {{\n    import engine-types;\n"));
         for import in imports.iter().chain(extra) {
@@ -1773,7 +2281,10 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
     }
 
     let fully_typed = entries.iter().filter(|e| e.fully_typed).count();
-    let partial = entries.iter().filter(|e| e.partial && e.handle_params.is_empty()).count();
+    let partial = entries
+        .iter()
+        .filter(|e| e.partial && e.handle_params.is_empty())
+        .count();
     let mut handle_types: Vec<(String, usize)> = handle_counts.into_iter().collect();
     handle_types.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
     let handle_report = handle_types
@@ -1781,7 +2292,11 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
         .map(|(rust_type, hooks)| HandleType {
             rust_type: rust_type.clone(),
             hooks: *hooks,
-            reason: mapper.reasons.get(rust_type).cloned().unwrap_or_else(|| "recursive or encapsulated type".into()),
+            reason: mapper
+                .reasons
+                .get(rust_type)
+                .cloned()
+                .unwrap_or_else(|| "recursive or encapsulated type".into()),
         })
         .collect();
     let coverage = Coverage {
@@ -1789,7 +2304,10 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
         hook_count: entries.len(),
         fully_typed,
         partial,
-        with_handles: entries.iter().filter(|e| !e.handle_params.is_empty()).count(),
+        with_handles: entries
+            .iter()
+            .filter(|e| !e.handle_params.is_empty())
+            .count(),
         client_hooks: client_count,
         server_hooks: server_count,
         named_types: mapper.named.len(),
@@ -1853,14 +2371,22 @@ mod tests {
             fs::write(wit_dir().join("yoake-full.wit"), &generated.wit).unwrap();
             fs::write(wit_dir().join("coverage.json"), &generated.coverage_json).unwrap();
         }
-        let committed = fs::read_to_string(wit_dir().join("yoake-full.wit")).expect("read yoake-full.wit");
-        assert_eq!(generated.wit, committed.replace("\r\n", "\n"), "regenerate with YOAKE_UPDATE_WIT=1");
-        let committed = fs::read_to_string(wit_dir().join("coverage.json")).expect("read coverage.json");
+        let committed =
+            fs::read_to_string(wit_dir().join("yoake-full.wit")).expect("read yoake-full.wit");
+        assert_eq!(
+            generated.wit,
+            committed.replace("\r\n", "\n"),
+            "regenerate with YOAKE_UPDATE_WIT=1"
+        );
+        let committed =
+            fs::read_to_string(wit_dir().join("coverage.json")).expect("read coverage.json");
         assert_eq!(generated.coverage_json, committed.replace("\r\n", "\n"));
         let mut resolve = wit_parser::Resolve::default();
         let (package, _) = resolve.push_dir(wit_dir()).expect("parse WIT package");
         for world in ["client-mod", "client-full", "server-full"] {
-            resolve.select_world(&[package], Some(world)).unwrap_or_else(|e| panic!("{world}: {e}"));
+            resolve
+                .select_world(&[package], Some(world))
+                .unwrap_or_else(|e| panic!("{world}: {e}"));
         }
     }
 
@@ -1868,7 +2394,8 @@ mod tests {
     fn full_wit_covers_every_catalog_hook() {
         let generated = generated();
         let catalog: serde_json::Value =
-            serde_json::from_str(&fs::read_to_string(root().join("native-hooks.json")).unwrap()).unwrap();
+            serde_json::from_str(&fs::read_to_string(root().join("native-hooks.json")).unwrap())
+                .unwrap();
         let fragments = crate::catalog_hooks(&root(), &catalog).unwrap();
         assert_eq!(generated.hook_count, fragments.len());
         let report: serde_json::Value = serde_json::from_str(&generated.coverage_json).unwrap();
@@ -1879,7 +2406,10 @@ mod tests {
         );
         for hook in &fragments {
             let name = ident(hook["name"].as_str().unwrap());
-            assert!(generated.wit.contains(&format!("    {name}: func(")), "missing {name}");
+            assert!(
+                generated.wit.contains(&format!("    {name}: func(")),
+                "missing {name}"
+            );
         }
     }
 
@@ -1892,4 +2422,3 @@ mod tests {
         assert!(generated.wit.contains("world server-full {"));
     }
 }
-

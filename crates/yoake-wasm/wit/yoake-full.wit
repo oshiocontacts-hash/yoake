@@ -2162,11 +2162,13 @@ interface gpu-types {
     enum pixel-format {
         rgba8,
         rgba8-srgb,
-        bgra8,
-        bgra8-srgb,
         rgba16f,
+        rgba32f,
         r32f,
+        rg16f,
         depth32f,
+        bgra8,
+        rgb10a2,
     }
 
     enum stage {
@@ -2216,10 +2218,12 @@ interface gpu-types {
         camera: tuple<f64, f64, f64>,
         delta-seconds: f32,
         height: u32,
+        hud-format: option<pixel-format>,
         index: u64,
         version: u32,
         view-projection: list<f32>,
         width: u32,
+        world-format: option<pixel-format>,
     }
 
     record render-desc {
@@ -2236,6 +2240,12 @@ interface gpu-types {
         vertex-entry: string,
     }
 
+    record shader-error {
+        column: u32,
+        line: u32,
+        message: string,
+    }
+
     record texture-desc {
         depth: u32,
         format: pixel-format,
@@ -2249,24 +2259,25 @@ interface gpu-types {
 
 /// Services listed in `abi-subset-gpu.json`.
 interface gpu-services {
-    use gpu-types.{binding-kind, pixel-format, stage, attribute, binding, buffer-range, draw-desc, draw-target, frame-info, render-desc, texture-desc};
+    use gpu-types.{binding-kind, pixel-format, stage, attribute, binding, buffer-range, draw-desc, draw-target, frame-info, render-desc, shader-error, texture-desc};
 
     buffer: func(size: u64, usage: u32) -> result<u32, string>;
     texture: func(desc: texture-desc) -> result<u32, string>;
     sampler: func(linear: bool, repeat: bool) -> result<u32, string>;
-    shader: func(source: string) -> result<u32, string>;
+    shader: func(source: string) -> result<u32, shader-error>;
     compute: func(entry: string, shader: u32) -> result<u32, string>;
     render: func(desc: render-desc) -> result<u32, string>;
     bind-group: func(bindings: list<binding>, index: u32, pipeline: u32) -> result<u32, string>;
     destroy: func(handle: u32) -> result<_, string>;
-    write-buffer: func(bytes: list<u8>, handle: u32, offset: u64) -> result<_, string>;
-    copy-buffer: func(destination: u32, destination-offset: u64, size: u64, source: u32, source-offset: u64) -> result<_, string>;
-    write-texture: func(bytes: list<u8>, extent: tuple<u32, u32, u32>, handle: u32, mip: u32, origin: tuple<u32, u32, u32>) -> result<_, string>;
+    write-buffer: func(bytes: list<u8>, handle: u32, offset: u64, stage: stage) -> result<_, string>;
+    copy-buffer: func(destination: u32, destination-offset: u64, size: u64, source: u32, source-offset: u64, stage: stage) -> result<_, string>;
+    write-texture: func(bytes: list<u8>, extent: tuple<u32, u32, u32>, handle: u32, mip: u32, origin: tuple<u32, u32, u32>, stage: stage) -> result<_, string>;
     dispatch: func(groups: list<u32>, pipeline: u32, stage: stage, workgroups: tuple<u32, u32, u32>) -> result<_, string>;
     draw: func(desc: draw-desc, stage: stage, target: draw-target) -> result<_, string>;
     read: func(handle: u32, offset: u64, size: u64, stage: stage) -> result<u32, string>;
     poll: func(ticket: u32) -> result<option<list<u8>>, string>;
     frame: func() -> result<frame-info, string>;
+    shader-file: func(path: string, source: string) -> result<u32, shader-error>;
 }
 
 /// Hooks that run in the client.

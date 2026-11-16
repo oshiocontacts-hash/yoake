@@ -70,7 +70,11 @@ impl Gpu {
         let shader = self
             .resources
             .get_kind(owner, shader, Allocation::Shader(0))?;
-        let Value::Shader(module) = shader.value() else {
+        let Value::Shader {
+            module,
+            engine_masks,
+        } = shader.value()
+        else {
             return Err(Error::Kind);
         };
         if entry.is_empty() || entry.len() > 128 {
@@ -79,6 +83,7 @@ impl Gpu {
         self.resources
             .create(owner, Allocation::ComputePipeline, || {
                 checked(device, || Value::Compute {
+                    engine_mask: *engine_masks.get(entry).unwrap_or(&0),
                     pipeline: device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                         label: Some("Yoake mod compute pipeline"),
                         layout: None,
@@ -131,7 +136,11 @@ impl Gpu {
         let shader = self
             .resources
             .get_kind(owner, shader, Allocation::Shader(0))?;
-        let Value::Shader(module) = shader.value() else {
+        let Value::Shader {
+            module,
+            engine_masks,
+        } = shader.value()
+        else {
             return Err(Error::Kind);
         };
         let attributes: Vec<_> = descriptor
@@ -156,6 +165,14 @@ impl Gpu {
         self.resources
             .create(owner, Allocation::RenderPipeline, || {
                 checked(device, || Value::Render {
+                    engine_mask: engine_masks
+                        .get(&descriptor.vertex_entry)
+                        .copied()
+                        .unwrap_or(0)
+                        | engine_masks
+                            .get(&descriptor.fragment_entry)
+                            .copied()
+                            .unwrap_or(0),
                     pipeline: device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                         label: Some("Yoake mod render pipeline"),
                         layout: None,

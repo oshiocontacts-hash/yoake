@@ -23,6 +23,7 @@ impl From<String> for ValidationError {
 
 pub struct ValidatedShader {
     module: naga::Module,
+    pub engine_masks: std::collections::BTreeMap<String, u32>,
 }
 
 impl ValidatedShader {
@@ -169,7 +170,7 @@ fn engine_bindings(module: &naga::Module) -> Result<(), String> {
             (
                 naga::TypeInner::Image {
                     dim: naga::ImageDimension::D2,
-                    arrayed: false,
+                    arrayed,
                     class:
                         naga::ImageClass::Sampled {
                             kind: naga::ScalarKind::Float,
@@ -177,7 +178,7 @@ fn engine_bindings(module: &naga::Module) -> Result<(), String> {
                         },
                 },
                 1 | 4 | 5,
-            ) => true,
+            ) => *arrayed == (binding.binding == 1),
             (
                 naga::TypeInner::Image {
                     dim: naga::ImageDimension::D2,
@@ -260,7 +261,7 @@ pub fn validate(source: &str) -> Result<ValidatedShader, ValidationError> {
                 .into());
         }
     }
-    naga::valid::Validator::new(
+    let information = naga::valid::Validator::new(
         naga::valid::ValidationFlags::all(),
         naga::valid::Capabilities::empty(),
     )
@@ -296,7 +297,28 @@ pub fn validate(source: &str) -> Result<ValidatedShader, ValidationError> {
     for entry in &module.entry_points {
         validate_cost(&module, &entry.function, LOOP_ITERATIONS)?;
     }
-    Ok(ValidatedShader { module })
+    let engine_masks = module
+        .entry_points
+        .iter()
+        .enumerate()
+        .map(|(index, entry)| {
+            let usage = information.get_entry_point(index);
+            let mask = module
+                .global_variables
+                .iter()
+                .filter_map(|(handle, variable)| {
+                    let binding = variable.binding.as_ref()?;
+                    (binding.group == ENGINE_GROUP && !usage[handle].is_empty())
+                        .then_some(1 << binding.binding)
+                })
+                .fold(0, |mask, binding| mask | binding);
+            (entry.name.clone(), mask)
+        })
+        .collect();
+    Ok(ValidatedShader {
+        module,
+        engine_masks,
+    })
 }
 
 #[cfg(test)]

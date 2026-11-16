@@ -11,10 +11,11 @@
     "buffer-range": {"handle":"u32","offset":"u64","size":"u64"},
     "draw-desc": {"pipeline":"u32","groups":"list<u32>","vertex":"option<buffer-range>","index":"option<buffer-range>","index32":"bool","count":"u32","instances":"u32"},
     "draw-target": {"color":"option<u32>","depth":"option<u32>","clear":"option<tuple<f64, f64, f64, f64>>"},
-    "frame-info": {"version":"u32","index":"u64","width":"u32","height":"u32","view-projection":"list<f32>","camera":"tuple<f64, f64, f64>","delta-seconds":"f32"}
+    "frame-info": {"version":"u32","index":"u64","width":"u32","height":"u32","view-projection":"list<f32>","camera":"tuple<f64, f64, f64>","delta-seconds":"f32","world-format":"option<pixel-format>","hud-format":"option<pixel-format>"},
+    "shader-error": {"message":"string","line":"u32","column":"u32"}
   },
   "enums": {
-    "pixel-format":["rgba8","rgba8-srgb","bgra8","bgra8-srgb","rgba16f","r32f","depth32f"],
+    "pixel-format":["rgba8","rgba8-srgb","rgba16f","rgba32f","r32f","rg16f","depth32f","bgra8","rgb10a2"],
     "stage":["world-opaque","world-translucent","after-world","hud"],
     "binding-kind":["buffer","texture","sampler"]
   },
@@ -23,18 +24,19 @@
     {"id":146,"abi":true,"name":"buffer","arguments":{"size":"u64","usage":"u32"},"result":"result<u32, string>","side":"client","capability":"service.gpu"},
     {"id":147,"abi":true,"name":"texture","arguments":{"desc":"texture-desc"},"result":"result<u32, string>","side":"client","capability":"service.gpu"},
     {"id":148,"abi":true,"name":"sampler","arguments":{"linear":"bool","repeat":"bool"},"result":"result<u32, string>","side":"client","capability":"service.gpu"},
-    {"id":149,"abi":true,"name":"shader","arguments":{"source":"string"},"result":"result<u32, string>","side":"client","capability":"service.gpu"},
+    {"id":149,"abi":true,"name":"shader","arguments":{"source":"string"},"result":"result<u32, shader-error>","side":"client","capability":"service.gpu"},
     {"id":150,"abi":true,"name":"compute","arguments":{"entry":"string","shader":"u32"},"result":"result<u32, string>","side":"client","capability":"service.gpu"},
     {"id":151,"abi":true,"name":"render","arguments":{"desc":"render-desc"},"result":"result<u32, string>","side":"client","capability":"service.gpu"},
     {"id":152,"abi":true,"name":"bind_group","arguments":{"bindings":"list<binding>","index":"u32","pipeline":"u32"},"result":"result<u32, string>","side":"client","capability":"service.gpu"},
     {"id":153,"abi":true,"name":"destroy","arguments":{"handle":"u32"},"result":"result<_, string>","side":"client","capability":"service.gpu"},
-    {"id":154,"abi":true,"name":"write_buffer","arguments":{"bytes":"list<u8>","handle":"u32","offset":"u64"},"result":"result<_, string>","side":"client","capability":"service.gpu"},
-    {"id":155,"abi":true,"name":"copy_buffer","arguments":{"destination":"u32","destination-offset":"u64","size":"u64","source":"u32","source-offset":"u64"},"result":"result<_, string>","side":"client","capability":"service.gpu"},
-    {"id":156,"abi":true,"name":"write_texture","arguments":{"bytes":"list<u8>","extent":"tuple<u32, u32, u32>","handle":"u32","mip":"u32","origin":"tuple<u32, u32, u32>"},"result":"result<_, string>","side":"client","capability":"service.gpu"},
+    {"id":154,"abi":true,"name":"write_buffer","arguments":{"bytes":"list<u8>","handle":"u32","offset":"u64","stage":"stage"},"result":"result<_, string>","side":"client","capability":"service.gpu"},
+    {"id":155,"abi":true,"name":"copy_buffer","arguments":{"destination":"u32","destination-offset":"u64","size":"u64","source":"u32","source-offset":"u64","stage":"stage"},"result":"result<_, string>","side":"client","capability":"service.gpu"},
+    {"id":156,"abi":true,"name":"write_texture","arguments":{"bytes":"list<u8>","extent":"tuple<u32, u32, u32>","handle":"u32","mip":"u32","origin":"tuple<u32, u32, u32>","stage":"stage"},"result":"result<_, string>","side":"client","capability":"service.gpu"},
     {"id":157,"abi":true,"name":"dispatch","arguments":{"groups":"list<u32>","pipeline":"u32","stage":"stage","workgroups":"tuple<u32, u32, u32>"},"result":"result<_, string>","side":"client","capability":"service.gpu"},
     {"id":158,"abi":true,"name":"draw","arguments":{"desc":"draw-desc","stage":"stage","target":"draw-target"},"result":"result<_, string>","side":"client","capability":"service.gpu"},
     {"id":159,"abi":true,"name":"read","arguments":{"handle":"u32","offset":"u64","size":"u64","stage":"stage"},"result":"result<u32, string>","side":"client","capability":"service.gpu"},
     {"id":160,"abi":true,"name":"poll","arguments":{"ticket":"u32"},"result":"result<option<list<u8>>, string>","side":"client","capability":"service.gpu"},
-    {"id":161,"abi":true,"name":"frame","arguments":{},"result":"result<frame-info, string>","side":"client","capability":"service.gpu"}
+    {"id":161,"abi":true,"name":"frame","arguments":{},"result":"result<frame-info, string>","side":"client","capability":"service.gpu"},
+    {"id":162,"abi":true,"name":"shader_file","arguments":{"path":"string","source":"string"},"result":"result<u32, shader-error>","side":"client","capability":"service.gpu"}
   ]
 }

@@ -4006,6 +4006,7 @@ impl Renderer {
                 on_off(gpu_timer.is_some()),
             ));
         }
+        mod_gpu_runtime::configure(&device, &queue, device_lost.clone());
         Ok(Self {
             display: DisplayWatch::default(),
             display_fresh: false,
@@ -7859,7 +7860,8 @@ impl Renderer {
                 .then(|| pack_timing::PassTiming::new(&self.device, &self.queue))
                 .flatten();
         }
-        let pack_reads_world = pack_post || native_post || mod_post;
+        let pack_reads_world =
+            pack_post || native_post || mod_post || (!frame.title && mod_gpu_runtime::active());
         laps.lap("r_uploads");
         let render_needs = native_render::render_needs();
         // Phase 2 of occlusion culling draws over the depth, and a shader pack or TAA reads it.
@@ -7925,6 +7927,40 @@ impl Renderer {
             Some((color, depth)) => (color, depth),
             None => (&view_target, &self.depth),
         };
+        if mod_gpu_runtime::active() && !frame.title {
+            mod_gpu_runtime::begin_frame(
+                mod_gpu_runtime::Frame {
+                    index: frame.ticks,
+                    width: world_view.texture().width(),
+                    height: world_view.texture().height(),
+                    view_projection: jittered.to_cols_array(),
+                    camera: frame.camera.to_array(),
+                    delta_seconds: 0.0,
+                    world_format: mod_gpu_resources::frame_format(world_view.texture().format()),
+                    hud_format: mod_gpu_resources::frame_format(self.config.format),
+                },
+                mod_gpu_resources::EngineFrame {
+                    view: (pose * views.primary().view).to_cols_array(),
+                    projection: views.primary().projection.to_cols_array(),
+                    view_projection: view_proj.to_cols_array(),
+                    inverse_view_projection: view_proj.inverse().to_cols_array(),
+                    jittered_view_projection: jittered.to_cols_array(),
+                    inverse_jittered_view_projection: jittered.inverse().to_cols_array(),
+                    camera_time: [
+                        frame.camera.x as f32,
+                        frame.camera.y as f32,
+                        frame.camera.z as f32,
+                        0.0,
+                    ],
+                    sun: [sun.x, sun.y, sun.z, 1.0],
+                    moon: [-sun.x, -sun.y, -sun.z, 1.0],
+                    fog_color,
+                    fog_range: fog,
+                    jitter: (jittered * view_proj.inverse()).w_axis.to_array(),
+                    ..Default::default()
+                },
+            );
+        }
         if culling && let Some(cull) = &mut self.cull {
             cull.bind_depth(&self.device, world_depth);
         }
@@ -8789,6 +8825,31 @@ impl Renderer {
                 pass.set_bind_group(0, &self.group, &[]);
                 pack_frame(&mut pass);
             }
+            if !frame.title && mod_gpu_runtime::has_stage(mod_gpu::Stage::WorldOpaque) {
+                drop(pass);
+                self.queue.submit([encoder.finish()]);
+                mod_gpu_runtime::submit_stage(
+                    mod_gpu::Stage::WorldOpaque,
+                    Some(&mod_gpu_resources::FrameTarget {
+                        color: world_view,
+                        depth: Some(world_depth),
+                        format: world_view.texture().format().remove_srgb_suffix(),
+                    }),
+                    self.mod_gpu_sources(Some(world_depth), None),
+                );
+                encoder = self.device.create_command_encoder(&Default::default());
+                pass = world_pass_after_culling(
+                    &mut encoder,
+                    world_view,
+                    world_depth,
+                    keep_depth,
+                    self.own_timing.as_mut(),
+                    "World after WASM opaque",
+                );
+                pass.set_bind_group(0, &self.group, &[]);
+                pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint32);
+                pack_frame(&mut pass);
+            }
             match self.flat.as_ref().filter(|_| flat_frame) {
                 // The pack draws translucent terrain after its deferred programs.
                 _ if pack_draws_water => {}
@@ -9105,6 +9166,31 @@ impl Renderer {
                     0..1,
                 );
             }
+            if !frame.title && mod_gpu_runtime::has_stage(mod_gpu::Stage::WorldTranslucent) {
+                drop(pass);
+                self.queue.submit([encoder.finish()]);
+                mod_gpu_runtime::submit_stage(
+                    mod_gpu::Stage::WorldTranslucent,
+                    Some(&mod_gpu_resources::FrameTarget {
+                        color: world_view,
+                        depth: Some(world_depth),
+                        format: world_view.texture().format().remove_srgb_suffix(),
+                    }),
+                    self.mod_gpu_sources(Some(world_depth), None),
+                );
+                encoder = self.device.create_command_encoder(&Default::default());
+                pass = world_pass_after_culling(
+                    &mut encoder,
+                    world_view,
+                    world_depth,
+                    keep_depth,
+                    self.own_timing.as_mut(),
+                    "World after WASM translucent",
+                );
+                pass.set_bind_group(0, &self.group, &[]);
+                pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint32);
+                pack_frame(&mut pass);
+            }
             if hand_in_world {
                 pass.set_pipeline(&self.depth_reset);
                 pass.set_bind_group(0, &self.group, &[]);
@@ -9177,6 +9263,20 @@ impl Renderer {
                         .render(&self.device, world_view.texture()),
                 );
             }
+            encoder = self.device.create_command_encoder(&Default::default());
+        }
+        if !frame.title && mod_gpu_runtime::has_stage(mod_gpu::Stage::AfterWorld) {
+            self.queue
+                .submit(native_commands.drain(..).chain([encoder.finish()]));
+            mod_gpu_runtime::submit_stage(
+                mod_gpu::Stage::AfterWorld,
+                Some(&mod_gpu_resources::FrameTarget {
+                    color: world_view,
+                    depth: Some(world_depth),
+                    format: world_view.texture().format().remove_srgb_suffix(),
+                }),
+                self.mod_gpu_sources(Some(world_depth), Some(world_view)),
+            );
             encoder = self.device.create_command_encoder(&Default::default());
         }
         if let Some((color, depth)) = &scaled
@@ -9358,6 +9458,9 @@ impl Renderer {
                     hand_view_proj,
                     native_overlay: render_needs.overlay,
                 };
+                if mod_gpu_runtime::has_stage(mod_gpu::Stage::Hud) && !native_commands.is_empty() {
+                    self.queue.submit(native_commands.drain(..));
+                }
                 self.draw_overlay(&mut encoder, frame, &generated_view, generated, &overlay);
             }
         } else if scaled.is_some() {
@@ -9411,6 +9514,9 @@ impl Renderer {
             hand_view_proj,
             native_overlay: render_needs.overlay,
         };
+        if mod_gpu_runtime::has_stage(mod_gpu::Stage::Hud) && !native_commands.is_empty() {
+            self.queue.submit(native_commands.drain(..));
+        }
         let readback =
             self.draw_overlay(&mut encoder, frame, &view_target, &target_texture, &overlay);
         if culling && let Some(cull) = &mut self.cull {
@@ -9642,6 +9748,21 @@ impl Renderer {
     }
 }
 impl Renderer {
+    fn mod_gpu_sources<'a>(
+        &'a self,
+        depth: Option<&'a wgpu::TextureView>,
+        scene: Option<&'a wgpu::TextureView>,
+    ) -> mod_gpu_resources::EngineSources<'a> {
+        mod_gpu_resources::EngineSources {
+            frame: Default::default(),
+            atlas: self.sprite_views.first(),
+            sampler: Some(&self.sprite_sampler),
+            depth: depth.map(wgpu::TextureView::texture),
+            scene: scene.map(wgpu::TextureView::texture),
+            lightmap: Some(&self.lightmap_view),
+        }
+    }
+
     /// What draws over the world, on the real frame and frame generation's made one:
     /// the hand, entity outlines, post effects, screen effects, the debug crosshair and
     /// the HUD. Returns the world icon's readback, taken on the real frame.
@@ -9904,7 +10025,12 @@ impl Renderer {
         let menu_blur = frame
             .menu_blur
             .filter(|_| self.config.usage.contains(wgpu::TextureUsages::COPY_SRC));
-        let blur_at = menu_blur.map_or(0, |_| frame.hud.blur_at);
+        let gpu_hud = !frame.title && mod_gpu_runtime::has_stage(mod_gpu::Stage::Hud);
+        let blur_at = if gpu_hud {
+            frame.hud.blur_at
+        } else {
+            menu_blur.map_or(0, |_| frame.hud.blur_at)
+        };
         self.hud.draw_range(
             encoder,
             view_target,
@@ -9914,6 +10040,20 @@ impl Renderer {
             0..blur_at,
             timing.as_mut(),
         );
+        if gpu_hud {
+            let replacement = self.device.create_command_encoder(&Default::default());
+            self.queue
+                .submit([std::mem::replace(encoder, replacement).finish()]);
+            mod_gpu_runtime::submit_stage(
+                mod_gpu::Stage::Hud,
+                Some(&mod_gpu_resources::FrameTarget {
+                    color: view_target,
+                    depth: None,
+                    format: self.config.format.remove_srgb_suffix(),
+                }),
+                self.mod_gpu_sources(None, None),
+            );
+        }
         if let Some(radius) = menu_blur {
             let format = self.config.format;
             let device = &self.device;

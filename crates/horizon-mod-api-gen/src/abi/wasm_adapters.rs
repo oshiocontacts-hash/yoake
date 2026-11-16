@@ -6,15 +6,22 @@
 //!
 //! A hook whose conversion cannot be generated is not wired (see [`WasmAdapters::unsupported`]):
 //! a guest that subscribes to it is refused at load, so nothing is silently dropped.
-use super::wit_full::shape::{Field, ListKind, MapKind, NamedDef, RustPath, Shape, StrKind, VCase, WrapKind};
-use super::wit_full::{EffectPlan, ExtraPlan, FullWit, HookPlan, Main, ResultForm, Side, generate_full_wit};
+use super::wit_full::shape::{
+    Field, ListKind, MapKind, NamedDef, RustPath, Shape, StrKind, VCase, WrapKind,
+};
+use super::wit_full::{
+    EffectPlan, ExtraPlan, FullWit, HookPlan, Main, ResultForm, Side, generate_full_wit,
+};
 use quote::ToTokens;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write as _;
 use std::path::Path;
 
 /// Newtypes with a private field and the accessors that read and build them.
-const NEWTYPE_ACCESS: &[(&str, &str, &str)] = &[("NativeTickId", "get", "new"), ("NativeWorldEpoch", "get", "new")];
+const NEWTYPE_ACCESS: &[(&str, &str, &str)] = &[
+    ("NativeTickId", "get", "new"),
+    ("NativeWorldEpoch", "get", "new"),
+];
 
 const DENYLIST: &str = include_str!("../../wasm-adapter-denylist.json");
 
@@ -61,13 +68,21 @@ fn type_text(ty: &syn::Type) -> String {
     ty.to_token_stream().to_string()
 }
 
-fn parse_trait(source: &str, trait_name: &str, render: bool, out: &mut HashMap<String, TraitHook>, events: &mut HashMap<String, EventDef>) -> Result<(), String> {
+fn parse_trait(
+    source: &str,
+    trait_name: &str,
+    render: bool,
+    out: &mut HashMap<String, TraitHook>,
+    events: &mut HashMap<String, EventDef>,
+) -> Result<(), String> {
     let file = syn::parse_file(source).map_err(|e| e.to_string())?;
     for item in &file.items {
         match item {
             syn::Item::Trait(item) if item.ident == trait_name => {
                 for member in &item.items {
-                    let syn::TraitItem::Fn(method) = member else { continue };
+                    let syn::TraitItem::Fn(method) = member else {
+                        continue;
+                    };
                     let name = method.sig.ident.to_string();
                     if name == "render" {
                         continue;
@@ -77,14 +92,25 @@ fn parse_trait(source: &str, trait_name: &str, render: bool, out: &mut HashMap<S
                     let mut event = None;
                     let mut event_sig = String::new();
                     for arg in &method.sig.inputs {
-                        let syn::FnArg::Typed(arg) = arg else { continue };
-                        let syn::Pat::Ident(pat) = &*arg.pat else { continue };
+                        let syn::FnArg::Typed(arg) = arg else {
+                            continue;
+                        };
+                        let syn::Pat::Ident(pat) = &*arg.pat else {
+                            continue;
+                        };
                         let text = type_text(&arg.ty);
                         let event_type = match &*arg.ty {
-                            syn::Type::Reference(reference) if reference.mutability.is_some() => match &*reference.elem {
-                                syn::Type::Path(path) => path.path.segments.last().map(|s| s.ident.to_string()).filter(|n| n.ends_with("Event")),
-                                _ => None,
-                            },
+                            syn::Type::Reference(reference) if reference.mutability.is_some() => {
+                                match &*reference.elem {
+                                    syn::Type::Path(path) => path
+                                        .path
+                                        .segments
+                                        .last()
+                                        .map(|s| s.ident.to_string())
+                                        .filter(|n| n.ends_with("Event")),
+                                    _ => None,
+                                }
+                            }
                             _ => None,
                         };
                         if let Some(event_type) = event_type {
@@ -92,7 +118,11 @@ fn parse_trait(source: &str, trait_name: &str, render: bool, out: &mut HashMap<S
                             event = Some(event_type);
                         } else {
                             host = if text.contains("dyn Host") {
-                                if text.starts_with("& mut") { HostKind::Write } else { HostKind::Read }
+                                if text.starts_with("& mut") {
+                                    HostKind::Write
+                                } else {
+                                    HostKind::Read
+                                }
                             } else {
                                 HostKind::None
                             };
@@ -104,7 +134,17 @@ fn parse_trait(source: &str, trait_name: &str, render: bool, out: &mut HashMap<S
                         syn::ReturnType::Default => None,
                         syn::ReturnType::Type(_, ty) => Some(type_text(ty)),
                     };
-                    out.insert(name, TraitHook { host, host_param, event, event_sig, ret, in_render: render });
+                    out.insert(
+                        name,
+                        TraitHook {
+                            host,
+                            host_param,
+                            event,
+                            event_sig,
+                            ret,
+                            in_render: render,
+                        },
+                    );
                 }
             }
             syn::Item::Struct(item) if item.ident.to_string().ends_with("Event") => {
@@ -132,16 +172,21 @@ fn camel(wit: &str) -> String {
 }
 
 const RUST_KEYWORDS: &[&str] = &[
-    "as", "break", "const", "continue", "crate", "else", "enum", "extern", "false", "fn", "for", "if", "impl", "in",
-    "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return", "self", "Self", "static", "struct", "super",
-    "trait", "true", "type", "unsafe", "use", "where", "while", "async", "await", "dyn", "abstract", "become", "box",
-    "do", "final", "macro", "override", "priv", "typeof", "unsized", "virtual", "yield", "try",
+    "as", "break", "const", "continue", "crate", "else", "enum", "extern", "false", "fn", "for",
+    "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return",
+    "self", "Self", "static", "struct", "super", "trait", "true", "type", "unsafe", "use", "where",
+    "while", "async", "await", "dyn", "abstract", "become", "box", "do", "final", "macro",
+    "override", "priv", "typeof", "unsized", "virtual", "yield", "try",
 ];
 
 fn snake(wit: &str) -> String {
     let name = wit.trim_start_matches('%').replace('-', "_");
     if RUST_KEYWORDS.contains(&name.as_str()) {
-        if matches!(name.as_str(), "crate" | "self" | "super" | "Self") { format!("{name}_") } else { format!("r#{name}") }
+        if matches!(name.as_str(), "crate" | "self" | "super" | "Self") {
+            format!("{name}_")
+        } else {
+            format!("r#{name}")
+        }
     } else {
         name
     }
@@ -163,7 +208,11 @@ fn rust_path(path: &RustPath, exports: &BTreeSet<String>) -> String {
             return format!("crate::mod_api::{name}");
         }
     }
-    let mut text = if path.krate == "horizon-client" { "crate".to_owned() } else { path.krate.replace('-', "_") };
+    let mut text = if path.krate == "horizon-client" {
+        "crate".to_owned()
+    } else {
+        path.krate.replace('-', "_")
+    };
     for segment in path.module.split("::").filter(|s| !s.is_empty()) {
         text.push_str("::");
         text.push_str(segment);
@@ -202,7 +251,8 @@ impl<'a> Emitter<'a> {
         if let Some(done) = self.forward.get(wit) {
             return done.clone();
         }
-        self.forward.insert(wit.to_owned(), Err("recursive type".into()));
+        self.forward
+            .insert(wit.to_owned(), Err("recursive type".into()));
         let made = forward_helper(self, wit);
         let result = match made {
             Ok(code) => {
@@ -218,7 +268,9 @@ impl<'a> Emitter<'a> {
     /// The record `shape` is a foreign non-exhaustive struct that can only be updated field by field.
     fn inplace(&self, shape: &Shape) -> Option<String> {
         if let Shape::Named(wit) = shape
-            && let Some(NamedDef::Record { rust, tuple: false, .. }) = self.defs.get(wit)
+            && let Some(NamedDef::Record {
+                rust, tuple: false, ..
+            }) = self.defs.get(wit)
             && rust.krate != "horizon-client"
             && rust.non_exhaustive
         {
@@ -231,15 +283,23 @@ impl<'a> Emitter<'a> {
         if let Some(done) = self.update.get(wit) {
             return done.clone();
         }
-        self.update.insert(wit.to_owned(), Err("recursive type".into()));
+        self.update
+            .insert(wit.to_owned(), Err("recursive type".into()));
         let made = (|| -> Res<String> {
-            let Some(NamedDef::Record { rust, fields, .. }) = self.defs.get(wit).cloned() else { return Err("not a record".into()) };
+            let Some(NamedDef::Record { rust, fields, .. }) = self.defs.get(wit).cloned() else {
+                return Err("not a record".into());
+            };
             let mut body = String::new();
             for field in &fields {
                 let conv = self.from_wit(&field.shape, &format!("v.{}", snake(&field.wit)))?;
                 let _ = write!(body, "t.{} = ({conv})?; ", field.rust);
             }
-            Ok(format!("fn {}(v: {}, t: &mut {}) -> Option<()> {{ {body} Some(()) }}\n", helper_name("fu", wit), wit_rust(wit), rust_path(&rust, self.exports)))
+            Ok(format!(
+                "fn {}(v: {}, t: &mut {}) -> Option<()> {{ {body} Some(()) }}\n",
+                helper_name("fu", wit),
+                wit_rust(wit),
+                rust_path(&rust, self.exports)
+            ))
         })();
         let result = match made {
             Ok(code) => {
@@ -256,7 +316,8 @@ impl<'a> Emitter<'a> {
         if let Some(done) = self.reverse.get(wit) {
             return done.clone();
         }
-        self.reverse.insert(wit.to_owned(), Err("recursive type".into()));
+        self.reverse
+            .insert(wit.to_owned(), Err("recursive type".into()));
         let made = reverse_helper(self, wit);
         let result = match made {
             Ok(code) => {
@@ -280,18 +341,24 @@ impl<'a> Emitter<'a> {
             },
             Shape::Str(StrKind::Text) => format!("{v}.to_string()"),
             Shape::Str(StrKind::Path) => format!("{v}.to_string_lossy().into_owned()"),
-            Shape::Wide { signed } => format!("({v}.val() as {}).to_be_bytes().to_vec()", if *signed { "i128" } else { "u128" }),
+            Shape::Wide { signed } => format!(
+                "({v}.val() as {}).to_be_bytes().to_vec()",
+                if *signed { "i128" } else { "u128" }
+            ),
             Shape::Glam { count, .. } => {
-                let parts = (0..*count).map(|i| format!("a[{i}]")).collect::<Vec<_>>().join(", ");
+                let parts = (0..*count)
+                    .map(|i| format!("a[{i}]"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
                 format!("{{ let a = {v}.to_array(); ({parts}) }}")
             }
-            Shape::Handle => "next_handle()".into(),
+            Shape::Handle => format!("{{ let _ = &{v}; next_handle() }}"),
             Shape::Tag => format!("nbt_tag(&{v})"),
             Shape::Compound => format!("nbt_compound(&{v})"),
             Shape::Text => format!("text_json(&{v})"),
             Shape::Json => format!("json_text(&{v})"),
             Shape::JsonMap => format!("json_map_text(&{v})"),
-            Shape::Duration => format!("({v}.as_nanos().min(u128::from(u64::MAX)) as u64)"),
+            Shape::Duration => format!("{v}.as_nanos().min(u128::from(u64::MAX)) as u64"),
             Shape::Item => format!("item_w(&{v})"),
             Shape::Option(inner) => {
                 let x = self.fresh("x");
@@ -330,10 +397,17 @@ impl<'a> Emitter<'a> {
                 self.need_forward(wit)?;
                 format!("{}(&{v})", helper_name("tw", wit))
             }
-            Shape::Newtype { rust, inner, public } => {
+            Shape::Newtype {
+                rust,
+                inner,
+                public,
+            } => {
                 if *public {
                     self.to_wit(inner, &format!("{v}.0"))?
-                } else if let Some((_, get, _)) = NEWTYPE_ACCESS.iter().find(|(name, _, _)| *name == rust.name) {
+                } else if let Some((_, get, _)) = NEWTYPE_ACCESS
+                    .iter()
+                    .find(|(name, _, _)| *name == rust.name)
+                {
                     self.to_wit(inner, &format!("{v}.{get}()"))?
                 } else {
                     return Err(format!("newtype {} with a private field", rust.name));
@@ -360,10 +434,18 @@ impl<'a> Emitter<'a> {
                 format!("<[u8; 16]>::try_from({v}).ok().map({ty}::from_be_bytes)")
             }
             Shape::Glam { rust, count } => {
-                let parts = (0..*count).map(|i| format!("t.{i}")).collect::<Vec<_>>().join(", ");
+                let parts = (0..*count)
+                    .map(|i| format!("t.{i}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
                 let name = rust.strip_prefix("glam::").unwrap_or(rust);
-                if ["Vec", "DVec", "Quat", "DQuat"].iter().any(|prefix| name.starts_with(prefix)) {
-                    format!("{{ let t = {v}; Some({rust}::from_array([{parts}])).filter(|g| g.is_finite()) }}")
+                if ["Vec", "DVec", "Quat", "DQuat"]
+                    .iter()
+                    .any(|prefix| name.starts_with(prefix))
+                {
+                    format!(
+                        "{{ let t = {v}; Some({rust}::from_array([{parts}])).filter(|g| g.is_finite()) }}"
+                    )
                 } else {
                     format!("{{ let t = {v}; Some({rust}::from_array([{parts}])) }}")
                 }
@@ -393,7 +475,9 @@ impl<'a> Emitter<'a> {
                     ListKind::Array(_) => "Vec<_>".to_owned(),
                     ListKind::Slice => return Err("a slice cannot be answered".into()),
                 };
-                let base = format!("{v}.into_iter().map(|{x}| {conv}).collect::<Option<{collect}>>().filter(|list| list.len() <= MAX_ANSWER_LIST)");
+                let base = format!(
+                    "{v}.into_iter().map(|{x}| {conv}).collect::<Option<{collect}>>().filter(|list| list.len() <= MAX_ANSWER_LIST)"
+                );
                 match kind {
                     ListKind::Array(_) => format!("{base}.and_then(|l| l.try_into().ok())"),
                     _ => base,
@@ -403,7 +487,10 @@ impl<'a> Emitter<'a> {
                 let t = self.fresh("t");
                 let mut parts = Vec::new();
                 for (index, item) in items.iter().enumerate() {
-                    parts.push(format!("({})?", self.from_wit(item, &format!("{t}.{index}"))?));
+                    parts.push(format!(
+                        "({})?",
+                        self.from_wit(item, &format!("{t}.{index}"))?
+                    ));
                 }
                 format!("{{ let {t} = {v}; (|| Some(({},)))() }}", parts.join(", "))
             }
@@ -420,9 +507,13 @@ impl<'a> Emitter<'a> {
                 let collect = match kind {
                     MapKind::HashMap => "std::collections::HashMap<_, _>",
                     MapKind::BTreeMap => "std::collections::BTreeMap<_, _>",
-                    MapKind::Other => return Err("an unsupported map type cannot be answered".into()),
+                    MapKind::Other => {
+                        return Err("an unsupported map type cannot be answered".into());
+                    }
                 };
-                format!("{v}.into_iter().map(|({k}, {x})| Some((({key})?, ({value})?))).collect::<Option<{collect}>>().filter(|map| map.len() <= MAX_ANSWER_LIST)")
+                format!(
+                    "{v}.into_iter().map(|({k}, {x})| Some((({key})?, ({value})?))).collect::<Option<{collect}>>().filter(|map| map.len() <= MAX_ANSWER_LIST)"
+                )
             }
             Shape::Wrap(inner, kind) => {
                 let inner = self.from_wit(inner, v)?;
@@ -442,17 +533,27 @@ impl<'a> Emitter<'a> {
                 self.need_reverse(wit)?;
                 format!("{}({v})", helper_name("fw", wit))
             }
-            Shape::Newtype { rust, inner, public } => {
+            Shape::Newtype {
+                rust,
+                inner,
+                public,
+            } => {
                 if rust.lifetimes > 0 {
                     return Err("a type with lifetimes cannot be answered".into());
                 }
                 let inner = self.from_wit(inner, v)?;
                 if *public && rust.name == "BlockStateId" {
                     // A block state the registry does not have must never reach the world.
-                    format!("({inner}).map({}).filter(|state| valid_block_state(state.0))", rust_path(rust, self.exports))
+                    format!(
+                        "({inner}).map({}).filter(|state| valid_block_state(state.0))",
+                        rust_path(rust, self.exports)
+                    )
                 } else if *public {
                     format!("({inner}).map({})", rust_path(rust, self.exports))
-                } else if let Some((_, _, new)) = NEWTYPE_ACCESS.iter().find(|(name, _, _)| *name == rust.name) {
+                } else if let Some((_, _, new)) = NEWTYPE_ACCESS
+                    .iter()
+                    .find(|(name, _, _)| *name == rust.name)
+                {
                     format!("({inner}).map({}::{new})", rust_path(rust, self.exports))
                 } else {
                     return Err(format!("newtype {} with a private field", rust.name));
@@ -473,8 +574,19 @@ fn peel(shape: &Shape) -> &Shape {
 /// value; anything else by reference).
 fn plain(shape: &Shape, defs: &BTreeMap<String, NamedDef>, seen: &mut Vec<String>) -> bool {
     match shape {
-        Shape::Unsupported | Shape::Scalar { .. } | Shape::Glam { .. } | Shape::Handle | Shape::Duration => true,
-        Shape::Str(_) | Shape::Wide { .. } | Shape::Tag | Shape::Compound | Shape::Text | Shape::Json | Shape::JsonMap | Shape::Item => false,
+        Shape::Unsupported
+        | Shape::Scalar { .. }
+        | Shape::Glam { .. }
+        | Shape::Handle
+        | Shape::Duration => true,
+        Shape::Str(_)
+        | Shape::Wide { .. }
+        | Shape::Tag
+        | Shape::Compound
+        | Shape::Text
+        | Shape::Json
+        | Shape::JsonMap
+        | Shape::Item => false,
         Shape::Option(inner) | Shape::Wrap(inner, _) => plain(inner, defs, seen),
         Shape::List(..) | Shape::Map(..) => false,
         Shape::Tuple(items) => items.iter().all(|s| plain(s, defs, seen)),
@@ -486,14 +598,20 @@ fn plain(shape: &Shape, defs: &BTreeMap<String, NamedDef>, seen: &mut Vec<String
             }
             seen.push(wit.clone());
             let answer = match defs.get(wit) {
-                Some(NamedDef::Record { fields, .. }) => fields.iter().all(|f| plain(&f.shape, defs, seen)),
+                Some(NamedDef::Record { fields, .. }) => {
+                    fields.iter().all(|f| plain(&f.shape, defs, seen))
+                }
                 Some(NamedDef::Unit { .. } | NamedDef::UnitEnum { .. }) => true,
-                Some(NamedDef::Variant { cases, .. }) => cases.iter().all(|(_, _, case)| match case {
-                    VCase::Unit => true,
-                    VCase::Single(s) => plain(s, defs, seen),
-                    VCase::Tuple(items) => items.iter().all(|s| plain(s, defs, seen)),
-                    VCase::Struct { fields, .. } => fields.iter().all(|f| plain(&f.shape, defs, seen)),
-                }),
+                Some(NamedDef::Variant { cases, .. }) => {
+                    cases.iter().all(|(_, _, case)| match case {
+                        VCase::Unit => true,
+                        VCase::Single(s) => plain(s, defs, seen),
+                        VCase::Tuple(items) => items.iter().all(|s| plain(s, defs, seen)),
+                        VCase::Struct { fields, .. } => {
+                            fields.iter().all(|f| plain(&f.shape, defs, seen))
+                        }
+                    })
+                }
                 None => true,
             };
             seen.pop();
@@ -512,21 +630,51 @@ fn by_reference(shape: &Shape, defs: &BTreeMap<String, NamedDef>) -> bool {
 fn borrowed(shape: &Shape, var: &str, defs: &BTreeMap<String, NamedDef>) -> Res<String> {
     Ok(match peel(shape) {
         Shape::Unsupported => return Err("a type with no WIT mapping".into()),
-        Shape::Scalar { .. } | Shape::Glam { .. } | Shape::Handle | Shape::Duration => var.to_owned(),
+        Shape::Scalar { .. } | Shape::Glam { .. } | Shape::Handle | Shape::Duration => {
+            var.to_owned()
+        }
         Shape::Str(_) => format!("{var}.as_str()"),
         Shape::Wide { .. } | Shape::List(..) | Shape::Map(..) => format!("{var}.as_slice()"),
-        Shape::Tag | Shape::Compound | Shape::Text | Shape::Json | Shape::JsonMap | Shape::Item => format!("&{var}"),
+        Shape::Tag | Shape::Compound | Shape::Text | Shape::Json | Shape::JsonMap | Shape::Item => {
+            format!("&{var}")
+        }
         Shape::Named(_) => {
-            if by_reference(shape, defs) { format!("&{var}") } else { var.to_owned() }
+            if by_reference(shape, defs) {
+                format!("&{var}")
+            } else {
+                var.to_owned()
+            }
         }
         Shape::Option(inner) => match peel(inner) {
-            Shape::Scalar { .. } | Shape::Glam { .. } | Shape::Handle | Shape::Duration => var.to_owned(),
-            Shape::Str(_) | Shape::Wide { .. } | Shape::List(..) | Shape::Map(..) => format!("{var}.as_deref()"),
-            Shape::Tag | Shape::Compound | Shape::Text | Shape::Json | Shape::JsonMap | Shape::Item => format!("{var}.as_ref()"),
-            Shape::Named(_) => {
-                if by_reference(inner, defs) { format!("{var}.as_ref()") } else { var.to_owned() }
+            Shape::Scalar { .. } | Shape::Glam { .. } | Shape::Handle | Shape::Duration => {
+                var.to_owned()
             }
-            Shape::Tuple(items) if items.iter().all(|item| matches!(peel(item), Shape::Scalar { .. } | Shape::Glam { .. } | Shape::Duration | Shape::Handle)) => var.to_owned(),
+            Shape::Str(_) | Shape::Wide { .. } | Shape::List(..) | Shape::Map(..) => {
+                format!("{var}.as_deref()")
+            }
+            Shape::Tag
+            | Shape::Compound
+            | Shape::Text
+            | Shape::Json
+            | Shape::JsonMap
+            | Shape::Item => format!("{var}.as_ref()"),
+            Shape::Named(_) => {
+                if by_reference(inner, defs) {
+                    format!("{var}.as_ref()")
+                } else {
+                    var.to_owned()
+                }
+            }
+            Shape::Tuple(items)
+                if items.iter().all(|item| {
+                    matches!(
+                        peel(item),
+                        Shape::Scalar { .. } | Shape::Glam { .. } | Shape::Duration | Shape::Handle
+                    )
+                }) =>
+            {
+                var.to_owned()
+            }
             _ => return Err("an option of a compound value is not passed yet".into()),
         },
         Shape::Tuple(items) => {
@@ -547,10 +695,19 @@ fn wit_rust(wit: &str) -> String {
     format!("et::{}", camel(wit))
 }
 
-fn field_conv_forward(emitter: &mut Emitter<'_>, fields: &[Field], base: &str, tuple: bool) -> Res<String> {
+fn field_conv_forward(
+    emitter: &mut Emitter<'_>,
+    fields: &[Field],
+    base: &str,
+    tuple: bool,
+) -> Res<String> {
     let mut text = String::new();
     for field in fields {
-        let access = if tuple { format!("{base}.{}", field.rust) } else { format!("{base}.{}", field.rust) };
+        let access = if tuple {
+            format!("{base}.{}", field.rust)
+        } else {
+            format!("{base}.{}", field.rust)
+        };
         let conv = emitter.to_wit(&field.shape, &access)?;
         let _ = write!(text, "{}: {conv}, ", snake(&field.wit));
     }
@@ -562,19 +719,39 @@ fn forward_helper(emitter: &mut Emitter<'_>, wit: &str) -> Res<String> {
     let name = helper_name("tw", wit);
     let target = wit_rust(wit);
     Ok(match def {
-        NamedDef::Record { rust, fields, tuple, .. } => {
+        NamedDef::Record {
+            rust,
+            fields,
+            tuple,
+            ..
+        } => {
             let body = field_conv_forward(emitter, &fields, "v", tuple)?;
-            format!("fn {name}(v: &{}) -> {target} {{ {target} {{ {body} }} }}\n", rust_path(&rust, emitter.exports))
+            format!(
+                "fn {name}(v: &{}) -> {target} {{ {target} {{ {body} }} }}\n",
+                rust_path(&rust, emitter.exports)
+            )
         }
-        NamedDef::Unit { rust, .. } => format!("fn {name}(_: &{}) -> {target} {{ {target}::Unit }}\n", rust_path(&rust, emitter.exports)),
+        NamedDef::Unit { rust, .. } => format!(
+            "fn {name}(_: &{}) -> {target} {{ {target}::Unit }}\n",
+            rust_path(&rust, emitter.exports)
+        ),
         NamedDef::UnitEnum { rust, cases, .. } => {
             let path = rust_path(&rust, emitter.exports);
             let mut arms = String::new();
             for (rust_case, wit_case) in &cases {
-                let _ = write!(arms, "{path}::{rust_case} => {target}::{}, ", camel(wit_case));
+                let _ = write!(
+                    arms,
+                    "{path}::{rust_case} => {target}::{}, ",
+                    camel(wit_case)
+                );
             }
-            let fallback = cases.first().map(|(_, wit_case)| camel(wit_case)).unwrap_or_default();
-            format!("#[allow(unreachable_patterns)] fn {name}(v: &{path}) -> {target} {{ match v {{ {arms} _ => {target}::{fallback} }} }}\n")
+            let fallback = cases
+                .first()
+                .map(|(_, wit_case)| camel(wit_case))
+                .unwrap_or_default();
+            format!(
+                "#[allow(unreachable_patterns)] fn {name}(v: &{path}) -> {target} {{ match v {{ {arms} _ => {target}::{fallback} }} }}\n"
+            )
         }
         NamedDef::Variant { rust, cases, .. } => {
             let path = rust_path(&rust, emitter.exports);
@@ -583,28 +760,50 @@ fn forward_helper(emitter: &mut Emitter<'_>, wit: &str) -> Res<String> {
                 let wit_variant = camel(wit_case);
                 match case {
                     VCase::Unit => {
-                        let _ = write!(arms, "{path}::{rust_case} {{ .. }} => {target}::{wit_variant}, ");
+                        let _ = write!(
+                            arms,
+                            "{path}::{rust_case} {{ .. }} => {target}::{wit_variant}, "
+                        );
                     }
                     VCase::Single(shape) => {
                         let conv = emitter.to_wit(shape, "p")?;
-                        let _ = write!(arms, "{path}::{rust_case}(p) => {target}::{wit_variant}({conv}), ");
+                        let _ = write!(
+                            arms,
+                            "{path}::{rust_case}(p) => {target}::{wit_variant}({conv}), "
+                        );
                     }
                     VCase::Tuple(items) => {
-                        let binds = (0..items.len()).map(|i| format!("p{i}")).collect::<Vec<_>>().join(", ");
+                        let binds = (0..items.len())
+                            .map(|i| format!("p{i}"))
+                            .collect::<Vec<_>>()
+                            .join(", ");
                         let mut parts = Vec::new();
                         for (index, item) in items.iter().enumerate() {
                             parts.push(emitter.to_wit(item, &format!("p{index}"))?);
                         }
-                        let _ = write!(arms, "{path}::{rust_case}({binds}) => {target}::{wit_variant}(({},)), ", parts.join(", "));
+                        let _ = write!(
+                            arms,
+                            "{path}::{rust_case}({binds}) => {target}::{wit_variant}(({},)), ",
+                            parts.join(", ")
+                        );
                     }
                     VCase::Struct { record, fields } => {
-                        let binds = fields.iter().enumerate().map(|(i, f)| format!("{}: p{i}", f.rust)).collect::<Vec<_>>().join(", ");
+                        let binds = fields
+                            .iter()
+                            .enumerate()
+                            .map(|(i, f)| format!("{}: p{i}", f.rust))
+                            .collect::<Vec<_>>()
+                            .join(", ");
                         let mut parts = String::new();
                         for (index, field) in fields.iter().enumerate() {
                             let conv = emitter.to_wit(&field.shape, &format!("p{index}"))?;
                             let _ = write!(parts, "{}: {conv}, ", snake(&field.wit));
                         }
-                        let _ = write!(arms, "{path}::{rust_case} {{ {binds} }} => {target}::{wit_variant}({} {{ {parts} }}), ", wit_rust(record));
+                        let _ = write!(
+                            arms,
+                            "{path}::{rust_case} {{ {binds} }} => {target}::{wit_variant}({} {{ {parts} }}), ",
+                            wit_rust(record)
+                        );
                     }
                 }
             }
@@ -618,7 +817,12 @@ fn reverse_helper(emitter: &mut Emitter<'_>, wit: &str) -> Res<String> {
     let name = helper_name("fw", wit);
     let target = wit_rust(wit);
     Ok(match def {
-        NamedDef::Record { rust, fields, tuple, .. } => {
+        NamedDef::Record {
+            rust,
+            fields,
+            tuple,
+            ..
+        } => {
             if rust.lifetimes > 0 {
                 return Err("a type with lifetimes cannot be answered".into());
             }
@@ -634,12 +838,15 @@ fn reverse_helper(emitter: &mut Emitter<'_>, wit: &str) -> Res<String> {
             if tuple {
                 let mut parts = String::new();
                 for field in &fields {
-                    let conv = emitter.from_wit(&field.shape, &format!("v.{}", snake(&field.wit)))?;
+                    let conv =
+                        emitter.from_wit(&field.shape, &format!("v.{}", snake(&field.wit)))?;
                     let _ = write!(parts, "({conv})?, ");
                 }
                 format!("fn {name}(v: {target}) -> Option<{path}> {{ Some({path}({parts})) }}\n")
             } else {
-                format!("fn {name}(v: {target}) -> Option<{path}> {{ Some({path} {{ {body} }}) }}\n")
+                format!(
+                    "fn {name}(v: {target}) -> Option<{path}> {{ Some({path} {{ {body} }}) }}\n"
+                )
             }
         }
         NamedDef::Unit { rust, braced, .. } => {
@@ -647,7 +854,11 @@ fn reverse_helper(emitter: &mut Emitter<'_>, wit: &str) -> Res<String> {
                 return Err("a type with lifetimes cannot be answered".into());
             }
             let path = rust_path(&rust, emitter.exports);
-            let value = if braced { format!("{path} {{}}") } else { path.clone() };
+            let value = if braced {
+                format!("{path} {{}}")
+            } else {
+                path.clone()
+            };
             format!("fn {name}(_: {target}) -> Option<{path}> {{ Some({value}) }}\n")
         }
         NamedDef::UnitEnum { rust, cases, .. } => {
@@ -657,7 +868,11 @@ fn reverse_helper(emitter: &mut Emitter<'_>, wit: &str) -> Res<String> {
             let path = rust_path(&rust, emitter.exports);
             let mut arms = String::new();
             for (rust_case, wit_case) in &cases {
-                let _ = write!(arms, "{target}::{} => {path}::{rust_case}, ", camel(wit_case));
+                let _ = write!(
+                    arms,
+                    "{target}::{} => {path}::{rust_case}, ",
+                    camel(wit_case)
+                );
             }
             format!("fn {name}(v: {target}) -> Option<{path}> {{ Some(match v {{ {arms} }}) }}\n")
         }
@@ -675,22 +890,36 @@ fn reverse_helper(emitter: &mut Emitter<'_>, wit: &str) -> Res<String> {
                     }
                     VCase::Single(shape) => {
                         let conv = emitter.from_wit(shape, "p")?;
-                        let _ = write!(arms, "{target}::{wit_variant}(p) => {path}::{rust_case}(({conv})?), ");
+                        let _ = write!(
+                            arms,
+                            "{target}::{wit_variant}(p) => {path}::{rust_case}(({conv})?), "
+                        );
                     }
                     VCase::Tuple(items) => {
                         let mut parts = Vec::new();
                         for (index, item) in items.iter().enumerate() {
-                            parts.push(format!("({})?", emitter.from_wit(item, &format!("p.{index}"))?));
+                            parts.push(format!(
+                                "({})?",
+                                emitter.from_wit(item, &format!("p.{index}"))?
+                            ));
                         }
-                        let _ = write!(arms, "{target}::{wit_variant}(p) => {path}::{rust_case}({}), ", parts.join(", "));
+                        let _ = write!(
+                            arms,
+                            "{target}::{wit_variant}(p) => {path}::{rust_case}({}), ",
+                            parts.join(", ")
+                        );
                     }
                     VCase::Struct { fields, .. } => {
                         let mut parts = String::new();
                         for field in fields {
-                            let conv = emitter.from_wit(&field.shape, &format!("p.{}", snake(&field.wit)))?;
+                            let conv = emitter
+                                .from_wit(&field.shape, &format!("p.{}", snake(&field.wit)))?;
                             let _ = write!(parts, "{}: ({conv})?, ", field.rust);
                         }
-                        let _ = write!(arms, "{target}::{wit_variant}(p) => {path}::{rust_case} {{ {parts} }}, ");
+                        let _ = write!(
+                            arms,
+                            "{target}::{wit_variant}(p) => {path}::{rust_case} {{ {parts} }}, "
+                        );
                     }
                 }
             }
@@ -727,8 +956,12 @@ fn field_is_mut_ref(ty: &syn::Type) -> bool {
 }
 
 fn elem_name(ty: &syn::Type) -> Option<String> {
-    let syn::Type::Reference(reference) = ty else { return None };
-    let syn::Type::Path(path) = &*reference.elem else { return None };
+    let syn::Type::Reference(reference) = ty else {
+        return None;
+    };
+    let syn::Type::Path(path) = &*reference.elem else {
+        return None;
+    };
     path.path.segments.last().map(|s| s.ident.to_string())
 }
 
@@ -739,7 +972,8 @@ fn build_hook(
     event: &EventDef,
     ordinal_const: &str,
 ) -> Res<Built> {
-    let fields: HashMap<&str, &syn::Type> = event.fields.iter().map(|(n, t)| (n.as_str(), t)).collect();
+    let fields: BTreeMap<&str, &syn::Type> =
+        event.fields.iter().map(|(n, t)| (n.as_str(), t)).collect();
     let name = &plan.name;
     let sig_host = match &method.host_param {
         Some((param, ty)) => format!("{param}: {ty}, "),
@@ -769,7 +1003,11 @@ fn build_hook(
         Side::Both => &["client", "server"],
     };
     for side in sides {
-        let side_enum = if *side == "client" { "Side::Client" } else { "Side::Server" };
+        let side_enum = if *side == "client" {
+            "Side::Client"
+        } else {
+            "Side::Server"
+        };
         let mut block = String::new();
         let guard = match out_kind {
             "cancel" => " && matches!(out, Flow::Continue)",
@@ -783,7 +1021,10 @@ fn build_hook(
             (Side::Both, _) => " && !on_server_thread()",
             _ => "",
         };
-        let _ = write!(block, "if self.wants({side_enum}, {ordinal_const}){routing}{guard} {{ ");
+        let _ = write!(
+            block,
+            "if self.wants({side_enum}, {ordinal_const}){routing}{guard} {{ "
+        );
         // Arguments.
         let mut call_args = Vec::new();
         for param in &plan.params {
@@ -799,12 +1040,20 @@ fn build_hook(
         let batch = plan
             .effects
             .iter()
-            .find(|effect| fields.get(effect.field.as_str()).and_then(|ty| elem_name(ty)).as_deref() == Some("HudBatch"))
+            .find(|effect| {
+                fields
+                    .get(effect.field.as_str())
+                    .and_then(|ty| elem_name(ty))
+                    .as_deref()
+                    == Some("HudBatch")
+            })
             .map(|effect| format!("Some(&mut *event.{})", effect.field))
             .or_else(|| {
                 fields
                     .iter()
-                    .find(|(_, ty)| elem_name(ty).as_deref() == Some("HudBatch") && field_is_mut_ref(ty))
+                    .find(|(_, ty)| {
+                        elem_name(ty).as_deref() == Some("HudBatch") && field_is_mut_ref(ty)
+                    })
                     .map(|(field, _)| format!("Some(&mut *event.{field})"))
             })
             .unwrap_or_else(|| "None".into());
@@ -819,24 +1068,40 @@ fn build_hook(
             }
             HostKind::None => "HostAccess::None".into(),
         };
-        let args = if call_args.is_empty() { String::new() } else { format!(", {}", call_args.join(", ")) };
+        let args = if call_args.is_empty() {
+            String::new()
+        } else {
+            format!(", {}", call_args.join(", "))
+        };
         let client = if *side == "client" {
             let mut extras = Vec::new();
             for (field, ty) in &fields {
                 let value = match elem_name(ty).as_deref() {
-                    Some("WorldPrePost") => Some(format!("world_draws: Some(&mut *event.{field}.draws)")),
-                    Some("NativeScreenView") => Some(format!("screen_kind: event.{field}.kind.map(str::to_owned)")),
+                    Some("WorldPrePost") => {
+                        Some(format!("world_draws: Some(&mut *event.{field}.draws)"))
+                    }
+                    Some("NativeScreenView") => Some(format!(
+                        "screen_kind: event.{field}.kind.map(str::to_owned)"
+                    )),
                     Some("Corners") => Some(format!("corners: Some(&mut *event.{field})")),
                     Some("NativeMobRender") => Some(format!("mob: Some(event.{field})")),
                     Some("BlockEntityDraw") => Some(format!("mob_draw: Some(&mut *event.{field})")),
                     _ => None,
                 };
-                if let Some(value) = value { extras.push(value); }
+                if let Some(value) = value {
+                    extras.push(value);
+                }
             }
             if plan.name == "camera_override" {
                 extras.push("camera: Some(&mut *event.camera)".to_owned());
             }
-            format!(", ClientExtras {{ {} ..Default::default() }}", extras.iter().map(|value| format!("{value}, ")).collect::<String>())
+            format!(
+                ", ClientExtras {{ {} ..Default::default() }}",
+                extras
+                    .iter()
+                    .map(|value| format!("{value}, "))
+                    .collect::<String>()
+            )
         } else {
             String::new()
         };
@@ -867,24 +1132,52 @@ fn build_hook(
     }
     let ret_text = ret.map(|r| format!(" -> {r}")).unwrap_or_default();
     // A host the hook receives but does not pass is still used (silences unused parameters).
-    let unused = method.host_param.as_ref().map(|(param, _)| format!("let _ = &{param}; ")).unwrap_or_default();
-    let method_text = format!("fn {name}(&self, {sig_host}event: {event_ty}){ret_text} {{ {unused}let _ = &event; {body} }}\n");
-    Ok(Built { method: method_text })
+    let unused = method
+        .host_param
+        .as_ref()
+        .map(|(param, _)| format!("let _ = &{param}; "))
+        .unwrap_or_default();
+    let method_text = format!(
+        "fn {name}(&self, {sig_host}event: {event_ty}){ret_text} {{ {unused}let _ = &event; {body} }}\n"
+    );
+    Ok(Built {
+        method: method_text,
+    })
 }
 
-fn apply_result(emitter: &mut Emitter<'_>, plan: &HookPlan, fields: &HashMap<&str, &syn::Type>, out_kind: &str, host_ref: &str) -> Res<String> {
+fn apply_result(
+    emitter: &mut Emitter<'_>,
+    plan: &HookPlan,
+    fields: &BTreeMap<&str, &syn::Type>,
+    out_kind: &str,
+    host_ref: &str,
+) -> Res<String> {
     let mut apply = String::new();
     let assign = |field: &str, value: &str, scalar: bool| -> String {
-        if scalar { format!("event.{field} = {value};") } else { format!("*event.{field} = {value};") }
+        if scalar {
+            format!("event.{field} = {value};")
+        } else {
+            format!("*event.{field} = {value};")
+        }
     };
     let apply_effect = |effect: &EffectPlan, commands: &str| -> Res<String> {
-        let ty = fields.get(effect.field.as_str()).ok_or("effect field missing")?;
+        let ty = fields
+            .get(effect.field.as_str())
+            .ok_or("effect field missing")?;
         let element = elem_name(ty).ok_or("effect field is not a reference")?;
         Ok(match element.as_str() {
-            "HudBatch" => format!("apply_hud({host_ref}, &mut *event.{}, &{commands});", effect.field),
-            "BlockEntityDraw" | "NativeItemDraw" => format!("apply_model({host_ref}, &mut *event.{}, &{commands});", effect.field),
+            "HudBatch" => format!(
+                "apply_hud({host_ref}, &mut *event.{}, &{commands});",
+                effect.field
+            ),
+            "BlockEntityDraw" | "NativeItemDraw" => format!(
+                "apply_model({host_ref}, &mut *event.{}, &{commands});",
+                effect.field
+            ),
             "Corners" => format!("apply_corners(&mut *event.{}, &{commands});", effect.field),
-            "WorldDrawn" | "HandDrawn" | "WorldPrePost" | "OverlayDrawn" => format!("apply_frame_stage(&{commands});"),
+            "WorldDrawn" | "HandDrawn" | "WorldPrePost" | "OverlayDrawn" => {
+                format!("apply_frame_stage(&{commands});")
+            }
             other => return Err(format!("no way to apply commands to {other}")),
         })
     };
@@ -903,11 +1196,22 @@ fn apply_result(emitter: &mut Emitter<'_>, plan: &HookPlan, fields: &HashMap<&st
                 let conv = emitter.from_wit(shape, "r")?;
                 apply.push_str(&format!("if let Some(v) = {conv} {{ out = v; }}"));
             }
-            Main::Collect { field, shape, list, scalar } => {
+            Main::Collect {
+                field,
+                shape,
+                list,
+                scalar,
+            } => {
                 if *list {
                     match emitter.from_wit(shape, "r") {
-                        Ok(conv) => apply.push_str(&format!("if let Some(v) = {conv} {{ {} }}", assign(field, "v", *scalar))),
-                        Err(error) if error.contains("opaque handle") || error.contains("cannot be answered") => {
+                        Ok(conv) => apply.push_str(&format!(
+                            "if let Some(v) = {conv} {{ {} }}",
+                            assign(field, "v", *scalar)
+                        )),
+                        Err(error)
+                            if error.contains("opaque handle")
+                                || error.contains("cannot be answered") =>
+                        {
                             emitter.notes.push(format!("the guest's list for `{field}` is not applied: it holds live engine objects"));
                             apply.push_str("let _ = r;");
                         }
@@ -915,11 +1219,17 @@ fn apply_result(emitter: &mut Emitter<'_>, plan: &HookPlan, fields: &HashMap<&st
                     }
                 } else if let Some(wit) = emitter.inplace(shape) {
                     emitter.need_update(&wit)?;
-                    apply.push_str(&format!("if let Some(v) = r {{ let _ = {}(v, &mut *event.{field}); }}", helper_name("fu", &wit)));
+                    apply.push_str(&format!(
+                        "if let Some(v) = r {{ let _ = {}(v, &mut *event.{field}); }}",
+                        helper_name("fu", &wit)
+                    ));
                 } else {
                     let inner = Shape::Option(Box::new(shape.clone()));
                     let conv = emitter.from_wit(&inner, "r")?;
-                    apply.push_str(&format!("if let Some(Some(v)) = {conv} {{ {} }}", assign(field, "v", *scalar)));
+                    apply.push_str(&format!(
+                        "if let Some(Some(v)) = {conv} {{ {} }}",
+                        assign(field, "v", *scalar)
+                    ));
                 }
             }
             Main::None => return Err("a direct result without an answer".into()),
@@ -935,30 +1245,50 @@ fn apply_result(emitter: &mut Emitter<'_>, plan: &HookPlan, fields: &HashMap<&st
                     let conv = emitter.from_wit(shape, "r.value")?;
                     apply.push_str(&format!("if let Some(v) = {conv} {{ out = v; }}"));
                 }
-                Main::Collect { field, shape, list, scalar } => {
+                Main::Collect {
+                    field,
+                    shape,
+                    list,
+                    scalar,
+                } => {
                     if *list {
                         let conv = emitter.from_wit(shape, "r.value")?;
-                        apply.push_str(&format!("if let Some(v) = {conv} {{ {} }}", assign(field, "v", *scalar)));
+                        apply.push_str(&format!(
+                            "if let Some(v) = {conv} {{ {} }}",
+                            assign(field, "v", *scalar)
+                        ));
                     } else if let Some(wit) = emitter.inplace(shape) {
                         emitter.need_update(&wit)?;
-                        apply.push_str(&format!("if let Some(v) = r.value {{ let _ = {}(v, &mut *event.{field}); }}", helper_name("fu", &wit)));
+                        apply.push_str(&format!(
+                            "if let Some(v) = r.value {{ let _ = {}(v, &mut *event.{field}); }}",
+                            helper_name("fu", &wit)
+                        ));
                     } else {
                         let inner = Shape::Option(Box::new(shape.clone()));
                         let conv = emitter.from_wit(&inner, "r.value")?;
-                        apply.push_str(&format!("if let Some(Some(v)) = {conv} {{ {} }}", assign(field, "v", *scalar)));
+                        apply.push_str(&format!(
+                            "if let Some(Some(v)) = {conv} {{ {} }}",
+                            assign(field, "v", *scalar)
+                        ));
                     }
                 }
             }
             let single = plan.effects.len() == 1;
             let _ = single;
             for effect in &plan.effects {
-                apply.push_str(&apply_effect(effect, &format!("r.{}", snake(&effect.wit_field)))?);
+                apply.push_str(&apply_effect(
+                    effect,
+                    &format!("r.{}", snake(&effect.wit_field)),
+                )?);
             }
             for extra in &plan.extras {
                 match apply_extra(emitter, &mut apply, extra, &assign) {
                     Ok(()) => {}
                     Err(error) if error.contains("cannot be answered") => {
-                        emitter.notes.push(format!("the guest's new `{}` is not applied: {error}", extra.field));
+                        emitter.notes.push(format!(
+                            "the guest's new `{}` is not applied: {error}",
+                            extra.field
+                        ));
                     }
                     Err(error) => return Err(error),
                 }
@@ -969,22 +1299,37 @@ fn apply_result(emitter: &mut Emitter<'_>, plan: &HookPlan, fields: &HashMap<&st
     Ok(apply)
 }
 
-fn apply_extra(emitter: &mut Emitter<'_>, apply: &mut String, extra: &ExtraPlan, assign: &dyn Fn(&str, &str, bool) -> String) -> Res<()> {
+fn apply_extra(
+    emitter: &mut Emitter<'_>,
+    apply: &mut String,
+    extra: &ExtraPlan,
+    assign: &dyn Fn(&str, &str, bool) -> String,
+) -> Res<()> {
     if let Some(wit) = emitter.inplace(&extra.shape) {
         emitter.need_update(&wit)?;
-        apply.push_str(&format!("if let Some(v) = r.{} {{ let _ = {}(v, &mut *event.{}); }}", snake(&extra.wit_field), helper_name("fu", &wit), extra.field));
+        apply.push_str(&format!(
+            "if let Some(v) = r.{} {{ let _ = {}(v, &mut *event.{}); }}",
+            snake(&extra.wit_field),
+            helper_name("fu", &wit),
+            extra.field
+        ));
         return Ok(());
     }
     let option = Shape::Option(Box::new(extra.shape.clone()));
     let conv = emitter.from_wit(&option, &format!("r.{}", snake(&extra.wit_field)))?;
-    apply.push_str(&format!("if let Some(Some(v)) = {conv} {{ {} }}", assign(&extra.field, "v", extra.scalar)));
+    apply.push_str(&format!(
+        "if let Some(Some(v)) = {conv} {{ {} }}",
+        assign(&extra.field, "v", extra.scalar)
+    ));
     Ok(())
 }
 
 /// `full_hook_names.rs` of the `yoake-wasm` crate: every catalog hook in catalog order with its
 /// side, which is also the ordinal numbering of the generated adapters.
 pub fn render_full_hook_names(hooks: &[(String, Side)]) -> String {
-    let mut text = String::from("// @generated by horizon-mod-api-gen; do not edit.\n/// The side(s) of a catalog hook.\n#[derive(Clone, Copy, Debug, Eq, PartialEq)]\npub enum HookSide {\n    Client,\n    Server,\n    Both,\n}\n\n/// Every catalog hook in catalog order, with the sides it runs on.\npub const FULL_HOOKS: &[(&str, HookSide)] = &[\n");
+    let mut text = String::from(
+        "// @generated by horizon-mod-api-gen; do not edit.\n/// The side(s) of a catalog hook.\n#[derive(Clone, Copy, Debug, Eq, PartialEq)]\npub enum HookSide {\n    Client,\n    Server,\n    Both,\n}\n\n/// Every catalog hook in catalog order, with the sides it runs on.\npub const FULL_HOOKS: &[(&str, HookSide)] = &[\n",
+    );
     for (name, side) in hooks {
         let _ = writeln!(text, "    ({name:?}, HookSide::{}),", side_label(*side));
     }
@@ -995,14 +1340,21 @@ pub fn render_full_hook_names(hooks: &[(String, Side)]) -> String {
 /// The hook names list the runtime validates subscriptions against.
 pub fn generate_full_hook_names(root: &Path) -> Result<String, String> {
     let full = generate_full_wit(root)?;
-    Ok(render_full_hook_names(&full.plans.iter().map(|plan| (plan.name.clone(), plan.side)).collect::<Vec<_>>()))
+    Ok(render_full_hook_names(
+        &full
+            .plans
+            .iter()
+            .map(|plan| (plan.name.clone(), plan.side))
+            .collect::<Vec<_>>(),
+    ))
 }
 
 #[derive(serde::Deserialize)]
 struct Deny(BTreeMap<String, String>);
 
 fn denylist() -> Result<BTreeMap<String, String>, String> {
-    let deny: Deny = serde_json::from_str(DENYLIST).map_err(|e| format!("wasm-adapter-denylist.json: {e}"))?;
+    let deny: Deny =
+        serde_json::from_str(DENYLIST).map_err(|e| format!("wasm-adapter-denylist.json: {e}"))?;
     Ok(deny.0)
 }
 
@@ -1035,19 +1387,38 @@ fn mod_api_exports(source: &str) -> Result<BTreeSet<String>, String> {
 
 /// The adapters for the hooks of `plans`, whose Rust traits are `hooks_source` (`Hooks`) and
 /// `render_source` (`RenderHooks`).
-pub fn generate_wasm_adapters(root: &Path, hooks_source: &str, render_source: &str) -> Result<WasmAdapters, String> {
+pub fn generate_wasm_adapters(
+    root: &Path,
+    hooks_source: &str,
+    render_source: &str,
+) -> Result<WasmAdapters, String> {
     let full = generate_full_wit(root)?;
-    let api = std::fs::read_to_string(root.join("crates/horizon-client/src/mod_api.rs")).map_err(|e| e.to_string())?;
+    let api = std::fs::read_to_string(root.join("crates/horizon-client/src/mod_api.rs"))
+        .map_err(|e| e.to_string())?;
     adapters_for(&full, hooks_source, render_source, &mod_api_exports(&api)?)
 }
 
-pub(crate) fn adapters_for(full: &FullWit, hooks_source: &str, render_source: &str, exports: &BTreeSet<String>) -> Result<WasmAdapters, String> {
+pub(crate) fn adapters_for(
+    full: &FullWit,
+    hooks_source: &str,
+    render_source: &str,
+    exports: &BTreeSet<String>,
+) -> Result<WasmAdapters, String> {
     let mut traits = HashMap::new();
     let mut events = HashMap::new();
     parse_trait(hooks_source, "Hooks", false, &mut traits, &mut events)?;
     parse_trait(render_source, "RenderHooks", true, &mut traits, &mut events)?;
     let deny = denylist()?;
-    let mut emitter = Emitter { defs: &full.defs, exports, helpers: String::new(), forward: BTreeMap::new(), reverse: BTreeMap::new(), update: BTreeMap::new(), depth: 0, notes: Vec::new() };
+    let mut emitter = Emitter {
+        defs: &full.defs,
+        exports,
+        helpers: String::new(),
+        forward: BTreeMap::new(),
+        reverse: BTreeMap::new(),
+        update: BTreeMap::new(),
+        depth: 0,
+        notes: Vec::new(),
+    };
     let mut hooks_impl = String::new();
     let mut render_impl = String::new();
     let mut render_ordinals: Vec<usize> = Vec::new();
@@ -1069,7 +1440,10 @@ pub(crate) fn adapters_for(full: &FullWit, hooks_source: &str, render_source: &s
             continue;
         };
         let Some(event) = events.get(&method.event) else {
-            unsupported.push((plan.name.clone(), format!("event {} not found", method.event)));
+            unsupported.push((
+                plan.name.clone(),
+                format!("event {} not found", method.event),
+            ));
             continue;
         };
         emitter.notes.clear();
@@ -1092,11 +1466,29 @@ pub(crate) fn adapters_for(full: &FullWit, hooks_source: &str, render_source: &s
     let helpers = std::mem::take(&mut emitter.helpers);
     let mut code = String::from("// @generated by horizon-mod-api-gen; do not edit.\n");
     code.push_str(&ordinals);
-    let _ = writeln!(code, "pub(crate) const HOOK_COUNT: usize = {};", full.plans.len());
-    let unwired = unsupported.iter().map(|(name, _)| format!("{name:?}")).collect::<Vec<_>>().join(", ");
-    let _ = writeln!(code, "/// Hooks with no adapter: a guest that subscribes to one is refused at load.\npub(crate) const UNWIRED: &[&str] = &[{unwired}];");
-    let render_list = render_ordinals.iter().map(|ordinal| ordinal.to_string()).collect::<Vec<_>>().join(", ");
-    let _ = writeln!(code, "/// The ordinals of the hooks of the render pass: a package takes part in it only when its client module subscribed to one.\npub(crate) const RENDER_HOOKS: &[usize] = &[{render_list}];");
+    let _ = writeln!(
+        code,
+        "pub(crate) const HOOK_COUNT: usize = {};",
+        full.plans.len()
+    );
+    let unwired = unsupported
+        .iter()
+        .map(|(name, _)| format!("{name:?}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let _ = writeln!(
+        code,
+        "/// Hooks with no adapter: a guest that subscribes to one is refused at load.\npub(crate) const UNWIRED: &[&str] = &[{unwired}];"
+    );
+    let render_list = render_ordinals
+        .iter()
+        .map(|ordinal| ordinal.to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    let _ = writeln!(
+        code,
+        "/// The ordinals of the hooks of the render pass: a package takes part in it only when its client module subscribed to one.\npub(crate) const RENDER_HOOKS: &[usize] = &[{render_list}];"
+    );
     code.push_str(&helpers);
     let _ = writeln!(code, "impl Hooks for FullMod {{");
     code.push_str("fn render(&self) -> Option<&dyn RenderHooks> { if self.render_wanted() { Some(self) } else { None } }\n");
@@ -1106,7 +1498,13 @@ pub(crate) fn adapters_for(full: &FullWit, hooks_source: &str, render_source: &s
     code.push_str(&render_impl);
     code.push_str("}\n");
     syn::parse_file(&code).map_err(|e| format!("generated WASM adapters: {e}"))?;
-    Ok(WasmAdapters { code, wired, unsupported, partial, hooks: names })
+    Ok(WasmAdapters {
+        code,
+        wired,
+        unsupported,
+        partial,
+        hooks: names,
+    })
 }
 
 /// The adapters of the workspace as the generator's tests and the committed file see them.
@@ -1125,7 +1523,8 @@ mod tests {
 
     pub(super) fn generated() -> WasmAdapters {
         let sources = crate::sources(&root(), crate::FillMode::Require).expect("catalog sources");
-        generate_wasm_adapters(&root(), &sources.hooks, &sources.render).expect("generate WASM adapters")
+        generate_wasm_adapters(&root(), &sources.hooks, &sources.render)
+            .expect("generate WASM adapters")
     }
 
     #[test]
@@ -1143,6 +1542,9 @@ mod tests {
         eprintln!("wired {} of {}", adapters.wired.len(), adapters.hooks.len());
         eprintln!("partial {:?}", adapters.partial);
         assert!(syn::parse_file(&adapters.code).is_ok());
-        assert_eq!(adapters.wired.len() + adapters.unsupported.len(), adapters.hooks.len());
+        assert_eq!(
+            adapters.wired.len() + adapters.unsupported.len(),
+            adapters.hooks.len()
+        );
     }
 }

@@ -50,6 +50,31 @@ pub const CLIENT_SERVICES_DEMO: Guest = Guest {
     artifact: "yoake_wasm_client_services_demo.wasm",
 };
 
+pub const GPU_DEMO: Guest = Guest {
+    name: "gpu-demo",
+    example: "gpu-demo",
+    features: "",
+    artifact: "yoake_wasm_gpu_demo.wasm",
+};
+pub const GPU_VERIFY: Guest = Guest {
+    name: "gpu-verify",
+    example: "gpu-demo",
+    features: "verify",
+    artifact: "yoake_wasm_gpu_demo.wasm",
+};
+pub const GPU_RELOAD: Guest = Guest {
+    name: "gpu-reload",
+    example: "gpu-demo",
+    features: "reload",
+    artifact: "yoake_wasm_gpu_demo.wasm",
+};
+pub const GPU_TRAP: Guest = Guest {
+    name: "gpu-trap",
+    example: "gpu-demo",
+    features: "trap",
+    artifact: "yoake_wasm_gpu_demo.wasm",
+};
+
 /// The second package of the `mod-call` tests: only answers `handle-call`.
 pub const FULL_DEMO_PEER: Guest = Guest {
     name: "full-demo-peer",

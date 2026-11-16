@@ -34,7 +34,24 @@ pub enum Error {
     EngineBinding,
     Disabled,
     Host(String),
+    Shader(super::mod_gpu_shader::ValidationError),
 }
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Host(message) => formatter.write_str(message),
+            Self::Shader(error) => write!(
+                formatter,
+                "{}:{}: {}",
+                error.line, error.column, error.message
+            ),
+            other => write!(formatter, "GPU request rejected: {other:?}"),
+        }
+    }
+}
+
+impl std::error::Error for Error {}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Format {
@@ -45,6 +62,8 @@ pub enum Format {
     R32Float,
     Rg16Float,
     Depth32Float,
+    Bgra8Unorm,
+    Rgb10a2Unorm,
 }
 
 impl Format {
