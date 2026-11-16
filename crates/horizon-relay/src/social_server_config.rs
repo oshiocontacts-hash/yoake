@@ -8,6 +8,7 @@ pub(super) struct Settings {
     pub address: SocketAddr,
     pub acceptor: TlsAcceptor,
     pub portal_key: [u8; 32],
+    pub relay_id: String,
 }
 
 /// `Ok(None)`: nothing is configured at all (a normal, quiet state).
@@ -17,8 +18,9 @@ pub(super) fn settings(
     cert: Option<String>,
     key: Option<String>,
     portal: Option<String>,
+    relay_id: Option<String>,
 ) -> Result<Option<Settings>, String> {
-    if address.is_none() && cert.is_none() && key.is_none() && portal.is_none() {
+    if address.is_none() && cert.is_none() && key.is_none() && portal.is_none() && relay_id.is_none() {
         return Ok(None);
     }
     let address = address.ok_or("HORIZON_RELAY_SOCIAL_ADDR is missing")?
@@ -28,7 +30,10 @@ pub(super) fn settings(
     let portal = portal.ok_or("HORIZON_RELAY_PORTAL_KEY is missing")?;
     let portal_key = decode_hex::<32>(&portal)
         .ok_or("HORIZON_RELAY_PORTAL_KEY must be 64 lowercase hexadecimal characters")?;
+    let relay_id = relay_id.ok_or("HORIZON_RELAY_ID is missing")?;
+    horizon_friends::social::validate_identifier(&relay_id)
+        .map_err(|_| "HORIZON_RELAY_ID must be 1 to 128 bytes of UTF-8 without control characters".to_owned())?;
     let (cert, key) = read_certificate_and_key(Path::new(&cert), Path::new(&key)).map_err(|error| error.to_string())?;
     let acceptor = TlsAcceptor::from_der(cert, key, HandshakeLimits::default()).map_err(|error| error.to_string())?;
-    Ok(Some(Settings { address, acceptor, portal_key }))
+    Ok(Some(Settings { address, acceptor, portal_key, relay_id }))
 }

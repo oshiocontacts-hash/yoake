@@ -457,11 +457,7 @@ impl Serving {
     }
 }
 fn integrated_owner_in_context(server_tick: bool, owner: Option<u128>) -> Option<u128> {
-    if server_tick {
-        owner
-    } else {
-        None
-    }
+    if server_tick { owner } else { None }
 }
 
 const OWNER_QUERIES_PER_MOD: usize = 512;
@@ -1741,14 +1737,13 @@ fn server_game(
     Game::new(res, pack, gui, options, settings, audio, None)
 }
 
-/// Who the integrated server turns away: anyone but the owner or a social guest until it is
-/// opened to the LAN, except a splitscreen seat. A seat's name is let in only through memory, so a LAN player
-/// logging in under it never gets its place or the owner's permissions it holds.
+/// The owner and splitscreen seats join only through memory. Other players need
+/// LAN publication or a social bridge and never acquire a local player's identity.
 fn refused(owner: bool, published: bool, split_seat: bool, memory: bool, social: bool) -> bool {
-    if split_seat {
+    if owner || split_seat {
         !memory
     } else {
-        !owner && !published && !social
+        !published && !social
     }
 }
 
@@ -1861,8 +1856,13 @@ mod tests {
     fn social_guests_do_not_need_lan_publication_or_gain_local_seat_privileges() {
         for owner in [false, true] {
             for published in [false, true] {
-                assert!(!refused(owner, published, false, false, true));
+                assert_eq!(refused(owner, published, false, false, true), owner);
                 assert!(refused(owner, published, true, false, true));
+                assert!(!refused(owner, published, false, true, true));
+                assert_eq!(
+                    refused(owner, published, false, false, false),
+                    owner || !published
+                );
             }
         }
     }

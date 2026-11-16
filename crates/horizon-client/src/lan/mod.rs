@@ -382,11 +382,18 @@ impl Shared {
             return Some(reason);
         }
         {
-            let online = self.online.lock().unwrap();
+            let mut online = self.online.lock().unwrap();
+            if social && online.iter().any(|(player, _)| *player == uuid) {
+                return Some(translatable("multiplayer.disconnect.duplicate_login", &[]));
+            }
             let bypass = self.config.bypasses_limit.as_ref().is_some_and(|b| b(uuid));
             let taken = online.len();
             if taken >= self.max_players() && !bypass {
                 return Some(translatable("multiplayer.disconnect.server_full", &[]));
+            }
+            if social {
+                online.push((uuid, name.to_owned()));
+                return None;
             }
         }
         if self.is_online(uuid) {
@@ -654,6 +661,9 @@ impl Lan {
         Ok(client)
     }
     pub fn connect_social(&self, bridge: horizon_friends::social_stream::Bridge) -> io::Result<()> {
+        if self.shared.config.online.is_none() {
+            return Err(io::Error::from(io::ErrorKind::PermissionDenied));
+        }
         let shared = self.shared.clone();
         std::thread::Builder::new()
             .name("yoake-social-conn".into())
@@ -907,6 +917,24 @@ pub fn available_port() -> u16 {
 mod tests {
     use super::*;
     use std::{io::Read, time::Instant};
+
+    #[test]
+    fn social_duplicate_login_preserves_the_existing_player() {
+        let config = NetConfig {
+            announce: false,
+            listen: false,
+            ..NetConfig::lan(0, "Share".into(), 20)
+        };
+        let lan = Lan::start_with(Arc::new(data::SyncData::empty()), config).unwrap();
+        let address = "127.0.0.1:25565".parse().unwrap();
+        assert!(lan.shared.try_admit(address, 42, "First", true).is_none());
+        assert!(lan.shared.try_admit(address, 42, "Second", true).is_some());
+        assert_eq!(
+            lan.shared.online.lock().unwrap().as_slice(),
+            &[(42, "First".to_owned())]
+        );
+        assert!(lan.events.try_recv().is_err());
+    }
 
     /// Sockets that never say a word each hold a connection thread until their read times out: past
     /// the player limit and [`SPARE_CONNECTIONS`], a new one is closed at once instead of taking one

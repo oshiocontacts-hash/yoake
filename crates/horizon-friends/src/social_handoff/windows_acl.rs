@@ -99,6 +99,12 @@ unsafe extern "system" {
 unsafe extern "system" {
     fn GetCurrentProcess() -> Handle;
     fn GetFileInformationByHandle(handle: Handle, info: *mut ByHandleFileInformation) -> i32;
+    fn SetFileInformationByHandle(
+        handle: Handle,
+        class: u32,
+        info: *const c_void,
+        size: u32,
+    ) -> i32;
     fn CloseHandle(handle: Handle) -> i32;
     fn LocalFree(memory: *mut c_void) -> *mut c_void;
     fn CreateFileW(
@@ -110,6 +116,22 @@ unsafe extern "system" {
         flags: u32,
         template: Handle,
     ) -> Handle;
+}
+
+pub fn delete_open_file(file: &File) -> io::Result<()> {
+    let delete_file: i32 = 1;
+    if unsafe {
+        SetFileInformationByHandle(
+            file.as_raw_handle().cast(),
+            4,
+            (&delete_file as *const i32).cast(),
+            size_of::<i32>() as u32,
+        )
+    } == 0
+    {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
 }
 
 pub fn create_private_file(path: &Path) -> io::Result<File> {

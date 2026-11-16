@@ -1,20 +1,23 @@
 use crate::{
-    social::{GrantVerifier, HostGrantVerifier, SignedGrant},
-    social_control::{Reply, Request, SignedProvision, invalid},
+    social::{FromRelay, GrantVerifier, HostGrantVerifier, SignedGrant, ToRelay},
+    social_control::{SignedProvision, invalid},
     social_stream::{Bridge, now},
-    social_tls::{ClientChannel, ControlChannel, client_channel},
+    social_tls::{ChannelTimeouts, ClientChannel, ControlChannel, client_channel},
 };
 use std::{
     io,
     net::{Shutdown, TcpStream, ToSocketAddrs},
     sync::{
         Arc, Mutex, Weak,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     time::{Duration, Instant},
 };
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(4);
+const PAIR_TIMEOUT: Duration = Duration::from_secs(2);
+const HOST_RETRY_TIMEOUT: Duration = Duration::from_secs(3);
+const RETIRE_TIMEOUT: Duration = Duration::from_millis(1800);
 
 #[derive(Clone, Default)]
 pub struct Cancellation(Arc<CancelState>);
@@ -93,16 +96,24 @@ impl Endpoint {
         cancellation: &Cancellation,
         limit: usize,
     ) -> io::Result<(ClientChannel, Arc<TcpStream>)> {
+        self.connect_until(cancellation, limit, Instant::now() + CONNECT_TIMEOUT)
+    }
+
+    fn connect_until(
+        &self,
+        cancellation: &Cancellation,
+        limit: usize,
+        deadline: Instant,
+    ) -> io::Result<(ClientChannel, Arc<TcpStream>)> {
         if cancellation.is_ended() {
             return Err(invalid());
         }
-        let started = Instant::now();
         let addresses = self
             .authority
             .to_socket_addrs()
             .map_err(|_| unavailable())?;
         for address in addresses {
-            let remaining = CONNECT_TIMEOUT.saturating_sub(started.elapsed());
+            let remaining = deadline.saturating_duration_since(Instant::now());
             if remaining.is_zero() || cancellation.is_ended() {
                 break;
             }
@@ -111,12 +122,17 @@ impl Endpoint {
             };
             let socket = Arc::new(stream.try_clone().map_err(|_| unavailable())?);
             cancellation.register(&socket, limit)?;
-            let remaining = CONNECT_TIMEOUT.saturating_sub(started.elapsed());
+            let remaining = deadline.saturating_duration_since(Instant::now());
             if remaining.is_zero() {
                 return Err(unavailable());
             }
-            let channel = client_channel(stream, &self.roots, &self.server_name, remaining)
+            let mut channel = client_channel(stream, &self.roots, &self.server_name, remaining)
                 .map_err(|_| unavailable())?;
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            channel.set_timeouts(ChannelTimeouts {
+                recv: remaining,
+                write: remaining,
+            });
             if cancellation.is_ended() {
                 let _ = socket.shutdown(Shutdown::Both);
                 return Err(invalid());
@@ -131,13 +147,13 @@ fn unavailable() -> io::Error {
     io::Error::new(io::ErrorKind::ConnectionAborted, "social relay unavailable")
 }
 
-fn send(channel: &mut ClientChannel, request: &Request) -> io::Result<()> {
+fn send(channel: &mut ClientChannel, request: &ToRelay) -> io::Result<()> {
     channel
         .send_message(&serde_json::to_vec(request).map_err(|_| invalid())?)
         .map_err(|_| unavailable())
 }
 
-fn reply(channel: &mut ClientChannel) -> io::Result<Reply> {
+fn reply(channel: &mut ClientChannel) -> io::Result<FromRelay> {
     serde_json::from_slice(&channel.recv_message().map_err(|_| unavailable())?)
         .map_err(|_| invalid())
 }
@@ -146,9 +162,11 @@ fn paired(
     channel: &mut ClientChannel,
     cancellation: &Cancellation,
     expires: u64,
+    deadline: Instant,
 ) -> io::Result<()> {
+    let deadline = deadline.min(Instant::now() + PAIR_TIMEOUT);
     loop {
-        if cancellation.is_ended() || now() >= expires {
+        if cancellation.is_ended() || now() >= expires || Instant::now() >= deadline {
             return Err(invalid());
         }
         if let Some(bytes) = channel
@@ -156,8 +174,8 @@ fn paired(
             .map_err(|_| unavailable())?
         {
             match serde_json::from_slice(&bytes).map_err(|_| invalid())? {
-                Reply::Waiting {} => {}
-                Reply::Bridged {} => return Ok(()),
+                FromRelay::Waiting {} => {}
+                FromRelay::Bridged {} => return Ok(()),
                 _ => return Err(invalid()),
             }
         }
@@ -171,7 +189,10 @@ pub struct Host {
     host_token: String,
     verifier: HostGrantVerifier,
     cancellation: Cancellation,
-    expires: u64,
+    expires: Arc<AtomicU64>,
+    provision: Mutex<SignedProvision>,
+    renewal: Mutex<()>,
+    retirement: Mutex<()>,
     max_connections: usize,
     retired: AtomicBool,
 }
@@ -193,74 +214,135 @@ impl Host {
         }
         let expires = provision.ticket.session_exp;
         let max_connections = provision.ticket.max_connections as usize;
-        let (mut channel, socket) = endpoint.connect(&cancellation, max_connections)?;
-        send(
-            &mut channel,
-            &Request::Provision {
-                ticket: provision.ticket,
-                signature: provision.signature,
-                host_token: host_token.clone(),
-            },
-        )?;
-        let result = reply(&mut channel);
-        let _ = socket.shutdown(Shutdown::Both);
-        if !matches!(result?, Reply::Provisioned {}) {
-            return Err(invalid());
-        }
-        Ok(Self {
+        let host = Self {
             verifier: HostGrantVerifier::new(endpoint.public_key, 4096),
             endpoint,
             session_id,
             host_principal,
             host_token,
             cancellation,
-            expires,
+            expires: Arc::new(AtomicU64::new(expires)),
+            provision: Mutex::new(provision.clone()),
+            renewal: Mutex::new(()),
+            retirement: Mutex::new(()),
             max_connections,
             retired: AtomicBool::new(false),
-        })
+        };
+        host.reprovision(provision)?;
+        Ok(host)
+    }
+
+    fn provision_until(&self, provision: &SignedProvision, deadline: Instant) -> io::Result<()> {
+        provision.verify(&self.endpoint.public_key, &self.host_token, now())?;
+        if provision.ticket.session_id != self.session_id
+            || provision.ticket.host_principal != self.host_principal
+        {
+            return Err(invalid());
+        }
+        let (mut channel, socket) =
+            self.endpoint
+                .connect_until(&self.cancellation, self.max_connections + 4, deadline)?;
+        let result = (|| {
+            send(
+                &mut channel,
+                &ToRelay::Provision {
+                    ticket: provision.ticket.clone(),
+                    signature: provision.signature.clone(),
+                    host_token: self.host_token.clone(),
+                },
+            )?;
+            if matches!(reply(&mut channel)?, FromRelay::Provisioned {}) {
+                Ok(())
+            } else {
+                Err(invalid())
+            }
+        })();
+        let _ = socket.shutdown(Shutdown::Both);
+        result
+    }
+
+    pub fn reprovision(&self, provision: SignedProvision) -> io::Result<()> {
+        let _renewal = self.renewal.lock().map_err(|_| invalid())?;
+        self.provision_until(&provision, Instant::now() + CONNECT_TIMEOUT)?;
+        self.expires
+            .store(provision.ticket.session_exp, Ordering::Release);
+        *self.provision.lock().map_err(|_| invalid())? = provision;
+        Ok(())
     }
 
     pub fn pair(&self, grant: SignedGrant) -> io::Result<Bridge> {
-        if self.cancellation.is_ended() || now() >= self.expires {
+        if self.cancellation.is_ended() || now() >= self.expires_at() {
             return Err(invalid());
         }
         let verified = self
             .verifier
-            .authorize_at(&grant, &self.session_id, &self.host_principal, now())
+            .begin_client_at(&grant, &self.session_id, &self.host_principal, now())
             .map_err(|_| invalid())?;
-        let (mut channel, socket) = self
-            .endpoint
-            .connect(&self.cancellation, self.max_connections)?;
-        send(
-            &mut channel,
-            &Request::Host {
-                grant,
-                token: self.host_token.clone(),
-            },
-        )?;
-        paired(&mut channel, &self.cancellation, verified.expires_at())?;
-        Ok(Bridge::new(channel, socket, self.expires))
+        let deadline = Instant::now() + HOST_RETRY_TIMEOUT;
+        while !self.cancellation.is_ended()
+            && now() < verified.expires_at()
+            && now() < self.expires_at()
+            && Instant::now() < deadline
+        {
+            let attempt = (|| {
+                let (mut channel, socket) = self.endpoint.connect_until(
+                    &self.cancellation,
+                    self.max_connections + 4,
+                    deadline,
+                )?;
+                send(
+                    &mut channel,
+                    &ToRelay::Host {
+                        grant: grant.clone(),
+                        token: self.host_token.clone(),
+                    },
+                )?;
+                paired(
+                    &mut channel,
+                    &self.cancellation,
+                    verified.expires_at(),
+                    deadline,
+                )?;
+                Ok::<_, io::Error>((channel, socket))
+            })();
+            if let Ok((channel, socket)) = attempt {
+                verified.bridged().map_err(|_| invalid())?;
+                return Ok(Bridge::new(channel, socket, Arc::clone(&self.expires)));
+            }
+            if let Ok(_renewal) = self.renewal.try_lock() {
+                let provision = self.provision.lock().map_err(|_| invalid())?.clone();
+                let _ = self.provision_until(&provision, deadline);
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        Err(unavailable())
     }
 
     pub fn expires_at(&self) -> u64 {
-        self.expires
+        self.expires.load(Ordering::Acquire)
     }
 
     pub fn end(&self) -> io::Result<()> {
         self.cancellation.end();
-        if self.retired.swap(true, Ordering::AcqRel) {
+        let _retirement = self.retirement.lock().map_err(|_| invalid())?;
+        if self.retired.load(Ordering::Acquire) {
             return Ok(());
         }
-        let (mut channel, socket) = self.endpoint.connect(&Cancellation::default(), 1)?;
+        let (mut channel, socket) = self.endpoint.connect_until(
+            &Cancellation::default(),
+            1,
+            Instant::now() + RETIRE_TIMEOUT,
+        )?;
         let result = (|| {
             send(
                 &mut channel,
-                &Request::Retire {
+                &ToRelay::Retire {
                     session_id: self.session_id.clone(),
                     host_token: self.host_token.clone(),
                 },
             )?;
-            if matches!(reply(&mut channel)?, Reply::Retired {}) {
+            if matches!(reply(&mut channel)?, FromRelay::Retired {}) {
+                self.retired.store(true, Ordering::Release);
                 Ok(())
             } else {
                 Err(invalid())
@@ -284,10 +366,15 @@ pub fn join(
     cancellation: &Cancellation,
 ) -> io::Result<Bridge> {
     let verified = GrantVerifier::new(endpoint.public_key)
-        .verify_at(&grant, session_id, &grant.grant.host_principal, now())
+        .verify_client_at(&grant, session_id, &grant.grant.host_principal, now())
         .map_err(|_| invalid())?;
     let (mut channel, socket) = endpoint.connect(cancellation, 1)?;
-    send(&mut channel, &Request::Guest { grant })?;
-    paired(&mut channel, cancellation, verified.expires_at())?;
-    Ok(Bridge::new(channel, socket, 0))
+    send(&mut channel, &ToRelay::Guest { grant })?;
+    paired(
+        &mut channel,
+        cancellation,
+        verified.expires_at(),
+        Instant::now() + PAIR_TIMEOUT,
+    )?;
+    Ok(Bridge::new(channel, socket, Arc::new(AtomicU64::new(0))))
 }

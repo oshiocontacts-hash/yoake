@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use horizon_friends::{
-    social::{FromRelay, Grant, RegisterSession, SignedGrant, ToRelay},
+    social::{FromRelay, Grant, ProvisionTicket, RegisterSession, SignedGrant, ToRelay},
     social_tls::{ClientChannel, ControlChannel, client_channel},
 };
 use horizon_relay::{
@@ -13,6 +13,7 @@ use ring::signature::Ed25519KeyPair;
 use rustls::{ClientConfig, ClientConnection, RootCertStore, StreamOwned, pki_types::{CertificateDer, ServerName}};
 use std::{io::ErrorKind, net::{SocketAddr, TcpStream}, sync::Arc, time::{Duration, Instant, SystemTime, UNIX_EPOCH}};
 
+pub const RELAY_ID: &str = "relay-1";
 pub const TOKEN: &str = "abababababababababababababababababababababababababababababababab";
 const PORTAL_SEED: &str = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60";
 const PORTAL_PUBLIC: &str = "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a";
@@ -76,13 +77,14 @@ pub fn provision_with(relay: &SocialRelay, idle: Duration, bytes_per_second: u64
             burst_bytes,
             idle_timeout: idle,
         },
+        unix_time(),
         std::time::Instant::now(),
     ).unwrap();
 }
 
 pub fn server(tls: &TestTls, limits: HandshakeLimits) -> SocialServer {
     let acceptor = TlsAcceptor::from_der(tls.cert.clone(), tls.key.clone(), limits).unwrap();
-    SocialServer::new(portal_key(), Arc::new(acceptor))
+    SocialServer::new(portal_key(), RELAY_ID, Arc::new(acceptor)).unwrap()
 }
 
 pub fn setup(idle: Duration) -> (SocialServer, SocketAddr, TestTls) {
@@ -91,6 +93,48 @@ pub fn setup(idle: Duration) -> (SocialServer, SocketAddr, TestTls) {
     provision(server.relay(), idle);
     let address = server.spawn_local().unwrap();
     (server, address, tls)
+}
+
+/// A relay with no session: hosts have to open one with a ticket.
+pub fn setup_unprovisioned() -> (SocialServer, SocketAddr, TestTls) {
+    let tls = tls("relay.test");
+    let server = server(&tls, HandshakeLimits::default());
+    let address = server.spawn_local().unwrap();
+    (server, address, tls)
+}
+
+/// A provision message signed with the portal test key, for the host token `token`.
+pub fn provision_message(session: &str, exp: u64, nonce: u8, token: &str) -> ToRelay {
+    provision_message_for(session, "member:host", RELAY_ID, exp, nonce, token)
+}
+
+pub fn provision_message_for(session: &str, host: &str, relay_id: &str, exp: u64, nonce: u8, token: &str) -> ToRelay {
+    let digest = ring::digest::digest(&ring::digest::SHA256, &hex::<32>(token));
+    let ticket = ProvisionTicket {
+        v: 1,
+        session_id: session.into(),
+        host_principal: host.into(),
+        token_sha256: digest.as_ref().iter().map(|byte| format!("{byte:02x}")).collect(),
+        bytes_per_second: 1_000_000,
+        burst_bytes: 64 * 1024,
+        max_connections: 64,
+        idle_secs: 5,
+        session_exp: unix_time() + 3600,
+        relay_id: relay_id.into(),
+        exp,
+        nonce: format!("{nonce:02x}").repeat(32),
+    };
+    let key = Ed25519KeyPair::from_seed_unchecked(&hex::<32>(PORTAL_SEED)).unwrap();
+    let signature = key.sign(&ticket.signing_bytes().unwrap()).as_ref().iter()
+        .map(|byte| format!("{byte:02x}")).collect();
+    ToRelay::Provision { ticket, signature, host_token: token.into() }
+}
+
+/// Send one message on a fresh connection and return the relay's first reply.
+pub fn ask(address: SocketAddr, tls: &TestTls, message: &ToRelay) -> FromRelay {
+    let mut channel = client(address, tls);
+    send_to(&mut channel, message);
+    recv_from(&mut channel)
 }
 
 pub fn setup_with(idle: Duration, bytes_per_second: u64, burst_bytes: usize, max_connections: usize) -> (SocialServer, SocketAddr, TestTls) {

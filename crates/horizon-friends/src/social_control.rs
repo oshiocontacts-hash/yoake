@@ -1,62 +1,12 @@
-use crate::social::{SignedGrant, decode_hex};
-use ring::signature::{ED25519, UnparsedPublicKey};
+use crate::social::{GrantVerifier, ProvisionTicket};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::io;
-
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ProvisionTicket {
-    pub v: u32,
-    pub session_id: String,
-    pub host_principal: String,
-    pub token_sha256: String,
-    pub bytes_per_second: u64,
-    pub burst_bytes: u64,
-    pub max_connections: u32,
-    pub idle_secs: u32,
-    pub session_exp: u64,
-    pub relay_id: String,
-    pub exp: u64,
-    pub nonce: String,
-}
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SignedProvision {
     pub ticket: ProvisionTicket,
     pub signature: String,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-pub enum Request {
-    Provision {
-        ticket: ProvisionTicket,
-        signature: String,
-        host_token: String,
-    },
-    Retire {
-        session_id: String,
-        host_token: String,
-    },
-    Guest {
-        grant: SignedGrant,
-    },
-    Host {
-        grant: SignedGrant,
-        token: String,
-    },
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq)]
-#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-pub enum Reply {
-    Waiting {},
-    Bridged {},
-    Rejected {},
-    Provisioned {},
-    Retired {},
 }
 
 pub(crate) fn invalid() -> io::Error {
@@ -66,64 +16,18 @@ pub(crate) fn invalid() -> io::Error {
     )
 }
 
-fn identifier(value: &str) -> io::Result<()> {
-    if value.is_empty() || value.len() > 128 || value.chars().any(char::is_control) {
-        return Err(invalid());
-    }
-    Ok(())
-}
-
-fn append_text(output: &mut Vec<u8>, value: &str) -> io::Result<()> {
-    identifier(value)?;
-    output.extend_from_slice(&(value.len() as u16).to_be_bytes());
-    output.extend_from_slice(value.as_bytes());
-    Ok(())
-}
-
-impl ProvisionTicket {
-    pub fn signing_bytes(&self) -> io::Result<Vec<u8>> {
-        if self.v != 1 {
-            return Err(invalid());
-        }
-        let mut output = b"yoake-social-provision-v1\0".to_vec();
-        output.extend_from_slice(&self.v.to_be_bytes());
-        append_text(&mut output, &self.session_id)?;
-        append_text(&mut output, &self.host_principal)?;
-        output.extend_from_slice(&decode_hex::<32>(&self.token_sha256).ok_or_else(invalid)?);
-        output.extend_from_slice(&self.bytes_per_second.to_be_bytes());
-        output.extend_from_slice(&self.burst_bytes.to_be_bytes());
-        output.extend_from_slice(&self.max_connections.to_be_bytes());
-        output.extend_from_slice(&self.idle_secs.to_be_bytes());
-        output.extend_from_slice(&self.session_exp.to_be_bytes());
-        append_text(&mut output, &self.relay_id)?;
-        output.extend_from_slice(&self.exp.to_be_bytes());
-        output.extend_from_slice(&decode_hex::<32>(&self.nonce).ok_or_else(invalid)?);
-        Ok(output)
-    }
-}
-
 impl SignedProvision {
     pub fn verify(&self, public_key: &[u8; 32], token: &str, now: u64) -> io::Result<()> {
-        let signature = decode_hex::<64>(&self.signature).ok_or_else(invalid)?;
-        UnparsedPublicKey::new(&ED25519, public_key)
-            .verify(&self.ticket.signing_bytes()?, &signature)
+        let verified = GrantVerifier::new(*public_key)
+            .verify_client_ticket(&self.ticket, &self.signature, now)
             .map_err(|_| invalid())?;
         let ticket = &self.ticket;
-        if ticket.exp <= now
-            || ticket.exp > now.saturating_add(300)
-            || ticket.session_exp <= now
-            || ticket.session_exp > now.saturating_add(43_200)
+        if !verified.token_matches(token)
             || ticket.bytes_per_second > 1 << 30
             || !(16_384..=67_108_864).contains(&ticket.burst_bytes)
             || !(1..=256).contains(&ticket.max_connections)
             || !(1..=3600).contains(&ticket.idle_secs)
         {
-            return Err(invalid());
-        }
-        let token = decode_hex::<32>(token).ok_or_else(invalid)?;
-        let expected = decode_hex::<32>(&ticket.token_sha256).ok_or_else(invalid)?;
-        let actual: [u8; 32] = Sha256::digest(token).into();
-        if actual != expected {
             return Err(invalid());
         }
         Ok(())
@@ -133,6 +37,7 @@ impl SignedProvision {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::social::{FromRelay, ToRelay, decode_hex};
     use ring::signature::Ed25519KeyPair;
 
     const NOW: u64 = 1_700_000_000;
@@ -212,9 +117,9 @@ mod tests {
         let public_key = decode_hex::<32>(PUBLIC_KEY).unwrap();
         let invalid_changes: &[fn(&mut ProvisionTicket)] = &[
             |ticket| ticket.exp = NOW,
-            |ticket| ticket.exp = NOW + 301,
+            |ticket| ticket.exp = NOW + 361,
             |ticket| ticket.session_exp = NOW,
-            |ticket| ticket.session_exp = NOW + 43_201,
+            |ticket| ticket.session_exp = NOW + 43_261,
             |ticket| ticket.bytes_per_second = (1 << 30) + 1,
             |ticket| ticket.burst_bytes = 16_383,
             |ticket| ticket.burst_bytes = 67_108_865,
@@ -245,7 +150,7 @@ mod tests {
 
     #[test]
     fn social_control_uses_strict_spec_wire_shapes() {
-        let request = Request::Provision {
+        let request = ToRelay::Provision {
             ticket: ticket(),
             signature: "signed".into(),
             host_token: TOKEN.into(),
@@ -255,14 +160,14 @@ mod tests {
         assert_eq!(json["host_token"], TOKEN);
         assert!(json.get("grant").is_none());
         assert!(
-            serde_json::from_str::<Request>(
+            serde_json::from_str::<ToRelay>(
                 r#"{"type":"retire","session_id":"session-1","host_token":"secret","extra":true}"#
             )
             .is_err()
         );
-        assert!(serde_json::from_str::<Reply>(r#"{"type":"bridged","extra":true}"#).is_err());
+        assert!(serde_json::from_str::<FromRelay>(r#"{"type":"bridged","extra":true}"#).is_err());
         for reply in ["waiting", "bridged", "rejected", "provisioned", "retired"] {
-            assert!(serde_json::from_str::<Reply>(&format!(r#"{{"type":"{reply}"}}"#)).is_ok());
+            assert!(serde_json::from_str::<FromRelay>(&format!(r#"{{"type":"{reply}"}}"#)).is_ok());
         }
         for change in [
             |ticket: &mut ProvisionTicket| ticket.v = 2,

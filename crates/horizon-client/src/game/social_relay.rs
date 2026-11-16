@@ -3,16 +3,18 @@ use horizon_client::{lang, text::Text};
 use horizon_friends::{
     social::SignedGrant,
     social_client::{Cancellation, Endpoint, Host, join},
+    social_control::SignedProvision,
     social_handoff::{Control, Handoff, Trust, read_once},
     social_stream::Bridge,
 };
 use std::{
+    collections::VecDeque,
     io::{BufRead, Read},
     sync::{
         Arc,
         mpsc::{self, Receiver, SyncSender},
     },
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 pub(super) struct Startup {
@@ -32,7 +34,7 @@ impl Startup {
             {
                 return Err(());
             }
-            let trust = Trust::read(options.social_trust.as_ref().ok_or(())?).map_err(|_| ())?;
+            let trust = Trust::load(options.social_trust.as_deref()).map_err(|_| ())?;
             let relay = match &request {
                 Handoff::Host { relay, .. } | Handoff::Guest { relay, .. } => relay,
             };
@@ -52,6 +54,7 @@ impl Startup {
 
 enum Event {
     Host(Result<Arc<Host>, ()>),
+    Reprovisioned(Result<(), ()>),
     Paired(Result<Bridge, ()>),
     Guest(Result<Bridge, ()>),
 }
@@ -59,6 +62,13 @@ enum Event {
 #[derive(Default)]
 pub(super) struct Runtime {
     host: Option<Arc<Host>>,
+    waiting: Option<Startup>,
+    grants: VecDeque<SignedGrant>,
+    renewal: Option<SignedProvision>,
+    renewing: bool,
+    hosting: bool,
+    workers: Vec<std::thread::JoinHandle<()>>,
+    last_failure: Option<Instant>,
     cancellation: Option<Cancellation>,
     controls: Option<Receiver<Control>>,
     events: Option<Receiver<Event>>,
@@ -78,49 +88,26 @@ impl Runtime {
         self.events = Some(events);
         self.sender = Some(sender.clone());
         self.active = true;
-        match startup.request {
-            Handoff::Host {
-                session_id,
-                host_principal,
-                host_token,
-                provision,
-                ..
-            } => {
-                if startup.control_stdin {
-                    let (controls, receiver) = mpsc::sync_channel(256);
-                    self.controls = Some(receiver);
-                    let reader_cancellation = cancellation.clone();
-                    std::thread::spawn(move || read_controls(controls, reader_cancellation));
-                }
-                std::thread::spawn(move || {
-                    let result = Host::provision(
-                        startup.endpoint,
-                        session_id,
-                        host_principal,
-                        host_token,
-                        provision,
-                        cancellation.clone(),
-                    )
-                    .map(Arc::new)
-                    .map_err(|_| ());
-                    if cancellation.is_ended() {
-                        if let Ok(host) = result {
-                            let _ = host.end();
-                        }
-                    } else if let Err(error) = sender.send(Event::Host(result))
-                        && let Event::Host(Ok(host)) = error.0
-                    {
-                        let _ = host.end();
-                    }
-                });
+        if matches!(startup.request, Handoff::Host { .. }) {
+            self.hosting = true;
+            if startup.control_stdin {
+                let (controls, receiver) = mpsc::sync_channel(256);
+                self.controls = Some(receiver);
+                let reader_cancellation = cancellation.clone();
+                std::thread::spawn(move || read_controls(controls, reader_cancellation));
             }
+            self.waiting = Some(startup);
+            return;
+        }
+        match startup.request {
+            Handoff::Host { .. } => unreachable!(),
             Handoff::Guest {
                 session_id,
                 grant,
                 signature,
                 ..
             } => {
-                std::thread::spawn(move || {
+                self.workers.push(std::thread::spawn(move || {
                     let result = join(
                         startup.endpoint,
                         &session_id,
@@ -129,9 +116,54 @@ impl Runtime {
                     )
                     .map_err(|_| ());
                     let _ = sender.send(Event::Guest(result));
-                });
+                }));
             }
         }
+    }
+
+    fn provision_host(&mut self, startup: Startup) {
+        let Handoff::Host {
+            session_id,
+            host_principal,
+            host_token,
+            provision,
+            ..
+        } = startup.request
+        else {
+            return;
+        };
+        let Some(cancellation) = self.cancellation.clone() else {
+            return;
+        };
+        let Some(sender) = self.sender.clone() else {
+            return;
+        };
+        self.workers.push(std::thread::spawn(move || {
+            let result = Host::provision(
+                startup.endpoint,
+                session_id,
+                host_principal,
+                host_token,
+                provision,
+                cancellation.clone(),
+            )
+            .map(Arc::new)
+            .map_err(|_| ());
+            match result {
+                Ok(host) => {
+                    let delivered = !cancellation.is_ended()
+                        && sender.send(Event::Host(Ok(host.clone()))).is_ok();
+                    if !delivered || cancellation.is_ended() {
+                        let _ = host.end();
+                    }
+                }
+                Err(()) => {
+                    if !cancellation.is_ended() {
+                        let _ = sender.send(Event::Host(Err(())));
+                    }
+                }
+            }
+        }));
     }
 
     pub(super) fn had_world(&self) -> bool {
@@ -139,24 +171,26 @@ impl Runtime {
     }
 
     pub(super) fn is_host(&self) -> bool {
-        self.host.is_some()
+        self.hosting
     }
 
     pub(super) fn end(&mut self) {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let mut retirements = std::mem::take(&mut self.workers);
         if let Some(cancellation) = self.cancellation.take() {
             cancellation.end();
         }
         if let Some(host) = self.host.take() {
-            std::thread::spawn(move || {
+            retirements.push(std::thread::spawn(move || {
                 let _ = host.end();
-            });
+            }));
         }
         if let Some(events) = self.events.take() {
             for event in events.try_iter() {
                 if let Event::Host(Ok(host)) = event {
-                    std::thread::spawn(move || {
+                    retirements.push(std::thread::spawn(move || {
                         let _ = host.end();
-                    });
+                    }));
                 }
             }
         }
@@ -165,6 +199,19 @@ impl Runtime {
         self.sender = None;
         self.guest = None;
         self.pending = 0;
+        self.waiting = None;
+        self.grants.clear();
+        self.renewal = None;
+        self.renewing = false;
+        self.hosting = false;
+        while retirements.iter().any(|worker| !worker.is_finished()) && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        for worker in retirements {
+            if worker.is_finished() {
+                let _ = worker.join();
+            }
+        }
     }
 
     fn pair(&mut self, grant: SignedGrant) {
@@ -175,12 +222,15 @@ impl Runtime {
             return;
         };
         self.pending += 1;
-        std::thread::spawn(move || {
+        self.workers.push(std::thread::spawn(move || {
             let _ = sender.send(Event::Paired(host.pair(grant).map_err(|_| ())));
-        });
+        }));
     }
 
     fn tick(&mut self, game: &mut Game<'_>) {
+        while let Some(index) = self.workers.iter().position(|worker| worker.is_finished()) {
+            let _ = self.workers.swap_remove(index).join();
+        }
         if self
             .cancellation
             .as_ref()
@@ -195,6 +245,10 @@ impl Runtime {
         {
             match event {
                 Event::Host(Ok(host)) => self.host = Some(host),
+                Event::Reprovisioned(result) => {
+                    self.renewing = false;
+                    self.failed |= result.is_err();
+                }
                 Event::Host(Err(())) | Event::Guest(Err(())) => {
                     self.failed = true;
                     self.end();
@@ -220,29 +274,74 @@ impl Runtime {
                 }
             }
         }
-        if self
-            .host
+        while let Some(control) = self
+            .controls
             .as_ref()
-            .is_some_and(|host| now() >= host.expires_at())
+            .and_then(|controls| controls.try_recv().ok())
         {
-            self.end();
+            match control {
+                Control::Pair { grant } => {
+                    if self.grants.len() < 256 {
+                        self.grants.push_back(grant);
+                    } else {
+                        self.failed = true;
+                    }
+                }
+                Control::Reprovision { provision } => self.renewal = Some(provision),
+                Control::End {} => {
+                    self.end();
+                    break;
+                }
+            }
+        }
+        if self.waiting.is_some()
+            && let Some(integrated) = game.integrated.as_ref()
+        {
+            let online = integrated
+                .call(|server| {
+                    server
+                        .lan
+                        .as_ref()
+                        .is_some_and(|host| host.hub.lan.shared.config.online.is_some())
+                })
+                .unwrap_or(false);
+            if online {
+                if let Some(startup) = self.waiting.take() {
+                    self.provision_host(startup);
+                }
+            } else {
+                self.failed = true;
+                self.end();
+            }
+        }
+        if !self.renewing
+            && self.host.is_some()
+            && let Some(provision) = self.renewal.take()
+            && let (Some(host), Some(sender)) = (self.host.clone(), self.sender.clone())
+        {
+            self.renewing = true;
+            self.workers.push(std::thread::spawn(move || {
+                let _ = sender.send(Event::Reprovisioned(
+                    host.reprovision(provision).map_err(|_| ()),
+                ));
+            }));
         }
         if self.host.is_some() && game.integrated.is_some() {
             self.had_world = true;
-            while self.pending < 3 {
-                match self
-                    .controls
-                    .as_ref()
-                    .and_then(|controls| controls.try_recv().ok())
-                {
-                    Some(Control::Pair { grant }) => self.pair(grant),
-                    Some(Control::End {}) => {
-                        self.end();
-                        break;
-                    }
-                    None => break,
-                }
+            while self.pending < 3 && !self.renewing {
+                let Some(grant) = self.grants.pop_front() else {
+                    break;
+                };
+                self.pair(grant);
             }
+        }
+        if !self.renewing
+            && self
+                .host
+                .as_ref()
+                .is_some_and(|host| now() >= host.expires_at())
+        {
+            self.end();
         }
         if game.rest_loader.is_none()
             && let Some(bridge) = self.guest.take()
@@ -255,13 +354,26 @@ impl Runtime {
             }
         }
         if self.failed && game.rest_loader.is_none() {
-            if let Some(title) = game.title.as_mut() {
-                title.failed(lang::get("connect.failed"));
-            } else {
-                game.system_message(Text::tr("connect.failed", &[]));
+            if self.take_failure(Instant::now()) {
+                if let Some(title) = game.title.as_mut() {
+                    title.failed(lang::get("connect.failed"));
+                } else {
+                    game.system_message(Text::tr("connect.failed", &[]));
+                }
             }
             self.failed = false;
         }
+    }
+
+    fn take_failure(&mut self, current: Instant) -> bool {
+        if self
+            .last_failure
+            .is_some_and(|last| current.duration_since(last) < Duration::from_secs(5))
+        {
+            return false;
+        }
+        self.last_failure = Some(current);
+        true
     }
 }
 
@@ -287,9 +399,25 @@ fn read_controls_from(
             .take(65_537)
             .read_until(b'\n', &mut bytes)
             .is_err()
-            || bytes.len() > 65_536
-            || bytes.last() != Some(&b'\n')
         {
+            break;
+        }
+        if bytes.len() > 65_536 {
+            while bytes.last() != Some(&b'\n') {
+                bytes.clear();
+                if (&mut reader)
+                    .take(65_537)
+                    .read_until(b'\n', &mut bytes)
+                    .is_err()
+                    || bytes.is_empty()
+                {
+                    cancellation.end();
+                    return;
+                }
+            }
+            continue;
+        }
+        if bytes.last() != Some(&b'\n') {
             break;
         }
         match serde_json::from_slice::<Control>(&bytes) {
@@ -299,7 +427,7 @@ fn read_controls_from(
                     break;
                 }
             }
-            _ => break,
+            Err(_) => continue,
         }
     }
     cancellation.end();
@@ -321,7 +449,13 @@ impl Game<'_> {
             .ok()
             .and_then(|mut startup| startup.take());
         match startup {
-            Some(Ok(startup)) => self.social_relay.start(startup),
+            Some(Ok(startup)) => {
+                if !startup.is_guest() && horizon_client::auth::current().is_none() {
+                    self.social_relay.failed = true;
+                } else {
+                    self.social_relay.start(startup);
+                }
+            }
             Some(Err(())) => self.social_relay.failed = true,
             None => {}
         }
@@ -392,6 +526,32 @@ mod tests {
             assert!(cancellation.is_ended());
             assert!(receiver.try_recv().is_err());
         }
+    }
+
+    #[test]
+    fn social_controls_drop_bad_lines_and_keep_following_commands() {
+        for mut bytes in [b"not json\n".to_vec(), vec![b' '; 65_537]] {
+            bytes.push(b'\n');
+            bytes.extend(pair_command());
+            bytes.extend_from_slice(br#"{"type":"end"}"#);
+            bytes.push(b'\n');
+            let (sender, receiver) = mpsc::sync_channel(256);
+            let cancellation = Cancellation::default();
+            read_controls_from(Cursor::new(bytes), sender, cancellation.clone());
+            assert!(cancellation.is_ended());
+            assert!(matches!(receiver.try_recv(), Ok(Control::Pair { .. })));
+            assert!(receiver.try_recv().is_err());
+        }
+    }
+
+    #[test]
+    fn social_connect_failures_are_rate_limited() {
+        let mut runtime = Runtime::default();
+        let now = Instant::now();
+        assert!(runtime.take_failure(now));
+        assert!(!runtime.take_failure(now + Duration::from_secs(4)));
+        assert!(runtime.take_failure(now + Duration::from_secs(5)));
+        assert!(!runtime.take_failure(now + Duration::from_secs(6)));
     }
 
     #[test]

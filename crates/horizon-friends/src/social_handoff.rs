@@ -5,10 +5,15 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{self, File, OpenOptions},
+    fs::File,
     io::{self, Read, Write},
     path::Path,
 };
+
+mod secure_file;
+
+#[cfg(unix)]
+use std::fs::OpenOptions;
 
 #[cfg(windows)]
 mod windows_acl;
@@ -38,21 +43,58 @@ pub enum Handoff {
 pub struct Trust {
     portal_public_key: String,
     ca_certificates: Vec<String>,
+    relay_hosts: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Control {
     Pair { grant: SignedGrant },
+    Reprovision { provision: SignedProvision },
     End {},
 }
 
 impl Trust {
-    pub fn read(path: &Path) -> io::Result<Self> {
-        let file = File::open(path).map_err(|_| invalid())?;
-        if !file.metadata().map_err(|_| invalid())?.is_file() {
+    pub fn load(runtime: Option<&Path>) -> io::Result<Self> {
+        if let Some(path) = runtime {
+            #[cfg(any(debug_assertions, test))]
+            return Self::read(path);
+            #[cfg(not(any(debug_assertions, test)))]
+            {
+                let _ = path;
+                return Err(invalid());
+            }
+        }
+        Self::compiled()
+    }
+
+    fn compiled() -> io::Result<Self> {
+        use sha2::{Digest, Sha256};
+        let portal_public_key = option_env!("YOAKE_SOCIAL_PORTAL_KEY").ok_or_else(invalid)?;
+        let certificate = option_env!("YOAKE_SOCIAL_RELAY_CA").ok_or_else(invalid)?;
+        let digest = option_env!("YOAKE_SOCIAL_RELAY_CA_SHA256").ok_or_else(invalid)?;
+        let relays = option_env!("YOAKE_SOCIAL_RELAYS").ok_or_else(invalid)?;
+        let certificate_bytes = decode_certificate(certificate)?;
+        if decode_hex::<32>(digest).ok_or_else(invalid)?
+            != <[u8; 32]>::from(Sha256::digest(&certificate_bytes))
+        {
             return Err(invalid());
         }
+        let trust = Self {
+            portal_public_key: portal_public_key.into(),
+            ca_certificates: vec![certificate.into()],
+            relay_hosts: relays
+                .split(',')
+                .map(|host| host.trim().to_owned())
+                .collect(),
+        };
+        trust.validate()?;
+        Ok(trust)
+    }
+
+    #[cfg(any(debug_assertions, test))]
+    pub fn read(path: &Path) -> io::Result<Self> {
+        let file = secure_file::open_private(path)?;
         let mut bytes = Vec::new();
         file.take(1_048_577)
             .read_to_end(&mut bytes)
@@ -60,64 +102,103 @@ impl Trust {
         if bytes.len() > 1_048_576 {
             return Err(invalid());
         }
-        serde_json::from_slice(&bytes).map_err(|_| invalid())
+        let trust: Self = serde_json::from_slice(&bytes).map_err(|_| invalid())?;
+        trust.validate()?;
+        Ok(trust)
+    }
+
+    fn validate(&self) -> io::Result<()> {
+        if decode_hex::<32>(&self.portal_public_key).is_none()
+            || self.relay_hosts.is_empty()
+            || self.relay_hosts.iter().any(|host| {
+                host.is_empty()
+                    || host.len() > 253
+                    || host
+                        .bytes()
+                        .any(|byte| !byte.is_ascii_alphanumeric() && byte != b'.' && byte != b'-')
+            })
+            || self.ca_certificates.is_empty()
+            || self.ca_certificates.len() > 8
+        {
+            return Err(invalid());
+        }
+        Ok(())
     }
 
     pub fn endpoint(&self, relay: &str) -> io::Result<Endpoint> {
+        self.validate()?;
+        let (host, _) = relay.rsplit_once(':').ok_or_else(invalid)?;
+        if !self
+            .relay_hosts
+            .iter()
+            .any(|allowed| allowed.eq_ignore_ascii_case(host))
+        {
+            return Err(invalid());
+        }
         let public_key = decode_hex::<32>(&self.portal_public_key).ok_or_else(invalid)?;
         if self.ca_certificates.is_empty() || self.ca_certificates.len() > 8 {
             return Err(invalid());
         }
-        let roots =
-            self.ca_certificates
-                .iter()
-                .map(|encoded| {
-                    if encoded.is_empty() || encoded.len() % 2 != 0 {
-                        return Err(invalid());
-                    }
-                    encoded
-                        .as_bytes()
-                        .chunks_exact(2)
-                        .map(|pair| {
-                            let pair = std::str::from_utf8(pair).map_err(|_| invalid())?;
-                            if pair.bytes().any(|byte| {
-                                !byte.is_ascii_digit() && !(b'a'..=b'f').contains(&byte)
-                            }) {
-                                return Err(invalid());
-                            }
-                            u8::from_str_radix(pair, 16).map_err(|_| invalid())
-                        })
-                        .collect::<io::Result<Vec<_>>>()
-                })
-                .collect::<io::Result<Vec<_>>>()?;
+        let roots = self
+            .ca_certificates
+            .iter()
+            .map(|encoded| decode_certificate(encoded))
+            .collect::<io::Result<Vec<_>>>()?;
         Endpoint::new(relay.to_owned(), roots, public_key)
     }
 }
 
 pub fn read_once(path: &Path) -> io::Result<Handoff> {
-    let metadata = fs::symlink_metadata(path).map_err(|_| invalid())?;
-    if !metadata.is_file() || metadata.file_type().is_symlink() {
-        return Err(invalid());
-    }
-    let mut options = OpenOptions::new();
-    options.read(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
+    read_once_in(path, &handoff_directory()?)
+}
+
+pub fn handoff_directory() -> io::Result<std::path::PathBuf> {
+    use std::{env, path::PathBuf};
+    if let Some(home) = env::var_os("HORIZON_LAUNCHER_HOME").filter(|home| !home.is_empty()) {
+        return Ok(PathBuf::from(home).join("social-handoff"));
     }
     #[cfg(windows)]
-    {
-        use std::os::windows::fs::OpenOptionsExt;
-        options.custom_flags(0x0020_0000).share_mode(4);
-    }
-    let mut file = options.open(path).map_err(|_| invalid())?;
-    if !private_regular_file(&file) {
+    let base = env::var_os("APPDATA").map(PathBuf::from);
+    #[cfg(target_os = "macos")]
+    let base =
+        env::var_os("HOME").map(|home| PathBuf::from(home).join("Library/Application Support"));
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let base = env::var_os("XDG_DATA_HOME")
+        .filter(|home| !home.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")));
+    #[cfg(not(any(unix, windows)))]
+    let base: Option<PathBuf> = None;
+    Ok(base
+        .unwrap_or_else(env::temp_dir)
+        .join("horizon-launcher/social-handoff"))
+}
+
+fn decode_certificate(encoded: &str) -> io::Result<Vec<u8>> {
+    if encoded.is_empty() || encoded.len() % 2 != 0 {
         return Err(invalid());
     }
+    encoded
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|pair| {
+            let pair = std::str::from_utf8(pair).map_err(|_| invalid())?;
+            if pair
+                .bytes()
+                .any(|byte| !byte.is_ascii_digit() && !(b'a'..=b'f').contains(&byte))
+            {
+                return Err(invalid());
+            }
+            u8::from_str_radix(pair, 16).map_err(|_| invalid())
+        })
+        .collect()
+}
+
+fn read_once_in(path: &Path, directory: &Path) -> io::Result<Handoff> {
+    let (mut file, parent, name) = secure_file::open_handoff(path, directory)?;
     let mut bytes = Vec::new();
     let read = (&mut file).take(MAX_HANDOFF + 1).read_to_end(&mut bytes);
-    let deleted = fs::remove_file(path);
+    let deleted = secure_file::consume(&file, &parent, &name);
     drop(file);
     read.map_err(|_| invalid())?;
     deleted.map_err(|_| invalid())?;
@@ -153,8 +234,6 @@ pub fn write_new(path: &Path, handoff: &Handoff) -> io::Result<()> {
             .and_then(|_| file.sync_all())
             .is_err()
         {
-            drop(file);
-            let _ = fs::remove_file(path);
             return Err(invalid());
         }
         Ok(())
@@ -187,6 +266,7 @@ fn private_regular_file(file: &File) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use std::sync::atomic::{AtomicU64, Ordering};
 
     fn path() -> std::path::PathBuf {
@@ -195,10 +275,34 @@ mod tests {
             .map(std::path::PathBuf::from)
             .unwrap_or_else(std::env::temp_dir);
         directory.join(format!(
-            "yoake-social-{}-{}.json",
+            "handoff-{:016x}{:016x}.json",
             std::process::id(),
             NEXT.fetch_add(1, Ordering::Relaxed)
         ))
+    }
+
+    fn read_once(path: &Path) -> io::Result<Handoff> {
+        super::read_once_in(path, path.parent().unwrap())
+    }
+
+    #[test]
+    fn social_handoff_outside_directory_and_invalid_name_are_preserved() {
+        let original = path();
+        write_new(&original, &guest()).unwrap();
+        let other = original
+            .parent()
+            .unwrap()
+            .join(format!("social-directory-{}", std::process::id()));
+        fs::create_dir_all(&other).unwrap();
+        assert!(super::read_once_in(&original, &other).is_err());
+        assert!(original.exists());
+        let invalid_name = other.join("not-a-handoff.json");
+        write_new(&invalid_name, &guest()).unwrap();
+        assert!(super::read_once_in(&invalid_name, &other).is_err());
+        assert!(invalid_name.exists());
+        fs::remove_file(invalid_name).unwrap();
+        fs::remove_dir(other).unwrap();
+        assert!(read_once(&original).is_ok());
     }
 
     fn guest() -> Handoff {

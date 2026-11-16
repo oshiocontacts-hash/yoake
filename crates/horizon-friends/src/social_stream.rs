@@ -5,7 +5,7 @@ use std::{
     net::{Shutdown, TcpStream},
     sync::{
         Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -20,9 +20,10 @@ pub(crate) fn now() -> u64 {
 struct Shared {
     channel: Mutex<ClientChannel>,
     pending: Mutex<VecDeque<u8>>,
+    writer: Mutex<()>,
     socket: Arc<TcpStream>,
     closed: AtomicBool,
-    expires: u64,
+    expires: Arc<AtomicU64>,
 }
 
 impl Drop for Shared {
@@ -37,11 +38,16 @@ pub struct Bridge {
 }
 
 impl Bridge {
-    pub(crate) fn new(channel: ClientChannel, socket: Arc<TcpStream>, expires: u64) -> Self {
+    pub(crate) fn new(
+        channel: ClientChannel,
+        socket: Arc<TcpStream>,
+        expires: Arc<AtomicU64>,
+    ) -> Self {
         Self {
             shared: Arc::new(Shared {
                 channel: Mutex::new(channel),
                 pending: Mutex::new(VecDeque::new()),
+                writer: Mutex::new(()),
                 socket,
                 closed: AtomicBool::new(false),
                 expires,
@@ -76,8 +82,8 @@ impl Bridge {
     }
 
     fn closed(&self) -> bool {
-        self.shared.closed.load(Ordering::Acquire)
-            || (self.shared.expires != 0 && now() >= self.shared.expires)
+        let expires = self.shared.expires.load(Ordering::Acquire);
+        self.shared.closed.load(Ordering::Acquire) || (expires != 0 && now() >= expires)
     }
 
     fn drain(&self, output: &mut [u8]) -> io::Result<usize> {
@@ -165,12 +171,34 @@ impl Write for Bridge {
             return Err(io::ErrorKind::BrokenPipe.into());
         }
         let count = bytes.len().min(MAX_MESSAGE_SIZE);
-        let result = self
-            .shared
-            .channel
-            .lock()
-            .map_err(|_| io::Error::other("social stream closed"))?
-            .send_message(&bytes[..count]);
+        let result: io::Result<()> = (|| {
+            let _writer = self
+                .shared
+                .writer
+                .lock()
+                .map_err(|_| io::Error::other("social stream closed"))?;
+            self.shared
+                .channel
+                .lock()
+                .map_err(|_| io::Error::other("social stream closed"))?
+                .queue_message(&bytes[..count])?;
+            let deadline = Instant::now() + Duration::from_secs(10);
+            loop {
+                if self.closed() || Instant::now() >= deadline {
+                    return Err(io::ErrorKind::TimedOut.into());
+                }
+                if self
+                    .shared
+                    .channel
+                    .lock()
+                    .map_err(|_| io::Error::other("social stream closed"))?
+                    .try_flush()?
+                {
+                    return Ok(());
+                }
+                std::thread::sleep(Duration::from_millis(2));
+            }
+        })();
         if let Err(error) = result {
             let _ = self.shutdown();
             return Err(io::Error::new(error.kind(), "social stream closed"));

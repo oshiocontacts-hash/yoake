@@ -180,7 +180,10 @@ impl Tracker {
             self.attempts = 0;
         }
         let address = self.address.clone()?;
-        if !allowed(reason, key, from_server) || self.attempts >= DELAYS.len() {
+        if address == "social"
+            || !allowed(reason, key, from_server)
+            || self.attempts >= DELAYS.len()
+        {
             self.reset();
             return None;
         }
@@ -375,6 +378,20 @@ mod tests {
         ));
         assert!(allowed("Connection refused (os error 111)", None, false));
         assert!(!allowed("Go away", Some("made.up.key"), true));
+    }
+
+    #[test]
+    fn social_sessions_never_reconnect_to_a_literal_address() {
+        let mut tracker = Tracker::default();
+        let now = Instant::now();
+        tracker.connecting("social", "Guest", false);
+        assert_eq!(tracker.ended("Connection refused", None, false, now), None);
+        tracker.connecting("localhost:25565", "Guest", false);
+        assert!(
+            tracker
+                .ended("Connection refused", None, false, now)
+                .is_some()
+        );
     }
 
     #[test]

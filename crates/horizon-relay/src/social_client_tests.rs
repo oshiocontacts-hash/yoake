@@ -1,12 +1,9 @@
 use super::*;
-use crate::{
-    social::SessionLimits,
-    social_tls::{HandshakeLimits, TlsAcceptor},
-};
+use crate::social_tls::{HandshakeLimits, TlsAcceptor};
 use horizon_friends::{
-    social::{Grant, RegisterSession, decode_hex},
+    social::{FromRelay, Grant, ProvisionTicket, ToRelay, decode_hex},
     social_client::{Cancellation, Endpoint, Host, join},
-    social_control::{ProvisionTicket, Reply, Request, SignedProvision},
+    social_control::SignedProvision,
     social_stream::Bridge,
     social_tls::{ClientChannel, client_channel},
 };
@@ -118,6 +115,7 @@ struct Fixture {
     roots: Vec<Vec<u8>>,
     address: SocketAddr,
     server: SocialServer,
+    running_server: Arc<Mutex<SocialServer>>,
     stop: Arc<AtomicBool>,
     sockets: Arc<Mutex<Vec<TcpStream>>>,
     listener: Option<JoinHandle<()>>,
@@ -136,7 +134,12 @@ impl Fixture {
             },
         )
         .unwrap();
-        let server = SocialServer::new(decode_hex::<32>(PUBLIC).unwrap(), Arc::new(acceptor));
+        let server = SocialServer::new(
+            decode_hex::<32>(PUBLIC).unwrap(),
+            "test-relay",
+            Arc::new(acceptor),
+        )
+        .unwrap();
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         listener.set_nonblocking(true).unwrap();
         let address = listener.local_addr().unwrap();
@@ -145,16 +148,17 @@ impl Fixture {
         let (sender, workers) = mpsc::channel();
         let running = stop.clone();
         let active_sockets = sockets.clone();
-        let running_server = server.clone();
+        let running_server = Arc::new(Mutex::new(server.clone()));
+        let accepting_server = running_server.clone();
         let listener = thread::spawn(move || {
             while !running.load(Ordering::Acquire) {
                 match listener.accept() {
                     Ok((socket, _)) => {
                         lock_unpoison(&active_sockets).push(socket.try_clone().unwrap());
-                        let server = running_server.clone();
+                        let server = lock_unpoison(&accepting_server).clone();
                         sender
                             .send(thread::spawn(move || {
-                                let _ = handle(&server, socket);
+                                let _ = server.handle(socket);
                             }))
                             .unwrap();
                     }
@@ -177,11 +181,26 @@ impl Fixture {
             roots,
             address,
             server,
+            running_server,
             stop,
             sockets,
             listener: Some(listener),
             workers,
         }
+    }
+
+    fn restart(&mut self) {
+        self.server.relay.retire(SESSION, unix_time()).unwrap();
+        for socket in lock_unpoison(&self.sockets).drain(..) {
+            let _ = socket.shutdown(Shutdown::Both);
+        }
+        self.server = SocialServer::new(
+            decode_hex::<32>(PUBLIC).unwrap(),
+            "test-relay",
+            self.server.acceptor.clone(),
+        )
+        .unwrap();
+        *lock_unpoison(&self.running_server) = self.server.clone();
     }
 
     fn host(&self) -> Arc<Host> {
@@ -198,7 +217,7 @@ impl Fixture {
         )
     }
 
-    fn raw(&self, request: &Request) -> ClientChannel {
+    fn raw(&self, request: &ToRelay) -> ClientChannel {
         let mut channel = client_channel(
             TcpStream::connect(self.address).unwrap(),
             &self.roots,
@@ -246,7 +265,7 @@ impl Drop for Fixture {
         if let Some(listener) = self.listener.take() {
             listener.join().unwrap();
         }
-        let _ = self.server.relay.retire(SESSION);
+        let _ = self.server.relay.retire(SESSION, unix_time());
         for socket in lock_unpoison(&self.sockets).drain(..) {
             let _ = socket.shutdown(Shutdown::Both);
         }
@@ -256,63 +275,122 @@ impl Drop for Fixture {
     }
 }
 
-fn handle(server: &SocialServer, socket: TcpStream) -> io::Result<()> {
-    let mut channel = server.acceptor.accept(socket)?;
-    let request: Request = serde_json::from_slice(&channel.recv_message()?)
-        .map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?;
-    let response = match request {
-        Request::Provision {
-            ticket,
-            signature,
-            host_token,
-        } => {
-            let signed = SignedProvision { ticket, signature };
-            let valid = signed
-                .verify(&decode_hex::<32>(PUBLIC).unwrap(), &host_token, unix_time())
-                .is_ok()
-                && signed.ticket.relay_id == "test-relay";
-            let ticket = signed.ticket;
-            if valid
-                && server
-                    .relay
-                    .provision(
-                        &RegisterSession::relay_only(ticket.session_id, ticket.host_principal),
-                        &host_token,
-                        SessionLimits {
-                            max_connections: ticket.max_connections as usize,
-                            max_nonces: 1024,
-                            bytes_per_second: ticket.bytes_per_second,
-                            burst_bytes: ticket.burst_bytes as usize,
-                            idle_timeout: Duration::from_secs(ticket.idle_secs.into()),
-                        },
-                        Instant::now(),
-                    )
-                    .is_ok()
-            {
-                Reply::Provisioned {}
-            } else {
-                Reply::Rejected {}
-            }
-        }
-        Request::Retire {
-            session_id,
-            host_token,
-        } => {
-            if session_id == SESSION
-                && host_token == TOKEN
-                && server.relay.retire(&session_id).is_ok()
-            {
-                Reply::Retired {}
-            } else {
-                Reply::Rejected {}
-            }
-        }
-        Request::Guest { grant } => return server.guest(channel, grant),
-        Request::Host { grant, token } => return server.host(channel, grant, token),
-    };
-    channel.send_message(&serde_json::to_vec(&response).unwrap())?;
-    channel.shutdown();
-    Ok(())
+#[test]
+fn social_client_reprovisions_and_recovers_after_relay_restart() {
+    let mut fixture = Fixture::new();
+    let host = fixture.host();
+    let (mut first_host, mut first_guest) = fixture.pair(&host, grant(31));
+    let mut renewed = provision();
+    renewed.ticket.session_exp += 600;
+    renewed.ticket.nonce = hex(&[32; 32]);
+    renewed.signature = sign(&renewed.ticket.signing_bytes().unwrap());
+    host.reprovision(renewed.clone()).unwrap();
+    assert_eq!(host.expires_at(), renewed.ticket.session_exp);
+    first_guest.write_all(b"renewed").unwrap();
+    let mut received = [0; 7];
+    first_host.read_exact(&mut received).unwrap();
+    assert_eq!(&received, b"renewed");
+    fixture.restart();
+    host.reprovision(renewed).unwrap();
+    let (mut restored_host, mut restored_guest) = fixture.pair(&host, grant(33));
+    restored_guest.write_all(b"restored").unwrap();
+    let mut received = [0; 8];
+    restored_host.read_exact(&mut received).unwrap();
+    assert_eq!(&received, b"restored");
+    host.end().unwrap();
+}
+
+#[test]
+fn social_client_retries_host_until_a_guest_arrives_after_restart() {
+    let mut fixture = Fixture::new();
+    let host = fixture.host();
+    fixture.restart();
+    let signed = grant(34);
+    let pairing_host = host.clone();
+    let pending = signed.clone();
+    let pairing = thread::spawn(move || pairing_host.pair(pending));
+    thread::sleep(Duration::from_millis(250));
+    let mut guest = join(
+        fixture.endpoint.clone(),
+        SESSION,
+        signed,
+        &Cancellation::default(),
+    )
+    .unwrap();
+    let mut bridge = pairing.join().unwrap().unwrap();
+    guest.write_all(b"retry").unwrap();
+    bridge
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .unwrap();
+    let mut received = [0; 5];
+    bridge.read_exact(&mut received).unwrap();
+    assert_eq!(&received, b"retry");
+    host.end().unwrap();
+}
+
+#[test]
+fn social_client_failed_pair_can_retry_the_same_grant() {
+    let fixture = Fixture::new();
+    let host = fixture.host();
+    let signed = grant(35);
+    assert!(host.pair(signed.clone()).is_err());
+    let (mut bridge, mut guest) = fixture.pair(&host, signed);
+    guest.write_all(b"unburned").unwrap();
+    let mut received = [0; 8];
+    bridge.read_exact(&mut received).unwrap();
+    assert_eq!(&received, b"unburned");
+    host.end().unwrap();
+}
+
+#[test]
+fn social_client_waiting_guest_has_a_short_pairing_deadline() {
+    let fixture = Fixture::new();
+    let host = fixture.host();
+    let started = Instant::now();
+    assert!(
+        join(
+            fixture.endpoint.clone(),
+            SESSION,
+            grant(36),
+            &Cancellation::default()
+        )
+        .is_err()
+    );
+    assert!(started.elapsed() < Duration::from_secs(4));
+    host.end().unwrap();
+}
+
+#[test]
+fn social_client_stalled_write_does_not_block_reads() {
+    let fixture = Fixture::new();
+    let host = fixture.host();
+    let signed = grant(37);
+    let mut guest = fixture.raw(&ToRelay::Guest {
+        grant: signed.clone(),
+    });
+    assert!(matches!(
+        serde_json::from_slice::<FromRelay>(&guest.recv_message().unwrap()).unwrap(),
+        FromRelay::Waiting {}
+    ));
+    fixture.wait_pending(&signed);
+    let mut bridge = host.pair(signed).unwrap();
+    assert!(matches!(
+        serde_json::from_slice::<FromRelay>(&guest.recv_message().unwrap()).unwrap(),
+        FromRelay::Bridged {}
+    ));
+    let mut writer = bridge.try_clone().unwrap();
+    let writing = thread::spawn(move || writer.write_all(&vec![57; 16 * 1024 * 1024]));
+    thread::sleep(Duration::from_millis(100));
+    assert!(!writing.is_finished());
+    guest.send_message(b"read while writing").unwrap();
+    bridge
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .unwrap();
+    let mut received = [0; 18];
+    bridge.read_exact(&mut received).unwrap();
+    assert_eq!(&received, b"read while writing");
+    host.end().unwrap();
+    assert!(writing.join().unwrap().is_err());
 }
 
 #[test]
@@ -366,32 +444,32 @@ fn social_client_rejects_bad_grant_and_preserves_waiting_guest() {
         )
         .is_err()
     );
-    let mut rejected = fixture.raw(&Request::Guest { grant: wrong });
+    let mut rejected = fixture.raw(&ToRelay::Guest { grant: wrong });
     assert!(matches!(
-        serde_json::from_slice::<Reply>(&rejected.recv_message().unwrap()).unwrap(),
-        Reply::Rejected {}
+        serde_json::from_slice::<FromRelay>(&rejected.recv_message().unwrap()).unwrap(),
+        FromRelay::Rejected {}
     ));
     let signed = grant(4);
-    let mut guest = fixture.raw(&Request::Guest {
+    let mut guest = fixture.raw(&ToRelay::Guest {
         grant: signed.clone(),
     });
     assert!(matches!(
-        serde_json::from_slice::<Reply>(&guest.recv_message().unwrap()).unwrap(),
-        Reply::Waiting {}
+        serde_json::from_slice::<FromRelay>(&guest.recv_message().unwrap()).unwrap(),
+        FromRelay::Waiting {}
     ));
     fixture.wait_pending(&signed);
-    let mut bad_host = fixture.raw(&Request::Host {
+    let mut bad_host = fixture.raw(&ToRelay::Host {
         grant: signed.clone(),
         token: "00".repeat(32),
     });
     assert!(matches!(
-        serde_json::from_slice::<Reply>(&bad_host.recv_message().unwrap()).unwrap(),
-        Reply::Rejected {}
+        serde_json::from_slice::<FromRelay>(&bad_host.recv_message().unwrap()).unwrap(),
+        FromRelay::Rejected {}
     ));
     let mut bridge = host.pair(signed).unwrap();
     assert!(matches!(
-        serde_json::from_slice::<Reply>(&guest.recv_message().unwrap()).unwrap(),
-        Reply::Bridged {}
+        serde_json::from_slice::<FromRelay>(&guest.recv_message().unwrap()).unwrap(),
+        FromRelay::Bridged {}
     ));
     guest.send_message(b"still waiting safely").unwrap();
     bridge

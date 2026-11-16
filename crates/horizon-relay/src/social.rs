@@ -4,7 +4,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use horizon_friends::social::{
-    GrantError, GrantVerifier, MAX_GRANT_LIFETIME_SECS, HostTokenVerifier, RegisterSession, SignedGrant, VerifiedGrant,
+    GrantError, GrantVerifier, MAX_GRANT_LIFETIME_SECS, HostTokenVerifier, ProvisionTicket, RegisterSession,
+    SignedGrant, VerifiedGrant,
 };
 
 mod forward;
@@ -32,10 +33,24 @@ impl SessionLimits {
     }
 }
 
+/// Most provision-ticket nonces remembered at once; a full cache refuses new tickets.
+pub const MAX_TICKET_NONCES: usize = 4096;
+/// Caps on what a signed ticket may ask for (the portal signs, but the relay owns its resources).
+pub const MAX_TICKET_BYTES_PER_SECOND: u64 = 1 << 30;
+pub const MAX_TICKET_BURST_BYTES: u64 = 64 << 20;
+pub const MAX_TICKET_CONNECTIONS: u32 = 256;
+pub const MAX_TICKET_IDLE_SECS: u32 = 3600;
+/// Grant nonces remembered per ticket-provisioned session (the ticket has no field for it).
+const TICKET_SESSION_NONCES: usize = 1024;
+/// Sessions one host principal may have open at once.
+pub const MAX_SESSIONS_PER_HOST: usize = 3;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RelayError {
     Grant(GrantError),
     InvalidLimits,
+    WrongRelay,
+    HostLimit,
     SessionExists,
     SessionLimit,
     UnknownSession,
@@ -51,6 +66,8 @@ impl fmt::Display for RelayError {
         match self {
             Self::Grant(error) => write!(formatter, "{error}"),
             Self::InvalidLimits => formatter.write_str("invalid social relay limits"),
+            Self::WrongRelay => formatter.write_str("social provision ticket is for another relay"),
+            Self::HostLimit => formatter.write_str("social host has too many open sessions"),
             Self::SessionExists => formatter.write_str("social session ID was already registered"),
             Self::SessionLimit => formatter.write_str("social relay session capacity reached"),
             Self::UnknownSession => formatter.write_str("social session is unavailable"),
@@ -91,7 +108,11 @@ const MIN_BURST_BYTES: usize = horizon_friends::social_tls::MAX_MESSAGE_SIZE;
 struct Session {
     host_principal: String,
     token: HostTokenVerifier,
+    /// Digest the session was provisioned with by ticket; `None` for function-call provisioning.
+    token_sha256: Option<[u8; 32]>,
     limits: SessionLimits,
+    /// Unix time at which the session ends by itself (`u64::MAX`: never, for function-call sessions).
+    session_exp: u64,
     active: bool,
     /// Unix time until which a retired session's id stays reserved: no grant issued before the
     /// retirement can still be valid after it, so the id is free again then.
@@ -104,6 +125,39 @@ struct Session {
 }
 
 impl Session {
+    fn new(
+        host_principal: String,
+        token: HostTokenVerifier,
+        token_sha256: Option<[u8; 32]>,
+        limits: SessionLimits,
+        session_exp: u64,
+        now: Instant,
+    ) -> Self {
+        Self {
+            host_principal,
+            token,
+            token_sha256,
+            limits,
+            session_exp,
+            active: true,
+            retired_until: 0,
+            used: HashMap::new(),
+            slots: HashMap::new(),
+            next_slot_id: 0,
+            tokens: limits.burst_bytes as f64,
+            last_refill: now,
+        }
+    }
+
+    /// Ends the session now. Its id stays reserved for the longest grant lifetime, because a
+    /// grant issued before this moment could still be valid after it.
+    fn retire(&mut self, unix_time: u64) {
+        self.active = false;
+        self.slots = HashMap::new(); // not clear(): give the memory back
+        self.used = HashMap::new();
+        self.retired_until = unix_time.saturating_add(MAX_GRANT_LIFETIME_SECS);
+    }
+
     fn prune(&mut self, unix_time: u64, now: Instant) {
         self.used.retain(|_, expires| *expires > unix_time);
         self.slots.retain(|_, slot| {
@@ -114,18 +168,42 @@ impl Session {
     }
 }
 
+/// Retires sessions past their `session_exp`, then drops tombstones whose reservation has ended
+/// (a retired id is free again then: no grant issued before the retirement can still be valid).
+fn sweep(sessions: &mut HashMap<String, Session>, unix_time: u64) {
+    for session in sessions.values_mut() {
+        if session.active && session.session_exp <= unix_time {
+            session.retire(unix_time);
+        }
+    }
+    sessions.retain(|_, session| session.active || session.retired_until > unix_time);
+}
+
 #[derive(Clone)]
 pub struct SocialRelay {
     verifier: Arc<GrantVerifier>,
+    /// This relay's name; tickets for any other relay are refused. `None`: no tickets at all.
+    relay_id: Option<String>,
     sessions: Arc<Mutex<HashMap<String, Session>>>,
+    /// Ticket nonce -> ticket `exp`. Locked only after `sessions`.
+    ticket_nonces: Arc<Mutex<HashMap<[u8; 32], u64>>>,
     max_sessions: usize,
 }
 
 impl SocialRelay {
+    /// The relay's identity for provision tickets. It must satisfy the identifier rules.
+    pub fn with_relay_id(mut self, relay_id: &str) -> Result<Self, RelayError> {
+        horizon_friends::social::validate_identifier(relay_id)?;
+        self.relay_id = Some(relay_id.to_owned());
+        Ok(self)
+    }
+
     pub fn new(pinned_portal_key: [u8; 32], max_sessions: usize) -> Self {
         Self {
             verifier: Arc::new(GrantVerifier::new(pinned_portal_key)),
+            relay_id: None,
             sessions: Arc::new(Mutex::new(HashMap::new())),
+            ticket_nonces: Arc::new(Mutex::new(HashMap::new())),
             max_sessions,
         }
     }
@@ -135,6 +213,7 @@ impl SocialRelay {
         request: &RegisterSession,
         host_token: &str,
         limits: SessionLimits,
+        unix_time: u64,
         now: Instant,
     ) -> Result<(), RelayError> {
         request.validate()?;
@@ -143,43 +222,123 @@ impl SocialRelay {
         }
         let token = HostTokenVerifier::new(host_token)?;
         let mut sessions = self.sessions.lock().map_err(|_| RelayError::Unavailable)?;
-        let unix_now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
-        sessions.retain(|_, session| session.active || session.retired_until > unix_now);
+        sweep(&mut sessions, unix_time);
         if sessions.contains_key(&request.session_id) {
             return Err(RelayError::SessionExists);
         }
-        // Live sessions and retired-id tombstones are both bounded.
+        self.check_capacity(&sessions)?;
+        sessions.insert(
+            request.session_id.clone(),
+            Session::new(request.host_principal.clone(), token, None, limits, u64::MAX, now),
+        );
+        Ok(())
+    }
+
+    /// Live sessions and retired-id tombstones are both bounded.
+    fn check_capacity(&self, sessions: &HashMap<String, Session>) -> Result<(), RelayError> {
         if sessions.len() >= self.max_sessions.saturating_mul(4)
             || sessions.values().filter(|session| session.active).count() >= self.max_sessions
         {
             return Err(RelayError::SessionLimit);
         }
+        Ok(())
+    }
+
+    /// Open a session from a portal-signed ticket and the host token it commits to.
+    ///
+    /// Checked in this order: signature and format, `exp` and `session_exp`, `relay_id`, the
+    /// token digest, the limits, then the existing session (idempotent repeat or refusal), the
+    /// per-host cap and last the nonce. A repeat for an active session with the same principal
+    /// and token digest is `Ok`, changes no limit and only ever moves `session_exp` later. The
+    /// nonce is stored only when a session is actually created. All time comes from `unix_time`.
+    pub fn provision_ticket(
+        &self,
+        ticket: &ProvisionTicket,
+        signature: &str,
+        host_token: &str,
+        unix_time: u64,
+        now: Instant,
+    ) -> Result<(), RelayError> {
+        // No lock yet: unauthenticated callers learn nothing about sessions.
+        let verified = self.verifier.verify_ticket(ticket, signature, unix_time)?;
+        if self.relay_id.as_deref() != Some(ticket.relay_id.as_str()) {
+            return Err(RelayError::WrongRelay);
+        }
+        if !verified.token_matches(host_token) {
+            return Err(RelayError::WrongToken);
+        }
+        let limits = ticket_limits(ticket)?;
+        let token = HostTokenVerifier::new(host_token)?;
+        let mut sessions = self.sessions.lock().map_err(|_| RelayError::Unavailable)?;
+        sweep(&mut sessions, unix_time);
+        if let Some(existing) = sessions.get_mut(&ticket.session_id) {
+            let same = existing.active
+                && existing.host_principal == ticket.host_principal
+                && existing.token_sha256 == Some(verified.token_sha256());
+            if !same {
+                return Err(RelayError::SessionExists);
+            }
+            existing.session_exp = existing.session_exp.max(ticket.session_exp);
+            return Ok(());
+        }
+        let hosted = sessions
+            .values()
+            .filter(|session| session.active && session.host_principal == ticket.host_principal)
+            .count();
+        if hosted >= MAX_SESSIONS_PER_HOST {
+            return Err(RelayError::HostLimit);
+        }
+        self.check_capacity(&sessions)?;
+        let mut nonces = self.ticket_nonces.lock().map_err(|_| RelayError::Unavailable)?;
+        nonces.retain(|_, expires| *expires > unix_time);
+        if nonces.contains_key(&verified.nonce()) {
+            return Err(RelayError::Grant(GrantError::Replay));
+        }
+        if nonces.len() >= MAX_TICKET_NONCES {
+            return Err(RelayError::Grant(GrantError::ReplayCacheFull));
+        }
+        nonces.insert(verified.nonce(), verified.expires_at());
         sessions.insert(
-            request.session_id.clone(),
-            Session {
-                host_principal: request.host_principal.clone(),
+            ticket.session_id.clone(),
+            Session::new(
+                ticket.host_principal.clone(),
                 token,
+                Some(verified.token_sha256()),
                 limits,
-                active: true,
-                retired_until: 0,
-                used: HashMap::new(),
-                slots: HashMap::new(),
-                next_slot_id: 0,
-                tokens: limits.burst_bytes as f64,
-                last_refill: now,
-            },
+                ticket.session_exp,
+                now,
+            ),
         );
         Ok(())
     }
 
-    pub fn retire(&self, session_id: &str) -> Result<(), RelayError> {
+    /// End every session whose `session_exp` has passed, freeing its place (its id stays reserved).
+    pub fn expire_sessions(&self, unix_time: u64) {
+        if let Ok(mut sessions) = self.sessions.lock() {
+            sweep(&mut sessions, unix_time);
+        }
+    }
+
+    pub fn retire(&self, session_id: &str, unix_time: u64) -> Result<(), RelayError> {
         let mut sessions = self.sessions.lock().map_err(|_| RelayError::Unavailable)?;
         let session = sessions.get_mut(session_id).ok_or(RelayError::UnknownSession)?;
-        session.active = false;
-        session.slots = HashMap::new(); // not clear(): give the memory back
-        session.used = HashMap::new();
-        let unix_now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
-        session.retired_until = unix_now + MAX_GRANT_LIFETIME_SECS;
+        session.retire(unix_time);
+        Ok(())
+    }
+
+    /// A host closes its own ticket-provisioned session early. Only the host token authorizes
+    /// it, and a session opened by function call cannot be closed this way.
+    pub fn retire_with_token(&self, session_id: &str, host_token: &str, unix_time: u64) -> Result<(), RelayError> {
+        let mut sessions = self.sessions.lock().map_err(|_| RelayError::Unavailable)?;
+        sweep(&mut sessions, unix_time);
+        let session = sessions
+            .get_mut(session_id)
+            .filter(|session| session.active && session.token_sha256.is_some())
+            .ok_or(RelayError::UnknownSession)?;
+        if !session.token.verify(host_token) {
+            return Err(RelayError::WrongToken);
+        }
+        session.retire(unix_time);
         Ok(())
     }
 
@@ -194,6 +353,7 @@ impl SocialRelay {
         // nothing about sessions and the global lock never covers the crypto.
         let checked = self.verifier.verify_signature(signed)?;
         let mut sessions = self.sessions.lock().map_err(|_| RelayError::Unavailable)?;
+        sweep(&mut sessions, unix_time);
         let session = sessions
             .get_mut(&signed.grant.session_id)
             .filter(|session| session.active)
@@ -223,6 +383,29 @@ impl SocialRelay {
             armed: true,
         })
     }
+}
+
+/// The ticket's limits, or `InvalidLimits` when one is zero or beyond the relay's caps.
+fn ticket_limits(ticket: &ProvisionTicket) -> Result<SessionLimits, RelayError> {
+    let in_range = ticket.bytes_per_second > 0
+        && ticket.bytes_per_second <= MAX_TICKET_BYTES_PER_SECOND
+        && ticket.burst_bytes >= MIN_BURST_BYTES as u64
+        && ticket.burst_bytes <= MAX_TICKET_BURST_BYTES
+        && ticket.max_connections > 0
+        && ticket.max_connections <= MAX_TICKET_CONNECTIONS
+        && ticket.idle_secs > 0
+        && ticket.idle_secs <= MAX_TICKET_IDLE_SECS;
+    if !in_range {
+        return Err(RelayError::InvalidLimits);
+    }
+    let limits = SessionLimits {
+        max_connections: ticket.max_connections as usize,
+        max_nonces: TICKET_SESSION_NONCES,
+        bytes_per_second: ticket.bytes_per_second,
+        burst_bytes: ticket.burst_bytes as usize,
+        idle_timeout: Duration::from_secs(u64::from(ticket.idle_secs)),
+    };
+    if limits.valid() { Ok(limits) } else { Err(RelayError::InvalidLimits) }
 }
 
 pub struct PendingGuest<GUEST> {

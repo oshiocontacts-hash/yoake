@@ -72,10 +72,21 @@ HORIZON_RELAY_SOCIAL_ADDR=0.0.0.0:7443
 HORIZON_RELAY_SOCIAL_CERT=/var/lib/horizon-relay/leaf.der
 HORIZON_RELAY_SOCIAL_CERT_KEY=/var/lib/horizon-relay/leaf-key.der
 HORIZON_RELAY_PORTAL_KEY=<64 lowercase hex characters>
+HORIZON_RELAY_ID=<this relay's name, for example relay-eu-1>
 ```
 
 The certificate and key variables are **file paths**, not inline DER. The portal
-variable is the portal's public grant-verification key in hex, not a file path.
+variable is the portal's public key in hex, not a file path; it verifies both guest
+grants and host provision tickets (the portal never connects to the relay, so
+there is no relay credential for it; see "Session registration" in
+[yoake-social-transport.md](yoake-social-transport.md)).
+`HORIZON_RELAY_ID` is required whenever the social listener is configured: it is
+this relay's name, with the same rules as every social identifier (1 to 128 bytes
+of UTF-8, no control characters). A provision ticket carries the relay it is for
+and the relay refuses any other name, so give every relay that shares the portal
+key (staging, other regions) its own ID, and have the portal issue tickets for
+the ID of the relay it hands to the host. Changing it invalidates tickets issued
+for the old name.
 The social address is a socket address. `PORT`, `RELAY_BIND`, and the other
 `RELAY_*` variables continue to configure the separate invite relay; see
 [play-with-friends.md](play-with-friends.md).
@@ -109,6 +120,7 @@ Environment=HORIZON_RELAY_SOCIAL_ADDR=0.0.0.0:7443
 Environment=HORIZON_RELAY_SOCIAL_CERT=/var/lib/horizon-relay/leaf.der
 Environment=HORIZON_RELAY_SOCIAL_CERT_KEY=/var/lib/horizon-relay/leaf-key.der
 Environment=HORIZON_RELAY_PORTAL_KEY=replace-with-the-64-character-public-key
+Environment=HORIZON_RELAY_ID=replace-with-this-relays-name
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
