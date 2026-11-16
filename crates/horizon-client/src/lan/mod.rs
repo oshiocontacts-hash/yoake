@@ -93,7 +93,7 @@ pub enum Out {
 /// PlayerList.canPlayerLogin for a dedicated server: the disconnect reason
 /// (bans, whitelist) for a profile connecting from an address, if refused.
 pub type LoginGate =
-    Arc<dyn Fn(SocketAddr, u128, &str) -> Option<horizon_world::nbt::Tag> + Send + Sync>;
+    Arc<dyn Fn(SocketAddr, u128, &str, bool) -> Option<horizon_world::nbt::Tag> + Send + Sync>;
 
 /// online-mode=true: the key pair the server made at startup
 /// (MinecraftServer.initializeKeyPair) and how players are verified.
@@ -374,9 +374,10 @@ impl Shared {
         address: SocketAddr,
         uuid: u128,
         name: &str,
+        social: bool,
     ) -> Option<horizon_world::nbt::Tag> {
         if let Some(gate) = &self.config.gate
-            && let Some(reason) = gate(address, uuid, name)
+            && let Some(reason) = gate(address, uuid, name, social)
         {
             return Some(reason);
         }
@@ -651,6 +652,15 @@ impl Lan {
                 }
             })?;
         Ok(client)
+    }
+    pub fn connect_social(&self, bridge: horizon_friends::social_stream::Bridge) -> io::Result<()> {
+        let shared = self.shared.clone();
+        std::thread::Builder::new()
+            .name("yoake-social-conn".into())
+            .spawn(move || {
+                let _ = conn::serve_social(bridge, shared);
+            })?;
+        Ok(())
     }
     /// Everything the connection threads reported since the last call.
     pub fn poll(&self) -> Vec<NetEvent> {

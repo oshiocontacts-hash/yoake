@@ -516,6 +516,16 @@ pub fn serve_local(
     serve_connection(Connection::local(pipe), MEMORY_ADDRESS, shared)
 }
 
+pub fn serve_social(
+    bridge: horizon_friends::social_stream::Bridge,
+    shared: Arc<Shared>,
+) -> Result<(), String> {
+    let connection =
+        Connection::social(bridge).map_err(|_| "social connection failed".to_owned())?;
+    let address = std::net::SocketAddr::from(([127, 0, 0, 1], 1));
+    serve_connection(connection, address, shared)
+}
+
 fn serve_connection(
     mut c: Connection,
     address: std::net::SocketAddr,
@@ -822,7 +832,7 @@ fn serve_login(
     };
     // verifyLoginAndFinishConnectionSetup: PlayerList.canPlayerLogin, then
     // duplicates and a full server.
-    if let Some(reason) = shared.try_admit(address, uuid, &name) {
+    if let Some(reason) = shared.try_admit(address, uuid, &name, c.is_social()) {
         let text = refuse(&mut c, shared, "Server thread", &user, &reason);
         lost(shared, &user, &text);
         return Ok(());

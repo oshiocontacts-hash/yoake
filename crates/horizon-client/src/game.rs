@@ -350,6 +350,7 @@ mod shoulders;
 mod sign_edit;
 mod sniffers;
 mod social;
+mod social_relay;
 mod spawner;
 mod spear;
 mod spectator;
@@ -586,6 +587,10 @@ struct Options {
     session_file: Option<String>,
     /// `--session-stdin`: the session file's JSON comes on standard input instead.
     session_stdin: bool,
+    social_handoff: Option<PathBuf>,
+    social_trust: Option<PathBuf>,
+    social_control_stdin: bool,
+    social_startup: Arc<std::sync::Mutex<Option<std::result::Result<social_relay::Startup, ()>>>>,
 }
 impl Options {
     /// The name to join servers with: the one given, else the offline name kept
@@ -610,6 +615,16 @@ impl Options {
         else {
             return Ok(None);
         };
+        let social = social_relay::Startup::read(&mut o);
+        let social_guest = social
+            .as_ref()
+            .is_some_and(|startup| startup.as_ref().is_ok_and(social_relay::Startup::is_guest));
+        o.social_startup = Arc::new(std::sync::Mutex::new(social));
+        if social_guest {
+            o.world = None;
+            o.server = None;
+            o.quick_play = None;
+        }
         // The launcher's account: online-mode servers need it. A bad file
         // only leaves the game offline.
         let session = if o.session_stdin {
@@ -713,6 +728,10 @@ impl Options {
             quick_play: None,
             session_file: std::env::var("HORIZON_SESSION_FILE").ok(),
             session_stdin: false,
+            social_handoff: None,
+            social_trust: None,
+            social_control_stdin: false,
+            social_startup: Arc::new(std::sync::Mutex::new(None)),
         };
         while let Some(arg) = args.next() {
             match arg.as_str() {
@@ -729,6 +748,7 @@ impl Options {
                 }
                 "--fullscreen" => o.fullscreen = true,
                 "--session-stdin" => o.session_stdin = true,
+                "--yoake-social-control-stdin" => o.social_control_stdin = true,
                 "--dedicated" => {
                     o.execution_role = execution_role::ExecutionRole::DedicatedServer;
                     o.dedicated = Some(args.by_ref().collect());
@@ -821,6 +841,8 @@ impl Options {
                             "--server" | "--quickPlayMultiplayer" => o.server = Some(value),
                             "--name" => o.player_name = Some(value),
                             "--session-file" => o.session_file = Some(value),
+                            "--yoake-social-handoff" => o.social_handoff = Some(value.into()),
+                            "--yoake-social-trust" => o.social_trust = Some(value.into()),
                             "--control-socket" => o.control = Some(value.into()),
                             "--time" => o.time = Some(value.parse()?),
                             "--weather" => o.weather = Some(value),
@@ -843,6 +865,11 @@ impl Options {
                     read().map_err(|e| format!("{arg}: {e}"))?;
                 }
             }
+        }
+        if o.session_stdin && o.social_control_stdin {
+            return Err(
+                "--session-stdin and --yoake-social-control-stdin cannot share stdin".into(),
+            );
         }
         Ok(Some(o))
     }
@@ -3117,6 +3144,7 @@ struct Game<'a> {
     friends: Option<friends::Sharing>,
     /// The Social Interactions screen and the players whose chat is hidden (game/social.rs).
     social: social::Social,
+    social_relay: social_relay::Runtime,
     world_options: Option<lan_screen::WorldOptions>,
     /// Chat Settings opened from RestrictionsScreen: Done returns to World Options.
     options_to_world_options: bool,
@@ -8072,6 +8100,7 @@ impl Game<'_> {
     fn pauses_game(&self) -> bool {
         self.has_singleplayer_server()
             && !self.is_published()
+            && !self.social_relay.is_host()
             && self.title.is_none()
             && ((self.screen == Screen::Mod
                 && native_title_screen::mod_screen_pauses(self.native_title_mod_screen_return))
@@ -19580,6 +19609,7 @@ impl<'a> Game<'a> {
             game_tests: game_tests::GameTests::default(),
             friends: None,
             social: Default::default(),
+            social_relay: Default::default(),
             debug_keys: Default::default(),
             debug_charts: Default::default(),
             debug_entries: horizon_client::debug_entries::DebugEntries::load(
@@ -19846,6 +19876,7 @@ impl Game<'_> {
         self.poll_integrated_start()?;
         self.poll_world_rest()?;
         self.poll_world_creation();
+        self.social_relay_tick();
         if self.rest_loader.is_some() {
             return Ok(());
         }
@@ -21201,6 +21232,7 @@ fn start_game<'a>(
         game.run_dedicated()?;
         return Ok(None);
     }
+    game.social_relay_start();
     match game.options.world.clone() {
         _ if game.options.server.is_some() => {
             let (address, name) = (

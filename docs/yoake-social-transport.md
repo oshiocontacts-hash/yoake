@@ -1,9 +1,11 @@
-# Yoake social transport: draft protocol
+# Yoake social transport and game handoff
 
-This document specifies the social transport primitives. The relay has an opt-in
-social listener, but the launcher and game do not use it yet. Social joins must
-remain unavailable until the portal, host connection handling, and end-to-end
-encryption are integrated; the existing invite-code and LAN paths remain separate.
+This document specifies the social transport primitives and the opt-in game
+client. Without an explicit social handoff the game does not contact the social
+relay or open additional listeners. The existing invite-code and LAN paths remain
+separate. The launcher/portal handoff producer and production relay provisioning
+must be integrated before exposing this flow to players. TLS protects each hop;
+it does not provide end-to-end encryption against the relay.
 For certificate generation, deployment, rotation, and monitoring, see
 [Yoake social relay operations](yoake-social-ops.md).
 
@@ -27,8 +29,9 @@ All identifiers are nonempty UTF-8 strings of at most 128 bytes and cannot
 contain Unicode control characters. They must be opaque and must not encode an
 IP address, port, hostname, or other direct connection information. Unknown
 fields and versions are rejected. The verifier requires `exp` to be no more
-than 300 seconds in the future, but this alone does not establish the time of
-issuance. Issuers and verifiers need trustworthy clocks.
+than 300 seconds in the future; the provisioning contract asks the portal to
+issue grants expiring after 240 seconds. This alone does not establish the time
+of issuance. Issuers and verifiers need trustworthy clocks.
 
 The signed envelope has exactly `grant` and `signature` fields. The signature
 is the 64-byte Ed25519 signature encoded as 128 lowercase hexadecimal
@@ -81,26 +84,132 @@ This second vector is for an empty message, not for the example grant. A
 portal-generated signed grant vector is still needed for cross-implementation
 interoperability testing.
 
-## Session registration
+## Session provisioning
 
-The host registration request contains `session_id`, `host_principal`, and
-`relay_only: true`. A successful response contains those same fields and
-`host_token`; unregistering identifies the session. The session
-token is 32 random bytes encoded as lowercase hexadecimal, and must be handled
-as a secret. Registration is represented by a client trait; the repository
-does not provide a production HTTP client or portal authentication.
+The portal creates the session and returns its opaque `session_id`,
+`host_principal`, secret `host_token`, and signed provision ticket. The token is
+32 random bytes encoded as 64 lowercase hexadecimal characters. The game does
+not implement portal HTTP endpoints or authenticate to the portal itself.
 
-Registration with the portal and provisioning the relay must be authenticated,
-confidential, tied to the same host and session, and fail closed. Portal-to-relay
-provisioning, token delivery, key rotation, and authorization are not specified
-by this code and must be agreed before deployment.
+The ticket has exactly `v`, `session_id`, `host_principal`, `token_sha256`,
+`bytes_per_second`, `burst_bytes`, `max_connections`, `idle_secs`, `session_exp`,
+`relay_id`, `exp`, and `nonce`. `token_sha256` is SHA-256 of the decoded token
+bytes, not its hexadecimal text. Signature and nonce use the same lowercase
+hexadecimal formats as grants. The signed provision envelope contains `ticket`
+and `signature`. Its Ed25519 message is:
+
+1. ASCII `yoake-social-provision-v1` followed by one zero byte.
+2. `v` as unsigned 32-bit big-endian.
+3. `session_id` and `host_principal`, each length-prefixed as for grants.
+4. The 32 decoded `token_sha256` bytes.
+5. `bytes_per_second` and `burst_bytes`, each unsigned 64-bit big-endian.
+6. `max_connections` and `idle_secs`, each unsigned 32-bit big-endian.
+7. `session_exp` as unsigned 64-bit big-endian.
+8. Length-prefixed `relay_id`.
+9. `exp` as unsigned 64-bit big-endian, then the 32 decoded nonce bytes.
+
+Ticket expiry must be after now and at most 300 seconds ahead; session expiry
+must be after now and at most 12 hours ahead. Bandwidth is at most 1 GiB/s
+(`0` means unlimited), burst is 16 KiB through 64 MiB, connections are 1 through
+256, and idle timeout is 1 through 3600 seconds. The game checks the signature,
+limits, token digest, session and principal before sending `provision` over TLS.
+The relay must additionally enforce its own identity, authorization, ticket
+replay, principal session cap and renewal rules.
+
+The final provisioning contract closes the initial TLS connection after
+`provisioned`. This is not a persistent host socket: each guest needs a fresh
+`host` TLS connection presenting that guest's grant. The launcher must deliver
+the grant only after the guest is waiting at the relay; the current pairing
+implementation does not accept host-first pairing. The client does not renew
+sessions automatically.
+
+## Launcher to game handoff
+
+Pass only file paths on the command line:
+
+```text
+--yoake-social-handoff <one-shot-file> --yoake-social-trust <trust-file>
+```
+
+For hosts, also pass `--yoake-social-control-stdin` and keep the game's stdin
+open for lifecycle commands. Guests omit that flag. Microsoft authentication
+continues to use the existing `--session-file` handoff. Do not combine
+`--session-stdin` with `--yoake-social-control-stdin`; startup rejects this
+combination before reading stdin. Tokens, tickets, grants and signatures must
+never be command-line arguments or log messages.
+
+Create the one-shot file in the game's private temporary directory with
+`horizon_friends::social_handoff::write_new`, then pass its path. It exclusively
+creates a new file with Unix mode `0600`, or on Windows an owner-only protected
+DACL. The startup reader requires a private, single-link regular file owned by
+the current user and rejects symlinks/reparse points and permissive access. It
+reads at most 64 KiB and deletes the file before parsing; malformed and oversized
+private files are also consumed. A failed permission check leaves the file
+untouched for its owner to remove. Errors contain no credential data. The
+launcher must remove an unused handoff if game startup never reads it.
+
+The strict JSON host shape is:
+
+```json
+{
+  "role": "host",
+  "session_id": "<portal session>",
+  "host_principal": "<portal principal>",
+  "host_token": "<64 lowercase hex characters>",
+  "provision": { "ticket": {}, "signature": "<128 lowercase hex characters>" },
+  "relay": "<relay DNS name or IP>:<TLS port>"
+}
+```
+
+Here `ticket` must be the complete ticket described above, not an empty object.
+The guest shape has `role: "guest"`, `session_id`, `grant` (the complete grant
+object), `signature`, and `relay`. All unknown fields are rejected. A guest
+handoff takes priority over ordinary startup world/server quick-play options.
+
+The separate trust JSON contains `portal_public_key` (32 bytes as lowercase
+hexadecimal) and `ca_certificates` (one through eight DER CA certificates, each
+encoded as lowercase hexadecimal). It is bounded to 1 MiB and is not consumed.
+The launcher must authenticate and protect this configuration independently of
+the portal response or guest grant. TLS verifies the relay hostname/IP against
+these roots; no system-root fallback is used.
+
+Host stdin accepts newline-delimited strict JSON commands:
+
+```json
+{"type":"pair","grant":{"grant":{},"signature":"<signed guest grant signature>"}}
+{"type":"end"}
+```
+
+Replace the inner grant with the full signed grant. Each line is bounded to
+64 KiB, and the pending command queue is bounded to 256. EOF, malformed or
+oversized input, or queue overflow ends the session rather than continuing with
+an ambiguous control state. The launcher owns coordination with the portal and
+the waiting guest; there is no game-side portal polling.
+
+Bridged hosts feed the normal LAN login handler without creating a listener.
+An unpublished integrated server accepts this transport without opening LAN
+access. Normal Minecraft online login, capacity, duplicate-player and local-seat
+checks remain in place; social principals do not grant owner permissions.
+The integrated server does not pause while the social host is active. Guests
+run the normal client login over the bridge. Leaving/closing the world, host
+stdin ending, explicit `end`, or session expiry cancels active and pending
+sockets. Retirement is sent asynchronously and is best effort; a hard-killed
+process still relies on relay expiry/idle policy.
+
+The loopback TLS tests use real relay guest/host pairing and forwarding, but
+adapt `provision`/`retire` in a test-only handler. Production support for these
+two messages is being implemented separately. These tests are not a game or
+launcher runtime test.
 
 ## Relay messages and pairing
 
 Social relay control messages are a separate, strictly decoded protocol, not
-an extension of the legacy invite-code wire format. A guest presents a signed
-grant; the host presents that same signed grant and its session token. Responses
-are `waiting`, `bridged`, or `rejected`. These message types have no fields for
+an extension of the legacy invite-code wire format. `provision` contains the flat
+`ticket`, `signature`, and `host_token` fields and returns `provisioned` or
+`rejected`. `retire` contains `session_id` and `host_token` and returns `retired`
+or `rejected`. A `guest` presents a signed `grant`; a `host` presents that same
+signed `grant` and its session `token`. Pairing responses are `waiting`, `bridged`,
+or `rejected`. These message types have no fields for
 direct addresses, observed addresses, or ICE candidates, and unknown fields are
 rejected.
 
@@ -193,9 +302,10 @@ retirement cannot be replayed against a re-provisioned session of the same id.
 Live sessions plus these reservations are capped at four times the session limit.
 
 A grant is a bearer authorization, not proof of possession of the guest's
-Minecraft account. Gameplay does not use the verified principal yet. The future
-integration must bind that principal to the host-side player, prove the Minecraft
-identity, and establish end-to-end encryption using a separate per-guest secret.
+Minecraft account. Social streams retain the normal Minecraft login and online
+authentication path, but gameplay does not bind the verified portal principal to
+that Minecraft identity yet. A future integration must add that binding and
+establish end-to-end encryption using a separate per-guest secret.
 Neither the relay token, signed grant, nor TLS channel binding alone is that
 secret. Portal provisioning, unavailable credentials, failed verification, and
 unavailable social transport must never fall back to an unauthenticated join.

@@ -1222,12 +1222,13 @@ impl Game<'_> {
             bypasses_limit: Some(Arc::new(move |uuid| {
                 local_players.split_players.lock().unwrap().contains(&uuid)
             })),
-            gate: Some(Arc::new(move |address, uuid, _| {
+            gate: Some(Arc::new(move |address, uuid, _, social| {
                 refused(
                     uuid == owner,
                     published.published.load(Ordering::Relaxed) != 0,
                     published.split_players.lock().unwrap().contains(&uuid),
                     address == horizon_client::lan::conn::MEMORY_ADDRESS,
+                    social,
                 )
                 .then(|| translatable("multiplayer.disconnect.not_whitelisted", &[]))
             })),
@@ -1740,14 +1741,14 @@ fn server_game(
     Game::new(res, pack, gui, options, settings, audio, None)
 }
 
-/// Who the integrated server turns away: anyone but the owner until it is opened to the LAN,
-/// except a splitscreen seat. A seat's name is let in only through memory, so a LAN player
+/// Who the integrated server turns away: anyone but the owner or a social guest until it is
+/// opened to the LAN, except a splitscreen seat. A seat's name is let in only through memory, so a LAN player
 /// logging in under it never gets its place or the owner's permissions it holds.
-fn refused(owner: bool, published: bool, split_seat: bool, memory: bool) -> bool {
+fn refused(owner: bool, published: bool, split_seat: bool, memory: bool, social: bool) -> bool {
     if split_seat {
         !memory
     } else {
-        !owner && !published
+        !owner && !published && !social
     }
 }
 
@@ -1835,19 +1836,35 @@ mod tests {
 
     #[test]
     fn a_splitscreen_seat_is_let_in_only_through_memory() {
-        // (owner, published, seat, memory)
-        assert!(!refused(false, false, true, true), "a local seat joins");
+        // (owner, published, seat, memory, social)
         assert!(
-            refused(false, true, true, false),
+            !refused(false, false, true, true, false),
+            "a local seat joins"
+        );
+        assert!(
+            refused(false, true, true, false, false),
             "a LAN player under a seat's name"
         );
-        assert!(refused(false, false, true, false));
+        assert!(refused(false, false, true, false, false));
         assert!(
-            !refused(false, true, false, false),
+            !refused(false, true, false, false, false),
             "anyone once open to the LAN"
         );
-        assert!(refused(false, false, false, false), "nobody else before");
-        assert!(!refused(true, false, false, true), "the owner");
+        assert!(
+            refused(false, false, false, false, false),
+            "nobody else before"
+        );
+        assert!(!refused(true, false, false, true, false), "the owner");
+    }
+
+    #[test]
+    fn social_guests_do_not_need_lan_publication_or_gain_local_seat_privileges() {
+        for owner in [false, true] {
+            for published in [false, true] {
+                assert!(!refused(owner, published, false, false, true));
+                assert!(refused(owner, published, true, false, true));
+            }
+        }
     }
 
     #[test]

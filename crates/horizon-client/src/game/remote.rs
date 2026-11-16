@@ -810,7 +810,7 @@ impl Game<'_> {
             return Ok(());
         }
         self.join_world_rest()?;
-        if let Err(error) = self.join_server(address, name, None, cookies, lan) {
+        if let Err(error) = self.join_server(address, name, None, None, cookies, lan) {
             log::warn!("Horizon: could not join server: {error}");
             if self.title.is_none() {
                 self.title = Some(
@@ -836,7 +836,7 @@ impl Game<'_> {
         pipe: horizon_protocol::connection::Pipe,
         name: &str,
     ) -> Result<()> {
-        self.join_server("local", name, Some(pipe), None, false)
+        self.join_server("local", name, Some(pipe), None, None, false)
     }
 
     pub(super) fn connect_replay(&mut self, title: &str, name: &str) -> Result<()> {
@@ -851,7 +851,18 @@ impl Game<'_> {
             .native_session
             .take_replay_pipe()
             .ok_or("Replay pipe is no longer available")?;
-        self.join_server("replay", name, Some(pipe), None, false)
+        self.join_server("replay", name, Some(pipe), None, None, false)
+    }
+
+    pub(super) fn connect_social(
+        &mut self,
+        bridge: horizon_friends::social_stream::Bridge,
+    ) -> Result<()> {
+        super::world_loading::preload_server_loot(&self.options.resources);
+        self.join_world_rest()?;
+        self.native_client_state.enter_social();
+        let name = self.options.player_name();
+        self.join_server("social", &name, None, Some(bridge), None, false)
     }
 
     fn join_server(
@@ -859,6 +870,7 @@ impl Game<'_> {
         address: &str,
         name: &str,
         local: Option<horizon_protocol::connection::Pipe>,
+        social: Option<horizon_friends::social_stream::Bridge>,
         cookies: Option<horizon_client::net::Cookies>,
         lan: bool,
     ) -> Result<()> {
@@ -902,50 +914,62 @@ impl Game<'_> {
             |a| (a.name.clone(), a.uuid),
         );
         self.server_packs_connect(local.is_none().then_some(address), user);
-        let session = match local {
-            Some(pipe) => {
-                let connect = if replay {
-                    Session::connect_replay
-                } else {
-                    Session::connect_local
-                };
-                connect(
-                    pipe,
-                    name,
-                    info.clone(),
-                    lang.clone(),
-                    root.clone(),
-                    capture_item_tags,
-                )
-            }
-            None => {
-                self.extras_connecting(address, name, lan);
-                match cookies {
-                    Some(cookies) => Session::connect_transferred(
-                        address,
+        let session = if let Some(bridge) = social {
+            Session::connect_social(
+                bridge,
+                name,
+                auth.clone(),
+                info.clone(),
+                lang.clone(),
+                root.clone(),
+                capture_item_tags,
+            )
+        } else {
+            match local {
+                Some(pipe) => {
+                    let connect = if replay {
+                        Session::connect_replay
+                    } else {
+                        Session::connect_local
+                    };
+                    connect(
+                        pipe,
                         name,
-                        auth.clone(),
                         info.clone(),
                         lang.clone(),
-                        cookies,
                         root.clone(),
                         capture_item_tags,
-                    ),
-                    None => {
-                        let connect = if lan {
-                            Session::connect_lan
-                        } else {
-                            Session::connect
-                        };
-                        connect(
+                    )
+                }
+                None => {
+                    self.extras_connecting(address, name, lan);
+                    match cookies {
+                        Some(cookies) => Session::connect_transferred(
                             address,
                             name,
                             auth.clone(),
                             info.clone(),
                             lang.clone(),
+                            cookies,
                             root.clone(),
                             capture_item_tags,
-                        )
+                        ),
+                        None => {
+                            let connect = if lan {
+                                Session::connect_lan
+                            } else {
+                                Session::connect
+                            };
+                            connect(
+                                address,
+                                name,
+                                auth.clone(),
+                                info.clone(),
+                                lang.clone(),
+                                root.clone(),
+                                capture_item_tags,
+                            )
+                        }
                     }
                 }
             }

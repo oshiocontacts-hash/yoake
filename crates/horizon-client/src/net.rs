@@ -205,7 +205,35 @@ pub struct Session {
     /// The far terrain requests waiting for the server (`lod_net`).
     far: Arc<crate::lod_net::Inbox>,
 }
+enum Transport {
+    Local(horizon_protocol::connection::Pipe),
+    Social(horizon_friends::social_stream::Bridge),
+}
+
 impl Session {
+    pub fn connect_social(
+        bridge: horizon_friends::social_stream::Bridge,
+        name: &str,
+        auth: Option<Arc<AuthSession>>,
+        info: cfg::ClientInformation,
+        lang: Arc<Language>,
+        resources: PathBuf,
+        capture_item_tags: bool,
+    ) -> Self {
+        Self::start(
+            "social",
+            name,
+            auth,
+            info,
+            lang,
+            Some(Transport::Social(bridge)),
+            None,
+            resources,
+            false,
+            capture_item_tags,
+            false,
+        )
+    }
     /// Start connecting in the background, as `auth`'s account when there is one.
     pub fn connect(
         address: &str,
@@ -297,7 +325,7 @@ impl Session {
             None,
             info,
             lang,
-            Some(pipe),
+            Some(Transport::Local(pipe)),
             None,
             resources,
             false,
@@ -320,7 +348,7 @@ impl Session {
             None,
             info,
             lang,
-            Some(pipe),
+            Some(Transport::Local(pipe)),
             None,
             resources,
             false,
@@ -334,7 +362,7 @@ impl Session {
         auth: Option<Arc<AuthSession>>,
         info: cfg::ClientInformation,
         lang: Arc<Language>,
-        local: Option<horizon_protocol::connection::Pipe>,
+        local: Option<Transport>,
         cookies: Option<Cookies>,
         resources: PathBuf,
         lan: bool,
@@ -343,7 +371,10 @@ impl Session {
     ) -> Self {
         let (send, events) = channel();
         #[cfg(feature = "dev-capture")]
-        let capture_fences = local.as_ref().map(|pipe| pipe.capture_fences());
+        let capture_fences = local.as_ref().and_then(|transport| match transport {
+            Transport::Local(pipe) => Some(pipe.capture_fences()),
+            Transport::Social(_) => None,
+        });
         let writer = Arc::new(Mutex::new(None));
         let configuring = Arc::new(AtomicBool::new(true));
         let counters = Arc::new(Mutex::new(None));
@@ -810,7 +841,7 @@ fn connection_lost(e: horizon_protocol::Error, lang: &Language) -> String {
 /// Ok: why it ended for good (the server's reason, or
 /// a refusal no retry fixes); Err: the connection failed.
 fn run(
-    local: Option<horizon_protocol::connection::Pipe>,
+    local: Option<Transport>,
     address: &str,
     name: &str,
     auth: Option<&AuthSession>,
@@ -829,8 +860,16 @@ fn run(
     net_capture: Option<&NetCapture>,
     replay: bool,
 ) -> Result<Reason, Reason> {
-    let (host, port, mut c) = if let Some(pipe) = local {
-        (address.to_owned(), 0, Connection::local(pipe))
+    let (host, port, mut c) = if let Some(transport) = local {
+        let (port, connection) = match transport {
+            Transport::Local(pipe) => (0, Connection::local(pipe)),
+            Transport::Social(bridge) => (
+                25565,
+                Connection::social(bridge)
+                    .map_err(|_| Reason::plain(tr(lang, "connect.failed")))?,
+            ),
+        };
+        (address.to_owned(), port, connection)
     } else {
         let (host, port) = match address.strip_prefix(FRIEND) {
             Some(code) => join_friend(code, lang, send)?,

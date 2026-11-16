@@ -87,6 +87,10 @@ impl ClientState {
         );
     }
 
+    pub(super) fn enter_social(&mut self) {
+        self.pending_world = Some(Some(NativeClientWorld::Friend));
+    }
+
     pub(super) fn enter_replay(&mut self, title: &str) {
         self.pending_world = Some(Some(NativeClientWorld::Replay {
             title: title.to_owned(),

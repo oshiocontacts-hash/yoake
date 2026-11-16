@@ -217,17 +217,20 @@ impl Write for Pipe {
 enum Stream {
     Tcp(TcpStream),
     Memory(Pipe),
+    Social(horizon_friends::social_stream::Bridge),
 }
 impl Stream {
     fn try_clone(&self) -> std::io::Result<Self> {
         Ok(match self {
             Self::Tcp(s) => Self::Tcp(s.try_clone()?),
             Self::Memory(p) => Self::Memory(p.try_clone()),
+            Self::Social(stream) => Self::Social(stream.try_clone()?),
         })
     }
     fn set_read_timeout(&self, timeout: Option<Duration>) -> std::io::Result<()> {
         match self {
             Self::Tcp(s) => s.set_read_timeout(timeout),
+            Self::Social(stream) => stream.set_read_timeout(timeout),
             Self::Memory(p) => {
                 *p.timeout.lock().unwrap() = timeout;
                 Ok(())
@@ -240,6 +243,9 @@ impl Stream {
                 let _ = s.shutdown(Shutdown::Both);
             }
             Self::Memory(p) => p.shutdown(),
+            Self::Social(stream) => {
+                let _ = stream.shutdown();
+            }
         }
     }
 }
@@ -248,6 +254,7 @@ impl Read for Stream {
         match self {
             Self::Tcp(s) => s.read(out),
             Self::Memory(p) => p.read(out),
+            Self::Social(stream) => stream.read(out),
         }
     }
 }
@@ -256,12 +263,14 @@ impl Write for Stream {
         match self {
             Self::Tcp(s) => s.write(data),
             Self::Memory(p) => p.write(data),
+            Self::Social(stream) => stream.write(data),
         }
     }
     fn flush(&mut self) -> std::io::Result<()> {
         match self {
             Self::Tcp(s) => s.flush(),
             Self::Memory(p) => p.flush(),
+            Self::Social(stream) => stream.flush(),
         }
     }
 }
@@ -401,6 +410,9 @@ impl Connection {
     pub fn local(pipe: Pipe) -> Self {
         Self::over(Stream::Memory(pipe)).expect("a pipe end clones")
     }
+    pub fn social(stream: horizon_friends::social_stream::Bridge) -> Result<Self> {
+        Self::over(Stream::Social(stream))
+    }
     fn over(stream: Stream) -> Result<Self> {
         let counters = Arc::new(Counters::default());
         let write = stream.try_clone()?;
@@ -437,11 +449,14 @@ impl Connection {
     pub fn is_memory(&self) -> bool {
         matches!(self.reader.stream, Stream::Memory(_))
     }
+    pub fn is_social(&self) -> bool {
+        matches!(self.reader.stream, Stream::Social(_))
+    }
     #[cfg(feature = "dev-capture")]
     pub fn capture_fences(&self) -> Option<CaptureFences> {
         match &self.reader.stream {
             Stream::Memory(pipe) => Some(pipe.capture_fences()),
-            Stream::Tcp(_) => None,
+            Stream::Tcp(_) | Stream::Social(_) => None,
         }
     }
     /// ClientboundLoginCompressionPacket: negative thresholds disable compression.
@@ -745,7 +760,7 @@ mod tests {
     fn peer(c: &Connection) -> SocketAddr {
         match &c.reader.stream {
             Stream::Tcp(s) => s.peer_addr().unwrap(),
-            Stream::Memory(_) => panic!("not a socket"),
+            Stream::Memory(_) | Stream::Social(_) => panic!("not a socket"),
         }
     }
 
