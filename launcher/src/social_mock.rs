@@ -2,6 +2,9 @@
 //! portal's `social-api.md` says (the same codes, caps and block rules), with people to find by
 //! code. The tests use it, and `HORIZON_LAUNCHER_SOCIAL=mock` shows the page with sample data
 //! while the real portal has no API. It never touches the network or the sign-in.
+use crate::social::rooms::{
+    Audience, HostedRoom, JoinGrant, Provision, Redacted, Reprovision, RoomHost, RoomInfo, Stamp,
+};
 use crate::social::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -34,8 +37,17 @@ struct MockRequest {
     created_at: String,
 }
 
+struct MockRoom {
+    id: String,
+    host: String,
+    audience: Audience,
+    name: Option<String>,
+    created: i64,
+}
+
 #[derive(Default)]
 struct State {
+    rooms: Vec<MockRoom>,
     people: Vec<Principal>,
     codes: HashMap<String, String>,
     my_code: String,
@@ -51,6 +63,12 @@ struct State {
 
 pub struct MockSocial {
     state: Mutex<State>,
+}
+
+fn now_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs() as i64)
 }
 
 /// Now, plus `days`, as the portal writes timestamps.
@@ -105,6 +123,25 @@ impl State {
             .iter()
             .filter(|g| !g.deleted && g.members.iter().any(|m| m.0 == ME))
             .count()
+    }
+
+    /// Whether the player may join `room`: its host is a friend (not blocked), or the player is
+    /// in the group it is for.
+    fn may_join(&self, room: &MockRoom) -> bool {
+        if self.i_blocked(&room.host) || self.blocked_me.contains(&room.host) {
+            return false;
+        }
+        match &room.audience {
+            Audience::Friends => self.is_friend(&room.host),
+            Audience::Group { id, .. } => self
+                .groups
+                .iter()
+                .any(|g| &g.id == id && !g.deleted && g.members.iter().any(|m| m.0 == ME)),
+        }
+    }
+
+    fn group_name(&self, id: &str) -> Option<String> {
+        self.groups.iter().find(|g| g.id == id).map(|g| g.name.clone())
     }
 
     fn group_mut(&mut self, id: &str) -> Result<(&mut MockGroup, Role)> {
@@ -231,8 +268,46 @@ impl MockSocial {
                 bans: Vec::new(),
                 deleted: false,
             });
+            // Rooms to join: a friend's, one of a group of mine, and one of the other group.
+            let (g1, g2) = (s.groups[0].id.clone(), s.groups[1].id.clone());
+            let now = now_secs();
+            for (id, host, audience, name, ago) in [
+                ("room-sora", "sora", Audience::Friends, Some("夜のサバイバル"), 1500),
+                (
+                    "room-mika",
+                    "mika",
+                    Audience::Group { id: g1, name: None },
+                    Some("Build night"),
+                    600,
+                ),
+                ("room-kai", "kai", Audience::Group { id: g2, name: None }, None, 120),
+            ] {
+                s.rooms.push(MockRoom {
+                    id: id.into(),
+                    host: host.into(),
+                    audience,
+                    name: name.map(str::to_string),
+                    created: now - ago,
+                });
+            }
         }
         mock
+    }
+
+    /// The player already has a room open (`HORIZON_LAUNCHER_SOCIAL_ROOM=open`), for friends.
+    pub fn with_my_room_open(self) -> Self {
+        {
+            let mut s = self.state.lock().unwrap();
+            let created = now_secs() - 420;
+            s.rooms.push(MockRoom {
+                id: "room-me".into(),
+                host: ME.into(),
+                audience: Audience::Friends,
+                name: Some("Yuki room".into()),
+                created,
+            });
+        }
+        self
     }
 
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, State>> {
@@ -705,6 +780,110 @@ impl SocialBackend for MockSocial {
         group.owner = principal_id.into();
         Ok(())
     }
+    fn create_room(&self, audience: &Audience, name: Option<&str>) -> Result<HostedRoom> {
+        let mut s = self.lock()?;
+        let name = match name {
+            Some(n) => Some(clean_group_name(n).ok_or(api(ApiCode::InvalidInput))?),
+            None => None,
+        };
+        if s.rooms.iter().any(|r| r.host == ME) {
+            return Err(api(ApiCode::Conflict));
+        }
+        let audience = match audience {
+            Audience::Friends => Audience::Friends,
+            Audience::Group { id, .. } => {
+                let mine = s
+                    .groups
+                    .iter()
+                    .any(|g| &g.id == id && !g.deleted && g.members.iter().any(|m| m.0 == ME));
+                if !mine {
+                    return Err(api(ApiCode::Forbidden));
+                }
+                Audience::Group { id: id.clone(), name: s.group_name(id) }
+            }
+        };
+        let id = s.id("room-");
+        let created = now_secs();
+        s.rooms.push(MockRoom { id: id.clone(), host: ME.into(), audience, name, created });
+        Ok(HostedRoom {
+            session_id: id,
+            host_principal: ME.into(),
+            relay_only: true,
+            host_token: Redacted::new("mock-host-token".into()),
+            provision: Provision {
+                ticket: Redacted::new(serde_json::json!({ "mock": true })),
+                signature: Redacted::new("mock-signature".into()),
+            },
+            relay: "relay.mock.invalid:7000".into(),
+            expires_at: Stamp::Unix(created + 4 * 3600),
+        })
+    }
+
+    fn reprovision_room(&self, session_id: &str) -> Result<Reprovision> {
+        let s = self.lock()?;
+        s.rooms
+            .iter()
+            .find(|r| r.id == session_id && r.host == ME)
+            .ok_or(api(ApiCode::NotFound))?;
+        Ok(Reprovision {
+            provision: Provision {
+                ticket: Redacted::new(serde_json::json!({ "mock": true })),
+                signature: Redacted::new("mock-signature".into()),
+            },
+            relay: "relay.mock.invalid:7000".into(),
+        })
+    }
+
+    fn rooms(&self) -> Result<Vec<RoomInfo>> {
+        let s = self.lock()?;
+        Ok(s.rooms
+            .iter()
+            .filter(|r| r.host == ME || s.may_join(r))
+            .map(|r| RoomInfo {
+                session_id: r.id.clone(),
+                host: RoomHost {
+                    principal: r.host.clone(),
+                    name: principal(&s, &r.host).display_name,
+                },
+                audience: match &r.audience {
+                    Audience::Group { id, .. } => {
+                        Audience::Group { id: id.clone(), name: s.group_name(id) }
+                    }
+                    other => other.clone(),
+                },
+                name: r.name.clone(),
+                created_at: Stamp::Unix(r.created),
+                expires_at: Some(Stamp::Unix(r.created + 4 * 3600)),
+            })
+            .collect())
+    }
+
+    fn join_room(&self, session_id: &str) -> Result<JoinGrant> {
+        let s = self.lock()?;
+        let room = s
+            .rooms
+            .iter()
+            .find(|r| r.id == session_id)
+            .ok_or(api(ApiCode::NotFound))?;
+        if room.host == ME || !s.may_join(room) {
+            return Err(api(ApiCode::Forbidden));
+        }
+        Ok(JoinGrant {
+            grant: Redacted::new(serde_json::json!({ "mock": "grant", "session": session_id })),
+            signature: Redacted::new("mock-signature".into()),
+            relay: "relay.mock.invalid:7000".into(),
+        })
+    }
+
+    fn close_room(&self, session_id: &str) -> Result<()> {
+        let mut s = self.lock()?;
+        let before = s.rooms.len();
+        s.rooms.retain(|r| !(r.id == session_id && r.host == ME));
+        if s.rooms.len() == before {
+            return Err(api(ApiCode::NotFound));
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -860,5 +1039,71 @@ mod tests {
         m.fail_next(SocialError::Offline);
         assert_eq!(err(m.friends()), SocialError::Offline);
         assert!(m.friends().is_ok());
+    }
+
+    #[test]
+    fn rooms_open_list_join_and_close_as_the_portal_says() {
+        let m = MockSocial::sample();
+        // Three rooms to join (a friend's, and two groups'), none of mine.
+        let list = m.rooms().unwrap();
+        assert_eq!(list.len(), 3);
+        assert!(list.iter().all(|r| r.host.principal != "me"));
+        assert!(list.iter().any(|r| r.audience == Audience::Friends));
+        let grouped: Vec<_> = list
+            .iter()
+            .filter_map(|r| match &r.audience {
+                Audience::Group { name, .. } => name.clone(),
+                Audience::Friends => None,
+            })
+            .collect();
+        assert_eq!(grouped.len(), 2);
+
+        // Joining gives a grant and the relay; an unknown room is not found.
+        let join = m.join_room("room-sora").unwrap();
+        assert_eq!(join.relay, "relay.mock.invalid:7000");
+        assert_eq!(err(m.join_room("nope")), api(ApiCode::NotFound));
+        // Blocking the host takes their room away from the list, and the join is refused.
+        m.block("sora").unwrap();
+        assert_eq!(m.rooms().unwrap().len(), 2);
+        assert_eq!(err(m.join_room("room-sora")), api(ApiCode::Forbidden));
+        // Leaving a group closes its rooms to me.
+        let kai_group = list
+            .iter()
+            .find(|r| r.session_id == "room-kai")
+            .map(|r| match &r.audience {
+                Audience::Group { id, .. } => id.clone(),
+                Audience::Friends => unreachable!(),
+            })
+            .unwrap();
+        m.remove_member(&kai_group, "me").unwrap();
+        assert_eq!(err(m.join_room("room-kai")), api(ApiCode::Forbidden));
+
+        // My own room: one at a time, only for friends or a group I am in.
+        let groups = m.groups().unwrap();
+        let mine = groups.iter().find(|g| g.role == Role::Owner).unwrap().id.clone();
+        let room = m
+            .create_room(&Audience::Group { id: mine.clone(), name: None }, Some("Night run"))
+            .unwrap();
+        assert_eq!(room.host_principal, "me");
+        assert_eq!(err(m.create_room(&Audience::Friends, None)), api(ApiCode::Conflict));
+        let own = m.rooms().unwrap().into_iter().find(|r| r.host.principal == "me").unwrap();
+        assert_eq!(own.name.as_deref(), Some("Night run"));
+        assert_eq!(err(m.join_room(&room.session_id)), api(ApiCode::Forbidden));
+        assert_eq!(m.reprovision_room(&room.session_id).unwrap().relay, room.relay);
+        // Only the host closes it, and once.
+        assert_eq!(err(m.close_room("room-mika")), api(ApiCode::NotFound));
+        m.close_room(&room.session_id).unwrap();
+        assert_eq!(err(m.close_room(&room.session_id)), api(ApiCode::NotFound));
+        assert_eq!(err(m.create_room(&Audience::Group { id: "nope".into(), name: None }, None)), api(ApiCode::Forbidden));
+        assert_eq!(err(m.create_room(&Audience::Friends, Some("a\u{7}b"))), api(ApiCode::InvalidInput));
+        m.create_room(&Audience::Friends, None).unwrap();
+    }
+
+    #[test]
+    fn the_player_can_start_with_a_room_already_open() {
+        let m = MockSocial::sample().with_my_room_open();
+        let own: Vec<_> = m.rooms().unwrap().into_iter().filter(|r| r.host.principal == "me").collect();
+        assert_eq!(own.len(), 1);
+        assert_eq!(err(m.create_room(&Audience::Friends, None)), api(ApiCode::Conflict));
     }
 }

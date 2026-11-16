@@ -13,6 +13,10 @@
 //! `social_mock.rs` is a second backend (an in-memory portal) for tests and for
 //! `HORIZON_LAUNCHER_SOCIAL=mock`, which shows the page before the portal has the API.
 use crate::yoake_auth::{AuthError, TokenFileAuth, YoakeAuth};
+pub mod handoff;
+pub mod rooms;
+
+use rooms::{Audience, CreateRequest, HostedRoom, JoinGrant, Reprovision, RoomInfo};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::io::Read;
@@ -361,6 +365,18 @@ pub trait SocialBackend: Send + Sync {
     fn remove_member(&self, group: &str, principal_id: &str) -> Result<()>;
     fn lift_ban(&self, group: &str, principal_id: &str) -> Result<()>;
     fn transfer_ownership(&self, group: &str, principal_id: &str) -> Result<()>;
+    // ----- Rooms (`rooms.rs`) -----
+    /// Opens a room. The host token in the answer comes only once.
+    fn create_room(&self, audience: &Audience, name: Option<&str>) -> Result<HostedRoom>;
+    /// A new ticket for a room whose relay restarted (the host only). No page asks yet: the game
+    /// will, through the launcher, when the relay forgets the room.
+    #[allow(dead_code)]
+    fn reprovision_room(&self, session_id: &str) -> Result<Reprovision>;
+    /// The rooms the player may join.
+    fn rooms(&self) -> Result<Vec<RoomInfo>>;
+    /// Asks to join: the grant, good for about two minutes.
+    fn join_room(&self, session_id: &str) -> Result<JoinGrant>;
+    fn close_room(&self, session_id: &str) -> Result<()>;
 }
 
 /// A backend whose every call fails the same way: what a build with no portal has (`NO_PORTAL`),
@@ -397,6 +413,11 @@ impl SocialBackend for Failing {
         remove_member(group: &str, principal_id: &str) -> Result<()>;
         lift_ban(group: &str, principal_id: &str) -> Result<()>;
         transfer_ownership(group: &str, principal_id: &str) -> Result<()>;
+        create_room(audience: &Audience, name: Option<&str>) -> Result<HostedRoom>;
+        reprovision_room(session_id: &str) -> Result<Reprovision>;
+        rooms() -> Result<Vec<RoomInfo>>;
+        join_room(session_id: &str) -> Result<JoinGrant>;
+        close_room(session_id: &str) -> Result<()>;
     }
 }
 
@@ -641,6 +662,28 @@ impl<T: Transport> SocialBackend for HttpSocial<T> {
             Some(json!({ "principalId": principal_id })),
         )
     }
+
+    fn create_room(&self, audience: &Audience, name: Option<&str>) -> Result<HostedRoom> {
+        let body = serde_json::to_value(CreateRequest { audience, name })
+            .map_err(|_| SocialError::Invalid)?;
+        self.read(Method::Post, &["sessions"], Some(body), "")
+    }
+
+    fn reprovision_room(&self, session_id: &str) -> Result<Reprovision> {
+        self.read(Method::Post, &["sessions", session_id, "provision"], None, "")
+    }
+
+    fn rooms(&self) -> Result<Vec<RoomInfo>> {
+        self.read(Method::Get, &["sessions"], None, "sessions")
+    }
+
+    fn join_room(&self, session_id: &str) -> Result<JoinGrant> {
+        self.read(Method::Post, &["sessions", session_id, "join"], None, "")
+    }
+
+    fn close_room(&self, session_id: &str) -> Result<()> {
+        self.done(Method::Delete, &["sessions", session_id], None)
+    }
 }
 
 /// A reply this big is not the API's (a group of 100 with its invites and bans is about 60 KB).
@@ -730,20 +773,36 @@ impl Transport for UreqTransport {
         if bytes.len() as u64 > MAX_REPLY {
             return Err(TransportError::Offline);
         }
-        let body = match serde_json::from_slice(&bytes) {
-            Ok(body) => body,
-            // A page that is not JSON (a proxy's 404, a gateway error) still has its status.
-            Err(_) if !(200..300).contains(&status) => Value::Null,
-            Err(_) => return Ok(Reply { status: 502, body: Value::Null }),
-        };
-        Ok(Reply { status, body })
+        Ok(reply_from(status, &bytes))
     }
+}
+
+/// A reply from its status and body bytes.
+fn reply_from(status: u16, bytes: &[u8]) -> Reply {
+    let ok = (200..300).contains(&status);
+    let body = match serde_json::from_slice(bytes) {
+        Ok(body) => body,
+        // A 204 (closing a room) has no body.
+        Err(_) if bytes.is_empty() && ok => Value::Null,
+        // A page that is not JSON (a proxy's 404, a gateway error) still has its status.
+        Err(_) if !ok => Value::Null,
+        Err(_) => return Reply { status: 502, body: Value::Null },
+    };
+    Reply { status, body }
 }
 
 /// The backend for this launcher: the real portal when the build has one.
 pub fn configured(data_dir: &std::path::Path) -> std::sync::Arc<dyn SocialBackend> {
     match std::env::var("HORIZON_LAUNCHER_SOCIAL").as_deref() {
-        Ok("mock") => return std::sync::Arc::new(crate::social_mock::MockSocial::sample()),
+        Ok("mock") => {
+            // `HORIZON_LAUNCHER_SOCIAL_ROOM=open`: the player already has a room open.
+            let mock = crate::social_mock::MockSocial::sample();
+            let mock = match std::env::var("HORIZON_LAUNCHER_SOCIAL_ROOM").as_deref() {
+                Ok("open") => mock.with_my_room_open(),
+                _ => mock,
+            };
+            return std::sync::Arc::new(mock);
+        }
         Ok("unavailable") => return std::sync::Arc::new(NO_PORTAL),
         Ok("signedout") => return std::sync::Arc::new(Failing(SocialError::SignedOut)),
         Ok("offline") => return std::sync::Arc::new(Failing(SocialError::Offline)),
@@ -937,6 +996,78 @@ mod tests {
             "invite options"
         );
         assert_eq!(calls[0].1, ["me"]);
+    }
+
+    #[test]
+    fn the_room_calls_are_the_portals() {
+        use rooms::Audience;
+        let hosted = json!({
+            "session_id": "s1", "host_principal": "p1", "relay_only": true, "host_token": "T",
+            "provision": { "ticket": { "n": 1 }, "signature": "S" },
+            "relay": "relay.example:7000", "expires_at": 1_800_000_000
+        });
+        let script = Script::new(vec![
+            Ok(Reply { status: 201, body: hosted.clone() }),
+            Ok(Reply { status: 201, body: hosted }),
+            ok(json!({ "provision": { "ticket": {}, "signature": "S2" }, "relay": "r:1" })),
+            ok(json!({ "sessions": [{ "session_id": "a", "host": { "principal": "p", "name": "Sora" },
+                "audience": { "group": "g", "name": "Crew" }, "name": null, "created_at": 1, "expires_at": 2 }] })),
+            ok(json!({ "grant": { "g": 1 }, "signature": "S3", "relay": "r:2" })),
+            Ok(Reply { status: 204, body: Value::Null }),
+        ]);
+        let api = HttpSocial::new(&script);
+        api.create_room(&Audience::Friends, None).unwrap();
+        let group = Audience::Group { id: "g1".into(), name: Some("ignored".into()) };
+        api.create_room(&group, Some("Night")).unwrap();
+        assert_eq!(api.reprovision_room("s1").unwrap().relay, "r:1");
+        let list = api.rooms().unwrap();
+        assert_eq!(list[0].host.name, "Sora");
+        assert_eq!(api.join_room("a").unwrap().relay, "r:2");
+        api.close_room("s1").unwrap();
+        let calls = script.calls.lock().unwrap();
+        let line = |i: usize| (calls[i].0, calls[i].1.join("/"), calls[i].2.clone());
+        assert_eq!(
+            line(0),
+            (Method::Post, "sessions".into(), Some(json!({ "audience": "friends" })))
+        );
+        assert_eq!(
+            line(1).2,
+            Some(json!({ "audience": { "group": "g1" }, "name": "Night" }))
+        );
+        assert_eq!(line(2), (Method::Post, "sessions/s1/provision".into(), None));
+        assert_eq!(line(3), (Method::Get, "sessions".into(), None));
+        assert_eq!(line(4), (Method::Post, "sessions/a/join".into(), None));
+        assert_eq!(line(5), (Method::Delete, "sessions/s1".into(), None));
+    }
+
+    #[test]
+    fn room_answers_that_are_not_the_apis_are_invalid_and_ids_stay_in_the_path() {
+        let script = Script::new(vec![
+            ok(json!({ "session_id": "s1" })),
+            ok(json!({ "sessions": [{ "session_id": "a" }] })),
+            Ok(Reply { status: 404, body: json!({ "error": { "code": "NOT_FOUND" } }) }),
+            Ok(Reply { status: 403, body: json!({ "error": { "code": "FORBIDDEN" } }) }),
+        ]);
+        let api = HttpSocial::new(&script);
+        assert_eq!(api.create_room(&rooms::Audience::Friends, None).err(), Some(SocialError::Invalid));
+        assert_eq!(api.rooms().err(), Some(SocialError::Invalid));
+        assert_eq!(api.join_room("gone").err(), Some(SocialError::Api(ApiCode::NotFound)));
+        assert_eq!(api.join_room("x").err(), Some(SocialError::Api(ApiCode::Forbidden)));
+        for id in ["", ".", ".."] {
+            assert_eq!(api.close_room(id), Err(SocialError::Invalid));
+            assert_eq!(api.join_room(id).err(), Some(SocialError::Invalid));
+        }
+        // No answer with a room in it puts it in the error.
+        assert!(format!("{:?}", SocialError::Invalid).len() < 20);
+    }
+
+    #[test]
+    fn a_204_has_no_body_and_a_page_that_is_not_json_keeps_its_status() {
+        let closed = reply_from(204, b"");
+        assert_eq!((closed.status, closed.body), (204, Value::Null));
+        assert_eq!(reply_from(200, br#"{"a":1}"#).body, json!({ "a": 1 }));
+        assert_eq!(reply_from(404, b"<html>").status, 404);
+        assert_eq!(reply_from(200, b"<html>").status, 502);
     }
 
     #[test]
