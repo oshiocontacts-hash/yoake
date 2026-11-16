@@ -69,7 +69,40 @@ fn thread_name(buf: &mut [u8; 64]) -> &[u8] {
     let len = buf.iter().position(|&b| b == 0).unwrap_or(0);
     if ok { &buf[..len] } else { &[] }
 }
-#[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+/// Windows keeps the name `std` gave the thread (`SetThreadDescription`) as
+/// UTF-16; it is converted into `buf` without allocating on the Rust heap.
+#[cfg(windows)]
+fn thread_name(buf: &mut [u8; 64]) -> &[u8] {
+    use windows_sys::Win32::{
+        Foundation::LocalFree,
+        System::Threading::{GetCurrentThread, GetThreadDescription},
+    };
+    let mut wide: *mut u16 = std::ptr::null_mut();
+    // SAFETY: `wide` receives a LocalAlloc'd, NUL-terminated string on success.
+    if unsafe { GetThreadDescription(GetCurrentThread(), &mut wide) } < 0 || wide.is_null() {
+        return &[];
+    }
+    let mut len = 0;
+    // SAFETY: the string is NUL-terminated and read up to its terminator.
+    let units = unsafe {
+        let mut n = 0;
+        while *wide.add(n) != 0 {
+            n += 1;
+        }
+        std::slice::from_raw_parts(wide, n)
+    };
+    for c in char::decode_utf16(units.iter().copied()) {
+        let c = c.unwrap_or(char::REPLACEMENT_CHARACTER);
+        if len + c.len_utf8() >= buf.len() {
+            break;
+        }
+        len += c.encode_utf8(&mut buf[len..]).len();
+    }
+    // SAFETY: `wide` came from GetThreadDescription and is not used again.
+    unsafe { LocalFree(wide.cast()) };
+    &buf[..len]
+}
+#[cfg(not(any(target_vendor = "apple", target_os = "linux", windows)))]
 fn thread_name(_: &mut [u8; 64]) -> &[u8] {
     &[]
 }
@@ -260,7 +293,8 @@ mod tests {
             .unwrap()
             .join()
             .unwrap();
-        // Linux keeps 15 bytes of a thread's name; the test's is shorter.
+        // Linux keeps 15 bytes of a thread's name (Windows and macOS more); the
+        // test's is shorter.
         assert_eq!(live(&name), 4096);
         // SAFETY: `block` came from this allocator with `layout`.
         unsafe { CensusAllocator.dealloc(block as *mut u8, layout) };
