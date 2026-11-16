@@ -115,6 +115,13 @@ fn world_attachments<'a>(
 }
 
 impl Game<'_> {
+    /// [`Self::reconcile_attachment_holder`] for the hook points, which hold no macros: a failure is logged.
+    pub(super) fn reconcile_attachment_holder_or_warn(&mut self, holder: horizon_client::mod_api::Holder) {
+        if let Err(error) = self.reconcile_attachment_holder(holder) {
+            log::warn!("attachment reconciliation failed for {holder:?}: {error:?}");
+        }
+    }
+
     pub(super) fn reconcile_attachment_holder(
         &mut self,
         holder: horizon_client::mod_api::Holder,

@@ -7150,9 +7150,7 @@ impl Game<'_> {
     /// before `WorldOpenReady`. Not told of a chunk a client receives.
     /// Server-side. API 57.
     pub(super) fn native_chunk_load(&mut self, dimension: &str, chunk: [i32; 2], new: bool) {
-        if let Err(error) = self.reconcile_attachment_holder(mod_api::Holder::Chunk(chunk)) {
-            log::warn!("chunk attachment reconciliation failed: {error:?}");
-        }
+        self.reconcile_attachment_holder_or_warn(mod_api::Holder::Chunk(chunk));
         mod_api::dispatch_chunk_load(self, mod_api::mods(), dimension, chunk, new);
     }
     /// Chunk `chunk` of `dimension` left the world (NeoForge's
@@ -7222,9 +7220,7 @@ impl Game<'_> {
         name: &str,
         directory: &std::path::Path,
     ) {
-        if let Err(error) = self.reconcile_attachment_holder(mod_api::Holder::Player(player)) {
-            log::warn!("player attachment reconciliation failed: {error:?}");
-        }
+        self.reconcile_attachment_holder_or_warn(mod_api::Holder::Player(player));
         mod_api::dispatch_player_load_from_file(self, mod_api::mods(), player, name, directory);
     }
     /// A player's data was copied to their new player (NeoForge's
