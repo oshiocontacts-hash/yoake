@@ -195,7 +195,7 @@ horizon-release-sign verify --tag yoake-mods-v1 --key <base64-public-key> path/t
 - **`yak.toml` の主な任意項目**[^yak-manifest][^wasm-dev]:
   - `name_ja`（日本語UIで優先表示される名前、`1〜256` バイト[^launcher-mods]）、`license`（`1〜256` バイト）、`homepage`（認証情報・クエリ・フラグメントを含まないHTTP/HTTPS URL、最大 `4,096` バイト）
   - `dependencies`、`optional`、`conflicts`（各最大 `1,024` 件、自己参照不可、`dependencies` と `optional` の重複不可）
-  - `[wasm]`: `interface = "1.0"`、`client` / `server` の `.wasm` パス、`world`（`"client-mod"`、`"client-full"`、`"inject-mod"`）、`permissions`（`"service.chat"`、`"service.commands"`、`"service.config"`、`"service.http"`、`"service.permissions"`、`"service.storage"` の 6 つから選択）。`interface` は `"1.0"` で、`inject-mod` だけ `"1.1"` です
+  - `[wasm]`: `interface = "1.0"`、`client` / `server` の `.wasm` パス、`world`（`"client-mod"`、`"client-full"`、`"inject-mod"`）、`permissions`（`"service.chat"`、`"service.commands"`、`"service.config"`、`"service.gpu"`、`"service.http"`、`"service.permissions"`、`"service.storage"` の 7 つから選択）。`interface` は `"1.0"` で、`inject-mod` だけ `"1.1"` です
   - `[mixin]`（`inject-mod` 用の `targets`）、`[config.<key>]`（最大 `256` キー）、`[permissions."<node>"]`（最大 `256` ノード）、`[http]`（`hosts`、`service.http` サービス権限が必要）、`[[shaders]]`（最大 `128` 個）、`[[services]]`（最大 `128` 個）
 - **`index.json` の構造**（`docs/api/yoake-mods.md` より）[^api-yoake-mods]:
 

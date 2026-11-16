@@ -1,6 +1,6 @@
 # 4. サンプル MOD 集を読む
 
-`crates/yoake-wasm-sdk/examples/` には、目的別の 16 個のサンプル MOD が入っています（`hello` と `hello-std` は 4-1 の表で 1 行にまとめています）。
+`crates/yoake-wasm-sdk/examples/` には、目的別の 18 個のサンプル MOD が入っています（`hello` と `hello-std` は 4-1 の表で 1 行にまとめています）。
 自分が作りたい機能に近いサンプルを開いて、`yak.toml` と `src/lib.rs` を真似するのが一番の近道です。
 
 ---
@@ -24,6 +24,8 @@
 | `content-demo` | `server-full` | データだけで定義したブロック・アイテム・エフェクト・レシピ・ルートテーブル・モブ・サウンド・クリエイティブタブに、サーバーモジュールが反応する（`content_demo:gem_cow` を右クリックで鳴き声、倒した数をワールドごとに数える） | `INTERACT_ENTITY`, `MOB_KILLED`, `ENTITY_TICK_POST` | `services::acting_player`, `services::play_sound_at`, `services::tell`, `ext::attachment_get`, `ext::attachment_set` |
 | `mixin-demo` | `inject-mod` | 落下ダメージの半減、骨粉の成長量の 2 倍化、チャットの記録（[8 章](./08-mixin.md)） | なし（フックではなく Mixin の HEAD / RETURN で割り込む） | なし（`println!` のログのみ） |
 | `test-demo` | `test-mod`（テストモジュール） | テストランナー自体を試すための 6 つのテスト（成功・失敗・トラップ・時間切れ・ドライバの全呼び出し・2 クライアント）（[6 章](./06-testing.md)） | なし | `TestWorld` の各呼び出し |
+| `client-services-demo` | `client-full` | クライアントのサービス（キーバインドの登録と状態の取得、ワールド内の線の描画、ポストシェーダーの登録、書き込み可能な GUI テクスチャーの作成と範囲書き込み）を `hud` フックの中で呼び、正しい引数では成功し、不正な入力（無効なシェーダー、範囲外の書き込み）ではエラーが返ることを確かめる。ランタイムの統合テストで使うゲスト | `HUD` | `services::register_key_binding`, `services::key_binding_state`, `services::draw_world_line`, `services::register_post_shader`, `hud::GuiTexture::create`, `services::gui_texture_write` |
+| `gpu-demo` | `client-full` | GPU の口（`gpu` モジュール）の例。テクスチャー付きメッシュ、コンピュートで更新するパーティクル、深度を使ったワールド描画後の色付けを描く。`--features verify` / `reload` / `trap` で検証用のビルドもできる（Cargo の feature） | `HUD` | `gpu::{Shader, RenderPipeline, ComputePipeline, Buffer, BindGroup}` ほか |
 
 ---
 
@@ -130,6 +132,13 @@
 
 `tested-counter` は、ティック数を HUD に出すクライアント MOD と `#[yoake_test]` のテストを同じクレートに入れた入門例です。`test-demo` はテストランナー自体を試すためのテストモジュールで、成功・失敗・トラップ・時間切れ・ドライバの全呼び出し・2 クライアントのテストが入っています。どちらも [6. MOD をゲームエンジンの中でテストする（`06-testing.md`）](./06-testing.md) と合わせて読んでください。
 
+### ⑩ `client-services-demo` と `gpu-demo`（クライアント側の新しいサービスと GPU）
+
+どちらも `client-full` ワールドのクライアント MOD で、`export_client_full!` を使います。サンプルのフォルダに `yak.toml` はなく、ランタイムのテストがビルドした `.wasm` を直接読み込みます。実際に配る MOD に使うときは、`yak.toml` の `[wasm] world` に `"client-full"` を書いてください。
+
+- `client-services-demo`: `hud` フックの中でキーバインド、ワールド内の線、ポストシェーダー、GUI テクスチャーの各サービスを呼びます。成功する呼び出しと、エラーが返るべき呼び出し（無効なシェーダー、テクスチャーの範囲外への書き込み）を両方試すので、サービスの使い方とエラーの扱いを確かめる例になります。例は `[wasm] permissions` を宣言しません。
+- `gpu-demo`: `gpu` モジュールで WGSL シェーダーからレンダー／コンピュートのパイプラインを作る例です。`gpu` の呼び出しには `[wasm] permissions` の `"service.gpu"` が必要です（4-3 参照）。使い方の詳細は `docs/yoake-wasm-dev.md` の GPU の節を参照してください。
+
 ---
 
 ## 4-3. `yak.toml` での `[wasm] permissions`・`[config]`・`[permissions."<node>"]` の書き方
@@ -138,11 +147,12 @@ MOD が特別な機能（設定の読み書き、ストレージ保存、権限�
 
 ### `[wasm] permissions` の種類
 
-指定可能なサービス権限（capability、`[wasm] permissions`）は次の 6 つです。[^manifest]
+指定可能なサービス権限（capability、`[wasm] permissions`）は次の 7 つです。[^manifest]
 
 - `"service.chat"`: クライアントモジュールが Mixin でチャット／コマンドの文字を書き換えるサービス権限（`wasm.client` が必須で、`service.commands` と合わせて使います。[8 章](./08-mixin.md)）
 - `"service.commands"`: サーバーモジュールからの `run_command` の呼び出し（`wasm.server` が必須。`inject-mod` はサーバーモジュールが無くてもよい）。Mixin でコマンド・チャットのサイトに割り込むときにも必要です（[8 章](./08-mixin.md)）
 - `"service.config"`: `config_get` / `config_set` / `config_dir` の呼び出しと、同期設定の受信
+- `"service.gpu"`: クライアントモジュールの `gpu` モジュールの呼び出し（`client-full` ワールドだけ。`server-full` と `client-mod` では使えません）
 - `"service.http"`: `[http] hosts`（HTTPS のホストの一覧）と対になる `service.http` サービス権限の宣言です。`service.http` を宣言するなら `[http] hosts` が必要で、逆に `[http]` を書くなら `service.http` が必要です。HTTP 通信自体は（未実装）です[^dev-doc]
 - `"service.permissions"`: サーバーモジュールからの `has_permission` の呼び出し（`wasm.server` が必須）
 - `"service.storage"`: `storage_*` および `world_storage_*` / `config_read` / `config_write` の呼び出し

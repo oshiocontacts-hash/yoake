@@ -1,6 +1,6 @@
 # 4. Exploring the Example Mods
 
-The `crates/yoake-wasm-sdk/examples/` folder contains 16 purpose-built example mods (counting `hello-std`).
+The `crates/yoake-wasm-sdk/examples/` folder contains 18 purpose-built example mods (`hello` and `hello-std` share one row in the table in 4-1).
 The fastest way to build your own mod is to open the example closest to what you have in mind and adapt its `yak.toml` and `src/lib.rs`.
 
 ---
@@ -24,6 +24,8 @@ The fastest way to build your own mod is to open the example closest to what you
 | `mixin-demo` | `inject-mod` | Halves fall damage, doubles the bonemeal crop-growth increment, and logs chat (see [8. Getting Started with Yoake Mixin](./08-mixin.md)) | None (Mixin handlers instead of hooks) | None |
 | `test-demo` | `test-mod` | A test module that exercises every call of the test driver, including passing, failing, and trapping tests (see [6. Testing Your Mod Inside the Game Engine](./06-testing.md)) | None | `TestWorld` calls |
 | `tested-counter` | `client-mod` | A small beginner example that pairs a client mod (tick counter on the HUD) with engine tests in the same crate (see [6. Testing Your Mod Inside the Game Engine](./06-testing.md)) | `TICK`, `HUD` | `hud::text`, `TestWorld` calls |
+| `client-services-demo` | `client-full` | Calls client services inside the `hud` hook (registering a key binding and reading its state, drawing a line in the world, registering a post shader, creating a writable GUI texture and writing a region of it), and checks that valid arguments succeed while invalid input (an invalid shader, an out-of-range texture write) returns an error. It is the guest used by the runtime integration tests | `HUD` | `services::register_key_binding`, `services::key_binding_state`, `services::draw_world_line`, `services::register_post_shader`, `hud::GuiTexture::create`, `services::gui_texture_write` |
+| `gpu-demo` | `client-full` | An example of the GPU surface (the `gpu` module): a textured mesh, a compute-updated particle buffer, and a depth-based tint after the world is drawn. Extra Cargo features `verify` / `reload` / `trap` build variants for testing | `HUD` | `gpu::{Shader, RenderPipeline, ComputePipeline, Buffer, BindGroup}` and more |
 
 ---
 
@@ -127,6 +129,13 @@ This uses the `inject-mod` WIT world to halve fall damage, double the bonemeal c
 
 `tested-counter` is a beginner example that puts a client mod showing a tick counter on the HUD and `#[yoake_test]` tests in the same crate. `test-demo` is a test module for trying out the test runner itself, with 6 tests: passing, failing, trapping, running out of time, every driver call, and two clients. Read both together with [6. Testing Your Mod Inside the Game Engine (`06-testing.md`)](./06-testing.md).
 
+### ⑩ `client-services-demo` and `gpu-demo` (New Client Services and the GPU)
+
+Both are client mods for the `client-full` world and use `export_client_full!`. Their folders contain no `yak.toml`; the runtime tests load the built `.wasm` directly. If you reuse them in a mod you ship, write `"client-full"` in `[wasm] world` in `yak.toml`.
+
+- `client-services-demo`: Inside the `hud` hook it calls the key binding, world line, post shader, and GUI texture services. It tries both calls that should succeed and calls that should return an error (an invalid shader, a write outside the texture), so it shows how to use these services and how errors come back. The example declares no `[wasm] permissions`.
+- `gpu-demo`: Builds render and compute pipelines from WGSL shaders through the `gpu` module. Calling `gpu` requires `"service.gpu"` in `[wasm] permissions` (see 4-3). For details, see the GPU section of `docs/yoake-wasm-dev.md`.
+
 ---
 
 ## 4-3. Writing `[wasm] permissions`, `[config]`, and `[permissions."<node>"]` in `yak.toml`
@@ -135,11 +144,12 @@ Whenever a mod uses privileged features—reading or writing config, persisting 
 
 ### Available `[wasm] permissions`
 
-There are 6 service permissions (capabilities, `[wasm] permissions`) you can declare:[^manifest]
+There are 7 service permissions (capabilities, `[wasm] permissions`) you can declare:[^manifest]
 
 - `"service.chat"`: Lets a client module rewrite outgoing chat and command text through Mixin (`wasm.client` is required, and it is used together with `service.commands`; see [Chapter 8](./08-mixin.md))
 - `"service.commands"`: Calling `run_command` from a server module (`wasm.server` is required, except with the `inject-mod` WIT world, which does not need a server module). It is also required to register Mixin handlers on the sensitive command and chat sites ([Chapter 8](./08-mixin.md))
 - `"service.config"`: Calling `config_get`, `config_set`, or `config_dir`, and receiving synced config
+- `"service.gpu"`: Calling the `gpu` module from a client module (only in the `client-full` world; not available in `server-full` or `client-mod`)
 - `"service.http"`: A `service.http` service permission declaration that is paired with `[http] hosts` (declaring only one of the two fails validation; note that HTTP transport itself is not connected yet)[^dev-doc]
 - `"service.permissions"`: Calling `has_permission` from a server module (`wasm.server` is required)
 - `"service.storage"`: Calling `storage_*` as well as `world_storage_*`, `config_read`, and `config_write`

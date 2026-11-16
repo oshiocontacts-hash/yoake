@@ -190,7 +190,7 @@ Every published version includes its full normalized `yak.toml` inside `index.js
 - **Optional `yak.toml` fields**[^yak-manifest][^wasm-dev]:
   - `name_ja` (`1..256` bytes, preferred by the launcher when the UI language is Japanese[^launcher-mods]), `license` (`1..256` bytes), `homepage` (HTTP/HTTPS URL up to `4,096` bytes with no credentials, query, or fragment)
   - `dependencies`, `optional`, `conflicts` (up to `1,024` entries each, no self-dependencies, disjoint `dependencies` and `optional`)
-  - `[wasm]`: `interface` (`"1.0"`, or `"1.1"` for `inject-mod` only), `client` / `server` `.wasm` paths, `world` (`"client-mod"`, `"client-full"`, or `"inject-mod"`), and `permissions` (a subset of the six: `"service.chat"`, `"service.commands"`, `"service.config"`, `"service.http"`, `"service.permissions"`, `"service.storage"`)
+  - `[wasm]`: `interface` (`"1.0"`, or `"1.1"` for `inject-mod` only), `client` / `server` `.wasm` paths, `world` (`"client-mod"`, `"client-full"`, or `"inject-mod"`), and `permissions` (a subset of the seven: `"service.chat"`, `"service.commands"`, `"service.config"`, `"service.gpu"`, `"service.http"`, `"service.permissions"`, `"service.storage"`)
   - `[mixin]` (`targets`, for `inject-mod`), `[config.<key>]` (up to `256` keys), `[permissions."<node>"]` (up to `256` nodes), `[http]` (`hosts`, requires `service.http`), `[[shaders]]` (up to `128`), `[[services]]` (up to `128`)
 - **`index.json` format** (from `docs/api/yoake-mods.md`)[^api-yoake-mods]:
 
