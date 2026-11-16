@@ -1356,9 +1356,14 @@ impl Launcher {
                         }
                         // A room: the game gets the path of its private file and nothing else.
                         let handoff = self.take_social_handoff();
-                        if let Some((path, _)) = &handoff {
+                        if let Some((path, hosting)) = &handoff {
                             cmd.arg(social::handoff::HANDOFF_ARG).arg(path);
+                            // The host's game reads the launcher's lines on its stdin.
+                            if hosting.is_some() {
+                                cmd.arg(social::handoff::CONTROL_STDIN_ARG);
+                            }
                         }
+                        let hosting = handoff.as_ref().and_then(|(_, hosting)| hosting.clone());
                         backend::append_game_args(&mut cmd);
                         // Last, around every argument: the instance's pre-launch command,
                         // wrapper and variables.
@@ -1394,6 +1399,12 @@ impl Launcher {
                                 self.client = Some(r);
                                 self.client_run = run.map(|id| (id, Instant::now()));
                                 self.step_aside(cx);
+                                if let Some(room) = hosting {
+                                    // The game's stdin goes to the room's driver.
+                                    let stdin =
+                                        self.client.as_mut().and_then(|c| c.stdin.take());
+                                    self.friends_start_host(room, stdin);
+                                }
                             }
                             Err(e) => {
                                 self.client_error = Some(e);
@@ -1567,6 +1578,7 @@ impl Launcher {
                         }
                         Job::Client => {
                             self.client = None;
+                            self.friends_game_ended();
                             self.come_back(cx);
                             // The game saved: last played, sizes and pictures changed.
                             self.worlds.stale();

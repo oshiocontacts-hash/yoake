@@ -185,6 +185,8 @@ enum Event {
     /// One full read is over.
     Refreshed,
     Done(FriendAction, social::Result<Outcome>),
+    /// The host driver of the room `0` has something to say.
+    Host(String, social::host::Note),
 }
 
 /// What the page does next, after an event changed its state.
@@ -218,6 +220,10 @@ pub(super) struct Friends {
     pub(super) rooms_status: RoomsStatus,
     /// The player's own open room.
     pub(super) my_room: Option<MyRoom>,
+    /// The driver that carries guests' grants to the game hosting `my_room`.
+    host: Option<social::host::HostHandle>,
+    /// Names of guests whose grants went to the game (the latest few), for "accepting joins".
+    pub(super) accepted: Vec<String>,
     /// Whether the portal's list has shown the player's own room: then its absence closes it.
     list_shows_own: bool,
     /// The "open a room" line is open, and which audience it would use (0: friends, then groups).
@@ -275,6 +281,8 @@ impl Friends {
             rooms: Vec::new(),
             rooms_status: RoomsStatus::Loading,
             my_room: None,
+            host: None,
+            accepted: Vec::new(),
             list_shows_own: false,
             room_panel: false,
             room_audience: 0,
@@ -414,6 +422,8 @@ impl Friends {
         self.rooms.clear();
         self.rooms_status = RoomsStatus::Loading;
         self.my_room = None;
+        self.host = None;
+        self.accepted.clear();
         self.list_shows_own = false;
         self.room_panel = false;
         self.room_audience = 0;
@@ -446,6 +456,11 @@ impl Friends {
     /// Whether this write is on its way.
     pub(super) fn is_busy(&self, action: FriendAction) -> bool {
         self.in_flight.contains(&action)
+    }
+
+    /// The player's game is hosting the room and the launcher is carrying guests to it.
+    pub(super) fn hosting(&self) -> bool {
+        self.host.is_some()
     }
 
     /// Whether a room is being opened or joined: both start the game, so only one at a time.
@@ -581,6 +596,27 @@ impl Friends {
                     follow.push(Follow::Refresh);
                 }
             }
+            Event::Host(id, note) => {
+                if self.my_room.as_ref().is_none_or(|room| room.session_id != id) {
+                    return follow;
+                }
+                match note {
+                    social::host::Note::Guest(name) => {
+                        self.accepted.retain(|n| *n != name);
+                        self.accepted.push(name);
+                        let extra = self.accepted.len().saturating_sub(5);
+                        self.accepted.drain(..extra);
+                    }
+                    social::host::Note::Ended => {
+                        // The game is gone and the room was deleted on the portal.
+                        self.host = None;
+                        self.accepted.clear();
+                        self.my_room = None;
+                        self.list_shows_own = false;
+                        follow.push(Follow::Refresh);
+                    }
+                }
+            }
             Event::Done(action, result) => {
                 self.busy = self.busy.saturating_sub(1);
                 if let Some(at) = self.in_flight.iter().position(|a| *a == action) {
@@ -642,6 +678,8 @@ impl Friends {
             }
             (A::CloseRoom, outcome) => {
                 self.my_room = None;
+                self.host = None;
+                self.accepted.clear();
                 self.list_shows_own = false;
                 if matches!(outcome, Outcome::ClosedAfterFailure) {
                     self.note = Some((false, tr(ROOM_CLOSED_AFTER_FAILURE).to_string()));
@@ -1175,10 +1213,52 @@ impl Launcher {
         });
     }
 
+    /// Closing the room tells the game first (`end` on its stdin), then the portal.
     pub(super) fn friends_close_room(&mut self, session_id: String) {
+        let host = self.friends.host.take();
+        self.friends.accepted.clear();
         self.friends_act(FriendAction::CloseRoom, move |api| {
-            api.close_room(&session_id).map(|()| Outcome::Done)
+            match host.and_then(|host| host.close()) {
+                Some(result) => result,
+                None => api.close_room(&session_id),
+            }
+            .map(|()| Outcome::Done)
         });
+    }
+
+    /// The game hosting `session_id` started: its stdin is the driver's now. Without the stdin
+    /// the game cannot be told of guests, so the room is closed.
+    pub(super) fn friends_start_host(
+        &mut self,
+        session_id: String,
+        stdin: Option<std::process::ChildStdin>,
+    ) {
+        let Some(stdin) = stdin else {
+            self.friends_close_room_after_failure(session_id);
+            return;
+        };
+        let expires = self
+            .friends
+            .my_room
+            .as_ref()
+            .and_then(|room| room.expires_at)
+            .unwrap_or_else(|| now_unix() + 30 * 60);
+        let api = self.friends.backend();
+        let tx = self.friends.tx.clone();
+        let epoch = self.friends.epoch;
+        let id = session_id.clone();
+        let host = social::host::Host::new(api, session_id, stdin, expires, now_unix());
+        self.friends.accepted.clear();
+        self.friends.host = Some(social::host::spawn(host, move |note| {
+            let _ = tx.send((epoch, Event::Host(id.clone(), note)));
+        }));
+    }
+
+    /// The game ended: its room is deleted on the portal and polling stops.
+    pub(super) fn friends_game_ended(&mut self) {
+        if let Some(host) = self.friends.host.take() {
+            host.game_ended();
+        }
     }
 
     pub(super) fn friends_leave(&mut self) {

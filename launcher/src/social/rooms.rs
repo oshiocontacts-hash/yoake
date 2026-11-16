@@ -138,6 +138,10 @@ pub struct Reprovision {
     pub provision: Provision,
     #[serde(deserialize_with = "relay")]
     pub relay: String,
+    /// Unix seconds the new ticket's room lasts to, when the portal says: the next extension is
+    /// planned from it.
+    #[serde(default)]
+    pub expires_at: Option<i64>,
 }
 
 /// `POST /sessions/:id/join`' answer: the grant (good for about 240 seconds) and its signature.
@@ -171,6 +175,106 @@ pub struct RoomInfo {
     /// The portal marks the player's own room.
     #[serde(default)]
     pub mine: bool,
+}
+
+/// A grant the portal signed. Its `nonce` is required: 64 lowercase hex digits (32 random bytes,
+/// as the portal's grant table says), and it is what the launcher acknowledges. Everything else
+/// in the grant is the game's and the relay's, kept as it came so the signature still holds.
+#[derive(Clone, PartialEq, Eq, Serialize)]
+#[serde(transparent)]
+pub struct Grant(Value);
+
+/// Whether `text` is a grant nonce: 64 lowercase hex digits.
+pub fn is_nonce(text: &str) -> bool {
+    text.len() == 64 && text.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+}
+
+impl Grant {
+    pub fn nonce(&self) -> &str {
+        self.0.get("nonce").and_then(Value::as_str).unwrap_or_default()
+    }
+
+    /// The grant as the portal wrote it, for the game's stdin.
+    pub fn expose(&self) -> &Value {
+        &self.0
+    }
+}
+
+impl fmt::Debug for Grant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("<redacted>")
+    }
+}
+
+impl<'de> Deserialize<'de> for Grant {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = Value::deserialize(deserializer)?;
+        match value.get("nonce").and_then(Value::as_str) {
+            Some(nonce) if is_nonce(nonce) => Ok(Grant(value)),
+            _ => Err(de::Error::custom("bad nonce")),
+        }
+    }
+}
+
+/// A guest who joined, as the portal tells the host: the grant to hand to the game (with its
+/// signature), and who asked.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+pub struct PendingJoin {
+    pub grant: Redacted<Grant>,
+    pub signature: Redacted<String>,
+    pub guest: RoomHost,
+    /// Unix seconds the grant lapses.
+    pub expires_at: i64,
+}
+
+/// `GET /sessions/:id/pending`' answer. A join that does not fit (a missing field, a nonce that
+/// is not 64 lowercase hex digits) is dropped, and never acknowledged; the others stay.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Pending {
+    pub joins: Vec<PendingJoin>,
+}
+
+impl<'de> Deserialize<'de> for Pending {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Raw {
+            joins: Vec<Value>,
+        }
+        let raw = Raw::deserialize(deserializer)?;
+        let joins = raw
+            .joins
+            .into_iter()
+            .filter_map(|join| serde_json::from_value::<PendingJoin>(join).ok())
+            .collect();
+        Ok(Pending { joins })
+    }
+}
+
+/// The lines the launcher writes to the game's stdin (one JSON object, then a newline). The
+/// game's side agrees with these; they are never logged.
+pub fn pair_line(join: &PendingJoin) -> String {
+    let mut line = Value::Object(serde_json::Map::new());
+    line["type"] = Value::from("pair");
+    line["grant"] = serde_json::json!({
+        "grant": join.grant.expose().expose(),
+        "signature": join.signature.expose(),
+    });
+    line.to_string()
+}
+
+pub fn reprovision_line(provision: &Provision) -> String {
+    serde_json::json!({
+        "type": "reprovision",
+        "provision": {
+            "ticket": provision.ticket.expose(),
+            "signature": provision.signature.expose(),
+        },
+    })
+    .to_string()
+}
+
+pub fn end_line() -> String {
+    serde_json::json!({ "type": "end" }).to_string()
 }
 
 /// The player's own open room, as the page keeps it: what to show and what to close.
@@ -299,5 +403,40 @@ mod tests {
             assert!(!shown.contains(secret), "{secret} leaked: {shown}");
         }
         assert!(shown.contains("<redacted>"));
+    }
+
+    fn nonce(c: char) -> String {
+        std::iter::repeat(c).take(64).collect()
+    }
+
+    #[test]
+    fn pending_joins_need_a_good_nonce_and_bad_ones_are_dropped() {
+        let good = json!({
+            "grant": { "nonce": nonce('a'), "x": "GRANT-SECRET" }, "signature": "SIG-SECRET",
+            "guest": { "principal": "g1", "name": "Mika", "more": 1 }, "expires_at": 5, "new": 1
+        });
+        let mut short = good.clone();
+        short["grant"]["nonce"] = json!("abc");
+        let mut upper = good.clone();
+        upper["grant"]["nonce"] = json!(nonce('A'));
+        let mut none = good.clone();
+        none["grant"].as_object_mut().unwrap().remove("nonce");
+        let mut no_guest = good.clone();
+        no_guest.as_object_mut().unwrap().remove("guest");
+        let pending: Pending = serde_json::from_value(
+            json!({ "joins": [short, good, upper, none, no_guest], "extra": 1 }),
+        )
+        .unwrap();
+        assert_eq!(pending.joins.len(), 1);
+        let join = &pending.joins[0];
+        assert_eq!(join.grant.expose().nonce(), nonce('a'));
+        assert_eq!((join.guest.name.as_str(), join.expires_at), ("Mika", 5));
+        assert!(serde_json::from_value::<Pending>(json!({})).is_err());
+        let shown = format!("{pending:?}");
+        assert!(!shown.contains("SECRET") && shown.contains("<redacted>"), "{shown}");
+        let line: Value = serde_json::from_str(&pair_line(join)).unwrap();
+        assert_eq!(line["type"], "pair");
+        assert_eq!(line["grant"]["signature"], "SIG-SECRET");
+        assert_eq!(line["grant"]["grant"]["x"], "GRANT-SECRET");
     }
 }

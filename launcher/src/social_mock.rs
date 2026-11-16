@@ -3,7 +3,8 @@
 //! code. The tests use it, and `HORIZON_LAUNCHER_SOCIAL=mock` shows the page with sample data
 //! while the real portal has no API. It never touches the network or the sign-in.
 use crate::social::rooms::{
-    Audience, HostedRoom, JoinGrant, Provision, Redacted, Reprovision, RoomHost, RoomInfo,
+    Audience, Grant, HostedRoom, JoinGrant, PendingJoin, Provision, Redacted, Reprovision, RoomHost,
+    RoomInfo,
 };
 use crate::social::*;
 use std::collections::HashMap;
@@ -48,6 +49,8 @@ struct MockRoom {
 #[derive(Default)]
 struct State {
     rooms: Vec<MockRoom>,
+    /// Guests waiting at a room of mine, not acknowledged yet: (room id, the join).
+    pending: Vec<(String, PendingJoin)>,
     people: Vec<Principal>,
     codes: HashMap<String, String>,
     my_code: String,
@@ -308,6 +311,29 @@ impl MockSocial {
             });
         }
         self
+    }
+
+    /// A guest asks to join my room `room`: the portal now has a grant for the host to pick up.
+    /// Returns the grant's nonce. (Tests and the mock's own sample.)
+    #[allow(dead_code)]
+    pub fn guest_joins(&self, room: &str, principal: &str, name: &str) -> String {
+        let mut s = self.state.lock().unwrap();
+        s.next += 1;
+        let nonce = format!("{:064x}", u128::from(s.next) * 0x1_0000_0001);
+        let grant: Grant = serde_json::from_value(serde_json::json!({
+            "nonce": nonce, "mock": "grant", "session": room
+        }))
+        .unwrap();
+        s.pending.push((
+            room.into(),
+            PendingJoin {
+                grant: Redacted::new(grant),
+                signature: Redacted::new("mock-signature".into()),
+                guest: RoomHost { principal: principal.into(), name: name.into() },
+                expires_at: now_secs() + 240,
+            },
+        ));
+        nonce
     }
 
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, State>> {
@@ -831,6 +857,7 @@ impl SocialBackend for MockSocial {
                 signature: Redacted::new("mock-signature".into()),
             },
             relay: "relay.mock.invalid:7000".into(),
+            expires_at: s.rooms.iter().find(|r| r.id == session_id).map(|r| r.created + 4 * 3600),
         })
     }
 
@@ -883,6 +910,31 @@ impl SocialBackend for MockSocial {
         if s.rooms.len() == before {
             return Err(api(ApiCode::NotFound));
         }
+        s.pending.retain(|(room, _)| room != session_id);
+        Ok(())
+    }
+
+    fn pending_joins(&self, session_id: &str) -> Result<Vec<PendingJoin>> {
+        let s = self.lock()?;
+        s.rooms
+            .iter()
+            .find(|r| r.id == session_id && r.host == ME)
+            .ok_or(api(ApiCode::NotFound))?;
+        Ok(s.pending
+            .iter()
+            .filter(|(room, _)| room == session_id)
+            .map(|(_, join)| join.clone())
+            .collect())
+    }
+
+    fn ack_joins(&self, session_id: &str, nonces: &[String]) -> Result<()> {
+        let mut s = self.lock()?;
+        s.rooms
+            .iter()
+            .find(|r| r.id == session_id && r.host == ME)
+            .ok_or(api(ApiCode::NotFound))?;
+        s.pending
+            .retain(|(room, join)| !(room == session_id && nonces.iter().any(|n| n == join.grant.expose().nonce())));
         Ok(())
     }
 }

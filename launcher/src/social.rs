@@ -14,9 +14,10 @@
 //! `HORIZON_LAUNCHER_SOCIAL=mock`, which shows the page before the portal has the API.
 use crate::yoake_auth::{AuthError, TokenFileAuth, YoakeAuth};
 pub mod handoff;
+pub mod host;
 pub mod rooms;
 
-use rooms::{Audience, CreateRequest, HostedRoom, JoinGrant, Reprovision, RoomInfo};
+use rooms::{Audience, CreateRequest, HostedRoom, JoinGrant, Pending, PendingJoin, Reprovision, RoomInfo};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::io::Read;
@@ -368,15 +369,18 @@ pub trait SocialBackend: Send + Sync {
     // ----- Rooms (`rooms.rs`) -----
     /// Opens a room. The host token in the answer comes only once.
     fn create_room(&self, audience: &Audience, name: Option<&str>) -> Result<HostedRoom>;
-    /// A new ticket for a room whose relay restarted (the host only). No page asks yet: the game
-    /// will, through the launcher, when the relay forgets the room.
-    #[allow(dead_code)]
+    /// A new ticket (the host only): the launcher asks shortly before the room's time is up
+    /// and hands it to the game (`host.rs`).
     fn reprovision_room(&self, session_id: &str) -> Result<Reprovision>;
     /// The rooms the player may join.
     fn rooms(&self) -> Result<Vec<RoomInfo>>;
     /// Asks to join: the grant, good for about two minutes.
     fn join_room(&self, session_id: &str) -> Result<JoinGrant>;
     fn close_room(&self, session_id: &str) -> Result<()>;
+    /// The guests who asked to join and were not acknowledged yet (the host only).
+    fn pending_joins(&self, session_id: &str) -> Result<Vec<PendingJoin>>;
+    /// Marks these grants (by nonce) as handed to the game: they leave `pending_joins`.
+    fn ack_joins(&self, session_id: &str, nonces: &[String]) -> Result<()>;
 }
 
 /// A backend whose every call fails the same way: what a build with no portal has (`NO_PORTAL`),
@@ -418,6 +422,8 @@ impl SocialBackend for Failing {
         rooms() -> Result<Vec<RoomInfo>>;
         join_room(session_id: &str) -> Result<JoinGrant>;
         close_room(session_id: &str) -> Result<()>;
+        pending_joins(session_id: &str) -> Result<Vec<PendingJoin>>;
+        ack_joins(session_id: &str, nonces: &[String]) -> Result<()>;
     }
 }
 
@@ -683,6 +689,20 @@ impl<T: Transport> SocialBackend for HttpSocial<T> {
 
     fn close_room(&self, session_id: &str) -> Result<()> {
         self.done(Method::Delete, &["sessions", session_id], None)
+    }
+
+    fn pending_joins(&self, session_id: &str) -> Result<Vec<PendingJoin>> {
+        let pending: Pending =
+            self.read(Method::Get, &["sessions", session_id, "pending"], None, "")?;
+        Ok(pending.joins)
+    }
+
+    fn ack_joins(&self, session_id: &str, nonces: &[String]) -> Result<()> {
+        self.done(
+            Method::Post,
+            &["sessions", session_id, "pending", "ack"],
+            Some(json!({ "nonces": nonces })),
+        )
     }
 }
 

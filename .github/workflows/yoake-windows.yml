@@ -75,6 +75,13 @@ jobs:
 
       - name: Build plain game client
         run: cargo build --release --locked -p horizon-client --bin horizon-client
+        # Social features are built into the game from these repository variables (values are
+        # public keys and host names, set in Settings > Variables). Empty: social is disabled.
+        env:
+          YOAKE_SOCIAL_PORTAL_KEY: ${{ vars.YOAKE_SOCIAL_PORTAL_KEY }}
+          YOAKE_SOCIAL_RELAY_CA: ${{ vars.YOAKE_SOCIAL_RELAY_CA }}
+          YOAKE_SOCIAL_RELAY_CA_SHA256: ${{ vars.YOAKE_SOCIAL_RELAY_CA_SHA256 }}
+          YOAKE_SOCIAL_RELAYS: ${{ vars.YOAKE_SOCIAL_RELAYS }}
 
       - name: Stage unsigned binaries and checksums
         shell: pwsh
@@ -189,6 +196,13 @@ jobs:
 
       - name: Build plain game client
         run: cargo build --release --locked -p horizon-client --bin horizon-client
+        # Social features are built into the game from these repository variables (values are
+        # public keys and host names, set in Settings > Variables). Empty: social is disabled.
+        env:
+          YOAKE_SOCIAL_PORTAL_KEY: ${{ vars.YOAKE_SOCIAL_PORTAL_KEY }}
+          YOAKE_SOCIAL_RELAY_CA: ${{ vars.YOAKE_SOCIAL_RELAY_CA }}
+          YOAKE_SOCIAL_RELAY_CA_SHA256: ${{ vars.YOAKE_SOCIAL_RELAY_CA_SHA256 }}
+          YOAKE_SOCIAL_RELAYS: ${{ vars.YOAKE_SOCIAL_RELAYS }}
 
       - name: Generate Store logos
         shell: pwsh
