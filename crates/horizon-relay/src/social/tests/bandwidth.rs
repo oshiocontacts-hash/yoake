@@ -381,6 +381,61 @@ fn large_under_share_pair_passes_a_small_message_flood_within_one_second() {
 }
 
 #[test]
+fn previously_silent_pair_passes_a_later_flood_within_one_second() {
+    for rate in [1_000_000, 256 * 1024] {
+        let burst = 4 * BURST;
+        let (relay, now) = setup(2, Duration::from_secs(30), burst, rate);
+        let mut waiting = Bridge::new(&relay, 1, now);
+        waiting.queue(Direction::HostToGuest, &[2], 1);
+        assert_eq!(
+            waiting.poll(Direction::HostToGuest, now),
+            ForwardProgress::Transferred(1)
+        );
+
+        let start = now + Duration::from_millis(1_001);
+        let mut seed = Bridge::new(&relay, 2, start);
+        seed.queue(Direction::GuestToHost, &vec![3; BURST], 2);
+        assert_eq!(
+            seed.poll(Direction::GuestToHost, start),
+            ForwardProgress::Transferred(BURST)
+        );
+        assert_eq!(
+            seed.poll(Direction::GuestToHost, start),
+            ForwardProgress::Transferred(BURST)
+        );
+        drop(seed);
+
+        let mut flood = Bridge::new(&relay, 3, start);
+        flood.queue(Direction::GuestToHost, &[1; 1024], 2048);
+        waiting.queue(Direction::HostToGuest, &vec![4; BURST], 1);
+        let mut flooded_bytes = 0;
+        while let ForwardProgress::Transferred(count) = flood.poll(Direction::GuestToHost, start) {
+            flooded_bytes += count;
+        }
+        assert_eq!(flooded_bytes, burst - 2 * BURST);
+        assert_eq!(
+            waiting.poll(Direction::HostToGuest, start),
+            ForwardProgress::Blocked
+        );
+
+        let mut delivered = false;
+        for elapsed_step in 1..=10_000 {
+            let tick = start + Duration::from_micros(elapsed_step * 100);
+            while flood.poll(Direction::GuestToHost, tick) == ForwardProgress::Transferred(1024) {}
+            if waiting.poll(Direction::HostToGuest, tick) == ForwardProgress::Transferred(BURST) {
+                delivered = true;
+                break;
+            }
+        }
+        assert!(delivered);
+        assert_eq!(
+            waiting.received(Direction::HostToGuest),
+            vec![vec![2], vec![4; BURST]]
+        );
+    }
+}
+
+#[test]
 fn stopped_waiter_reservation_expires_without_an_inter_pair_turn() {
     let (relay, now) = setup(2, Duration::from_secs(30), 4 * BURST, 256 * 1024);
     let mut flooded = Bridge::new(&relay, 1, now);

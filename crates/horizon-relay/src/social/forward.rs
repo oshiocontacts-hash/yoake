@@ -176,7 +176,11 @@ impl<GUEST: Read + Write, HOST: Read + Write> PairedConnection<GUEST, HOST> {
             .map_or(0, |reservation| reservation.need);
         if session.tokens < (need + reserved) as f64 {
             self.contention_yield |= over_share;
-            if !over_share && session.tokens < need as f64 && session.reservation.is_none() {
+            if !over_share
+                && !(session.active_pairs == 1 && recently_active)
+                && session.tokens < need as f64
+                && session.reservation.is_none()
+            {
                 session.reservation = Some(BandwidthReservation {
                     nonce, direction, need,
                     expires_at: now.checked_add(RESERVATION_LIFETIME).unwrap_or(now),
