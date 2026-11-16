@@ -16,7 +16,7 @@ This app is not an official Minecraft product and is not approved by or associat
 
 Open your single-player world directly to friends, or join LAN games and online servers. To play with friends, the host generates an invite code and guests enter it in the game or launcher to join. Traffic between the host and joining players is encrypted. Depending on your network environment, port forwarding, a VPN, or a self-hosted relay server may be required. Invite codes expire as soon as you stop sharing or close the world.
 
-The launcher's Friends page lets you send and receive friend requests via friend codes, create groups and invite members, and manage blocked users. It requires signing in to the Yoake portal and displays "Friends are not available yet." until enabled on the portal. This social feature is separate from world invite codes—even when Friends is unavailable, playing via invite codes, LAN, or servers works as usual.
+The launcher's Friends page lets you send and receive friend requests via friend codes, create groups and invite members, change members' roles, and manage blocked users. It requires signing in to the Yoake portal and displays "Friends are not available yet." until enabled on the portal. This social feature is separate from world invite codes—even when Friends is unavailable, playing via invite codes, LAN, or servers works as usual.
 
 Mods are built primarily as WebAssembly (Wasm) .yak packages. Wasm mods run inside an in-game sandbox with declared permissions and execution-time and memory limits. Running mods that contain code in a normal environment requires a valid Yoake signature; unsigned mods you build yourself can only be tested under developer settings. Java mod JAR files do not run.
 
@@ -34,7 +34,7 @@ Compatibility is based on verified areas, and some differences from the original
 
 - **Rust game client**: Supports 26.3 worlds, mobs, villagers, raids, redstone, commands, the recipe book, and existing saves.
 - **Multiplayer**: Join online servers, LAN games, and friend worlds via invite codes, with encrypted friend-to-friend connections.
-- **Friends and groups**: Friend codes, requests, group invites, and blocking. Requires signing in to the Yoake portal and is unavailable until enabled on the portal.
+- **Friends and groups**: Friend codes, requests, group invites, member roles, and blocking. Requires signing in to the Yoake portal and is unavailable until enabled on the portal.
 - **Wasm mods and .yak**: Sandboxed Wasm mods, a signed catalog, package verification, and client- and server-side mod support.
 - **Save and share mod configurations**: Save a base pack and mod selection as a configuration and import it as a new instance from a YK1 code.
 - **Packs**: Resource packs, data packs, shader packs, and Modpack imports for supported content.
@@ -46,7 +46,7 @@ Compatibility is based on verified areas, and some differences from the original
 ## What's New
 
 - **Wasm mods**: Build Wasm components from Rust and install them as .yak packages, with support for client- and server-side hooks, settings, data storage, development hot reload, and in-engine testing.
-- **Friends and groups**: Added friend codes and requests, group creation and invites, and user blocking, available when enabled on the portal.
+- **Friends and groups**: Added friend codes and requests, group creation and invites, member roles, and user blocking, available when enabled on the portal.
 - **Mod configuration sharing**: Share combinations of a base pack and mods using YK1 share codes.
 - **New launcher look**: Supports dark, light, and system appearance modes along with custom accent colors.
 
@@ -56,7 +56,7 @@ Yoake, Rust, game client, launcher, multiplayer, mods, Java Edition compatible
 
 ## Notes for Age Rating Questions
 
-- **Chat, friends, and groups**: Includes in-game chat and supports joining online servers, LAN games, and friend worlds. The launcher includes friend requests via friend codes, group creation and invites, and blocking; using them requires signing in to the Yoake portal and having the feature enabled on the portal (shows "Friends are not available yet." while disabled). (Sources: `README.md`, `docs/play-with-friends.md`, `launcher/src/friends_view.rs`, `launcher/lang/ja.json`)
+- **Chat, friends, and groups**: Includes in-game chat and supports joining online servers, LAN games, and friend worlds. The launcher includes friend requests via friend codes, group creation and invites, member roles, and blocking; using them requires signing in to the Yoake portal and having the feature enabled on the portal (shows "Friends are not available yet." while disabled). (Sources: `README.md`, `docs/play-with-friends.md`, `launcher/src/friends_view.rs`, `launcher/lang/ja.json`)
 - **Sharing user-generated content**: Mods can be distributed and installed as .yak packages, and base pack + mod configurations can be shared with others via YK1 share codes. Cosmetics are currently off by default (`ON_BY_DEFAULT=false`); only when enabled will equipped items be shown to other compatible clients through the cosmetics service. There is currently no feature for users to upload new cosmetics; it is only planned. (Sources: `docs/api/yoake-mods.md`, `docs/yoake-configs.md`, `docs/cosmetics.md`, `crates/horizon-cosmetics/src/lib.rs`)
 - **In-app purchases**: None. The reference documents describe no in-app purchases or paid item sales, the founder set for cosmetics (in preparation) is free, and there are no randomized loot boxes or gacha mechanics. (Sources: `docs/cosmetics.md`, `docs/yoake-store.md`)
 - **Location and personal data**: No collection of location data is described. Signing in with a Microsoft account uses Microsoft, Xbox Live, and Minecraft services, while signing in to the Yoake portal uses an invite code or Discord. In multiplayer, game data is sent to the server or host you choose to join, and connection peers can see your IP address. Invite codes for friend worlds contain the host's LAN, VPN, and public addresses, and the STUN servers used to discover the external address see the host's public IP address. (Sources: `docs/yoake-privacy.md`, `docs/play-with-friends.md`)
