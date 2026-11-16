@@ -342,6 +342,18 @@ impl DynamicAttachmentRegistry {
         self.reconcile_map(holder, attachments)
     }
 
+    /// Respawn copy: resolve every saved value whose type is defined here, so
+    /// its own `copy_on_death` decides (even if nothing read it yet), then copy.
+    /// Values of unknown types are carried over raw.
+    pub fn copy_on_death(
+        &self,
+        holder: Holder,
+        attachments: &mut Attachments,
+    ) -> Result<Attachments, AttachmentError> {
+        self.reconcile_map(holder, attachments)?;
+        attachments.copy_on_death()
+    }
+
     /// Join a holder to this world's shared budget, retaining unloaded saved usage.
     pub fn bind(&self, attachments: &mut Attachments, holder: String) {
         if attachments.budget.as_ref().is_some_and(|binding| {
@@ -851,7 +863,13 @@ impl Attachments {
         });
         raw
     }
-    /// Copy values opted in by a current definition, never by saved flags alone.
+    /// Copy values for a respawn. Values whose current type is known are copied
+    /// only when it opts in (never by a saved flag alone); a dynamic type is
+    /// known once `DynamicAttachmentRegistry::reconcile_map` has run, which
+    /// `DynamicAttachmentRegistry::copy_on_death` does first. A value that is
+    /// still raw has no known type (a mod that is not loaded, or a native type
+    /// not read yet), so it is carried over uninterpreted: it is never decoded
+    /// or typed from its saved flags, and it is not silently dropped.
     pub fn copy_on_death(&self) -> Result<Self, AttachmentError> {
         let mut copy = Self::default();
         for (key, entry) in &self.entries {
@@ -863,6 +881,7 @@ impl Attachments {
                 continue;
             }
             let copied = match entry {
+                Entry::Raw(raw) => Some(Entry::Raw(raw.clone())),
                 Entry::Decoded(value) if value.copy_on_death() => {
                     envelope(value.as_ref()).ok_or(AttachmentError::InvalidCopyPolicy)?;
                     Some(Entry::Decoded(value.clone_box()))
@@ -1723,7 +1742,7 @@ mod tests {
         assert_eq!(reopened.get(&COUNTER), Ok(0));
     }
     #[test]
-    fn saved_values_only_copy_after_the_current_type_is_known() {
+    fn unread_saved_values_are_copied_raw_and_never_typed_by_their_flags() {
         let keep = AttachmentType {
             namespace: "test",
             name: "keep",
@@ -1736,12 +1755,72 @@ mod tests {
         original.set(&keep, 42).unwrap();
         original.set(&COUNTER, 5).unwrap();
         let mut loaded = Attachments::from_nbt(original.to_nbt());
-        assert!(loaded.copy_on_death().unwrap().to_nbt().is_empty());
-        assert_eq!(loaded.get_existing(&keep), Ok(Some(42)));
+        // Still unread: carried over uninterpreted instead of vanishing.
+        let mut respawned = loaded.copy_on_death().unwrap();
+        assert_eq!(respawned.to_nbt(), original.to_nbt());
+        assert_eq!(respawned.get(&keep), Ok(42));
+        // A read value follows its current type: COUNTER opts out of copying.
+        assert_eq!(loaded.get_existing(&COUNTER), Ok(Some(5)));
         let mut respawned = loaded.copy_on_death().unwrap();
         assert_eq!(respawned.get(&keep), Ok(42));
         assert_eq!(respawned.get(&COUNTER), Ok(0));
+        // The raw value is not typed from saved flags: a different codec sees it as is.
+        assert_eq!(
+            Attachments::from_nbt(original.to_nbt())
+                .copy_on_death()
+                .unwrap()
+                .synced(),
+            []
+        );
     }
+
+    #[test]
+    fn unread_dynamic_values_follow_their_registered_policy_on_respawn() {
+        let holder = Holder::Player(1);
+        let mut registry = DynamicAttachmentRegistry::default();
+        let mut define = |registry: &mut DynamicAttachmentRegistry, id: &str, copy_on_death| {
+            registry
+                .define(
+                    id.split(':').next().unwrap(),
+                    id,
+                    DynamicAttachmentPolicy {
+                        scope: AttachmentScope::Player,
+                        persistent: true,
+                        synced: false,
+                        copy_on_death,
+                    },
+                )
+                .unwrap()
+        };
+        let kept = define(&mut registry, "test:kept", true);
+        let dropped = define(&mut registry, "test:dropped", false);
+        let mut host = DynamicHost(Attachments::default());
+        kept.set(&mut host, holder, payload(4)).unwrap();
+        dropped.set(&mut host, holder, payload(5)).unwrap();
+        let mut raw = host.0.to_nbt();
+        // A value whose type is not defined (its mod is not loaded).
+        raw.insert(
+            "gone".into(),
+            Tag::Compound(
+                [(
+                    "x".into(),
+                    Tag::Compound([("value".into(), Tag::Compound(payload(3)))].into()),
+                )]
+                .into(),
+            ),
+        );
+        // Nothing has read any of them since loading.
+        let mut loaded = Attachments::from_nbt(raw);
+        let mut copied = DynamicHost(registry.copy_on_death(holder, &mut loaded).unwrap());
+        assert_eq!(kept.get(&mut copied, holder), Ok(Some(payload(4))));
+        assert_eq!(dropped.get(&mut copied, holder), Ok(None));
+        // The unknown value stayed raw (and is saved as it was), then reads
+        // once its type is defined.
+        let mut saved = DynamicHost(Attachments::from_nbt(copied.0.to_nbt()));
+        let late = define(&mut registry, "gone:x", false);
+        assert_eq!(late.get(&mut saved, holder), Ok(Some(payload(3))));
+    }
+
     #[test]
     fn existing_reads_leave_an_absent_value_absent() {
         let mut map = Attachments::default();
