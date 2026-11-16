@@ -435,6 +435,7 @@ pub const FULL_HOOKS: &[(&str, HookSide)] = &[
     ("item_render", HookSide::Client),
     ("item_slot_cooldown", HookSide::Client),
     ("item_slot_cooldown_listened", HookSide::Client),
+    ("key_binding_pressed", HookSide::Client),
     ("living_conversion_post", HookSide::Server),
     ("living_conversion_pre", HookSide::Server),
     ("living_death", HookSide::Server),

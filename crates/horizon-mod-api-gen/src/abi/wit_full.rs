@@ -29,6 +29,8 @@ use shape::{ListKind, MapKind, NamedDef, RustPath, Shape, StrKind, VCase, WrapKi
 use types::{Carrier, EFFECTS, Effect, ITEM_STACK_DOC, JSON_DOC, NBT_DOC, TABLE, TEXT_DOC, effect_of};
 
 const SERVER_DRAFT: &str = include_str!("../../abi-subset-server.json");
+const CLIENT_DRAFT: &str = include_str!("../../abi-subset-client.json");
+const GPU_DRAFT: &str = include_str!("../../abi-subset-gpu.json");
 
 /// Existing service interfaces the client world imports (they live in `yoake-mod.wit`).
 const CLIENT_IMPORTS: &[&str] = &[
@@ -1619,9 +1621,9 @@ fn use_line(names: &BTreeSet<String>) -> String {
     format!("    use engine-types.{{{}}};\n\n", list.join(", "))
 }
 
-fn draft_services() -> Result<String, String> {
-    let draft: serde_json::Value = serde_json::from_str(SERVER_DRAFT).map_err(|e| e.to_string())?;
-    let mut types = String::from("interface server-types {\n");
+fn draft_services(source: &str, side: &str) -> Result<String, String> {
+    let draft: serde_json::Value = serde_json::from_str(source).map_err(|e| e.to_string())?;
+    let mut types = format!("interface {side}-types {{\n");
     let mut names = Vec::new();
     for (name, values) in draft["enums"].as_object().ok_or("draft enums missing")? {
         names.push(name.clone());
@@ -1642,8 +1644,11 @@ fn draft_services() -> Result<String, String> {
     }
     types = types.trim_end().to_owned();
     types.push_str("\n}\n\n");
-    let mut services = String::from("/// Server services (value types only), listed in `abi-subset-server.json`.\ninterface server-services {\n");
-    services.push_str(&format!("    use server-types.{{{}}};\n\n", names.iter().map(|n| escape(n)).collect::<Vec<_>>().join(", ")));
+    let mut services = format!("/// Services listed in `abi-subset-{side}.json`.\ninterface {side}-services {{\n");
+    services.push_str(&format!("    use {side}-types.{{{}}};\n\n", names.iter().map(|n| escape(n)).collect::<Vec<_>>().join(", ")));
+    if side == "client" {
+        services.push_str("    use hud.{gui-texture};\n\n");
+    }
     let type_names: HashSet<String> = names.iter().map(|n| kebab(n)).collect();
     for service in draft["services"].as_array().ok_or("draft services missing")? {
         let name = service["name"].as_str().ok_or("service name")?;
@@ -1731,7 +1736,9 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
     }
     wit.push_str("}\n\n");
 
-    wit.push_str(&draft_services()?);
+    wit.push_str(&draft_services(SERVER_DRAFT, "server")?);
+    wit.push_str(&draft_services(CLIENT_DRAFT, "client")?);
+    wit.push_str(&draft_services(GPU_DRAFT, "gpu")?);
 
     for (side, (text, uses), doc) in [
         ("client", &client, "Hooks that run in the client."),
@@ -1744,7 +1751,7 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
     }
 
     for (side, imports, extra) in [
-        ("client", CLIENT_IMPORTS, &[][..]),
+        ("client", CLIENT_IMPORTS, &["client-types", "client-services", "gpu-types", "gpu-services"][..]),
         ("server", SERVER_IMPORTS, &["server-types", "server-services"][..]),
     ] {
         wit.push_str(&format!("world {side}-full {{\n    import engine-types;\n"));
@@ -1753,6 +1760,9 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
         }
         wit.push_str(&format!("    export {side}-hooks;\n"));
         wit.push_str("    /// Returns catalog hook names with underscores, such as `net_frames_listened`.\n    export init: func() -> list<string>;\n");
+        if side == "client" {
+            wit.push_str("    export gpu-frame: func();\n");
+        }
         if side == "server" {
             wit.push_str("    /// Called by another package's `mod-call` service: `caller` is the calling package's id, `method` and `payload` are the\n    /// caller's own protocol (payload at most 1 MiB, the answer too). An `Err` reaches the caller as its `mod-call` error.\n    export handle-call: func(caller: string, method: string, payload: list<u8>) -> result<list<u8>, string>;\n");
         }

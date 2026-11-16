@@ -8,6 +8,8 @@ use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder, UpdateDea
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
 mod client;
+mod client_services;
+mod gpu_services;
 pub mod convert;
 mod full;
 mod full_hook_names;
@@ -27,6 +29,8 @@ pub mod bindings {
 }
 
 pub use client::{ClientMod, LoadError};
+pub use client_services::{ClientServices, client_types};
+pub use gpu_services::{GpuServices, gpu_types};
 pub use full::{ClientFullMod, SERVER_SERVICES, ServerFullMod, ServerHost, server_types};
 pub use host::{ClientContext, ClientHost};
 pub use full_hook_names::{FULL_HOOKS as FULL_HOOK_LIST, HookSide};

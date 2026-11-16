@@ -294,6 +294,7 @@ pub(crate) struct WasmMod {
     pub(crate) side: WasmSide,
     /// The module targets a full-catalog world (`client-full`, or any server module).
     pub(crate) full: bool,
+    pub(crate) gpu: bool,
     pub(crate) required_on_join: bool,
     /// The package asked for `service.commands` (server module only).
     pub(crate) commands: bool,
@@ -331,6 +332,7 @@ pub(crate) fn wasm_mods_from(installed: &[Installed], side: WasmSide, keys: &[Pu
                 version: entry.manifest.version.clone(),
                 sha256, bytes, side,
                 full: side == WasmSide::Server || wasm.client_full(),
+                gpu: side == WasmSide::Client && wasm.has_permission("service.gpu"),
                 required_on_join: entry.manifest.side.required_on_join,
                 commands: side == WasmSide::Server && wasm.has_permission("service.commands"),
                 path: entry.root.join(path),

@@ -13,6 +13,10 @@
 mod full;
 #[path = "wasm_mods/server_services.rs"]
 mod server_services;
+#[path = "wasm_mods/client_services.rs"]
+mod client_services;
+#[path = "wasm_mods/gpu_services.rs"]
+mod gpu_services;
 
 use super::dll_mods::{frame_time, native_identity, safe_component, StaticMod};
 use crate::mod_api::*;
@@ -106,6 +110,7 @@ struct Source {
     required_on_join: bool,
     /// The module targets `client-full` rather than `client-mod`.
     full: bool,
+    gpu: bool,
     bytes: Vec<u8>,
     /// Watched for hot reload (developer mode and not signed).
     watch: Option<PathBuf>,
@@ -129,7 +134,7 @@ fn dev_sources() -> Vec<Source> {
         }
         match read_bounded(&path) {
             Ok(bytes) => sources.push(Source {
-                id: id.replace('.', "-"), version: "0.0.0-dev".into(), sha256: None, required_on_join: false, full: false,
+                id: id.replace('.', "-"), version: "0.0.0-dev".into(), sha256: None, required_on_join: false, full: false, gpu: false,
                 bytes, watch: Some(path),
             }),
             Err(error) => emit(format!("wasm: dev module {} skipped: {error}", path.display())),
@@ -150,6 +155,7 @@ fn read_bounded(path: &std::path::Path) -> Result<Vec<u8>, String> {
 /// One package's modules once accepted: its hook objects, its client module's world and the
 /// identity the multiplayer check sees.
 struct Accepted {
+    gpu: bool,
     id: String,
     version: String,
     /// The module's SHA-256 when the package is required on join.
@@ -172,6 +178,7 @@ pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mo
         sha256: Some(module.sha256),
         required_on_join: module.required_on_join,
         full: module.full,
+        gpu: module.gpu,
         bytes: module.bytes,
         watch: (developer && !module.signed).then_some(module.path),
     }).collect();
@@ -196,14 +203,14 @@ pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mo
         let digest = source.required_on_join.then(|| source.sha256.clone()).flatten();
         let mut package = Accepted {
             id: source.id.clone(), version: source.version.clone(), digest,
-            hooks: Vec::new(), client_full: None, server_full: None, server_source: None, worlds: Vec::new(),
+            hooks: Vec::new(), client_full: None, server_full: None, server_source: None, worlds: Vec::new(), gpu: source.gpu,
         };
         if dedicated {
             accepted.push(package);
             continue;
         }
         if source.full {
-            match full::load_client(&full::ModuleSource { id: &source.id, bytes: &source.bytes, commands: false }) {
+            match full::load_client(&full::ModuleSource { id: &source.id, bytes: &source.bytes, commands: false, gpu: source.gpu }) {
                 Ok(module) => {
                     package.client_full = Some(module);
                     package.worlds.push("client-full");
@@ -255,7 +262,7 @@ pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mo
             Some(position) => accepted.swap_remove(position),
             None => Accepted {
                 id: server.mod_id.clone(), version: server.version.to_string(), digest,
-                hooks: Vec::new(), client_full: None, server_full: None, server_source: None, worlds: Vec::new(),
+                hooks: Vec::new(), client_full: None, server_full: None, server_source: None, worlds: Vec::new(), gpu: false,
             },
         };
         let source = full::ServerSource::new(&server.mod_id, server.bytes.clone(), server.commands);
@@ -288,7 +295,7 @@ pub(super) fn extend(mods: Mods, identities: &'static [super::NativeMod]) -> (Mo
     let mut owned = identities.to_vec();
     for mut package in accepted {
         if package.client_full.is_some() || package.server_full.is_some() {
-            let mut full_mod = full::FullMod::new(package.id.clone(), package.client_full.take(), package.server_full.take());
+            let mut full_mod = full::FullMod::new(package.id.clone(), package.client_full.take(), package.server_full.take()).with_gpu(package.gpu);
             if let Some(source) = package.server_source.take() { full_mod = full_mod.with_server_source(source); }
             package.hooks.push(Box::new(full_mod));
         }
@@ -398,6 +405,17 @@ struct Invocation<'call> {
     host: HostAccess<'call>,
     batch: Option<&'call mut HudBatch>,
     batch_start: usize,
+    client: ClientExtras<'call>,
+}
+
+#[derive(Default)]
+struct ClientExtras<'call> {
+    world_draws: Option<&'call mut crate::gfx::native_services::WorldDraws>,
+    screen_kind: Option<String>,
+    corners: Option<&'call mut Corners>,
+    mob: Option<&'call NativeMobRender<'call>>,
+    mob_draw: Option<&'call mut BlockEntityDraw>,
+    camera: Option<&'call mut Option<CameraOverride>>,
 }
 
 thread_local! {
@@ -473,7 +491,7 @@ impl WasmMod {
             }
         };
         let batch_start = batch.as_deref().map_or(0, |batch| batch.vertices.len());
-        let mut invocation = Invocation { host, batch, batch_start };
+        let mut invocation = Invocation { host, batch, batch_start, client: ClientExtras::default() };
         let result = {
             let _scope = Scope::enter(&mut invocation);
             call(&mut state.module)
@@ -502,7 +520,7 @@ impl WasmMod {
             *reload.bytes.lock().unwrap_or_else(|error| error.into_inner()) = Some(bytes);
             return;
         };
-        let mut invocation = Invocation { host: HostAccess::Write(host), batch: None, batch_start: 0 };
+        let mut invocation = Invocation { host: HostAccess::Write(host), batch: None, batch_start: 0, client: ClientExtras::default() };
         let result = {
             let _scope = Scope::enter(&mut invocation);
             let mut sandbox = sandbox().lock().unwrap_or_else(|error| error.into_inner());
@@ -679,11 +697,25 @@ struct GameHost {
     id: String,
     textures: HashMap<u64, NativeGuiTexture>,
     next_texture: u64,
+    native_id: &'static str,
+    native_index: usize,
+    streams: HashMap<u32, NativeAudioStreamId>,
+    next_stream: u32,
+    gpu_enabled: bool,
 }
 
 impl GameHost {
     fn new(id: &str) -> Self {
-        Self { id: id.to_owned(), textures: HashMap::new(), next_texture: 1 }
+        let (native_id, native_index) = client_services::identity(id).unwrap_or(("", usize::MAX));
+        Self {
+            id: id.to_owned(), textures: HashMap::new(), next_texture: 1,
+            native_id, native_index, streams: HashMap::new(), next_stream: 1, gpu_enabled: false,
+        }
+    }
+
+    fn with_gpu(mut self, enabled: bool) -> Self {
+        self.gpu_enabled = enabled;
+        self
     }
 }
 
@@ -707,6 +739,12 @@ fn batch_range<'borrow>(invocation: &'borrow mut Invocation<'_>, start: u64) -> 
 }
 
 impl ClientHost for GameHost {
+    fn client_services(&mut self) -> Option<&mut dyn yoake_wasm::ClientServices> { Some(self) }
+
+    fn gpu_services(&mut self) -> Option<&mut dyn yoake_wasm::GpuServices> {
+        if self.gpu_enabled { Some(self) } else { None }
+    }
+
     fn log(&mut self, target: &str, message: &str) -> Result<(), w::HostError> {
         let clean = |text: &str| -> String {
             text.chars().take(MAX_LOG_CHARS).map(|c| if c.is_control() { ' ' } else { c }).collect()
@@ -799,13 +837,14 @@ impl ClientHost for GameHost {
             w::TextureFilter::Nearest => NativeGuiTextureFilter::Nearest,
             w::TextureFilter::Linear => NativeGuiTextureFilter::Linear,
         };
-        let texture = service(|invocation| {
-            invocation.host.read().ok_or(w::HostError::Unsupported)?
-                .gui_texture_create([width, height], format, filter)
-                .map_err(|_| w::HostError::HostError)
-        })?;
         let id = self.next_texture;
-        self.next_texture = id.checked_add(1).ok_or(w::HostError::Disabled)?;
+        let next = id.checked_add(1).ok_or(w::HostError::Disabled)?;
+        let texture = self.client_call(|invocation| {
+            invocation.host.read().ok_or_else(|| "client host unavailable".to_owned())?
+                .gui_texture_create([width, height], format, filter)
+                .map_err(|error| format!("{error:?}"))
+        }).map_err(|_| w::HostError::HostError)?;
+        self.next_texture = next;
         self.textures.insert(id, texture);
         Ok(id)
     }
@@ -976,7 +1015,7 @@ mod tests {
     use super::*;
     use std::cell::RefCell;
 
-    const WASM_DIR: &str = "C:/Users/USER/NestgateHorizon/target-wasm/wasm32-wasip2/release/";
+    use yoake_wasm::test_guests::{Guest, HELLO, HELLO_STD};
 
     #[derive(Default)]
     struct FakeHost {
@@ -996,8 +1035,8 @@ mod tests {
         }
     }
 
-    fn load(file: &str, id: &str, reload: Option<Arc<Reload>>) -> Option<WasmMod> {
-        let bytes = std::fs::read(format!("{WASM_DIR}{file}")).ok()?;
+    fn load(guest: &Guest, id: &str, reload: Option<Arc<Reload>>) -> Option<WasmMod> {
+        let bytes = yoake_wasm::test_guests::load(guest)?;
         let module = {
             let mut sandbox = sandbox().lock().unwrap();
             ClientMod::instantiate(&mut sandbox, id, &bytes, Box::new(GameHost::new(id))).expect("loads")
@@ -1031,7 +1070,7 @@ mod tests {
 
     #[test]
     fn wasm_hello_draws_through_the_hud_hook_slot() {
-        let Some(module) = load("yoake_wasm_hello.wasm", "hello", None) else {
+        let Some(module) = load(&HELLO, "hello", None) else {
             eprintln!("skipped: hello.wasm is not built");
             return;
         };
@@ -1049,11 +1088,11 @@ mod tests {
     #[test]
     fn wasm_hot_reload_swaps_the_instance_at_the_next_tick() {
         let reload = Arc::new(Reload::default());
-        let Some(module) = load("yoake_wasm_hello.wasm", "hello", Some(Arc::clone(&reload))) else {
+        let Some(module) = load(&HELLO, "hello", Some(Arc::clone(&reload))) else {
             eprintln!("skipped: hello.wasm is not built");
             return;
         };
-        let Ok(replacement) = std::fs::read(format!("{WASM_DIR}yoake_wasm_hello_std.wasm")) else {
+        let Some(replacement) = yoake_wasm::test_guests::load(&HELLO_STD) else {
             eprintln!("skipped: hello_std.wasm is not built");
             return;
         };

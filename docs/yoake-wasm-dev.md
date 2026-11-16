@@ -180,7 +180,16 @@ feature, `client` and `server`).
 * HUD commands: text (plain), rect, gradient (strips), flat quads, sprites, items, clip/scale/blend runs.
   Skipped: `texture`, `highlight`, textured quads.
 * Model commands: push/pop/translate/rotate/scale/light/keep, quad, block. Skipped: cube, model, item.
-* Corner reservations: applied. Frame-stage commands (`world-drawn`, `hand-drawn`, ...): not applied yet.
+* Corner reservations and world-stage draws: applied. Client imports forward key bindings, view hits,
+  display names and namespace ownership, GUI items, screen kind and slot rectangles, world quads,
+  lines and billboards (including `world-pre-post`), post shaders, map tiles and colors, players and
+  entities, camera overrides, writable GUI textures, PCM streams, mob-as-player and HUD placement.
+  The catalog is `crates/horizon-mod-api-gen/abi-subset-client.json` (ABI IDs 111–145).
+  Native services run under the calling WASM package's stable identity, so namespace validation and
+  native per-mod limits also apply to WASM. Texture resources are instance-owned and capped at 64;
+  failed creation does not consume a slot. Unsupported hook context returns an error, not a dummy
+  success. The `client-services-demo` guest exercises real key, line, post-shader and bounded
+  texture-write imports, including error propagation, in the runtime integration tests.
 * Server services: all 84 of `server-services` (`crates/horizon-mod-api-gen/abi-subset-server.json`) answer,
   except four (below). Each validates its arguments (finite numbers, sizes, registry ids, UUIDs) and fails
   closed (an `Err` changes nothing). Mods are trusted inside the game: they may change other players'
@@ -212,5 +221,6 @@ feature, `client` and `server`).
   (a test fails when the committed file is out of date). The game's build does not generate them.
 * A package takes part in the render pass only when its client module subscribed to a render-stage hook.
 * The guest examples used by the tests are built by `yoake_wasm::test_guests` (feature `test-guests`) into
-  `YOAKE_WASM_TARGET_DIR`, else a `target-wasm` folder next to the repository, else `target/wasm-guests`.
+  `CARGO_TARGET_DIR`, then `YOAKE_WASM_TARGET_DIR`, else a `target-wasm` folder next to the repository,
+  else `target/wasm-guests`. Guest builds use offline Cargo and four jobs.
   With `YOAKE_CI=1` (or `CI`) a guest that cannot be built fails its test instead of skipping.

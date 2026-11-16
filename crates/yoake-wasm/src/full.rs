@@ -78,6 +78,10 @@ impl ClientFullMod {
         self.raw.is_disabled()
     }
 
+    pub fn gpu_frame(&mut self) {
+        self.dispatch("gpu_frame", |exports, store| exports.call_gpu_frame(store));
+    }
+
     /// Runs `call` against the guest's exports if it subscribed to `hook`; `None` when it did not
     /// subscribe, trapped, or ran out of fuel or time (the module is then disabled).
     pub fn dispatch<R>(

@@ -696,6 +696,10 @@ pub(crate) fn local_sound_caller() -> Option<usize> {
     LOCAL_SOUND_CALLER.with(Cell::get)
 }
 
+pub(crate) fn enter_local_sound_caller(index: usize) -> impl Drop {
+    LocalSoundScope(LOCAL_SOUND_CALLER.with(|caller| caller.replace(Some(index))))
+}
+
 struct LocalSoundScope(Option<usize>);
 
 impl Drop for LocalSoundScope {

@@ -20,7 +20,7 @@ use crate::gfx::native_render::*;
 use horizon_client_core::text::Text;
 use horizon_items::items::ItemStack;
 use horizon_world::nbt::{Compound, Tag};
-use yoake_wasm::full_bindings::client::yoake::mods::engine_types as et;
+pub(super) use yoake_wasm::full_bindings::client::yoake::mods::engine_types as et;
 use yoake_wasm::{ClientFullMod, ServerFullMod, ServerHost, convert, server_types as st};
 
 /// Commands a guest may return for one object in one call.
@@ -51,7 +51,8 @@ pub(super) struct SideState<M> {
 
 pub(super) struct FullMod {
     id: String,
-    client: Mutex<SideState<ClientFullMod>>,
+    client: Arc<Mutex<SideState<ClientFullMod>>>,
+    gpu_owner: Option<crate::gfx::mod_gpu::ModId>,
     server: Arc<ServerSlot>,
     /// One bit per catalog hook, per side: the guest subscribed and has not been disabled.
     masks: [[AtomicU64; MASK_WORDS]; 2],
@@ -77,7 +78,7 @@ impl ServerSource {
     }
 
     pub(super) fn module(&self) -> ModuleSource<'_> {
-        ModuleSource { id: &self.id, bytes: &self.bytes, commands: self.commands }
+        ModuleSource { id: &self.id, bytes: &self.bytes, commands: self.commands, gpu: false }
     }
 }
 
@@ -115,13 +116,39 @@ impl FullMod {
         register_endpoint(&id, &server);
         Self {
             id,
-            client: Mutex::new(SideState { module: client, reported: false }),
+            client: Arc::new(Mutex::new(SideState { module: client, reported: false })),
+            gpu_owner: None,
             server,
             masks: [client_mask, server_mask],
             dropped: [AtomicU64::new(0), AtomicU64::new(0)],
             render_wanted,
             server_source: None,
         }
+    }
+
+    pub(super) fn with_gpu(mut self, enabled: bool) -> Self {
+        if !enabled || !self.client.lock().unwrap_or_else(|error| error.into_inner()).module.as_ref().is_some_and(|module| module.subscribed("gpu_frame")) {
+            return self;
+        }
+        let Some(owner) = super::gpu_services::owner(&self.id) else { return self };
+        let client = Arc::downgrade(&self.client);
+        let id = self.id.clone();
+        crate::gfx::mod_gpu_runtime::register(owner, Arc::new(move || {
+            let Some(client) = client.upgrade() else { return };
+            let Ok(mut state) = client.try_lock() else { return };
+            let Some(module) = state.module.as_mut() else { return };
+            let mut invocation = Invocation { host: HostAccess::None, batch: None, batch_start: 0, client: ClientExtras::default() };
+            {
+                let _scope = Scope::enter(&mut invocation);
+                module.gpu_frame();
+            }
+            if module.is_disabled() && !state.reported {
+                state.reported = true;
+                log::error!("wasm mod {id} (client) disabled during its GPU frame callback");
+            }
+        }));
+        self.gpu_owner = Some(owner);
+        self
     }
 
     pub(super) fn with_server_source(mut self, source: ServerSource) -> Self {
@@ -191,6 +218,7 @@ impl FullMod {
         hook: usize,
         host: HostAccess<'call>,
         batch: Option<&'call mut HudBatch>,
+        client: ClientExtras<'call>,
         call: impl FnOnce(&mut ClientFullMod) -> Option<R>,
     ) -> Option<R> {
         let mut state = match self.client.try_lock() {
@@ -207,7 +235,7 @@ impl FullMod {
         };
         let module = state.module.as_mut()?;
         let batch_start = batch.as_deref().map_or(0, |batch| batch.vertices.len());
-        let mut invocation = Invocation { host, batch, batch_start };
+        let mut invocation = Invocation { host, batch, batch_start, client };
         let result = {
             let _scope = Scope::enter(&mut invocation);
             call(module)
@@ -244,7 +272,7 @@ impl FullMod {
         let module = state.module.as_mut()?;
         self.server.dirty.store(true, Ordering::Relaxed);
         let batch_start = batch.as_deref().map_or(0, |batch| batch.vertices.len());
-        let mut invocation = Invocation { host, batch, batch_start };
+        let mut invocation = Invocation { host, batch, batch_start, client: ClientExtras::default() };
         let result = {
             let _scope = Scope::enter(&mut invocation);
             call(module)
@@ -768,13 +796,14 @@ pub(super) struct ModuleSource<'a> {
     pub bytes: &'a [u8],
     /// The package declared `service.commands` (server module).
     pub commands: bool,
+    pub gpu: bool,
 }
 
 pub(super) fn load_client(source: &ModuleSource<'_>) -> Result<ClientFullMod, String> {
     // A full module's `ItemStack` answers are checked against the item table, so it is published.
     horizon_items::items::publish_registry_for_checks();
     let mut sandbox = sandbox().lock().unwrap_or_else(|error| error.into_inner());
-    ClientFullMod::instantiate(&mut sandbox, source.id, source.bytes, Box::new(GameHost::new(source.id)), UNWIRED)
+    ClientFullMod::instantiate(&mut sandbox, source.id, source.bytes, Box::new(GameHost::new(source.id).with_gpu(source.gpu)), UNWIRED)
         .map_err(|error| error.to_string())
 }
 
@@ -831,7 +860,7 @@ mod tests {
 
     fn client() -> Option<FullMod> {
         let bytes = module("client")?;
-        let client = load_client(&ModuleSource { id: "demo", bytes: &bytes, commands: false }).expect("client-full loads");
+        let client = load_client(&ModuleSource { id: "demo", bytes: &bytes, commands: false, gpu: false }).expect("client-full loads");
         Some(FullMod::new("demo".into(), Some(client), None))
     }
 
@@ -894,7 +923,7 @@ mod tests {
     #[test]
     fn a_server_guest_runs_server_tick_and_perform_command_on_the_server_thread() {
         let Some(bytes) = module("server") else { return };
-        let server = load_server(&ModuleSource { id: "demo", bytes: &bytes, commands: false }).expect("server-full loads");
+        let server = load_server(&ModuleSource { id: "demo", bytes: &bytes, commands: false, gpu: false }).expect("server-full loads");
         let mod_ = Arc::new(FullMod::new("demo".into(), None, Some(server)));
         let runner = Arc::clone(&mod_);
         // The server loop's scope, not the thread's name, routes a shared hook to the server module.
@@ -932,7 +961,7 @@ mod tests {
     #[test]
     fn a_thread_named_server_thread_is_not_the_server_without_the_scope() {
         let Some(bytes) = module("server") else { return };
-        let server = load_server(&ModuleSource { id: "demo", bytes: &bytes, commands: false }).expect("server-full loads");
+        let server = load_server(&ModuleSource { id: "demo", bytes: &bytes, commands: false, gpu: false }).expect("server-full loads");
         let mod_ = Arc::new(FullMod::new("demo".into(), None, Some(server)));
         let runner = Arc::clone(&mod_);
         let flow = std::thread::Builder::new().name("Server thread".into()).spawn(move || {
@@ -967,7 +996,7 @@ mod tests {
     #[test]
     fn a_package_without_a_render_hook_stays_out_of_the_render_pass() {
         let Some(server_bytes) = module("server") else { return };
-        let server = load_server(&ModuleSource { id: "demo", bytes: &server_bytes, commands: false }).unwrap();
+        let server = load_server(&ModuleSource { id: "demo", bytes: &server_bytes, commands: false, gpu: false }).unwrap();
         let server_only = FullMod::new("demo".into(), None, Some(server));
         assert!(server_only.render().is_none(), "a server-only package has nothing to draw");
         let Some(mod_) = client() else { return };
@@ -1008,12 +1037,12 @@ mod tests {
     fn mod_call_reaches_the_peers_handle_call_and_never_re_enters_a_waiting_caller() {
         let Some(peer_bytes) = module("peer") else { return };
         let Some(demo_bytes) = module("server") else { return };
-        let peer = load_server(&ModuleSource { id: "w2-peer", bytes: &peer_bytes, commands: false }).expect("peer loads");
+        let peer = load_server(&ModuleSource { id: "w2-peer", bytes: &peer_bytes, commands: false, gpu: false }).expect("peer loads");
         let peer = FullMod::new("w2-peer".into(), None, Some(peer));
-        let demo = load_server(&ModuleSource { id: "w2-caller", bytes: &demo_bytes, commands: false }).expect("caller loads");
+        let demo = load_server(&ModuleSource { id: "w2-caller", bytes: &demo_bytes, commands: false, gpu: false }).expect("caller loads");
         let _demo = FullMod::new("w2-caller".into(), None, Some(demo));
         let mut host = FakeHost::default();
-        let mut invocation = Invocation { host: HostAccess::Write(&mut host), batch: None, batch_start: 0 };
+        let mut invocation = Invocation { host: HostAccess::Write(&mut host), batch: None, batch_start: 0, client: ClientExtras::default() };
         let _scope = Scope::enter(&mut invocation);
         let answer = super::server_services::call_mod("w2-caller", "w2-peer", "echo", b"hi").expect("the peer answers");
         assert_eq!(String::from_utf8(answer).unwrap(), "w2-caller said: hi");

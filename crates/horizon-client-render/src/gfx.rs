@@ -137,6 +137,8 @@ pub mod block_light;
 pub mod lightning;
 mod lod;
 pub mod mod_gpu;
+pub mod mod_gpu_resources;
+pub mod mod_gpu_runtime;
 pub mod mod_gpu_shader;
 mod native_material;
 mod native_pack;

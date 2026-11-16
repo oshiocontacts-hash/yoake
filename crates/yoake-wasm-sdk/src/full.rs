@@ -39,6 +39,8 @@ pub mod client {
 
     /// The engine value types of the hooks (records, enums, variants).
     pub use bindings::yoake::mods::engine_types as et;
+    pub use bindings::yoake::mods::{client_services as services, client_types as types};
+    pub use bindings::yoake::mods::{gpu_services as gpu, gpu_types};
     pub use bindings::yoake::mods::{feedback, hud, logging, network, settings};
 
     #[allow(unused_imports)]

@@ -1,7 +1,7 @@
 //! Test support (feature `test-guests`): finds, and when needed builds, the example guest modules
 //! the integration tests run (`crates/yoake-wasm-sdk/examples`).
 //!
-//! The guests build into `YOAKE_WASM_TARGET_DIR`; without it, into a `target-wasm` folder next to
+//! The guests build into `CARGO_TARGET_DIR`, then `YOAKE_WASM_TARGET_DIR`; without either, into a `target-wasm` folder next to
 //! the repository folder when one exists, else into `target/wasm-guests` of the workspace. A build
 //! that cannot run (no `wasm32-wasip2` target, offline) falls back to an artifact already there. A
 //! guest that is not available fails the test when `YOAKE_CI` or `CI` is set (and when
@@ -19,16 +19,44 @@ pub struct Guest {
     artifact: &'static str,
 }
 
-pub const HELLO: Guest = Guest { name: "hello", example: "hello", features: "", artifact: "yoake_wasm_hello.wasm" };
-pub const HELLO_STD: Guest = Guest { name: "hello-std", example: "hello-std", features: "", artifact: "yoake_wasm_hello_std.wasm" };
-pub const FULL_DEMO_CLIENT: Guest =
-    Guest { name: "full-demo-client", example: "full-demo", features: "client", artifact: "yoake_wasm_full_demo.wasm" };
-pub const FULL_DEMO_SERVER: Guest =
-    Guest { name: "full-demo-server", example: "full-demo", features: "server", artifact: "yoake_wasm_full_demo.wasm" };
+pub const HELLO: Guest = Guest {
+    name: "hello",
+    example: "hello",
+    features: "",
+    artifact: "yoake_wasm_hello.wasm",
+};
+pub const HELLO_STD: Guest = Guest {
+    name: "hello-std",
+    example: "hello-std",
+    features: "",
+    artifact: "yoake_wasm_hello_std.wasm",
+};
+pub const FULL_DEMO_CLIENT: Guest = Guest {
+    name: "full-demo-client",
+    example: "full-demo",
+    features: "client",
+    artifact: "yoake_wasm_full_demo.wasm",
+};
+pub const FULL_DEMO_SERVER: Guest = Guest {
+    name: "full-demo-server",
+    example: "full-demo",
+    features: "server",
+    artifact: "yoake_wasm_full_demo.wasm",
+};
+pub const CLIENT_SERVICES_DEMO: Guest = Guest {
+    name: "client-services-demo",
+    example: "client-services-demo",
+    features: "",
+    artifact: "yoake_wasm_client_services_demo.wasm",
+};
 
 /// The second package of the `mod-call` tests: only answers `handle-call`.
-pub const FULL_DEMO_PEER: Guest =
-    Guest { name: "full-demo-peer", example: "full-demo", features: "peer", artifact: "yoake_wasm_full_demo.wasm" };
+pub const FULL_DEMO_PEER: Guest = Guest {
+    name: "full-demo-peer",
+    example: "full-demo",
+    features: "peer",
+    artifact: "yoake_wasm_full_demo.wasm",
+};
 
 static BUILD: Mutex<()> = Mutex::new(());
 
@@ -37,6 +65,9 @@ fn workspace() -> PathBuf {
 }
 
 fn target_dir() -> PathBuf {
+    if let Some(dir) = std::env::var_os("CARGO_TARGET_DIR").filter(|dir| !dir.is_empty()) {
+        return PathBuf::from(dir);
+    }
     if let Some(dir) = std::env::var_os("YOAKE_WASM_TARGET_DIR").filter(|dir| !dir.is_empty()) {
         return PathBuf::from(dir);
     }
@@ -59,11 +90,23 @@ pub fn load(guest: &Guest) -> Option<Vec<u8>> {
     let _serial = BUILD.lock().unwrap_or_else(|error| error.into_inner());
     let target = target_dir();
     let built = target.join("wasm32-wasip2/release").join(guest.artifact);
-    let copy = target.join("wasm32-wasip2/release").join(format!("{}.wasm", guest.name.replace('-', "_")));
-    let example = workspace().join("crates/yoake-wasm-sdk/examples").join(guest.example);
+    let copy = target
+        .join("wasm32-wasip2/release")
+        .join(format!("{}.wasm", guest.name.replace('-', "_")));
+    let example = workspace()
+        .join("crates/yoake-wasm-sdk/examples")
+        .join(guest.example);
     let mut command = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()));
     command
-        .args(["build", "--release", "--target", "wasm32-wasip2", "-j", "2"])
+        .args([
+            "build",
+            "--offline",
+            "--release",
+            "--target",
+            "wasm32-wasip2",
+            "-j",
+            "4",
+        ])
         .current_dir(&example)
         .env("CARGO_TARGET_DIR", &target)
         .env_remove("CARGO_ENCODED_RUSTFLAGS")
@@ -73,16 +116,22 @@ pub fn load(guest: &Guest) -> Option<Vec<u8>> {
     }
     let build = command.output();
     let bytes = match &build {
-        Ok(output) if output.status.success() => std::fs::copy(&built, &copy).ok().and_then(|_| std::fs::read(&copy).ok()),
+        Ok(output) if output.status.success() => std::fs::copy(&built, &copy)
+            .ok()
+            .and_then(|_| std::fs::read(&copy).ok()),
         _ => None,
     };
-    let bytes = bytes.or_else(|| std::fs::read(&copy).ok());
+    let bytes = bytes.or_else(|| (!strict()).then(|| std::fs::read(&copy).ok()).flatten());
     if bytes.is_none() {
         let why = match &build {
-            Ok(output) => String::from_utf8_lossy(&output.stderr).lines().last().unwrap_or("").to_owned(),
+            Ok(output) => String::from_utf8_lossy(&output.stderr).into_owned(),
             Err(error) => error.to_string(),
         };
-        let message = format!("guest {} is not available (building it in {} failed: {why})", guest.name, example.display());
+        let message = format!(
+            "guest {} is not available (building it in {} failed: {why})",
+            guest.name,
+            example.display()
+        );
         assert!(!strict(), "{message}");
         eprintln!("skipped: {message}");
     }

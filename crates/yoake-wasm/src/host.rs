@@ -27,6 +27,14 @@ macro_rules! host_methods {
 }
 
 pub trait ClientHost: Send {
+    fn gpu_services(&mut self) -> Option<&mut dyn crate::GpuServices> {
+        None
+    }
+
+    fn client_services(&mut self) -> Option<&mut dyn crate::ClientServices> {
+        None
+    }
+
     host_methods! {
         fn log(&mut self, target: &str, message: &str) -> ();
         fn feedback(&mut self, text: &str) -> ();
@@ -65,8 +73,8 @@ pub trait ClientHost: Send {
 
 pub struct ClientContext {
     id: String,
-    host: Box<dyn ClientHost>,
-    textures: HashMap<u32, u64>,
+    pub(crate) host: Box<dyn ClientHost>,
+    pub(crate) textures: HashMap<u32, u64>,
     texture_count: Arc<AtomicUsize>,
     next_texture: u32,
 }
@@ -143,7 +151,7 @@ impl hud::Host for ClientContext {
 impl hud::HostGuiTexture for ClientContext {
     fn create(&mut self, width: u32, height: u32, format: TextureFormat, filter: TextureFilter) -> Result<Resource<hud::GuiTexture>, HostError> {
         let next = self.next_texture.checked_add(1).ok_or(HostError::Busy)?;
-        if self.texture_count.fetch_update(Ordering::AcqRel, Ordering::Acquire, |count| {
+        if self.texture_count.try_update(Ordering::AcqRel, Ordering::Acquire, |count| {
             (count < MAX_TEXTURES).then_some(count + 1)
         }).is_err() {
             return Err(HostError::Busy);

@@ -149,7 +149,7 @@ pub struct Wasm {
 }
 
 /// The `[wasm] permissions` this build knows.
-pub const WASM_PERMISSIONS: [&str; 1] = ["service.commands"];
+pub const WASM_PERMISSIONS: [&str; 2] = ["service.commands", "service.gpu"];
 
 /// The WIT worlds a client module may target.
 pub const CLIENT_WASM_WORLDS: [&str; 2] = ["client-mod", "client-full"];

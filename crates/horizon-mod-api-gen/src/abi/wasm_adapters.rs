@@ -820,10 +820,30 @@ fn build_hook(
             HostKind::None => "HostAccess::None".into(),
         };
         let args = if call_args.is_empty() { String::new() } else { format!(", {}", call_args.join(", ")) };
+        let client = if *side == "client" {
+            let mut extras = Vec::new();
+            for (field, ty) in &fields {
+                let value = match elem_name(ty).as_deref() {
+                    Some("WorldPrePost") => Some(format!("world_draws: Some(&mut *event.{field}.draws)")),
+                    Some("NativeScreenView") => Some(format!("screen_kind: event.{field}.kind.map(str::to_owned)")),
+                    Some("Corners") => Some(format!("corners: Some(&mut *event.{field})")),
+                    Some("NativeMobRender") => Some(format!("mob: Some(event.{field})")),
+                    Some("BlockEntityDraw") => Some(format!("mob_draw: Some(&mut *event.{field})")),
+                    _ => None,
+                };
+                if let Some(value) = value { extras.push(value); }
+            }
+            if plan.name == "camera_override" {
+                extras.push("camera: Some(&mut *event.camera)".to_owned());
+            }
+            format!(", ClientExtras {{ {} ..Default::default() }}", extras.iter().map(|value| format!("{value}, ")).collect::<String>())
+        } else {
+            String::new()
+        };
         let call = format!("call_{}", ident(&super::wit_full::kebab(name)));
         let _ = write!(
             block,
-            "let r = if take_encode_failure() {{ note_encode_skip({ordinal_const}); None }} else {{ self.with_{side}({ordinal_const}, {access}, {batch}, |g| g.dispatch({name:?}, |e, s| e.yoake_mods_{side}_hooks().{call}(s{args}))) }}; "
+            "let r = if take_encode_failure() {{ note_encode_skip({ordinal_const}); None }} else {{ self.with_{side}({ordinal_const}, {access}, {batch}{client}, |g| g.dispatch({name:?}, |e, s| e.yoake_mods_{side}_hooks().{call}(s{args}))) }}; "
         );
         // The answer.
         let host_ref = match method.host {

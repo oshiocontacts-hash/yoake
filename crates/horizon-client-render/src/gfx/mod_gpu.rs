@@ -32,6 +32,7 @@ pub enum Error {
     Upload,
     Readback,
     EngineBinding,
+    Disabled,
     Host(String),
 }
 
@@ -418,6 +419,11 @@ impl<Command> Default for Recorder<Command> {
 }
 
 impl<Command> Recorder<Command> {
+    pub fn remove_owner(&mut self, owner: ModId) {
+        self.commands.retain(|command| command.owner != owner);
+        self.usage.remove(&owner);
+    }
+
     pub fn begin_frame(&mut self) -> Result<(), Error> {
         if self.active {
             return Err(Error::Frame);

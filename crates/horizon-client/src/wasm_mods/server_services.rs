@@ -73,7 +73,7 @@ fn game_slots(slots: Vec<Option<st::ItemStack>>) -> Result<Vec<Option<ItemStack>
     slots.iter().map(|slot| slot.as_ref().map(game_item).transpose()).collect()
 }
 
-fn sound_category(name: &str) -> Result<NativeSoundCategory, String> {
+pub(super) fn sound_category(name: &str) -> Result<NativeSoundCategory, String> {
     Ok(match name {
         "master" => NativeSoundCategory::Master,
         "music" => NativeSoundCategory::Music,
@@ -222,7 +222,7 @@ pub(super) fn call_mod(caller: &str, target: &str, method: &str, payload: &[u8])
             HostAccess::Read(host) => HostAccess::Read(&**host),
             HostAccess::Write(host) => HostAccess::Write(&mut **host),
         };
-        let mut inner = Invocation { host, batch: None, batch_start: 0 };
+        let mut inner = Invocation { host, batch: None, batch_start: 0, client: ClientExtras::default() };
         CALL_DEPTH.with(|d| d.set(depth + 1));
         let answer = {
             let _scope = Scope::enter(&mut inner);
