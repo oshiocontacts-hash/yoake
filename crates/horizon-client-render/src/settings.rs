@@ -8,6 +8,13 @@ use std::{fs, path::Path};
 
 pub use horizon_client_core::sound_source::SOUND_SOURCES;
 
+/// The system's locale decides the default only when options.txt has no
+/// usable language value. All non-English and unavailable locales use Japanese.
+pub(crate) fn default_language() -> String {
+    let locale = sys_locale::get_locale();
+    horizon_client_core::lang::default_for_locale(locale.as_deref()).to_owned()
+}
+
 /// Per-source volumes for the mixer (soundCategory_* except master).
 static SOURCE_VOLUMES: std::sync::RwLock<[f32; 11]> = std::sync::RwLock::new([1.0; 11]);
 pub fn set_source_volumes(volumes: [f32; 11]) {
@@ -249,7 +256,7 @@ impl Default for Settings {
             toggle_crouch: false,
             toggle_sprint: false,
             auto_jump: false,
-            language: "en_us".into(),
+            language: default_language(),
             force_unicode: false,
             japanese_glyphs: false,
             chat_visibility: 0,
@@ -411,6 +418,7 @@ impl Settings {
     }
     /// Typed view of an options file.
     pub fn from_file(f: OptionsFile) -> Self {
+        let language = horizon_client_core::lang::effective_code(&f.string("lang")).to_owned();
         let mut keys = KeyBinds::default();
         for (name, _, _) in crate::keybinds::MAPPINGS {
             keys.set(name, &f.key_binding(name));
@@ -474,7 +482,7 @@ impl Settings {
             shader_packs: Vec::new(),
             shader_options: None,
             auto_jump: f.bool("autoJump"),
-            language: f.string("lang"),
+            language,
             force_unicode: f.bool("forceUnicodeFont"),
             japanese_glyphs: f.bool("japaneseGlyphVariants"),
             chat_visibility: f.int("chatVisibility") as u8,
@@ -885,7 +893,7 @@ mod tests {
 
     #[test]
     fn round_trips_vanilla_options_txt() {
-        let text = "version:4000\nfov:0.5\nrenderDistance:16\nmaxFps:260\nrenderClouds:\"fast\"\nkey_key.jump:key.keyboard.j\nsoundCategory_music:0.25\nresourcePacks:[\"vanilla\",\"file/x.zip\"]\nlang:fr_fr\nsomeFutureOption:42\n";
+        let text = "version:4000\nfov:0.5\nrenderDistance:16\nmaxFps:260\nrenderClouds:\"fast\"\nkey_key.jump:key.keyboard.j\nsoundCategory_music:0.25\nresourcePacks:[\"vanilla\",\"file/x.zip\"]\nlang:ja_jp\nsomeFutureOption:42\n";
         let s = Settings::parse(text);
         assert_eq!(s.fov, 90.0);
         assert_eq!(s.render_distance, 16);
@@ -894,7 +902,7 @@ mod tests {
         assert_eq!(s.keys.get("key.jump"), "key.keyboard.j");
         assert_eq!(s.volume("music"), 0.25);
         assert_eq!(s.resource_packs, ["vanilla", "file/x.zip"]);
-        assert_eq!(s.language, "fr_fr");
+        assert_eq!(s.language, "ja_jp");
         let out = s.serialize();
         assert!(out.starts_with("version:"));
         assert!(out.contains("\nkey_key.jump:key.keyboard.j\n"));
@@ -904,6 +912,14 @@ mod tests {
         let again = Settings::parse(&out);
         assert_eq!(again.fov, 90.0);
         assert_eq!(again.keys.get("key.jump"), "key.keyboard.j");
+    }
+    #[test]
+    fn unsupported_saved_languages_use_japanese_and_are_written_effectively() {
+        for code in ["de_de", "fr_fr"] {
+            let settings = Settings::parse(&format!("lang:{code}\n"));
+            assert_eq!(settings.language, "ja_jp", "saved {code}");
+            assert!(settings.serialize().contains("\nlang:ja_jp\n"));
+        }
     }
     #[test]
     fn client_information_maps_the_stored_main_hand() {
@@ -919,6 +935,7 @@ mod tests {
     #[test]
     fn no_options_txt_paces_frames_like_an_empty_one() {
         let (fresh, empty) = (Settings::default(), Settings::parse(""));
+        assert_eq!(fresh.language, empty.language);
         assert_eq!(fresh.max_fps, 120);
         assert_eq!(fresh.max_fps, empty.max_fps);
         assert_eq!(fresh.vsync, empty.vsync);

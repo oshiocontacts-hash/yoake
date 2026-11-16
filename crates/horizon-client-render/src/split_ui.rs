@@ -1533,7 +1533,7 @@ mod tests {
     #[test]
     fn locale_switch_and_pack_overrides_keep_the_same_draft() {
         // The language table is process-wide. Run this test alone in a child so
-        // other UI tests cannot observe its temporary French language.
+        // other UI tests cannot observe its temporary Japanese language.
         const CHILD: &str = "HORIZON_TEST_SPLIT_SETUP_LOCALE";
         if std::env::var_os(CHILD).is_none() {
             let module = module_path!().split_once("::").unwrap().1;
@@ -1565,12 +1565,12 @@ mod tests {
                 vec!["horizon".into()]
             }
             fn read(&self, path: &str) -> Option<Vec<u8>> {
-                (path == "assets/horizon/lang/fr_fr.json").then(|| {
+                (path == "assets/horizon/lang/ja_jp.json").then(|| {
                     serde_json::to_vec(&serde_json::json!({
-                        "horizon.splitscreen.setup.new_window": "Créer une fenêtre",
-                        "horizon.splitscreen.setup.monitor": "Écran personnalisé %s",
-                        "horizon.splitscreen.setup.fill_monitor": "Occuper %s",
-                        "horizon.splitscreen.setup.warning.empty_main": "Fenêtre principale masquée"
+                        "horizon.splitscreen.setup.new_window": "Pack window",
+                        "horizon.splitscreen.setup.monitor": "Pack monitor %s",
+                        "horizon.splitscreen.setup.fill_monitor": "Fill %s",
+                        "horizon.splitscreen.setup.warning.empty_main": "Main window hidden"
                     }))
                     .unwrap()
                 })
@@ -1581,22 +1581,20 @@ mod tests {
         lang::set(lang::Language::load(&[], "en_us"));
         press(&mut ui, "Élodie %s");
         assert!(labels(&ui).contains(&"New window".to_owned()));
-        lang::set(lang::Language::load(&[], "fr_fr"));
-        assert!(labels(&ui).contains(&"Nouvelle fenêtre".to_owned()));
-        assert!(labels(&ui).contains(&"Appliquer".to_owned()));
-        assert!(labels(&ui).contains(&"Noms : Désactivé".to_owned()));
-        assert!(labels(&ui).contains(&"2 par fenêtre : Auto".to_owned()));
+        lang::set(lang::Language::load(&[], "ja_jp"));
+        let new_window = "\u{65b0}\u{3057}\u{3044}\u{30a6}\u{30a3}\u{30f3}\u{30c9}\u{30a6}";
+        assert!(labels(&ui).contains(&new_window.to_owned()));
         assert!(
             labels(&ui).contains(&"Élodie %s".to_owned()),
             "player names remain literal"
         );
-        press(&mut ui, "Nouvelle fenêtre");
+        press(&mut ui, new_window);
         let draft = ui.edit.clone().unwrap();
         assert_eq!(draft.players, [1, 2]);
-        lang::set(lang::Language::load(&[&Pack], "fr_fr"));
+        lang::set(lang::Language::load(&[&Pack], "ja_jp"));
         let translated = labels(&ui);
-        assert!(translated.contains(&"Créer une fenêtre".to_owned()));
-        assert!(translated.contains(&"Occuper Écran personnalisé 2".to_owned()));
+        assert!(translated.contains(&"Pack window".to_owned()));
+        assert!(translated.contains(&"Fill Pack monitor 2".to_owned()));
         assert_eq!(
             ui.edit,
             Some(draft),
@@ -1604,10 +1602,9 @@ mod tests {
         );
         ui.place(0, Spot::Window(2));
         assert!(
-            ui.warnings()
-                .contains(&"Fenêtre principale masquée".to_owned())
+            ui.warnings().contains(&"Main window hidden".to_owned())
         );
-        press(&mut ui, "Appliquer");
+        press(&mut ui, "\u{9069}\u{7528}");
         assert_eq!(ui.apply.take().unwrap().players, [2, 2]);
         ui.on = false;
         assert_eq!(
@@ -1617,9 +1614,8 @@ mod tests {
         );
         assert_eq!(
             ui.status_lines().unwrap()[0],
-            "L'écran partagé est désactivé."
+            "\u{753b}\u{9762}\u{5206}\u{5272}\u{306f}\u{30aa}\u{30d5}\u{3067}\u{3059}\u{3002}"
         );
-        assert!(labels(&ui).contains(&"Écran partagé : Désactivé".to_owned()));
         lang::set(lang::Language::load(&[], "de_de"));
         assert_eq!(
             ui.status_lines().unwrap()[0],

@@ -3165,7 +3165,7 @@ mod tests {
     /// through its values (#1927).
     #[test]
     fn every_graphics_text_is_in_the_language_table() {
-        let (_, missed) = lang::scoped(lang::Language::load(&[], "de_de"), || {
+        let (_, missed) = lang::scoped(lang::Language::load(&[], "en_us"), || {
             for hdr in [false, true] {
                 let mut s = Settings::default();
                 s.horizon.hdr = hdr;
@@ -3242,12 +3242,10 @@ mod tests {
         s.horizon.resolution_scale = 75;
         for (code, leaf, scale) in [
             ("en_us", "Leaf Culling: Hollow", "Resolution Scale: 75%"),
-            (
-                "fr_fr",
-                "Occlusion feuillage : Creux",
-                "Échelle de résolution : 75 %",
-            ),
-            ("zh_cn", "树叶剔除：镂空", "渲染比例：75%"),
+            // These vanilla locales still supply their separators; Horizon's own caption
+            // text falls back to English because only ja_jp and en_us are bundled.
+            ("fr_fr", "Leaf Culling : Hollow", "Resolution Scale : 75 %"),
+            ("zh_cn", "Leaf Culling：Hollow", "Resolution Scale：75%"),
             // Value first.
             ("en_ud", "Hollow :Leaf Culling", "Resolution Scale: 75%"),
         ] {
@@ -3268,34 +3266,16 @@ mod tests {
         s.horizon.entity_culling = EntityCullingMode::Asynchronous;
         for (code, leaf, entity, leaf_text) in [
             (
-                "de_de",
-                "Laub-Culling: Hohl",
-                "Objekt-Culling: Asynchron",
-                "Lässt Flächen zwischen Blättern weg: schneller, aber Lücken sind durchsichtig.",
+                "ja_jp",
+                "葉のカリング: 中抜き",
+                "エンティティのカリング: 非同期",
+                "葉の間の面を省略します。高速ですが隙間から向こうが見えます。",
             ),
             (
-                "pl_pl",
-                "Pomijanie liści: Puste",
-                "Pomijanie bytów: Asynchroniczne",
-                "Pomija ściany między liśćmi: szybciej, ale luki są przezroczyste.",
-            ),
-            (
-                "uk_ua",
-                "Відсікання листя: Порожнє",
-                "Відсік. сутностей: Асинхронно",
-                "Прибирає грані між листям: швидше, але прогалини прозорі.",
-            ),
-            (
-                "zh_cn",
-                "树叶剔除: 镂空",
-                "实体剔除: 异步",
-                "省略树叶之间的面：更快，但缝隙会透视。",
-            ),
-            (
-                "fr_fr",
-                "Occlusion feuillage: Creux",
-                "Occlusion des entités: Asynchrone",
-                "Supprime les faces entre feuilles : plus rapide, mais on voit à travers les trous.",
+                "en_us",
+                "Leaf Culling: Hollow",
+                "Entity Culling: Asynchronous",
+                "Drops faces between leaves: faster, but gaps look through.",
             ),
         ] {
             let (shown, _) = lang::scoped(lang::Language::load(&[], code), || {

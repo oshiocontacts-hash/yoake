@@ -79,7 +79,6 @@
   "horizon.mods.not_built": " (Not built)",
   "horizon.mods.dev": " (Dev)",
   "horizon.mods.settings": "Settings",
-  "horizon.mod_guard.stopped": "Mod %s stopped after an error (%s). The game goes on without it.",
   "yoake.config.title": "Configuration: %s",
   "yoake.config.read_only": "Server settings are read-only while connected to a remote server.",
   "yoake.config.restart": "Requires a restart",
@@ -510,5 +509,6 @@
   "horizon.extras.cosmetics_auras.tooltip": "Auras and trails other players wear. Off by default.",
   "horizon.extras.cosmetics.shown": "Shown",
   "horizon.extras.cosmetics.hidden": "Hidden",
-  "horizon.extras.cosmetics.name_tags": "Name tags only"
+  "horizon.extras.cosmetics.name_tags": "Name tags only",
+  "horizon.mod_guard.stopped": "Mod %s stopped after an error (%s). The game goes on without it."
 }

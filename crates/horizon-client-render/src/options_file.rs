@@ -493,8 +493,12 @@ pub struct OptionsFile {
 
 impl Default for OptionsFile {
     fn default() -> Self {
+        let mut values: Vec<V> = TABLE.iter().map(|d| d.default.clone()).collect();
+        if let Some(i) = TABLE.iter().position(|d| d.key == "lang") {
+            values[i] = V::Str(crate::settings::default_language());
+        }
         Self {
-            values: TABLE.iter().map(|d| d.default.clone()).collect(),
+            values,
             fullscreen_resolution: None,
         }
     }
@@ -793,6 +797,9 @@ impl OptionsFile {
         };
         let mut out = accepts(kind);
         out["value"] = value;
+        if key == "lang" {
+            out["choices"] = serde_json::json!(["ja_jp", "en_us"]);
+        }
         Some(out)
     }
 
@@ -803,8 +810,20 @@ impl OptionsFile {
     pub fn set_text(&mut self, key: &str, text: &str) -> Result<(), String> {
         let i = Self::index(key).ok_or_else(|| format!("unknown option {key}"))?;
         let d = &TABLE[i];
-        let refused = || format!("{key} refuses {text:?}; it accepts {}", accepts(d.kind));
-        let candidate = if let Some(names) = choices(d.kind) {
+        let refused = || {
+            let accepts = if key == "lang" {
+                "[\"ja_jp\", \"en_us\"]".to_owned()
+            } else {
+                accepts(d.kind).to_string()
+            };
+            format!("{key} refuses {text:?}; it accepts {accepts}")
+        };
+        let candidate = if key == "lang" {
+            if !matches!(text, "ja_jp" | "en_us") {
+                return Err(refused());
+            }
+            V::Str(text.to_owned())
+        } else if let Some(names) = choices(d.kind) {
             let x = names.iter().position(|n| *n == text).ok_or_else(refused)?;
             V::Int(x as i32)
         } else if matches!(d.kind, Kind::Key) {
@@ -845,6 +864,10 @@ mod control_tests {
         );
         assert_eq!(f.describe("renderClouds").unwrap()["value"], "true");
         assert_eq!(
+            f.describe("lang").unwrap()["choices"],
+            serde_json::json!(["ja_jp", "en_us"])
+        );
+        assert_eq!(
             f.describe("key_key.forward").unwrap()["value"],
             "key.keyboard.w"
         );
@@ -870,6 +893,11 @@ mod control_tests {
         f.set_text("renderClouds", "fast").unwrap();
         assert_eq!(f.name("renderClouds"), "fast");
         assert!(f.set_text("renderClouds", "fancy").is_err());
+        f.set_text("lang", "ja_jp").unwrap();
+        assert_eq!(f.string("lang"), "ja_jp");
+        let e = f.set_text("lang", "de_de").unwrap_err();
+        assert!(e.contains("ja_jp") && e.contains("en_us"), "{e}");
+        assert_eq!(f.string("lang"), "ja_jp");
         f.set_text("maxFps", "125").unwrap();
         assert_eq!(f.get("maxFps"), Some(&V::Int(120)), "IntRange steps of 10");
         f.set_text("key_key.jump", "key.keyboard.j").unwrap();

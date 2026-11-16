@@ -499,7 +499,7 @@ impl Loading {
     fn open_menu_options(&mut self, page: Page) {
         crate::entry::wasm_mods::package_ui::populate(&mut self.settings, true);
         self.menu.options.open_at(false, page);
-        self.menu.options.languages = horizon_client::lang::available(&[&self.menu.root]);
+        self.menu.options.languages = horizon_client::lang::selectable(&[&self.menu.root]);
         self.menu.options.pack_infos = packs::pack_infos(&self.vanilla_root, &[]);
         self.menu.options.pack_selection = self.settings.resource_packs.clone();
         self.menu.options.pack_screen = None;
