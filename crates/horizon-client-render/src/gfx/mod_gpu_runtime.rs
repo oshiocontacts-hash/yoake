@@ -11,6 +11,13 @@ mod recovery;
 pub const FRAME_VERSION: u32 = 1;
 static ACTIVE: AtomicBool = AtomicBool::new(false);
 
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn test_guard() -> std::sync::MutexGuard<'static, ()> {
+    static TESTS: Mutex<()> = Mutex::new(());
+    TESTS.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 #[derive(Clone, Default)]
 pub struct Frame {
     pub index: u64,
@@ -272,14 +279,14 @@ pub(super) fn checked_operation<R>(
     device: &wgpu::Device,
     operation: impl FnOnce(&mut Gpu) -> Result<R, Error>,
 ) -> Result<R, Error> {
-    let result = super::native_services::checked(device, || operation(gpu))
-        .map_err(Error::Host)
-        .and_then(|result| result);
-    if let Err(Error::Host(error)) = &result {
-        gpu.disable(owner, error.to_owned());
-        log::warn!("WASM GPU mod {} disabled: {error}", owner.0);
+    match super::native_services::checked(device, || operation(gpu)) {
+        Ok(result) => result,
+        Err(error) => {
+            gpu.disable(owner, error.clone());
+            log::warn!("WASM GPU mod {} disabled: {error}", owner.0);
+            Err(Error::Host(error))
+        }
     }
-    result
 }
 
 pub(super) fn timed_operation<R>(
@@ -452,5 +459,18 @@ pub fn submit_stage(stage: Stage, frame: Option<&FrameTarget<'_>>, mut sources: 
         Some(&sources),
     ) {
         log::warn!("WASM GPU mod {} disabled: {error}", owner.0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_guard_recovers_after_a_test_panics() {
+        let result = std::panic::catch_unwind(|| {
+            let _guard = super::test_guard();
+            panic!("test lock poison");
+        });
+        assert!(result.is_err());
+        let _guard = super::test_guard();
     }
 }

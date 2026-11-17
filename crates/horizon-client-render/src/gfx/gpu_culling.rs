@@ -1026,6 +1026,7 @@ mod tests {
     /// compiles with FXC, part of Windows: wgpu takes DXC only where
     /// `dxcompiler.dll` loads, and the game ships none.
     fn on_each_device(test: impl Fn(&wgpu::Device, &Queue)) {
+        let _guard = crate::gfx::mod_gpu_runtime::test_guard();
         let mut tested = false;
         for (backends, compiler, name) in [
             (wgpu::Backends::VULKAN, Default::default(), "Vulkan"),

@@ -86,6 +86,78 @@ pub(super) struct Ticket {
     status: Arc<Mutex<Option<Result<(), String>>>>,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn failed_readback_mapping_is_recoverable_through_checked_timing() {
+        let (device, queue, _guard) = super::super::tests::gpu();
+        let mut gpu = Gpu::default();
+        gpu.set_test_time_allowance(std::time::Duration::from_secs(5));
+        let owner = ModId(84);
+        let buffer = gpu
+            .create_buffer(
+                &device,
+                owner,
+                4,
+                (wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST).bits(),
+            )
+            .unwrap();
+        let usage = gpu.usage(owner);
+        gpu.begin_frame().unwrap();
+        let failed = gpu
+            .read_buffer(&device, owner, Stage::WorldOpaque, buffer, 0, 4)
+            .unwrap();
+        gpu.finish_frame().unwrap();
+        assert!(
+            gpu.submit_stage(&device, &queue, Stage::WorldOpaque, None)
+                .is_empty()
+        );
+        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+        let resource = gpu.resources.get(owner, failed).unwrap();
+        let Value::Readback(ticket) = resource.value() else {
+            panic!("expected readback ticket")
+        };
+        ticket.buffer.unmap();
+        *ticket.status.lock().unwrap() = Some(Err("readback mapping failed".to_owned()));
+        drop(resource);
+        let now = Instant::now();
+        let result =
+            crate::gfx::mod_gpu_runtime::checked_operation(&mut gpu, owner, &device, |gpu| {
+                crate::gfx::mod_gpu_runtime::timed_operation(
+                    gpu,
+                    owner,
+                    false,
+                    || now,
+                    |gpu| gpu.poll_readback(&device, owner, failed),
+                )
+            });
+        assert!(
+            matches!(result, Err(Error::Host(message)) if message == "readback mapping failed")
+        );
+        assert_eq!(gpu.disabled_reason(owner), None);
+        assert_eq!(gpu.usage(owner), usage);
+        assert!(gpu.resources.get(owner, failed).is_err());
+        gpu.begin_frame().unwrap();
+        gpu.write_buffer(&device, owner, Stage::WorldOpaque, buffer, 0, &[42; 4])
+            .unwrap();
+        let next = gpu
+            .read_buffer(&device, owner, Stage::WorldOpaque, buffer, 0, 4)
+            .unwrap();
+        gpu.finish_frame().unwrap();
+        assert!(
+            gpu.submit_stage(&device, &queue, Stage::WorldOpaque, None)
+                .is_empty()
+        );
+        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+        let Readback::Ready(bytes) = gpu.poll_readback(&device, owner, next).unwrap() else {
+            panic!("later readback must complete")
+        };
+        assert_eq!(bytes, [42; 4]);
+    }
+}
+
 pub(super) enum Command {
     Write {
         source: Owned,

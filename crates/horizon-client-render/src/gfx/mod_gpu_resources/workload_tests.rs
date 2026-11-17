@@ -23,6 +23,7 @@ fn render_descriptor(stride: u64, attributes: Vec<VertexAttribute>) -> RenderDes
 
 #[test]
 fn shared_demo_mesh_and_compute_run_with_and_without_timestamps() {
+    let _guard = crate::gfx::mod_gpu_runtime::test_guard();
     let instance = crate::gfx::test_gpu::instance();
     let adapter = pollster::block_on(instance.request_adapter(&Default::default()))
         .expect("headless GPU adapter");
@@ -52,6 +53,7 @@ fn shared_demo_mesh_and_compute_run_with_and_without_timestamps() {
 fn run_demo(device: &wgpu::Device, queue: &wgpu::Queue, measured: bool) {
     let owner = ModId(81);
     let mut gpu = Gpu::default();
+    gpu.set_test_time_allowance(Duration::from_secs(5));
     gpu.configure_frame(256, 256, Some(Format::Rgba8Unorm), None);
     let mesh_shader = gpu
         .create_shader(

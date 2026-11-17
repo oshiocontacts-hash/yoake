@@ -1261,6 +1261,8 @@ struct GameHost {
     next_stream: u32,
     gpu_enabled: bool,
     gpu_ready: Arc<AtomicBool>,
+    #[cfg(test)]
+    gpu_recording_fault: Option<fn(&wgpu::Device)>,
     dev_shaders: Option<Arc<Mutex<dev_shaders::DevShaders>>>,
     resources: resources::Registration,
 }
@@ -1278,6 +1280,8 @@ impl GameHost {
             next_stream: 1,
             gpu_enabled: false,
             gpu_ready: Arc::new(AtomicBool::new(true)),
+            #[cfg(test)]
+            gpu_recording_fault: None,
             dev_shaders: None,
             resources: resources::Registration::new(native_id, native_index),
         }

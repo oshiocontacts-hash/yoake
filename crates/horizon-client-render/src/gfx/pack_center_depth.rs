@@ -267,6 +267,7 @@ mod tests {
     /// follows the frames instead of keeping the first ones' depth.
     #[test]
     fn the_centre_depth_follows_frames_submitted_on_the_submit_thread() {
+        let _guard = crate::gfx::mod_gpu_runtime::test_guard();
         let Some((device, queue)) = test_device() else {
             return;
         };

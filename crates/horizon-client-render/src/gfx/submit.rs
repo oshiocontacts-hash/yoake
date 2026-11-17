@@ -220,6 +220,7 @@ mod tests {
 
     #[test]
     fn writes_after_a_frame_on_the_thread_land_after_it() {
+        let _guard = crate::gfx::mod_gpu_runtime::test_guard();
         let Some((device, queue)) = device() else {
             return;
         };

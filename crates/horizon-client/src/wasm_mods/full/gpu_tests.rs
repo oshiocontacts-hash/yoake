@@ -29,6 +29,33 @@ fn guest(id: &str, bytes: &[u8], allowed: bool) -> FullMod {
     FullMod::new(id.to_owned(), Some(client), None)
 }
 
+fn recording_error_guest(id: &str, bytes: &[u8]) -> FullMod {
+    let mut host = GameHost::new(id).with_gpu(true);
+    host.gpu_recording_fault = Some(|device| {
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("guest recording fault"),
+            size: 8,
+            usage: wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let mut encoder = device.create_command_encoder(&Default::default());
+        encoder.clear_buffer(&buffer, 2, Some(4));
+        let _ = encoder.finish();
+    });
+    let mut client = load_client_with_host(
+        &ModuleSource {
+            id,
+            bytes,
+            commands: false,
+            gpu: true,
+        },
+        host,
+    )
+    .unwrap();
+    client.set_test_limits(test_limits());
+    FullMod::new(id.to_owned(), Some(client), None)
+}
+
 fn fov(module: &mut FullMod) -> f32 {
     let mut event = ComputeFovEvent {
         partial: 0.0,
@@ -120,7 +147,10 @@ fn pixels(device: &wgpu::Device, queue: &wgpu::Queue, texture: &wgpu::Texture) -
 
 #[test]
 fn gpu_guests_render_compute_reload_trap_and_device_loss() {
-    use yoake_wasm::test_guests::{self, GPU_DEMO, GPU_RELOAD, GPU_TRAP, GPU_VERIFY};
+    let _guard = mod_gpu_runtime::test_guard();
+    use yoake_wasm::test_guests::{
+        self, GPU_DEMO, GPU_RECORDING_ERROR, GPU_RELOAD, GPU_TRAP, GPU_VERIFY,
+    };
 
     let Some(demo_bytes) = test_guests::load(&GPU_DEMO) else {
         return;
@@ -132,6 +162,9 @@ fn gpu_guests_render_compute_reload_trap_and_device_loss() {
         return;
     };
     let Some(trap_bytes) = test_guests::load(&GPU_TRAP) else {
+        return;
+    };
+    let Some(recording_error_bytes) = test_guests::load(&GPU_RECORDING_ERROR) else {
         return;
     };
     assert_ne!(verify_bytes, reload_bytes);
@@ -148,12 +181,17 @@ fn gpu_guests_render_compute_reload_trap_and_device_loss() {
     mod_gpu_runtime::set_recovery_path_for_tests(recovery.clone()).unwrap();
     let instance = wgpu::Instance::default();
     let adapter = pollster::block_on(instance.request_adapter(&Default::default())).unwrap();
-    let (device, queue) = pollster::block_on(adapter.request_device(&Default::default())).unwrap();
+    let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+        required_features: adapter.features() & wgpu::Features::TIMESTAMP_QUERY,
+        ..Default::default()
+    }))
+    .unwrap();
     let lost = Arc::new(AtomicBool::new(false));
     mod_gpu_runtime::configure(&device, &queue, Arc::clone(&lost));
     let observer = mod_gpu::ModId(1);
     mod_gpu_runtime::register(observer, "gpu-observer", Arc::new(|| {}));
     mod_gpu_runtime::with(observer, |gpu, device, _, _| {
+        gpu.set_test_time_allowance(std::time::Duration::from_secs(5));
         gpu.create_buffer(device, observer, 16, wgpu::BufferUsages::COPY_DST.bits())
     })
     .unwrap();
@@ -196,7 +234,7 @@ fn gpu_guests_render_compute_reload_trap_and_device_loss() {
     let depth = make_texture(wgpu::TextureFormat::Depth32Float);
     let color_view = color.create_view(&Default::default());
     let depth_view = depth.create_view(&Default::default());
-    let clear_target = || {
+    let clear_targets = || {
         let mut encoder = device.create_command_encoder(&Default::default());
         {
             let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -227,7 +265,7 @@ fn gpu_guests_render_compute_reload_trap_and_device_loss() {
         }
         queue.submit([encoder.finish()]);
     };
-    clear_target();
+    clear_targets();
     let target = mod_gpu_resources::FrameTarget {
         color: &color_view,
         depth: Some(&depth_view),
@@ -243,52 +281,116 @@ fn gpu_guests_render_compute_reload_trap_and_device_loss() {
         ] {
             mod_gpu_runtime::submit_stage(stage, Some(&target), engine_sources());
         }
+        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
     }
-    let mut failure = None;
-    for _ in 0..60 {
-        std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
-        clear_target();
-        mod_gpu_runtime::begin_frame(frame(), engine_frame());
-        let mut previous = pixels(&device, &queue, &color);
-        failure = None;
-        for stage in [
-            mod_gpu::Stage::WorldOpaque,
-            mod_gpu::Stage::WorldTranslucent,
-            mod_gpu::Stage::AfterWorld,
-        ] {
-            if !mod_gpu_runtime::has_stage(stage) {
-                failure = Some(format!("guest stage {stage:?} was not submitted"));
+    let assert_demo_renders = |phase: &str| {
+        let mut failure = None;
+        for _ in 0..60 {
+            std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
+            clear_targets();
+            mod_gpu_runtime::begin_frame(frame(), engine_frame());
+            let mut previous = pixels(&device, &queue, &color);
+            failure = None;
+            for stage in [
+                mod_gpu::Stage::WorldOpaque,
+                mod_gpu::Stage::WorldTranslucent,
+                mod_gpu::Stage::AfterWorld,
+            ] {
+                if !mod_gpu_runtime::has_stage(stage) {
+                    failure = Some(format!("{phase}: guest stage {stage:?} was not submitted"));
+                    break;
+                }
+                mod_gpu_runtime::submit_stage(
+                    stage,
+                    Some(&target),
+                    mod_gpu_resources::EngineSources {
+                        depth: Some(&depth),
+                        scene: Some(&color),
+                        ..engine_sources()
+                    },
+                );
+                let disabled = mod_gpu_runtime::with(observer, |gpu, _, _, _| {
+                    Ok(gpu.disabled_reason(demo_owner).map(str::to_owned))
+                })
+                .unwrap();
+                assert!(
+                    disabled.is_none(),
+                    "{phase}: guest stage {stage:?} disabled the mod: {disabled:?}"
+                );
+                let current = pixels(&device, &queue, &color);
+                if current == previous {
+                    failure = Some(format!(
+                        "{phase}: guest stage {stage:?} did not change rendered pixels"
+                    ));
+                    break;
+                }
+                previous = current;
+            }
+            if failure.is_none() {
                 break;
             }
-            mod_gpu_runtime::submit_stage(
-                stage,
-                Some(&target),
-                mod_gpu_resources::EngineSources {
-                    depth: Some(&depth),
-                    scene: Some(&color),
-                    ..engine_sources()
-                },
-            );
-            let disabled = mod_gpu_runtime::with(observer, |gpu, _, _, _| {
-                Ok(gpu.disabled_reason(demo_owner).map(str::to_owned))
-            })
-            .unwrap();
-            assert!(
-                disabled.is_none(),
-                "guest stage {stage:?} disabled the mod: {disabled:?}"
-            );
-            let current = pixels(&device, &queue, &color);
-            if current == previous {
-                failure = Some(format!("guest stage {stage:?} did not change rendered pixels"));
-                break;
-            }
-            previous = current;
         }
-        if failure.is_none() {
-            break;
-        }
-    }
-    assert!(failure.is_none(), "{failure:?}");
+        assert!(failure.is_none(), "{failure:?}");
+    };
+    assert_demo_renders("before recording fault");
+    let mut invalid = recording_error_guest("gpu-recording-error", &recording_error_bytes).with_gpu(
+        true,
+        "1",
+        "gpu-recording-error-v1",
+    );
+    let invalid_owner = invalid.gpu_owner.unwrap();
+    std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
+    mod_gpu_runtime::begin_frame(frame(), engine_frame());
+    mod_gpu_runtime::with(observer, |gpu, _, _, _| {
+        let reason = gpu.disabled_reason(invalid_owner).unwrap();
+        assert!(reason.contains("COPY_BUFFER_ALIGNMENT"), "{reason}");
+        assert_eq!(gpu.usage(invalid_owner), mod_gpu::Usage::default());
+        assert_eq!(gpu.disabled_reason(demo_owner), None);
+        assert_eq!(gpu.usage(observer), observer_usage);
+        Ok(())
+    })
+    .unwrap();
+    assert!(
+        fov(&mut invalid) == 91.0,
+        "recording-error guest must catch the command error and keep running"
+    );
+    assert!(
+        !invalid
+            .client
+            .lock()
+            .unwrap()
+            .module
+            .as_ref()
+            .unwrap()
+            .is_disabled(),
+        "recording-error guest trapped: {:?}",
+        STARTUP.lock().unwrap().as_ref()
+    );
+    let demo_disabled = mod_gpu_runtime::with(observer, |gpu, _, _, _| {
+        Ok(gpu.disabled_reason(demo_owner).map(str::to_owned))
+    })
+    .unwrap();
+    assert_eq!(demo_disabled, None, "healthy guest disabled in later frame");
+    assert!(
+        !demo
+            .client
+            .lock()
+            .unwrap()
+            .module
+            .as_ref()
+            .unwrap()
+            .is_disabled(),
+        "healthy guest trapped in later frame"
+    );
+    assert_demo_renders("healthy guest after recording fault");
+    mod_gpu_runtime::with(observer, |gpu, _, _, _| {
+        assert!(gpu.disabled_reason(invalid_owner).is_some());
+        assert_eq!(gpu.disabled_reason(demo_owner), None);
+        assert_eq!(gpu.usage(observer), observer_usage);
+        Ok(())
+    })
+    .unwrap();
+    drop(invalid);
     drop(demo);
     assert_eq!(
         mod_gpu_runtime::with(observer, |gpu, _, _, _| Ok(gpu.usage(demo_owner))).unwrap(),

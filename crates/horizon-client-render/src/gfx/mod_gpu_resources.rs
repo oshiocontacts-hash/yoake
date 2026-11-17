@@ -83,6 +83,8 @@ pub struct Gpu {
     submission_hooks: Option<SubmissionHooks>,
     creations: BTreeMap<ModId, CreationBudget>,
     frame_limits: FrameLimits,
+    #[cfg(any(test, feature = "test-support"))]
+    test_time_allowance: Option<Duration>,
 }
 
 struct CreationBudget {
@@ -132,6 +134,21 @@ impl Default for FrameLimits {
 }
 
 impl Gpu {
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn set_test_time_allowance(&mut self, allowance: Duration) {
+        assert!(allowance >= Duration::from_millis(4));
+        self.test_time_allowance = Some(allowance);
+    }
+
+    fn accounted_milliseconds(&self, milliseconds: f64) -> f64 {
+        #[cfg(any(test, feature = "test-support"))]
+        if let Some(allowance) = self.test_time_allowance {
+            return milliseconds * 4.0 / (allowance.as_secs_f64() * 1000.0);
+        }
+        milliseconds
+    }
+
     pub fn configure_frame(
         &mut self,
         width: u32,

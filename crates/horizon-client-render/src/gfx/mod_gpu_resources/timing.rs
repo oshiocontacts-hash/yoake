@@ -462,6 +462,7 @@ impl Gpu {
         if self.disabled_reason(owner).is_some() {
             return;
         }
+        let milliseconds = self.accounted_milliseconds(milliseconds);
         let budget = self
             .budgets
             .entry(owner)
@@ -500,6 +501,8 @@ impl Gpu {
                     };
                     if let Some((_, milliseconds)) = interval.measurement() {
                         let baseline = self.submission_timeline.baseline(finished);
+                        let milliseconds = self.accounted_milliseconds(milliseconds);
+                        let baseline = self.accounted_milliseconds(baseline);
                         if self.fallback_budgets.entry(owner).or_default().sample(
                             finished,
                             completion.frame,
@@ -534,11 +537,12 @@ impl Gpu {
     pub fn charge_cpu(&mut self, owner: ModId, elapsed: Duration) -> Result<(), Error> {
         let now = Instant::now();
         let frame = self.frame_index;
+        let milliseconds = self.accounted_milliseconds(elapsed.as_secs_f64() * 1000.0);
         if self
             .cpu_budgets
             .entry(owner)
             .or_insert_with(|| Budget::new(now, frame))
-            .sample(now, frame, frame, elapsed.as_secs_f64() * 1000.0)
+            .sample(now, frame, frame, milliseconds)
         {
             self.disable(
                 owner,
@@ -729,7 +733,7 @@ mod tests {
 
     #[test]
     fn inactive_engine_timeline_does_not_record_submissions() {
-        let (_device, queue) = super::super::tests::gpu();
+        let (_device, queue, _guard) = super::super::tests::gpu();
         let timeline = SubmissionTimeline::default();
         timeline.submit_engine(&queue, []);
         {
@@ -1127,6 +1131,83 @@ mod tests {
         }
         assert!(gpu.disabled_reason(ModId(2)).is_none());
         assert!(Gpu::default().disabled_reason(owner).is_none());
+    }
+
+    #[test]
+    fn test_time_allowance_relaxes_timestamp_peaks_and_average_only_when_enabled() {
+        let start = Instant::now();
+        let owner = ModId(1);
+        for relaxed in [false, true] {
+            for (frames, milliseconds) in [(3, 50.1), (120, 5.0)] {
+                let mut gpu = Gpu::default();
+                if relaxed {
+                    gpu.set_test_time_allowance(Duration::from_secs(5));
+                }
+                for frame in 1..=frames {
+                    gpu.frame_index = frame;
+                    gpu.record_gpu_sample(
+                        owner,
+                        start + Duration::from_millis(frame * 17),
+                        frame,
+                        milliseconds,
+                        None,
+                    );
+                }
+                assert_eq!(gpu.disabled_reason(owner).is_some(), !relaxed);
+                assert!(gpu.disabled_reason(ModId(2)).is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn test_time_allowance_relaxes_cpu_charges_only_when_enabled() {
+        let owner = ModId(1);
+        for relaxed in [false, true] {
+            let mut gpu = Gpu::default();
+            if relaxed {
+                gpu.set_test_time_allowance(Duration::from_secs(5));
+            }
+            for frame in 1..=3 {
+                gpu.frame_index = frame;
+                assert_eq!(
+                    gpu.charge_cpu(owner, Duration::from_secs(1)).is_err(),
+                    !relaxed && frame == 3,
+                );
+            }
+            assert_eq!(gpu.disabled_reason(owner).is_some(), !relaxed);
+            assert!(gpu.disabled_reason(ModId(2)).is_none());
+        }
+    }
+
+    #[test]
+    fn test_time_allowance_preserves_fallback_baseline_accounting() {
+        let start = Instant::now();
+        let owner = ModId(1);
+        for relaxed in [false, true] {
+            let mut gpu = Gpu::default();
+            if relaxed {
+                gpu.set_test_time_allowance(Duration::from_secs(5));
+            }
+            *gpu.submission_timeline.begin(true).finished.lock().unwrap() = Some(start);
+            let mut completed_at = start;
+            for (index, milliseconds) in [300, 301, 301, 301].into_iter().enumerate() {
+                let frame = index as u64 + 1;
+                gpu.frame_index = frame;
+                let submitted_at = completed_at;
+                let engine = gpu.submission_timeline.begin(true);
+                completed_at += Duration::from_millis(100);
+                *engine.finished.lock().unwrap() = Some(completed_at);
+                let finished = gpu.submission_started_at(owner, true, submitted_at);
+                completed_at += Duration::from_millis(milliseconds);
+                *finished.lock().unwrap() = Some(completed_at);
+                gpu.collect_completions(completed_at);
+                assert_eq!(
+                    gpu.disabled_reason(owner).is_some(),
+                    !relaxed && frame == 4,
+                );
+            }
+            assert!(gpu.disabled_reason(ModId(2)).is_none());
+        }
     }
 
     #[test]

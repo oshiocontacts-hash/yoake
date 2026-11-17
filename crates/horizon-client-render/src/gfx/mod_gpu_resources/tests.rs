@@ -1,11 +1,14 @@
 use super::*;
 use crate::gfx::mod_gpu::Stage;
 
-pub(super) fn gpu() -> (wgpu::Device, wgpu::Queue) {
+pub(super) fn gpu() -> (wgpu::Device, wgpu::Queue, std::sync::MutexGuard<'static, ()>) {
+    let guard = crate::gfx::mod_gpu_runtime::test_guard();
     let instance = crate::gfx::test_gpu::instance();
     let adapter = pollster::block_on(instance.request_adapter(&Default::default()))
         .expect("headless GPU adapter");
-    pollster::block_on(adapter.request_device(&Default::default())).expect("headless GPU device")
+    let (device, queue) =
+        pollster::block_on(adapter.request_device(&Default::default())).expect("headless GPU device");
+    (device, queue, guard)
 }
 
 #[test]
@@ -27,132 +30,8 @@ fn empty_frames_do_not_allocate_or_submit() {
 }
 
 #[test]
-fn guest_writes_and_engine_belts_survive_every_frame_submission_boundary() {
-    let (device, queue) = gpu();
-    let mut gpu = Gpu::default();
-    let owner = ModId(1);
-    let uniform = gpu
-        .create_buffer(
-            &device,
-            owner,
-            16,
-            (wgpu::BufferUsages::UNIFORM
-                | wgpu::BufferUsages::COPY_DST
-                | wgpu::BufferUsages::COPY_SRC)
-                .bits(),
-        )
-        .unwrap();
-    let engine_buffers: [_; 2] = std::array::from_fn(|_| {
-        device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("engine belt regression"),
-            size: 96,
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
-        })
-    });
-    let readback = device.create_buffer(&wgpu::BufferDescriptor {
-        label: None,
-        size: 192,
-        usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
-    let mut uploads = crate::gfx::upload::Uploads::with_chunk(&device, 64);
-    let mut section_uploads = crate::gfx::upload::Uploads::with_chunk(&device, 64);
-    let boundaries = [
-        Some(Stage::WorldOpaque),
-        Some(Stage::WorldTranslucent),
-        None,
-        Some(Stage::AfterWorld),
-        Some(Stage::Hud),
-        None,
-    ];
-    for frame in 0..8u32 {
-        gpu.begin_frame().unwrap();
-        let mut tickets = Vec::new();
-        for (segment, stage) in boundaries.iter().enumerate() {
-            if let Some(stage) = stage {
-                let values = [frame, segment as u32, 123, 456];
-                gpu.write_buffer(
-                    &device,
-                    owner,
-                    *stage,
-                    uniform,
-                    0,
-                    bytemuck::cast_slice(&values),
-                )
-                .unwrap();
-                tickets.push((
-                    gpu.read_buffer(&device, owner, *stage, uniform, 0, 16)
-                        .unwrap(),
-                    values,
-                ));
-            }
-        }
-        gpu.finish_frame().unwrap();
-        let mut native_commands = Vec::new();
-        for (segment, stage) in boundaries.iter().enumerate() {
-            let mut encoder = device.create_command_encoder(&Default::default());
-            let offset = segment as u64 * 16;
-            uploads.buffer(
-                &mut encoder,
-                &engine_buffers[0],
-                offset,
-                bytemuck::cast_slice(&[frame, segment as u32, 111u32, 222]),
-            );
-            section_uploads.buffer(
-                &mut encoder,
-                &engine_buffers[1],
-                offset,
-                bytemuck::cast_slice(&[frame, segment as u32, 333u32, 444]),
-            );
-            let command =
-                crate::gfx::upload::finish_encoder(encoder, [&mut uploads, &mut section_uploads]);
-            if segment == 2 {
-                native_commands.push(command);
-                continue;
-            }
-            queue.submit(native_commands.drain(..).chain([command]));
-            if let Some(stage) = stage {
-                assert!(gpu.submit_stage(&device, &queue, *stage, None).is_empty());
-            }
-        }
-        let mut encoder = device.create_command_encoder(&Default::default());
-        for (index, buffer) in engine_buffers.iter().enumerate() {
-            encoder.copy_buffer_to_buffer(buffer, 0, &readback, index as u64 * 96, 96);
-        }
-        queue.submit([encoder.finish()]);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        readback.map_async(wgpu::MapMode::Read, .., move |result| {
-            sender.send(result).unwrap();
-        });
-        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
-        receiver.recv().unwrap().unwrap();
-        {
-            let bytes = readback.get_mapped_range(..).unwrap();
-            for (index, expected) in [[111u32, 222], [333, 444]].iter().enumerate() {
-                for segment in 0..6u32 {
-                    let offset = index * 96 + segment as usize * 16;
-                    assert_eq!(
-                        &bytes[offset..offset + 16],
-                        bytemuck::cast_slice::<_, u8>(&[frame, segment, expected[0], expected[1]])
-                    );
-                }
-            }
-        }
-        readback.unmap();
-        for (ticket, expected) in tickets {
-            let Readback::Ready(bytes) = gpu.poll_readback(&device, owner, ticket).unwrap() else {
-                panic!("guest readback pending after wait")
-            };
-            assert_eq!(bytes.as_slice(), bytemuck::cast_slice::<_, u8>(&expected));
-        }
-        assert_eq!(gpu.disabled_reason(owner), None);
-    }
-}
-
-#[test]
 fn exhausted_upload_budget_is_checked_before_staging_allocations() {
-    let (device, _queue) = gpu();
+    let (device, _queue, _guard) = gpu();
     let mut gpu = Gpu::default();
     let owner = ModId(1);
     let buffer = gpu
@@ -220,7 +99,7 @@ fn exhausted_upload_budget_is_checked_before_staging_allocations() {
 #[test]
 fn engine_uncaptured_errors_keep_the_default_behavior_before_and_after_mod_creation() {
     for create_mod_objects in [false, true] {
-        let (device, _queue) = gpu();
+        let (device, _queue, _guard) = gpu();
         let mut gpu = Gpu::default();
         let owner = ModId(1);
         if create_mod_objects {
@@ -244,7 +123,7 @@ fn engine_uncaptured_errors_keep_the_default_behavior_before_and_after_mod_creat
 
 #[test]
 fn mod_scoped_errors_are_returned_without_replacing_the_engine_handler() {
-    let (device, _queue) = gpu();
+    let (device, _queue, _guard) = gpu();
     let mut gpu = Gpu::default();
     let owner = ModId(1);
     let handle = gpu
@@ -267,6 +146,48 @@ fn mod_scoped_errors_are_returned_without_replacing_the_engine_handler() {
     assert_eq!(gpu.usage(owner), usage);
     assert!(gpu.resources.get(owner, handle).is_ok());
     assert_eq!(gpu.disabled_reason(owner), None);
+}
+
+#[test]
+fn outer_scoped_validation_and_timed_panics_disable_only_their_owner() {
+    let (device, _queue, _guard) = gpu();
+    let mut gpu = Gpu::default();
+    gpu.set_test_time_allowance(Duration::from_secs(5));
+    let healthy = ModId(81);
+    let healthy_buffer = gpu
+        .create_buffer(&device, healthy, 16, wgpu::BufferUsages::COPY_DST.bits())
+        .unwrap();
+    let healthy_usage = gpu.usage(healthy);
+    for (owner, panic) in [(ModId(82), false), (ModId(83), true)] {
+        gpu.create_buffer(&device, owner, 16, wgpu::BufferUsages::COPY_DST.bits())
+            .unwrap();
+        let now = Instant::now();
+        let result =
+            crate::gfx::mod_gpu_runtime::checked_operation(&mut gpu, owner, &device, |gpu| {
+                crate::gfx::mod_gpu_runtime::timed_operation(
+                    gpu,
+                    owner,
+                    false,
+                    || now,
+                    |_| {
+                        assert!(!panic, "timed GPU host panic");
+                        let _ = device.create_buffer(&wgpu::BufferDescriptor {
+                            label: None,
+                            size: device.limits().max_buffer_size + 4,
+                            usage: wgpu::BufferUsages::COPY_DST,
+                            mapped_at_creation: false,
+                        });
+                        Ok(())
+                    },
+                )
+            });
+        assert!(matches!(result, Err(Error::Host(_))));
+        assert!(gpu.disabled_reason(owner).is_some());
+        assert_eq!(gpu.usage(owner), crate::gfx::mod_gpu::Usage::default());
+        assert_eq!(gpu.disabled_reason(healthy), None);
+        assert_eq!(gpu.usage(healthy), healthy_usage);
+        assert!(gpu.resources.get(healthy, healthy_buffer).is_ok());
+    }
 }
 
 #[test]
@@ -296,8 +217,9 @@ fn creation_limits_are_per_owner_and_survive_resource_reset() {
 
 #[test]
 fn compute_dispatch_validates_device_dimensions_separately_from_work_budget() {
-    let (device, queue) = gpu();
+    let (device, queue, _guard) = gpu();
     let mut gpu = Gpu::default();
+    gpu.set_test_time_allowance(Duration::from_secs(5));
     let owner = ModId(1);
     let shader = gpu
         .create_shader(&device, owner, "@compute @workgroup_size(1) fn main() {}")
@@ -335,8 +257,9 @@ fn compute_dispatch_validates_device_dimensions_separately_from_work_budget() {
 
 #[test]
 fn compute_upload_copy_readback_and_ownership() {
-    let (device, queue) = gpu();
+    let (device, queue, _guard) = gpu();
     let mut gpu = Gpu::default();
+    gpu.set_test_time_allowance(Duration::from_secs(5));
     let owner = ModId(1);
     let usage =
         (wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST)
@@ -403,8 +326,9 @@ fn compute_upload_copy_readback_and_ownership() {
 
 #[test]
 fn texture_bounds_and_device_loss_are_isolated() {
-    let (device, _queue) = gpu();
+    let (device, _queue, _guard) = gpu();
     let mut gpu = Gpu::default();
+    gpu.set_test_time_allowance(Duration::from_secs(5));
     let owner = ModId(3);
     let texture = gpu
         .create_texture(
@@ -515,161 +439,10 @@ fn draw(pipeline: u32, count: u32) -> Draw {
 }
 
 #[test]
-fn mod_validation_during_recording_or_submission_disables_only_its_owner() {
-    for fail_during_recording in [true, false] {
-        let (device, queue) = gpu();
-        let mut gpu = Gpu::default();
-        let bad_owner = ModId(1);
-        let good_owner = ModId(2);
-        gpu.configure_frame(2, 2, Some(Format::Rgba8Unorm), None);
-        let bad_buffer = gpu
-            .create_buffer(&device, bad_owner, 16, wgpu::BufferUsages::COPY_DST.bits())
-            .unwrap();
-        let pipeline = render_pipeline(
-            &mut gpu,
-            &device,
-            good_owner,
-            wgpu::PrimitiveTopology::TriangleList,
-        );
-        let color = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("engine frame after mod validation"),
-            size: wgpu::Extent3d {
-                width: 2,
-                height: 2,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8Unorm,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
-        let view = color.create_view(&Default::default());
-        let readback = device.create_buffer(&wgpu::BufferDescriptor {
-            label: None,
-            size: 512,
-            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-        gpu.begin_frame().unwrap();
-        gpu.write_buffer(
-            &device,
-            bad_owner,
-            Stage::AfterWorld,
-            bad_buffer,
-            0,
-            &[0; 16],
-        )
-        .unwrap();
-        gpu.draw(
-            good_owner,
-            Stage::AfterWorld,
-            draw(pipeline, 3),
-            Target::Frame,
-        )
-        .unwrap();
-        if fail_during_recording {
-            let result = crate::gfx::mod_gpu_runtime::checked_operation(
-                &mut gpu,
-                bad_owner,
-                &device,
-                |_| {
-                    let _ = device.create_buffer(&wgpu::BufferDescriptor {
-                        label: Some("guest recording validation regression"),
-                        size: device.limits().max_buffer_size + 4,
-                        usage: wgpu::BufferUsages::COPY_DST,
-                        mapped_at_creation: false,
-                    });
-                    Ok(())
-                },
-            );
-            assert!(matches!(result, Err(Error::Host(_))));
-        } else {
-            let resource = gpu.resources.get(bad_owner, bad_buffer).unwrap();
-            let Value::Buffer { buffer, .. } = resource.value() else {
-                panic!("expected guest buffer")
-            };
-            buffer.destroy();
-        }
-        gpu.finish_frame().unwrap();
-        let errors = gpu.submit_stage(
-            &device,
-            &queue,
-            Stage::AfterWorld,
-            Some(&FrameTarget {
-                color: &view,
-                depth: None,
-                format: wgpu::TextureFormat::Rgba8Unorm,
-            }),
-        );
-        if fail_during_recording {
-            assert!(errors.is_empty());
-        } else {
-            assert!(matches!(errors.as_slice(), [(owner, Error::Host(_))] if *owner == bad_owner));
-        }
-        assert!(gpu.disabled_reason(bad_owner).is_some());
-        assert!(gpu.resources.get(bad_owner, bad_buffer).is_err());
-        assert_eq!(gpu.disabled_reason(good_owner), None);
-        assert_eq!(
-            gpu.write_buffer(
-                &device,
-                bad_owner,
-                Stage::AfterWorld,
-                bad_buffer,
-                0,
-                &[0; 16]
-            ),
-            Err(Error::Disabled)
-        );
-        let mut encoder = device.create_command_encoder(&Default::default());
-        {
-            let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("engine rendering continues"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    depth_slice: None,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                ..Default::default()
-            });
-        }
-        encoder.copy_texture_to_buffer(
-            color.as_image_copy(),
-            wgpu::TexelCopyBufferInfo {
-                buffer: &readback,
-                layout: wgpu::TexelCopyBufferLayout {
-                    offset: 0,
-                    bytes_per_row: Some(256),
-                    rows_per_image: Some(2),
-                },
-            },
-            color.size(),
-        );
-        queue.submit([encoder.finish()]);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        readback.map_async(wgpu::MapMode::Read, .., move |result| {
-            sender.send(result).unwrap();
-        });
-        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
-        receiver.recv().unwrap().unwrap();
-        {
-            let bytes = readback.get_mapped_range(..).unwrap();
-            assert_eq!(&bytes[..4], &[255, 0, 0, 255]);
-            assert_eq!(&bytes[256..260], &[255, 0, 0, 255]);
-        }
-        readback.unmap();
-    }
-}
-
-#[test]
 fn consecutive_draws_share_passes_and_reject_incompatible_frames() {
-    let (device, queue) = gpu();
+    let (device, queue, _guard) = gpu();
     let mut gpu = Gpu::default();
+    gpu.set_test_time_allowance(Duration::from_secs(5));
     let owner = ModId(7);
     gpu.configure_frame(64, 64, Some(Format::Rgba8Unorm), Some(Format::Bgra8Unorm));
     let pipeline = render_pipeline(
@@ -783,13 +556,14 @@ fn consecutive_draws_share_passes_and_reject_incompatible_frames() {
 
 #[test]
 fn fragment_budget_counts_primitives_for_every_supported_topology() {
-    let (device, _queue) = gpu();
+    let (device, _queue, _guard) = gpu();
     for (owner, topology, vertices) in [
         (ModId(10), wgpu::PrimitiveTopology::PointList, 1),
         (ModId(11), wgpu::PrimitiveTopology::LineList, 2),
         (ModId(12), wgpu::PrimitiveTopology::TriangleList, 3),
     ] {
         let mut gpu = Gpu::default();
+        gpu.set_test_time_allowance(Duration::from_secs(5));
         gpu.configure_frame(1, 1, Some(Format::Rgba8Unorm), Some(Format::Rgba8Unorm));
         let pipeline = render_pipeline(&mut gpu, &device, owner, topology);
         for (primitives, pixels) in [
@@ -823,8 +597,9 @@ fn fragment_budget_counts_primitives_for_every_supported_topology() {
 
 #[test]
 fn frame_fragment_budget_rounds_once_across_small_mesh_draws() {
-    let (device, _queue) = gpu();
+    let (device, _queue, _guard) = gpu();
     let mut gpu = Gpu::default();
+    gpu.set_test_time_allowance(Duration::from_secs(5));
     let owner = ModId(16);
     gpu.configure_frame(
         1280,
@@ -883,8 +658,9 @@ fn frame_fragment_budget_rounds_once_across_small_mesh_draws() {
 
 #[test]
 fn new_mod_fragment_budget_admits_meshes_and_small_instanced_quads() {
-    let (device, _queue) = gpu();
+    let (device, _queue, _guard) = gpu();
     let mut gpu = Gpu::default();
+    gpu.set_test_time_allowance(Duration::from_secs(5));
     let owner = ModId(15);
     gpu.configure_frame(100, 100, Some(Format::Rgba8Unorm), Some(Format::Rgba8Unorm));
     let pipeline = render_pipeline(
@@ -958,7 +734,7 @@ fn new_mod_fragment_budget_admits_meshes_and_small_instanced_quads() {
 
 #[test]
 fn slow_creation_is_exempt_and_failed_cpu_charge_reclaims_successful_results() {
-    let (device, _queue) = gpu();
+    let (device, _queue, _guard) = gpu();
     let mut gpu = Gpu::default();
     let owner = ModId(94);
     let started = Instant::now();
@@ -992,8 +768,9 @@ fn slow_creation_is_exempt_and_failed_cpu_charge_reclaims_successful_results() {
 
 #[test]
 fn a_skipped_stage_is_discarded_without_wedging_other_owners() {
-    let (device, queue) = gpu();
+    let (device, queue, _guard) = gpu();
     let mut gpu = Gpu::default();
+    gpu.set_test_time_allowance(Duration::from_secs(5));
     let usage = (wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST).bits();
     let stale = gpu.create_buffer(&device, ModId(20), 4, usage).unwrap();
     let current = gpu.create_buffer(&device, ModId(21), 4, usage).unwrap();

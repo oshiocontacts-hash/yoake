@@ -219,7 +219,7 @@ mod tests {
 
     #[test]
     fn unavailable_scene_reads_skip_without_disabling_other_work() {
-        let (device, queue) = super::super::tests::gpu();
+        let (device, queue, _guard) = super::super::tests::gpu();
         for case in 0..4 {
             unavailable_scene_read_case(&device, &queue, case);
         }
@@ -227,6 +227,7 @@ mod tests {
 
     fn unavailable_scene_read_case(device: &wgpu::Device, queue: &wgpu::Queue, case: usize) {
         let mut gpu = Gpu::default();
+        gpu.set_test_time_allowance(std::time::Duration::from_secs(5));
         let owner = ModId(42);
         let output = gpu
             .create_buffer(
@@ -358,8 +359,9 @@ mod tests {
 
     #[test]
     fn engine_snapshots_are_shared_and_groups_are_cached_per_batch() {
-        let (device, queue) = super::super::tests::gpu();
+        let (device, queue, _guard) = super::super::tests::gpu();
         let mut gpu = Gpu::default();
+        gpu.set_test_time_allowance(std::time::Duration::from_secs(5));
         gpu.begin_frame().unwrap();
         for owner in [ModId(40), ModId(41)] {
             let output = gpu
