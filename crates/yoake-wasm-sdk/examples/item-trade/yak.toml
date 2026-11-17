@@ -1,0 +1,20 @@
+format = 1
+id = "item-trade"
+version = "0.1.0"
+name = "Item Trade Demo"
+authors = ["Yoake SDK Examples"]
+description = "Server-side WebAssembly example that exactly takes cobblestone and gives a diamond with /trade."
+license = "MIT"
+
+[yoake]
+version = ">=0.1"
+
+[side]
+client = false
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.0"
+server = "bin/wasm/item-trade.wasm"
+permissions = []

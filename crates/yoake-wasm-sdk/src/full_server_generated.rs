@@ -31,7 +31,6 @@ pub trait ServerMod: Default + 'static {
     fn random_tick(&mut self, dimension: et::LevelDimension, pos: et::BlockPos, state: u32) -> bool { false }
     fn tick_block(&mut self, dimension: et::LevelDimension, pos: et::BlockPos, state: u32) -> bool { false }
     fn update_shape(&mut self, dimension: et::LevelDimension, pos: et::BlockPos, state: u32, direction: et::Direction, neighbour_pos: et::BlockPos, neighbour: u32) -> Option<u32> { None }
-    fn hud(&mut self) -> et::HudOutcome { et::HudOutcome { batch_commands: Vec::new(), corners_commands: Vec::new() } }
     fn key(&mut self, key: String, pressed: bool) {  }
     fn wheel(&mut self, steps: f32) -> bool { false }
     fn command(&mut self, command: String) -> bool { false }
@@ -395,6 +394,7 @@ pub trait ServerMod: Default + 'static {
     fn recipe_types(&mut self, types: Vec<et::NativeRecipeType>) -> Vec<et::NativeRecipeType> { types }
     fn server_chat_listened(&mut self, listened: bool) -> Option<bool> { None }
     fn server_chat(&mut self, player: Vec<u8>, name: String, message: String, recipients: et::NativeChatRecipients, system: bool) -> et::ServerChatOutcome { et::ServerChatOutcome { cancel: false, message: None, recipients: None, system: None } }
+    fn config_changed(&mut self, key: String, value: types::ConfigValue) {}
 }
 
 /// Wires a [`ServerMod`] type to the component exports (`init` and the hooks).
@@ -406,6 +406,7 @@ macro_rules! export_server_full {
             use $crate::full::server::bindings::exports::yoake::mods::server_hooks::Guest as HooksGuest;
             #[allow(unused_imports)]
             use $crate::full::server::bindings::yoake::mods::engine_types as et;
+            use $crate::full::server::bindings::yoake::mods::server_types as types;
             $crate::__export_realloc!();
             struct Shim;
             impl $crate::full::server::bindings::Guest for Shim {
@@ -436,7 +437,6 @@ macro_rules! export_server_full {
                 fn random_tick(a0: et::LevelDimension, a1: et::BlockPos, a2: u32) -> bool { $crate::rt::with::<$ty, _>(|m| m.random_tick(a0, a1, a2)).expect("mod instance") }
                 fn tick_block(a0: et::LevelDimension, a1: et::BlockPos, a2: u32) -> bool { $crate::rt::with::<$ty, _>(|m| m.tick_block(a0, a1, a2)).expect("mod instance") }
                 fn update_shape(a0: et::LevelDimension, a1: et::BlockPos, a2: u32, a3: et::Direction, a4: et::BlockPos, a5: u32) -> Option<u32> { $crate::rt::with::<$ty, _>(|m| m.update_shape(a0, a1, a2, a3, a4, a5)).expect("mod instance") }
-                fn hud() -> et::HudOutcome { $crate::rt::with::<$ty, _>(|m| m.hud()).expect("mod instance") }
                 fn key(a0: String, a1: bool) { $crate::rt::with::<$ty, _>(|m| m.key(a0, a1)).expect("mod instance") }
                 fn wheel(a0: f32) -> bool { $crate::rt::with::<$ty, _>(|m| m.wheel(a0)).expect("mod instance") }
                 fn command(a0: String) -> bool { $crate::rt::with::<$ty, _>(|m| m.command(a0)).expect("mod instance") }
@@ -800,6 +800,7 @@ macro_rules! export_server_full {
                 fn recipe_types(a0: Vec<et::NativeRecipeType>) -> Vec<et::NativeRecipeType> { $crate::rt::with::<$ty, _>(|m| m.recipe_types(a0)).expect("mod instance") }
                 fn server_chat_listened(a0: bool) -> Option<bool> { $crate::rt::with::<$ty, _>(|m| m.server_chat_listened(a0)).expect("mod instance") }
                 fn server_chat(a0: Vec<u8>, a1: String, a2: String, a3: et::NativeChatRecipients, a4: bool) -> et::ServerChatOutcome { $crate::rt::with::<$ty, _>(|m| m.server_chat(a0, a1, a2, a3, a4)).expect("mod instance") }
+                fn config_changed(key: $crate::__private::String, value: types::ConfigValue) { $crate::rt::with::<$ty, _>(|mod_instance| mod_instance.config_changed(key, value)).expect("mod instance") }
             }
 
             $crate::full::server::bindings::export!(Shim with_types_in $crate::full::server::bindings);

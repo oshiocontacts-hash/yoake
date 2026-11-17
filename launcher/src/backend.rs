@@ -2377,12 +2377,22 @@ fn set_unsigned_dll_env(command: &mut Command, enabled: bool) {
     }
 }
 
+fn set_unsigned_wasm_env(command: &mut Command, enabled: bool) {
+    if enabled {
+        command.env("YOAKE_WASM_UNSIGNED", "1");
+    } else {
+        command.env_remove("YOAKE_WASM_UNSIGNED");
+    }
+}
+
 pub fn client_command_for_program(tag: &str, program: &Path) -> Command {
     let home = game_home();
     let _ = fs::create_dir_all(&home);
     let mut cmd = Command::new(program);
     cmd.current_dir(home).arg("--resources").arg(resources(tag));
-    set_unsigned_dll_env(&mut cmd, Settings::load().dev_unsigned_dll);
+    let settings = Settings::load();
+    set_unsigned_dll_env(&mut cmd, settings.dev_unsigned_dll);
+    set_unsigned_wasm_env(&mut cmd, settings.dev_unsigned_wasm);
     if crate::brand::yoake() {
         cmd.env("HORIZON_TELEMETRY_URL", "off");
     }
@@ -2415,11 +2425,17 @@ fn client_program(tag: &str) -> PathBuf {
 }
 
 pub fn server_command(tag: &str, folder: &Path) -> Command {
+    server_command_with_settings(tag, folder, &Settings::load())
+}
+
+fn server_command_with_settings(tag: &str, folder: &Path, settings: &Settings) -> Command {
     let mut cmd = Command::new(version_dir(tag).join(CLIENT));
     cmd.current_dir(folder)
         .arg("--resources")
         .arg(resources(tag))
         .args(["--dedicated", "--nogui"]);
+    set_unsigned_dll_env(&mut cmd, settings.dev_unsigned_dll);
+    set_unsigned_wasm_env(&mut cmd, settings.dev_unsigned_wasm);
     if crate::brand::yoake() {
         cmd.env("HORIZON_TELEMETRY_URL", "off");
     }
@@ -3501,7 +3517,8 @@ pub struct Settings {
     /// (`themes::keep_background`). Unset shows Horizon's landscape.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub background: Option<String>,
-    /// The window's language. Unset follows the system's (`i18n::Language::system`).
+    /// The window's language. Unset is English on an English system, else Japanese
+    /// (`i18n::Language::system`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub language: Option<crate::i18n::Language>,
     /// The player has read the notice before the first native mod (`native_status::NOTICE`).
@@ -3523,6 +3540,10 @@ pub struct Settings {
     pub dev_offline: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub dev_unsigned_dll: bool,
+    /// Enables unsigned WASM packages and YOAKE_WASM_DEV_DIR in the launched game only.
+    /// It does not permit unsigned native libraries.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub dev_unsigned_wasm: bool,
 }
 
 impl Settings {
@@ -3565,7 +3586,7 @@ impl Settings {
     pub fn desktop_entry(&self) -> bool {
         self.desktop_entry.unwrap_or(true)
     }
-    /// The window's language: the one picked, else the system's.
+    /// The window's language: the one picked, else the default for the system.
     pub fn language(&self) -> crate::i18n::Language {
         self.language.unwrap_or_else(crate::i18n::Language::system)
     }
@@ -3621,6 +3642,7 @@ mod tests {
         let settings = Settings::parse(r#"{"dev_offline":true}"#);
         assert!(settings.dev_offline);
         assert!(!settings.dev_unsigned_dll);
+        assert!(!settings.dev_unsigned_wasm);
     }
 
     #[test]
@@ -3644,6 +3666,66 @@ mod tests {
                 .map(|(_, value)| value),
             Some(None)
         );
+    }
+
+    #[test]
+    fn unsigned_wasm_environment_is_independent_and_explicitly_set_or_removed() {
+        use std::ffi::OsStr;
+
+        let mut command = Command::new("horizon-client");
+        set_unsigned_wasm_env(&mut command, true);
+        assert_eq!(
+            command
+                .get_envs()
+                .find(|(key, _)| key.to_str() == Some("YOAKE_WASM_UNSIGNED"))
+                .map(|(_, value)| value),
+            Some(Some(OsStr::new("1")))
+        );
+        assert!(command
+            .get_envs()
+            .all(|(key, _)| key.to_str() != Some("YOAKE_DLL_MODS_UNSIGNED")));
+
+        set_unsigned_wasm_env(&mut command, false);
+        assert_eq!(
+            command
+                .get_envs()
+                .find(|(key, _)| key.to_str() == Some("YOAKE_WASM_UNSIGNED"))
+                .map(|(_, value)| value),
+            Some(None)
+        );
+    }
+
+    #[test]
+    fn server_command_applies_both_unsigned_developer_switches() {
+        use std::ffi::OsStr;
+
+        let settings = Settings {
+            dev_unsigned_dll: true,
+            dev_unsigned_wasm: true,
+            ..Settings::default()
+        };
+        let command = server_command_with_settings("test", Path::new("server"), &settings);
+        let envs: Vec<_> = command.get_envs().collect();
+        assert!(envs.iter().any(|(key, value)| {
+            *key == OsStr::new("YOAKE_DLL_MODS_UNSIGNED") && *value == Some(OsStr::new("1"))
+        }));
+        assert!(envs.iter().any(|(key, value)| {
+            *key == OsStr::new("YOAKE_WASM_UNSIGNED") && *value == Some(OsStr::new("1"))
+        }));
+    }
+
+    #[test]
+    fn server_command_removes_unsigned_developer_switches_when_disabled() {
+        use std::ffi::OsStr;
+
+        let command = server_command_with_settings("test", Path::new("server"), &Settings::default());
+        let envs: Vec<_> = command.get_envs().collect();
+        assert!(envs.iter().any(|(key, value)| {
+            *key == OsStr::new("YOAKE_DLL_MODS_UNSIGNED") && value.is_none()
+        }));
+        assert!(envs.iter().any(|(key, value)| {
+            *key == OsStr::new("YOAKE_WASM_UNSIGNED") && value.is_none()
+        }));
     }
 
     #[test]
@@ -4065,6 +4147,12 @@ pub fn {f}("
     #[test]
     fn platform_assets_are_published() {
         let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        // The Yoake fork drops the upstream release workflows (it has its own CI), so there is
+        // nothing to check there.
+        if !repo.join(".github/workflows/game-build.yml").exists() {
+            eprintln!("skipped: this tree has no upstream release workflows");
+            return;
+        }
         let read = |path: &str| fs::read_to_string(repo.join(path)).unwrap();
         let build = read(".github/workflows/game-build.yml");
         let nightly = read(".github/workflows/nightly-build.yml");
@@ -4085,6 +4173,209 @@ pub fn {f}("
                 "launcher.yml builds no {launcher_asset}"
             );
         }
+    }
+
+
+    /// The job named `job` in a workflow: from its `  job:` line to the next job (the next line
+    /// indented by exactly two spaces that ends in a colon).
+    fn workflow_job<'a>(workflow: &'a str, job: &str) -> &'a str {
+        let head = format!("\n  {job}:\n");
+        let start = workflow
+            .find(&head)
+            .unwrap_or_else(|| panic!("yoake-windows.yml has no `{job}` job"))
+            + 1;
+        let body = &workflow[start..];
+        let mut at = 0;
+        for (n, line) in body.split_inclusive('\n').enumerate() {
+            let indent = line.len() - line.trim_start_matches(' ').len();
+            if n > 0 && indent == 2 && line.trim_end().ends_with(':') {
+                return &body[..at];
+            }
+            at += line.len();
+        }
+        body
+    }
+
+    /// What Yoake 1.0 needs in every distribution: the license and the third-party notices, in
+    /// dist/ and in the MSIX.
+    fn yoake_windows_missing_files(workflow: &str) -> Vec<String> {
+        let build = workflow_job(workflow, "build");
+        let msix = workflow_job(workflow, "msix");
+        let mut missing = Vec::new();
+        for file in ["LICENSE", "THIRD_PARTY_NOTICES.md"] {
+            if !build.contains(&format!("'{file}'")) {
+                missing.push(format!("{file} is not staged into dist/ (build job)"));
+            }
+            if !msix.contains(&format!("'{file}'")) {
+                missing.push(format!("{file} is not copied into the MSIX staging folder"));
+            }
+        }
+        missing
+    }
+
+    /// What yoake-windows.yml publishes today: the unsigned artifact (the launcher, the game and
+    /// their checksums) and the Store MSIX with its manifest and logos.
+    #[test]
+    fn yoake_windows_workflow_publishes_the_1_0_files() {
+        let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let workflow_path = repo.join(".github/workflows/yoake-windows.yml");
+        if !workflow_path.exists() {
+            eprintln!("skipped: this tree has no yoake-windows.yml (upstream Horizon)");
+            return;
+        }
+        let read = |path: &str| fs::read_to_string(repo.join(path)).unwrap();
+        let workflow = fs::read_to_string(workflow_path)
+            .unwrap()
+            .replace("\r\n", "\n");
+        let build = workflow_job(&workflow, "build");
+        let msix = workflow_job(&workflow, "msix");
+
+        // Job `build`: both programs, built in release mode from the lockfile, staged under their
+        // Yoake names with checksums, and uploaded as one artifact (the one SignPath will sign).
+        assert!(build.contains("cargo build --release --locked --manifest-path launcher/Cargo.toml"));
+        assert!(
+            build.contains("cargo build --release --locked -p horizon-client --bin horizon-client")
+        );
+        assert!(build.contains("-Destination 'dist/YoakeLauncher.exe'"), "launcher exe");
+        assert!(build.contains("-Destination 'dist/yoake.exe'"), "game exe");
+        assert!(build.contains("dist/SHA256SUMS"), "checksums");
+        for file in ["YoakeLauncher.exe", "yoake.exe"] {
+            assert!(build.contains(&format!("'{file}'")), "{file} is not hashed");
+        }
+        assert!(build.contains("name: yoake-windows-unsigned"), "artifact name");
+        assert!(build.contains("path: dist/"), "artifact path");
+        assert!(build.contains("if-no-files-found: error"));
+
+        // Job `msix`: the Store build of the same programs, the logos, the manifest, one package.
+        assert!(msix.contains("needs: build"));
+        assert!(msix.contains("YOAKE_DISTRIBUTION: store"));
+        assert!(msix.contains("-Destination (Join-Path $stage 'YoakeLauncher.exe')"));
+        assert!(msix.contains("-Destination (Join-Path $stage 'yoake.exe')"));
+        assert!(msix.contains("packaging/msix/AppxManifest.xml.in"));
+        assert!(msix.contains("(Join-Path $stage 'AppxManifest.xml')"));
+        assert!(msix.contains("packaging/msix/make_logos.py packaging/icons/yoake-256.png"));
+        assert!(msix.contains("(Join-Path $stage 'Assets')"));
+        assert!(msix.contains("makeappx.exe pack /d $stage"));
+        assert!(msix.contains("name: yoake-msix"));
+        assert!(msix.contains("path: dist/*.msix"));
+        for var in [
+            "YOAKE_MSIX_IDENTITY_NAME",
+            "YOAKE_MSIX_PUBLISHER",
+            "YOAKE_MSIX_PUBLISHER_DISPLAY_NAME",
+        ] {
+            assert!(msix.contains(&format!("'{var}'")), "{var} is not required");
+        }
+        for token in [
+            "@IDENTITY_NAME@",
+            "@PUBLISHER@",
+            "@PUBLISHER_DISPLAY_NAME@",
+            "@VERSION@",
+        ] {
+            assert!(msix.contains(token), "{token} is not filled in");
+        }
+
+        // The icon sources exist, and every logo the manifest names is generated.
+        for path in [
+            "packaging/icons/yoake-256.png",
+            "packaging/icons/yoake.ico",
+            "packaging/msix/make_logos.py",
+            "LICENSE",
+            "THIRD_PARTY_NOTICES.md",
+        ] {
+            assert!(repo.join(path).exists(), "{path} is missing");
+        }
+        let manifest = read("packaging/msix/AppxManifest.xml.in");
+        let logos = read("packaging/msix/make_logos.py");
+        // Every `Assets\Name.png` the manifest references (attributes and <Logo> text) has a
+        // LOGOS entry in make_logos.py, which writes Name.scale-N.png for each scale.
+        let mut referenced = std::collections::BTreeSet::new();
+        for part in manifest.split(['"', '<', '>']) {
+            if let Some(name) = part.strip_prefix("Assets\\") {
+                referenced.insert(name.strip_suffix(".png").expect("a .png logo").to_string());
+            }
+        }
+        for name in [
+            "Square44x44Logo",
+            "Square71x71Logo",
+            "Square150x150Logo",
+            "Wide310x150Logo",
+            "Square310x310Logo",
+            "StoreLogo",
+            "SplashScreen",
+        ] {
+            assert!(referenced.contains(name), "the manifest does not reference {name}");
+        }
+        for name in &referenced {
+            assert!(
+                logos.contains(&format!("\"{name}\": (")),
+                "make_logos.py makes no {name}"
+            );
+        }
+        assert!(logos.contains("SCALES = (100, 150, 200, 400)"));
+        assert!(logos.contains("\"SplashScreen\": (620, 300)"));
+        assert!(logos.contains("targetsize-"), "no app-list target sizes");
+        assert!(logos.contains("_altform-unplated"), "no unplated app-list icons");
+        assert!(manifest.contains("Executable=\"YoakeLauncher.exe\""));
+        assert!(manifest.contains("<uap:SplashScreen"));
+        // The splash screen is filled with a real colour, the same one make_logos.py checks.
+        let splash = manifest
+            .split("<uap:SplashScreen")
+            .nth(1)
+            .and_then(|rest| rest.split("BackgroundColor=\"").nth(1))
+            .and_then(|rest| rest.split('"').next())
+            .expect("a splash background colour");
+        assert!(
+            splash.len() == 7
+                && splash.starts_with('#')
+                && splash[1..].chars().all(|c| c.is_ascii_hexdigit()),
+            "the splash background is {splash}"
+        );
+        assert!(logos.contains(&format!("SPLASH_BACKGROUND = \"{splash}\"")));
+        // Pixel art: whole-number enlargement and nearest neighbour only, and a filled wide tile.
+        assert!(logos.contains("Image.Resampling.NEAREST"));
+        assert!(
+            !logos.contains("LANCZOS") && !logos.contains("BICUBIC") && !logos.contains("thumbnail")
+        );
+        assert!(logos.contains("FILLED = (\"Wide310x150Logo\", \"SplashScreen\")"));
+
+        // The zip-style artifact carries the license, the notices and the README; the MSIX carries
+        // the license and the notices beside the executables, and no README.
+        for file in ["LICENSE", "THIRD_PARTY_NOTICES.md"] {
+            assert!(
+                build.contains(&format!("-Destination 'dist/{file}'")),
+                "{file} is not in dist/"
+            );
+            assert!(
+                msix.contains(&format!("-Destination (Join-Path $stage '{file}')")),
+                "{file} is not in the MSIX"
+            );
+        }
+        assert!(build.contains("'packaging/windows/README.txt' -Destination 'dist/README.txt'"));
+        assert!(!msix.contains("README.txt"));
+        // They are checksummed with the executables.
+        let hashed = build.split("$hashes = foreach").nth(1).expect("a checksum loop");
+        let hashed = &hashed[..hashed.find('{').unwrap()];
+        for file in ["LICENSE", "THIRD_PARTY_NOTICES.md", "README.txt"] {
+            assert!(hashed.contains(&format!("'{file}'")), "{file} is not in SHA256SUMS");
+        }
+        let readme = read("packaging/windows/README.txt");
+        for needle in [
+            "YoakeLauncher.exe",
+            "LICENSE",
+            "THIRD_PARTY_NOTICES.md",
+            "This app is not an official Minecraft product and is not approved by or associated with Microsoft.",
+            "本アプリは Minecraft の公式製品ではなく、Microsoft の承認・提携を受けたものではありません。",
+        ] {
+            assert!(readme.contains(needle), "README.txt lacks {needle}");
+        }
+        assert!(!readme.contains("Mojang"));
+
+        let missing = yoake_windows_missing_files(&workflow);
+        assert!(
+            missing.is_empty(),
+            "missing from the Yoake release:\n{}",
+            missing.join("\n")
+        );
     }
 
     #[test]
@@ -4307,10 +4598,16 @@ pub fn {f}("
     fn the_language_follows_the_system_unless_picked() {
         use crate::i18n::Language;
         assert_eq!(Settings::parse("{}").language, None);
-        let fr = Settings::parse(r#"{"language": "fr"}"#);
-        assert_eq!(fr.language(), Language::French);
-        let future = Settings::parse(r#"{"language": "eo", "game_args": "--x"}"#);
-        assert_eq!((future.language, future.game_args.as_str()), (None, "--x"));
+        let en = Settings::parse(r#"{"language": "en"}"#);
+        assert_eq!(en.language(), Language::English);
+        let ja = Settings::parse(r#"{"language": "ja"}"#);
+        assert_eq!(ja.language(), Language::Japanese);
+        // A language the launcher no longer offers shows in Japanese; the file is not rewritten.
+        let other = Settings::parse(r#"{"language": "de", "game_args": "--x"}"#);
+        assert_eq!(
+            (other.language(), other.game_args.as_str()),
+            (Language::Japanese, "--x")
+        );
         let saved = serde_json::to_value(Settings::default()).unwrap();
         assert!(saved.get("language").is_none(), "unset is left out");
     }

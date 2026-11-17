@@ -2,6 +2,8 @@
 //! bindings between the validated simulation pieces and the game loop.
 #![forbid(unsafe_code)]
 extern crate self as horizon_client;
+#[cfg(test)]
+mod inject_test_support;
 pub mod advancements;
 pub mod ambience;
 pub mod animate_tick;
@@ -142,6 +144,7 @@ pub mod ui_theme;
 pub mod vanillagen;
 pub mod win_screen;
 pub mod world_spawn;
+pub mod yoake_state_catalog;
 pub use horizon_client_core::Result;
 pub use horizon_client_core::block_entity_nbt;
 pub use horizon_client_core::bossbar;

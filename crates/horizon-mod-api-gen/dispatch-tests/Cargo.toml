@@ -21,5 +21,8 @@ libloading = "=0.8.9"
 [build-dependencies]
 horizon-mod-api-gen = { path = ".." }
 
+[dev-dependencies]
+sha2 = "0.10.9"
+
 [lints]
 workspace = true

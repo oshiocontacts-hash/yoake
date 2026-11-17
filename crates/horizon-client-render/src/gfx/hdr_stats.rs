@@ -109,7 +109,7 @@ impl EmissionStats {
     pub fn measure(
         &self,
         device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        queue: &super::submit::Queue,
         sprites: &[wgpu::TextureView],
         masks: Masks,
     ) {

@@ -49,6 +49,7 @@ impl Launcher {
         if backend::no_ai() {
             return None;
         }
+        use horizon_theme::glass::ink;
         let t = self.theme;
         let exe = &backend::update_target();
         let clients = agents::clients(exe);
@@ -84,32 +85,28 @@ impl Launcher {
         };
         let code = |s: &str| {
             div()
-                .p(px(10.))
-                .bg(t.well)
-                .border_2()
-                .border_color(t.outline)
+                .relative()
+                .p(px(12.))
+                .rounded(px(horizon_theme::glass::radius::ROW))
+                .bg(glass_ui::white(horizon_theme::glass::fill::FIELD))
                 .font_family(theme::MONO)
                 .text_size(px(12.))
                 .line_height(px(18.))
-                .text_color(t.ink)
+                .text_color(glass_ui::white(ink::BODY))
                 .children(s.lines().map(|l| div().child(l.to_owned())))
         };
-        let mut section = plate(&t)
-            .flex()
-            .flex_col()
+        let note = |s: SharedString| {
+            glass_ui::text(14., FontWeight::NORMAL, ink::NOTE)
+                .relative()
+                .child(s)
+        };
+        let mut section = glass_body()
             .gap(px(12.))
-            .p(px(24.))
-            .text_size(px(theme::UI.px))
-            .line_height(px(21.))
-            .child(
-                text(theme::HEADING)
-                    .text_color(t.ink)
-                    .child(tr("Connect an AI agent")),
-            )
-            .child(div().max_w(px(640.)).text_color(t.muted).child(tr(
-                "Your own agent (Claude Code, Codex, Cursor or any MCP client) can drive the launcher and the game it starts, with the same commands as the terminal. It runs on your computer and talks to Horizon there; it asks before deleting anything.",
-            )))
-            .child(picker);
+            .p(px(16.))
+            .child(note(
+                tr("Your own agent (Claude Code, Codex, Cursor or any MCP client) can drive the launcher and the game it starts, with the same commands as the terminal. It runs on your computer and talks to Horizon there; it asks before deleting anything.").to_string().into(),
+            ).max_w(px(640.)))
+            .child(div().relative().child(picker));
         if let Some((program, args)) = client.add.clone() {
             let line = client.add_line().unwrap_or_default();
             let label = trf("Add to {client}", &[("client", client.name)]);
@@ -146,10 +143,13 @@ impl Launcher {
                 cx.notify();
             }));
             section = section
-                .child(div().text_color(t.muted).child(trf(
-                    "{client} adds it with this command (it runs only when you click):",
-                    &[("client", client.name)],
-                )))
+                .child(note(
+                    trf(
+                        "{client} adds it with this command (it runs only when you click):",
+                        &[("client", client.name)],
+                    )
+                    .into(),
+                ))
                 .child(code(&line))
                 .child(div().flex().gap(px(8.)).child(add).child(copy(
                     "agent-copy-command",
@@ -158,14 +158,14 @@ impl Launcher {
                 )));
         }
         section = section
-            .child(div().text_color(t.muted).child(trf(
+            .child(note(trf(
                 if client.add.is_some() {
                     "Or put this in {file}:"
                 } else {
                     "Put this in {file}:"
                 },
                 &[("file", tr(client.file))],
-            )))
+            ).into()))
             .child(code(&client.config))
             .child(div().flex().gap(px(8.)).child(copy("agent-copy-config", client.config.clone(), cx)).child(
                 button("agent-test", "Test the connection", Kind::Secondary, &t).on_click(cx.listener(
@@ -198,7 +198,12 @@ impl Launcher {
         if let Some((ok, message)) = &self.agents.status {
             section = section.child(
                 div()
-                    .text_color(if *ok { t.ink } else { t.danger })
+                    .relative()
+                    .text_color(if *ok {
+                        glass_ui::white(ink::FULL)
+                    } else {
+                        glass_ui::color(horizon_theme::glass::DANGER)
+                    })
                     .child(message.clone()),
             );
         }
@@ -206,14 +211,20 @@ impl Launcher {
             section = section.child(
                 div()
                     .id("agent-docs")
-                    .text_color(t.accent)
+                    .relative()
+                    .text_color(glass_ui::accent_soft(self.look.accent_soft))
                     .cursor_pointer()
                     .hover(|s| s.opacity(0.8))
                     .child(tr("What an agent can do, and the commands"))
                     .on_click(|_, _, cx| cx.open_url(backend::AGENT_DOCS_URL)),
             );
         }
-        Some(section)
+        Some(glass_section(
+            "Connect an AI agent",
+            "computer-terminal-01",
+            None,
+            section,
+        ))
     }
 }
 

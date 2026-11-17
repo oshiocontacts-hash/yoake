@@ -1,11 +1,12 @@
 use std::cell::RefCell;
 
 use super::{
-    Game,
+    Game, Hit,
     dragon::{CRYSTAL_IDS, SPECIAL},
 };
 
 const MAX_QUERIES_PER_MOD: usize = 8;
+const MAX_VIEW_DISTANCE: f64 = 128.0;
 
 /// A snapshot of the entity currently under the client crosshair.
 #[derive(Clone, Debug, PartialEq)]
@@ -15,6 +16,20 @@ pub struct NativeCrosshairEntity {
     pub kind: String,
     pub name: String,
     pub distance: f32,
+}
+
+/// The block or entity intersected by a native view ray.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum NativeViewTarget {
+    Block { position: [i32; 3], face: [i32; 3] },
+    Entity { entity_id: u32, uuid: u128 },
+}
+
+/// A view-ray target and its intersection in world coordinates.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct NativeViewHit {
+    pub target: NativeViewTarget,
+    pub position: [f64; 3],
 }
 
 #[derive(Default)]
@@ -71,6 +86,39 @@ fn offer(best: &mut Option<(f64, u32)>, distance: f64, id: u32, before_block: bo
     }
 }
 
+fn valid_view_distance(distance: f64) -> bool {
+    distance.is_finite() && distance > 0.0 && distance <= MAX_VIEW_DISTANCE
+}
+
+fn select_view_hit(
+    eye: [f64; 3],
+    direction: [f64; 3],
+    block: Option<Hit>,
+    entity: Option<(f64, u32, Option<u128>)>,
+) -> Option<NativeViewHit> {
+    if let Some((distance, entity_id, Some(uuid))) = entity
+        && block.is_none_or(|hit| {
+            (0..3)
+                .map(|axis| (hit.point[axis] - eye[axis]).powi(2))
+                .sum::<f64>()
+                .sqrt()
+                > distance
+        })
+    {
+        return Some(NativeViewHit {
+            target: NativeViewTarget::Entity { entity_id, uuid },
+            position: std::array::from_fn(|axis| eye[axis] + direction[axis] * distance),
+        });
+    }
+    block.map(|hit| NativeViewHit {
+        target: NativeViewTarget::Block {
+            position: hit.pos,
+            face: hit.face,
+        },
+        position: hit.point,
+    })
+}
+
 fn tracked_special_id(
     entity_id: u32,
     dragon_id: Option<u32>,
@@ -94,57 +142,78 @@ fn is_dragon_part(entity_id: u32, dragon_id: Option<u32>) -> bool {
 }
 
 impl Game<'_> {
+    /// API @API:view_raycast@. Raycast the client view up to the requested distance.
+    #[allow(dead_code)]
+    pub(super) fn native_client_view_hit(&self, max_distance: f64) -> Option<NativeViewHit> {
+        if !valid_view_distance(max_distance) {
+            return None;
+        }
+        let caller = horizon_client::crash::native_mod_call()?;
+        if !FRAME.with(|state| state.borrow_mut().admit(caller.index)) {
+            return None;
+        }
+        let (eye, direction) = self.aim()?;
+        let block = self.clip_ray(eye, direction, max_distance);
+        let entity = self
+            .native_pick_entity_at(max_distance)
+            .map(|(distance, id)| (distance, id, self.native_picked_uuid(id)));
+        select_view_hit(eye, direction, block, entity)
+    }
+
+    fn native_pick_entity_at(&self, distance_limit: f64) -> Option<(f64, u32)> {
+        let mut best = None;
+        if let Some(hit) = self.remote_object_hit_at(true, distance_limit) {
+            offer(&mut best, hit.distance, hit.id as u32, true);
+        }
+        if let Some((index, distance)) = self.mob_hit_at(distance_limit) {
+            offer(&mut best, distance, self.mobs[index].id, true);
+        }
+        if let Some((index, distance)) = self.redirectable_hit_at(distance_limit) {
+            offer(&mut best, distance, self.creatures.projectiles[index].id, true);
+        }
+        if let Some((entity_id, distance)) = self.dragon_hit_at(distance_limit) {
+            let crystal_id = entity_id
+                .checked_sub(CRYSTAL_IDS)
+                .and_then(|index| self.crystals.get(index as usize))
+                .map(|crystal| crystal.id);
+            if let Some(entity_id) = tracked_special_id(
+                entity_id,
+                self.dragon.as_ref().map(|dragon| dragon.id),
+                crystal_id,
+            ) {
+                offer(&mut best, distance, entity_id, true);
+            }
+        }
+        best
+    }
+
+    fn native_picked_uuid(&self, entity_id: u32) -> Option<u128> {
+        let identity_id = self
+            .dragon
+            .as_ref()
+            .map(|dragon| dragon.id)
+            .filter(|id| is_dragon_part(entity_id, Some(*id)))
+            .unwrap_or(entity_id);
+        self.remote_player_uuid(identity_id).or_else(|| {
+            self.persist
+                .uuids
+                .get(&identity_id)
+                .copied()
+                .map(horizon_client::lan::playerdata::ints_uuid)
+        })
+    }
+
     pub(super) fn native_crosshair_entity_impl(&self) -> Option<NativeCrosshairEntity> {
         let caller = horizon_client::crash::native_mod_call()?;
         if !FRAME.with(|state| state.borrow_mut().admit(caller.index)) {
             return None;
         }
-        let mut best = None;
-        if let Some(hit) = self.remote_object_hit(true) {
-            offer(
-                &mut best,
-                hit.distance,
-                hit.id as u32,
-                self.before_block(hit.distance),
-            );
+        let (distance, entity_id) = self.native_pick_entity_at(self.entity_reach)?;
+        if !self.before_block(distance) {
+            return None;
         }
-        if let Some((index, distance)) = self.mob_hit() {
-            offer(
-                &mut best,
-                distance,
-                self.mobs[index].id,
-                self.before_block(distance),
-            );
-        }
-        if let Some((index, distance)) = self.redirectable_hit() {
-            offer(
-                &mut best,
-                distance,
-                self.creatures.projectiles[index].id,
-                self.before_block(distance),
-            );
-        }
-        if let Some((id, distance)) = self.dragon_hit() {
-            offer(&mut best, distance, id, self.before_block(distance));
-        }
-        let (distance, entity_id) = best?;
-        let crystal_id = entity_id
-            .checked_sub(CRYSTAL_IDS)
-            .and_then(|index| self.crystals.get(index as usize))
-            .map(|crystal| crystal.id);
-        let entity_id = tracked_special_id(
-            entity_id,
-            self.dragon.as_ref().map(|dragon| dragon.id),
-            crystal_id,
-        )?;
         let dragon_part = is_dragon_part(entity_id, self.dragon.as_ref().map(|dragon| dragon.id));
-        let uuid = self.remote_player_uuid(entity_id).or_else(|| {
-            self.persist
-                .uuids
-                .get(&entity_id)
-                .copied()
-                .map(horizon_client::lan::playerdata::ints_uuid)
-        });
+        let uuid = self.native_picked_uuid(entity_id);
         let (kind, name) = if let Some(name) = self.remote_player_name(entity_id) {
             ("minecraft:player".to_owned(), name.to_owned())
         } else if let Some(mob) = self.mobs.iter().find(|mob| mob.id == entity_id) {
@@ -231,6 +300,52 @@ mod tests {
         offer(&mut best, 1.5, 9, true);
         offer(&mut best, 1.5, 10, true);
         assert_eq!(best, Some((1.5, 9)));
+    }
+
+    #[test]
+    fn view_ray_limits_distance_and_prefers_the_first_intersection() {
+        assert!(valid_view_distance(128.0));
+        assert!(!valid_view_distance(0.0));
+        assert!(!valid_view_distance(128.1));
+        assert!(!valid_view_distance(f64::NAN));
+        assert!(!valid_view_distance(f64::INFINITY));
+        let eye = [1.0, 2.0, 3.0];
+        let direction = [1.0, 0.0, 0.0];
+        let block = Hit {
+            pos: [5, 2, 3],
+            face: [-1, 0, 0],
+            point: [5.0, 2.0, 3.0],
+        };
+        assert_eq!(
+            select_view_hit(eye, direction, Some(block), Some((2.0, 7, Some(123)))),
+            Some(NativeViewHit {
+                target: NativeViewTarget::Entity {
+                    entity_id: 7,
+                    uuid: 123
+                },
+                position: [3.0, 2.0, 3.0],
+            })
+        );
+        let block_hit = Some(NativeViewHit {
+            target: NativeViewTarget::Block {
+                position: [5, 2, 3],
+                face: [-1, 0, 0],
+            },
+            position: [5.0, 2.0, 3.0],
+        });
+        assert_eq!(
+            select_view_hit(eye, direction, Some(block), Some((4.0, 7, Some(123)))),
+            block_hit
+        );
+        assert_eq!(
+            select_view_hit(eye, direction, Some(block), Some((8.0, 7, None))),
+            block_hit
+        );
+        assert_eq!(
+            select_view_hit(eye, direction, Some(block), Some((2.0, 7, None))),
+            block_hit
+        );
+        assert_eq!(select_view_hit(eye, direction, None, None), None);
     }
 
     #[test]

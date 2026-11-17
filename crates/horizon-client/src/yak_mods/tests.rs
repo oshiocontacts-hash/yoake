@@ -13,9 +13,15 @@ struct Fixture(PathBuf);
 
 impl Fixture {
     fn new() -> Self {
-        let stamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let serial = NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed);
-        let root = std::env::temp_dir().join(format!("yoake-installed-{}-{stamp}-{serial}", std::process::id()));
+        let root = std::env::temp_dir().join(format!(
+            "yoake-installed-{}-{stamp}-{serial}",
+            std::process::id()
+        ));
         fs::create_dir(&root).unwrap();
         Self(root)
     }
@@ -32,36 +38,59 @@ impl Fixture {
 
     fn install(&self, source: &str) -> Installed {
         let manifest = Manifest::parse(source).unwrap();
-        let root = self.0.join("yoake-mods").join(&manifest.id).join(manifest.version.to_string());
+        let root = self
+            .0
+            .join("yoake-mods")
+            .join(&manifest.id)
+            .join(manifest.version.to_string());
         self.write(&root.join("yak.toml"), source);
-        Installed { root, manifest, content: None, content_wasm: false, signed: false }
+        Installed {
+            root,
+            manifest,
+            content: None,
+            content_wasm: false,
+            signed: false,
+        }
     }
 
     fn binary(&self) -> Installed {
         let entry = self.install(&program());
-        self.write(&entry.root.join("bin/windows-x64/sample.dll"), b"not an executable DLL");
+        self.write(
+            &entry.root.join("bin/windows-x64/sample.dll"),
+            b"not an executable DLL",
+        );
         entry
     }
 
     fn sign(&self, entry: &Installed, key: &SigningKey) {
-        let mut files: BTreeMap<_, _> = installed_files(&entry.root).unwrap().into_iter().map(|name| {
-            let digest = yak::hash_installed_file(&entry.root, &name).unwrap();
-            (name, digest)
-        }).collect();
+        let mut files: BTreeMap<_, _> = installed_files(&entry.root)
+            .unwrap()
+            .into_iter()
+            .map(|name| {
+                let digest = yak::hash_installed_file(&entry.root, &name).unwrap();
+                (name, digest)
+            })
+            .collect();
         files.insert("bin/linux-x64/libsample.so".into(), "11".repeat(32));
         let signature = Signature::sign(files, key);
-        self.write(&entry.root.join("SIGNATURE"), serde_json::to_vec(&signature).unwrap());
+        self.write(
+            &entry.root.join("SIGNATURE"),
+            serde_json::to_vec(&signature).unwrap(),
+        );
     }
 
     fn content(&self, root: &Path, id: &str, version: &str) {
-        self.write(&root.join("horizon-mod.toml"), format!(
-            r#"id = "{id}"
+        self.write(
+            &root.join("horizon-mod.toml"),
+            format!(
+                r#"id = "{id}"
 name = "Content"
 version = "{version}"
 api = "0.2"
 capabilities = ["registries"]
 "#,
-        ));
+            ),
+        );
     }
 }
 
@@ -83,7 +112,8 @@ fn build() -> Build {
 }
 
 fn data(id: &str) -> String {
-    format!(r#"format = 1
+    format!(
+        r#"format = 1
 id = "{id}"
 version = "1.2.3"
 name = "Installed sample"
@@ -96,11 +126,13 @@ version = ">=0.3.2, <0.4"
 client = true
 server = true
 required_on_join = false
-"#)
+"#
+    )
 }
 
 fn program() -> String {
-    data("sample_mod") + r#"
+    data("sample_mod")
+        + r#"
 [bin]
 library = "sample"
 targets = ["windows-x64"]
@@ -109,8 +141,31 @@ abi = 2
 "#
 }
 
+#[test]
+fn unsigned_switches_scope_wasm_and_native_code_separately() {
+    let wasm_only = UnsignedSwitches::from_values(None, Some(std::ffi::OsStr::new("1")));
+    assert!(!wasm_only.dll);
+    assert!(wasm_only.wasm);
+
+    let legacy = UnsignedSwitches::from_values(Some(std::ffi::OsStr::new("1")), None);
+    assert!(legacy.dll);
+    assert!(legacy.wasm);
+
+    let disabled = UnsignedSwitches::from_values(None, None);
+    assert!(!disabled.dll);
+    assert!(!disabled.wasm);
+
+    let invalid = UnsignedSwitches::from_values(
+        Some(std::ffi::OsStr::new("true")),
+        Some(std::ffi::OsStr::new("true")),
+    );
+    assert!(!invalid.dll);
+    assert!(!invalid.wasm);
+}
+
 fn shader_source() -> String {
-    data("shader_mod") + r#"
+    data("shader_mod")
+        + r#"
 [[shaders]]
 id = "kage"
 name = "Kage"
@@ -130,17 +185,23 @@ default = "Soft"
 
 fn sample_pack() -> horizon_shader_api::Pack {
     horizon_shader_api::Pack::read(Path::new(concat!(
-        env!("CARGO_MANIFEST_DIR"), "/../horizon-shader-api/tests/samples/schema-1",
-    ))).unwrap()
+        env!("CARGO_MANIFEST_DIR"),
+        "/../horizon-shader-api/tests/samples/schema-1",
+    )))
+    .unwrap()
 }
 
 #[test]
 fn missing_list_does_not_inspect_installed_packages_or_create_files() {
     let fixture = Fixture::new();
-    fixture.write(&fixture.0.join("yoake-mods/broken/1.2.3/yak.toml"), b"invalid TOML");
+    fixture.write(
+        &fixture.0.join("yoake-mods/broken/1.2.3/yak.toml"),
+        b"invalid TOML",
+    );
     let before = fs::read_dir(&fixture.0).unwrap().count();
     let runtime = Runtime::read(&fixture.0, &build(), &[]);
     assert!(runtime.entries.is_empty());
+    assert!(!runtime.synced_config);
     assert!(runtime.startup_log.is_empty());
     assert!(runtime.notices.lock().unwrap().is_empty());
     assert_eq!(fs::read_dir(&fixture.0).unwrap().count(), before);
@@ -156,10 +217,17 @@ fn list_comments_and_unsigned_content_preserve_load_order() {
     fixture.content(&second.root.join("content"), "second_mod", "1.2.3");
     fixture.list("# launcher order\n\nsecond_mod 1.2.3 # dependency first\nfirst_mod 1.2.3\n");
     let runtime = Runtime::read(&fixture.0, &build(), &[]);
-    let ids: Vec<_> = runtime.entries.iter().map(|entry| entry.manifest.id.as_str()).collect();
+    let ids: Vec<_> = runtime
+        .entries
+        .iter()
+        .map(|entry| entry.manifest.id.as_str())
+        .collect();
     assert_eq!(ids, ["second_mod", "first_mod"]);
     assert!(runtime.entries.iter().all(|entry| !entry.signed));
-    assert_eq!(runtime.entries[0].content.as_deref(), Some(second.root.join("content").as_path()));
+    assert_eq!(
+        runtime.entries[0].content.as_deref(),
+        Some(second.root.join("content").as_path())
+    );
     assert!(runtime.notices.lock().unwrap().is_empty());
 }
 
@@ -208,9 +276,13 @@ fn signed_fake_dll_passes_integrity_without_executing_and_retains_other_target_h
     fixture.list("sample_mod 1.2.3\n");
     let runtime = Runtime::read(&fixture.0, &build(), &[key.public()]);
     assert!(runtime.entries[0].signed);
-    let (path, digest) = binary_preflight(&runtime.entries[0], &build(), &[key.public()], false).unwrap();
+    let (path, digest) =
+        binary_preflight(&runtime.entries[0], &build(), &[key.public()], false).unwrap();
     assert_eq!(path, entry.root.join("bin/windows-x64/sample.dll"));
-    assert_eq!(digest, yak::hash_installed_file(&entry.root, "bin/windows-x64/sample.dll").unwrap());
+    assert_eq!(
+        digest,
+        yak::hash_installed_file(&entry.root, "bin/windows-x64/sample.dll").unwrap()
+    );
     assert_eq!(digest.len(), 64);
     assert!(binary_preflight(&entry, &build(), &[], false).is_err());
 }
@@ -221,11 +293,25 @@ fn tampered_dll_manifest_and_signature_are_refused_before_execution() {
     let entry = fixture.binary();
     let (key, _) = SigningKey::generate().unwrap();
     fixture.sign(&entry, &key);
-    fixture.write(&entry.root.join("bin/windows-x64/sample.dll"), b"tampered bytes");
-    assert!(binary_preflight(&entry, &build(), &[key.public()], false).unwrap_err().contains("checksum mismatch"));
+    fixture.write(
+        &entry.root.join("bin/windows-x64/sample.dll"),
+        b"tampered bytes",
+    );
+    assert!(
+        binary_preflight(&entry, &build(), &[key.public()], false)
+            .unwrap_err()
+            .contains("checksum mismatch")
+    );
     fixture.sign(&entry, &key);
-    fixture.write(&entry.root.join("yak.toml"), program().replace("Headless installed-view", "Changed installed-view"));
-    assert!(binary_preflight(&entry, &build(), &[key.public()], false).unwrap_err().contains("yak.toml"));
+    fixture.write(
+        &entry.root.join("yak.toml"),
+        program().replace("Headless installed-view", "Changed installed-view"),
+    );
+    assert!(
+        binary_preflight(&entry, &build(), &[key.public()], false)
+            .unwrap_err()
+            .contains("yak.toml")
+    );
     fixture.sign(&entry, &key);
     fixture.write(&entry.root.join("SIGNATURE"), b"not a signature");
     assert!(binary_preflight(&entry, &build(), &[key.public()], false).is_err());
@@ -256,9 +342,19 @@ fn unsigned_override_bypasses_only_signature_not_build_target_or_missing_file_ch
 fn preflight_refuses_replaced_identity_and_escaping_library_names() {
     let fixture = Fixture::new();
     let entry = fixture.binary();
-    fixture.write(&entry.root.join("yak.toml"), program().replace("sample_mod", "other_mod"));
-    assert!(binary_preflight(&entry, &build(), &[], true).unwrap_err().contains("identity changed"));
-    fixture.write(&entry.root.join("yak.toml"), program().replace(r#"library = "sample""#, r#"library = "../outside""#));
+    fixture.write(
+        &entry.root.join("yak.toml"),
+        program().replace("sample_mod", "other_mod"),
+    );
+    assert!(
+        binary_preflight(&entry, &build(), &[], true)
+            .unwrap_err()
+            .contains("identity changed")
+    );
+    fixture.write(
+        &entry.root.join("yak.toml"),
+        program().replace(r#"library = "sample""#, r#"library = "../outside""#),
+    );
     assert!(binary_preflight(&entry, &build(), &[], true).is_err());
 }
 
@@ -321,13 +417,23 @@ fn mods_rows_show_yak_source_trust_and_existing_wasm_restrictions() {
     fixture.list("sample_mod 1.2.3\n");
     let runtime = Runtime::read(&fixture.0, &build(), &[]);
     let mut rows = Vec::new();
-    populate_rows_from(&mut rows, &runtime.entries, &BTreeMap::new(), "Native port required");
+    populate_rows_from(
+        &mut rows,
+        &runtime.entries,
+        &BTreeMap::new(),
+        "Native port required",
+    );
     assert_eq!(rows.len(), 1);
     assert!(rows[0].description.contains(".yak"));
     assert!(rows[0].description.contains("Unsigned or unverified"));
     assert_eq!(rows[0].problem.as_deref(), Some("Native port required"));
     let problems = BTreeMap::from([("sample_mod".into(), "Native signature refused".into())]);
-    populate_rows_from(&mut rows, &runtime.entries, &problems, "Native port required");
+    populate_rows_from(
+        &mut rows,
+        &runtime.entries,
+        &problems,
+        "Native port required",
+    );
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].problem.as_deref(), Some("Native signature refused"));
 }
@@ -341,14 +447,21 @@ fn declared_shader_options_reach_picker_preferences_and_shadow_inputs() {
         fixture.write(&entry.root.join("shaders/kage").join(name), bytes);
     }
     let shader = &entry.manifest.shaders[0];
-    assert_eq!(shader.options["shadow_map"].default, yak::OptionValue::Integer(1024));
+    assert_eq!(
+        shader.options["shadow_map"].default,
+        yak::OptionValue::Integer(1024)
+    );
     let dir = fixture.0.join("shaderpacks");
     let packs = shaders::scan_installed(&dir, std::slice::from_ref(&entry));
     assert_eq!(packs.len(), 1);
     assert_eq!(packs[0].title, "Kage (.yak)");
     assert_eq!(packs[0].kind, shader_pack_list::Kind::Horizon);
     let mut selected = packs[0].clone();
-    let index = selected.options.iter().position(|option| option.id == "shadow_map").unwrap();
+    let index = selected
+        .options
+        .iter()
+        .position(|option| option.id == "shadow_map")
+        .unwrap();
     assert!(selected.options[index].name.contains("影の解像度"));
     assert_eq!(selected.values[index], 1.0);
     assert!(selected.step_option(index, false, false));
@@ -357,13 +470,41 @@ fn declared_shader_options_reach_picker_preferences_and_shadow_inputs() {
     assert!(dir.join(format!("{}.txt", selected.file)).is_file());
     assert!(!entry.root.join("shaders/kage.txt").exists());
     let mut pack = sample_pack();
-    let constants = shaders::apply_parameters(&mut pack, shader, &dir.join(&selected.file)).unwrap();
+    let constants =
+        shaders::apply_parameters(&mut pack, shader, &dir.join(&selected.file)).unwrap();
     assert!(!constants.contains_key("shadow_map"));
     assert_eq!(constants["reflections"], 1.0);
     assert_eq!(constants["tonemap"], 1.0);
     assert_eq!(pack.manifest.shadow.as_ref().unwrap().resolution, 2048);
     let report = horizon_shader_api::check(&pack).unwrap();
     assert_eq!(report.shadow.unwrap().resolution, 2048);
+    let mut option_pack = sample_pack();
+    option_pack
+        .manifest
+        .options
+        .push(horizon_shader_api::PackOption {
+            id: "shadow_map".into(),
+            name: "Shadow size".into(),
+            description: String::new(),
+            kind: horizon_shader_api::OptionKind::Choice {
+                values: vec!["2048".into(), "1024".into(), "512".into()],
+                default: 1,
+            },
+        });
+    option_pack
+        .manifest
+        .shadow
+        .as_mut()
+        .unwrap()
+        .resolution_option = Some("shadow_map".into());
+    let selection =
+        shaders::apply_parameters(&mut option_pack, shader, &dir.join(&selected.file)).unwrap();
+    assert_eq!(selection["shadow_map"], 0.0);
+    let constants: Vec<_> = selection.into_iter().collect();
+    assert_eq!(
+        option_pack.manifest.shadow_resolution(&constants),
+        Some(2048)
+    );
     selected.reset_options();
     selected.save_values(&dir);
     let mut pack = sample_pack();
@@ -374,9 +515,20 @@ fn declared_shader_options_reach_picker_preferences_and_shadow_inputs() {
 #[test]
 fn unsupported_shadow_sizes_are_refused_before_pack_check() {
     let fixture = Fixture::new();
-    let entry = fixture.install(&shader_source().replace("[512, 1024, 2048]", "[512, 768, 2048]").replace("default = 1024", "default = 768"));
+    let entry = fixture.install(
+        &shader_source()
+            .replace("[512, 1024, 2048]", "[512, 768, 2048]")
+            .replace("default = 1024", "default = 768"),
+    );
     let mut pack = sample_pack();
-    assert!(shaders::apply_parameters(&mut pack, &entry.manifest.shaders[0], &fixture.0.join("preference")).is_err());
+    assert!(
+        shaders::apply_parameters(
+            &mut pack,
+            &entry.manifest.shaders[0],
+            &fixture.0.join("preference")
+        )
+        .is_err()
+    );
 }
 
 fn wasm_entry(fixture: &Fixture) -> Installed {
@@ -394,22 +546,49 @@ fn wasm_resolution_is_empty_without_wasm_entries() {
 }
 
 #[test]
-fn signed_wasm_is_resolved_and_unsigned_needs_the_developer_flag() {
+fn wasm_only_unsigned_switch_loads_wasm_and_never_authorizes_native_binaries() {
     let fixture = Fixture::new();
     let entry = wasm_entry(&fixture);
     assert!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[], false).is_empty());
-    let found = wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[], true);
+    let wasm_only = UnsignedSwitches::from_values(None, Some(std::ffi::OsStr::new("1")));
+    let found = wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[], wasm_only.wasm);
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].mod_id, "sample_mod");
     assert_eq!(found[0].version, Version::parse("1.2.3").unwrap());
     assert_eq!(found[0].bytes, b"\0asm\x01\0\0\0");
     assert_eq!(found[0].sha256, yak::hash_installed_file(&entry.root, "bin/wasm/sample.wasm").unwrap());
     assert!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Server, &[], true).is_empty());
+
+    let native = fixture.install(&program().replace("sample_mod", "native_mod"));
+    fixture.write(&native.root.join("bin/windows-x64/sample.dll"), b"not an executable DLL");
+    assert!(binary_preflight(&native, &build(), &[], wasm_only.dll).is_err());
+
+    let no_switch = UnsignedSwitches::from_values(None, None);
+    assert!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[], no_switch.wasm).is_empty());
+    assert!(binary_preflight(&native, &build(), &[], no_switch.dll).is_err());
+
+    let legacy = UnsignedSwitches::from_values(Some(std::ffi::OsStr::new("1")), None);
+    assert!(binary_preflight(&native, &build(), &[], legacy.dll).is_ok());
+    assert_eq!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[], legacy.wasm).len(), 1);
+
     let (key, _) = SigningKey::generate().unwrap();
     fixture.sign(&entry, &key);
     assert_eq!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[key.public()], false).len(), 1);
     fixture.write(&entry.root.join("bin/wasm/sample.wasm"), b"tampered");
     assert!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[key.public()], false).is_empty());
+}
+
+#[test]
+fn wasm_unsigned_override_accepts_a_missing_signature_but_refuses_a_tampered_one() {
+    let fixture = Fixture::new();
+    let entry = wasm_entry(&fixture);
+    assert_eq!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[], true).len(), 1);
+
+    let (key, _) = SigningKey::generate().unwrap();
+    fixture.sign(&entry, &key);
+    assert_eq!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[key.public()], true).len(), 1);
+    fixture.write(&entry.root.join("bin/wasm/sample.wasm"), b"tampered after signing");
+    assert!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[key.public()], true).is_empty());
 }
 
 fn server_wasm_source(permissions: &str) -> String {
@@ -439,4 +618,25 @@ fn the_commands_permission_reaches_the_server_module() {
     let found = wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Server, &[], true);
     assert_eq!(found.len(), 1);
     assert!(found[0].commands);
+}
+
+#[test]
+fn config_sync_is_enabled_only_for_a_capable_synced_server_module() {
+    let fixture = Fixture::new();
+    let config = "\n[config.shared]\ntype = 'bool'\ndefault = false\nside = 'synced'\n";
+    let entry =
+        fixture.install(&(server_wasm_source("permissions = ['service.config']\n") + config));
+    assert!(entry.has_synced_config());
+    let mut local_only = entry.clone();
+    local_only.manifest.config.get_mut("shared").unwrap().side = yak::ConfigSide::Client;
+    assert!(!local_only.has_synced_config());
+    let mut denied = entry.clone();
+    denied.manifest.wasm.as_mut().unwrap().permissions.clear();
+    assert!(!denied.has_synced_config());
+    let mut client_only = entry.clone();
+    client_only.manifest.wasm.as_mut().unwrap().server = None;
+    assert!(!client_only.has_synced_config());
+    fixture.list("server_mod 1.2.3\n");
+    let runtime = Runtime::read(&fixture.0, &build(), &[]);
+    assert!(runtime.synced_config);
 }

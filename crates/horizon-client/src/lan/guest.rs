@@ -523,18 +523,35 @@ impl Guest {
     pub fn reads_attachment_sync(&self) -> bool {
         self.placed && self.brand == "horizon"
     }
-    /// A holder's synced attachments, if the guest reads them; a message too big
-    /// for one payload is not sent.
-    pub fn send_attachment_sync(&self, message: &attachment_sync::Message) {
+    /// Queue a holder's synced attachments, split to fit the payload cap.
+    pub fn send_attachment_sync(&self, message: &attachment_sync::Message) -> bool {
         if !self.reads_attachment_sync() {
-            return;
+            return true;
         }
-        match attachment_sync::encode(message) {
-            Ok(data) => self.send(&play::Clientbound::CustomPayload(CustomPayload {
-                channel: attachment_sync::CHANNEL.into(),
-                data,
-            })),
-            Err(e) => log::debug!("Horizon: attachment sync not sent: {e}"),
+        let payloads = attachment_sync::split(message).and_then(|parts| {
+            parts
+                .iter()
+                .map(attachment_sync::encode)
+                .collect::<Result<Vec<_>, _>>()
+        });
+        match payloads {
+            Ok(payloads) => {
+                let packets = payloads
+                    .into_iter()
+                    .map(|data| {
+                        play::Clientbound::CustomPayload(CustomPayload {
+                            channel: attachment_sync::CHANNEL.into(),
+                            data,
+                        })
+                        .encode()
+                    })
+                    .collect();
+                self.sender.try_send_many(packets)
+            }
+            Err(e) => {
+                log::warn!("Horizon: attachment sync not sent: {e}");
+                false
+            }
         }
     }
     /// What `packet` changes about how the client moves, for the prediction's replay: kept until

@@ -8,15 +8,22 @@ use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder, UpdateDea
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
 mod client;
+mod client_services;
+pub mod config_sync;
 pub mod convert;
 mod full;
-mod full_hook_names;
 pub mod full_bindings;
-mod host;
+mod full_hook_names;
+mod gpu_services;
 mod hook_names;
+mod host;
+pub mod host_services;
+pub mod inject;
+pub mod package_services;
 mod subscriptions;
 #[cfg(feature = "test-guests")]
 pub mod test_guests;
+mod test_mod;
 mod wasi;
 
 pub mod bindings {
@@ -27,12 +34,15 @@ pub mod bindings {
 }
 
 pub use client::{ClientMod, LoadError};
+pub use client_services::{ClientServices, client_types};
 pub use full::{ClientFullMod, SERVER_SERVICES, ServerFullMod, ServerHost, server_types};
-pub use host::{ClientContext, ClientHost};
 pub use full_hook_names::{FULL_HOOKS as FULL_HOOK_LIST, HookSide};
+pub use gpu_services::{GpuServices, gpu_types};
+pub use host::{ClientContext, ClientHost};
 pub use subscriptions::FullWorld;
 
 pub use subscriptions::Subscriptions;
+pub use test_mod::{TestHost, TestMod, TestOutcome, test_driver, validate_test_names};
 pub use wasi::{OutputLine, OutputStream, WASI_IMPORT_INTERFACES};
 
 pub const MEMORY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
@@ -48,6 +58,10 @@ thread_local! {
     /// call's deadline and does not count against the aggregate budget. The guest's own work is still
     /// bounded by fuel, and every service call burns some.
     static HOST_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
+    static STORAGE_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
+    static STORAGE_THROTTLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static STORAGE_WINDOW: std::cell::Cell<Option<Instant>> = const { std::cell::Cell::new(None) };
+    static COUNTED_HOST_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
 }
 
 /// The most host-service time that extends one call's deadline (a guest that loops over services cannot hold the
@@ -57,6 +71,31 @@ pub const MAX_HOST_TIME: Duration = Duration::from_millis(400);
 /// Adds `spent` to the running call's host-service time (see [`HOST_TIME`]).
 pub(crate) fn add_host_time(spent: Duration) {
     HOST_TIME.with(|time| time.set(time.get() + spent));
+}
+
+pub(crate) fn add_counted_host_time(spent: Duration) {
+    COUNTED_HOST_TIME.with(|time| time.set(time.get() + spent));
+}
+
+pub(crate) fn add_storage_time(spent: Duration) {
+    STORAGE_TIME.with(|time| time.set(time.get() + spent));
+}
+
+pub(crate) fn storage_throttled() {
+    STORAGE_THROTTLED.with(|throttled| throttled.set(true));
+}
+
+pub(crate) fn storage_window_start() -> Instant {
+    STORAGE_WINDOW
+        .with(std::cell::Cell::get)
+        .unwrap_or_else(Instant::now)
+}
+
+fn deadline_extension() -> Duration {
+    (HOST_TIME.with(std::cell::Cell::get)
+        + STORAGE_TIME.with(std::cell::Cell::get)
+        + COUNTED_HOST_TIME.with(std::cell::Cell::get))
+    .min(MAX_HOST_TIME)
 }
 /// One client hook call may run this long of wall-clock time (plus one epoch tick) before it is
 /// stopped and the module disabled. A call is stopped by the clock, not by its CPU time, and a busy
@@ -85,11 +124,19 @@ pub struct TimeLimits {
 }
 
 impl TimeLimits {
-    pub const CLIENT: Self = Self { call: CLIENT_HOOK_BUDGET, aggregate: CLIENT_AGGREGATE_BUDGET };
-    pub const SERVER: Self = Self { call: SERVER_HOOK_BUDGET, aggregate: SERVER_AGGREGATE_BUDGET };
+    pub const CLIENT: Self = Self {
+        call: CLIENT_HOOK_BUDGET,
+        aggregate: CLIENT_AGGREGATE_BUDGET,
+    };
+    pub const SERVER: Self = Self {
+        call: SERVER_HOOK_BUDGET,
+        aggregate: SERVER_AGGREGATE_BUDGET,
+    };
     /// A module's `init` (and its start function): it runs once, while the game loads.
-    pub const INIT: Self = Self { call: Duration::from_millis(250), aggregate: Duration::from_secs(1) };
-
+    pub const INIT: Self = Self {
+        call: Duration::from_millis(250),
+        aggregate: Duration::from_secs(1),
+    };
 }
 
 /// The store limits every instance gets (also what the tests check).
@@ -119,30 +166,62 @@ impl Sandbox {
     }
 
     fn texture_count(&mut self, id: &str) -> Arc<AtomicUsize> {
-        self.texture_counts.retain(|_, count| count.strong_count() > 0);
+        self.texture_counts
+            .retain(|_, count| count.strong_count() > 0);
         if let Some(count) = self.texture_counts.get(id).and_then(Weak::upgrade) {
             return count;
         }
         let count = Arc::new(AtomicUsize::new(0));
-        self.texture_counts.insert(id.to_owned(), Arc::downgrade(&count));
+        self.texture_counts
+            .insert(id.to_owned(), Arc::downgrade(&count));
         count
     }
 
     pub fn compile(&mut self, bytes: &[u8]) -> Result<CompiledComponent, String> {
+        self.compile_as(bytes, false, false)
+    }
+
+    pub(crate) fn compile_injection(&mut self, bytes: &[u8]) -> Result<CompiledComponent, String> {
+        self.compile_as(bytes, false, true)
+    }
+
+    /// Compiles a *test module* (world `test-mod`): the only compile that accepts the `test-driver`
+    /// import. Only [`TestMod`] calls this; a mod's components go through [`Sandbox::compile`].
+    pub(crate) fn compile_test(&mut self, bytes: &[u8]) -> Result<CompiledComponent, String> {
+        self.compile_as(bytes, true, false)
+    }
+
+    fn compile_as(
+        &mut self,
+        bytes: &[u8],
+        test_module: bool,
+        injection: bool,
+    ) -> Result<CompiledComponent, String> {
         if self.runtime.is_none() {
             self.runtime = Some(Arc::new(RuntimeEngine::new()?));
         }
         let runtime = Arc::clone(self.runtime.as_ref().expect("runtime was just initialized"));
         let component = Component::new(&runtime.engine, bytes)
-            .map_err(|error| format!("not a valid component: {error}"))?;
-        for (name, _) in component.component_type().imports(&runtime.engine) {
-            check_import(name)?;
+            .map_err(|error| format!("not a valid component: {error:#}"))?;
+        let component_type = component.component_type();
+        let supports_config = injection
+            && component_type
+                .exports(&runtime.engine)
+                .any(|(name, _)| name == "yoake:mods/inject@1.1.0")
+            && component_type
+                .exports(&runtime.engine)
+                .any(|(name, _)| name == "yoake:mods/config-events@1.2.0");
+        for (name, _) in component_type.imports(&runtime.engine) {
+            check_import(name, test_module, supports_config)?;
         }
         Ok(CompiledComponent { runtime, component })
     }
 }
 
-fn check_import(name: &str) -> Result<(), String> {
+/// The interface only a test module may import (`wit/yoake-test.wit`).
+const TEST_INTERFACE: &str = "test-driver";
+
+fn check_import(name: &str, test_module: bool, supports_config: bool) -> Result<(), String> {
     if let Some(wasi) = name.strip_prefix("wasi:") {
         return if wasi::allowed_import(wasi) {
             Ok(())
@@ -159,7 +238,14 @@ fn check_import(name: &str) -> Result<(), String> {
     if interface.is_empty() || interface.contains('/') || interface.contains('@') {
         return Err(format!("invalid component import: {name}"));
     }
-    if version != INTERFACE_VERSION {
+    if interface == TEST_INTERFACE && !test_module {
+        return Err(format!(
+            "forbidden component import: {name} (only the engine's test runner links it)"
+        ));
+    }
+    if version != INTERFACE_VERSION
+        && !(supports_config && interface == "config" && version == "1.2.0")
+    {
         return Err(format!("unsupported component interface version: {name}"));
     }
     Ok(())
@@ -205,7 +291,11 @@ impl RuntimeEngine {
                 }
             })
             .map_err(|error| format!("could not start WebAssembly epoch timer: {error}"))?;
-        Ok(Self { engine, stop, timer: Some(timer) })
+        Ok(Self {
+            engine,
+            stop,
+            timer: Some(timer),
+        })
     }
 }
 
@@ -230,10 +320,14 @@ pub struct HostState<T> {
 
 impl<T: Send> WasiView for HostState<T> {
     fn ctx(&mut self) -> WasiCtxView<'_> {
-        WasiCtxView { ctx: &mut self.wasi, table: &mut self.table }
+        WasiCtxView {
+            ctx: &mut self.wasi,
+            table: &mut self.table,
+        }
     }
 }
 
+#[derive(Clone)]
 pub struct CompiledComponent {
     runtime: Arc<RuntimeEngine>,
     component: Component,
@@ -259,12 +353,21 @@ impl CompiledComponent {
             .allow_ip_name_lookup(false)
             .build();
         let deadline = Instant::now() + TimeLimits::INIT.call;
-        let state = HostState { host, limits, wasi, table: ResourceTable::new(), output, deadline };
+        let state = HostState {
+            host,
+            limits,
+            wasi,
+            table: ResourceTable::new(),
+            output,
+            deadline,
+        };
         let mut store = Store::new(&self.runtime.engine, state);
         store.limiter(|state| &mut state.limits);
-        store.set_fuel(FUEL_PER_CALL).map_err(|error| error.to_string())?;
+        store
+            .set_fuel(FUEL_PER_CALL)
+            .map_err(|error| error.to_string())?;
         store.epoch_deadline_callback(|context| {
-            if Instant::now() >= context.data().deadline + HOST_TIME.with(std::cell::Cell::get).min(MAX_HOST_TIME) {
+            if Instant::now() >= context.data().deadline + deadline_extension() {
                 Ok(UpdateDeadline::Interrupt)
             } else {
                 Ok(UpdateDeadline::Continue(1))
@@ -273,7 +376,7 @@ impl CompiledComponent {
         store.set_epoch_deadline(1);
         let instance = linker
             .instantiate(&mut store, &self.component)
-            .map_err(|error| format!("component instantiation failed: {error}"))?;
+            .map_err(|error| format!("component instantiation failed: {error:#}"))?;
         Ok(ModInstance {
             id: id.into(),
             store,
@@ -281,7 +384,12 @@ impl CompiledComponent {
             disabled: false,
             limits: TimeLimits::CLIENT,
             fuel: FUEL_PER_CALL,
-            window: Window { started: Instant::now(), spent: Duration::ZERO, exceeded: false, strikes: 0 },
+            window: Window {
+                started: Instant::now(),
+                spent: Duration::ZERO,
+                exceeded: false,
+                strikes: 0,
+            },
             skipped: 0,
             _runtime: self.runtime,
         })
@@ -325,6 +433,8 @@ impl<T: 'static> ModInstance<T> {
         self.limits = after;
         self.window.spent = Duration::ZERO;
         self.window.started = Instant::now();
+        self.window.exceeded = false;
+        self.window.strikes = 0;
         result
     }
 
@@ -348,7 +458,7 @@ impl<T: 'static> ModInstance<T> {
     /// Whether the aggregate budget of the current window is used up (rolls the window first).
     fn over_aggregate(&mut self, now: Instant) -> bool {
         if now.duration_since(self.window.started) >= AGGREGATE_WINDOW {
-            if self.window.exceeded {
+            if self.window.exceeded || self.window.spent >= self.limits.aggregate {
                 self.window.strikes += 1;
             } else {
                 self.window.strikes = 0;
@@ -357,7 +467,7 @@ impl<T: 'static> ModInstance<T> {
             self.window.spent = Duration::ZERO;
             self.window.exceeded = false;
         }
-        self.window.spent >= self.limits.aggregate
+        self.window.exceeded || self.window.spent >= self.limits.aggregate
     }
 
     /// Complete lines the guest wrote to its WASI stdout and stderr since the last drain.
@@ -371,30 +481,55 @@ impl<T: 'static> ModInstance<T> {
         hook: &str,
         invoke: impl FnOnce(&mut Store<HostState<T>>, &Instance) -> Result<R, String>,
     ) -> Option<R> {
+        self.call_bounded(hook, true, invoke).ok().flatten()
+    }
+
+    pub fn call_recoverable<R>(
+        &mut self,
+        hook: &str,
+        invoke: impl FnOnce(&mut Store<HostState<T>>, &Instance) -> Result<R, String>,
+    ) -> Result<Option<R>, String> {
+        self.call_bounded(hook, false, invoke)
+    }
+
+    fn call_bounded<R>(
+        &mut self,
+        hook: &str,
+        disable_on_trap: bool,
+        invoke: impl FnOnce(&mut Store<HostState<T>>, &Instance) -> Result<R, String>,
+    ) -> Result<Option<R>, String> {
         if self.disabled {
-            return None;
+            return Ok(None);
         }
         let began = Instant::now();
-        if self.over_aggregate(began) {
-            if !self.window.exceeded {
-                self.window.exceeded = true;
-                if self.window.strikes >= AGGREGATE_STRIKES {
-                    self.disabled = true;
-                    let id = self.id.replace(['\r', '\n'], " ");
-                    eprintln!("WebAssembly mod {id} disabled: over its time budget in {AGGREGATE_STRIKES} windows in a row");
-                    return None;
-                }
-            }
+        let over_aggregate = self.over_aggregate(began);
+        if self.window.strikes >= AGGREGATE_STRIKES {
+            self.disabled = true;
+            let id = self.id.replace(['\r', '\n'], " ");
+            eprintln!(
+                "WebAssembly mod {id} disabled: over its time budget in {AGGREGATE_STRIKES} windows in a row"
+            );
+            return Ok(None);
+        }
+        if over_aggregate {
+            self.window.exceeded = true;
             self.skipped += 1;
             if self.skipped == 1 {
                 let id = self.id.replace(['\r', '\n'], " ");
-                eprintln!("WebAssembly mod {id}: calls skipped, it used its time budget for this window (further skips are only counted)");
+                eprintln!(
+                    "WebAssembly mod {id}: calls skipped, it used its time budget for this window (further skips are only counted)"
+                );
             }
-            return None;
+            return Ok(None);
         }
         self.store.data_mut().deadline = began + self.limits.call;
         // Calls nest (a `mod-call` runs another module inside a service): each has its own host time.
         let outer_host_time = HOST_TIME.with(|time| time.replace(Duration::ZERO));
+        let outer_storage_time = STORAGE_TIME.with(|time| time.replace(Duration::ZERO));
+        let outer_storage_throttled = STORAGE_THROTTLED.with(|throttled| throttled.replace(false));
+        let outer_storage_window =
+            STORAGE_WINDOW.with(|window| window.replace(Some(self.window.started)));
+        let outer_counted_host_time = COUNTED_HOST_TIME.with(|time| time.replace(Duration::ZERO));
         let result = self
             .store
             .set_fuel(self.fuel)
@@ -404,17 +539,162 @@ impl<T: 'static> ModInstance<T> {
                 invoke(&mut self.store, &self.instance)
             });
         let host_time = HOST_TIME.with(|time| time.replace(outer_host_time));
+        STORAGE_TIME.with(|time| time.set(outer_storage_time));
+        STORAGE_WINDOW.with(|window| window.set(outer_storage_window));
+        self.window.exceeded |=
+            STORAGE_THROTTLED.with(|throttled| throttled.replace(outer_storage_throttled));
+        COUNTED_HOST_TIME.with(|time| time.set(outer_counted_host_time));
         self.window.spent += began.elapsed().saturating_sub(host_time);
         match result {
-            Ok(value) => Some(value),
+            Ok(value) => Ok(Some(value)),
             Err(error) => {
+                if !disable_on_trap {
+                    return Err(error);
+                }
                 self.disabled = true;
                 let id = self.id.replace(['\r', '\n'], " ");
                 let hook = hook.replace(['\r', '\n'], " ");
                 let reason = error.replace(['\r', '\n'], " ");
                 eprintln!("WebAssembly mod {id} disabled in {hook}: {reason}");
-                None
+                Err(error)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tick_component() -> Vec<u8> {
+        let mut resolve = wit_parser::Resolve::default();
+        let package = resolve
+            .push_str(
+                "test.wit",
+                "package clock:test; world client-mod { export tick: func(); }",
+            )
+            .unwrap();
+        let world = resolve
+            .select_world(&[package], Some("client-mod"))
+            .unwrap();
+        let mut module = b"\0asm\x01\0\0\0\x01\x04\x01\x60\0\0\x03\x02\x01\0\x07\x10\x01\x0ccm32p2||tick\0\0\x0a\x04\x01\x02\0\x0b".to_vec();
+        wit_component::embed_component_metadata(
+            &mut module,
+            &resolve,
+            world,
+            wit_component::StringEncoding::UTF8,
+        )
+        .unwrap();
+        wit_component::ComponentEncoder::default()
+            .module(&module)
+            .unwrap()
+            .encode()
+            .unwrap()
+    }
+
+    #[test]
+    fn storage_time_extends_both_hook_deadlines_but_remains_aggregate_charged() {
+        let mut runtime = Sandbox::new();
+        for limits in [TimeLimits::CLIENT, TimeLimits::SERVER] {
+            let mut module = runtime
+                .compile(&tick_component())
+                .unwrap()
+                .instantiate("storage-clock", (), |_| Ok(()))
+                .unwrap();
+            module.set_limits(limits);
+            let answer = module.call("tick", |store, instance| {
+                let began = Instant::now();
+                std::thread::sleep(Duration::from_millis(80));
+                add_storage_time(began.elapsed());
+                let tick = instance
+                    .get_typed_func::<(), ()>(&mut *store, "tick")
+                    .map_err(|error| error.to_string())?;
+                tick.call(&mut *store, ())
+                    .map_err(|error| error.to_string())
+            });
+            assert_eq!(answer, Some(()));
+            assert!(!module.disabled);
+            assert!(module.window.spent >= Duration::from_millis(80));
+        }
+    }
+
+    #[test]
+    fn slow_calls_accumulate_strikes_without_skipping_a_call() {
+        let mut module = Sandbox::new()
+            .compile(&tick_component())
+            .unwrap()
+            .instantiate("slow-storage", (), |_| Ok(()))
+            .unwrap();
+        for strike in 1..=AGGREGATE_STRIKES {
+            module.window.started = Instant::now() - AGGREGATE_WINDOW;
+            module.window.spent = module.limits.aggregate + Duration::from_millis(400);
+            let answer = module.call("tick", |_, _| Ok(()));
+            assert_eq!(module.window.strikes, strike);
+            assert_eq!(answer, (strike < AGGREGATE_STRIKES).then_some(()));
+        }
+        assert!(module.disabled);
+        assert_eq!(module.skipped, 0);
+    }
+
+    #[test]
+    fn storage_and_other_host_time_share_one_bounded_deadline_extension() {
+        let previous_host = HOST_TIME.with(|time| time.replace(Duration::from_millis(250)));
+        let previous_storage = STORAGE_TIME.with(|time| time.replace(Duration::from_millis(300)));
+        assert_eq!(deadline_extension(), Duration::from_millis(400));
+        HOST_TIME.with(|time| time.set(previous_host));
+        STORAGE_TIME.with(|time| time.set(previous_storage));
+    }
+}
+
+#[cfg(test)]
+mod budget_tests {
+    use super::*;
+
+    #[test]
+    fn shader_host_time_stays_in_the_aggregate_budget() {
+        let mut resolve = wit_parser::Resolve::default();
+        let package = resolve
+            .push_str("test.wit", "package test:budget; world client-mod {}")
+            .unwrap();
+        let world = resolve
+            .select_world(&[package], Some("client-mod"))
+            .unwrap();
+        let mut module =
+            wit_component::dummy_module(&resolve, world, wit_parser::ManglingAndAbi::Standard32);
+        wit_component::embed_component_metadata(
+            &mut module,
+            &resolve,
+            world,
+            wit_component::StringEncoding::UTF8,
+        )
+        .unwrap();
+        let bytes = wit_component::ComponentEncoder::default()
+            .module(&module)
+            .unwrap()
+            .encode()
+            .unwrap();
+        let mut instance = Sandbox::new()
+            .compile(&bytes)
+            .unwrap()
+            .instantiate("budget", (), |_| Ok(()))
+            .unwrap();
+        let mut measured = Duration::ZERO;
+        assert_eq!(
+            instance.call("compile", |_, _| {
+                let began = Instant::now();
+                std::thread::sleep(Duration::from_millis(2));
+                measured = began.elapsed();
+                add_counted_host_time(measured);
+                assert!(deadline_extension() >= measured);
+                Ok(())
+            }),
+            Some(())
+        );
+        assert!(instance.window.spent >= measured);
+        instance.window.started = Instant::now();
+        instance.limits.aggregate = Duration::from_nanos(1);
+        assert_eq!(instance.call("tick", |_, _| Ok(())), None);
+        assert_eq!(instance.skipped, 1);
+        assert!(!instance.is_disabled());
     }
 }

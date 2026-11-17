@@ -457,11 +457,7 @@ impl Serving {
     }
 }
 fn integrated_owner_in_context(server_tick: bool, owner: Option<u128>) -> Option<u128> {
-    if server_tick {
-        owner
-    } else {
-        None
-    }
+    if server_tick { owner } else { None }
 }
 
 const OWNER_QUERIES_PER_MOD: usize = 512;
@@ -836,6 +832,12 @@ impl Game<'_> {
         options.server = None;
         options.world = None;
         self.join_world_rest()?;
+        if let Some(starting) = self.integrated_starting.take() {
+            starting.handle.stop()?;
+        }
+        if let Some(server) = self.integrated.take() {
+            server.stop()?;
+        }
         // The window plays against the world's own biome table (its chunks
         // carry the packs' ids past the built-in list, `set_registries`
         // names them through it), as the server thread's copy does.
@@ -1085,6 +1087,10 @@ impl Game<'_> {
         }
         // The server thread's `WorldOpenReady` site, before the tick loop.
         self.native_lifecycle_world_ready();
+        // `--yoake-test-run`: the test module starts once the world is up (a worker of `yoake test`).
+        if let Some(worker) = crate::yoake_test::worker() {
+            crate::yoake_test::start_worker(worker.clone());
+        }
         if let (Some(script), Some(output)) = (
             std::env::var_os("HORIZON_COMMAND_SCRIPT"),
             std::env::var_os("HORIZON_COMMAND_OUTPUT"),
@@ -1099,6 +1105,7 @@ impl Game<'_> {
         let mut was_paused = false;
         while !flags.stop.load(Ordering::Relaxed) {
             self.run_tasks();
+            self.pump_yoake_test();
             #[cfg(feature = "dev-capture")]
             if self.capture_server_iteration()? {
                 next = Instant::now();
@@ -1110,7 +1117,9 @@ impl Game<'_> {
                 self.wait_for_next_server_tick(&mut next, true);
                 continue;
             }
-            let paused = flags.paused.load(Ordering::Relaxed);
+            // A test worker never pauses (its window is hidden and unfocused by design).
+            let testing = crate::yoake_test::bridge().is_some();
+            let paused = flags.paused.load(Ordering::Relaxed) && !testing;
             if paused && !was_paused {
                 // IntegratedServer.tickServer: the tick the game pauses saves
                 // everything (saveEverything, without flushing), as an
@@ -1122,10 +1131,14 @@ impl Game<'_> {
             if paused {
                 // Only the connections run.
                 self.tick_server_timed(true)?;
+            } else if crate::yoake_test::frozen() {
+                // A test froze the world: only the connections run; it ticks for `advance-ticks` alone.
+                self.tick_server_timed(true)?;
             } else {
                 self.follow_distances(&flags);
                 let started = Instant::now();
                 self.tick_server_timed(false)?;
+                self.yoake_test_tick_done();
                 // MinecraftServer.tickServer's tick times, for /tick query.
                 self.clock.record(started.elapsed());
                 self.debug_charts.log_tick(started, started.elapsed());
@@ -1141,7 +1154,13 @@ impl Game<'_> {
             }
             self.apply_publish();
             self.publish_load_view();
-            self.wait_for_next_server_tick(&mut next, paused);
+            if testing && (crate::yoake_test::ticking_fast() || crate::yoake_test::frozen()) {
+                // A test waits for ticks (the next one at once, as `/tick sprint` does) or the frozen world
+                // already waited for the test's next call.
+                next = Instant::now();
+            } else {
+                self.wait_for_next_server_tick(&mut next, paused);
+            }
         }
         self.stop_integrated()
     }
@@ -1210,6 +1229,8 @@ impl Game<'_> {
             integrated: true,
         };
         let owner = launch.owner;
+        // A test worker (`yoake test`, two clients) lets in the one player it expects, and nobody else.
+        let testing = crate::yoake_test::worker().is_some();
         let published = flags.clone();
         let local_players = flags.clone();
         let net = NetConfig {
@@ -1222,13 +1243,15 @@ impl Game<'_> {
             bypasses_limit: Some(Arc::new(move |uuid| {
                 local_players.split_players.lock().unwrap().contains(&uuid)
             })),
-            gate: Some(Arc::new(move |address, uuid, _| {
-                refused(
+            gate: Some(Arc::new(move |address, uuid, name, social| {
+                let memory = address == horizon_client::lan::conn::MEMORY_ADDRESS;
+                (refused(
                     uuid == owner,
                     published.published.load(Ordering::Relaxed) != 0,
                     published.split_players.lock().unwrap().contains(&uuid),
-                    address == horizon_client::lan::conn::MEMORY_ADDRESS,
-                )
+                    memory,
+                    social,
+                ) || not_the_test_client(testing, uuid == owner, memory, name))
                 .then(|| translatable("multiplayer.disconnect.not_whitelisted", &[]))
             })),
             levels: self.level_shapes,
@@ -1740,14 +1763,18 @@ fn server_game(
     Game::new(res, pack, gui, options, settings, audio, None)
 }
 
-/// Who the integrated server turns away: anyone but the owner until it is opened to the LAN,
-/// except a splitscreen seat. A seat's name is let in only through memory, so a LAN player
-/// logging in under it never gets its place or the owner's permissions it holds.
-fn refused(owner: bool, published: bool, split_seat: bool, memory: bool) -> bool {
-    if split_seat {
+/// The owner and splitscreen seats join only through memory. Other players need
+/// LAN publication or a social bridge and never acquire a local player's identity.
+/// The login a test worker's published world takes: its owner, and the second client named `TestB`.
+fn not_the_test_client(testing: bool, owner: bool, memory: bool, name: &str) -> bool {
+    testing && !owner && !memory && name != "TestB"
+}
+
+fn refused(owner: bool, published: bool, split_seat: bool, memory: bool, social: bool) -> bool {
+    if owner || split_seat {
         !memory
     } else {
-        !owner && !published
+        !published && !social
     }
 }
 
@@ -1807,6 +1834,19 @@ mod tests {
             }));
             window.integrated.take().unwrap().stop().unwrap();
         });
+    }
+
+    #[test]
+    fn a_test_worker_lets_in_only_its_owner_and_testb() {
+        assert!(
+            !not_the_test_client(false, false, false, "Anyone"),
+            "a normal world takes whoever may join"
+        );
+        assert!(!not_the_test_client(true, true, false, "Owner"));
+        assert!(!not_the_test_client(true, false, true, "Window"));
+        assert!(!not_the_test_client(true, false, false, "TestB"));
+        assert!(not_the_test_client(true, false, false, "Mallory"));
+        assert!(not_the_test_client(true, false, false, "testb"));
     }
 
     #[test]
@@ -1889,19 +1929,40 @@ mod tests {
 
     #[test]
     fn a_splitscreen_seat_is_let_in_only_through_memory() {
-        // (owner, published, seat, memory)
-        assert!(!refused(false, false, true, true), "a local seat joins");
+        // (owner, published, seat, memory, social)
         assert!(
-            refused(false, true, true, false),
+            !refused(false, false, true, true, false),
+            "a local seat joins"
+        );
+        assert!(
+            refused(false, true, true, false, false),
             "a LAN player under a seat's name"
         );
-        assert!(refused(false, false, true, false));
+        assert!(refused(false, false, true, false, false));
         assert!(
-            !refused(false, true, false, false),
+            !refused(false, true, false, false, false),
             "anyone once open to the LAN"
         );
-        assert!(refused(false, false, false, false), "nobody else before");
-        assert!(!refused(true, false, false, true), "the owner");
+        assert!(
+            refused(false, false, false, false, false),
+            "nobody else before"
+        );
+        assert!(!refused(true, false, false, true, false), "the owner");
+    }
+
+    #[test]
+    fn social_guests_do_not_need_lan_publication_or_gain_local_seat_privileges() {
+        for owner in [false, true] {
+            for published in [false, true] {
+                assert_eq!(refused(owner, published, false, false, true), owner);
+                assert!(refused(owner, published, true, false, true));
+                assert!(!refused(owner, published, false, true, true));
+                assert_eq!(
+                    refused(owner, published, false, false, false),
+                    owner || !published
+                );
+            }
+        }
     }
 
     #[test]

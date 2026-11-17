@@ -11,7 +11,7 @@ mod dll_mods;
 // current hook's host access (same pattern as dll_mods); nothing here runs without an installed wasm mod.
 #[allow(unsafe_code)]
 #[path = "wasm_mods.rs"]
-mod wasm_mods;
+pub(crate) mod wasm_mods;
 
 pub use horizon_protocol::mod_list::{Side as NativeSide, native::Mod as NativeMod};
 
@@ -23,19 +23,25 @@ pub fn main() {
 /// Start with trait mods in dispatch order but no native identities: the multiplayer check
 /// can't see them. Native bundles should use [`main_with_native`].
 pub fn main_with(mods: crate::mod_api::Mods) {
+    // `--yoake-test`: this process is the test coordinator and never starts the game (nothing otherwise).
+    crate::yoake_test::coordinator_requested();
+    crate::yoake_test::init_worker();
     if !mods.is_empty() {
         eprintln!("Native hooks without identities; the multiplayer mod check can't see them");
     }
     let (mods, identities) = dll_mods::extend(mods, &[]);
     let (mods, identities) = wasm_mods::extend(mods, identities);
     if !identities.is_empty() {
-        horizon_protocol::mod_list::native::install(identities).expect("Invalid native mod identities");
+        horizon_protocol::mod_list::native::install(identities)
+            .expect("Invalid native mod identities");
     }
     run(mods);
 }
 
 /// Start with hook objects and the build-time identities of every native bundle.
 pub fn main_with_native(mods: crate::mod_api::Mods, identities: &'static [NativeMod]) {
+    crate::yoake_test::coordinator_requested();
+    crate::yoake_test::init_worker();
     assert!(
         identities.len() >= mods.len(),
         "Missing native mod identities"
@@ -55,6 +61,12 @@ fn run(mods: crate::mod_api::Mods) {
     horizon_client::telemetry::mark_start();
     horizon_client::spans::startup::init(std::time::Instant::now());
     let args: Vec<String> = std::env::args().skip(1).collect();
+    let _injection_side =
+        yoake_inject_rt::enter_side(if args.iter().any(|arg| arg == "--dedicated") {
+            yoake_inject_rt::Side::Server
+        } else {
+            yoake_inject_rt::Side::Client
+        });
     let game_args = args.iter().take_while(|a| *a != "--dedicated");
     let help = game_args
         .clone()
@@ -248,6 +260,15 @@ fn run(mods: crate::mod_api::Mods) {
         });
     }
     logging::flush();
+}
+
+/// Test mode: one operation of the test driver, run on the integrated server thread with the game's own
+/// server services (see `yoake_test.rs`).
+pub(crate) fn run_test_op(
+    host: &mut dyn crate::mod_api::Host,
+    op: yoake_test_runner::Op,
+) -> Result<yoake_test_runner::Reply, String> {
+    wasm_mods::test_driver::execute(host, op)
 }
 
 /// The JVM raises its open-file limit to the hard limit as it starts

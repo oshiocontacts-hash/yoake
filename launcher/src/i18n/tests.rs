@@ -115,49 +115,29 @@ fn holes(s: &str) -> BTreeSet<&str> {
 }
 
 #[test]
-fn every_language_has_every_string_the_code_asks_for() {
+fn japanese_has_every_string_the_code_asks_for() {
     let (mut asked, all) = strings();
     assert!(asked.contains("Language"), "the scan finds tr(\"…\")");
-    let tables: Vec<_> = Language::ALL
-        .into_iter()
-        .filter(|language| *language != Language::English)
-        .map(|language| {
-            let table: HashMap<String, String> = serde_json::from_str(language.source())
-                .unwrap_or_else(|e| panic!("lang/{}.json: {e}", language.code()));
-            (language, table)
-        })
-        .collect();
+    let table: HashMap<String, String> = serde_json::from_str(Language::Japanese.source())
+        .unwrap_or_else(|e| panic!("lang/ja.json: {e}"));
     // A label passed through a widget or a constant is not a literal argument to `tr`. Once
-    // translated in any language it must exist in all of them, not silently fall back to English.
-    for (_, table) in &tables {
-        asked.extend(table.keys().cloned());
-    }
-    for (language, table) in &tables {
-        let missing: Vec<_> = asked.iter().filter(|s| !table.contains_key(*s)).collect();
-        assert!(
-            missing.is_empty(),
-            "lang/{}.json lacks {missing:#?}",
-            language.code()
-        );
-        let unused: Vec<_> = table.keys().filter(|s| !all.contains(*s)).collect();
-        assert!(
-            unused.is_empty(),
-            "lang/{}.json has strings the code no longer has: {unused:#?}",
-            language.code()
-        );
-        for (en, said) in table {
-            assert_eq!(holes(en), holes(said), "{}: {en:?}", language.code());
-            assert!(
-                !said.trim().is_empty(),
-                "{}: {en:?} is empty",
-                language.code()
-            );
-        }
+    // translated it must stay translated, not silently fall back to English.
+    asked.extend(table.keys().cloned());
+    let missing: Vec<_> = asked.iter().filter(|s| !table.contains_key(*s)).collect();
+    assert!(missing.is_empty(), "lang/ja.json lacks {missing:#?}");
+    let unused: Vec<_> = table.keys().filter(|s| !all.contains(*s)).collect();
+    assert!(
+        unused.is_empty(),
+        "lang/ja.json has strings the code no longer has: {unused:#?}"
+    );
+    for (en, said) in &table {
+        assert_eq!(holes(en), holes(said), "ja: {en:?}");
+        assert!(!said.trim().is_empty(), "ja: {en:?} is empty");
     }
 }
 
 #[test]
-fn every_language_has_yoake_launcher_update_strings() {
+fn japanese_has_yoake_launcher_update_strings() {
     let keys = [
         "Update launcher",
         "View on portal",
@@ -165,87 +145,50 @@ fn every_language_has_yoake_launcher_update_strings() {
         "Downloading launcher update...",
         "The game keeps running while the launcher restarts.",
     ];
-    for language in Language::ALL
-        .into_iter()
-        .filter(|language| *language != Language::English)
-    {
-        let table: HashMap<String, String> = serde_json::from_str(language.source())
-            .unwrap_or_else(|error| panic!("lang/{}.json: {error}", language.code()));
-        for key in keys {
-            let translation = table
-                .get(key)
-                .unwrap_or_else(|| panic!("lang/{}.json lacks {key}", language.code()));
-            if language == Language::Japanese {
-                assert_ne!(translation, key, "lang/{}.json", language.code());
-            } else {
-                assert_eq!(translation, key, "lang/{}.json", language.code());
-            }
-        }
+    let table: HashMap<String, String> = serde_json::from_str(Language::Japanese.source())
+        .unwrap_or_else(|error| panic!("lang/ja.json: {error}"));
+    for key in keys {
+        let translation = table
+            .get(key)
+            .unwrap_or_else(|| panic!("lang/ja.json lacks {key}"));
+        assert_ne!(translation, key, "lang/ja.json");
     }
 }
 
 #[test]
-fn the_system_language_is_the_first_one_the_launcher_has() {
-    assert_eq!(Language::pick(["pl-PL", "en-US"]), Language::Polish);
+fn the_first_language_is_english_on_an_english_system_and_japanese_otherwise() {
+    assert_eq!(Language::pick(["en-US", "ja"]), Language::English);
+    assert_eq!(Language::pick(["en_GB.UTF-8"]), Language::English);
     assert_eq!(Language::pick(["ja-JP", "en-US"]), Language::Japanese);
+    assert_eq!(Language::pick(["de-DE", "en-US"]), Language::Japanese);
+    assert_eq!(Language::pick(["de-DE"]), Language::Japanese);
+    assert_eq!(Language::pick(["fr-CH", "ja"]), Language::Japanese);
+    assert_eq!(Language::pick([]), Language::Japanese);
+    assert_eq!(Language::pick(["???"]), Language::Japanese);
     assert_eq!(Language::parse("ja_JP.UTF-8"), Some(Language::Japanese));
-    assert_eq!(Language::pick(["tr-TR", "en-US"]), Language::Turkish);
-    assert_eq!(Language::parse("tr_TR.UTF-8"), Some(Language::Turkish));
-    assert_eq!(Language::parse("pl_PL.UTF-8"), Some(Language::Polish));
-    assert_eq!(Language::pick(["fr-CH", "en-US"]), Language::French);
-    assert_eq!(Language::pick(["it-IT", "ru_RU.UTF-8"]), Language::Russian);
-    assert_eq!(Language::pick(["it-IT", "zh-Hans-CN"]), Language::Chinese);
-    assert_eq!(Language::pick(["it-IT", "ja"]), Language::Japanese);
-    assert_eq!(Language::pick(["de-CH", "ru_RU.UTF-8"]), Language::German);
-    assert_eq!(Language::pick(["de-DE", "ja"]), Language::German);
-    assert_eq!(Language::pick(["de-DE", "zh-Hans-CN"]), Language::German);
-    assert_eq!(Language::pick(["es-ES", "en-US"]), Language::Spanish);
-    assert_eq!(
-        Language::pick(["pt-BR", "en-US"]),
-        Language::PortugueseBrazil
-    );
-    assert_eq!(Language::pick(["ko", "it-IT"]), Language::Korean);
-    assert_eq!(Language::pick(["uk-UA", "ru-RU"]), Language::Ukrainian);
-    assert_eq!(Language::parse("uk_UA.UTF-8"), Some(Language::Ukrainian));
-    assert_eq!(
-        Language::parse("pt_BR.UTF-8"),
-        Some(Language::PortugueseBrazil)
-    );
-    assert_eq!(Language::parse("pt-BR"), Some(Language::PortugueseBrazil));
-    assert_eq!(Language::parse("pt-PT"), Some(Language::Portuguese)); // European Portuguese now has its own table
-    assert_eq!(Language::pick([]), Language::English);
-    assert_eq!(Language::parse("FR"), Some(Language::French));
-    assert_eq!(Language::parse("french"), None);
-    assert_eq!(Language::parse("DE"), Some(Language::German));
-    assert_eq!(Language::parse("ES"), Some(Language::Spanish));
-    assert_eq!(Language::parse("german"), None);
-    assert_eq!(Language::parse("ZH"), Some(Language::Chinese));
-    assert_eq!(serde_json::to_string(&Language::German).unwrap(), "\"de\"");
-    assert_eq!(serde_json::to_string(&Language::Chinese).unwrap(), "\"zh\"");
-    assert_eq!(serde_json::to_string(&Language::Russian).unwrap(), "\"ru\"");
-    assert_eq!(serde_json::to_string(&Language::Spanish).unwrap(), "\"es\"");
-    assert_eq!(
-        serde_json::to_string(&Language::PortugueseBrazil).unwrap(),
-        "\"pt-br\""
-    );
+    assert_eq!(Language::parse("EN"), Some(Language::English));
+    assert_eq!(Language::parse("de"), None);
+    assert_eq!(Language::ALL, [Language::Japanese, Language::English]);
+    assert_eq!(serde_json::to_string(&Language::Japanese).unwrap(), "\"ja\"");
+    assert_eq!(serde_json::to_string(&Language::English).unwrap(), "\"en\"");
+}
+
+#[test]
+fn a_saved_language_other_than_japanese_or_english_shows_in_japanese() {
+    let saved = |code: &str| serde_json::from_str::<Language>(&format!("\"{code}\"")).unwrap();
+    assert_eq!(saved("en"), Language::English);
+    assert_eq!(saved("ja"), Language::Japanese);
+    assert_eq!(saved("de"), Language::Japanese);
+    assert_eq!(saved("pt-br"), Language::Japanese);
 }
 
 #[test]
 fn a_missing_string_shows_in_english() {
-    assert_eq!(tr_in(Language::Polish, "Settings"), "Ustawienia");
     assert_eq!(tr_in(Language::Japanese, "Settings"), "設定");
-    assert_eq!(tr_in(Language::Turkish, "Settings"), "Ayarlar");
-    assert_eq!(tr_in(Language::French, "Settings"), "Paramètres");
-    assert_eq!(tr_in(Language::Russian, "Settings"), "Настройки");
-    assert_eq!(tr_in(Language::German, "Settings"), "Einstellungen");
-    assert_eq!(tr_in(Language::Chinese, "Settings"), "设置");
-    assert_eq!(tr_in(Language::Spanish, "Settings"), "Ajustes");
-    assert_eq!(tr_in(Language::Ukrainian, "Settings"), "Налаштування");
     assert_eq!(tr_in(Language::English, "Settings"), "Settings");
-    assert_eq!(tr_in(Language::French, "No such string"), "No such string");
     assert_eq!(
-        tr_in(Language::PortugueseBrazil, "Settings"),
-        "Configurações"
+        tr_in(Language::Japanese, "No such string"),
+        "No such string"
     );
 }
 
@@ -268,22 +211,11 @@ fn yoake_translations_keep_attribution_and_brand_visible_text() {
         "Yoakeがクラッシュしました"
     );
     assert_eq!(
-        tr_in_brand(Language::Polish, "Horizon crashed", true),
+        tr_in_brand(Language::English, "Horizon crashed", true),
         "Yoake crashed"
     );
     assert_eq!(
         tr_in_brand(Language::English, "Horizon Launcher", false),
         "Horizon Launcher"
     );
-}
-
-#[test]
-fn polish_entries_are_valid_and_keep_placeholders() {
-    let (_, all) = strings();
-    let table: HashMap<String, String> = serde_json::from_str(Language::Polish.source()).unwrap();
-    for (en, said) in &table {
-        assert!(all.contains(en), "unused Polish string: {en:?}");
-        assert!(!said.trim().is_empty(), "empty Polish string: {en:?}");
-        assert_eq!(holes(en), holes(said), "Polish: {en:?}");
-    }
 }

@@ -118,6 +118,20 @@ fn overrides_match_the_options() {
 }
 
 #[test]
+fn shadow_resolution_option_needs_no_shader_override() {
+    let mut files = sample().files;
+    let manifest = String::from_utf8(files[MANIFEST].clone()).unwrap();
+    let manifest = manifest.replace("[shadow]", "[shadow]\nresolution_option = \"shadow_size\"");
+    let manifest = format!(
+        "{manifest}\n[[options]]\nid = \"shadow_size\"\nname = \"Shadow size\"\n\
+         type = \"choice\"\nvalues = [\"512\", \"1024\"]\ndefault = \"1024\"\n"
+    );
+    files.insert(MANIFEST.into(), manifest.into_bytes());
+    let report = check(&Pack::from_files(files).unwrap()).unwrap();
+    assert_eq!(report.manifest.shadow_resolution(&[]), Some(1024));
+}
+
+#[test]
 fn validation_errors_point_into_the_pack() {
     // A compute-only barrier in a fragment stage passes the parser, not the validator.
     let p = one(

@@ -1,16 +1,73 @@
 use super::{BlockStateId, Game};
+use crate::entry::wasm_mods;
 use horizon_client::mod_api::BlockPos;
 use horizon_world::{
     attachments::{ATTACHMENTS_KEY, attachment_compound},
     level::Ticks,
 };
 
-fn world_attachments(
-    world: &mut horizon_client::world::World,
+mod budget;
+
+fn world_attachments_read(
+    world: &horizon_client::world::World,
     holder: horizon_client::mod_api::Holder,
-) -> Result<&mut horizon_client::mod_api::Attachments, horizon_client::mod_api::AttachmentError> {
+) -> Result<Option<&horizon_client::mod_api::Attachments>, horizon_client::mod_api::AttachmentError>
+{
+    use horizon_client::mod_api::{AttachmentError, Holder};
+    match holder {
+        Holder::Level => Ok(Some(&world.attachments)),
+        Holder::Chunk([x, z]) => {
+            let chunk = world
+                .chunks
+                .get(&(x, z))
+                .ok_or(AttachmentError::MissingHolder)?;
+            if let Some(saved) = &chunk.saved {
+                attachment_compound(saved.root.get(&ATTACHMENTS_KEY.into()))?;
+                Ok(Some(&saved.attachments))
+            } else {
+                Ok(None)
+            }
+        }
+        Holder::BlockEntity([x, y, z]) => {
+            let pos = (x, y, z);
+            let chunk = world
+                .chunks
+                .get(&(x >> 4, z >> 4))
+                .ok_or(AttachmentError::MissingHolder)?;
+            attachment_compound(
+                chunk
+                    .saved
+                    .as_ref()
+                    .and_then(|saved| {
+                        saved
+                            .block_entity_sources
+                            .iter()
+                            .find(|(candidate, _)| *candidate == pos)
+                    })
+                    .and_then(|(_, tag)| tag.get(ATTACHMENTS_KEY)),
+            )?;
+            world
+                .block_entities
+                .attachments_read(pos)
+                .ok_or(AttachmentError::MissingHolder)
+        }
+        _ => Err(AttachmentError::MissingHolder),
+    }
+}
+
+fn world_attachments<'a>(
+    world: &'a mut horizon_client::world::World,
+    dimension: &str,
+    holder: horizon_client::mod_api::Holder,
+) -> Result<&'a mut horizon_client::mod_api::Attachments, horizon_client::mod_api::AttachmentError>
+{
     use horizon_client::mod_api::{AttachmentError, Holder};
     if holder == Holder::Level {
+        wasm_mods::prepare_attachments(
+            holder,
+            &mut world.attachments,
+            format!("level:{dimension}"),
+        )?;
         return Ok(&mut world.attachments);
     }
     if let Holder::BlockEntity([x, y, z]) = holder {
@@ -31,6 +88,11 @@ fn world_attachments(
             .attachments_mut(pos)
             .ok_or(AttachmentError::MissingHolder)?;
         world.modified.insert((x >> 4, z >> 4));
+        wasm_mods::prepare_attachments(
+            holder,
+            map,
+            format!("block-entity:{dimension}:{x}:{y}:{z}"),
+        )?;
         return Ok(map);
     }
     let Holder::Chunk([x, z]) = holder else {
@@ -44,10 +106,147 @@ fn world_attachments(
     let extras = std::sync::Arc::make_mut(chunk.saved.get_or_insert_with(Default::default));
     attachment_compound(extras.root.get(&ATTACHMENTS_KEY.into()))?;
     world.modified.insert((x, z));
+    wasm_mods::prepare_attachments(
+        holder,
+        &mut extras.attachments,
+        format!("chunk:{dimension}:{x}:{z}"),
+    )?;
     Ok(&mut extras.attachments)
 }
 
 impl Game<'_> {
+    /// [`Self::reconcile_attachment_holder`] for the hook points, which hold no macros: a failure is logged.
+    pub(super) fn reconcile_attachment_holder_or_warn(&mut self, holder: horizon_client::mod_api::Holder) {
+        if let Err(error) = self.reconcile_attachment_holder(holder) {
+            log::warn!("attachment reconciliation failed for {holder:?}: {error:?}");
+        }
+    }
+
+    pub(super) fn reconcile_attachment_holder(
+        &mut self,
+        holder: horizon_client::mod_api::Holder,
+    ) -> Result<(), horizon_client::mod_api::AttachmentError> {
+        use horizon_client::mod_api::{AttachmentError, Holder};
+        match holder {
+            Holder::Player(uuid) => {
+                let map = if self.lan_acting_uuid == Some(uuid) {
+                    Some(&mut self.player_attachments)
+                } else {
+                    self.guest_attachments.get_mut(&uuid)
+                };
+                if let Some(map) = map {
+                    wasm_mods::prepare_attachments(holder, map, format!("player:{uuid}"))?;
+                }
+            }
+            Holder::Entity(id) => {
+                if let Some(uuid) = self.persist.uuids.get(&id)
+                    && let Some(map) = self.entity_attachments.get_mut(uuid)
+                {
+                    wasm_mods::prepare_attachments(holder, map, format!("entity:{uuid:?}"))?;
+                }
+            }
+            Holder::Level => {
+                wasm_mods::prepare_attachments(
+                    holder,
+                    &mut self.world.attachments,
+                    format!("level:{}", self.dim.id()),
+                )?;
+            }
+            Holder::Chunk([x, z]) => {
+                if let Some(chunk) = self.world.chunks.get_mut(&(x, z))
+                    && chunk.saved.is_some()
+                {
+                    let chunk = std::sync::Arc::make_mut(chunk);
+                    let extras = std::sync::Arc::make_mut(chunk.saved.as_mut().unwrap());
+                    wasm_mods::prepare_attachments(
+                        holder,
+                        &mut extras.attachments,
+                        format!("chunk:{}:{x}:{z}", self.dim.id()),
+                    )?;
+                }
+                for ((block_x, block_y, block_z), map) in
+                    self.world.block_entities.chunk_attachments_mut(x, z)
+                {
+                    wasm_mods::prepare_attachments(
+                        Holder::BlockEntity([block_x, block_y, block_z]),
+                        map,
+                        format!(
+                            "block-entity:{}:{block_x}:{block_y}:{block_z}",
+                            self.dim.id()
+                        ),
+                    )?;
+                }
+            }
+            Holder::BlockEntity([x, y, z]) => {
+                if self
+                    .world
+                    .block_entities
+                    .attachments_read((x, y, z))
+                    .flatten()
+                    .is_some()
+                    && let Some(map) = self.world.block_entities.attachments_mut((x, y, z))
+                {
+                    wasm_mods::prepare_attachments(
+                        holder,
+                        map,
+                        format!("block-entity:{}:{x}:{y}:{z}", self.dim.id()),
+                    )?;
+                }
+            }
+            _ => return Err(AttachmentError::MissingHolder),
+        }
+        Ok(())
+    }
+
+    pub(super) fn attachment_map_read(
+        &self,
+        holder: horizon_client::mod_api::Holder,
+    ) -> Result<
+        Option<&horizon_client::mod_api::Attachments>,
+        horizon_client::mod_api::AttachmentError,
+    > {
+        use horizon_client::mod_api::{AttachmentError, Holder};
+        if !self.native_authoritative() {
+            return self
+                .remote
+                .as_ref()
+                .map(|remote| remote.attachments.get(&holder))
+                .ok_or(AttachmentError::MissingHolder);
+        }
+        match holder {
+            Holder::Player(uuid) => {
+                if self.lan_acting_uuid == Some(uuid) {
+                    Ok(Some(&self.player_attachments))
+                } else {
+                    self.guest_attachments
+                        .get(&uuid)
+                        .map(Some)
+                        .ok_or(AttachmentError::MissingHolder)
+                }
+            }
+            Holder::Entity(id) => {
+                if !self.attachment_entity_exists(id) {
+                    return Err(AttachmentError::MissingHolder);
+                }
+                attachment_compound(
+                    self.persist
+                        .raw
+                        .get(&id)
+                        .and_then(|tag| tag.get(ATTACHMENTS_KEY)),
+                )?;
+                Ok(self
+                    .persist
+                    .uuids
+                    .get(&id)
+                    .and_then(|uuid| self.entity_attachments.get(uuid)))
+            }
+            Holder::Level | Holder::Chunk(_) | Holder::BlockEntity(_) => {
+                world_attachments_read(&self.world, holder)
+            }
+            _ => Err(AttachmentError::MissingHolder),
+        }
+    }
+
     /// A guest's attachments back in their record, for `playerdata` to save.
     pub(super) fn guest_attachments_into(&self, guest: &mut horizon_client::lan::guest::Guest) {
         guest.attachments = self
@@ -130,18 +329,115 @@ impl Game<'_> {
                     .and_then(|tag| tag.get(ATTACHMENTS_KEY)),
             )?;
             let uuid = self.uuid_for(id);
-            return Ok(self.entity_attachments.entry(uuid).or_default());
+            let map = self.entity_attachments.entry(uuid).or_default();
+            wasm_mods::prepare_attachments(holder, map, format!("entity:{uuid:?}"))?;
+            return Ok(map);
         }
         if let horizon_client::mod_api::Holder::Player(uuid) = holder {
             if self.lan_acting_uuid == Some(uuid) {
+                wasm_mods::prepare_attachments(
+                    holder,
+                    &mut self.player_attachments,
+                    format!("player:{uuid}"),
+                )?;
                 return Ok(&mut self.player_attachments);
             }
-            return self
+            let map = self
                 .guest_attachments
                 .get_mut(&uuid)
-                .ok_or(AttachmentError::MissingHolder);
+                .ok_or(AttachmentError::MissingHolder)?;
+            wasm_mods::prepare_attachments(holder, map, format!("player:{uuid}"))?;
+            return Ok(map);
         }
-        world_attachments(&mut self.world, holder)
+        world_attachments(&mut self.world, self.dim.id(), holder)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use horizon_client::{
+        chunk::{Chunk, ChunkExtras, block_entity::BlockEntity},
+        mod_api::{AttachmentError, Attachments, Holder},
+        world::World,
+    };
+    use horizon_world::nbt::{Compound, Tag};
+    use std::sync::Arc;
+
+    #[test]
+    fn world_reads_preserve_shared_chunks_and_do_not_queue_writes() {
+        let mut world = World::new(BlockStateId(0), 0);
+        let raw: Compound = [("removed".into(), Tag::Compound(Compound::new()))].into();
+        let extras = Arc::new(ChunkExtras {
+            attachments: Attachments::from_nbt(raw.clone()),
+            ..Default::default()
+        });
+        let mut chunk = Chunk::empty(0, 0);
+        chunk.saved = Some(extras.clone());
+        let chunk = Arc::new(chunk);
+        world.chunks.insert((0, 0), chunk.clone());
+        world.chunks.insert((1, 0), Arc::new(Chunk::empty(1, 0)));
+        world
+            .block_entities
+            .insert((1, 70, 1), BlockEntity::Chest(Vec::new()));
+
+        for _ in 0..3 {
+            assert!(
+                world_attachments_read(&world, Holder::Level)
+                    .unwrap()
+                    .is_some()
+            );
+            let map = world_attachments_read(&world, Holder::Chunk([0, 0]))
+                .unwrap()
+                .unwrap();
+            assert_eq!(map.to_nbt(), raw);
+            assert!(map.sync_changes().is_empty());
+            assert!(
+                world_attachments_read(&world, Holder::Chunk([1, 0]))
+                    .unwrap()
+                    .is_none()
+            );
+            assert!(
+                world_attachments_read(&world, Holder::BlockEntity([1, 70, 1]))
+                    .unwrap()
+                    .is_none()
+            );
+        }
+
+        assert!(Arc::ptr_eq(world.chunks.get(&(0, 0)).unwrap(), &chunk));
+        assert!(Arc::ptr_eq(chunk.saved.as_ref().unwrap(), &extras));
+        assert!(world.chunks.get(&(1, 0)).unwrap().saved.is_none());
+        assert!(world.modified.is_empty());
+        assert!(world.attachment_syncs.is_empty());
+        assert!(matches!(
+            world_attachments_read(&world, Holder::Chunk([2, 0])),
+            Err(AttachmentError::MissingHolder)
+        ));
+        assert!(matches!(
+            world_attachments_read(&world, Holder::BlockEntity([2, 70, 2])),
+            Err(AttachmentError::MissingHolder)
+        ));
+    }
+
+    #[test]
+    fn malformed_saved_maps_fail_without_copying_or_dirtying_chunks() {
+        let mut world = World::new(BlockStateId(0), 0);
+        let extras = Arc::new(ChunkExtras {
+            root: [(ATTACHMENTS_KEY.into(), Tag::Int(1))].into(),
+            ..Default::default()
+        });
+        let mut chunk = Chunk::empty(0, 0);
+        chunk.saved = Some(extras.clone());
+        let chunk = Arc::new(chunk);
+        world.chunks.insert((0, 0), chunk.clone());
+        assert!(matches!(
+            world_attachments_read(&world, Holder::Chunk([0, 0])),
+            Err(AttachmentError::InvalidNamespace)
+        ));
+        assert!(Arc::ptr_eq(world.chunks.get(&(0, 0)).unwrap(), &chunk));
+        assert!(Arc::ptr_eq(chunk.saved.as_ref().unwrap(), &extras));
+        assert!(world.modified.is_empty());
+        assert!(world.attachment_syncs.is_empty());
     }
 }
 
@@ -176,7 +472,12 @@ impl horizon_client::mod_api::LevelRandomHost for super::GameLevel<'_> {
             return Err(horizon_client::mod_api::AttachmentError::MissingHolder);
         }
         self.world.attachment_syncs.insert(holder);
-        world_attachments(self.world, holder)
+        let dimension = match self.dimension {
+            horizon_world::level::Dimension::Overworld => "minecraft:overworld",
+            horizon_world::level::Dimension::Nether => "minecraft:the_nether",
+            horizon_world::level::Dimension::End => "minecraft:the_end",
+        };
+        world_attachments(self.world, dimension, holder)
     }
     fn random(&mut self) -> Option<&mut horizon_client::mod_api::LegacyRandom> {
         self.native_level_random()

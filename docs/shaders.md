@@ -140,6 +140,120 @@ sprites = ["block/*_leaves"]
 solid_materials = [10]   # these cast whole shadows: their cutouts are ignored in the shadow map
 ```
 
+Shadow-map size can be a pack setting. `resolution_option` names a `choice` option whose values are decimal shadow-map
+side lengths in texels, each between 256 and 8192. The chosen value is additionally capped by the device's maximum 2D
+texture dimension. Without `resolution_option`, `resolution` retains its existing behavior.
+
+```toml
+[shadow]
+resolution = 1024
+resolution_option = "shadow_size"
+cache = true
+
+[[options]]
+id = "shadow_size"
+name = "Shadow size"
+type = "choice"
+values = ["512", "1024", "2048"]
+default = "1024"
+```
+
+Shadow caching is opt-in (`cache = false` by default). A cached map survives small sun movements (less than 0.1 degrees)
+and camera movement within the same 8-block snapped cell; its matrix is rebased to the current camera. Nearby mesh
+changes invalidate it. Animated vertex stages, shadow-only geometry and moving entity geometry bypass the cache.
+
+Unlit entity overlays (layers 2, 4, 6 and 9–12, including glint and eyes) do not cast shadows, so their animation does
+not invalidate a cached map.
+
+## Optional world inputs
+
+World inputs are opt-in at the top level of `horizon-shaders.toml`:
+
+```toml
+light_list = true
+taa_jitter = true
+entity_material = { file = "entities.wgsl" }
+
+[[post]]
+file = "resolve.wgsl"
+
+[voxels]
+size = [128, 128, 128]
+```
+
+Omitting `[voxels]`, `light_list`, `taa_jitter` and `entity_material` keeps their corresponding rendering behavior
+disabled. An empty `[voxels]` table requests the default 128³ window. Dimensions must be positive multiples of 16,
+each at most 256 blocks, and total at most 256 × 128 × 256 voxels. If the requested size exceeds the GPU's 3D texture
+limit, only axes exceeding that limit are reduced to at most 64 blocks (and the device limit, rounded down to a
+multiple of 16). Already supported axes keep their requested size.
+`frame.voxel_size` reports the actual dimensions; `frame.has_voxels` is 1 only with an enabled voxel input, otherwise 0.
+
+`@group(3) @binding(14) var voxels: texture_3d<u32>` is a camera-centered toroidal `R32Uint` texture, one block per cell.
+Only entering or explicitly dirtied 16³ sections are uploaded, nearest to the camera first, with at most 16 sections
+per frame. Remaining sections stay queued and invalid until uploaded. Uniform-air sections are written as zeroes.
+`frame.voxel_origin` and `frame.voxel_center` are camera-relative block positions; `frame.voxel_cell_size` is 1.
+Material, entity and post-process stages can read the texture through the precision-safe helper:
+
+```wgsl
+let word = voxel_at(input.position);
+let shape = word & 15u;
+```
+
+`voxel_at(position: vec3<f32>) -> u32` takes a camera-relative block position and returns zero outside the window or
+in a pending section. It never reconstructs large world coordinates from `frame.camera_position`. The integer
+`frame.voxel_origin_slot` gives the physical block slot of the grid minimum. The helper combines that slot with the
+small camera-relative offset, retaining block precision far from the origin.
+
+Direct `textureLoad` users must also check `frame.voxel_validity` to avoid reading evicted toroidal slots. Physical
+section slots are flattened as `x + width * (y + height * z)`, where `width` and `height` are the texture dimensions
+divided by 16. For section index `index`, word `index / 32` is stored at `frame.voxel_validity[word / 4][word % 4]`;
+bit `index % 32` must be set. A clear bit means unavailable, not confirmed air. The integer texture has no filtering
+sampler. Each voxel is a four-byte little-endian word:
+
+| Bits | Meaning |
+| --- | --- |
+| 0–3 | Shape: 0 empty, 1 full, 2 bottom slab, 3 top slab, 4–7 bottom stairs facing north, east, south, west, 8 thin/fence, 9 pane, 10–13 top stairs in the same order, 14–15 reserved |
+| 4 | Translucent |
+| 5–8 | Emission level, clamped to 0–15 |
+| 9–14 | Red tint, quantized to 6 bits |
+| 15–20 | Green tint, quantized to 6 bits |
+| 21–26 | Blue tint, quantized to 6 bits |
+| 27–31 | Reserved, zero |
+
+Empty voxels are zero. Each 8-bit tint component is converted with `(component * 63 + 127) / 255`, using integer
+division. Tint is a block-color approximation (including stained glass), not an atlas sample or baked lighting.
+
+`@group(3) @binding(15) var<storage, read> light_list: array<WorldLight>` exposes the nearest 2048 block lights whose
+radius intersects a 128-block camera distance, plus one combined held-item light. Ties are deterministic. Selection
+is rebuilt only when the CPU light revision or camera block cell changes; positions are rebased otherwise.
+`frame.light_count` bounds valid entries. A `WorldLight`
+occupies 48 bytes: `position: vec3<f32>`, `level: f32`, `color: vec3<f32>`, `radius: f32`, `held: u32` and three padding
+words. Positions are camera-relative, levels are 0–15, radii are in blocks and `held` is 1 for the held light (0 for
+block lights). Emissive blocks default to white; `[[lights]]` entries override their colors. This input is available
+to material, entity and post-process stages.
+
+The [World Inputs example](../crates/horizon-shader-api/packs/world_inputs/) demonstrates voxel lookup and the light list.
+
+## Projection jitter
+
+`taa_jitter = true` offsets the rendered projection with a centered one-based Halton (2, 3) sequence. `frame.jitter.xy`
+is the current offset in pixels and `.zw` is the previous offset. `frame.unjittered_view_projection` and
+`frame.previous_unjittered_view_projection` expose the corresponding camera matrices without jitter. A resized target
+or a history reset also resets the previous jitter and matrix. Jitter defaults to false and does not enable a pack's
+temporal accumulation automatically; the pack must implement its own resolve/history passes.
+Enabling jitter requires at least one `[[post]]` resolve stage. Geometry and `Frame` use the same world-target size
+and the same stored offset, computed once per frame after applying the capture presentation clock.
+
+## Entity material
+
+An optional `entity_material = { file = "entities.wgsl" }` stage defines
+`fn entity_material(input: EntityMaterialInput) -> Surface`. `EntityMaterialInput` contains camera-relative `position`, `normal`, unlit
+`albedo: vec4<f32>`, vanilla `light: vec2<f32>` and `lightmap: vec3<f32>`, and `kind: u32`. Ordinary entity kinds are
+the entity registry's numeric IDs; block entities set bit 31 and put the block-state ID in the remaining bits. This
+stage shades mobs, players and block-entity geometry in the entity pass, including translucent item-sheet geometry.
+Without it, the vanilla entity pipeline remains selected. The adapter preserves vanilla fog, cutouts, overlays and
+glint around the returned surface color.
+
 ## Textures
 
 Each `[[textures]]` entry is a PNG in the pack that every stage reads under the name of its `id`, with a sampler named
@@ -204,7 +318,8 @@ items = ["shadow_softness", "block_light"]
 Every page has to be reached from the first and every option has to be on a page, or the check refuses the pack.
 
 Each `[[options]]` entry is a WGSL `override` of the same name, set when the game builds the pipeline: no text
-substitution, no recompiling a different program per value.
+substitution, no recompiling a different program per value. A choice used by `shadow.resolution_option` need not also
+have a WGSL override; if it does, the override has the usual `u32` choice index.
 
 ```wgsl
 override saturation: f32 = 1.15;   // type = "float"; bool → bool, int → i32, choice → u32 (the value's index)

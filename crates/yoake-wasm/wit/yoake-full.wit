@@ -1326,6 +1326,7 @@ interface engine-types {
 
     record native-screen-view {
         id: string,
+        kind: option<string>,
         menu: option<string>,
         title: option<text-json>,
         extra: list<u8>,
@@ -1692,6 +1693,19 @@ interface server-types {
         add-multiplied-total,
     }
 
+    enum config-value-kind {
+        %bool,
+        int,
+        float,
+        %string,
+        %enum,
+        bool-list,
+        int-list,
+        float-list,
+        string-list,
+        enum-list,
+    }
+
     enum damage-kind {
         magic,
         player-attack,
@@ -1701,6 +1715,12 @@ interface server-types {
     enum inventory-operation {
         give,
         clear,
+    }
+
+    enum storage-scope {
+        %world,
+        global,
+        client,
     }
 
     enum team-operation {
@@ -1787,6 +1807,18 @@ interface server-types {
     record command-usage {
         level: u8,
         usage: string,
+    }
+
+    record config-value {
+        bool-list: list<bool>,
+        bool-value: bool,
+        float-list: list<f64>,
+        float-value: f64,
+        int-list: list<s64>,
+        int-value: s64,
+        kind: config-value-kind,
+        string-list: list<string>,
+        string-value: string,
     }
 
     record container-ref {
@@ -1925,9 +1957,9 @@ interface server-types {
     }
 }
 
-/// Server services (value types only), listed in `abi-subset-server.json`.
+/// Services listed in `abi-subset-server.json`.
 interface server-services {
-    use server-types.{attribute-operation, damage-kind, inventory-operation, team-operation, world-control-operation, advancement-state, attribute-value, block-edit, block-entity-create, block-entity-patch, block-entity-state, block-pos, block-run, bounds, chat-decision, chat-recipients, command-usage, container-ref, damage-decision, entity-snapshot, entity-vitals, inventory-change, item-entity, item-stack, knockback-decision, particle-request, player, player-inventory-slot, player-motion, ray-hit, team-change, tool-requirement, vec3, world-border-state, world-control-change};
+    use server-types.{attribute-operation, config-value-kind, damage-kind, inventory-operation, storage-scope, team-operation, world-control-operation, advancement-state, attribute-value, block-edit, block-entity-create, block-entity-patch, block-entity-state, block-pos, block-run, bounds, chat-decision, chat-recipients, command-usage, config-value, container-ref, damage-decision, entity-snapshot, entity-vitals, inventory-change, item-entity, item-stack, knockback-decision, particle-request, player, player-inventory-slot, player-motion, ray-hit, team-change, tool-requirement, vec3, world-border-state, world-control-change};
 
     acting-player: func() -> option<player>;
     held: func() -> option<item-stack>;
@@ -2014,12 +2046,323 @@ interface server-services {
     set-world-border: func(center-x: f64, center-z: f64, dimension: string, lerp-ticks: option<u64>, size: f64, target-size: option<f64>) -> result<_, string>;
     mod-call: func(method: string, payload: list<u8>, target-mod: string) -> result<list<u8>, string>;
     player-remove-slot: func(expected: item-stack, player: string, slot: u32) -> result<bool, string>;
+    attachment-define: func(copy-on-death: bool, id: string, kind: string, persistent: bool, synced: bool) -> result<_, string>;
+    attachment-get: func(holder: string, id: string, kind: string) -> result<option<list<u8>>, string>;
+    attachment-set: func(data: list<u8>, holder: string, id: string, kind: string) -> result<_, string>;
+    attachment-remove: func(holder: string, id: string, kind: string) -> result<bool, string>;
+    config-get: func(key: string) -> result<config-value, string>;
+    config-set: func(key: string, value: config-value) -> result<_, string>;
+    has-permission: func(node: string, player: string) -> result<bool, string>;
+    storage-get: func(key: string, scope: storage-scope) -> result<option<list<u8>>, string>;
+    storage-put: func(key: string, scope: storage-scope, value: list<u8>) -> result<_, string>;
+    storage-delete: func(key: string, scope: storage-scope) -> result<bool, string>;
+    storage-blob-begin: func(key: string, scope: storage-scope, total: u64) -> result<u64, string>;
+    storage-blob-write: func(data: list<u8>, id: u64, offset: u64) -> result<_, string>;
+    storage-blob-commit: func(id: u64) -> result<_, string>;
+    storage-blob-abort: func(id: u64) -> result<bool, string>;
+    storage-blob-read: func(key: string, length: u32, offset: u64, scope: storage-scope) -> result<list<u8>, string>;
+}
+
+interface client-types {
+    enum hud-corner {
+        top-left,
+        top-right,
+        bottom-left,
+        bottom-right,
+    }
+
+    record box2 {
+        height: f32,
+        width: f32,
+        x: f32,
+        y: f32,
+    }
+
+    record camera-override {
+        fov-degrees: f32,
+        pitch: f32,
+        position: vec3,
+        roll: f32,
+        yaw: f32,
+    }
+
+    record camera-state {
+        dimension: string,
+        eye-height: f32,
+        far: f32,
+        fov-degrees: f32,
+        near: f32,
+        partial-tick: f32,
+        pitch: f32,
+        position: vec3,
+        projection: list<f32>,
+        view: list<f32>,
+        yaw: f32,
+    }
+
+    record item-stack {
+        components: list<u8>,
+        count: u32,
+        item: string,
+    }
+
+    record key-state {
+        down: bool,
+    }
+
+    record map-entity {
+        id: u32,
+        kind: string,
+        position: vec3,
+        yaw: f32,
+    }
+
+    record map-player {
+        dimension: string,
+        name: string,
+        position: vec3,
+        uuid: string,
+        yaw: f32,
+    }
+
+    record map-tile {
+        color: list<u8>,
+        depth: list<u8>,
+        height: list<s16>,
+    }
+
+    record pcm-anchor {
+        entity: option<u32>,
+        position: option<vec3>,
+    }
+
+    record slot-rect {
+        bounds: box2,
+        slot: u32,
+    }
+
+    record vec2 {
+        x: f32,
+        y: f32,
+    }
+
+    record vec3 {
+        x: f64,
+        y: f64,
+        z: f64,
+    }
+
+    record view-hit {
+        block: option<tuple<s32, s32, s32>>,
+        entity: option<u32>,
+        face: option<tuple<s32, s32, s32>>,
+        position: vec3,
+        uuid: option<string>,
+    }
+}
+
+/// Services listed in `abi-subset-client.json`.
+interface client-services {
+    use client-types.{hud-corner, box2, camera-override, camera-state, item-stack, key-state, map-entity, map-player, map-tile, pcm-anchor, slot-rect, vec2, vec3, view-hit};
+
+    use hud.{gui-texture};
+
+    use server-types.{storage-scope, config-value};
+
+    register-key-binding: func(category: string, default-key: string, id: string, label: string) -> result<_, string>;
+    key-binding-state: func(id: string) -> result<key-state, string>;
+    client-view-hit: func(max-distance: f64) -> result<option<view-hit>, string>;
+    display-name: func(id: string, registry: string) -> result<string, string>;
+    owner-mod: func(namespace: string) -> result<option<tuple<string, string>>, string>;
+    draw-gui-item: func(at: vec2, scale: f32, stack: item-stack) -> result<bool, string>;
+    screen-kind: func() -> result<option<string>, string>;
+    screen-slot-rects: func() -> result<option<list<slot-rect>>, string>;
+    draw-world-line: func(color: u32, end: vec3, start: vec3, width: f32) -> result<_, string>;
+    draw-world-quad: func(color: u32, corners: list<vec3>) -> result<_, string>;
+    draw-world-textured-quad: func(color: u32, corners: list<vec3>, texture: borrow<gui-texture>, uv: box2) -> result<_, string>;
+    draw-world-billboard: func(center: vec3, color: u32, size: vec2, texture: borrow<gui-texture>, uv: box2) -> result<_, string>;
+    draw-post-tint: func(color: u32) -> result<_, string>;
+    draw-post-vignette: func(color: u32) -> result<_, string>;
+    register-post-shader: func(id: string, uniform-size: u32, wgsl: string) -> result<_, string>;
+    unregister-post-shader: func(id: string) -> result<_, string>;
+    set-post-shader-uniforms: func(bytes: list<u8>, id: string) -> result<_, string>;
+    enable-post-shader: func(enabled: bool, id: string) -> result<_, string>;
+    post-shader-state: func(id: string) -> result<bool, string>;
+    map-columns: func(below: option<s32>, chunk: tuple<s32, s32>) -> result<option<map-tile>, string>;
+    client-players: func() -> result<list<map-player>, string>;
+    client-entities-in: func(center: vec3, radius: f64) -> result<list<map-entity>, string>;
+    camera: func() -> result<option<camera-state>, string>;
+    camera-override-call: func(value: option<camera-override>) -> result<_, string>;
+    gui-texture-write: func(bytes: list<u8>, origin: tuple<u32, u32>, size: tuple<u32, u32>, texture: borrow<gui-texture>) -> result<_, string>;
+    audio-stream-open: func(anchor: pcm-anchor, category: string, channels: u16, sample-rate: u32) -> result<u32, string>;
+    audio-stream-push: func(samples: list<f32>, %stream: u32) -> result<u32, string>;
+    audio-stream-push-i16: func(samples: list<s16>, %stream: u32) -> result<u32, string>;
+    audio-stream-queued: func(%stream: u32) -> result<option<u32>, string>;
+    audio-stream-dropped: func(%stream: u32) -> result<option<u64>, string>;
+    audio-stream-move: func(anchor: pcm-anchor, %stream: u32) -> result<_, string>;
+    audio-stream-close: func(%stream: u32) -> result<bool, string>;
+    hud-place: func(corner: hud-corner, size: vec2) -> result<option<vec2>, string>;
+    map-colors: func() -> result<list<u32>, string>;
+    draw-mob-as-player: func(appearance: list<u8>) -> result<bool, string>;
+    config-get: func(key: string) -> result<config-value, string>;
+    config-set: func(key: string, value: config-value) -> result<_, string>;
+    storage-get: func(key: string, scope: storage-scope) -> result<option<list<u8>>, string>;
+    storage-put: func(key: string, scope: storage-scope, value: list<u8>) -> result<_, string>;
+    storage-delete: func(key: string, scope: storage-scope) -> result<bool, string>;
+    storage-blob-begin: func(key: string, scope: storage-scope, total: u64) -> result<u64, string>;
+    storage-blob-write: func(data: list<u8>, id: u64, offset: u64) -> result<_, string>;
+    storage-blob-commit: func(id: u64) -> result<_, string>;
+    storage-blob-abort: func(id: u64) -> result<bool, string>;
+    storage-blob-read: func(key: string, length: u32, offset: u64, scope: storage-scope) -> result<list<u8>, string>;
+}
+
+interface gpu-types {
+    enum binding-kind {
+        buffer,
+        texture,
+        sampler,
+    }
+
+    enum pixel-format {
+        rgba8,
+        rgba8-srgb,
+        rgba16f,
+        rgba32f,
+        r32f,
+        rg16f,
+        depth32f,
+        bgra8,
+        rgb10a2,
+    }
+
+    enum stage {
+        world-opaque,
+        world-translucent,
+        after-world,
+        hud,
+    }
+
+    record attribute {
+        components: u8,
+        location: u32,
+        offset: u64,
+    }
+
+    record binding {
+        binding: u32,
+        handle: u32,
+        kind: binding-kind,
+        offset: u64,
+        size: u64,
+    }
+
+    record buffer-range {
+        handle: u32,
+        offset: u64,
+        size: u64,
+    }
+
+    record draw-desc {
+        count: u32,
+        groups: list<u32>,
+        index: option<buffer-range>,
+        index32: bool,
+        instances: u32,
+        pipeline: u32,
+        vertex: option<buffer-range>,
+    }
+
+    record draw-region {
+        scissor: option<gpu-rect>,
+        viewport: option<gpu-rect>,
+    }
+
+    record draw-target {
+        clear: option<tuple<f64, f64, f64, f64>>,
+        color: option<u32>,
+        depth: option<u32>,
+    }
+
+    record frame-info {
+        camera: tuple<f64, f64, f64>,
+        delta-seconds: f32,
+        height: u32,
+        hud-format: option<pixel-format>,
+        index: u64,
+        version: u32,
+        view-projection: list<f32>,
+        width: u32,
+        world-format: option<pixel-format>,
+    }
+
+    record gpu-rect {
+        height: u32,
+        width: u32,
+        x: u32,
+        y: u32,
+    }
+
+    record render-desc {
+        attributes: list<attribute>,
+        blend: bool,
+        cull: bool,
+        depth: bool,
+        depth-write: bool,
+        format: pixel-format,
+        fragment-entry: string,
+        lines: bool,
+        shader: u32,
+        stride: u64,
+        vertex-entry: string,
+    }
+
+    record shader-error {
+        column: u32,
+        line: u32,
+        message: string,
+    }
+
+    record texture-desc {
+        depth: u32,
+        format: pixel-format,
+        height: u32,
+        mips: u32,
+        usage: u32,
+        volume: bool,
+        width: u32,
+    }
+}
+
+/// Services listed in `abi-subset-gpu.json`.
+interface gpu-services {
+    use gpu-types.{binding-kind, pixel-format, stage, attribute, binding, buffer-range, draw-desc, draw-region, draw-target, frame-info, gpu-rect, render-desc, shader-error, texture-desc};
+
+    buffer: func(size: u64, usage: u32) -> result<u32, string>;
+    texture: func(desc: texture-desc) -> result<u32, string>;
+    sampler: func(linear: bool, repeat: bool) -> result<u32, string>;
+    shader: func(source: string) -> result<u32, shader-error>;
+    compute: func(entry: string, shader: u32) -> result<u32, string>;
+    render: func(desc: render-desc) -> result<u32, string>;
+    bind-group: func(bindings: list<binding>, index: u32, pipeline: u32) -> result<u32, string>;
+    destroy: func(handle: u32) -> result<_, string>;
+    write-buffer: func(bytes: list<u8>, handle: u32, offset: u64, stage: stage) -> result<_, string>;
+    copy-buffer: func(destination: u32, destination-offset: u64, size: u64, source: u32, source-offset: u64, stage: stage) -> result<_, string>;
+    write-texture: func(bytes: list<u8>, extent: tuple<u32, u32, u32>, handle: u32, mip: u32, origin: tuple<u32, u32, u32>, stage: stage) -> result<_, string>;
+    dispatch: func(groups: list<u32>, pipeline: u32, stage: stage, workgroups: tuple<u32, u32, u32>) -> result<_, string>;
+    draw: func(desc: draw-desc, stage: stage, target: draw-target) -> result<_, string>;
+    read: func(handle: u32, offset: u64, size: u64, stage: stage) -> result<u32, string>;
+    poll: func(ticket: u32) -> result<option<list<u8>>, string>;
+    frame: func() -> result<frame-info, string>;
+    shader-file: func(path: string, source: string) -> result<u32, shader-error>;
+    draw-region-call: func(desc: draw-desc, region: draw-region, stage: stage, target: draw-target) -> result<_, string>;
 }
 
 /// Hooks that run in the client.
 interface client-hooks {
     use engine-types.{apply-effect-tick-outcome, biome-colors-outcome, biome-colors-type, block-entity-tick-outcome, block-entity-ticks-outcome, camera-distance-outcome, camera-entity, camera-override-type, camera-shake-outcome, can-eat-outcome, compute-fog-color-outcome, compute-fov-modifier-outcome, compute-fov-outcome, corner-command, critical-hit-outcome, fixed-frame-type, fog-data, fog-type, fov-player, frame-advance, frame-command, framerate-limit-outcome, gui-draw, gui-layer-pre-outcome, hand, health-inputs, hud-command, hud-outcome, ingredient-test-outcome, interaction-key-outcome, inventory-background-pre-outcome, inventory-screen-layout-outcome, item-bar-outcome, item-energy-buffer-type, item-model-context, item-model-property-outcome, item-render-outcome, item-slot-cooldown-outcome, item-stack, json, key-event, living-entity-use-item-start-outcome, living-entity-use-item-tick-outcome, living-fall-outcome, living-heal-outcome, living-incoming-damage-outcome, living-knockback-outcome, menu-button-outcome, menu-button-v2-outcome, mob-submit-outcome, mod-block-entity-fields, mod-container, mod-fluid-tanks, model-command, mouse-buttons-outcome, mouse-buttons-type, movement-input-outcome, music-layer, music-outcome, music-type, name-tag-line, native-block-behavior, native-block-rim, native-capability-provider, native-colored-light, native-command, native-fluid-definition, native-inventory-layout, native-item-behavior, native-item-context, native-item-holder, native-item-render-context, native-lifecycle-context, native-loot-drops, native-map-decoration, native-map-info, native-menu-behavior, native-minimap, native-mob-render, native-mod, native-panel-event, native-player-render, native-recipe-type, native-screen, native-screen-view, native-server-player, native-shake, native-zoom, nbt, net-frame-received-type, net-frames-listened-outcome, player-submit-outcome, recipe-book-categories-outcome, recipe-book-category, release-using-outcome, render-fog-outcome, render-hand-pose-outcome, render-name-tag-outcome, render-name-tag-position-outcome, render-needs-type, server-tick-phase, shader-params-outcome, should-apply-effect-tick-this-tick-outcome, stack-view, text-json, tooltip-color-outcome, use-animation-outcome, use-animation-type, use-duration-outcome, visuals-outcome, world-phase};
 
+    use server-types.{config-value};
+    config-changed: func(key: string, value: config-value);
     /// Once a frame, in a world or not, after Horizon's extras.
     frame: func(elapsed: u64);
     /// Once a tick, in every `Game`: the window's (in single player, on LAN
@@ -3484,6 +3827,7 @@ interface client-hooks {
     ///
     /// Collect: `listened` is the current value; return Some to change it (None keeps it).
     item-slot-cooldown-listened: func(listened: bool) -> option<bool>;
+    key-binding-pressed: func(id: string);
     /// `LivingEntity.getProjectile(weapon)` (NeoForge's
     /// `LivingGetProjectileEvent`) for a player (`player` and `name`) or a
     /// mob (`entity`, `kind`): a skeleton or illusioner's shot, or the crossbow
@@ -3623,8 +3967,10 @@ interface client-hooks {
 
 /// Hooks that run in the server (integrated or dedicated).
 interface server-hooks {
-    use engine-types.{anvil-craft, apply-effect-tick-outcome, arrow-loose-outcome, block-entity-tick-outcome, block-entity-ticks-outcome, block-exp-outcome, block-pos, block-signal-outcome, broadcast-message-outcome, camera-shake-outcome, can-eat-outcome, can-player-sleep-outcome, chorus-fruit-teleport-outcome, corner-command, critical-hit-outcome, direction, ender-pearl-teleport-outcome, experience-orb-can-merge-outcome, experience-orb-pickup-outcome, food-level-changed-outcome, gui-draw, hand, health-inputs, hud-command, hud-outcome, is-signal-source-outcome, item-bar-outcome, item-damaged-outcome, item-energy-buffer-type, item-expire-outcome, item-stack, json, level-dimension, living-breathe-outcome, living-drown-outcome, living-entity-use-item-finish-outcome, living-entity-use-item-start-outcome, living-entity-use-item-tick-outcome, living-fall-outcome, living-heal-outcome, living-incoming-damage-outcome, living-incoming-damage-v2-outcome, living-knockback-outcome, living-knockback-v2-outcome, loot-stack, mending-repair-outcome, menu-button-outcome, menu-button-v2-outcome, menu-quick-move-outcome, menu-slot-rules-outcome, merchant-offer, mob-split-outcome, mod-block-entity-fields, mod-container, mod-energy-buffer, mod-fluid-tanks, model-command, native-block-behavior, native-block-rim, native-capability-provider, native-chat-recipients, native-colored-light, native-command, native-data-map-type, native-fluid-definition, native-item-behavior, native-lifecycle-context, native-loot-context, native-loot-drops, native-menu-behavior, native-minimap, native-mod, native-note-block-change, native-panel-event, native-recipe-type, native-screen, native-screen-view, native-server-player, native-shake, native-zoom, nbt, note-block-change-outcome, placement-context, player-command-outcome, player-exp-change-outcome, player-login-outcome, player-permission-level-outcome, player-xp-change-outcome, potential-spawns-outcome, prepare-anvil-outcome, prepare-item-enchant-outcome, recipe-book-categories-outcome, recipe-book-category, release-using-outcome, server-chat-outcome, server-tick-phase, shader-params-outcome, should-apply-effect-tick-this-tick-outcome, sign-changed-outcome, sleep-finished-time-outcome, spawn-entry, suggestion, text-json, use-duration-outcome, vehicle-damage-outcome, visuals-outcome, world-phase};
+    use engine-types.{anvil-craft, apply-effect-tick-outcome, arrow-loose-outcome, block-entity-tick-outcome, block-entity-ticks-outcome, block-exp-outcome, block-pos, block-signal-outcome, broadcast-message-outcome, camera-shake-outcome, can-eat-outcome, can-player-sleep-outcome, chorus-fruit-teleport-outcome, critical-hit-outcome, direction, ender-pearl-teleport-outcome, experience-orb-can-merge-outcome, experience-orb-pickup-outcome, food-level-changed-outcome, gui-draw, hand, health-inputs, hud-command, is-signal-source-outcome, item-bar-outcome, item-damaged-outcome, item-energy-buffer-type, item-expire-outcome, item-stack, json, level-dimension, living-breathe-outcome, living-drown-outcome, living-entity-use-item-finish-outcome, living-entity-use-item-start-outcome, living-entity-use-item-tick-outcome, living-fall-outcome, living-heal-outcome, living-incoming-damage-outcome, living-incoming-damage-v2-outcome, living-knockback-outcome, living-knockback-v2-outcome, loot-stack, mending-repair-outcome, menu-button-outcome, menu-button-v2-outcome, menu-quick-move-outcome, menu-slot-rules-outcome, merchant-offer, mob-split-outcome, mod-block-entity-fields, mod-container, mod-energy-buffer, mod-fluid-tanks, model-command, native-block-behavior, native-block-rim, native-capability-provider, native-chat-recipients, native-colored-light, native-command, native-data-map-type, native-fluid-definition, native-item-behavior, native-lifecycle-context, native-loot-context, native-loot-drops, native-menu-behavior, native-minimap, native-mod, native-note-block-change, native-panel-event, native-recipe-type, native-screen, native-screen-view, native-server-player, native-shake, native-zoom, nbt, note-block-change-outcome, placement-context, player-command-outcome, player-exp-change-outcome, player-login-outcome, player-permission-level-outcome, player-xp-change-outcome, potential-spawns-outcome, prepare-anvil-outcome, prepare-item-enchant-outcome, recipe-book-categories-outcome, recipe-book-category, release-using-outcome, server-chat-outcome, server-tick-phase, shader-params-outcome, should-apply-effect-tick-this-tick-outcome, sign-changed-outcome, sleep-finished-time-outcome, spawn-entry, suggestion, text-json, use-duration-outcome, vehicle-damage-outcome, visuals-outcome, world-phase};
 
+    use server-types.{config-value};
+    config-changed: func(key: string, value: config-value);
     /// Once a frame, in a world or not, after Horizon's extras.
     frame: func(elapsed: u64);
     /// Once a tick, in every `Game`: the window's (in single player, on LAN
@@ -3716,14 +4062,6 @@ interface server-hooks {
     ///
     /// Returns Some to set `new` (None keeps it); the first mod that answers wins.
     update-shape: func(dimension: level-dimension, pos: block-pos, state: u32, direction: direction, neighbour-pos: block-pos, neighbour: u32) -> option<u32>;
-    /// The HUD (not drawn under F1), after the minimap: place a box with
-    /// `corners.place` (boxes stack away from their edge) and draw it with
-    /// `native_fill` and `native_text`. Skip a corner `native_corner_shown`
-    /// says is taken.
-    ///
-    /// `batch` is applied by the host: return `hud-command` commands for it.
-    /// `corners` is applied by the host: return `corner-command` commands for it.
-    hud: func() -> hud-outcome;
     /// A key or mouse button went down or up, by its vanilla name
     /// (`key.keyboard.z`, `key.mouse.left`): keys on any screen (check
     /// `native_playing`), mouse buttons while playing. Repeats are left out.
@@ -6596,9 +6934,15 @@ world client-full {
     import instance;
     import accounts;
     import screen;
+    import server-types;
+    import client-types;
+    import client-services;
+    import gpu-types;
+    import gpu-services;
     export client-hooks;
     /// Returns catalog hook names with underscores, such as `net_frames_listened`.
     export init: func() -> list<string>;
+    export gpu-frame: func();
 }
 
 world server-full {

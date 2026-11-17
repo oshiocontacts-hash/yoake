@@ -116,7 +116,7 @@ pub(super) fn tick(on: bool, soft: u32) -> Div {
         .flex_none()
         .justify_center()
         .w(px(20.))
-        .children(on.then(|| ui::icon("tick-02", 18., ui::color(soft))))
+        .children(on.then(|| ui::icon("tick-02", 18., ui::accent_soft(soft))))
 }
 
 /// A list of rows on white at 4 %, round at 16, scrolling past `max` px.
@@ -789,7 +789,7 @@ impl Launcher {
                     .child(choice_text(version_label(&tag), date.unwrap_or_default()).flex_1())
                     .children(latest.then(|| {
                         ui::text(13., FontWeight::NORMAL, ink::FULL)
-                            .text_color(ui::color(soft))
+                            .text_color(ui::accent_soft(soft))
                             .child(tr("Newest"))
                     }))
                     .child(tick(on, soft))

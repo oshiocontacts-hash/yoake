@@ -12,6 +12,7 @@ dev-capture = []
 [dependencies]
 horizon-core = { path = "../horizon-core" }
 horizon-world = { path = "../horizon-world" }
+horizon-friends = { path = "../horizon-friends" }
 flate2 = { version = "1.1.10", default-features = false, features = ["zlib-rs", "runtime_detection"] }
 serde_json = "1.0.151"
 log = "0.4"

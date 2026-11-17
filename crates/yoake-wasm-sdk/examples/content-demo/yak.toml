@@ -1,0 +1,19 @@
+format = 1
+id = "content_demo"
+version = "0.1.0"
+name = "Content Demo"
+authors = ["yoake"]
+description = "Data-defined block, item, effect, recipe, loot table, mob and sound, with a WASM module that reacts to the mob"
+license = "MIT"
+
+[yoake]
+version = ">=0.2, <0.3"
+
+[side]
+client = true
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.0"
+server = "bin/wasm/content-demo-server.wasm"

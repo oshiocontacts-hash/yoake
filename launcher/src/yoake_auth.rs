@@ -83,11 +83,26 @@ pub struct YoakeAccount {
     pub expires_at: serde_json::Value,
 }
 
+/// What runs before the saved sign-in is replaced or removed (sign-out, another account): the
+/// launcher closes the room it hosts then, while the old token can still delete it.
+static BEFORE_CHANGE: std::sync::OnceLock<fn()> = std::sync::OnceLock::new();
+
+pub fn set_before_change(hook: fn()) {
+    let _ = BEFORE_CHANGE.set(hook);
+}
+
+fn before_change() {
+    if let Some(hook) = BEFORE_CHANGE.get() {
+        hook();
+    }
+}
+
 pub fn save_credentials(
     data_dir: &Path,
     token: &str,
     account: &YoakeAccount,
 ) -> Result<(), AuthError> {
+    before_change();
     let _guard = CREDENTIAL_LOCK.lock().map_err(|_| AuthError::Unreadable)?;
     save_credentials_locked(data_dir, token, account)
 }
@@ -103,6 +118,9 @@ pub fn save_credentials_if_current(
     epoch: u64,
     cancelled: &AtomicBool,
 ) -> Result<bool, AuthError> {
+    if epoch == credential_epoch() && !cancelled.load(Ordering::Acquire) {
+        before_change();
+    }
     let _guard = CREDENTIAL_LOCK.lock().map_err(|_| AuthError::Unreadable)?;
     if epoch != credential_epoch() || cancelled.load(Ordering::Acquire) {
         return Ok(false);
@@ -148,6 +166,7 @@ fn save_credentials_locked(
 }
 
 pub fn logout(data_dir: &Path) -> Result<(), AuthError> {
+    before_change();
     let _guard = CREDENTIAL_LOCK.lock().map_err(|_| AuthError::Unreadable)?;
     CREDENTIAL_EPOCH.fetch_add(1, Ordering::AcqRel);
     remove_credentials(data_dir)
@@ -188,7 +207,7 @@ fn write_private(data_dir: &Path, name: &str, bytes: &[u8]) -> Result<(), AuthEr
 }
 
 #[cfg(unix)]
-fn create_private_file(path: &Path) -> io::Result<File> {
+pub fn create_private_file(path: &Path) -> io::Result<File> {
     use std::os::unix::fs::OpenOptionsExt;
     OpenOptions::new()
         .read(true)
@@ -199,19 +218,19 @@ fn create_private_file(path: &Path) -> io::Result<File> {
 }
 
 #[cfg(windows)]
-fn create_private_file(path: &Path) -> io::Result<File> {
+pub fn create_private_file(path: &Path) -> io::Result<File> {
     windows_acl::create_private_file(path)
 }
 
 #[cfg(not(any(unix, windows)))]
-fn create_private_file(_path: &Path) -> io::Result<File> {
+pub fn create_private_file(_path: &Path) -> io::Result<File> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "private files unsupported",
     ))
 }
 
-fn check_private_file(file: &File, path: &Path) -> Result<(), AuthError> {
+pub fn check_private_file(file: &File, path: &Path) -> Result<(), AuthError> {
     let path_metadata = std::fs::symlink_metadata(path).map_err(|_| AuthError::Unreadable)?;
     let metadata = file.metadata().map_err(|_| AuthError::Unreadable)?;
     if path_metadata.file_type().is_symlink() || !metadata.is_file() {

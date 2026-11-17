@@ -1,0 +1,20 @@
+[package]
+name = "yoake-mixin-config"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+yoake-wasm-sdk = { path = "../..", default-features = false, features = ["std", "mixin-config"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+panic = "abort"
+
+[workspace]

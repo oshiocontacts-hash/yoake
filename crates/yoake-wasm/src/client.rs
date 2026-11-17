@@ -1,12 +1,11 @@
-
 use std::fmt;
 
-use wasmtime::component::HasSelf;
 use wasmtime::Store;
+use wasmtime::component::HasSelf;
 
 use crate::bindings::yoake::mods::types::{ReceivedFrame, ScreenView};
 use crate::host::ClientContext;
-use crate::{bindings, ClientHost, HostState, ModInstance, Sandbox, Subscriptions};
+use crate::{ClientHost, HostState, ModInstance, Sandbox, Subscriptions, bindings};
 
 #[derive(Debug)]
 pub struct LoadError(String);
@@ -32,13 +31,35 @@ pub struct ClientMod {
 }
 
 impl ClientMod {
+    pub fn validate_component(
+        runtime: &mut Sandbox,
+        id: impl Into<String>,
+        component_bytes: &[u8],
+        host: Box<dyn ClientHost>,
+    ) -> Result<(), LoadError> {
+        Self::link(runtime, id.into(), component_bytes, host).map(|_| ())
+    }
+
     pub fn instantiate(
         runtime: &mut Sandbox,
         id: impl Into<String>,
         component_bytes: &[u8],
         host: Box<dyn ClientHost>,
     ) -> Result<Self, LoadError> {
-        let id = id.into();
+        let (mut raw, exports) = Self::link(runtime, id.into(), component_bytes, host)?;
+        let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| exports.call_init(store).map_err(|error| error.root_cause().to_string()));
+        flush_output(&mut raw);
+        let names = names.ok_or_else(|| LoadError("mod init trapped or timed out".into()))?;
+        let subscriptions = Subscriptions::from_hook_names(names).map_err(LoadError)?;
+        Ok(Self { raw, exports, subscriptions })
+    }
+
+    fn link(
+        runtime: &mut Sandbox,
+        id: String,
+        component_bytes: &[u8],
+        host: Box<dyn ClientHost>,
+    ) -> Result<(ModInstance<ClientContext>, bindings::ClientMod), LoadError> {
         let texture_count = runtime.texture_count(&id);
         let mut raw = runtime
             .compile(component_bytes)
@@ -48,16 +69,12 @@ impl ClientMod {
                     linker,
                     |state| &mut state.host,
                 )
-                .map_err(|error| error.to_string())
+                .map_err(|error| format!("{error:#}"))
             })
             .map_err(LoadError)?;
         let exports = bindings::ClientMod::new(&mut raw.store, &raw.instance)
-            .map_err(|error| LoadError(error.to_string()))?;
-        let names = raw.call_init(crate::TimeLimits::CLIENT, |store, _| exports.call_init(store).map_err(|error| format!("{error:#}")));
-        flush_output(&mut raw);
-        let names = names.ok_or_else(|| LoadError("mod init trapped or timed out".into()))?;
-        let subscriptions = Subscriptions::from_hook_names(names).map_err(LoadError)?;
-        Ok(Self { raw, exports, subscriptions })
+            .map_err(|error| LoadError(format!("invalid client-mod exports: {error:#}")))?;
+        Ok((raw, exports))
     }
 
     pub fn subscribed(&self, hook: &str) -> bool {
@@ -81,12 +98,16 @@ impl ClientMod {
     }
 
     pub fn hud(&mut self) -> Option<()> {
-        self.dispatch("hud", |exports, store| exports.yoake_mods_hooks().call_hud(store))
+        self.dispatch("hud", |exports, store| {
+            exports.yoake_mods_hooks().call_hud(store)
+        })
     }
 
     pub fn net_from_server(&mut self, channel: &str, data: &[u8]) -> Option<()> {
         self.dispatch("net_from_server", |exports, store| {
-            exports.yoake_mods_hooks().call_net_from_server(store, channel, data)
+            exports
+                .yoake_mods_hooks()
+                .call_net_from_server(store, channel, data)
         })
     }
 
@@ -98,26 +119,34 @@ impl ClientMod {
 
     pub fn local_player_tick_end(&mut self, reserved: u32) -> Option<()> {
         self.dispatch("local_player_tick_end", |exports, store| {
-            exports.yoake_mods_hooks().call_local_player_tick_end(store, reserved)
+            exports
+                .yoake_mods_hooks()
+                .call_local_player_tick_end(store, reserved)
         })
     }
 
     pub fn net_frames_listened(&mut self, listened: bool) -> Option<bool> {
         self.dispatch("net_frames_listened", |exports, store| {
-            exports.yoake_mods_hooks().call_net_frames_listened(store, listened)
+            exports
+                .yoake_mods_hooks()
+                .call_net_frames_listened(store, listened)
         })
         .map(|guest_listened| listened || guest_listened)
     }
 
     pub fn net_frame_received(&mut self, frame: &ReceivedFrame) -> Option<()> {
         self.dispatch("net_frame_received", |exports, store| {
-            exports.yoake_mods_hooks().call_net_frame_received(store, frame)
+            exports
+                .yoake_mods_hooks()
+                .call_net_frame_received(store, frame)
         })
     }
 
     pub fn net_session_ended(&mut self, session: u64, reason: &str) -> Option<()> {
         self.dispatch("net_session_ended", |exports, store| {
-            exports.yoake_mods_hooks().call_net_session_ended(store, session, reason)
+            exports
+                .yoake_mods_hooks()
+                .call_net_session_ended(store, session, reason)
         })
     }
 
@@ -135,7 +164,9 @@ impl ClientMod {
 
     pub fn screen_render_post(&mut self, screen: &ScreenView) -> Option<()> {
         self.dispatch("screen_render_post", |exports, store| {
-            exports.yoake_mods_hooks().call_screen_render_post(store, screen)
+            exports
+                .yoake_mods_hooks()
+                .call_screen_render_post(store, screen)
         })
     }
 
@@ -147,7 +178,9 @@ impl ClientMod {
         modifiers: u32,
     ) -> Option<bool> {
         self.dispatch("screen_key_pressed_pre", |exports, store| {
-            exports.yoake_mods_hooks().call_screen_key_pressed_pre(store, screen, key, repeat, modifiers)
+            exports
+                .yoake_mods_hooks()
+                .call_screen_key_pressed_pre(store, screen, key, repeat, modifiers)
         })
     }
 
@@ -158,7 +191,9 @@ impl ClientMod {
         modifiers: u32,
     ) -> Option<bool> {
         self.dispatch("screen_char_typed_pre", |exports, store| {
-            exports.yoake_mods_hooks().call_screen_char_typed_pre(store, screen, character, modifiers)
+            exports
+                .yoake_mods_hooks()
+                .call_screen_char_typed_pre(store, screen, character, modifiers)
         })
     }
 
@@ -169,7 +204,9 @@ impl ClientMod {
         modifiers: u32,
     ) -> Option<bool> {
         self.dispatch("screen_mouse_button_pressed_pre", |exports, store| {
-            exports.yoake_mods_hooks().call_screen_mouse_button_pressed_pre(store, screen, button, modifiers)
+            exports
+                .yoake_mods_hooks()
+                .call_screen_mouse_button_pressed_pre(store, screen, button, modifiers)
         })
     }
 
@@ -180,7 +217,9 @@ impl ClientMod {
         modifiers: u32,
     ) -> Option<bool> {
         self.dispatch("screen_mouse_button_released_pre", |exports, store| {
-            exports.yoake_mods_hooks().call_screen_mouse_button_released_pre(store, screen, button, modifiers)
+            exports
+                .yoake_mods_hooks()
+                .call_screen_mouse_button_released_pre(store, screen, button, modifiers)
         })
     }
 
@@ -191,7 +230,9 @@ impl ClientMod {
         modifiers: u32,
     ) -> Option<bool> {
         self.dispatch("screen_mouse_scrolled_pre", |exports, store| {
-            exports.yoake_mods_hooks().call_screen_mouse_scrolled_pre(store, screen, scroll, modifiers)
+            exports
+                .yoake_mods_hooks()
+                .call_screen_mouse_scrolled_pre(store, screen, scroll, modifiers)
         })
     }
 
@@ -215,20 +256,30 @@ impl ClientMod {
 
     pub fn settings_click_for(&mut self, mod_id: &str, button: u64) -> Option<()> {
         self.dispatch("settings_click", |exports, store| {
-            exports.yoake_mods_hooks().call_settings_click(store, mod_id, button)
+            exports
+                .yoake_mods_hooks()
+                .call_settings_click(store, mod_id, button)
         })
     }
 
     fn dispatch<R>(
         &mut self,
         hook: &str,
-        call: impl FnOnce(&bindings::ClientMod, &mut Store<HostState<ClientContext>>) -> wasmtime::Result<R>,
+        call: impl FnOnce(
+            &bindings::ClientMod,
+            &mut Store<HostState<ClientContext>>,
+        ) -> wasmtime::Result<R>,
     ) -> Option<R> {
         if !self.subscribed(hook) {
             return None;
         }
         let exports = &self.exports;
-        let result = self.raw.call(hook, |store, _| call(exports, store).map_err(|error| format!("{error:#}")));
+        let result = self.raw.call(hook, |store, _| {
+            call(exports, store).map_err(|error| format!("{error:#}"))
+        });
+        if self.raw.is_disabled() {
+            self.raw.store.data_mut().host.release_resources();
+        }
         flush_output(&mut self.raw);
         result
     }
@@ -242,7 +293,11 @@ fn flush_output(raw: &mut ModInstance<ClientContext>) {
 }
 
 fn limit_settings(entries: Vec<String>) -> Vec<String> {
-    entries.into_iter().take(64).map(|entry| entry.chars().take(256).collect()).collect()
+    entries
+        .into_iter()
+        .take(64)
+        .map(|entry| entry.chars().take(256).collect())
+        .collect()
 }
 
 #[cfg(test)]

@@ -24,7 +24,7 @@ pub const FULL_HOOKS: &[(&str, HookSide)] = &[
     ("random_tick", HookSide::Server),
     ("tick_block", HookSide::Server),
     ("update_shape", HookSide::Server),
-    ("hud", HookSide::Both),
+    ("hud", HookSide::Client),
     ("key", HookSide::Both),
     ("wheel", HookSide::Both),
     ("command", HookSide::Both),
@@ -435,6 +435,7 @@ pub const FULL_HOOKS: &[(&str, HookSide)] = &[
     ("item_render", HookSide::Client),
     ("item_slot_cooldown", HookSide::Client),
     ("item_slot_cooldown_listened", HookSide::Client),
+    ("key_binding_pressed", HookSide::Client),
     ("living_conversion_post", HookSide::Server),
     ("living_conversion_pre", HookSide::Server),
     ("living_death", HookSide::Server),
@@ -481,4 +482,5 @@ pub const FULL_HOOKS: &[(&str, HookSide)] = &[
     ("server_chat", HookSide::Server),
     ("tooltip_color", HookSide::Client),
     ("world_pre_post", HookSide::Client),
+    ("config_changed", HookSide::Both),
 ];

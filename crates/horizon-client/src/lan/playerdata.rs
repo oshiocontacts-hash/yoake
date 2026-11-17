@@ -748,6 +748,7 @@ mod tests {
         let mut loaded = guest();
         loaded.uuid = original.uuid;
         assert!(load(&mut loaded, &dir));
+        // Never read since loading: it must still survive the respawn copy.
         loaded.attachments = loaded.attachments.copy_on_death().unwrap();
         assert_eq!(loaded.attachments.get(&keep), Ok(31));
         let _ = std::fs::remove_dir_all(dir);

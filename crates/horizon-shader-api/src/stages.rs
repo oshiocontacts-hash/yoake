@@ -3,7 +3,8 @@
 //! pack's files to build a stage: the prelude before (the inputs and the
 //! resources), the entry points after.
 use crate::inputs::{
-    Frame, MATERIAL_INPUT, POST_INPUT, SKY_INPUT, SURFACE, Struct, VERTEX_INPUT, WEATHER_INPUT,
+    ENTITY_INPUT, Frame, MATERIAL_INPUT, POST_INPUT, SKY_INPUT, SURFACE, Struct, VERTEX_INPUT,
+    WEATHER_INPUT,
 };
 use crate::package::Pack;
 
@@ -16,6 +17,8 @@ pub enum StageKind {
     Sky,
     /// The colour of block surfaces (terrain), before the alpha test and fog.
     Material,
+    /// The colour of mobs, players and block entities.
+    EntityMaterial,
     /// Where each corner of a block's surface is drawn (waving plants, rolling water), for
     /// the world and the shadow map.
     Vertex,
@@ -468,10 +471,11 @@ struct HorizonWeatherIn {
 ";
 
 impl StageKind {
-    pub const ALL: [StageKind; 5] = [
+    pub const ALL: [StageKind; 6] = [
         StageKind::Sky,
         StageKind::Vertex,
         StageKind::Material,
+        StageKind::EntityMaterial,
         StageKind::Weather,
         StageKind::Post,
     ];
@@ -481,6 +485,7 @@ impl StageKind {
         match self {
             StageKind::Sky => "sky",
             StageKind::Material => "material",
+            StageKind::EntityMaterial => "entity_material",
             StageKind::Vertex => "vertex",
             StageKind::Weather => "weather",
             StageKind::Post => "post",
@@ -496,6 +501,7 @@ impl StageKind {
         match self {
             StageKind::Sky => &SKY_INPUT,
             StageKind::Material => &MATERIAL_INPUT,
+            StageKind::EntityMaterial => &ENTITY_INPUT,
             StageKind::Vertex => &VERTEX_INPUT,
             StageKind::Weather => &WEATHER_INPUT,
             StageKind::Post => &POST_INPUT,
@@ -505,7 +511,7 @@ impl StageKind {
     /// The type the function returns.
     pub fn output(self) -> &'static str {
         match self {
-            StageKind::Material => SURFACE.name,
+            StageKind::Material | StageKind::EntityMaterial => SURFACE.name,
             StageKind::Vertex => "vec3<f32>",
             StageKind::Sky | StageKind::Weather | StageKind::Post => "vec4<f32>",
         }
@@ -525,7 +531,7 @@ impl StageKind {
         match self {
             StageKind::Post => &POST_RESOURCES,
             StageKind::Sky | StageKind::Vertex | StageKind::Weather => std::slice::from_ref(&FRAME),
-            StageKind::Material => &MATERIAL_RESOURCES,
+            StageKind::Material | StageKind::EntityMaterial => &MATERIAL_RESOURCES,
         }
     }
 
@@ -535,6 +541,9 @@ impl StageKind {
             String::from("// Horizon shader API prelude (docs/api/shaders-reference.md)\n");
         out += &Frame::WGSL.wgsl();
         out += &self.input().wgsl();
+        if self == StageKind::EntityMaterial {
+            out += &SURFACE.wgsl();
+        }
         if self == StageKind::Material {
             out += &SURFACE.wgsl();
             // The vertex stage's file joins the material's module (`compose`).
@@ -553,7 +562,7 @@ impl StageKind {
                 out += MATERIAL_HELPERS;
                 out += SHADOW_HELPERS;
             }
-            StageKind::Vertex => out += SHADOW_HELPERS,
+            StageKind::Vertex | StageKind::EntityMaterial => out += SHADOW_HELPERS,
             StageKind::Sky | StageKind::Weather => {}
         }
         out
@@ -564,6 +573,7 @@ impl StageKind {
         match self {
             StageKind::Sky => SKY_ENTRIES,
             StageKind::Material => MATERIAL_ENTRIES,
+            StageKind::EntityMaterial => ENTITY_ENTRIES,
             StageKind::Vertex => VERTEX_ENTRIES,
             StageKind::Weather => WEATHER_ENTRIES,
             StageKind::Post => POST_ENTRIES,
@@ -575,6 +585,54 @@ impl StageKind {
 /// `TEXTURE_SAMPLER_BINDING`.
 pub const TEXTURE_BINDING: u32 = 16;
 pub const TEXTURE_SAMPLER_BINDING: u32 = 24;
+
+pub const VOXEL_BINDING: u32 = 14;
+pub const LIGHT_LIST_BINDING: u32 = 15;
+
+/// Optional world inputs, present only in opted-in material and post modules.
+pub fn world_input_declarations(manifest: &crate::manifest::Manifest) -> String {
+    let mut out = String::new();
+    if manifest.voxels.is_some() {
+        out += "@group(3) @binding(14) var voxels: texture_3d<u32>;\n";
+        out += r#"
+fn voxel_at(camera_relative_position: vec3<f32>) -> u32 {
+    let local = camera_relative_position - frame.voxel_origin;
+    if frame.has_voxels == 0u || any(local < vec3<f32>(0.0)) || any(local >= vec3<f32>(frame.voxel_size)) {
+        return 0u;
+    }
+    let slot = (vec3<u32>(floor(local)) + frame.voxel_origin_slot) % frame.voxel_size;
+    let section = slot / 16u;
+    let extent = frame.voxel_size / 16u;
+    let index = section.x + extent.x * (section.y + extent.y * section.z);
+    let word = index / 32u;
+    if (frame.voxel_validity[word / 4u][word % 4u] & (1u << (index % 32u))) == 0u {
+        return 0u;
+    }
+    return textureLoad(voxels, vec3<i32>(slot), 0).x;
+}
+"#;
+    }
+    if manifest.light_list {
+        out += "struct WorldLight { position: vec3<f32>, level: f32, color: vec3<f32>, radius: f32, held: u32, padding0: u32, padding1: u32, padding2: u32, }\n";
+        out += "@group(3) @binding(15) var<storage, read> light_list: array<WorldLight>;\n";
+    }
+    out
+}
+
+const ENTITY_ENTRIES: &str = "
+struct HorizonEntityIn {
+    @builtin(position) screen: vec4<f32>,
+    @location(0) position: vec3<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(2) albedo: vec4<f32>,
+    @location(3) light: vec2<f32>,
+    @location(4) lightmap: vec3<f32>,
+    @location(5) @interpolate(flat) kind: u32,
+}
+@fragment fn horizon_fs_entity_material(input: HorizonEntityIn) -> @location(0) vec4<f32> {
+    return entity_material(EntityMaterialInput(input.position, input.normal, input.albedo, input.light, input.lightmap, input.kind)).color;
+}
+";
 
 /// The declarations of a pack's `[[textures]]`, part of every stage's prelude.
 pub fn texture_declarations(textures: &[crate::manifest::PackTexture]) -> String {
@@ -652,6 +710,12 @@ pub fn compose(pack: &Pack, kind: StageKind, file: &str) -> Composed {
             .push((name.to_owned(), start..composed.text.len()));
     };
     let mut prelude = kind.prelude() + &texture_declarations(&pack.manifest.textures);
+    if matches!(
+        kind,
+        StageKind::Material | StageKind::EntityMaterial | StageKind::Post
+    ) {
+        prelude += &world_input_declarations(&pack.manifest);
+    }
     if kind == StageKind::Post {
         prelude += &post_target_declarations(&pack.manifest);
     }
@@ -664,6 +728,7 @@ pub fn compose(pack: &Pack, kind: StageKind, file: &str) -> Composed {
     let stage = match kind {
         StageKind::Sky => m.sky.as_ref(),
         StageKind::Material => m.material.as_ref(),
+        StageKind::EntityMaterial => m.entity_material.as_ref(),
         StageKind::Vertex => m.vertex.as_ref(),
         StageKind::Weather => m.weather.as_ref(),
         StageKind::Post => m.post.iter().find(|s| s.file == file),

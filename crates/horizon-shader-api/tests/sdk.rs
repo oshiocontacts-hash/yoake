@@ -28,6 +28,14 @@ fn the_example_pack_passes() {
 }
 
 #[test]
+fn the_world_inputs_example_passes() {
+    let dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/packs/world_inputs"));
+    let report = check(&Pack::read(dir).unwrap()).unwrap();
+    assert_eq!(report.stages.len(), 1);
+    assert_eq!(report.stages[0].label, "World input overlay");
+}
+
+#[test]
 fn every_template_makes_a_pack_that_passes() {
     let root = scratch("templates");
     for template in ["post", "sky", "material"] {

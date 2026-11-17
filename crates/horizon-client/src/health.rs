@@ -254,6 +254,7 @@ impl Observer for Updates<'_> {
         Ok(())
     }
 }
+#[yoake_state::yoake_state(read_only)]
 #[derive(Clone)]
 pub struct PlayerHealth {
     pub data: SyncedFloats,
@@ -268,13 +269,17 @@ pub struct PlayerHealth {
     /// `ServerPlayer.hurtDir` of a hit the player's client hasn't been told
     /// of yet (`indicateDamage`).
     pub indicated_dir: Option<f32>,
+    #[yoake_state]
     pub dead: bool,
     pub sync_velocity: bool,
     pub game_time: i64,
+    #[yoake_state]
     pub tick_count: i32,
     /// A death-protection item (totem) is in either hand.
+    #[yoake_state]
     pub totem_ready: bool,
     /// The totem saved the player this tick; the game applies its effects.
+    #[yoake_state]
     pub totem_used: bool,
 }
 impl PlayerHealth {

@@ -10,11 +10,13 @@ use std::{
 use syn::{FnArg, ImplItem, Item, Pat, Type, visit::Visit, visit_mut::VisitMut};
 
 mod abi;
+mod inject_catalog;
 pub use abi::{
-    FullWit, WasmAdapters, generate_abi, generate_dll_adapters, generate_full_hook_names, generate_full_wit,
-    generate_sdk_full, generate_wasm_adapters, generate_wasm_hook_names, SdkFull,
-    generate_wit,
+    FullWit, SdkFull, WasmAdapters, generate_abi, generate_dll_adapters, generate_full_hook_names,
+    generate_full_wit, generate_inject_config_wit, generate_inject_wit, generate_sdk_full,
+    generate_wasm_adapters, generate_wasm_hook_names, generate_wit,
 };
+pub use inject_catalog::{generate_inject_catalog, generate_inject_registry};
 
 fn impl_functions(item: syn::ItemImpl) -> impl Iterator<Item = syn::ItemFn> {
     item.items.into_iter().filter_map(|item| match item {
@@ -1035,11 +1037,17 @@ pub fn for_test({test_params}) -> Self {{ Self {{ {test_inits} }} }}
             ),
             _ => (String::new(), String::new(), String::new(), String::new()),
         };
+        let owner_filter = if name == "key_binding_pressed" {
+            format!("if !super::key_binding_owner({mod_index}, id) {{ continue; }}")
+        } else {
+            String::new()
+        };
         let body = format!(
             r#"{precondition}
 let Some({guard}) = super::guard_dispatch({mod_list}.len(), "{name}") else {{ return; }};
 {prepare} {pending_init} {build}
 for ({mod_index}, {mod_item}) in {each} {{
+    {owner_filter}
     match {guard}.call(super::guard_index({mod_index}), || {mod_item}.{name}({invoke})) {{
         super::GuardOutcome::Skipped => continue,
         super::GuardOutcome::Completed({replacement}) => {{ let _ = &{replacement}; {completed} }}

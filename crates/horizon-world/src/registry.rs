@@ -3,9 +3,9 @@
 mod facts;
 mod json;
 pub(crate) mod snapshot;
-use crate::{chunk::BlockState, compression::invalid, nbt::Tag, DATA_VERSION};
-pub(crate) use json::java_integer;
+use crate::{DATA_VERSION, chunk::BlockState, compression::invalid, nbt::Tag};
 pub use json::BlockStateJsonCodec;
+pub(crate) use json::java_integer;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     hash::{DefaultHasher, Hash, Hasher},
@@ -14,6 +14,18 @@ use std::{
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BlockStateId(pub u32);
+
+impl yoake_value::InjectValue for BlockStateId {
+    const TYPE: yoake_value::ValueType = yoake_value::ValueType::U32;
+
+    fn into_inject_value(self) -> yoake_value::Value {
+        self.0.into_inject_value()
+    }
+
+    fn from_inject_value(value: yoake_value::Value) -> Option<Self> {
+        u32::from_inject_value(value).map(Self)
+    }
+}
 
 pub struct BlockRegistry {
     states: Vec<BlockState>,

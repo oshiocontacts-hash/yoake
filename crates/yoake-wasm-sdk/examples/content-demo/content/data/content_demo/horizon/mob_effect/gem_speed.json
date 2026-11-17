@@ -1,0 +1,2 @@
+{ "category": "beneficial", "color": 3188374,
+  "attributes": [{ "attribute": "minecraft:movement_speed", "amount": 0.2, "operation": "add_multiplied_total" }] }

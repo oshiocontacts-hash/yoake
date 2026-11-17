@@ -103,6 +103,19 @@ pub struct Vec3 {
     pub z: f64,
 }
 
+impl yoake_value::InjectValue for Vec3 {
+    const TYPE: yoake_value::ValueType = yoake_value::ValueType::Vec3;
+
+    fn into_inject_value(self) -> yoake_value::Value {
+        [self.x, self.y, self.z].into_inject_value()
+    }
+
+    fn from_inject_value(value: yoake_value::Value) -> Option<Self> {
+        let [x, y, z] = <[f64; 3] as yoake_value::InjectValue>::from_inject_value(value)?;
+        Some(Self { x, y, z })
+    }
+}
+
 impl PartialEq for Vec3 {
     fn eq(&self, other: &Self) -> bool {
         self.components()

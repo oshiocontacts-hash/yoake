@@ -326,50 +326,73 @@ impl Launcher {
             .find(|(value, _)| *value == current)
             .or(sorts.first())
             .map_or("", |(_, label)| *label);
-        let mut wrap = div().relative().flex_none().child(
-            keyboard(div().id("mods-sort"), &t)
-                .relative()
-                .flex()
-                .items_center()
-                .gap(px(10.))
-                .h(px(theme::CONTROL_LARGE))
-                .px(px(14.))
-                // The button's bottom lip isn't part of its face: centre the text on the face.
-                .pb(px(theme::LIP))
-                .border_2()
-                .border_color(t.outline)
-                .bg(t.button)
-                .children(blocks::edges(t.button_bevel, t.lip, theme::LIP))
-                .cursor_pointer()
-                .hover(move |s| s.bg(t.raised))
-                .child(
-                    div()
-                        .font_family(theme::PIXEL)
-                        .text_size(px(15.))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(t.ink)
-                        .child(trf("Sort by: {order}", &[("order", tr(name))])),
+        let on_toggle = cx.listener(|this, _: &ClickEvent, _, cx| {
+            this.mods.browse.sort_menu = !this.mods.browse.sort_menu;
+            cx.notify();
+        });
+        let mut wrap = if glass_mode() {
+            div().relative().flex_none().child(
+                glass_ui::quiet(
+                    "mods-sort",
+                    trf("Sort by: {order}", &[("order", tr(name))]),
+                    36.,
+                    &t,
                 )
-                .child(blocks::icon("chevron-down", 16., t.muted))
-                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                    this.mods.browse.sort_menu = !this.mods.browse.sort_menu;
-                    cx.notify();
-                })),
-        );
+                .child(glass_ui::icon("arrow-down-01", 16., glass_ui::white(0.65)))
+                .on_click(on_toggle),
+            )
+        } else {
+            div().relative().flex_none().child(
+                keyboard(div().id("mods-sort"), &t)
+                    .relative()
+                    .flex()
+                    .items_center()
+                    .gap(px(10.))
+                    .h(px(theme::CONTROL_LARGE))
+                    .px(px(14.))
+                    // The button's bottom lip isn't part of its face: centre the text on the face.
+                    .pb(px(theme::LIP))
+                    .border_2()
+                    .border_color(t.outline)
+                    .bg(t.button)
+                    .children(blocks::edges(t.button_bevel, t.lip, theme::LIP))
+                    .cursor_pointer()
+                    .hover(move |s| s.bg(t.raised))
+                    .child(
+                        div()
+                            .font_family(theme::PIXEL)
+                            .text_size(px(15.))
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(t.ink)
+                            .child(trf("Sort by: {order}", &[("order", tr(name))])),
+                    )
+                    .child(blocks::icon("chevron-down", 16., t.muted))
+                    .on_click(on_toggle),
+            )
+        };
         if self.mods.browse.sort_menu {
-            let mut menu = div()
-                .id("mods-sort-menu")
-                .absolute()
-                .top(px(theme::CONTROL_LARGE + 4.))
-                .left_0()
-                .w(px(220.))
-                .p(px(6.))
-                .border_2()
-                .border_color(t.outline)
-                .bg(t.surface)
-                .flex()
-                .flex_col()
-                .occlude();
+            let mut menu = if glass_mode() {
+                glass_ui::popover(220.)
+                    .id("mods-sort-menu")
+                    .absolute()
+                    .top(px(40.))
+                    .left_0()
+                    .occlude()
+            } else {
+                div()
+                    .id("mods-sort-menu")
+                    .absolute()
+                    .top(px(theme::CONTROL_LARGE + 4.))
+                    .left_0()
+                    .w(px(220.))
+                    .p(px(6.))
+                    .border_2()
+                    .border_color(t.outline)
+                    .bg(t.surface)
+                    .flex()
+                    .flex_col()
+                    .occlude()
+            };
             for &(value, label) in sorts {
                 menu = menu.child(
                     div()
@@ -378,12 +401,24 @@ impl Launcher {
                         .items_center()
                         .justify_between()
                         .gap(px(8.))
-                        .h(px(30.))
-                        .px(px(10.))
-                        .rounded(px(theme::RADIUS))
+                        .h(px(if glass_mode() { 36. } else { 30. }))
+                        .px(px(if glass_mode() { 12. } else { 10. }))
+                        .rounded(px(if glass_mode() { 10. } else { theme::RADIUS }))
                         .cursor_pointer()
-                        .hover(move |s| s.bg(t.plate_soft))
-                        .child(text(theme::LABEL).text_color(t.ink).child(tr(label)))
+                        .hover(move |s| {
+                            s.bg(if glass_mode() {
+                                glass_ui::white(0.07)
+                            } else {
+                                t.plate_soft
+                            })
+                        })
+                        .child(if glass_mode() {
+                            glass_ui::text(14., FontWeight::NORMAL, 1.)
+                                .child(tr(label))
+                                .into_any_element()
+                        } else {
+                            text(theme::LABEL).text_color(t.ink).child(tr(label)).into_any_element()
+                        })
                         .when(
                             value == current
                                 || (current.is_some()
@@ -421,7 +456,13 @@ impl Launcher {
             } else {
                 tr("Filters").to_string()
             },
-            if shown { Kind::Secondary } else { Kind::Ghost },
+            if shown && glass_mode() {
+                Kind::Primary
+            } else if shown {
+                Kind::Secondary
+            } else {
+                Kind::Ghost
+            },
             &t,
         )
         .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -448,7 +489,13 @@ impl Launcher {
             button(
                 id,
                 label,
-                if on { Kind::Secondary } else { Kind::Ghost },
+                if on && glass_mode() {
+                    Kind::Primary
+                } else if on {
+                    Kind::Secondary
+                } else {
+                    Kind::Ghost
+                },
                 &t,
             )
         };
@@ -637,7 +684,7 @@ impl Launcher {
                     .flex_1()
                     .min_w_0()
                     .gap(px(4.))
-                    .child(text(theme::TITLE).text_color(t.ink).child(p.title.clone()))
+                    .child(mode_title().text_color(t.ink).child(p.title.clone()))
                     .child(
                         text(theme::UI)
                             .text_color(t.muted)
@@ -748,7 +795,11 @@ impl Launcher {
             Tab::Description => match &details {
                 None => centered(tr("Loading…"), &t),
                 Some(Err(e)) => notice(e.clone(), &t),
-                Some(Ok(d)) => div().max_w(px(760.)).child(markdown::render(&d.body, &t)),
+                Some(Ok(d)) => div().max_w(px(760.)).child(if glass_mode() {
+                    markdown::render(&d.body, &glass_ink_theme(&t))
+                } else {
+                    markdown::render(&d.body, &t)
+                }),
             },
             Tab::Gallery => match &details {
                 None => centered(tr("Loading…"), &t),

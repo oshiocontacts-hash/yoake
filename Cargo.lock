@@ -1650,11 +1650,15 @@ dependencies = [
  "serde_json",
  "sha1",
  "sha2",
+ "toml",
  "unicode-bidi",
  "ureq",
  "wgpu",
  "winit",
  "winresource",
+ "yoake-inject-macro",
+ "yoake-inject-rt",
+ "yoake-test-runner",
  "yoake-wasm",
  "zip",
 ]
@@ -1733,6 +1737,9 @@ dependencies = [
  "ureq",
  "wgpu",
  "winit",
+ "yoake-inject-macro",
+ "yoake-inject-rt",
+ "yoake-state",
  "zip",
 ]
 
@@ -1781,6 +1788,7 @@ dependencies = [
  "sha2",
  "smallvec",
  "symphonia",
+ "sys-locale",
  "unicode-bidi",
  "ureq",
  "wgpu",
@@ -1804,6 +1812,7 @@ name = "horizon-core"
 version = "0.1.0"
 dependencies = [
  "libm",
+ "yoake-value",
 ]
 
 [[package]]
@@ -1835,6 +1844,10 @@ dependencies = [
  "getrandom 0.3.4",
  "hkdf",
  "if-addrs",
+ "libc",
+ "rcgen",
+ "ring",
+ "rustls",
  "serde",
  "serde_json",
  "sha2",
@@ -1863,6 +1876,8 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
+ "yoake-inject-macro",
+ "yoake-inject-rt",
 ]
 
 [[package]]
@@ -1889,6 +1904,7 @@ dependencies = [
  "serde_json",
  "syn 2.0.119",
  "wit-parser",
+ "yoake-inject-spec",
 ]
 
 [[package]]
@@ -1904,6 +1920,7 @@ dependencies = [
  "libloading",
  "log",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]
@@ -1919,6 +1936,7 @@ version = "0.1.0"
 dependencies = [
  "horizon-release-sign",
  "horizon-shader-api",
+ "libc",
  "log",
  "minisign-verify",
  "semver",
@@ -1928,6 +1946,7 @@ dependencies = [
  "toml",
  "url",
  "wasmparser 0.254.2",
+ "yoake-inject-rt",
  "zip",
 ]
 
@@ -1986,6 +2005,7 @@ dependencies = [
  "flate2",
  "getrandom 0.3.4",
  "horizon-core",
+ "horizon-friends",
  "horizon-world",
  "ipconfig",
  "log",
@@ -2000,6 +2020,9 @@ version = "0.1.0"
 dependencies = [
  "getrandom 0.3.4",
  "horizon-friends",
+ "rcgen",
+ "ring",
+ "rustls",
  "serde_json",
 ]
 
@@ -2121,6 +2144,10 @@ dependencies = [
  "serde_json",
  "sha2",
  "xxhash-rust",
+ "yoake-inject-macro",
+ "yoake-inject-rt",
+ "yoake-state",
+ "yoake-value",
 ]
 
 [[package]]
@@ -4344,6 +4371,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sys-locale"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8eab9a99a024a169fe8a903cf9d4a3b3601109bcc13bd9e3c6fff259138626c4"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "target-lexicon"
 version = "0.13.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6085,6 +6121,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "yoake"
+version = "0.1.0"
+dependencies = [
+ "horizon-mods",
+ "serde_json",
+ "toml",
+ "yoake-wasm",
+]
+
+[[package]]
 name = "yoake-dll-hello"
 version = "0.1.0"
 dependencies = [
@@ -6099,19 +6145,84 @@ dependencies = [
 ]
 
 [[package]]
+name = "yoake-inject-macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+ "yoake-inject-spec",
+]
+
+[[package]]
+name = "yoake-inject-rt"
+version = "0.1.0"
+dependencies = [
+ "yoake-inject-macro",
+ "yoake-value",
+]
+
+[[package]]
+name = "yoake-inject-spec"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "sha2",
+ "syn 2.0.119",
+ "yoake-value",
+]
+
+[[package]]
+name = "yoake-state"
+version = "0.1.0"
+dependencies = [
+ "yoake-state-macro",
+]
+
+[[package]]
+name = "yoake-state-macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "yoake-test-runner"
+version = "0.1.0"
+dependencies = [
+ "horizon-mods",
+ "serde_json",
+ "sha2",
+ "windows-sys 0.61.2",
+ "yoake-wasm",
+]
+
+[[package]]
+name = "yoake-value"
+version = "0.1.0"
+
+[[package]]
 name = "yoake-wasm"
 version = "0.1.0"
 dependencies = [
  "bytes",
  "horizon-client-core",
  "horizon-items",
+ "horizon-mods",
  "horizon-world",
+ "libc",
  "serde_json",
  "tokio",
+ "toml",
  "wasmtime",
  "wasmtime-wasi",
  "wit-component",
  "wit-parser",
+ "yoake-inject-rt",
+ "yoake-value",
  "yoake-wasm",
 ]
 

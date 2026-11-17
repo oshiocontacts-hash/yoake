@@ -75,6 +75,13 @@ jobs:
 
       - name: Build plain game client
         run: cargo build --release --locked -p horizon-client --bin horizon-client
+        # Social features are built into the game from these repository variables (values are
+        # public keys and host names, set in Settings > Variables). Empty: social is disabled.
+        env:
+          YOAKE_SOCIAL_PORTAL_KEY: ${{ vars.YOAKE_SOCIAL_PORTAL_KEY }}
+          YOAKE_SOCIAL_RELAY_CA: ${{ vars.YOAKE_SOCIAL_RELAY_CA }}
+          YOAKE_SOCIAL_RELAY_CA_SHA256: ${{ vars.YOAKE_SOCIAL_RELAY_CA_SHA256 }}
+          YOAKE_SOCIAL_RELAYS: ${{ vars.YOAKE_SOCIAL_RELAYS }}
 
       - name: Stage unsigned binaries and checksums
         shell: pwsh
@@ -82,7 +89,10 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item -LiteralPath 'launcher/target/release/horizon-launcher.exe' -Destination 'dist/YoakeLauncher.exe'
           Copy-Item -LiteralPath 'target/release/horizon-client.exe' -Destination 'dist/yoake.exe'
-          $hashes = foreach ($file in @('YoakeLauncher.exe', 'yoake.exe')) {
+          Copy-Item -LiteralPath 'LICENSE' -Destination 'dist/LICENSE'
+          Copy-Item -LiteralPath 'THIRD_PARTY_NOTICES.md' -Destination 'dist/THIRD_PARTY_NOTICES.md'
+          Copy-Item -LiteralPath 'packaging/windows/README.txt' -Destination 'dist/README.txt'
+          $hashes = foreach ($file in @('YoakeLauncher.exe', 'yoake.exe', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'README.txt')) {
             $hash = (Get-FileHash -LiteralPath (Join-Path 'dist' $file) -Algorithm SHA256).Hash.ToLowerInvariant()
             "$hash  $file"
           }
@@ -186,6 +196,13 @@ jobs:
 
       - name: Build plain game client
         run: cargo build --release --locked -p horizon-client --bin horizon-client
+        # Social features are built into the game from these repository variables (values are
+        # public keys and host names, set in Settings > Variables). Empty: social is disabled.
+        env:
+          YOAKE_SOCIAL_PORTAL_KEY: ${{ vars.YOAKE_SOCIAL_PORTAL_KEY }}
+          YOAKE_SOCIAL_RELAY_CA: ${{ vars.YOAKE_SOCIAL_RELAY_CA }}
+          YOAKE_SOCIAL_RELAY_CA_SHA256: ${{ vars.YOAKE_SOCIAL_RELAY_CA_SHA256 }}
+          YOAKE_SOCIAL_RELAYS: ${{ vars.YOAKE_SOCIAL_RELAYS }}
 
       - name: Generate Store logos
         shell: pwsh
@@ -202,6 +219,8 @@ jobs:
           $stage = Join-Path $env:RUNNER_TEMP 'yoake-msix-staging'
           Copy-Item -LiteralPath 'launcher/target/release/horizon-launcher.exe' -Destination (Join-Path $stage 'YoakeLauncher.exe')
           Copy-Item -LiteralPath 'target/release/horizon-client.exe' -Destination (Join-Path $stage 'yoake.exe')
+          Copy-Item -LiteralPath 'LICENSE' -Destination (Join-Path $stage 'LICENSE')
+          Copy-Item -LiteralPath 'THIRD_PARTY_NOTICES.md' -Destination (Join-Path $stage 'THIRD_PARTY_NOTICES.md')
           $manifest = Get-Content -LiteralPath 'packaging/msix/AppxManifest.xml.in' -Raw
           $manifest = $manifest.Replace('@IDENTITY_NAME@', [Security.SecurityElement]::Escape($env:YOAKE_MSIX_IDENTITY_NAME))
           $manifest = $manifest.Replace('@PUBLISHER@', [Security.SecurityElement]::Escape($env:YOAKE_MSIX_PUBLISHER))

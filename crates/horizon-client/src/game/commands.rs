@@ -1046,7 +1046,11 @@ impl Game<'_> {
     }
     // ---- dispatch -------------------------------------------------------
 
+    #[yoake_inject_macro::yoake_inject(id = "game::commands::execute_command", side = "both")]
     fn execute_command(&mut self, id: &str, ctx: &Context) -> R<i32> {
+        if yoake_inject_rt::guest_command_leaf_gate(id).is_err() {
+            return Err(err("command.failed", &[]));
+        }
         match id {
             "help" => self.cmd_help(ctx),
             "gamemode" => self.cmd_gamemode(ctx),
@@ -2107,6 +2111,10 @@ impl Game<'_> {
         // An entity in another level is killed in the level that holds it.
         let _ = self.in_target_level(t, |g| g.kill_target_in_level(t));
     }
+    #[yoake_inject_macro::yoake_inject(
+        id = "game::commands::kill_target_in_level",
+        side = "server"
+    )]
     fn kill_target_in_level(&mut self, t: Target) {
         match t {
             Target::Guest(_) => {
@@ -2583,6 +2591,7 @@ impl Game<'_> {
     /// container: a roll the container still holds fires
     /// `player_generates_container_loot` for its table, and from then on the
     /// container saves its items, not the table.
+    #[yoake_inject_macro::yoake_inject(id = "game::commands::unpack_opened_loot", side = "server")]
     pub(super) fn unpack_opened_loot(&mut self, key: (i32, i32, i32), name: &str) {
         let Some(rolled) = self
             .world
@@ -3062,6 +3071,7 @@ impl Game<'_> {
     }
     /// ExperienceCommand's add and set on the player in place: false when
     /// the points to set do not fit the level.
+    #[yoake_inject_macro::yoake_inject(id = "game::commands::change_experience", side = "server")]
     fn change_experience(&mut self, add: bool, levels: bool, amount: i32) -> bool {
         let old_level = self.experience.level;
         if add {
@@ -3788,11 +3798,14 @@ impl Game<'_> {
             Some(None) => Text::literal("Server"),
             None => self.player_display_name(),
         };
+        let (plain_name, plain_message) = (name.plain(), message.plain());
+        // The guests a `/msg` names (connections), for a message from the server itself.
+        let mut whisper_to: Vec<u32> = Vec::new();
         let line = match id {
             "say" => Text::translate("chat.type.announcement", &[name, message]),
             "me" => Text::translate("chat.type.emote", &[name, message]),
             _ => {
-                let _ = self.entities(ctx, "targets", true)?;
+                whisper_to = guest_connections(&self.entities(ctx, "targets", true)?);
                 // Whispering to yourself: the incoming and outgoing lines.
                 let out = Text::translate(
                     "commands.message.display.outgoing",
@@ -3811,6 +3824,17 @@ impl Game<'_> {
         };
         if let Some(capture) = self.chat_capture.as_mut() {
             capture.push(line.clone());
+        }
+        // SayCommand from the server itself (the console, a native mod's command, the test driver) reaches every
+        // player of a published world, as the dedicated console's `say` does (`Hub::say`); it used to reach
+        // only the server's own chat, where no one reads it.
+        if let Some(host) = &self.lan {
+            match server_announcement(id, self.command_source.map(|s| s.entity)) {
+                Some(Announcement::Say) => host.hub.say(&plain_name, &plain_message),
+                Some(Announcement::Emote) => host.hub.emote(&plain_name, &plain_message),
+                Some(Announcement::Whisper) => host.hub.whisper_from_server(&whisper_to, &plain_name, &plain_message),
+                None => {}
+            }
         }
         let focused = self.screen == Screen::Chat;
         self.ui.chat.add(
@@ -4000,5 +4024,63 @@ mod percent_f_tests {
         assert_eq!(percent_f(0.1234565, 6), "0.123457");
         assert_eq!(percent_f(-1.005, 2), "-1.01");
         assert_eq!(percent_f(3.0, 2), "3.00");
+    }
+}
+
+/// How a message command of the server itself reaches the players of a published world.
+#[derive(Debug, PartialEq)]
+enum Announcement {
+    /// `/say`: to everyone, `chat.type.announcement`.
+    Say,
+    /// `/me`: to everyone, `chat.type.emote`.
+    Emote,
+    /// `/msg`, `/tell`, `/w`: the incoming line to the players it names.
+    Whisper,
+}
+
+/// What a message command is to the players of a published world: only when its source is the server itself
+/// (no entity). A player's own command goes out through its connection (`guest_message_command`).
+fn server_announcement<T>(id: &str, source_entity: Option<Option<T>>) -> Option<Announcement> {
+    if !matches!(source_entity, Some(None)) {
+        return None;
+    }
+    match id {
+        "say" => Some(Announcement::Say),
+        "me" => Some(Announcement::Emote),
+        "msg" => Some(Announcement::Whisper),
+        _ => None,
+    }
+}
+
+/// The connections of the guests among `targets` (the host's own player and mobs have none).
+fn guest_connections(targets: &[Target]) -> Vec<u32> {
+    targets
+        .iter()
+        .filter_map(|target| match target {
+            Target::Guest(conn) => Some(*conn),
+            _ => None,
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod say_tests {
+    use super::{Announcement, Target, guest_connections, server_announcement};
+
+    #[test]
+    fn only_the_servers_own_message_commands_go_to_the_players() {
+        assert_eq!(server_announcement::<u8>("say", Some(None)), Some(Announcement::Say));
+        assert_eq!(server_announcement::<u8>("me", Some(None)), Some(Announcement::Emote));
+        assert_eq!(server_announcement::<u8>("msg", Some(None)), Some(Announcement::Whisper));
+        assert_eq!(server_announcement("say", Some(Some(1u8))), None, "an entity's command is its own connection's");
+        assert_eq!(server_announcement::<u8>("me", None), None, "the window's player speaks for itself");
+        assert_eq!(server_announcement::<u8>("tell", Some(None)), None, "only the parsed id counts: msg");
+    }
+
+    #[test]
+    fn a_whisper_names_the_guests_among_its_targets() {
+        let targets = [Target::Guest(7), Target::Player, Target::Mob(3), Target::Guest(9)];
+        assert_eq!(guest_connections(&targets), [7, 9]);
+        assert!(guest_connections(&[Target::Player]).is_empty());
     }
 }

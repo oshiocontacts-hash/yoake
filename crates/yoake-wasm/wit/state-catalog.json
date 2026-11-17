@@ -1,0 +1,130 @@
+{
+  "schema": 1,
+  "types": [
+    {
+      "type": "horizon_world::food::FoodData",
+      "fields": [
+        { "name": "food", "type": "i32", "writable": false },
+        { "name": "saturation", "type": "f32", "writable": false },
+        { "name": "exhaustion", "type": "f32", "writable": false },
+        { "name": "timer", "type": "i32", "writable": false }
+      ]
+    },
+    {
+      "type": "horizon_world::level::GameRules",
+      "fields": [
+        { "name": "water_source_conversion", "type": "bool", "writable": false },
+        { "name": "lava_source_conversion", "type": "bool", "writable": false },
+        { "name": "random_tick_speed", "type": "i32", "writable": false },
+        { "name": "block_drops", "type": "bool", "writable": false },
+        { "name": "mob_griefing", "type": "bool", "writable": false },
+        { "name": "max_snow_accumulation_height", "type": "i32", "writable": false },
+        { "name": "spawn_mobs", "type": "bool", "writable": false },
+        { "name": "spawn_monsters", "type": "bool", "writable": false },
+        { "name": "fire_spread_radius_around_player", "type": "i32", "writable": false },
+        { "name": "spread_vines", "type": "bool", "writable": false }
+      ]
+    },
+    {
+      "type": "horizon_world::level::portal_travel::BorderBounds",
+      "fields": [
+        { "name": "min_x", "type": "f64", "writable": false },
+        { "name": "min_z", "type": "f64", "writable": false },
+        { "name": "max_x", "type": "f64", "writable": false },
+        { "name": "max_z", "type": "f64", "writable": false }
+      ]
+    },
+    {
+      "type": "horizon_world::level::pistons::MovingPiston",
+      "fields": [
+        { "name": "extending", "type": "bool", "writable": false },
+        { "name": "source", "type": "bool", "writable": false },
+        { "name": "progress", "type": "f32", "writable": false },
+        { "name": "progress_o", "type": "f32", "writable": false },
+        { "name": "death_ticks", "type": "i32", "writable": false }
+      ]
+    },
+    {
+      "type": "horizon_world::level::sculk::ChargeCursor",
+      "fields": [
+        { "name": "charge", "type": "i32", "writable": false },
+        { "name": "update_delay", "type": "i32", "writable": false },
+        { "name": "decay_delay", "type": "i32", "writable": false }
+      ]
+    },
+    {
+      "type": "horizon_world::status_effect::Details",
+      "fields": [
+        { "name": "duration", "type": "i32", "writable": false },
+        { "name": "amplifier", "type": "i32", "writable": false },
+        { "name": "ambient", "type": "bool", "writable": false },
+        { "name": "visible", "type": "bool", "writable": false },
+        { "name": "show_icon", "type": "bool", "writable": false }
+      ]
+    },
+    {
+      "type": "horizon_client_lib::entities::Experience",
+      "fields": [
+        { "name": "level", "type": "i32", "writable": false },
+        { "name": "progress", "type": "f32", "writable": false },
+        { "name": "total", "type": "i32", "writable": false }
+      ]
+    },
+    {
+      "type": "horizon_client_lib::motion::PlayerMotion",
+      "fields": [
+        { "name": "swimming", "type": "bool", "writable": false },
+        { "name": "is_passenger", "type": "bool", "writable": false },
+        { "name": "fire_ticks", "type": "i32", "writable": false },
+        { "name": "air", "type": "i32", "writable": false },
+        { "name": "respiration", "type": "i32", "writable": false },
+        { "name": "fall_distance", "type": "f64", "writable": false },
+        { "name": "yaw", "type": "f32", "writable": false },
+        { "name": "head_yaw", "type": "f32", "writable": false },
+        { "name": "jumping", "type": "bool", "writable": false },
+        { "name": "no_jump_delay", "type": "i32", "writable": false },
+        { "name": "jump_trigger_time", "type": "i32", "writable": false },
+        { "name": "may_fly", "type": "bool", "writable": false },
+        { "name": "mobility_restricted", "type": "bool", "writable": false },
+        { "name": "invulnerable", "type": "bool", "writable": false },
+        { "name": "spectator", "type": "bool", "writable": false },
+        { "name": "flying", "type": "bool", "writable": false },
+        { "name": "flying_speed", "type": "f32", "writable": false },
+        { "name": "glider", "type": "bool", "writable": false },
+        { "name": "pitch", "type": "f32", "writable": false },
+        { "name": "fall_flying", "type": "bool", "writable": false },
+        { "name": "sleeping", "type": "bool", "writable": false },
+        { "name": "fall_fly_ticks", "type": "i32", "writable": false },
+        { "name": "sprinting", "type": "bool", "writable": false },
+        { "name": "shift_key_down", "type": "bool", "writable": false },
+        { "name": "scale", "type": "f32", "writable": false },
+        { "name": "speed", "type": "f32", "writable": false }
+      ]
+    },
+    {
+      "type": "horizon_client_lib::mobs::Mob",
+      "fields": [
+        { "name": "health", "type": "f32", "writable": false },
+        { "name": "no_gravity", "type": "bool", "writable": false },
+        { "name": "no_ai", "type": "bool", "writable": false },
+        { "name": "silent", "type": "bool", "writable": false },
+        { "name": "invulnerable_flag", "type": "bool", "writable": false },
+        { "name": "fire_ticks", "type": "i32", "writable": false },
+        { "name": "ticks_frozen", "type": "i32", "writable": false },
+        { "name": "glowing", "type": "bool", "writable": false },
+        { "name": "air", "type": "i32", "writable": false },
+        { "name": "absorption", "type": "f32", "writable": false },
+        { "name": "removed", "type": "bool", "writable": false }
+      ]
+    },
+    {
+      "type": "horizon_client_lib::health::PlayerHealth",
+      "fields": [
+        { "name": "dead", "type": "bool", "writable": false },
+        { "name": "tick_count", "type": "i32", "writable": false },
+        { "name": "totem_ready", "type": "bool", "writable": false },
+        { "name": "totem_used", "type": "bool", "writable": false }
+      ]
+    }
+  ]
+}

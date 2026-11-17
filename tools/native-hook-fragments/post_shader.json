@@ -1,0 +1,13 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "register_post_shader", "target": "horizon_client::game::native_post_shader::Game<'_>::native_register_post_shader"},
+    {"name": "set_post_shader_uniforms", "target": "horizon_client::game::native_post_shader::Game<'_>::native_set_post_shader_uniforms"},
+    {"name": "enable_post_shader", "target": "horizon_client::game::native_post_shader::Game<'_>::native_enable_post_shader"},
+    {"name": "unregister_post_shader", "target": "horizon_client::game::native_post_shader::Game<'_>::native_unregister_post_shader"},
+    {"name": "post_shader_state", "target": "horizon_client::game::native_post_shader::Game<'_>::native_post_shader_state"}
+  ],
+  "rust_summary": "registering validated, bounded fullscreen WGSL post shaders.",
+  "doc_summary": "`register_post_shader(id, wgsl, NativePostUniformLayout { size })` validates WGSL with naga and isolated wgpu error scopes. IDs belong to the calling mod: at most 4 shaders per mod, 64 KiB WGSL each, and 8 failed registrations per mod per minute before throttling. Supply one fragment entry `fs_main` with location 0 UV and location 0 vec4 output; the host supplies the vertex stage. Group 0 bindings: 0 float 2D world texture, 1 non-filtering sampler, optional 2 uniform buffer of the exact declared size (0 or a multiple of 16, at most 4096 bytes). No storage or loops; at most 64 functions and 4096 expressions per function. Each type (including arrays, arguments, returns and constants), total private memory and each function's local memory are limited to 16384 bytes. Invocation cost includes every call occurrence, including both branches: at most 8192 expression-equivalents, 64 image fetches and call depth 16 including the entry point. Shaders begin disabled; `set_post_shader_uniforms(id, bytes)` requires the exact size and allows at most 16 calls per mod per client frame. `enable_post_shader` toggles a healthy pass; `post_shader_state(id)` returns enabled state or a sticky failure. Failures disable and log the shader once. `unregister_post_shader(id)` frees its slot, including after failure. Sources, layouts, enabled states and last uniforms survive resource reload and device recovery. Passes run in ID order after world drawing, before pack post-processing and HUD; invalid passes are discarded before submission. Empty or disabled registrations add no targets or passes. Bundles need @API:post_shader@.",
+  "comments": ["crates/horizon-client/src/game/native_post_shader.rs"]
+}

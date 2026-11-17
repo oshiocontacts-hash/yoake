@@ -9,7 +9,9 @@ fn component(wit: &str) -> Vec<u8> {
 fn component_with(wit: &str, edit: impl FnOnce(Vec<u8>) -> Vec<u8>) -> Vec<u8> {
     let mut resolve = Resolve::default();
     let package = resolve.push_str("test.wit", wit).unwrap();
-    let world = resolve.select_world(&[package], Some("client-mod")).unwrap();
+    let world = resolve
+        .select_world(&[package], Some("client-mod"))
+        .unwrap();
     let mut module = edit(wit_component::dummy_module(
         &resolve,
         world,
@@ -122,7 +124,11 @@ fn replace_tick_body(module: Vec<u8>, body: &[u8]) -> Vec<u8> {
         let length = read_leb(&module, &mut position);
         let original = &module[position..position + length];
         position += length;
-        let selected = if index == function_index { body } else { original };
+        let selected = if index == function_index {
+            body
+        } else {
+            original
+        };
         write_leb(selected.len(), &mut output);
         output.extend_from_slice(selected);
     }
@@ -163,6 +169,28 @@ fn wrong_imported_interface_major_is_rejected() {
 }
 
 #[test]
+fn client_config_minor_is_rejected_without_allowing_other_new_imports() {
+    for (interface, version) in [
+        ("config", "1.2.0"),
+        ("host", "1.2.0"),
+        ("config", "1.1.0"),
+        ("config", "1.3.0"),
+    ] {
+        let bytes = component(&format!(
+            "package yoake:mods@{version}; interface {interface} {{ use-it: func(); }} world client-mod {{ import {interface}; }}",
+        ));
+        let error = match Sandbox::new().compile(&bytes) {
+            Ok(_) => panic!("unsupported import was accepted"),
+            Err(error) => error,
+        };
+        assert!(
+            error.contains("unsupported component interface version"),
+            "{error}"
+        );
+    }
+}
+
+#[test]
 fn oversized_initial_memory_is_rejected() {
     let bytes = component_with(
         "package yoake:mods@1.0.0; world client-mod { export tick: func(value: list<u8>); }",
@@ -180,12 +208,17 @@ fn infinite_loop_is_stopped_and_disabled() {
     );
     let compiled = Sandbox::new().compile(&bytes).unwrap();
     let mut guest = compiled.instantiate("loop", (), |_| Ok(())).unwrap();
-    assert!(guest.call("tick", |store, instance| {
-        let tick = instance
-            .get_typed_func::<(), ()>(&mut *store, "tick")
-            .map_err(|error| error.to_string())?;
-        tick.call(&mut *store, ()).map_err(|error| error.to_string())
-    }).is_none());
+    assert!(
+        guest
+            .call("tick", |store, instance| {
+                let tick = instance
+                    .get_typed_func::<(), ()>(&mut *store, "tick")
+                    .map_err(|error| error.to_string())?;
+                tick.call(&mut *store, ())
+                    .map_err(|error| error.to_string())
+            })
+            .is_none()
+    );
     assert!(guest.is_disabled());
 }
 
@@ -197,13 +230,19 @@ fn successful_guest_call_keeps_the_instance_enabled() {
     );
     let compiled = Sandbox::new().compile(&bytes).unwrap();
     let mut guest = compiled.instantiate("success", (), |_| Ok(())).unwrap();
-    assert!(guest.call("tick", |store, instance| {
-        let tick = instance
-            .get_typed_func::<(), ()>(&mut *store, "tick")
-            .map_err(|error| error.to_string())?;
-        tick.call(&mut *store, ()).map_err(|error| error.to_string())?;
-        tick.post_return(&mut *store).map_err(|error| error.to_string())
-    }).is_some());
+    assert!(
+        guest
+            .call("tick", |store, instance| {
+                let tick = instance
+                    .get_typed_func::<(), ()>(&mut *store, "tick")
+                    .map_err(|error| error.to_string())?;
+                tick.call(&mut *store, ())
+                    .map_err(|error| error.to_string())?;
+                tick.post_return(&mut *store)
+                    .map_err(|error| error.to_string())
+            })
+            .is_some()
+    );
     assert!(!guest.is_disabled());
 }
 
@@ -288,9 +327,13 @@ fn with_tables(module: Vec<u8>, tables: usize) -> Vec<u8> {
 
 fn run_tick(guest: &mut yoake_wasm::ModInstance<()>) -> Option<()> {
     guest.call("tick", |store, instance| {
-        let tick = instance.get_typed_func::<(), ()>(&mut *store, "tick").map_err(|error| error.to_string())?;
-        tick.call(&mut *store, ()).map_err(|error| error.to_string())?;
-        tick.post_return(&mut *store).map_err(|error| error.to_string())
+        let tick = instance
+            .get_typed_func::<(), ()>(&mut *store, "tick")
+            .map_err(|error| error.to_string())?;
+        tick.call(&mut *store, ())
+            .map_err(|error| error.to_string())?;
+        tick.post_return(&mut *store)
+            .map_err(|error| error.to_string())
     })
 }
 
@@ -307,33 +350,63 @@ fn grow_body(by: i64, trap_on_success: bool) -> Vec<u8> {
 }
 
 fn table_guest(tables: usize, body: Vec<u8>) -> Vec<u8> {
-    component_with(TICK_WIT, |module| replace_tick_body(with_tables(module, tables), &body))
+    component_with(TICK_WIT, |module| {
+        replace_tick_body(with_tables(module, tables), &body)
+    })
 }
 
 #[test]
 fn a_table_cannot_grow_past_the_element_limit() {
     // Within the limit the growth works (this guest traps if it was refused: `eq -1`).
     let bytes = table_guest(1, grow_body(100, false));
-    let mut guest = Sandbox::new().compile(&bytes).unwrap().instantiate("table-ok", (), |_| Ok(())).unwrap();
+    let mut guest = Sandbox::new()
+        .compile(&bytes)
+        .unwrap()
+        .instantiate("table-ok", (), |_| Ok(()))
+        .unwrap();
     assert_eq!(run_tick(&mut guest), Some(()));
     // Past it the limiter refuses (this guest traps if it was granted: `ne -1`).
     let over = yoake_wasm::TABLE_ELEMENT_LIMIT as i64 + 1;
     let bytes = table_guest(1, grow_body(over, true));
-    let mut guest = Sandbox::new().compile(&bytes).unwrap().instantiate("table-over", (), |_| Ok(())).unwrap();
-    assert_eq!(run_tick(&mut guest), Some(()), "table.grow past the limit must fail, not succeed");
+    let mut guest = Sandbox::new()
+        .compile(&bytes)
+        .unwrap()
+        .instantiate("table-over", (), |_| Ok(()))
+        .unwrap();
+    assert_eq!(
+        run_tick(&mut guest),
+        Some(()),
+        "table.grow past the limit must fail, not succeed"
+    );
     // Control: the same guest asking for a small growth is granted, so it traps, which shows the
     // check above can fail.
     let bytes = table_guest(1, grow_body(100, true));
-    let mut guest = Sandbox::new().compile(&bytes).unwrap().instantiate("table-control", (), |_| Ok(())).unwrap();
+    let mut guest = Sandbox::new()
+        .compile(&bytes)
+        .unwrap()
+        .instantiate("table-control", (), |_| Ok(()))
+        .unwrap();
     assert_eq!(run_tick(&mut guest), None);
 }
 
 #[test]
 fn too_many_tables_are_refused_at_instantiation() {
     let bytes = table_guest(yoake_wasm::TABLE_LIMIT + 1, vec![0, 0x0b]);
-    assert!(Sandbox::new().compile(&bytes).unwrap().instantiate("many-tables", (), |_| Ok(())).is_err());
+    assert!(
+        Sandbox::new()
+            .compile(&bytes)
+            .unwrap()
+            .instantiate("many-tables", (), |_| Ok(()))
+            .is_err()
+    );
     let bytes = table_guest(yoake_wasm::TABLE_LIMIT, vec![0, 0x0b]);
-    assert!(Sandbox::new().compile(&bytes).unwrap().instantiate("some-tables", (), |_| Ok(())).is_ok());
+    assert!(
+        Sandbox::new()
+            .compile(&bytes)
+            .unwrap()
+            .instantiate("some-tables", (), |_| Ok(()))
+            .is_ok()
+    );
 }
 
 #[test]
@@ -344,23 +417,35 @@ fn an_initial_table_over_the_limit_is_refused() {
         write_leb(yoake_wasm::TABLE_ELEMENT_LIMIT + 1, &mut content);
         replace_section(&module, 4, &content)
     });
-    assert!(Sandbox::new().compile(&bytes).unwrap().instantiate("big-table", (), |_| Ok(())).is_err());
+    assert!(
+        Sandbox::new()
+            .compile(&bytes)
+            .unwrap()
+            .instantiate("big-table", (), |_| Ok(()))
+            .is_err()
+    );
 }
 
 /// A tick that counts `iterations` down (a bounded busy loop).
 fn spin_body(iterations: i64) -> Vec<u8> {
     let mut body = vec![0x01, 0x01, 0x7f, 0x41];
     body.extend(sleb(iterations));
-    body.extend_from_slice(&[0x21, 0x00, 0x03, 0x40, 0x20, 0x00, 0x41, 0x01, 0x6b, 0x22, 0x00, 0x0d, 0x00, 0x0b, 0x0b]);
+    body.extend_from_slice(&[
+        0x21, 0x00, 0x03, 0x40, 0x20, 0x00, 0x41, 0x01, 0x6b, 0x22, 0x00, 0x0d, 0x00, 0x0b, 0x0b,
+    ]);
     body
 }
 
 fn spin_guest(iterations: i64) -> Vec<u8> {
-    component_with(TICK_WIT, |module| replace_tick_body(module, &spin_body(iterations)))
+    component_with(TICK_WIT, |module| {
+        replace_tick_body(module, &spin_body(iterations))
+    })
 }
 
 fn endless_guest() -> Vec<u8> {
-    component_with(TICK_WIT, |module| replace_tick_body(module, &[0, 0x03, 0x40, 0x0c, 0, 0x0b, 0x0b]))
+    component_with(TICK_WIT, |module| {
+        replace_tick_body(module, &[0, 0x03, 0x40, 0x0c, 0, 0x0b, 0x0b])
+    })
 }
 
 #[test]
@@ -369,7 +454,11 @@ fn an_endless_loop_is_stopped_within_the_budget_not_a_scheduler_tick_later() {
     let mut sandbox = Sandbox::new();
     let mut best = std::time::Duration::MAX;
     for _ in 0..8 {
-        let mut guest = sandbox.compile(&bytes).unwrap().instantiate("loop", (), |_| Ok(())).unwrap();
+        let mut guest = sandbox
+            .compile(&bytes)
+            .unwrap()
+            .instantiate("loop", (), |_| Ok(()))
+            .unwrap();
         guest.set_fuel_per_call(u64::MAX / 2);
         guest.set_limits(yoake_wasm::TimeLimits {
             call: std::time::Duration::from_millis(7),
@@ -390,26 +479,40 @@ fn an_endless_loop_is_stopped_within_the_budget_not_a_scheduler_tick_later() {
 #[test]
 fn the_default_limits_are_the_client_limits() {
     let bytes = endless_guest();
-    let mut guest = Sandbox::new().compile(&bytes).unwrap().instantiate("client-loop", (), |_| Ok(())).unwrap();
+    let mut guest = Sandbox::new()
+        .compile(&bytes)
+        .unwrap()
+        .instantiate("client-loop", (), |_| Ok(()))
+        .unwrap();
     guest.set_fuel_per_call(u64::MAX / 2);
     let started = std::time::Instant::now();
     assert_eq!(run_tick(&mut guest), None);
     let elapsed = started.elapsed();
     assert!(elapsed >= yoake_wasm::CLIENT_HOOK_BUDGET, "{elapsed:?}");
-    assert!(elapsed < yoake_wasm::CLIENT_HOOK_BUDGET + std::time::Duration::from_millis(30), "{elapsed:?}");
+    assert!(
+        elapsed < yoake_wasm::CLIENT_HOOK_BUDGET + std::time::Duration::from_millis(30),
+        "{elapsed:?}"
+    );
 }
 
 #[test]
 fn a_server_module_gets_the_server_hook_budget() {
     let bytes = endless_guest();
-    let mut guest = Sandbox::new().compile(&bytes).unwrap().instantiate("server-loop", (), |_| Ok(())).unwrap();
+    let mut guest = Sandbox::new()
+        .compile(&bytes)
+        .unwrap()
+        .instantiate("server-loop", (), |_| Ok(()))
+        .unwrap();
     guest.set_fuel_per_call(u64::MAX / 2);
     guest.set_limits(yoake_wasm::TimeLimits::SERVER);
     let started = std::time::Instant::now();
     assert_eq!(run_tick(&mut guest), None);
     let elapsed = started.elapsed();
     assert!(elapsed >= yoake_wasm::SERVER_HOOK_BUDGET, "{elapsed:?}");
-    assert!(elapsed < yoake_wasm::SERVER_HOOK_BUDGET + std::time::Duration::from_millis(30), "{elapsed:?}");
+    assert!(
+        elapsed < yoake_wasm::SERVER_HOOK_BUDGET + std::time::Duration::from_millis(30),
+        "{elapsed:?}"
+    );
 }
 
 #[test]
@@ -418,7 +521,11 @@ fn a_mod_that_uses_its_aggregate_budget_is_skipped_until_the_window_ends() {
     // Calibrate a busy loop of about half a millisecond.
     let mut iterations = 20_000i64;
     for _ in 0..6 {
-        let mut guest = sandbox.compile(&spin_guest(iterations)).unwrap().instantiate("calibrate", (), |_| Ok(())).unwrap();
+        let mut guest = sandbox
+            .compile(&spin_guest(iterations))
+            .unwrap()
+            .instantiate("calibrate", (), |_| Ok(()))
+            .unwrap();
         let started = std::time::Instant::now();
         assert_eq!(run_tick(&mut guest), Some(()));
         let took = started.elapsed().as_secs_f64();
@@ -426,7 +533,11 @@ fn a_mod_that_uses_its_aggregate_budget_is_skipped_until_the_window_ends() {
             iterations = ((iterations as f64) * 0.0005 / took).clamp(1_000.0, 1_000_000.0) as i64;
         }
     }
-    let mut guest = sandbox.compile(&spin_guest(iterations)).unwrap().instantiate("budget", (), |_| Ok(())).unwrap();
+    let mut guest = sandbox
+        .compile(&spin_guest(iterations))
+        .unwrap()
+        .instantiate("budget", (), |_| Ok(()))
+        .unwrap();
     guest.set_limits(yoake_wasm::TimeLimits {
         call: std::time::Duration::from_millis(50),
         aggregate: std::time::Duration::from_millis(5),
@@ -449,9 +560,17 @@ fn a_mod_that_uses_its_aggregate_budget_is_skipped_until_the_window_ends() {
 fn fuel_stops_a_busy_guest_before_the_clock_does() {
     // The default fuel (10 million instructions) bounds a call's CPU time well inside the limits.
     let bytes = endless_guest();
-    let mut guest = Sandbox::new().compile(&bytes).unwrap().instantiate("fuel", (), |_| Ok(())).unwrap();
+    let mut guest = Sandbox::new()
+        .compile(&bytes)
+        .unwrap()
+        .instantiate("fuel", (), |_| Ok(()))
+        .unwrap();
     let started = std::time::Instant::now();
     assert_eq!(run_tick(&mut guest), None);
-    assert!(started.elapsed() < yoake_wasm::CLIENT_HOOK_BUDGET + std::time::Duration::from_millis(5), "{:?}", started.elapsed());
+    assert!(
+        started.elapsed() < yoake_wasm::CLIENT_HOOK_BUDGET + std::time::Duration::from_millis(5),
+        "{:?}",
+        started.elapsed()
+    );
     assert!(guest.is_disabled());
 }

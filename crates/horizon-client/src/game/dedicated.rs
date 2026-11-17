@@ -918,7 +918,7 @@ impl Game<'_> {
         self.streaming.radius = -1;
         self.settle_spawn()?;
         let gate_lists = lists.clone();
-        let gate: LoginGate = Arc::new(move |address, uuid, name| {
+        let gate: LoginGate = Arc::new(move |address, uuid, name, _| {
             // `ServerActivityMonitor.reportLoginActivity`: a login attempt, however it ends. The management
             // protocol's `server/activity` notification is rate limited from these.
             events::record_server("login_activity", serde_json::json!({}));

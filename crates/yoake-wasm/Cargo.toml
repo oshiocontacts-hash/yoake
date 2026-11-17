@@ -9,13 +9,20 @@ publish = false
 [dependencies]
 horizon-client-core = { path = "../horizon-client-core" }
 horizon-items = { path = "../horizon-items" }
+horizon-mods = { path = "../horizon-mods", features = ["yak"] }
 horizon-world = { path = "../horizon-world" }
 serde_json = "1.0.151"
+toml = "1.1.6"
+yoake-inject-rt = { path = "../yoake-inject-rt" }
+yoake-value = { path = "../yoake-value" }
 wasmtime = { version = "=48.0.7", default-features = false, features = ["runtime", "cranelift", "component-model", "std"] }
 
 wasmtime-wasi = { version = "=48.0.7", default-features = false, features = ["p2"] }
 bytes = { version = "1", default-features = false }
 tokio = { version = "1", default-features = false }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [features]
 # Test support: finds and builds the example guests (`test_guests`).

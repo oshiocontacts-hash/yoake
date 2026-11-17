@@ -30,6 +30,7 @@ const SNAPSHOT_BUDGET: Duration = Duration::from_millis(2);
 
 impl Game<'_> {
     pub(super) fn begin_closing_save(&mut self, quit: bool) -> Result<()> {
+        self.social_relay.end();
         #[cfg(feature = "dev-capture")]
         let _ = self.capture_cancel();
         if let Some(save) = &mut self.pending_save {
@@ -64,6 +65,7 @@ impl Game<'_> {
                 return self.leave_server(None);
             }
             if let Some(mut remote) = self.remote.take() {
+                self.clear_config_sync();
                 remote.session.disconnect();
             }
             self.saved_for_exit = true;

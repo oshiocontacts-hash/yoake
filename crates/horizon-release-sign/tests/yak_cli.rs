@@ -1,6 +1,6 @@
 #![cfg(feature = "yak")]
 
-use horizon_release_sign::{SigningKey, YOAKE_MODS_V1, verify_bytes, yak};
+use horizon_release_sign::{SigningKey, YOAKE_BUILTIN_V1, YOAKE_MODS_V1, verify_bytes, yak};
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -70,4 +70,24 @@ fn catalog_cli_signs_exact_json_and_refuses_sidecar_overwrite() {
     assert!(!tool(&args, &path).status.success());
     fs::write(&path, b"{}").unwrap();
     assert!(!tool(&["verify", "--tag", "yoake-mods-v1", "--key", &key.public_base64()], &path).status.success());
+}
+
+#[test]
+fn builtin_catalog_domain_is_separate_from_the_yak_catalog_domain() {
+    let temp = Temp::new();
+    let path = temp.0.join("index.json");
+    let bytes = b"{\"schema\":\"1.0\",\"kind\":\"yoake-builtin-catalog\"}\n";
+    fs::write(&path, bytes).unwrap();
+    let (key, secret) = SigningKey::generate().unwrap();
+    let key_path = temp.0.join("test-key.pk8");
+    fs::write(&key_path, secret).unwrap();
+    let args = ["sign", "--tag", "yoake-builtin-v1", "--key-file", key_path.to_str().unwrap()];
+    assert!(tool(&args, &path).status.success());
+    let signature = fs::read_to_string(temp.0.join("index.json.sig")).unwrap();
+    verify_bytes(YOAKE_BUILTIN_V1, bytes, &signature, &[key.public()]).unwrap();
+    assert!(verify_bytes(YOAKE_MODS_V1, bytes, &signature, &[key.public()]).is_err());
+    let public = key.public_base64();
+    assert!(tool(&["verify", "--tag", "yoake-builtin-v1", "--key", &public], &path).status.success());
+    // the same file and signature do not verify as a .yak catalog
+    assert!(!tool(&["verify", "--tag", "yoake-mods-v1", "--key", &public], &path).status.success());
 }

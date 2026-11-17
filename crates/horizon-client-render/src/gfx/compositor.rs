@@ -10,6 +10,7 @@ pub struct Compositor {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: wgpu::Queue,
+    submission_timeline: Option<super::mod_gpu_resources::SubmissionTimeline>,
     config: wgpu::SurfaceConfiguration,
     present_modes: Vec<wgpu::PresentMode>,
     suspended: bool,
@@ -94,6 +95,7 @@ impl Compositor {
             surface,
             device: device.clone(),
             queue: queue.clone(),
+            submission_timeline: super::mod_gpu_runtime::submission_timeline(queue),
             config,
             present_modes: caps.present_modes,
             suspended: !super::drawable_size(size[0], size[1], max),
@@ -180,7 +182,11 @@ impl Compositor {
                 },
             );
         }
-        self.queue.submit([encoder.finish()]);
+        if let Some(timeline) = &self.submission_timeline {
+            timeline.submit_engine(&self.queue, [encoder.finish()]);
+        } else {
+            self.queue.submit([encoder.finish()]);
+        }
         self.queue.present(frame);
         true
     }

@@ -6,6 +6,7 @@
 //! draw lists (`ShadowView`) serve both; the map's texels are distorted toward the camera as the
 //! prelude's `shadow_position` undoes.
 
+use glam::{DVec3, Mat4, Vec3};
 use horizon_shader_api::{Frame as FrameInputs, manifest::Shadow as Settings, stages::GROUP};
 use horizon_shaders::Shadow;
 
@@ -13,6 +14,80 @@ use super::native_material::TerrainShape;
 use super::wgsl_prefix::{TERRAIN, prefixed, section};
 
 const PREFIX: &str = "horizon_terrain_";
+
+pub(super) fn dynamic_entities(vertices: &[crate::mesher::Vertex]) -> bool {
+    vertices
+        .chunks_exact(4)
+        .any(|quad| !matches!(quad[0].layer & 0xffff, 2 | 4 | 6 | 9..=12))
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) struct CacheKey {
+    cell: [i64; 3],
+    scene_revision: (u64, u64),
+    mesh_revision: u64,
+}
+
+impl CacheKey {
+    pub(super) fn new(camera: DVec3, scene_revision: (u64, u64), mesh_revision: u64) -> Self {
+        Self {
+            cell: camera
+                .to_array()
+                .map(|value| (value / f64::from(SNAP)).floor() as i64),
+            scene_revision,
+            mesh_revision,
+        }
+    }
+}
+
+struct CachedShadow {
+    key: CacheKey,
+    camera: DVec3,
+    light: Vec3,
+    cull: Mat4,
+}
+
+#[derive(Default)]
+pub(super) struct Cache {
+    previous: Option<CachedShadow>,
+    pub(super) view: Option<(Mat4, Vec3)>,
+    pub(super) dirty: bool,
+}
+
+impl Cache {
+    pub(super) fn prepare(
+        &mut self,
+        key: CacheKey,
+        camera: DVec3,
+        light: Vec3,
+        cull: Mat4,
+        enabled: bool,
+        dynamic: bool,
+    ) {
+        if enabled
+            && !dynamic
+            && let Some(previous) = &self.previous
+            && previous.key == key
+            && previous.light.dot(light) >= 0.1_f32.to_radians().cos()
+        {
+            let offset = (camera - previous.camera).as_vec3();
+            self.view = Some((
+                previous.cull * Mat4::from_translation(offset),
+                previous.light,
+            ));
+            self.dirty = false;
+            return;
+        }
+        self.view = Some((cull, light));
+        self.dirty = true;
+        self.previous = (enabled && !dynamic).then_some(CachedShadow {
+            key,
+            camera,
+            light,
+            cull,
+        });
+    }
+}
 
 /// The shadow pass's entries: terrain's vertices through the shadow camera, distorted, and the
 /// cutout test (leaves' and plants' holes let the light through).
@@ -651,6 +726,8 @@ mod tests {
     fn what_the_camera_stands_on_is_inside_the_shadow_cameras_depth() {
         let settings = Settings {
             resolution: 2048,
+            resolution_option: None,
+            cache: false,
             distance: 128.0,
             solid_materials: Vec::new(),
         };
@@ -672,6 +749,8 @@ mod tests {
     fn the_centre_stays_near_the_player_on_both_sides_of_zero() {
         let shadow = camera(&Settings {
             resolution: 2048,
+            resolution_option: None,
+            cache: false,
             distance: 128.0,
             solid_materials: Vec::new(),
         });
@@ -692,5 +771,116 @@ mod tests {
         // Already that fine: no distortion.
         assert_eq!(distortion(32.0, 2048), 0.0);
         assert_eq!(distortion(10_000.0, 1024), 0.95);
+    }
+
+    #[test]
+    fn cached_shadow_rebases_camera_relative_positions() {
+        let camera = DVec3::new(-3.0, 64.0, 2.0);
+        let moved_camera = camera + DVec3::new(2.0, 1.0, 3.0);
+        let cull = Mat4::from_scale(Vec3::splat(0.1));
+        let mut cache = Cache::default();
+        cache.prepare(
+            CacheKey::new(camera, (1, 2), 3),
+            camera,
+            Vec3::Y,
+            cull,
+            true,
+            false,
+        );
+        assert!(cache.dirty);
+        cache.prepare(
+            CacheKey::new(moved_camera, (1, 2), 3),
+            moved_camera,
+            Vec3::Y,
+            Mat4::IDENTITY,
+            true,
+            false,
+        );
+        assert!(!cache.dirty);
+        let world_position = DVec3::new(10.0, 67.0, -2.0);
+        let expected = cull * (world_position - camera).as_vec3().extend(1.0);
+        let actual = cache.view.unwrap().0 * (world_position - moved_camera).as_vec3().extend(1.0);
+        assert!((expected - actual).abs().max_element() < 1e-6);
+    }
+
+    #[test]
+    fn cached_shadow_invalidates_scene_mesh_and_camera_cells() {
+        let camera = DVec3::new(-0.1, 64.0, 2.0);
+        for (next_camera, scene, mesh) in [
+            (camera, (2, 2), 3),
+            (camera, (1, 3), 3),
+            (camera, (1, 2), 4),
+            (DVec3::new(0.0, 64.0, 2.0), (1, 2), 3),
+        ] {
+            let mut cache = Cache::default();
+            cache.prepare(
+                CacheKey::new(camera, (1, 2), 3),
+                camera,
+                Vec3::Y,
+                Mat4::IDENTITY,
+                true,
+                false,
+            );
+            cache.prepare(
+                CacheKey::new(next_camera, scene, mesh),
+                next_camera,
+                Vec3::Y,
+                Mat4::IDENTITY,
+                true,
+                false,
+            );
+            assert!(cache.dirty);
+        }
+    }
+
+    #[test]
+    fn cached_shadow_tracks_sun_motion_and_dynamic_casters() {
+        let camera = DVec3::ZERO;
+        let key = CacheKey::new(camera, (0, 0), 0);
+        let mut cache = Cache::default();
+        cache.prepare(key, camera, Vec3::Y, Mat4::IDENTITY, true, false);
+        let small_motion = glam::Quat::from_rotation_z(0.02_f32.to_radians()) * Vec3::Y;
+        cache.prepare(key, camera, small_motion, Mat4::IDENTITY, true, false);
+        assert!(!cache.dirty);
+        assert_eq!(cache.view.unwrap().1, Vec3::Y);
+        let large_motion = glam::Quat::from_rotation_z(0.2_f32.to_radians()) * Vec3::Y;
+        cache.prepare(key, camera, large_motion, Mat4::IDENTITY, true, false);
+        assert!(cache.dirty);
+        for (enabled, dynamic) in [(false, false), (true, true)] {
+            cache.prepare(key, camera, large_motion, Mat4::IDENTITY, enabled, dynamic);
+            assert!(cache.dirty);
+            cache.prepare(key, camera, large_motion, Mat4::IDENTITY, true, false);
+            assert!(cache.dirty);
+        }
+    }
+
+    #[test]
+    fn moving_non_shadow_layers_preserve_the_shadow_cache() {
+        let camera = DVec3::ZERO;
+        let key = CacheKey::new(camera, (0, 0), 0);
+        assert!(!dynamic_entities(&[]));
+        for layer in 0..=13 {
+            let mut vertices = [crate::mesher::Vertex {
+                layer: layer | (37 << 16),
+                ..bytemuck::Zeroable::zeroed()
+            }; 4];
+            let expected_dynamic = ![2, 4, 6, 9, 10, 11, 12].contains(&layer);
+            assert_eq!(dynamic_entities(&vertices), expected_dynamic, "{layer}");
+            let mut cache = Cache::default();
+            cache.prepare(key, camera, Vec3::Y, Mat4::IDENTITY, true, false);
+            for vertex in &mut vertices {
+                vertex.pos = [8.0, 9.0, 10.0];
+                vertex.uv = [0.5, 0.75];
+            }
+            cache.prepare(
+                key,
+                camera,
+                Vec3::Y,
+                Mat4::IDENTITY,
+                true,
+                dynamic_entities(&vertices),
+            );
+            assert_eq!(cache.dirty, expected_dynamic, "{layer}");
+        }
     }
 }

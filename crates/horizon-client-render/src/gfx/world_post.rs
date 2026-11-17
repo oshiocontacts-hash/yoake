@@ -632,4 +632,46 @@ mod tests {
         // Copy and FXAA pipelines always compile; TAA compiles if supported by backend.
         let _ = post.supports_taa();
     }
+
+    #[test]
+    fn scene_readers_reuse_the_target_across_frames() {
+        let Some((device, _)) = test_device() else {
+            return;
+        };
+        let mut post = Post::new(&device, wgpu::TextureFormat::Rgba8Unorm);
+        let mut reads = super::super::mod_gpu_runtime::SceneReads::default();
+        for _frame in 0..240 {
+            assert!(
+                post.prepare(&device, [320, 180], reads.required())
+                    .is_none()
+            );
+            reads.observe(false);
+        }
+        reads.observe(true);
+        let mut first_target = None;
+        for _frame in 0..240 {
+            let (color, _) = post.prepare(&device, [320, 180], reads.required()).unwrap();
+            let texture = color.texture().clone();
+            if let Some(first) = &first_target {
+                assert_eq!(first, &texture);
+            } else {
+                first_target = Some(texture);
+            }
+            reads.observe(true);
+        }
+        for _frame in 0..120 {
+            let (color, _) = post.prepare(&device, [320, 180], reads.required()).unwrap();
+            assert_eq!(first_target.as_ref().unwrap(), color.texture());
+            reads.observe(false);
+        }
+        assert!(
+            post.prepare(&device, [320, 180], reads.required())
+                .is_none()
+        );
+        reads.observe(true);
+        assert!(
+            post.prepare(&device, [320, 180], reads.required())
+                .is_some()
+        );
+    }
 }

@@ -23,6 +23,9 @@ pub mod yak;
 pub const YOAKE_YAK_V1: &str = "yoake-yak-v1";
 /// Yoake's detached mod catalog signing domain.
 pub const YOAKE_MODS_V1: &str = "yoake-mods-v1";
+/// Yoake's built-in mods catalog signing domain (its own, so a .yak catalog signature never
+/// passes for it nor the reverse).
+pub const YOAKE_BUILTIN_V1: &str = "yoake-builtin-v1";
 
 /// The checksum list's asset name.
 pub const SUMS: &str = "SHA256SUMS";

@@ -252,7 +252,19 @@ mod tests {
                 resource: globals_buffer.as_entire_binding(),
             }],
         });
-        let frame = NativeFrame::new(&device, None, Vec::new(), Default::default(), None);
+        let manifest = horizon_shader_api::Manifest::parse(
+            "schema=1\nid=\"sky_test\"\nname=\"Test\"\nversion=\"1\"\napi=\"0.1\"\n[sky]\nfile=\"sky.wgsl\"\n",
+        )
+        .unwrap();
+        let frame = NativeFrame::new(
+            &device,
+            None,
+            Vec::new(),
+            Default::default(),
+            None,
+            &manifest,
+        )
+        .unwrap();
         queue.write_buffer(
             &frame.buffer,
             0,

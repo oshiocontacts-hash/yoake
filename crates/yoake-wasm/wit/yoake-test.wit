@@ -1,0 +1,88 @@
+package yoake:mods@1.0.0;
+
+// Hand-written (not generated). The test-mode world of `yoake test`: a *test module* is a component of
+// the world `test-mod`. It is never a mod: it is loaded only by the engine's test runner
+// (`--yoake-test`, `docs/yoake-wasm-dev.md` "Testing a mod in the engine"), never by a normal run, and the
+// `test-driver` interface it imports is linked nowhere else (a normal mod that imports it is rejected at load).
+
+interface test-driver {
+    record block-pos {
+        x: s32,
+        y: s32,
+        z: s32,
+    }
+
+    record vec3 {
+        x: f64,
+        y: f64,
+        z: f64,
+    }
+
+    record player-info {
+        uuid: string,
+        name: string,
+        position: vec3,
+        health: f32,
+        game-mode: s32,
+    }
+
+    record entity-info {
+        id: u32,
+        kind: string,
+        position: vec3,
+    }
+
+    /// Lets the world run `ticks` more server ticks (1 to 72000), then returns. The engine runs them
+    /// as fast as it can, not at 20 a second.
+    advance-ticks: func(ticks: u32) -> result<_, string>;
+    /// The number of server ticks the test's world has run since the test began.
+    tick: func() -> u64;
+
+    /// Sets the block at `position` in the overworld; `block` is a block state as `/setblock` takes it,
+    /// for example `minecraft:oak_stairs[facing=north]`.
+    place-block: func(position: block-pos, block: string) -> result<_, string>;
+    /// Breaks the block as a player would (drops included).
+    break-block: func(position: block-pos) -> result<_, string>;
+    /// The block at `position`, as its id (`namespace:id`; the game's `block` service gives no properties).
+    block-at: func(position: block-pos) -> result<string, string>;
+
+    /// Spawns an entity of `kind` (`minecraft:pig`) and returns its id.
+    spawn-entity: func(kind: string, position: vec3) -> result<u32, string>;
+    /// Spawns a mannequin (a standing figure entity for a stable UUID derived from `name`) and returns its entity
+    /// id. It is not a player: it does not appear in `players`. The engine has no in-process fake player.
+    spawn-mannequin: func(name: string, position: vec3) -> result<u32, string>;
+    /// The entities within `radius` blocks of `center` (at most 512 of them).
+    entities-near: func(center: vec3, radius: f64) -> result<list<entity-info>, string>;
+    /// The players on the server: the test world's owner first.
+    players: func() -> result<list<player-info>, string>;
+
+    /// Runs a server command as the server console. It needs no permission, but the commands a mod may never
+    /// run (`stop`, `op`, `ban`, `publish`, `transfer`, ...) are refused here too. Answers whether it succeeded.
+    run-command: func(command: string) -> result<bool, string>;
+    /// Calls the `handle-call` of the mod under test (or any other loaded server module).
+    mod-call: func(target: string, method: string, payload: list<u8>) -> result<list<u8>, string>;
+
+    /// A line for the test log (stdout and stderr of a test module go there too).
+    log: func(message: string);
+    /// How many clients take part: 1 for a plain run, 2 with `--yoake-test-clients=2`. Client 0 is the world's
+    /// owner (the process that runs the test); client 1 is a second game that joined its world over loopback.
+    client-count: func() -> u32;
+    /// Sends one command line of the game's control protocol to client `index` (1) and returns its JSON reply.
+    /// Only a few commands are open to tests: `getblock`, `chat`, `chat-log`, `wait-for`, `status`, `events`,
+    /// `key`, `release`, `look`, `turn`, `hotbar`, `mouse`, `tp`, `hello`.
+    client-call: func(index: u32, command: string) -> result<string, string>;
+    /// Repeats `command` on client `index` every 50 ms until its reply contains `expect`, for at most
+    /// `timeout-ms` (up to 120000); returns that reply. How a test waits until a client sees a server change.
+    client-wait: func(index: u32, command: string, expect: string, timeout-ms: u32) -> result<string, string>;
+    /// The names of the players connected to the world client `index` joined, as the server lists them (a
+    /// client's own tab list is not readable through its control endpoint).
+    client-player-names: func(index: u32) -> result<list<string>, string>;
+}
+
+world test-mod {
+    import test-driver;
+    /// The names of the tests, in the order they run. Called once, before any test.
+    export tests: func() -> list<string>;
+    /// Runs one test in a fresh world. `ok` passes; `err(message)` fails with the message.
+    export run-test: func(name: string) -> result<_, string>;
+}

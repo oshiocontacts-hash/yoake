@@ -1,0 +1,9 @@
+{
+  "hooks": [{"name":"key_binding_pressed","target":"horizon_client::game::native_hooks::Game<'_>::native_key_binding_pressed","side":"client","mod_api":{"contract":"listen"}}],
+  "helpers": [
+    {"name":"register_key_binding","target":"horizon_client::game::native_key_bindings::Game<'_>::native_register_key_binding"},
+    {"name":"key_binding_state","target":"horizon_client::game::native_key_bindings::Game<'_>::native_key_binding_state"}
+  ],
+  "rust_summary":"Namespaced, persistent Controls bindings and rising-edge input.",
+  "doc_summary":"`register_key_binding(id, default_key, category, label)` registers up to 32 bindings per mod in Controls, using translation keys for category and label. IDs belong to the calling mod. Press edges are delivered only to that owner during gameplay or its own mod screen, never while a text field has focus or Controls captures a key. Releases and focus loss clear held state even when presses are suppressed. `key_binding_state(id)` reads held state. Canonical `key.mouse.N` names (1 through 65536) work consistently for registration, changes and reload. The 256-entry saved table evicts entries not registered this session when full. Held state is transient: excluded from settings equality and disk persistence, preserved across unrelated option changes. Saved names use `key_key.mod.namespace/path` without changing vanilla mappings. Requires @API:key_bindings@."
+}

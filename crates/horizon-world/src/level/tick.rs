@@ -15,6 +15,53 @@ use horizon_core::{
 };
 use std::sync::Arc;
 
+#[yoake_inject_macro::yoake_inject(
+    id = "world::level::tick::fire_burn_odds_at",
+    side = "server",
+    allow = "return"
+)]
+fn fire_burn_odds_at(_pos: BlockPos, odds: i32) -> i32 {
+    odds
+}
+
+#[cfg(test)]
+mod utility_inject_tests {
+    use super::*;
+    use yoake_inject_rt::{CallbackError, Guest, Mod, RETURN, Registry, Side, Subscription, Value};
+
+    #[test]
+    fn flammable_neighbor_odds_handler_is_bounded_and_optional() {
+        struct Replace(i64);
+        impl Guest for Replace {
+            fn returned(&self, _: &str, _: &Value) -> Result<Option<Value>, CallbackError> {
+                Ok(Some(Value::Signed(self.0)))
+            }
+        }
+        let _side = yoake_inject_rt::enter_side(Side::Server);
+        let pos = BlockPos::new(3, 64, -2);
+        assert_eq!(fire_burn_odds_at(pos, 60), 60);
+        for (replacement, expected) in [(0, 0), (100, 100), (-1, 60), (101, 60)] {
+            let site = __yoake_inject_site_fire_burn_odds_at();
+            let mut registry = Registry::new([site]).unwrap();
+            let prepared = registry
+                .prepare(
+                    [Subscription {
+                        site_id: site.id(),
+                        side: Side::Server,
+                        points: RETURN,
+                        module: Arc::new(Mod::new("fire-test", Arc::new(Replace(replacement)))),
+                    }],
+                    |_, _, _| true,
+                )
+                .unwrap();
+            registry.publish(prepared).unwrap();
+            assert_eq!(fire_burn_odds_at(pos, 60), expected);
+            drop(registry);
+            assert_eq!(fire_burn_odds_at(pos, 60), 60);
+        }
+    }
+}
+
 impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     fn rand_int(&mut self, bound: i32) -> i32 {
         self.random().next_int_bound(bound).unwrap_or(0)
@@ -681,7 +728,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     let test = pos.offset(xx, yy, zz);
                     let ignite = self.fire_ignite_odds_at(test);
                     if ignite > 0 {
-                        let mut odds = (ignite + 40 + self.level.difficulty() * 7) / (age + 30);
+                        let mut odds = ignite
+                            .saturating_add(40)
+                            .saturating_add(self.level.difficulty().saturating_mul(7))
+                            / (age + 30);
                         if burnout {
                             odds /= 2;
                         }
@@ -703,6 +753,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
     }
     /// `FireBlock.getIgniteOdds(level, pos)`: only for air with flammable neighbours.
+    #[yoake_inject_macro::yoake_inject(
+        id = "world::level::tick::fire_ignite_odds_at",
+        side = "server"
+    )]
     fn fire_ignite_odds_at(&self, pos: BlockPos) -> i32 {
         if !self.is_empty_block(pos) {
             return 0;
@@ -723,7 +777,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     /// `FireBlock.checkBurnOut` of the block at `pos` by the fire at `fire`.
     fn fire_check_burn_out(&mut self, fire: BlockPos, pos: BlockPos, chance: i32, age: i32) {
         let b = self.b;
-        let odds = self.burn_odds(self.state(pos));
+        let odds = fire_burn_odds_at(pos, self.burn_odds(self.state(pos)));
         if self.rand_int(chance) < odds {
             let old = self.state(pos);
             let allowed = self.level.allow_spread(Spread::Fire, fire, pos);
@@ -809,6 +863,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     // ---- crops and plants ----
 
     /// `CropBlock.getGrowthSpeed`.
+    #[yoake_inject_macro::yoake_inject(
+        id = "world::level::tick::crop_growth_speed",
+        side = "server"
+    )]
     pub(crate) fn crop_growth_speed(&self, block: super::states::BlockId, pos: BlockPos) -> f32 {
         let b = self.b;
         let mut speed = 1.0f32;
@@ -847,6 +905,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
         speed
     }
+    #[yoake_inject_macro::yoake_inject(
+        id = "world::level::tick::crop_random_tick",
+        side = "server"
+    )]
     fn crop_random_tick(&mut self, state: BlockStateId, pos: BlockPos) {
         let b = self.b;
         if self.raw_brightness(pos, 0) < 9 {
@@ -856,7 +918,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let max = self.crop_max_age(state);
         if age < max {
             let speed = self.crop_growth_speed(b.block(state), pos);
-            if self.rand_int((25.0 / speed) as i32 + 1) == 0 {
+            if self.rand_int(((25.0 / speed) as i32).saturating_add(1)) == 0 {
                 let next = self.crop_state_for_age(state, age + 1);
                 self.set_block(pos, next, 2);
             }
@@ -868,7 +930,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             return;
         }
         let speed = self.crop_growth_speed(b.block(state), pos);
-        if self.rand_int((25.0 / speed) as i32 + 1) != 0 {
+        if self.rand_int(((25.0 / speed) as i32).saturating_add(1)) != 0 {
             return;
         }
         let age = b.table.int(state, b.props.age);

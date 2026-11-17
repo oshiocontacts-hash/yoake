@@ -539,7 +539,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             Kind::Crop => {
                 let max = self.crop_max_age(state);
                 let increase = self.crop_bonemeal_increase(state);
-                let age = max.min(b.table.int(state, p.age) + increase);
+                let age = max.min(b.table.int(state, p.age).saturating_add(increase));
                 let next = self.crop_state_for_age(state, age);
                 self.set_block(pos, next, 2);
             }
@@ -729,6 +729,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             .set_int(b.default_of(b.block(state)), b.props.age, age)
     }
     /// `CropBlock.getBonemealAgeIncrease` and its overrides.
+    #[yoake_inject_macro::yoake_inject(
+        id = "world::level::bonemeal::crop_bonemeal_increase",
+        side = "server"
+    )]
     fn crop_bonemeal_increase(&mut self, state: BlockStateId) -> i32 {
         let b = self.b;
         if b.instance_of(state, Class::TorchflowerCrop) {

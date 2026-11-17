@@ -513,7 +513,7 @@ impl Launcher {
                         .flex_col()
                         .gap(px(4.))
                         .child(
-                            text(theme::TITLE)
+                            mode_title()
                                 .text_color(t.ink)
                                 .child(p.title().to_string()),
                         )

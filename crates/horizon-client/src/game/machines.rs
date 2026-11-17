@@ -1487,6 +1487,12 @@ impl Game<'_> {
             _ => None,
         }
     }
+    pub(super) fn machine_screen_menu_kind(&self) -> Option<&'static str> {
+        Some(match self.machine_screen()? {
+            Screen::Hopper => "minecraft:hopper",
+            Screen::Dispenser | Screen::Dropper => "minecraft:generic_3x3",
+        })
+    }
     /// `imageHeight` of the open screen (HopperScreen is 133 tall).
     pub(super) fn screen_height(&self) -> f32 {
         if let Some(height) = self.native_screen_height() {

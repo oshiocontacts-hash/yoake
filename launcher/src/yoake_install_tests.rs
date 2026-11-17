@@ -79,6 +79,8 @@ fn feed(version: &str, files: Vec<Value>) -> VerifiedFeed {
         index: ParsedFeedIndex::V2(serde_json::from_value(index).unwrap()),
         index_sha256: "0".repeat(64),
         proof: None,
+        presentation: None,
+        needs_update: false,
     }
 }
 

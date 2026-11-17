@@ -28,6 +28,7 @@ pub fn jump_boost_power<W: LivingMotionWorld>(world: &mut W) -> Result<f32, W::E
         0.0
     })
 }
+#[yoake_inject_macro::yoake_inject(id = "world::living_motion::jump_power", side = "server")]
 pub fn jump_power<W: LivingMotionWorld>(world: &mut W, scale: f32) -> Result<f32, W::Error> {
     let strength = world.jump_strength()? as f32 * scale;
     let strength = strength * world.block_jump_factor()?;
@@ -45,6 +46,7 @@ pub fn add_delta_movement<W: LivingMotionWorld>(
     }
     Ok(())
 }
+#[yoake_inject_macro::yoake_inject(id = "world::living_motion::jump_from_ground", side = "server")]
 pub fn jump_from_ground<W: LivingMotionWorld>(world: &mut W) -> Result<(), W::Error> {
     let power = jump_power(world, 1.0)?;
     if power <= 1.0e-5f32 {

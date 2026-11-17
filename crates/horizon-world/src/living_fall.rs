@@ -67,6 +67,10 @@ pub trait LivingFallWorld {
     /// Dispatch native Entity.hurt semantics (server-only), preserving its source.
     fn hurt(&mut self, damage: f32) -> Result<(), Self::Error>;
 }
+#[yoake_inject_macro::yoake_inject(
+    id = "world::living_fall::calculate_fall_damage",
+    side = "server"
+)]
 pub fn calculate_fall_damage<W: LivingFallWorld>(
     world: &mut W,
     distance: f64,
@@ -92,6 +96,10 @@ fn java_min(a: f64, b: f64) -> f64 {
 /// Default LivingEntity and Entity fall behavior. Entity-type overrides of the
 /// calculation/parent method are a separate dispatch layer. The same damage
 /// source must be retained by the provider for riders and the final hurt call.
+#[yoake_inject_macro::yoake_inject(
+    id = "world::living_fall::cause_living_fall_damage",
+    side = "server"
+)]
 pub fn cause_living_fall_damage<W: LivingFallWorld>(
     world: &mut W,
     distance: f64,

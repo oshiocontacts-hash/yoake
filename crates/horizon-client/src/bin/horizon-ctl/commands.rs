@@ -379,10 +379,10 @@ pub const COMMANDS: &[Cmd] = &[
         ["horizon-ctl set fov 0.5", "horizon-ctl set render-distance 0"],
         &[p("id", Ty::Str, "slider id from ui"), p("value", Ty::Num, "0..1 along the track")], mcp: true, local: false),
     cmd!("options-get", Screens, "options-get [KEY...]", "the game's options (options.txt) by key, with their type and range or choices",
-        "Keys are vanilla's: fov, renderDistance, guiScale, gamma, maxFps, lang, resourcePacks, soundCategory_music, key_key.jump... Enums are given and set by name, key bindings by key name (key.keyboard.w).",
+        "Keys are vanilla's: fov, renderDistance, guiScale, gamma, maxFps, lang, resourcePacks, soundCategory_music, key_key.jump... lang accepts ja_jp or en_us; enums are given and set by name, key bindings by key name (key.keyboard.w).",
         ["horizon-ctl options-get", "horizon-ctl options-get fov renderDistance"], &[opt("keys", Ty::Rest, "option keys (default: all)")], mcp: true, local: false),
     cmd!("options-set", Screens, "options-set KEY VALUE", "set one option, apply it at once and save options.txt, as the options screen does",
-        "A value the option refuses is an error saying what it accepts. Lists are JSON: options-set resourcePacks [\"vanilla\"].",
+        "A value the option refuses is an error saying what it accepts. lang accepts ja_jp or en_us. Lists are JSON: options-set resourcePacks [\"vanilla\"].",
         ["horizon-ctl options-set fov 90", "horizon-ctl options-set renderClouds fast", "horizon-ctl options-set key_key.jump key.keyboard.j"],
         &[p("key", Ty::Str, "option key from options-get"), p("value", Ty::Rest, "the new value")], mcp: true, local: false),
     cmd!("click-button", Screens, "click-button LABEL", "click a button of the open screen or title menu by its label",
@@ -618,14 +618,22 @@ pub fn markdown() -> String {
          These commands are available only in builds with `dev-capture`. Both the client and \
          `horizon-ctl` need the feature. Start the game with explicit `--control` or \
          `--control-socket`; enabling Agent Control in settings alone is insufficient. \
-         Capture requires the main-loop and transport integration plus a registered PNG output \
-         adapter; without the adapter it fails before holding the server. See \
+         The client installs its PNG backend when the renderer is created. A loaded local \
+         single-player world, a ready player and renderer, the playing screen, and an idle 20 TPS \
+         server are required; LAN and remote servers, frozen/sprinting/stepping ticks, an existing \
+         screenshot, and conflicting save/agent operations are rejected before capture holds the \
+         server. See \
          [agent-control.md](agent-control.md#fixed-step-capture-dev-capture).\n\n\
          | Command | MCP tool | What it does | Arguments |\n\
          | --- | --- | --- | --- |\n\
          | `capture DIR [--fps FPS] --frames N` | `capture` | Capture numbered PNGs at fixed simulation intervals | `dir` (string, required): output directory, relative to horizon-ctl<br>`--fps` (integer): positive frames per second (default 30)<br>`--frames` (integer, required): positive number of frames |\n\
          | `capture-status` | `capture_status` | Read capture progress and terminal status | none |\n\
          | `capture-cancel` | `capture_cancel` | Request cancellation and restore real-time clocks | none |\n",
+    );
+    out.push_str(
+        "\nOutput is a sequence of opaque, 8-bit SDR RGBA PNGs tagged as sRGB, named `000000.png`, `000001.png`, and so on, in `DIR`. Files are created without overwriting existing names. Each frame includes the final GUI/HUD unless it is hidden. The pixel size is fixed to the renderer size at capture start; resizing, including minimizing to zero size, fails capture and releases the server. A bounded worker encodes and writes one outstanding frame at a time. Simulation waits for the exact frame's completed write, including flush/sync, so slow storage applies backpressure rather than dropping frames. Cancellation or failure can leave already written files or a partial final file; use a fresh directory for another capture.\n\n\
+         With HDR enabled, capture reads the existing 8-bit gamma-space SDR composition before its HDR10/scRGB output transform. It does not record HDR pixels or apply a separate HDR-to-SDR tone mapper. Normal screenshots use their own readback buffer and remain available during capture; their capture-time resolution is the fixed renderer size rather than a supersampled redraw. Without `dev-capture`, the normal screenshot path is unchanged.\n\n\
+         Presentation animations advance on the fixed capture clock, not PNG worker wait time. Audio is muted throughout capture, including music and UI sounds. Existing sounds and pending playback are cleared, and playback attempts while muted are discarded rather than queued for a burst afterward. Finish, cancellation, and failure restore real-time presentation and audio playback; stopped sounds are not resumed.\n",
     );
     out
 }

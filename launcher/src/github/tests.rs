@@ -198,7 +198,12 @@ fn both_failing_uses_the_saved_copy_else_says_so() {
     .unwrap_err();
     assert!(err.contains("rate limit"), "{err}");
     assert!(err.contains("mirror"), "{err}");
-    assert!(err.contains("timed out"), "{err}");
+    if crate::brand::yoake() {
+        // The Yoake brand names no upstream address or error detail.
+        assert!(!err.contains("timed out"), "{err}");
+    } else {
+        assert!(err.contains("timed out"), "{err}");
+    }
     assert!(err.contains("Try again in a few minutes"), "{err}");
 
     // With a copy from an earlier start, that copy is better than nothing.

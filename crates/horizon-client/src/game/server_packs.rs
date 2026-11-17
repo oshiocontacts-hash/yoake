@@ -238,6 +238,11 @@ impl Game<'_> {
             state.packs.local_world();
             return;
         };
+        if address == "social" {
+            state.address = None;
+            state.packs.connect(Prompt::Pending);
+            return;
+        }
         let file = multiplayer::servers_file(&saves());
         let entry = servers::load(&file).into_iter().find(|s| s.ip == address);
         let setting = entry.as_ref().and_then(|e| e.accept_textures);

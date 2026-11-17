@@ -9,6 +9,8 @@ description = "Blocks and items as the client knows them: block facts, item stac
 [dependencies]
 horizon-client-core = { path = "../horizon-client-core" }
 horizon-core = { path = "../horizon-core" }
+yoake-inject-macro = { path = "../yoake-inject-macro" }
+yoake-inject-rt = { path = "../yoake-inject-rt" }
 horizon-world = { path = "../horizon-world" }
 serde = { version = "1", features = ["derive"] }
 log = "0.4"

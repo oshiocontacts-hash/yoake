@@ -145,8 +145,11 @@ impl Game<'_> {
 impl Game<'_> {
     /// The cushion under the crosshair, its distance and the hit point.
     pub(super) fn cushion_hit(&self) -> Option<(usize, f64, [f64; 3])> {
+        self.cushion_hit_at(self.entity_reach)
+    }
+
+    pub(super) fn cushion_hit_at(&self, reach: f64) -> Option<(usize, f64, [f64; 3])> {
         let (eye, dir) = self.aim()?;
-        let reach: f64 = self.entity_reach;
         let mut best: Option<(usize, f64, [f64; 3])> = None;
         for (i, c) in self.cushions.iter().enumerate() {
             let Some(d) = super::ray_box(eye, dir, reach, aabb(c.bounds())) else {

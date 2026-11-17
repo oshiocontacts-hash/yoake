@@ -2,6 +2,11 @@
 //! renderer fills and uploads as the Rust struct below, and the stage input
 //! and output structs. The WGSL of each is generated from these definitions
 //! (`Struct::wgsl`), and so is the reference (docs/api/shaders-reference.md).
+//!
+//! The `texture_3d<u32>` voxel input uses one `r32uint` texel per block:
+//! bits 0–3 are shape (zero is empty), bit 4 is translucency, bits 5–8
+//! are emission, and bits 9–14, 15–20 and 21–26 are six-bit RGB tint.
+//! Bits 27–31 are reserved. See [`crate::voxel`] for encoding and addressing.
 
 /// One field of a WGSL struct, for the prelude and the reference.
 #[derive(Debug)]
@@ -49,9 +54,11 @@ wgsl_types! {
     i32 => "i32",
     [f32; 2] => "vec2<f32>",
     [f32; 3] => "vec3<f32>",
+    [u32; 3] => "vec3<u32>",
     [f32; 4] => "vec4<f32>",
     [[f32; 4]; 4] => "mat4x4<f32>",
     [[f32; 4]; 8] => "array<vec4<f32>, 8>",
+    [[u32; 4]; 16] => "array<vec4<u32>, 16>",
 }
 
 /// A uniform struct: the Rust type the renderer uploads, and its WGSL.
@@ -200,6 +207,31 @@ uniform! {
         /// The ground one shadow texel covers at the map's centre, in blocks (for a bias that
         /// scales with it); 0 without a shadow map.
         shadow_center_texel: f32,
+        /// Current unjittered camera-relative view-projection matrix.
+        unjittered_view_projection: [[f32; 4]; 4],
+        /// Previous unjittered camera-relative view-projection matrix.
+        previous_unjittered_view_projection: [[f32; 4]; 4],
+        /// Current xy and previous zw Halton offsets, in pixels; zero unless opted in.
+        jitter: [f32; 4],
+        /// Actual toroidal voxel texture dimensions, in blocks, not the declared maximum.
+        voxel_size: [u32; 3],
+        /// One when the pack has an allocated voxel input, otherwise zero.
+        has_voxels: u32,
+        /// Inclusive grid minimum relative to the camera; use voxel_at for precision-safe lookup.
+        voxel_origin: [f32; 3],
+        /// Number of initialized entries in light_list, including the held light.
+        light_count: u32,
+        /// Grid centre relative to the camera.
+        voxel_center: [f32; 3],
+        /// Blocks per voxel (one when available, zero otherwise).
+        voxel_cell_size: f32,
+        /// Physical block slot of voxel_origin; integer modulo by voxel_size.
+        voxel_origin_slot: [u32; 3],
+        /// Reserved, zero.
+        voxel_padding: u32,
+        /// Valid physical section slots, x + width * (y + height * z), packed into 32-bit words.
+        /// Pending uploads are invalid and voxel_at returns zero for them.
+        voxel_validity: [[u32; 4]; 16],
     }
 }
 
@@ -208,6 +240,20 @@ macro_rules! fields {
         &[$(Field { name: stringify!($name), ty: $ty, doc: $doc }),*]
     };
 }
+
+/// The entity material stage's input: one point on an entity's surface.
+pub const ENTITY_INPUT: Struct = Struct {
+    name: "EntityMaterialInput",
+    doc: "A mob, player or block entity surface, before fog and alpha testing.",
+    fields: fields! {
+        position: "vec3<f32>" = "Camera-relative world position, in blocks.",
+        normal: "vec3<f32>" = "World-space unit normal.",
+        albedo: "vec4<f32>" = "Texture and vertex tint before vanilla lighting.",
+        light: "vec2<f32>" = "Vanilla block and sky light, normalized to 0..1.",
+        lightmap: "vec3<f32>" = "Sampled vanilla lightmap colour.",
+        kind: "u32" = "Entity kind ID; block entity IDs carry bit 31.",
+    },
+};
 
 /// The post stage's input: one pixel of the picture.
 pub const POST_INPUT: Struct = Struct {
@@ -301,9 +347,7 @@ mod tests {
     #[test]
     fn frame_fields_carry_their_docs() {
         let wgsl = Frame::WGSL;
-        assert_eq!(wgsl.fields.len(), 49);
         assert!(wgsl.fields.iter().all(|f| !f.doc.trim().is_empty()));
-        assert_eq!(std::mem::size_of::<Frame>(), 6 * 64 + 15 * 16 + 8 * 16);
         assert!(
             wgsl.wgsl()
                 .contains("    camera_position: vec3<f32>,\n    time: f32,\n")

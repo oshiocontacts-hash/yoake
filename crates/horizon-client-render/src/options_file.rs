@@ -487,14 +487,20 @@ fn read_list(text: &str) -> Result<Vec<String>, java_text::SyntaxError> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct OptionsFile {
     values: Vec<V>,
+    mod_keys: std::collections::BTreeMap<String, V>,
     /// `fullscreenResolution`, kept verbatim.
     pub fullscreen_resolution: Option<String>,
 }
 
 impl Default for OptionsFile {
     fn default() -> Self {
+        let mut values: Vec<V> = TABLE.iter().map(|d| d.default.clone()).collect();
+        if let Some(i) = TABLE.iter().position(|d| d.key == "lang") {
+            values[i] = V::Str(crate::settings::default_language());
+        }
         Self {
-            values: TABLE.iter().map(|d| d.default.clone()).collect(),
+            values,
+            mod_keys: std::collections::BTreeMap::new(),
             fullscreen_resolution: None,
         }
     }
@@ -505,7 +511,9 @@ impl OptionsFile {
         TABLE.iter().position(|d| d.key == key)
     }
     pub fn get(&self, key: &str) -> Option<&V> {
-        Self::index(key).map(|i| &self.values[i])
+        Self::index(key)
+            .map(|i| &self.values[i])
+            .or_else(|| self.mod_keys.get(key))
     }
     pub fn bool(&self, key: &str) -> bool {
         matches!(self.get(key), Some(V::Bool(true)))
@@ -552,7 +560,18 @@ impl OptionsFile {
     /// `OptionInstance.set` with a candidate value (invalid values revert to
     /// the initial value).
     pub fn set(&mut self, key: &str, value: V) {
-        let Some(i) = Self::index(key) else { return };
+        let Some(i) = Self::index(key) else {
+            if key
+                .strip_prefix("key_")
+                .is_some_and(horizon_client_input::keybinds::is_mod_mapping)
+                && (self.mod_keys.contains_key(key) || self.mod_keys.len() < 256)
+                && let V::Str(text) = value
+                && let Ok(canonical) = canonical_key(&text)
+            {
+                self.mod_keys.insert(key.to_owned(), V::Str(canonical));
+            }
+            return;
+        };
         let Kind::Option(spec) = TABLE[i].kind else {
             self.values[i] = value;
             return;
@@ -587,6 +606,15 @@ impl OptionsFile {
         self.string(&format!("key_{name}"))
     }
 
+    pub fn mod_key_bindings(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.mod_keys
+            .iter()
+            .filter_map(|(name, value)| match value {
+                V::Str(key) => Some((name.strip_prefix("key_")?, key.as_str())),
+                _ => None,
+            })
+    }
+
     /// `Options.load` on the text of an options file.
     pub fn parse(text: &str) -> Self {
         let mut file = Self::default();
@@ -608,6 +636,17 @@ impl OptionsFile {
     }
 
     fn apply(&mut self, raw: &std::collections::HashMap<String, String>) {
+        let mut entries: Vec<_> = raw
+            .iter()
+            .filter(|(key, _)| {
+                key.strip_prefix("key_")
+                    .is_some_and(horizon_client_input::keybinds::is_mod_mapping)
+            })
+            .collect();
+        entries.sort_by(|left, right| left.0.cmp(right.0));
+        for (key, value) in entries.into_iter().take(256) {
+            self.set(key, V::Str(value.clone()));
+        }
         // A syntax error aborts the rest of the load, fullscreenResolution included.
         if self.try_apply(raw).is_ok()
             && let Some(r) = raw.get("fullscreenResolution")
@@ -691,6 +730,14 @@ impl OptionsFile {
             out.push_str("fullscreenResolution:");
             out.push_str(r);
             out.push('\n');
+        }
+        for (key, value) in &self.mod_keys {
+            if let V::Str(value) = value {
+                out.push_str(key);
+                out.push(':');
+                out.push_str(value);
+                out.push('\n');
+            }
         }
         out
     }
@@ -793,6 +840,9 @@ impl OptionsFile {
         };
         let mut out = accepts(kind);
         out["value"] = value;
+        if key == "lang" {
+            out["choices"] = serde_json::json!(["ja_jp", "en_us"]);
+        }
         Some(out)
     }
 
@@ -801,10 +851,36 @@ impl OptionsFile {
     /// JSON. Unlike loading `options.txt`, a value the option refuses is an
     /// error naming what it accepts, and the option keeps its value.
     pub fn set_text(&mut self, key: &str, text: &str) -> Result<(), String> {
+        if key
+            .strip_prefix("key_")
+            .is_some_and(crate::keybinds::is_mod_mapping)
+        {
+            if !self.mod_keys.contains_key(key) && self.mod_keys.len() >= 256 {
+                return Err("saved key binding limit".to_owned());
+            }
+            let name = canonical_key(text).map_err(|_| format!("invalid key {text:?}"))?;
+            if name == "key.keyboard.unknown" && text != name {
+                return Err(format!("invalid key {text:?}"));
+            }
+            self.set(key, V::Str(name));
+            return Ok(());
+        }
         let i = Self::index(key).ok_or_else(|| format!("unknown option {key}"))?;
         let d = &TABLE[i];
-        let refused = || format!("{key} refuses {text:?}; it accepts {}", accepts(d.kind));
-        let candidate = if let Some(names) = choices(d.kind) {
+        let refused = || {
+            let accepts = if key == "lang" {
+                "[\"ja_jp\", \"en_us\"]".to_owned()
+            } else {
+                accepts(d.kind).to_string()
+            };
+            format!("{key} refuses {text:?}; it accepts {accepts}")
+        };
+        let candidate = if key == "lang" {
+            if !matches!(text, "ja_jp" | "en_us") {
+                return Err(refused());
+            }
+            V::Str(text.to_owned())
+        } else if let Some(names) = choices(d.kind) {
             let x = names.iter().position(|n| *n == text).ok_or_else(refused)?;
             V::Int(x as i32)
         } else if matches!(d.kind, Kind::Key) {
@@ -835,6 +911,53 @@ mod control_tests {
     use super::*;
 
     #[test]
+    fn mod_bindings_round_trip_without_changing_vanilla_options() {
+        let vanilla = OptionsFile::default().serialize();
+        assert!(!vanilla.contains("key_key.mod."));
+        let mut file = OptionsFile::parse(&vanilla);
+        assert_eq!(file.serialize(), vanilla);
+        file.set_text("key_key.mod.test/open", "key.mouse.4")
+            .unwrap();
+        let saved = file.serialize();
+        assert_eq!(
+            saved,
+            format!("{vanilla}key_key.mod.test/open:key.mouse.4\n")
+        );
+        let loaded = OptionsFile::parse(&saved);
+        assert_eq!(
+            loaded.mod_key_bindings().collect::<Vec<_>>(),
+            [("key.mod.test/open", "key.mouse.4")]
+        );
+        assert_eq!(loaded.key_binding("key.forward"), "key.keyboard.w");
+        assert_eq!(loaded.serialize(), saved);
+        assert!(file.set_text("key_key.mod.test/open", "invalid").is_err());
+        assert_eq!(file.serialize(), saved);
+    }
+
+    #[test]
+    fn mod_binding_option_limit_reports_failure_and_keeps_existing_entries() {
+        let mut file = OptionsFile::default();
+        for index in 0..256 {
+            file.set_text(
+                &format!("key_key.mod.test/binding{index}"),
+                "key.keyboard.r",
+            )
+            .unwrap();
+        }
+        assert!(
+            file.set_text("key_key.mod.test/overflow", "key.keyboard.r")
+                .is_err()
+        );
+        file.set_text("key_key.mod.test/binding0", "key.keyboard.unknown")
+            .unwrap();
+        assert_eq!(file.mod_key_bindings().count(), 256);
+        assert_eq!(
+            file.key_binding("key.mod.test/binding0"),
+            "key.keyboard.unknown"
+        );
+    }
+
+    #[test]
     fn describes_values_with_what_they_accept() {
         let f = OptionsFile::default();
         let fov = f.describe("fov").unwrap();
@@ -844,6 +967,10 @@ mod control_tests {
             (Some("int"), Some(30))
         );
         assert_eq!(f.describe("renderClouds").unwrap()["value"], "true");
+        assert_eq!(
+            f.describe("lang").unwrap()["choices"],
+            serde_json::json!(["ja_jp", "en_us"])
+        );
         assert_eq!(
             f.describe("key_key.forward").unwrap()["value"],
             "key.keyboard.w"
@@ -870,6 +997,11 @@ mod control_tests {
         f.set_text("renderClouds", "fast").unwrap();
         assert_eq!(f.name("renderClouds"), "fast");
         assert!(f.set_text("renderClouds", "fancy").is_err());
+        f.set_text("lang", "ja_jp").unwrap();
+        assert_eq!(f.string("lang"), "ja_jp");
+        let e = f.set_text("lang", "de_de").unwrap_err();
+        assert!(e.contains("ja_jp") && e.contains("en_us"), "{e}");
+        assert_eq!(f.string("lang"), "ja_jp");
         f.set_text("maxFps", "125").unwrap();
         assert_eq!(f.get("maxFps"), Some(&V::Int(120)), "IntRange steps of 10");
         f.set_text("key_key.jump", "key.keyboard.j").unwrap();

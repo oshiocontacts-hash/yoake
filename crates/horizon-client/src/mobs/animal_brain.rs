@@ -634,6 +634,7 @@ fn sense_living(m: &mut Mob, w: &MobWorld) {
 }
 /// `Sensor.isEntityTargetable`: `TargetingConditions.forNonCombat()` within
 /// the follow range, in sight.
+#[yoake_inject_macro::yoake_inject(id = "mobs::animal_brain::targetable", side = "server")]
 fn targetable(m: &mut Mob, w: &MobWorld, who: Who) -> bool {
     let range = m.attrs.follow_range;
     match who {

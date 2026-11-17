@@ -2,6 +2,23 @@ pub use crate::crash::mod_guard::*;
 
 use serde_json::{Value, json};
 
+pub fn enter_thread(
+    thread: ModThread,
+) -> (
+    crate::crash::mod_guard::ThreadScope,
+    yoake_inject_rt::SideScope,
+) {
+    let side = match thread {
+        ModThread::Client => yoake_inject_rt::Side::Client,
+        ModThread::Server => yoake_inject_rt::Side::Server,
+        ModThread::Background => yoake_inject_rt::Side::Unspecified,
+    };
+    (
+        crate::crash::mod_guard::enter_thread(thread),
+        yoake_inject_rt::enter_side(side),
+    )
+}
+
 pub fn notice_text(id: &str, hook: &str) -> crate::text::Text {
     crate::text::Text::translate_with_fallback(
         "horizon.mod_guard.stopped",

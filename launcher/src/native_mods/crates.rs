@@ -500,6 +500,15 @@ checksum = "def"
         }
     }
 
+    /// Whose lock file the refusal names: "the game's" in the Yoake brand, "Horizon's" otherwise.
+    fn lock_owner() -> &'static str {
+        if crate::brand::yoake() {
+            "the game's"
+        } else {
+            "Horizon's"
+        }
+    }
+
     #[test]
     fn a_mods_crate_may_use_only_what_horizons_lock_has() {
         let horizon = downloaded(LOCK).unwrap();
@@ -514,7 +523,7 @@ checksum = "def"
         // Asked for by name, and not in the lock: refused before Cargo looks online.
         let err = refused(&horizon, None, &[wants("bake", "rand", "0.9")], &[]).unwrap();
         assert!(
-            err.starts_with("bake needs rand 0.9, which isn't in Horizon's Cargo.lock"),
+            err.starts_with(&format!("bake needs rand 0.9, which isn't in {} Cargo.lock", lock_owner())),
             "{err}"
         );
         // In the lock, but the update had to change its version.
@@ -648,9 +657,7 @@ checksum = "def"
         );
         let horizon = downloaded(LOCK).unwrap();
         let err = refused(&horizon, None, &wanted, &[]).unwrap();
-        assert!(err.starts_with(
-            "bake needs gtnh-lv-compressor-eval-industrial-sim 1, which isn't in Horizon's Cargo.lock"
-        ));
+        assert!(err.starts_with(&format!("bake needs gtnh-lv-compressor-eval-industrial-sim 1, which isn't in {} Cargo.lock", lock_owner())));
     }
 
     #[test]

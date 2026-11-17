@@ -1,0 +1,15 @@
+schema = 1
+id = "world_inputs"
+name = "World Inputs"
+version = "1.0.0"
+api = "0.1"
+description = "A diagnostic overlay for precision-safe voxel lookup and nearby block lights."
+license = "MIT"
+light_list = true
+
+[voxels]
+size = [64, 64, 64]
+
+[[post]]
+file = "post.wgsl"
+name = "World input overlay"

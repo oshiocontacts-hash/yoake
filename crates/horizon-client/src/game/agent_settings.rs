@@ -197,35 +197,25 @@ mod tests {
         lines
     }
 
-    /// The AI Agent page told its state in English in every language (#1927).
+    /// The AI Agent page translates its state in Japanese (#1927).
     #[test]
     fn agent_page_lines_follow_the_language() {
         assert_eq!(
-            lines("de_de", 2, Some(5), false),
+            lines("ja_jp", 2, Some(5), false),
             [
-                "Verbunden: 2 Agentenverbindungen, letzter Befehl vor 5 s",
-                "Socket: ctl.sock (Verbindungsdaten kopieren für den vollständigen Pfad)",
-                "Nur lokal: Agenten auf diesem Computer, nie über das Netzwerk.",
+                "\u{63a5}\u{7d9a}\u{4e2d}: \u{30a8}\u{30fc}\u{30b8}\u{30a7}\u{30f3}\u{30c8}2\u{4ef6}\u{3001}\u{6700}\u{5f8c}\u{306e}\u{64cd}\u{4f5c}\u{304b}\u{3089}5\u{79d2}",
+                "\u{30bd}\u{30b1}\u{30c3}\u{30c8}: ctl.sock (\u{5b8c}\u{5168}\u{306a}\u{30d1}\u{30b9}\u{306f}\u{63a5}\u{7d9a}\u{60c5}\u{5831}\u{3092}\u{30b3}\u{30d4}\u{30fc}\u{3057}\u{3066}\u{304f}\u{3060}\u{3055}\u{3044})",
+                "\u{30ed}\u{30fc}\u{30ab}\u{30eb}\u{9650}\u{5b9a}: \u{3053}\u{306e}\u{30b3}\u{30f3}\u{30d4}\u{30e5}\u{30fc}\u{30bf}\u{30fc}\u{4e0a}\u{306e}\u{30a8}\u{30fc}\u{30b8}\u{30a7}\u{30f3}\u{30c8}\u{306e}\u{307f}\u{63a5}\u{7d9a}\u{3067}\u{304d}\u{3001}\u{30cd}\u{30c3}\u{30c8}\u{30ef}\u{30fc}\u{30af}\u{306b}\u{306f}\u{516c}\u{958b}\u{3055}\u{308c}\u{307e}\u{305b}\u{3093}\u{3002}",
             ]
         );
-        assert_eq!(
-            lines("pl_pl", 1, None, true),
-            [
-                "Połączono: 1 połączenie agenta",
-                "Otwarte na tę sesję przez program, który uruchomił grę.",
-                "Gniazdo: ctl.sock (skopiuj dane, aby poznać pełną ścieżkę)",
-                "Tylko lokalnie: agenci na tym komputerze, nigdy przez sieć.",
-            ]
-        );
-        let (off, missed) = scoped(Language::load(&[], "fr_fr"), || {
-            status_lines(None, None, false)
-        });
+        let (off, missed) =
+            scoped(Language::load(&[], "ja_jp"), || status_lines(None, None, false));
         assert!(missed.is_empty(), "{missed:?}");
         assert_eq!(
             off,
             [
-                "Désactivé : les agents ne peuvent pas joindre ce jeu.",
-                "Local uniquement : agents sur cet ordinateur, jamais via le réseau.",
+                "\u{30aa}\u{30d5}: \u{30a8}\u{30fc}\u{30b8}\u{30a7}\u{30f3}\u{30c8}\u{306f}\u{3053}\u{306e}\u{30b2}\u{30fc}\u{30e0}\u{306b}\u{63a5}\u{7d9a}\u{3067}\u{304d}\u{307e}\u{305b}\u{3093}\u{3002}",
+                "\u{30ed}\u{30fc}\u{30ab}\u{30eb}\u{9650}\u{5b9a}: \u{3053}\u{306e}\u{30b3}\u{30f3}\u{30d4}\u{30e5}\u{30fc}\u{30bf}\u{30fc}\u{4e0a}\u{306e}\u{30a8}\u{30fc}\u{30b8}\u{30a7}\u{30f3}\u{30c8}\u{306e}\u{307f}\u{63a5}\u{7d9a}\u{3067}\u{304d}\u{3001}\u{30cd}\u{30c3}\u{30c8}\u{30ef}\u{30fc}\u{30af}\u{306b}\u{306f}\u{516c}\u{958b}\u{3055}\u{308c}\u{307e}\u{305b}\u{3093}\u{3002}",
             ]
         );
     }

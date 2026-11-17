@@ -6,11 +6,16 @@ pub enum Difficulty {
     Normal,
     Hard,
 }
+#[yoake_state::yoake_state(read_only)]
 #[derive(Clone, Copy, Debug)]
 pub struct FoodData {
+    #[yoake_state(read_only)]
     pub food: i32,
+    #[yoake_state(read_only)]
     pub saturation: f32,
+    #[yoake_state(read_only)]
     pub exhaustion: f32,
+    #[yoake_state(read_only)]
     pub timer: i32,
 }
 impl Default for FoodData {
@@ -44,16 +49,73 @@ fn max(a: f32, b: f32) -> f32 {
 fn clamp(v: f32, lo: f32, hi: f32) -> f32 {
     if v < lo { lo } else { min(v, hi) }
 }
+#[yoake_inject_macro::yoake_inject(
+    id = "world::food::exhaustion_amount",
+    side = "server",
+    allow = "return"
+)]
+fn exhaustion_amount(value: f32) -> f32 {
+    value
+}
+
+#[cfg(test)]
+mod utility_inject_tests {
+    use super::*;
+    use std::sync::Arc;
+    use yoake_inject_rt::{CallbackError, Guest, Mod, RETURN, Registry, Side, Subscription, Value};
+
+    #[test]
+    fn exhaustion_handler_changes_the_added_amount_with_vanilla_fallback() {
+        struct Replace(f64);
+        impl Guest for Replace {
+            fn returned(&self, _: &str, _: &Value) -> Result<Option<Value>, CallbackError> {
+                Ok(Some(Value::Float(self.0)))
+            }
+        }
+        let _side = yoake_inject_rt::enter_side(Side::Server);
+        let add = || {
+            let mut food = FoodData::default();
+            food.add_exhaustion(2.0);
+            food.exhaustion
+        };
+        assert_eq!(add(), 2.0);
+        for (replacement, expected) in [(0.5, 0.5), (-2.0, 0.0), (80.0, 40.0), (f64::NAN, 2.0)] {
+            let site = __yoake_inject_site_exhaustion_amount();
+            let mut registry = Registry::new([site]).unwrap();
+            let prepared = registry
+                .prepare(
+                    [Subscription {
+                        site_id: site.id(),
+                        side: Side::Server,
+                        points: RETURN,
+                        module: Arc::new(Mod::new(
+                            "exhaustion-test",
+                            Arc::new(Replace(replacement)),
+                        )),
+                    }],
+                    |_, _, _| true,
+                )
+                .unwrap();
+            registry.publish(prepared).unwrap();
+            assert_eq!(add(), expected);
+            drop(registry);
+            assert_eq!(add(), 2.0);
+        }
+    }
+}
+
 impl FoodData {
     pub fn eat(&mut self, nutrition: i32, saturation_modifier: f32) {
         self.eat_properties(nutrition, nutrition as f32 * saturation_modifier * 2.0);
     }
+    #[yoake_inject_macro::yoake_inject(id = "world::food::eat_properties", side = "server")]
     pub fn eat_properties(&mut self, nutrition: i32, saturation: f32) {
         self.food = nutrition.wrapping_add(self.food).clamp(0, 20);
         self.saturation = clamp(saturation + self.saturation, 0.0, self.food as f32);
     }
+    #[yoake_inject_macro::yoake_inject(id = "world::food::add_exhaustion", side = "server")]
     pub fn add_exhaustion(&mut self, value: f32) {
-        self.exhaustion = min(self.exhaustion + value, 40.0);
+        self.exhaustion = min(self.exhaustion + exhaustion_amount(value), 40.0);
     }
     pub fn has_enough_food(&self) -> bool {
         self.food as f32 > 6.0

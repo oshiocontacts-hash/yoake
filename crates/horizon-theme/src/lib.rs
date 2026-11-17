@@ -73,6 +73,7 @@ pub mod glass_icons {
         "folder-01",
         "game-controller-01",
         "globe-02",
+        "home-01",
         "image-01",
         "information-circle",
         "link-01",

@@ -519,7 +519,7 @@ impl Launcher {
                             cx.notify();
                         })),
                 )
-                .when(self.settings.dev_unsigned_dll, |row| {
+                .when(self.settings.dev_unsigned_dll || self.settings.dev_unsigned_wasm, |row| {
                     row.child(
                         shell::text(theme::night::CAPTION, shell::c(t.night.warn))
                             .child(tr("Developer mode")),
@@ -569,6 +569,19 @@ impl Launcher {
                     .when(!wide, |d| d.overflow_x_scroll()),
             );
 
+        // Room for every label at once: the sidebar, the bar's padding and gap, the strip's pages
+        // (about 108 px each in either language), the player, the sign-in button with its words,
+        // Settings, and some spare. Under that the sign-in button is the logo alone, and then the
+        // player's name is cut with "…"; the pages and Settings never give way.
+        let pages = Page::in_top_bar().count() as f32;
+        let full_labels = self.window_width
+            >= SIDEBAR
+                + 76.
+                + 8.
+                + pages * 108.
+                + 480.
+                + if self.native_log.available { 100. } else { 0. }
+                + 60.;
         let (name, how) = self.who_plays();
         let face = match self.accounts.player() {
             Player::Microsoft(_) => self.accounts.selected().map(|a| a.uuid.clone()),
@@ -581,6 +594,8 @@ impl Launcher {
                 .relative()
                 .flex()
                 .items_center()
+                .min_w_0()
+                .overflow_hidden()
                 .gap(px(10.))
                 .h(px(44.))
                 .pl(px(8.))
@@ -590,7 +605,7 @@ impl Launcher {
                 .when(!open, |d| d.hover(|s| s.bg(white(0.09))))
                 .cursor_pointer()
                 .child(
-                    div().size(px(26.)).rounded(px(7.)).overflow_hidden().child(
+                    div().size(px(26.)).flex_none().rounded(px(7.)).overflow_hidden().child(
                         self.profile_heads
                             .draw(face.as_deref(), 26., self.scale, &t),
                     ),
@@ -599,6 +614,7 @@ impl Launcher {
                     div()
                         .flex()
                         .flex_col()
+                        .min_w(px(36.))
                         .max_w(px(150.))
                         .child(
                             ui::text(14., FontWeight::SEMIBOLD, ink::FULL)
@@ -609,11 +625,13 @@ impl Launcher {
                         .child(
                             ui::text(12., FontWeight::NORMAL, ink::QUIET)
                                 .line_height(px(15.))
+                                .truncate()
                                 .child(how),
                         ),
                 )
                 .child(
                     ui::icon("arrow-down-01", 16., white(ink::FAINT))
+                        .flex_none()
                         .ml(px(4.))
                         .with_transformation(gpui::Transformation::rotate(gpui::radians(
                             if open { std::f32::consts::PI } else { 0. },
@@ -632,6 +650,9 @@ impl Launcher {
                 }));
         let account = div()
             .relative()
+            .flex()
+            .min_w_0()
+            .flex_shrink(1.)
             .child(keyboard(chip, &t))
             .children(self.glass_account_menu(cx));
 
@@ -645,16 +666,19 @@ impl Launcher {
                     .items_center()
                     .gap(px(10.))
                     .h(px(44.))
-                    .px(px(16.))
+                    .flex_none()
+                    .px(px(if full_labels { 16. } else { 14. }))
                     .rounded(px(radius::ROW))
                     .bg(white(fill::BUTTON))
                     .hover(|s| s.bg(white(fill::BUTTON_HOVER)))
                     .cursor_pointer()
                     .child(microsoft::logo(16.))
-                    .child(
-                        ui::text(14., FontWeight::MEDIUM, ink::FULL)
-                            .child(tr("Sign in with Microsoft")),
-                    )
+                    .when(full_labels, |d| {
+                        d.child(
+                            ui::text(14., FontWeight::MEDIUM, ink::FULL)
+                                .child(tr("Sign in with Microsoft")),
+                        )
+                    })
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.start_sign_in();
                         cx.notify();
@@ -712,7 +736,8 @@ impl Launcher {
                 div()
                     .ml_auto()
                     .flex()
-                    .flex_none()
+                    .min_w_0()
+                    .flex_shrink(1.)
                     .items_center()
                     .gap(px(6.))
                     .children(build_log)
@@ -791,7 +816,7 @@ impl Launcher {
                                 .child(ui::text(12., FontWeight::NORMAL, ink::FAINT).child(how)),
                         )
                         .when(chosen, |d| {
-                            d.child(ui::icon("tick-02", 16., ui::color(soft)).relative())
+                            d.child(ui::icon("tick-02", 16., ui::accent_soft(soft)).relative())
                         })
                         .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.play_as(who.clone());

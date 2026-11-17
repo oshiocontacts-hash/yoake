@@ -70,6 +70,7 @@ pub struct NativePost {
     /// The pack's textures.
     textures: Vec<(wgpu::TextureView, wgpu::Sampler)>,
     frame: wgpu::Buffer,
+    world: super::native_world::Bindings,
     linear: wgpu::Sampler,
     nearest: wgpu::Sampler,
     /// Two targets of the world's size, written in turn (none with a single pass).
@@ -100,6 +101,55 @@ pub struct NativePost {
     format: wgpu::TextureFormat,
 }
 
+struct ProjectionJitter {
+    offset: [f32; 2],
+    matrix: Mat4,
+}
+
+impl ProjectionJitter {
+    fn new(enabled: bool, counter: u32, size: [u32; 2]) -> Self {
+        if !enabled {
+            return Self {
+                offset: [0.0; 2],
+                matrix: Mat4::IDENTITY,
+            };
+        }
+        let offset = horizon_shader_api::jitter::halton_2_3(counter);
+        Self {
+            offset,
+            matrix: Mat4::from_translation(Vec3::new(
+                2.0 * offset[0] / size[0].max(1) as f32,
+                -2.0 * offset[1] / size[1].max(1) as f32,
+                0.0,
+            )),
+        }
+    }
+}
+
+struct FrameHistory {
+    view_projection: [[f32; 4]; 4],
+    unjittered_view_projection: [[f32; 4]; 4],
+    jitter: [f32; 2],
+    camera: glam::DVec3,
+    size: [u32; 2],
+    time: std::time::Instant,
+}
+
+impl FrameHistory {
+    fn apply(&self, inputs: &mut FrameInputs, current: &Self) -> bool {
+        let elapsed = (current.time - self.time).as_secs_f32();
+        if self.size != current.size || elapsed >= MAX_FRAME_GAP {
+            return false;
+        }
+        inputs.previous_view_projection = self.view_projection;
+        inputs.previous_unjittered_view_projection = self.unjittered_view_projection;
+        inputs.jitter[2..].copy_from_slice(&self.jitter);
+        inputs.camera_motion = (current.camera - self.camera).as_vec3().to_array();
+        inputs.delta_time = elapsed;
+        true
+    }
+}
+
 /// The `frame` every stage of a pack reads (group 3, binding 0), written once a frame, and
 /// what the material stage reads besides.
 pub struct NativeFrame {
@@ -113,6 +163,9 @@ pub struct NativeFrame {
     pub textures: Vec<(wgpu::TextureView, wgpu::Sampler)>,
     /// The colour of block light around the camera (`[[lights]]`), bindings 9 and 10.
     pub block_light: super::block_light::BlockLight,
+    pub(super) world: super::native_world::NativeWorld,
+    pub(super) taa_jitter: bool,
+    jitter: ProjectionJitter,
     pub group: wgpu::BindGroup,
     /// The world's depth before translucent terrain (the material stage's `opaque_depth`,
     /// binding 6), copied each frame.
@@ -131,11 +184,14 @@ pub struct NativeFrame {
     /// The shadow map the stages read, and the camera that draws it when the pack asks for one.
     pub shadow_map: super::native_shadow::ShadowMap,
     shadow_camera: Option<horizon_shaders::Shadow>,
+    shadow_cache: super::native_shadow::Cache,
+    pub(super) shadow_cache_enabled: bool,
+    pub(super) shadow_animated: bool,
     /// Whether the pack's material reads `reflection` (`NativePack::new`): else no mirror
     /// is drawn and `has_reflection` stays 0.
     pub reflects: bool,
     /// Last frame's view-projection, camera and time (`write`).
-    last: Option<([[f32; 4]; 4], glam::DVec3, std::time::Instant)>,
+    last: Option<FrameHistory>,
     /// The eased eye light (block, sky) and being in water and lava (`write`); NaN until the
     /// first frame sets them.
     eye: [f32; 4],
@@ -226,7 +282,17 @@ impl NativeFrame {
         textures: Vec<(wgpu::TextureView, wgpu::Sampler)>,
         lights: super::block_light::LightTable,
         pbr: Option<&[wgpu::Texture; 2]>,
-    ) -> Self {
+        manifest: &horizon_shader_api::Manifest,
+    ) -> Result<Self, String> {
+        let world = super::native_world::NativeWorld::new(
+            device,
+            manifest,
+            if manifest.light_list {
+                lights.clone()
+            } else {
+                Default::default()
+            },
+        )?;
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Native shader pack frame"),
             size: size_of::<FrameInputs>() as u64,
@@ -270,6 +336,7 @@ impl NativeFrame {
         ];
         entries.extend(block_light_entries);
         entries.extend(pack_texture_entries(textures.len()));
+        entries.extend(world.bindings.layout_entries());
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Native shader pack frame"),
             entries: &entries,
@@ -330,10 +397,14 @@ impl NativeFrame {
             &textures,
             &block_light,
             &pbr,
+            &world.bindings,
         );
-        Self {
+        Ok(Self {
             textures,
             block_light,
+            world,
+            taa_jitter: manifest.taa_jitter,
+            jitter: ProjectionJitter::new(false, 0, [1; 2]),
             pbr,
             buffer,
             layout,
@@ -347,6 +418,9 @@ impl NativeFrame {
             reflection_sampler,
             shadow_map,
             shadow_camera: shadow.map(super::native_shadow::camera),
+            shadow_cache: Default::default(),
+            shadow_cache_enabled: shadow.is_some_and(|settings| settings.cache),
+            shadow_animated: false,
             reflects: false,
             last: None,
             eye: [f32::NAN; 4],
@@ -355,15 +429,42 @@ impl NativeFrame {
             frames: 0,
             capture_time: None,
             wetness: (0.0, None),
-        }
+        })
     }
 
     /// What the shadow camera sees this frame, for the renderer's shadow lists.
-    pub fn shadow_view(&self, frame: &Frame) -> Option<super::pack_post::ShadowView> {
-        let camera = self.shadow_camera.as_ref()?;
+    pub fn prepare_shadow(&mut self, frame: &Frame, mesh_revision: u64) {
+        let Some(camera) = self.shadow_camera.as_ref() else {
+            return;
+        };
+        let enabled = self.shadow_cache_enabled && frame.shadow_cache;
+        let dynamic = enabled
+            && (self.shadow_animated
+                || !frame.shadow_only.is_empty()
+                || super::native_shadow::dynamic_entities(frame.entities));
+        self.shadow_cache.prepare(
+            super::native_shadow::CacheKey::new(
+                frame.camera,
+                frame.shadow_scene_revision,
+                mesh_revision,
+            ),
+            frame.camera,
+            super::pack_uniforms::shadow_light(frame, camera),
+            super::pack_uniforms::shadow_culling(frame, camera),
+            enabled,
+            dynamic,
+        );
+    }
+
+    pub fn shadow_needs_render(&self) -> bool {
+        self.shadow_cache.dirty
+    }
+
+    pub fn shadow_view(&self) -> Option<super::pack_post::ShadowView> {
+        let (cull, light) = self.shadow_cache.view?;
         Some(super::pack_post::ShadowView {
-            cull: super::pack_uniforms::shadow_culling(frame, camera),
-            light: super::pack_uniforms::shadow_light(frame, camera),
+            cull,
+            light,
             // The light's box culls: on the ground it reaches further than `distance` along
             // the sun's azimuth while the sun is low.
             distance: None,
@@ -381,6 +482,7 @@ impl NativeFrame {
         textures: &[(wgpu::TextureView, wgpu::Sampler)],
         block_light: &super::block_light::BlockLight,
         pbr: &[wgpu::TextureView; 2],
+        world: &super::native_world::Bindings,
     ) -> wgpu::BindGroup {
         let opaque_depth = opaque_depth.create_view(&Default::default());
         let opaque_color = opaque_color.create_view(&Default::default());
@@ -441,6 +543,7 @@ impl NativeFrame {
             },
         ]);
         entries.extend(pack_texture_group_entries(textures));
+        entries.extend(world.entries());
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Native shader pack frame"),
             layout,
@@ -506,6 +609,7 @@ impl NativeFrame {
             &self.textures,
             &self.block_light,
             &self.pbr,
+            &self.world.bindings,
         );
     }
 
@@ -518,6 +622,34 @@ impl NativeFrame {
             self.wetness.1 = None;
         }
         self.capture_time = time;
+    }
+
+    pub(super) fn prepare_frame(
+        &mut self,
+        time: Option<super::capture::PresentationTime>,
+        size: [u32; 2],
+    ) -> Mat4 {
+        self.set_capture_presentation_time(time);
+        let counter = self.capture_time.map_or(self.frames, |clock| clock.frame());
+        self.jitter = ProjectionJitter::new(self.taa_jitter, counter, size);
+        self.jitter.matrix
+    }
+
+    pub(super) fn jitter_projection(
+        frame: Option<&mut Self>,
+        time: Option<super::capture::PresentationTime>,
+        size: [u32; 2],
+        projection: Mat4,
+    ) -> Mat4 {
+        let Some(frame) = frame else {
+            return projection;
+        };
+        let jitter = frame.prepare_frame(time, size);
+        if frame.taa_jitter {
+            jitter * projection
+        } else {
+            projection
+        }
     }
 
     /// Writes this frame's inputs, for a world of `size`.
@@ -537,6 +669,17 @@ impl NativeFrame {
         let counter = self.frames;
         let counter = self.capture_time.map_or(counter, |clock| clock.frame());
         let mut inputs = frame_inputs(frame, size, seconds, counter, self.shadow_camera.as_ref());
+        if let Some((cull, light)) = self.shadow_cache.view {
+            inputs.shadow_view_proj = cull.to_cols_array_2d();
+            inputs.light_direction = light.to_array();
+        }
+        self.world.write_frame(&mut inputs);
+        let unjittered = inputs.unjittered_view_projection;
+        let jitter = self.jitter.offset;
+        inputs.jitter = [jitter[0], jitter[1], jitter[0], jitter[1]];
+        let projection = self.jitter.matrix * Mat4::from_cols_array_2d(&inputs.projection);
+        inputs.projection = projection.to_cols_array_2d();
+        inputs.projection_inverse = projection.inverse().to_cols_array_2d();
         inputs.wetness = self.wetness.0;
         if !self.reflects {
             inputs.has_reflection = 0;
@@ -547,18 +690,23 @@ impl NativeFrame {
         inputs.previous_view_projection = view_proj;
         // `write` skips title frames, so a gap means a pause or another world: the frame
         // before says nothing about this one, and the eased values start over.
-        match self.last {
-            Some((previous, camera, time)) if (now - time).as_secs_f32() < MAX_FRAME_GAP => {
-                inputs.previous_view_projection = previous;
-                inputs.camera_motion = (frame.camera - camera).as_vec3().to_array();
-                inputs.delta_time = (now - time).as_secs_f32();
-            }
-            _ => {
-                self.eye = [f32::NAN; 4];
-                self.history_reset = true;
-            }
+        let current = FrameHistory {
+            view_projection: view_proj,
+            unjittered_view_projection: unjittered,
+            jitter,
+            camera: frame.camera,
+            size,
+            time: now,
+        };
+        if !self
+            .last
+            .as_ref()
+            .is_some_and(|history| history.apply(&mut inputs, &current))
+        {
+            self.eye = [f32::NAN; 4];
+            self.history_reset = true;
         }
-        self.last = Some((view_proj, frame.camera, now));
+        self.last = Some(current);
         if let Some(clock) = self.capture_time {
             inputs.delta_time = clock.delta().as_secs_f32();
         }
@@ -708,6 +856,7 @@ impl NativePost {
             texture_entry(11, wgpu::TextureSampleType::Float { filterable: false }),
         ];
         entries.extend(pack_texture_entries(frame.textures.len()));
+        entries.extend(frame.world.bindings.layout_entries());
         entries
             .extend((0..targets.len() as u32).map(|j| {
                 texture_entry(horizon_shader_api::stages::POST_TARGET_BINDING + j, float)
@@ -783,6 +932,7 @@ impl NativePost {
             layout,
             textures: frame.textures.clone(),
             frame: frame.buffer.clone(),
+            world: frame.world.bindings.clone(),
             shadow: (
                 frame.shadow_map.view.clone(),
                 frame.shadow_map.sampler.clone(),
@@ -960,6 +1110,7 @@ impl NativePost {
                     },
                 ];
                 entries.extend(pack_texture_group_entries(&self.textures));
+                entries.extend(self.world.entries());
                 // The pack's targets, a blank one in place of the one this pass writes.
                 if let Some((_, views)) = &self.named {
                     entries.extend(views.iter().enumerate().map(|(j, view)| {
@@ -1169,11 +1320,23 @@ pub fn frame_inputs(
         shadow_distortion: shadow.map_or(0.0, |s| {
             super::native_shadow::distortion(s.distance, s.resolution)
         }),
+        unjittered_view_projection: m(projection * view),
+        previous_unjittered_view_projection: m(projection * view),
+        jitter: [0.0; 4],
+        voxel_size: [0; 3],
+        has_voxels: 0,
+        voxel_origin: [0.0; 3],
+        light_count: 0,
+        voxel_center: [0.0; 3],
+        voxel_cell_size: 1.0,
         shadow_resolution: shadow.map_or(0.0, |s| s.resolution as f32),
         shadow_center_texel: shadow.map_or(0.0, |s| {
             let k = super::native_shadow::distortion(s.distance, s.resolution);
             2.0 * s.distance / s.resolution.max(1) as f32 * (1.0 - k)
         }),
+        voxel_origin_slot: [0; 3],
+        voxel_padding: 0,
+        voxel_validity: [[0; 4]; 16],
     }
 }
 
@@ -1307,6 +1470,108 @@ mod tests {
     use horizon_shader_api::{MANIFEST, Pack, check};
 
     #[test]
+    fn no_pack_preserves_the_projection_without_multiplication() {
+        let mut columns = Mat4::IDENTITY.to_cols_array();
+        columns[5] = f32::NAN;
+        let projection = Mat4::from_cols_array(&columns);
+        let actual = NativeFrame::jitter_projection(None, None, [640, 360], projection);
+        assert_eq!(
+            actual.to_cols_array().map(f32::to_bits),
+            columns.map(f32::to_bits)
+        );
+    }
+
+    #[test]
+    fn capture_jitter_is_prepared_once_at_the_world_target_size() {
+        let Some((device, _queue)) = device() else {
+            return;
+        };
+        let manifest = horizon_shader_api::Manifest::parse(
+            "schema=1\nid=\"test_capture\"\nname=\"Capture\"\nversion=\"0.1.0\"\napi=\"0.1\"\ntaa_jitter=true\n[[post]]\nfile=\"post.wgsl\"",
+        )
+        .unwrap();
+        let mut frame = NativeFrame::new(
+            &device,
+            None,
+            Vec::new(),
+            Default::default(),
+            None,
+            &manifest,
+        )
+        .unwrap();
+        frame.frames = 7;
+        let mut clock = None;
+        for seconds in [1, 2, 3] {
+            super::super::capture::PresentationTime::set(
+                &mut clock,
+                Some(std::time::Duration::from_secs(seconds)),
+            );
+        }
+        let projection = Mat4::from_scale(Vec3::new(2.0, 3.0, 4.0));
+        let actual = NativeFrame::jitter_projection(
+            Some(&mut frame),
+            clock,
+            [640, 360],
+            projection,
+        );
+        assert_eq!(frame.capture_time.unwrap().frame(), 1);
+        assert!((frame.jitter.offset[0] + 0.25).abs() < 1e-6);
+        assert!((frame.jitter.offset[1] - 1.0 / 6.0).abs() < 1e-6);
+        let expected = Mat4::from_translation(Vec3::new(-1.0 / 1280.0, -1.0 / 1080.0, 0.0));
+        assert!(frame.jitter.matrix.abs_diff_eq(expected, 1e-6));
+        assert!(actual.abs_diff_eq(expected * projection, 1e-6));
+        frame.frames = 100;
+        assert!(actual.abs_diff_eq(frame.jitter.matrix * projection, 1e-6));
+    }
+
+    #[test]
+    fn temporal_history_resets_after_resizing_or_a_long_gap() {
+        let time = std::time::Instant::now();
+        let history = FrameHistory {
+            view_projection: Mat4::from_scale(glam::Vec3::splat(2.0)).to_cols_array_2d(),
+            unjittered_view_projection: Mat4::IDENTITY.to_cols_array_2d(),
+            jitter: [0.25, -0.125],
+            camera: glam::DVec3::new(10.0, 20.0, 30.0),
+            size: [800, 600],
+            time,
+        };
+        let mut current = FrameHistory {
+            view_projection: Mat4::from_scale(glam::Vec3::splat(3.0)).to_cols_array_2d(),
+            unjittered_view_projection: Mat4::from_scale(glam::Vec3::splat(4.0)).to_cols_array_2d(),
+            jitter: [-0.25, 0.125],
+            camera: glam::DVec3::new(10.5, 19.0, 32.0),
+            size: [800, 600],
+            time: time + std::time::Duration::from_millis(16),
+        };
+        let reset_inputs = FrameInputs {
+            previous_view_projection: current.view_projection,
+            previous_unjittered_view_projection: current.unjittered_view_projection,
+            jitter: [-0.25, 0.125, -0.25, 0.125],
+            ..Default::default()
+        };
+        let mut inputs = reset_inputs;
+        assert!(history.apply(&mut inputs, &current));
+        assert_eq!(inputs.previous_view_projection, history.view_projection);
+        assert_eq!(
+            inputs.previous_unjittered_view_projection,
+            history.unjittered_view_projection
+        );
+        assert_eq!(inputs.jitter, [-0.25, 0.125, 0.25, -0.125]);
+        assert_eq!(inputs.camera_motion, [0.5, -1.0, 2.0]);
+        assert_eq!(inputs.delta_time, 0.016);
+
+        current.size = [1024, 768];
+        inputs = reset_inputs;
+        assert!(!history.apply(&mut inputs, &current));
+        assert_eq!(inputs, reset_inputs);
+
+        current.size = history.size;
+        current.time = time + std::time::Duration::from_secs_f32(MAX_FRAME_GAP);
+        assert!(!history.apply(&mut inputs, &current));
+        assert_eq!(inputs, reset_inputs);
+    }
+
+    #[test]
     fn wetness_rises_slower_than_it_dries() {
         assert_eq!(wetness(0.0, 1.0, 30.0), 0.5);
         assert_eq!(wetness(1.0, 0.0, 10.0), 0.5);
@@ -1357,7 +1622,15 @@ mod tests {
             .into();
         let report = check(&Pack::from_files(files).unwrap()).unwrap();
         let format = wgpu::TextureFormat::Rgba8Unorm;
-        let frame = NativeFrame::new(&device, None, Vec::new(), Default::default(), None);
+        let frame = NativeFrame::new(
+            &device,
+            None,
+            Vec::new(),
+            Default::default(),
+            None,
+            &report.manifest,
+        )
+        .unwrap();
         queue.write_buffer(
             &frame.buffer,
             0,
@@ -1477,7 +1750,15 @@ file = \"b.wgsl\"
             .into();
         let report = check(&Pack::from_files(files).unwrap()).unwrap();
         let format = wgpu::TextureFormat::Rgba8Unorm;
-        let frame = NativeFrame::new(&device, None, Vec::new(), Default::default(), None);
+        let frame = NativeFrame::new(
+            &device,
+            None,
+            Vec::new(),
+            Default::default(),
+            None,
+            &report.manifest,
+        )
+        .unwrap();
         let mut post = NativePost::new(
             &device,
             report.stages,

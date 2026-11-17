@@ -51,15 +51,20 @@ impl Launcher {
                     &t,
                 )
                 .size(px(SWATCH))
+                .rounded(px(10.))
                 .bg(face)
                 .border_2()
-                .border_color(if chosen { t.ink } else { t.outline })
+                .border_color(if chosen {
+                    glass_ui::white(1.)
+                } else {
+                    glass_ui::white(0.16)
+                })
                 .cursor_pointer()
                 .when(chosen, |d| {
                     d.flex()
                         .items_center()
                         .justify_center()
-                        .child(div().size(px(8.)).bg(t.on_face))
+                        .child(div().size(px(8.)).rounded_full().bg(t.on_face))
                 })
                 .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
                     this.settings.accent = accent;
@@ -93,11 +98,11 @@ impl Launcher {
     }
 
     /// A strip of every hue: a click or a drag picks any of them, the swatches being shortcuts.
-    fn hue_strip(&self, t: &Theme, cx: &mut Context<Self>) -> Div {
+    fn hue_strip(&self, _t: &Theme, cx: &mut Context<Self>) -> Div {
         let current = self.settings.accent.hue();
         let area = self.hue_area.clone();
-        let ink = t.ink;
-        let outline = t.outline;
+        let ink = glass_ui::white(1.);
+        let outline = glass_ui::white(0.16);
         // Hues per painted quad: 60 of them, fine enough at this width.
         const STEPS: usize = 60;
         div()
@@ -105,6 +110,8 @@ impl Launcher {
             .flex_none()
             .w(px(STRIP))
             .h(px(SWATCH))
+            .rounded(px(10.))
+            .overflow_hidden()
             .border_2()
             .border_color(outline)
             .cursor_pointer()
@@ -265,7 +272,7 @@ impl Launcher {
         let detail = div().flex().flex_col().child(said.to_string()).children(
             self.background_error
                 .clone()
-                .map(|e| div().text_color(t.danger).child(e)),
+                .map(|e| div().text_color(glass_ui::color(horizon_theme::glass::DANGER)).child(e)),
         );
         index_row(
             0,

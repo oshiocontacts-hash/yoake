@@ -497,8 +497,9 @@ impl Loading {
     }
 
     fn open_menu_options(&mut self, page: Page) {
+        crate::entry::wasm_mods::package_ui::populate(&mut self.settings, true);
         self.menu.options.open_at(false, page);
-        self.menu.options.languages = horizon_client::lang::available(&[&self.menu.root]);
+        self.menu.options.languages = horizon_client::lang::selectable(&[&self.menu.root]);
         self.menu.options.pack_infos = packs::pack_infos(&self.vanilla_root, &[]);
         self.menu.options.pack_selection = self.settings.resource_packs.clone();
         self.menu.options.pack_screen = None;
@@ -613,6 +614,16 @@ impl Loading {
                 }
                 // Mods' settings pages open only in a running game.
                 Event::NativeSettings(_) | Event::NativeButton(..) => {}
+                Event::ConfigOpen(_) => {
+                    crate::entry::wasm_mods::package_ui::populate(&mut self.settings, true)
+                }
+                Event::ConfigSave(index) => {
+                    if let Err(error) =
+                        crate::entry::wasm_mods::package_ui::save(&self.settings, index, true)
+                    {
+                        self.menu.options.resource_error = Some(error);
+                    }
+                }
                 // The startup menu runs before the game opens a control socket,
                 // and before its sound engine (no clicks, no volume previews,
                 // and no music tracks to list or play).

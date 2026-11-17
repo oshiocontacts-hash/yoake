@@ -17,6 +17,12 @@ pub mod invite;
 pub mod portmap;
 pub mod reach;
 mod session;
+pub mod social;
+pub mod social_client;
+pub mod social_control;
+pub mod social_handoff;
+pub mod social_stream;
+pub mod social_tls;
 pub mod stun;
 pub mod wire;
 

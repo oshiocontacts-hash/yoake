@@ -184,6 +184,36 @@ pub enum Event {
     },
 }
 
+pub const GUEST_COMMAND_CHANNEL: &str = "yoake:guest_command";
+
+fn is_command_packet(packet: &play::Serverbound) -> bool {
+    matches!(
+        packet,
+        play::Serverbound::ChatCommand(_) | play::Serverbound::ChatCommandSigned(_)
+    ) || matches!(packet, play::Serverbound::CustomPayload(payload) if payload.channel == horizon_protocol::quiet::CHANNEL)
+}
+
+fn scoped_command_packet(packet: play::Serverbound, local: bool) -> play::Serverbound {
+    if local && is_command_packet(&packet) && yoake_inject_rt::in_guest_command() {
+        play::Serverbound::CustomPayload(cfg::CustomPayload {
+            channel: GUEST_COMMAND_CHANNEL.into(),
+            data: packet.encode(),
+        })
+    } else {
+        packet
+    }
+}
+
+pub fn decode_guest_command(payload: &cfg::CustomPayload, local: bool) -> Option<play::Serverbound> {
+    if !local || payload.channel != GUEST_COMMAND_CHANNEL {
+        return None;
+    }
+    let mut reader = horizon_protocol::buf::Reader::new(&payload.data);
+    let id = reader.varint().ok()?;
+    let packet = play::Serverbound::decode(id, reader.rest()).ok()?;
+    is_command_packet(&packet).then_some(packet)
+}
+
 pub struct Session {
     events: Receiver<Event>,
     #[cfg(feature = "dev-capture")]
@@ -194,6 +224,7 @@ pub struct Session {
     configuring: Arc<AtomicBool>,
     capture_item_tags: bool,
     replay: bool,
+    local: bool,
     thread: Option<JoinHandle<()>>,
     pub address: String,
     pub name: String,
@@ -205,7 +236,35 @@ pub struct Session {
     /// The far terrain requests waiting for the server (`lod_net`).
     far: Arc<crate::lod_net::Inbox>,
 }
+enum Transport {
+    Local(horizon_protocol::connection::Pipe),
+    Social(horizon_friends::social_stream::Bridge),
+}
+
 impl Session {
+    pub fn connect_social(
+        bridge: horizon_friends::social_stream::Bridge,
+        name: &str,
+        auth: Option<Arc<AuthSession>>,
+        info: cfg::ClientInformation,
+        lang: Arc<Language>,
+        resources: PathBuf,
+        capture_item_tags: bool,
+    ) -> Self {
+        Self::start(
+            "social",
+            name,
+            auth,
+            info,
+            lang,
+            Some(Transport::Social(bridge)),
+            None,
+            resources,
+            false,
+            capture_item_tags,
+            false,
+        )
+    }
     /// Start connecting in the background, as `auth`'s account when there is one.
     pub fn connect(
         address: &str,
@@ -297,7 +356,7 @@ impl Session {
             None,
             info,
             lang,
-            Some(pipe),
+            Some(Transport::Local(pipe)),
             None,
             resources,
             false,
@@ -320,7 +379,7 @@ impl Session {
             None,
             info,
             lang,
-            Some(pipe),
+            Some(Transport::Local(pipe)),
             None,
             resources,
             false,
@@ -334,7 +393,7 @@ impl Session {
         auth: Option<Arc<AuthSession>>,
         info: cfg::ClientInformation,
         lang: Arc<Language>,
-        local: Option<horizon_protocol::connection::Pipe>,
+        local: Option<Transport>,
         cookies: Option<Cookies>,
         resources: PathBuf,
         lan: bool,
@@ -342,8 +401,12 @@ impl Session {
         replay: bool,
     ) -> Self {
         let (send, events) = channel();
+        let local_connection = local.is_some();
         #[cfg(feature = "dev-capture")]
-        let capture_fences = local.as_ref().map(|pipe| pipe.capture_fences());
+        let capture_fences = local.as_ref().and_then(|transport| match transport {
+            Transport::Local(pipe) => Some(pipe.capture_fences()),
+            Transport::Social(_) => None,
+        });
         let writer = Arc::new(Mutex::new(None));
         let configuring = Arc::new(AtomicBool::new(true));
         let counters = Arc::new(Mutex::new(None));
@@ -406,6 +469,7 @@ impl Session {
             configuring,
             capture_item_tags,
             replay,
+            local: local_connection,
             thread,
             address: address.to_owned(),
             name: name.to_owned(),
@@ -477,6 +541,7 @@ impl Session {
         {
             return;
         }
+        let packet = scoped_command_packet(packet, self.local);
         if self.debug
             && !matches!(
                 packet,
@@ -810,7 +875,7 @@ fn connection_lost(e: horizon_protocol::Error, lang: &Language) -> String {
 /// Ok: why it ended for good (the server's reason, or
 /// a refusal no retry fixes); Err: the connection failed.
 fn run(
-    local: Option<horizon_protocol::connection::Pipe>,
+    local: Option<Transport>,
     address: &str,
     name: &str,
     auth: Option<&AuthSession>,
@@ -829,8 +894,16 @@ fn run(
     net_capture: Option<&NetCapture>,
     replay: bool,
 ) -> Result<Reason, Reason> {
-    let (host, port, mut c) = if let Some(pipe) = local {
-        (address.to_owned(), 0, Connection::local(pipe))
+    let (host, port, mut c) = if let Some(transport) = local {
+        let (port, connection) = match transport {
+            Transport::Local(pipe) => (0, Connection::local(pipe)),
+            Transport::Social(bridge) => (
+                25565,
+                Connection::social(bridge)
+                    .map_err(|_| Reason::plain(tr(lang, "connect.failed")))?,
+            ),
+        };
+        (address.to_owned(), port, connection)
     } else {
         let (host, port) = match address.strip_prefix(FRIEND) {
             Some(code) => join_friend(code, lang, send)?,
@@ -1571,6 +1644,62 @@ mod tests {
     use super::*;
 
     #[test]
+    fn guest_command_provenance_is_local_and_preserves_signed_packets() {
+        let unsigned = play::Serverbound::ChatCommand(play::ChatCommand {
+            command: "function ns:f".into(),
+        });
+        assert_eq!(scoped_command_packet(unsigned.clone(), true), unsigned);
+        let scope = yoake_inject_rt::guest_command_scope();
+        assert_eq!(scoped_command_packet(unsigned.clone(), false), unsigned);
+        for packet in [
+            unsigned,
+            play::Serverbound::ChatCommandSigned(play::ChatCommandSigned {
+                command: "say signed".into(),
+                timestamp: 123,
+                salt: 456,
+                arguments: vec![("message".into(), vec![7; 256])],
+                last_seen: play::LastSeenUpdate {
+                    offset: 3,
+                    acknowledged: [1, 2, 3],
+                    checksum: 4,
+                },
+            }),
+            play::Serverbound::CustomPayload(cfg::CustomPayload {
+                channel: horizon_protocol::quiet::CHANNEL.into(),
+                data: vec![1, 2, 3],
+            }),
+        ] {
+            let wrapped = scoped_command_packet(packet.clone(), true);
+            let play::Serverbound::CustomPayload(payload) = wrapped else {
+                panic!("a local guest command must carry provenance");
+            };
+            assert_eq!(decode_guest_command(&payload, true), Some(packet));
+            assert_eq!(decode_guest_command(&payload, false), None);
+        }
+        drop(scope);
+        assert!(!yoake_inject_rt::in_guest_command());
+    }
+
+    #[test]
+    fn guest_command_provenance_rejects_non_commands_and_malformed_payloads() {
+        for data in [
+            Vec::new(),
+            vec![255],
+            play::Serverbound::ChatAck(play::ChatAck { offset: 0 }).encode(),
+        ] {
+            let payload = cfg::CustomPayload {
+                channel: GUEST_COMMAND_CHANNEL.into(),
+                data,
+            };
+            assert_eq!(decode_guest_command(&payload, true), None);
+        }
+        let scope = yoake_inject_rt::guest_command_scope();
+        let packet = play::Serverbound::ChatAck(play::ChatAck { offset: 0 });
+        assert_eq!(scoped_command_packet(packet.clone(), true), packet);
+        drop(scope);
+    }
+
+    #[test]
     fn snapshot_configuration_retention_is_disabled_without_a_listener_or_request() {
         assert!(!retain_snapshot_configuration(false, false));
         assert!(retain_snapshot_configuration(true, false));
@@ -2290,6 +2419,7 @@ mod tests {
                 configuring: Arc::new(AtomicBool::new(false)),
                 capture_item_tags: false,
                 replay: false,
+                local: true,
                 thread: Some(thread),
                 address: "local".into(),
                 name: "TestPlayer".into(),
@@ -2398,6 +2528,7 @@ mod tests {
             configuring: Arc::new(AtomicBool::new(false)),
             capture_item_tags: false,
             replay: false,
+            local: true,
             thread: None,
             address: "local".into(),
             name: "Player".into(),

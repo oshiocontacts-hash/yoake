@@ -16,8 +16,13 @@ runtime = []
 # Typed bindings of the full hook catalog (`client-full` and `server-full` worlds): `yoake_wasm_sdk::full`.
 # Off by default: the bindings are large and only needed by full-catalog mods.
 full = []
+# Test modules run by the engine (`yoake test`): `yoake_wasm_sdk::testing::engine` and `export_tests!`. Never part of a released mod.
+test = []
+mixin = []
+mixin-config = ["mixin"]
 
 [dependencies]
+yoake-wasm-test-macros = { path = "test-macros" }
 # default features off: the SDK decides about std itself.
 wit-bindgen = { version = "=0.57.1", default-features = false, features = ["realloc", "macros"] }
 

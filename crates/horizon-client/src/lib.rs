@@ -7,4 +7,7 @@ pub mod entry;
 pub mod game;
 pub mod mod_api;
 pub mod mod_guard;
+#[cfg(test)]
+mod inject_test_support;
 mod yak_mods;
+mod yoake_test;

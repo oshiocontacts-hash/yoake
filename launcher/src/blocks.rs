@@ -93,6 +93,24 @@ pub fn panel(t: &Theme) -> Div {
 pub fn badge(label: impl Into<SharedString>, color: Hsla, t: &Theme) -> Div {
     let label: SharedString = label.into();
     let label = SharedString::from(crate::i18n::tr(&label).to_string());
+    if crate::glass_mode() {
+        let _ = t;
+        return div()
+            .flex()
+            .flex_none()
+            .items_center()
+            .gap(px(6.))
+            .h(px(22.))
+            .px(px(8.))
+            .rounded_full()
+            .bg(color.opacity(0.15))
+            .child(div().size(px(6.)).rounded_full().bg(color))
+            .child(
+                crate::glass_ui::text(12., FontWeight::MEDIUM, 1.)
+                    .text_color(color)
+                    .child(label),
+            );
+    }
     let tint = if t.dark { 0.14 } else { 0.12 };
     div()
         .flex()
@@ -167,6 +185,30 @@ pub fn tabs<T: Copy + PartialEq + 'static>(
 /// A square slot for an icon: the picture at `source` when there is one, else the first letter of
 /// `name` on a raised block.
 pub fn slot(source: Option<ImageSource>, name: &str, size: f32, t: &Theme) -> Div {
+    if crate::glass_mode() {
+        let _ = t;
+        let frame = div()
+            .flex()
+            .flex_none()
+            .items_center()
+            .justify_center()
+            .size(px(size))
+            .overflow_hidden()
+            .rounded(px((size * 0.22).round()))
+            .bg(crate::glass_ui::white(0.08));
+        return match source {
+            Some(source) => frame.child(img(source).size(px(size)).object_fit(ObjectFit::Cover)),
+            None => frame.child(
+                crate::glass_ui::text((size * 0.42).round(), FontWeight::SEMIBOLD, 0.6).child(
+                    name.chars()
+                        .find(|c| c.is_alphanumeric())
+                        .unwrap_or('?')
+                        .to_uppercase()
+                        .to_string(),
+                ),
+            ),
+        };
+    }
     let frame = div()
         .flex()
         .flex_none()

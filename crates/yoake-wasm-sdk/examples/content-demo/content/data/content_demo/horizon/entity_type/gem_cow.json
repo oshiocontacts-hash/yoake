@@ -1,0 +1,15 @@
+{ "template": "minecraft:cow",
+  "texture": "content_demo:entity/gem_cow",
+  "width": 0.9, "height": 1.4,
+  "attributes": { "max_health": 24, "movement_speed": 0.28 },
+  "behaviours": [
+    { "type": "float" },
+    { "type": "panic", "speed": 1.5 },
+    { "type": "tempt", "items": ["minecraft:wheat"], "speed": 1.2 },
+    { "type": "flee", "from": ["minecraft:player"], "distance": 4, "walk_speed": 1.1, "sprint_speed": 1.4 },
+    { "type": "wander", "speed": 0.9 },
+    { "type": "look_at_player", "range": 8 },
+    { "type": "random_look" }
+  ],
+  "spawn": { "biomes": "#minecraft:is_overworld", "weight": 12, "min": 2, "max": 4 },
+  "spawn_egg": true }

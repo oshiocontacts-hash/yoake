@@ -214,6 +214,10 @@ impl Game<'_> {
     }
     /// `AbstractFurnaceBlockEntity.serverTick` of the furnace at `pos`, and
     /// its block's `lit` following it.
+    #[yoake_inject_macro::yoake_inject(
+        id = "game::block_entity_ticks::tick_furnace",
+        side = "server"
+    )]
     fn tick_furnace(&mut self, pos: Pos) -> Result<()> {
         // What the hooks need from before the tick, without cloning stacks: the
         // fuel's id only while the furnace is out (it can light this tick), the

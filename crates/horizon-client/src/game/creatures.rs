@@ -941,6 +941,10 @@ impl Game<'_> {
     }
     /// The entity phase of `tick_creatures`: every mob's tick, deaths, and the
     /// projectiles and effects that follow from them.
+    #[yoake_inject_macro::yoake_inject(
+        id = "game::creatures::tick_creature_entities",
+        side = "server"
+    )]
     pub(super) fn tick_creature_entities(&mut self) -> Result<()> {
         // LivingEntity.die runs when the killing blow lands: mobs killed
         // since the last tick (by the player, explosions...) die first.
@@ -1292,6 +1296,10 @@ impl Game<'_> {
         });
     }
 
+    #[yoake_inject_macro::yoake_inject(
+        id = "game::creatures::mob_died_with_credit",
+        side = "server"
+    )]
     fn mob_died_with_credit(
         &mut self,
         m: &Mob,
@@ -1467,6 +1475,7 @@ impl Game<'_> {
     /// `dropAllDeathLoot` through `mobs::drops`: the entity loot table from the
     /// world's random sequence, equipment by drop chance, species extras and
     /// the experience orbs, spawned in order.
+    #[yoake_inject_macro::yoake_inject(id = "game::creatures::drop_death_loot", side = "server")]
     fn drop_death_loot(
         &mut self,
         m: &mut Mob,
@@ -1635,6 +1644,11 @@ impl Game<'_> {
         }
     }
     /// Melee or ranged damage to another mob; whether the hit landed.
+    #[yoake_inject_macro::yoake_inject(
+        id = "game::creatures::mob_hits_mob",
+        side = "server",
+        entities = "target"
+    )]
     fn mob_hits_mob(&mut self, target: u32, amount: f32, source: Damage) -> bool {
         let mut killed = false;
         let mut hurt = false;
@@ -1792,6 +1806,7 @@ impl Game<'_> {
     }
     /// Adds a projectile, giving it an id from the entity counter
     /// (`Entity.id`, the same counter as the rest) when it has none.
+    #[yoake_inject_macro::yoake_inject(id = "game::creatures::add_projectile", side = "server")]
     pub(super) fn add_projectile(&mut self, mut p: horizon_client::projectiles::Projectile) {
         if p.id == 0 {
             self.next_entity += 1;
@@ -3480,6 +3495,7 @@ impl Game<'_> {
     ) {
         self.hurt_player_from(amount, Some(from), kind, Some(cause));
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::creatures::mob_hits_player", side = "server")]
     pub(super) fn mob_hits_player(
         &mut self,
         amount: f32,
@@ -3741,6 +3757,7 @@ impl Game<'_> {
         }
         self.give_player_effect("minecraft:wither", 40, 0);
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::creatures::hurt_player_by", side = "server")]
     pub(super) fn hurt_player_by(&mut self, damage_type: &str, amount: f32) {
         let mut canceled = false;
         if !self.creative
@@ -4482,6 +4499,7 @@ impl Game<'_> {
             }
         }
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::creatures::projectile_hit", side = "server")]
     pub(super) fn projectile_hit(&mut self, p: &Projectile, hit: Hit) -> Result<()> {
         let _attacker = self.knockback_scope_for(p.owner);
         // Projectile.onHitBlock: BlockState.onProjectileHit, for every

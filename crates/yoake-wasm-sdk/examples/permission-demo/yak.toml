@@ -1,0 +1,23 @@
+format = 1
+id = "permission-demo"
+version = "0.1.0"
+name = "Permission Secret Demo"
+authors = ["Yoake SDK Examples"]
+description = "Server-side WebAssembly example that checks a permission node with has_permission in a /secret command."
+license = "MIT"
+
+[yoake]
+version = ">=0.1"
+
+[side]
+client = false
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.0"
+server = "bin/wasm/permission-demo.wasm"
+permissions = ["service.permissions"]
+
+[permissions."secret.access"]
+default_op_level = 2

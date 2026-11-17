@@ -33,6 +33,29 @@ pub struct Language {
     map: HashMap<String, String>,
 }
 pub const DEFAULT: &str = "en_us";
+/// The game's selectable languages, in the order shown by its language screen.
+pub const SELECTABLE_CODES: [&str; 2] = ["ja_jp", "en_us"];
+
+/// Japanese is the default except on systems whose locale begins with `en`.
+pub fn default_for_locale(locale: Option<&str>) -> &'static str {
+    if locale.is_some_and(|locale| {
+        locale
+            .get(..2)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("en"))
+    }) {
+        "en_us"
+    } else {
+        "ja_jp"
+    }
+}
+
+/// Resolve an options.txt language to the only two languages the game offers.
+pub fn effective_code(code: &str) -> &str {
+    match code {
+        "ja_jp" | "en_us" => code,
+        _ => "ja_jp",
+    }
+}
 
 static CURRENT: RwLock<Option<Arc<Language>>> = RwLock::new(None);
 /// A language that only the calling thread sees, and the keys it was asked for and did not have
@@ -67,60 +90,8 @@ impl ResourceSource for Bundled {
             "assets/horizon/lang/en_us.json" => {
                 include_str!("../../horizon-client/assets/horizon/lang/en_us.json")
             }
-            "assets/horizon/lang/zh_cn.json" => {
-                include_str!("../../horizon-client/assets/horizon/lang/zh_cn.json")
-            }
-            "assets/horizon/lang/ru_ru.json" => {
-                include_str!("../../horizon-client/assets/horizon/lang/ru_ru.json")
-            }
-            "assets/horizon/lang/pl_pl.json" => {
-                include_str!("../../horizon-client/assets/horizon/lang/pl_pl.json")
-            }
-            "assets/horizon/lang/uk_ua.json" => {
-                include_str!("../../horizon-client/assets/horizon/lang/uk_ua.json")
-            }
-            "assets/horizon/lang/hi_in.json" => {
-                include_str!("../../horizon-client/assets/horizon/lang/hi_in.json")
-            }
-            "assets/horizon/lang/id_id.json" => {
-                include_str!("../../horizon-client/assets/horizon/lang/id_id.json")
-            }
-            "assets/horizon/lang/tr_tr.json" => {
-                include_str!("../../horizon-client/assets/horizon/lang/tr_tr.json")
-            }
-            "assets/horizon/lang/ko_kr.json" | "assets/horizon/lang/ko.json" => {
-                include_str!("../../horizon-client/assets/horizon/lang/ko_kr.json")
-            }
-            "assets/horizon/lang/hr_hr.json" | "assets/horizon/lang/hr.json" => {
-                include_str!("../../horizon-client/assets/horizon/lang/hr_hr.json")
-            }
-            "assets/horizon/lang/pt_pt.json" => {
-                include_str!("../../horizon-client/assets/horizon/lang/pt_pt.json")
-            }
-            "assets/horizon/lang/ur_pk.json" => {
-                include_str!("../../horizon-client/assets/horizon/lang/ur_pk.json")
-            }
-            "assets/horizon/lang/de_de.json" | "assets/horizon/lang/de_at.json" => {
-                include_str!("../../horizon-client/assets/horizon/lang/de_de.json")
-            }
-            // Swiss German writes "ss" for "ß", as vanilla's de_ch does.
-            "assets/horizon/lang/de_ch.json" => {
-                let de = include_str!("../../horizon-client/assets/horizon/lang/de_de.json");
-                return Some(de.replace('ß', "ss").into_bytes());
-            }
-            "assets/horizon/lang/fr_fr.json"
-            | "assets/horizon/lang/fr_ca.json"
-            | "assets/horizon/lang/fr_ch.json" => {
-                include_str!("../../horizon-client/assets/horizon/lang/fr_fr.json")
-            }
-            "assets/horizon/lang/es_es.json"
-            | "assets/horizon/lang/es_ar.json"
-            | "assets/horizon/lang/es_cl.json"
-            | "assets/horizon/lang/es_ec.json"
-            | "assets/horizon/lang/es_mx.json"
-            | "assets/horizon/lang/es_uy.json"
-            | "assets/horizon/lang/es_ve.json" => {
-                include_str!("../../horizon-client/assets/horizon/lang/es_es.json")
+            "assets/horizon/lang/ja_jp.json" => {
+                include_str!("../../horizon-client/assets/horizon/lang/ja_jp.json")
             }
             _ => return None,
         };
@@ -277,6 +248,29 @@ pub fn available(sources: &[&dyn ResourceSource]) -> Vec<LanguageInfo> {
     found.into_values().collect()
 }
 
+/// The two selectable game languages, Japanese first. Vanilla strings still
+/// load from the prepared resources; missing metadata only affects row labels.
+pub fn selectable(sources: &[&dyn ResourceSource]) -> Vec<LanguageInfo> {
+    let available = available(sources);
+    SELECTABLE_CODES
+        .iter()
+        .map(|code| {
+            available
+                .iter()
+                .find(|language| language.code == *code)
+                .cloned()
+                .unwrap_or_else(|| {
+                    LanguageInfo {
+                        code: (*code).into(),
+                        name: (*code).into(),
+                        region: String::new(),
+                        bidirectional: false,
+                    }
+                })
+        })
+        .collect()
+}
+
 pub fn set(language: Language) {
     BIDIRECTIONAL.store(language.bidirectional, Ordering::Relaxed);
     *CURRENT.write().unwrap_or_else(|e| e.into_inner()) = Some(Arc::new(language));
@@ -374,64 +368,30 @@ mod tests {
         let empty = Mem(HashMap::new());
         let en = Language::load(&[&empty], "en_us");
         assert_eq!(en.get("horizon.options.controller"), Some("Controller"));
-        let ru = Language::load(&[&empty], "ru_ru");
-        assert_eq!(ru.get("horizon.options.controller"), Some("Геймпад"));
-        // Every bundled string carries both languages: a key added to one file
-        // and forgotten in the other shows as a key name on screen.
+        let ja = Language::load(&[&empty], "ja_jp");
+        assert_eq!(ja.get("horizon.options.controller"), Some("コントローラー"));
         for key in en.map().keys() {
-            assert!(ru.get(key).is_some(), "{key} has no ru_ru value");
+            assert!(ja.get(key).is_some(), "{key} has no ja_jp value");
         }
         assert_eq!(en.get("horizon.pages.mods"), Some("Mods"));
-        assert_eq!(ru.get("horizon.pages.mods"), Some("Моды"));
-        let zh = Language::load(&[&empty], "zh_cn");
-        assert_eq!(zh.get("horizon.options.controller"), Some("手柄"));
-        assert_eq!(zh.get("horizon.pages.mods"), Some("模组"));
-        assert_eq!(zh.get("Preset"), Some("预设"));
-        assert_eq!(zh.get("%s chunks"), Some("%s 个区块"));
-        // Not every bundle is complete: the en_us layer is in every map, so a
-        // missing key falls back to English (`horizon.mods.not_built` is not
-        // in ru_ru either).
-        assert_eq!(zh.get("LOD Distance"), Some("LOD 距离"));
-        assert_eq!(ru.get("horizon.mods.not_built"), Some(" (Not built)"));
-        let pl = Language::load(&[&empty], "pl_pl");
-        assert_eq!(pl.get("horizon.options.controller"), Some("Kontroler"));
-        assert_eq!(pl.get("horizon.options.vibration"), Some("Wibracje"));
-        let uk = Language::load(&[&empty], "uk_ua");
-        assert_eq!(
-            uk.get("horizon.options.on_screen_keyboard"),
-            Some("Екранна клавіатура")
-        );
-        let tr = Language::load(&[&empty], "tr_tr");
-        assert_eq!(tr.get("horizon.options.controller"), Some("Kontrolcü"));
-        let es = Language::load(&[&empty], "es_es");
-        assert_eq!(es.get("horizon.options.controller"), Some("Mando"));
-        // German and French, and their regional variants on the same file
-        // (Swiss German without "ß").
-        let de = Language::load(&[&empty], "de_de");
-        assert_eq!(de.get("horizon.osk.close"), Some("Schließen"));
-        let fr = Language::load(&[&empty], "fr_fr");
-        assert_eq!(fr.get("horizon.osk.close"), Some("Fermer"));
-        for (code, base) in [("de_at", &de), ("fr_ca", &fr), ("fr_ch", &fr)] {
-            let variant = Language::load(&[&empty], code);
-            assert_eq!(variant.map(), base.map(), "{code}");
-        }
-        let de_ch = Language::load(&[&empty], "de_ch");
-        assert_eq!(de_ch.get("horizon.osk.close"), Some("Schliessen"));
-        assert!(de_ch.map().values().all(|v| !v.contains('ß')));
-        assert_eq!(de_ch.len(), de.len());
-        let es_ve = Language::load(&[&empty], "es_ve");
-        assert_eq!(
-            es_ve.get("horizon.options.on_screen_keyboard"),
-            Some("Teclado en pantalla")
-        );
+        assert_eq!(ja.get("yoake.config.title"), Some("%s の設定"));
+        assert_eq!(ja.get("horizon.pages.mods"), Some("Mod"));
+        assert_eq!(ja.get("Preset"), Some("プリセット"));
+        assert_eq!(ja.get("%s chunks"), Some("%sチャンク"));
+        assert_eq!(ja.get("LOD Distance"), Some("LOD距離"));
+        assert_eq!(ja.get("horizon.mods.not_built"), Some(" (未ビルド)"));
+        // Other options.txt languages still load vanilla text, while Horizon's
+        // own bundled strings fall back to English.
+        let unsupported = Language::load(&[&empty], "de_de");
+        assert_eq!(unsupported.get("horizon.osk.close"), Some("Close"));
     }
 
     #[test]
     fn a_scoped_language_is_the_calling_threads_and_reports_what_it_lacks() {
         let empty = Mem(HashMap::new());
         let outside = code();
-        let ((german, english_only, fallback, elsewhere), missed) =
-            scoped(Language::load(&[&empty], "de_de"), || {
+        let ((japanese, english_only, fallback, elsewhere), missed) =
+            scoped(Language::load(&[&empty], "ja_jp"), || {
                 (
                     get("horizon.osk.close"),
                     get("horizon.no_such_key"),
@@ -440,7 +400,7 @@ mod tests {
                     std::thread::spawn(code).join().unwrap(),
                 )
             });
-        assert_eq!(german, "Schließen");
+        assert_eq!(japanese, "閉じる");
         assert_eq!(english_only, "horizon.no_such_key");
         assert_eq!(fallback, "English");
         assert_eq!(elsewhere, outside);
@@ -517,20 +477,11 @@ mod tests {
         let dir = bundled_dir();
         let en_body = std::fs::read_to_string(dir.join("en_us.json")).unwrap();
         let en: HashMap<String, String> = serde_json::from_str(&en_body).unwrap();
-        let mut seen = 0;
-        for entry in std::fs::read_dir(&dir).unwrap().flatten() {
-            let name = entry.file_name().into_string().unwrap();
-            let Some(code) = name.strip_suffix(".json") else {
-                continue;
-            };
-            seen += 1;
-            // A file that Bundled::read does not name is never loaded.
+        for code in ["en_us", "ja_jp"] {
+            let name = format!("{code}.json");
             let path = format!("assets/horizon/lang/{name}");
-            assert!(
-                Bundled.read(&path).is_some(),
-                "{name} is not served by Bundled"
-            );
-            let body = std::fs::read_to_string(entry.path()).unwrap();
+            assert!(Bundled.read(&path).is_some(), "{name} is not served by Bundled");
+            let body = std::fs::read_to_string(dir.join(&name)).unwrap();
             let map: HashMap<String, String> = serde_json::from_str(&body)
                 .unwrap_or_else(|e| panic!("{name} is not a flat string map: {e}"));
             let keys = file_keys(&body);
@@ -539,24 +490,55 @@ mod tests {
                 map.len(),
                 "{name} repeats a key or has a multi-line entry"
             );
+            assert_eq!(map.len(), en.len(), "{name} is missing language strings");
             for (key, value) in &map {
-                // Stale: the code no longer asks for it, or it was renamed in en_us only.
                 let english = en
                     .get(key)
-                    .unwrap_or_else(|| panic!("{code}: {key} is not in en_us.json"));
-                // A translation keeps the fields the code fills in.
+                    .unwrap_or_else(|| panic!("{name}: {key} is not in en_us.json"));
                 assert_eq!(
                     placeholders(value),
                     placeholders(english),
-                    "{code}: {key} changes the placeholders of the English text"
+                    "{name}: {key} changes the placeholders of the English text"
                 );
-                assert!(!value.trim().is_empty(), "{code}: {key} is empty");
+                assert!(!value.trim().is_empty(), "{name}: {key} is empty");
             }
         }
-        assert!(
-            seen >= 7,
-            "found {seen} bundled lang files in {}",
-            dir.display()
+        assert!(Bundled.read("assets/horizon/lang/de_de.json").is_none());
+    }
+
+    #[test]
+    fn default_language_follows_only_english_os_locales() {
+        for (locale, expected) in [
+            (Some("en"), "en_us"),
+            (Some("en-US"), "en_us"),
+            (Some("ja"), "ja_jp"),
+            (Some("de_DE.UTF-8"), "ja_jp"),
+            (Some(""), "ja_jp"),
+            (None, "ja_jp"),
+        ] {
+            assert_eq!(default_for_locale(locale), expected, "locale {locale:?}");
+        }
+    }
+
+    #[test]
+    fn selectable_languages_are_exactly_japanese_then_english() {
+        let source = Mem(HashMap::from([
+            (
+                "assets/pack.mcmeta".into(),
+                br#"{"language":{"ja_jp":{"name":"Japanese","region":"JP"},"en_us":{"name":"English","region":"US"},"de_de":{"name":"German","region":"DE"},"fr_fr":{"name":"French","region":"FR"}}}"#.to_vec(),
+            ),
+            ("assets/minecraft/lang/ja_jp.json".into(), b"{}".to_vec()),
+            ("assets/minecraft/lang/en_us.json".into(), b"{}".to_vec()),
+            ("assets/minecraft/lang/de_de.json".into(), b"{}".to_vec()),
+            ("assets/minecraft/lang/fr_fr.json".into(), b"{}".to_vec()),
+        ]));
+        let languages = selectable(&[&source]);
+        assert_eq!(
+            languages
+                .iter()
+                .map(|language| language.code.as_str())
+                .collect::<Vec<_>>(),
+            ["ja_jp", "en_us"]
         );
     }
 

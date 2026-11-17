@@ -141,6 +141,10 @@ impl Game<'_> {
         Ok(())
     }
     /// `CrafterBlock.dispenseItem`: into the container in front, else out as an item.
+    #[yoake_inject_macro::yoake_inject(
+        id = "game::machines::crafter::crafter_eject",
+        side = "server"
+    )]
     fn crafter_eject(&mut self, pos: Pos, facing: Direction, stack: ItemStack, recipe: &str) {
         let target = offset(pos, facing);
         let mut rest = stack;

@@ -31,7 +31,10 @@ pub(super) fn read_shader_options(
     language: &str,
     macros: &Macros,
 ) -> Option<ShaderOptions> {
-    let pack = match Pack::open(&crate::yak_mods::shaders::path(name, &Game::shader_packs_dir())) {
+    let pack = match Pack::open(&crate::yak_mods::shaders::path(
+        name,
+        &Game::shader_packs_dir(),
+    )) {
         Ok(pack) => pack,
         Err(e) => {
             log::warn!("shader pack {name}: {e}");
@@ -43,7 +46,11 @@ pub(super) fn read_shader_options(
     let lang = crate::yak_mods::shaders::classic_lang(name, &pack, language);
     let chosen = chosen_shader_options(name);
     let pack = pack.with_chosen(chosen.clone());
-    let text = if declared { String::new() } else { pack.read_text("shaders.properties").unwrap_or_default() };
+    let text = if declared {
+        String::new()
+    } else {
+        pack.read_text("shaders.properties").unwrap_or_default()
+    };
     let properties = Properties::parse(&text, &horizon_shaders::with_options(&pack, macros));
     let screens = horizon_shaders::Screens::parse(&properties, &options);
     Some(ShaderOptions::new(
@@ -57,7 +64,9 @@ pub(super) fn read_shader_options(
 
 /// Saves the values chosen on the Shader Options page; none chosen removes the file.
 pub(super) fn write_shader_options(options: &ShaderOptions) {
-    if let Err(error) = crate::yak_mods::shaders::prepare_classic_save(&options.pack, &Game::shader_packs_dir()) {
+    if let Err(error) =
+        crate::yak_mods::shaders::prepare_classic_save(&options.pack, &Game::shader_packs_dir())
+    {
         log::warn!("YAK shader options: {error}");
         return;
     }
@@ -91,7 +100,11 @@ fn picked_pack(settings: &horizon_client::settings::Settings) -> &str {
 /// (`Renderer::new`).
 pub(super) fn picked_pack_draws_flat(settings: &horizon_client::settings::Settings) -> bool {
     let picked = picked_pack(settings);
-    !picked.is_empty() && pack_draws_flat(&crate::yak_mods::shaders::path(picked, &Game::shader_packs_dir()))
+    !picked.is_empty()
+        && pack_draws_flat(&crate::yak_mods::shaders::path(
+            picked,
+            &Game::shader_packs_dir(),
+        ))
 }
 
 /// Whether the pack at `path` has passes that draw the terrain flat where the device can,
@@ -124,7 +137,10 @@ pub(super) fn picks_native_pack(settings: &horizon_client::settings::Settings) -
         &settings.mods,
     );
     !picked.is_empty()
-        && horizon_shader_api::package::is_pack(&crate::yak_mods::shaders::path(picked, &Game::shader_packs_dir()))
+        && horizon_shader_api::package::is_pack(&crate::yak_mods::shaders::path(
+            picked,
+            &Game::shader_packs_dir(),
+        ))
 }
 
 /// The ids a pack gives entities and block entities (4.1, 5.3), for the spans of the entity
@@ -503,18 +519,28 @@ impl Game<'_> {
     }
 
     fn mark_entity_part(&self, start: usize, name: &str, translucent: bool) {
+        let native_entity = self.native_entity_material();
         let id = match &self.pack_ids {
             Some(ids) => ids
                 .entities
                 .get(name)
                 .copied()
                 .unwrap_or(ids.missing_entity),
-            None if native_spans() => name_id(name),
+            None if native_spans() || native_entity => name_id(name),
             None => return,
         };
         self.push_span(start, "ENTITIES", id);
         if let Some(last) = self.entity_spans.borrow_mut().last_mut() {
             last.translucent = translucent;
+            if native_entity && !translucent {
+                last.native_kind = self
+                    .remote
+                    .as_ref()
+                    .map(|remote| remote.builtin.clone())
+                    .or_else(|| super::remote::builtin_registries(&self.options.resources))
+                    .and_then(|builtin| builtin.get("minecraft:entity_type")?.id(name))
+                    .and_then(|kind| u32::try_from(kind).ok());
+            }
             if let Some(gpu) = self.skin_frame.borrow_mut().spans.last_mut() {
                 gpu.translucent = translucent;
             }
@@ -524,8 +550,11 @@ impl Game<'_> {
     /// Starts a span for the block entity of block state `state`.
     pub(super) fn mark_block_entity(&self, start: usize, state: u32) {
         let Some(ids) = &self.pack_ids else {
-            if native_spans() {
+            if native_spans() || self.native_entity_material() {
                 self.push_span(start, "BLOCK_ENTITIES", state as i32);
+                if let Some(last) = self.entity_spans.borrow_mut().last_mut() {
+                    last.native_kind = Some(0x8000_0000 | state);
+                }
             }
             return;
         };
@@ -561,7 +590,7 @@ impl Game<'_> {
     /// pack's shadow pass draws it.
     pub(super) fn mark_player(&self, start: usize, hidden: bool) {
         self.mark_entity(start, "minecraft:player");
-        if (self.pack_ids.is_some() || native_spans())
+        if (self.pack_ids.is_some() || native_spans() || self.native_entity_material())
             && let Some(last) = self.entity_spans.borrow_mut().last_mut()
         {
             last.player = true;
@@ -581,7 +610,7 @@ impl Game<'_> {
 
     /// Starts a span of geometry that is not an entity (`PARTICLES`, `DESTROY`...).
     pub(super) fn mark_stage(&self, start: usize, stage: &str) {
-        if self.pack_ids.is_some() || native_spans() {
+        if self.pack_ids.is_some() || native_spans() || self.native_entity_material() {
             self.push_span(start, stage, 0);
         }
     }
@@ -610,6 +639,12 @@ impl Game<'_> {
             Some(last) if last.start == span.start => *last = span,
             _ => spans.push(span),
         }
+    }
+
+    fn native_entity_material(&self) -> bool {
+        self.renderer
+            .as_ref()
+            .is_some_and(|renderer| renderer.native_entity_material())
     }
 }
 

@@ -1,0 +1,20 @@
+format = 1
+id = "hud-item"
+version = "0.1.0"
+name = "HUD Item Demo"
+authors = ["Yoake SDK Examples"]
+description = "Client-side WebAssembly example that draws an item icon and label on the HUD."
+license = "MIT"
+
+[yoake]
+version = ">=0.1"
+
+[side]
+client = true
+server = false
+required_on_join = false
+
+[wasm]
+interface = "1.0"
+client = "bin/wasm/hud-item.wasm"
+world = "client-full"

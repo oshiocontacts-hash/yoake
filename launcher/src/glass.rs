@@ -113,9 +113,26 @@ pub fn float(radius: f32) -> Div {
         .child(backdrop(Kind::Float, radius))
 }
 
+/// Added to a piece's key in the light look, so the two looks keep their own pieces.
+const LIGHT_KEY: u32 = 1_000_000;
+
+/// The light look's plate: dense frosted white over the blurred scene, so the sky's clouds and
+/// stars are blurred away under it and only a faint trace shows through.
+fn light_look(look: &Glass, kind: Kind) -> Glass {
+    Glass {
+        plate: 0xf8f4fd,
+        plate_alpha: match kind {
+            Kind::Glass => 0.88,
+            Kind::Float => 0.96,
+        },
+        ..*look
+    }
+}
+
 /// The piece at `bounds` (a plate's, or with `fillet` set to the device scale, a fillet's), made
 /// once and kept.
 fn image_at(bounds: Bounds<Pixels>, kind: Kind, fillet: f32) -> Option<Arc<RenderImage>> {
+    let light = crate::glass_ui::light();
     PIECES.with_borrow_mut(|p| {
         let backdrop = p.backdrop.as_ref()?;
         let key = (
@@ -125,7 +142,7 @@ fn image_at(bounds: Bounds<Pixels>, kind: Kind, fillet: f32) -> Option<Arc<Rende
             f32::from(bounds.size.height).round() as i32,
             kind,
             p.generation,
-            (fillet * 100.).round() as u32,
+            (fillet * 100.).round() as u32 + if light { LIGHT_KEY } else { 0 },
         );
         if key.2 <= 0 || key.3 <= 0 {
             return None;
@@ -135,10 +152,15 @@ fn image_at(bounds: Bounds<Pixels>, kind: Kind, fillet: f32) -> Option<Arc<Rende
             *used = build;
             return Some(image.clone());
         }
-        let image = if fillet > 0. {
-            fillet_piece(backdrop, &p.look, kind, key, fillet)
+        let look = if light {
+            light_look(&p.look, kind)
         } else {
-            piece(backdrop, &p.look, kind, key)
+            p.look
+        };
+        let image = if fillet > 0. {
+            fillet_piece(backdrop, &look, kind, key, fillet)
+        } else {
+            piece(backdrop, &look, kind, key)
         };
         p.pieces.insert(key, (image.clone(), build));
         Some(image)
@@ -146,6 +168,41 @@ fn image_at(bounds: Bounds<Pixels>, kind: Kind, fillet: f32) -> Option<Arc<Rende
 }
 
 fn paint(bounds: Bounds<Pixels>, kind: Kind, corners: Corners<Pixels>, window: &mut Window) {
+    if crate::glass_ui::light() {
+        // The light look: frosted white over the scene's blurred copy (as the dark look's plates
+        // are), with a white hairline. Without a backdrop yet, a flat frost dense enough to hide
+        // the sky's clouds and stars.
+        let (fill, edge) = match kind {
+            Kind::Glass => (0.88, 0.9),
+            Kind::Float => (0.96, 0.95),
+        };
+        let hairline = |window: &mut Window, fill_color: gpui::Hsla| {
+            window.paint_quad(
+                gpui::fill(bounds, fill_color)
+                    .corner_radii(corners)
+                    .border_widths(px(1.))
+                    .border_color(gpui::white().opacity(edge)),
+            );
+        };
+        match image_at(bounds, kind, 0.) {
+            Some(image) => {
+                let (w, h) = (
+                    f32::from(bounds.size.width).round(),
+                    f32::from(bounds.size.height).round(),
+                );
+                let (cols, rows) = texels(w, h);
+                let (tx, ty) = (w / cols as f32, h / rows as f32);
+                let outer = Bounds::new(
+                    bounds.origin - gpui::point(px(tx), px(ty)),
+                    bounds.size + gpui::size(px(tx * 2.), px(ty * 2.)),
+                );
+                let _ = window.paint_image(bounds, outer, corners, image, 0, false);
+                hairline(window, gpui::transparent_black());
+            }
+            None => hairline(window, gpui::Hsla::from(gpui::rgb(0xf8f4fd)).opacity(fill)),
+        }
+        return;
+    }
     if let Some(image) = image_at(bounds, kind, 0.) {
         // The piece's border texels go just outside the plate (see [`piece`]).
         let (w, h) = (

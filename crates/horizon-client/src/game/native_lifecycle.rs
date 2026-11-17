@@ -263,6 +263,12 @@ impl Game<'_> {
         self.native_clear_mannequins();
     }
 
+    /// Test mode (`--yoake-test`): the driver's operations read the world between ticks, with the same
+    /// permission a server-tick hook has.
+    pub(super) fn native_lifecycle_test_read_scope(&mut self, on: bool) {
+        self.native_lifecycle.read_scope = on;
+    }
+
     pub(super) fn native_lifecycle_server_tick_start(&mut self, world_running: bool) {
         if let Some((context, phase)) = self.native_lifecycle.server_tick_start(world_running) {
             self.native_lifecycle.read_scope = true;

@@ -1,0 +1,22 @@
+[package]
+name = "yoake-wasm-validation-fixture"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+typo = []
+trap = []
+unwired-client = []
+wrong-client = []
+wrong-server = []
+
+[dependencies]
+yoake-wasm-sdk = { path = "../../../yoake-wasm-sdk", features = ["full"] }
+
+[profile.release]
+panic = "abort"

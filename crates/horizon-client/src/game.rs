@@ -204,28 +204,29 @@ mod music;
 mod names;
 mod narrator;
 mod native_account;
+mod native_attack_hitbox;
 mod native_audio;
 mod native_avatar_equipment;
 mod native_biome_colors;
-pub mod native_block_entity_draw;
 pub mod native_block_behaviors;
-pub mod native_capabilities;
-mod native_fluids;
-pub mod native_item_behaviors;
-pub mod native_data_menus;
-pub mod native_item_render;
+pub mod native_block_entity_draw;
 mod native_block_sprites;
+pub mod native_capabilities;
+mod native_camera;
 mod native_chat;
 mod native_claimed_items;
 mod native_client_items;
-mod native_client_state;
 pub mod native_client_map;
+mod native_client_state;
 mod native_components;
 mod native_cooldowns;
 mod native_criteria;
 mod native_crosshair;
+mod native_key_bindings;
+mod native_post_shader;
 mod native_damage;
 mod native_data_maps;
+pub mod native_data_menus;
 pub mod native_deferred;
 mod native_entities;
 mod native_entity_moves;
@@ -235,22 +236,27 @@ pub mod native_entity_query;
 mod native_entity_refs;
 mod native_explosions;
 mod native_falling;
+mod native_fluids;
 mod native_frames;
+mod native_gui_item;
 mod native_gui_textures;
+mod native_hud_layout;
 mod native_hud_visibility;
 pub(crate) mod native_hooks;
 mod native_inventories;
 mod native_inventory_rules;
 pub(crate) mod native_inventory_screen;
+pub mod native_item_behaviors;
 mod native_item_container;
 mod native_item_energy;
 mod native_item_fluids;
+pub mod native_item_render;
 mod native_item_slot;
 pub(crate) mod native_lan;
-mod native_local_player;
 mod native_level_refs;
 mod native_lifecycle;
 mod native_living_refs;
+mod native_local_player;
 mod native_mannequin;
 mod native_menus;
 mod native_mix;
@@ -276,15 +282,17 @@ mod native_server_ops;
 pub(crate) mod native_server_physics;
 mod native_session;
 mod native_shaders;
+mod native_sky_tint;
 mod native_streams;
 mod native_team;
 mod native_ticks;
 mod native_title_screen;
 mod native_visuals;
-mod native_attack_hitbox;
-mod native_sky_tint;
+mod native_registry_names;
+mod native_screen_slots;
 mod native_world_border;
 mod native_world_columns;
+mod native_world_draw;
 mod native_world_edit;
 mod native_wasm_services;
 mod native_world_read;
@@ -351,6 +359,7 @@ mod shoulders;
 mod sign_edit;
 mod sniffers;
 mod social;
+mod social_relay;
 mod spawner;
 mod spear;
 mod spectator;
@@ -393,6 +402,7 @@ mod win;
 mod wind;
 mod wither;
 mod world_loading;
+mod yoake_tests;
 mod zombie_reinforcements;
 mod zombie_villagers;
 use event_loop::EventLoopCtl;
@@ -467,7 +477,7 @@ pub use native_chat::NativeChatRecipients;
 pub use native_claimed_items::{NativeHeldItem, NativeHit, NativeModEvent};
 pub use native_client_state::{NativeClientWorld, NativeSoundCategory};
 pub use native_cooldowns::NativeCooldownTarget;
-pub use native_crosshair::NativeCrosshairEntity;
+pub use native_crosshair::{NativeCrosshairEntity, NativeViewHit, NativeViewTarget};
 pub use native_damage::{NativeDamage, NativeDamageActor, NativeDamageKind};
 pub use native_data_maps::NativeDataMapType;
 pub use native_explosions::NativeBlast;
@@ -587,6 +597,12 @@ struct Options {
     session_file: Option<String>,
     /// `--session-stdin`: the session file's JSON comes on standard input instead.
     session_stdin: bool,
+    /// `--yoake-test-run` and its companions: this process is a worker of `yoake test` (`yoake_test.rs`).
+    yoake_test: yoake_test_runner::WorkerArgs,
+    social_handoff: Option<PathBuf>,
+    social_trust: Option<PathBuf>,
+    social_control_stdin: bool,
+    social_startup: Arc<std::sync::Mutex<Option<std::result::Result<social_relay::Startup, ()>>>>,
 }
 impl Options {
     /// The name to join servers with: the one given, else the offline name kept
@@ -611,6 +627,16 @@ impl Options {
         else {
             return Ok(None);
         };
+        let social = social_relay::Startup::read(&mut o);
+        let social_guest = social
+            .as_ref()
+            .is_some_and(|startup| startup.as_ref().is_ok_and(social_relay::Startup::is_guest));
+        o.social_startup = Arc::new(std::sync::Mutex::new(social));
+        if social_guest {
+            o.world = None;
+            o.server = None;
+            o.quick_play = None;
+        }
         // The launcher's account: online-mode servers need it. A bad file
         // only leaves the game offline.
         let session = if o.session_stdin {
@@ -635,6 +661,14 @@ impl Options {
             }
             Ok(None) => {}
             Err(e) => eprintln!("Horizon: not signed in: {e}"),
+        }
+        // A test worker's paths are made absolute before the working directory changes below.
+        if o.yoake_test.is_active() {
+            if !crate::yoake_test::is_worker() {
+                return Err(launch_api::UsageError("--yoake-test-run is only for the workers of yoake test".into()).into());
+            }
+            o.yoake_test.module = o.yoake_test.module.map(std::path::absolute).transpose()?;
+            o.yoake_test.result = o.yoake_test.result.map(std::path::absolute).transpose()?;
         }
         if let Some(dir) = o.game_dir.take() {
             // Paths given on the command line stay relative to where the game was started.
@@ -714,6 +748,11 @@ impl Options {
             quick_play: None,
             session_file: std::env::var("HORIZON_SESSION_FILE").ok(),
             session_stdin: false,
+            yoake_test: yoake_test_runner::WorkerArgs::default(),
+            social_handoff: None,
+            social_trust: None,
+            social_control_stdin: false,
+            social_startup: Arc::new(std::sync::Mutex::new(None)),
         };
         while let Some(arg) = args.next() {
             match arg.as_str() {
@@ -730,6 +769,7 @@ impl Options {
                 }
                 "--fullscreen" => o.fullscreen = true,
                 "--session-stdin" => o.session_stdin = true,
+                "--yoake-social-control-stdin" => o.social_control_stdin = true,
                 "--dedicated" => {
                     o.execution_role = execution_role::ExecutionRole::DedicatedServer;
                     o.dedicated = Some(args.by_ref().collect());
@@ -822,7 +862,12 @@ impl Options {
                             "--server" | "--quickPlayMultiplayer" => o.server = Some(value),
                             "--name" => o.player_name = Some(value),
                             "--session-file" => o.session_file = Some(value),
+                            "--yoake-social-handoff" => o.social_handoff = Some(value.into()),
+                            "--yoake-social-trust" => o.social_trust = Some(value.into()),
                             "--control-socket" => o.control = Some(value.into()),
+                            flag if yoake_test_runner::WorkerArgs::is_flag(flag) => {
+                                o.yoake_test.set(flag, value)?;
+                            }
                             "--time" => o.time = Some(value.parse()?),
                             "--weather" => o.weather = Some(value),
                             "--dimension" => {
@@ -844,6 +889,16 @@ impl Options {
                     read().map_err(|e| format!("{arg}: {e}"))?;
                 }
             }
+        }
+        // Test mode is a single-player worker: never a dedicated server (which also takes the rest of the line).
+        o.yoake_test.validate()?;
+        if o.yoake_test.is_active() && o.dedicated.is_some() {
+            return Err("--yoake-test-run cannot be used with --dedicated".into());
+        }
+        if o.session_stdin && o.social_control_stdin {
+            return Err(
+                "--session-stdin and --yoake-social-control-stdin cannot share stdin".into(),
+            );
         }
         Ok(Some(o))
     }
@@ -1085,6 +1140,21 @@ impl EntityObstructionWorld for BuildingObstruction {
             .collect())
     }
 }
+#[yoake_inject_macro::yoake_inject(
+    id = "game::split_orb_values",
+    side = "server",
+    allow = "return"
+)]
+fn split_orb_values(mut value: u32) -> Vec<u32> {
+    let mut values = Vec::new();
+    while value > 0 {
+        let amount = ExperienceOrb::split(value);
+        value -= amount;
+        values.push(amount);
+    }
+    values
+}
+
 /// An entity's box (`EntityDimensions.makeBoundingBox`): `width` wide and
 /// `height` tall, standing on `feet`.
 fn point_box(feet: [f64; 3], width: f64, height: f64) -> Aabb {
@@ -2231,6 +2301,7 @@ pub struct PackResources {
     /// Item definitions, baked item models and special renderers.
     item_renderer: Arc<horizon_client::item_render::ItemRenderer>,
     names: Arc<Names>,
+    mod_owners: Arc<mods::ModOwners>,
     /// clouds.png: (width, height, filled cells).
     clouds: Arc<(u32, u32, Vec<bool>)>,
     /// misc/forcefield.png: (width, height, RGBA) for the world border wall.
@@ -2308,6 +2379,7 @@ impl PackResources {
             render,
             item_renderer: Arc::new(item_renderer),
             names: Arc::new(Names::load(root)),
+            mod_owners: Arc::default(),
             clouds: Arc::new(load_clouds(root)),
             forcefield: Arc::new(load_forcefield(root)),
         }
@@ -3118,6 +3190,7 @@ struct Game<'a> {
     friends: Option<friends::Sharing>,
     /// The Social Interactions screen and the players whose chat is hidden (game/social.rs).
     social: social::Social,
+    social_relay: social_relay::Runtime,
     world_options: Option<lan_screen::WorldOptions>,
     /// Chat Settings opened from RestrictionsScreen: Done returns to World Options.
     options_to_world_options: bool,
@@ -3234,6 +3307,8 @@ struct Game<'a> {
     attack_hitboxes: HashMap<i32, (f32, f32)>,
     /// A native mod's sky tint for the next sky drawn (`native_set_sky_tint`).
     native_sky_tint: Option<native_sky_tint::Tint>,
+    native_world_lines: native_world_draw::WorldLines,
+    native_post_shaders: horizon_client::gfx::native_post_shader::PostShaderRegistry,
     /// A guest's `/save-all`: saved once their turn ends (`run_guest_command`),
     /// when their own state is back in their record.
     save_after_guest_turn: bool,
@@ -4129,6 +4204,7 @@ impl Game<'_> {
         let id = self.next_entity;
         self.dropped.last_mut().filter(|d| d.id == id)
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::spawn_item", side = "server")]
     fn spawn_item(
         &mut self,
         stack: ItemStack,
@@ -4817,7 +4893,8 @@ impl Game<'_> {
     fn attack_block(&mut self, pos: [i32; 3]) -> Result<()> {
         if native_block_behaviors::enabled() {
             let state = self.world.block(pos[0], pos[1], pos[2]);
-            if let Some(behavior) = native_block_behaviors::lookup(self.pack.assets.registry, state) {
+            if let Some(behavior) = native_block_behaviors::lookup(self.pack.assets.registry, state)
+            {
                 behavior.attack(self, BlockPos::new(pos[0], pos[1], pos[2]), state);
             }
         }
@@ -6079,6 +6156,7 @@ impl Game<'_> {
         })
     }
     /// `Entity.spawnAtLocation`: an item entity where the block was.
+    #[yoake_inject_macro::yoake_inject(id = "game::drop_falling_block", side = "server")]
     fn drop_falling_block(&mut self, state: BlockStateId, at: Vec3) {
         // Entity.spawnAtLocation: an item entity where the block was.
         let item = self.res.facts().get(state).item.clone();
@@ -6176,6 +6254,7 @@ impl Game<'_> {
         }
         self.award_stat("used", &stack.item, 1);
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::break_block", side = "server")]
     fn break_block(&mut self, pos: [i32; 3]) -> Result<()> {
         self.lan_break_pos = Some(pos);
         let broken = self.with_player_actor(|game| game.break_block_as_player(pos));
@@ -6489,6 +6568,7 @@ impl Game<'_> {
     /// `use_cooldown` component starts its entry (`UseCooldown.apply`). A
     /// server's guest also gets `ClientboundCooldownPacket`
     /// (`ServerItemCooldowns.onCooldownStarted`), queued for their turn's end.
+    #[yoake_inject_macro::yoake_inject(id = "game::apply_use_cooldown", side = "server")]
     pub(super) fn apply_use_cooldown(&mut self, stack: &ItemStack) {
         let default = self
             .res
@@ -7158,6 +7238,7 @@ impl Game<'_> {
             }
         }
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::consume_held", side = "server")]
     fn consume_held(&mut self) {
         if self.creative {
             return;
@@ -8125,6 +8206,7 @@ impl Game<'_> {
     fn pauses_game(&self) -> bool {
         self.has_singleplayer_server()
             && !self.is_published()
+            && !self.social_relay.is_host()
             && self.title.is_none()
             && ((self.screen == Screen::Mod
                 && native_title_screen::mod_screen_pauses(self.native_title_mod_screen_return))
@@ -8928,9 +9010,10 @@ impl Game<'_> {
                 g.draw_tab_list(batch);
             });
             if drawn.is_none() {
-                let has_mannequin_profile = self.mobs.iter().any(|mob| {
-                    &*mob.kind.id == "minecraft:mannequin" && mob.profile.is_some()
-                });
+                let has_mannequin_profile = self
+                    .mobs
+                    .iter()
+                    .any(|mob| &*mob.kind.id == "minecraft:mannequin" && mob.profile.is_some());
                 if self.native_mob_player_cache.get_mut().is_some() || has_mannequin_profile {
                     self.flush_skin_slots();
                 }
@@ -10082,7 +10165,8 @@ impl Game<'_> {
                             .remote_menu_type()
                             .or_else(|| self.container.and_then(|key| self.mod_menu_at(key)))
                             .unwrap_or(&entity.id);
-                        let Some(kind) = horizon_client::containers::mod_menu_type(menu_type) else {
+                        let Some(kind) = horizon_client::containers::mod_menu_type(menu_type)
+                        else {
                             return false;
                         };
                         (Kind::Mod(kind), kind.slots)
@@ -11463,7 +11547,7 @@ impl Game<'_> {
             // through the per-vertex occlusion callback both repeats that work
             // and disables their per-section GPU cache. Shader packs still need
             // per-entity span marks, so they keep the callback path.
-            if self.pack_ids.is_some() {
+            if self.pack_ids.is_some() || r.native_entity_material() {
                 let section_revision = |pos| r.block_entity_section_revision(pos);
                 static_block_entity_stats = self
                     .res
@@ -11832,8 +11916,11 @@ impl Game<'_> {
         if let Some(hit) = self.tick_mob {
             return hit;
         }
+        self.mob_hit_at(self.entity_reach)
+    }
+
+    fn mob_hit_at(&self, reach: f64) -> Option<(usize, f64)> {
         let (eye, dir) = self.aim()?;
-        let reach: f64 = self.entity_reach;
         let mut best: Option<(usize, f64)> = None;
         for (i, m) in self.mobs.iter().enumerate() {
             // ProjectileUtil.getEntityHitResult: the mob the player rides
@@ -11889,6 +11976,7 @@ impl Game<'_> {
         (amount, scale, crit, enchant_bonus * scale > 0.0)
     }
     /// `Player.getAttackStrengthScale(0.5)`.
+    #[yoake_inject_macro::yoake_inject(id = "game::attack_strength_scale", side = "client")]
     fn attack_strength_scale(&self) -> f32 {
         let delay = horizon_client::attack_strength::delay(self.main_hand_attack_speed());
         ((self.attack_ticks as f32 + 0.5) / delay).clamp(0.0, 1.0)
@@ -12518,6 +12606,7 @@ impl Game<'_> {
         let dim = Dim::from_id(&level.dimension);
         self.level_shapes = shapes;
         self.world_root = save_root.clone();
+        self.index_saved_attachment_usage(&level);
         // The world's packs over the game's biomes (`Biomes::with_packs`),
         // the table its chunks were built with.
         self.world_biomes = self.packed_biomes();
@@ -12849,10 +12938,12 @@ impl Game<'_> {
         if let Some(server) = self.integrated.take() {
             // The server thread saves the world.
             server.stop()?;
+            self.clear_config_sync();
             self.saved_for_exit = true;
             return Ok(());
         }
         if let Some(mut remote) = self.remote.take() {
+            self.clear_config_sync();
             // Minecraft.disconnect closes the connection, so the host sees a clean leave.
             remote.session.disconnect();
             self.saved_for_exit = true;
@@ -13796,7 +13887,15 @@ impl Game<'_> {
     /// `ExperienceOrb.award`: orbs of the largest sizes; each draws the id
     /// `tryMergeToExisting` compares from the level random, then moves with
     /// its own random.
+    #[yoake_inject_macro::yoake_inject(id = "game::spawn_orbs", side = "server")]
     fn spawn_orbs(&mut self, at: [f64; 3], mut value: u32) {
+        if __yoake_inject_site_split_orb_values().has_handlers() {
+            for amount in split_orb_values(value) {
+                let merge_id = self.world.random.next_int_bound(40).unwrap_or(0);
+                self.award_orb(at, amount, merge_id);
+            }
+            return;
+        }
         while value > 0 {
             let v = ExperienceOrb::split(value);
             value -= v;
@@ -13941,6 +14040,7 @@ impl Game<'_> {
         };
         self.with_level(|b, level, ticks| b.fire_can_be_placed_at(level, ticks, pos, direction))
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::place_used_fire", side = "server")]
     fn place_used_fire(&mut self, target: [i32; 3]) -> Result<()> {
         let pos = BlockPos::new(target[0], target[1], target[2]);
         let state = self.with_level(|b, level, ticks| b.fire_state_for(level, ticks, pos));
@@ -14493,7 +14593,8 @@ impl Game<'_> {
             } else {
                 horizon_client::cit::Hand::Main
             };
-            let mut state = self.resolve_item_in_hand(&stack, context, Some(&owner), seed, cit_hand);
+            let mut state =
+                self.resolve_item_in_hand(&stack, context, Some(&owner), seed, cit_hand);
             if state.native_owner.is_some() {
                 state.native_swing_progress = Some(swing);
             }
@@ -14552,6 +14653,8 @@ impl Game<'_> {
             .ok_or("no renderer for graphics recovery")?;
         let screenshot = old.screenshot.take();
         let screenshot_result = old.screenshot_result.take();
+        self.native_post_shaders.capture(&old.native_services.post);
+        self.native_world_lines.failures = old.native_services.draws.failures();
         drop(old);
         let mut renderer = build_renderer(
             window,
@@ -14566,6 +14669,7 @@ impl Game<'_> {
         )?;
         renderer.screenshot = screenshot;
         renderer.screenshot_result = screenshot_result;
+        self.restore_native_services(&mut renderer);
         self.renderer = Some(renderer);
         #[cfg(feature = "dev-capture")]
         self.capture_install_output()?;
@@ -14678,6 +14782,7 @@ impl Game<'_> {
     fn rain_height(&self, x: i32, z: i32) -> i32 {
         render_tick::motion_blocking_height(&self.world, &self.pack.assets.properties, x, z)
     }
+    #[yoake_inject_macro::yoake_inject(id = "game::tick_weather_effects", side = "server")]
     fn tick_weather_effects(&mut self) {
         if self.flash > 0 {
             self.flash -= 1;
@@ -14785,6 +14890,7 @@ impl Game<'_> {
     /// ServerPlayer.startSleepInBed: in reach, not obstructed, night or thunder,
     /// and (outside creative) no monsters within 8 blocks; the bed becomes the
     /// respawn point either way.
+    #[yoake_inject_macro::yoake_inject(id = "game::try_sleep", side = "server")]
     fn try_sleep(&mut self, pos: [i32; 3]) {
         let Some((position, yaw)) = self.player.as_ref().map(|p| (p.position, p.yaw)) else {
             return;
@@ -16042,7 +16148,8 @@ impl Game<'_> {
         lines.extend(g.lines);
         let on_top = g.on_top;
         let colored_lights = if self.title.is_none() {
-            self.native_frame_visuals(camera, alpha, &mut lines)
+            let colored_lights = self.native_frame_visuals(camera, alpha, &mut lines);
+            colored_lights
         } else {
             Vec::new()
         };
@@ -16124,14 +16231,21 @@ impl Game<'_> {
                     };
                     let p = h.pos.map(f64::from);
                     if let Some(boxes) = self.block_behavior_outline(h.pos, state) {
-                        return boxes.iter().flat_map(|bounds| {
-                            horizon_client::blocks::cube_edges().iter().map(move |edge| {
-                                std::array::from_fn(|index| {
-                                    let axis = index % 3;
-                                    bounds[axis] + edge[index] * (bounds[axis + 3] - bounds[axis])
-                                })
-                            }).collect::<Vec<_>>()
-                        }).collect();
+                        return boxes
+                            .iter()
+                            .flat_map(|bounds| {
+                                horizon_client::blocks::cube_edges()
+                                    .iter()
+                                    .map(move |edge| {
+                                        std::array::from_fn(|index| {
+                                            let axis = index % 3;
+                                            bounds[axis]
+                                                + edge[index] * (bounds[axis + 3] - bounds[axis])
+                                        })
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect();
                     }
                     if let Some(b) = self.context_outline(h.pos, state) {
                         return horizon_client::blocks::cube_edges()
@@ -16196,28 +16310,18 @@ impl Game<'_> {
         // Only native mods read it: no matrices or allocation per frame without one.
         let mods_read_camera = !horizon_client::mod_api::mods().is_empty();
         self.native_camera_frame = (mods_read_camera && !title).then(|| {
-            let partial = camera_alpha as f32;
-            horizon_client::mod_api::NativeCamera {
+            native_camera::snapshot(native_camera::CameraFrame {
                 position: camera.to_array(),
-                eye_height: self.view.eye_height_old
-                    + (self.view.eye_height - self.view.eye_height_old) * partial,
-                partial_tick: partial,
-                yaw,
-                pitch,
+                eye_height: [self.view.eye_height_old, self.view.eye_height],
+                partial_tick: camera_alpha as f32,
+                angles: [yaw, pitch, roll],
                 fov_degrees,
-                near: 0.05,
                 far: depth_far,
-                view: (bob * spin * horizon_client::camera::view_matrix_with_roll(yaw, pitch, roll))
-                    .to_cols_array(),
-                projection: glam::Mat4::perspective_rh(
-                    fov_degrees.to_radians(),
-                    size[0] as f32 / size[1].max(1) as f32,
-                    depth_far,
-                    0.05,
-                )
-                .to_cols_array(),
-                dimension: self.dim.id().to_string(),
-            }
+                size,
+                bob,
+                spin,
+                dimension: self.dim.id(),
+            })
         });
         let cull_pose = if roll == 0.0 {
             bob * spin
@@ -16286,7 +16390,7 @@ impl Game<'_> {
             let aspect = size[0] as f32 / size[1].max(1) as f32;
             self.item_activation_geometry(camera_alpha as f32, view, aspect, &mut hand);
         }
-        let screen = if title {
+        let mut screen = if title {
             Vec::new()
         } else {
             let scale = self
@@ -16296,6 +16400,10 @@ impl Game<'_> {
                 .unwrap_or(1.0) as f32;
             self.screen_quads(alpha as f32, size, scale)
         };
+        if !title {
+            self.native_world_lines
+                .append_post_effects(&self.gui.atlas, &mut screen);
+        }
         if !title {
             self.end_geometry(camera, &mut entities);
         }
@@ -16312,6 +16420,22 @@ impl Game<'_> {
             self.dynamic_lights.clear();
         } else {
             self.gather_dynamic_lights(camera, alpha);
+        }
+        if !title {
+            let held = self
+                .renderer
+                .as_ref()
+                .filter(|renderer| renderer.native_light_list())
+                .and_then(|_| self.native_held_light(camera));
+            if let Some(renderer) = &mut self.renderer {
+                renderer.update_native_world(
+                    camera,
+                    &self.world,
+                    &self.pack.context.tables,
+                    self.pack.assets.registry,
+                    held,
+                );
+            }
         }
         let pack_inputs = if title {
             Default::default()
@@ -17556,6 +17680,22 @@ impl Game<'_> {
                 self.physical_buttons.remove(button);
             }
         }
+        match &event {
+            WindowEvent::KeyboardInput { event, .. } if !event.repeat => {
+                if let PhysicalKey::Code(key) = event.physical_key
+                    && let Some(name) = horizon_client::keybinds::key_name(key)
+                {
+                    self.native_mod_binding_event(name, event.state == ElementState::Pressed);
+                }
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                self.native_mod_binding_event(
+                    &horizon_client::keybinds::mouse_name(*button),
+                    *state == ElementState::Pressed,
+                );
+            }
+            _ => {}
+        }
         let mouse = if !self.pad_synthetic_input()
             && let WindowEvent::MouseInput { state, button, .. } = &event
         {
@@ -17581,6 +17721,7 @@ impl Game<'_> {
     }
     fn handle_window_event_inner(&mut self, event_loop: &dyn EventLoopCtl, mut event: WindowEvent) {
         if let WindowEvent::Focused(false) = &event {
+            self.settings.keys.release_mod_keys();
             self.physical_keys.clear();
             self.physical_buttons.clear();
             self.drag_button = None;
@@ -19004,6 +19145,7 @@ impl Game<'_> {
     }
     /// The loop ended: close the pads' output, save the world, write the perf report.
     pub(super) fn shut_down(&mut self) {
+        crate::gfx::mod_gpu_runtime::clean_exit();
         self.clear_native_streams();
         self.pad_close_output();
         if let Err(e) = self.save_for_exit() {
@@ -19016,6 +19158,7 @@ impl Game<'_> {
     /// save, world entry, the control socket, pads), then the next frame.
     pub(super) fn idle(&mut self, event_loop: &dyn EventLoopCtl) {
         crate::mod_guard::maintenance();
+        crate::entry::wasm_mods::drain_resources(self);
         self.maintain_native_streams();
         self.notify_native_audio_mix();
         for notice in crate::mod_guard::take_notices(false) {
@@ -19188,7 +19331,8 @@ impl<'a> Game<'a> {
         Self::native_camera_override_listened(&mut native_camera_override_listened);
         let mut audio_mix_listened = false;
         Self::native_audio_mix_ready_listened(&mut audio_mix_listened);
-        let map_enabled = !horizon_client::mod_api::mods().is_empty() && options.execution_role.is_client();
+        let map_enabled =
+            !horizon_client::mod_api::mods().is_empty() && options.execution_role.is_client();
         let mut map_listeners = native_client_map::Listeners::default();
         if map_enabled {
             Self::native_client_chunk_load_listened(&mut map_listeners.load);
@@ -19629,6 +19773,7 @@ impl<'a> Game<'a> {
             game_tests: game_tests::GameTests::default(),
             friends: None,
             social: Default::default(),
+            social_relay: Default::default(),
             debug_keys: Default::default(),
             debug_charts: Default::default(),
             debug_entries: horizon_client::debug_entries::DebugEntries::load(
@@ -19674,6 +19819,8 @@ impl<'a> Game<'a> {
             lan_acting: None,
             attack_hitboxes: HashMap::new(),
             native_sky_tint: None,
+            native_world_lines: Default::default(),
+            native_post_shaders: Default::default(),
             save_after_guest_turn: false,
             player_attachments: Default::default(),
             guest_attachments: HashMap::new(),
@@ -19895,6 +20042,7 @@ impl Game<'_> {
         self.poll_integrated_start()?;
         self.poll_world_rest()?;
         self.poll_world_creation();
+        self.social_relay_tick();
         if self.rest_loader.is_some() {
             return Ok(());
         }
@@ -20480,7 +20628,7 @@ fn gameplay_tables(
 /// the launch opens, whose data is preloaded meanwhile.
 #[allow(clippy::too_many_arguments)]
 fn load_resources(
-    mut root: PathBuf,
+    root: impl Into<mods::ContentRoot>,
     launch_world: Option<&str>,
     vanilla_root: &std::path::Path,
     settings: &Settings,
@@ -20490,6 +20638,10 @@ fn load_resources(
     progress: &Progress,
     publish: &mut dyn FnMut(UiResources, &std::path::Path),
 ) -> Result<Loaded> {
+    let mods::ContentRoot {
+        path: mut root,
+        owners: mut mod_owners,
+    } = root.into();
     let threads = settings.horizon.worker_threads();
     // One pool of workers for every level's streaming, the client's and the
     // server thread's (horizon_threads::jobs), sized before any world opens.
@@ -20560,6 +20712,7 @@ fn load_resources(
         );
         pack_error = Some(failure);
         root = vanilla_root.to_path_buf();
+        mod_owners = Arc::default();
     };
     log::info!("load core tables: {:.2}s", started.elapsed().as_secs_f32());
     let CoreTables {
@@ -20588,7 +20741,7 @@ fn load_resources(
         MeshTables::new(&assets, &render, &facts, visibility)
     })?);
     let pack_step = startup::step("pack.assemble");
-    let pack = PackResources::assemble(
+    let mut pack = PackResources::assemble(
         &root,
         assets.clone(),
         render,
@@ -20597,6 +20750,7 @@ fn load_resources(
         biomes.clone(),
         Arc::new(light),
     );
+    pack.mod_owners = mod_owners;
     drop(pack_step);
     log::info!("load pack tables: {:.2}s", started.elapsed().as_secs_f32());
     progress.set(4);
@@ -20736,6 +20890,10 @@ fn load_resources(
 /// the next starts read them from one file (#1961).
 fn write_prepared_files(root: PathBuf) {
     use horizon_core::prepared_files;
+    // A test worker (`yoake test`) reads the prepared folder in place and never writes into it.
+    if crate::yoake_test::is_worker() {
+        return;
+    }
     if prepared_files::open(&root).is_some() || !root.join("horizon-resources.json").is_file() {
         return;
     }
@@ -21250,6 +21408,7 @@ fn start_game<'a>(
         game.run_dedicated()?;
         return Ok(None);
     }
+    game.social_relay_start();
     match game.options.world.clone() {
         _ if game.options.server.is_some() => {
             let (address, name) = (
@@ -21992,13 +22151,14 @@ pub fn run_with() -> Result<()> {
             pack_error = Some(e.to_string());
             vanilla_root.clone()
         });
-    options.resources = mods::content_root(
+    let content_root = mods::content_root(
         &options.resources,
         &early_settings.mods.enabled,
         &options.dev_mods,
     );
+    options.resources = content_root.path.clone();
     let loaded = load_resources(
-        options.resources.clone(),
+        content_root,
         launch_world(&options),
         &vanilla_root,
         &early_settings,
@@ -22055,11 +22215,12 @@ fn player_arms(root: &std::path::Path, key: &str) -> [Option<horizon_client::mob
 }
 
 // Player.tick: cap the sleeping fade at 100, then fade out over 10 waking ticks.
+#[yoake_inject_macro::yoake_inject(id = "game::tick_sleep_timer", side = "server")]
 fn tick_sleep_timer(timer: u32, sleeping: bool) -> u32 {
     if sleeping {
-        (timer + 1).min(100)
+        timer.saturating_add(1).min(100)
     } else if (1..109).contains(&timer) {
-        timer + 1
+        timer.saturating_add(1)
     } else {
         0
     }
@@ -22328,6 +22489,54 @@ fn debug_crosshair_drawn(
 mod tests {
     use super::*;
     use horizon_client::container_screen::{Button, Clicks, Release, Target};
+
+    #[test]
+    fn orb_split_handler_only_merges_without_changing_total_experience() {
+        let _site_claim_guard = crate::inject_test_support::site_claim_guard();
+        use yoake_inject_rt::{
+            CallbackError, Guest, InjectValue, Mod, RETURN, Registry, Side, Subscription, Value,
+        };
+        struct Replace(Vec<u32>);
+        impl Guest for Replace {
+            fn returned(
+                &self,
+                _: &str,
+                _: &Value,
+            ) -> std::result::Result<Option<Value>, CallbackError> {
+                Ok(Some(self.0.clone().into_inject_value()))
+            }
+        }
+        let _side = yoake_inject_rt::enter_side(Side::Server);
+        let vanilla = vec![73, 17, 7, 3];
+        assert_eq!(split_orb_values(0), Vec::<u32>::new());
+        assert_eq!(split_orb_values(100), vanilla);
+        for (replacement, expected) in [
+            (vec![100], vec![100]),
+            (vec![80, 20], vec![80, 20]),
+            (vec![100, 0], vanilla.clone()),
+            (vec![99], vanilla.clone()),
+            (vec![20; 5], vanilla.clone()),
+            (vec![u32::MAX, 101], vanilla.clone()),
+        ] {
+            let site = __yoake_inject_site_split_orb_values();
+            let mut registry = Registry::new([site]).unwrap();
+            let prepared = registry
+                .prepare(
+                    [Subscription {
+                        site_id: site.id(),
+                        side: Side::Server,
+                        points: RETURN,
+                        module: Arc::new(Mod::new("orb-test", Arc::new(Replace(replacement)))),
+                    }],
+                    |_, _, _| true,
+                )
+                .unwrap();
+            registry.publish(prepared).unwrap();
+            assert_eq!(split_orb_values(100), expected);
+            drop(registry);
+            assert_eq!(split_orb_values(100), vanilla);
+        }
+    }
 
     /// `MinecraftServer.computeNextAutosaveInterval`: three hundred seconds of
     /// ticks at the rate the server runs at, never fewer than a hundred.
@@ -22738,6 +22947,8 @@ mod tests {
             _ => panic!("sleep overlay must be a full-screen fill"),
         };
         assert_eq!(tick_sleep_timer(0, false), 0);
+        assert_eq!(tick_sleep_timer(u32::MAX, true), 100);
+        assert_eq!(tick_sleep_timer(u32::MAX, false), 0);
         let mut timer = 0;
         for _ in 0..50 {
             timer = tick_sleep_timer(timer, true);

@@ -5,6 +5,55 @@
 //! blocks, attacking and the commands all behave exactly as they do for the
 //! host, and every world change they cause reaches all players through the
 //! block log, the level events and the entity tracker.
+#[yoake_inject_macro::yoake_inject(
+    id = "game::sleeping_players",
+    side = "server",
+    allow = "return"
+)]
+fn sleeping_players(players: Vec<String>) -> Vec<String> {
+    players
+}
+
+struct SleepCounts {
+    active: i64,
+    sleeping: i64,
+    deep: i64,
+    players: Option<Vec<String>>,
+}
+
+impl SleepCounts {
+    fn new() -> Self {
+        Self {
+            active: 0,
+            sleeping: 0,
+            deep: 0,
+            players: __yoake_inject_site_sleeping_players()
+                .has_handlers()
+                .then(Vec::new),
+        }
+    }
+
+    fn add(&mut self, in_bed: bool, timer: u32, identity: impl FnOnce() -> String) {
+        self.active += 1;
+        if let Some(players) = &mut self.players {
+            players.push(identity());
+        }
+        if in_bed {
+            self.sleeping += 1;
+            if timer >= 100 {
+                self.deep += 1;
+            }
+        }
+    }
+
+    fn finish(self) -> (i64, i64, i64) {
+        let active = self.players.map_or(self.active, |players| {
+            sleeping_players(players).len() as i64
+        });
+        (active, self.sleeping, self.deep)
+    }
+}
+
 use super::{
     Dim, Game, GuestUse, Hit, InteractTarget, Mining, Screen, lan::LanHost,
     respawn_anchor::RespawnConfig,
@@ -155,6 +204,7 @@ pub(super) struct GuestCommand {
     /// A mod's quiet command (game/lan_quiet.rs): its output suppressed, as
     /// `CommandSourceStack.withSuppressedOutput` does.
     pub(super) quiet: bool,
+    pub(super) guest_scoped: bool,
 }
 
 /// The game's own state while a guest's is swapped in (`enter_guest`), and
@@ -1772,6 +1822,21 @@ impl Game<'_> {
         let Some(gi) = host.hub.guests.iter().position(|g| g.conn == conn) else {
             return;
         };
+        let (packet, guest_scoped) = match packet {
+            S::CustomPayload(payload)
+                if payload.channel == horizon_client::net::GUEST_COMMAND_CHANNEL =>
+            {
+                let Some(command) = horizon_client::net::decode_guest_command(
+                    &payload,
+                    host.hub.guests[gi].address == horizon_client::lan::conn::MEMORY_ADDRESS,
+                ) else {
+                    return;
+                };
+                (command, true)
+            }
+            packet => (packet, false),
+        };
+        let _scope = guest_scoped.then(yoake_inject_rt::guest_command_scope);
         // A dead player acts no more, but the death screen still respawns and chats: its
         // commands run as anyone's (ServerGamePacketListenerImpl.handleChatCommand doesn't
         // look at the player's health).
@@ -3237,6 +3302,16 @@ impl Game<'_> {
         command: &str,
         signed: Option<Vec<(String, horizon_client::lan::hub::chat::ChatMessage)>>,
     ) {
+        if yoake_inject_rt::guest_command_gate(command).is_err() {
+            host.hub.send_to(
+                conn,
+                &C::SystemChat(play::SystemChat {
+                    content: horizon_protocol::text::translatable("command.failed", &[]),
+                    overlay: false,
+                }),
+            );
+            return;
+        }
         // The mods hear every command first, and may stop it.
         let mut canceled = false;
         let mut replies = Vec::new();
@@ -3295,6 +3370,7 @@ impl Game<'_> {
                 permission,
                 integrated,
                 quiet: false,
+                guest_scoped: yoake_inject_rt::in_guest_command(),
             });
             return;
         }
@@ -3324,6 +3400,7 @@ impl Game<'_> {
             permission,
             integrated,
             quiet: false,
+            guest_scoped: yoake_inject_rt::in_guest_command(),
         });
     }
 
@@ -3345,6 +3422,7 @@ impl Game<'_> {
     /// One guest's command as that guest, its feedback sent to them; false
     /// when it failed (or the guest is gone).
     pub(super) fn run_guest_command(&mut self, c: GuestCommand) -> bool {
+        let _scope = c.guest_scoped.then(yoake_inject_rt::guest_command_scope);
         let Some(mut host) = self.lan.take() else {
             return false;
         };
@@ -3355,7 +3433,10 @@ impl Game<'_> {
         self.lan = Some(host);
         self.chat_capture = Some(Vec::new());
         let level = std::mem::replace(&mut self.ui.registries.permission, c.permission);
-        let ok = if self.perform_native_command(c.conn, c.permission, &c.command) {
+        let ok = if yoake_inject_rt::guest_command_gate(&c.command).is_err() {
+            self.command_failure(horizon_client::text::Text::tr("command.failed", &[]));
+            false
+        } else if self.perform_native_command(c.conn, c.permission, &c.command) {
             true
         } else if c.quiet {
             self.run_command_quietly(&c.command)
@@ -3554,10 +3635,39 @@ impl Game<'_> {
         }
         // PlayerList.respawn replaces the player, retaining only opted-in data.
         let uuid = host.hub.guests[i].uuid;
-        if let Some(attachments) = self.guest_attachments.get_mut(&uuid)
-            && let Ok(copy) = attachments.copy_on_death()
-        {
-            *attachments = copy;
+        // During this player's own turn their attachments are in
+        // `player_attachments` (the guest's entry is swapped out), and the copy
+        // must land there or the swap back would undo it.
+        let attachments = if self.lan_acting_uuid == Some(uuid) {
+            Some(&mut self.player_attachments)
+        } else {
+            self.guest_attachments.get_mut(&uuid)
+        };
+        if let Some(attachments) = attachments {
+            let holder = horizon_client::mod_api::Holder::Player(uuid);
+            if let Err(error) = crate::entry::wasm_mods::prepare_attachments(
+                holder,
+                attachments,
+                format!("player:{uuid}"),
+            ) {
+                log::warn!("pre-respawn attachment reconciliation failed: {error:?}");
+            }
+            // The registry resolves every saved value whose type is defined
+            // before the copy, so an unread one follows its own copy_on_death
+            // (false is dropped; true and an unknown type are kept).
+            let copied =
+                crate::entry::wasm_mods::attachment_registry().copy_on_death(holder, attachments);
+            *attachments = copied.unwrap_or_else(|error| {
+                log::warn!("respawn attachment copy failed: {error:?}");
+                Default::default()
+            });
+            if let Err(error) = crate::entry::wasm_mods::prepare_attachments(
+                holder,
+                attachments,
+                format!("player:{uuid}"),
+            ) {
+                log::warn!("respawn attachment reconciliation failed: {error:?}");
+            }
         }
         // PlayerList.respawn removes the dead player (Player.remove).
         self.guest_drop_carried(host, i);
@@ -4258,18 +4368,18 @@ impl Game<'_> {
     /// the players not in spectator mode, how many are in bed, and how many
     /// of those have slept 100 ticks.
     fn sleep_counts(&self) -> (i64, i64, i64) {
-        let (mut active, mut sleeping, mut deep) = (0i64, 0i64, 0i64);
-        let mut count = |in_bed: bool, timer: u32| {
-            active += 1;
-            if in_bed {
-                sleeping += 1;
-                if timer >= 100 {
-                    deep += 1;
-                }
-            }
-        };
+        let mut counts = SleepCounts::new();
         if self.player.is_some() && !self.spectator() {
-            count(self.sleeping.is_some(), self.sleep_timer);
+            counts.add(self.sleeping.is_some(), self.sleep_timer, || {
+                self.level.player_uuid.map_or_else(
+                    || "local".to_owned(),
+                    |uuid| {
+                        horizon_protocol::crypto::uuid_string(
+                            horizon_client::lan::playerdata::ints_uuid(uuid),
+                        )
+                    },
+                )
+            });
         }
         if let Some(host) = self.lan.as_ref() {
             // A native mod's ignored players count only once in bed.
@@ -4278,10 +4388,12 @@ impl Game<'_> {
                     && !g.spectator()
                     && (g.bed.is_some() || !host.sleep_ignored.contains(&g.uuid))
             }) {
-                count(g.bed.is_some(), g.sleep_timer);
+                counts.add(g.bed.is_some(), g.sleep_timer, || {
+                    horizon_protocol::crypto::uuid_string(g.uuid)
+                });
             }
         }
-        (active, sleeping, deep)
+        counts.finish()
     }
 
     /// `SleepStatus.sleepersNeeded`.
@@ -5463,6 +5575,63 @@ fn stop_dig(play: &GuestPlay, pos: [i32; 3], air: bool, ticks: u64, per_tick: f3
 mod tests {
     use super::eye_columns;
     use horizon_client::pose::Pose;
+    use std::sync::Arc;
+
+    #[test]
+    fn sleeping_handler_filters_only_the_denominator_not_sleeping_counts() {
+        let _site_claim_guard = crate::inject_test_support::site_claim_guard();
+        use yoake_inject_rt::{
+            CallbackError, Guest, InjectValue, Mod, RETURN, Registry, Side, Subscription, Value,
+        };
+        struct Replace(Vec<String>);
+        impl Guest for Replace {
+            fn returned(&self, _: &str, _: &Value) -> Result<Option<Value>, CallbackError> {
+                Ok(Some(self.0.clone().into_inject_value()))
+            }
+        }
+        let _side = yoake_inject_rt::enter_side(Side::Server);
+        let count = || {
+            let mut counts = super::SleepCounts::new();
+            counts.add(true, 100, || "deep".into());
+            counts.add(true, 99, || "asleep".into());
+            counts.add(false, 0, || "awake".into());
+            counts.add(false, 0, || "away".into());
+            counts.finish()
+        };
+        assert_eq!(count(), (4, 2, 1));
+        for (replacement, expected) in [
+            (vec!["deep", "asleep"], (2, 2, 1)),
+            (vec![], (0, 2, 1)),
+            (vec!["missing"], (4, 2, 1)),
+            (vec!["awake", "awake"], (4, 2, 1)),
+        ] {
+            let site = super::__yoake_inject_site_sleeping_players();
+            let mut registry = Registry::new([site]).unwrap();
+            let prepared = registry
+                .prepare(
+                    [Subscription {
+                        site_id: site.id(),
+                        side: Side::Server,
+                        points: RETURN,
+                        module: Arc::new(Mod::new(
+                            "sleep-test",
+                            Arc::new(Replace(replacement.into_iter().map(String::from).collect())),
+                        )),
+                    }],
+                    |_, _, _| true,
+                )
+                .unwrap();
+            registry.publish(prepared).unwrap();
+            assert_eq!(count(), expected);
+            drop(registry);
+            assert_eq!(count(), (4, 2, 1));
+        }
+        let mut counts = super::SleepCounts::new();
+        counts.add(false, 0, || {
+            panic!("native sleep checks must not allocate player identities")
+        });
+        assert_eq!(counts.finish(), (1, 0, 0));
+    }
 
     #[test]
     #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]

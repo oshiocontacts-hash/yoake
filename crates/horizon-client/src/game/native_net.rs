@@ -12,7 +12,7 @@ use horizon_protocol::{
         play::{Clientbound as C, Serverbound as S},
     },
 };
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 /// Messages a tick at most: from one player, to one player, and from the
 /// window to its server.
@@ -26,6 +26,8 @@ pub(super) struct NativeNet {
     to_players: Vec<(u128, Vec<u8>)>,
     to_counts: HashMap<u128, u32>,
     pub(super) to_server: u32,
+    config_outbox: yoake_wasm::config_sync::Outbox,
+    config_inbox: yoake_wasm::config_sync::Inbox,
 }
 
 /// A message's payload as `native_net_send_*` check it.
@@ -92,7 +94,63 @@ impl Game<'_> {
         if self.level_pass.last {
             self.native_net.from_counts.clear();
             self.native_net.to_counts.clear();
+            if !crate::yak_mods::has_synced_config() {
+                return;
+            }
+            let connections: BTreeSet<_> = host
+                .hub
+                .guests
+                .iter()
+                .filter(|guest| guest.placed && guest.brand == "horizon")
+                .map(|guest| guest.conn)
+                .collect();
+            self.native_net.config_outbox.retain(&connections);
+            if !connections.is_empty() {
+                match crate::entry::wasm_mods::package::snapshots() {
+                    Ok(snapshots) => {
+                        for connection in connections {
+                            match self
+                                .native_net
+                                .config_outbox
+                                .packets(connection, &snapshots)
+                            {
+                                Ok(packets) => {
+                                    for data in packets {
+                                        host.hub.send_to(
+                                            connection,
+                                            &C::CustomPayload(CustomPayload {
+                                                channel: yoake_wasm::config_sync::CHANNEL.into(),
+                                                data,
+                                            }),
+                                        );
+                                    }
+                                }
+                                Err(error) => log::debug!("Yoake: config sync: {error}"),
+                            }
+                        }
+                    }
+                    Err(error) => log::debug!("Yoake: config snapshots: {error}"),
+                }
+            }
         }
+    }
+
+    pub(super) fn remote_config_sync(&mut self, data: &[u8]) {
+        match self.native_net.config_inbox.receive(data) {
+            Ok(Some((id, data))) => {
+                if let Err(error) = crate::entry::wasm_mods::package::apply_snapshot(&id, &data) {
+                    log::debug!("Yoake: config sync rejected: {error}");
+                }
+            }
+            Ok(None) => {}
+            Err(error) => log::debug!("Yoake: bad config sync: {error}"),
+        }
+    }
+
+    pub(super) fn clear_config_sync(&mut self) {
+        self.native_net.config_inbox = Default::default();
+        self.native_net.config_outbox = Default::default();
+        crate::entry::wasm_mods::package::clear_snapshots();
     }
 
     /// A `horizon:mod_net` payload the server sent the window.

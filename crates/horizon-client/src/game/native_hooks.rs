@@ -958,8 +958,13 @@ use std::{
 };
 use winit::{event::MouseButton, keyboard::KeyCode};
 
+pub(super) fn dispatch_client_mod_command(dispatch: impl FnOnce() -> bool) -> bool {
+    !crate::mod_api::in_guest_command() && dispatch()
+}
+
 pub(super) struct ObservedScreen {
     id: &'static str,
+    kind: Option<String>,
     menu: Option<String>,
     title: Option<Text>,
     extra: Vec<u8>,
@@ -974,6 +979,7 @@ impl ObservedScreen {
     fn view(&self) -> NativeScreenView<'_> {
         NativeScreenView {
             id: self.id,
+            kind: self.kind.as_deref(),
             menu: self.menu.as_deref(),
             title: self.title.as_ref(),
             extra: &self.extra,
@@ -1073,7 +1079,7 @@ impl Game<'_> {
         self.mic_close(id)
     }
 
-    fn observed_screen_view(&self) -> Option<NativeScreenView<'_>> {
+    pub(super) fn observed_screen_view(&self) -> Option<NativeScreenView<'_>> {
         let book = match &self.book {
             Some(super::books::BookScreen::Edit { signing: true, .. }) => Some("book_sign"),
             Some(super::books::BookScreen::Edit { .. }) => Some("book_edit"),
@@ -1099,6 +1105,7 @@ impl Game<'_> {
         let batch = HudBatch::new([renderer.config.width, renderer.config.height]);
         Some(NativeScreenView {
             id,
+            kind: Some(id),
             menu: None,
             title: None,
             extra: &[],
@@ -1117,6 +1124,7 @@ impl Game<'_> {
         }
         let current = self.observed_screen_view().map(|view| ObservedScreen {
             id: view.id,
+            kind: view.kind.map(str::to_owned),
             menu: view.menu.map(str::to_owned),
             title: view.title.cloned(),
             extra: view.extra.to_vec(),
@@ -2361,7 +2369,14 @@ impl Game<'_> {
     }
     /// Once a frame, in a world or not, after Horizon's extras.
     pub(super) fn native_frame(&mut self, elapsed: Duration) {
+        let in_world = self.options.execution_role.is_client() && self.title.is_none();
+        if let Some(renderer) = &mut self.renderer {
+            renderer.native_services.draws.clear();
+        }
+        self.native_world_lines.begin_frame(in_world);
+        self.native_post_shaders.begin_frame();
         mod_api::dispatch_frame(self, mod_api::mods(), elapsed);
+        self.native_world_lines.end_frame();
     }
     /// Client-side evaluation of a mod's namespaced conditional item model property.
     /// Set value only for a property your mod owns; unhandled properties stay false.
@@ -2647,6 +2662,8 @@ impl Game<'_> {
     /// `WorldOpenFailed`. `dedicated` tells a dedicated server from the single
     /// player one. API 44.
     pub(super) fn native_server_about_to_start(&mut self, dedicated: bool) {
+        crate::entry::wasm_mods::reset_attachments();
+        horizon_client::mobs::mod_mob::activate(&self.options.resources);
         mod_api::dispatch_server_about_to_start(self, mod_api::mods(), dedicated);
     }
     /// The server begins an orderly stop (NeoForge's `ServerStoppingEvent`):
@@ -2774,12 +2791,17 @@ impl Game<'_> {
     ) {
         mod_api::dispatch_health_hud(self, mod_api::mods(), inputs, wi, hi, draws);
     }
+    pub(super) fn native_key_binding_pressed(&mut self, id: &str) {
+        mod_api::dispatch_key_binding_pressed(self, mod_api::mods(), id);
+    }
+
     /// A key or mouse button went down or up, by its vanilla name
     /// (`key.keyboard.z`, `key.mouse.left`): keys on any screen (check
     /// `native_playing`), mouse buttons while playing. Repeats are left out.
     pub(super) fn native_key(&mut self, key: &str, pressed: bool) {
         mod_api::dispatch_key(self, mod_api::mods(), key, pressed);
     }
+
     /// A real window key event after handling, including repeats and consumed shortcuts.
     /// Receives the original physical/logical key, text, location, state and repeat flag.
     /// Modifier bits use the screen hooks' GLFW encoding. Not cancellable.
@@ -3812,8 +3834,10 @@ impl Game<'_> {
     /// drawn this frame, which `NativeScreenView.id` comes from. Borrowed:
     /// nothing is copied per frame.
     pub(super) fn screen_view(&self, batch: &HudBatch, screen: Screen) -> NativeScreenView<'_> {
+        let inventory_context = self.native_inventory_context_impl(screen);
         NativeScreenView {
             id: screen.id(),
+            kind: self.native_screen_kind(screen, inventory_context),
             menu: self.remote_menu_type().filter(|m| !m.is_empty()),
             title: self.data_menu_title(),
             extra: self.remote_menu_extra(),
@@ -3821,7 +3845,7 @@ impl Game<'_> {
             slots: self.slot_count(),
             mouse: self.native_cursor(),
             partial_tick: self.clock.fraction() as f32,
-            inventory_context: self.native_inventory_context_impl(screen),
+            inventory_context,
         }
     }
     /// The title's own screen as a native mod sees it (`NativeScreenView`):
@@ -3833,6 +3857,7 @@ impl Game<'_> {
         let title = self.title.as_ref()?;
         Some(NativeScreenView {
             id: title.mode.id(),
+            kind: Some(title.mode.id()),
             menu: None,
             title: None,
             extra: &[],
@@ -7125,6 +7150,7 @@ impl Game<'_> {
     /// before `WorldOpenReady`. Not told of a chunk a client receives.
     /// Server-side. API 57.
     pub(super) fn native_chunk_load(&mut self, dimension: &str, chunk: [i32; 2], new: bool) {
+        self.reconcile_attachment_holder_or_warn(mod_api::Holder::Chunk(chunk));
         mod_api::dispatch_chunk_load(self, mod_api::mods(), dimension, chunk, new);
     }
     /// Chunk `chunk` of `dimension` left the world (NeoForge's
@@ -7194,6 +7220,7 @@ impl Game<'_> {
         name: &str,
         directory: &std::path::Path,
     ) {
+        self.reconcile_attachment_holder_or_warn(mod_api::Holder::Player(player));
         mod_api::dispatch_player_load_from_file(self, mod_api::mods(), player, name, directory);
     }
     /// A player's data was copied to their new player (NeoForge's
@@ -8190,6 +8217,7 @@ impl Game<'_> {
 /// `native_living_knockback` for the knockback code (`health::KNOCKBACK`): whether it
 /// canceled the push. Its one caller. The pushed entity and the source are named as the
 /// damage hook names them.
+#[yoake_inject_macro::yoake_inject(id = "game::native_hooks::knockback", side = "server")]
 pub(super) fn knockback(pushed: Hurting<'_>, knock: &mut Knock) -> bool {
     if mod_api::mods().is_empty() {
         return false;
@@ -9005,6 +9033,14 @@ impl Game<'_> {
         holder: Holder,
     ) -> AttachmentResult<&mut Attachments> {
         self.attachment_map(holder)
+    }
+
+    /// Read a holder without changing or marking its contents.
+    pub(super) fn native_attachment_read(
+        &self,
+        holder: Holder,
+    ) -> AttachmentResult<Option<&Attachments>> {
+        self.attachment_map_read(holder)
     }
     /// Read a loaded, light-emitting block. No implicit chunk loading.
     pub(super) fn native_lit_block_name(&self, pos: [i32; 3]) -> Option<&str> {
@@ -10968,13 +11004,11 @@ impl Game<'_> {
     }
     /// A native mod's command.
     pub(super) fn client_mod_command(&mut self, command: &str) -> bool {
-        // A WebAssembly guest's command never runs another mod's command hook.
-        if crate::mod_api::in_guest_command() {
-            return false;
-        }
-        let mut ran = false;
-        self.native_command(command, &mut ran);
-        ran
+        dispatch_client_mod_command(|| {
+            let mut ran = false;
+            self.native_command(command, &mut ran);
+            ran
+        })
     }
     /// The zoom in effect while playing (a native mod's); the spyglass's own
     /// view wins.

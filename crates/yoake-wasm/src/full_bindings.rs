@@ -34,6 +34,7 @@ pub mod server {
             "yoake:mods/types": crate::bindings::yoake::mods::types,
             "yoake:mods/logging": crate::bindings::yoake::mods::logging,
             "yoake:mods/engine-types": super::client::yoake::mods::engine_types,
+            "yoake:mods/server-types": super::client::yoake::mods::server_types,
         },
     });
 }

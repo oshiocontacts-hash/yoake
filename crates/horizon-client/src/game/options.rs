@@ -16,7 +16,7 @@ pub(super) const ACCESSIBILITY_HELP_LINK: &str = "https://aka.ms/MinecraftJavaAc
 
 pub(super) const CONTROL_HELP: &[&str] = &[
     "options-get [KEY...]           options.txt values by key, with their type, range or choices",
-    "options-set KEY VALUE          set an option (enums by name, keys as key.keyboard.w, lists as JSON), apply and save it",
+    "options-set KEY VALUE          set an option (lang: ja_jp or en_us; enums by name, keys as key.keyboard.w, lists as JSON), apply and save it",
 ];
 
 impl Game<'_> {
@@ -125,11 +125,15 @@ impl Game<'_> {
         self.options_from_title = from_title;
         self.options_to_game = false;
         let minecart_improvements = self.minecart_improvements();
+        crate::entry::wasm_mods::package_ui::populate(
+            &mut self.settings,
+            self.integrated.is_some() || self.remote.is_none(),
+        );
         let ui = &mut self.ui.options;
         ui.open_at(!from_title && self.title.is_none(), page);
         ui.minecart_improvements = minecart_improvements;
         let root = self.options.resources.clone();
-        ui.languages = lang::available(&[&root]);
+        ui.languages = lang::selectable(&[&root]);
         self.refresh_pack_lists();
     }
     /// While the resource pack screen is open, `resourcepacks/` is looked at once a second
@@ -416,6 +420,19 @@ impl Game<'_> {
                     super::packs::open_folder(&dir);
                 }
                 Event::NativeSettings(i) => self.native_settings_refresh(i),
+                Event::ConfigOpen(_) => crate::entry::wasm_mods::package_ui::populate(
+                    &mut self.settings,
+                    self.integrated.is_some() || self.remote.is_none(),
+                ),
+                Event::ConfigSave(index) => {
+                    let result = crate::entry::wasm_mods::package_ui::save(
+                        &self.settings,
+                        index,
+                        self.integrated.is_some() || self.remote.is_none(),
+                    );
+                    let events = self.ui.options.finish_config_save(result);
+                    self.handle_option_events(events)?;
+                }
                 Event::NativeButton(i, b) => self.native_settings_event(i, b),
                 Event::Credits => self.open_win_screen(false, super::win::Finish::Options),
                 // AccessibilityOptionsScreen's link button: ConfirmLinkScreen
