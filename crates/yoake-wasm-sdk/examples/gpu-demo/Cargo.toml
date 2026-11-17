@@ -12,6 +12,7 @@ crate-type = ["cdylib"]
 verify = []
 reload = ["verify"]
 trap = ["verify"]
+recording-error = ["verify"]
 
 [dependencies]
 yoake-wasm-sdk = { path = "../..", features = ["full"] }

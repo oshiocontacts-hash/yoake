@@ -336,7 +336,11 @@ impl yoake_wasm::GpuServices for GameHost {
         workgroups: (u32, u32, u32),
     ) -> Result<(), String> {
         let owner = owner(&self.id).ok_or("GPU identity limit reached")?;
-        self.gpu_call(|gpu, _, _, _| {
+        self.gpu_call(|gpu, _device, _, _| {
+            #[cfg(test)]
+            if let Some(fault) = self.gpu_recording_fault {
+                fault(_device);
+            }
             gpu.dispatch(
                 owner,
                 stage(at),
