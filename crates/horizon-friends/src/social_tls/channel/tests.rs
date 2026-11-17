@@ -104,6 +104,76 @@ fn pending_write_retries_keep_the_original_deadline() {
 }
 
 #[test]
+fn flushed_pending_write_succeeds_after_deadline() {
+    let (mut server, mut client) = channels(Duration::from_secs(10));
+    let bytes = b"finished before retry";
+    let mut frame = Vec::from((bytes.len() as u32).to_be_bytes());
+    frame.extend_from_slice(bytes);
+    server.conn.writer().write_all(&frame).unwrap();
+    server.flush_until(after(Duration::from_secs(2))).unwrap();
+    server.pending_send = Some(PendingSend {
+        offset: frame.len(),
+        frame,
+        deadline: Instant::now() - Duration::from_millis(1),
+    });
+
+    assert!(server.try_send_message(bytes).unwrap());
+    assert_eq!(client.recv_message().unwrap(), bytes);
+    server.send_message(b"next message").unwrap();
+    assert_eq!(client.recv_message().unwrap(), b"next message");
+}
+
+#[test]
+fn queued_operations_do_not_interleave_with_pending_write() {
+    let (mut server, mut client) = channels(Duration::from_secs(10));
+    let (completed, pending) = backpressure(&mut server);
+    assert_eq!(
+        server.queue_message(b"other").unwrap_err().kind(),
+        io::ErrorKind::WouldBlock
+    );
+    assert_eq!(
+        server.try_flush().unwrap_err().kind(),
+        io::ErrorKind::WouldBlock
+    );
+
+    let reading = thread::spawn(move || {
+        for sequence in 0..=completed {
+            assert_eq!(client.recv_message().unwrap(), message(sequence));
+        }
+        assert_eq!(client.recv_message().unwrap(), b"after pending");
+    });
+    while !server.try_send_message(&pending).unwrap() {
+        thread::sleep(Duration::from_millis(1));
+    }
+    server.queue_message(b"after pending").unwrap();
+    while !server.try_flush().unwrap() {
+        thread::sleep(Duration::from_millis(1));
+    }
+    reading.join().unwrap();
+}
+
+#[test]
+fn shutdown_with_pending_write_closes_channel() {
+    let (mut server, _client) = channels(Duration::from_secs(10));
+    let (_, pending) = backpressure(&mut server);
+
+    server.shutdown();
+
+    assert_eq!(
+        server.try_send_message(&pending).unwrap_err().kind(),
+        io::ErrorKind::BrokenPipe
+    );
+    assert_eq!(
+        server.queue_message(b"after shutdown").unwrap_err().kind(),
+        io::ErrorKind::BrokenPipe
+    );
+    assert_eq!(
+        server.try_flush().unwrap_err().kind(),
+        io::ErrorKind::BrokenPipe
+    );
+}
+
+#[test]
 fn replacing_a_pending_write_is_fatal() {
     let (mut server, _client) = channels(Duration::from_secs(10));
     let (_, pending) = backpressure(&mut server);

@@ -114,6 +114,9 @@ where
         if self.broken || bytes.len() > MAX_MESSAGE_SIZE {
             return Err(io::ErrorKind::BrokenPipe.into());
         }
+        if self.pending_send.is_some() {
+            return Err(io::ErrorKind::WouldBlock.into());
+        }
         let mut frame = Vec::with_capacity(4 + bytes.len());
         frame.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
         frame.extend_from_slice(bytes);
@@ -124,6 +127,9 @@ where
         if self.broken {
             return Err(io::ErrorKind::BrokenPipe.into());
         }
+        if self.pending_send.is_some() {
+            return Err(io::ErrorKind::WouldBlock.into());
+        }
         if self.conn.wants_write() {
             self.write_step()?;
         }
@@ -133,9 +139,74 @@ where
     /// One `write_tls` call. `Ok(false)`: the socket is full, nothing was consumed.
     fn write_step(&mut self) -> io::Result<bool> {
         match self.conn.write_tls(&mut self.sock) {
-            Ok(_) => Ok(true),
+            Ok(written) => Ok(written != 0),
             Err(error) if is_timeout(&error) => Ok(false),
             Err(error) => Err(error),
+        }
+    }
+
+    fn send_step(&mut self, bytes: &[u8]) -> io::Result<(bool, bool)> {
+        if bytes.len() > MAX_MESSAGE_SIZE {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "social TLS message is too large",
+            ));
+        }
+        if self.broken {
+            return Err(io::Error::new(
+                io::ErrorKind::BrokenPipe,
+                "social TLS channel is closed",
+            ));
+        }
+        if let Some(pending) = &self.pending_send {
+            if pending.frame[4..] != *bytes {
+                self.broken = true;
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "a different social TLS message is still pending",
+                ));
+            }
+        } else {
+            let mut frame = Vec::with_capacity(bytes.len() + 4);
+            frame.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
+            frame.extend_from_slice(bytes);
+            self.pending_send = Some(PendingSend {
+                frame,
+                offset: 0,
+                deadline: after(self.timeouts.write),
+            });
+        }
+        let pending = self.pending_send.as_mut().unwrap();
+        if pending.offset == pending.frame.len() && !self.conn.wants_write() {
+            self.pending_send = None;
+            return Ok((true, true));
+        }
+        if Instant::now() >= pending.deadline {
+            self.broken = true;
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "social TLS write deadline elapsed",
+            ));
+        }
+        let mut progressed = false;
+        if pending.offset < pending.frame.len() {
+            let written = self
+                .conn
+                .writer()
+                .write(&pending.frame[pending.offset..])
+                .inspect_err(|_| self.broken = true)?;
+            pending.offset += written;
+            progressed = written != 0;
+        }
+        let queued = pending.offset == pending.frame.len();
+        if self.conn.wants_write() {
+            progressed |= self.write_step().inspect_err(|_| self.broken = true)?;
+        }
+        if queued && !self.conn.wants_write() {
+            self.pending_send = None;
+            Ok((true, progressed))
+        } else {
+            Ok((false, progressed))
         }
     }
 
@@ -283,69 +354,22 @@ where
 {
     fn send_message(&mut self, bytes: &[u8]) -> io::Result<()> {
         let mut nap = Duration::from_millis(1);
-        while !self.try_send_message(bytes)? {
-            std::thread::sleep(nap);
-            nap = (nap * 2).min(MAX_NAP);
+        loop {
+            let (complete, progressed) = self.send_step(bytes)?;
+            if complete {
+                return Ok(());
+            }
+            if progressed {
+                nap = Duration::from_millis(1);
+            } else {
+                std::thread::sleep(nap);
+                nap = (nap * 2).min(MAX_NAP);
+            }
         }
-        Ok(())
     }
 
     fn try_send_message(&mut self, bytes: &[u8]) -> io::Result<bool> {
-        if bytes.len() > MAX_MESSAGE_SIZE {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "social TLS message is too large",
-            ));
-        }
-        if self.broken {
-            return Err(io::Error::new(
-                io::ErrorKind::BrokenPipe,
-                "social TLS channel is closed",
-            ));
-        }
-        if let Some(pending) = &self.pending_send {
-            if pending.frame[4..] != *bytes {
-                self.broken = true;
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "a different social TLS message is still pending",
-                ));
-            }
-        } else {
-            let mut frame = Vec::with_capacity(bytes.len() + 4);
-            frame.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
-            frame.extend_from_slice(bytes);
-            self.pending_send = Some(PendingSend {
-                frame,
-                offset: 0,
-                deadline: after(self.timeouts.write),
-            });
-        }
-        let pending = self.pending_send.as_mut().unwrap();
-        if Instant::now() >= pending.deadline {
-            self.broken = true;
-            return Err(io::Error::new(
-                io::ErrorKind::TimedOut,
-                "social TLS write deadline elapsed",
-            ));
-        }
-        if pending.offset < pending.frame.len() {
-            pending.offset += self
-                .conn
-                .writer()
-                .write(&pending.frame[pending.offset..])
-                .inspect_err(|_| self.broken = true)?;
-        }
-        let queued = pending.offset == pending.frame.len();
-        if self.conn.wants_write() {
-            self.write_step().inspect_err(|_| self.broken = true)?;
-        }
-        if queued && !self.conn.wants_write() {
-            self.pending_send = None;
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        self.send_step(bytes).map(|(complete, _)| complete)
     }
 
     fn recv_message(&mut self) -> io::Result<Vec<u8>> {
