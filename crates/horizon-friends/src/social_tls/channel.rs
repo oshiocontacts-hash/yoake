@@ -14,6 +14,9 @@ use rustls::{ConnectionCommon, SideData};
 
 use super::{CHANNEL_BINDING_LABEL, ChannelTimeouts, ControlChannel, MAX_MESSAGE_SIZE};
 
+#[cfg(test)]
+mod tests;
+
 /// Polling granularity of the handshake and of `shutdown`'s flush budget.
 const TICK: Duration = Duration::from_millis(50);
 /// Longest nap between polls of an idle socket.
@@ -32,8 +35,15 @@ pub struct TlsChannel<C> {
     conn: C,
     sock: TcpStream,
     incoming: Vec<u8>,
+    pending_send: Option<PendingSend>,
     timeouts: ChannelTimeouts,
     broken: bool,
+}
+
+struct PendingSend {
+    frame: Vec<u8>,
+    offset: usize,
+    deadline: Instant,
 }
 
 fn is_timeout(error: &io::Error) -> bool {
@@ -59,6 +69,7 @@ where
         conn,
         sock,
         incoming: Vec::new(),
+        pending_send: None,
         timeouts,
         broken: false,
     };
@@ -271,6 +282,15 @@ where
     S: SideData,
 {
     fn send_message(&mut self, bytes: &[u8]) -> io::Result<()> {
+        let mut nap = Duration::from_millis(1);
+        while !self.try_send_message(bytes)? {
+            std::thread::sleep(nap);
+            nap = (nap * 2).min(MAX_NAP);
+        }
+        Ok(())
+    }
+
+    fn try_send_message(&mut self, bytes: &[u8]) -> io::Result<bool> {
         if bytes.len() > MAX_MESSAGE_SIZE {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -283,23 +303,49 @@ where
                 "social TLS channel is closed",
             ));
         }
-        let deadline = after(self.timeouts.write);
-        let mut frame = Vec::with_capacity(bytes.len() + 4);
-        frame.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
-        frame.extend_from_slice(bytes);
-        // Each byte is handed to rustls exactly once; only flushing is ever retried.
-        let mut offset = 0;
-        while offset < frame.len() {
-            offset += self
+        if let Some(pending) = &self.pending_send {
+            if pending.frame[4..] != *bytes {
+                self.broken = true;
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "a different social TLS message is still pending",
+                ));
+            }
+        } else {
+            let mut frame = Vec::with_capacity(bytes.len() + 4);
+            frame.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
+            frame.extend_from_slice(bytes);
+            self.pending_send = Some(PendingSend {
+                frame,
+                offset: 0,
+                deadline: after(self.timeouts.write),
+            });
+        }
+        let pending = self.pending_send.as_mut().unwrap();
+        if Instant::now() >= pending.deadline {
+            self.broken = true;
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "social TLS write deadline elapsed",
+            ));
+        }
+        if pending.offset < pending.frame.len() {
+            pending.offset += self
                 .conn
                 .writer()
-                .write(&frame[offset..])
+                .write(&pending.frame[pending.offset..])
                 .inspect_err(|_| self.broken = true)?;
-            if offset < frame.len() {
-                self.flush_until(deadline)?;
-            }
         }
-        self.flush_until(deadline)
+        let queued = pending.offset == pending.frame.len();
+        if self.conn.wants_write() {
+            self.write_step().inspect_err(|_| self.broken = true)?;
+        }
+        if queued && !self.conn.wants_write() {
+            self.pending_send = None;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     fn recv_message(&mut self) -> io::Result<Vec<u8>> {

@@ -227,6 +227,8 @@ jobs:
           $manifest = $manifest.Replace('@PUBLISHER_DISPLAY_NAME@', [Security.SecurityElement]::Escape($env:YOAKE_MSIX_PUBLISHER_DISPLAY_NAME))
           $manifest = $manifest.Replace('@VERSION@', $env:YOAKE_MSIX_VERSION)
           [IO.File]::WriteAllText((Join-Path $stage 'AppxManifest.xml'), $manifest, [Text.UTF8Encoding]::new($false))
+          python packaging/msix/check_assets.py (Join-Path $stage 'AppxManifest.xml') (Join-Path $stage 'Assets')
+          if ($LASTEXITCODE -ne 0) { throw 'MSIX manifest assets are missing.' }
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           & makeappx.exe pack /d $stage /p "dist/Yoake-$($env:YOAKE_VERSION)-x64.msix" /o
           if ($LASTEXITCODE -ne 0) { throw 'makeappx.exe failed to create the MSIX package.' }

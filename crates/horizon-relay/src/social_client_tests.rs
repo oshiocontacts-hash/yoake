@@ -147,10 +147,88 @@ struct Fixture {
     sockets: Arc<Mutex<Vec<TcpStream>>>,
     listener: Option<JoinHandle<()>>,
     workers: mpsc::Receiver<JoinHandle<()>>,
+    trace: Option<Arc<Mutex<ForwardTrace>>>,
+}
+
+#[derive(Default)]
+struct ForwardTrace {
+    pending_since: Option<Instant>,
+    accepted: Option<Instant>,
+    forwarded: Option<Instant>,
+}
+
+struct ObservedAcceptor {
+    inner: TlsAcceptor,
+    trace: Arc<Mutex<ForwardTrace>>,
+}
+
+impl ChannelAcceptor for ObservedAcceptor {
+    fn accept(&self, stream: TcpStream) -> io::Result<Box<dyn ControlChannel>> {
+        socket2::SockRef::from(&stream).set_send_buffer_size(4096)?;
+        Ok(Box::new(ObservedChannel {
+            inner: self.inner.accept(stream)?,
+            trace: self.trace.clone(),
+        }))
+    }
+}
+
+struct ObservedChannel {
+    inner: Box<dyn ControlChannel>,
+    trace: Arc<Mutex<ForwardTrace>>,
+}
+
+impl ControlChannel for ObservedChannel {
+    fn send_message(&mut self, bytes: &[u8]) -> io::Result<()> {
+        lock_unpoison(&self.trace).pending_since = Some(Instant::now());
+        let result = self.inner.send_message(bytes);
+        let mut trace = lock_unpoison(&self.trace);
+        trace.pending_since = None;
+        if result.is_ok() && bytes == b"read while writing" {
+            trace.forwarded = Some(Instant::now());
+        }
+        result
+    }
+
+    fn try_send_message(&mut self, bytes: &[u8]) -> io::Result<bool> {
+        lock_unpoison(&self.trace).pending_since.get_or_insert_with(Instant::now);
+        let result = self.inner.try_send_message(bytes);
+        let mut trace = lock_unpoison(&self.trace);
+        if !matches!(result, Ok(false)) {
+            trace.pending_since = None;
+        }
+        if matches!(result, Ok(true)) && bytes == b"read while writing" {
+            trace.forwarded = Some(Instant::now());
+        }
+        result
+    }
+
+    fn recv_message(&mut self) -> io::Result<Vec<u8>> {
+        self.inner.recv_message()
+    }
+
+    fn try_recv_message(&mut self, wait: Duration) -> io::Result<Option<Vec<u8>>> {
+        let message = self.inner.try_recv_message(wait)?;
+        if message.as_deref() == Some(b"read while writing") {
+            lock_unpoison(&self.trace).accepted = Some(Instant::now());
+        }
+        Ok(message)
+    }
+
+    fn channel_binding(&self) -> io::Result<[u8; 32]> {
+        self.inner.channel_binding()
+    }
+
+    fn shutdown(&mut self) {
+        self.inner.shutdown();
+    }
 }
 
 impl Fixture {
     fn new() -> Self {
+        Self::with_trace(None)
+    }
+
+    fn with_trace(trace: Option<Arc<Mutex<ForwardTrace>>>) -> Self {
         let (root, cert, key) = certificates();
         let acceptor = TlsAcceptor::from_der(
             cert,
@@ -161,10 +239,18 @@ impl Fixture {
             },
         )
         .unwrap();
+        let acceptor: Arc<dyn ChannelAcceptor> = if let Some(trace) = &trace {
+            Arc::new(ObservedAcceptor {
+                inner: acceptor,
+                trace: trace.clone(),
+            })
+        } else {
+            Arc::new(acceptor)
+        };
         let server = SocialServer::new(
             decode_hex::<32>(PUBLIC).unwrap(),
             "test-relay",
-            Arc::new(acceptor),
+            acceptor,
         )
         .unwrap();
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -213,6 +299,7 @@ impl Fixture {
             sockets,
             listener: Some(listener),
             workers,
+            trace,
         }
     }
 
@@ -245,8 +332,14 @@ impl Fixture {
     }
 
     fn raw(&self, request: &ToRelay) -> ClientChannel {
+        let socket = TcpStream::connect(self.address).unwrap();
+        if self.trace.is_some() {
+            socket2::SockRef::from(&socket)
+                .set_recv_buffer_size(4096)
+                .unwrap();
+        }
         let mut channel = client_channel(
-            TcpStream::connect(self.address).unwrap(),
+            socket,
             &self.roots,
             "127.0.0.1",
             Duration::from_secs(2),
@@ -389,7 +482,17 @@ fn social_client_waiting_guest_has_a_short_pairing_deadline() {
 
 #[test]
 fn social_client_stalled_write_does_not_block_reads() {
-    let fixture = Fixture::new();
+    stalled_write_does_not_block_reads(Fixture::new());
+}
+
+#[test]
+fn social_client_backpressured_relay_does_not_block_reads() {
+    stalled_write_does_not_block_reads(Fixture::with_trace(Some(Arc::new(Mutex::new(
+        ForwardTrace::default(),
+    )))));
+}
+
+fn stalled_write_does_not_block_reads(fixture: Fixture) {
     let host = fixture.host();
     let signed = grant(37);
     let mut guest = fixture.raw(&ToRelay::Guest {
@@ -412,14 +515,42 @@ fn social_client_stalled_write_does_not_block_reads() {
     // payload is far more than any of them holds and the write can only end
     // by the bridge being cut.
     let writing = thread::spawn(move || writer.write_all(&vec![57; 128 * 1024 * 1024]));
-    thread::sleep(Duration::from_millis(100));
+    if let Some(trace) = &fixture.trace {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let state = lock_unpoison(trace);
+            let blocked = state
+                .pending_since
+                .is_some_and(|since| since.elapsed() >= Duration::from_millis(25));
+            drop(state);
+            if blocked {
+                break;
+            }
+            assert!(Instant::now() < deadline, "relay never reached TCP backpressure");
+            thread::sleep(Duration::from_millis(1));
+        }
+    } else {
+        thread::sleep(Duration::from_millis(100));
+    }
     assert!(!writing.is_finished());
+    let sent = Instant::now();
     guest.send_message(b"read while writing").unwrap();
     bridge
         .set_read_timeout(Some(Duration::from_secs(1)))
         .unwrap();
     let mut received = [0; 18];
-    bridge.read_exact(&mut received).unwrap();
+    let result = bridge.read_exact(&mut received);
+    if let Some(trace) = &fixture.trace {
+        let trace = lock_unpoison(trace);
+        eprintln!(
+            "reverse timing: elapsed_us={} accepted_us={:?} forwarded_us={:?} pending_us={:?}",
+            sent.elapsed().as_micros(),
+            trace.accepted.map(|time| time.duration_since(sent).as_micros()),
+            trace.forwarded.map(|time| time.duration_since(sent).as_micros()),
+            trace.pending_since.map(|time| time.elapsed().as_micros()),
+        );
+    }
+    result.unwrap();
     assert_eq!(&received, b"read while writing");
     host.end().unwrap();
     assert!(writing.join().unwrap().is_err());

@@ -260,6 +260,10 @@ struct Guarded {
 impl ControlChannel for Guarded {
     fn send_message(&mut self, bytes: &[u8]) -> io::Result<()> { self.inner.send_message(bytes) }
 
+    fn try_send_message(&mut self, bytes: &[u8]) -> io::Result<bool> {
+        self.inner.try_send_message(bytes)
+    }
+
     fn recv_message(&mut self) -> io::Result<Vec<u8>> {
         let message = self.inner.recv_message()?;
         self.guard = None;

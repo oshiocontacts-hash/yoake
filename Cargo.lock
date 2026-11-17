@@ -2024,6 +2024,7 @@ dependencies = [
  "ring",
  "rustls",
  "serde_json",
+ "socket2 0.5.10",
 ]
 
 [[package]]

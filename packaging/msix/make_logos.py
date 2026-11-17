@@ -45,6 +45,7 @@ def logo_files():
     """Every file this script writes: {file name: (width, height, logo name, filled)}."""
     files = {}
     for name, (width, height) in LOGOS.items():
+        files[f"{name}.png"] = (width, height, name, name in FILLED)
         for scale in SCALES:
             size = ((width * scale + 50) // 100, (height * scale + 50) // 100)
             files[f"{name}.scale-{scale}.png"] = (*size, name, name in FILLED)

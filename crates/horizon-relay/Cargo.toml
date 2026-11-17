@@ -15,6 +15,7 @@ rcgen = { version = "0.14", default-features = false, features = ["crypto", "rin
 
 [dev-dependencies]
 ring = "0.17"
+socket2 = "0.5"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 
 [[bin]]

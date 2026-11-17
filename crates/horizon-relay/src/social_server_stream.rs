@@ -8,9 +8,8 @@ use horizon_friends::social_tls::ControlChannel;
 type Channel = Box<dyn ControlChannel>;
 
 /// Message adapter for `PairedConnection`. A read that finds no whole message
-/// right now is `WouldBlock` (partial frames stay in the channel). A write sends a
-/// whole message or fails the connection; it never reports `WouldBlock`, so bytes
-/// are never offered twice.
+/// right now is `WouldBlock` (partial frames stay in the channel). A pending write
+/// is also `WouldBlock`; the channel retains its frame and deadline across retries.
 #[derive(Clone)]
 pub(super) struct MessageStream {
     channel: Arc<Mutex<Channel>>,
@@ -59,8 +58,11 @@ impl Read for MessageStream {
 impl Write for MessageStream {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
         if bytes.is_empty() { return Ok(0); }
-        self.lock().send_message(bytes)?;
-        Ok(bytes.len())
+        if self.lock().try_send_message(bytes)? {
+            Ok(bytes.len())
+        } else {
+            Err(io::ErrorKind::WouldBlock.into())
+        }
     }
 
     fn flush(&mut self) -> io::Result<()> { Ok(()) }

@@ -46,6 +46,9 @@ pub trait ControlChannel: Send {
     /// Sends one whole message or fails; a failure (including a missed write
     /// deadline) is fatal for the channel.
     fn send_message(&mut self, bytes: &[u8]) -> io::Result<()>;
+    /// Polls one whole message without waiting. After `Ok(false)`, retry with the
+    /// same bytes; its original write deadline still applies and errors are fatal.
+    fn try_send_message(&mut self, bytes: &[u8]) -> io::Result<bool>;
     /// Waits up to the channel's receive timeout; `WouldBlock` means none
     /// arrived yet and the channel is still usable.
     fn recv_message(&mut self) -> io::Result<Vec<u8>>;

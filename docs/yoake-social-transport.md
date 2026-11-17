@@ -487,8 +487,10 @@ The relay state machine verifies grants and the host token before producing a
 paired forwarding handle. It decrypts one outer TLS channel and re-encrypts into
 the other while preserving per-session connection, nonce, bandwidth, and
 inactivity limits. Its locks are held only to check limits and take budget, never
-across network I/O. The forwarder reads first, without waiting, and charges
-bandwidth for a whole message only once it holds one (a session's burst must be at least
+across network I/O. The forwarder polls reads and writes without waiting:
+a full socket leaves one pending frame
+with its original write deadline, so the opposite direction is still polled.
+It charges bandwidth for a whole message only once it holds one (a session's burst must be at least
 one maximum message, 16 KiB, or its limits are invalid), so idle pairs hold no budget and messages are never
 split. Each pair has separate directional buckets, each with half the session
 rate and half the burst (at least 16 KiB). Borrowing is blocked whenever the reverse
