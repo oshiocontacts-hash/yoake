@@ -225,6 +225,10 @@ impl Handler {
                 let (cursor, changes) =
                     crate::full::service_call(host.services.clone(), |services| {
                         services.config_changes_since(host.cursor)
+                    })
+                    .map_err(|error| {
+                        config_trapped = true;
+                        format!("config-changed: {error}")
                     })?;
                 for (key, value) in changes {
                     config_exports

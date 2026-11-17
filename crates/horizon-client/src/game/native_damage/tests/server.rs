@@ -268,8 +268,11 @@ fn explosion_subset_preserves_rng_damage_and_knockback() {
         .unwrap();
     for fire in [false, true] {
         let mut outcomes = Vec::new();
-        for handler in [false, true] {
+        for discard in [None, Some(false), Some(true)] {
             with_server(|game, _, _| {
+                for guest in &mut game.lan.as_mut().unwrap().hub.guests {
+                    guest.loaded = true;
+                }
                 let glass = game
                     .pack
                     .assets
@@ -278,10 +281,10 @@ fn explosion_subset_preserves_rng_damage_and_knockback() {
                     .unwrap();
                 game.level_set([8, 64, 8], glass).unwrap();
                 assert!(!site.has_handlers());
-                let registration = handler.then(|| utility_return_handler(site, true));
+                let registration = discard.map(|discard| utility_return_handler(site, discard));
                 game.world.random = LegacyRandom::new(0x4d583246);
                 game.server_explode_as(
-                    [8.5, 64.5, 8.5],
+                    [8.5, 65.5, 8.5],
                     4.0,
                     BlockInteraction::Destroy,
                     fire,
@@ -291,16 +294,22 @@ fn explosion_subset_preserves_rng_damage_and_knockback() {
                 .unwrap();
                 assert_eq!(
                     game.world.block(8, 64, 8),
-                    if handler { glass } else { game.world.air }
+                    if discard == Some(true) {
+                        glass
+                    } else {
+                        game.world.air
+                    }
                 );
                 let health = [health(game, OWNER_CONN), health(game, GUEST_CONN)];
                 let velocity = [velocity(game, OWNER_CONN), velocity(game, GUEST_CONN)];
                 assert!(health.iter().all(|health| *health < 20.0));
                 assert!(velocity.iter().all(|velocity| *velocity != Vec3::ZERO));
                 outcomes.push((
-                    (0..32)
-                        .map(|_| game.world.random.next_int())
-                        .collect::<Vec<_>>(),
+                    (discard != Some(true)).then(|| {
+                        (0..32)
+                            .map(|_| game.world.random.next_int())
+                            .collect::<Vec<_>>()
+                    }),
                     health,
                     velocity,
                 ));
@@ -312,6 +321,8 @@ fn explosion_subset_preserves_rng_damage_and_knockback() {
             });
         }
         assert_eq!(outcomes[0], outcomes[1]);
+        assert_eq!(outcomes[0].1, outcomes[2].1);
+        assert_eq!(outcomes[0].2, outcomes[2].2);
     }
 }
 

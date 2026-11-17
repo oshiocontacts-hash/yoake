@@ -1,4 +1,5 @@
 use crate::Value;
+use std::collections::HashMap;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Rule {
@@ -86,15 +87,55 @@ impl Rule {
                 if values.len() > original.len() {
                     return None;
                 }
-                let mut remaining: Vec<_> = original.iter().collect();
+                let mut remaining = HashMap::<_, usize>::with_capacity(original.len());
+                for entry in original {
+                    if let Some(key) = SubsetKey::new(entry) {
+                        *remaining.entry(key).or_default() += 1;
+                    }
+                }
                 for entry in values {
-                    let index = remaining.iter().position(|candidate| *candidate == entry)?;
-                    remaining.swap_remove(index);
+                    let count = remaining.get_mut(&SubsetKey::new(entry)?)?;
+                    *count = count.checked_sub(1)?;
                 }
             }
             _ => {}
         }
         Some(value)
+    }
+}
+
+#[derive(Hash, Eq, PartialEq)]
+enum SubsetKey<'value> {
+    Unit,
+    Boolean(bool),
+    Signed(i64),
+    Unsigned(u64),
+    Float(u64),
+    Text(&'value str),
+    Bytes(&'value [u8]),
+    List(Vec<Self>),
+    Record(Vec<(&'value str, Self)>),
+}
+
+impl<'value> SubsetKey<'value> {
+    fn new(value: &'value Value) -> Option<Self> {
+        Some(match value {
+            Value::Unit => Self::Unit,
+            Value::Boolean(value) => Self::Boolean(*value),
+            Value::Signed(value) => Self::Signed(*value),
+            Value::Unsigned(value) => Self::Unsigned(*value),
+            Value::Float(value) if value.is_nan() => return None,
+            Value::Float(value) => Self::Float(if *value == 0.0 { 0 } else { value.to_bits() }),
+            Value::Text(value) => Self::Text(value),
+            Value::Bytes(value) => Self::Bytes(value),
+            Value::List(values) => Self::List(values.iter().map(Self::new).collect::<Option<_>>()?),
+            Value::Record(values) => Self::Record(
+                values
+                    .iter()
+                    .map(|(key, value)| Some((key.as_str(), Self::new(value)?)))
+                    .collect::<Option<_>>()?,
+            ),
+        })
     }
 }
 
@@ -410,6 +451,110 @@ fn execute_tail(remaining: &mut &str) -> Result<bool, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn subset_preserves_multiset_membership() {
+        let original = Value::List(vec![Value::Signed(1), Value::Signed(2), Value::Signed(1)]);
+        for values in [
+            vec![],
+            vec![Value::Signed(2), Value::Signed(1), Value::Signed(1)],
+            vec![Value::Signed(1), Value::Signed(1)],
+        ] {
+            let returned = Value::List(values);
+            assert_eq!(
+                Rule::Subset.normalize_return(returned.clone(), &original),
+                Some(returned)
+            );
+        }
+        for values in [
+            vec![Value::Signed(3)],
+            vec![Value::Unsigned(1)],
+            vec![Value::Signed(2), Value::Signed(2)],
+            vec![Value::Signed(1); 4],
+        ] {
+            assert_eq!(
+                Rule::Subset.normalize_return(Value::List(values), &original),
+                None
+            );
+        }
+    }
+
+    #[test]
+    fn subset_keys_preserve_value_equality() {
+        let entries = vec![
+            Value::Unit,
+            Value::Boolean(true),
+            Value::Signed(-1),
+            Value::Unsigned(1),
+            Value::Float(-0.0),
+            Value::Float(f64::INFINITY),
+            Value::Float(f64::NEG_INFINITY),
+            Value::Text("example".to_owned()),
+            Value::Bytes(vec![0, 1, 255]),
+            Value::List(vec![Value::Float(-0.0)]),
+            Value::Record(std::collections::BTreeMap::from([(
+                "value".to_owned(),
+                Value::Float(-0.0),
+            )])),
+        ];
+        let mut returned = entries.clone();
+        returned[4] = Value::Float(0.0);
+        returned[9] = Value::List(vec![Value::Float(0.0)]);
+        returned[10] = Value::Record(std::collections::BTreeMap::from([(
+            "value".to_owned(),
+            Value::Float(0.0),
+        )]));
+        returned.reverse();
+        let original = Value::List(entries);
+        let returned = Value::List(returned);
+        assert_eq!(
+            Rule::Subset.normalize_return(returned.clone(), &original),
+            Some(returned)
+        );
+
+        for entry in [
+            Value::Float(f64::NAN),
+            Value::List(vec![Value::Float(f64::NAN)]),
+            Value::Record(std::collections::BTreeMap::from([(
+                "value".to_owned(),
+                Value::Float(f64::NAN),
+            )])),
+        ] {
+            let original = Value::List(vec![entry.clone(), Value::Unit]);
+            assert_eq!(
+                Rule::Subset.normalize_return(Value::List(vec![entry]), &original),
+                None
+            );
+            for returned in [Value::List(vec![]), Value::List(vec![Value::Unit])] {
+                assert_eq!(
+                    Rule::Subset.normalize_return(returned.clone(), &original),
+                    Some(returned)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn subset_keeps_all_65536_positions_in_under_a_second() {
+        let original = Value::List(
+            (0..65_536)
+                .map(|index| {
+                    Value::List(vec![
+                        Value::Signed(index & 255),
+                        Value::Signed(64),
+                        Value::Signed(index >> 8),
+                    ])
+                })
+                .collect(),
+        );
+        let returned = original.clone();
+        let started = std::time::Instant::now();
+        let normalized = Rule::Subset.normalize_return(returned, &original);
+        let elapsed = started.elapsed();
+        assert_eq!(normalized, Some(original));
+        assert!(elapsed < std::time::Duration::from_secs(1), "{elapsed:?}");
+        eprintln!("65,536-position identity subset: {elapsed:?}");
+    }
 
     #[test]
     fn clamped_numbers_normalize_negative_zero() {

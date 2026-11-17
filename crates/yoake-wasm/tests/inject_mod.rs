@@ -554,6 +554,75 @@ fn config_callbacks_require_an_export_and_allowed_capability_and_traps_disable()
 }
 
 #[test]
+fn persistent_config_service_error_disables_notifications_and_handlers() {
+    let _serial = INJECTION_TEST.lock().unwrap();
+    let _side = enter_side(Side::Server);
+    let root = temporary_root("service-error");
+    let fields =
+        toml::from_str("[count]\ntype='int'\ndefault=2\nmin=1\nmax=4\nside='server'\n").unwrap();
+    let permissions = vec!["service.config".to_owned()];
+    let services: ServiceHandle = Arc::new(Mutex::new(
+        PackageServices::open(
+            "example",
+            &permissions,
+            &fields,
+            &BTreeMap::new(),
+            ConfigRuntimeSide::Server,
+            &root,
+            None,
+        )
+        .unwrap(),
+    ));
+    let trap = vec![0, 0x00, 0x0b];
+    let bytes = component_with_config(
+        &[(TARGET, 2)],
+        trap.clone(),
+        return_value(2),
+        trap,
+        Some(vec![0, 0x0b]),
+    );
+    let mut sandbox = Sandbox::new();
+    let injection = Injection::instantiate_with_services(
+        &mut sandbox,
+        "example",
+        &bytes,
+        &[TARGET.to_owned()],
+        Side::Server,
+        &permissions,
+        services.clone(),
+    )
+    .unwrap();
+    let site = catalog::SITES
+        .iter()
+        .find(|site| site.id() == TARGET)
+        .unwrap();
+    let timer = || {
+        site.invoke(
+            vec![Value::Unsigned(9), Value::Boolean(false)],
+            |arguments| arguments[0].clone(),
+        )
+    };
+    assert!(injection.has_config_notifications());
+    assert_eq!(timer(), Value::Unsigned(2));
+    let poisoned_services = services.clone();
+    assert!(std::thread::spawn(move || {
+        let _services = poisoned_services.lock().unwrap();
+        panic!("persistent package service failure");
+    })
+    .join()
+    .is_err());
+    for _ in 0..3 {
+        injection.notify_config_changes();
+        assert!(!injection.has_config_notifications());
+        assert_eq!(site.mask(), 0);
+        assert_eq!(timer(), Value::Unsigned(9));
+    }
+    drop(injection);
+    drop(services);
+    remove_temporary_root(&root);
+}
+
+#[test]
 fn client_synced_config_notifies_injection_and_disconnect_restores_default() {
     let _serial = INJECTION_TEST.lock().unwrap();
     let _side = enter_side(Side::Client);
