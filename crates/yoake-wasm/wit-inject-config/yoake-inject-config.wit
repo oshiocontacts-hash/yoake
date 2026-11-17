@@ -1,0 +1,45 @@
+package yoake:mods@1.2.0;
+
+interface config {
+    enum config-value-kind {
+        %bool,
+        int,
+        float,
+        %string,
+        %enum,
+        bool-list,
+        int-list,
+        float-list,
+        string-list,
+        enum-list,
+    }
+
+    record config-value {
+        bool-list: list<bool>,
+        bool-value: bool,
+        float-list: list<f64>,
+        float-value: f64,
+        int-list: list<s64>,
+        int-value: s64,
+        kind: config-value-kind,
+        string-list: list<string>,
+        string-value: string,
+    }
+
+    config-get: func(key: string) -> result<config-value, string>;
+}
+
+interface config-events {
+    use config.{config-value};
+    config-changed: func(key: string, value: config-value);
+}
+
+world inject-config {
+    import config;
+    export config-events;
+}
+
+world inject-mod {
+    include yoake:mods/inject-mod@1.1.0;
+    include inject-config;
+}

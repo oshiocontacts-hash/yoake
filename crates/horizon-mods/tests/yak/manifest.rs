@@ -22,14 +22,17 @@ fn mixin_manifests_require_catalog_signatures_and_injection_components() {
         Manifest::parse(&format!("{DATA}\n{wasm}\n[mixin]\ntargets = [{targets}]\n"))
     };
     let wasm = "[wasm]\ninterface = '1.1'\nworld = 'inject-mod'\nserver = 'bin/wasm/a.wasm'";
-    assert_eq!(
-        parse(&format!("'{site}'"), wasm)
-            .unwrap()
-            .mixin
-            .unwrap()
-            .targets,
-        [site]
-    );
+    for interface in ["1.1", "1.2"] {
+        let wasm = wasm.replace("1.1", interface);
+        assert_eq!(
+            parse(&format!("'{site}'"), &wasm)
+                .unwrap()
+                .mixin
+                .unwrap()
+                .targets,
+            [site]
+        );
+    }
     assert!(
         parse(&format!("'{site}'"), "")
             .unwrap_err()
@@ -277,8 +280,9 @@ fn wasm_interface_versions_are_checked() {
     assert!(parse("1.0").is_ok());
     assert!(parse("2.0").unwrap_err().contains("major"));
     assert!(parse("0.9").unwrap_err().contains("major"));
-    assert!(parse("1.1").unwrap_err().contains("requires wasm.world"));
-    assert!(parse("1.2").unwrap_err().contains("newer"));
+    assert!(parse("1.1").unwrap_err().contains("require wasm.world"));
+    assert!(parse("1.2").unwrap_err().contains("require wasm.world"));
+    assert!(parse("1.3").unwrap_err().contains("newer"));
     for bad in ["1", "1.", ".0", "1.x", "1.0.0", "", "-1.0", "1. 0"] {
         assert!(parse(bad).is_err(), "{bad:?}");
     }
@@ -405,7 +409,9 @@ permissions = [\"service.commands\"]
         ));
         assert!(Manifest::parse(&client_only).is_ok(), "{permission}");
     }
-    let client_only = with_wasm("\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/a.wasm\"\npermissions = [\"service.permissions\"]\n");
+    let client_only = with_wasm(
+        "\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/a.wasm\"\npermissions = [\"service.permissions\"]\n",
+    );
     assert!(
         Manifest::parse(&client_only)
             .unwrap_err()
@@ -431,7 +437,12 @@ client = "bin/wasm/a.wasm"
     assert!(parse(permission, hosts).is_ok());
     assert!(parse(permission, "").is_err());
     assert!(parse("", hosts).is_err());
-    for host in ["127.0.0.1", "*.example.com", "https://example.com", "example.com."] {
+    for host in [
+        "127.0.0.1",
+        "*.example.com",
+        "https://example.com",
+        "example.com.",
+    ] {
         let http = format!("[http]\nhosts = ['{host}']");
         assert!(parse(permission, &http).is_err(), "{host}");
     }

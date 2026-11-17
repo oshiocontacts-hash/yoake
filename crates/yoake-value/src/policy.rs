@@ -5,8 +5,11 @@ pub enum Rule {
     Unrestricted,
     Finite,
     Number(f64, f64),
+    ClampedNumber(f64, f64),
     Vector(f64, f64),
     BlockState,
+    XpMerge,
+    Subset,
 }
 
 impl Rule {
@@ -21,7 +24,7 @@ impl Rule {
                     .all(|value| self.accepts(value, block_states)),
                 _ => true,
             },
-            Self::Number(minimum, maximum) => {
+            Self::Number(minimum, maximum) | Self::ClampedNumber(minimum, maximum) => {
                 let number = match value {
                     Value::Signed(value) => *value as f64,
                     Value::Unsigned(value) => *value as f64,
@@ -40,7 +43,50 @@ impl Rule {
                 (Value::Unsigned(value), Some(count)) => *value < count as u64,
                 _ => false,
             },
+            Self::XpMerge | Self::Subset => matches!(value, Value::List(_)),
         }
+    }
+
+    pub fn normalize_return(self, mut value: Value, original: &Value) -> Option<Value> {
+        match self {
+            Self::ClampedNumber(minimum, maximum) => match &mut value {
+                Value::Float(number) if number.is_finite() => {
+                    *number = number.clamp(minimum, maximum);
+                }
+                _ => return None,
+            },
+            Self::XpMerge => {
+                let (Value::List(values), Value::List(original)) = (&value, original) else {
+                    return None;
+                };
+                let sum = |values: &[Value]| {
+                    values.iter().try_fold(0_u64, |total, value| match value {
+                        Value::Unsigned(amount) if (1..=u64::from(u32::MAX)).contains(amount) => {
+                            total.checked_add(*amount)
+                        }
+                        _ => None,
+                    })
+                };
+                if values.len() > original.len() || sum(values)? != sum(original)? {
+                    return None;
+                }
+            }
+            Self::Subset => {
+                let (Value::List(values), Value::List(original)) = (&value, original) else {
+                    return None;
+                };
+                if values.len() > original.len() {
+                    return None;
+                }
+                let mut remaining: Vec<_> = original.iter().collect();
+                for entry in values {
+                    let index = remaining.iter().position(|candidate| *candidate == entry)?;
+                    remaining.swap_remove(index);
+                }
+            }
+            _ => {}
+        }
+        Some(value)
     }
 }
 
@@ -53,7 +99,7 @@ pub struct Policy {
 }
 
 pub fn site_policy(path: &str) -> Policy {
-    use Rule::{BlockState, Finite, Number, Vector};
+    use Rule::{BlockState, ClampedNumber, Finite, Number, Subset, Vector, XpMerge};
 
     let arguments: &'static [(usize, Rule)] = match path {
         "world::level::on_place" => &[
@@ -76,6 +122,12 @@ pub fn site_policy(path: &str) -> Policy {
         | "game::place_used_fire"
         | "game::try_sleep"
         | "world::level::tick::fire_ignite_odds_at" => &[(1, Vector(-30_000_000.0, 30_000_000.0))],
+        "world::level::tick::fire_burn_odds_at" => &[
+            (0, Vector(-30_000_000.0, 30_000_000.0)),
+            (1, Number(0.0, 100.0)),
+        ],
+        "world::food::exhaustion_amount" => &[(0, Number(0.0, 40.0))],
+        "game::split_orb_values" => &[(0, Number(0.0, u32::MAX as f64))],
         "world::level::tick::crop_growth_speed" => &[(2, Vector(-30_000_000.0, 30_000_000.0))],
         "game::creatures::drop_death_loot" => &[(5, Vector(-30_000_000.0, 30_000_000.0))],
         "game::creatures::hurt_player_by" | "game::creatures::mob_hits_mob" => {
@@ -114,6 +166,10 @@ pub fn site_policy(path: &str) -> Policy {
         "game::tick_sleep_timer" => Number(0.0, 110.0),
         "world::level::tick::crop_growth_speed" => Number(0.01, 1024.0),
         "world::level::tick::fire_ignite_odds_at" => Number(0.0, 10_000.0),
+        "world::level::tick::fire_burn_odds_at" => Number(0.0, 100.0),
+        "world::food::exhaustion_amount" => ClampedNumber(0.0, 40.0),
+        "game::split_orb_values" => XpMerge,
+        "game::explosion::affected_blocks" | "game::sleeping_players" => Subset,
         "world::level::bonemeal::crop_bonemeal_increase" => Number(0.0, 25.0),
         "world::living_fall::calculate_fall_damage" => Number(0.0, i32::MAX as f64),
         "world::living_motion::jump_power" => Number(0.0, 64.0),

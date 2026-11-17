@@ -762,19 +762,25 @@ impl Site {
             if !handler.enabled(RETURN) {
                 continue;
             }
-            match handler.module.guest.returned(&id, &result) {
+            let replacement = match handler.module.guest.returned(&id, &result) {
                 Err(CallbackError::Skipped) => {
                     handler.module.refresh_masks();
                     continue;
                 }
-                Ok(None) => {}
-                Ok(Some(value)) if site.accepts_result(&value, block_states) => result = value,
-                _ => {
-                    handler.disable(site, RETURN);
-                    return native_result
-                        .map(Ok)
-                        .unwrap_or_else(|| call_original(&mut original, original_arguments));
-                }
+                Ok(None) => continue,
+                Ok(Some(value)) => site_policy(site.path)
+                    .result
+                    .normalize_return(value, native_result.as_ref().unwrap_or(&result))
+                    .filter(|value| site.accepts_result(value, block_states)),
+                _ => None,
+            };
+            if let Some(value) = replacement {
+                result = value;
+            } else {
+                handler.disable(site, RETURN);
+                return native_result
+                    .map(Ok)
+                    .unwrap_or_else(|| call_original(&mut original, original_arguments));
             }
         }
         Ok(result)

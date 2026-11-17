@@ -1,15 +1,147 @@
 use std::collections::BTreeMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
+use horizon_mods::yak::ConfigRuntimeSide;
 use wit_parser::{ManglingAndAbi, Resolve};
 use yoake_inject_rt::{Side, catalog, enter_side};
 use yoake_value::Value;
+use yoake_wasm::package_services::{PackageServices, ServiceHandle};
 use yoake_wasm::{Sandbox, inject::Injection};
 
 const TARGET: &str =
     "game::tick_sleep_timer#198a5917f750358ff70ce3f80ede1aa2c142d914cbe7bed985f5b6f4ed29a7b7";
 
 static INJECTION_TEST: Mutex<()> = Mutex::new(());
+
+#[test]
+fn inject_config_is_scoped_gated_and_notifies_cached_handlers() {
+    let _serial = INJECTION_TEST.lock().unwrap();
+    let _side = enter_side(Side::Server);
+    let bytes = yoake_wasm::test_guests::load(&yoake_wasm::test_guests::MIXIN_CONFIG).unwrap();
+    let root = std::env::temp_dir().join(format!(
+        "yoake-inject-config-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos(),
+    ));
+    std::fs::create_dir(&root).unwrap();
+    let fields =
+        toml::from_str("[count]\ntype='int'\ndefault=2\nmin=1\nmax=4\nside='server'\n").unwrap();
+    let permissions = vec!["service.config".to_owned()];
+    let services: ServiceHandle = Arc::new(Mutex::new(
+        PackageServices::open(
+            "example",
+            &permissions,
+            &fields,
+            &BTreeMap::new(),
+            ConfigRuntimeSide::Server,
+            &root,
+            None,
+        )
+        .unwrap(),
+    ));
+    let site = catalog::SITES
+        .iter()
+        .find(|site| site.id() == TARGET)
+        .unwrap();
+    let timer = || {
+        site.invoke(
+            vec![Value::Unsigned(9), Value::Boolean(false)],
+            |arguments| arguments[0].clone(),
+        )
+    };
+    assert_eq!(timer(), Value::Unsigned(9));
+    let mut sandbox = Sandbox::new();
+    let injection = Injection::instantiate_with_services(
+        &mut sandbox,
+        "example",
+        &bytes,
+        &[TARGET.to_owned()],
+        Side::Server,
+        &permissions,
+        services.clone(),
+    )
+    .unwrap();
+    assert_eq!(timer(), Value::Unsigned(2));
+    {
+        let mut service = services.lock().unwrap();
+        let mut value = service.config_get("count").unwrap();
+        value.int_value = 5;
+        assert!(service.config_set("count", value.clone()).is_err());
+        value.int_value = 4;
+        service.config_set("count", value).unwrap();
+        assert_eq!(service.take_changes().len(), 1);
+    }
+    injection.notify_config_changes();
+    assert_eq!(timer(), Value::Unsigned(4));
+    {
+        let mut service = services.lock().unwrap();
+        let mut value = service.config_get("count").unwrap();
+        value.int_value = 3;
+        service.config_set("count", value).unwrap();
+    }
+    assert_eq!(timer(), Value::Unsigned(3));
+    assert_eq!(services.lock().unwrap().take_changes().len(), 1);
+    drop(injection);
+    assert_eq!(timer(), Value::Unsigned(9));
+    let error = Injection::instantiate_with_services(
+        &mut sandbox,
+        "other",
+        &bytes,
+        &[TARGET.to_owned()],
+        Side::Server,
+        &permissions,
+        services.clone(),
+    )
+    .err()
+    .unwrap();
+    assert!(
+        error
+            .to_string()
+            .contains("package service identity mismatch"),
+        "{error}"
+    );
+    let denied = Injection::instantiate_with_services(
+        &mut sandbox,
+        "example",
+        &bytes,
+        &[TARGET.to_owned()],
+        Side::Server,
+        &[],
+        services.clone(),
+    )
+    .unwrap();
+    assert_eq!(timer(), Value::Unsigned(9));
+    drop(denied);
+    let other: ServiceHandle = Arc::new(Mutex::new(
+        PackageServices::open(
+            "other",
+            &permissions,
+            &fields,
+            &BTreeMap::new(),
+            ConfigRuntimeSide::Server,
+            &root,
+            None,
+        )
+        .unwrap(),
+    ));
+    let isolated = Injection::instantiate_with_services(
+        &mut sandbox,
+        "other",
+        &bytes,
+        &[TARGET.to_owned()],
+        Side::Server,
+        &permissions,
+        other,
+    )
+    .unwrap();
+    assert_eq!(timer(), Value::Unsigned(2));
+    drop(isolated);
+    drop(services);
+    std::fs::remove_dir_all(&root).unwrap();
+}
 
 fn read_leb(bytes: &[u8], position: &mut usize) -> u32 {
     let mut value = 0;

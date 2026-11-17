@@ -773,6 +773,31 @@
     "client_required_capabilities": []
   },
   {
+    "id": "game::explosion::affected_blocks#48eb22f452491e6764e4413bdb03f836666a322dba624fc9005ba4b67ed0b6d8",
+    "path": "game::explosion::affected_blocks",
+    "signature_hash": "48eb22f452491e6764e4413bdb03f836666a322dba624fc9005ba4b67ed0b6d8",
+    "arguments": [
+      "list<block-pos>"
+    ],
+    "result": "list<block-pos>",
+    "side": "server",
+    "allow": [
+      "return"
+    ],
+    "source": "crates/horizon-client/src/game/explosion.rs",
+    "argument_rules": [
+      {
+        "kind": "finite"
+      }
+    ],
+    "result_rule": {
+      "kind": "subset",
+      "of": "vanilla-result"
+    },
+    "required_capabilities": [],
+    "client_required_capabilities": []
+  },
+  {
     "id": "game::explosion::server_explode#910e0323d56abb8543f5f43fc61744ff4eb8b9e7404ab49e586a697a256c80d3",
     "path": "game::explosion::server_explode",
     "signature_hash": "910e0323d56abb8543f5f43fc61744ff4eb8b9e7404ab49e586a697a256c80d3",
@@ -1033,6 +1058,31 @@
     "client_required_capabilities": []
   },
   {
+    "id": "game::sleeping_players#198b29101e378ffe727e9973838481bdce6987266d2f80cedb6979184cfe36f3",
+    "path": "game::sleeping_players",
+    "signature_hash": "198b29101e378ffe727e9973838481bdce6987266d2f80cedb6979184cfe36f3",
+    "arguments": [
+      "list<string>"
+    ],
+    "result": "list<string>",
+    "side": "server",
+    "allow": [
+      "return"
+    ],
+    "source": "crates/horizon-client/src/game/lan_actions.rs",
+    "argument_rules": [
+      {
+        "kind": "finite"
+      }
+    ],
+    "result_rule": {
+      "kind": "subset",
+      "of": "vanilla-result"
+    },
+    "required_capabilities": [],
+    "client_required_capabilities": []
+  },
+  {
     "id": "game::spawn_item#930a3e860bdfc085de2ed157bf46814b45129e44eab20760767c5e39e2e62112",
     "path": "game::spawn_item",
     "signature_hash": "930a3e860bdfc085de2ed157bf46814b45129e44eab20760767c5e39e2e62112",
@@ -1114,6 +1164,35 @@
     ],
     "result_rule": {
       "kind": "finite"
+    },
+    "required_capabilities": [],
+    "client_required_capabilities": []
+  },
+  {
+    "id": "game::split_orb_values#6ba2da0be9c6b32ac47dee8ac3f1249feba2b33441b2319cd0c9a5127041e9ef",
+    "path": "game::split_orb_values",
+    "signature_hash": "6ba2da0be9c6b32ac47dee8ac3f1249feba2b33441b2319cd0c9a5127041e9ef",
+    "arguments": [
+      "u32"
+    ],
+    "result": "list<u32>",
+    "side": "server",
+    "allow": [
+      "return"
+    ],
+    "source": "crates/horizon-client/src/game.rs",
+    "argument_rules": [
+      {
+        "kind": "number",
+        "maximum": 4294967295.0,
+        "minimum": 0.0
+      }
+    ],
+    "result_rule": {
+      "kind": "xp-merge",
+      "maximum_count": "vanilla-result",
+      "minimum": 1,
+      "preserve_sum": true
     },
     "required_capabilities": [],
     "client_required_capabilities": []
@@ -1419,6 +1498,34 @@
     "client_required_capabilities": []
   },
   {
+    "id": "world::food::exhaustion_amount#1afa78d578bf691d7976b467eb462df1a7c43752cfb449169c767bab158831bd",
+    "path": "world::food::exhaustion_amount",
+    "signature_hash": "1afa78d578bf691d7976b467eb462df1a7c43752cfb449169c767bab158831bd",
+    "arguments": [
+      "f32"
+    ],
+    "result": "f32",
+    "side": "server",
+    "allow": [
+      "return"
+    ],
+    "source": "crates/horizon-world/src/food.rs",
+    "argument_rules": [
+      {
+        "kind": "number",
+        "maximum": 40.0,
+        "minimum": 0.0
+      }
+    ],
+    "result_rule": {
+      "kind": "clamped-number",
+      "maximum": 40.0,
+      "minimum": 0.0
+    },
+    "required_capabilities": [],
+    "client_required_capabilities": []
+  },
+  {
     "id": "world::level::bonemeal::crop_bonemeal_increase#b61d671fb9375f084f2bf026f466add0e8423efd996180dee3fb52ca18348fd1",
     "path": "world::level::bonemeal::crop_bonemeal_increase",
     "signature_hash": "b61d671fb9375f084f2bf026f466add0e8423efd996180dee3fb52ca18348fd1",
@@ -1568,6 +1675,40 @@
     ],
     "result_rule": {
       "kind": "finite"
+    },
+    "required_capabilities": [],
+    "client_required_capabilities": []
+  },
+  {
+    "id": "world::level::tick::fire_burn_odds_at#5df3d466687228c4989c85fa0e6de7efa8071d5811a8aa63b47a4d4403274f68",
+    "path": "world::level::tick::fire_burn_odds_at",
+    "signature_hash": "5df3d466687228c4989c85fa0e6de7efa8071d5811a8aa63b47a4d4403274f68",
+    "arguments": [
+      "block-pos",
+      "s32"
+    ],
+    "result": "s32",
+    "side": "server",
+    "allow": [
+      "return"
+    ],
+    "source": "crates/horizon-world/src/level/tick.rs",
+    "argument_rules": [
+      {
+        "kind": "vector",
+        "maximum": 30000000.0,
+        "minimum": -30000000.0
+      },
+      {
+        "kind": "number",
+        "maximum": 100.0,
+        "minimum": 0.0
+      }
+    ],
+    "result_rule": {
+      "kind": "number",
+      "maximum": 100.0,
+      "minimum": 0.0
     },
     "required_capabilities": [],
     "client_required_capabilities": []

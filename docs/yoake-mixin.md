@@ -1,6 +1,10 @@
 # Yoake gameplay injection
 
-The 1.1 `inject-mod` world connects signed `.yak` mixins to the committed gameplay
+`inject-mod` は署名済み `.yak` の Mixin をゲーム処理へ接続します。
+1.2 ではパッケージ設定の読み取りと変更通知を追加しました。既存の 1.1 injection world と
+1.0 通常 hook world は変更せず、そのまま読み込めます。
+
+The `inject-mod` world connects signed `.yak` mixins to the committed gameplay
 catalog through Wasmtime. The ordinary 1.0 hook worlds are unchanged. Injection is
 for trusted mod authors: the existing package signature, identity, fingerprint,
 ABI, and engine-version checks still apply. A catalog entry is an explicit engine
@@ -40,7 +44,7 @@ host installs only registrations applicable to that component's side. The host
 rejects an empty applicable registration set, duplicate registrations, undeclared
 sites, unsupported points, unknown paths, stale signature hashes, wrong sides,
 and components that do not implement the injection WIT. Target lists contain
-1-1024 unique entries. A 1.1 injection component uses the separate injection world,
+1-1024 unique entries. A 1.1 or 1.2 injection component uses the separate injection world,
 not an ordinary 1.0 hooks world in the same component.
 
 The signature hash is SHA-256 over
@@ -87,6 +91,65 @@ standalone component, manifest, and build command. It halves fall damage, double
 the **bonemeal** crop-growth increment, and logs submitted chat. It does not double
 all crop random ticks. Package staging and official signing remain owner tasks.
 
+## 設定の読み取りと変更通知 / Config (1.2)
+
+設定を読む injection component は SDK の `std,mixin-config` feature と
+`[wasm] interface = "1.2"`, `world = "inject-mod"` を指定します。
+従来の `std,mixin` は引き続き 1.1 component を生成します。
+1.0 ABI baseline と 1.1 の import/export は変更していません。
+
+```toml
+[wasm]
+interface = "1.2"
+world = "inject-mod"
+server = "bin/wasm/mixin-config.wasm"
+permissions = ["service.config"]
+
+[config.count]
+type = "int"
+default = 2
+min = 1
+max = 4
+side = "server"
+```
+
+これは抜粋です。通常のパッケージ情報、`[side]`、`[mixin].targets` も必要です。
+`yoake_wasm_sdk::mixin::config_get("count")` は通常の `ConfigValue` を返します。
+呼び出し元のパッケージに固定され、別パッケージの ID を指定する引数はありません。
+権限 `service.config`、宣言済みキー、型・範囲・side の検証、同期設定の server 権威は
+通常の server/client module の `config-get` と共通です。この API は読み取り専用です。
+
+`export_mixin!(HANDLERS, config_changed = on_config_changed)` で
+`fn on_config_changed(key: &str, value: ConfigValue)` を登録できます。
+初期値は `config_get` で読み、変更通知でキャッシュを更新してください。
+通知は次の injection handler の実行前、および tick/frame 時に配送されます。
+同じ配送までに同じキーが複数回変わった場合は最新値を一度だけ通知します。
+通常 module が自身の通知を消費しても injection component の通知は失われません。
+通知も handler と同じ fuel・実行期限の制限を受けます。
+
+実装例は [`mixin-config/src/lib.rs`](../crates/yoake-wasm-sdk/examples/mixin-config/src/lib.rs)。
+その example フォルダーで `cargo build --offline -j 4 --release --target wasm32-wasip2` を実行します。
+設定の初期値と変更通知を使い、sleep timer の RETURN handler が返す値を更新します。
+
+## ユーティリティ向けの追加箇所 / Utility sites
+
+次の 5 箇所はすべて **server 側・RETURN のみ** です。handler がなければ vanilla の結果を使います。
+完全な ID は署名ハッシュを含めて `inject-sites.json` から指定してください。
+
+| 箇所 | 引数 → 戻り値 | 結果の制約 |
+| --- | --- | --- |
+| `game::split_orb_values` | `u32 → list<u32>` | `spawn_orbs` の XP 分割値。各値は 1 以上、合計 XP は厳密に同一、個数は vanilla 以下。0 XP は空リストのみ。 |
+| `world::food::exhaustion_amount` | `f32 → f32` | `add_exhaustion` に加える量。有限値を 0〜40 に clamp。NaN・無限大は拒否。 |
+| `game::explosion::affected_blocks` | `list<block-pos> → list<block-pos>` | entity damage/knockback の後、ブロック除去・drop の前。元の位置リストの部分集合のみ。全件・空も可。追加位置や余分な重複は拒否。 |
+| `world::level::tick::fire_burn_odds_at` | `(block-pos, s32) → s32` | 可燃ブロックへの隣接燃焼 roll の odds。0〜100。既存の `fire_ignite_odds_at`（空間への着火）とは別。 |
+| `game::sleeping_players` | `list<string> → list<string>` | 対象プレイヤー ID の部分集合で分母だけを絞る。睡眠中・熟睡中の人数は変更しない。ID は UUID、UUID のない local は `local`。 |
+
+XP の合計・個数と部分集合の制約は、複数 handler を連鎖させても元の native 結果を基準に検証します。
+制約違反の結果は拒否し、該当 handler を無効化して native 結果へ戻します。
+XP は handler がなければ従来の分割・spawn・乱数消費順をそのまま使います。
+爆発はブロック処理だけを絞り、entity damage・knockback や爆発後の着火処理は変更しません。
+sleep は従来の参加条件、sleep timer、百分率の切り上げ計算を維持します。
+
 ## Values and scoped handles
 
 `yoake-value` is the host representation: unit, bool, signed/unsigned numbers,
@@ -103,7 +166,7 @@ scoped handles, not replaceable integer IDs.
 
 Guest replacements reject NaN and infinity by default, including inside vectors.
 `yoake-value::policy::site_policy` declares argument and result rules; the generated
-`inject-sites.json` includes those rules for every site. All 51 sites are audited
+`inject-sites.json` includes those rules for every site. All 56 sites are audited
 for numeric and identity domains. Native arguments and native results are never
 subject to these new restrictions, preserving unmodified vanilla behavior.
 
@@ -114,6 +177,7 @@ subject to these new restrictions, preserving unmodified vanilla behavior.
 | Crop growth speed | 0.01 to 1024 |
 | Bonemeal increment | 0 to 25 |
 | Fire ignition odds | 0 to 10,000 |
+| Fire spread-to-flammable-block odds | 0 to 100 |
 | Damage amount | 0 to 1,000,000 |
 | Exhaustion / saturation modifier | 0 to 40 |
 | Food nutrition | 0 to 20 |
@@ -121,7 +185,8 @@ subject to these new restrictions, preserving unmodified vanilla behavior.
 
 Remaining numeric rules (crafting, experience, enchantment, fall and jump inputs,
 attack strength/speed, pickup delay, and result widths) are explicit in the same
-catalog. Out-of-range values are rejected, not silently clamped. Consumer arithmetic
+catalog. Out-of-range values are rejected, except the explicitly clamped finite
+`exhaustion_amount` result described above. Consumer arithmetic
 for sleep, bonemeal, fire odds and crop random-tick divisors also saturates where
 unchecked arithmetic could overflow.
 
@@ -247,7 +312,8 @@ are relaxed for mixins.
 
 ## Committed sites and signatures
 
-All 51 sites below allow HEAD, RETURN, and overwrite. Argument order includes
+The original 51 sites below allow HEAD, RETURN, and overwrite; the five utility
+sites added in MX2 allow RETURN only. Argument order includes
 receivers. Use the **full ID**, including the hash, in the manifest and SDK table.
 Signatures are canonical catalog shapes, not a promise to expose opaque Rust
 objects. In particular, coarse entity ticking/death, animal targetability,
@@ -307,6 +373,12 @@ universal interception of every entity, AI decision, spawn, or movement validato
 | `world::living_fall::cause_living_fall_damage#40abf719eadc611c3b8f1173d44e1a693ec8bf8272f230f5f2af30b66ef64eaa` | server | `(scoped<&mutW>, f64, f32) -> bool` |
 | `world::living_motion::jump_from_ground#49e2162006d6305be832360344cecf87f36422ed6eca7fe24c598d1fd965dc2a` | server | `(scoped<&mutW>) -> unit` |
 | `world::living_motion::jump_power#a887a93bbf10f3908aa90913b32c0a6c6f5307dccc4a8d25ae9a4ac456432c1f` | server | `(scoped<&mutW>, f32) -> f32` |
+| `game::split_orb_values#6ba2da0be9c6b32ac47dee8ac3f1249feba2b33441b2319cd0c9a5127041e9ef` | server | `(u32) -> list<u32>` |
+| `world::food::exhaustion_amount#1afa78d578bf691d7976b467eb462df1a7c43752cfb449169c767bab158831bd` | server | `(f32) -> f32` |
+| `game::explosion::affected_blocks#48eb22f452491e6764e4413bdb03f836666a322dba624fc9005ba4b67ed0b6d8` | server | `(list<block-pos>) -> list<block-pos>` |
+| `world::level::tick::fire_burn_odds_at#5df3d466687228c4989c85fa0e6de7efa8071d5811a8aa63b47a4d4403274f68` | server | `(block-pos, s32) -> s32` |
+| `game::sleeping_players#198b29101e378ffe727e9973838481bdce6987266d2f80cedb6979184cfe36f3` | server | `(list<string>) -> list<string>` |
+
 ## Adding an engine boundary
 
 Use `#[yoake_inject(id = "stable::path", side = "server")]` on a real function or

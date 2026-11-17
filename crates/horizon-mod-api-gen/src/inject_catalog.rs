@@ -31,6 +31,13 @@ fn validation_rule(rule: Rule) -> serde_json::Value {
         Rule::Number(minimum, maximum) => {
             serde_json::json!({ "kind": "number", "minimum": minimum, "maximum": maximum })
         }
+        Rule::ClampedNumber(minimum, maximum) => {
+            serde_json::json!({ "kind": "clamped-number", "minimum": minimum, "maximum": maximum })
+        }
+        Rule::XpMerge => serde_json::json!({
+            "kind": "xp-merge", "minimum": 1, "preserve_sum": true, "maximum_count": "vanilla-result"
+        }),
+        Rule::Subset => serde_json::json!({ "kind": "subset", "of": "vanilla-result" }),
         Rule::Vector(minimum, maximum) => {
             serde_json::json!({ "kind": "vector", "minimum": minimum, "maximum": maximum })
         }
@@ -348,6 +355,10 @@ fn registry_type(wire: &str) -> Result<String, String> {
         "f32" => "F32",
         "f64" => "F64",
         "string" => "String",
+        "list<u8>" => "Bytes",
+        "list<u32>" => "U32List",
+        "list<block-pos>" => "BlockPosList",
+        "list<string>" => "StringList",
         "block-pos" => "BlockPos",
         "vec3-f32" => "Vec3F32",
         "vec3" => "Vec3",
@@ -407,7 +418,7 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let generated = generate_inject_catalog(&root).unwrap();
         let sites: Vec<CatalogSite> = serde_json::from_str(&generated).unwrap();
-        assert_eq!(sites.len(), 51);
+        assert_eq!(sites.len(), 56);
         let mut block_state_slots = 0;
         let mut sensitive = Vec::new();
         for site in sites {
@@ -429,7 +440,14 @@ mod tests {
                         assert_eq!(kind, "vector", "{}", site.path)
                     }
                     "unit" | "bool" | "string" => assert_eq!(kind, "finite"),
+                    "list<u32>" => assert_eq!(kind, "xp-merge"),
+                    "list<block-pos>" | "list<string>" => {
+                        assert!(matches!(kind, "finite" | "subset"), "{}", site.path);
+                    }
                     wire if wire.starts_with("scoped<") => assert_eq!(kind, "finite"),
+                    "f32" if site.path == "world::food::exhaustion_amount" => {
+                        assert!(matches!(kind, "number" | "clamped-number"));
+                    }
                     _ => assert_eq!(kind, "number", "{}: {wire}", site.path),
                 }
             }

@@ -281,7 +281,15 @@ struct InjectionMod {
     _injection: Injection,
 }
 
-impl Hooks for InjectionMod {}
+impl Hooks for InjectionMod {
+    fn tick(&self, _host: &mut dyn Host, _event: &mut TickEvent) {
+        self._injection.notify_config_changes();
+    }
+
+    fn frame(&self, _host: &mut dyn Host, _event: &mut FrameEvent) {
+        self._injection.notify_config_changes();
+    }
+}
 
 fn load_injection(
     id: &str,
@@ -290,9 +298,22 @@ fn load_injection(
     side: yoake_inject_rt::Side,
     permissions: &[String],
 ) -> Result<Injection, String> {
+    let config_side = match side {
+        yoake_inject_rt::Side::Client => horizon_mods::yak::ConfigRuntimeSide::Client,
+        _ => horizon_mods::yak::ConfigRuntimeSide::Server,
+    };
+    let services = package::services(id, config_side)?;
     let mut sandbox = sandbox().lock().unwrap_or_else(|error| error.into_inner());
-    Injection::instantiate_with_permissions(&mut sandbox, id, bytes, targets, side, permissions)
-        .map_err(|error| error.to_string())
+    Injection::instantiate_with_services(
+        &mut sandbox,
+        id,
+        bytes,
+        targets,
+        side,
+        permissions,
+        services,
+    )
+    .map_err(|error| error.to_string())
 }
 
 fn gpu_fingerprint(version: &str, bytes: &[u8]) -> String {

@@ -63,6 +63,147 @@ fn command_response(head: HeadOutcome, result: Value) -> Arc<Mod> {
     ))
 }
 
+fn check_return_rule(
+    path: &'static str,
+    arguments: Vec<Value>,
+    argument_types: &[ValueType],
+    result_type: ValueType,
+    vanilla: Value,
+    replacement: Value,
+    expected: Value,
+) {
+    let site = site(path, argument_types, result_type);
+    assert_eq!(site.invoke(arguments.clone(), |_| vanilla.clone()), vanilla);
+    let module = response(HeadOutcome::Continue, replacement);
+    let _registry = install(site, Arc::clone(&module), Side::Server, RETURN);
+    assert_eq!(site.invoke(arguments, |_| vanilla.clone()), expected);
+}
+
+#[test]
+fn xp_split_preserves_total_positive_values_and_vanilla_count() {
+    let _side = enter_side(Side::Server);
+    let values =
+        |values: &[u64]| Value::List(values.iter().copied().map(Value::Unsigned).collect());
+    for (replacement, accepted) in [
+        (vec![100], true),
+        (vec![80, 20], true),
+        (vec![0, 100], false),
+        (vec![99], false),
+        (vec![101], false),
+        (vec![50, 20, 20, 7, 3], false),
+        (vec![u32::MAX as u64 + 1], false),
+        (vec![], false),
+    ] {
+        let vanilla = values(&[73, 17, 7, 3]);
+        let replacement = values(&replacement);
+        check_return_rule(
+            "game::split_orb_values",
+            vec![Value::Unsigned(100)],
+            &[ValueType::U32],
+            ValueType::U32List,
+            vanilla.clone(),
+            replacement.clone(),
+            if accepted { replacement } else { vanilla },
+        );
+    }
+    check_return_rule(
+        "game::split_orb_values",
+        vec![Value::Unsigned(0)],
+        &[ValueType::U32],
+        ValueType::U32List,
+        values(&[]),
+        values(&[]),
+        values(&[]),
+    );
+}
+
+#[test]
+fn exhaustion_delta_is_clamped_and_nonfinite_results_fall_back() {
+    let _side = enter_side(Side::Server);
+    for (replacement, expected) in [
+        (0.25, 0.25),
+        (-1.0, 0.0),
+        (80.0, 40.0),
+        (f64::NAN, 2.0),
+        (f64::INFINITY, 2.0),
+    ] {
+        check_return_rule(
+            "world::food::exhaustion_amount",
+            vec![Value::Float(2.0)],
+            &[ValueType::F32],
+            ValueType::F32,
+            Value::Float(2.0),
+            Value::Float(replacement),
+            Value::Float(expected),
+        );
+    }
+}
+
+#[test]
+fn explosion_blocks_and_sleep_population_only_allow_subsets() {
+    let _side = enter_side(Side::Server);
+    for (path, result_type, first, second, foreign) in [
+        (
+            "game::explosion::affected_blocks",
+            ValueType::BlockPosList,
+            Value::List(vec![Value::Signed(1), Value::Signed(64), Value::Signed(2)]),
+            Value::List(vec![Value::Signed(3), Value::Signed(65), Value::Signed(4)]),
+            Value::List(vec![Value::Signed(5), Value::Signed(66), Value::Signed(6)]),
+        ),
+        (
+            "game::sleeping_players",
+            ValueType::StringList,
+            Value::Text("sleeper".into()),
+            Value::Text("awake".into()),
+            Value::Text("foreign".into()),
+        ),
+    ] {
+        let vanilla = Value::List(vec![first.clone(), second.clone()]);
+        for (replacement, accepted) in [
+            (vec![], true),
+            (vec![second.clone()], true),
+            (vec![second.clone(), first.clone()], true),
+            (vec![foreign], false),
+            (vec![first.clone(), first.clone()], false),
+            (vec![first.clone(), second, first], false),
+        ] {
+            let replacement = Value::List(replacement);
+            check_return_rule(
+                path,
+                vec![vanilla.clone()],
+                &[result_type],
+                result_type,
+                vanilla.clone(),
+                replacement.clone(),
+                if accepted {
+                    replacement
+                } else {
+                    vanilla.clone()
+                },
+            );
+        }
+    }
+}
+
+#[test]
+fn flammable_neighbour_odds_enforce_vanilla_range() {
+    let _side = enter_side(Side::Server);
+    for (replacement, expected) in [(0, 0), (100, 100), (-1, 60), (101, 60)] {
+        check_return_rule(
+            "world::level::tick::fire_burn_odds_at",
+            vec![
+                yoake_value::Scope::default().handle("world::level::tick::Sim", None),
+                Value::List(vec![Value::Signed(0), Value::Signed(64), Value::Signed(0)]),
+            ],
+            &[ValueType::Handle, ValueType::BlockPos],
+            ValueType::S32,
+            Value::Signed(60),
+            Value::Signed(replacement),
+            Value::Signed(expected),
+        );
+    }
+}
+
 #[test]
 fn live_block_state_bounds_prevent_native_index_panics() {
     let _side = enter_side(Side::Server);

@@ -15,6 +15,53 @@ use horizon_core::{
 };
 use std::sync::Arc;
 
+#[yoake_inject_macro::yoake_inject(
+    id = "world::level::tick::fire_burn_odds_at",
+    side = "server",
+    allow = "return"
+)]
+fn fire_burn_odds_at(_pos: BlockPos, odds: i32) -> i32 {
+    odds
+}
+
+#[cfg(test)]
+mod utility_inject_tests {
+    use super::*;
+    use yoake_inject_rt::{CallbackError, Guest, Mod, RETURN, Registry, Side, Subscription, Value};
+
+    #[test]
+    fn flammable_neighbor_odds_handler_is_bounded_and_optional() {
+        struct Replace(i64);
+        impl Guest for Replace {
+            fn returned(&self, _: &str, _: &Value) -> Result<Option<Value>, CallbackError> {
+                Ok(Some(Value::Signed(self.0)))
+            }
+        }
+        let _side = yoake_inject_rt::enter_side(Side::Server);
+        let pos = BlockPos::new(3, 64, -2);
+        assert_eq!(fire_burn_odds_at(pos, 60), 60);
+        for (replacement, expected) in [(0, 0), (100, 100), (-1, 60), (101, 60)] {
+            let site = __yoake_inject_site_fire_burn_odds_at();
+            let mut registry = Registry::new([site]).unwrap();
+            let prepared = registry
+                .prepare(
+                    [Subscription {
+                        site_id: site.id(),
+                        side: Side::Server,
+                        points: RETURN,
+                        module: Arc::new(Mod::new("fire-test", Arc::new(Replace(replacement)))),
+                    }],
+                    |_, _, _| true,
+                )
+                .unwrap();
+            registry.publish(prepared).unwrap();
+            assert_eq!(fire_burn_odds_at(pos, 60), expected);
+            drop(registry);
+            assert_eq!(fire_burn_odds_at(pos, 60), 60);
+        }
+    }
+}
+
 impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     fn rand_int(&mut self, bound: i32) -> i32 {
         self.random().next_int_bound(bound).unwrap_or(0)
@@ -730,7 +777,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     /// `FireBlock.checkBurnOut` of the block at `pos` by the fire at `fire`.
     fn fire_check_burn_out(&mut self, fire: BlockPos, pos: BlockPos, chance: i32, age: i32) {
         let b = self.b;
-        let odds = self.burn_odds(self.state(pos));
+        let odds = fire_burn_odds_at(pos, self.burn_odds(self.state(pos)));
         if self.rand_int(chance) < odds {
             let old = self.state(pos);
             let allowed = self.level.allow_spread(Spread::Fire, fire, pos);

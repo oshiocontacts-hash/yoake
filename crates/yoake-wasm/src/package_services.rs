@@ -64,6 +64,7 @@ pub struct PackageServices {
     ticket_owner: u64,
     changes: BTreeMap<String, Value>,
     revision: u64,
+    config_revisions: BTreeMap<String, u64>,
     snapshot_cache: Option<(u64, Arc<Vec<u8>>)>,
     permission_cache: Option<PermissionCache>,
     write_budget: WriteBudget,
@@ -99,6 +100,7 @@ impl PackageServices {
             ticket_owner: 0,
             changes: BTreeMap::new(),
             revision: 0,
+            config_revisions: BTreeMap::new(),
             snapshot_cache: None,
             permission_cache: None,
             write_budget: WriteBudget {
@@ -124,6 +126,27 @@ impl PackageServices {
         } else {
             Err(format!("permission denied: {capability}"))
         }
+    }
+
+    pub(crate) fn config_cursor(&self, id: &str) -> Result<u64, String> {
+        if self.id != id {
+            return Err("package service identity mismatch".into());
+        }
+        Ok(self.revision)
+    }
+
+    pub(crate) fn config_changes_since(
+        &self,
+        cursor: u64,
+    ) -> Result<(u64, Vec<(String, ConfigValue)>), String> {
+        self.require(CONFIG_CAPABILITY)?;
+        let changes = self
+            .config_revisions
+            .iter()
+            .filter(|(_, revision)| **revision > cursor)
+            .map(|(key, _)| self.config_get(key).map(|value| (key.clone(), value)))
+            .collect::<Result<_, _>>()?;
+        Ok((self.revision, changes))
     }
 
     pub fn bind_world(&mut self, world: Option<&Path>) {
@@ -174,6 +197,8 @@ impl PackageServices {
         if !changes.is_empty() {
             self.revision = self.revision.wrapping_add(1);
             for change in changes {
+                self.config_revisions
+                    .insert(change.name.clone(), self.revision);
                 self.changes.insert(change.name, change.new);
             }
         }
@@ -221,13 +246,18 @@ impl PackageServices {
         let text = std::str::from_utf8(data).map_err(|error| error.to_string())?;
         let values: BTreeMap<String, Value> =
             toml::from_str(text).map_err(|error| error.to_string())?;
-        for change in self
+        let changes = self
             .config
             .as_mut()
             .map_err(|error| error.clone())?
-            .apply_synced_snapshot(&values)?
-        {
-            self.changes.insert(change.name, change.new);
+            .apply_synced_snapshot(&values)?;
+        if !changes.is_empty() {
+            self.revision = self.revision.wrapping_add(1);
+            for change in changes {
+                self.config_revisions
+                    .insert(change.name.clone(), self.revision);
+                self.changes.insert(change.name, change.new);
+            }
         }
         Ok(())
     }
@@ -236,8 +266,14 @@ impl PackageServices {
         let Ok(config) = &mut self.config else {
             return;
         };
-        for change in config.clear_synced() {
-            self.changes.insert(change.name, change.new);
+        let changes = config.clear_synced();
+        if !changes.is_empty() {
+            self.revision = self.revision.wrapping_add(1);
+            for change in changes {
+                self.config_revisions
+                    .insert(change.name.clone(), self.revision);
+                self.changes.insert(change.name, change.new);
+            }
         }
     }
 
@@ -771,6 +807,44 @@ side = "synced"
     }
 
     #[test]
+    fn config_observers_are_independent_and_require_package_authority() {
+        fn assert_count_change(changes: Vec<(String, ConfigValue)>, expected: i64) {
+            assert_eq!(changes.len(), 1);
+            let (key, value) = &changes[0];
+            assert_eq!(key, "count");
+            assert_eq!(value.kind, ConfigValueKind::Int);
+            assert_eq!(value.int_value, expected);
+        }
+
+        let root = Scratch::new();
+        let mut service = open(&root.0, ConfigRuntimeSide::Server, &[CONFIG_CAPABILITY]);
+        let first_cursor = service.config_cursor("example").unwrap();
+        let second_cursor = service.config_cursor("example").unwrap();
+        assert!(service.config_cursor("other").is_err());
+        let mut value = service.config_get("count").unwrap();
+        value.int_value = 3;
+        service.config_set("count", value.clone()).unwrap();
+        let (revision, first_changes) = service.config_changes_since(first_cursor).unwrap();
+        assert_count_change(first_changes, 3);
+        assert_count_change(service.take_changes(), 3);
+        let (second_revision, second_changes) =
+            service.config_changes_since(second_cursor).unwrap();
+        assert_eq!(second_revision, revision);
+        assert_count_change(second_changes, 3);
+        assert!(service.config_changes_since(revision).unwrap().1.is_empty());
+        value.int_value = 4;
+        service.config_set("count", value.clone()).unwrap();
+        assert_count_change(service.config_changes_since(revision).unwrap().1, 4);
+        let denied = open(&root.0, ConfigRuntimeSide::Server, &[]);
+        assert!(
+            denied
+                .config_changes_since(0)
+                .unwrap_err()
+                .starts_with("permission denied:")
+        );
+    }
+
+    #[test]
     fn synced_config_is_client_read_only_and_resets_without_disk_writes() {
         let root = Scratch::new();
         let mut server = open(&root.0, ConfigRuntimeSide::Server, &[CONFIG_CAPABILITY]);
@@ -802,9 +876,14 @@ side = "synced"
                 .is_err()
         );
         assert!(client.config_get("shared").unwrap().bool_value);
+        let observer = client.config_cursor("example").unwrap();
         client.clear_snapshot();
         assert!(!client.config_get("shared").unwrap().bool_value);
         assert_eq!(client.take_changes().len(), 1);
+        let (_, changes) = client.config_changes_since(observer).unwrap();
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].0, "shared");
+        assert!(!changes[0].1.bool_value);
         assert_eq!(std::fs::read_dir(&client_root.0).unwrap().count(), 0);
     }
 

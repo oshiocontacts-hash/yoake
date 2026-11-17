@@ -35,6 +35,9 @@ pub enum ValueType {
     F64,
     String,
     Bytes,
+    U32List,
+    BlockPosList,
+    StringList,
     Usize,
     Ssize,
     BlockPos,
@@ -61,6 +64,14 @@ impl ValueType {
             (Self::U32, Value::Unsigned(value)) => u32::try_from(*value).is_ok(),
             (Self::Usize, Value::Unsigned(value)) => usize::try_from(*value).is_ok(),
             (Self::Ssize, Value::Signed(value)) => isize::try_from(*value).is_ok(),
+            (Self::U32List | Self::BlockPosList | Self::StringList, Value::List(values)) => {
+                let element = match self {
+                    Self::U32List => Self::U32,
+                    Self::BlockPosList => Self::BlockPos,
+                    _ => Self::String,
+                };
+                values.iter().all(|value| element.accepts(value))
+            }
             (Self::BlockPos | Self::Vec3F32 | Self::Vec3, Value::List(values)) => {
                 let element = match self {
                     Self::BlockPos => Self::S32,
@@ -163,6 +174,36 @@ impl InjectValue for String {
         }
     }
 }
+
+macro_rules! list_value {
+    ($native:ty, $variant:ident) => {
+        impl InjectValue for Vec<$native> {
+            const TYPE: ValueType = ValueType::$variant;
+
+            fn into_inject_value(self) -> Value {
+                Value::List(
+                    self.into_iter()
+                        .map(InjectValue::into_inject_value)
+                        .collect(),
+                )
+            }
+
+            fn from_inject_value(value: Value) -> Option<Self> {
+                match value {
+                    Value::List(values) => values
+                        .into_iter()
+                        .map(InjectValue::from_inject_value)
+                        .collect(),
+                    _ => None,
+                }
+            }
+        }
+    };
+}
+
+list_value!(u32, U32List);
+list_value!([i32; 3], BlockPosList);
+list_value!(String, StringList);
 
 impl InjectValue for Vec<u8> {
     const TYPE: ValueType = ValueType::Bytes;

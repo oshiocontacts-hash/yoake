@@ -13,7 +13,7 @@ pub use sdk_full::{SdkFull, generate_sdk_full};
 pub use wasm_adapters::{WasmAdapters, generate_full_hook_names, generate_wasm_adapters};
 pub use wit::generate_wit;
 pub use wit_full::{FullWit, generate_full_wit};
-pub use wit_inject::generate_inject_wit;
+pub use wit_inject::{generate_inject_config_wit, generate_inject_wit};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

@@ -149,7 +149,7 @@ pub struct Mixin {
 }
 
 /// Highest `yoake:mods` WebAssembly interface (major, minor) this build understands.
-pub const SUPPORTED_WASM_INTERFACE: (u32, u32) = (1, 1);
+pub const SUPPORTED_WASM_INTERFACE: (u32, u32) = (1, 2);
 /// Largest accepted `.wasm` module, in bytes.
 pub const MAX_WASM_SIZE: u64 = 32 * 1024 * 1024;
 
@@ -243,8 +243,8 @@ impl Wasm {
                 SUPPORTED_WASM_INTERFACE.0, SUPPORTED_WASM_INTERFACE.1
             ));
         }
-        if minor == 1 && self.world.as_deref() != Some("inject-mod") {
-            return Err("wasm interface 1.1 requires wasm.world = \"inject-mod\"; ordinary hook worlds use 1.0".into());
+        if minor >= 1 && self.world.as_deref() != Some("inject-mod") {
+            return Err("wasm interfaces 1.1/1.2 require wasm.world = \"inject-mod\"; ordinary hook worlds use 1.0".into());
         }
         if let Some(world) = &self.world {
             if !CLIENT_WASM_WORLDS.contains(&world.as_str()) {
@@ -522,9 +522,11 @@ impl Manifest {
                 }
             }
             let wasm = self.wasm.as_ref().ok_or("mixin requires a [wasm] module")?;
-            if wasm.world.as_deref() != Some("inject-mod") || wasm.interface_version()? != (1, 1) {
+            if wasm.world.as_deref() != Some("inject-mod")
+                || !matches!(wasm.interface_version()?, (1, 1) | (1, 2))
+            {
                 return Err(
-                    "mixin requires wasm.world = \"inject-mod\" and wasm.interface = \"1.1\""
+                    "mixin requires wasm.world = \"inject-mod\" and wasm.interface = \"1.1\" or \"1.2\""
                         .into(),
                 );
             }

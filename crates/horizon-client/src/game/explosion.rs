@@ -23,6 +23,15 @@ use horizon_world::{
 };
 use std::{cmp::Ordering, io};
 
+#[yoake_inject_macro::yoake_inject(
+    id = "game::explosion::affected_blocks",
+    side = "server",
+    allow = "return"
+)]
+fn affected_blocks(positions: Vec<[i32; 3]>) -> Vec<[i32; 3]> {
+    positions
+}
+
 /// `Level.clip` with `ClipContext.Block.COLLIDER`, no fluids and the
 /// collision context of the entity whose exposure is measured.
 struct ColliderRays<'a, 'r> {
@@ -892,8 +901,13 @@ impl Game<'_> {
                 let swap = self.world.random.next_int_bound(i as i32).unwrap_or(0) as usize;
                 targets.swap(i - 1, swap);
             }
+            let destruction = if __yoake_inject_site_affected_blocks().has_handlers() {
+                std::borrow::Cow::Owned(affected_blocks(targets.clone()))
+            } else {
+                std::borrow::Cow::Borrowed(&targets)
+            };
             let mut stacks: Vec<([i32; 3], ItemStack)> = Vec::new();
-            for &pos in &targets {
+            for &pos in destruction.iter() {
                 self.explosion_hit_block(pos, radius, interaction, &mut stacks)?;
             }
             for (pos, stack) in stacks {
@@ -1085,6 +1099,55 @@ fn blast_resistance(base: f32, cap: Option<f32>, wither_immune: bool) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn explosion_handler_can_only_remove_affected_blocks() {
+        use yoake_inject_rt::{
+            CallbackError, Guest, InjectValue, Mod, RETURN, Registry, Side, Subscription, Value,
+        };
+        struct Replace(Vec<[i32; 3]>);
+        impl Guest for Replace {
+            fn returned(
+                &self,
+                _: &str,
+                _: &Value,
+            ) -> std::result::Result<Option<Value>, CallbackError> {
+                Ok(Some(self.0.clone().into_inject_value()))
+            }
+        }
+        let _side = yoake_inject_rt::enter_side(Side::Server);
+        let vanilla = vec![[0, 64, 0], [1, 64, 0], [2, 64, 0]];
+        assert_eq!(affected_blocks(vanilla.clone()), vanilla);
+        for (replacement, expected) in [
+            (vanilla.clone(), vanilla.clone()),
+            (vec![], vec![]),
+            (vec![[2, 64, 0]], vec![[2, 64, 0]]),
+            (vec![[9, 64, 0]], vanilla.clone()),
+            (vec![[0, 64, 0]; 2], vanilla.clone()),
+        ] {
+            let site = __yoake_inject_site_affected_blocks();
+            let mut registry = Registry::new([site]).unwrap();
+            let prepared = registry
+                .prepare(
+                    [Subscription {
+                        site_id: site.id(),
+                        side: Side::Server,
+                        points: RETURN,
+                        module: Arc::new(Mod::new(
+                            "explosion-test",
+                            Arc::new(Replace(replacement)),
+                        )),
+                    }],
+                    |_, _, _| true,
+                )
+                .unwrap();
+            registry.publish(prepared).unwrap();
+            assert_eq!(affected_blocks(vanilla.clone()), expected);
+            drop(registry);
+            assert_eq!(affected_blocks(vanilla.clone()), vanilla);
+        }
+    }
 
     /// A dangerous wither skull's blast treats a block as at most 0.8 harder to
     /// break, but a `#wither_immune` block keeps its own resistance and any

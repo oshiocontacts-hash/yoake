@@ -182,13 +182,19 @@ pub fn shape(ty: &Type) -> syn::Result<Shape> {
             if segment.ident == "Vec" {
                 if let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments {
                     if arguments.args.len() == 1 {
-                        if let Some(syn::GenericArgument::Type(Type::Path(element))) =
-                            arguments.args.first()
-                        {
-                            if element.qself.is_none() && element.path.is_ident("u8") {
+                        if let Some(syn::GenericArgument::Type(element)) = arguments.args.first() {
+                            let element = shape(element)?;
+                            let variant = match element.wire.as_str() {
+                                "u8" => Some("Bytes"),
+                                "u32" => Some("U32List"),
+                                "block-pos" => Some("BlockPosList"),
+                                "string" => Some("StringList"),
+                                _ => None,
+                            };
+                            if let Some(variant) = variant {
                                 return Ok(Shape {
-                                    wire: "list<u8>".into(),
-                                    variant: "Bytes",
+                                    wire: format!("list<{}>", element.wire),
+                                    variant,
                                 });
                             }
                         }

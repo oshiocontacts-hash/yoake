@@ -220,7 +220,7 @@ fn check_import(name: &str, test_module: bool) -> Result<(), String> {
     if interface == TEST_INTERFACE && !test_module {
         return Err(format!("forbidden component import: {name} (only the engine's test runner links it)"));
     }
-    if version != INTERFACE_VERSION {
+    if version != INTERFACE_VERSION && !(interface == "config" && version == "1.2.0") {
         return Err(format!("unsupported component interface version: {name}"));
     }
     Ok(())

@@ -7,13 +7,73 @@ use yoake_inject_rt::{
 };
 use yoake_value::wire::{self, Decoder, Encoder, WireValue};
 
+use crate::package_services::{CONFIG_CAPABILITY, ServiceHandle};
 use crate::{CompiledComponent, LoadError, ModInstance, Sandbox, TimeLimits};
 
 pub mod bindings {
     wasmtime::component::bindgen!({ path: "wit-inject", world: "inject-mod" });
 }
 
+pub mod config_bindings {
+    wasmtime::component::bindgen!({ path: "wit-inject-config", world: "inject-config" });
+}
+
 use bindings::exports::yoake::mods::inject as wit;
+use config_bindings::yoake::mods1_2_0::config as config_wit;
+
+#[derive(Clone)]
+struct ConfigHost {
+    services: Result<ServiceHandle, String>,
+    allowed: bool,
+    cursor: u64,
+}
+
+impl config_wit::Host for ConfigHost {
+    fn config_get(&mut self, key: String) -> Result<config_wit::ConfigValue, String> {
+        if !self.allowed {
+            return Err(format!("permission denied: {CONFIG_CAPABILITY}"));
+        }
+        crate::full::service_call(self.services.clone(), |services| services.config_get(&key))
+            .map(config_value)
+    }
+}
+
+fn config_value(value: crate::server_types::ConfigValue) -> config_wit::ConfigValue {
+    use crate::server_types::ConfigValueKind as Source;
+    use config_wit::ConfigValueKind as Target;
+    config_wit::ConfigValue {
+        kind: match value.kind {
+            Source::Bool => Target::Bool,
+            Source::Int => Target::Int,
+            Source::Float => Target::Float,
+            Source::String => Target::String,
+            Source::Enum => Target::Enum,
+            Source::BoolList => Target::BoolList,
+            Source::IntList => Target::IntList,
+            Source::FloatList => Target::FloatList,
+            Source::StringList => Target::StringList,
+            Source::EnumList => Target::EnumList,
+        },
+        bool_value: value.bool_value,
+        int_value: value.int_value,
+        float_value: value.float_value,
+        string_value: value.string_value,
+        bool_list: value.bool_list,
+        int_list: value.int_list,
+        float_list: value.float_list,
+        string_list: value.string_list,
+    }
+}
+
+fn link_config(
+    linker: &mut wasmtime::component::Linker<crate::HostState<ConfigHost>>,
+) -> Result<(), String> {
+    config_bindings::InjectConfig::add_to_linker::<_, wasmtime::component::HasSelf<ConfigHost>>(
+        linker,
+        |state| &mut state.host,
+    )
+    .map_err(|error| format!("mixin config linker failed: {error:#}"))
+}
 
 pub const VALUE_LIMITS: wire::Limits = wire::Limits {
     max_nodes: 4096,
@@ -41,8 +101,9 @@ pub fn validate_target(target: &str) -> Result<&'static Site, String> {
 }
 
 struct Runtime {
-    raw: ModInstance<()>,
+    raw: ModInstance<ConfigHost>,
     exports: bindings::InjectMod,
+    config_exports: Option<config_bindings::InjectConfig>,
     poisoned: bool,
 }
 
@@ -58,7 +119,7 @@ impl Handler {
         point: &str,
         invoke: impl FnOnce(
             &bindings::InjectMod,
-            &mut wasmtime::Store<crate::HostState<()>>,
+            &mut wasmtime::Store<crate::HostState<ConfigHost>>,
         ) -> Result<ResultValue, String>,
     ) -> Result<ResultValue, CallbackError> {
         let mut runtime = match self.runtime.try_lock() {
@@ -68,13 +129,17 @@ impl Handler {
         };
         if runtime.poisoned {
             let began = std::time::Instant::now();
+            let mut host = runtime.raw.store.data().host.clone();
+            host.cursor = 0;
             let replacement = self
                 .compiled
                 .clone()
-                .instantiate(runtime.raw.id.clone(), (), |_| Ok(()))
+                .instantiate(runtime.raw.id.clone(), host, link_config)
                 .and_then(|mut raw| {
                     let exports = bindings::InjectMod::new(&mut raw.store, &raw.instance)
                         .map_err(|error| format!("mixin recovery failed: {error:#}"))?;
+                    let config_exports =
+                        config_bindings::InjectConfig::new(&mut raw.store, &raw.instance).ok();
                     raw.limits = runtime.raw.limits;
                     raw.fuel = runtime.raw.fuel;
                     std::mem::swap(&mut raw.window, &mut runtime.raw.window);
@@ -83,6 +148,7 @@ impl Handler {
                     Ok(Runtime {
                         raw,
                         exports,
+                        config_exports,
                         poisoned: false,
                     })
                 });
@@ -103,9 +169,29 @@ impl Handler {
         let Runtime {
             raw,
             exports,
+            config_exports,
             poisoned,
         } = &mut *runtime;
-        let result = raw.call_recoverable(point, |store, _| invoke(exports, store));
+        let result = raw.call_recoverable(point, |store, _| {
+            if let Some(config_exports) = config_exports
+                .as_ref()
+                .filter(|_| store.data().host.allowed)
+            {
+                let host = &store.data().host;
+                let (cursor, changes) =
+                    crate::full::service_call(host.services.clone(), |services| {
+                        services.config_changes_since(host.cursor)
+                    })?;
+                for (key, value) in changes {
+                    config_exports
+                        .yoake_mods1_2_0_config_events()
+                        .call_config_changed(&mut *store, &key, &config_value(value))
+                        .map_err(|error| format!("config-changed: {error:#}"))?;
+                }
+                store.data_mut().host.cursor = cursor;
+            }
+            invoke(exports, store)
+        });
         self.disabled.store(raw.disabled, Ordering::Relaxed);
         for line in raw.drain_output() {
             eprintln!("[yoake-inject:{}:{:?}] {}", raw.id, line.stream, line.text);
@@ -324,6 +410,7 @@ static HUB: OnceLock<Mutex<Option<Hub>>> = OnceLock::new();
 
 pub struct Injection {
     key: Option<String>,
+    handler: Option<Arc<Handler>>,
 }
 
 impl Injection {
@@ -344,6 +431,38 @@ impl Injection {
         targets: &[String],
         side: Side,
         permissions: &[String],
+    ) -> Result<Self, LoadError> {
+        Self::instantiate_inner(sandbox, id, bytes, targets, side, permissions, None)
+    }
+
+    pub fn instantiate_with_services(
+        sandbox: &mut Sandbox,
+        id: &str,
+        bytes: &[u8],
+        targets: &[String],
+        side: Side,
+        permissions: &[String],
+        services: ServiceHandle,
+    ) -> Result<Self, LoadError> {
+        Self::instantiate_inner(
+            sandbox,
+            id,
+            bytes,
+            targets,
+            side,
+            permissions,
+            Some(services),
+        )
+    }
+
+    fn instantiate_inner(
+        sandbox: &mut Sandbox,
+        id: &str,
+        bytes: &[u8],
+        targets: &[String],
+        side: Side,
+        permissions: &[String],
+        services: Option<ServiceHandle>,
     ) -> Result<Self, LoadError> {
         if targets.is_empty() || targets.len() > 1024 {
             return Err(LoadError::new("mixin requires between 1 and 1024 targets"));
@@ -370,18 +489,40 @@ impl Injection {
             .values()
             .any(|site| site.side() == Side::Both || site.side() == side)
         {
-            return Ok(Self { key: None });
+            return Ok(Self {
+                key: None,
+                handler: None,
+            });
         }
+        let cursor = services
+            .as_ref()
+            .map(|services| {
+                services
+                    .lock()
+                    .map_err(|_| "package service lock poisoned".to_owned())?
+                    .config_cursor(id)
+            })
+            .transpose()
+            .map_err(LoadError::new)?
+            .unwrap_or(0);
+        let host = ConfigHost {
+            services: services.ok_or_else(|| "package services unavailable".into()),
+            allowed: permissions
+                .iter()
+                .any(|permission| permission == CONFIG_CAPABILITY),
+            cursor,
+        };
         let compiled = sandbox.compile(bytes).map_err(LoadError::new)?;
         let mut raw = compiled
             .clone()
-            .instantiate(id.to_owned(), (), |_| Ok(()))
+            .instantiate(id.to_owned(), host, link_config)
             .map_err(LoadError::new)?;
         let exports = bindings::InjectMod::new(&mut raw.store, &raw.instance).map_err(|error| {
             LoadError::new(format!(
                 "mixin component must implement yoake:mods/inject@1.1.0: {error:#}"
             ))
         })?;
+        let config_exports = config_bindings::InjectConfig::new(&mut raw.store, &raw.instance).ok();
         let registrations = raw
             .call_init(limits, |store, _| {
                 exports
@@ -424,6 +565,7 @@ impl Injection {
             runtime: Mutex::new(Runtime {
                 raw,
                 exports,
+                config_exports,
                 poisoned: false,
             }),
             compiled,
@@ -434,7 +576,7 @@ impl Injection {
             registrations: selected,
             module: Arc::new(Mod::with_permissions(
                 id,
-                handler,
+                handler.clone(),
                 side,
                 permissions.iter().cloned(),
             )),
@@ -462,7 +604,16 @@ impl Injection {
             .publish(prepared)
             .map_err(|error| LoadError::new(format!("mixin publish failed: {error:?}")))?;
         hub.entries.insert(key.clone(), entry);
-        Ok(Self { key: Some(key) })
+        Ok(Self {
+            key: Some(key),
+            handler: Some(handler),
+        })
+    }
+
+    pub fn notify_config_changes(&self) {
+        if let Some(handler) = &self.handler {
+            let _ = handler.call("config-changed", |_, _| Ok(()));
+        }
     }
 }
 

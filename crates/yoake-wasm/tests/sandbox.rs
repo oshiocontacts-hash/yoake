@@ -163,6 +163,27 @@ fn wrong_imported_interface_major_is_rejected() {
 }
 
 #[test]
+fn inject_config_minor_is_allowed_without_allowing_other_new_imports() {
+    let bytes = component(
+        "package yoake:mods@1.2.0; interface config { config-get: func(); } world client-mod { import config; }",
+    );
+    Sandbox::new().compile(&bytes).unwrap();
+    for (interface, version) in [("host", "1.2.0"), ("config", "1.1.0"), ("config", "1.3.0")] {
+        let bytes = component(&format!(
+            "package yoake:mods@{version}; interface {interface} {{ use-it: func(); }} world client-mod {{ import {interface}; }}",
+        ));
+        let error = match Sandbox::new().compile(&bytes) {
+            Ok(_) => panic!("unsupported import was accepted"),
+            Err(error) => error,
+        };
+        assert!(
+            error.contains("unsupported component interface version"),
+            "{error}"
+        );
+    }
+}
+
+#[test]
 fn oversized_initial_memory_is_rejected() {
     let bytes = component_with(
         "package yoake:mods@1.0.0; world client-mod { export tick: func(value: list<u8>); }",

@@ -37,6 +37,12 @@ pub const TEST_DEMO: Guest = Guest {
     features: "",
     artifact: "yoake_wasm_test_demo.wasm",
 };
+pub const MIXIN_CONFIG: Guest = Guest {
+    name: "mixin-config",
+    example: "mixin-config",
+    features: "",
+    artifact: "yoake_mixin_config.wasm",
+};
 pub const FULL_DEMO_CLIENT: Guest = Guest {
     name: "full-demo-client",
     example: "full-demo",
@@ -152,7 +158,15 @@ pub fn build_project(project: &Path, features: &str) -> std::io::Result<Output> 
 fn build(project: &Path, features: &str, target: &Path) -> std::io::Result<Output> {
     let mut command = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()));
     command
-        .args(["build", "--offline", "--release", "--target", "wasm32-wasip2", "-j", "4"])
+        .args([
+            "build",
+            "--offline",
+            "--release",
+            "--target",
+            "wasm32-wasip2",
+            "-j",
+            "4",
+        ])
         .current_dir(project)
         .env("CARGO_TARGET_DIR", target)
         .env_remove("CARGO_ENCODED_RUSTFLAGS")

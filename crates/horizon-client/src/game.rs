@@ -1139,6 +1139,21 @@ impl EntityObstructionWorld for BuildingObstruction {
             .collect())
     }
 }
+#[yoake_inject_macro::yoake_inject(
+    id = "game::split_orb_values",
+    side = "server",
+    allow = "return"
+)]
+fn split_orb_values(mut value: u32) -> Vec<u32> {
+    let mut values = Vec::new();
+    while value > 0 {
+        let amount = ExperienceOrb::split(value);
+        value -= amount;
+        values.push(amount);
+    }
+    values
+}
+
 /// An entity's box (`EntityDimensions.makeBoundingBox`): `width` wide and
 /// `height` tall, standing on `feet`.
 fn point_box(feet: [f64; 3], width: f64, height: f64) -> Aabb {
@@ -13873,6 +13888,13 @@ impl Game<'_> {
     /// its own random.
     #[yoake_inject_macro::yoake_inject(id = "game::spawn_orbs", side = "server")]
     fn spawn_orbs(&mut self, at: [f64; 3], mut value: u32) {
+        if __yoake_inject_site_split_orb_values().has_handlers() {
+            for amount in split_orb_values(value) {
+                let merge_id = self.world.random.next_int_bound(40).unwrap_or(0);
+                self.award_orb(at, amount, merge_id);
+            }
+            return;
+        }
         while value > 0 {
             let v = ExperienceOrb::split(value);
             value -= v;
@@ -22470,6 +22492,53 @@ fn debug_crosshair_drawn(
 mod tests {
     use super::*;
     use horizon_client::container_screen::{Button, Clicks, Release, Target};
+
+    #[test]
+    fn orb_split_handler_only_merges_without_changing_total_experience() {
+        use yoake_inject_rt::{
+            CallbackError, Guest, InjectValue, Mod, RETURN, Registry, Side, Subscription, Value,
+        };
+        struct Replace(Vec<u32>);
+        impl Guest for Replace {
+            fn returned(
+                &self,
+                _: &str,
+                _: &Value,
+            ) -> std::result::Result<Option<Value>, CallbackError> {
+                Ok(Some(self.0.clone().into_inject_value()))
+            }
+        }
+        let _side = yoake_inject_rt::enter_side(Side::Server);
+        let vanilla = vec![73, 17, 7, 3];
+        assert_eq!(split_orb_values(0), Vec::<u32>::new());
+        assert_eq!(split_orb_values(100), vanilla);
+        for (replacement, expected) in [
+            (vec![100], vec![100]),
+            (vec![80, 20], vec![80, 20]),
+            (vec![100, 0], vanilla.clone()),
+            (vec![99], vanilla.clone()),
+            (vec![20; 5], vanilla.clone()),
+            (vec![u32::MAX, 101], vanilla.clone()),
+        ] {
+            let site = __yoake_inject_site_split_orb_values();
+            let mut registry = Registry::new([site]).unwrap();
+            let prepared = registry
+                .prepare(
+                    [Subscription {
+                        site_id: site.id(),
+                        side: Side::Server,
+                        points: RETURN,
+                        module: Arc::new(Mod::new("orb-test", Arc::new(Replace(replacement)))),
+                    }],
+                    |_, _, _| true,
+                )
+                .unwrap();
+            registry.publish(prepared).unwrap();
+            assert_eq!(split_orb_values(100), expected);
+            drop(registry);
+            assert_eq!(split_orb_values(100), vanilla);
+        }
+    }
 
     /// `MinecraftServer.computeNextAutosaveInterval`: three hundred seconds of
     /// ticks at the rate the server runs at, never fewer than a hundred.
