@@ -164,6 +164,12 @@ pub struct ClientFullMod {
 }
 
 impl ClientFullMod {
+    #[cfg(feature = "test-guests")]
+    #[doc(hidden)]
+    pub fn set_test_limits(&mut self, limits: crate::TimeLimits) {
+        self.raw.set_limits(limits);
+    }
+
     pub fn validate_component(
         runtime: &mut Sandbox,
         id: impl Into<String>,

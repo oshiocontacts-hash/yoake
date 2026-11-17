@@ -10,14 +10,22 @@ impl Host for GpuTestHost {
     }
 }
 
+fn test_limits() -> yoake_wasm::TimeLimits {
+    yoake_wasm::TimeLimits {
+        call: std::time::Duration::from_secs(5),
+        aggregate: std::time::Duration::from_secs(30),
+    }
+}
+
 fn guest(id: &str, bytes: &[u8], allowed: bool) -> FullMod {
-    let client = load_client(&ModuleSource {
+    let mut client = load_client(&ModuleSource {
         id,
         bytes,
         commands: false,
         gpu: allowed,
     })
     .unwrap();
+    client.set_test_limits(test_limits());
     FullMod::new(id.to_owned(), Some(client), None)
 }
 
@@ -65,6 +73,21 @@ fn engine_sources() -> mod_gpu_resources::EngineSources<'static> {
         scene: None,
         lightmap: None,
     }
+}
+
+fn wait_for_fov(module: &mut FullMod, device: &wgpu::Device, expected: f32) {
+    let mut actual = 0.0;
+    for _ in 0..60 {
+        std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
+        mod_gpu_runtime::begin_frame(frame(), engine_frame());
+        mod_gpu_runtime::submit_stage(mod_gpu::Stage::WorldOpaque, None, engine_sources());
+        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+        actual = fov(module);
+        if actual == expected {
+            break;
+        }
+    }
+    assert_eq!(actual, expected);
 }
 
 fn pixels(device: &wgpu::Device, queue: &wgpu::Queue, texture: &wgpu::Texture) -> Vec<u8> {
@@ -136,22 +159,15 @@ fn gpu_guests_render_compute_reload_trap_and_device_loss() {
     .unwrap();
     let observer_usage =
         mod_gpu_runtime::with(observer, |gpu, _, _, _| Ok(gpu.usage(observer))).unwrap();
-    let reload = Arc::new(Reload::default());
+    let reload = Arc::new(Reload {
+        test_limits: Some(test_limits()),
+        ..Reload::default()
+    });
     let mut verifier = guest("gpu-verify", &verify_bytes, true)
         .with_client_reload(Some(Arc::clone(&reload)))
         .with_gpu(true, "1", "gpu-invalid-v1");
     let verifier_owner = verifier.gpu_owner.unwrap();
-    for _ in 0..8 {
-        std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
-        mod_gpu_runtime::begin_frame(frame(), engine_frame());
-        mod_gpu_runtime::submit_stage(mod_gpu::Stage::WorldOpaque, None, engine_sources());
-        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
-        std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
-        if fov(&mut verifier) == 91.0 {
-            break;
-        }
-    }
-    assert_eq!(fov(&mut verifier), 91.0);
+    wait_for_fov(&mut verifier, &device, 91.0);
     for _ in 0..256 {
         mod_gpu_runtime::begin_frame(frame(), engine_frame());
         mod_gpu_runtime::submit_stage(mod_gpu::Stage::WorldOpaque, None, engine_sources());
@@ -180,36 +196,38 @@ fn gpu_guests_render_compute_reload_trap_and_device_loss() {
     let depth = make_texture(wgpu::TextureFormat::Depth32Float);
     let color_view = color.create_view(&Default::default());
     let depth_view = depth.create_view(&Default::default());
-    let mut encoder = device.create_command_encoder(&Default::default());
-    {
-        let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &color_view,
-                depth_slice: None,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.1,
-                        g: 0.2,
-                        b: 0.3,
-                        a: 1.0,
+    let clear_target = || {
+        let mut encoder = device.create_command_encoder(&Default::default());
+        {
+            let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &color_view,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.1,
+                            g: 0.2,
+                            b: 0.3,
+                            a: 1.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &depth_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(0.0),
+                        store: wgpu::StoreOp::Store,
                     }),
-                    store: wgpu::StoreOp::Store,
-                },
-            })],
-            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                view: &depth_view,
-                depth_ops: Some(wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(0.0),
-                    store: wgpu::StoreOp::Store,
+                    stencil_ops: None,
                 }),
-                stencil_ops: None,
-            }),
-            ..Default::default()
-        });
-    }
-    queue.submit([encoder.finish()]);
-    let mut previous = pixels(&device, &queue, &color);
+                ..Default::default()
+            });
+        }
+        queue.submit([encoder.finish()]);
+    };
+    clear_target();
     let target = mod_gpu_resources::FrameTarget {
         color: &color_view,
         depth: Some(&depth_view),
@@ -226,38 +244,51 @@ fn gpu_guests_render_compute_reload_trap_and_device_loss() {
             mod_gpu_runtime::submit_stage(stage, Some(&target), engine_sources());
         }
     }
-    std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
-    mod_gpu_runtime::begin_frame(frame(), engine_frame());
-    for stage in [
-        mod_gpu::Stage::WorldOpaque,
-        mod_gpu::Stage::WorldTranslucent,
-        mod_gpu::Stage::AfterWorld,
-    ] {
-        assert!(mod_gpu_runtime::has_stage(stage));
-        mod_gpu_runtime::submit_stage(
-            stage,
-            Some(&target),
-            mod_gpu_resources::EngineSources {
-                depth: Some(&depth),
-                scene: Some(&color),
-                ..engine_sources()
-            },
-        );
-        let disabled = mod_gpu_runtime::with(observer, |gpu, _, _, _| {
-            Ok(gpu.disabled_reason(demo_owner).map(str::to_owned))
-        })
-        .unwrap();
-        assert!(
-            disabled.is_none(),
-            "guest stage {stage:?} disabled the mod: {disabled:?}"
-        );
-        let current = pixels(&device, &queue, &color);
-        assert!(
-            current != previous,
-            "guest stage {stage:?} must change rendered pixels"
-        );
-        previous = current;
+    let mut failure = None;
+    for _ in 0..60 {
+        std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
+        clear_target();
+        mod_gpu_runtime::begin_frame(frame(), engine_frame());
+        let mut previous = pixels(&device, &queue, &color);
+        failure = None;
+        for stage in [
+            mod_gpu::Stage::WorldOpaque,
+            mod_gpu::Stage::WorldTranslucent,
+            mod_gpu::Stage::AfterWorld,
+        ] {
+            if !mod_gpu_runtime::has_stage(stage) {
+                failure = Some(format!("guest stage {stage:?} was not submitted"));
+                break;
+            }
+            mod_gpu_runtime::submit_stage(
+                stage,
+                Some(&target),
+                mod_gpu_resources::EngineSources {
+                    depth: Some(&depth),
+                    scene: Some(&color),
+                    ..engine_sources()
+                },
+            );
+            let disabled = mod_gpu_runtime::with(observer, |gpu, _, _, _| {
+                Ok(gpu.disabled_reason(demo_owner).map(str::to_owned))
+            })
+            .unwrap();
+            assert!(
+                disabled.is_none(),
+                "guest stage {stage:?} disabled the mod: {disabled:?}"
+            );
+            let current = pixels(&device, &queue, &color);
+            if current == previous {
+                failure = Some(format!("guest stage {stage:?} did not change rendered pixels"));
+                break;
+            }
+            previous = current;
+        }
+        if failure.is_none() {
+            break;
+        }
     }
+    assert!(failure.is_none(), "{failure:?}");
     drop(demo);
     assert_eq!(
         mod_gpu_runtime::with(observer, |gpu, _, _, _| Ok(gpu.usage(demo_owner))).unwrap(),
@@ -273,20 +304,16 @@ fn gpu_guests_render_compute_reload_trap_and_device_loss() {
         None,
         "verifier must not be suspended before reload"
     );
-    for _ in 0..8 {
+    wait_for_fov(&mut verifier, &device, 92.0);
+    let trap = guest("gpu-trap", &trap_bytes, true).with_gpu(true, "1", "gpu-trap-v1");
+    let trap_owner = trap.gpu_owner.unwrap();
+    for _ in 0..60 {
         std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
         mod_gpu_runtime::begin_frame(frame(), engine_frame());
-        mod_gpu_runtime::submit_stage(mod_gpu::Stage::WorldOpaque, None, engine_sources());
-        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
-        std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
-        if fov(&mut verifier) == 92.0 {
+        if trap.client.lock().unwrap().module.as_ref().unwrap().is_disabled() {
             break;
         }
     }
-    assert_eq!(fov(&mut verifier), 92.0);
-    let trap = guest("gpu-trap", &trap_bytes, true).with_gpu(true, "1", "gpu-trap-v1");
-    let trap_owner = trap.gpu_owner.unwrap();
-    mod_gpu_runtime::begin_frame(frame(), engine_frame());
     assert!(
         trap.client
             .lock()

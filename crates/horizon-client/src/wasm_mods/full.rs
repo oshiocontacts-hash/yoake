@@ -475,6 +475,14 @@ fn reload_client(
         reload.shaders.clone(),
     ) {
         Ok(module) => {
+            #[cfg(test)]
+            let module = {
+                let mut module = module;
+                if let Some(limits) = reload.test_limits {
+                    module.set_test_limits(limits);
+                }
+                module
+            };
             if let Some(owner) = owner {
                 let fingerprint = super::gpu_fingerprint(version, &bytes);
                 if let Err(error) =

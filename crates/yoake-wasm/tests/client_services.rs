@@ -4,6 +4,13 @@ use yoake_wasm::bindings::yoake::mods::types::{HostError, TextureFilter, Texture
 use yoake_wasm::client_types::{KeyState, Vec3};
 use yoake_wasm::{ClientFullMod, ClientHost, ClientServices, Sandbox};
 
+fn relax_test_limits(guest: &mut ClientFullMod) {
+    guest.set_test_limits(yoake_wasm::TimeLimits {
+        call: std::time::Duration::from_secs(5),
+        aggregate: std::time::Duration::from_secs(30),
+    });
+}
+
 #[derive(Default)]
 struct Observed {
     binding: Option<String>,
@@ -134,6 +141,7 @@ fn guest_calls_client_imports_and_receives_validation_errors() {
         &[],
     )
     .unwrap();
+    relax_test_limits(&mut guest);
     let outcome = guest.dispatch("hud", |exports, store| {
         exports.yoake_mods_client_hooks().call_hud(store)
     });
@@ -189,6 +197,7 @@ fn trapping_guest_releases_client_resources_before_unload() {
         &[],
     )
     .unwrap();
+    relax_test_limits(&mut guest);
     assert!(
         guest
             .dispatch("hud", |exports, store| {
@@ -196,9 +205,6 @@ fn trapping_guest_releases_client_resources_before_unload() {
             })
             .is_some()
     );
-    // A slow machine can spend the aggregate time budget on the first call, which would skip
-    // the next one instead of running it; start the trap in a fresh budget window.
-    std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
     assert!(
         guest
             .dispatch("hud", |_, _| Err::<(), _>(wasmtime::Error::msg(

@@ -667,6 +667,8 @@ struct Reload {
     ready: AtomicBool,
     bytes: Mutex<Option<Vec<u8>>>,
     shaders: Option<Arc<Mutex<dev_shaders::DevShaders>>>,
+    #[cfg(test)]
+    test_limits: Option<yoake_wasm::TimeLimits>,
 }
 
 struct Watch {
