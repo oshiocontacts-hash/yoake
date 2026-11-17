@@ -8990,7 +8990,10 @@ impl Renderer {
             }
             if !frame.title && mod_gpu_runtime::has_stage(mod_gpu::Stage::WorldOpaque) {
                 drop(pass);
-                self.queue.submit([encoder.finish()]);
+                self.queue.submit([upload::finish_encoder(
+                    encoder,
+                    [&mut self.uploads, &mut self.section_uploads],
+                )]);
                 mod_gpu_runtime::submit_stage(
                     mod_gpu::Stage::WorldOpaque,
                     Some(&mod_gpu_resources::FrameTarget {
@@ -9331,7 +9334,10 @@ impl Renderer {
             }
             if !frame.title && mod_gpu_runtime::has_stage(mod_gpu::Stage::WorldTranslucent) {
                 drop(pass);
-                self.queue.submit([encoder.finish()]);
+                self.queue.submit([upload::finish_encoder(
+                    encoder,
+                    [&mut self.uploads, &mut self.section_uploads],
+                )]);
                 mod_gpu_runtime::submit_stage(
                     mod_gpu::Stage::WorldTranslucent,
                     Some(&mod_gpu_resources::FrameTarget {
@@ -9407,7 +9413,10 @@ impl Renderer {
         if frame.title {
             self.native_services.draws.clear();
         } else if !self.native_services.draws.is_empty() || mod_post {
-            native_commands.push(encoder.finish());
+            native_commands.push(upload::finish_encoder(
+                encoder,
+                [&mut self.uploads, &mut self.section_uploads],
+            ));
             if let Ok(Some(commands)) = self.native_services.render(
                 &self.device,
                 &self.queue,
@@ -9430,7 +9439,10 @@ impl Renderer {
         }
         if !frame.title && mod_gpu_runtime::has_stage(mod_gpu::Stage::AfterWorld) {
             self.queue
-                .submit(native_commands.drain(..).chain([encoder.finish()]));
+                .submit(native_commands.drain(..).chain([upload::finish_encoder(
+                    encoder,
+                    [&mut self.uploads, &mut self.section_uploads],
+                )]));
             mod_gpu_runtime::submit_stage(
                 mod_gpu::Stage::AfterWorld,
                 Some(&mod_gpu_resources::FrameTarget {
@@ -10203,8 +10215,10 @@ impl Renderer {
         );
         if gpu_hud {
             let replacement = self.device.create_command_encoder(&Default::default());
-            self.queue
-                .submit([std::mem::replace(encoder, replacement).finish()]);
+            self.queue.submit([upload::finish_encoder(
+                std::mem::replace(encoder, replacement),
+                [&mut self.uploads, &mut self.section_uploads],
+            )]);
             mod_gpu_runtime::submit_stage(
                 mod_gpu::Stage::Hud,
                 Some(&mod_gpu_resources::FrameTarget {
