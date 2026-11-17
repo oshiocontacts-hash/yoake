@@ -1800,6 +1800,32 @@ mod tests {
 
     #[test]
     fn inject_1_1_loads_without_package_services() {
+        let _site_claim_guard = crate::inject_test_support::site_claim_guard();
+        const CHILD_PROCESS: &str = "YOAKE_WASM_INJECTION_TEST_CHILD";
+        if std::env::var_os(CHILD_PROCESS).is_none() {
+            let module = module_path!()
+                .split_once("::")
+                .map_or(module_path!(), |(_, module)| module);
+            let name = format!("{module}::inject_1_1_loads_without_package_services");
+            let mut command = std::process::Command::new(std::env::current_exe().unwrap());
+            command.args(["--exact", &name, "--nocapture"]);
+            command.env(CHILD_PROCESS, "1");
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+                command.creation_flags(CREATE_NO_WINDOW);
+            }
+            let output = command.output().expect("run isolated injection test");
+            assert!(
+                output.status.success()
+                    && String::from_utf8_lossy(&output.stdout).contains("1 passed;"),
+                "isolated injection test failed:\n{}\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr),
+            );
+            return;
+        }
         let Some(bytes) = yoake_wasm::test_guests::load(&MIXIN_DEMO) else {
             return;
         };

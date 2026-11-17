@@ -22495,6 +22495,7 @@ mod tests {
 
     #[test]
     fn orb_split_handler_only_merges_without_changing_total_experience() {
+        let _site_claim_guard = crate::inject_test_support::site_claim_guard();
         use yoake_inject_rt::{
             CallbackError, Guest, InjectValue, Mod, RETURN, Registry, Side, Subscription, Value,
         };

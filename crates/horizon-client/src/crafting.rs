@@ -2009,6 +2009,7 @@ mod tests {
 
     #[test]
     fn replaced_zero_result_count_removes_the_crafting_result() {
+        let _site_claim_guard = crate::inject_test_support::site_claim_guard();
         let _side = yoake_inject_rt::enter_side(yoake_inject_rt::Side::Server);
         let mut recipes = cooking_book();
         recipes.crafting.push((

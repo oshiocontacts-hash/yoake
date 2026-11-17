@@ -315,6 +315,7 @@ mod tests {
 
     #[test]
     fn replaced_smelting_counts_do_not_consume_items_without_output_capacity() {
+        let _site_claim_guard = crate::inject_test_support::site_claim_guard();
         let _side = yoake_inject_rt::enter_side(yoake_inject_rt::Side::Server);
         for count in [0, 99] {
             let registry = override_result_count(count);

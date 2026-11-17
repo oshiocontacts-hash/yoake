@@ -1103,6 +1103,7 @@ mod tests {
 
     #[test]
     fn explosion_handler_can_only_remove_affected_blocks() {
+        let _site_claim_guard = crate::inject_test_support::site_claim_guard();
         use yoake_inject_rt::{
             CallbackError, Guest, InjectValue, Mod, RETURN, Registry, Side, Subscription, Value,
         };

@@ -5576,6 +5576,7 @@ mod tests {
 
     #[test]
     fn sleeping_handler_filters_only_the_denominator_not_sleeping_counts() {
+        let _site_claim_guard = crate::inject_test_support::site_claim_guard();
         use yoake_inject_rt::{
             CallbackError, Guest, InjectValue, Mod, RETURN, Registry, Side, Subscription, Value,
         };

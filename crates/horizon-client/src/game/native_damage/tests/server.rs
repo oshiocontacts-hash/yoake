@@ -223,6 +223,7 @@ fn utility_return_handler(site: &'static Site, discard: bool) -> (Registry, Arc<
 #[test]
 #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
 fn spawn_orbs_handler_preserves_rng_draws_and_player_state() {
+    let _site_claim_guard = crate::inject_test_support::site_claim_guard();
     let _side = yoake_inject_rt::enter_side(Side::Server);
     let site = crate::game::__yoake_inject_site_split_orb_values();
     let mut outcomes = Vec::new();
@@ -261,6 +262,7 @@ fn spawn_orbs_handler_preserves_rng_draws_and_player_state() {
 #[test]
 #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
 fn explosion_subset_preserves_rng_damage_and_knockback() {
+    let _site_claim_guard = crate::inject_test_support::site_claim_guard();
     let _side = yoake_inject_rt::enter_side(Side::Server);
     let site = yoake_inject_rt::catalog::SITES
         .iter()
