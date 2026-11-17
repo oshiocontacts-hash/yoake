@@ -211,11 +211,19 @@ fn bundled_sdk_contains_wit_and_macro_sources() {
     let sdk = project.root.join(".yoake/yoake-wasm-sdk");
     assert!(sdk.join("Cargo.toml").is_file());
     assert!(sdk.join("src/full.rs").is_file());
+    assert!(sdk.join("src/gpu.rs").is_file());
+    assert!(sdk.join("src/mixin.rs").is_file());
+    assert!(sdk.join("src/engine.wgsl").is_file());
     assert!(sdk.join("test-macros/src/lib.rs").is_file());
     assert!(sdk.join("../yoake-wasm/wit/yoake-mod.wit").is_file());
     assert!(sdk.join("../yoake-wasm/wit/yoake-full.wit").is_file());
     assert!(sdk.join("../yoake-wasm/wit/yoake-test.wit").is_file());
+    assert!(sdk.join("../yoake-wasm/wit/inject-sites.json").is_file());
+    assert!(sdk.join("../yoake-wasm/wit/state-catalog.json").is_file());
+    assert!(sdk.join("../yoake-wasm/wit/coverage.json").is_file());
     assert!(sdk.join("src/testing/engine.rs").is_file());
+    assert!(!sdk.join("examples").exists());
+    assert!(!sdk.join("target").exists());
 }
 
 #[test]

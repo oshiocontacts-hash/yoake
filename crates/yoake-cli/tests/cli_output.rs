@@ -41,6 +41,27 @@ fn invoke(root: &Path, arguments: &[&str], success: bool) -> Value {
 }
 
 #[test]
+fn new_project_builds_with_the_bundled_full_sdk() {
+    let project = Project::new();
+    invoke(&project.0, &["new", "hud-only", "full-sdk-scaffold"], true);
+    let root = project.0.join("full-sdk-scaffold");
+    let manifest_path = root.join("Cargo.toml");
+    let mut manifest: toml::Table = fs::read_to_string(&manifest_path).unwrap().parse().unwrap();
+    manifest["dependencies"]["yoake-wasm-sdk"].as_table_mut().unwrap().insert(
+        "features".into(),
+        toml::Value::Array(vec![toml::Value::String("full".into())]),
+    );
+    fs::write(&manifest_path, toml::to_string(&manifest).unwrap()).unwrap();
+    let output = yoake_wasm::test_guests::build_project(&root, "").unwrap();
+    assert!(
+        output.status.success(),
+        "full SDK scaffold build failed:\n{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
 fn commands_emit_one_json_line_on_success_and_failure() {
     let project = Project::new();
     for command in ["build", "check", "pack", "dev", "unknown"] {

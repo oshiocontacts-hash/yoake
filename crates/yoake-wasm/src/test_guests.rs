@@ -8,7 +8,7 @@
 //! `YOAKE_REQUIRE_GUESTS=1`), and is reported as skipped otherwise.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Output};
 use std::sync::Mutex;
 
 /// An example guest: its folder, the cargo features it is built with and the file it produces.
@@ -144,6 +144,25 @@ fn strict() -> bool {
         .any(|name| std::env::var_os(name).is_some_and(|value| !value.is_empty() && value != "0"))
 }
 
+pub fn build_project(project: &Path, features: &str) -> std::io::Result<Output> {
+    let _serial = BUILD.lock().unwrap_or_else(|error| error.into_inner());
+    build(project, features, &target_dir())
+}
+
+fn build(project: &Path, features: &str, target: &Path) -> std::io::Result<Output> {
+    let mut command = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()));
+    command
+        .args(["build", "--offline", "--release", "--target", "wasm32-wasip2", "-j", "4"])
+        .current_dir(project)
+        .env("CARGO_TARGET_DIR", target)
+        .env_remove("CARGO_ENCODED_RUSTFLAGS")
+        .env_remove("RUSTFLAGS");
+    if !features.is_empty() {
+        command.args(["--features", features]);
+    }
+    command.output()
+}
+
 /// The component bytes of `guest`, built when out of date. `None` only outside CI when the guest
 /// can neither be built nor found (the caller should return, which the test log shows as skipped).
 pub fn load(guest: &Guest) -> Option<Vec<u8>> {
@@ -156,25 +175,7 @@ pub fn load(guest: &Guest) -> Option<Vec<u8>> {
     } else {
         workspace().join("crates/yoake-wasm-sdk/examples").join(guest.example)
     };
-    let mut command = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()));
-    command
-        .args([
-            "build",
-            "--offline",
-            "--release",
-            "--target",
-            "wasm32-wasip2",
-            "-j",
-            "4",
-        ])
-        .current_dir(&example)
-        .env("CARGO_TARGET_DIR", &target)
-        .env_remove("CARGO_ENCODED_RUSTFLAGS")
-        .env_remove("RUSTFLAGS");
-    if !guest.features.is_empty() {
-        command.args(["--features", guest.features]);
-    }
-    let build = command.output();
+    let build = build(&example, guest.features, &target);
     let bytes = match &build {
         Ok(output) if output.status.success() => std::fs::copy(&built, &copy)
             .ok()

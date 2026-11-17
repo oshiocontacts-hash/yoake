@@ -6,6 +6,37 @@ A Yoake wasm mod is a WebAssembly **component** (`wasm32-wasip2`) for the WIT wo
 The frozen world stays unchanged. The extended `client-full` and `server-full` worlds use
 `yoake:mods@1.0.0` in `yoake-full.wit`; the GPU interface belongs to `client-full` only.
 
+## The 1.0 ABI freeze
+
+`crates/yoake-wasm/wit/abi-1.0-baseline.wit` freezes the current `yoake:mods@1.0.0`
+interfaces and worlds, including `native-screen-view.kind`. The snapshot is comment-enveloped
+WIT (remove its three-line header and each remaining line's `// ` prefix to parse it separately).
+This keeps the snapshot inert when guest and host bindings load the live `wit/` directory.
+`abi-1.0-ids.json` freezes the service/hook ID tables and capability names from all four active
+ABI catalogs, and separately preserves the package manifest's accepted `WASM_PERMISSIONS`.
+
+Run `cargo test --offline -j 4 -p horizon-mod-api-gen` to check compatibility. Existing record
+fields (including their order and types), enum/variant/flag cases, aliases, function parameters
+and results, world bindings, IDs and capability names cannot change or disappear. Independent
+new types, functions with unused IDs, hooks, interfaces and capability names are additions;
+they do not require a baseline refresh. In particular, W2DN's reserved service IDs **127–145**
+and hook IDs **43–44** are additions, not permission to alter existing entries. The separate
+`yoake:mods@1.1.0` package in `wit-inject/` is not part of this 1.0 snapshot.
+
+Before the initial 1.0 release only, the owner may deliberately refresh both baseline files
+after reviewing the entire ABI diff (PowerShell):
+
+```powershell
+$env:YOAKE_UPDATE_ABI_BASELINE = "1"
+cargo test --offline -j 4 -p horizon-mod-api-gen abi_1_0_is_additive
+Remove-Item Env:YOAKE_UPDATE_ABI_BASELINE
+```
+
+Review and commit both snapshots together, then run the full generator tests without the flag.
+`YOAKE_UPDATE_WIT=1` regenerates live bindings, never the compatibility baseline. Once 1.0 is
+released and signed by the owner, do not refresh that baseline or change existing 1.0 items;
+put incompatible shapes in new types/interfaces instead. Signing remains an owner operation.
+
 ## Toolchain
 
 ```sh

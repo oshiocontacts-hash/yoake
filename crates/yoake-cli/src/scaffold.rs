@@ -6,23 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub(super) fn write_bundled_sdk(root: &Path) -> Result<()> {
-    let files = [
-        ("yoake-wasm-sdk/Cargo.toml", include_str!("../../yoake-wasm-sdk/Cargo.toml")),
-        ("yoake-wasm-sdk/src/lib.rs", include_str!("../../yoake-wasm-sdk/src/lib.rs")),
-        ("yoake-wasm-sdk/src/heap.rs", include_str!("../../yoake-wasm-sdk/src/heap.rs")),
-        ("yoake-wasm-sdk/src/nbt.rs", include_str!("../../yoake-wasm-sdk/src/nbt.rs")),
-        ("yoake-wasm-sdk/src/testing.rs", include_str!("../../yoake-wasm-sdk/src/testing.rs")),
-        ("yoake-wasm-sdk/src/testing/engine.rs", include_str!("../../yoake-wasm-sdk/src/testing/engine.rs")),
-        ("yoake-wasm-sdk/src/full.rs", include_str!("../../yoake-wasm-sdk/src/full.rs")),
-        ("yoake-wasm-sdk/src/full_client_generated.rs", include_str!("../../yoake-wasm-sdk/src/full_client_generated.rs")),
-        ("yoake-wasm-sdk/src/full_server_generated.rs", include_str!("../../yoake-wasm-sdk/src/full_server_generated.rs")),
-        ("yoake-wasm-sdk/src/full_hooks_generated.rs", include_str!("../../yoake-wasm-sdk/src/full_hooks_generated.rs")),
-        ("yoake-wasm-sdk/test-macros/Cargo.toml", include_str!("../../yoake-wasm-sdk/test-macros/Cargo.toml")),
-        ("yoake-wasm-sdk/test-macros/src/lib.rs", include_str!("../../yoake-wasm-sdk/test-macros/src/lib.rs")),
-        ("yoake-wasm/wit/yoake-mod.wit", include_str!("../../yoake-wasm/wit/yoake-mod.wit")),
-        ("yoake-wasm/wit/yoake-full.wit", include_str!("../../yoake-wasm/wit/yoake-full.wit")),
-        ("yoake-wasm/wit/yoake-test.wit", include_str!("../../yoake-wasm/wit/yoake-test.wit")),
-    ];
+    let files: &[(&str, &[u8])] = include!(concat!(env!("OUT_DIR"), "/bundled_sdk.rs"));
     for (name, content) in files {
         let path = root.join(".yoake").join(name);
         let parent = path.parent().ok_or("bundled SDK file has no parent directory")?;

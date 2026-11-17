@@ -1,0 +1,914 @@
+{
+  "services": {
+    "account": {
+      "id": 14,
+      "capability": null
+    },
+    "acting_player": {
+      "id": 26,
+      "capability": "server-read"
+    },
+    "action_bar": {
+      "id": 41,
+      "capability": "player-message"
+    },
+    "advancement_grant": {
+      "id": 100,
+      "capability": "player-write"
+    },
+    "advancement_progress": {
+      "id": 99,
+      "capability": "server-read"
+    },
+    "asset_read": {
+      "id": 71,
+      "capability": "mod-assets"
+    },
+    "attachment_define": {
+      "id": 112,
+      "capability": "world-storage"
+    },
+    "attachment_get": {
+      "id": 113,
+      "capability": "world-storage"
+    },
+    "attachment_remove": {
+      "id": 115,
+      "capability": "world-storage"
+    },
+    "attachment_set": {
+      "id": 114,
+      "capability": "world-storage"
+    },
+    "attribute_get": {
+      "id": 91,
+      "capability": "player-write"
+    },
+    "audio_stream_close": {
+      "id": 194,
+      "capability": "service.audio"
+    },
+    "audio_stream_dropped": {
+      "id": 192,
+      "capability": "service.audio"
+    },
+    "audio_stream_move": {
+      "id": 193,
+      "capability": "service.audio"
+    },
+    "audio_stream_open": {
+      "id": 188,
+      "capability": "service.audio"
+    },
+    "audio_stream_push": {
+      "id": 189,
+      "capability": "service.audio"
+    },
+    "audio_stream_push_i16": {
+      "id": 190,
+      "capability": "service.audio"
+    },
+    "audio_stream_queued": {
+      "id": 191,
+      "capability": "service.audio"
+    },
+    "batch_clip_since": {
+      "id": 22,
+      "capability": null
+    },
+    "batch_len": {
+      "id": 20,
+      "capability": null
+    },
+    "batch_scale_since": {
+      "id": 21,
+      "capability": null
+    },
+    "batch_tint_since": {
+      "id": 23,
+      "capability": null
+    },
+    "bind_group": {
+      "id": 152,
+      "capability": "service.gpu"
+    },
+    "block": {
+      "id": 53,
+      "capability": "world-read"
+    },
+    "block_collision": {
+      "id": 56,
+      "capability": "world-read"
+    },
+    "block_entity_patch": {
+      "id": 60,
+      "capability": "world-write"
+    },
+    "block_entity_read": {
+      "id": 59,
+      "capability": "world-read"
+    },
+    "block_entity_sync": {
+      "id": 58,
+      "capability": "world-write"
+    },
+    "block_property": {
+      "id": 54,
+      "capability": "world-read"
+    },
+    "block_tags": {
+      "id": 86,
+      "capability": "world-read"
+    },
+    "block_tool_requirement": {
+      "id": 88,
+      "capability": "world-read"
+    },
+    "bossbar_create": {
+      "id": 45,
+      "capability": "bossbar-write"
+    },
+    "bossbar_remove": {
+      "id": 46,
+      "capability": "bossbar-write"
+    },
+    "bossbar_set_color": {
+      "id": 47,
+      "capability": "bossbar-write"
+    },
+    "bossbar_set_name": {
+      "id": 48,
+      "capability": "bossbar-write"
+    },
+    "bossbar_set_overlay": {
+      "id": 49,
+      "capability": "bossbar-write"
+    },
+    "bossbar_set_players": {
+      "id": 50,
+      "capability": "bossbar-write"
+    },
+    "bossbar_set_progress": {
+      "id": 51,
+      "capability": "bossbar-write"
+    },
+    "break_block_as": {
+      "id": 80,
+      "capability": "world-write"
+    },
+    "buffer": {
+      "id": 146,
+      "capability": "service.gpu"
+    },
+    "camera": {
+      "id": 185,
+      "capability": "service.camera"
+    },
+    "camera_override": {
+      "id": 186,
+      "capability": "service.camera"
+    },
+    "can_harvest": {
+      "id": 89,
+      "capability": "world-read"
+    },
+    "clear_player_attack_hitbox": {
+      "id": 107,
+      "capability": "player-write"
+    },
+    "client_entities_in": {
+      "id": 184,
+      "capability": "service.client-map"
+    },
+    "client_players": {
+      "id": 183,
+      "capability": "service.client-map"
+    },
+    "client_view_hit": {
+      "id": 165,
+      "capability": "service.client-view"
+    },
+    "client_world_key": {
+      "id": 3,
+      "capability": null
+    },
+    "clip": {
+      "id": 31,
+      "capability": "world-read"
+    },
+    "compute": {
+      "id": 150,
+      "capability": "service.gpu"
+    },
+    "config_get": {
+      "id": 116,
+      "capability": "service.config"
+    },
+    "config_read": {
+      "id": 69,
+      "capability": "config-storage"
+    },
+    "config_set": {
+      "id": 117,
+      "capability": "service.config"
+    },
+    "config_write": {
+      "id": 70,
+      "capability": "config-storage"
+    },
+    "container_set_slots": {
+      "id": 83,
+      "capability": "inventory-write"
+    },
+    "container_slots": {
+      "id": 82,
+      "capability": "inventory-read"
+    },
+    "containers_in": {
+      "id": 84,
+      "capability": "inventory-read"
+    },
+    "copy_buffer": {
+      "id": 155,
+      "capability": "service.gpu"
+    },
+    "destroy": {
+      "id": 153,
+      "capability": "service.gpu"
+    },
+    "dispatch": {
+      "id": 157,
+      "capability": "service.gpu"
+    },
+    "display_name": {
+      "id": 166,
+      "capability": "service.registry"
+    },
+    "draw": {
+      "id": 158,
+      "capability": "service.gpu"
+    },
+    "draw_gui_item": {
+      "id": 168,
+      "capability": "service.hud"
+    },
+    "draw_mob_as_player": {
+      "id": 197,
+      "capability": "service.mob-render"
+    },
+    "draw_post_tint": {
+      "id": 175,
+      "capability": "service.world-draw"
+    },
+    "draw_post_vignette": {
+      "id": 176,
+      "capability": "service.world-draw"
+    },
+    "draw_region": {
+      "id": 198,
+      "capability": "service.gpu"
+    },
+    "draw_world_billboard": {
+      "id": 174,
+      "capability": "service.world-draw"
+    },
+    "draw_world_line": {
+      "id": 171,
+      "capability": "service.world-draw"
+    },
+    "draw_world_quad": {
+      "id": 172,
+      "capability": "service.world-draw"
+    },
+    "draw_world_textured_quad": {
+      "id": 173,
+      "capability": "service.world-draw"
+    },
+    "edit_blocks": {
+      "id": 57,
+      "capability": "world-write"
+    },
+    "enable_post_shader": {
+      "id": 180,
+      "capability": "service.post-shader"
+    },
+    "entities_in": {
+      "id": 30,
+      "capability": "entity-read"
+    },
+    "entity_vitals_of": {
+      "id": 101,
+      "capability": "entity-read"
+    },
+    "feedback": {
+      "id": 2,
+      "capability": null
+    },
+    "fill": {
+      "id": 5,
+      "capability": null
+    },
+    "frame": {
+      "id": 161,
+      "capability": "service.gpu"
+    },
+    "give_items": {
+      "id": 98,
+      "capability": "inventory-write"
+    },
+    "gui_texture": {
+      "id": 19,
+      "capability": null
+    },
+    "gui_texture_create": {
+      "id": 24,
+      "capability": null
+    },
+    "gui_texture_release": {
+      "id": 25,
+      "capability": null
+    },
+    "gui_texture_write": {
+      "id": 187,
+      "capability": "service.hud"
+    },
+    "has_permission": {
+      "id": 118,
+      "capability": "service.permissions"
+    },
+    "held": {
+      "id": 27,
+      "capability": "inventory-read"
+    },
+    "hud_place": {
+      "id": 195,
+      "capability": "service.hud"
+    },
+    "hurt_entity": {
+      "id": 102,
+      "capability": "entity-write"
+    },
+    "instance_dir": {
+      "id": 13,
+      "capability": null
+    },
+    "integrated_owner": {
+      "id": 29,
+      "capability": "server-read"
+    },
+    "inventory_apply": {
+      "id": 72,
+      "capability": "inventory-write"
+    },
+    "item_entities_in": {
+      "id": 95,
+      "capability": "entity-read"
+    },
+    "item_entity_move": {
+      "id": 96,
+      "capability": "entity-write"
+    },
+    "item_entity_pickup": {
+      "id": 97,
+      "capability": "inventory-write"
+    },
+    "item_tags": {
+      "id": 87,
+      "capability": "world-read"
+    },
+    "key_binding_state": {
+      "id": 164,
+      "capability": "service.key-binding"
+    },
+    "local_player_snapshot": {
+      "id": 10,
+      "capability": null
+    },
+    "log": {
+      "id": 1,
+      "capability": null
+    },
+    "map_colors": {
+      "id": 196,
+      "capability": "service.client-map"
+    },
+    "map_columns": {
+      "id": 182,
+      "capability": "service.client-map"
+    },
+    "menu_close": {
+      "id": 94,
+      "capability": "player-write"
+    },
+    "menu_set_items": {
+      "id": 93,
+      "capability": "inventory-write"
+    },
+    "mod_call": {
+      "id": 110,
+      "capability": "mod-call"
+    },
+    "mod_screen": {
+      "id": 17,
+      "capability": null
+    },
+    "mod_screen_close": {
+      "id": 16,
+      "capability": null
+    },
+    "mod_screen_open": {
+      "id": 15,
+      "capability": null
+    },
+    "mod_screen_open_anywhere": {
+      "id": 18,
+      "capability": null
+    },
+    "net_send_to_player": {
+      "id": 64,
+      "capability": "network-send"
+    },
+    "net_send_to_server": {
+      "id": 6,
+      "capability": null
+    },
+    "open_menu": {
+      "id": 92,
+      "capability": "player-write"
+    },
+    "owner_mod": {
+      "id": 167,
+      "capability": "service.registry"
+    },
+    "particle_spawn": {
+      "id": 75,
+      "capability": "world-effects"
+    },
+    "play_sound_at": {
+      "id": 105,
+      "capability": "world-effects"
+    },
+    "player_attribute_modifier_add": {
+      "id": 90,
+      "capability": "player-write"
+    },
+    "player_attribute_modifier_remove": {
+      "id": 39,
+      "capability": "player-write"
+    },
+    "player_clear_inventory": {
+      "id": 36,
+      "capability": "inventory-write"
+    },
+    "player_clear_title": {
+      "id": 43,
+      "capability": "player-message"
+    },
+    "player_effect_clear": {
+      "id": 38,
+      "capability": "player-write"
+    },
+    "player_effect_give": {
+      "id": 37,
+      "capability": "player-write"
+    },
+    "player_play_sound": {
+      "id": 44,
+      "capability": "player-message"
+    },
+    "player_remove_slot": {
+      "id": 111,
+      "capability": "inventory-write"
+    },
+    "player_set_gamemode": {
+      "id": 35,
+      "capability": "player-write"
+    },
+    "player_set_health": {
+      "id": 34,
+      "capability": "player-write"
+    },
+    "player_set_slots": {
+      "id": 85,
+      "capability": "inventory-write"
+    },
+    "player_sneaking": {
+      "id": 81,
+      "capability": "server-read"
+    },
+    "player_stacks": {
+      "id": 32,
+      "capability": "inventory-read"
+    },
+    "player_teleport": {
+      "id": 33,
+      "capability": "player-write"
+    },
+    "player_title": {
+      "id": 42,
+      "capability": "player-message"
+    },
+    "playing": {
+      "id": 12,
+      "capability": null
+    },
+    "poll": {
+      "id": 160,
+      "capability": "service.gpu"
+    },
+    "post_shader_state": {
+      "id": 181,
+      "capability": "service.post-shader"
+    },
+    "qa_mode_enabled": {
+      "id": 78,
+      "capability": "diagnostics"
+    },
+    "qa_record": {
+      "id": 79,
+      "capability": "diagnostics"
+    },
+    "read": {
+      "id": 159,
+      "capability": "service.gpu"
+    },
+    "register_key_binding": {
+      "id": 163,
+      "capability": "service.key-binding"
+    },
+    "register_post_shader": {
+      "id": 177,
+      "capability": "service.post-shader"
+    },
+    "remove_spawned_entity": {
+      "id": 63,
+      "capability": "entity-write"
+    },
+    "render": {
+      "id": 151,
+      "capability": "service.gpu"
+    },
+    "sampler": {
+      "id": 148,
+      "capability": "service.gpu"
+    },
+    "screen_kind": {
+      "id": 169,
+      "capability": "service.screen"
+    },
+    "screen_slot_rects": {
+      "id": 170,
+      "capability": "service.screen"
+    },
+    "server_player_motion": {
+      "id": 103,
+      "capability": "entity-read"
+    },
+    "server_players": {
+      "id": 28,
+      "capability": "server-read"
+    },
+    "set_block_property": {
+      "id": 55,
+      "capability": "world-write"
+    },
+    "set_player_attack_hitbox": {
+      "id": 106,
+      "capability": "player-write"
+    },
+    "set_post_shader_uniforms": {
+      "id": 179,
+      "capability": "service.post-shader"
+    },
+    "set_server_player_velocity": {
+      "id": 104,
+      "capability": "player-write"
+    },
+    "set_setting": {
+      "id": 8,
+      "capability": null
+    },
+    "set_world_border": {
+      "id": 109,
+      "capability": "world-control"
+    },
+    "setting": {
+      "id": 7,
+      "capability": null
+    },
+    "shader": {
+      "id": 149,
+      "capability": "service.gpu"
+    },
+    "shader_file": {
+      "id": 162,
+      "capability": "service.gpu"
+    },
+    "snapshot_client_world": {
+      "id": 11,
+      "capability": null
+    },
+    "spawn_mannequin": {
+      "id": 62,
+      "capability": "entity-write"
+    },
+    "storage_blob_abort": {
+      "id": 125,
+      "capability": "service.storage"
+    },
+    "storage_blob_begin": {
+      "id": 122,
+      "capability": "service.storage"
+    },
+    "storage_blob_commit": {
+      "id": 124,
+      "capability": "service.storage"
+    },
+    "storage_blob_read": {
+      "id": 126,
+      "capability": "service.storage"
+    },
+    "storage_blob_write": {
+      "id": 123,
+      "capability": "service.storage"
+    },
+    "storage_delete": {
+      "id": 121,
+      "capability": "service.storage"
+    },
+    "storage_get": {
+      "id": 119,
+      "capability": "service.storage"
+    },
+    "storage_put": {
+      "id": 120,
+      "capability": "service.storage"
+    },
+    "team_apply": {
+      "id": 73,
+      "capability": "team-write"
+    },
+    "tell": {
+      "id": 40,
+      "capability": "player-message"
+    },
+    "text": {
+      "id": 4,
+      "capability": null
+    },
+    "text_width": {
+      "id": 9,
+      "capability": null
+    },
+    "texture": {
+      "id": 147,
+      "capability": "service.gpu"
+    },
+    "unregister_post_shader": {
+      "id": 178,
+      "capability": "service.post-shader"
+    },
+    "world_border": {
+      "id": 108,
+      "capability": "world-read"
+    },
+    "world_control": {
+      "id": 74,
+      "capability": "world-control"
+    },
+    "world_storage_read": {
+      "id": 67,
+      "capability": "world-storage"
+    },
+    "world_storage_write": {
+      "id": 68,
+      "capability": "world-storage"
+    },
+    "write_buffer": {
+      "id": 154,
+      "capability": "service.gpu"
+    },
+    "write_texture": {
+      "id": 156,
+      "capability": "service.gpu"
+    }
+  },
+  "hooks": {
+    "attack_entity": {
+      "id": 32,
+      "capability": null
+    },
+    "block_entity": {
+      "id": 25,
+      "capability": null
+    },
+    "block_entity_tick": {
+      "id": 27,
+      "capability": null
+    },
+    "block_entity_ticks": {
+      "id": 26,
+      "capability": null
+    },
+    "block_entity_update_tag": {
+      "id": 28,
+      "capability": null
+    },
+    "config_changed": {
+      "id": 42,
+      "capability": null
+    },
+    "entity_shoot_bow": {
+      "id": 38,
+      "capability": null
+    },
+    "frame": {
+      "id": 5,
+      "capability": null
+    },
+    "gui_layer_post": {
+      "id": 11,
+      "capability": null
+    },
+    "gui_layer_pre": {
+      "id": 10,
+      "capability": null
+    },
+    "hears_projectile_impacts": {
+      "id": 36,
+      "capability": null
+    },
+    "hud": {
+      "id": 3,
+      "capability": null
+    },
+    "interact_entity": {
+      "id": 41,
+      "capability": null
+    },
+    "key": {
+      "id": 2,
+      "capability": null
+    },
+    "level_tick_pre": {
+      "id": 23,
+      "capability": null
+    },
+    "living_death": {
+      "id": 35,
+      "capability": null
+    },
+    "living_incoming_damage": {
+      "id": 33,
+      "capability": null
+    },
+    "living_knockback": {
+      "id": 34,
+      "capability": null
+    },
+    "local_player_tick_end": {
+      "id": 6,
+      "capability": null
+    },
+    "net_frame_received": {
+      "id": 8,
+      "capability": null
+    },
+    "net_frames_listened": {
+      "id": 7,
+      "capability": null
+    },
+    "net_from_client": {
+      "id": 29,
+      "capability": null
+    },
+    "net_from_server": {
+      "id": 4,
+      "capability": null
+    },
+    "net_session_ended": {
+      "id": 9,
+      "capability": null
+    },
+    "perform_command": {
+      "id": 21,
+      "capability": null
+    },
+    "player_input": {
+      "id": 39,
+      "capability": null
+    },
+    "projectile_impact": {
+      "id": 37,
+      "capability": null
+    },
+    "register_commands": {
+      "id": 20,
+      "capability": null
+    },
+    "screen_char_typed_pre": {
+      "id": 14,
+      "capability": null
+    },
+    "screen_key_pressed_pre": {
+      "id": 13,
+      "capability": null
+    },
+    "screen_mouse_button_pressed_pre": {
+      "id": 15,
+      "capability": null
+    },
+    "screen_mouse_button_released_pre": {
+      "id": 16,
+      "capability": null
+    },
+    "screen_mouse_scrolled_pre": {
+      "id": 17,
+      "capability": null
+    },
+    "screen_render_post": {
+      "id": 12,
+      "capability": null
+    },
+    "server_chat": {
+      "id": 31,
+      "capability": null
+    },
+    "server_chat_listened": {
+      "id": 30,
+      "capability": null
+    },
+    "server_tick": {
+      "id": 22,
+      "capability": null
+    },
+    "settings": {
+      "id": 18,
+      "capability": null
+    },
+    "settings_click": {
+      "id": 19,
+      "capability": null
+    },
+    "tick": {
+      "id": 1,
+      "capability": null
+    },
+    "use_item": {
+      "id": 40,
+      "capability": null
+    },
+    "world_lifecycle": {
+      "id": 24,
+      "capability": null
+    }
+  },
+  "capabilities": [
+    "bossbar-write",
+    "config-storage",
+    "diagnostics",
+    "entity-read",
+    "entity-write",
+    "inventory-read",
+    "inventory-write",
+    "mod-assets",
+    "mod-call",
+    "network-send",
+    "player-message",
+    "player-write",
+    "server-read",
+    "service.audio",
+    "service.camera",
+    "service.chat",
+    "service.client-map",
+    "service.client-view",
+    "service.commands",
+    "service.config",
+    "service.gpu",
+    "service.http",
+    "service.hud",
+    "service.key-binding",
+    "service.mob-render",
+    "service.permissions",
+    "service.post-shader",
+    "service.registry",
+    "service.screen",
+    "service.storage",
+    "service.world-draw",
+    "team-write",
+    "world-control",
+    "world-effects",
+    "world-read",
+    "world-storage",
+    "world-write"
+  ],
+  "manifest_permissions": [
+    "service.chat",
+    "service.commands",
+    "service.config",
+    "service.gpu",
+    "service.http",
+    "service.permissions",
+    "service.storage"
+  ]
+}

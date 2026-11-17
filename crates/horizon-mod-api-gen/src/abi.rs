@@ -2,6 +2,8 @@ use quote::ToTokens;
 use serde::Deserialize;
 use std::{collections::HashSet, fs, path::Path};
 
+#[cfg(test)]
+mod baseline;
 mod sdk_full;
 mod wasm_adapters;
 mod wit;
