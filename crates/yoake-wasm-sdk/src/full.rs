@@ -55,7 +55,8 @@ pub mod client {
     }
 
     /// Reserve a HUD position using the shared layout, including the top center.
-    pub fn hud_place(
+    #[doc(alias = "hud_place")]
+    pub fn hud_place_v2(
         corner: types::HudCornerV2,
         size: types::Vec2,
     ) -> Result<Option<types::Vec2>, String> {

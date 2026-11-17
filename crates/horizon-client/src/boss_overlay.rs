@@ -146,6 +146,9 @@ impl BossOverlay {
     pub fn should_create_world_fog(&self) -> bool {
         self.events.iter().any(|e| e.fog)
     }
+    pub fn count(&self) -> usize {
+        self.events.len()
+    }
     /// The bars `extractRenderState` walks, with the lerped progress.
     pub fn bars(&self, now: u128) -> Vec<BossBar> {
         self.events

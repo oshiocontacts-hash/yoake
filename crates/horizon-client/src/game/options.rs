@@ -110,6 +110,9 @@ impl Game<'_> {
             .renderer
             .as_ref()
             .map_or([1280, 720], |r| [r.config.width, r.config.height]);
+        Self::gui_size_for_window(size)
+    }
+    pub(super) fn gui_size_for_window(size: [u32; 2]) -> (f32, f32) {
         let b = HudBatch::new(size);
         (b.width, b.height)
     }

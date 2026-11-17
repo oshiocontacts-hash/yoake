@@ -527,33 +527,42 @@ instance, not to the server or another package, and are invalidated when that in
 
 `client-full` の `full::client::gui_size()` は、現在のスケーリング済み GUI の幅と高さを
 GUI ピクセル単位の `Vec2 { x, y }` で返します。`service.screen` が必要です。
-`health_hud` に依存せず、クライアントホストが利用できるフック内で使用できます。
+`health_hud` に依存せず、クライアントホストが利用できる `frame`、`tick`、`hud`、
+`gui_layer_pre`、`screen_opening`、`screen_init_post`、`screen_closing` などのフック内で使用できます。
 クリエイティブ、スペクテイター、タイトル画面やポーズ画面でも同じ値を読み、リサイズ後の値も
-反映します。スケール係数自体は返しません。
+反映します。スケール係数自体は返しません。`gpu_frame` にはクライアントホストがないため、
+この関数は使用できません。代わりに `full::client::gpu::frame()` から取得できる幅と高さは、
+スケーリング前のフレームバッファのピクセル数であり、GUI ピクセル数とは異なります。
 
-`full::client::hud_place(HudCornerV2::TopCenter, size)` は `service.hud` を必要とし、
+`full::client::hud_place_v2(HudCornerV2::TopCenter, size)` は `service.hud` を必要とし、
 `hud` フック内でのみ使用できます。各ラベルは水平中央に配置され、前の予約から 2 GUI ピクセル
 離して下向きに積み重なります。予約は同じフレームのすべての mod で共有されます。
-表示中のボスバーの下から開始し、タイトルやサブタイトルの領域を避けるため、画面中央の
-48 ピクセル上を越える配置は返しません。アクションバー表示中は安全のため上中央を予約できません。
-領域不足や不正なサイズでは `Ok(None)`、`hud` 以外ではエラーになります。左右のコーナーや
-他の任意のオーバーレイとの重なりは防ぎません。既存の `services::hud_place` は変更されません。
+表示中のボスバーの下から開始し、mod が `boss_overlay` レイヤーをキャンセルしてもボスバーの
+領域は確保されます。タイトルやサブタイトルを避けるため、配置の下端は画面中央の 48 ピクセル上を
+越えません。小さい画面で多数のボスバーが表示される場合など、収まる領域がないときやサイズが不正な
+ときは `Ok(None)` が返るため、そのラベルを描画しないでください。`hud` 以外ではエラーになります。
+タブリストは後から描画されるため、上中央のラベルを覆うことがあります。左右のコーナーやその他の
+任意のオーバーレイとの重なりも防ぎません。既存の `services::hud_place` は変更されません。
 
 ### GUI size and top-center HUD placement
 
 `client-full`'s `full::client::gui_size()` returns the current scaled GUI width and height as
-`Vec2 { x, y }` in GUI pixels. It requires `service.screen`. It does not depend on `health_hud` and
-can be called from hooks with a client host, including creative, spectator, title and pause screens;
-it reflects the current size after a resize. It does not return the scale factor.
+`Vec2 { x, y }` in GUI pixels. It requires `service.screen` and does not depend on `health_hud`.
+It works in hooks with a client host, including `frame`, `tick`, `hud`, `gui_layer_pre`,
+`screen_opening`, `screen_init_post` and `screen_closing`. It works in creative, spectator, title
+and pause screens and reflects resizes; it does not return the scale factor. `gpu_frame` has no
+client host, so it cannot call `gui_size`. Its `full::client::gpu::frame()` alternative provides
+unscaled framebuffer width and height in physical pixels, not scaled GUI dimensions.
 
-`full::client::hud_place(HudCornerV2::TopCenter, size)` requires `service.hud` and is available only
+`full::client::hud_place_v2(HudCornerV2::TopCenter, size)` requires `service.hud` and is available only
 within the `hud` hook. Labels are horizontally centered and stack downwards with a 2-GUI-pixel gap.
 Reservations are shared by all mods in the same frame. The stack starts below visible boss bars and
-does not extend past 48 pixels above the screen center, leaving the title and subtitle area clear.
-While the actionbar is visible, top-center reservations are conservatively unavailable. Insufficient
-space or an invalid size returns `Ok(None)`; calling outside `hud` returns an error. It does not
-reserve space against the side corners or arbitrary overlays. The original `services::hud_place`
-remains unchanged.
+reserves their space even when a mod cancels the `boss_overlay` layer. The bottom of a placement
+cannot extend past 48 pixels above the screen center, leaving the title and subtitle area clear. If
+there is no room, such as on a small screen with several boss bars, or if the size is invalid, it
+returns `Ok(None)` and the caller should not draw that label. Calling outside `hud` returns an error.
+The tab list draws later and can cover top-center labels; side corners and arbitrary overlays are
+not reserved either. The original `services::hud_place` remains unchanged.
 
 ### What the host applies / does not
 
