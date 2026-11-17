@@ -47,6 +47,7 @@ struct Landing {
 /// The device's queue, with frames submitted on the submit thread when it runs.
 pub struct Queue {
     queue: wgpu::Queue,
+    timeline: Option<super::mod_gpu_resources::SubmissionTimeline>,
     thread: Option<Thread>,
     /// A frame went to the submit thread and has not been waited for.
     pending: AtomicBool,
@@ -60,6 +61,7 @@ impl Queue {
     /// `threaded`: frames may go to a submit thread (the renderer asks [`wanted`]).
     pub fn new(queue: wgpu::Queue, threaded: bool) -> Self {
         let mut this = Self {
+            timeline: super::mod_gpu_runtime::submission_timeline(&queue),
             queue,
             thread: None,
             pending: AtomicBool::new(false),
@@ -72,12 +74,17 @@ impl Queue {
         let (jobs, job_rx) = mpsc::channel::<Job>();
         let (done_tx, done) = mpsc::channel();
         let queue = this.queue.clone();
+        let timeline = this.timeline.clone();
         let spawned = std::thread::Builder::new()
             .name("Render submit".into())
             .spawn(move || {
                 for job in job_rx {
                     let commands = job.encoder.finish();
-                    let submission = queue.submit([commands]);
+                    let submission = if let Some(timeline) = &timeline {
+                        timeline.submit_engine(&queue, [commands])
+                    } else {
+                        queue.submit([commands])
+                    };
                     if let Some(after) = job.after {
                         after();
                     }
@@ -100,6 +107,17 @@ impl Queue {
             Err(e) => log::warn!("Horizon renderer: no submit thread ({e}); submitting in place"),
         }
         this
+    }
+    pub fn submit(
+        &self,
+        commands: impl IntoIterator<Item = wgpu::CommandBuffer>,
+    ) -> wgpu::SubmissionIndex {
+        self.wait();
+        if let Some(timeline) = &self.timeline {
+            timeline.submit_engine(&self.queue, commands)
+        } else {
+            self.queue.submit(commands)
+        }
     }
     fn lock(&self) -> std::sync::MutexGuard<'_, Option<Landing>> {
         self.landing

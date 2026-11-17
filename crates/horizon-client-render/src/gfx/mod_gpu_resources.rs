@@ -12,12 +12,12 @@ mod timing;
 pub use commands::{Draw, FrameTarget, Index, Readback, Rect, Region, Target};
 pub use engine::{EngineFrame, EngineSources};
 pub use pipelines::{Binding, RenderDescriptor, VertexAttribute};
+pub(super) use timing::SubmissionTimeline;
 
 #[derive(Clone)]
 pub struct SubmissionHooks {
     pub before: Arc<dyn Fn(ModId) -> Result<(), String> + Send + Sync>,
     pub complete: Arc<dyn Fn(ModId) + Send + Sync>,
-    pub fault: Arc<dyn Fn(ModId) + Send + Sync>,
 }
 
 type Owned = Arc<Resource<Value>>;
@@ -75,6 +75,8 @@ pub struct Gpu {
     completions: Vec<(ModId, timing::Completion)>,
     budgets: BTreeMap<ModId, timing::Budget>,
     cpu_budgets: BTreeMap<ModId, timing::Budget>,
+    fallback_budgets: BTreeMap<ModId, timing::FallbackBudget>,
+    pub(super) submission_timeline: SubmissionTimeline,
     timestamps: bool,
     frame_index: u64,
     submission_hooks: Option<SubmissionHooks>,
@@ -157,7 +159,7 @@ impl Gpu {
             .saturating_mul(u64::from(self.frame_limits.height))
             .max(1)
             .saturating_mul(1024)
-            / self.budget_divisor(owner, timestamps)
+            / self.budget_divisor(owner, timestamps).pow(2)
     }
 
     fn vertex_limit(&self, owner: ModId, timestamps: bool) -> u64 {
@@ -231,6 +233,7 @@ impl Gpu {
         self.completions.retain(|(identity, _)| *identity != owner);
         self.budgets.remove(&owner);
         self.cpu_budgets.remove(&owner);
+        self.fallback_budgets.remove(&owner);
         self.disabled.entry(owner).or_insert(reason);
     }
 
@@ -248,6 +251,7 @@ impl Gpu {
         self.completions.clear();
         self.budgets.clear();
         self.cpu_budgets.clear();
+        self.fallback_budgets.clear();
         self.resources = Default::default();
     }
 
@@ -264,6 +268,7 @@ impl Gpu {
         self.completions.retain(|(identity, _)| *identity != owner);
         self.budgets.remove(&owner);
         self.cpu_budgets.remove(&owner);
+        self.fallback_budgets.remove(&owner);
         self.disabled.remove(&owner);
         self.creations.remove(&owner);
     }

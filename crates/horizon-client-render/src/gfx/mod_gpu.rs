@@ -397,6 +397,7 @@ struct FrameUsage {
     passes: u32,
     read: u64,
     commands: u32,
+    draw_allowance_hit: bool,
 }
 
 impl FrameUsage {
@@ -554,12 +555,35 @@ impl<Command> Recorder<Command> {
         if !self.active {
             return Err(Error::Frame);
         }
-        let next = self
-            .usage
-            .get(&owner)
-            .copied()
-            .unwrap_or_default()
-            .charge(kind)?;
+        let usage = self.usage.entry(owner).or_default();
+        if let CommandKind::Render {
+            count,
+            instances,
+            fragment_work,
+            pixel_limit,
+            vertex_limit,
+            ..
+        } = kind
+        {
+            if instances > MAX_INSTANCES {
+                return Err(Error::Vertices);
+            }
+            if usage.draw_allowance_hit
+                || usage
+                    .fragment_work
+                    .saturating_add(fragment_work)
+                    .div_ceil(2048)
+                    > pixel_limit
+                || usage
+                    .vertices
+                    .saturating_add(u64::from(count) * u64::from(instances))
+                    > vertex_limit
+            {
+                usage.draw_allowance_hit = true;
+                return Ok(());
+            }
+        }
+        let next = usage.charge(kind)?;
         self.commands.push(Recorded {
             owner,
             stage,
@@ -568,6 +592,12 @@ impl<Command> Recorder<Command> {
         });
         self.usage.insert(owner, next);
         Ok(())
+    }
+
+    pub fn draw_allowance_hit(&self, owner: ModId) -> bool {
+        self.usage
+            .get(&owner)
+            .is_some_and(|usage| usage.draw_allowance_hit)
     }
 
     pub fn finish_frame(&mut self) -> Result<Vec<Recorded<Command>>, Error> {

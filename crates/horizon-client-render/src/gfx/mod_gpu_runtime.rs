@@ -61,6 +61,18 @@ fn runtime() -> &'static Mutex<Option<Runtime>> {
     RUNTIME.get_or_init(Default::default)
 }
 
+pub(super) fn submission_timeline(
+    queue: &wgpu::Queue,
+) -> Option<super::mod_gpu_resources::SubmissionTimeline> {
+    let guard = runtime()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    guard
+        .as_ref()
+        .filter(|runtime| runtime.queue == *queue)
+        .map(|runtime| runtime.gpu.submission_timeline.clone())
+}
+
 fn callbacks() -> &'static Mutex<BTreeMap<ModId, Callback>> {
     static CALLBACKS: OnceLock<Mutex<BTreeMap<ModId, Callback>>> = OnceLock::new();
     CALLBACKS.get_or_init(Default::default)
@@ -82,6 +94,9 @@ pub fn configure(device: &wgpu::Device, queue: &wgpu::Queue, lost: Arc<AtomicBoo
         gpu.restore_suspended(previous.gpu.suspended());
     }
     recovery::install(&mut gpu, lost.clone());
+    gpu.submission_timeline.set_engine_tracking(
+        active() && !device.features().contains(wgpu::Features::TIMESTAMP_QUERY),
+    );
     *guard = Some(Runtime {
         device: device.clone(),
         queue: queue.clone(),
@@ -111,6 +126,12 @@ pub fn register_package(owner: ModId, identity: &str, fingerprint: &str, callbac
         .as_mut()
     {
         recovery::install(&mut runtime.gpu, runtime.lost.clone());
+        runtime.gpu.submission_timeline.set_engine_tracking(
+            !runtime
+                .device
+                .features()
+                .contains(wgpu::Features::TIMESTAMP_QUERY),
+        );
         runtime.scene_reads = SceneReads::default();
         if let Err(error) = &result {
             runtime.gpu.disable(owner, error.clone());
@@ -185,6 +206,13 @@ pub fn remove(owner: ModId) {
         .as_mut()
     {
         runtime.gpu.remove_owner(owner);
+        runtime.gpu.submission_timeline.set_engine_tracking(
+            active()
+                && !runtime
+                    .device
+                    .features()
+                    .contains(wgpu::Features::TIMESTAMP_QUERY),
+        );
     }
 }
 

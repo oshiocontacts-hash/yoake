@@ -827,9 +827,10 @@ impl Gpu {
                     }
                 }
                 let passes = runs.iter().filter(|run| run[0].is_pass()).count() as u32;
-                let workload = super::timing::Workload::from_commands(
+                let mut workload = super::timing::Workload::from_commands(
                     batch.iter().map(|recorded| recorded.kind),
                 );
+                workload.allowance_hit = self.recorder.draw_allowance_hit(owner);
                 let timing = self.timing_ticket(device, queue, owner, passes, workload)?;
                 let ticket = timing.as_ref().and_then(|resource| match resource.value() {
                     Value::Timing(ticket) => Some(ticket),
@@ -874,13 +875,12 @@ impl Gpu {
                 if let Some(hooks) = &self.submission_hooks {
                     (hooks.before)(owner).map_err(Error::Host)?;
                 }
-                let completion = self.submission_started(owner, ticket.is_none());
-                queue.submit([command_buffer]);
-                queue.on_submitted_work_done(move || {
-                    if let Ok(mut finished) = completion.lock() {
-                        *finished = Some(Instant::now());
-                    }
-                });
+                self.submission_started(
+                    queue,
+                    owner,
+                    !device.features().contains(wgpu::Features::TIMESTAMP_QUERY),
+                    command_buffer,
+                );
                 submitted = true;
                 retained_timing = timing.clone();
                 if let Some(ticket) = ticket {

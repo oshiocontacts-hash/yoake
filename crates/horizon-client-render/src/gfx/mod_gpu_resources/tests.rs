@@ -480,8 +480,8 @@ fn fragment_budget_counts_primitives_for_every_supported_topology() {
         for (primitives, pixels) in [
             (2048, Some(1)),
             (2049, Some(2)),
-            (131072, Some(64)),
-            (131073, None),
+            (8192, Some(4)),
+            (8193, None),
         ] {
             gpu.begin_frame().unwrap();
             let result = gpu.draw(
@@ -497,7 +497,7 @@ fn fragment_budget_counts_primitives_for_every_supported_topology() {
                     matches!(gpu.pending[0].kind, crate::gfx::mod_gpu::CommandKind::Render { fragment_work, .. } if fragment_work.div_ceil(2048) == expected)
                 );
             } else {
-                assert_eq!(result, Err(Error::Pixels));
+                result.unwrap();
                 gpu.finish_frame().unwrap();
                 assert!(gpu.pending.is_empty());
             }
@@ -525,8 +525,22 @@ fn frame_fragment_budget_rounds_once_across_small_mesh_draws() {
     );
     gpu.begin_frame().unwrap();
     for _ in 0..200 {
-        gpu.draw(owner, Stage::Hud, draw(pipeline, 500 * 3), Target::Frame)
-            .unwrap();
+        gpu.draw_region(
+            owner,
+            Stage::Hud,
+            draw(pipeline, 500 * 3),
+            Target::Frame,
+            Region {
+                viewport: Some(Rect {
+                    x: 0,
+                    y: 0,
+                    width: 1,
+                    height: 1,
+                }),
+                scissor: None,
+            },
+        )
+        .unwrap();
     }
     gpu.finish_frame().unwrap();
     assert_eq!(gpu.pending.len(), 200);
@@ -538,19 +552,17 @@ fn frame_fragment_budget_rounds_once_across_small_mesh_draws() {
             _ => panic!("expected mesh draws"),
         })
         .sum();
-    assert_eq!(
-        fragment_work.div_ceil(2048),
-        (1280_u64 * 720 * 100_000).div_ceil(2048)
-    );
+    assert_eq!(fragment_work, 100_000);
+    assert_eq!(fragment_work.div_ceil(2048), 49);
     gpu.begin_frame().unwrap();
     assert_eq!(
         (0..500).try_for_each(|_| {
             gpu.draw(owner, Stage::Hud, draw(pipeline, 2000 * 3), Target::Frame)
         }),
-        Err(Error::Pixels)
+        Ok(())
     );
     gpu.finish_frame().unwrap();
-    assert!(gpu.pending.len() < 500);
+    assert_eq!(gpu.pending.len(), 4);
     assert!(gpu.disabled_reason(owner).is_none());
 }
 
@@ -578,9 +590,10 @@ fn new_mod_fragment_budget_admits_meshes_and_small_instanced_quads() {
             draw(pipeline, 1_000_000 * 3),
             Target::Frame
         ),
-        Err(Error::Pixels)
+        Ok(())
     );
     gpu.finish_frame().unwrap();
+    assert!(gpu.pending.is_empty());
     for instances in [10_000, 65_536] {
         gpu.begin_frame().unwrap();
         let mut particles = draw(pipeline, 6);
@@ -602,6 +615,7 @@ fn new_mod_fragment_budget_admits_meshes_and_small_instanced_quads() {
         )
         .unwrap();
         gpu.finish_frame().unwrap();
+        assert_eq!(gpu.pending.len(), 1);
     }
     gpu.begin_frame().unwrap();
     let mut vertex_heavy = draw(pipeline, 6);

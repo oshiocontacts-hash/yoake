@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -18,8 +19,179 @@ pub(super) struct Ticket {
 pub(super) struct Completion {
     frame: u64,
     submitted_at: Instant,
+    previous: Option<Arc<Mutex<Option<Instant>>>>,
     finished: Arc<Mutex<Option<Instant>>>,
     fallback: bool,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct SubmissionTimeline {
+    state: Arc<Mutex<TimelineState>>,
+    engine_tracking: Arc<AtomicBool>,
+}
+
+#[derive(Clone)]
+struct Interval {
+    previous: Option<Arc<Mutex<Option<Instant>>>>,
+    finished: Arc<Mutex<Option<Instant>>>,
+}
+
+#[derive(Default)]
+struct TimelineState {
+    tail: Option<Arc<Mutex<Option<Instant>>>>,
+    engine_pending: std::collections::VecDeque<Interval>,
+    engine_samples: std::collections::VecDeque<(Instant, f64)>,
+}
+
+impl Interval {
+    fn pending(&self) -> bool {
+        self.finished
+            .lock()
+            .is_ok_and(|finished| finished.is_none())
+            || self
+                .previous
+                .as_ref()
+                .is_some_and(|previous| previous.lock().is_ok_and(|previous| previous.is_none()))
+    }
+
+    fn measurement(&self) -> Option<(Instant, f64)> {
+        let finished = (*self.finished.lock().ok()?)?;
+        let previous = (*self.previous.as_ref()?.lock().ok()?)?;
+        Some((
+            finished,
+            finished.saturating_duration_since(previous).as_secs_f64() * 1000.0,
+        ))
+    }
+}
+
+impl TimelineState {
+    fn begin(&mut self, engine: bool) -> Interval {
+        let interval = Interval {
+            previous: self.tail.clone(),
+            finished: Arc::new(Mutex::new(None)),
+        };
+        self.tail = Some(interval.finished.clone());
+        if engine {
+            self.engine_pending.push_back(interval.clone());
+        }
+        interval
+    }
+}
+
+impl SubmissionTimeline {
+    pub(crate) fn set_engine_tracking(&self, enabled: bool) {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        self.engine_tracking.store(enabled, Ordering::Release);
+        if !enabled {
+            state.tail = None;
+            state.engine_pending.clear();
+            state.engine_samples.clear();
+        }
+    }
+
+    fn submit(
+        &self,
+        queue: &wgpu::Queue,
+        commands: impl IntoIterator<Item = wgpu::CommandBuffer>,
+        engine: bool,
+    ) -> (wgpu::SubmissionIndex, Interval) {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let interval = state.begin(engine);
+        let submission = queue.submit(commands);
+        let finished = interval.finished.clone();
+        queue.on_submitted_work_done(move || {
+            if let Ok(mut finished) = finished.lock() {
+                *finished = Some(Instant::now());
+            }
+        });
+        (submission, interval)
+    }
+
+    pub(crate) fn submit_engine(
+        &self,
+        queue: &wgpu::Queue,
+        commands: impl IntoIterator<Item = wgpu::CommandBuffer>,
+    ) -> wgpu::SubmissionIndex {
+        if !self.engine_tracking.load(Ordering::Acquire) {
+            return queue.submit(commands);
+        }
+        self.submit(queue, commands, true).0
+    }
+
+    #[cfg(test)]
+    fn begin(&self, engine: bool) -> Interval {
+        self.state.lock().unwrap().begin(engine)
+    }
+
+    fn collect(&self) {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut pending = std::mem::take(&mut state.engine_pending);
+        while let Some(interval) = pending.pop_front() {
+            if let Some(sample) = interval.measurement() {
+                state.engine_samples.push_back(sample);
+            } else if interval.pending() {
+                state.engine_pending.push_back(interval);
+            }
+        }
+    }
+
+    fn prune(&self, at: Instant) {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .engine_samples
+            .retain(|(finished, _)| {
+                at.saturating_duration_since(*finished) < Duration::from_secs(2)
+            });
+    }
+
+    fn baseline(&self, at: Instant) -> f64 {
+        let state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let samples: Vec<_> = state
+            .engine_samples
+            .iter()
+            .filter(|(finished, _)| {
+                *finished <= at && at.saturating_duration_since(*finished) < Duration::from_secs(2)
+            })
+            .collect();
+        if samples.is_empty() {
+            0.0
+        } else {
+            samples
+                .iter()
+                .map(|(_, milliseconds)| milliseconds)
+                .sum::<f64>()
+                / samples.len() as f64
+        }
+    }
+}
+
+#[derive(Default)]
+pub(super) struct FallbackBudget {
+    strikes: std::collections::BTreeMap<u64, Instant>,
+}
+
+impl FallbackBudget {
+    fn sample(&mut self, now: Instant, frame: u64, milliseconds: f64, baseline: f64) -> bool {
+        self.strikes
+            .retain(|_, at| now.saturating_duration_since(*at) < Duration::from_secs(60));
+        if milliseconds > baseline + 200.0 {
+            self.strikes.entry(frame).or_insert(now);
+        }
+        self.strikes.len() >= 3
+    }
 }
 
 #[derive(Clone, Copy, Default)]
@@ -27,6 +199,7 @@ pub(super) struct Workload {
     pixels: u64,
     vertices: u64,
     compute: u64,
+    pub allowance_hit: bool,
 }
 
 impl Workload {
@@ -65,16 +238,18 @@ impl Workload {
         self.pixels = self.pixels.saturating_add(other.pixels);
         self.vertices = self.vertices.saturating_add(other.vertices);
         self.compute = self.compute.saturating_add(other.compute);
+        self.allowance_hit |= other.allowance_hit;
     }
 
     fn uses_quarter(self, allowance: Self) -> bool {
-        [
-            (self.pixels, allowance.pixels),
-            (self.vertices, allowance.vertices),
-            (self.compute, allowance.compute),
-        ]
-        .into_iter()
-        .any(|(used, limit)| limit > 0 && u128::from(used) * 4 >= u128::from(limit))
+        self.allowance_hit
+            || [
+                (self.pixels, allowance.pixels),
+                (self.vertices, allowance.vertices),
+                (self.compute, allowance.compute),
+            ]
+            .into_iter()
+            .any(|(used, limit)| limit > 0 && u128::from(used) * 4 >= u128::from(limit))
     }
 }
 
@@ -207,40 +382,68 @@ impl Gpu {
     }
 
     fn submission_ready_at(&self, owner: ModId, now: Instant) -> bool {
-        self.budgets
-            .get(&owner)
-            .is_none_or(|budget| now >= budget.throttle_until)
-        && !self.completions.iter().any(|(identity, completion)| {
-            *identity == owner && completion.frame != self.frame_index
-        }) && !self.timings.iter().any(|(identity, resource)| {
-            *identity == owner
-                && matches!(resource.value(), Value::Timing(ticket) if ticket.frame != self.frame_index)
-        })
+        let mut frames = std::collections::BTreeSet::new();
+        for (identity, completion) in &self.completions {
+            if *identity != owner
+                || completion
+                    .finished
+                    .lock()
+                    .is_ok_and(|finished| finished.is_some())
+            {
+                continue;
+            }
+            if now.saturating_duration_since(completion.submitted_at) > Duration::from_millis(100) {
+                return false;
+            }
+            frames.insert(completion.frame);
+        }
+        (frames.contains(&self.frame_index) || frames.len() < 3)
+            && self
+                .budgets
+                .get(&owner)
+                .is_none_or(|budget| now >= budget.throttle_until)
     }
 
     pub(super) fn submission_started(
         &mut self,
+        queue: &wgpu::Queue,
         owner: ModId,
         fallback: bool,
-    ) -> Arc<Mutex<Option<Instant>>> {
-        self.submission_started_at(owner, fallback, Instant::now())
+        commands: wgpu::CommandBuffer,
+    ) {
+        let now = Instant::now();
+        let (_, interval) = self.submission_timeline.submit(queue, [commands], false);
+        self.track_submission(owner, fallback, now, interval);
     }
 
+    #[cfg(test)]
     fn submission_started_at(
         &mut self,
         owner: ModId,
         fallback: bool,
         now: Instant,
     ) -> Arc<Mutex<Option<Instant>>> {
+        let interval = self.submission_timeline.begin(false);
+        self.track_submission(owner, fallback, now, interval)
+    }
+
+    fn track_submission(
+        &mut self,
+        owner: ModId,
+        fallback: bool,
+        now: Instant,
+        interval: Interval,
+    ) -> Arc<Mutex<Option<Instant>>> {
         self.budgets
             .entry(owner)
             .or_insert_with(|| Budget::new(now, self.frame_index));
-        let finished = Arc::new(Mutex::new(None));
+        let finished = interval.finished;
         self.completions.push((
             owner,
             Completion {
                 frame: self.frame_index,
                 submitted_at: now,
+                previous: interval.previous,
                 finished: finished.clone(),
                 fallback,
             },
@@ -271,9 +474,6 @@ impl Gpu {
             }
         }
         if exceeded {
-            if let Some(hooks) = &self.submission_hooks {
-                (hooks.fault)(owner);
-            }
             self.disable(
                 owner,
                 "GPU work exceeded 4 ms/frame over two seconds or the 50 ms peak cap".to_owned(),
@@ -282,6 +482,7 @@ impl Gpu {
     }
 
     fn collect_completions(&mut self, now: Instant) {
+        self.submission_timeline.collect();
         for (owner, completion) in std::mem::take(&mut self.completions) {
             if self.disabled_reason(owner).is_some() {
                 continue;
@@ -293,21 +494,41 @@ impl Gpu {
                 .and_then(|finished| *finished);
             if let Some(finished) = finished {
                 if completion.fallback {
-                    self.record_gpu_sample(
-                        owner,
-                        now,
-                        completion.frame,
-                        finished
-                            .saturating_duration_since(completion.submitted_at)
-                            .as_secs_f64()
-                            * 1000.0,
-                        None,
-                    );
+                    let interval = Interval {
+                        previous: completion.previous.clone(),
+                        finished: completion.finished.clone(),
+                    };
+                    if let Some((_, milliseconds)) = interval.measurement() {
+                        let baseline = self.submission_timeline.baseline(finished);
+                        if self.fallback_budgets.entry(owner).or_default().sample(
+                            finished,
+                            completion.frame,
+                            milliseconds,
+                            baseline,
+                        ) {
+                            self.disable(owner, "GPU completion exceeded the engine baseline by 200 ms three times in 60 seconds".to_owned());
+                        }
+                    } else if interval.pending() {
+                        self.completions.push((owner, completion));
+                    }
                 }
             } else {
                 self.completions.push((owner, completion));
             }
         }
+        let earliest = self
+            .completions
+            .iter()
+            .filter_map(|(_, completion)| {
+                completion
+                    .finished
+                    .lock()
+                    .ok()
+                    .and_then(|finished| *finished)
+            })
+            .min()
+            .unwrap_or(now);
+        self.submission_timeline.prune(earliest);
     }
 
     pub fn charge_cpu(&mut self, owner: ModId, elapsed: Duration) -> Result<(), Error> {
@@ -450,6 +671,7 @@ impl Gpu {
             pixels: self.pixel_limit(owner, true).saturating_mul(2048),
             vertices: self.vertex_limit(owner, true),
             compute: self.compute_limit(owner, true),
+            ..Default::default()
         };
         let handle = self
             .resources
@@ -506,59 +728,287 @@ mod tests {
     use super::*;
 
     #[test]
-    fn completion_latency_disables_a_slow_mod_without_timestamps() {
+    fn inactive_engine_timeline_does_not_record_submissions() {
+        let (_device, queue) = super::super::tests::gpu();
+        let timeline = SubmissionTimeline::default();
+        timeline.submit_engine(&queue, []);
+        {
+            let state = timeline.state.lock().unwrap();
+            assert!(state.tail.is_none());
+            assert!(state.engine_pending.is_empty());
+        }
+        timeline.set_engine_tracking(true);
+        timeline.submit_engine(&queue, []);
+        assert_eq!(timeline.state.lock().unwrap().engine_pending.len(), 1);
+        timeline.set_engine_tracking(false);
+        timeline.submit_engine(&queue, []);
+        let state = timeline.state.lock().unwrap();
+        assert!(state.tail.is_none());
+        assert!(state.engine_pending.is_empty());
+        assert!(state.engine_samples.is_empty());
+    }
+
+    #[test]
+    fn fallback_waits_for_the_preceding_completion_callback() {
         let start = Instant::now();
         let owner = ModId(1);
-        let faults = Arc::new(Mutex::new(Vec::new()));
-        let fault_log = faults.clone();
         let mut gpu = Gpu::default();
-        gpu.set_submission_hooks(super::super::SubmissionHooks {
-            before: Arc::new(|_| Ok(())),
-            complete: Arc::new(|_| {}),
-            fault: Arc::new(move |owner| fault_log.lock().unwrap().push(owner)),
-        });
-        assert!(!gpu.timestamps);
+        *gpu.submission_timeline.begin(true).finished.lock().unwrap() = Some(start);
+        let engine = gpu.submission_timeline.begin(true);
+        let finished = gpu.submission_started_at(owner, true, start);
+        *finished.lock().unwrap() = Some(start + Duration::from_millis(105));
+        gpu.collect_completions(start + Duration::from_millis(105));
+        assert_eq!(gpu.completions.len(), 1);
+        assert!(!gpu.fallback_budgets.contains_key(&owner));
+        *engine.finished.lock().unwrap() = Some(start + Duration::from_millis(100));
+        gpu.collect_completions(start + Duration::from_millis(105));
+        assert!(gpu.completions.is_empty());
+        assert_eq!(
+            gpu.submission_timeline
+                .baseline(start + Duration::from_millis(105)),
+            100.0
+        );
+        assert!(gpu.fallback_budgets[&owner].strikes.is_empty());
+    }
+
+    #[test]
+    fn delayed_collection_preserves_the_baseline_at_each_completion() {
+        let start = Instant::now();
+        let owner = ModId(1);
+        let mut gpu = Gpu::default();
+        *gpu.submission_timeline.begin(true).finished.lock().unwrap() = Some(start);
+        let mut completed_at = start;
         for frame in 1..=3 {
-            let submitted_at = start + Duration::from_millis((frame - 1) * 400);
             gpu.frame_index = frame;
-            assert!(gpu.submission_ready_at(owner, submitted_at));
-            let finished = gpu.submission_started_at(owner, true, submitted_at);
-            gpu.frame_index += 1;
-            assert!(!gpu.submission_ready_at(owner, submitted_at));
-            assert!(gpu.submission_ready_at(ModId(2), submitted_at));
-            let completed_at = submitted_at + Duration::from_millis(200);
+            let engine = gpu.submission_timeline.begin(true);
+            completed_at += Duration::from_millis(100);
+            *engine.finished.lock().unwrap() = Some(completed_at);
+            let finished = gpu.submission_started_at(owner, true, completed_at);
+            completed_at += Duration::from_millis(250);
             *finished.lock().unwrap() = Some(completed_at);
+        }
+        gpu.collect_completions(completed_at + Duration::from_secs(3));
+        assert!(gpu.completions.is_empty());
+        assert!(gpu.disabled_reason(owner).is_none());
+        assert!(gpu.fallback_budgets[&owner].strikes.is_empty());
+    }
+
+    #[test]
+    fn fallback_excludes_queued_engine_and_previous_mod_work_without_an_average_cap() {
+        let start = Instant::now();
+        let mut gpu = Gpu::default();
+        *gpu.submission_timeline.begin(true).finished.lock().unwrap() = Some(start);
+        let mut completed_at = start;
+        for frame in 1..=120 {
+            gpu.frame_index = frame;
+            let submitted_at = completed_at;
+            let engine = gpu.submission_timeline.begin(true);
+            completed_at += Duration::from_millis(100);
+            *engine.finished.lock().unwrap() = Some(completed_at);
+            for owner in [ModId(1), ModId(2)] {
+                let finished = gpu.submission_started_at(owner, true, submitted_at);
+                completed_at += Duration::from_millis(5);
+                *finished.lock().unwrap() = Some(completed_at);
+            }
             gpu.collect_completions(completed_at);
-            assert_eq!(gpu.budget_divisor(owner, false), 16);
-            assert_eq!(gpu.disabled_reason(owner).is_some(), frame == 3);
-            if frame < 3 {
-                assert!(!gpu.submission_ready_at(owner, completed_at));
-                assert!(gpu.submission_ready_at(owner, completed_at + Duration::from_millis(50)));
+            assert_eq!(gpu.submission_timeline.baseline(completed_at), 100.0);
+            for owner in [ModId(1), ModId(2)] {
+                assert!(gpu.disabled_reason(owner).is_none());
+                assert!(gpu.fallback_budgets[&owner].strikes.is_empty());
+                assert_eq!(gpu.budget_divisor(owner, false), 16);
+                assert!(gpu.submission_ready_at(owner, completed_at));
             }
         }
-        assert_eq!(*faults.lock().unwrap(), vec![owner]);
-        assert!(gpu.disabled_reason(ModId(2)).is_none());
         assert!(gpu.completions.is_empty());
     }
 
     #[test]
-    fn completion_latency_enforces_the_rolling_average_without_timestamps() {
+    fn fallback_disables_only_after_three_peaks_above_the_engine_baseline() {
         let start = Instant::now();
         let owner = ModId(1);
         let mut gpu = Gpu::default();
-        for frame in 1..=120 {
+        *gpu.submission_timeline.begin(true).finished.lock().unwrap() = Some(start);
+        let mut completed_at = start;
+        for (index, milliseconds) in [300, 301, 301, 301].into_iter().enumerate() {
+            let frame = index as u64 + 1;
             gpu.frame_index = frame;
-            let submitted_at = start + Duration::from_millis(frame * 17);
+            let submitted_at = completed_at;
+            let engine = gpu.submission_timeline.begin(true);
+            completed_at += Duration::from_millis(100);
+            *engine.finished.lock().unwrap() = Some(completed_at);
             let finished = gpu.submission_started_at(owner, true, submitted_at);
-            let completed_at = submitted_at + Duration::from_millis(5);
+            completed_at += Duration::from_millis(milliseconds);
             *finished.lock().unwrap() = Some(completed_at);
             gpu.collect_completions(completed_at);
-            if gpu.disabled_reason(owner).is_some() {
-                assert_eq!(frame, 119);
-                return;
+            assert_eq!(gpu.disabled_reason(owner).is_some(), frame == 4);
+            if frame < 4 {
+                assert!(gpu.submission_ready_at(owner, completed_at));
             }
         }
-        panic!("unmeasured adapters must enforce the rolling GPU budget");
+        assert!(gpu.disabled_reason(ModId(2)).is_none());
+        assert!(Gpu::default().disabled_reason(owner).is_none());
+    }
+
+    #[test]
+    fn fallback_strikes_are_distinct_frames_and_expire_after_sixty_seconds() {
+        let start = Instant::now();
+        let mut budget = FallbackBudget::default();
+        assert!(!budget.sample(start, 1, 300.0, 100.0));
+        assert!(budget.strikes.is_empty());
+        assert!(!budget.sample(start, 1, 301.0, 100.0));
+        assert!(!budget.sample(start, 1, 301.0, 100.0));
+        assert!(!budget.sample(start, 2, 301.0, 100.0));
+        assert!(!budget.sample(start + Duration::from_secs(60), 3, 301.0, 100.0));
+        assert_eq!(budget.strikes.len(), 1);
+    }
+
+    #[test]
+    fn one_or_two_frames_of_gpu_lag_never_skip_a_mod_batch() {
+        let owner = ModId(1);
+        let start = Instant::now();
+        for lag in [1, 2] {
+            let mut gpu = Gpu::default();
+            let mut pending: std::collections::VecDeque<Arc<Mutex<Option<Instant>>>> =
+                Default::default();
+            for frame in 1..=12 {
+                let now = start + Duration::from_millis(frame * 17);
+                gpu.frame_index = frame;
+                if pending.len() == lag {
+                    *pending.pop_front().unwrap().lock().unwrap() = Some(now);
+                }
+                gpu.collect_completions(now);
+                assert!(gpu.submission_ready_at(owner, now));
+                pending.push_back(gpu.submission_started_at(owner, false, now));
+            }
+        }
+    }
+
+    #[test]
+    fn submission_backlog_counts_frames_and_blocks_old_work_per_owner() {
+        let owner = ModId(1);
+        let start = Instant::now();
+        let mut gpu = Gpu::default();
+        for frame in 1..=3 {
+            gpu.frame_index = frame;
+            assert!(gpu.submission_ready_at(owner, start));
+            gpu.submission_started_at(owner, false, start);
+            assert!(gpu.submission_ready_at(owner, start));
+            gpu.submission_started_at(owner, false, start);
+        }
+        gpu.frame_index = 4;
+        assert!(!gpu.submission_ready_at(owner, start));
+        assert!(gpu.submission_ready_at(ModId(2), start));
+        gpu.frame_index = 3;
+        assert!(gpu.submission_ready_at(owner, start + Duration::from_millis(100)));
+        assert!(!gpu.submission_ready_at(owner, start + Duration::from_millis(101)));
+    }
+
+    #[test]
+    fn ordinary_mesh_draws_skip_the_initial_allowance_then_ramp() {
+        use super::super::super::mod_gpu::{CommandKind, Recorder, Stage};
+
+        let owner = ModId(1);
+        let start = Instant::now();
+        let mut gpu = Gpu::default();
+        let covered_pixels = u64::from(gpu.frame_limits.width) * u64::from(gpu.frame_limits.height);
+        for frame in 1..=32 {
+            gpu.frame_index = frame;
+            let pixel_limit = gpu.pixel_limit(owner, true);
+            let vertex_limit = gpu.vertex_limit(owner, true);
+            let mut recorder = Recorder::default();
+            recorder.begin_frame().unwrap();
+            for draw in 0..200 {
+                recorder
+                    .record(
+                        owner,
+                        Stage::Hud,
+                        CommandKind::Render {
+                            count: 1500,
+                            instances: 1,
+                            fragment_work: covered_pixels * 500,
+                            pixel_limit,
+                            vertex_limit,
+                            new_pass: draw == 0,
+                        },
+                        || draw,
+                    )
+                    .unwrap();
+            }
+            let allowance_hit = recorder.draw_allowance_hit(owner);
+            let commands = recorder.finish_frame().unwrap();
+            if frame == 1 {
+                assert_eq!(commands.len(), 16);
+                assert_eq!(
+                    commands
+                        .iter()
+                        .map(|command| command.command)
+                        .collect::<Vec<_>>(),
+                    (0..16).collect::<Vec<_>>()
+                );
+            }
+            if frame >= 17 {
+                assert_eq!(commands.len(), 200);
+            }
+            let mut workload = Workload::from_commands(commands.iter().map(|command| command.kind));
+            workload.allowance_hit = allowance_hit;
+            gpu.record_gpu_sample(
+                owner,
+                start,
+                frame,
+                1.0,
+                Some((
+                    workload,
+                    Workload {
+                        pixels: pixel_limit * 2048,
+                        vertices: vertex_limit,
+                        ..Default::default()
+                    },
+                )),
+            );
+            gpu.budgets
+                .get_mut(&owner)
+                .unwrap()
+                .finish_frames(frame + 1, &Default::default());
+            assert!(gpu.disabled_reason(owner).is_none());
+        }
+    }
+
+    #[test]
+    fn million_fullscreen_triangles_never_exceed_the_first_frame_cap() {
+        use super::super::super::mod_gpu::{CommandKind, Recorder, Stage};
+
+        let owner = ModId(1);
+        let gpu = Gpu::default();
+        let covered_pixels = u64::from(gpu.frame_limits.width) * u64::from(gpu.frame_limits.height);
+        for timestamps in [false, true] {
+            assert_eq!(
+                gpu.pixel_limit(owner, timestamps) * 2048 / covered_pixels,
+                8192
+            );
+            let mut recorder = Recorder::default();
+            recorder.begin_frame().unwrap();
+            for draw in 0..1000 {
+                recorder
+                    .record(
+                        owner,
+                        Stage::Hud,
+                        CommandKind::Render {
+                            count: 3000,
+                            instances: 1,
+                            fragment_work: covered_pixels * 1000,
+                            pixel_limit: gpu.pixel_limit(owner, timestamps),
+                            vertex_limit: gpu.vertex_limit(owner, timestamps),
+                            new_pass: draw == 0,
+                        },
+                        || (),
+                    )
+                    .unwrap();
+            }
+            assert!(recorder.draw_allowance_hit(owner));
+            let commands = recorder.finish_frame().unwrap();
+            assert_eq!(commands.len(), 8);
+            assert!(commands.len() * 1000 <= 8192);
+        }
     }
 
     #[test]
@@ -585,7 +1035,7 @@ mod tests {
                 count: 3,
                 instances: 1,
                 fragment_work: covered_pixels,
-                pixel_limit: covered_pixels * 64,
+                pixel_limit: covered_pixels * 4,
                 vertex_limit: 1 << 20,
                 new_pass: true,
             }]);
@@ -595,7 +1045,7 @@ mod tests {
             let sample = budget.samples.get_mut(&frame).unwrap();
             sample.workload = workload;
             sample.allowance = Workload {
-                pixels: covered_pixels * 64 * 2048,
+                pixels: covered_pixels * 4 * 2048,
                 vertices: 1 << 20,
                 ..Default::default()
             };
@@ -663,6 +1113,20 @@ mod tests {
                 frame >= 118
             );
         }
+    }
+
+    #[test]
+    fn timestamp_budget_disables_only_the_current_session() {
+        let start = Instant::now();
+        let owner = ModId(1);
+        let mut gpu = Gpu::default();
+        for frame in 1..=3 {
+            gpu.frame_index = frame;
+            gpu.record_gpu_sample(owner, start, frame, 50.1, None);
+            assert_eq!(gpu.disabled_reason(owner).is_some(), frame == 3);
+        }
+        assert!(gpu.disabled_reason(ModId(2)).is_none());
+        assert!(Gpu::default().disabled_reason(owner).is_none());
     }
 
     #[test]

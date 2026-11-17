@@ -324,7 +324,7 @@ fn run_demo(device: &wgpu::Device, queue: &wgpu::Queue, measured: bool) {
                 },
                 Target::Frame
             ),
-            Err(Error::Pixels)
+            Ok(())
         );
         assert_eq!(
             gpu.dispatch(
@@ -343,6 +343,16 @@ fn run_demo(device: &wgpu::Device, queue: &wgpu::Queue, measured: bool) {
             );
         }
         gpu.finish_frame().unwrap();
+        assert_eq!(
+            gpu.pending
+                .iter()
+                .filter(|command| matches!(
+                    command.kind,
+                    crate::gfx::mod_gpu::CommandKind::Render { .. }
+                ))
+                .count(),
+            2
+        );
         let mut encoder = device.create_command_encoder(&Default::default());
         drop(encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
