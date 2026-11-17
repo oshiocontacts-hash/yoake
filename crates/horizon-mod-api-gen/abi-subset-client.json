@@ -18,7 +18,7 @@
     "camera-override": {"position":"vec3","yaw":"f32","pitch":"f32","roll":"f32","fov-degrees":"f32"},
     "pcm-anchor": {"entity":"option<u32>","position":"option<vec3>"}
   },
-  "enums": {"hud-corner":["top-left","top-right","bottom-left","bottom-right"]},
+  "enums": {"hud-corner":["top-left","top-right","bottom-left","bottom-right"],"hud-corner-v2":["top-left","top-right","bottom-left","bottom-right","top-center"]},
   "hooks": [],
   "services": [
     {"id":163,"abi":true,"name":"register_key_binding","arguments":{"id":"string","default-key":"string","category":"string","label":"string"},"result":"result<_, string>","side":"client","capability":"service.key-binding"},
@@ -55,6 +55,8 @@
     {"id":194,"abi":true,"name":"audio_stream_close","arguments":{"stream":"u32"},"result":"result<bool, string>","side":"client","capability":"service.audio"},
     {"id":195,"abi":true,"name":"hud_place","arguments":{"corner":"hud-corner","size":"vec2"},"result":"result<option<vec2>, string>","side":"client","capability":"service.hud"},
     {"id":196,"abi":true,"name":"map_colors","arguments":{},"result":"result<list<u32>, string>","side":"client","capability":"service.client-map"},
-    {"id":197,"abi":true,"name":"draw_mob_as_player","arguments":{"appearance":"list<u8>"},"result":"result<bool, string>","side":"client","capability":"service.mob-render"}
+    {"id":197,"abi":true,"name":"draw_mob_as_player","arguments":{"appearance":"list<u8>"},"result":"result<bool, string>","side":"client","capability":"service.mob-render"},
+    {"id":199,"abi":true,"name":"gui_size","arguments":{},"result":"result<vec2, string>","side":"client","capability":"service.screen"},
+    {"id":200,"abi":true,"name":"hud_place_v2","arguments":{"corner":"hud-corner-v2","size":"vec2"},"result":"result<option<vec2>, string>","side":"client","capability":"service.hud"}
   ]
 }

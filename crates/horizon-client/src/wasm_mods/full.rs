@@ -1427,14 +1427,174 @@ mod tests {
         std::fs::remove_dir_all(&host.root).unwrap();
     }
 
+    #[test]
+    fn gui_size_reads_live_host_without_hud_layout() {
+        let host = FakeHost::default();
+        host.gui_dimensions.set([320.0, 240.0]);
+        let mut service = GameHost::new("gui-size-test");
+        assert!(yoake_wasm::ClientServices::gui_size(&mut service).is_err());
+
+        with_services(HostAccess::Read(&host), || {
+            let size = yoake_wasm::ClientServices::gui_size(&mut service).unwrap();
+            assert_eq!((size.x, size.y), (320.0, 240.0));
+            host.gui_dimensions.set([640.0, 360.0]);
+            let size = yoake_wasm::ClientServices::gui_size(&mut service).unwrap();
+            assert_eq!((size.x, size.y), (640.0, 360.0));
+        });
+    }
+
+    #[test]
+    fn hud_place_v2_shares_top_center_reservations() {
+        use yoake_wasm::client_types::{HudCornerV2, Vec2};
+
+        let host = FakeHost::default();
+        let mut corners = Corners::new(400.0, 300.0, 26.0);
+        corners.reserve_top_center(1);
+        let mut invocation = Invocation {
+            host: HostAccess::Read(&host),
+            batch: None,
+            batch_start: 0,
+            client: ClientExtras {
+                corners: Some(&mut corners),
+                ..ClientExtras::default()
+            },
+        };
+        let _scope = Scope::enter(&mut invocation);
+        let mut first = GameHost::new("top-center-first");
+        let mut second = GameHost::new("top-center-second");
+        let size = Vec2 { x: 50.0, y: 12.0 };
+        let placed = yoake_wasm::ClientServices::hud_place_v2(
+            &mut first,
+            HudCornerV2::TopCenter,
+            size.clone(),
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!((placed.x, placed.y), (175.0, 19.0));
+        let placed = yoake_wasm::ClientServices::hud_place_v2(
+            &mut second,
+            HudCornerV2::TopCenter,
+            size,
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!((placed.x, placed.y), (175.0, 33.0));
+    }
+
+    #[test]
+    fn hud_place_v2_declines_when_four_bosses_fill_small_screen() {
+        use yoake_wasm::client_types::{HudCornerV2, Vec2};
+
+        let host = FakeHost::default();
+        let mut batch = HudBatch::new([320, 240]);
+        let mut corners = Corners::new(batch.width, batch.height, 0.0);
+        corners.reserve_top_center(4);
+        {
+            let mut invocation = Invocation {
+                host: HostAccess::Read(&host),
+                batch: Some(&mut batch),
+                batch_start: 0,
+                client: ClientExtras {
+                    corners: Some(&mut corners),
+                    ..ClientExtras::default()
+                },
+            };
+            let _scope = Scope::enter(&mut invocation);
+            let mut service = GameHost::new("small-screen-boss-test");
+            let placed = yoake_wasm::ClientServices::hud_place_v2(
+                &mut service,
+                HudCornerV2::TopCenter,
+                Vec2 { x: 20.0, y: 8.0 },
+            )
+            .unwrap();
+            assert!(placed.is_none());
+        }
+        assert!(batch.vertices.is_empty());
+    }
+
+    #[test]
+    fn hud_place_v2_shares_legacy_corner_stacks() {
+        use yoake_wasm::client_types::{HudCorner, HudCornerV2, Vec2};
+
+        let cases = [
+            (
+                HudCorner::TopLeft,
+                HudCornerV2::TopLeft,
+                [(2.0, 2.0), (2.0, 16.0), (2.0, 30.0)],
+            ),
+            (
+                HudCorner::TopRight,
+                HudCornerV2::TopRight,
+                [(348.0, 28.0), (348.0, 42.0), (348.0, 56.0)],
+            ),
+            (
+                HudCorner::BottomLeft,
+                HudCornerV2::BottomLeft,
+                [(2.0, 286.0), (2.0, 272.0), (2.0, 258.0)],
+            ),
+            (
+                HudCorner::BottomRight,
+                HudCornerV2::BottomRight,
+                [(348.0, 286.0), (348.0, 272.0), (348.0, 258.0)],
+            ),
+        ];
+        let host = FakeHost::default();
+        for (legacy_corner, new_corner, expected) in cases {
+            let mut corners = Corners::new(400.0, 300.0, 26.0);
+            let mut invocation = Invocation {
+                host: HostAccess::Read(&host),
+                batch: None,
+                batch_start: 0,
+                client: ClientExtras {
+                    corners: Some(&mut corners),
+                    ..ClientExtras::default()
+                },
+            };
+            let _scope = Scope::enter(&mut invocation);
+            let mut first = GameHost::new("legacy-first");
+            let mut second = GameHost::new("v2-second");
+            let size = Vec2 { x: 50.0, y: 12.0 };
+            let first_placement =
+                yoake_wasm::ClientServices::hud_place(&mut first, legacy_corner.clone(), size.clone())
+                    .unwrap()
+                    .unwrap();
+            let second_placement =
+                yoake_wasm::ClientServices::hud_place_v2(&mut second, new_corner, size.clone())
+                    .unwrap()
+                    .unwrap();
+            let third_placement =
+                yoake_wasm::ClientServices::hud_place(&mut first, legacy_corner, size)
+                    .unwrap()
+                    .unwrap();
+            assert_eq!((first_placement.x, first_placement.y), expected[0]);
+            assert_eq!((second_placement.x, second_placement.y), expected[1]);
+            assert_eq!((third_placement.x, third_placement.y), expected[2]);
+        }
+    }
+
     #[derive(Default)]
     struct FakeHost {
         texts: RefCell<Vec<String>>,
         fills: RefCell<u32>,
         told: RefCell<Vec<String>>,
+        gui_dimensions: std::cell::Cell<[f32; 2]>,
     }
 
     impl Host for FakeHost {
+        fn gui_size(&self) -> [f32; 2] {
+            self.gui_dimensions.get()
+        }
+
+        fn hud_place(
+            &self,
+            corners: &mut Corners,
+            corner: crate::extras::Corner,
+            size: [f32; 2],
+        ) -> Option<[f32; 2]> {
+            let (position_x, position_y) = corners.place(corner, size[0], size[1]);
+            Some([position_x, position_y])
+        }
+
         fn window(&self) -> bool {
             true
         }

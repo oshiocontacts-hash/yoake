@@ -242,7 +242,8 @@ impl Game<'_> {
     pub(super) fn draw_extras(&mut self, batch: &mut HudBatch) {
         let map = self.minimap_shown();
         let visible = |corner| !(self.debug && corner == Corner::TopLeft);
-        let mut corners = Corners::new(batch.width, batch.height, self.effect_rows_height());
+        let mut corners =
+            Self::extras_hud_corners(batch, self.effect_rows_height(), &self.boss_overlay);
         let atlas = &self.gui.atlas;
         if let Some((map_corner, map_size, view)) = map
             && visible(map_corner)
@@ -265,6 +266,15 @@ impl Game<'_> {
         }
         self.native_hud(batch, &mut corners);
     }
+    fn extras_hud_corners(
+        batch: &HudBatch,
+        top_right: f32,
+        boss_overlay: &horizon_client::boss_overlay::BossOverlay,
+    ) -> Corners {
+        let mut corners = Corners::new(batch.width, batch.height, top_right);
+        corners.reserve_top_center(boss_overlay.count());
+        corners
+    }
     /// The height the status effect icons take at the top right
     /// (`Hud.extractEffects`: beneficial at y 1, harmful at y 26).
     fn effect_rows_height(&self) -> f32 {
@@ -277,5 +287,78 @@ impl Game<'_> {
                 .is_some_and(|d| d.category != horizon_client::brewing::Category::Beneficial)
         });
         if harmful { 50.0 } else { 25.0 }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use horizon_client::boss_overlay::BossOverlay;
+    use horizon_client::hud::Rect;
+    use horizon_protocol::packets::play::{BossAction, BossEvent};
+    use horizon_world::nbt::Tag;
+
+    fn boss_overlay(count: u128) -> BossOverlay {
+        let mut overlay = BossOverlay::default();
+        for id in 0..count {
+            overlay.apply(
+                &BossEvent {
+                    id,
+                    action: BossAction::Add {
+                        name: Tag::String("boss".into()),
+                        progress: 1.0,
+                        color: 0,
+                        overlay: 0,
+                        darken: false,
+                        music: false,
+                        fog: false,
+                    },
+                },
+                0,
+            );
+        }
+        overlay
+    }
+
+    #[test]
+    fn extras_layout_reserves_boss_rows_and_title_area() {
+        let batch = HudBatch::new([400, 300]);
+        for (count, top) in [(0, 2.0), (1, 19.0), (2, 38.0), (100, 95.0)] {
+            let overlay = boss_overlay(count);
+            let mut corners = Game::extras_hud_corners(&batch, 0.0, &overlay);
+            assert_eq!(corners.place_top_center(20.0, 6.0), Some((190.0, top)));
+        }
+        let overlay = boss_overlay(2);
+        let mut corners = Game::extras_hud_corners(&batch, 0.0, &overlay);
+        assert_eq!(corners.place_top_center(20.0, 64.0), Some((190.0, 38.0)));
+        let mut corners = Game::extras_hud_corners(&batch, 0.0, &overlay);
+        assert_eq!(corners.place_top_center(20.0, 65.0), None);
+    }
+
+    #[test]
+    fn extras_layout_with_four_bosses_on_small_screen_draws_nothing() {
+        let mut batch = HudBatch::new([320, 240]);
+        let overlay = boss_overlay(4);
+        let mut corners = Game::extras_hud_corners(&batch, 0.0, &overlay);
+        let placed = corners.place_top_center(20.0, 8.0);
+        if let Some((x, y)) = placed {
+            batch.rect_uv(
+                x,
+                y,
+                20.0,
+                8.0,
+                Rect {
+                    u0: 0.0,
+                    v0: 0.0,
+                    u1: 1.0,
+                    v1: 1.0,
+                    w: 1,
+                    h: 1,
+                },
+                u32::MAX,
+            );
+        }
+        assert_eq!(placed, None);
+        assert!(batch.vertices.is_empty());
     }
 }

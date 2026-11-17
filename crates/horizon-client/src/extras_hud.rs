@@ -15,6 +15,9 @@ pub struct Corners {
     height: f32,
     /// Distance from the corner's top or bottom edge, per `Corner::ALL`.
     used: [f32; 4],
+    top_center_used: f32,
+    top_center_limit: Option<f32>,
+    top_center_boss_count: usize,
 }
 impl Corners {
     /// `top_right` reserves the status effect icons' rows.
@@ -23,7 +26,46 @@ impl Corners {
             width,
             height,
             used: [0.0, top_right, 0.0, 0.0],
+            top_center_used: 0.0,
+            top_center_limit: None,
+            top_center_boss_count: 0,
         }
+    }
+    pub fn reserve_top_center(&mut self, boss_count: usize) {
+        self.top_center_boss_count = boss_count;
+    }
+    pub fn place_top_center(&mut self, width: f32, height: f32) -> Option<(f32, f32)> {
+        if !(width.is_finite()
+            && height.is_finite()
+            && width > 0.0
+            && height > 0.0
+            && width <= 1_000_000.0
+            && height <= 1_000_000.0)
+        {
+            return None;
+        }
+        let limit = match self.top_center_limit {
+            Some(limit) => limit,
+            None => {
+                let mut y = 12;
+                for _ in 0..self.top_center_boss_count {
+                    self.top_center_used = (y + 5) as f32;
+                    y += 19;
+                    if y >= self.height as i32 / 3 {
+                        break;
+                    }
+                }
+                let limit = ((self.height as i32 / 2) as f32 - 48.0).max(0.0);
+                self.top_center_limit = Some(limit);
+                limit
+            }
+        };
+        let top = self.top_center_used + MARGIN;
+        if width > self.width - MARGIN * 2.0 || top + height > limit {
+            return None;
+        }
+        self.top_center_used = top + height;
+        Some((((self.width - width) / 2.0).floor(), top))
     }
     /// The top-left position of a `w` x `h` box in `corner`, below (or
     /// above) what the corner already holds.
@@ -139,5 +181,42 @@ mod tests {
         assert_eq!(c.place(Corner::BottomRight, 50.0, 12.0), (348.0, 286.0));
         assert_eq!(c.place(Corner::BottomRight, 50.0, 10.0), (348.0, 274.0));
         assert_eq!(c.place(Corner::BottomLeft, 10.0, 10.0), (2.0, 288.0));
+    }
+
+    #[test]
+    fn top_center_stacks_down_without_moving_corners() {
+        let mut corners = Corners::new(400.0, 300.0, 26.0);
+        assert_eq!(corners.place_top_center(50.0, 12.0), Some((175.0, 2.0)));
+        assert_eq!(corners.place_top_center(70.0, 12.0), Some((165.0, 16.0)));
+        assert_eq!(corners.place(Corner::TopRight, 50.0, 12.0), (348.0, 28.0));
+    }
+
+    #[test]
+    fn top_center_avoids_boss_bars_and_title_area() {
+        let mut corners = Corners::new(400.0, 300.0, 0.0);
+        corners.reserve_top_center(2);
+        assert_eq!(corners.place_top_center(80.0, 10.0), Some((160.0, 38.0)));
+        assert_eq!(corners.place_top_center(80.0, 57.0), None);
+        assert_eq!(corners.place_top_center(80.0, 52.0), Some((160.0, 50.0)));
+        assert_eq!(corners.place_top_center(80.0, 1.0), None);
+
+        let mut corners = Corners::new(400.0, 300.0, 0.0);
+        corners.reserve_top_center(100);
+        assert_eq!(corners.place_top_center(80.0, 7.0), Some((160.0, 95.0)));
+    }
+
+    #[test]
+    fn top_center_rejects_invalid_sizes() {
+        let mut corners = Corners::new(400.0, 300.0, 0.0);
+        for size in [(0.0, 10.0), (10.0, f32::NAN), (397.0, 10.0)] {
+            assert_eq!(corners.place_top_center(size.0, size.1), None);
+        }
+        assert_eq!(corners.place_top_center(20.0, 10.0), Some((190.0, 2.0)));
+    }
+
+    #[test]
+    fn top_center_rounds_horizontal_position_down() {
+        let mut corners = Corners::new(401.0, 300.0, 0.0);
+        assert_eq!(corners.place_top_center(50.0, 10.0), Some((175.0, 2.0)));
     }
 }
