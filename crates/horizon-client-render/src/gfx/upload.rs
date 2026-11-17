@@ -13,6 +13,16 @@ pub struct Uploads {
     chunk: u64,
 }
 
+pub(super) fn finish_encoder(
+    encoder: wgpu::CommandEncoder,
+    uploads: [&mut Uploads; 2],
+) -> wgpu::CommandBuffer {
+    for upload in uploads {
+        upload.finish(&encoder);
+    }
+    encoder.finish()
+}
+
 impl Uploads {
     pub fn new(device: &wgpu::Device) -> Self {
         Self::with_chunk(device, CHUNK)

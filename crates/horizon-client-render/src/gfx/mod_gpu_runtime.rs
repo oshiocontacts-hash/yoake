@@ -259,9 +259,27 @@ fn with_timing<R>(
     if let Some(reason) = runtime.gpu.disabled_reason(owner) {
         return Err(Error::Host(format!("GPU disabled: {reason}")));
     }
-    timed_operation(&mut runtime.gpu, owner, creation, Instant::now, |gpu| {
-        operation(gpu, &runtime.device, &runtime.queue, &runtime.frame)
+    checked_operation(&mut runtime.gpu, owner, &runtime.device, |gpu| {
+        timed_operation(gpu, owner, creation, Instant::now, |gpu| {
+            operation(gpu, &runtime.device, &runtime.queue, &runtime.frame)
+        })
     })
+}
+
+pub(super) fn checked_operation<R>(
+    gpu: &mut Gpu,
+    owner: ModId,
+    device: &wgpu::Device,
+    operation: impl FnOnce(&mut Gpu) -> Result<R, Error>,
+) -> Result<R, Error> {
+    let result = super::native_services::checked(device, || operation(gpu))
+        .map_err(Error::Host)
+        .and_then(|result| result);
+    if let Err(Error::Host(error)) = &result {
+        gpu.disable(owner, error.to_owned());
+        log::warn!("WASM GPU mod {} disabled: {error}", owner.0);
+    }
+    result
 }
 
 pub(super) fn timed_operation<R>(
