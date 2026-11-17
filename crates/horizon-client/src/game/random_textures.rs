@@ -54,9 +54,9 @@ impl Game<'_> {
             blocks: [block(y - 1), block(y)].into_iter().flatten().collect(),
             moon_phase: self.world.day_time.div_euclid(24_000).rem_euclid(8) as i32,
             day_time: self.world.day_time.rem_euclid(24_000) as i32,
-            weather: if weather.thundering {
+            weather: if weather.is_thundering() {
                 Weather::Thunder
-            } else if weather.raining {
+            } else if weather.is_raining() {
                 Weather::Rain
             } else {
                 Weather::Clear

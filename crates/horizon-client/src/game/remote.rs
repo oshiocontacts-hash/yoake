@@ -11018,7 +11018,7 @@ mod tests {
 
     #[test]
     #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-    fn weather_fade_packets_do_not_override_server_rain_flags() {
+    fn weather_fade_packets_determine_client_conditions() {
         crate::game::native_damage::tests::server::with_server(|game, _, _| {
             for (event, param) in [(2, 0.0), (7, 0.99), (8, 0.7)] {
                 game.handle_packet(super::C::GameEvent(
@@ -11026,8 +11026,8 @@ mod tests {
                 ))
                 .unwrap();
             }
-            assert!(!game.world.weather.raining);
-            assert!(!game.world.weather.thundering);
+            assert!(game.world.weather.is_raining());
+            assert!(!game.world.weather.is_thundering());
             assert_eq!(game.world.weather.rain_level, (0.99, 0.99));
             for (event, param) in [(1, 0.0), (7, 0.0)] {
                 game.handle_packet(super::C::GameEvent(
@@ -11035,7 +11035,23 @@ mod tests {
                 ))
                 .unwrap();
             }
-            assert!(game.world.weather.raining);
+            assert!(!game.world.weather.is_raining());
+            assert!(!game.world.weather.is_thundering());
+            for (rain, thunder, raining, thundering) in [
+                (0.2, 1.0, false, false),
+                (0.95, 1.0, true, true),
+                (1.0, 0.9, true, false),
+                (1.0, 0.91, true, true),
+            ] {
+                for (event, param) in [(7, rain), (8, thunder)] {
+                    game.handle_packet(super::C::GameEvent(
+                        horizon_protocol::packets::play::GameEvent { event, param },
+                    ))
+                    .unwrap();
+                }
+                assert_eq!(game.world.weather.is_raining(), raining);
+                assert_eq!(game.world.weather.is_thundering(), thundering);
+            }
         });
     }
 

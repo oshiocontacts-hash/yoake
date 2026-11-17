@@ -519,7 +519,7 @@ impl Game<'_> {
             // The arm swings started (LivingEntity.swing).
             "swings": self.swings_started,
             "time": { "day_time": self.world.day_time, "day": self.world.day_time.div_euclid(24000), "time_of_day": self.world.day_time.rem_euclid(24000) },
-            "weather": { "raining": self.world.weather.raining, "thundering": self.world.weather.thundering },
+            "weather": { "raining": self.world.weather.is_raining(), "thundering": self.world.weather.is_thundering() },
             "paused": self.pause,
             // Mouse movement turns the camera (`apply_mouse_look`): the real
             // pointer is grabbed, or an agent's `mouse-move` stands in for it.

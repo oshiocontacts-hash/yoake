@@ -430,6 +430,14 @@ impl Output<'_> {
     }
 }
 
+fn snapshot_weather_events(weather: &horizon_client::world::Weather) -> [(u8, f32); 3] {
+    [
+        (if weather.is_raining() { 1 } else { 2 }, 0.0),
+        (7, weather.rain_level.1),
+        (8, weather.thunder_level.1),
+    ]
+}
+
 impl Game<'_> {
     pub(crate) fn snapshot_client_world(
         &mut self,
@@ -620,11 +628,7 @@ impl Game<'_> {
                 output.missing(format!("entity {id}: spawn predates retention"));
             }
         }
-        for (event, param) in [
-            (if self.world.weather.raining { 1 } else { 2 }, 0.0),
-            (7, self.world.weather.rain_level.1),
-            (8, self.world.weather.thunder_level.1),
-        ] {
+        for (event, param) in snapshot_weather_events(&self.world.weather) {
             output.play(C::GameEvent(play::GameEvent { event, param }));
         }
         let mut clocks = snapshot.clocks.clone();
@@ -770,6 +774,26 @@ mod tests {
     use crate::chunk::{Chunk, Light};
     use horizon_protocol::registry::Builtin;
     use std::collections::HashMap;
+
+    #[test]
+    fn snapshot_weather_events_follow_client_rain_level() {
+        let mut weather = horizon_client::world::Weather {
+            raining: true,
+            rain_level: (0.2, 0.2),
+            thunder_level: (0.7, 0.7),
+            ..Default::default()
+        };
+        assert_eq!(
+            snapshot_weather_events(&weather),
+            [(2, 0.0), (7, 0.2), (8, 0.7)]
+        );
+        weather.raining = false;
+        weather.rain_level = (0.95, 0.95);
+        assert_eq!(
+            snapshot_weather_events(&weather),
+            [(1, 0.0), (7, 0.95), (8, 0.7)]
+        );
+    }
 
     fn profile() -> login::GameProfile {
         login::GameProfile {

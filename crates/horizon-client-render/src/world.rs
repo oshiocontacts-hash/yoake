@@ -197,6 +197,14 @@ impl Weather {
             self.thunder_level.0 + (self.thunder_level.1 - self.thunder_level.0) * partial;
         (rain, thunder * rain)
     }
+
+    pub fn is_raining(&self) -> bool {
+        self.levels(1.0).0 > 0.2
+    }
+
+    pub fn is_thundering(&self) -> bool {
+        self.levels(1.0).1 > 0.9
+    }
 }
 impl World {
     pub fn new(air: BlockStateId, seed: i64) -> Self {
@@ -570,6 +578,41 @@ mod tests {
     use crate::chunk::{Chunk, MIN_Y, SECTIONS};
     use horizon_world::registry::BlockStateId;
     use std::sync::Arc;
+
+    #[test]
+    fn client_weather_conditions_follow_current_scaled_levels() {
+        for (rain, thunder, raining, thundering) in [
+            (0.0, 1.0, false, false),
+            (0.2, 1.0, false, false),
+            (0.21, 1.0, true, false),
+            (0.9, 1.0, true, false),
+            (0.95, 1.0, true, true),
+            (1.0, 0.9, true, false),
+            (1.0, 0.91, true, true),
+        ] {
+            let weather = Weather {
+                raining: !raining,
+                thundering: !thundering,
+                rain_level: (rain, rain),
+                thunder_level: (thunder, thunder),
+                ..Default::default()
+            };
+            assert_eq!(weather.is_raining(), raining, "rain level {rain}");
+            assert_eq!(
+                weather.is_thundering(),
+                thundering,
+                "rain level {rain}, thunder level {thunder}"
+            );
+        }
+
+        let fading = Weather {
+            rain_level: (0.0, 0.95),
+            thunder_level: (0.0, 1.0),
+            ..Default::default()
+        };
+        assert!(fading.is_raining());
+        assert!(fading.is_thundering());
+    }
 
     #[test]
     fn sleeping_resets_weather_only_when_raining() {
