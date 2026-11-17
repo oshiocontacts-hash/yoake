@@ -136,6 +136,15 @@ pub struct Weather {
     pub thunder_level: (f32, f32),
 }
 impl Weather {
+    pub fn after_sleep(&mut self, advance_weather: bool) {
+        if advance_weather {
+            self.raining = false;
+            self.thundering = false;
+            self.rain_time = 0;
+            self.thunder_time = 0;
+        }
+    }
+
     /// The timers of `advanceWeatherCycle`, which run only while
     /// `advance_weather` is on.
     pub fn tick_timers(&mut self, random: &mut horizon_core::random::LegacyRandom) {
@@ -557,10 +566,55 @@ impl Default for HealthRules {
 
 #[cfg(test)]
 mod tests {
-    use super::{DirtySections, World};
+    use super::{DirtySections, Weather, World};
     use crate::chunk::{Chunk, MIN_Y, SECTIONS};
     use horizon_world::registry::BlockStateId;
     use std::sync::Arc;
+
+    #[test]
+    fn sleeping_resets_weather_even_before_rain_has_faded_in() {
+        for rain_level in [0.0, 0.1, 0.2, 1.0] {
+            let mut weather = Weather {
+                clear_time: 40,
+                rain_time: 600,
+                thunder_time: 900,
+                raining: true,
+                thundering: true,
+                rain_level: (rain_level, rain_level),
+                thunder_level: (0.8, 0.8),
+            };
+            weather.after_sleep(true);
+            assert!(!weather.raining);
+            assert!(!weather.thundering);
+            assert_eq!((weather.rain_time, weather.thunder_time), (0, 0));
+            assert_eq!(weather.clear_time, 40);
+            assert_eq!(weather.rain_level, (rain_level, rain_level));
+            assert_eq!(weather.thunder_level, (0.8, 0.8));
+            weather.tick_levels();
+            assert_eq!(weather.rain_level.1, (rain_level - 0.01).max(0.0));
+            assert_eq!(weather.thunder_level.1, 0.79);
+        }
+    }
+
+    #[test]
+    fn sleeping_preserves_weather_when_the_cycle_is_disabled() {
+        let mut weather = Weather {
+            clear_time: 40,
+            rain_time: 600,
+            thunder_time: 900,
+            raining: true,
+            thundering: true,
+            rain_level: (0.0, 0.1),
+            thunder_level: (0.7, 0.8),
+        };
+        weather.after_sleep(false);
+        assert!(weather.raining);
+        assert!(weather.thundering);
+        assert_eq!((weather.rain_time, weather.thunder_time), (600, 900));
+        assert_eq!(weather.clear_time, 40);
+        assert_eq!(weather.rain_level, (0.0, 0.1));
+        assert_eq!(weather.thunder_level, (0.7, 0.8));
+    }
 
     /// Every block write marks the same section set the 27-cell loop did, but
     /// only the distinct keys: one in the interior, a neighbour section on a

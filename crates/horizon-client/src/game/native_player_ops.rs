@@ -744,9 +744,16 @@ impl Game<'_> {
         let ticket = self.native_player_ops.ticket(owner, conn)?;
         if source == destination {
             self.native_player_ops.processing(Some(ticket));
-            if let Err(error) = self.for_native_player(target, source, |game| {
-                game.native_player_teleport_here(pos, yaw, pitch);
-            }) {
+            let result = self
+                .for_native_player(target, source, |game| {
+                    if !game.native_chunk_loaded(pos) {
+                        return Err("the destination chunk is not loaded".into());
+                    }
+                    game.native_player_teleport_here(pos, yaw, pitch);
+                    Ok(())
+                })
+                .and_then(|result| result);
+            if let Err(error) = result {
                 self.native_player_ops
                     .finish(Some(ticket), Some(error.clone()));
                 return Err(error);

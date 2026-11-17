@@ -464,6 +464,7 @@ impl Game<'_> {
         motion.ground.on_ground = g.on_ground;
         motion.yaw = g.yaw;
         motion.pitch = g.pitch;
+        motion.shift_key_down = g.sneaking;
         motion.sprinting = g.sprinting;
         motion.may_fly = g.creative() || g.game_mode == SPECTATOR;
         motion.flying = g.flying;

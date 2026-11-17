@@ -204,11 +204,6 @@ impl Game<'_> {
         }
         Some(id)
     }
-    /// Whether the chunk holding `pos` is loaded in the level in place.
-    fn native_chunk_loaded(&self, pos: [f64; 3]) -> bool {
-        let (x, z) = (pos[0].floor() as i32, pos[2].floor() as i32);
-        self.world.chunks.contains_key(&(x >> 4, z >> 4))
-    }
     /// The living mob `id` in the level in place, `dimension`; none on a
     /// client's copy. API 37.
     pub(super) fn native_mob(&self, dimension: &str, id: u32) -> Option<NativeMob> {
@@ -234,7 +229,7 @@ impl Game<'_> {
     /// path and resets its fall. False for no such mob, another dimension or a
     /// position outside `/summon`'s bounds. API 37.
     pub(super) fn native_teleport_mob(&mut self, dimension: &str, id: u32, pos: [f64; 3]) -> bool {
-        if !self.native_mob_level(dimension) || !spawnable(pos) {
+        if !self.native_mob_level(dimension) || !spawnable(pos) || !self.native_chunk_loaded(pos) {
             return false;
         }
         let Some(m) = self.mobs.iter_mut().find(|m| m.id == id && !m.removed) else {

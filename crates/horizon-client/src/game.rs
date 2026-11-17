@@ -228,6 +228,7 @@ mod native_damage;
 mod native_data_maps;
 pub mod native_deferred;
 mod native_entities;
+mod native_entity_moves;
 mod native_entity_data;
 mod native_entity_motion;
 pub mod native_entity_query;
@@ -15052,7 +15053,7 @@ impl Game<'_> {
         }
         // ServerLevel.tick: once enough of the players have slept 100 ticks,
         // skip to morning if `advance_time` is on, wake everyone, and
-        // resetWeatherCycle if `advance_weather` is on and it is raining.
+        // resetWeatherCycle if `advance_weather` is on.
         if self.enough_slept() {
             if self.ui.rules.bool("advance_time") {
                 let t = self.world.day_time;
@@ -15070,13 +15071,9 @@ impl Game<'_> {
                     self.world.day_time = target;
                 }
             }
-            // Level.isRaining: the rain level is above 0.2.
-            if self.ui.rules.bool("advance_weather") && self.world.weather.levels(1.0).0 > 0.2 {
-                self.world.weather.raining = false;
-                self.world.weather.thundering = false;
-                self.world.weather.rain_time = 0;
-                self.world.weather.thunder_time = 0;
-            }
+            self.world
+                .weather
+                .after_sleep(self.ui.rules.bool("advance_weather"));
             if self.sleeping.is_some() {
                 self.wake_up();
             }

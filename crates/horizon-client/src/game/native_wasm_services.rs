@@ -26,6 +26,22 @@ const ARMOR_SLOT_START: u32 = 36;
 const OFFHAND_SLOT: u32 = 40;
 const CURSOR_SLOT: u32 = 41;
 
+fn server_player_sneaking(
+    uuid: u128,
+    acting: Option<(u128, bool)>,
+    guests: impl IntoIterator<Item = (u128, bool)>,
+) -> Result<bool, String> {
+    if let Some((acting_uuid, sneaking)) = acting {
+        if acting_uuid == uuid {
+            return Ok(sneaking);
+        }
+    }
+    guests
+        .into_iter()
+        .find_map(|(guest_uuid, sneaking)| (guest_uuid == uuid).then_some(sneaking))
+        .ok_or_else(|| "the player is not on the server".into())
+}
+
 fn player_inventory_slots(
     inventory: &[Option<ItemStack>],
     armor: &[Option<ItemStack>; 4],
@@ -272,20 +288,17 @@ impl Game<'_> {
 
     /// Whether the player is sneaking, from their server-side movement state or guest record.
     pub(super) fn native_player_sneaking(&self, uuid: u128) -> Result<bool, String> {
-        let host = self.lan.as_ref();
-        if let Some(guest) = host
+        let acting = self
+            .lan_acting_uuid
+            .zip(self.player.as_ref().map(|player| player.shift_key_down));
+        let guests = self
+            .lan
+            .as_ref()
             .into_iter()
             .flat_map(|host| host.hub.guests.iter())
-            .find(|guest| guest.placed && guest.uuid == uuid)
-        {
-            return Ok(guest.sneaking);
-        }
-        if self.lan_acting.is_none() && self.lan_acting_uuid == Some(uuid) {
-            if let Some(player) = self.player.as_ref() {
-                return Ok(player.shift_key_down);
-            }
-        }
-        Err("the player is not on the server".into())
+            .filter(|guest| guest.placed)
+            .map(|guest| (guest.uuid, guest.sneaking));
+        server_player_sneaking(uuid, acting, guests)
     }
 
     /// The tags (without `#`) a block belongs to, sorted.
@@ -433,17 +446,7 @@ impl Game<'_> {
         if !self.native_level_open(dimension) {
             return Err(format!("{dimension} is not the level being ticked"));
         }
-        if !position.iter().chain(&velocity).all(|c| c.is_finite() && c.abs() < 3.0e7) {
-            return Err("the position and the velocity must be finite and within the world".into());
-        }
-        let Some(item) = self.dropped.iter_mut().find(|item| item.id == id) else {
-            return Ok(false);
-        };
-        item.position = horizon_core::geometry::Vec3::new(position[0], position[1], position[2]);
-        item.velocity = horizon_core::geometry::Vec3::new(velocity[0], velocity[1], velocity[2]);
-        item.on_ground = false;
-        item.needs_sync = true;
-        Ok(true)
+        super::native_entity_moves::move_item(&self.world, &mut self.dropped, id, position, velocity)
     }
 
     /// The player picks dropped item `id` up now: what fits goes into their inventory, the rest
@@ -724,6 +727,33 @@ impl Game<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn acting_player_posture_overrides_a_stale_owner_record() {
+        assert_eq!(
+            server_player_sneaking(1, Some((1, true)), [(1, false)]),
+            Ok(true)
+        );
+        assert_eq!(
+            server_player_sneaking(1, Some((1, false)), [(1, true)]),
+            Ok(false)
+        );
+        assert_eq!(server_player_sneaking(1, Some((1, true)), []), Ok(true));
+    }
+
+    #[test]
+    fn another_players_posture_comes_only_from_their_own_record() {
+        assert_eq!(
+            server_player_sneaking(2, Some((1, true)), [(2, false)]),
+            Ok(false)
+        );
+        assert_eq!(
+            server_player_sneaking(2, Some((1, false)), [(2, true)]),
+            Ok(true)
+        );
+        assert!(server_player_sneaking(2, Some((1, true)), [(1, true)]).is_err());
+        assert!(server_player_sneaking(2, None, []).is_err());
+    }
 
     fn stack(item: &str, count: u32) -> ItemStack {
         ItemStack {

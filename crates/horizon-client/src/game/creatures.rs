@@ -701,6 +701,16 @@ impl Game<'_> {
                 ]
             }
         };
+        if let Some(server) = &self.integrated {
+            let kind = kind.to_owned();
+            return server
+                .call(move |game| {
+                    game.in_owner_level(|game| game.summon(&kind, Some(at), baby))
+                        .map_err(|error| error.to_string())
+                })
+                .ok_or(super::integrated::NO_ANSWER)?
+                .map_err(Into::into);
+        }
         let id = self
             .spawn_mob_spawned(kind, at)
             .ok_or_else(|| format!("unknown or unsupported mob {kind}"))?;

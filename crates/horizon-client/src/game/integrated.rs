@@ -1756,6 +1756,60 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn control_summon_is_visible_to_server_level_hooks() {
+        let flags = Arc::new(Flags::default());
+        let worker_flags = flags.clone();
+        let (tasks, pending) = channel::<Task>();
+        let (ready, wait) = sync_channel(1);
+        let thread = std::thread::spawn(move || {
+            super::super::native_damage::tests::server::with_server(|game, _, _| {
+                ready.send(()).unwrap();
+                while !worker_flags.stop.load(Ordering::Relaxed) {
+                    match pending.recv_timeout(Duration::from_millis(10)) {
+                        Ok(task) => task(game),
+                        Err(RecvTimeoutError::Timeout) => {}
+                        Err(RecvTimeoutError::Disconnected) => break,
+                    }
+                }
+            });
+        });
+        wait.recv().unwrap();
+        super::super::native_damage::tests::server::with_server(|window, _, _| {
+            window.integrated = Some(Integrated {
+                flags,
+                thread: Some(thread),
+                tasks,
+                deferred: Default::default(),
+                world_name: String::new(),
+            });
+            let mob_id = window
+                .summon("minecraft:cow", Some([-25.5, 101.62, -24.5]), false)
+                .unwrap();
+            assert!(window.mobs.is_empty());
+            let entities = window
+                .integrated
+                .as_ref()
+                .unwrap()
+                .call(|game| {
+                    game.native_entities_in(
+                        "minecraft:overworld",
+                        [-30.5, 101.62, -24.5],
+                        8.0,
+                    )
+                })
+                .unwrap()
+                .unwrap();
+            assert!(entities.iter().any(|entity| {
+                entity.id == mob_id
+                    && entity.kind == "minecraft:cow"
+                    && entity.position == [-25.5, 101.62, -24.5]
+            }));
+            window.integrated.take().unwrap().stop().unwrap();
+        });
+    }
+
+    #[test]
     fn integrated_owner_requires_an_authoritative_tick_and_server() {
         let owner = Some(0x1234);
         assert_eq!(integrated_owner_in_context(true, owner), owner);

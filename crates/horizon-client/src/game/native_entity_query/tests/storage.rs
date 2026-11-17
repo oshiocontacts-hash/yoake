@@ -338,11 +338,23 @@ fn a_mob_53_blocks_from_the_center_intersects_the_level_tick_query_sphere() {
 
 #[test]
 fn parked_levels_do_not_block_current_level_mob_queries_on_unscoped_transients() {
-    let mobs = [mob(27)];
+    let center = [-30.5, 101.62, -24.5];
+    let mut cow = mob(27);
+    Arc::make_mut(&mut cow.kind).id = "minecraft:cow".into();
+    cow.position = Vec3::new(-25.5, 101.62, -24.5);
+    let mobs = [cow];
+    let mut owner = guest(12);
+    owner.position = center;
+    let guests = [owner];
     let mut potions = potions::PotionState::default();
-    potions.add_remote_thrown(28, "minecraft:splash_potion", Vec3::ZERO, Vec3::ZERO);
+    potions.add_remote_thrown(
+        28,
+        "minecraft:splash_potion",
+        Vec3::new(center[0], center[1], center[2]),
+        Vec3::ZERO,
+    );
     let mut end = end::EndState::default();
-    end.add_remote_eye(29, [0.0; 3], [0.0; 3]);
+    end.add_remote_eye(29, center, [0.0; 3]);
     let sources = QuerySources {
         dimension: OVERWORLD,
         shared: EntityLists {
@@ -358,7 +370,7 @@ fn parked_levels_do_not_block_current_level_mob_queries_on_unscoped_transients()
             rockets: &[],
             tridents: &[],
         },
-        guests: &[],
+        guests: &guests,
         others: &[],
         cushions: &[],
         frames: &[],
@@ -382,13 +394,19 @@ fn parked_levels_do_not_block_current_level_mob_queries_on_unscoped_transients()
         tick(1),
         0,
         OVERWORLD,
-        Sphere::new([0.0; 3], 5.0).unwrap(),
+        Sphere::new(center, 8.0).unwrap(),
         sources.candidate_count(),
         |visit| sources.visit(visit),
     )
     .unwrap();
 
-    assert_eq!(result.iter().map(|entity| entity.id).collect::<Vec<_>>(), [27]);
+    assert_eq!(
+        result
+            .iter()
+            .map(|entity| (entity.id, entity.kind.as_str()))
+            .collect::<Vec<_>>(),
+        [(12, "minecraft:player"), (27, "minecraft:cow")]
+    );
 }
 
 #[test]

@@ -12,7 +12,7 @@ use horizon_core::geometry::Vec3;
 use super::{Game, commands::Target, lan::LanHost, native_entity_query::require_server_context};
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;
 
 const MAX_OPERATIONS: u16 = 256;
 const MAX_EXPLOSIONS: u8 = 4;

@@ -4,7 +4,7 @@ use horizon_client::mobs::{Anim, Brain, Mob, MobType, Part, Species};
 
 use super::*;
 
-mod server;
+pub(in crate::game) mod server;
 
 fn tick(sequence: u64) -> (NativeWorldEpoch, NativeTickId) {
     (NativeWorldEpoch::new(1), NativeTickId::new(sequence))

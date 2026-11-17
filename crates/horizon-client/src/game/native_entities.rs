@@ -199,6 +199,7 @@ impl Game<'_> {
     ) -> bool {
         if !self.native_simulates_level(dimension)
             || !position_ok(pos)
+            || !self.native_chunk_loaded(pos)
             || !yaw.is_finite()
             || !pitch.is_finite()
         {

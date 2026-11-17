@@ -89,6 +89,9 @@ fn slime_at(world: &World, facts: &BlockFacts, x: i32, y: i32, z: i32) -> bool {
 }
 
 mod fluids;
+
+#[cfg(test)]
+mod moved_item_tests;
 pub use fluids::update_entity_fluids;
 
 #[derive(Clone, Debug)]

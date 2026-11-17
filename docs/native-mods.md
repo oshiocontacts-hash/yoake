@@ -2195,7 +2195,9 @@ For mods that run where the world is simulated: a dedicated server, a LAN host, 
 The player-operations `player_teleport` helper currently accepts only `minecraft:overworld`,
 `minecraft:the_nether`, and `minecraft:the_end`. Check its ticket with `player_teleport_status`;
 data-pack dimensions cannot yet be selected for player travel. The void flat preset changes the
-overworld rather than creating an additional dimension.
+overworld rather than creating an additional dimension. Same-dimension teleports require the destination
+chunk to be loaded; otherwise they return an error without moving the player. Cross-dimension travel
+remains asynchronous and waits for the destination chunks before placing the player.
 
 API `@API:player_ops2@` adds server-tick helpers for player health, inventory, titles, and positional sounds, plus per-mod boss bars. Player targets are UUIDs. Each helper has a limit of 512 calls per mod per tick; boss bars are limited to 16 per mod and 1,024 audience UUIDs per bar. Health is clamped to the player's maximum; titles and bar names are plain text, and sounds use a fixed packet seed. Boss-bar colors are `pink`, `blue`, `red`, `green`, `yellow`, `purple`, and `white`; overlays are `progress`, `notched_6`, `notched_10`, `notched_12`, and `notched_20`. Bars are cleared when the world session ends. Helpers return `false` for invalid context, invalid input, exhausted budget, or an unavailable target. Some callbacks do not expose the server host, so another online player can be unavailable in those callbacks.
 
@@ -2746,6 +2748,7 @@ They are not currently exposed as Yoake host helpers. Each names the level it me
   bounds, a chunk that isn't loaded, a kind Horizon can't load, or one a mod kept out with `native_entity_join_level`.
 - `native_move_entity(dimension, id, pos, yaw, pitch)` moves an entity Horizon keeps without simulating it (a display, a
   marker, an interaction); a display eases there over its teleport duration. Mobs move with `native_teleport_mob`.
+  Both move helpers return `false` without changing the entity if the destination chunk is unloaded.
 - `native_set_display(dimension, id, &NativeDisplay)` sets a `block_display`, `item_display` or `text_display`'s
   transformation (translation, left rotation, scale, right rotation; quaternions `[x, y, z, w]`), the ticks players see it
   ease over (`interpolation`) and its teleport duration (`teleport`, 0 to 59). Each call restarts the ease on clients.
@@ -3153,6 +3156,9 @@ nothing changes unless a mod calls it.
 * `native_attribute_get(uuid, attribute)`: the base and the modified value of a player's attribute.
 * `native_item_entities_in(dimension, center, radius)`, `native_item_entity_move(dimension, id, position, velocity)` and
   `native_item_entity_pickup(dimension, id, uuid)` (what fits goes into their inventory, the rest stays dropped).
+  Item moves require a loaded destination chunk and return an error without changing the item otherwise.
+  A successful move resets interpolation history to the destination, preserves age and stack contents,
+  and leaves the item available for ticking, synchronization and saving in its current chunk.
 * `native_advancement_progress(uuid, advancement)` and `native_advancement_grant(uuid, advancement)` (every remaining
   criterion, rewards and toast as for `/advancement grant`).
 * `native_entity_vitals(dimension, id)`: health, max health, armor and absorption of a player or a mob.
@@ -3642,13 +3648,19 @@ of its own, and for drawing that cooldown on the slot.
   `dimension`, `kind` (`minecraft:zombie`), `position`, `bounding_box` (min and max corners), `alive` (false for a mob
   that is dying) and `player_uuid` for a player. Removed entities are left out.
 - Server side only, inside a mod's call while the server tick runs: the single player owner, a LAN host, a dedicated
-  server. A LAN client, a guest's packet context or no host give an `Err`. Another dimension than the current one
-  gives an empty list.
+  server. `level_tick_pre` and `level_tick_post` have their dimension's entity stores in place; mob/entity tick
+  pre/post hooks can also query those stores. Item tick pre hooks run before the item list is taken, and post hooks
+  after it is restored. Server lifecycle hooks do not promise a particular level context. A LAN client, a guest's
+  packet context or no host give an `Err`, as does a dimension other than the level currently in place.
 - Each mod has, per server tick: radius up to 64, 8 queries, 4096 entities looked at and 256 results. Past one of them
   it's an `Err` and no part of a list.
 - Lightning, the dragon, dragon fireballs, breath clouds, thrown potions, eyes of ender, leash knots, ominous spawners,
   evoker fangs and other entities without a tracked box count as a point at their position. Thrown potions and eyes
-  of ender have no dimension yet: while one exists and another level is parked, the whole query is an `Err`.
+  of ender have no dimension yet: while another level is parked, those two transient stores are omitted; mobs,
+  players and other dimension-scoped entities remain queryable.
+
+The control socket's raw `summon` command forwards to the integrated server's owner level, as `/summon` does.
+The `entities` control snapshot is a client view, not a substitute for an authoritative server entity query.
 
 ### Multiplayer identity
 

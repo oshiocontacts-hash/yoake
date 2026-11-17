@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicI32;
 use std::sync::mpsc::{self, Receiver};
@@ -9,11 +10,12 @@ use horizon_client::gamerules::Value;
 use horizon_client::lan::guest::Guest;
 use horizon_client::lan::hub::HubConfig;
 use horizon_client::lan::{Joined, NetConfig, OnlineMode, Out, PlayerSender};
-use horizon_client::mod_api::NativeAuthority;
+use horizon_client::mod_api::{NativeAuthority, NativeTeleportStatus};
 use horizon_client::motion::PlayerMotion;
 use horizon_protocol::buf::Reader;
 use horizon_protocol::packets::configuration::ClientInformation;
 use horizon_protocol::packets::play;
+use horizon_world::nbt::{Compound, Tag};
 
 use crate::game::execution_role::ExecutionRole;
 use crate::game::lan::{LanSettings, Owner};
@@ -31,7 +33,7 @@ const OWNER_ID: u32 = 41;
 const GUEST_ID: u32 = 42;
 
 // CHECK: Run these ignored outcome tests with an externally supplied resource bundle.
-fn with_server(test: impl FnOnce(&mut Game<'_>, Receiver<Out>, Receiver<Out>)) {
+pub(in crate::game) fn with_server(test: impl FnOnce(&mut Game<'_>, Receiver<Out>, Receiver<Out>)) {
     let root = PathBuf::from(
         std::env::var_os("HORIZON_TEST_RESOURCES").expect("set HORIZON_TEST_RESOURCES"),
     );
@@ -51,6 +53,7 @@ fn with_server(test: impl FnOnce(&mut Game<'_>, Receiver<Out>, Receiver<Out>)) {
     let mut options = Options::parse(std::iter::empty()).unwrap().unwrap();
     options.resources = root.clone();
     options.execution_role = ExecutionRole::IntegratedServer;
+    options.dedicated = Some(Vec::new());
     let mut game = Game::new(
         &loaded.resources,
         loaded.pack,
@@ -170,11 +173,234 @@ fn velocity(game: &mut Game<'_>, conn: u32) -> Vec3 {
     player_state(game, conn, |game| game.player.as_ref().unwrap().velocity)
 }
 
+fn load_move_chunks(game: &mut Game<'_>) {
+    for chunk in [(0, -3), (0, -2)] {
+        game.world
+            .chunks
+            .insert(chunk, Arc::new(Chunk::empty(chunk.0, chunk.1)));
+    }
+}
+
+fn assert_entity_saved(game: &mut Game<'_>, kind: &str, position: [f64; 3]) {
+    let chunk = ((position[0].floor() as i32) >> 4, (position[2].floor() as i32) >> 4);
+    let saved = game.entity_chunks(&HashSet::from([chunk]), false);
+    let expected_position = Tag::List(
+        position
+            .into_iter()
+            .map(|value| Tag::Double(value.to_bits()))
+            .collect(),
+    );
+    assert!(saved.iter().any(|(key, entities)| {
+        *key == chunk
+            && entities.iter().any(|tag| {
+                tag.get("id") == Some(&Tag::String(kind.into()))
+                    && tag.get("Pos") == Some(&expected_position)
+            })
+    }));
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn moved_item_on_stone_floor_survives_server_ticks() {
+    with_server(|game, _, _| {
+        let dimension = game.dim.id().to_owned();
+        let stone = game
+            .pack
+            .assets
+            .registry
+            .default_state("minecraft:stone")
+            .unwrap();
+        load_move_chunks(game);
+        for block_x in 7..=9 {
+            for block_z in -35..=-30 {
+                game.world.set(block_x, 99, block_z, stone).unwrap();
+            }
+        }
+        game.spawn_item(
+            ItemStack::new("minecraft:stone", 1),
+            [8.0, 104.0, 8.0],
+            [0.0; 3],
+            0,
+        );
+        let entity_id = game.next_entity;
+        game.update_chunk_tickets();
+        let mut ticks = 0;
+        for position in [
+            [8.202, 100.0, -33.102],
+            [8.202, 100.0, -32.308],
+            [8.202, 100.0, -31.9],
+        ] {
+            assert!(
+                game.native_item_entity_move(&dimension, entity_id, position, [0.0; 3])
+                    .unwrap()
+            );
+            let item = game.dropped.iter().find(|item| item.id == entity_id).unwrap();
+            assert_eq!(item.previous, item.position);
+            for _ in 0..5 {
+                game.tick_items();
+                ticks += 1;
+                let item = game
+                    .dropped
+                    .iter()
+                    .find(|item| item.id == entity_id)
+                    .expect("moved item must remain on the server");
+                assert_eq!(item.age, ticks);
+                assert_eq!(item.health, 5);
+                assert_eq!(item.stack.count, 1);
+                assert_eq!(item.pickup_delay, 0);
+                assert!((item.position.y - 100.0).abs() < 1.0e-6);
+                assert!(item.on_ground);
+                let nearby = game
+                    .native_item_entities_in(&dimension, position, 1.0)
+                    .unwrap();
+                assert!(nearby.iter().any(|item| item.0 == entity_id));
+            }
+            assert_entity_saved(game, "minecraft:item", position);
+        }
+        game.entity_chunks(&HashSet::from([(0, 0), (0, -3)]), true);
+        assert!(game.dropped.iter().any(|item| item.id == entity_id));
+        assert_entity_saved(game, "minecraft:item", [8.202, 100.0, -31.9]);
+        assert_eq!(
+            game.native_item_entity_move(&dimension, entity_id, [8.0, 100.0, -0.01], [1.0; 3]),
+            Err("the destination chunk is not loaded".into())
+        );
+        let item = game.dropped.iter().find(|item| item.id == entity_id).unwrap();
+        assert_eq!(item.position, Vec3::new(8.202, 100.0, -31.9));
+        assert_eq!(item.age, ticks);
+    });
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn moved_mob_survives_source_chunk_unload_and_saves_in_destination() {
+    with_server(|game, _, _| {
+        let dimension = game.dim.id().to_owned();
+        load_move_chunks(game);
+        game.mobs.push(mob(0.0));
+        for position in [
+            [8.202, 100.0, -33.102],
+            [8.202, 100.0, -32.308],
+            [8.202, 100.0, -31.9],
+        ] {
+            assert!(game.native_teleport_mob(&dimension, 71, position));
+            let moved = game.mobs.iter().find(|mob| mob.id == 71).unwrap();
+            assert_eq!(moved.position, Vec3::new(position[0], position[1], position[2]));
+            assert_eq!(moved.previous, moved.position);
+            assert!(moved.needs_sync);
+            assert!(game.native_mob(&dimension, 71).is_some());
+            assert_entity_saved(game, "minecraft:pig", position);
+        }
+        game.entity_chunks(&HashSet::from([(0, 0), (0, -3)]), true);
+        assert!(game.native_mob(&dimension, 71).is_some());
+        assert!(!game.native_teleport_mob(&dimension, 71, [8.0, 100.0, -0.01]));
+        assert_entity_saved(game, "minecraft:pig", [8.202, 100.0, -31.9]);
+    });
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn moved_other_entities_survive_source_chunk_unload_and_save_in_destination() {
+    with_server(|game, _, _| {
+        let dimension = game.dim.id().to_owned();
+        load_move_chunks(game);
+        for kind in [
+            "minecraft:marker",
+            "minecraft:interaction",
+            "minecraft:block_display",
+            "minecraft:item_display",
+            "minecraft:text_display",
+        ] {
+            let entity_id = game
+                .native_summon(&dimension, kind, [8.0, 100.0, 8.0], Compound::new())
+                .unwrap();
+            for position in [
+                [8.202, 100.0, -33.102],
+                [8.202, 100.0, -32.308],
+                [8.202, 100.0, -31.9],
+            ] {
+                assert!(game.native_move_entity(&dimension, entity_id, position, 45.0, 20.0));
+                let moved = game.others.iter().find(|entity| entity.id == entity_id).unwrap();
+                assert_eq!(moved.position, Vec3::new(position[0], position[1], position[2]));
+                assert_eq!((moved.yaw, moved.pitch), (45.0, 20.0));
+                assert_entity_saved(game, kind, position);
+            }
+            game.entity_chunks(&HashSet::from([(0, 0), (0, -3)]), true);
+            assert!(game.others.iter().any(|entity| entity.id == entity_id));
+            assert!(!game.native_move_entity(
+                &dimension, entity_id, [8.0, 100.0, -0.01], 90.0, 30.0
+            ));
+            assert_entity_saved(game, kind, [8.202, 100.0, -31.9]);
+            let unchanged = game.others.iter().find(|entity| entity.id == entity_id).unwrap();
+            assert_eq!((unchanged.yaw, unchanged.pitch), (45.0, 20.0));
+        }
+    });
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn player_teleports_cross_loaded_chunks_and_reject_unloaded_destinations() {
+    with_server(|game, owner_packets, guest_packets| {
+        let dimension = game.dim.id().to_owned();
+        load_move_chunks(game);
+        for (conn, uuid, packets) in [
+            (OWNER_CONN, OWNER, &owner_packets),
+            (GUEST_CONN, GUEST, &guest_packets),
+        ] {
+            clientbound(packets);
+            for position in [
+                [8.202, 100.0, -33.102],
+                [8.202, 100.0, -32.308],
+                [8.202, 100.0, -31.9],
+            ] {
+                let ticket = game
+                    .native_player_teleport_impl(uuid, &dimension, position, 45.0, 20.0)
+                    .unwrap();
+                assert_eq!(
+                    game.native_player_teleport_status_impl(ticket),
+                    NativeTeleportStatus::Done
+                );
+                player_state(game, conn, |game| {
+                    let moved = game.player.as_ref().unwrap();
+                    assert_eq!(moved.position, Vec3::new(position[0], position[1], position[2]));
+                });
+                assert!(clientbound(packets).iter().any(|packet| {
+                    matches!(packet, play::Clientbound::PlayerPosition(packet)
+                        if packet.position == position && packet.yaw == 45.0 && packet.pitch == 20.0)
+                }));
+            }
+            assert!(game
+                .native_player_teleport_impl(uuid, &dimension, [8.0, 100.0, -0.01], 90.0, 30.0)
+                .is_err());
+            player_state(game, conn, |game| {
+                assert_eq!(
+                    game.player.as_ref().unwrap().position,
+                    Vec3::new(8.202, 100.0, -31.9)
+                );
+            });
+            assert!(clientbound(packets)
+                .iter()
+                .all(|packet| !matches!(packet, play::Clientbound::PlayerPosition(_))));
+            let ticket = game
+                .native_player_teleport_impl(uuid, &dimension, [8.0, 100.0, 8.0], 0.0, 0.0)
+                .unwrap();
+            assert_eq!(
+                game.native_player_teleport_status_impl(ticket),
+                NativeTeleportStatus::Done
+            );
+        }
+    });
+}
+
 #[test]
 #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
 fn owner_sneaking_uses_movement_state_without_a_guest_record() {
     with_server(|game, _, _| {
-        game.lan.as_mut().unwrap().hub.guests.retain(|guest| guest.uuid != OWNER);
+        game.lan
+            .as_mut()
+            .unwrap()
+            .hub
+            .guests
+            .retain(|guest| guest.uuid != OWNER);
         game.lan_acting_uuid = Some(OWNER);
         game.player = Some(PlayerMotion::new(game.motion, Vec3::new(5.0, 64.0, 5.0)).unwrap());
         game.player.as_mut().unwrap().shift_key_down = true;
@@ -183,6 +409,41 @@ fn owner_sneaking_uses_movement_state_without_a_guest_record() {
         game.player.as_mut().unwrap().shift_key_down = false;
         game.keys.insert(winit::keyboard::KeyCode::ShiftLeft);
         assert!(!game.native_player_sneaking(OWNER).unwrap());
+    });
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn guest_entry_uses_latest_sneaking_and_sprinting_for_owner_and_guests() {
+    with_server(|game, _, _| {
+        for (conn, uuid) in [(OWNER_CONN, OWNER), (GUEST_CONN, GUEST)] {
+            for pressed in [true, false] {
+                let guest = game
+                    .lan
+                    .as_mut()
+                    .unwrap()
+                    .hub
+                    .guests
+                    .iter_mut()
+                    .find(|guest| guest.uuid == uuid)
+                    .unwrap();
+                guest.sneaking = pressed;
+                guest.sprinting = pressed;
+                let motion = guest.motion.as_mut().unwrap();
+                motion.shift_key_down = !pressed;
+                motion.sprinting = !pressed;
+
+                let posture = player_state(game, conn, |game| {
+                    let motion = game.player.as_ref().unwrap();
+                    (
+                        motion.shift_key_down,
+                        motion.sprinting,
+                        game.native_player_sneaking(uuid).unwrap(),
+                    )
+                });
+                assert_eq!(posture, (pressed, pressed, pressed));
+            }
+        }
     });
 }
 

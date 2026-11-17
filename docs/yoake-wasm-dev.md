@@ -206,9 +206,11 @@ feature, `client` and `server`).
   this host (rebuild with the SDK). A service called from a read-only hook (the hook has no `&mut` host)
   answers `Err("unsupported: ...")`; the services that change the game need a hook that may.
   `player-stacks` returns slot records: 0-35 main inventory, 36-39 armor (head to feet), 40 off hand,
-  and 41 cursor. `entities-in` reads the level currently in place. Per-level hooks such as
-  `level-tick-pre` and `level-tick-post` run with their dimension in place and include mobs after
-  their tick. Server lifecycle hooks do not promise a per-level context. While other dimensions are
+  and 41 cursor. `entities-in` reads the level currently in place. `level-tick-pre` and
+  `level-tick-post`, mob/entity tick pre/post hooks, and item tick pre/post hooks can query that
+  level's entities. The post hooks see the restored entity stores. Server lifecycle hooks do not
+  promise a per-level context. Client execution, a parked guest/host context and a different dimension
+  return an error. While other dimensions are
   parked, potion and eye-of-ender transients are omitted because those stores do not record a dimension.
 * A guest that subscribes to a hook with no adapter is refused at load (`UNWIRED` in the generated code;
   `crates/horizon-client/src/wasm_mods/full_adapters_report.txt` lists them and the partial ones).
