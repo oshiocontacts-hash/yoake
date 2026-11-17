@@ -1,7 +1,11 @@
-use std::{net::TcpListener, sync::Arc, thread};
+use std::{
+    net::{SocketAddr, TcpListener},
+    sync::Arc,
+    thread,
+};
 
 use rustls::{ServerConfig, pki_types::PrivatePkcs8KeyDer};
-use socket2::SockRef;
+use socket2::{Domain, Protocol, SockRef, Socket, Type};
 
 use super::*;
 use crate::social_tls::{ClientChannel, ServerChannel, client_channel, server_channel};
@@ -20,11 +24,18 @@ fn channels(write_timeout: Duration) -> (ServerChannel, ClientChannel) {
         PrivatePkcs8KeyDer::from(certified.signing_key.serialize_der()).into(),
     )
     .unwrap();
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = Socket::new(Domain::IPV4, Type::STREAM, Some(Protocol::TCP)).unwrap();
+    listener.set_send_buffer_size(4096).unwrap();
+    let address: SocketAddr = "127.0.0.1:0".parse().unwrap();
+    listener.bind(&address.into()).unwrap();
+    listener.listen(1).unwrap();
+    let listener: TcpListener = listener.into();
     let address = listener.local_addr().unwrap();
     let client = thread::spawn(move || {
-        let socket = TcpStream::connect(address).unwrap();
-        SockRef::from(&socket).set_recv_buffer_size(4096).unwrap();
+        let socket = Socket::new(Domain::IPV4, Type::STREAM, Some(Protocol::TCP)).unwrap();
+        socket.set_recv_buffer_size(4096).unwrap();
+        socket.connect(&address.into()).unwrap();
+        let socket: TcpStream = socket.into();
         client_channel(socket, &[certificate], "localhost", Duration::from_secs(10)).unwrap()
     });
     let (socket, _) = listener.accept().unwrap();
