@@ -447,6 +447,7 @@ impl Presenter {
         for _ in 0..FRAMES {
             let _ = give.send(frame(device, config));
         }
+        let submission_timeline = super::mod_gpu_runtime::submission_timeline(queue);
         let (device, queue) = (device.clone(), queue.clone());
         let vsync = config.present_mode == wgpu::PresentMode::Fifo;
         let failed = Arc::new(AtomicBool::new(false));
@@ -478,7 +479,11 @@ impl Presenter {
                         target.texture.as_image_copy(),
                         target.texture.size(),
                     );
-                    queue.submit([encoder.finish()]);
+                    if let Some(timeline) = &submission_timeline {
+                        timeline.submit_engine(&queue, [encoder.finish()]);
+                    } else {
+                        queue.submit([encoder.finish()]);
+                    }
                     if vsync {
                         window.pre_present_notify();
                     }

@@ -5,6 +5,8 @@ use gpu::{
 use yoake_wasm_sdk::full::client::{ClientMod, et, gpu};
 use yoake_wasm_sdk::full::hook;
 
+mod workload;
+
 #[derive(Default)]
 struct Demo {
     state: Option<State>,
@@ -60,24 +62,10 @@ fn bytes(values: &[f32]) -> Vec<u8> {
 
 impl State {
     fn new(format: PixelFormat) -> Self {
-        let mesh_shader = shader(
-            "mesh.wgsl",
-            r#"
-@group(0) @binding(0) var checker: texture_2d<f32>;
-@group(0) @binding(1) var checker_sampler: sampler;
-struct Vertex { @builtin(position) position: vec4<f32>, @location(0) color: vec3<f32>, @location(1) uv: vec2<f32> }
-@vertex fn vertex(@location(0) position: vec3<f32>, @location(1) color: vec3<f32>, @location(2) uv: vec2<f32>) -> Vertex {
-    let world = engine.inverse_view_projection * vec4<f32>(position, 1.0);
-    return Vertex(engine.view_projection * world, color, uv);
-}
-@fragment fn fragment(input: Vertex) -> @location(0) vec4<f32> {
-    return textureSample(checker, checker_sampler, input.uv) * vec4<f32>(input.color, 1.0);
-}
-"#,
-        );
+        let mesh_shader = shader("mesh.wgsl", workload::MESH_SHADER);
         let mesh = render(
             &mesh_shader,
-            32,
+            workload::VERTEX_STRIDE,
             &[
                 gpu::Attribute {
                     location: 0,
@@ -99,16 +87,13 @@ struct Vertex { @builtin(position) position: vec4<f32>, @location(0) color: vec3
             true,
             false,
         );
-        let vertices = Buffer::create(96, BufferUsage::VERTEX | BufferUsage::COPY_DST).unwrap();
+        let vertices = Buffer::create(
+            u64::from(workload::MESH_VERTEX_COUNT) * workload::VERTEX_STRIDE,
+            BufferUsage::VERTEX | BufferUsage::COPY_DST,
+        )
+        .unwrap();
         vertices
-            .write(
-                Stage::WorldOpaque,
-                0,
-                &bytes(&[
-                    -0.65, -0.45, 0.5, 1.0, 0.2, 0.2, 0.0, 1.0, 0.65, -0.45, 0.5, 0.2, 1.0, 0.2,
-                    1.0, 1.0, 0.0, 0.65, 0.5, 0.2, 0.4, 1.0, 0.5, 0.0,
-                ]),
-            )
+            .write(Stage::WorldOpaque, 0, &bytes(&workload::mesh_vertices()))
             .unwrap();
         let texture = gpu::Texture::create(&gpu::TextureDescriptor {
             width: 2,
@@ -147,23 +132,17 @@ struct Vertex { @builtin(position) position: vec4<f32>, @location(0) color: vec3
             ],
         )
         .unwrap();
-        let positions =
-            Buffer::create(64 * 32, BufferUsage::STORAGE | BufferUsage::COPY_DST).unwrap();
-        let mut particles = Vec::new();
-        for index in 0..64 {
-            particles.extend_from_slice(&[
-                (index % 8) as f32 * 0.2 - 0.7,
-                (index / 8) as f32 * 0.2 - 0.7,
-                0.4,
-                1.0,
-                0.0,
-                0.07,
-                0.0,
-                0.0,
-            ]);
-        }
+        let positions = Buffer::create(
+            u64::from(workload::PARTICLE_COUNT) * 32,
+            BufferUsage::STORAGE | BufferUsage::COPY_DST,
+        )
+        .unwrap();
         positions
-            .write(Stage::WorldTranslucent, 0, &bytes(&particles))
+            .write(
+                Stage::WorldTranslucent,
+                0,
+                &bytes(&workload::particle_positions()),
+            )
             .unwrap();
         Self {
             format,
@@ -179,25 +158,16 @@ struct Vertex { @builtin(position) position: vec4<f32>, @location(0) color: vec3
 
     fn prepare(&mut self) -> bool {
         if self.compute.is_none() {
-            let compute_shader = shader(
-                "compute.wgsl",
-                r#"
-struct Particle { position: vec4<f32>, velocity: vec4<f32> }
-@group(0) @binding(0) var<storage, read_write> particles: array<Particle>;
-@compute @workgroup_size(64) fn update(@builtin(global_invocation_id) invocation: vec3<u32>) {
-    let index = invocation.x;
-    particles[index].position.y += particles[index].velocity.y * engine.viewport_delta.z;
-    if particles[index].position.y > 0.8 { particles[index].position.y = -0.8; }
-}
-"#,
-            );
+            let compute_shader = shader("compute.wgsl", workload::COMPUTE_SHADER);
             let compute = ComputePipeline::create(&compute_shader, "update").unwrap();
             let compute_group = BindGroup::create(
                 &compute,
                 0,
                 &[Binding::Buffer {
                     binding: 0,
-                    range: self.positions.range(0, 64 * 32),
+                    range: self
+                        .positions
+                        .range(0, u64::from(workload::PARTICLE_COUNT) * 32),
                 }],
             )
             .unwrap();
@@ -205,25 +175,16 @@ struct Particle { position: vec4<f32>, velocity: vec4<f32> }
             return false;
         }
         if self.particles.is_none() {
-            let particle_shader = shader(
-                "particles.wgsl",
-                r#"
-struct Particle { position: vec4<f32>, velocity: vec4<f32> }
-@group(0) @binding(0) var<storage, read> particles: array<Particle>;
-@vertex fn vertex(@builtin(vertex_index) vertex_index: u32, @builtin(instance_index) instance_index: u32) -> @builtin(position) vec4<f32> {
-    let corners = array<vec2<f32>, 6>(vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0), vec2(-1.0, 1.0), vec2(1.0, -1.0), vec2(1.0, 1.0));
-    return particles[instance_index].position + vec4<f32>(corners[vertex_index] * 0.012, 0.0, 0.0);
-}
-@fragment fn fragment() -> @location(0) vec4<f32> { return vec4<f32>(0.3, 0.8, 1.0, 0.65); }
-"#,
-            );
+            let particle_shader = shader("particles.wgsl", workload::PARTICLE_SHADER);
             let particles = render(&particle_shader, 0, &[], self.format, true, true);
             let particle_group = BindGroup::create(
                 &particles,
                 0,
                 &[Binding::Buffer {
                     binding: 0,
-                    range: self.positions.range(0, 64 * 32),
+                    range: self
+                        .positions
+                        .range(0, u64::from(workload::PARTICLE_COUNT) * 32),
                 }],
             )
             .unwrap();
@@ -254,14 +215,17 @@ struct Particle { position: vec4<f32>, velocity: vec4<f32> }
         true
     }
 
-    fn draw(&self) {
+    fn draw(&self, frame: &gpu::FrameInfo) {
         self.mesh
             .draw(
                 Stage::WorldOpaque,
                 &Draw {
-                    count: 3,
+                    count: workload::MESH_VERTEX_COUNT,
                     instances: 1,
-                    vertex: Some(self.vertices.range(0, 96)),
+                    vertex: Some(self.vertices.range(
+                        0,
+                        u64::from(workload::MESH_VERTEX_COUNT) * workload::VERTEX_STRIDE,
+                    )),
                     index: None,
                     index32: false,
                     groups: &[&self.mesh_group],
@@ -275,17 +239,26 @@ struct Particle { position: vec4<f32>, velocity: vec4<f32> }
             .unwrap();
         let (particles, particle_group) = self.particles.as_ref().unwrap();
         particles
-            .draw(
+            .draw_region(
                 Stage::WorldTranslucent,
                 &Draw {
-                    count: 3,
-                    instances: 1,
+                    count: 6,
+                    instances: workload::PARTICLE_COUNT,
                     vertex: None,
                     index: None,
                     index32: false,
                     groups: &[particle_group],
                 },
                 &Target::default(),
+                gpu::DrawRegion {
+                    viewport: Some(gpu::GpuRect {
+                        x: 0,
+                        y: 0,
+                        width: (frame.width / 8).max(1),
+                        height: (frame.height / 4).max(1),
+                    }),
+                    scissor: None,
+                },
             )
             .unwrap();
         self.effect
@@ -386,7 +359,7 @@ impl ClientMod for Demo {
             }
             let state = self.state.as_mut().unwrap();
             if state.prepare() {
-                state.draw();
+                state.draw(&frame);
             }
         }
     }

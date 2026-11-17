@@ -20,6 +20,46 @@ pub struct Index {
     pub u32_indices: bool,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Rect {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+#[derive(Clone, Copy, Default)]
+pub struct Region {
+    pub viewport: Option<Rect>,
+    pub scissor: Option<Rect>,
+}
+
+impl Rect {
+    fn validate(self, width: u32, height: u32) -> Result<Self, Error> {
+        if self.width == 0
+            || self.height == 0
+            || self.x.checked_add(self.width).is_none_or(|end| end > width)
+            || self
+                .y
+                .checked_add(self.height)
+                .is_none_or(|end| end > height)
+        {
+            return Err(Error::Descriptor);
+        }
+        Ok(self)
+    }
+
+    fn covered_pixels(self, scissor: Self) -> u64 {
+        let width = (self.x + self.width)
+            .min(scissor.x + scissor.width)
+            .saturating_sub(self.x.max(scissor.x));
+        let height = (self.y + self.height)
+            .min(scissor.y + scissor.height)
+            .saturating_sub(self.y.max(scissor.y));
+        u64::from(width) * u64::from(height)
+    }
+}
+
 pub enum Target {
     Frame,
     Texture {
@@ -82,6 +122,8 @@ pub(super) enum Command {
         count: u32,
         instances: u32,
         target: DrawTarget,
+        viewport: Rect,
+        scissor: Rect,
     },
     Read {
         source: Owned,
@@ -109,13 +151,11 @@ fn validate_stage(mask: u32, stage: Stage) -> Result<(), Error> {
 }
 
 impl DrawTarget {
-    fn pixels(&self, width: u32, height: u32) -> Result<u64, Error> {
+    fn dimensions(&self, width: u32, height: u32) -> Result<(u32, u32), Error> {
         match self {
-            Self::Frame => Ok(u64::from(width).saturating_mul(u64::from(height))),
+            Self::Frame => Ok((width, height)),
             Self::Texture { color, .. } => match color.value() {
-                Value::Texture { descriptor, .. } => {
-                    Ok(u64::from(descriptor.width).saturating_mul(u64::from(descriptor.height)))
-                }
+                Value::Texture { descriptor, .. } => Ok((descriptor.width, descriptor.height)),
                 _ => Err(Error::Kind),
             },
         }
@@ -245,6 +285,8 @@ impl Gpu {
             offset,
             bytes.len() as u64,
         )?;
+        self.recorder
+            .check(owner, CommandKind::Upload(bytes.len() as u64))?;
         let source = self.staging(device, owner, bytes)?;
         self.recorder.record(
             owner,
@@ -356,6 +398,8 @@ impl Gpu {
         if bytes.len() != expected || padded_size > 16 * 1024 * 1024 {
             return Err(Error::Upload);
         }
+        self.recorder
+            .check(owner, CommandKind::Upload(padded_size as u64))?;
         let mut padded = vec![0; padded_size];
         for (source, destination) in bytes
             .chunks_exact(row)
@@ -397,27 +441,13 @@ impl Gpu {
             .get_kind(owner, pipeline, Allocation::ComputePipeline)?;
         let groups = self.groups(owner, &pipeline, groups)?;
         let Value::Compute {
-            cost,
-            budget,
-            engine_mask,
-            ..
+            cost, engine_mask, ..
         } = pipeline.value()
         else {
             return Err(Error::Kind);
         };
         validate_stage(*engine_mask, stage)?;
-        let amount = workgroups
-            .iter()
-            .try_fold(*cost, |total, groups| total.checked_mul(u64::from(*groups)))
-            .ok_or(Error::Workgroups)?;
-        let budget = budget.clone();
-        if !budget.lock().map_err(|_| Error::Disabled)?.check(
-            self.frame_index,
-            amount,
-            super::super::mod_gpu::MAX_WORKGROUPS,
-        ) {
-            return Err(Error::Workgroups);
-        }
+        let work_limit = self.compute_limit(owner, self.timestamps);
         let cost = *cost;
         self.recorder.record(
             owner,
@@ -425,6 +455,7 @@ impl Gpu {
             CommandKind::Compute {
                 groups: workgroups,
                 cost,
+                work_limit,
             },
             || Command::Dispatch {
                 pipeline,
@@ -432,10 +463,6 @@ impl Gpu {
                 workgroups,
             },
         )?;
-        budget
-            .lock()
-            .map_err(|_| Error::Disabled)?
-            .charge(self.frame_index, amount);
         Ok(())
     }
 
@@ -446,13 +473,23 @@ impl Gpu {
         draw: Draw,
         target: Target,
     ) -> Result<(), Error> {
+        self.draw_region(owner, stage, draw, target, Region::default())
+    }
+
+    pub fn draw_region(
+        &mut self,
+        owner: ModId,
+        stage: Stage,
+        draw: Draw,
+        target: Target,
+        region: Region,
+    ) -> Result<(), Error> {
         self.available(owner)?;
         let pipeline = self
             .resources
             .get_kind(owner, draw.pipeline, Allocation::RenderPipeline)?;
         let Value::Render {
             descriptor,
-            budget,
             engine_mask,
             ..
         } = pipeline.value()
@@ -460,7 +497,6 @@ impl Gpu {
             return Err(Error::Kind);
         };
         validate_stage(*engine_mask, stage)?;
-        let budget = budget.clone();
         if draw.count == 0 || draw.instances == 0 {
             return Err(Error::Vertices);
         }
@@ -578,24 +614,30 @@ impl Gpu {
                 }
             }
         };
-        let vertices_per_primitive = match descriptor.topology {
-            wgpu::PrimitiveTopology::PointList => 1,
-            wgpu::PrimitiveTopology::LineList => 2,
-            wgpu::PrimitiveTopology::TriangleList => 3,
-            _ => return Err(Error::Descriptor),
+        let (width, height) =
+            target.dimensions(self.frame_limits.width, self.frame_limits.height)?;
+        let full = Rect {
+            x: 0,
+            y: 0,
+            width,
+            height,
         };
-        let pixels = target
-            .pixels(self.frame_limits.width, self.frame_limits.height)?
-            .saturating_mul(u64::from(draw.count.div_ceil(vertices_per_primitive)))
-            .saturating_mul(u64::from(draw.instances));
-        let pixel_limit = self.pixel_limit();
-        if !budget.lock().map_err(|_| Error::Disabled)?.check(
-            self.frame_index,
-            pixels,
-            pixel_limit.saturating_mul(4),
-        ) {
-            return Err(Error::Pixels);
-        }
+        let viewport = region.viewport.unwrap_or(full).validate(width, height)?;
+        let scissor = region.scissor.unwrap_or(full).validate(width, height)?;
+        let primitives = match descriptor.topology {
+            wgpu::PrimitiveTopology::PointList => draw.count,
+            wgpu::PrimitiveTopology::LineList => draw.count / 2,
+            wgpu::PrimitiveTopology::LineStrip => draw.count.saturating_sub(1),
+            wgpu::PrimitiveTopology::TriangleList => draw.count / 3,
+            wgpu::PrimitiveTopology::TriangleStrip => draw.count.saturating_sub(2),
+        };
+        let total_primitives = u64::from(primitives).saturating_mul(u64::from(draw.instances));
+        let fragment_work = viewport
+            .covered_pixels(scissor)
+            .checked_mul(total_primitives)
+            .ok_or(Error::Pixels)?;
+        let pixel_limit = self.pixel_limit(owner, self.timestamps);
+        let vertex_limit = self.vertex_limit(owner, self.timestamps);
         let new_pass = !self.recorder.previous(owner, stage).is_some_and(|command| {
             matches!(command, Command::Draw { pipeline, .. } if matches!(pipeline.value(), Value::Render { descriptor: previous, .. } if previous.depth == descriptor.depth))
                 && command.merges_target(&target)
@@ -606,8 +648,9 @@ impl Gpu {
             CommandKind::Render {
                 count: draw.count,
                 instances: draw.instances,
-                pixels,
+                fragment_work,
                 pixel_limit,
+                vertex_limit,
                 new_pass,
             },
             || Command::Draw {
@@ -618,12 +661,10 @@ impl Gpu {
                 count: draw.count,
                 instances: draw.instances,
                 target,
+                viewport,
+                scissor,
             },
         )?;
-        budget
-            .lock()
-            .map_err(|_| Error::Disabled)?
-            .charge(self.frame_index, pixels);
         Ok(())
     }
 
@@ -751,10 +792,20 @@ impl Gpu {
                 self.pending.push(recorded);
                 continue;
             }
+            if recorded.command.reads_scene()
+                && sources
+                    .and_then(|sources| sources.scene)
+                    .is_none_or(|scene| !scene.usage().contains(wgpu::TextureUsages::COPY_SRC))
+            {
+                continue;
+            }
             batches.entry(recorded.owner).or_default().push(recorded);
         }
         let mut snapshots = super::engine::Snapshots::default();
         for (owner, batch) in batches {
+            if !self.submission_ready(owner) {
+                continue;
+            }
             snapshots.groups.clear();
             let started = Instant::now();
             let mut submitted = false;
@@ -776,7 +827,11 @@ impl Gpu {
                     }
                 }
                 let passes = runs.iter().filter(|run| run[0].is_pass()).count() as u32;
-                let timing = self.timing_ticket(device, queue, owner, passes)?;
+                let mut workload = super::timing::Workload::from_commands(
+                    batch.iter().map(|recorded| recorded.kind),
+                );
+                workload.allowance_hit = self.recorder.draw_allowance_hit(owner);
+                let timing = self.timing_ticket(device, queue, owner, passes, workload)?;
                 let ticket = timing.as_ref().and_then(|resource| match resource.value() {
                     Value::Timing(ticket) => Some(ticket),
                     _ => None,
@@ -794,15 +849,6 @@ impl Gpu {
                             sources,
                             &mut snapshots,
                         )?;
-                        if let Some(ticket) = ticket
-                            && let Some(budget) = command.pipeline_budget()
-                            && let Ok(mut pipelines) = ticket.pipelines.lock()
-                            && !pipelines
-                                .iter()
-                                .any(|existing| Arc::ptr_eq(existing, budget))
-                        {
-                            pipelines.push(budget.clone());
-                        }
                         draws.push((command, groups));
                     }
                     let (command, groups) = &draws[0];
@@ -829,7 +875,12 @@ impl Gpu {
                 if let Some(hooks) = &self.submission_hooks {
                     (hooks.before)(owner).map_err(Error::Host)?;
                 }
-                queue.submit([command_buffer]);
+                self.submission_started(
+                    queue,
+                    owner,
+                    !device.features().contains(wgpu::Features::TIMESTAMP_QUERY),
+                    command_buffer,
+                );
                 submitted = true;
                 retained_timing = timing.clone();
                 if let Some(ticket) = ticket {
@@ -896,17 +947,6 @@ impl Command {
                 _ => 0,
             },
             _ => 0,
-        }
-    }
-
-    fn pipeline_budget(&self) -> Option<&Arc<Mutex<super::timing::PipelineBudget>>> {
-        match self {
-            Self::Dispatch { pipeline, .. } | Self::Draw { pipeline, .. } => match pipeline.value()
-            {
-                Value::Compute { budget, .. } | Value::Render { budget, .. } => Some(budget),
-                _ => None,
-            },
-            _ => None,
         }
     }
 
@@ -1189,6 +1229,8 @@ impl Command {
             index,
             count,
             instances,
+            viewport,
+            scissor,
             ..
         } = self
         else {
@@ -1198,6 +1240,15 @@ impl Command {
             return Err(Error::Kind);
         };
         pass.set_pipeline(pipeline);
+        pass.set_viewport(
+            viewport.x as f32,
+            viewport.y as f32,
+            viewport.width as f32,
+            viewport.height as f32,
+            0.0,
+            1.0,
+        );
+        pass.set_scissor_rect(scissor.x, scissor.y, scissor.width, scissor.height);
         for (index, group) in engine_groups {
             pass.set_bind_group(*index, group, &[]);
         }

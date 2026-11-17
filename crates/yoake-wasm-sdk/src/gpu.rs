@@ -1,7 +1,7 @@
 use super::{gpu_raw as raw, gpu_types as types};
 use crate::prelude::*;
 
-pub use types::{Attribute, FrameInfo, PixelFormat, ShaderError, Stage};
+pub use types::{Attribute, DrawRegion, FrameInfo, GpuRect, PixelFormat, ShaderError, Stage};
 
 macro_rules! usage {
     ($name:ident { $($flag:ident = $value:expr),* $(,)? }) => {
@@ -209,7 +209,25 @@ impl RenderPipeline {
     }
 
     pub fn draw(&self, stage: Stage, draw: &Draw<'_>, target: &Target<'_>) -> Result<(), String> {
-        raw::draw(
+        self.draw_region(
+            stage,
+            draw,
+            target,
+            DrawRegion {
+                viewport: None,
+                scissor: None,
+            },
+        )
+    }
+
+    pub fn draw_region(
+        &self,
+        stage: Stage,
+        draw: &Draw<'_>,
+        target: &Target<'_>,
+        region: DrawRegion,
+    ) -> Result<(), String> {
+        raw::draw_region_call(
             &types::DrawDesc {
                 pipeline: self.handle,
                 count: draw.count,
@@ -219,6 +237,7 @@ impl RenderPipeline {
                 index32: draw.index32,
                 groups: draw.groups.iter().map(|group| group.handle).collect(),
             },
+            region,
             stage,
             types::DrawTarget {
                 color: target.color.map(|texture| texture.handle),
@@ -348,23 +367,4 @@ pub fn frame() -> Result<FrameInfo, String> {
 }
 
 /// Group 3, binding 0: ABI v1, exactly 576 bytes. Append resource declarations as needed.
-pub const ENGINE_WGSL: &str = r#"
-struct EngineFrame {
-    header: vec4<u32>,
-    view: mat4x4<f32>,
-    projection: mat4x4<f32>,
-    view_projection: mat4x4<f32>,
-    inverse_view_projection: mat4x4<f32>,
-    previous_view_projection: mat4x4<f32>,
-    jittered_view_projection: mat4x4<f32>,
-    inverse_jittered_view_projection: mat4x4<f32>,
-    camera_time: vec4<f32>,
-    viewport_delta: vec4<f32>,
-    sun: vec4<f32>,
-    moon: vec4<f32>,
-    fog_color: vec4<f32>,
-    fog_range: vec4<f32>,
-    jitter: vec4<f32>,
-}
-@group(3) @binding(0) var<uniform> engine: EngineFrame;
-"#;
+pub const ENGINE_WGSL: &str = include_str!("engine.wgsl");

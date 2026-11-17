@@ -54,6 +54,7 @@ pub(super) struct FullMod {
     id: String,
     client: Arc<Mutex<SideState<ClientFullMod>>>,
     gpu_owner: Option<crate::gfx::mod_gpu::ModId>,
+    gpu_version: String,
     server: Arc<ServerSlot>,
     /// One bit per catalog hook, per side: the guest subscribed and has not been disabled.
     masks: Arc<[[AtomicU64; MASK_WORDS]; 2]>,
@@ -138,6 +139,7 @@ impl FullMod {
                 reported: false,
             })),
             gpu_owner: None,
+            gpu_version: String::new(),
             server,
             masks: Arc::new([client_mask, server_mask]),
             dropped: [AtomicU64::new(0), AtomicU64::new(0)],
@@ -146,7 +148,7 @@ impl FullMod {
         }
     }
 
-    pub(super) fn with_gpu(mut self, enabled: bool) -> Self {
+    pub(super) fn with_gpu(mut self, enabled: bool, version: &str, fingerprint: &str) -> Self {
         if !enabled {
             return self;
         }
@@ -157,14 +159,24 @@ impl FullMod {
         let id = self.id.clone();
         let masks = Arc::clone(&self.masks);
         let reload = self.client_reload.clone();
-        crate::gfx::mod_gpu_runtime::register(
+        let version = version.to_owned();
+        self.gpu_version = version.clone();
+        crate::gfx::mod_gpu_runtime::register_package(
             owner,
             &self.id,
+            fingerprint,
             Arc::new(move || {
                 let Some(client) = client.upgrade() else {
                     return;
                 };
-                reload_client(&id, &client, &masks, reload.as_deref(), Some(owner));
+                reload_client(
+                    &id,
+                    &client,
+                    &masks,
+                    reload.as_deref(),
+                    Some(owner),
+                    &version,
+                );
                 let mut state = match client.try_lock() {
                     Ok(state) => state,
                     Err(std::sync::TryLockError::WouldBlock) => return,
@@ -234,6 +246,7 @@ impl FullMod {
             &self.masks,
             self.client_reload.as_deref(),
             self.gpu_owner,
+            &self.gpu_version,
         );
     }
 
@@ -432,6 +445,7 @@ fn reload_client(
     masks: &[[AtomicU64; MASK_WORDS]; 2],
     reload: Option<&Reload>,
     owner: Option<crate::gfx::mod_gpu::ModId>,
+    version: &str,
 ) {
     let Some(reload) = reload else { return };
     if !reload.ready.load(Ordering::Acquire) {
@@ -462,7 +476,10 @@ fn reload_client(
     ) {
         Ok(module) => {
             if let Some(owner) = owner {
-                if let Err(error) = crate::gfx::mod_gpu_runtime::reset_resources(owner) {
+                let fingerprint = super::gpu_fingerprint(version, &bytes);
+                if let Err(error) =
+                    crate::gfx::mod_gpu_runtime::replace_package(owner, &fingerprint)
+                {
                     log::warn!(
                         "wasm mod {id} (client): reload rejected; keeping the previous module: {error}"
                     );

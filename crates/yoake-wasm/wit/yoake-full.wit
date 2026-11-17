@@ -2272,6 +2272,11 @@ interface gpu-types {
         vertex: option<buffer-range>,
     }
 
+    record draw-region {
+        scissor: option<gpu-rect>,
+        viewport: option<gpu-rect>,
+    }
+
     record draw-target {
         clear: option<tuple<f64, f64, f64, f64>>,
         color: option<u32>,
@@ -2288,6 +2293,13 @@ interface gpu-types {
         view-projection: list<f32>,
         width: u32,
         world-format: option<pixel-format>,
+    }
+
+    record gpu-rect {
+        height: u32,
+        width: u32,
+        x: u32,
+        y: u32,
     }
 
     record render-desc {
@@ -2323,7 +2335,7 @@ interface gpu-types {
 
 /// Services listed in `abi-subset-gpu.json`.
 interface gpu-services {
-    use gpu-types.{binding-kind, pixel-format, stage, attribute, binding, buffer-range, draw-desc, draw-target, frame-info, render-desc, shader-error, texture-desc};
+    use gpu-types.{binding-kind, pixel-format, stage, attribute, binding, buffer-range, draw-desc, draw-region, draw-target, frame-info, gpu-rect, render-desc, shader-error, texture-desc};
 
     buffer: func(size: u64, usage: u32) -> result<u32, string>;
     texture: func(desc: texture-desc) -> result<u32, string>;
@@ -2342,6 +2354,7 @@ interface gpu-services {
     poll: func(ticket: u32) -> result<option<list<u8>>, string>;
     frame: func() -> result<frame-info, string>;
     shader-file: func(path: string, source: string) -> result<u32, shader-error>;
+    draw-region-call: func(desc: draw-desc, region: draw-region, stage: stage, target: draw-target) -> result<_, string>;
 }
 
 /// Hooks that run in the client.

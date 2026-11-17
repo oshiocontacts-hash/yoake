@@ -11,6 +11,8 @@
     "buffer-range": {"handle":"u32","offset":"u64","size":"u64"},
     "draw-desc": {"pipeline":"u32","groups":"list<u32>","vertex":"option<buffer-range>","index":"option<buffer-range>","index32":"bool","count":"u32","instances":"u32"},
     "draw-target": {"color":"option<u32>","depth":"option<u32>","clear":"option<tuple<f64, f64, f64, f64>>"},
+    "gpu-rect": {"x":"u32","y":"u32","width":"u32","height":"u32"},
+    "draw-region": {"viewport":"option<gpu-rect>","scissor":"option<gpu-rect>"},
     "frame-info": {"version":"u32","index":"u64","width":"u32","height":"u32","view-projection":"list<f32>","camera":"tuple<f64, f64, f64>","delta-seconds":"f32","world-format":"option<pixel-format>","hud-format":"option<pixel-format>"},
     "shader-error": {"message":"string","line":"u32","column":"u32"}
   },
@@ -37,6 +39,7 @@
     {"id":159,"abi":true,"name":"read","arguments":{"handle":"u32","offset":"u64","size":"u64","stage":"stage"},"result":"result<u32, string>","side":"client","capability":"service.gpu"},
     {"id":160,"abi":true,"name":"poll","arguments":{"ticket":"u32"},"result":"result<option<list<u8>>, string>","side":"client","capability":"service.gpu"},
     {"id":161,"abi":true,"name":"frame","arguments":{},"result":"result<frame-info, string>","side":"client","capability":"service.gpu"},
-    {"id":162,"abi":true,"name":"shader_file","arguments":{"path":"string","source":"string"},"result":"result<u32, shader-error>","side":"client","capability":"service.gpu"}
+    {"id":162,"abi":true,"name":"shader_file","arguments":{"path":"string","source":"string"},"result":"result<u32, shader-error>","side":"client","capability":"service.gpu"},
+    {"id":198,"abi":true,"name":"draw_region","arguments":{"desc":"draw-desc","region":"draw-region","stage":"stage","target":"draw-target"},"result":"result<_, string>","side":"client","capability":"service.gpu"}
   ]
 }

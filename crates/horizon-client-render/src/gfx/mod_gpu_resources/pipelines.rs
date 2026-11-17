@@ -67,6 +67,7 @@ impl Gpu {
         entry: &str,
     ) -> Result<u32, Error> {
         self.available(owner)?;
+        self.timestamps = device.features().contains(wgpu::Features::TIMESTAMP_QUERY);
         self.creation(owner)?;
         let shader = self
             .resources
@@ -88,7 +89,6 @@ impl Gpu {
                 checked(device, || Value::Compute {
                     engine_mask: *engine_masks.get(entry).unwrap_or(&0),
                     cost,
-                    budget: Default::default(),
                     pipeline: device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                         label: Some("Yoake mod compute pipeline"),
                         layout: None,
@@ -110,6 +110,7 @@ impl Gpu {
         descriptor: RenderDescriptor,
     ) -> Result<u32, Error> {
         self.available(owner)?;
+        self.timestamps = device.features().contains(wgpu::Features::TIMESTAMP_QUERY);
         self.creation(owner)?;
         if descriptor.attributes.len() > 16
             || descriptor.stride > 2048
@@ -172,7 +173,6 @@ impl Gpu {
         self.resources
             .create(owner, Allocation::RenderPipeline, || {
                 checked(device, || Value::Render {
-                    budget: Default::default(),
                     engine_mask: engine_masks
                         .get(&descriptor.vertex_entry)
                         .copied()

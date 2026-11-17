@@ -348,14 +348,15 @@ fn raster_copy_and_compute_cost_limits_are_transactional() {
         }),
         Err(Error::Vertices)
     );
-    let render = |pixels, new_pass| CommandKind::Render {
+    let render = |fragment_work, new_pass| CommandKind::Render {
         count: 3,
         instances: 1,
-        pixels,
+        fragment_work,
         pixel_limit: 4096,
+        vertex_limit: MAX_VERTICES,
         new_pass,
     };
-    let raster = empty.charge(render(4096, true)).unwrap();
+    let raster = empty.charge(render(4096 * 2048, true)).unwrap();
     assert_eq!(raster.charge(render(1, false)), Err(Error::Pixels));
     let mut merged = empty;
     for index in 0..128 {
@@ -374,14 +375,16 @@ fn raster_copy_and_compute_cost_limits_are_transactional() {
         empty
             .charge(CommandKind::Compute {
                 groups: [256, 1, 1],
-                cost: 256
+                cost: 256,
+                work_limit: MAX_WORKGROUPS,
             })
             .is_ok()
     );
     assert_eq!(
         empty.charge(CommandKind::Compute {
             groups: [257, 1, 1],
-            cost: 256
+            cost: 256,
+            work_limit: MAX_WORKGROUPS,
         }),
         Err(Error::Workgroups)
     );

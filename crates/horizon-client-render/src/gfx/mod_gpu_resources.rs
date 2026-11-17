@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use super::mod_gpu::{Allocation, Error, Format, ModId, Resource, Resources, Texture, Usage};
@@ -9,9 +9,10 @@ mod engine;
 mod pipelines;
 mod timing;
 
-pub use commands::{Draw, FrameTarget, Index, Readback, Target};
+pub use commands::{Draw, FrameTarget, Index, Readback, Rect, Region, Target};
 pub use engine::{EngineFrame, EngineSources};
 pub use pipelines::{Binding, RenderDescriptor, VertexAttribute};
+pub(super) use timing::SubmissionTimeline;
 
 #[derive(Clone)]
 pub struct SubmissionHooks {
@@ -43,14 +44,12 @@ enum Value {
         pipeline: wgpu::ComputePipeline,
         engine_mask: u32,
         cost: u64,
-        budget: Arc<Mutex<timing::PipelineBudget>>,
         _shader: Owned,
     },
     Render {
         pipeline: wgpu::RenderPipeline,
         descriptor: RenderDescriptor,
         engine_mask: u32,
-        budget: Arc<Mutex<timing::PipelineBudget>>,
         _shader: Owned,
     },
     BindGroup {
@@ -73,7 +72,12 @@ pub struct Gpu {
     tickets: BTreeMap<ModId, std::collections::BTreeSet<u32>>,
     engine_uniform: Option<wgpu::Buffer>,
     timings: Vec<(ModId, Owned)>,
+    completions: Vec<(ModId, timing::Completion)>,
     budgets: BTreeMap<ModId, timing::Budget>,
+    cpu_budgets: BTreeMap<ModId, timing::Budget>,
+    fallback_budgets: BTreeMap<ModId, timing::FallbackBudget>,
+    pub(super) submission_timeline: SubmissionTimeline,
+    timestamps: bool,
     frame_index: u64,
     submission_hooks: Option<SubmissionHooks>,
     creations: BTreeMap<ModId, CreationBudget>,
@@ -142,11 +146,28 @@ impl Gpu {
         };
     }
 
-    fn pixel_limit(&self) -> u64 {
+    fn budget_divisor(&self, owner: ModId, timestamps: bool) -> u64 {
+        if timestamps {
+            self.budgets.get(&owner).map_or(16, timing::Budget::divisor)
+        } else {
+            16
+        }
+    }
+
+    fn pixel_limit(&self, owner: ModId, timestamps: bool) -> u64 {
         u64::from(self.frame_limits.width)
             .saturating_mul(u64::from(self.frame_limits.height))
-            .saturating_mul(4)
-            .clamp(1, 33_554_432)
+            .max(1)
+            .saturating_mul(1024)
+            / self.budget_divisor(owner, timestamps).pow(2)
+    }
+
+    fn vertex_limit(&self, owner: ModId, timestamps: bool) -> u64 {
+        super::mod_gpu::MAX_VERTICES / self.budget_divisor(owner, timestamps)
+    }
+
+    fn compute_limit(&self, owner: ModId, timestamps: bool) -> u64 {
+        (64 * 1024 * 1024 / self.budget_divisor(owner, timestamps)).max(256 * 8192)
     }
 
     fn creation(&mut self, owner: ModId) -> Result<(), Error> {
@@ -209,7 +230,10 @@ impl Gpu {
         self.pending.retain(|command| command.owner != owner);
         self.tickets.remove(&owner);
         self.timings.retain(|(identity, _)| *identity != owner);
+        self.completions.retain(|(identity, _)| *identity != owner);
         self.budgets.remove(&owner);
+        self.cpu_budgets.remove(&owner);
+        self.fallback_budgets.remove(&owner);
         self.disabled.entry(owner).or_insert(reason);
     }
 
@@ -224,7 +248,10 @@ impl Gpu {
         self.pending.clear();
         self.tickets.clear();
         self.timings.clear();
+        self.completions.clear();
         self.budgets.clear();
+        self.cpu_budgets.clear();
+        self.fallback_budgets.clear();
         self.resources = Default::default();
     }
 
@@ -232,13 +259,16 @@ impl Gpu {
         self.recorder.remove_owner(owner);
         self.pending.retain(|command| command.owner != owner);
         self.tickets.remove(&owner);
-        self.timings.retain(|(identity, _)| *identity != owner);
         self.resources.remove_owner(owner);
     }
 
     pub fn remove_owner(&mut self, owner: ModId) {
         self.reset_resources(owner);
+        self.timings.retain(|(identity, _)| *identity != owner);
+        self.completions.retain(|(identity, _)| *identity != owner);
         self.budgets.remove(&owner);
+        self.cpu_budgets.remove(&owner);
+        self.fallback_budgets.remove(&owner);
         self.disabled.remove(&owner);
         self.creations.remove(&owner);
     }
@@ -428,3 +458,6 @@ pub fn frame_format(format: wgpu::TextureFormat) -> Option<Format> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod workload_tests;

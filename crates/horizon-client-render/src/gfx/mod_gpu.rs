@@ -370,14 +370,16 @@ pub enum CommandKind {
     Render {
         count: u32,
         instances: u32,
-        pixels: u64,
+        fragment_work: u64,
         pixel_limit: u64,
+        vertex_limit: u64,
         new_pass: bool,
     },
     Dispatch([u32; 3]),
     Compute {
         groups: [u32; 3],
         cost: u64,
+        work_limit: u64,
     },
     Upload(u64),
     Copy(u64),
@@ -391,10 +393,11 @@ struct FrameUsage {
     workgroups: u64,
     uploaded: u64,
     copied: u64,
-    pixels: u64,
+    fragment_work: u64,
     passes: u32,
     read: u64,
     commands: u32,
+    draw_allowance_hit: bool,
 }
 
 impl FrameUsage {
@@ -414,17 +417,24 @@ impl FrameUsage {
                     .checked_add(u64::from(count) * u64::from(instances))
                     .ok_or(Error::Vertices)?;
                 if let CommandKind::Render {
-                    pixels,
+                    fragment_work,
                     pixel_limit,
+                    vertex_limit,
                     new_pass,
                     ..
                 } = kind
                 {
-                    next.pixels = next.pixels.checked_add(pixels).ok_or(Error::Pixels)?;
-                    if next.pixels > pixel_limit {
+                    next.fragment_work = next
+                        .fragment_work
+                        .checked_add(fragment_work)
+                        .ok_or(Error::Pixels)?;
+                    if next.fragment_work.div_ceil(2048) > pixel_limit {
                         return Err(Error::Pixels);
                     }
                     next.passes += u32::from(new_pass);
+                    if next.vertices > vertex_limit {
+                        return Err(Error::Vertices);
+                    }
                 }
             }
             CommandKind::Dispatch(groups) | CommandKind::Compute { groups, .. } => {
@@ -442,6 +452,13 @@ impl FrameUsage {
                     .workgroups
                     .checked_add(groups)
                     .ok_or(Error::Workgroups)?;
+                let limit = match kind {
+                    CommandKind::Compute { work_limit, .. } => work_limit,
+                    _ => MAX_WORKGROUPS,
+                };
+                if next.workgroups > limit {
+                    return Err(Error::Workgroups);
+                }
                 next.passes += 1;
             }
             CommandKind::Upload(bytes) => {
@@ -457,7 +474,6 @@ impl FrameUsage {
         for (exceeded, error) in [
             (next.draws > MAX_DRAWS, Error::Draws),
             (next.vertices > MAX_VERTICES, Error::Vertices),
-            (next.workgroups > MAX_WORKGROUPS, Error::Workgroups),
             (next.uploaded > MAX_UPLOAD_BYTES, Error::Upload),
             (next.copied > MAX_COPY_BYTES, Error::Copy),
             (next.passes > MAX_PASSES, Error::Passes),
@@ -476,6 +492,7 @@ impl FrameUsage {
 pub struct Recorded<Command> {
     pub owner: ModId,
     pub stage: Stage,
+    pub kind: CommandKind,
     pub command: Command,
 }
 
@@ -538,19 +555,49 @@ impl<Command> Recorder<Command> {
         if !self.active {
             return Err(Error::Frame);
         }
-        let next = self
-            .usage
-            .get(&owner)
-            .copied()
-            .unwrap_or_default()
-            .charge(kind)?;
+        let usage = self.usage.entry(owner).or_default();
+        if let CommandKind::Render {
+            count,
+            instances,
+            fragment_work,
+            pixel_limit,
+            vertex_limit,
+            ..
+        } = kind
+        {
+            if instances > MAX_INSTANCES {
+                return Err(Error::Vertices);
+            }
+            if usage.draw_allowance_hit
+                || usage
+                    .fragment_work
+                    .saturating_add(fragment_work)
+                    .div_ceil(2048)
+                    > pixel_limit
+                || usage
+                    .vertices
+                    .saturating_add(u64::from(count) * u64::from(instances))
+                    > vertex_limit
+            {
+                usage.draw_allowance_hit = true;
+                return Ok(());
+            }
+        }
+        let next = usage.charge(kind)?;
         self.commands.push(Recorded {
             owner,
             stage,
+            kind,
             command: create(),
         });
         self.usage.insert(owner, next);
         Ok(())
+    }
+
+    pub fn draw_allowance_hit(&self, owner: ModId) -> bool {
+        self.usage
+            .get(&owner)
+            .is_some_and(|usage| usage.draw_allowance_hit)
     }
 
     pub fn finish_frame(&mut self) -> Result<Vec<Recorded<Command>>, Error> {

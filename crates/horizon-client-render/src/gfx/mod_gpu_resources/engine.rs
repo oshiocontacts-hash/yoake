@@ -218,6 +218,145 @@ mod tests {
     use super::*;
 
     #[test]
+    fn unavailable_scene_reads_skip_without_disabling_other_work() {
+        let (device, queue) = super::super::tests::gpu();
+        for case in 0..4 {
+            unavailable_scene_read_case(&device, &queue, case);
+        }
+    }
+
+    fn unavailable_scene_read_case(device: &wgpu::Device, queue: &wgpu::Queue, case: usize) {
+        let mut gpu = Gpu::default();
+        let owner = ModId(42);
+        let output = gpu
+            .create_buffer(
+                &device,
+                owner,
+                8,
+                (wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC).bits(),
+            )
+            .unwrap();
+        let shader = gpu
+            .create_shader(
+                &device,
+                owner,
+                r#"
+@group(0) @binding(0) var<storage, read_write> output: array<u32>;
+@group(3) @binding(4) var scene: texture_2d<f32>;
+@compute @workgroup_size(1) fn read_scene() {
+    output[0] = u32(textureLoad(scene, vec2<i32>(0), 0).r * 255.0);
+}
+@compute @workgroup_size(1) fn plain() {
+    output[1] = output[1] + 1u;
+}
+"#,
+            )
+            .unwrap();
+        let scene_pipeline = gpu
+            .create_compute(&device, owner, shader, "read_scene")
+            .unwrap();
+        gpu.collect_timings(&device);
+        let plain_pipeline = gpu.create_compute(&device, owner, shader, "plain").unwrap();
+        let mut groups = Vec::new();
+        for pipeline in [scene_pipeline, plain_pipeline] {
+            groups.push(
+                gpu.create_bind_group(
+                    &device,
+                    owner,
+                    pipeline,
+                    0,
+                    &[Binding::Buffer {
+                        binding: 0,
+                        handle: output,
+                        offset: 0,
+                        size: 8,
+                    }],
+                )
+                .unwrap(),
+            );
+        }
+        let texture = |copyable| {
+            let texture = device.create_texture(&wgpu::TextureDescriptor {
+                label: None,
+                size: wgpu::Extent3d {
+                    width: 1,
+                    height: 1,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING
+                    | wgpu::TextureUsages::COPY_DST
+                    | if copyable {
+                        wgpu::TextureUsages::COPY_SRC
+                    } else {
+                        wgpu::TextureUsages::empty()
+                    },
+                view_formats: &[],
+            });
+            queue.write_texture(
+                texture.as_image_copy(),
+                &[255, 0, 0, 255],
+                wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(4),
+                    rows_per_image: Some(1),
+                },
+                texture.size(),
+            );
+            texture
+        };
+        let uncopyable = texture(false);
+        let copyable = texture(true);
+        let sources = |scene| EngineSources {
+            frame: EngineFrame::default(),
+            atlas: None,
+            sampler: None,
+            depth: None,
+            scene,
+            lightmap: None,
+        };
+        let missing = sources(None);
+        let uncopyable = sources(Some(&uncopyable));
+        let copyable = sources(Some(&copyable));
+        let (sources, expected_scene) = [
+            (None, 0),
+            (Some(&missing), 0),
+            (Some(&uncopyable), 0),
+            (Some(&copyable), 255),
+        ]
+        .into_iter()
+        .nth(case)
+        .unwrap();
+        gpu.collect_timings(&device);
+        gpu.begin_frame().unwrap();
+        for (pipeline, group) in [scene_pipeline, plain_pipeline].into_iter().zip(&groups) {
+            gpu.dispatch(owner, Stage::AfterWorld, pipeline, &[*group], [1; 3])
+                .unwrap();
+        }
+        let ticket = gpu
+            .read_buffer(&device, owner, Stage::AfterWorld, output, 0, 8)
+            .unwrap();
+        gpu.finish_frame().unwrap();
+        assert!(gpu.reads_scene());
+        assert!(
+            gpu.submit_stage_with_engine(&device, &queue, Stage::AfterWorld, None, sources,)
+                .is_empty()
+        );
+        assert!(gpu.disabled_reason(owner).is_none());
+        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+        let Readback::Ready(bytes) = gpu.poll_readback(&device, owner, ticket).unwrap() else {
+            panic!("readback remained pending");
+        };
+        assert_eq!(
+            bytemuck::cast_slice::<u8, u32>(&bytes),
+            &[expected_scene, 1]
+        );
+    }
+
+    #[test]
     fn engine_snapshots_are_shared_and_groups_are_cached_per_batch() {
         let (device, queue) = super::super::tests::gpu();
         let mut gpu = Gpu::default();

@@ -25,6 +25,25 @@ pub struct Frame {
 
 type Callback = Arc<dyn Fn() + Send + Sync>;
 
+#[derive(Default)]
+pub(super) struct SceneReads {
+    remaining: u32,
+}
+
+impl SceneReads {
+    pub fn required(&self) -> bool {
+        self.remaining > 0
+    }
+
+    pub fn observe(&mut self, reads_scene: bool) {
+        self.remaining = if reads_scene {
+            120
+        } else {
+            self.remaining.saturating_sub(1)
+        };
+    }
+}
+
 struct Runtime {
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -34,11 +53,24 @@ struct Runtime {
     engine_frame: EngineFrame,
     last_frame: Option<Instant>,
     started: Instant,
+    scene_reads: SceneReads,
 }
 
 fn runtime() -> &'static Mutex<Option<Runtime>> {
     static RUNTIME: OnceLock<Mutex<Option<Runtime>>> = OnceLock::new();
     RUNTIME.get_or_init(Default::default)
+}
+
+pub(super) fn submission_timeline(
+    queue: &wgpu::Queue,
+) -> Option<super::mod_gpu_resources::SubmissionTimeline> {
+    let guard = runtime()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    guard
+        .as_ref()
+        .filter(|runtime| runtime.queue == *queue)
+        .map(|runtime| runtime.gpu.submission_timeline.clone())
 }
 
 fn callbacks() -> &'static Mutex<BTreeMap<ModId, Callback>> {
@@ -62,6 +94,9 @@ pub fn configure(device: &wgpu::Device, queue: &wgpu::Queue, lost: Arc<AtomicBoo
         gpu.restore_suspended(previous.gpu.suspended());
     }
     recovery::install(&mut gpu, lost.clone());
+    gpu.submission_timeline.set_engine_tracking(
+        active() && !device.features().contains(wgpu::Features::TIMESTAMP_QUERY),
+    );
     *guard = Some(Runtime {
         device: device.clone(),
         queue: queue.clone(),
@@ -71,21 +106,33 @@ pub fn configure(device: &wgpu::Device, queue: &wgpu::Queue, lost: Arc<AtomicBoo
         engine_frame: EngineFrame::default(),
         last_frame: None,
         started: Instant::now(),
+        scene_reads: SceneReads::default(),
     });
 }
 
 pub fn register(owner: ModId, identity: &str, callback: Callback) {
+    register_package(owner, identity, identity, callback);
+}
+
+pub fn register_package(owner: ModId, identity: &str, fingerprint: &str, callback: Callback) {
     callbacks()
         .lock()
         .unwrap_or_else(|error| error.into_inner())
         .insert(owner, callback);
-    let result = recovery::register(owner, identity);
+    let result = recovery::register(owner, identity, fingerprint);
     if let Some(runtime) = runtime()
         .lock()
         .unwrap_or_else(|error| error.into_inner())
         .as_mut()
     {
         recovery::install(&mut runtime.gpu, runtime.lost.clone());
+        runtime.gpu.submission_timeline.set_engine_tracking(
+            !runtime
+                .device
+                .features()
+                .contains(wgpu::Features::TIMESTAMP_QUERY),
+        );
+        runtime.scene_reads = SceneReads::default();
         if let Err(error) = &result {
             runtime.gpu.disable(owner, error.clone());
         }
@@ -101,6 +148,39 @@ pub fn reset_resources(owner: ModId) -> Result<(), String> {
         gpu.reset_resources(owner);
         Ok(())
     })
+}
+
+pub fn replace_package(owner: ModId, fingerprint: &str) -> Result<(), String> {
+    let mut guard = runtime()
+        .lock()
+        .map_err(|_| "GPU runtime lock unavailable".to_owned())?;
+    let runtime = guard.as_mut().ok_or("GPU runtime unavailable")?;
+    if runtime.lost.load(Ordering::Acquire) {
+        return Err("GPU device was lost; restart before replacing mods".to_owned());
+    }
+    recovery::replace_package(owner, fingerprint)?;
+    runtime.gpu.remove_owner(owner);
+    runtime.scene_reads = SceneReads::default();
+    Ok(())
+}
+
+pub fn reenable(identity: &str) -> Result<(), String> {
+    let mut guard = runtime()
+        .lock()
+        .map_err(|_| "GPU runtime lock unavailable".to_owned())?;
+    if guard
+        .as_ref()
+        .is_some_and(|runtime| runtime.lost.load(Ordering::Acquire))
+    {
+        return Err("GPU device was lost; restart before re-enabling mods".to_owned());
+    }
+    let owners = recovery::reenable(identity)?;
+    if let Some(runtime) = guard.as_mut() {
+        for owner in owners {
+            runtime.gpu.remove_owner(owner);
+        }
+    }
+    Ok(())
 }
 
 pub fn disable(owner: ModId, reason: &str) {
@@ -126,6 +206,13 @@ pub fn remove(owner: ModId) {
         .as_mut()
     {
         runtime.gpu.remove_owner(owner);
+        runtime.gpu.submission_timeline.set_engine_tracking(
+            active()
+                && !runtime
+                    .device
+                    .features()
+                    .contains(wgpu::Features::TIMESTAMP_QUERY),
+        );
     }
 }
 
@@ -144,6 +231,21 @@ pub fn with_error<R>(
     owner: ModId,
     operation: impl FnOnce(&mut Gpu, &wgpu::Device, &wgpu::Queue, &Frame) -> Result<R, Error>,
 ) -> Result<R, Error> {
+    with_timing(owner, false, operation)
+}
+
+pub fn with_creation_error<R>(
+    owner: ModId,
+    operation: impl FnOnce(&mut Gpu, &wgpu::Device, &wgpu::Queue, &Frame) -> Result<R, Error>,
+) -> Result<R, Error> {
+    with_timing(owner, true, operation)
+}
+
+fn with_timing<R>(
+    owner: ModId,
+    creation: bool,
+    operation: impl FnOnce(&mut Gpu, &wgpu::Device, &wgpu::Queue, &Frame) -> Result<R, Error>,
+) -> Result<R, Error> {
     let mut guard = runtime()
         .lock()
         .map_err(|_| Error::Host("GPU host unavailable".to_owned()))?;
@@ -157,22 +259,30 @@ pub fn with_error<R>(
     if let Some(reason) = runtime.gpu.disabled_reason(owner) {
         return Err(Error::Host(format!("GPU disabled: {reason}")));
     }
-    let started = Instant::now();
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        operation(
-            &mut runtime.gpu,
-            &runtime.device,
-            &runtime.queue,
-            &runtime.frame,
-        )
-    }));
+    timed_operation(&mut runtime.gpu, owner, creation, Instant::now, |gpu| {
+        operation(gpu, &runtime.device, &runtime.queue, &runtime.frame)
+    })
+}
+
+pub(super) fn timed_operation<R>(
+    gpu: &mut Gpu,
+    owner: ModId,
+    creation: bool,
+    mut clock: impl FnMut() -> Instant,
+    operation: impl FnOnce(&mut Gpu) -> Result<R, Error>,
+) -> Result<R, Error> {
+    let started = clock();
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| operation(gpu)));
+    let elapsed = clock().saturating_duration_since(started);
     match result {
         Ok(result) => {
-            runtime.gpu.charge_cpu(owner, started.elapsed())?;
+            if !creation {
+                gpu.charge_cpu(owner, elapsed)?;
+            }
             result
         }
         Err(_) => {
-            runtime.gpu.disable(owner, "GPU host panic".to_owned());
+            gpu.disable(owner, "GPU host panic".to_owned());
             Err(Error::Host("GPU disabled after a host failure".to_owned()))
         }
     }
@@ -260,6 +370,7 @@ pub fn begin_frame(mut frame: Frame, mut engine_frame: EngineFrame) {
         if let Err(error) = runtime.gpu.finish_frame() {
             log::warn!("WASM GPU frame rejected: {error}");
         }
+        runtime.scene_reads.observe(runtime.gpu.reads_scene());
     }
 }
 
@@ -283,6 +394,17 @@ pub fn reads_scene() -> bool {
             .unwrap_or_else(|error| error.into_inner())
             .as_ref()
             .is_some_and(|runtime| runtime.gpu.reads_scene())
+}
+
+pub fn scene_target_required() -> bool {
+    active()
+        && runtime()
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .as_ref()
+            .is_some_and(|runtime| {
+                !runtime.lost.load(Ordering::Acquire) && runtime.scene_reads.required()
+            })
 }
 
 pub fn clean_exit() {

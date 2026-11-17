@@ -730,7 +730,7 @@ helpers, not transport implementations.
 
 ## Client GPU API
 
-The GPU catalog is `crates/horizon-mod-api-gen/abi-subset-gpu.json` (ABI IDs 146–162).
+The GPU catalog is `crates/horizon-mod-api-gen/abi-subset-gpu.json` (ABI IDs 146–163).
 WIT types and generated host adapters are committed. Use `yoake_wasm_sdk::full::client::gpu`
 for safe ownership; the generated raw imports are available when a lower-level interface is needed.
 Creation is rejected during `init`: create lazily in a subscribed client hook. Recording uploads,
@@ -818,20 +818,40 @@ logical allocation accounting rounded to 64 KiB, **not measured driver VRAM**: 2
 Buffers are 1 byte–256 MiB; textures are at most 8,192 pixels on either 2D axis, 256 array layers,
 or 512 on a 3D axis, with validated mip counts. WGSL source is at most 256 KiB.
 
-Each mod/frame permits 4,096 commands/draws, at most 2^24 vertices multiplied by instances,
-65,536 instances per draw, 16 MiB uploads, 256 MiB buffer copies and 1 MiB requested readback bytes. A read is
-1 byte–1 MiB; its retained source and staging storage remain charged while pending.
-Raster work charges target pixels multiplied by primitives (points, lines or triangles) and instances, with a four-screen budget
-capped at 32 Mi pixels. Consecutive draws to the same target share a render pass, with at most 64
-passes per mod/frame. Compute workgroups are weighted by the shader's static instruction, texture,
-loop and workgroup cost, within a 65,536-unit ceiling. Shader and pipeline creation attempts are
-limited to two per frame and eight per minute, including failed attempts and reloads. Depth and
-scene snapshots are shared once per stage across mods; engine bind groups are cached per pipeline
-within each owner's batch.
+Each mod/frame permits 4,096 commands/draws, 65,536 instances per draw, 16 MiB uploads,
+256 MiB buffer copies and 1 MiB requested readback bytes. A read is 1 byte–1 MiB; its retained
+source and staging storage remain charged while pending. Upload budgets are checked before
+allocating staging buffers or padded texture data.
+
+Static safety caps estimate fragment work rather than charging every triangle as a full-screen
+draw. A new mod, and every mod on an adapter without timestamps, receives 8,192 fullscreen-triangle
+equivalents per frame (4 screen-units at the 2,048 overdraw depth). A fully ramped mod receives
+2,097,152 fullscreen-triangle equivalents (1,024 screen-units) and 2^24 vertices multiplied by
+instances. Fragment work is the viewport/scissor intersection's
+covered pixels multiplied by the primitive count, accumulated across all draws of a mod/frame,
+then divided by 2,048 once, rounding up at the end. Topology determines the primitive count,
+including all instances. This assumes meshes have an overdraw depth of 2,048 primitives,
+rather than charging a whole viewport or a separate rounding penalty per draw or instance.
+Draws are admitted in submission order until the current fragment or vertex-instance allowance
+would be exceeded. That draw and the owner's remaining draws are silently skipped for that
+frame: exceeding this adaptive allowance is not an API error and does not disable the mod.
+`draw_region` narrows that rectangle, while `draw` uses the whole target. Compute charges total
+invocations multiplied by the shader's static instruction, texture and loop cost, with a
+64 Mi-unit cap. Its allowance always admits at
+least one maximum-size workgroup (256 invocations at the maximum static cost of 8,192).
+Consecutive draws to the same target share a render pass, with at most 64 passes per mod/frame.
+Shader and pipeline creation attempts remain limited to two per frame and eight per minute,
+including failed attempts and reloads. Depth and scene snapshots are shared once per stage
+across mods; engine bind groups are cached per pipeline within each owner's batch.
 
 At `after-world`, scene colour may intentionally be copied into a mod-owned texture and read back
 to the CPU; the same 1 MiB per-mod/frame readback limit applies. HUD-stage GPU commands run only on
-the real frame when frame generation is enabled, never on interpolated frames.
+the real frame when frame generation is enabled, never on interpolated frames. Mods that never
+read scene colour do not force a scene-read target. Scene-read targets stay allocated until
+120 consecutive frames without a read. If a read is requested after that target has lapsed,
+or the source lacks `COPY_SRC`, scene-reading commands are skipped for that frame without an
+error or suspension; other commands still run, and the request makes the target sticky again
+for subsequent frames. The frame descriptor reports the actual render target's dimensions and format.
 
 The Naga IR guard caps loops at 256 iterations per function activation, including helper functions
 and continuing blocks. Static limits include 8,192 instructions, 64 texture fetches, call depth 16,
@@ -840,27 +860,71 @@ storage and function locals.
 Workgroup-size overrides, barriers, subgroup/ray operations and workgroup storage are rejected.
 Only the validated, rewritten Naga module is compiled; robustness checks are not relaxed.
 
-New pipelines start with one screen's raster coverage (one quarter of the per-frame pixel budget)
-and one sixteenth of the compute budget. On adapters supporting
-`TIMESTAMP_QUERY`, eight distinct measured frames within 4 ms allow each doubling up to the full
-budget; measurements are accumulated per frame and slow frames reset the ramp. Without timestamps, pipelines permanently retain the
-small budget. GPU timestamps and host record/compile/encode/submit wall time count toward a
-two-second window averaging at most 4 ms per frame. Three frames over 50 ms also suspend that
-owner's GPU API without suspending its other services. Shader/pipeline compilation additionally
-counts against the WASM aggregate host/guest budget. CPU timing is **not a substitute for GPU
-timing**. Pending timing samples are limited per owner (32); each query set stays within wgpu's
-4,096-query ceiling, and timing storage is charged. Suspension survives renderer recreation.
-These limits reduce risk; actual driver/TDR behavior still needs platform tests.
+With `TIMESTAMP_QUERY`, pass timestamps enforce at most 4 ms per frame averaged over a rolling
+two-second window. Three frames over 50 ms within 60 seconds suspend that owner's GPU API for
+the session without suspending its other services; older strikes expire. Each peak immediately
+pauses new submissions for at least 50 ms. These measured-budget violations do not persist a
+fingerprint quarantine.
+Without timestamps, each mod's command batch is submitted separately. Its fallback sample is
+the time between completion of the immediately preceding submission (engine or previous mod)
+and its own completion, not the latency from submission through queued engine work. Only peaks
+more than 200 ms above the rolling two-second baseline of engine-only submission intervals
+count as strikes; three struck frames in 60 seconds suspend that owner's GPU API for the
+session only. There is no fallback average-time limit or peak-triggered throttle. Callback
+delivery timing can still affect these approximate measurements.
+Each owner can have up to three outstanding frames. A fourth frame waits, and new submissions
+also wait when the oldest outstanding submission is more than 100 ms old. A GPU one or two
+frames behind does not by itself skip a mod's batch.
+New mods start at 4 screen-units, 2^20 vertex-instances and 4 Mi compute-cost units, with the
+same minimum workgroup allowance. On timestamp-capable adapters, eight distinct safe measured
+frames double the vertex-instance and compute allowances and quadruple the fragment allowance,
+reaching the full caps after 32 qualifying frames. Each qualifying frame must measure at least
+0.25 ms and at most 4 ms, and use at least one quarter of its current fragment, vertex-instance
+or compute allowance, aggregated across all measured stages. A frame that hits the adaptive
+draw allowance satisfies that usage threshold even when later draws are skipped. The ramp is
+per mod, not per pipeline, and slow frames reset it; idle, zero-cost, wholly skipped, unmeasured
+and underused frames do not grow it. Without timestamps, each mod permanently receives the
+initial allowance. There is no CPU-timing-based GPU ramp on those adapters.
+
+Host recording/encoding/submission CPU time has a separate rolling two-second 4 ms/frame
+budget and expiring peak strikes. Shader, pipeline and other resource creation calls are
+excluded from that per-frame CPU budget, so compilation latency does not suspend legitimate
+mods. They still count against the WASM aggregate host/guest budget and creation rate limits.
+CPU timing is **not a substitute for GPU timing**. Pending timing samples are limited per
+owner (32); each query set stays within wgpu's 4,096-query ceiling, and timing storage is charged.
+Suspension survives renderer recreation. The engine's default uncaptured-error handler is
+unchanged; mod resource creation errors are captured in mod scopes. These limits reduce risk,
+but actual driver/TDR behavior still needs platform tests.
+
+Accepted residual risk: a static estimate cannot both admit large meshes and reject every
+pathological shader workload. On adapters with or without timestamps, a hostile mod can cause
+very slow work before completion is observed, with up to three frames outstanding before the
+backlog gate stops newer frames. Timestamp average/peak violations and fallback peak violations
+disable GPU work for the session only. Already submitted work cannot be preempted: one frame
+may include several stage batches, and its duration has no hard upper bound. A driver hang or
+OS TDR remains possible even on the first frame with the 8,192-fullscreen-triangle-equivalent
+allowance. A device loss or abnormal exit uses the persistent recovery marker below instead.
 
 Before GPU submission, the host persists registered owner identities in
 `<HORIZON_HOME>/state/wasm-gpu-inflight.json` only when the identity set changes, without fsync on
 the frame path. An identity remains while work is outstanding, then for 120 idle frames (or until
-clean exit); unchanged active sets are not rewritten. Transient rename failures are logged and
-retried, not attributed to the mod. Device loss blocks all in-flight identities in memory and in
+clean exit); unchanged active sets are not rewritten. Failed writes are retried after 120 frames,
+with warnings limited to once per minute, and are not attributed to the mod. Device loss blocks all in-flight identities in memory and in
 the recovery file, including across renderer recreation. The next start quarantines those
 identities and logs the marker path. Malformed recovery state fails closed. Abnormal
 termination can also leave a marker: it is **not proof** that a listed mod caused a driver fault.
-Inspect the log and marker before manually removing it to retry; the host does not auto-clear it.
+Quarantine does not expire through clean launches in which the blocked mod cannot run GPU work.
+Only device loss/TDR recovery, including an outstanding marker after an abnormal exit, creates
+persistent quarantine; measured-budget suspension alone never does. Fault counts persist per package-version/module-SHA-256
+fingerprint, including across package changes and explicit re-enables. After a fingerprint's first
+fault, changing the package can
+automatically clear quarantine. After its second fault, only an explicit owner action can clear
+quarantine, even if the package changes. Repeated observations of the same outstanding fault
+do not increment its count.
+`mod_gpu_runtime::reenable(identity)` explicitly clears quarantine and the live GPU suspension;
+it rejects identities with outstanding work and persists the change before enabling them,
+without erasing fault history.
+This is the API for a future launcher/developer-screen re-enable control; no UI is added here.
 
 ### Development shaders and demo
 
@@ -876,9 +940,10 @@ old instance running with a diagnostic; deleting an override also keeps the old 
 WGSL edit with a pipeline-interface mismatch can still fail when the new instance creates its
 pipeline, disabling that mod. Override files must include `ENGINE_WGSL` when they use `engine`.
 
-`crates/yoake-wasm-sdk/examples/gpu-demo` contains a textured mesh, compute-updated particle
-buffer and a depth-based after-world tint. It embeds `mesh.wgsl`, `compute.wgsl`, `particles.wgsl`
-and `effect.wgsl`. Build from that directory, without running the game:
+`crates/yoake-wasm-sdk/examples/gpu-demo` contains a 2,048-triangle textured mesh,
+64 compute-updated particles drawn in a bounded region, and a depth-based after-world tint.
+Its mesh, compute and particle workload is shared with a headless renderer regression; the
+effect embeds `effect.wgsl`. Build from that directory, without running the game:
 
 ```sh
 cargo build --offline -j 4 --release --target wasm32-wasip2
