@@ -441,11 +441,20 @@ impl Gpu {
             .get_kind(owner, pipeline, Allocation::ComputePipeline)?;
         let groups = self.groups(owner, &pipeline, groups)?;
         let Value::Compute {
-            cost, engine_mask, ..
+            cost,
+            engine_mask,
+            max_workgroups_per_dimension,
+            ..
         } = pipeline.value()
         else {
             return Err(Error::Kind);
         };
+        if workgroups
+            .iter()
+            .any(|count| count > max_workgroups_per_dimension)
+        {
+            return Err(Error::Workgroups);
+        }
         validate_stage(*engine_mask, stage)?;
         let work_limit = self.compute_limit(owner, self.timestamps);
         let cost = *cost;

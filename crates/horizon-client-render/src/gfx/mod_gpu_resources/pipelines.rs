@@ -89,6 +89,7 @@ impl Gpu {
                 checked(device, || Value::Compute {
                     engine_mask: *engine_masks.get(entry).unwrap_or(&0),
                     cost,
+                    max_workgroups_per_dimension: device.limits().max_compute_workgroups_per_dimension,
                     pipeline: device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                         label: Some("Yoake mod compute pipeline"),
                         layout: None,

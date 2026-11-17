@@ -171,6 +171,45 @@ fn creation_limits_are_per_owner_and_survive_resource_reset() {
 }
 
 #[test]
+fn compute_dispatch_validates_device_dimensions_separately_from_work_budget() {
+    let (device, queue) = gpu();
+    let mut gpu = Gpu::default();
+    let owner = ModId(1);
+    let shader = gpu
+        .create_shader(&device, owner, "@compute @workgroup_size(1) fn main() {}")
+        .unwrap();
+    let pipeline = gpu.create_compute(&device, owner, shader, "main").unwrap();
+    let limit = device.limits().max_compute_workgroups_per_dimension;
+    let excessive = limit.checked_add(1).unwrap();
+    gpu.begin_frame().unwrap();
+    for workgroups in [
+        [0, 1, 1],
+        [1, 0, 1],
+        [1, 1, 0],
+        [excessive, 1, 1],
+        [1, excessive, 1],
+        [1, 1, excessive],
+    ] {
+        assert_eq!(
+            gpu.dispatch(owner, Stage::AfterWorld, pipeline, &[], workgroups),
+            Err(Error::Workgroups),
+            "{workgroups:?}"
+        );
+    }
+    for workgroups in [[limit, 1, 1], [1, limit, 1], [1, 1, limit], [256, 257, 1]] {
+        gpu.dispatch(owner, Stage::AfterWorld, pipeline, &[], workgroups)
+            .unwrap();
+    }
+    gpu.finish_frame().unwrap();
+    assert!(
+        gpu.submit_stage(&device, &queue, Stage::AfterWorld, None)
+            .is_empty()
+    );
+    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    assert_eq!(gpu.disabled_reason(owner), None);
+}
+
+#[test]
 fn compute_upload_copy_readback_and_ownership() {
     let (device, queue) = gpu();
     let mut gpu = Gpu::default();
