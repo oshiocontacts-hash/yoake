@@ -698,8 +698,9 @@ impl Game<'_> {
         if stack.count == 0 {
             return None;
         }
-        if uuid == self.native_acting_id() {
-            // Their state is in place: the host's, or a guest's swapped in.
+        if uuid == self.native_acting_id()
+            && (self.options.execution_role.is_client() || self.lan_acting.is_some())
+        {
             if self
                 .player
                 .as_ref()

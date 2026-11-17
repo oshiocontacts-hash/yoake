@@ -621,7 +621,7 @@ impl Game<'_> {
             }
         }
         for (event, param) in [
-            (if self.world.weather.raining { 2 } else { 1 }, 0.0),
+            (if self.world.weather.raining { 1 } else { 2 }, 0.0),
             (7, self.world.weather.rain_level.1),
             (8, self.world.weather.thunder_level.1),
         ] {

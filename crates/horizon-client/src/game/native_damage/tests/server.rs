@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicI32;
 use std::sync::mpsc::{self, Receiver};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use horizon_client::chunk::Chunk;
 use horizon_client::crash::{NativeModCall, enter_native_mod};
@@ -338,56 +338,172 @@ fn moved_other_entities_survive_source_chunk_unload_and_save_in_destination() {
 
 #[test]
 #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-fn player_teleports_cross_loaded_chunks_and_reject_unloaded_destinations() {
+fn player_teleports_load_destinations_five_hundred_blocks_away() {
     with_server(|game, owner_packets, guest_packets| {
         let dimension = game.dim.id().to_owned();
-        load_move_chunks(game);
-        for (conn, uuid, packets) in [
-            (OWNER_CONN, OWNER, &owner_packets),
-            (GUEST_CONN, GUEST, &guest_packets),
+        game.lan.as_mut().unwrap().hub.config.view_distance = 0;
+        for guest in &mut game.lan.as_mut().unwrap().hub.guests {
+            guest.position = [5.5, 100.0, 5.5];
+            guest.motion.as_mut().unwrap().position = Vec3::new(5.5, 100.0, 5.5);
+        }
+        game.streaming.paused = false;
+        game.streaming.mesh = false;
+        game.streaming.radius = -1;
+        for (conn, uuid, packets, position) in [
+            (OWNER_CONN, OWNER, &owner_packets, [505.5, 100.0, 5.5]),
+            (GUEST_CONN, GUEST, &guest_packets, [-494.5, 100.0, 5.5]),
         ] {
             clientbound(packets);
-            for position in [
-                [8.202, 100.0, -33.102],
-                [8.202, 100.0, -32.308],
-                [8.202, 100.0, -31.9],
-            ] {
-                let ticket = game
-                    .native_player_teleport_impl(uuid, &dimension, position, 45.0, 20.0)
-                    .unwrap();
-                assert_eq!(
-                    game.native_player_teleport_status_impl(ticket),
-                    NativeTeleportStatus::Done
-                );
-                player_state(game, conn, |game| {
-                    let moved = game.player.as_ref().unwrap();
-                    assert_eq!(moved.position, Vec3::new(position[0], position[1], position[2]));
-                });
-                assert!(clientbound(packets).iter().any(|packet| {
-                    matches!(packet, play::Clientbound::PlayerPosition(packet)
-                        if packet.position == position && packet.yaw == 45.0 && packet.pitch == 20.0)
-                }));
-            }
-            assert!(game
-                .native_player_teleport_impl(uuid, &dimension, [8.0, 100.0, -0.01], 90.0, 30.0)
-                .is_err());
-            player_state(game, conn, |game| {
-                assert_eq!(
-                    game.player.as_ref().unwrap().position,
-                    Vec3::new(8.202, 100.0, -31.9)
-                );
-            });
-            assert!(clientbound(packets)
-                .iter()
-                .all(|packet| !matches!(packet, play::Clientbound::PlayerPosition(_))));
+            let destination_chunk = ((position[0] as i32) >> 4, 0);
+            assert!(!game.world.chunks.contains_key(&destination_chunk));
             let ticket = game
-                .native_player_teleport_impl(uuid, &dimension, [8.0, 100.0, 8.0], 0.0, 0.0)
+                .native_player_teleport_impl(uuid, &dimension, position, 45.0, 20.0)
                 .unwrap();
             assert_eq!(
                 game.native_player_teleport_status_impl(ticket),
                 NativeTeleportStatus::Done
             );
+            game.tick_lan(true);
+            let deadline = Instant::now() + Duration::from_secs(10);
+            while !game.world.chunks.contains_key(&destination_chunk) {
+                game.streaming.update(&mut game.world);
+                assert!(Instant::now() < deadline, "teleport destination did not load");
+                game.streaming.wait(Duration::from_millis(10));
+            }
+            player_state(game, conn, |game| {
+                assert_eq!(
+                    game.player.as_ref().unwrap().position,
+                    Vec3::new(position[0], position[1], position[2])
+                );
+            });
+            assert!(clientbound(packets).iter().any(|packet| {
+                matches!(packet, play::Clientbound::PlayerPosition(packet)
+                    if packet.position == position && packet.yaw == 45.0 && packet.pitch == 20.0)
+            }));
         }
+    });
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn level_post_pickup_credits_the_integrated_owner_not_the_stand_in() {
+    with_server(|game, _, _| {
+        load_move_chunks(game);
+        let dimension = game.dim.id().to_owned();
+        game.level.player_uuid = Some(horizon_client::lan::playerdata::uuid_ints(OWNER));
+        game.player =
+            Some(PlayerMotion::new(game.motion, Vec3::new(5.5, 100.0, -29.5)).unwrap());
+        game.spawn_item(
+            ItemStack::new("minecraft:emerald", 4),
+            [8.5, 100.0, -33.5],
+            [0.0; 3],
+            0,
+        );
+        let item_id = game.dropped.last().unwrap().id;
+        assert!(game.native_item_entity_pickup(&dimension, item_id, OWNER).unwrap());
+        assert!(!game.dropped.iter().any(|item| item.id == item_id));
+        assert!(
+            game.inventory
+                .iter()
+                .flatten()
+                .all(|stack| stack.item.as_ref() != "minecraft:emerald")
+        );
+        assert_eq!(
+            player_state(game, OWNER_CONN, |game| {
+                game.inventory
+                    .iter()
+                    .flatten()
+                    .filter(|stack| stack.item.as_ref() == "minecraft:emerald")
+                    .map(|stack| stack.count)
+                    .sum::<u32>()
+            }),
+            4
+        );
+    });
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn level_post_pickup_preserves_items_when_giving_fails() {
+    with_server(|game, _, _| {
+        let dimension = game.dim.id().to_owned();
+        game.spawn_item(
+            ItemStack::new("minecraft:emerald", 4),
+            [5.0, 64.0, 5.0],
+            [0.0; 3],
+            0,
+        );
+        let item_id = game.dropped.last().unwrap().id;
+        assert!(!game.native_item_entity_pickup(&dimension, item_id, 999).unwrap());
+        player_state(game, OWNER_CONN, |game| {
+            game.inventory = vec![Some(ItemStack::new("minecraft:stone", 64)); 36];
+            game.offhand = Some(ItemStack::new("minecraft:stone", 64));
+        });
+        assert!(!game.native_item_entity_pickup(&dimension, item_id, OWNER).unwrap());
+        assert_eq!(
+            game.dropped
+                .iter()
+                .find(|item| item.id == item_id)
+                .unwrap()
+                .stack
+                .count,
+            4
+        );
+        player_state(game, OWNER_CONN, |game| {
+            game.inventory[0] = Some(ItemStack::new("minecraft:emerald", 62));
+        });
+        assert!(game.native_item_entity_pickup(&dimension, item_id, OWNER).unwrap());
+        assert_eq!(
+            game.dropped
+                .iter()
+                .find(|item| item.id == item_id)
+                .unwrap()
+                .stack
+                .count,
+            2
+        );
+        player_state(game, OWNER_CONN, |game| game.inventory[1] = None);
+        assert!(game.native_item_entity_pickup(&dimension, item_id, OWNER).unwrap());
+        assert!(!game.dropped.iter().any(|item| item.id == item_id));
+        assert_eq!(
+            player_state(game, OWNER_CONN, |game| {
+                game.inventory
+                    .iter()
+                    .flatten()
+                    .filter(|stack| stack.item.as_ref() == "minecraft:emerald")
+                    .map(|stack| stack.count)
+                    .sum::<u32>()
+            }),
+            66
+        );
+    });
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn integrated_server_advances_rain_levels_before_sleep_resets_weather() {
+    with_server(|game, _, _| {
+        game.world.day_time = 14022;
+        game.world.weather.raining = true;
+        game.world.weather.rain_time = 12000;
+        game.world.weather.thunder_time = 12000;
+        game.world.weather.rain_level = (0.0, 0.0);
+        for _ in 0..100 {
+            game.tick_server(false).unwrap();
+        }
+        assert!(game.world.weather.levels(1.0).0 > 0.99);
+        let host = game.lan.as_mut().unwrap();
+        host.hub.guests.retain(|guest| guest.uuid == OWNER);
+        let owner = &mut host.hub.guests[0];
+        owner.bed = Some([5, 100, -30]);
+        owner.sleep_timer = 100;
+        game.tick_sleep();
+        assert_eq!(game.world.day_time % 24000, 0);
+        assert!(!game.world.weather.raining);
+        assert_eq!(
+            (game.world.weather.rain_time, game.world.weather.thunder_time),
+            (0, 0)
+        );
     });
 }
 
@@ -443,6 +559,46 @@ fn guest_entry_uses_latest_sneaking_and_sprinting_for_owner_and_guests() {
                 });
                 assert_eq!(posture, (pressed, pressed, pressed));
             }
+        }
+    });
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn multiplayer_sneaking_updates_each_guests_pose_without_leaking() {
+    with_server(|game, _, _| {
+        game.player = Some(PlayerMotion::new(game.motion, Vec3::new(12.0, 100.0, 12.0)).unwrap());
+        for owner_sneaking in [true, false] {
+            for guest in &mut game.lan.as_mut().unwrap().hub.guests {
+                guest.loaded = true;
+                guest.sneaking = if guest.uuid == OWNER {
+                    owner_sneaking
+                } else {
+                    !owner_sneaking
+                };
+                guest.motion.as_mut().unwrap().shift_key_down = !guest.sneaking;
+            }
+            let host = game.lan.take().unwrap();
+            game.lan = game.tick_guests(host);
+            for guest in &game.lan.as_ref().unwrap().hub.guests {
+                let motion = guest.motion.as_ref().unwrap();
+                assert_eq!(motion.shift_key_down, guest.sneaking);
+                assert_eq!(
+                    motion.pose,
+                    if guest.sneaking {
+                        horizon_client::pose::Pose::Crouching
+                    } else {
+                        horizon_client::pose::Pose::Standing
+                    }
+                );
+                assert_eq!(
+                    guest.dimensions().height,
+                    if guest.sneaking { 1.5 } else { 1.8 }
+                );
+            }
+            let stand_in = game.player.as_ref().unwrap();
+            assert!(!stand_in.shift_key_down);
+            assert_eq!(stand_in.pose, horizon_client::pose::Pose::Standing);
         }
     });
 }

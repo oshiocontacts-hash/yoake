@@ -15,6 +15,7 @@ fn destination_loaded(world: &World, position: [f64; 3]) -> bool {
     world.chunks.contains_key(&(chunk_x, chunk_z))
 }
 
+/// Only loaded destinations are safe: item saving and unloading use its current chunk.
 pub(super) fn move_item(
     world: &World,
     items: &mut [ItemEntity],
@@ -29,12 +30,12 @@ pub(super) fn move_item(
     {
         return Err("the position and the velocity must be finite and within the world".into());
     }
-    if !destination_loaded(world, position) {
-        return Err("the destination chunk is not loaded".into());
-    }
     let Some(item) = items.iter_mut().find(|item| item.id == id) else {
         return Ok(false);
     };
+    if !destination_loaded(world, position) {
+        return Err("the destination chunk is not loaded".into());
+    }
     let destination = Vec3::new(position[0], position[1], position[2]);
     item.position = destination;
     item.previous = destination;
@@ -110,6 +111,17 @@ mod tests {
             assert_eq!(moved.ticks, 9);
             assert_eq!(moved.stack.count, 1);
         }
+    }
+
+    #[test]
+    fn unknown_item_precedes_the_unloaded_destination_check() {
+        let world = World::new(BlockStateId(0), 0);
+        let mut items = [item()];
+        assert_eq!(
+            move_item(&world, &mut items, 999, [505.0, 100.0, 5.0], [0.0; 3]),
+            Ok(false)
+        );
+        assert_eq!(items[0].position, Vec3::new(8.0, 100.0, 8.0));
     }
 
     #[test]

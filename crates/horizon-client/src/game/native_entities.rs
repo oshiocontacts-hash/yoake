@@ -187,7 +187,8 @@ impl Game<'_> {
     /// Moves entity `id`, one Horizon keeps without simulating (a display, a
     /// marker, an interaction), to `pos` facing `yaw` and `pitch` in degrees;
     /// a display eases there over its `teleport` ticks. False for no such
-    /// entity, another dimension or a position outside `/summon`'s bounds.
+    /// entity, another dimension, an unloaded destination or a position outside
+    /// `/summon`'s bounds. Saving and unloading use the entity's current chunk.
     /// Mobs move with `native_teleport_mob`. API 59.
     pub(super) fn native_move_entity(
         &mut self,

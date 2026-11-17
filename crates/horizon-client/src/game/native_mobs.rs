@@ -227,7 +227,8 @@ impl Game<'_> {
     }
     /// Moves mob `id` to `pos` at once, as `/tp` does: it dismounts, drops its
     /// path and resets its fall. False for no such mob, another dimension or a
-    /// position outside `/summon`'s bounds. API 37.
+    /// position outside `/summon`'s bounds or an unloaded destination. Saving and
+    /// unloading use the mob's current chunk. API 37.
     pub(super) fn native_teleport_mob(&mut self, dimension: &str, id: u32, pos: [f64; 3]) -> bool {
         if !self.native_mob_level(dimension) || !spawnable(pos) || !self.native_chunk_loaded(pos) {
             return false;

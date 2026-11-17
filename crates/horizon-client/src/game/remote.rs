@@ -4497,12 +4497,10 @@ impl Game<'_> {
                 // RAIN_LEVEL_CHANGE: ClientPacketListener.handleGameEvent.
                 7 => {
                     self.world.weather.rain_level = (p.param, p.param);
-                    self.world.weather.raining = p.param > 0.0;
                 }
                 // THUNDER_LEVEL_CHANGE: ClientPacketListener.handleGameEvent.
                 8 => {
                     self.world.weather.thunder_level = (p.param, p.param);
-                    self.world.weather.thundering = p.param > 0.0;
                 }
                 // PUFFER_FISH_STING: ClientPacketListener.handleGameEvent
                 // plays PUFFER_FISH_STING at player position.
@@ -11017,6 +11015,29 @@ mod tests {
         items::ItemStack,
     };
     use horizon_world::nbt::Tag;
+
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn weather_fade_packets_do_not_override_server_rain_flags() {
+        crate::game::native_damage::tests::server::with_server(|game, _, _| {
+            for (event, param) in [(2, 0.0), (7, 0.99), (8, 0.7)] {
+                game.handle_packet(super::C::GameEvent(
+                    horizon_protocol::packets::play::GameEvent { event, param },
+                ))
+                .unwrap();
+            }
+            assert!(!game.world.weather.raining);
+            assert!(!game.world.weather.thundering);
+            assert_eq!(game.world.weather.rain_level, (0.99, 0.99));
+            for (event, param) in [(1, 0.0), (7, 0.0)] {
+                game.handle_packet(super::C::GameEvent(
+                    horizon_protocol::packets::play::GameEvent { event, param },
+                ))
+                .unwrap();
+            }
+            assert!(game.world.weather.raining);
+        });
+    }
 
     #[test]
     fn keyboard_and_control_sneak_state_uses_the_player_input_flag() {

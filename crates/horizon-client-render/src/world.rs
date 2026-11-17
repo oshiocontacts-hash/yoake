@@ -137,7 +137,7 @@ pub struct Weather {
 }
 impl Weather {
     pub fn after_sleep(&mut self, advance_weather: bool) {
-        if advance_weather {
+        if advance_weather && self.levels(1.0).0 > 0.2 {
             self.raining = false;
             self.thundering = false;
             self.rain_time = 0;
@@ -572,8 +572,8 @@ mod tests {
     use std::sync::Arc;
 
     #[test]
-    fn sleeping_resets_weather_even_before_rain_has_faded_in() {
-        for rain_level in [0.0, 0.1, 0.2, 1.0] {
+    fn sleeping_resets_weather_only_when_raining() {
+        for rain_level in [0.0_f32, 0.1, 0.2, 0.21, 1.0] {
             let mut weather = Weather {
                 clear_time: 40,
                 rain_time: 600,
@@ -584,15 +584,26 @@ mod tests {
                 thunder_level: (0.8, 0.8),
             };
             weather.after_sleep(true);
-            assert!(!weather.raining);
-            assert!(!weather.thundering);
-            assert_eq!((weather.rain_time, weather.thunder_time), (0, 0));
+            let reset = rain_level > 0.2;
+            assert_eq!(weather.raining, !reset);
+            assert_eq!(weather.thundering, !reset);
+            assert_eq!(
+                (weather.rain_time, weather.thunder_time),
+                if reset { (0, 0) } else { (600, 900) }
+            );
             assert_eq!(weather.clear_time, 40);
             assert_eq!(weather.rain_level, (rain_level, rain_level));
             assert_eq!(weather.thunder_level, (0.8, 0.8));
             weather.tick_levels();
-            assert_eq!(weather.rain_level.1, (rain_level - 0.01).max(0.0));
-            assert_eq!(weather.thunder_level.1, 0.79);
+            assert_eq!(
+                weather.rain_level.1,
+                if reset {
+                    (rain_level - 0.01).max(0.0)
+                } else {
+                    (rain_level + 0.01).min(1.0)
+                }
+            );
+            assert_eq!(weather.thunder_level.1, if reset { 0.79 } else { 0.81 });
         }
     }
 
@@ -604,7 +615,7 @@ mod tests {
             thunder_time: 900,
             raining: true,
             thundering: true,
-            rain_level: (0.0, 0.1),
+            rain_level: (0.7, 0.8),
             thunder_level: (0.7, 0.8),
         };
         weather.after_sleep(false);
@@ -612,7 +623,7 @@ mod tests {
         assert!(weather.thundering);
         assert_eq!((weather.rain_time, weather.thunder_time), (600, 900));
         assert_eq!(weather.clear_time, 40);
-        assert_eq!(weather.rain_level, (0.0, 0.1));
+        assert_eq!(weather.rain_level, (0.7, 0.8));
         assert_eq!(weather.thunder_level, (0.7, 0.8));
     }
 

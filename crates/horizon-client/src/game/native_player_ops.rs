@@ -746,9 +746,6 @@ impl Game<'_> {
             self.native_player_ops.processing(Some(ticket));
             let result = self
                 .for_native_player(target, source, |game| {
-                    if !game.native_chunk_loaded(pos) {
-                        return Err("the destination chunk is not loaded".into());
-                    }
                     game.native_player_teleport_here(pos, yaw, pitch);
                     Ok(())
                 })

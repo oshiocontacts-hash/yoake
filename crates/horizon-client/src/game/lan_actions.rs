@@ -5043,7 +5043,9 @@ impl Game<'_> {
             let stack = self.dropped[i].stack.clone();
             let before = stack.count;
             let thrower = self.dropped[i].thrower;
-            let rest = self.as_guest(host, conn, |g| g.give(stack)).flatten();
+            let Some(rest) = self.as_guest(host, conn, |g| g.give(stack)) else {
+                continue;
+            };
             match rest {
                 None => {
                     let item = self.remove_dropped(i);
@@ -5461,6 +5463,113 @@ fn stop_dig(play: &GuestPlay, pos: [i32; 3], air: bool, ticks: u64, per_tick: f3
 mod tests {
     use super::eye_columns;
     use horizon_client::pose::Pose;
+
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn magnet_moved_emeralds_reach_the_integrated_owners_inventory() {
+        crate::game::native_damage::tests::server::with_server(|game, _, _| {
+            use horizon_client::{chunk::Chunk, items::ItemStack};
+            use std::sync::Arc;
+            let owner_position = super::Vec3::new(5.5, 100.0, -29.5);
+            let dimension = game.dim.id().to_owned();
+            let owner = &mut game.lan.as_mut().unwrap().hub.guests[0];
+            owner.position = owner_position.components();
+            owner.motion.as_mut().unwrap().position = owner_position;
+            for chunk in [(0, -3), (0, -2)] {
+                game.world
+                    .chunks
+                    .insert(chunk, Arc::new(Chunk::empty(chunk.0, chunk.1)));
+            }
+            game.spawn_item(
+                ItemStack::new("minecraft:emerald", 4),
+                [8.5, 100.0, -33.5],
+                [0.0; 3],
+                0,
+            );
+            let item_id = game.dropped.last().unwrap().id;
+            let mut position = super::Vec3::new(8.5, 100.0, -33.5);
+            for step in 0..100 {
+                position = match step {
+                    0 => super::Vec3::new(8.202, 100.0, -33.102),
+                    1 => super::Vec3::new(7.606, 100.0, -32.308),
+                    _ => {
+                        let remaining = position.vector_to(owner_position);
+                        let distance = remaining.length();
+                        position.add_vector(remaining.scale(0.25_f64.min(distance - 0.5) / distance))
+                    }
+                };
+                assert!(
+                    game.native_item_entity_move(
+                        &dimension,
+                        item_id,
+                        position.components(),
+                        [0.0; 3],
+                    )
+                    .unwrap()
+                );
+                let mut host = game.lan.take().unwrap();
+                game.guest_pickups(&mut host, 0);
+                game.lan = Some(host);
+                if !game.dropped.iter().any(|item| item.id == item_id) {
+                    break;
+                }
+            }
+            assert!(!game.dropped.iter().any(|item| item.id == item_id));
+            let owner = &game.lan.as_ref().unwrap().hub.guests[0];
+            assert_eq!(
+                owner
+                    .inventory
+                    .iter()
+                    .flatten()
+                    .filter(|stack| stack.item.as_ref() == "minecraft:emerald")
+                    .map(|stack| stack.count)
+                    .sum::<u32>(),
+                4
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn failed_guest_entry_never_deletes_a_pickup() {
+        crate::game::native_damage::tests::server::with_server(|game, _, _| {
+            use horizon_client::items::ItemStack;
+            game.spawn_item(
+                ItemStack::new("minecraft:emerald", 4),
+                [5.0, 64.0, 5.0],
+                [0.0; 3],
+                0,
+            );
+            let item_id = game.dropped.last().unwrap().id;
+            let mut host = game.lan.take().unwrap();
+            game.lan_acting = Some(host.hub.guests[0].conn);
+            game.guest_pickups(&mut host, 0);
+            assert_eq!(
+                game.dropped
+                    .iter()
+                    .find(|item| item.id == item_id)
+                    .unwrap()
+                    .stack
+                    .count,
+                4
+            );
+            assert!(host.hub.guests[0].inventory.iter().all(Option::is_none));
+            game.lan_acting = None;
+            game.guest_pickups(&mut host, 0);
+            assert!(!game.dropped.iter().any(|item| item.id == item_id));
+            assert_eq!(
+                host.hub.guests[0]
+                    .inventory
+                    .iter()
+                    .flatten()
+                    .filter(|stack| stack.item.as_ref() == "minecraft:emerald")
+                    .map(|stack| stack.count)
+                    .sum::<u32>(),
+                4
+            );
+            game.lan = Some(host);
+        });
+    }
 
     /// #4124: a STOP is measured from the START that named its block (`destroyPos`) — an abort, or
     /// a STOP from out of reach, ends the dig the guest's button held but leaves that clock — and
