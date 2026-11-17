@@ -196,6 +196,9 @@ fn trapping_guest_releases_client_resources_before_unload() {
             })
             .is_some()
     );
+    // A slow machine can spend the aggregate time budget on the first call, which would skip
+    // the next one instead of running it; start the trap in a fresh budget window.
+    std::thread::sleep(yoake_wasm::AGGREGATE_WINDOW);
     assert!(
         guest
             .dispatch("hud", |_, _| Err::<(), _>(wasmtime::Error::msg(
