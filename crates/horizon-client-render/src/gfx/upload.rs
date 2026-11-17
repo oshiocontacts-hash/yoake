@@ -128,6 +128,22 @@ impl Uploads {
     pub fn finish(&mut self, encoder: &wgpu::CommandEncoder) {
         self.belt.finish_and_recall_on_submit(encoder);
     }
+
+    #[cfg(test)]
+    pub(super) fn chunk_count(&mut self, device: &wgpu::Device) -> usize {
+        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+        self.finish(&device.create_command_encoder(&Default::default()));
+        let belt = format!("{:?}", self.belt);
+        let count = |field: &str| -> usize {
+            let at = belt.find(&format!("{field}: ")).expect(&belt) + field.len() + 2;
+            belt[at..]
+                .split(|character: char| !character.is_ascii_digit())
+                .next()
+                .and_then(|digits| digits.parse().ok())
+                .expect(&belt)
+        };
+        count("active_chunks") + count("closed_chunks") + count("free_chunks")
+    }
 }
 
 #[cfg(test)]
@@ -259,16 +275,7 @@ mod tests {
     /// Staging buffers the belt holds, once every submitted frame is done
     /// with them. The belt only reports its buffers through `Debug`.
     fn kept_buffers(device: &wgpu::Device, uploads: &mut Uploads) -> usize {
-        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
-        // Finishing an empty frame takes back every recalled buffer.
-        uploads.finish(&device.create_command_encoder(&Default::default()));
-        let belt = format!("{:?}", uploads.belt);
-        let count = |field: &str| -> usize {
-            let at = belt.find(&format!("{field}: ")).expect(&belt) + field.len() + 2;
-            let digits = belt[at..].split(|c: char| !c.is_ascii_digit()).next();
-            digits.and_then(|d| d.parse().ok()).expect(&belt)
-        };
-        count("active_chunks") + count("closed_chunks") + count("free_chunks")
+        uploads.chunk_count(device)
     }
 
     /// #2826: a write larger than the chunk that grows a little every frame

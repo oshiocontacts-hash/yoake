@@ -299,6 +299,23 @@ impl Demo {
         )
         .unwrap();
         let compute = ComputePipeline::create(&compute_shader, "main").unwrap();
+        assert!(
+            RenderPipeline::create(&RenderDescriptor {
+                shader: &compute_shader,
+                vertex_entry: "missing",
+                fragment_entry: "missing",
+                stride: 0,
+                attributes: &[],
+                format: frame.world_format.unwrap(),
+                depth: false,
+                depth_write: false,
+                blend: false,
+                cull: false,
+                lines: false,
+            })
+            .is_err()
+        );
+        assert!(BindGroup::create(&compute, 0, &[]).is_err());
         let group = BindGroup::create(
             &compute,
             0,
@@ -308,6 +325,15 @@ impl Demo {
             }],
         )
         .unwrap();
+        if cfg!(feature = "recording-error") {
+            assert!(
+                compute
+                    .dispatch(Stage::WorldOpaque, &[&group], (1, 1, 1))
+                    .is_err()
+            );
+            self.verified = true;
+            return;
+        }
         assert!(
             compute
                 .dispatch(Stage::WorldOpaque, &[&group], (65537, 1, 1))

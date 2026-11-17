@@ -138,6 +138,8 @@ pub mod lightning;
 mod lod;
 mod native_entity;
 pub mod mod_gpu;
+#[cfg(test)]
+mod mod_gpu_frame_tests;
 pub mod mod_gpu_resources;
 pub mod mod_gpu_runtime;
 pub mod mod_gpu_shader;
@@ -833,7 +835,7 @@ pub struct Renderer {
     display: DisplayWatch,
     /// The watch was just made: the settings' Auto values take what it reported.
     display_fresh: bool,
-    window: Arc<Window>,
+    window: Option<Arc<Window>>,
     pub device: wgpu::Device,
     /// The shader modules, layouts and pipelines kept for the next renderer on
     /// this device ([`reuse`]).
@@ -2073,14 +2075,7 @@ impl Renderer {
         translucent_batching: bool,
         shader_pack: bool,
     ) -> Result<Self> {
-        let Opened {
-            instance,
-            surface,
-            adapter,
-            device,
-            queue,
-            device_lost,
-        } = match previous {
+        let opened = match previous {
             // Reload resources on the same device; replacing live Vulkan
             // devices can invalidate the driver's swapchain state on the same
             // window.
@@ -2113,6 +2108,57 @@ impl Renderer {
                 open_device(&window, offscreen, api, layers).await?
             }
         };
+        let size = window.inner_size();
+        Self::from_device(
+            opened,
+            Some(window),
+            size,
+            sprite_pixels,
+            sprite_size,
+            sprite_minimum_size,
+            layers,
+            sprite_mips,
+            animations,
+            hud_atlas,
+            glint,
+            glint_armor,
+            forcefield,
+            panorama_faces,
+            prepared,
+            previous,
+            translucent_batching,
+            shader_pack,
+        )
+    }
+
+    fn from_device(
+        opened: Opened,
+        window: Option<Arc<Window>>,
+        size: winit::dpi::PhysicalSize<u32>,
+        sprite_pixels: &[u8],
+        sprite_size: u32,
+        sprite_minimum_size: u32,
+        layers: u32,
+        sprite_mips: &[crate::mipmap::Settings],
+        animations: &[SpriteAnimation],
+        hud_atlas: (&[u8], u32, u32),
+        glint: (&[u8], u32, u32),
+        glint_armor: (&[u8], u32, u32),
+        forcefield: (&[u8], u32),
+        panorama_faces: Arc<panorama::Faces>,
+        prepared: Option<PreparedTextures>,
+        previous: Option<&Self>,
+        translucent_batching: bool,
+        shader_pack: bool,
+    ) -> Result<Self> {
+        let Opened {
+            instance,
+            surface,
+            adapter,
+            device,
+            queue,
+            device_lost,
+        } = opened;
         // Computed once: the sprite arrays, the shaders' constants and the
         // shader pack atlas all cut the sprites by it.
         let split = check_layers(&adapter, layers)?;
@@ -2121,7 +2167,6 @@ impl Renderer {
         }
         let info = adapter.get_info();
         crate::graphics::suggest_reduced_far_detail(crate::graphics::lod_capped(&info));
-        let size = window.inner_size();
         let max_side = device.limits().max_texture_dimension_2d;
         let (config, present_modes, hdr_output) = if let Some(surface) = &surface {
             let mut config = surface
@@ -4377,7 +4422,9 @@ impl Renderer {
         self.surface = None;
         let surface = match spare {
             Some(surface) => surface,
-            None => self.instance.create_surface(self.window.clone())?,
+            None => self
+                .instance
+                .create_surface(self.window.as_ref().expect("surface window").clone())?,
         };
         let configured = Self::configure(
             &self.device,
@@ -5663,8 +5710,11 @@ impl Renderer {
             // Only HDR output asks the system about the display, so with HDR off the
             // game never waits on the compositor for it.
             self.display = if output.is_some() {
-                let (watch, now) =
-                    DisplayWatch::new(&self.window, self.surface.as_deref(), &self.adapter);
+                let (watch, now) = DisplayWatch::new(
+                    self.window.as_ref().expect("HDR window"),
+                    self.surface.as_deref(),
+                    &self.adapter,
+                );
                 crate::graphics::report(now);
                 self.display_fresh = true;
                 watch
@@ -6410,14 +6460,14 @@ impl Renderer {
         // Waits for the submit thread since the last frame's present (this frame's uploads).
         let queued = self.queue.take_waited();
         let acquire = Instant::now();
-        let fg_frames = fg
+        let fg_frames = (fg && self.window.is_some())
             .then(|| {
                 self.frame_gen.frames(
                     &self.device,
                     &self.queue,
                     self.surface.as_ref(),
                     self.offscreen.as_ref(),
-                    &self.window,
+                    self.window.as_ref().expect("frame generation window"),
                     &self.config,
                 )
             })
@@ -9883,7 +9933,10 @@ impl Renderer {
             // callbacks, one per refresh. Only VSync (Fifo) waits for the
             // display: with it off, vanilla's window draws uncapped.
             if self.config.present_mode == wgpu::PresentMode::Fifo {
-                self.window.pre_present_notify();
+                self.window
+                    .as_ref()
+                    .expect("surface window")
+                    .pre_present_notify();
             }
             if first_frame {
                 startup_step(format_args!("presenting the first frame"));

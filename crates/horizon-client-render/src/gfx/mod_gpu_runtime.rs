@@ -272,14 +272,14 @@ pub(super) fn checked_operation<R>(
     device: &wgpu::Device,
     operation: impl FnOnce(&mut Gpu) -> Result<R, Error>,
 ) -> Result<R, Error> {
-    let result = super::native_services::checked(device, || operation(gpu))
-        .map_err(Error::Host)
-        .and_then(|result| result);
-    if let Err(Error::Host(error)) = &result {
-        gpu.disable(owner, error.to_owned());
-        log::warn!("WASM GPU mod {} disabled: {error}", owner.0);
+    match super::native_services::checked(device, || operation(gpu)) {
+        Ok(result) => result,
+        Err(error) => {
+            gpu.disable(owner, error.clone());
+            log::warn!("WASM GPU mod {} disabled: {error}", owner.0);
+            Err(Error::Host(error))
+        }
     }
-    result
 }
 
 pub(super) fn timed_operation<R>(

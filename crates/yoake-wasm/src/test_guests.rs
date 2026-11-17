@@ -105,6 +105,12 @@ pub const GPU_TRAP: Guest = Guest {
     features: "trap",
     artifact: "yoake_wasm_gpu_demo.wasm",
 };
+pub const GPU_RECORDING_ERROR: Guest = Guest {
+    name: "gpu-recording-error",
+    example: "gpu-demo",
+    features: "recording-error",
+    artifact: "yoake_wasm_gpu_demo.wasm",
+};
 
 /// The second package of the `mod-call` tests: only answers `handle-call`.
 pub const FULL_DEMO_PEER: Guest = Guest {

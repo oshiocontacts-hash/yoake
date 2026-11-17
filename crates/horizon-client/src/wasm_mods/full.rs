@@ -1140,11 +1140,15 @@ pub(super) fn load_client_with_shaders(
     source: &ModuleSource<'_>,
     shaders: Option<Arc<Mutex<super::dev_shaders::DevShaders>>>,
 ) -> Result<ClientFullMod, String> {
+    let mut host = GameHost::new(source.id).with_gpu(source.gpu);
+    host.dev_shaders = shaders;
+    load_client_with_host(source, host)
+}
+
+fn load_client_with_host(source: &ModuleSource<'_>, host: GameHost) -> Result<ClientFullMod, String> {
     // A full module's `ItemStack` answers are checked against the item table, so it is published.
     horizon_items::items::publish_registry_for_checks();
     let mut sandbox = sandbox().lock().unwrap_or_else(|error| error.into_inner());
-    let mut host = GameHost::new(source.id).with_gpu(source.gpu);
-    host.dev_shaders = shaders;
     host.gpu_ready.store(false, Ordering::Release);
     let ready = Arc::clone(&host.gpu_ready);
     let module = ClientFullMod::instantiate(
