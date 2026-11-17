@@ -52,6 +52,9 @@ impl Rule {
             Self::ClampedNumber(minimum, maximum) => match &mut value {
                 Value::Float(number) if number.is_finite() => {
                     *number = number.clamp(minimum, maximum);
+                    if *number == 0.0 {
+                        *number = 0.0;
+                    }
                 }
                 _ => return None,
             },
@@ -67,7 +70,12 @@ impl Rule {
                         _ => None,
                     })
                 };
-                if values.len() > original.len() || sum(values)? != sum(original)? {
+                if values.len() > original.len()
+                    || values.iter().any(|value| {
+                        matches!(value, Value::Unsigned(amount) if *amount > i16::MAX as u64)
+                    })
+                    || sum(values)? != sum(original)?
+                {
                     return None;
                 }
             }
@@ -337,7 +345,9 @@ fn placed_block_gate(remaining: &mut &str, coordinates: usize) -> Result<(), Str
         || name.ends_with("_sign")
         || block.contains('{')
     {
-        return Err("denied: command blocks, signs and block entity NBT require player commands".into());
+        return Err(
+            "denied: command blocks, signs and block entity NBT require player commands".into(),
+        );
     }
     Ok(())
 }
@@ -346,7 +356,9 @@ fn execute_tail(remaining: &mut &str) -> Result<bool, String> {
     while let Some(modifier) = command_argument(remaining)? {
         match modifier {
             "run" => return Ok(true),
-            "as" | "at" | "align" | "anchored" | "in" | "summon" | "on" => skip_arguments(remaining, 1)?,
+            "as" | "at" | "align" | "anchored" | "in" | "summon" | "on" => {
+                skip_arguments(remaining, 1)?
+            }
             "positioned" => {
                 let kind = required_argument(remaining)?;
                 skip_arguments(remaining, if matches!(kind, "as" | "over") { 1 } else { 2 })?;
@@ -363,7 +375,9 @@ fn execute_tail(remaining: &mut &str) -> Result<bool, String> {
             "if" | "unless" => {
                 let condition = required_argument(remaining)?;
                 match condition {
-                    "entity" | "predicate" | "function" | "dimension" => skip_arguments(remaining, 1)?,
+                    "entity" | "predicate" | "function" | "dimension" => {
+                        skip_arguments(remaining, 1)?
+                    }
                     "stopwatch" => skip_arguments(remaining, 2)?,
                     "loaded" => skip_arguments(remaining, 3)?,
                     "block" | "biome" => skip_arguments(remaining, 4)?,
@@ -372,7 +386,9 @@ fn execute_tail(remaining: &mut &str) -> Result<bool, String> {
                         let provider = required_argument(remaining)?;
                         let count = match provider {
                             "block" => 4,
-                            "entity" | "storage" if condition == "data" || provider == "entity" => 2,
+                            "entity" | "storage" if condition == "data" || provider == "entity" => {
+                                2
+                            }
                             _ => return Err("denied: unsupported execute provider".into()),
                         };
                         skip_arguments(remaining, count + usize::from(condition == "items"))?;
@@ -394,6 +410,16 @@ fn execute_tail(remaining: &mut &str) -> Result<bool, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn clamped_numbers_normalize_negative_zero() {
+        let Some(Value::Float(value)) =
+            Rule::ClampedNumber(0.0, 40.0).normalize_return(Value::Float(-0.0), &Value::Float(1.0))
+        else {
+            panic!("expected a clamped float");
+        };
+        assert_eq!(value.to_bits(), 0.0_f64.to_bits());
+    }
 
     #[test]
     fn block_states_use_the_live_registry_domain() {
@@ -520,7 +546,10 @@ mod tests {
             "pregen start",
         ] {
             assert!(command_gate(line, true).is_err(), "{line}");
-            assert!(command_gate(&format!("execute as @s run {line}"), true).is_err(), "{line}");
+            assert!(
+                command_gate(&format!("execute as @s run {line}"), true).is_err(),
+                "{line}"
+            );
         }
     }
 

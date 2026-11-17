@@ -1,25 +1,31 @@
 use std::path::PathBuf;
-use std::sync::atomic::AtomicI32;
+use std::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver};
 use std::time::Instant;
 
 use horizon_client::chunk::Chunk;
-use horizon_client::crash::{NativeModCall, enter_native_mod};
+use horizon_client::crash::{enter_native_mod, NativeModCall};
 use horizon_client::gamerules::Value;
 use horizon_client::lan::guest::Guest;
 use horizon_client::lan::hub::HubConfig;
 use horizon_client::lan::{Joined, NetConfig, OnlineMode, Out, PlayerSender};
 use horizon_client::mod_api::NativeAuthority;
 use horizon_client::motion::PlayerMotion;
+use horizon_core::random::{LegacyRandom, RandomSource};
 use horizon_protocol::buf::Reader;
 use horizon_protocol::packets::configuration::ClientInformation;
 use horizon_protocol::packets::play;
+use yoake_inject_rt::{
+    CallbackError, Guest as InjectGuest, Mod as InjectMod, Registry, Side, Site, Subscription,
+    Value as InjectValue, RETURN,
+};
 
 use crate::game::execution_role::ExecutionRole;
+use crate::game::explosion::BlockInteraction;
 use crate::game::lan::{LanSettings, Owner};
 use crate::game::lan_actions::GuestPlay;
 use crate::game::native_explosions::NativeBlast;
-use crate::game::{Audio, Game, Options, Progress, Settings, load_resources};
+use crate::game::{load_resources, Audio, Game, Options, Progress, Settings};
 
 use super::*;
 
@@ -170,11 +176,155 @@ fn velocity(game: &mut Game<'_>, conn: u32) -> Vec3 {
     player_state(game, conn, |game| game.player.as_ref().unwrap().velocity)
 }
 
+struct UtilityReturn {
+    discard: bool,
+    calls: Arc<AtomicUsize>,
+}
+
+impl InjectGuest for UtilityReturn {
+    fn returned(
+        &self,
+        _: &str,
+        result: &InjectValue,
+    ) -> std::result::Result<Option<InjectValue>, CallbackError> {
+        self.calls.fetch_add(1, Ordering::Relaxed);
+        Ok(Some(if self.discard {
+            InjectValue::List(Vec::new())
+        } else {
+            result.clone()
+        }))
+    }
+}
+
+fn utility_return_handler(site: &'static Site, discard: bool) -> (Registry, Arc<AtomicUsize>) {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let mut registry = Registry::new([site]).unwrap();
+    let prepared = registry
+        .prepare(
+            [Subscription {
+                site_id: site.id(),
+                side: Side::Server,
+                points: RETURN,
+                module: Arc::new(InjectMod::new(
+                    "utility-outcome-test",
+                    Arc::new(UtilityReturn {
+                        discard,
+                        calls: Arc::clone(&calls),
+                    }),
+                )),
+            }],
+            |_, _, _| true,
+        )
+        .unwrap();
+    registry.publish(prepared).unwrap();
+    (registry, calls)
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn spawn_orbs_handler_preserves_rng_draws_and_player_state() {
+    let _side = yoake_inject_rt::enter_side(Side::Server);
+    let site = crate::game::__yoake_inject_site_split_orb_values();
+    let mut outcomes = Vec::new();
+    for handler in [false, true] {
+        with_server(|game, _, _| {
+            assert!(game.orbs.is_empty());
+            assert!(!site.has_handlers());
+            let registration = handler.then(|| utility_return_handler(site, false));
+            game.world.random = LegacyRandom::new(0x4d583246);
+            let mut expected_random = game.world.random.clone();
+            for _ in 0..4 {
+                expected_random.next_int_bound(40).unwrap();
+            }
+            game.spawn_orbs([8.0, 65.0, 8.0], 100);
+            let orbs: Vec<_> = game.orbs.iter().map(|orb| (orb.value, orb.count)).collect();
+            assert_eq!(orbs, vec![(73, 1), (17, 1), (7, 1), (3, 1)]);
+            let draws: Vec<_> = (0..32).map(|_| game.world.random.next_int()).collect();
+            let expected: Vec<_> = (0..32).map(|_| expected_random.next_int()).collect();
+            assert_eq!(draws, expected);
+            outcomes.push((
+                orbs,
+                draws,
+                [health(game, OWNER_CONN), health(game, GUEST_CONN)],
+                [velocity(game, OWNER_CONN), velocity(game, GUEST_CONN)],
+            ));
+            if let Some((_, calls)) = &registration {
+                assert_eq!(calls.load(Ordering::Relaxed), 1);
+            }
+            drop(registration);
+            assert!(!site.has_handlers());
+        });
+    }
+    assert_eq!(outcomes[0], outcomes[1]);
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn explosion_subset_preserves_rng_damage_and_knockback() {
+    let _side = yoake_inject_rt::enter_side(Side::Server);
+    let site = yoake_inject_rt::catalog::SITES
+        .iter()
+        .find(|site| site.id().starts_with("game::explosion::affected_blocks#"))
+        .unwrap();
+    for fire in [false, true] {
+        let mut outcomes = Vec::new();
+        for handler in [false, true] {
+            with_server(|game, _, _| {
+                let glass = game
+                    .pack
+                    .assets
+                    .registry
+                    .default_state("minecraft:glass")
+                    .unwrap();
+                game.level_set([8, 64, 8], glass).unwrap();
+                assert!(!site.has_handlers());
+                let registration = handler.then(|| utility_return_handler(site, true));
+                game.world.random = LegacyRandom::new(0x4d583246);
+                game.server_explode_as(
+                    [8.5, 64.5, 8.5],
+                    4.0,
+                    BlockInteraction::Destroy,
+                    fire,
+                    "minecraft:explosion",
+                    None,
+                )
+                .unwrap();
+                assert_eq!(
+                    game.world.block(8, 64, 8),
+                    if handler { glass } else { game.world.air }
+                );
+                let health = [health(game, OWNER_CONN), health(game, GUEST_CONN)];
+                let velocity = [velocity(game, OWNER_CONN), velocity(game, GUEST_CONN)];
+                assert!(health.iter().all(|health| *health < 20.0));
+                assert!(velocity.iter().all(|velocity| *velocity != Vec3::ZERO));
+                outcomes.push((
+                    (0..32)
+                        .map(|_| game.world.random.next_int())
+                        .collect::<Vec<_>>(),
+                    health,
+                    velocity,
+                ));
+                if let Some((_, calls)) = &registration {
+                    assert_eq!(calls.load(Ordering::Relaxed), 1);
+                }
+                drop(registration);
+                assert!(!site.has_handlers());
+            });
+        }
+        assert_eq!(outcomes[0], outcomes[1]);
+    }
+}
+
 #[test]
 #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
 fn owner_sneaking_uses_movement_state_without_a_guest_record() {
     with_server(|game, _, _| {
-        game.lan.as_mut().unwrap().hub.guests.retain(|guest| guest.uuid != OWNER);
+        game.lan
+            .as_mut()
+            .unwrap()
+            .hub
+            .guests
+            .retain(|guest| guest.uuid != OWNER);
         game.lan_acting_uuid = Some(OWNER);
         game.player = Some(PlayerMotion::new(game.motion, Vec3::new(5.0, 64.0, 5.0)).unwrap());
         game.player.as_mut().unwrap().shift_key_down = true;
@@ -243,10 +393,9 @@ fn player_damage_preserves_victim_killer_and_disconnected_actor_identity() {
             NativeDamageActor::Player(999),
             None,
         );
-        assert!(
-            game.native_hurt_entity(&dimension, OWNER_ID, 4.0, &stale)
-                .is_err()
-        );
+        assert!(game
+            .native_hurt_entity(&dimension, OWNER_ID, 4.0, &stale)
+            .is_err());
         close(health(game, OWNER_CONN), 20.0);
     });
 }
@@ -379,31 +528,25 @@ fn parked_host_and_invalid_requests_leave_all_players_unchanged() {
         let dimension = game.dim.id().to_owned();
         let damage = NativeDamage::new(NativeDamageKind::Magic, NativeDamageActor::None, None);
         player_state(game, OWNER_CONN, |game| {
-            assert!(
-                game.native_hurt_entity(&dimension, GUEST_ID, 4.0, &damage)
-                    .is_err()
-            );
-            assert!(
-                game.native_push_server_player(&dimension, GUEST, [1.0, 0.0, 0.0])
-                    .is_err()
-            );
+            assert!(game
+                .native_hurt_entity(&dimension, GUEST_ID, 4.0, &damage)
+                .is_err());
+            assert!(game
+                .native_push_server_player(&dimension, GUEST, [1.0, 0.0, 0.0])
+                .is_err());
         });
-        assert!(
-            game.native_hurt_entity(&dimension, GUEST_ID, f32::NAN, &damage)
-                .is_err()
-        );
-        assert!(
-            game.native_hurt_entity(&dimension, GUEST_ID, -1.0, &damage)
-                .is_err()
-        );
-        assert!(
-            game.native_hurt_entity("minecraft:the_end", GUEST_ID, 4.0, &damage)
-                .is_err()
-        );
-        assert!(
-            game.native_hurt_entity(&dimension, u32::MAX, 4.0, &damage)
-                .is_err()
-        );
+        assert!(game
+            .native_hurt_entity(&dimension, GUEST_ID, f32::NAN, &damage)
+            .is_err());
+        assert!(game
+            .native_hurt_entity(&dimension, GUEST_ID, -1.0, &damage)
+            .is_err());
+        assert!(game
+            .native_hurt_entity("minecraft:the_end", GUEST_ID, 4.0, &damage)
+            .is_err());
+        assert!(game
+            .native_hurt_entity(&dimension, u32::MAX, 4.0, &damage)
+            .is_err());
         close(health(game, GUEST_CONN), 20.0);
         assert_eq!(velocity(game, GUEST_CONN), Vec3::ZERO);
         assert!(motion_packets(&guest_packets).is_empty());
@@ -422,10 +565,9 @@ fn exhausted_operation_budget_does_not_add_motion() {
             );
         }
         let accepted = velocity(game, GUEST_CONN);
-        assert!(
-            game.native_push_server_player(&dimension, GUEST, [1.0, 0.0, 0.0])
-                .is_err()
-        );
+        assert!(game
+            .native_push_server_player(&dimension, GUEST, [1.0, 0.0, 0.0])
+            .is_err());
         assert_eq!(velocity(game, GUEST_CONN), accepted);
     });
 }
@@ -648,13 +790,15 @@ fn an_attack_hitbox_is_the_box_a_guest_is_attacked_in_and_reaches_horizon_client
             play::Clientbound::CustomPayload(p)
                 if p.channel == horizon_client::lan::attack_hitbox::CHANNEL
         )));
-        assert!(
-            game.native_set_player_attack_hitbox(GUEST, 0.0, 18.0)
-                .is_err()
-        );
+        assert!(game
+            .native_set_player_attack_hitbox(GUEST, 0.0, 18.0)
+            .is_err());
         assert_eq!(game.native_clear_player_attack_hitbox(GUEST), Ok(true));
         let host = game.lan.as_ref().unwrap();
-        assert_eq!(game.guest_target_box(host, 0, GUEST_ID as i32).unwrap(), ordinary);
+        assert_eq!(
+            game.guest_target_box(host, 0, GUEST_ID as i32).unwrap(),
+            ordinary
+        );
         assert_eq!(game.native_clear_player_attack_hitbox(404), Ok(false));
     });
 }
@@ -678,7 +822,12 @@ fn the_world_border_is_read_and_set_with_vanillas_packets() {
         );
         let after = game.native_world_border(&dimension).unwrap();
         assert_eq!(
-            (after.center, after.size, after.target_size, after.remaining_ticks),
+            (
+                after.center,
+                after.size,
+                after.target_size,
+                after.remaining_ticks
+            ),
             ([5.0, 6.0], 80.0, 20.0, 100)
         );
         let mut host = game.lan.take().unwrap();
@@ -694,10 +843,9 @@ fn the_world_border_is_read_and_set_with_vanillas_packets() {
             play::Clientbound::SetBorderLerpSize(p)
                 if (p.old_size, p.new_size, p.lerp_time) == (80.0, 20.0, 100)
         )));
-        assert!(
-            game.native_set_world_border(&dimension, [0.0, 0.0], 0.0, None)
-                .is_err()
-        );
+        assert!(game
+            .native_set_world_border(&dimension, [0.0, 0.0], 0.0, None)
+            .is_err());
         assert_eq!(game.native_world_border(&dimension).unwrap(), after);
     });
 }

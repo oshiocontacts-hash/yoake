@@ -37,6 +37,12 @@ pub const TEST_DEMO: Guest = Guest {
     features: "",
     artifact: "yoake_wasm_test_demo.wasm",
 };
+pub const MIXIN_DEMO: Guest = Guest {
+    name: "mixin-demo",
+    example: "mixin-demo",
+    features: "",
+    artifact: "yoake_mixin_demo.wasm",
+};
 pub const MIXIN_CONFIG: Guest = Guest {
     name: "mixin-config",
     example: "mixin-config",
@@ -109,19 +115,34 @@ pub const FULL_DEMO_PEER: Guest = Guest {
 };
 
 pub const INVALID_HOOK: Guest = Guest {
-    name: "invalid-hook", example: "validation-fixture", features: "typo", artifact: "yoake_wasm_validation_fixture.wasm",
+    name: "invalid-hook",
+    example: "validation-fixture",
+    features: "typo",
+    artifact: "yoake_wasm_validation_fixture.wasm",
 };
 pub const TRAPPING_INIT: Guest = Guest {
-    name: "trapping-init", example: "validation-fixture", features: "trap", artifact: "yoake_wasm_validation_fixture.wasm",
+    name: "trapping-init",
+    example: "validation-fixture",
+    features: "trap",
+    artifact: "yoake_wasm_validation_fixture.wasm",
 };
 pub const UNWIRED_CLIENT_HOOK: Guest = Guest {
-    name: "unwired-client-hook", example: "validation-fixture", features: "unwired-client", artifact: "yoake_wasm_validation_fixture.wasm",
+    name: "unwired-client-hook",
+    example: "validation-fixture",
+    features: "unwired-client",
+    artifact: "yoake_wasm_validation_fixture.wasm",
 };
 pub const WRONG_CLIENT_HOOK: Guest = Guest {
-    name: "wrong-client-hook", example: "validation-fixture", features: "wrong-client", artifact: "yoake_wasm_validation_fixture.wasm",
+    name: "wrong-client-hook",
+    example: "validation-fixture",
+    features: "wrong-client",
+    artifact: "yoake_wasm_validation_fixture.wasm",
 };
 pub const WRONG_SERVER_HOOK: Guest = Guest {
-    name: "wrong-server-hook", example: "validation-fixture", features: "wrong-server", artifact: "yoake_wasm_validation_fixture.wasm",
+    name: "wrong-server-hook",
+    example: "validation-fixture",
+    features: "wrong-server",
+    artifact: "yoake_wasm_validation_fixture.wasm",
 };
 
 static BUILD: Mutex<()> = Mutex::new(());
@@ -183,11 +204,15 @@ pub fn load(guest: &Guest) -> Option<Vec<u8>> {
     let _serial = BUILD.lock().unwrap_or_else(|error| error.into_inner());
     let target = target_dir();
     let built = target.join("wasm32-wasip2/release").join(guest.artifact);
-    let copy = target.join("wasm32-wasip2/release").join(format!("{}.wasm", guest.name.replace('-', "_")));
+    let copy = target
+        .join("wasm32-wasip2/release")
+        .join(format!("{}.wasm", guest.name.replace('-', "_")));
     let example = if guest.example == "validation-fixture" {
         workspace().join("crates/yoake-wasm/tests/validation-fixture")
     } else {
-        workspace().join("crates/yoake-wasm-sdk/examples").join(guest.example)
+        workspace()
+            .join("crates/yoake-wasm-sdk/examples")
+            .join(guest.example)
     };
     let build = build(&example, guest.features, &target);
     let bytes = match &build {

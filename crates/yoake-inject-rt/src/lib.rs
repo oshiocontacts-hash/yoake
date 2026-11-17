@@ -194,6 +194,18 @@ impl Site {
         self.allowed
     }
 
+    pub fn has_list_values(&self) -> bool {
+        self.arguments
+            .iter()
+            .chain(std::iter::once(&self.result))
+            .any(|value| {
+                matches!(
+                    value,
+                    ValueType::U32List | ValueType::BlockPosList | ValueType::StringList
+                )
+            })
+    }
+
     fn accepts_arguments(&self, arguments: &[Value]) -> bool {
         arguments.len() == self.arguments.len()
             && arguments
@@ -324,7 +336,7 @@ impl Mod {
         self.disabled.load(Ordering::Acquire)
     }
 
-    fn disable(&self) {
+    pub fn disable(&self) {
         self.disabled.store(true, Ordering::Release);
         self.refresh_masks();
     }
@@ -768,16 +780,25 @@ impl Site {
                     continue;
                 }
                 Ok(None) => continue,
-                Ok(Some(value)) => site_policy(site.path)
-                    .result
-                    .normalize_return(value, native_result.as_ref().unwrap_or(&result))
-                    .filter(|value| site.accepts_result(value, block_states)),
+                Ok(Some(value)) => {
+                    let rule = site_policy(site.path).result;
+                    let baseline = if rule == yoake_value::policy::Rule::Subset {
+                        &result
+                    } else {
+                        native_result.as_ref().unwrap_or(&result)
+                    };
+                    rule.normalize_return(value, baseline)
+                        .filter(|value| site.accepts_result(value, block_states))
+                }
                 _ => None,
             };
             if let Some(value) = replacement {
                 result = value;
             } else {
                 handler.disable(site, RETURN);
+                if site_policy(site.path).result == yoake_value::policy::Rule::Subset {
+                    continue;
+                }
                 return native_result
                     .map(Ok)
                     .unwrap_or_else(|| call_original(&mut original, original_arguments));

@@ -64,6 +64,7 @@ fn inject_config_is_scoped_gated_and_notifies_cached_handlers() {
         services.clone(),
     )
     .unwrap();
+    assert!(injection.has_config_notifications());
     assert_eq!(timer(), Value::Unsigned(2));
     {
         let mut service = services.lock().unwrap();
@@ -113,6 +114,7 @@ fn inject_config_is_scoped_gated_and_notifies_cached_handlers() {
         services.clone(),
     )
     .unwrap();
+    assert!(!denied.has_config_notifications());
     assert_eq!(timer(), Value::Unsigned(9));
     drop(denied);
     let other: ServiceHandle = Arc::new(Mutex::new(
@@ -289,7 +291,11 @@ fn realloc_body() -> Vec<u8> {
     i32_const(&mut body, 4096);
     i32_const(&mut body, 4096);
     body.extend_from_slice(&[0x28, 2, 0]);
-    i32_const(&mut body, 512);
+    body.extend_from_slice(&[0x20, 3]);
+    i32_const(&mut body, 7);
+    body.push(0x6a);
+    i32_const(&mut body, -8);
+    body.push(0x71);
     body.extend_from_slice(&[0x6a, 0x36, 2, 0, 0x20, 4, 0x0b]);
     body
 }
@@ -330,35 +336,56 @@ fn component(
     returned: Vec<u8>,
     overwrite: Vec<u8>,
 ) -> Vec<u8> {
+    component_with_config(registrations, head, returned, overwrite, None)
+}
+
+fn component_with_config(
+    registrations: &[(&str, u8)],
+    head: Vec<u8>,
+    returned: Vec<u8>,
+    overwrite: Vec<u8>,
+    config_changed: Option<Vec<u8>>,
+) -> Vec<u8> {
     let mut resolve = Resolve::default();
-    let package = resolve
-        .push_str(
-            "yoake-inject.wit",
-            include_str!("../wit-inject/yoake-inject.wit"),
-        )
-        .unwrap();
+    let package = if config_changed.is_some() {
+        resolve
+            .push_dir(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("wit-inject-config"))
+            .unwrap()
+            .0
+    } else {
+        resolve
+            .push_str(
+                "yoake-inject.wit",
+                include_str!("../wit-inject/yoake-inject.wit"),
+            )
+            .unwrap()
+    };
     let world = resolve
         .select_world(&[package], Some("inject-mod"))
         .unwrap();
     let module = wit_component::dummy_module(&resolve, world, ManglingAndAbi::Standard32);
     let (imported, exports) = function_indices(&module);
-    let bodies = [
+    let mut replacements = vec![
         ("|registrations", registrations_body(registrations)),
         ("|inject-head", head),
         ("|inject-return", returned),
         ("|inject-overwrite", overwrite),
         ("realloc", realloc_body()),
-    ]
-    .into_iter()
-    .map(|(suffix, body)| {
-        let index = exports
-            .iter()
-            .find(|(name, _)| name.ends_with(suffix))
-            .unwrap()
-            .1;
-        (*index, body)
-    })
-    .collect::<BTreeMap<_, _>>();
+    ];
+    if let Some(body) = config_changed {
+        replacements.push(("|config-changed", body));
+    }
+    let bodies = replacements
+        .into_iter()
+        .map(|(suffix, body)| {
+            let index = exports
+                .iter()
+                .find(|(name, _)| name.ends_with(suffix))
+                .unwrap()
+                .1;
+            (*index, body)
+        })
+        .collect::<BTreeMap<_, _>>();
     let code = sections(&module)
         .into_iter()
         .find(|(id, _)| *id == 10)
@@ -380,7 +407,7 @@ fn component(
         replacement.extend_from_slice(body);
     }
     let module = replace_section(&module, 10, &replacement);
-    let mut module = replace_section(&module, 5, &[1, 0, 1]);
+    let mut module = replace_section(&module, 5, &[1, 0, 0x80, 2]);
     wit_component::embed_component_metadata(
         &mut module,
         &resolve,
@@ -393,6 +420,245 @@ fn component(
         .unwrap()
         .encode()
         .unwrap()
+}
+
+#[test]
+fn large_explosion_lists_can_be_filtered_to_nothing() {
+    let _serial = INJECTION_TEST.lock().unwrap();
+    let _side = enter_side(Side::Server);
+    let target = "game::explosion::affected_blocks#48eb22f452491e6764e4413bdb03f836666a322dba624fc9005ba4b67ed0b6d8";
+    let site = catalog::SITES
+        .iter()
+        .find(|site| site.id() == target)
+        .unwrap();
+    let mut returned = vec![0];
+    for (address, value) in [
+        (0, 1),
+        (8, 7),
+        (16, 0),
+        (20, 128),
+        (24, 1),
+        (128, 7),
+        (136, 0),
+        (140, 0),
+    ] {
+        store_i32(&mut returned, address, value);
+    }
+    let trap = vec![0, 0x00, 0x0b];
+    let bytes = component(&[(target, 2)], trap.clone(), finish(returned), trap);
+    let mut sandbox = Sandbox::new();
+    let injection = Injection::instantiate(
+        &mut sandbox,
+        "large-filter",
+        &bytes,
+        &[target.to_owned()],
+        Side::Server,
+    )
+    .unwrap();
+    injection.set_test_limits(yoake_wasm::TimeLimits {
+        call: std::time::Duration::from_secs(2),
+        aggregate: std::time::Duration::from_secs(5),
+    });
+    for count in [5_000, 65_536] {
+        let positions = Value::List(
+            (0..count)
+                .map(|coordinate| {
+                    Value::List(vec![
+                        Value::Signed(coordinate),
+                        Value::Signed(64),
+                        Value::Signed(0),
+                    ])
+                })
+                .collect(),
+        );
+        let filtered = site.invoke(vec![positions], |arguments| arguments[0].clone());
+        assert!(
+            matches!(filtered, Value::List(values) if values.is_empty()),
+            "failed to filter {count} positions"
+        );
+    }
+}
+
+#[test]
+fn config_callbacks_require_an_export_and_allowed_capability_and_traps_disable() {
+    let _serial = INJECTION_TEST.lock().unwrap();
+    let _side = enter_side(Side::Server);
+    let root = temporary_root("events");
+    let fields =
+        toml::from_str("[count]\ntype='int'\ndefault=2\nmin=1\nmax=4\nside='server'\n").unwrap();
+    let permissions = vec!["service.config".to_owned()];
+    let services: ServiceHandle = Arc::new(Mutex::new(
+        PackageServices::open(
+            "example",
+            &permissions,
+            &fields,
+            &BTreeMap::new(),
+            ConfigRuntimeSide::Server,
+            &root,
+            None,
+        )
+        .unwrap(),
+    ));
+    let trap = vec![0, 0x00, 0x0b];
+    let site = catalog::SITES
+        .iter()
+        .find(|site| site.id() == TARGET)
+        .unwrap();
+    let timer = || {
+        site.invoke(
+            vec![Value::Unsigned(9), Value::Boolean(false)],
+            |arguments| arguments[0].clone(),
+        )
+    };
+    let mut sandbox = Sandbox::new();
+    for (exports_config, allowed) in [(false, true), (true, false), (true, true)] {
+        let bytes = component_with_config(
+            &[(TARGET, 2)],
+            trap.clone(),
+            return_value(2),
+            trap.clone(),
+            exports_config.then(|| trap.clone()),
+        );
+        let injection = Injection::instantiate_with_services(
+            &mut sandbox,
+            "example",
+            &bytes,
+            &[TARGET.to_owned()],
+            Side::Server,
+            if allowed { &permissions } else { &[] },
+            services.clone(),
+        )
+        .unwrap();
+        assert_eq!(
+            injection.has_config_notifications(),
+            exports_config && allowed
+        );
+        let mut service = services.lock().unwrap();
+        let mut value = service.config_get("count").unwrap();
+        value.int_value = if value.int_value == 3 { 4 } else { 3 };
+        service.config_set("count", value).unwrap();
+        drop(service);
+        for _ in 0..2 {
+            injection.notify_config_changes();
+            if exports_config && allowed {
+                assert!(!injection.has_config_notifications());
+                assert_eq!(site.mask(), 0);
+                assert_eq!(timer(), Value::Unsigned(9));
+            } else {
+                assert_eq!(timer(), Value::Unsigned(2));
+            }
+        }
+    }
+    drop(services);
+    remove_temporary_root(&root);
+}
+
+#[test]
+fn client_synced_config_notifies_injection_and_disconnect_restores_default() {
+    let _serial = INJECTION_TEST.lock().unwrap();
+    let _side = enter_side(Side::Client);
+    let target = "game::hand::attack_damage#798a72923c4015b370175cb5ef3c9caafdccea63d164e658ba38a4a5bfbed4b3";
+    let root = temporary_root("synced");
+    std::fs::create_dir(root.join("server")).unwrap();
+    std::fs::create_dir(root.join("client")).unwrap();
+    let fields =
+        toml::from_str("[count]\ntype='int'\ndefault=2\nmin=1\nmax=4\nside='synced'\n").unwrap();
+    let permissions = vec!["service.config".to_owned()];
+    let mut server = PackageServices::open(
+        "example",
+        &permissions,
+        &fields,
+        &BTreeMap::new(),
+        ConfigRuntimeSide::Server,
+        &root.join("server"),
+        None,
+    )
+    .unwrap();
+    let client: ServiceHandle = Arc::new(Mutex::new(
+        PackageServices::open(
+            "example",
+            &permissions,
+            &fields,
+            &BTreeMap::new(),
+            ConfigRuntimeSide::Client,
+            &root.join("client"),
+            None,
+        )
+        .unwrap(),
+    ));
+    let mut returned = vec![0];
+    store_i32(&mut returned, 0, 1);
+    store_i32(&mut returned, 8, 4);
+    i32_const(&mut returned, 16);
+    i32_const(&mut returned, 4092);
+    returned.extend_from_slice(&[0x28, 2, 0, 0xb7, 0x39, 3, 0]);
+    let mut changed = vec![0];
+    i32_const(&mut changed, 4092);
+    changed.extend_from_slice(&[0x20, 10, 0xa7, 0x36, 2, 0, 0x0b]);
+    let trap = vec![0, 0x00, 0x0b];
+    let bytes = component_with_config(
+        &[(target, 2)],
+        trap.clone(),
+        finish(returned),
+        trap,
+        Some(changed),
+    );
+    let mut sandbox = Sandbox::new();
+    let injection = Injection::instantiate_with_services(
+        &mut sandbox,
+        "example",
+        &bytes,
+        &[target.to_owned()],
+        Side::Client,
+        &permissions,
+        client.clone(),
+    )
+    .unwrap();
+    let site = catalog::SITES
+        .iter()
+        .find(|site| site.id() == target)
+        .unwrap();
+    let mut scope = yoake_value::Scope::default();
+    let player = scope.handle("Self", None);
+    let damage = || site.invoke(vec![player.clone()], |_| Value::Float(9.0));
+    assert_eq!(damage(), Value::Float(0.0));
+    let mut value = server.config_get("count").unwrap();
+    value.int_value = 4;
+    server.config_set("count", value).unwrap();
+    let (_, snapshot) = server.snapshot().unwrap();
+    client.lock().unwrap().apply_snapshot(&snapshot).unwrap();
+    injection.notify_config_changes();
+    assert_eq!(damage(), Value::Float(4.0));
+    let value = client.lock().unwrap().config_get("count").unwrap();
+    assert!(client.lock().unwrap().config_set("count", value).is_err());
+    client.lock().unwrap().clear_snapshot();
+    injection.notify_config_changes();
+    assert_eq!(damage(), Value::Float(2.0));
+    drop(injection);
+    assert_eq!(damage(), Value::Float(9.0));
+    drop(client);
+    drop(server);
+    remove_temporary_root(&root);
+}
+
+fn temporary_root(name: &str) -> std::path::PathBuf {
+    let root = std::env::temp_dir().join(format!(
+        "yoake-inject-{name}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir(&root).unwrap();
+    root
+}
+
+fn remove_temporary_root(root: &std::path::Path) {
+    let root = root.canonicalize().unwrap();
+    let temporary = std::env::temp_dir().canonicalize().unwrap();
+    assert!(root.starts_with(&temporary) && root != temporary);
+    std::fs::remove_dir_all(root).unwrap();
 }
 
 #[test]

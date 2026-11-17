@@ -18,12 +18,12 @@ mod client_services;
 mod dev_shaders;
 #[path = "wasm_mods/full.rs"]
 mod full;
+#[path = "wasm_mods/gpu_services.rs"]
+mod gpu_services;
 #[path = "wasm_mods/package.rs"]
 pub(crate) mod package;
 #[path = "wasm_mods/package_ui.rs"]
 pub(crate) mod package_ui;
-#[path = "wasm_mods/gpu_services.rs"]
-mod gpu_services;
 #[path = "wasm_mods/resources.rs"]
 mod resources;
 #[path = "wasm_mods/server_services.rs"]
@@ -32,7 +32,6 @@ mod server_services;
 #[path = "wasm_mods/test_driver.rs"]
 pub(super) mod test_driver;
 
-pub(crate) use server_services::{attachment_registry, prepare_attachments, reset_attachments};
 use super::dll_mods::{StaticMod, frame_time, native_identity, safe_component};
 use crate::mod_api::*;
 use horizon_mod_abi as abi;
@@ -40,6 +39,7 @@ use horizon_protocol::{
     buf::{Codec, Writer},
     item::Slot,
 };
+pub(crate) use server_services::{attachment_registry, prepare_attachments, reset_attachments};
 use std::{
     cell::Cell,
     collections::{HashMap, HashSet},
@@ -199,7 +199,10 @@ fn dev_sources_with(
             continue;
         }
         if reserved_ids.contains(&id) {
-            emit(format!("wasm: dev module {} skipped: id conflicts with an installed mod", path.display()));
+            emit(format!(
+                "wasm: dev module {} skipped: id conflicts with an installed mod",
+                path.display()
+            ));
             continue;
         }
         match read_bounded(&path) {
@@ -227,9 +230,15 @@ fn dev_sources_with(
 fn read_bounded(path: &std::path::Path) -> Result<Vec<u8>, String> {
     use std::io::Read;
     let metadata = std::fs::symlink_metadata(path).map_err(|error| error.to_string())?;
-    if !metadata.is_file() { return Err("module is not a regular file".into()); }
+    if !metadata.is_file() {
+        return Err("module is not a regular file".into());
+    }
     let file = std::fs::File::open(path).map_err(|error| error.to_string())?;
-    if !file.metadata().map_err(|error| error.to_string())?.is_file() {
+    if !file
+        .metadata()
+        .map_err(|error| error.to_string())?
+        .is_file()
+    {
         return Err("module is not a regular file".into());
     }
     let mut bytes = Vec::new();
@@ -283,11 +292,15 @@ struct InjectionMod {
 
 impl Hooks for InjectionMod {
     fn tick(&self, _host: &mut dyn Host, _event: &mut TickEvent) {
-        self._injection.notify_config_changes();
+        if self._injection.has_config_notifications() {
+            self._injection.notify_config_changes();
+        }
     }
 
     fn frame(&self, _host: &mut dyn Host, _event: &mut FrameEvent) {
-        self._injection.notify_config_changes();
+        if self._injection.has_config_notifications() {
+            self._injection.notify_config_changes();
+        }
     }
 }
 
@@ -302,17 +315,32 @@ fn load_injection(
         yoake_inject_rt::Side::Client => horizon_mods::yak::ConfigRuntimeSide::Client,
         _ => horizon_mods::yak::ConfigRuntimeSide::Server,
     };
-    let services = package::services(id, config_side)?;
-    let mut sandbox = sandbox().lock().unwrap_or_else(|error| error.into_inner());
-    Injection::instantiate_with_services(
-        &mut sandbox,
+    load_injection_with_services(
         id,
         bytes,
         targets,
         side,
         permissions,
-        services,
+        package::services(id, config_side),
     )
+}
+
+fn load_injection_with_services(
+    id: &str,
+    bytes: &[u8],
+    targets: &[String],
+    side: yoake_inject_rt::Side,
+    permissions: &[String],
+    services: Result<yoake_wasm::package_services::ServiceHandle, String>,
+) -> Result<Injection, String> {
+    let mut sandbox = sandbox().lock().unwrap_or_else(|error| error.into_inner());
+    match services {
+        Ok(services) => Injection::instantiate_with_services(&mut sandbox, id, bytes, targets, side, permissions, services),
+        Err(error) => {
+            eprintln!("[yoake-inject:{id}] package services unavailable: {error}; loading without services");
+            Injection::instantiate_with_permissions(&mut sandbox, id, bytes, targets, side, permissions)
+        }
+    }
     .map_err(|error| error.to_string())
 }
 
@@ -334,7 +362,10 @@ pub(super) fn extend(
     // A dedicated server has no client: its client modules only give the package's identity.
     let dedicated = crate::yak_mods::dedicated();
     let entries = crate::yak_mods::entries();
-    let mut reserved_ids: HashSet<String> = identities.iter().map(|identity| identity.id.to_owned()).collect();
+    let mut reserved_ids: HashSet<String> = identities
+        .iter()
+        .map(|identity| identity.id.to_owned())
+        .collect();
     reserved_ids.extend(entries.iter().map(|entry| entry.manifest.id.clone()));
     let mut sources: Vec<Source> = crate::yak_mods::wasm_client_mods()
         .into_iter()
@@ -661,7 +692,9 @@ impl Watch {
 
     fn stat(path: &std::path::Path) -> Option<(SystemTime, u64)> {
         let metadata = std::fs::symlink_metadata(path).ok()?;
-        if !metadata.is_file() { return None; }
+        if !metadata.is_file() {
+            return None;
+        }
         Some((metadata.modified().ok()?, metadata.len()))
     }
 
@@ -1763,7 +1796,47 @@ mod tests {
     use super::*;
     use std::cell::RefCell;
 
-    use yoake_wasm::test_guests::{Guest, HELLO, HELLO_STD};
+    use yoake_wasm::test_guests::{Guest, HELLO, HELLO_STD, MIXIN_DEMO};
+
+    #[test]
+    fn inject_1_1_loads_without_package_services() {
+        let Some(bytes) = yoake_wasm::test_guests::load(&MIXIN_DEMO) else {
+            return;
+        };
+        let targets = [
+            "world::living_fall::calculate_fall_damage#9a9a629c2a289ab6ffb883cb0cd5891af74587992a6e2da94d8090723ede5b94",
+            "world::level::bonemeal::crop_bonemeal_increase#b61d671fb9375f084f2bf026f466add0e8423efd996180dee3fb52ca18348fd1",
+            "game::chat::handle_chat_input#2d6b616020cec7006f8b8c6aeb2d8f9faf0caa7a8dbeb7f38b5a4d839b0d2e62",
+        ];
+        let target = yoake_inject_rt::catalog::SITES
+            .iter()
+            .find(|site| site.id() == targets[0])
+            .unwrap();
+        let injection = load_injection_with_services(
+            "mixin-demo",
+            &bytes,
+            &targets.map(str::to_owned),
+            yoake_inject_rt::Side::Server,
+            &["service.commands".to_owned(), "service.chat".to_owned()],
+            Err("package services unavailable in test".to_owned()),
+        )
+        .unwrap();
+        assert!(!injection.has_config_notifications());
+        let _side = yoake_inject_rt::enter_side(yoake_inject_rt::Side::Server);
+        let damage = || {
+            target.invoke(
+                vec![
+                    yoake_inject_rt::Scope::default().handle("world", None),
+                    yoake_inject_rt::Value::Float(12.0),
+                    yoake_inject_rt::Value::Float(1.0),
+                ],
+                |_| yoake_inject_rt::Value::Signed(9),
+            )
+        };
+        assert_eq!(damage(), yoake_inject_rt::Value::Signed(4));
+        drop(injection);
+        assert_eq!(damage(), yoake_inject_rt::Value::Signed(9));
+    }
 
     #[test]
     fn gpu_package_fingerprint_changes_with_version_or_module() {
@@ -1829,7 +1902,11 @@ mod tests {
     fn wasm_dev_directory_is_not_read_without_wasm_developer_mode() {
         let switches = crate::yak_mods::UnsignedSwitches::from_values(None, None);
         let reserved = HashSet::new();
-        let disabled = dev_sources_with(switches.wasm, || panic!("disabled WASM developer mode read the path"), &reserved);
+        let disabled = dev_sources_with(
+            switches.wasm,
+            || panic!("disabled WASM developer mode read the path"),
+            &reserved,
+        );
         assert!(disabled.is_empty());
     }
 
@@ -1839,17 +1916,20 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!("yoake-wasm-dev-{}-{stamp}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("yoake-wasm-dev-{}-{stamp}", std::process::id()));
         std::fs::create_dir(&dir).unwrap();
         let module = dir.join("hello.wasm");
         std::fs::write(&module, b"raw wasm dev fixture").unwrap();
 
-        let switches = crate::yak_mods::UnsignedSwitches::from_values(
-            None,
-            Some(std::ffi::OsStr::new("1")),
-        );
+        let switches =
+            crate::yak_mods::UnsignedSwitches::from_values(None, Some(std::ffi::OsStr::new("1")));
         let reserved = HashSet::new();
-        let sources = dev_sources_with(switches.wasm, || Some(dir.clone().into_os_string()), &reserved);
+        let sources = dev_sources_with(
+            switches.wasm,
+            || Some(dir.clone().into_os_string()),
+            &reserved,
+        );
         assert_eq!(sources.len(), 1);
         assert_eq!(sources[0].id, "dev-hello");
         assert_eq!(sources[0].bytes, b"raw wasm dev fixture");
@@ -1864,7 +1944,10 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!("yoake-wasm-dev-collision-{}-{stamp}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!(
+            "yoake-wasm-dev-collision-{}-{stamp}",
+            std::process::id()
+        ));
         std::fs::create_dir(&dir).unwrap();
         std::fs::write(dir.join("hello.wasm"), b"raw wasm dev fixture").unwrap();
         let reserved = HashSet::from(["dev-hello".to_owned()]);
@@ -1879,7 +1962,8 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!("yoake-wasm-regular-{}-{stamp}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("yoake-wasm-regular-{}-{stamp}", std::process::id()));
         std::fs::create_dir(&dir).unwrap();
         let file = dir.join("module.wasm");
         std::fs::write(&file, b"regular wasm file").unwrap();
@@ -1934,7 +2018,9 @@ mod tests {
 
     #[test]
     fn wasm_hello_draws_through_the_hud_hook_slot() {
-        let _serial = GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+        let _serial = GUEST_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         let Some(module) = load(&HELLO, "hello", None) else {
             eprintln!("skipped: hello.wasm is not built");
             return;
@@ -1958,7 +2044,9 @@ mod tests {
 
     #[test]
     fn wasm_hot_reload_swaps_the_instance_at_the_next_tick() {
-        let _serial = GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+        let _serial = GUEST_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         let reload = Arc::new(Reload::default());
         let Some(module) = load(&HELLO, "hello", Some(Arc::clone(&reload))) else {
             eprintln!("skipped: hello.wasm is not built");

@@ -81,6 +81,20 @@ pub const VALUE_LIMITS: wire::Limits = wire::Limits {
     max_bytes: 256 * 1024,
 };
 
+pub const LIST_VALUE_LIMITS: wire::Limits = wire::Limits {
+    max_nodes: 4 * 65_536 + 4096,
+    max_depth: 32,
+    max_bytes: 16 * 1024 * 1024,
+};
+
+fn value_limits(site: &str) -> wire::Limits {
+    if validate_target(site).is_ok_and(Site::has_list_values) {
+        LIST_VALUE_LIMITS
+    } else {
+        VALUE_LIMITS
+    }
+}
+
 pub fn validate_target(target: &str) -> Result<&'static Site, String> {
     let (path, hash) = target.rsplit_once('#').ok_or_else(|| {
         format!("mixin target {target:?} must contain its catalog signature hash")
@@ -111,9 +125,35 @@ struct Handler {
     runtime: Mutex<Runtime>,
     compiled: CompiledComponent,
     disabled: AtomicBool,
+    config_notifications: bool,
+    warned_encoding: AtomicBool,
 }
 
 impl Handler {
+    fn encoding_error(&self, site: &str, error: wire::Error) -> CallbackError {
+        if !self.warned_encoding.swap(true, Ordering::Relaxed) {
+            eprintln!("[yoake-inject] {site}: {error}; handler skipped, vanilla result retained");
+        }
+        CallbackError::Skipped
+    }
+
+    fn encode_arguments(
+        &self,
+        site: &str,
+        arguments: &[Value],
+    ) -> Result<Vec<wit::Value>, CallbackError> {
+        let mut encoder = Encoder::new(value_limits(site));
+        arguments
+            .iter()
+            .map(|value| {
+                encoder
+                    .encode(value)
+                    .map(to_wit)
+                    .map_err(|error| self.encoding_error(site, error))
+            })
+            .collect()
+    }
+
     fn call<ResultValue>(
         &self,
         point: &str,
@@ -122,6 +162,9 @@ impl Handler {
             &mut wasmtime::Store<crate::HostState<ConfigHost>>,
         ) -> Result<ResultValue, String>,
     ) -> Result<ResultValue, CallbackError> {
+        if self.is_disabled() {
+            return Err(CallbackError::Skipped);
+        }
         let mut runtime = match self.runtime.try_lock() {
             Ok(runtime) => runtime,
             Err(std::sync::TryLockError::WouldBlock) => return Err(CallbackError::Skipped),
@@ -172,10 +215,11 @@ impl Handler {
             config_exports,
             poisoned,
         } = &mut *runtime;
+        let mut config_trapped = false;
         let result = raw.call_recoverable(point, |store, _| {
             if let Some(config_exports) = config_exports
                 .as_ref()
-                .filter(|_| store.data().host.allowed)
+                .filter(|_| self.config_notifications)
             {
                 let host = &store.data().host;
                 let (cursor, changes) =
@@ -186,12 +230,18 @@ impl Handler {
                     config_exports
                         .yoake_mods1_2_0_config_events()
                         .call_config_changed(&mut *store, &key, &config_value(value))
-                        .map_err(|error| format!("config-changed: {error:#}"))?;
+                        .map_err(|error| {
+                            config_trapped = true;
+                            format!("config-changed: {error:#}")
+                        })?;
                 }
                 store.data_mut().host.cursor = cursor;
             }
             invoke(exports, store)
         });
+        if config_trapped {
+            raw.disabled = true;
+        }
         self.disabled.store(raw.disabled, Ordering::Relaxed);
         for line in raw.drain_output() {
             eprintln!("[yoake-inject:{}:{:?}] {}", raw.id, line.stream, line.text);
@@ -201,7 +251,7 @@ impl Handler {
             Ok(None) => Err(CallbackError::Skipped),
             Err(error) => {
                 eprintln!("[yoake-inject:{}] {point}: {error}", raw.id);
-                *poisoned = true;
+                *poisoned = !raw.disabled;
                 Err(CallbackError::Trap)
             }
         }
@@ -214,14 +264,14 @@ impl Guest for Handler {
     }
 
     fn head(&self, site: &str, arguments: &[Value]) -> Result<HeadOutcome, CallbackError> {
-        let arguments = encode_arguments(arguments)?;
+        let arguments = self.encode_arguments(site, arguments)?;
         let outcome = self.call("inject-head", |exports, store| {
             exports
                 .yoake_mods_inject()
                 .call_inject_head(store, site, &arguments)
                 .map_err(|error| format!("{error:#}"))
         })?;
-        let mut decoder = Decoder::new(VALUE_LIMITS);
+        let mut decoder = Decoder::new(value_limits(site));
         match outcome {
             wit::HeadOutcome::Proceed => Ok(HeadOutcome::Continue),
             wit::HeadOutcome::ReplaceArguments(arguments) => arguments
@@ -234,9 +284,9 @@ impl Guest for Handler {
     }
 
     fn returned(&self, site: &str, result: &Value) -> Result<Option<Value>, CallbackError> {
-        let result = Encoder::new(VALUE_LIMITS)
+        let result = Encoder::new(value_limits(site))
             .encode(result)
-            .map_err(|_| CallbackError::Skipped)?;
+            .map_err(|error| self.encoding_error(site, error))?;
         let result = to_wit(result);
         let replacement = self.call("inject-return", |exports, store| {
             exports
@@ -245,33 +295,20 @@ impl Guest for Handler {
                 .map_err(|error| format!("{error:#}"))
         })?;
         replacement
-            .map(|value| decode(&mut Decoder::new(VALUE_LIMITS), value))
+            .map(|value| decode(&mut Decoder::new(value_limits(site)), value))
             .transpose()
     }
 
     fn overwrite(&self, site: &str, arguments: &[Value]) -> Result<Value, CallbackError> {
-        let arguments = encode_arguments(arguments)?;
+        let arguments = self.encode_arguments(site, arguments)?;
         let result = self.call("inject-overwrite", |exports, store| {
             exports
                 .yoake_mods_inject()
                 .call_inject_overwrite(store, site, &arguments)
                 .map_err(|error| format!("{error:#}"))
         })?;
-        decode(&mut Decoder::new(VALUE_LIMITS), result)
+        decode(&mut Decoder::new(value_limits(site)), result)
     }
-}
-
-fn encode_arguments(arguments: &[Value]) -> Result<Vec<wit::Value>, CallbackError> {
-    let mut encoder = Encoder::new(VALUE_LIMITS);
-    arguments
-        .iter()
-        .map(|value| {
-            encoder
-                .encode(value)
-                .map(to_wit)
-                .map_err(|_| CallbackError::Skipped)
-        })
-        .collect()
 }
 
 fn decode(decoder: &mut Decoder, value: wit::Value) -> Result<Value, CallbackError> {
@@ -411,6 +448,7 @@ static HUB: OnceLock<Mutex<Option<Hub>>> = OnceLock::new();
 pub struct Injection {
     key: Option<String>,
     handler: Option<Arc<Handler>>,
+    module: Option<Arc<Mod>>,
 }
 
 impl Injection {
@@ -492,6 +530,7 @@ impl Injection {
             return Ok(Self {
                 key: None,
                 handler: None,
+                module: None,
             });
         }
         let cursor = services
@@ -506,13 +545,15 @@ impl Injection {
             .map_err(LoadError::new)?
             .unwrap_or(0);
         let host = ConfigHost {
-            services: services.ok_or_else(|| "package services unavailable".into()),
+            services: services.ok_or_else(|| {
+                format!("permission denied: {CONFIG_CAPABILITY} (package services unavailable)")
+            }),
             allowed: permissions
                 .iter()
                 .any(|permission| permission == CONFIG_CAPABILITY),
             cursor,
         };
-        let compiled = sandbox.compile(bytes).map_err(LoadError::new)?;
+        let compiled = sandbox.compile_injection(bytes).map_err(LoadError::new)?;
         let mut raw = compiled
             .clone()
             .instantiate(id.to_owned(), host, link_config)
@@ -523,6 +564,9 @@ impl Injection {
             ))
         })?;
         let config_exports = config_bindings::InjectConfig::new(&mut raw.store, &raw.instance).ok();
+        let config_notifications = config_exports.is_some()
+            && raw.store.data().host.allowed
+            && raw.store.data().host.services.is_ok();
         let registrations = raw
             .call_init(limits, |store, _| {
                 exports
@@ -570,6 +614,8 @@ impl Injection {
             }),
             compiled,
             disabled: AtomicBool::new(false),
+            config_notifications,
+            warned_encoding: AtomicBool::new(false),
         });
         let entry = Entry {
             side,
@@ -603,16 +649,35 @@ impl Injection {
         hub.registry
             .publish(prepared)
             .map_err(|error| LoadError::new(format!("mixin publish failed: {error:?}")))?;
+        let module = Arc::clone(&entry.module);
         hub.entries.insert(key.clone(), entry);
         Ok(Self {
             key: Some(key),
             handler: Some(handler),
+            module: Some(module),
         })
     }
 
-    pub fn notify_config_changes(&self) {
+    pub fn has_config_notifications(&self) -> bool {
+        self.handler
+            .as_ref()
+            .is_some_and(|handler| handler.config_notifications && !handler.is_disabled())
+    }
+
+    #[cfg(feature = "test-guests")]
+    pub fn set_test_limits(&self, limits: TimeLimits) {
         if let Some(handler) = &self.handler {
+            handler.runtime.lock().unwrap().raw.set_limits(limits);
+        }
+    }
+
+    pub fn notify_config_changes(&self) {
+        if self.has_config_notifications() {
+            let handler = self.handler.as_ref().unwrap();
             let _ = handler.call("config-changed", |_, _| Ok(()));
+            if handler.is_disabled() {
+                self.module.as_ref().unwrap().disable();
+            }
         }
     }
 }

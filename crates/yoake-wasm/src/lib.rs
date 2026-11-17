@@ -8,22 +8,22 @@ use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder, UpdateDea
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
 mod client;
-pub mod config_sync;
 mod client_services;
+pub mod config_sync;
 pub mod convert;
 mod full;
 pub mod full_bindings;
 mod full_hook_names;
+mod gpu_services;
 mod hook_names;
 mod host;
 pub mod host_services;
 pub mod inject;
 pub mod package_services;
-mod gpu_services;
 mod subscriptions;
-mod test_mod;
 #[cfg(feature = "test-guests")]
 pub mod test_guests;
+mod test_mod;
 mod wasi;
 
 pub mod bindings {
@@ -86,12 +86,16 @@ pub(crate) fn storage_throttled() {
 }
 
 pub(crate) fn storage_window_start() -> Instant {
-    STORAGE_WINDOW.with(std::cell::Cell::get).unwrap_or_else(Instant::now)
+    STORAGE_WINDOW
+        .with(std::cell::Cell::get)
+        .unwrap_or_else(Instant::now)
 }
 
 fn deadline_extension() -> Duration {
-    (HOST_TIME.with(std::cell::Cell::get) + STORAGE_TIME.with(std::cell::Cell::get) + COUNTED_HOST_TIME.with(std::cell::Cell::get))
-        .min(MAX_HOST_TIME)
+    (HOST_TIME.with(std::cell::Cell::get)
+        + STORAGE_TIME.with(std::cell::Cell::get)
+        + COUNTED_HOST_TIME.with(std::cell::Cell::get))
+    .min(MAX_HOST_TIME)
 }
 /// One client hook call may run this long of wall-clock time (plus one epoch tick) before it is
 /// stopped and the module disabled. A call is stopped by the clock, not by its CPU time, and a busy
@@ -174,24 +178,41 @@ impl Sandbox {
     }
 
     pub fn compile(&mut self, bytes: &[u8]) -> Result<CompiledComponent, String> {
-        self.compile_as(bytes, false)
+        self.compile_as(bytes, false, false)
+    }
+
+    pub(crate) fn compile_injection(&mut self, bytes: &[u8]) -> Result<CompiledComponent, String> {
+        self.compile_as(bytes, false, true)
     }
 
     /// Compiles a *test module* (world `test-mod`): the only compile that accepts the `test-driver`
     /// import. Only [`TestMod`] calls this; a mod's components go through [`Sandbox::compile`].
     pub(crate) fn compile_test(&mut self, bytes: &[u8]) -> Result<CompiledComponent, String> {
-        self.compile_as(bytes, true)
+        self.compile_as(bytes, true, false)
     }
 
-    fn compile_as(&mut self, bytes: &[u8], test_module: bool) -> Result<CompiledComponent, String> {
+    fn compile_as(
+        &mut self,
+        bytes: &[u8],
+        test_module: bool,
+        injection: bool,
+    ) -> Result<CompiledComponent, String> {
         if self.runtime.is_none() {
             self.runtime = Some(Arc::new(RuntimeEngine::new()?));
         }
         let runtime = Arc::clone(self.runtime.as_ref().expect("runtime was just initialized"));
         let component = Component::new(&runtime.engine, bytes)
             .map_err(|error| format!("not a valid component: {error:#}"))?;
-        for (name, _) in component.component_type().imports(&runtime.engine) {
-            check_import(name, test_module)?;
+        let component_type = component.component_type();
+        let supports_config = injection
+            && component_type
+                .exports(&runtime.engine)
+                .any(|(name, _)| name == "yoake:mods/inject@1.1.0")
+            && component_type
+                .exports(&runtime.engine)
+                .any(|(name, _)| name == "yoake:mods/config-events@1.2.0");
+        for (name, _) in component_type.imports(&runtime.engine) {
+            check_import(name, test_module, supports_config)?;
         }
         Ok(CompiledComponent { runtime, component })
     }
@@ -200,7 +221,7 @@ impl Sandbox {
 /// The interface only a test module may import (`wit/yoake-test.wit`).
 const TEST_INTERFACE: &str = "test-driver";
 
-fn check_import(name: &str, test_module: bool) -> Result<(), String> {
+fn check_import(name: &str, test_module: bool, supports_config: bool) -> Result<(), String> {
     if let Some(wasi) = name.strip_prefix("wasi:") {
         return if wasi::allowed_import(wasi) {
             Ok(())
@@ -218,9 +239,13 @@ fn check_import(name: &str, test_module: bool) -> Result<(), String> {
         return Err(format!("invalid component import: {name}"));
     }
     if interface == TEST_INTERFACE && !test_module {
-        return Err(format!("forbidden component import: {name} (only the engine's test runner links it)"));
+        return Err(format!(
+            "forbidden component import: {name} (only the engine's test runner links it)"
+        ));
     }
-    if version != INTERFACE_VERSION && !(interface == "config" && version == "1.2.0") {
+    if version != INTERFACE_VERSION
+        && !(supports_config && interface == "config" && version == "1.2.0")
+    {
         return Err(format!("unsupported component interface version: {name}"));
     }
     Ok(())
@@ -481,7 +506,9 @@ impl<T: 'static> ModInstance<T> {
         if self.window.strikes >= AGGREGATE_STRIKES {
             self.disabled = true;
             let id = self.id.replace(['\r', '\n'], " ");
-            eprintln!("WebAssembly mod {id} disabled: over its time budget in {AGGREGATE_STRIKES} windows in a row");
+            eprintln!(
+                "WebAssembly mod {id} disabled: over its time budget in {AGGREGATE_STRIKES} windows in a row"
+            );
             return Ok(None);
         }
         if over_aggregate {
@@ -582,7 +609,8 @@ mod tests {
                 let tick = instance
                     .get_typed_func::<(), ()>(&mut *store, "tick")
                     .map_err(|error| error.to_string())?;
-                tick.call(&mut *store, ()).map_err(|error| error.to_string())
+                tick.call(&mut *store, ())
+                    .map_err(|error| error.to_string())
             });
             assert_eq!(answer, Some(()));
             assert!(!module.disabled);

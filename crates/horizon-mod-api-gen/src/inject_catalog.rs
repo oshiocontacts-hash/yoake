@@ -35,9 +35,10 @@ fn validation_rule(rule: Rule) -> serde_json::Value {
             serde_json::json!({ "kind": "clamped-number", "minimum": minimum, "maximum": maximum })
         }
         Rule::XpMerge => serde_json::json!({
-            "kind": "xp-merge", "minimum": 1, "preserve_sum": true, "maximum_count": "vanilla-result"
+            "kind": "xp-merge", "minimum": 1, "maximum": i16::MAX,
+            "preserve_sum": true, "maximum_count": "vanilla-result"
         }),
-        Rule::Subset => serde_json::json!({ "kind": "subset", "of": "vanilla-result" }),
+        Rule::Subset => serde_json::json!({ "kind": "subset", "of": "previous-result" }),
         Rule::Vector(minimum, maximum) => {
             serde_json::json!({ "kind": "vector", "minimum": minimum, "maximum": maximum })
         }

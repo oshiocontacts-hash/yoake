@@ -123,9 +123,23 @@ side = "server"
 `fn on_config_changed(key: &str, value: ConfigValue)` を登録できます。
 初期値は `config_get` で読み、変更通知でキャッシュを更新してください。
 通知は次の injection handler の実行前、および tick/frame 時に配送されます。
+配送対象は `config-changed` を export し、`service.config` が許可された module のみです。
 同じ配送までに同じキーが複数回変わった場合は最新値を一度だけ通知します。
 通常 module が自身の通知を消費しても injection component の通知は失われません。
 通知も handler と同じ fuel・実行期限の制限を受けます。
+通知が trap した場合は module を無効化し、以後の通知を再実行しません。
+パッケージサービスを取得できない場合は警告してサービスなしでロードを続行します。
+その場合の設定呼び出しは拒否されます。`config@1.2.0` の import は、設定対応の
+inject interface と config events を宣言する injection component のみに許可されます。
+通常の client/server world や 1.1 のみの injection component には許可されません。
+
+Config notifications run only for modules exporting `config-changed` with an allowed
+`service.config` capability. A notification trap disables the module, including its
+site masks; it is not replayed on later ticks or frames. If package services cannot
+be obtained, loading warns and continues without services; config calls are denied.
+The `config@1.2.0` import is restricted to injection components declaring both the
+config-capable inject interface and config events, not ordinary client/server worlds
+or injection components declaring only 1.1.
 
 実装例は [`mixin-config/src/lib.rs`](../crates/yoake-wasm-sdk/examples/mixin-config/src/lib.rs)。
 その example フォルダーで `cargo build --offline -j 4 --release --target wasm32-wasip2` を実行します。
@@ -138,17 +152,39 @@ side = "server"
 
 | 箇所 | 引数 → 戻り値 | 結果の制約 |
 | --- | --- | --- |
-| `game::split_orb_values` | `u32 → list<u32>` | `spawn_orbs` の XP 分割値。各値は 1 以上、合計 XP は厳密に同一、個数は vanilla 以下。0 XP は空リストのみ。 |
+| `game::split_orb_values` | `u32 → list<u32>` | `spawn_orbs` の XP 分割値。各値は 1〜32767（保存時の Short の上限）、合計 XP は厳密に同一、個数は vanilla 以下。0 XP は空リストのみ。 |
 | `world::food::exhaustion_amount` | `f32 → f32` | `add_exhaustion` に加える量。有限値を 0〜40 に clamp。NaN・無限大は拒否。 |
 | `game::explosion::affected_blocks` | `list<block-pos> → list<block-pos>` | entity damage/knockback の後、ブロック除去・drop の前。元の位置リストの部分集合のみ。全件・空も可。追加位置や余分な重複は拒否。 |
 | `world::level::tick::fire_burn_odds_at` | `(block-pos, s32) → s32` | 可燃ブロックへの隣接燃焼 roll の odds。0〜100。既存の `fire_ignite_odds_at`（空間への着火）とは別。 |
 | `game::sleeping_players` | `list<string> → list<string>` | 対象プレイヤー ID の部分集合で分母だけを絞る。睡眠中・熟睡中の人数は変更しない。ID は UUID、UUID のない local は `local`。 |
 
-XP の合計・個数と部分集合の制約は、複数 handler を連鎖させても元の native 結果を基準に検証します。
-制約違反の結果は拒否し、該当 handler を無効化して native 結果へ戻します。
+RETURN handler は mod ID 順に実行されます。部分集合は直前の handler の結果を基準に検証し、
+後続 mod が一度除かれた要素を復活させることはできません。違反した handler は無効化し、
+直前の有効な部分集合を維持します。XP の合計・個数など値の制約は元の native 結果を基準にし、
+違反時は handler を無効化して native 結果へ戻します。
+list/subset 箇所の変換上限は 266240 nodes、深さ 32、16 MiB で、65536 個の位置を扱えます。
+それでも引数・native 結果が大きすぎて変換できない呼び出しは vanilla のまま処理し、
+handler ごとに一度だけ警告します。handler 自体は無効化しません。
 XP は handler がなければ従来の分割・spawn・乱数消費順をそのまま使います。
-爆発はブロック処理だけを絞り、entity damage・knockback や爆発後の着火処理は変更しません。
+爆発はブロック破壊だけを絞り、entity damage・knockback は変更しません。
+爆発後の着火は、絞り込み前の元の位置リストをそのまま使います。これは vanilla と同じ
+乱数の順序・消費数を維持するためです。破壊を除外した位置も着火処理の対象に残ります。
 sleep は従来の参加条件、sleep timer、百分率の切り上げ計算を維持します。
+
+XP replacements must preserve the vanilla total, use no more orbs, and keep each
+orb value within 1–32767 so the saved signed Short does not lose XP. Subset RETURN
+handlers run in mod-ID order and may only narrow the preceding handler's result;
+they cannot restore removed entries. An invalid subset response disables that
+handler and preserves the last valid subset. Other value rules retain the original
+native baseline and native fallback. List/subset conversion supports at least
+65,536 positions within 266,240 nodes, depth 32, and 16 MiB. Calls whose engine
+arguments or native result still exceed those bounds keep vanilla behavior and
+warn once per handler without disabling it.
+
+Explosion filtering changes block destruction only, not entity damage or knockback.
+Incendiary fire deliberately continues to use the original, unfiltered target list
+to preserve vanilla RNG draw order and count. Positions excluded from destruction
+therefore remain eligible for the subsequent fire pass.
 
 ## Values and scoped handles
 
@@ -186,7 +222,8 @@ subject to these new restrictions, preserving unmodified vanilla behavior.
 Remaining numeric rules (crafting, experience, enchantment, fall and jump inputs,
 attack strength/speed, pickup delay, and result widths) are explicit in the same
 catalog. Out-of-range values are rejected, except the explicitly clamped finite
-`exhaustion_amount` result described above. Consumer arithmetic
+`exhaustion_amount` result described above; its negative zero is normalized to
+positive zero. Consumer arithmetic
 for sleep, bonemeal, fire odds and crop random-tick divisors also saturates where
 unchecked arithmetic could overflow.
 
@@ -202,7 +239,8 @@ or edited handles are rejected. Receivers occupy argument zero.
 
 WIT cannot directly express this recursive value model, so `Value::Sequence` and
 `Value::Object` carry indexed `ValueTree` node tables. The host validates a combined
-budget of 4096 nodes, depth 32, and 256 KiB of payload per callback conversion.
+budget of 4096 nodes, depth 32, and 256 KiB of payload per scalar-site conversion.
+Sites with list arguments or results use the larger bounded budget described above.
 Invalid indices, cycles, repeated or unreachable nodes, duplicate record keys,
 and shape mismatches are rejected. `record_field` helps read SDK record nodes.
 The Wasmtime store limit also bounds allocations made by component bindings.
@@ -226,7 +264,9 @@ mod, target, and failure, and uses the native fallback. A HEAD or overwrite fail
 runs the native body once with the original arguments. If the native body already
 ran after successful HEAD argument changes, a RETURN failure keeps that exact
 cached native result: it does **not** re-run the body and does not keep an earlier
-RETURN replacement. If HEAD cancelled or overwrite succeeded, a RETURN failure
+RETURN replacement, except at subset sites, where the preceding valid subset is
+retained so a failure cannot restore entries removed by another mod. If HEAD
+cancelled or overwrite succeeded, a non-subset RETURN failure
 runs the previously uncalled body once with the original arguments. Guest or
 native side effects are not rolled back.
 
@@ -237,8 +277,8 @@ persistent state resets on this recovery. A failed recreation disables that
 instance. Reentrant/busy instances and exhausted aggregate budgets skip callbacks
 instead of deadlocking or disabling an otherwise healthy injection point. The
 same skip/native-fallback behavior applies when an engine argument or native
-result exceeds the host conversion budget; this does not disable an innocent
-handler. An empty target selection on one module side is a quiet no-op, not a
+result exceeds the host conversion budget; this warns once per handler and does
+not disable an innocent handler. An empty target selection on one module side is a quiet no-op, not a
 failure of the package's other module. The ordinary non-injection hook failure
 policy is unchanged.
 

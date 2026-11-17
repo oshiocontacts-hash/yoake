@@ -792,7 +792,7 @@
     ],
     "result_rule": {
       "kind": "subset",
-      "of": "vanilla-result"
+      "of": "previous-result"
     },
     "required_capabilities": [],
     "client_required_capabilities": []
@@ -1077,7 +1077,7 @@
     ],
     "result_rule": {
       "kind": "subset",
-      "of": "vanilla-result"
+      "of": "previous-result"
     },
     "required_capabilities": [],
     "client_required_capabilities": []
@@ -1190,6 +1190,7 @@
     ],
     "result_rule": {
       "kind": "xp-merge",
+      "maximum": 32767,
       "maximum_count": "vanilla-result",
       "minimum": 1,
       "preserve_sum": true

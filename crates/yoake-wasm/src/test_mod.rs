@@ -92,7 +92,13 @@ pub trait TestHost: Send {
         let _ = (index, command);
         unsupported()
     }
-    fn client_wait(&mut self, index: u32, command: &str, expect: &str, timeout: Duration) -> Result<String, String> {
+    fn client_wait(
+        &mut self,
+        index: u32,
+        command: &str,
+        expect: &str,
+        timeout: Duration,
+    ) -> Result<String, String> {
         let _ = (index, command, expect, timeout);
         unsupported()
     }
@@ -112,7 +118,9 @@ struct TestContext {
 impl test_driver::Host for TestContext {
     fn advance_ticks(&mut self, ticks: u32) -> Result<(), String> {
         if ticks == 0 || ticks > MAX_ADVANCE_TICKS {
-            return Err(format!("advance-ticks takes 1 to {MAX_ADVANCE_TICKS} ticks"));
+            return Err(format!(
+                "advance-ticks takes 1 to {MAX_ADVANCE_TICKS} ticks"
+            ));
         }
         self.host.advance_ticks(ticks)
     }
@@ -152,7 +160,12 @@ impl test_driver::Host for TestContext {
         }
         self.host.run_command(&command)
     }
-    fn mod_call(&mut self, target: String, method: String, payload: Vec<u8>) -> Result<Vec<u8>, String> {
+    fn mod_call(
+        &mut self,
+        target: String,
+        method: String,
+        payload: Vec<u8>,
+    ) -> Result<Vec<u8>, String> {
         self.host.mod_call(&target, &method, &payload)
     }
     fn log(&mut self, message: String) {
@@ -164,10 +177,19 @@ impl test_driver::Host for TestContext {
     fn client_call(&mut self, index: u32, command: String) -> Result<String, String> {
         self.host.client_call(index, &command)
     }
-    fn client_wait(&mut self, index: u32, command: String, expect: String, timeout_ms: u32) -> Result<String, String> {
+    fn client_wait(
+        &mut self,
+        index: u32,
+        command: String,
+        expect: String,
+        timeout_ms: u32,
+    ) -> Result<String, String> {
         let timeout = Duration::from_millis(u64::from(timeout_ms));
         if expect.is_empty() || timeout.is_zero() || timeout > MAX_CLIENT_WAIT {
-            return Err(format!("client-wait needs a text to wait for and 1 to {} ms", MAX_CLIENT_WAIT.as_millis()));
+            return Err(format!(
+                "client-wait needs a text to wait for and 1 to {} ms",
+                MAX_CLIENT_WAIT.as_millis()
+            ));
         }
         self.host.client_wait(index, &command, &expect, timeout)
     }
@@ -209,8 +231,15 @@ pub fn validate_test_names(names: Vec<String>) -> Result<Vec<String>, String> {
     let mut seen = std::collections::HashSet::new();
     for name in &names {
         // A name never starts with '-': it travels on a command line, where it would read as an option.
-        if name.is_empty() || name.len() > MAX_TEST_NAME || name.starts_with('-') || name.chars().any(char::is_control) {
-            return Err(format!("not a valid test name: {:?}", name.chars().take(40).collect::<String>()));
+        if name.is_empty()
+            || name.len() > MAX_TEST_NAME
+            || name.starts_with('-')
+            || name.chars().any(char::is_control)
+        {
+            return Err(format!(
+                "not a valid test name: {:?}",
+                name.chars().take(40).collect::<String>()
+            ));
         }
         if !seen.insert(name.as_str()) {
             return Err(format!("duplicate test name: {name}"));
@@ -249,7 +278,10 @@ impl TestMod {
             .map_err(LoadError::new)?;
         let exports = bindings::TestMod::new(&mut raw.store, &raw.instance)
             .map_err(|error| LoadError::new(format!("invalid test-mod exports: {error:#}")))?;
-        raw.set_limits(TimeLimits { call: per_test, aggregate: Duration::MAX });
+        raw.set_limits(TimeLimits {
+            call: per_test,
+            aggregate: Duration::MAX,
+        });
         // Fuel is the CPU bound; the clock limit above is the wall-clock one.
         raw.set_fuel_per_call(i64::MAX as u64 / 2);
         Ok(Self { raw, exports })
@@ -269,7 +301,10 @@ impl TestMod {
         self.flush();
         match names {
             Some(names) => validate_test_names(names),
-            None => Err(format!("the test module trapped listing its tests: {}", trap.unwrap_or_default())),
+            None => Err(format!(
+                "the test module trapped listing its tests: {}",
+                trap.unwrap_or_default()
+            )),
         }
     }
 
@@ -321,22 +356,38 @@ mod tests {
 
     #[test]
     fn test_names_are_validated() {
-        assert_eq!(validate_test_names(names(&["a", "b c"])).unwrap(), names(&["a", "b c"]));
-        assert_eq!(validate_test_names(Vec::new()).unwrap(), Vec::<String>::new());
+        assert_eq!(
+            validate_test_names(names(&["a", "b c"])).unwrap(),
+            names(&["a", "b c"])
+        );
+        assert_eq!(
+            validate_test_names(Vec::new()).unwrap(),
+            Vec::<String>::new()
+        );
         assert!(validate_test_names(names(&[""])).is_err());
         assert!(validate_test_names(names(&["a\nb"])).is_err());
-        assert!(validate_test_names(names(&["a", "a"])).unwrap_err().contains("duplicate"));
+        assert!(
+            validate_test_names(names(&["a", "a"]))
+                .unwrap_err()
+                .contains("duplicate")
+        );
         assert!(validate_test_names(vec!["x".repeat(MAX_TEST_NAME)]).is_ok());
         assert!(validate_test_names(vec!["x".repeat(MAX_TEST_NAME + 1)]).is_err());
-        assert!(validate_test_names((0..=MAX_TESTS).map(|index| index.to_string()).collect()).is_err());
+        assert!(
+            validate_test_names((0..=MAX_TESTS).map(|index| index.to_string()).collect()).is_err()
+        );
     }
 
     #[test]
     fn a_plain_mod_cannot_import_the_driver() {
         // `yoake:mods/test-driver` is allowed only by `compile_test`.
-        assert!(crate::check_import("yoake:mods/test-driver@1.0.0", false).unwrap_err().contains("test runner"));
-        assert!(crate::check_import("yoake:mods/test-driver@1.0.0", true).is_ok());
-        assert!(crate::check_import("yoake:mods/logging@1.0.0", false).is_ok());
+        assert!(
+            crate::check_import("yoake:mods/test-driver@1.0.0", false, false)
+                .unwrap_err()
+                .contains("test runner")
+        );
+        assert!(crate::check_import("yoake:mods/test-driver@1.0.0", true, false).is_ok());
+        assert!(crate::check_import("yoake:mods/logging@1.0.0", false, false).is_ok());
     }
 
     #[test]
@@ -358,23 +409,64 @@ mod tests {
         }
         use test_driver::Host as _;
         let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
-        let mut context = TestContext { host: Box::new(Spy(calls.clone())) };
+        let mut context = TestContext {
+            host: Box::new(Spy(calls.clone())),
+        };
         assert!(context.advance_ticks(0).is_err());
         assert!(context.advance_ticks(MAX_ADVANCE_TICKS + 1).is_err());
         assert_eq!(context.advance_ticks(5), Ok(()));
         assert!(context.run_command("say hi\nstop".into()).is_err());
         assert_eq!(context.run_command("say hi".into()), Ok(true));
-        let here = Vec3 { x: 0.0, y: 64.0, z: 0.0 };
-        assert!(context.spawn_entity("minecraft:pig".into(), Vec3 { x: f64::NAN, ..here }).is_err());
+        let here = Vec3 {
+            x: 0.0,
+            y: 64.0,
+            z: 0.0,
+        };
+        assert!(
+            context
+                .spawn_entity(
+                    "minecraft:pig".into(),
+                    Vec3 {
+                        x: f64::NAN,
+                        ..here
+                    }
+                )
+                .is_err()
+        );
         assert_eq!(context.spawn_entity("minecraft:pig".into(), here), Ok(3));
         assert!(context.entities_near(here, -1.0).is_err());
         assert!(context.entities_near(here, f64::INFINITY).is_err());
-        assert!(context.client_wait(1, "status".into(), String::new(), 100).is_err());
-        assert!(context.client_wait(1, "status".into(), "x".into(), 0).is_err());
-        assert!(context.client_wait(1, "status".into(), "x".into(), 1_000_000).is_err());
-        assert!(context.client_call(1, "status".into()).unwrap_err().starts_with("unsupported"));
+        assert!(
+            context
+                .client_wait(1, "status".into(), String::new(), 100)
+                .is_err()
+        );
+        assert!(
+            context
+                .client_wait(1, "status".into(), "x".into(), 0)
+                .is_err()
+        );
+        assert!(
+            context
+                .client_wait(1, "status".into(), "x".into(), 1_000_000)
+                .is_err()
+        );
+        assert!(
+            context
+                .client_call(1, "status".into())
+                .unwrap_err()
+                .starts_with("unsupported")
+        );
         // What a host does not implement answers "unsupported".
-        assert!(context.block_at(BlockPos { x: 0, y: 0, z: 0 }).unwrap_err().starts_with("unsupported"));
-        assert_eq!(*calls.lock().unwrap(), ["advance 5", "command say hi", "spawn minecraft:pig"]);
+        assert!(
+            context
+                .block_at(BlockPos { x: 0, y: 0, z: 0 })
+                .unwrap_err()
+                .starts_with("unsupported")
+        );
+        assert_eq!(
+            *calls.lock().unwrap(),
+            ["advance 5", "command say hi", "spawn minecraft:pig"]
+        );
     }
 }

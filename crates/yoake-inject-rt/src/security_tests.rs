@@ -186,16 +186,86 @@ fn explosion_blocks_and_sleep_population_only_allow_subsets() {
 }
 
 #[test]
+fn xp_merges_must_fit_the_saved_short() {
+    let _side = enter_side(Side::Server);
+    for (total, accepted) in [(32_767, true), (32_768, false)] {
+        let vanilla = Value::List(vec![
+            Value::Unsigned(16_000),
+            Value::Unsigned(total - 16_000),
+        ]);
+        let replacement = Value::List(vec![Value::Unsigned(total)]);
+        check_return_rule(
+            "game::split_orb_values",
+            vec![Value::Unsigned(total)],
+            &[ValueType::U32],
+            ValueType::U32List,
+            vanilla.clone(),
+            replacement.clone(),
+            if accepted { replacement } else { vanilla },
+        );
+    }
+}
+
+#[test]
+fn chained_subsets_cannot_restore_removed_entries() {
+    let _side = enter_side(Side::Server);
+    let first = Value::Text("first".into());
+    let second = Value::Text("second".into());
+    let vanilla = Value::List(vec![first.clone(), second.clone()]);
+    for (later, expected) in [
+        (Value::List(vec![]), Value::List(vec![])),
+        (Value::List(vec![second]), Value::List(vec![first.clone()])),
+    ] {
+        let site = site(
+            "game::sleeping_players",
+            &[ValueType::StringList],
+            ValueType::StringList,
+        );
+        let earlier = Arc::new(Mod::new(
+            "a-earlier",
+            Arc::new(Response {
+                head: HeadOutcome::Continue,
+                result: Value::List(vec![first.clone()]),
+            }),
+        ));
+        let later = Arc::new(Mod::new(
+            "b-later",
+            Arc::new(Response {
+                head: HeadOutcome::Continue,
+                result: later,
+            }),
+        ));
+        let mut registry = Registry::new([site]).unwrap();
+        let prepared = registry
+            .prepare(
+                [earlier, later].map(|module| Subscription {
+                    site_id: site.id(),
+                    side: Side::Server,
+                    points: RETURN,
+                    module,
+                }),
+                |_, _, _| true,
+            )
+            .unwrap();
+        registry.publish(prepared).unwrap();
+        assert_eq!(
+            site.invoke(vec![vanilla.clone()], |_| vanilla.clone()),
+            expected
+        );
+    }
+}
+
+#[test]
 fn flammable_neighbour_odds_enforce_vanilla_range() {
     let _side = enter_side(Side::Server);
     for (replacement, expected) in [(0, 0), (100, 100), (-1, 60), (101, 60)] {
         check_return_rule(
             "world::level::tick::fire_burn_odds_at",
             vec![
-                yoake_value::Scope::default().handle("world::level::tick::Sim", None),
                 Value::List(vec![Value::Signed(0), Value::Signed(64), Value::Signed(0)]),
+                Value::Signed(60),
             ],
-            &[ValueType::Handle, ValueType::BlockPos],
+            &[ValueType::BlockPos, ValueType::S32],
             ValueType::S32,
             Value::Signed(60),
             Value::Signed(replacement),
