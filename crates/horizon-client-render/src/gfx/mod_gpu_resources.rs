@@ -44,6 +44,7 @@ enum Value {
         pipeline: wgpu::ComputePipeline,
         engine_mask: u32,
         cost: u64,
+        max_workgroups_per_dimension: u32,
         _shader: Owned,
     },
     Render {

@@ -349,6 +349,9 @@ frame: exceeding this adaptive allowance is not an API error and does not disabl
 invocations multiplied by the shader's static instruction, texture and loop cost, with a
 64 Mi-unit cap. Its allowance always admits at
 least one maximum-size workgroup (256 invocations at the maximum static cost of 8,192).
+Each dispatch dimension must also be nonzero and at most the device's
+`max_compute_workgroups_per_dimension`, independently of that adaptive work allowance.
+Invalid dimensions return `Workgroups` before the dispatch is recorded or submitted.
 Consecutive draws to the same target share a render pass, with at most 64 passes per mod/frame.
 Shader and pipeline creation attempts remain limited to two per frame and eight per minute,
 including failed attempts and reloads. Depth and scene snapshots are shared once per stage
