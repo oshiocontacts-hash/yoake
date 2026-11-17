@@ -49,6 +49,19 @@ pub mod client {
     pub use bindings::yoake::mods::{feedback, hud, logging, network, settings};
     pub use bindings::yoake::mods::{gpu_services as gpu_raw, gpu_types};
 
+    /// Current scaled GUI width and height, in GUI pixels.
+    pub fn gui_size() -> Result<types::Vec2, String> {
+        services::gui_size()
+    }
+
+    /// Reserve a HUD position using the shared layout, including the top center.
+    pub fn hud_place(
+        corner: types::HudCornerV2,
+        size: types::Vec2,
+    ) -> Result<Option<types::Vec2>, String> {
+        services::hud_place_v2(corner, size)
+    }
+
     /// Owned GPU resources and checked command descriptors. Raw imports remain in `gpu_raw`.
     pub mod gpu {
         include!("gpu.rs");

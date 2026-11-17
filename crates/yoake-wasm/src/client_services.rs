@@ -113,4 +113,6 @@ client_services! {
     audio_stream_move(anchor: PcmAnchor, stream: u32) -> ();
     audio_stream_close(stream: u32) -> bool;
     hud_place(corner: HudCorner, size: Vec2) -> Option<Vec2>;
+    gui_size() -> Vec2;
+    hud_place_v2(corner: HudCornerV2, size: Vec2) -> Option<Vec2>;
 }

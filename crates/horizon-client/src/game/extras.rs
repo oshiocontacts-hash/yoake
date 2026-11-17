@@ -243,6 +243,12 @@ impl Game<'_> {
         let map = self.minimap_shown();
         let visible = |corner| !(self.debug && corner == Corner::TopLeft);
         let mut corners = Corners::new(batch.width, batch.height, self.effect_rows_height());
+        corners.reserve_top_center(
+            self.boss_overlay
+                .bars(horizon_client::boss_overlay::now_millis())
+                .len(),
+            self.titles.overlay_time > 0 && self.titles.overlay.is_some(),
+        );
         let atlas = &self.gui.atlas;
         if let Some((map_corner, map_size, view)) = map
             && visible(map_corner)

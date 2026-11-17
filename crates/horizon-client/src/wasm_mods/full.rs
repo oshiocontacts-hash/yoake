@@ -1427,14 +1427,73 @@ mod tests {
         std::fs::remove_dir_all(&host.root).unwrap();
     }
 
+    #[test]
+    fn gui_size_reads_live_host_without_hud_layout() {
+        let host = FakeHost::default();
+        host.gui_dimensions.set([320.0, 240.0]);
+        let mut service = GameHost::new("gui-size-test");
+        assert!(yoake_wasm::ClientServices::gui_size(&mut service).is_err());
+
+        with_services(HostAccess::Read(&host), || {
+            let size = yoake_wasm::ClientServices::gui_size(&mut service).unwrap();
+            assert_eq!((size.x, size.y), (320.0, 240.0));
+            host.gui_dimensions.set([640.0, 360.0]);
+            let size = yoake_wasm::ClientServices::gui_size(&mut service).unwrap();
+            assert_eq!((size.x, size.y), (640.0, 360.0));
+        });
+    }
+
+    #[test]
+    fn hud_place_v2_shares_top_center_reservations() {
+        use yoake_wasm::client_types::{HudCornerV2, Vec2};
+
+        let host = FakeHost::default();
+        let mut corners = Corners::new(400.0, 300.0, 26.0);
+        corners.reserve_top_center(1, false);
+        let mut invocation = Invocation {
+            host: HostAccess::Read(&host),
+            batch: None,
+            batch_start: 0,
+            client: ClientExtras {
+                corners: Some(&mut corners),
+                ..ClientExtras::default()
+            },
+        };
+        let _scope = Scope::enter(&mut invocation);
+        let mut first = GameHost::new("top-center-first");
+        let mut second = GameHost::new("top-center-second");
+        let size = Vec2 { x: 50.0, y: 12.0 };
+        let placed = yoake_wasm::ClientServices::hud_place_v2(
+            &mut first,
+            HudCornerV2::TopCenter,
+            size.clone(),
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!((placed.x, placed.y), (175.0, 19.0));
+        let placed = yoake_wasm::ClientServices::hud_place_v2(
+            &mut second,
+            HudCornerV2::TopCenter,
+            size,
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!((placed.x, placed.y), (175.0, 33.0));
+    }
+
     #[derive(Default)]
     struct FakeHost {
         texts: RefCell<Vec<String>>,
         fills: RefCell<u32>,
         told: RefCell<Vec<String>>,
+        gui_dimensions: std::cell::Cell<[f32; 2]>,
     }
 
     impl Host for FakeHost {
+        fn gui_size(&self) -> [f32; 2] {
+            self.gui_dimensions.get()
+        }
+
         fn window(&self) -> bool {
             true
         }

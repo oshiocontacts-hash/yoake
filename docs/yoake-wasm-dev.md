@@ -523,6 +523,38 @@ GPU resources are different from borrowed engine-object handles: the safe `full:
 wrapper owns persistent `u32` resources and destroys them on drop. They belong to one client
 instance, not to the server or another package, and are invalidated when that instance is replaced.
 
+### GUI サイズと HUD の上中央配置
+
+`client-full` の `full::client::gui_size()` は、現在のスケーリング済み GUI の幅と高さを
+GUI ピクセル単位の `Vec2 { x, y }` で返します。`service.screen` が必要です。
+`health_hud` に依存せず、クライアントホストが利用できるフック内で使用できます。
+クリエイティブ、スペクテイター、タイトル画面やポーズ画面でも同じ値を読み、リサイズ後の値も
+反映します。スケール係数自体は返しません。
+
+`full::client::hud_place(HudCornerV2::TopCenter, size)` は `service.hud` を必要とし、
+`hud` フック内でのみ使用できます。各ラベルは水平中央に配置され、前の予約から 2 GUI ピクセル
+離して下向きに積み重なります。予約は同じフレームのすべての mod で共有されます。
+表示中のボスバーの下から開始し、タイトルやサブタイトルの領域を避けるため、画面中央の
+48 ピクセル上を越える配置は返しません。アクションバー表示中は安全のため上中央を予約できません。
+領域不足や不正なサイズでは `Ok(None)`、`hud` 以外ではエラーになります。左右のコーナーや
+他の任意のオーバーレイとの重なりは防ぎません。既存の `services::hud_place` は変更されません。
+
+### GUI size and top-center HUD placement
+
+`client-full`'s `full::client::gui_size()` returns the current scaled GUI width and height as
+`Vec2 { x, y }` in GUI pixels. It requires `service.screen`. It does not depend on `health_hud` and
+can be called from hooks with a client host, including creative, spectator, title and pause screens;
+it reflects the current size after a resize. It does not return the scale factor.
+
+`full::client::hud_place(HudCornerV2::TopCenter, size)` requires `service.hud` and is available only
+within the `hud` hook. Labels are horizontally centered and stack downwards with a 2-GUI-pixel gap.
+Reservations are shared by all mods in the same frame. The stack starts below visible boss bars and
+does not extend past 48 pixels above the screen center, leaving the title and subtitle area clear.
+While the actionbar is visible, top-center reservations are conservatively unavailable. Insufficient
+space or an invalid size returns `Ok(None)`; calling outside `hud` returns an error. It does not
+reserve space against the side corners or arbitrary overlays. The original `services::hud_place`
+remains unchanged.
+
 ### What the host applies / does not
 
 * HUD commands: text (plain), rect, gradient (strips), flat quads, sprites, items, clip/scale/blend runs.
@@ -532,7 +564,7 @@ instance, not to the server or another package, and are invalidated when that in
   display names and namespace ownership, GUI items, screen kind and slot rectangles, world quads,
   lines and billboards (including `world-pre-post`), post shaders, map tiles and colors, players and
   entities, camera overrides, writable GUI textures, PCM streams, mob-as-player and HUD placement.
-  The catalog is `crates/horizon-mod-api-gen/abi-subset-client.json` (ABI IDs 163–197).
+  The catalog is `crates/horizon-mod-api-gen/abi-subset-client.json` (ABI IDs 163–197 and 199–200).
   Native services run under the calling WASM package's stable identity, so namespace validation and
   native per-mod limits also apply to WASM. Texture resources are instance-owned and capped at 64;
   failed creation does not consume a slot. Unsupported hook context returns an error, not a dummy

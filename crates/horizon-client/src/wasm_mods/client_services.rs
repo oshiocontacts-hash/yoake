@@ -578,4 +578,39 @@ impl ClientServices for GameHost {
                 }))
         })
     }
+
+    fn gui_size(&mut self) -> Result<ct::Vec2, String> {
+        self.client_call(|invocation| {
+            let [x, y] = read_host(invocation)?.gui_size();
+            Ok(ct::Vec2 { x, y })
+        })
+    }
+
+    fn hud_place_v2(
+        &mut self,
+        corner: ct::HudCornerV2,
+        size: ct::Vec2,
+    ) -> Result<Option<ct::Vec2>, String> {
+        let legacy = match corner {
+            ct::HudCornerV2::TopLeft => Some(ct::HudCorner::TopLeft),
+            ct::HudCornerV2::TopRight => Some(ct::HudCorner::TopRight),
+            ct::HudCornerV2::BottomLeft => Some(ct::HudCorner::BottomLeft),
+            ct::HudCornerV2::BottomRight => Some(ct::HudCorner::BottomRight),
+            ct::HudCornerV2::TopCenter => None,
+        };
+        if let Some(corner) = legacy {
+            return self.hud_place(corner, size);
+        }
+        self.client_call(|invocation| {
+            read_host(invocation)?;
+            let corners = invocation
+                .client
+                .corners
+                .as_deref_mut()
+                .ok_or("HUD layout hook required")?;
+            Ok(corners
+                .place_top_center(size.x, size.y)
+                .map(|(x, y)| ct::Vec2 { x, y }))
+        })
+    }
 }

@@ -2071,6 +2071,14 @@ interface client-types {
         bottom-right,
     }
 
+    enum hud-corner-v2 {
+        top-left,
+        top-right,
+        bottom-left,
+        bottom-right,
+        top-center,
+    }
+
     record box2 {
         height: f32,
         width: f32,
@@ -2163,7 +2171,7 @@ interface client-types {
 
 /// Services listed in `abi-subset-client.json`.
 interface client-services {
-    use client-types.{hud-corner, box2, camera-override, camera-state, item-stack, key-state, map-entity, map-player, map-tile, pcm-anchor, slot-rect, vec2, vec3, view-hit};
+    use client-types.{hud-corner, hud-corner-v2, box2, camera-override, camera-state, item-stack, key-state, map-entity, map-player, map-tile, pcm-anchor, slot-rect, vec2, vec3, view-hit};
 
     use hud.{gui-texture};
 
@@ -2204,6 +2212,8 @@ interface client-services {
     hud-place: func(corner: hud-corner, size: vec2) -> result<option<vec2>, string>;
     map-colors: func() -> result<list<u32>, string>;
     draw-mob-as-player: func(appearance: list<u8>) -> result<bool, string>;
+    gui-size: func() -> result<vec2, string>;
+    hud-place-v2: func(corner: hud-corner-v2, size: vec2) -> result<option<vec2>, string>;
     config-get: func(key: string) -> result<config-value, string>;
     config-set: func(key: string, value: config-value) -> result<_, string>;
     storage-get: func(key: string, scope: storage-scope) -> result<option<list<u8>>, string>;
