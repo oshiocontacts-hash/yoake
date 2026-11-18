@@ -4,12 +4,21 @@ use std::hint::black_box;
 use std::time::Instant;
 
 #[cfg(not(feature = "yoake-hook-baseline"))]
+type SettleCallback = fn(
+    &mut dyn FnMut(&mut ArmorStand, StandMedium, StandStep),
+    &mut ArmorStand,
+    StandMedium,
+    StandStep,
+);
+
+#[cfg(not(feature = "yoake-hook-baseline"))]
 fn noop_settle(
-    _: &mut ArmorStand,
-    _: &mut StandMedium,
-    _: &mut StandStep,
-) -> std::ops::ControlFlow<()> {
-    std::ops::ControlFlow::Continue(())
+    original: &mut dyn FnMut(&mut ArmorStand, StandMedium, StandStep),
+    stand: &mut ArmorStand,
+    medium: StandMedium,
+    step: StandStep,
+) {
+    original(stand, medium, step);
 }
 
 fn median(samples: &mut [f64]) -> f64 {
@@ -30,9 +39,12 @@ fn main() {
     let mode = std::env::args().nth(1).unwrap_or_else(|| "null".into());
     if mode == "noop" {
         #[cfg(not(feature = "yoake-hook-baseline"))]
-        ArmorStand::__yoake_hook_tick_settle()
-            .register_head(noop_settle, yoake_hook_rt::Order::default())
-            .unwrap();
+        yoake_hook_rt::register::<SettleCallback>(
+            ArmorStand::__YOAKE_HOOK_ID_tick_settle,
+            noop_settle,
+            yoake_hook_rt::Order::default(),
+        )
+        .unwrap();
         #[cfg(feature = "yoake-hook-baseline")]
         panic!("baseline has no registration sites");
     } else {

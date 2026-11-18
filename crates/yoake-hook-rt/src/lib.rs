@@ -1,9 +1,10 @@
 use std::any::Any;
 use std::cmp::Reverse;
-use std::marker::PhantomData;
-use std::ops::ControlFlow;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::{Arc, Mutex};
+
+pub const MAX_SLOTS: usize = 4096;
+const MAX_ENTRIES_PER_SLOT: usize = 64;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Order {
@@ -18,16 +19,12 @@ struct Entry {
     callback: Arc<dyn Any + Send + Sync>,
 }
 
-#[derive(Clone, Default)]
 struct Chain {
-    head: Vec<Entry>,
-    returned: Vec<Entry>,
+    entries: Vec<Entry>,
 }
 
-pub struct Slot {
-    chain: AtomicPtr<Chain>,
-    publication: Mutex<()>,
-}
+#[repr(transparent)]
+pub struct Slot(AtomicPtr<Chain>);
 
 impl Default for Slot {
     fn default() -> Self {
@@ -37,131 +34,80 @@ impl Default for Slot {
 
 impl Slot {
     pub const fn new() -> Self {
-        Self {
-            chain: AtomicPtr::new(std::ptr::null_mut()),
-            publication: Mutex::new(()),
-        }
+        Self(AtomicPtr::new(std::ptr::null_mut()))
     }
 
     #[inline(always)]
     pub fn load(&'static self) -> Option<Snapshot> {
-        let pointer = self.chain.load(Ordering::Acquire);
+        let pointer = self.0.load(Ordering::Acquire);
         if pointer.is_null() {
             None
         } else {
-            Some(Snapshot(unsafe { &*pointer }))
+            // SAFETY: `pointer` is published with Release from `Box::into_raw`
+            // in `register`, and old `Chain` snapshots are intentionally leaked
+            // for the process lifetime so lock-free readers never observe freed memory.
+            Some(Snapshot(unsafe { &(*pointer).entries }))
         }
-    }
-
-    fn register<Callback: Copy + Send + Sync + 'static>(
-        &'static self,
-        callback: Callback,
-        order: Order,
-        at_head: bool,
-    ) -> Result<(), &'static str> {
-        let _guard = self
-            .publication
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
-        let mut chain = self
-            .load()
-            .map(|snapshot| snapshot.0.clone())
-            .unwrap_or_default();
-        let sequence = chain.head.len() + chain.returned.len();
-        if sequence >= 64 {
-            return Err("S2 spike limits each slot to 64 registrations");
-        }
-        let entries = if at_head {
-            &mut chain.head
-        } else {
-            &mut chain.returned
-        };
-        entries.push(Entry {
-            order,
-            sequence,
-            callback: Arc::new(callback),
-        });
-        entries.sort_by_key(|entry| {
-            (
-                Reverse(entry.order.priority),
-                entry.order.mod_load_order,
-                entry.sequence,
-            )
-        });
-        self.chain
-            .store(Box::into_raw(Box::new(chain)), Ordering::Release);
-        Ok(())
     }
 }
 
+const EMPTY: Slot = Slot::new();
+pub static SLOTS: [Slot; MAX_SLOTS] = [EMPTY; MAX_SLOTS];
+
+static REGISTER_LOCK: Mutex<()> = Mutex::new(());
+
 #[derive(Clone, Copy)]
-pub struct Snapshot(&'static Chain);
+pub struct Snapshot(&'static [Entry]);
 
 impl Snapshot {
     #[cold]
     #[inline(never)]
-    fn head<Callback: Copy + 'static, ResultValue>(
-        &self,
-        mut invoke: impl FnMut(Callback) -> ControlFlow<ResultValue>,
-    ) -> ControlFlow<ResultValue> {
-        for entry in &self.0.head {
-            if let Some(callback) = entry.callback.downcast_ref::<Callback>() {
-                invoke(*callback)?;
+    pub fn next<Callback: Copy + 'static>(&self) -> Option<(Callback, Self)> {
+        let mut rest = self.0;
+        while let Some((first, tail)) = rest.split_first() {
+            rest = tail;
+            if let Some(callback) = first.callback.downcast_ref::<Callback>() {
+                return Some((*callback, Self(tail)));
             }
         }
-        ControlFlow::Continue(())
-    }
-
-    #[cold]
-    #[inline(never)]
-    fn returned<Callback: Copy + 'static>(&self, mut invoke: impl FnMut(Callback)) {
-        for entry in &self.0.returned {
-            if let Some(callback) = entry.callback.downcast_ref::<Callback>() {
-                invoke(*callback);
-            }
-        }
+        None
     }
 }
 
-pub struct Site<Head, Returned> {
-    slot: &'static Slot,
-    marker: PhantomData<fn(Head, Returned)>,
-}
-
-impl<Head: Copy + Send + Sync + 'static, Returned: Copy + Send + Sync + 'static>
-    Site<Head, Returned>
-{
-    pub const fn new(slot: &'static Slot) -> Self {
-        Self {
-            slot,
-            marker: PhantomData,
-        }
+pub fn register<Callback: Copy + Send + Sync + 'static>(
+    id: usize,
+    callback: Callback,
+    order: Order,
+) -> Result<(), &'static str> {
+    if id >= MAX_SLOTS {
+        return Err("hook slot id exceeds MAX_SLOTS");
     }
-
-    #[inline(always)]
-    pub fn load(&self) -> Option<Snapshot> {
-        self.slot.load()
+    if std::mem::size_of::<Callback>() == 0 {
+        return Err("Callback must be a fn(...) pointer type, not a zero-sized fn item or closure");
     }
-
-    #[inline(always)]
-    pub fn head<ResultValue>(
-        &self,
-        snapshot: &Snapshot,
-        invoke: impl FnMut(Head) -> ControlFlow<ResultValue>,
-    ) -> ControlFlow<ResultValue> {
-        snapshot.head(invoke)
+    let _guard = REGISTER_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    let slot = &SLOTS[id];
+    let mut entries = slot.load().map(|snapshot| snapshot.0.to_vec()).unwrap_or_default();
+    let sequence = entries.len();
+    if sequence >= MAX_ENTRIES_PER_SLOT {
+        return Err("S2 spike limits each slot to 64 registrations");
     }
-
-    #[inline(always)]
-    pub fn returned(&self, snapshot: &Snapshot, invoke: impl FnMut(Returned)) {
-        snapshot.returned(invoke);
-    }
-
-    pub fn register_head(&self, callback: Head, order: Order) -> Result<(), &'static str> {
-        self.slot.register(callback, order, true)
-    }
-
-    pub fn register_return(&self, callback: Returned, order: Order) -> Result<(), &'static str> {
-        self.slot.register(callback, order, false)
-    }
+    entries.push(Entry {
+        order,
+        sequence,
+        callback: Arc::new(callback),
+    });
+    entries.sort_by_key(|entry| {
+        (
+            Reverse(entry.order.priority),
+            entry.order.mod_load_order,
+            entry.sequence,
+        )
+    });
+    // Old Chain allocations are intentionally leaked until process exit so
+    // lock-free hot-path readers holding &'static [Entry] never race with a free.
+    // Registration is bounded at 64 entries per slot and occurs at mod load time.
+    let published = Box::into_raw(Box::new(Chain { entries }));
+    slot.0.store(published, Ordering::Release);
+    Ok(())
 }

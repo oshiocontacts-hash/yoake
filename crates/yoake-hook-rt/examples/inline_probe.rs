@@ -1,18 +1,17 @@
-use std::ops::ControlFlow;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use yoake_hook_macro::yoake_hook;
 
 static CALLS: AtomicUsize = AtomicUsize::new(0);
 
-#[yoake_hook]
+#[yoake_hook(id = 1)]
 #[inline(always)]
 fn inlined_leaf(value: u64) -> u64 {
     value.wrapping_add(1)
 }
 
-fn observe(_: &mut u64) -> ControlFlow<u64> {
+fn boost(original: &mut dyn FnMut(u64) -> u64, value: u64) -> u64 {
     CALLS.fetch_add(1, Ordering::Relaxed);
-    ControlFlow::Continue(())
+    original(value) + 10
 }
 
 #[unsafe(no_mangle)]
@@ -22,14 +21,18 @@ pub fn yoake_inline_driver(value: u64) -> u64 {
 }
 
 fn main() {
-    __yoake_hook_inlined_leaf()
-        .register_head(observe, yoake_hook_rt::Order::default())
-        .unwrap();
+    assert_eq!(yoake_inline_driver(4), 5);
+    yoake_hook_rt::register::<fn(&mut dyn FnMut(u64) -> u64, u64) -> u64>(
+        __YOAKE_HOOK_ID_inlined_leaf,
+        boost,
+        yoake_hook_rt::Order::default(),
+    )
+    .unwrap();
     let mut checksum = 0;
     for value in 0..100 {
         checksum += yoake_inline_driver(value);
     }
-    assert_eq!(checksum, 5050);
+    assert_eq!(checksum, 6050);
     assert_eq!(CALLS.load(Ordering::Relaxed), 100);
     println!("100 inlined calls observed; checksum={checksum}");
 }

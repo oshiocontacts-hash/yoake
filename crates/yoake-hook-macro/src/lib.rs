@@ -24,9 +24,24 @@ fn expand(
     let options = Punctuated::<Meta, Token![,]>::parse_terminated.parse2(attributes)?;
     let mut associated = false;
     let mut skip = false;
+    let mut slot_id: Option<usize> = None;
     for option in options {
         match option {
             Meta::Path(path) if path.is_ident("method") => associated = true,
+            Meta::NameValue(value) if value.path.is_ident("id") => {
+                if slot_id.is_some() {
+                    return Err(syn::Error::new_spanned(value, "duplicate id"));
+                }
+                if let syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Int(int_lit),
+                    ..
+                }) = &value.value
+                {
+                    slot_id = Some(int_lit.base10_parse::<usize>()?);
+                } else {
+                    return Err(syn::Error::new_spanned(value, "id needs an integer literal"));
+                }
+            }
             Meta::NameValue(value) if value.path.is_ident("skip") => {
                 if let syn::Expr::Lit(syn::ExprLit {
                     lit: syn::Lit::Str(reason),
@@ -36,24 +51,30 @@ fn expand(
                 {
                     skip = true;
                 } else {
-                    return Err(syn::Error::new_spanned(
-                        value,
-                        "skip needs a nonempty reason",
-                    ));
+                    return Err(syn::Error::new_spanned(value, "skip needs a nonempty reason"));
                 }
             }
             other => {
                 return Err(syn::Error::new_spanned(
                     other,
-                    "expected method or skip = \"reason\"",
+                    "expected method, id = <usize>, or skip = \"reason\"",
                 ));
             }
         }
     }
     let mut function: ItemFn = syn::parse2(item)?;
     if skip {
+        if slot_id.is_some() {
+            return Err(syn::Error::new_spanned(&function.sig, "skip cannot be combined with id"));
+        }
         return Ok(quote!(#function));
     }
+    let Some(slot_id) = slot_id else {
+        return Err(syn::Error::new_spanned(
+            &function.sig,
+            "yoake_hook requires id = <usize> (or skip = \"reason\")",
+        ));
+    };
     let signature = &function.sig;
     if signature.asyncness.is_some()
         || signature.constness.is_some()
@@ -124,9 +145,16 @@ fn expand(
             "S2 cannot hook opaque, never, or non-static borrowed results; use skip",
         ));
     }
-    let mut lifetimes = CallbackLifetimes::default();
-    let mut callback_arguments = Vec::new();
-    let mut invoke_arguments = Vec::new();
+
+    let orig_sig = {
+        let mut sig = function.sig.clone();
+        sig.ident = format_ident!("__yoake_orig_{}", function.sig.ident);
+        sig
+    };
+
+    let mut lifetime_counts = LifetimeCounts::default();
+    let mut raw_input_types = Vec::new();
+    let mut outer_arg_names = Vec::new();
     for argument in &mut function.sig.inputs {
         match argument {
             FnArg::Receiver(receiver) => {
@@ -136,10 +164,10 @@ fn expand(
                         "S2 borrowed receivers require method; by-value/typed receivers need skip",
                     ));
                 }
-                let mut receiver_type = *receiver.ty.clone();
-                lifetimes.visit_type_mut(&mut receiver_type);
-                callback_arguments.push(quote!(#receiver_type));
-                invoke_arguments.push(quote!(self));
+                let receiver_type = *receiver.ty.clone();
+                lifetime_counts.visit_type(&receiver_type);
+                raw_input_types.push(receiver_type);
+                outer_arg_names.push(quote!(self));
             }
             FnArg::Typed(argument) => {
                 let Pat::Ident(pattern) = &mut *argument.pat else {
@@ -154,9 +182,9 @@ fn expand(
                         "S2 does not support ref/subpatterns",
                     ));
                 }
-                pattern.mutability = Some(syn::parse_quote!(mut));
-                let name = &pattern.ident;
-                let mut argument_type = *argument.ty.clone();
+                pattern.mutability = None;
+                let name = pattern.ident.clone();
+                let argument_type = *argument.ty.clone();
                 let mut input_check = Unsupported::default();
                 input_check.visit_type(&argument_type);
                 if input_check.opaque {
@@ -171,37 +199,82 @@ fn expand(
                         "S2 nested callable borrows need independent lifetime binders; use skip",
                     ));
                 }
-                lifetimes.visit_type_mut(&mut argument_type);
-                callback_arguments.push(quote!(&mut #argument_type));
-                invoke_arguments.push(quote!(&mut #name));
+                lifetime_counts.visit_type(&argument_type);
+                raw_input_types.push(argument_type);
+                outer_arg_names.push(quote!(#name));
             }
         }
     }
-    let bound_lifetimes = &lifetimes.bound;
-    let binder = if bound_lifetimes.is_empty() {
-        quote!()
+
+    let has_shared_named = lifetime_counts.counts.values().any(|&count| count >= 2);
+    let mut cb_lifetimes = CallbackLifetimes::with_prefix("'__yoake_cb_");
+    let mut callback_arg_types = Vec::new();
+    for input_type in &raw_input_types {
+        let mut ty = input_type.clone();
+        cb_lifetimes.visit_type_mut(&mut ty);
+        callback_arg_types.push(ty);
+    }
+
+    let (dyn_lifetimes, dyn_arg_types, call_lifetimes, call_arg_types) = if has_shared_named {
+        let mut dyn_lt = CallbackLifetimes::with_prefix("'__yoake_dyn_");
+        let mut dyn_types = Vec::new();
+        let mut fn_lt = CallbackLifetimes::with_prefix("'__yoake_fn_");
+        let mut fn_types = Vec::new();
+        for input_type in &raw_input_types {
+            let mut d_ty = input_type.clone();
+            dyn_lt.visit_type_mut(&mut d_ty);
+            dyn_types.push(d_ty);
+            let mut f_ty = input_type.clone();
+            fn_lt.visit_type_mut(&mut f_ty);
+            fn_types.push(f_ty);
+        }
+        (dyn_lt.bound, dyn_types, fn_lt.bound, fn_types)
     } else {
-        quote!(for<#(#bound_lifetimes),*>)
+        let mut elider = ElideNamedLifetimes;
+        let mut types = Vec::new();
+        for input_type in &raw_input_types {
+            let mut ty = input_type.clone();
+            elider.visit_type_mut(&mut ty);
+            types.push(ty);
+        }
+        (Vec::new(), types.clone(), Vec::new(), types)
     };
-    let head_type =
-        quote!(#binder fn(#(#callback_arguments),*) -> ::std::ops::ControlFlow<#result_type>);
-    let returned_type = quote!(fn(&mut #result_type));
-    let getter = format_ident!("__yoake_hook_{}", function.sig.ident);
-    let visibility = &function.vis;
-    let cfg: Vec<_> = function
+
+    let dyn_trait_bound = if dyn_lifetimes.is_empty() {
+        quote!(FnMut(#(#dyn_arg_types),*) -> #result_type)
+    } else {
+        quote!(for<#(#dyn_lifetimes),*> FnMut(#(#dyn_arg_types),*) -> #result_type)
+    };
+
+    let orig_lifetime = Lifetime::new("'__yoake_orig", Span::call_site());
+    let cb_bound_lifetimes = &cb_lifetimes.bound;
+    let callback_type = quote!(
+        for<#orig_lifetime #(, #cb_bound_lifetimes)*> fn(
+            &#orig_lifetime mut (dyn #dyn_trait_bound + #orig_lifetime)
+            #(, #callback_arg_types)*
+        ) -> #result_type
+    );
+
+    let cfg_attrs: Vec<_> = function
         .attrs
         .iter()
         .filter(|attribute| attribute.path().is_ident("cfg"))
         .cloned()
         .collect();
-    let mut getter_generics = function.sig.generics.clone();
-    getter_generics.params = getter_generics
+    let allow_attrs: Vec<_> = function
+        .attrs
+        .iter()
+        .filter(|attribute| attribute.path().is_ident("allow"))
+        .cloned()
+        .collect();
+
+    let mut non_lifetime_generics = function.sig.generics.clone();
+    non_lifetime_generics.params = non_lifetime_generics
         .params
         .into_iter()
         .filter(|parameter| !matches!(parameter, GenericParam::Lifetime(_)))
         .collect();
-    let (getter_parameters, _, where_clause) = getter_generics.split_for_impl();
-    let type_arguments: Vec<_> = getter_generics
+    let type_const_args: Vec<_> = non_lifetime_generics
         .params
         .iter()
         .map(|parameter| match parameter {
@@ -216,44 +289,127 @@ fn expand(
             GenericParam::Lifetime(_) => unreachable!(),
         })
         .collect();
-    let turbofish = if type_arguments.is_empty() {
+    let turbofish = if type_const_args.is_empty() {
         quote!()
     } else {
-        quote!(::<#(#type_arguments),*>)
+        quote!(::<#(#type_const_args),*>)
     };
-    let call_getter = if associated {
-        quote!(Self::#getter #turbofish ())
+    let dispatch_turbofish = if type_const_args.is_empty() {
+        quote!()
     } else {
-        quote!(#getter #turbofish ())
+        quote!(::<#(#type_const_args,)* _>)
     };
+
+    let mut call_generics = non_lifetime_generics.clone();
+    let mut call_params_with_lt: Punctuated<GenericParam, Token![,]> = Punctuated::new();
+    for lt in &call_lifetimes {
+        call_params_with_lt.push(GenericParam::Lifetime(syn::LifetimeParam::new(lt.clone())));
+    }
+    for param in call_generics.params {
+        call_params_with_lt.push(param);
+    }
+    call_generics.params = call_params_with_lt;
+    let (call_impl_generics, _, call_where_clause) = call_generics.split_for_impl();
+
+    let mut dispatch_generics = call_generics.clone();
+    dispatch_generics.params.push(syn::parse_quote!(__YoakeF));
+    let mut dispatch_where = dispatch_generics
+        .where_clause
+        .take()
+        .unwrap_or_else(|| syn::WhereClause {
+            where_token: Default::default(),
+            predicates: Punctuated::new(),
+        });
+    dispatch_where.predicates.push(syn::parse_quote!(__YoakeF: #dyn_trait_bound));
+    dispatch_generics.where_clause = Some(dispatch_where);
+    let (dispatch_impl_generics, _, dispatch_where_clause) = dispatch_generics.split_for_impl();
+
+    let arg_idents: Vec<_> = (0..call_arg_types.len())
+        .map(|index| format_ident!("__yoake_arg_{index}"))
+        .collect();
+    let closure_idents: Vec<_> = (0..call_arg_types.len())
+        .map(|index| format_ident!("__yoake_a_{index}"))
+        .collect();
+
+    let id_const = format_ident!("__YOAKE_HOOK_ID_{}", function.sig.ident);
+    let orig_ident = orig_sig.ident.clone();
+    let call_ident = format_ident!("__yoake_call_{}", function.sig.ident);
+    let dispatch_ident = format_ident!("__yoake_dispatch_{}", function.sig.ident);
+    let prefix = if associated { quote!(Self::) } else { quote!() };
+
     let original_body = function.block;
-    function.attrs.push(syn::parse_quote!(#[allow(unused_mut)]));
     function.block = syn::parse_quote!({
-        let __yoake_site = #call_getter;
-        let __yoake_head = if let Some(__yoake_chain) = __yoake_site.load() {
-            __yoake_site.head(&__yoake_chain, |__yoake_callback| __yoake_callback(#(#invoke_arguments),*))
-        } else {
-            ::std::ops::ControlFlow::Continue(())
-        };
-        let mut __yoake_result = match __yoake_head {
-            ::std::ops::ControlFlow::Break(__yoake_replacement) => __yoake_replacement,
-            ::std::ops::ControlFlow::Continue(()) => (|| #original_body)(),
-        };
-        if let Some(__yoake_chain) = __yoake_site.load() {
-            __yoake_site.returned(&__yoake_chain, |__yoake_callback| __yoake_callback(&mut __yoake_result));
+        const _: () = assert!(#slot_id < ::yoake_hook_rt::MAX_SLOTS);
+        if let Some(__yoake_chain) = ::yoake_hook_rt::SLOTS[#slot_id].load() {
+            return #prefix #call_ident #turbofish (__yoake_chain #(, #outer_arg_names)*);
         }
-        __yoake_result
+        #prefix #orig_ident #turbofish (#(#outer_arg_names),*)
     });
+
     Ok(quote! {
-        #(#cfg)*
+        #(#cfg_attrs)*
+        #[doc(hidden)]
+        #[allow(non_upper_case_globals, dead_code)]
+        pub const #id_const: usize = #slot_id;
+
+        #(#cfg_attrs)*
+        #(#allow_attrs)*
         #[doc(hidden)]
         #[inline(always)]
-        #visibility fn #getter #getter_parameters () -> ::yoake_hook_rt::Site<#head_type, #returned_type>
-        #where_clause
-        {
-            static SLOT: ::yoake_hook_rt::Slot = ::yoake_hook_rt::Slot::new();
-            ::yoake_hook_rt::Site::new(&SLOT)
+        #[allow(
+            dead_code,
+            clippy::too_many_arguments,
+            clippy::type_complexity,
+            clippy::needless_lifetimes
+        )]
+        #orig_sig #original_body
+
+        #(#cfg_attrs)*
+        #(#allow_attrs)*
+        #[doc(hidden)]
+        #[cold]
+        #[inline(never)]
+        #[allow(
+            dead_code,
+            clippy::too_many_arguments,
+            clippy::type_complexity,
+            clippy::needless_lifetimes
+        )]
+        fn #call_ident #call_impl_generics (
+            __yoake_chain: ::yoake_hook_rt::Snapshot
+            #(, #arg_idents: #call_arg_types)*
+        ) -> #result_type #call_where_clause {
+            if let Some((__yoake_cb, __yoake_rest)) = __yoake_chain.next::<#callback_type>() {
+                #prefix #dispatch_ident #dispatch_turbofish (
+                    __yoake_cb,
+                    |#(#closure_idents),*| #prefix #call_ident #turbofish (
+                        __yoake_rest #(, #closure_idents)*
+                    )
+                    #(, #arg_idents)*
+                )
+            } else {
+                #prefix #orig_ident #turbofish (#(#arg_idents),*)
+            }
         }
+
+        #(#cfg_attrs)*
+        #(#allow_attrs)*
+        #[doc(hidden)]
+        #[inline(always)]
+        #[allow(
+            dead_code,
+            clippy::too_many_arguments,
+            clippy::type_complexity,
+            clippy::needless_lifetimes
+        )]
+        fn #dispatch_ident #dispatch_impl_generics (
+            __yoake_cb: #callback_type,
+            mut __yoake_next: __YoakeF
+            #(, #arg_idents: #call_arg_types)*
+        ) -> #result_type #dispatch_where_clause {
+            __yoake_cb(&mut __yoake_next #(, #arg_idents)*)
+        }
+
         #function
     })
 }
@@ -316,16 +472,24 @@ impl<'ast> Visit<'ast> for Unsupported {
     }
 }
 
-#[derive(Default)]
 struct CallbackLifetimes {
+    prefix: &'static str,
     named: BTreeMap<String, Lifetime>,
     bound: Vec<Lifetime>,
 }
 
 impl CallbackLifetimes {
+    fn with_prefix(prefix: &'static str) -> Self {
+        Self {
+            prefix,
+            named: BTreeMap::new(),
+            bound: Vec::new(),
+        }
+    }
+
     fn fresh(&mut self) -> Lifetime {
         let lifetime = Lifetime::new(
-            &format!("'__yoake_borrow_{}", self.bound.len()),
+            &format!("{}{}", self.prefix, self.bound.len()),
             Span::call_site(),
         );
         self.bound.push(lifetime.clone());
@@ -375,14 +539,73 @@ impl VisitMut for CallbackLifetimes {
     }
 }
 
+#[derive(Default)]
+struct LifetimeCounts {
+    counts: BTreeMap<String, usize>,
+}
+
+impl<'ast> Visit<'ast> for LifetimeCounts {
+    fn visit_lifetime(&mut self, lifetime: &'ast Lifetime) {
+        if lifetime.ident != "static" && lifetime.ident != "_" {
+            *self.counts.entry(lifetime.ident.to_string()).or_insert(0) += 1;
+        }
+    }
+}
+
+struct ElideNamedLifetimes;
+
+impl VisitMut for ElideNamedLifetimes {
+    fn visit_lifetime_mut(&mut self, lifetime: &mut Lifetime) {
+        if lifetime.ident != "static" && lifetime.ident != "_" {
+            *lifetime = Lifetime::new("'_", lifetime.span());
+        }
+    }
+
+    fn visit_type_reference_mut(&mut self, reference: &mut syn::TypeReference) {
+        if let Some(lifetime) = &reference.lifetime
+            && lifetime.ident != "static"
+        {
+            reference.lifetime = None;
+        }
+        visit_mut::visit_type_mut(self, &mut reference.elem);
+        if let Type::TraitObject(object) = &mut *reference.elem {
+            object.bounds = std::mem::take(&mut object.bounds)
+                .into_iter()
+                .filter(|bound| {
+                    !matches!(bound, syn::TypeParamBound::Lifetime(lt) if lt.ident != "static")
+                })
+                .collect();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::expand;
     use quote::quote;
 
     fn rejected(function: proc_macro2::TokenStream, diagnostic: &str) {
-        let error = expand(quote!(), function).unwrap_err();
+        let error = expand(quote!(id = 1), function).unwrap_err();
         assert!(error.to_string().contains(diagnostic), "{error}");
+    }
+
+    #[test]
+    fn missing_or_invalid_id_is_rejected() {
+        let function = quote!(
+            fn simple(x: u32) -> u32 {
+                x
+            }
+        );
+        let missing = expand(quote!(), function.clone()).unwrap_err();
+        assert!(missing.to_string().contains("requires id"), "{missing}");
+        let duplicate = expand(quote!(id = 1, id = 2), function.clone()).unwrap_err();
+        assert!(duplicate.to_string().contains("duplicate id"), "{duplicate}");
+        let combined = expand(quote!(skip = "no", id = 1), function.clone()).unwrap_err();
+        assert!(combined.to_string().contains("skip"), "{combined}");
+        let expanded = expand(quote!(id = 17), function).unwrap().to_string();
+        assert!(expanded.contains("__YOAKE_HOOK_ID_simple : usize = 17usize"));
+        assert!(expanded.contains("MAX_SLOTS"));
+        assert!(expanded.contains("SLOTS [17usize]"));
     }
 
     #[test]
