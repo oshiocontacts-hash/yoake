@@ -1,8 +1,9 @@
 use quote::quote;
 use syn::visit_mut::{self, VisitMut};
 use syn::{
-    AngleBracketedGenericArguments, Expr, FnArg, GenericParam, Ident, Member,
-    ParenthesizedGenericArguments, PatTuple, Path, Signature, Type, TypeBareFn, TypeTuple,
+    AngleBracketedGenericArguments, Attribute, Expr, FnArg, GenericArgument, GenericParam, Ident,
+    Member, Meta, ParenthesizedGenericArguments, PatTuple, Path, PathArguments, Signature, Type,
+    TypeBareFn, TypeTuple,
 };
 use yoake_hook_ledger::Ledger;
 
@@ -18,25 +19,88 @@ pub fn module_prefix(crate_ident: &str, mod_path: &[String]) -> String {
     }
 }
 
-pub fn type_last_segment_name(mut ty: &Type) -> String {
+fn compact_tokens(tokens: proc_macro2::TokenStream) -> String {
+    tokens
+        .to_string()
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect()
+}
+
+pub fn extract_cfg_tags(attrs: &[Attribute]) -> Vec<String> {
+    let mut tags = Vec::new();
+    for attr in attrs {
+        if attr.path().is_ident("cfg")
+            && let Meta::List(list) = &attr.meta
+        {
+            let pred = compact_tokens(list.tokens.clone());
+            tags.push(format!("[cfg({pred})]"));
+        }
+    }
+    tags
+}
+
+fn path_arguments_key_suffix(args: &PathArguments) -> String {
+    match args {
+        PathArguments::None => String::new(),
+        PathArguments::AngleBracketed(ab) => {
+            let kept: Vec<String> = ab
+                .args
+                .iter()
+                .filter(|arg| !matches!(arg, GenericArgument::Lifetime(_)))
+                .map(|arg| compact_tokens(quote!(#arg)))
+                .collect();
+            if kept.is_empty() {
+                String::new()
+            } else {
+                format!("<{}>", kept.join(","))
+            }
+        }
+        PathArguments::Parenthesized(paren) => compact_tokens(quote!(#paren)),
+    }
+}
+
+pub fn type_key_segment(mut ty: &Type) -> String {
     loop {
         match ty {
             Type::Group(group) => ty = &group.elem,
             Type::Paren(paren) => ty = &paren.elem,
             Type::Path(type_path) => {
                 if let Some(last) = type_path.path.segments.last() {
-                    return last.ident.to_string();
+                    return format!(
+                        "{}{}",
+                        last.ident,
+                        path_arguments_key_suffix(&last.arguments)
+                    );
                 }
                 break;
             }
             _ => break,
         }
     }
-    quote!(#ty)
-        .to_string()
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .collect()
+    compact_tokens(quote!(#ty))
+}
+
+pub fn trait_key_segment(path: &Path, full_path: bool) -> String {
+    if !full_path {
+        return path
+            .segments
+            .last()
+            .map(|seg| format!("{}{}", seg.ident, path_arguments_key_suffix(&seg.arguments)))
+            .unwrap_or_default();
+    }
+    let mut out = String::new();
+    if path.leading_colon.is_some() {
+        out.push_str("::");
+    }
+    for (i, seg) in path.segments.iter().enumerate() {
+        if i > 0 {
+            out.push_str("::");
+        }
+        out.push_str(&seg.ident.to_string());
+        out.push_str(&path_arguments_key_suffix(&seg.arguments));
+    }
+    out
 }
 
 pub fn trait_last_segment_name(path: &Path) -> String {
@@ -46,13 +110,18 @@ pub fn trait_last_segment_name(path: &Path) -> String {
         .unwrap_or_default()
 }
 
-pub fn free_fn_key(prefix: &str, ident: &Ident) -> String {
-    format!("{prefix}::{ident}")
+pub fn free_fn_key(prefix: &str, ident: &Ident, cfg_tags: &[String]) -> String {
+    format!("{prefix}::{ident}{}", cfg_tags.concat())
 }
 
-pub fn inherent_method_key(prefix: &str, self_ty: &Type, ident: &Ident) -> String {
-    let self_name = type_last_segment_name(self_ty);
-    format!("{prefix}::{self_name}::{ident}")
+pub fn inherent_method_key(
+    prefix: &str,
+    self_ty: &Type,
+    ident: &Ident,
+    cfg_tags: &[String],
+) -> String {
+    let self_seg = type_key_segment(self_ty);
+    format!("{prefix}::{self_seg}::{ident}{}", cfg_tags.concat())
 }
 
 pub fn trait_method_key(
@@ -60,10 +129,15 @@ pub fn trait_method_key(
     self_ty: &Type,
     trait_path: &Path,
     ident: &Ident,
+    cfg_tags: &[String],
+    full_trait_path: bool,
 ) -> String {
-    let self_name = type_last_segment_name(self_ty);
-    let trait_name = trait_last_segment_name(trait_path);
-    format!("{prefix}::<{self_name} as {trait_name}>::{ident}")
+    let self_seg = type_key_segment(self_ty);
+    let trait_seg = trait_key_segment(trait_path, full_trait_path);
+    format!(
+        "{prefix}::<{self_seg} as {trait_seg}>::{ident}{}",
+        cfg_tags.concat()
+    )
 }
 
 pub fn to_snake_case(name: &str) -> String {
@@ -91,6 +165,15 @@ pub fn to_snake_case(name: &str) -> String {
 pub fn trait_helper_name(trait_path: &Path, method_ident: &Ident) -> String {
     let trait_snake = to_snake_case(&trait_last_segment_name(trait_path));
     format!("__yoake_trait_{trait_snake}_{method_ident}")
+}
+
+pub fn trait_helper_name_full(trait_path: &Path, method_ident: &Ident) -> String {
+    let parts: Vec<String> = trait_path
+        .segments
+        .iter()
+        .map(|s| to_snake_case(&s.ident.to_string()))
+        .collect();
+    format!("__yoake_trait_{}_{method_ident}", parts.join("_"))
 }
 
 #[derive(Default)]
@@ -255,7 +338,7 @@ pub fn call_expr_callee(func: &Expr) -> (String, bool) {
                 .map(|s| s.ident.to_string())
                 .collect();
             if let Some(qself) = &ep.qself {
-                let self_name = type_last_segment_name(&qself.ty);
+                let self_name = type_key_segment(&qself.ty);
                 if qself.position == 0 {
                     (format!("{self_name}::{}", segs.join("::")), false)
                 } else if qself.position <= segs.len() {
@@ -323,11 +406,34 @@ mod tests {
     }
 
     #[test]
-    fn type_last_segment_drops_lifetimes_and_generics() {
+    fn type_key_segment_keeps_type_const_args_and_drops_lifetimes() {
         let ty: Type = syn::parse_str("crate::game::Game<'_>").unwrap();
-        assert_eq!(type_last_segment_name(&ty), "Game");
+        assert_eq!(type_key_segment(&ty), "Game");
         let ty2: Type = syn::parse_str("StandClimbing<'a>").unwrap();
-        assert_eq!(type_last_segment_name(&ty2), "StandClimbing");
+        assert_eq!(type_key_segment(&ty2), "StandClimbing");
+        let ty3: Type = syn::parse_str("crate::m::W<u32>").unwrap();
+        assert_eq!(type_key_segment(&ty3), "W<u32>");
+        let ty4: Type = syn::parse_str("W<'a, u32, 8>").unwrap();
+        assert_eq!(type_key_segment(&ty4), "W<u32,8>");
+    }
+
+    #[test]
+    fn trait_key_segment_keeps_generic_args_and_supports_full_path() {
+        let tr: Path = syn::parse_str("a::From<u32>").unwrap();
+        assert_eq!(trait_key_segment(&tr, false), "From<u32>");
+        assert_eq!(trait_key_segment(&tr, true), "a::From<u32>");
+    }
+
+    #[test]
+    fn extract_cfg_tags_ignores_cfg_attr_and_preserves_order() {
+        let item: syn::ItemFn = syn::parse_str(
+            "#[cfg(unix)]\n#[cfg_attr(not(feature = \"x\"), inline)]\n#[cfg(feature = \"fast\")]\nfn open() {}",
+        )
+        .unwrap();
+        assert_eq!(
+            extract_cfg_tags(&item.attrs),
+            vec!["[cfg(unix)]", "[cfg(feature=\"fast\")]"]
+        );
     }
 
     #[test]

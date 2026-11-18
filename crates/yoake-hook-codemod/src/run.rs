@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::Path;
 
 use syn::spanned::Spanned;
 use syn::visit_mut::{self, VisitMut};
@@ -8,10 +7,12 @@ use syn::{
     Attribute, Block, ExprAssign, ExprCall, ExprMethodCall, ImplItem, ImplItemFn, Item, ItemFn,
     ItemImpl, ItemMod, ItemTrait, Path as SynPath, Signature, Type,
 };
-use yoake_hook_ledger::{Kind, Ledger};
+use yoake_hook_ledger::{Kind, LedgerSet};
 
 use crate::attr::{self, ExpectedHookAttr, FileStyle};
 use crate::edit::{self, LineIndex, TextEdit, TraitMethodConversion};
+use crate::ledger_io::{self, FileUpdate};
+use crate::types::{CrateIndex, SelfTyStatus};
 use crate::{Config, Mode, eligible, key, modules};
 
 #[derive(Default)]
@@ -44,9 +45,11 @@ struct CurrentImpl {
     prefix: String,
     self_ty: Type,
     trait_path: Option<SynPath>,
+    impl_cfg_tags: Vec<String>,
     self_ty_src: Option<String>,
     self_ty_norm: Option<String>,
     impl_generics_check: Result<(), &'static str>,
+    self_ty_check: Result<(), &'static str>,
     trait_meta: Option<eligible::TraitImplMeta>,
     existing_helper_close: Option<usize>,
     conversions: Vec<TraitMethodConversion>,
@@ -61,8 +64,11 @@ struct CallerState {
 struct ScanCtx<'a> {
     crate_ident: &'a str,
     targets: &'a [Vec<String>],
-    tombstone_missing: bool,
-    ledger: &'a mut Ledger,
+    crate_index: &'a CrateIndex,
+    colliding_short_keys: &'a BTreeSet<String>,
+    tombstones: &'a mut BTreeSet<String>,
+    manual_keys: &'a mut BTreeMap<String, String>,
+    ledger_set: &'a mut LedgerSet,
     seen_locations: &'a mut BTreeMap<String, String>,
     seen_keys: &'a mut BTreeSet<String>,
     stats: &'a mut SummaryStats,
@@ -73,6 +79,7 @@ struct FileVisitor<'a, 'b> {
     source: &'a str,
     idx: &'a LineIndex,
     mod_path: Vec<String>,
+    mod_cfg_tags: Vec<String>,
     style: FileStyle,
     in_target_mod: bool,
     matched_helpers: BTreeMap<(usize, usize), String>,
@@ -101,8 +108,14 @@ impl VisitMut for FileVisitor<'_, '_> {
         self.in_target_mod = modules::is_target_or_descendant(&self.mod_path, self.ctx.targets);
         if self.in_target_mod {
             let prefix = key::module_prefix(self.ctx.crate_ident, &self.mod_path);
-            let (matched, pairs) =
-                pair_converted_trait_helpers(self.source, self.idx, &prefix, &file.items);
+            let (matched, pairs) = pair_converted_trait_helpers(
+                self.source,
+                self.idx,
+                &prefix,
+                &self.mod_cfg_tags,
+                self.ctx.colliding_short_keys,
+                &file.items,
+            );
             self.matched_helpers = matched;
             self.trait_pairs = pairs;
         }
@@ -118,7 +131,7 @@ impl VisitMut for FileVisitor<'_, '_> {
         if self.error.is_some() || self.current_caller.is_some() {
             return;
         }
-        if node.ident == "tests" || modules::has_cfg_test(&node.attrs) {
+        if modules::has_cfg_test(&node.attrs) {
             return;
         }
         let Some((_, inner)) = &mut node.content else {
@@ -126,18 +139,26 @@ impl VisitMut for FileVisitor<'_, '_> {
         };
 
         let prev_mod_path = self.mod_path.clone();
+        let prev_mod_cfgs = self.mod_cfg_tags.clone();
         let prev_style = self.style.clone();
         let prev_in_target = self.in_target_mod;
         let prev_matched = std::mem::take(&mut self.matched_helpers);
         let prev_pairs = std::mem::take(&mut self.trait_pairs);
 
         self.mod_path.push(node.ident.to_string());
+        self.mod_cfg_tags.extend(key::extract_cfg_tags(&node.attrs));
         self.style = attr::merge_module_style(&prev_style, inner);
         self.in_target_mod = modules::is_target_or_descendant(&self.mod_path, self.ctx.targets);
         if self.in_target_mod {
             let prefix = key::module_prefix(self.ctx.crate_ident, &self.mod_path);
-            let (matched, pairs) =
-                pair_converted_trait_helpers(self.source, self.idx, &prefix, inner);
+            let (matched, pairs) = pair_converted_trait_helpers(
+                self.source,
+                self.idx,
+                &prefix,
+                &self.mod_cfg_tags,
+                self.ctx.colliding_short_keys,
+                inner,
+            );
             self.matched_helpers = matched;
             self.trait_pairs = pairs;
         }
@@ -150,6 +171,7 @@ impl VisitMut for FileVisitor<'_, '_> {
         }
 
         self.mod_path = prev_mod_path;
+        self.mod_cfg_tags = prev_mod_cfgs;
         self.style = prev_style;
         self.in_target_mod = prev_in_target;
         self.matched_helpers = prev_matched;
@@ -168,10 +190,30 @@ impl VisitMut for FileVisitor<'_, '_> {
         }
 
         let prefix = key::module_prefix(self.ctx.crate_ident, &self.mod_path);
-        let fn_key = key::free_fn_key(&prefix, &item_fn.sig.ident);
+        let mut fn_cfg_tags = self.mod_cfg_tags.clone();
+        fn_cfg_tags.extend(key::extract_cfg_tags(&item_fn.attrs));
+        let fn_key = key::free_fn_key(&prefix, &item_fn.sig.ident, &fn_cfg_tags);
         let line = item_fn.sig.ident.span().start().line;
         if let Err(err) = register_seen(self.ctx, &fn_key, self.file_path, line) {
             self.error = Some(err);
+            return;
+        }
+
+        let found_attrs = attr::find_hook_attrs(&item_fn.attrs, self.source, self.idx);
+        if let Err(err) = check_no_test_id(&found_attrs, self.file_path, line) {
+            self.error = Some(err);
+            return;
+        }
+
+        let manual_attr_reason = attr::find_manual_skip(&found_attrs);
+        let is_ledger_manual = self.ctx.manual_keys.contains_key(&fn_key);
+        if manual_attr_reason.is_some() || is_ledger_manual {
+            if let Err(err) = exclude_manual_hook(self.ctx, &fn_key, manual_attr_reason) {
+                self.error = Some(err);
+                return;
+            }
+            edit::plan_remove_hook_attrs(self.source, self.idx, &item_fn.attrs, self.edits);
+            self.visit_fn_body(fn_key, &mut item_fn.block);
             return;
         }
 
@@ -185,7 +227,13 @@ impl VisitMut for FileVisitor<'_, '_> {
         );
         match eligible::check_fn(&item_fn.attrs, &item_fn.sig) {
             Ok(()) => {
-                let id = assign_hook(self.ctx, &fn_key, &sig);
+                let id = match assign_hook(self.ctx, &fn_key, &sig) {
+                    Ok(id) => id,
+                    Err(err) => {
+                        self.error = Some(err);
+                        return;
+                    }
+                };
                 let expected = ExpectedHookAttr {
                     method: false,
                     self_ty_src: None,
@@ -225,9 +273,44 @@ impl VisitMut for FileVisitor<'_, '_> {
         }
 
         let prefix = key::module_prefix(self.ctx.crate_ident, &self.mod_path);
+        let mut impl_cfg_tags = self.mod_cfg_tags.clone();
+        impl_cfg_tags.extend(key::extract_cfg_tags(&item_impl.attrs));
         let (self_ty_src, self_ty_norm) = impl_self_ty_spec(self.source, self.idx, item_impl);
         let trait_path = item_impl.trait_.as_ref().map(|(_, p, _)| p.clone());
         let is_trait = trait_path.is_some();
+        let self_ty_status = self
+            .ctx
+            .crate_index
+            .check_self_ty(&self.mod_path, &item_impl.self_ty);
+        let self_ty_check = if is_trait {
+            match self_ty_status {
+                SelfTyStatus::Local {
+                    is_struct_enum_union: true,
+                    crate_level_visible: true,
+                } => Ok(()),
+                SelfTyStatus::Local {
+                    is_struct_enum_union: true,
+                    crate_level_visible: false,
+                } => Err("self type has no crate-level path"),
+                SelfTyStatus::Local {
+                    is_struct_enum_union: false,
+                    ..
+                }
+                | SelfTyStatus::ForeignOrPrimitive
+                | SelfTyStatus::NonPath => {
+                    Err("trait impl on a type that cannot take an inherent impl")
+                }
+            }
+        } else {
+            match self_ty_status {
+                SelfTyStatus::Local {
+                    crate_level_visible: false,
+                    ..
+                } => Err("self type has no crate-level path"),
+                _ => Ok(()),
+            }
+        };
+
         let trait_meta = trait_path.as_ref().map(|tp| {
             eligible::TraitImplMeta::from_impl(
                 item_impl,
@@ -241,9 +324,11 @@ impl VisitMut for FileVisitor<'_, '_> {
             prefix,
             self_ty: (*item_impl.self_ty).clone(),
             trait_path,
+            impl_cfg_tags,
             self_ty_src,
             self_ty_norm,
             impl_generics_check,
+            self_ty_check,
             trait_meta,
             existing_helper_close: None,
             conversions: Vec::new(),
@@ -288,21 +373,47 @@ impl VisitMut for FileVisitor<'_, '_> {
         let Some(cur) = self.current_impl.as_ref() else {
             return;
         };
+        let line = method.sig.ident.span().start().line;
 
         if !cur.is_trait {
             if let Some(trait_caller_key) = self.matched_helpers.get(&method_span).cloned() {
+                let found_attrs = attr::find_hook_attrs(&method.attrs, self.source, self.idx);
+                if let Err(err) = check_no_test_id(&found_attrs, self.file_path, line) {
+                    self.error = Some(err);
+                    return;
+                }
                 self.visit_fn_body(trait_caller_key, &mut method.block);
                 return;
             }
 
-            let fn_key = key::inherent_method_key(&cur.prefix, &cur.self_ty, &method.sig.ident);
+            let mut fn_cfg_tags = cur.impl_cfg_tags.clone();
+            fn_cfg_tags.extend(key::extract_cfg_tags(&method.attrs));
+            let fn_key =
+                key::inherent_method_key(&cur.prefix, &cur.self_ty, &method.sig.ident, &fn_cfg_tags);
             let self_ty_src = cur.self_ty_src.clone();
             let self_ty_norm = cur.self_ty_norm.clone();
-            let impl_check = cur.impl_generics_check;
+            let impl_check = cur.self_ty_check.and_then(|()| cur.impl_generics_check);
 
-            let line = method.sig.ident.span().start().line;
             if let Err(err) = register_seen(self.ctx, &fn_key, self.file_path, line) {
                 self.error = Some(err);
+                return;
+            }
+
+            let found_attrs = attr::find_hook_attrs(&method.attrs, self.source, self.idx);
+            if let Err(err) = check_no_test_id(&found_attrs, self.file_path, line) {
+                self.error = Some(err);
+                return;
+            }
+
+            let manual_attr_reason = attr::find_manual_skip(&found_attrs);
+            let is_ledger_manual = self.ctx.manual_keys.contains_key(&fn_key);
+            if manual_attr_reason.is_some() || is_ledger_manual {
+                if let Err(err) = exclude_manual_hook(self.ctx, &fn_key, manual_attr_reason) {
+                    self.error = Some(err);
+                    return;
+                }
+                edit::plan_remove_hook_attrs(self.source, self.idx, &method.attrs, self.edits);
+                self.visit_fn_body(fn_key, &mut method.block);
                 return;
             }
 
@@ -318,7 +429,13 @@ impl VisitMut for FileVisitor<'_, '_> {
                 impl_check.and_then(|()| eligible::check_fn(&method.attrs, &method.sig));
             match eligibility {
                 Ok(()) => {
-                    let id = assign_hook(self.ctx, &fn_key, &sig);
+                    let id = match assign_hook(self.ctx, &fn_key, &sig) {
+                        Ok(id) => id,
+                        Err(err) => {
+                            self.error = Some(err);
+                            return;
+                        }
+                    };
                     let expected = ExpectedHookAttr {
                         method: true,
                         self_ty_src: self_ty_src.as_deref(),
@@ -350,13 +467,40 @@ impl VisitMut for FileVisitor<'_, '_> {
         }
 
         let trait_path = cur.trait_path.clone().expect("trait impl has trait_path");
-        let fn_key =
-            key::trait_method_key(&cur.prefix, &cur.self_ty, &trait_path, &method.sig.ident);
+        let mut fn_cfg_tags = cur.impl_cfg_tags.clone();
+        fn_cfg_tags.extend(key::extract_cfg_tags(&method.attrs));
+        let short_key = key::trait_method_key(
+            &cur.prefix,
+            &cur.self_ty,
+            &trait_path,
+            &method.sig.ident,
+            &fn_cfg_tags,
+            false,
+        );
+        let use_full_trait = self.ctx.colliding_short_keys.contains(&short_key);
+        let fn_key = if use_full_trait {
+            key::trait_method_key(
+                &cur.prefix,
+                &cur.self_ty,
+                &trait_path,
+                &method.sig.ident,
+                &fn_cfg_tags,
+                true,
+            )
+        } else {
+            short_key
+        };
         let self_ty_src = cur.self_ty_src.clone();
         let self_ty_norm = cur.self_ty_norm.clone();
+        let self_ty_check = cur.self_ty_check;
 
-        let line = method.sig.ident.span().start().line;
         if let Err(err) = register_seen(self.ctx, &fn_key, self.file_path, line) {
+            self.error = Some(err);
+            return;
+        }
+
+        let found_attrs = attr::find_hook_attrs(&method.attrs, self.source, self.idx);
+        if let Err(err) = check_no_test_id(&found_attrs, self.file_path, line) {
             self.error = Some(err);
             return;
         }
@@ -366,6 +510,26 @@ impl VisitMut for FileVisitor<'_, '_> {
                 cur_mut.existing_helper_close = Some(paired.impl_close_brace_start);
             }
             let helper = &paired.method;
+            let helper_line = helper.sig.ident.span().start().line;
+            let found_helper_attrs = attr::find_hook_attrs(&helper.attrs, self.source, self.idx);
+            if let Err(err) = check_no_test_id(&found_helper_attrs, self.file_path, helper_line) {
+                self.error = Some(err);
+                return;
+            }
+
+            let manual_attr_reason =
+                attr::find_manual_skip(&found_attrs).or_else(|| attr::find_manual_skip(&found_helper_attrs));
+            let is_ledger_manual = self.ctx.manual_keys.contains_key(&fn_key);
+            if manual_attr_reason.is_some() || is_ledger_manual {
+                if let Err(err) = exclude_manual_hook(self.ctx, &fn_key, manual_attr_reason) {
+                    self.error = Some(err);
+                    return;
+                }
+                edit::plan_remove_hook_attrs(self.source, self.idx, &helper.attrs, self.edits);
+                edit::plan_remove_hook_attrs(self.source, self.idx, &method.attrs, self.edits);
+                return;
+            }
+
             let mut restored_sig = helper.sig.clone();
             restored_sig.ident = method.sig.ident.clone();
             let sig = key::signature_hash(&restored_sig);
@@ -375,9 +539,17 @@ impl VisitMut for FileVisitor<'_, '_> {
                 .as_ref()
                 .and_then(|c| c.trait_meta.as_ref())
                 .expect("trait impl has trait_meta");
-            match check_trait_eligibility(trait_meta, &method.attrs, &method.sig, &helper.block) {
+            let eligibility = self_ty_check
+                .and_then(|()| check_trait_eligibility(trait_meta, &method.attrs, &method.sig, &helper.block));
+            match eligibility {
                 Ok(()) => {
-                    let id = assign_hook(self.ctx, &fn_key, &sig);
+                    let id = match assign_hook(self.ctx, &fn_key, &sig) {
+                        Ok(id) => id,
+                        Err(err) => {
+                            self.error = Some(err);
+                            return;
+                        }
+                    };
                     let expected = ExpectedHookAttr {
                         method: true,
                         self_ty_src: self_ty_src.as_deref(),
@@ -415,17 +587,41 @@ impl VisitMut for FileVisitor<'_, '_> {
             return;
         }
 
+        let manual_attr_reason = attr::find_manual_skip(&found_attrs);
+        let is_ledger_manual = self.ctx.manual_keys.contains_key(&fn_key);
+        if manual_attr_reason.is_some() || is_ledger_manual {
+            if let Err(err) = exclude_manual_hook(self.ctx, &fn_key, manual_attr_reason) {
+                self.error = Some(err);
+                return;
+            }
+            edit::plan_remove_hook_attrs(self.source, self.idx, &method.attrs, self.edits);
+            self.visit_fn_body(fn_key, &mut method.block);
+            return;
+        }
+
         let sig = key::signature_hash(&method.sig);
         let trait_meta = self
             .current_impl
             .as_ref()
             .and_then(|c| c.trait_meta.as_ref())
             .expect("trait impl has trait_meta");
-        match check_trait_eligibility(trait_meta, &method.attrs, &method.sig, &method.block) {
+        let eligibility = self_ty_check
+            .and_then(|()| check_trait_eligibility(trait_meta, &method.attrs, &method.sig, &method.block));
+        match eligibility {
             Ok(()) => {
-                let id = assign_hook(self.ctx, &fn_key, &sig);
+                let id = match assign_hook(self.ctx, &fn_key, &sig) {
+                    Ok(id) => id,
+                    Err(err) => {
+                        self.error = Some(err);
+                        return;
+                    }
+                };
                 self.ctx.stats.trait_methods_converted += 1;
-                let helper_name = key::trait_helper_name(&trait_path, &method.sig.ident);
+                let helper_name = if use_full_trait {
+                    key::trait_helper_name_full(&trait_path, &method.sig.ident)
+                } else {
+                    key::trait_helper_name(&trait_path, &method.sig.ident)
+                };
                 let method_clone = method.clone();
                 if let Some(cur_mut) = self.current_impl.as_mut() {
                     cur_mut.conversions.push(TraitMethodConversion {
@@ -530,31 +726,39 @@ pub fn execute(config: &Config) -> Result<bool, String> {
 
     let mut scanned_files =
         modules::collect_module_files(&config.crate_root, &config.crate_name, &targets)?;
+    let crate_index =
+        CrateIndex::build(&config.crate_root, &config.crate_name, &crate_ident, &scanned_files)?;
 
-    let original_ledger_text = if config.ledger.exists() {
-        Some(
-            std::fs::read_to_string(&config.ledger)
-                .map_err(|e| format!("failed to read ledger {}: {e}", config.ledger.display()))?,
-        )
-    } else {
-        None
-    };
-
-    let mut ledger = match &original_ledger_text {
-        Some(text) => Ledger::from_json(text).map_err(|e| format!("invalid ledger: {e}"))?,
-        None => Ledger::new(),
-    };
+    let mut ledger_set = ledger_io::load_ledger_set(&config.ledger)?;
+    let mut manual_keys = ledger_io::read_manual_exclusions(&config.ledger, &crate_ident)?;
+    if let Some(shard) = ledger_set.shard(&crate_ident) {
+        for ex in shard.excluded() {
+            if ex.manual {
+                manual_keys
+                    .entry(ex.key.clone())
+                    .or_insert_with(|| ex.reason.clone());
+            }
+        }
+    }
 
     for (old_key, new_key) in &config.renames {
-        ledger
+        ledger_set
+            .shard_mut(&crate_ident)
             .rename(old_key, new_key)
             .map_err(|e| format!("rename '{old_key}' -> '{new_key}' failed: {e}"))?;
     }
+    ledger_set
+        .validate()
+        .map_err(|e| format!("invalid ledger after renames: {e}"))?;
 
+    let colliding_short_keys =
+        collect_colliding_short_keys(&crate_ident, &targets, &scanned_files);
+
+    let mut tombstones: BTreeSet<String> = config.tombstones.iter().cloned().collect();
     let mut seen_locations = BTreeMap::new();
     let mut seen_keys = BTreeSet::new();
     let mut stats = SummaryStats::default();
-    let mut changed_files: Vec<(PathBuf, String)> = Vec::new();
+    let mut file_updates: Vec<FileUpdate> = Vec::new();
 
     for file in &mut scanned_files {
         let idx = LineIndex::new(&file.source);
@@ -563,8 +767,11 @@ pub fn execute(config: &Config) -> Result<bool, String> {
         let mut ctx = ScanCtx {
             crate_ident: &crate_ident,
             targets: &targets,
-            tombstone_missing: config.tombstone_missing,
-            ledger: &mut ledger,
+            crate_index: &crate_index,
+            colliding_short_keys: &colliding_short_keys,
+            tombstones: &mut tombstones,
+            manual_keys: &mut manual_keys,
+            ledger_set: &mut ledger_set,
             seen_locations: &mut seen_locations,
             seen_keys: &mut seen_keys,
             stats: &mut stats,
@@ -575,6 +782,7 @@ pub fn execute(config: &Config) -> Result<bool, String> {
             source: &file.source,
             idx: &idx,
             mod_path: file.root_mod_path.clone(),
+            mod_cfg_tags: file.root_cfg_tags.clone(),
             style,
             in_target_mod: false,
             matched_helpers: BTreeMap::new(),
@@ -592,7 +800,11 @@ pub fn execute(config: &Config) -> Result<bool, String> {
 
         let new_source = edit::apply_edits(&file.source, edits)?;
         if new_source != file.source {
-            changed_files.push((file.path.clone(), new_source));
+            file_updates.push(FileUpdate {
+                path: file.path.clone(),
+                original: file.source.clone(),
+                updated: new_source,
+            });
         }
     }
 
@@ -600,80 +812,48 @@ pub fn execute(config: &Config) -> Result<bool, String> {
         &crate_ident,
         &targets,
         &seen_keys,
-        config.tombstone_missing,
-        &mut ledger,
+        &mut tombstones,
+        &mut ledger_set,
         &mut stats,
     )?;
 
-    let new_ledger_text = ledger.to_json();
-    let ledger_changed = original_ledger_text.as_deref() != Some(new_ledger_text.as_str());
+    let manual_set: BTreeSet<String> = manual_keys.keys().cloned().collect();
+    let staging = ledger_io::stage_ledger_set(&ledger_set, &crate_ident, &manual_set)?;
+    let ledger_changed = ledger_io::diff_ledger_dirs(staging.path(), &config.ledger)?;
+
     print_summary(&stats);
 
     match config.mode {
         Mode::Check => {
-            if changed_files.is_empty() && !ledger_changed {
+            if file_updates.is_empty() && ledger_changed.is_empty() {
                 println!("check: clean (no changes)");
                 Ok(true)
             } else {
                 println!("check: changes needed:");
-                for (path, _) in &changed_files {
-                    println!("  file: {}", path.display());
+                for update in &file_updates {
+                    println!("  file: {}", update.path.display());
                 }
-                if ledger_changed {
-                    println!("  ledger: {}", config.ledger.display());
+                for path in &ledger_changed {
+                    println!("  ledger: {}", path.display());
                 }
                 Ok(false)
             }
         }
         Mode::Apply => {
-            let mut written_paths = Vec::with_capacity(changed_files.len());
-            for (path, content) in changed_files {
-                std::fs::write(&path, content)
-                    .map_err(|e| format!("failed to write {}: {e}", path.display()))?;
-                written_paths.push(path);
-            }
-            if config.rustfmt && !written_paths.is_empty() {
-                run_rustfmt(&config.crate_root, &written_paths)?;
-            }
-            if ledger_changed {
-                if let Some(parent) = config.ledger.parent()
-                    && !parent.as_os_str().is_empty()
-                {
-                    std::fs::create_dir_all(parent).map_err(|e| {
-                        format!("failed to create directory {}: {e}", parent.display())
-                    })?;
-                }
-                ledger
-                    .save(&config.ledger)
-                    .map_err(|e| format!("failed to save ledger {}: {e}", config.ledger.display()))?;
+            if !file_updates.is_empty() || !ledger_changed.is_empty() {
+                let rustfmt_edition = config
+                    .rustfmt
+                    .then(|| modules::detect_crate_edition(&config.crate_root));
+                ledger_io::atomic_apply(
+                    &file_updates,
+                    staging.path(),
+                    &ledger_changed,
+                    &config.ledger,
+                    rustfmt_edition.as_deref(),
+                )?;
             }
             Ok(true)
         }
-    }
-}
-
-fn run_rustfmt(crate_root: &Path, paths: &[PathBuf]) -> Result<(), String> {
-    if paths.is_empty() {
-        return Ok(());
-    }
-    let edition = modules::detect_crate_edition(crate_root);
-    let mut cmd = Command::new("rustfmt");
-    cmd.arg("--edition").arg(&edition);
-    for path in paths {
-        cmd.arg(path);
-    }
-    match cmd.output() {
-        Ok(output) if output.status.success() => Ok(()),
-        Ok(output) => Err(format!(
-            "rustfmt failed ({}): {}",
-            output.status,
-            String::from_utf8_lossy(&output.stderr).trim()
-        )),
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-            eprintln!("warning: rustfmt not found on PATH; skipping formatting");
-            Ok(())
-        }
-        Err(err) => Err(format!("failed to execute rustfmt: {err}")),
     }
 }
 
@@ -681,8 +861,8 @@ fn reconcile_missing_keys(
     crate_ident: &str,
     targets: &[Vec<String>],
     seen_keys: &BTreeSet<String>,
-    tombstone_missing: bool,
-    ledger: &mut Ledger,
+    tombstones: &mut BTreeSet<String>,
+    ledger_set: &mut LedgerSet,
     stats: &mut SummaryStats,
 ) -> Result<(), String> {
     let prefixes: Vec<String> = targets
@@ -690,7 +870,8 @@ fn reconcile_missing_keys(
         .map(|t| format!("{}::", key::module_prefix(crate_ident, t)))
         .collect();
 
-    let missing_live: Vec<String> = ledger
+    let shard = ledger_set.shard_mut(crate_ident);
+    let missing_live: Vec<String> = shard
         .live()
         .filter(|e| {
             e.kind == Kind::Fn
@@ -700,44 +881,191 @@ fn reconcile_missing_keys(
         .map(|e| e.key.clone())
         .collect();
 
-    if !missing_live.is_empty() {
-        if tombstone_missing {
-            for missing_key in missing_live {
-                ledger
-                    .tombstone(&missing_key)
-                    .map_err(|e| format!("failed to tombstone '{missing_key}': {e}"))?;
-                stats.tombstoned += 1;
-            }
+    let mut unhandled_missing = Vec::new();
+    for missing_key in missing_live {
+        if tombstones.remove(&missing_key) {
+            shard
+                .tombstone(&missing_key)
+                .map_err(|e| format!("failed to tombstone '{missing_key}': {e}"))?;
+            stats.tombstoned += 1;
         } else {
-            return Err(format!(
-                "missing ledger keys in scanned modules (pass --rename OLD=NEW or --tombstone-missing):\n  {}",
-                missing_live.join("\n  ")
-            ));
+            unhandled_missing.push(missing_key);
         }
     }
 
-    let stale_excluded: Vec<String> = ledger
+    if !unhandled_missing.is_empty() {
+        let lines: Vec<String> = unhandled_missing
+            .iter()
+            .map(|k| format!("  {k} (pass --rename {k}=<NEW_KEY> or --tombstone {k})"))
+            .collect();
+        return Err(format!(
+            "missing live ledger keys in scanned modules:\n{}",
+            lines.join("\n")
+        ));
+    }
+
+    let remaining_tombstones: Vec<String> = tombstones.iter().cloned().collect();
+    for key in remaining_tombstones {
+        shard
+            .tombstone(&key)
+            .map_err(|e| format!("failed to tombstone '{key}': {e}"))?;
+        stats.tombstoned += 1;
+    }
+
+    let stale_excluded: Vec<String> = shard
         .excluded()
         .iter()
-        .filter(|ex| prefixes.iter().any(|p| ex.key.starts_with(p)) && !seen_keys.contains(&ex.key))
+        .filter(|ex| {
+            !ex.manual
+                && prefixes.iter().any(|p| ex.key.starts_with(p))
+                && !seen_keys.contains(&ex.key)
+        })
         .map(|ex| ex.key.clone())
         .collect();
     for stale_key in stale_excluded {
-        ledger.unexclude(&stale_key);
+        shard.unexclude(&stale_key);
     }
     Ok(())
+}
+
+fn collect_colliding_short_keys(
+    crate_ident: &str,
+    targets: &[Vec<String>],
+    scanned_files: &[modules::ScannedFile],
+) -> BTreeSet<String> {
+    let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+    let empty_colliding = BTreeSet::new();
+    for file in scanned_files {
+        let idx = LineIndex::new(&file.source);
+        collect_short_keys_in_items(
+            crate_ident,
+            targets,
+            &file.source,
+            &idx,
+            &file.root_mod_path,
+            &file.root_cfg_tags,
+            &file.parsed.items,
+            &empty_colliding,
+            &mut counts,
+        );
+    }
+    counts
+        .into_iter()
+        .filter_map(|(k, count)| (count > 1).then_some(k))
+        .collect()
+}
+
+#[allow(clippy::too_many_arguments)]
+fn collect_short_keys_in_items(
+    crate_ident: &str,
+    targets: &[Vec<String>],
+    source: &str,
+    idx: &LineIndex,
+    mod_path: &[String],
+    mod_cfg_tags: &[String],
+    items: &[Item],
+    empty_colliding: &BTreeSet<String>,
+    counts: &mut BTreeMap<String, usize>,
+) {
+    let in_target = modules::is_target_or_descendant(mod_path, targets);
+    if in_target {
+        let prefix = key::module_prefix(crate_ident, mod_path);
+        let (matched_helpers, _) = pair_converted_trait_helpers(
+            source,
+            idx,
+            &prefix,
+            mod_cfg_tags,
+            empty_colliding,
+            items,
+        );
+        for item in items {
+            match item {
+                Item::Fn(item_fn) if !modules::has_cfg_test(&item_fn.attrs) => {
+                    let mut cfgs = mod_cfg_tags.to_vec();
+                    cfgs.extend(key::extract_cfg_tags(&item_fn.attrs));
+                    let k = key::free_fn_key(&prefix, &item_fn.sig.ident, &cfgs);
+                    *counts.entry(k).or_default() += 1;
+                }
+                Item::Impl(imp) if !modules::has_cfg_test(&imp.attrs) => {
+                    let mut impl_cfgs = mod_cfg_tags.to_vec();
+                    impl_cfgs.extend(key::extract_cfg_tags(&imp.attrs));
+                    let trait_path = imp.trait_.as_ref().map(|(_, p, _)| p);
+                    for impl_item in &imp.items {
+                        let ImplItem::Fn(method) = impl_item else {
+                            continue;
+                        };
+                        if modules::has_cfg_test(&method.attrs) {
+                            continue;
+                        }
+                        if trait_path.is_none() {
+                            let span = idx.span_range(source, method.span());
+                            if matched_helpers.contains_key(&span) {
+                                continue;
+                            }
+                        }
+                        let mut fn_cfgs = impl_cfgs.clone();
+                        fn_cfgs.extend(key::extract_cfg_tags(&method.attrs));
+                        let k = match trait_path {
+                            Some(tp) => key::trait_method_key(
+                                &prefix,
+                                &imp.self_ty,
+                                tp,
+                                &method.sig.ident,
+                                &fn_cfgs,
+                                false,
+                            ),
+                            None => key::inherent_method_key(
+                                &prefix,
+                                &imp.self_ty,
+                                &method.sig.ident,
+                                &fn_cfgs,
+                            ),
+                        };
+                        *counts.entry(k).or_default() += 1;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    for item in items {
+        if let Item::Mod(item_mod) = item
+            && !modules::has_cfg_test(&item_mod.attrs)
+            && let Some((_, inner)) = &item_mod.content
+        {
+            let mut child_mod = mod_path.to_vec();
+            child_mod.push(item_mod.ident.to_string());
+            let mut child_cfgs = mod_cfg_tags.to_vec();
+            child_cfgs.extend(key::extract_cfg_tags(&item_mod.attrs));
+            collect_short_keys_in_items(
+                crate_ident,
+                targets,
+                source,
+                idx,
+                &child_mod,
+                &child_cfgs,
+                inner,
+                empty_colliding,
+                counts,
+            );
+        }
+    }
 }
 
 fn pair_converted_trait_helpers(
     source: &str,
     idx: &LineIndex,
     prefix: &str,
+    mod_cfg_tags: &[String],
+    colliding_short_keys: &BTreeSet<String>,
     items: &[Item],
 ) -> (
     BTreeMap<(usize, usize), String>,
     BTreeMap<(usize, usize), PairedHelper>,
 ) {
-    let mut helpers: BTreeMap<(String, String), HelperTarget> = BTreeMap::new();
+    type HelperKey = (String, Vec<String>, Vec<String>, String);
+    let mut helpers: BTreeMap<HelperKey, HelperTarget> = BTreeMap::new();
     for item in items {
         let Item::Impl(imp) = item else {
             continue;
@@ -745,7 +1073,8 @@ fn pair_converted_trait_helpers(
         if imp.trait_.is_some() || modules::has_cfg_test(&imp.attrs) {
             continue;
         }
-        let self_name = key::type_last_segment_name(&imp.self_ty);
+        let self_name = key::type_key_segment(&imp.self_ty);
+        let impl_cfgs = key::extract_cfg_tags(&imp.attrs);
         let close_start = idx.span_range(source, imp.brace_token.span.close()).0;
         for impl_item in &imp.items {
             let ImplItem::Fn(method) = impl_item else {
@@ -756,12 +1085,15 @@ fn pair_converted_trait_helpers(
             }
             let name = method.sig.ident.to_string();
             if name.starts_with("__yoake_trait_") {
+                let fn_cfgs = key::extract_cfg_tags(&method.attrs);
                 let method_span = idx.span_range(source, method.span());
-                helpers.entry((self_name.clone(), name)).or_insert(HelperTarget {
-                    method_span,
-                    method: method.clone(),
-                    impl_close_brace_start: close_start,
-                });
+                helpers
+                    .entry((self_name.clone(), impl_cfgs.clone(), fn_cfgs, name))
+                    .or_insert(HelperTarget {
+                        method_span,
+                        method: method.clone(),
+                        impl_close_brace_start: close_start,
+                    });
             }
         }
     }
@@ -778,7 +1110,8 @@ fn pair_converted_trait_helpers(
         if modules::has_cfg_test(&imp.attrs) {
             continue;
         }
-        let self_name = key::type_last_segment_name(&imp.self_ty);
+        let self_name = key::type_key_segment(&imp.self_ty);
+        let impl_cfgs = key::extract_cfg_tags(&imp.attrs);
         for impl_item in &imp.items {
             let ImplItem::Fn(method) = impl_item else {
                 continue;
@@ -786,13 +1119,39 @@ fn pair_converted_trait_helpers(
             if modules::has_cfg_test(&method.attrs) {
                 continue;
             }
-            let expected_helper = key::trait_helper_name(trait_path, &method.sig.ident);
-            if edit::is_already_converted_trait_method(method, &expected_helper)
-                && let Some(target) = helpers.get(&(self_name.clone(), expected_helper))
-            {
+            let fn_cfgs = key::extract_cfg_tags(&method.attrs);
+            let full_helper = key::trait_helper_name_full(trait_path, &method.sig.ident);
+            let short_helper = key::trait_helper_name(trait_path, &method.sig.ident);
+            let target = [full_helper, short_helper].into_iter().find_map(|cand| {
+                edit::is_already_converted_trait_method(method, &cand)
+                    .then(|| helpers.get(&(self_name.clone(), impl_cfgs.clone(), fn_cfgs.clone(), cand)))
+                    .flatten()
+            });
+            if let Some(target) = target {
+                let mut all_cfgs = mod_cfg_tags.to_vec();
+                all_cfgs.extend(impl_cfgs.iter().cloned());
+                all_cfgs.extend(fn_cfgs);
+                let short_key = key::trait_method_key(
+                    prefix,
+                    &imp.self_ty,
+                    trait_path,
+                    &method.sig.ident,
+                    &all_cfgs,
+                    false,
+                );
+                let trait_key = if colliding_short_keys.contains(&short_key) {
+                    key::trait_method_key(
+                        prefix,
+                        &imp.self_ty,
+                        trait_path,
+                        &method.sig.ident,
+                        &all_cfgs,
+                        true,
+                    )
+                } else {
+                    short_key
+                };
                 let trait_method_span = idx.span_range(source, method.span());
-                let trait_key =
-                    key::trait_method_key(prefix, &imp.self_ty, trait_path, &method.sig.ident);
                 matched.insert(target.method_span, trait_key);
                 pairs.insert(
                     trait_method_span,
@@ -808,6 +1167,20 @@ fn pair_converted_trait_helpers(
     (matched, pairs)
 }
 
+fn check_no_test_id(
+    found_attrs: &[attr::FoundHookAttr],
+    file_path: &Path,
+    line: usize,
+) -> Result<(), String> {
+    if let Some(tid) = attr::find_test_id(found_attrs) {
+        return Err(format!(
+            "{}:{line}: forbidden #[yoake_hook(test_id = {tid})] in scanned engine module (test_id belongs only to yoake-hook-* tests or #[cfg(test)])",
+            file_path.display()
+        ));
+    }
+    Ok(())
+}
+
 fn check_trait_eligibility(
     trait_meta: &eligible::TraitImplMeta,
     attrs: &[Attribute],
@@ -815,7 +1188,8 @@ fn check_trait_eligibility(
     block: &Block,
 ) -> Result<(), &'static str> {
     eligible::check_trait_method_movable(trait_meta, sig, block)?;
-    eligible::check_fn(attrs, sig)
+    eligible::check_fn(attrs, sig)?;
+    eligible::check_trait_method_body_attrs(attrs)
 }
 
 fn impl_self_ty_spec(
@@ -850,9 +1224,14 @@ fn register_seen(
     Ok(())
 }
 
-fn assign_hook(ctx: &mut ScanCtx<'_>, fn_key: &str, sig: &str) -> u32 {
-    ctx.ledger.unexclude(fn_key);
-    let assigned = ctx.ledger.assign(Kind::Fn, fn_key, sig);
+fn assign_hook(ctx: &mut ScanCtx<'_>, fn_key: &str, sig: &str) -> Result<u32, String> {
+    if ctx.tombstones.contains(fn_key) {
+        return Err(format!(
+            "cannot tombstone '{fn_key}': function is still present and eligible in source"
+        ));
+    }
+    ctx.ledger_set.shard_mut(ctx.crate_ident).unexclude(fn_key);
+    let assigned = ctx.ledger_set.assign(ctx.crate_ident, Kind::Fn, fn_key, sig);
     ctx.stats.hooked += 1;
     if assigned.new {
         ctx.stats.newly_assigned += 1;
@@ -860,28 +1239,75 @@ fn assign_hook(ctx: &mut ScanCtx<'_>, fn_key: &str, sig: &str) -> u32 {
     if assigned.sig_changed {
         ctx.stats.sig_changes += 1;
     }
-    assigned.id
+    Ok(assigned.id)
 }
 
-fn exclude_hook(ctx: &mut ScanCtx<'_>, fn_key: &str, reason: &str) -> Result<(), String> {
-    if ctx.ledger.live_id(fn_key).is_some() {
-        if ctx.tombstone_missing {
-            ctx.ledger
+fn tombstone_live_if_requested(
+    ctx: &mut ScanCtx<'_>,
+    fn_key: &str,
+    reason: &str,
+) -> Result<(), String> {
+    let shard = ctx.ledger_set.shard_mut(ctx.crate_ident);
+    if shard.live_id(fn_key).is_some() {
+        if ctx.tombstones.remove(fn_key) {
+            shard
                 .tombstone(fn_key)
                 .map_err(|e| format!("failed to tombstone '{fn_key}': {e}"))?;
             ctx.stats.tombstoned += 1;
         } else {
             return Err(format!(
-                "'{fn_key}' is live in ledger but now ineligible ({reason}); pass --tombstone-missing to tombstone it"
+                "'{fn_key}' is live in ledger but now ineligible ({reason}); pass --tombstone {fn_key} to tombstone it"
             ));
         }
     }
-    ctx.ledger
-        .exclude(fn_key, reason)
+    Ok(())
+}
+
+fn exclude_hook(ctx: &mut ScanCtx<'_>, fn_key: &str, reason: &str) -> Result<(), String> {
+    tombstone_live_if_requested(ctx, fn_key, reason)?;
+    ctx.ledger_set
+        .shard_mut(ctx.crate_ident)
+        .exclude_kind(Kind::Fn, fn_key, reason)
         .map_err(|e| format!("failed to exclude '{fn_key}': {e}"))?;
     *ctx.stats
         .excluded_by_reason
         .entry(reason.to_string())
+        .or_default() += 1;
+    Ok(())
+}
+
+fn exclude_manual_hook(
+    ctx: &mut ScanCtx<'_>,
+    fn_key: &str,
+    attr_reason: Option<&str>,
+) -> Result<(), String> {
+    let existing_manual = ctx.manual_keys.get(fn_key).cloned().or_else(|| {
+        ctx.ledger_set
+            .shard(ctx.crate_ident)
+            .and_then(|s| s.excluded().iter().find(|e| e.key == fn_key && e.manual))
+            .map(|e| e.reason.clone())
+    });
+    let display_reason = existing_manual
+        .as_deref()
+        .or(attr_reason)
+        .filter(|r| !r.trim().is_empty())
+        .unwrap_or("manual skip")
+        .to_string();
+
+    tombstone_live_if_requested(ctx, fn_key, &display_reason)?;
+
+    if existing_manual.is_none() {
+        ctx.ledger_set
+            .shard_mut(ctx.crate_ident)
+            .exclude_manual(Kind::Fn, fn_key, &display_reason)
+            .map_err(|e| format!("failed to record manual exclusion '{fn_key}': {e}"))?;
+        ctx.manual_keys
+            .insert(fn_key.to_string(), display_reason.clone());
+    }
+
+    *ctx.stats
+        .excluded_by_reason
+        .entry(display_reason)
         .or_default() += 1;
     Ok(())
 }
@@ -936,11 +1362,29 @@ impl Stand {
     }
 }
 ";
-        let mut parsed = syn::parse_file(source).unwrap();
-        let idx = LineIndex::new(source);
-        let style = attr::detect_file_style(&parsed.items, source);
+        let tmp = ledger_io::TempDirGuard::new("unit_visitor").unwrap();
+        std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+        std::fs::write(
+            tmp.path().join("Cargo.toml"),
+            "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+        )
+        .unwrap();
+        std::fs::write(tmp.path().join("src/lib.rs"), "pub mod entities;\n").unwrap();
+        std::fs::write(tmp.path().join("src/entities.rs"), source).unwrap();
+
         let targets = vec![vec!["entities".to_string()]];
-        let mut ledger = Ledger::new();
+        let mut scanned_files =
+            modules::collect_module_files(tmp.path(), "demo", &targets).unwrap();
+        let crate_index =
+            CrateIndex::build(tmp.path(), "demo", "demo", &scanned_files).unwrap();
+        let file = &mut scanned_files[0];
+
+        let idx = LineIndex::new(&file.source);
+        let style = attr::detect_file_style(&file.parsed.items, &file.source);
+        let colliding_short_keys = BTreeSet::new();
+        let mut tombstones = BTreeSet::new();
+        let mut manual_keys = BTreeMap::new();
+        let mut ledger_set = LedgerSet::new();
         let mut seen_locations = BTreeMap::new();
         let mut seen_keys = BTreeSet::new();
         let mut stats = SummaryStats::default();
@@ -948,17 +1392,21 @@ impl Stand {
         let mut ctx = ScanCtx {
             crate_ident: "demo",
             targets: &targets,
-            tombstone_missing: false,
-            ledger: &mut ledger,
+            crate_index: &crate_index,
+            colliding_short_keys: &colliding_short_keys,
+            tombstones: &mut tombstones,
+            manual_keys: &mut manual_keys,
+            ledger_set: &mut ledger_set,
             seen_locations: &mut seen_locations,
             seen_keys: &mut seen_keys,
             stats: &mut stats,
         };
         let mut visitor = FileVisitor {
-            file_path: Path::new("src/entities.rs"),
-            source,
+            file_path: &file.path,
+            source: &file.source,
             idx: &idx,
-            mod_path: vec!["entities".to_string()],
+            mod_path: file.root_mod_path.clone(),
+            mod_cfg_tags: file.root_cfg_tags.clone(),
             style,
             in_target_mod: false,
             matched_helpers: BTreeMap::new(),
@@ -969,8 +1417,8 @@ impl Stand {
             edits: &mut edits,
             error: None,
         };
-        visitor.visit_file_mut(&mut parsed);
-        assert!(visitor.error.is_none());
+        visitor.visit_file_mut(&mut file.parsed);
+        assert!(visitor.error.is_none(), "error: {:?}", visitor.error);
 
         assert_eq!(
             stats.callsite_keys,

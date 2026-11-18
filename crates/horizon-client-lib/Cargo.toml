@@ -12,6 +12,9 @@ description = "Reusable client systems, control tool and parity probes"
 [lib]
 path = "../horizon-client/src/client_lib.rs"
 
+[build-dependencies]
+yoake-hook-ledger = { path = "../yoake-hook-ledger" }
+
 [dependencies]
 yoake-hook-macro = { path = "../yoake-hook-macro" }
 yoake-hook-rt = { path = "../yoake-hook-rt" }

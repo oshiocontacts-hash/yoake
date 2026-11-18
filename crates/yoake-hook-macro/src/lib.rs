@@ -123,14 +123,25 @@ fn expand(
             "self_ty requires method",
         ));
     }
-    let (slot_id, ledger_assert) = if let Some(test_id) = test_id {
+    let (slot_id, ledger_assert, claim) = if let Some(test_id) = test_id {
         if test_id >= 64 {
             return Err(syn::Error::new_spanned(
                 &function.sig,
                 "test_id must be less than 64",
             ));
         }
-        (quote!(::yoake_hook_rt::TEST_ID_BASE + #test_id), quote!())
+        let claim_ident = format_ident!("__YOAKE_HOOK_CLAIM_{test_id}");
+        let export_name = format!("__yoake_hook_test_slot_{test_id}");
+        let claim = quote! {
+            #[used]
+            #[unsafe(export_name = #export_name)]
+            static #claim_ident: u8 = 0;
+        };
+        (
+            quote!(::yoake_hook_rt::TEST_ID_BASE + #test_id),
+            quote!(),
+            claim,
+        )
     } else {
         let Some(slot_id) = slot_id else {
             return Err(syn::Error::new_spanned(
@@ -139,8 +150,23 @@ fn expand(
             ));
         };
         let key = key.unwrap();
-        let assert = quote!(const _: () = ::yoake_hook_rt::assert_ledger_key(#slot_id, #key););
-        (quote!(#slot_id), assert)
+        let function_name = &function.sig.ident;
+        let assert = quote! {
+            const _: () = ::yoake_hook_rt::assert_ledger_key(
+                crate::__yoake_hook_keys::KEYS,
+                #slot_id,
+                #key,
+            );
+            const _: () = ::yoake_hook_rt::assert_hook_name(#key, stringify!(#function_name));
+        };
+        let claim_ident = format_ident!("__YOAKE_HOOK_CLAIM_{slot_id}");
+        let export_name = format!("__yoake_hook_slot_{slot_id}");
+        let claim = quote! {
+            #[used]
+            #[unsafe(export_name = #export_name)]
+            static #claim_ident: u8 = 0;
+        };
+        (quote!(#slot_id), assert, claim)
     };
     let signature = &function.sig;
     if signature.asyncness.is_some()
@@ -466,11 +492,16 @@ fn expand(
             #(#cfg_attrs)*
             #[doc(hidden)]
             #[allow(dead_code, clippy::type_complexity)]
-            pub fn #register_ident #register_impl_generics (
+            pub(crate) fn #register_ident #register_impl_generics (
                 callback: #callback_type,
                 order: ::yoake_hook_rt::Order,
             ) -> Result<(), &'static str> #register_where_clause {
-                ::yoake_hook_rt::register(Self::#id_const, callback, order)
+                ::yoake_hook_rt::__register_typed(
+                    Self::#id_const,
+                    ::std::any::TypeId::of::<#callback_type>(),
+                    callback,
+                    order,
+                )
             }
         }
     } else {
@@ -502,17 +533,23 @@ fn expand(
             #(#cfg_attrs)*
             #[doc(hidden)]
             #[allow(dead_code, clippy::type_complexity)]
-            pub fn #register_ident #register_impl_generics (
+            pub(crate) fn #register_ident #register_impl_generics (
                 callback: #callback_parameter,
                 order: ::yoake_hook_rt::Order,
             ) -> Result<(), &'static str> #register_where_clause {
-                ::yoake_hook_rt::register(#id_const, callback, order)
+                ::yoake_hook_rt::__register_typed(
+                    #id_const,
+                    ::std::any::TypeId::of::<#callback_parameter>(),
+                    callback,
+                    order,
+                )
             }
         }
     };
 
     let original_body = function.block;
     function.block = syn::parse_quote!({
+        #claim
         #ledger_assert
         if let Some(__yoake_chain) = ::yoake_hook_rt::SLOTS[#slot_id].load() {
             return #prefix #call_ident #turbofish (__yoake_chain #(, #outer_arg_names)*);
@@ -843,14 +880,21 @@ mod tests {
             .unwrap()
             .to_string();
         assert!(expanded.contains("__YOAKE_HOOK_ID_simple : usize = 17usize"));
-        assert!(expanded.contains("assert_ledger_key (17usize , \"test::simple\")"));
+        let compact: String = expanded.chars().filter(|c| !c.is_whitespace()).collect();
+        assert!(
+            compact.contains("assert_ledger_key(crate::__yoake_hook_keys::KEYS,17usize,\"test::simple\","),
+            "{expanded}"
+        );
+        assert!(expanded.contains("assert_hook_name (\"test::simple\" , stringify ! (simple))"));
         assert!(expanded.contains("SLOTS [17usize]"));
         assert!(expanded.contains("pub type __YoakeHook_simple"));
-        assert!(expanded.contains("pub fn __yoake_register_simple"));
+        assert!(expanded.contains("pub (crate) fn __yoake_register_simple"));
+        assert!(expanded.contains("export_name = \"__yoake_hook_slot_17\""));
 
         let test = expand(quote!(test_id = 3), function.clone()).unwrap().to_string();
         assert!(test.contains("TEST_ID_BASE + 3usize"));
         assert!(!test.contains("assert_ledger_key"));
+        assert!(test.contains("export_name = \"__yoake_hook_test_slot_3\""));
         assert!(expand(quote!(test_id = 64), function.clone()).is_err());
         assert!(expand(quote!(test_id = 1, key = "no"), function).is_err());
     }
@@ -868,7 +912,7 @@ mod tests {
         );
         assert!(expanded.is_ok(), "{expanded:?}");
         let expanded = expanded.unwrap().to_string();
-        assert!(expanded.contains("pub fn __yoake_register_bump"));
+        assert!(expanded.contains("pub (crate) fn __yoake_register_bump"));
         let error = expand(quote!(id = 1, key = "no", self_ty = Holder<'_>), function)
             .unwrap_err();
         assert!(error.to_string().contains("requires method"), "{error}");

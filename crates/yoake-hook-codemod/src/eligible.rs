@@ -106,6 +106,30 @@ pub fn check_impl_generics(generics: &Generics) -> Result<(), &'static str> {
     Ok(())
 }
 
+pub fn check_trait_method_body_attrs(attrs: &[Attribute]) -> Result<(), &'static str> {
+    for attr in attrs {
+        let path = attr.path();
+        let allowed = path.is_ident("doc")
+            || path.is_ident("inline")
+            || path.is_ident("allow")
+            || path.is_ident("expect")
+            || path.is_ident("warn")
+            || path.is_ident("deny")
+            || path.is_ident("must_use")
+            || path.is_ident("cfg")
+            || path.is_ident("cfg_attr")
+            || path.is_ident("track_caller")
+            || path
+                .segments
+                .last()
+                .is_some_and(|seg| seg.ident == "yoake_hook");
+        if !allowed {
+            return Err("attribute may change the body");
+        }
+    }
+    Ok(())
+}
+
 pub struct TraitImplMeta {
     pub generics_check: Result<(), &'static str>,
     pub trait_self_items: BTreeSet<String>,

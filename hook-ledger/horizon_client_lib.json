@@ -1,6 +1,5 @@
 {
-  "version": 1,
-  "next_id": 126,
+  "crate": "horizon_client_lib",
   "entries": [
     {
       "id": 1,
@@ -396,10 +395,13 @@
     },
     {
       "id": 57,
-      "key": "horizon_client_lib::entities::StandStep::for_hook_bench",
+      "key": "horizon_client_lib::entities::StandStep::for_hook_bench[cfg(feature=\"yoake-hook-bench\")]",
       "sig": "3513ffea081b1d7d",
       "status": "live",
-      "kind": "fn"
+      "kind": "fn",
+      "renamed_from": [
+        "horizon_client_lib::entities::StandStep::for_hook_bench"
+      ]
     },
     {
       "id": 58,
@@ -580,333 +582,172 @@
       "id": 83,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidMembership>::fluid_in_tag",
       "sig": "d10163a4e86e569b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 84,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::is_player_class",
       "sig": "7a4cef07f54c3f0c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 85,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::velocity",
       "sig": "1dfeb84774de027c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 86,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::add_delta_movement",
       "sig": "eac164b89d525b52",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 87,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::interaction_box",
       "sig": "9ba3a37208232739",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 88,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::loaded_chunk",
       "sig": "c3e7855349108bc1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 89,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::bounding_box_min_y",
       "sig": "cb0e90960d77d004",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 90,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_x",
       "sig": "fff3f629f590e8e5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 91,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::eye_y",
       "sig": "2ffab87f4d2a0639",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 92,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_z",
       "sig": "53654c05bd7ee90f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 93,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_state",
       "sig": "bf3cad5cbd9c233a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 94,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_height",
       "sig": "447d179a23b6105f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 95,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::camera_height",
       "sig": "dba689e3baba3738",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 96,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::flow",
       "sig": "2783a8a3c07b258d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 97,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::fluid",
       "sig": "da2d05a4e21c09c3",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 98,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::sturdy_down",
       "sig": "429a9e90bca2792a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 99,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::fluid",
       "sig": "701d912da02a675c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 100,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::block",
       "sig": "8df9946cb387d523",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 101,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::blocks_fluid_flow",
       "sig": "a561e7a3b56c043b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 102,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::is_ice_class",
       "sig": "7494076198b890fa",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 103,
-      "key": "horizon_client::game::item_use::Game::start_using_item",
-      "sig": "69d431bae56defcc",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 104,
-      "key": "horizon_client::game::item_use::Game::use_duration",
-      "sig": "a6f93c99878d231c",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 105,
-      "key": "horizon_client::game::item_use::Game::mod_use",
-      "sig": "827cdf222ac21f4c",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 106,
-      "key": "horizon_client::game::item_use::Game::start_mod_use",
-      "sig": "038a1c3c10e8f049",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 107,
-      "key": "horizon_client::game::item_use::Game::tick_mod_use",
-      "sig": "7b0aa20212e7754f",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 108,
-      "key": "horizon_client::game::item_use::Game::complete_using_item",
-      "sig": "f63c6f957170469e",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 109,
-      "key": "horizon_client::game::item_use::Game::use_item_finished",
-      "sig": "6b1b9eb3d1397a55",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 110,
-      "key": "horizon_client::game::item_use::Game::use_item_ticked",
-      "sig": "5911b8b95eb89bf0",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 111,
-      "key": "horizon_client::game::item_use::Game::item_on_use_tick",
-      "sig": "4402e91765838438",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 112,
-      "key": "horizon_client::game::item_use::Game::ticks_held",
-      "sig": "6b1c07852926b9da",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 113,
-      "key": "horizon_client::game::item_use::Game::use_item_stopped",
-      "sig": "4254b64e05eb51d7",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 114,
-      "key": "horizon_client::game::item_use::Game::mod_release_using",
-      "sig": "c490f74b44149184",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 115,
-      "key": "horizon_client::game::item_use::Game::can_eat",
-      "sig": "59236730c7e59304",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 116,
-      "key": "horizon_client::game::item_use::tick_left",
-      "sig": "edf81cf1a1fe060f",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 117,
-      "key": "horizon_client::game::item_use::release_parts",
-      "sig": "870de481498e475f",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 118,
-      "key": "horizon_client::game::item_use::bow_release_power",
-      "sig": "be343cb3b797ceff",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 119,
-      "key": "horizon_client::game::item_use::ticks_left",
-      "sig": "70cf982ec0c9504f",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 120,
-      "key": "horizon_client::game::item_use::held",
-      "sig": "5ca0813e852ac070",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 121,
-      "key": "horizon_client::game::item_use::duration_leaving",
-      "sig": "50176e2a84bf52a6",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 122,
-      "key": "horizon_client::game::item_use::start_of",
-      "sig": "ddd81a236a5819c9",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 123,
-      "key": "horizon_client::game::item_use::consumes_at_once",
-      "sig": "9248d4e6b3ff7b79",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 124,
-      "key": "horizon_client::game::item_use::count_down",
-      "sig": "1b9defaf4d581660",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 125,
-      "key": "horizon_client::game::item_use::use_pose",
-      "sig": "3d2390d3449dbbb8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     }
   ],
   "excluded": [
     {
       "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::block_position",
-      "reason": "uses trait Self:: item",
+      "reason": "self type has no crate-level path",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::block_state",
-      "reason": "uses trait Self:: item",
+      "reason": "self type has no crate-level path",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::in_block_state",
-      "reason": "uses trait Self:: item",
+      "reason": "self type has no crate-level path",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::is_fall_flying",
-      "reason": "uses trait Self:: item",
+      "reason": "self type has no crate-level path",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::is_spectator",
-      "reason": "uses trait Self:: item",
+      "reason": "self type has no crate-level path",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::set_last_climbable_position",
-      "reason": "destructuring argument",
+      "reason": "self type has no crate-level path",
       "kind": "fn"
     },
     {
@@ -925,14 +766,126 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::add_delta_movement",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::is_player_class",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::velocity",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::block",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::blocks_fluid_flow",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::fluid",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::is_face_sturdy",
-      "reason": "destructuring argument",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::is_ice_class",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::fluid",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::sturdy_down",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_x",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_z",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::bounding_box_min_y",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::camera_height",
+      "reason": "self type has no crate-level path",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::chunk_sections",
-      "reason": "borrowed return type",
+      "reason": "self type has no crate-level path",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::eye_y",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::flow",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_height",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_state",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::interaction_box",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::loaded_chunk",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidMembership>::fluid_in_tag",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::hook_bench::noop_settle[cfg(all(feature=\"yoake-hook-bench\",not(feature=\"yoake-hook-baseline\")))]",
+      "reason": "benchmark helper",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::entities::hook_bench::register_noop_tick_settle[cfg(all(feature=\"yoake-hook-bench\",not(feature=\"yoake-hook-baseline\")))]",
+      "reason": "benchmark helper",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::entities::merge_with_neighbours",

@@ -3,7 +3,9 @@ use std::cmp::Reverse;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::{Arc, Mutex};
 
-include!(concat!(env!("OUT_DIR"), "/ledger.rs"));
+pub const SLOT_CAPACITY: usize = 1 << 16;
+pub const TEST_SLOTS: usize = 64;
+pub const TEST_ID_BASE: usize = SLOT_CAPACITY - TEST_SLOTS;
 
 const MAX_ENTRIES_PER_SLOT: usize = 64;
 
@@ -45,7 +47,7 @@ impl Slot {
             None
         } else {
             // SAFETY: `pointer` is published with Release from `Box::into_raw`
-            // in `register`, and old `Chain` snapshots are intentionally leaked
+            // in `__register_typed`, and old `Chain` snapshots are intentionally leaked
             // for the process lifetime so lock-free readers never observe freed memory.
             Some(Snapshot(unsafe { &(*pointer).entries }))
         }
@@ -53,34 +55,93 @@ impl Slot {
 }
 
 const EMPTY: Slot = Slot::new();
-pub static SLOTS: [Slot; MAX_SLOTS + TEST_SLOTS] = [EMPTY; MAX_SLOTS + TEST_SLOTS];
+pub static SLOTS: [Slot; SLOT_CAPACITY] = [EMPTY; SLOT_CAPACITY];
 
-pub const fn assert_ledger_key(id: usize, key: &str) {
-    if id >= MAX_SLOTS {
-        panic!("hook id is outside the engine ledger");
-    }
-    let expected = LEDGER_KEYS[id].as_bytes();
-    if expected.is_empty() {
-        panic!("hook id is unused or tombstoned in the ledger");
-    }
-    let actual = key.as_bytes();
-    if expected.len() != actual.len() {
-        panic!("hook id/key pair does not match the ledger");
-    }
+const fn regions_equal(
+    left: &[u8],
+    left_start: usize,
+    right: &[u8],
+    right_start: usize,
+    length: usize,
+) -> bool {
     let mut index = 0;
-    while index < expected.len() {
-        if expected[index] != actual[index] {
-            panic!("hook id/key pair does not match the ledger");
+    while index < length {
+        if left[left_start + index] != right[right_start + index] {
+            return false;
         }
         index += 1;
+    }
+    true
+}
+
+pub const fn assert_ledger_key(keys: &[(usize, &str)], id: usize, key: &str) {
+    let mut index = 0;
+    while index < keys.len() {
+        if keys[index].0 == id {
+            let expected = keys[index].1.as_bytes();
+            let actual = key.as_bytes();
+            if expected.len() != actual.len()
+                || !regions_equal(expected, 0, actual, 0, expected.len())
+            {
+                panic!("hook id/key pair does not match the crate ledger");
+            }
+            return;
+        }
+        index += 1;
+    }
+    panic!("hook id/key pair is absent from the crate ledger");
+}
+
+pub const fn assert_hook_name(key: &str, fn_name: &str) {
+    let key = key.as_bytes();
+    let mut key_end = key.len();
+    let mut index = 0;
+    while index < key.len() {
+        if key[index] == b'[' {
+            key_end = index;
+            break;
+        }
+        index += 1;
+    }
+    let mut key_start = 0;
+    index = 0;
+    while index + 1 < key_end {
+        if key[index] == b':' && key[index + 1] == b':' {
+            key_start = index + 2;
+            index += 2;
+        } else {
+            index += 1;
+        }
+    }
+    let key_length = key_end - key_start;
+    let name = fn_name.as_bytes();
+    let prefix = b"__yoake_trait_";
+    let mut helper = name.len() > prefix.len();
+    index = 0;
+    while helper && index < prefix.len() {
+        helper = name[index] == prefix[index];
+        index += 1;
+    }
+    let name_start = if helper {
+        if name.len() <= key_length || name[name.len() - key_length - 1] != b'_' {
+            panic!("hook key does not match the trait helper method");
+        }
+        name.len() - key_length
+    } else {
+        if name.len() != key_length {
+            panic!("hook key does not match the function name");
+        }
+        0
+    };
+    if !regions_equal(name, name_start, key, key_start, key_length) {
+        panic!("hook key does not match the function name");
     }
 }
 
 static REGISTER_LOCK: Mutex<()> = Mutex::new(());
 
-#[cfg(debug_assertions)]
-static SLOT_TYPES: [Mutex<Option<std::any::TypeId>>; MAX_SLOTS + TEST_SLOTS] =
-    [const { Mutex::new(None) }; MAX_SLOTS + TEST_SLOTS];
+static SLOT_TYPES: [Mutex<Option<std::any::TypeId>>; SLOT_CAPACITY] =
+    [const { Mutex::new(None) }; SLOT_CAPACITY];
 
 #[derive(Clone, Copy)]
 pub struct Snapshot(&'static [Entry]);
@@ -157,26 +218,30 @@ macro_rules! callsite {
     }};
 }
 
-pub fn register<Callback: Copy + Send + Sync + 'static>(
+#[doc(hidden)]
+pub fn __register_typed<Callback: Copy + Send + Sync + 'static>(
     id: usize,
+    expected_type: std::any::TypeId,
     callback: Callback,
     order: Order,
 ) -> Result<(), &'static str> {
-    if id >= MAX_SLOTS + TEST_SLOTS {
-        return Err("hook slot id exceeds MAX_SLOTS + TEST_SLOTS");
+    if id >= SLOT_CAPACITY {
+        return Err("hook slot id exceeds SLOT_CAPACITY");
     }
     if std::mem::size_of::<Callback>() == 0 {
         return Err("Callback must be a fn(...) pointer type, not a zero-sized fn item or closure");
     }
+    let callback_type = std::any::TypeId::of::<Callback>();
+    if expected_type != callback_type {
+        return Err("expected callback TypeId does not match the callback");
+    }
     let _guard = REGISTER_LOCK.lock().unwrap_or_else(|error| error.into_inner());
-    #[cfg(debug_assertions)]
     {
-        let callback_type = std::any::TypeId::of::<Callback>();
         let mut recorded = SLOT_TYPES[id].lock().unwrap_or_else(|error| error.into_inner());
-        if recorded.is_some_and(|existing| existing != callback_type) {
+        if recorded.is_some_and(|existing| existing != expected_type) {
             return Err("hook slot already has a different callback type");
         }
-        *recorded = Some(callback_type);
+        *recorded = Some(expected_type);
     }
     let slot = &SLOTS[id];
     let mut entries = slot.load().map(|snapshot| snapshot.0.to_vec()).unwrap_or_default();

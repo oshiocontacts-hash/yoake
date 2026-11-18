@@ -2501,7 +2501,7 @@ struct WorldIcon {
     last_attempt: Option<Instant>,
 }
 
-struct Game<'a> {
+pub(crate) struct Game<'a> {
     /// Shared with an integrated server; `collision` and `motion` borrow from it.
     res: Arc<Resources>,
     rest_loader: Option<WorldRestLoader>,

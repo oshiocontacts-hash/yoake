@@ -1,4 +1,4 @@
-use yoake_hook_rt::{CallsiteHook, Order, TEST_ID_BASE, register};
+use yoake_hook_rt::{CallsiteHook, Order, TEST_ID_BASE, __register_typed};
 
 fn callee(left: u32, right: u32) -> u32 {
     left * 10 + right
@@ -17,16 +17,17 @@ fn one_callsite_wraps_replaces_and_skips_without_affecting_the_other_call() {
     assert_eq!(call_twice(1), 25);
 
     let wrap: Hook = |original, args| original(args) + 100;
-    register(SLOT, wrap, Order::default()).unwrap();
+    __register_typed(SLOT, std::any::TypeId::of::<Hook>(), wrap, Order::default()).unwrap();
     assert_eq!(call_twice(1), 125);
 
     let replace: Hook = |original, _args| original((5, 6));
-    register(SLOT, replace, Order::default()).unwrap();
+    __register_typed(SLOT, std::any::TypeId::of::<Hook>(), replace, Order::default()).unwrap();
     assert_eq!(call_twice(1), 169);
 
     let skip: Hook = |_original, _args| 999;
-    register(
+    __register_typed(
         SLOT,
+        std::any::TypeId::of::<Hook>(),
         skip,
         Order {
             priority: 10,

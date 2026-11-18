@@ -6,15 +6,19 @@ fingerprint, identity, or ABI checks. Do not connect arbitrary DLLs to these saf
 
 ## Mechanics
 
-`#[yoake_hook(id = N, key = "crate::module::function")]` instruments a function
-against a single global slot array. `build.rs` validates `hook-ids.lock.json` and generates
-`MAX_SLOTS = next_id`, `TEST_ID_BASE = next_id`, `TEST_SLOTS = 64`, and `LEDGER_KEYS`.
-`SLOTS` has `MAX_SLOTS + TEST_SLOTS` entries. The macro emits a compile-time
-`assert_ledger_key(N, key)` check plus `pub const __YOAKE_HOOK_ID_<function>: usize = N;`
-(inside the `impl` for `#[yoake_hook(method, id = N, key = "...")]`, including associated
-functions). Tests use `#[yoake_hook(test_id = K)]`, where `K < 64`, which selects
-`TEST_ID_BASE + K` without a ledger key. No per-function static slot is emitted. Each hook has a
-typed `__yoake_register_<function>(callback, order)` function; free functions also expose
+`#[yoake_hook(id = N, key = "crate::module::function")]` instruments a function against a global
+zero-initialized `SLOTS` array with `SLOT_CAPACITY = 1 << 16` entries. Test IDs occupy the top 64
+slots starting at `TEST_ID_BASE = SLOT_CAPACITY - 64`. The runtime does not read the ledger. Each
+instrumented crate's build script emits `__yoake_hook_keys::KEYS` from only its own shard in the
+workspace `hook-ledger/` directory, so another crate's shard does not trigger a rebuild.
+
+The macro checks `assert_ledger_key(crate::__yoake_hook_keys::KEYS, N, key)` and verifies that the
+key's final segment matches the function (or the original trait method for conversion helpers).
+It also emits `pub const __YOAKE_HOOK_ID_<function>: usize = N` and a `#[used]` static with export
+name `__yoake_hook_slot_<id>` (`__yoake_hook_test_slot_<k>` for tests). Reusing an ID therefore
+fails compilation in one crate or linking across crates. Tests use `#[yoake_hook(test_id = K)]`,
+where `K < 64`, without a key assertion. Each hook has a crate-visible typed
+`__yoake_register_<function>(callback, order)` function; free functions also expose
 `__YoakeHook_<function>` when its generic parameters can be represented in a public alias.
 
 Callbacks are **around** hooks. On entry, the wrapper performs one `Acquire` load of
@@ -45,7 +49,7 @@ fn main() {
 ```
 
 Callbacks are `fn(...)` pointers, not capturing closures. Use the generated typed registration
-function rather than spelling the callback type or calling `register` directly. Borrowed inputs use
+function; public registration by slot number is not available. Borrowed inputs use
 higher-ranked function pointers, never a `'static` data requirement. For example, a
 method `fn f(&mut self, value: &str) -> usize` uses
 `fn(&mut dyn FnMut(&mut Self, &str) -> usize, &mut Self, &str) -> usize`
@@ -58,8 +62,8 @@ binds each of its lifetimes with `for<...>`, so the erased callback pointer is `
 
 One slot is shared across monomorphizations of `'static`-bounded generic functions and
 const generics. Each entry stores its exact callback pointer using `Any`; `Snapshot::next`
-skips entries whose `TypeId` does not match the active instantiation. Debug builds additionally
-record one `TypeId` per slot and reject a registration with a different type. Generic type
+skips entries whose `TypeId` does not match the active instantiation. Every build records one
+expected `TypeId` per slot and rejects a registration with a different type. Generic type
 parameters must already explicitly have `'static` bounds. The macro never adds bounds to
 restrict existing vanilla callers.
 
@@ -107,8 +111,8 @@ futures needs a different lifetime and phase contract, not casts or relaxed chec
 ## Instrumentation and reproduction
 
 Every production function in `horizon-client/src/entities.rs` has a numbered hook
-(`id = 1..=71`; slot `0` stays unused) whose id/key pair is checked against
-`crates/yoake-hook-rt/hook-ids.lock.json`, or an explicit exclusion. Test-only helper
+(`id = 1..=71`; slot `0` stays unused) whose id/key pair is checked against the crate's shard in
+`hook-ledger/`, or an explicit exclusion. Test-only helper
 functions are left alone. `yoake-hook-baseline`
 disables those attributes; `yoake-hook-bench` exposes the small `StandStep` fixture
 constructor and enables the example. Neither feature is a player-facing option. Normal

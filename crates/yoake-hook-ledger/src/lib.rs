@@ -4,10 +4,35 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+pub const TEST_ID_BASE: u32 = (1 << 16) - 64;
+
+pub mod build;
+mod set;
+
+pub use set::{LedgerSet, check_append_only};
+
+#[derive(Clone, Debug)]
 pub struct Ledger {
+    pub(crate) version: u32,
+    pub(crate) next_id: u32,
+    pub(crate) crate_name: Option<String>,
+    pub(crate) entries: Vec<Entry>,
+    pub(crate) excluded: Vec<Excluded>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct LegacyJson {
     version: u32,
     next_id: u32,
+    entries: Vec<Entry>,
+    #[serde(default)]
+    excluded: Vec<Excluded>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ShardJson {
+    #[serde(rename = "crate")]
+    crate_name: String,
     entries: Vec<Entry>,
     #[serde(default)]
     excluded: Vec<Excluded>,
@@ -47,6 +72,8 @@ pub struct Excluded {
     pub reason: String,
     #[serde(default)]
     pub kind: Kind,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub manual: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -100,6 +127,17 @@ impl Ledger {
         Ledger {
             version: 1,
             next_id: 1,
+            crate_name: None,
+            entries: Vec::new(),
+            excluded: Vec::new(),
+        }
+    }
+
+    pub(crate) fn new_shard(crate_name: &str, next_id: u32) -> Ledger {
+        Ledger {
+            version: 2,
+            next_id,
+            crate_name: Some(crate_name.to_owned()),
             entries: Vec::new(),
             excluded: Vec::new(),
         }
@@ -115,7 +153,33 @@ impl Ledger {
     }
 
     pub fn from_json(text: &str) -> Result<Ledger, LedgerError> {
-        let ledger: Ledger = serde_json::from_str(text)?;
+        if let Ok(shard) = serde_json::from_str::<ShardJson>(text) {
+            let next_id = shard
+                .entries
+                .iter()
+                .map(|entry| entry.id)
+                .max()
+                .unwrap_or(0)
+                .checked_add(1)
+                .ok_or_else(|| LedgerError::Invalid("next_id overflow".into()))?;
+            let ledger = Ledger {
+                version: 2,
+                next_id,
+                crate_name: Some(shard.crate_name),
+                entries: shard.entries,
+                excluded: shard.excluded,
+            };
+            ledger.validate()?;
+            return Ok(ledger);
+        }
+        let legacy: LegacyJson = serde_json::from_str(text)?;
+        let ledger = Ledger {
+            version: legacy.version,
+            next_id: legacy.next_id,
+            crate_name: None,
+            entries: legacy.entries,
+            excluded: legacy.excluded,
+        };
         ledger.validate()?;
         Ok(ledger)
     }
@@ -124,14 +188,27 @@ impl Ledger {
         let mut canonical = self.clone();
         canonical.entries.sort_by_key(|entry| entry.id);
         canonical.excluded.sort_by(|left, right| left.key.cmp(&right.key));
-        let mut json = serde_json::to_string_pretty(&canonical)
-            .expect("serializing a hook ledger cannot fail");
+        let result = if let Some(crate_name) = canonical.crate_name {
+            serde_json::to_string_pretty(&ShardJson {
+                crate_name,
+                entries: canonical.entries,
+                excluded: canonical.excluded,
+            })
+        } else {
+            serde_json::to_string_pretty(&LegacyJson {
+                version: canonical.version,
+                next_id: canonical.next_id,
+                entries: canonical.entries,
+                excluded: canonical.excluded,
+            })
+        };
+        let mut json = result.expect("serializing a hook ledger cannot fail");
         json.push('\n');
         json
     }
 
     pub fn validate(&self) -> Result<(), LedgerError> {
-        if self.version != 1 {
+        if !matches!(self.version, 1 | 2) {
             return Err(LedgerError::Invalid(format!(
                 "unsupported version {}",
                 self.version
@@ -187,6 +264,11 @@ impl Ledger {
                 sig_changed,
             };
         }
+        assert!(
+            !self.excluded.iter().any(|entry| entry.key == key && entry.manual),
+            "manual exclusion cannot be overwritten: {key}"
+        );
+        assert!(self.next_id < TEST_ID_BASE, "hook id space exhausted");
         let id = self.next_id;
         self.next_id = self.next_id.checked_add(1).expect("hook id space exhausted");
         self.entries.push(Entry {
@@ -241,19 +323,38 @@ impl Ledger {
     }
 
     pub fn exclude_kind(&mut self, kind: Kind, key: &str, reason: &str) -> Result<(), LedgerError> {
+        self.exclude_with_manual(kind, key, reason, false)
+    }
+
+    pub fn exclude_manual(&mut self, kind: Kind, key: &str, reason: &str) -> Result<(), LedgerError> {
+        self.exclude_with_manual(kind, key, reason, true)
+    }
+
+    fn exclude_with_manual(
+        &mut self,
+        kind: Kind,
+        key: &str,
+        reason: &str,
+        manual: bool,
+    ) -> Result<(), LedgerError> {
         if self.live_id(key).is_some() {
             return Err(LedgerError::Invalid(format!(
                 "cannot exclude live key {key:?}"
             )));
         }
         if let Some(entry) = self.excluded.iter_mut().find(|entry| entry.key == key) {
+            if entry.manual && !manual {
+                return Ok(());
+            }
             entry.kind = kind;
             entry.reason = reason.to_owned();
+            entry.manual = manual;
         } else {
             self.excluded.push(Excluded {
                 key: key.to_owned(),
                 reason: reason.to_owned(),
                 kind,
+                manual,
             });
         }
         Ok(())
@@ -267,6 +368,14 @@ impl Ledger {
         self.entries
             .iter()
             .find(|entry| entry.status == Status::Live && entry.key == key)
+            .map(|entry| entry.id)
+    }
+
+    pub fn live_id_including_renames(&self, key: &str) -> Option<u32> {
+        self.live()
+            .find(|entry| {
+                entry.key == key || entry.renamed_from.iter().any(|old| old == key)
+            })
             .map(|entry| entry.id)
     }
 
@@ -301,3 +410,6 @@ impl Default for Ledger {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod set_tests;

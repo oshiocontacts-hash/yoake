@@ -5,6 +5,8 @@
 mod yoake_icon;
 
 fn main() {
+    // The hook-ID key table this crate's `#[yoake_hook]` attributes are checked against (hook-ledger/).
+    yoake_hook_ledger::build::emit_crate_table("horizon_client");
     println!("cargo:rerun-if-env-changed=YOAKE_FEED_URL");
     println!("cargo:rerun-if-env-changed=YOAKE_PORTAL_URL");
     let root =

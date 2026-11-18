@@ -165,6 +165,7 @@ path = "tests/mod_api_hooks.rs"
 
 [build-dependencies]
 horizon-mod-api-gen = { path = "../horizon-mod-api-gen" }
+yoake-hook-ledger = { path = "../yoake-hook-ledger" }
 
 [lints]
 workspace = true

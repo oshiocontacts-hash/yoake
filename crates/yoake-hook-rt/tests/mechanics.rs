@@ -1,7 +1,18 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use yoake_hook_macro::yoake_hook;
-use yoake_hook_rt::{MAX_SLOTS, Order, SLOTS, TEST_ID_BASE, TEST_SLOTS, register};
+use yoake_hook_rt::{__register_typed, Order, SLOTS, SLOT_CAPACITY, TEST_ID_BASE};
+
+const _: () = yoake_hook_rt::assert_hook_name("crate::m::W<u32>::get", "get");
+const _: () = yoake_hook_rt::assert_hook_name("crate::m::open[cfg(unix)]", "open");
+const _: () = yoake_hook_rt::assert_hook_name(
+    "crate::m::open[cfg(feature=\"a::b\")]",
+    "open",
+);
+const _: () = yoake_hook_rt::assert_hook_name(
+    "horizon_client::entities::<ArmorStand as EntityRules>::tick",
+    "__yoake_trait_entity_rules_tick",
+);
 
 #[test]
 fn zero_calls_and_early_return_skip_the_original_body() {
@@ -244,16 +255,14 @@ fn generic_slots_use_typed_registration_and_reject_mismatches() {
         Order::default(),
     )
     .unwrap();
-    #[cfg(debug_assertions)]
-    {
-        type StringHook = fn(&mut dyn FnMut(String) -> String, String) -> String;
-        let mismatched = register::<StringHook>(
-            __YOAKE_HOOK_ID_identity,
-            |original, value| original(value),
-            Order::default(),
-        );
-        assert!(mismatched.is_err());
-    }
+    type StringHook = fn(&mut dyn FnMut(String) -> String, String) -> String;
+    let mismatched = __register_typed::<StringHook>(
+        __YOAKE_HOOK_ID_identity,
+        std::any::TypeId::of::<StringHook>(),
+        |original, value| original(value),
+        Order::default(),
+    );
+    assert!(mismatched.is_err());
     assert_eq!(identity(1_u32), 11);
     assert_eq!(identity(2_u64), 2);
     assert_eq!(identity(String::from("typed")), "typed");
@@ -272,13 +281,23 @@ fn concurrent_publication_keeps_old_snapshots_alive_and_bounds_registrations() {
     const SLOT_ID: usize = TEST_ID_BASE + 14;
     type Callback = fn(&mut dyn FnMut());
     let noop: Callback = |original| original();
-    register(SLOT_ID, noop, Order::default()).unwrap();
+    __register_typed(
+        SLOT_ID,
+        std::any::TypeId::of::<Callback>(),
+        noop,
+        Order::default(),
+    ).unwrap();
     let old = SLOTS[SLOT_ID].load().unwrap();
     std::thread::scope(|scope| {
         for _index in 0..7 {
             scope.spawn(|| {
                 for _registration in 0..9 {
-                    register(SLOT_ID, noop, Order::default()).unwrap();
+                    __register_typed(
+        SLOT_ID,
+        std::any::TypeId::of::<Callback>(),
+        noop,
+        Order::default(),
+    ).unwrap();
                 }
             });
         }
@@ -298,11 +317,28 @@ fn concurrent_publication_keeps_old_snapshots_alive_and_bounds_registrations() {
         current = next;
     }
     assert_eq!(current_count, 64);
-    assert!(register(SLOT_ID, noop, Order::default()).is_err());
-    assert!(register(MAX_SLOTS + TEST_SLOTS, noop, Order::default()).is_err());
+    assert!(__register_typed(
+        SLOT_ID,
+        std::any::TypeId::of::<Callback>(),
+        noop,
+        Order::default(),
+    ).is_err());
+    assert!(__register_typed(
+        SLOT_CAPACITY,
+        std::any::TypeId::of::<Callback>(),
+        noop,
+        Order::default(),
+    )
+    .is_err());
 
     fn zst_fn(_: &mut dyn FnMut()) {}
-    assert!(register(TEST_ID_BASE + 15, zst_fn, Order::default()).is_err());
+    assert!(__register_typed(
+        TEST_ID_BASE + 15,
+        std::any::TypeId::of::<fn(&mut dyn FnMut())>(),
+        zst_fn,
+        Order::default(),
+    )
+    .is_err());
 }
 
 struct Holder<'a>(&'a mut u32);

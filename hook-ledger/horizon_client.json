@@ -1,0 +1,167 @@
+{
+  "crate": "horizon_client",
+  "entries": [
+    {
+      "id": 103,
+      "key": "horizon_client::game::item_use::Game::start_using_item",
+      "sig": "69d431bae56defcc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 104,
+      "key": "horizon_client::game::item_use::Game::use_duration",
+      "sig": "a6f93c99878d231c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 105,
+      "key": "horizon_client::game::item_use::Game::mod_use",
+      "sig": "827cdf222ac21f4c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 106,
+      "key": "horizon_client::game::item_use::Game::start_mod_use",
+      "sig": "038a1c3c10e8f049",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 107,
+      "key": "horizon_client::game::item_use::Game::tick_mod_use",
+      "sig": "7b0aa20212e7754f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 108,
+      "key": "horizon_client::game::item_use::Game::complete_using_item",
+      "sig": "f63c6f957170469e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 109,
+      "key": "horizon_client::game::item_use::Game::use_item_finished",
+      "sig": "6b1b9eb3d1397a55",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 110,
+      "key": "horizon_client::game::item_use::Game::use_item_ticked",
+      "sig": "5911b8b95eb89bf0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 111,
+      "key": "horizon_client::game::item_use::Game::item_on_use_tick",
+      "sig": "4402e91765838438",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 112,
+      "key": "horizon_client::game::item_use::Game::ticks_held",
+      "sig": "6b1c07852926b9da",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 113,
+      "key": "horizon_client::game::item_use::Game::use_item_stopped",
+      "sig": "4254b64e05eb51d7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 114,
+      "key": "horizon_client::game::item_use::Game::mod_release_using",
+      "sig": "c490f74b44149184",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 115,
+      "key": "horizon_client::game::item_use::Game::can_eat",
+      "sig": "59236730c7e59304",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 116,
+      "key": "horizon_client::game::item_use::tick_left",
+      "sig": "edf81cf1a1fe060f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 117,
+      "key": "horizon_client::game::item_use::release_parts",
+      "sig": "870de481498e475f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 118,
+      "key": "horizon_client::game::item_use::bow_release_power",
+      "sig": "be343cb3b797ceff",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 119,
+      "key": "horizon_client::game::item_use::ticks_left",
+      "sig": "70cf982ec0c9504f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 120,
+      "key": "horizon_client::game::item_use::held",
+      "sig": "5ca0813e852ac070",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 121,
+      "key": "horizon_client::game::item_use::duration_leaving",
+      "sig": "50176e2a84bf52a6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 122,
+      "key": "horizon_client::game::item_use::start_of",
+      "sig": "ddd81a236a5819c9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 123,
+      "key": "horizon_client::game::item_use::consumes_at_once",
+      "sig": "9248d4e6b3ff7b79",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 124,
+      "key": "horizon_client::game::item_use::count_down",
+      "sig": "1b9defaf4d581660",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 125,
+      "key": "horizon_client::game::item_use::use_pose",
+      "sig": "3d2390d3449dbbb8",
+      "status": "live",
+      "kind": "fn"
+    }
+  ],
+  "excluded": []
+}

@@ -6,6 +6,10 @@ MSVC stable 1.100.0, `-j 4`). Ledger, runtime and macro by Kimi Code (k3.1-pro);
 
 ## Summary
 
+This summary describes round 1. Round 2 (next section) replaced the single ledger file with
+`hook-ledger/` shards, the ledger-derived MAX_SLOTS with a fixed 65536-slot BSS array and per-crate key
+tables, and the public `register` with typed `pub(crate)` registration.
+
 - **Ledger** `crates/yoake-hook-rt/hook-ids.lock.json`, read through the new crate `yoake-hook-ledger`:
   append-only ids, `renamed_from` entries keep ids, tombstones are never reused, `kind` = `fn` |
   `callsite` | `store` (only `fn` is used now), deterministic JSON.
@@ -28,7 +32,52 @@ MSVC stable 1.100.0, `-j 4`). Ledger, runtime and macro by Kimi Code (k3.1-pro);
   The test shows the empty slot unchanged, wrap, replace args and skip, and the other call to the same
   callee untouched.
 
-## Run on two modules
+## Round 2 (Fable review fixes, 2026-11-18)
+
+The round-2 spec is summarised in the table. Kimi: ledger, runtime, macro. agy: codemod.
+Claude: migration, crate wiring, CI, fixes, runs.
+
+| Item | Fix | Proof |
+| --- | --- | --- |
+| **B1** two fns could claim one (id, key) | Every hook emits `#[used] #[unsafe(export_name = "__yoake_hook_slot_<id>")] static`; the macro also checks that the key's last segment is the fn name (`__yoake_trait_<trait>_<method>` helpers check `<method>`). | A probe with two fns on one id: `error: symbol __yoake_hook_test_slot_50 is already defined` (same crate; across crates the same symbol fails at link time). New CI workflow `.github/workflows/yoake-hooks.yml` runs `codemod check`; making it a *required* check is a repository setting for the owner. |
+| **SF1** append-only not enforced | `check_append_only(base, current)` and `codemod check-history --base <dir> --current <dir>`: each base id exists, key unchanged or in `renamed_from`, tombstones stay, next_id never decreases, ids never change crate. CI compares against the PR base (or HEAD~1). | Ledger tests; real run against c0a3a2560's ledger: `check-history: ok`; the same ledger with one key edited: `history error: id 2 changed key without renamed_from`. |
+| **SF2** `--tombstone-missing` too broad | Removed. `--tombstone KEY` (repeatable); a missing live key is an error naming the key and suggesting `--rename` or `--tombstone`. `live_id_including_renames`. | Codemod tests; the real run had to name all 20 tombstones and one rename explicitly. |
+| **SF3** manual exclusions overwritten | A written `#[yoake_hook(skip = "...")]` stays as written and is recorded as `"manual": true`; manual ledger items are never overwritten. | Codemod test; real: the two benchmark helpers in `entities::hook_bench` are `"manual": true` after apply. |
+| **SF4** key collisions | Always-on disambiguators: impl self-type generic args (`W<u32>`), trait generic args, `[cfg(...)]` from the fn, impl or enclosing mods; then the full trait path; then an error. | Tests for cfg(unix)/cfg(windows) twins and `W<u32>`/`W<u64>`; real: `StandStep::for_hook_bench` became `...for_hook_bench[cfg(feature="yoake-hook-bench")]` through `--rename`, id 57 kept. |
+| **SF5** illegal trait conversions | Convert only for struct/enum/union declared in this crate; exclude `&Foo`, tuples, foreign types, and methods with body-changing attributes. | Codemod tests (`&Foo`, tuple, attribute). |
+| **SF6** public `register` | `#[doc(hidden)] __register_typed` with the expected TypeId supplied by the hook side and checked in every build; typed `pub(crate) fn __yoake_register_<fn>`; no registration by number. Hookable needs a crate-level path to the self type. | Runtime tests. Real: the 20 `EntityFluidWorld` methods (private struct in `entities::fluids`) are tombstoned and excluded (`self type has no crate-level path`). `Game` is private in `game`; **engine change: `struct Game<'a>` -> `pub(crate) struct Game<'a>` (crates/horizon-client/src/game.rs:2504)** so the 23 `item_use` hooks keep a crate-level path. The release bench example lives outside the crate, so it now registers through `entities::hook_bench::register_noop_tick_settle()` (behind the `yoake-hook-bench` feature). |
+| **SF7** a ledger change rebuilt everything | `hook-ledger/meta.json` (global next_id) plus one shard per crate (`horizon_client_lib.json`, `horizon_client.json`). yoake-hook-rt no longer reads the ledger: `SLOT_CAPACITY = 65536` zeroed BSS slots, test ids at the top. Each instrumented crate's build.rs calls `yoake_hook_ledger::build::emit_crate_table(crate)`, which watches only its own shard and writes `crate::__yoake_hook_keys::KEYS`. Adding a fn to one crate rebuilds only that crate. | horizon-client-lib got a build.rs, horizon-client's build.rs one call; both crate roots include `__yoake_hook_keys`. |
+| **N1** non-atomic apply | Writes `<file>.yoake-tmp`, then renames all, ledger last; on error nothing is renamed and temps are removed. Claude fixed one bug: rustfmt ran on the temp file and resolved `mod fluids;` next to the `.yoake-tmp` name; rustfmt now formats through stdin. | Codemod test; real apply leaves no `.yoake-tmp`. |
+| **N2** test code by name | Test code is detected by `#[cfg(test)]` only; `test_id` in scanned engine modules is a `check` error. | Codemod tests. |
+
+After this round:
+
+| | entities (`horizon_client_lib`) | game::item_use (`horizon_client`) |
+| --- | --- | --- |
+| hooked (live) | 82 (7 converted trait methods) | 23 |
+| tombstoned | 20 (EntityFluidWorld) | 0 |
+| excluded | 34: no crate-level path 28, `impl Trait` argument 2, destructuring 1, nested callable borrow 1, manual (benchmark helper) 2 | 0 |
+
+meta: next_id 126. Ids 1..=71 from S2 still name the same functions except the 20 tombstones and the
+one cfg rename.
+
+Tests after the round: ledger 20, macro 10, rt 13 (mechanics 12 + callsite 1), codemod 28 (11 unit +
+17 integration), all passed. `apply --rustfmt` then `check` clean for both modules, files rustfmt-clean.
+`cargo test -p horizon-client --lib`: 1193 passed, 0 failed, 40 ignored (same as before).
+`cargo test -p horizon-client-lib --lib`: 1619 passed, 0 failed, 48 ignored (same as before).
+
+Release bench after round 2 (same example, two runs each): empty slots `tick_settle` 9.3-9.6 ns,
+one no-op around hook 25.5-26.3 ns; the unhooked leaf `move_applies` was 10.0-10.8 ns, against 6.2 ns in
+S2, so the laptop ran about 1.6x slower than during S2 (thermal/power state). These numbers are not
+comparable with MX3S2 and do not show a regression or an improvement; a same-session A/B against
+yoake2/s2 is needed before drawing conclusions about the typed-registration dispatch.
+
+Still open after round 2: callsite and store entries are not written (see MX3CS on yoake2/callsite);
+EntityFluidWorld could become `pub(crate)` if its fluid hooks are wanted; the required-check setting.
+
+## Round 1 results
+
+### Run on two modules
 
 | | entities (crate `horizon_client_lib`, incl. `entities::fluids`) | game::item_use (crate `horizon_client`) |
 | --- | --- | --- |

@@ -1928,7 +1928,7 @@ impl StandStep {
         yoake_hook(
             method,
             id = 57,
-            key = "horizon_client_lib::entities::StandStep::for_hook_bench"
+            key = "horizon_client_lib::entities::StandStep::for_hook_bench[cfg(feature=\"yoake-hook-bench\")]"
         )
     )]
     pub fn for_hook_bench(falling: bool, friction: f32) -> Self {
@@ -4096,3 +4096,28 @@ mod item_destroyed_tests {
     }
 }
 crate::impl_joined!(ItemEntity, ExperienceOrb, ArmorStand);
+
+/// Registration for the release hook benchmark (`examples/yoake_hook_bench.rs`). The typed
+/// registration functions are `pub(crate)`, so the example, outside the crate, goes through this.
+#[cfg(all(feature = "yoake-hook-bench", not(feature = "yoake-hook-baseline")))]
+pub mod hook_bench {
+    use super::{ArmorStand, StandMedium, StandStep};
+    use yoake_hook_macro::yoake_hook;
+
+    #[yoake_hook(skip = "benchmark helper")]
+    fn noop_settle(
+        original: &mut dyn FnMut(&mut ArmorStand, StandMedium, StandStep),
+        stand: &mut ArmorStand,
+        medium: StandMedium,
+        step: StandStep,
+    ) {
+        original(stand, medium, step);
+    }
+
+    /// Registers one around hook on `ArmorStand::tick_settle` that only calls the original.
+    #[yoake_hook(skip = "benchmark helper")]
+    pub fn register_noop_tick_settle() {
+        ArmorStand::__yoake_register_tick_settle(noop_settle, yoake_hook_rt::Order::default())
+            .unwrap();
+    }
+}

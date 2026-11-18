@@ -3,24 +3,6 @@ use horizon_core::geometry::Vec3;
 use std::hint::black_box;
 use std::time::Instant;
 
-#[cfg(not(feature = "yoake-hook-baseline"))]
-type SettleCallback = fn(
-    &mut dyn FnMut(&mut ArmorStand, StandMedium, StandStep),
-    &mut ArmorStand,
-    StandMedium,
-    StandStep,
-);
-
-#[cfg(not(feature = "yoake-hook-baseline"))]
-fn noop_settle(
-    original: &mut dyn FnMut(&mut ArmorStand, StandMedium, StandStep),
-    stand: &mut ArmorStand,
-    medium: StandMedium,
-    step: StandStep,
-) {
-    original(stand, medium, step);
-}
-
 fn median(samples: &mut [f64]) -> f64 {
     samples.sort_by(f64::total_cmp);
     samples[samples.len() / 2]
@@ -39,11 +21,7 @@ fn main() {
     let mode = std::env::args().nth(1).unwrap_or_else(|| "null".into());
     if mode == "noop" {
         #[cfg(not(feature = "yoake-hook-baseline"))]
-        ArmorStand::__yoake_register_tick_settle(
-            noop_settle as SettleCallback,
-            yoake_hook_rt::Order::default(),
-        )
-        .unwrap();
+        horizon_client_lib::entities::hook_bench::register_noop_tick_settle();
         #[cfg(feature = "yoake-hook-baseline")]
         panic!("baseline has no registration sites");
     } else {

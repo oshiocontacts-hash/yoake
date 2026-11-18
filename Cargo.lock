@@ -1656,6 +1656,7 @@ dependencies = [
  "wgpu",
  "winit",
  "winresource",
+ "yoake-hook-ledger",
  "yoake-hook-macro",
  "yoake-hook-rt",
  "yoake-inject-macro",
@@ -1739,6 +1740,7 @@ dependencies = [
  "ureq",
  "wgpu",
  "winit",
+ "yoake-hook-ledger",
  "yoake-hook-macro",
  "yoake-hook-rt",
  "yoake-inject-macro",
@@ -6181,7 +6183,6 @@ dependencies = [
 name = "yoake-hook-rt"
 version = "0.1.0"
 dependencies = [
- "yoake-hook-ledger",
  "yoake-hook-macro",
 ]
 

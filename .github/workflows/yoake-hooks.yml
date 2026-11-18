@@ -1,0 +1,44 @@
+name: yoake-hooks
+
+# The hook-ID ledger (hook-ledger/) and the #[yoake_hook] attributes it backs.
+# Make this job a required status check on the integration branches (repository settings).
+on:
+  push:
+    branches: ["yoake/**", "yoake2/**"]
+  pull_request:
+
+jobs:
+  hooks:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Test the hook crates
+        run: cargo test --locked -p yoake-hook-ledger -p yoake-hook-macro -p yoake-hook-rt -p yoake-hook-codemod
+
+      - name: Codemod check (attributes and ledger match the sources; apply would change nothing)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --locked -p yoake-hook-codemod
+          codemod=target/debug/yoake-hook-codemod
+          "$codemod" check --crate-root crates/horizon-client-lib --crate-name horizon_client_lib \
+            --ledger hook-ledger --module entities
+          "$codemod" check --crate-root crates/horizon-client --crate-name horizon_client \
+            --ledger hook-ledger --module game::item_use
+
+      - name: Ledger history check (append-only against the base)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${GITHUB_BASE_REF:-}" ]; then base="origin/${GITHUB_BASE_REF}"; else base="HEAD~1"; fi
+          mkdir -p "$RUNNER_TEMP/base-ledger"
+          files=$(git ls-tree --name-only "$base" hook-ledger/ 2>/dev/null || true)
+          if [ -z "$files" ]; then
+            echo "base $base has no hook-ledger/; nothing to compare"
+            exit 0
+          fi
+          for f in $files; do git show "$base:$f" > "$RUNNER_TEMP/base-ledger/$(basename "$f")"; done
+          target/debug/yoake-hook-codemod check-history --base "$RUNNER_TEMP/base-ledger" --current hook-ledger

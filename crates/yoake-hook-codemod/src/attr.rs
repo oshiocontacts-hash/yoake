@@ -326,3 +326,11 @@ pub fn format_hook_attr(
 pub fn normalized_type_tokens(ty: &Type) -> String {
     quote!(#ty).to_string()
 }
+
+pub fn find_manual_skip(found: &[FoundHookAttr]) -> Option<&str> {
+    found.iter().find_map(|a| a.parsed.skip.as_deref())
+}
+
+pub fn find_test_id(found: &[FoundHookAttr]) -> Option<u32> {
+    found.iter().find_map(|a| a.parsed.test_id)
+}

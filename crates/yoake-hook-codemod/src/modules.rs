@@ -1,13 +1,16 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 
-use syn::{Attribute, Expr, ExprLit, Item, Lit, Meta, Token, punctuated::Punctuated};
+use syn::{Attribute, Expr, ExprLit, Item, Lit, Meta, Token, Visibility, punctuated::Punctuated};
+
+use crate::key;
 
 pub struct ScannedFile {
     pub path: PathBuf,
     pub source: String,
     pub parsed: syn::File,
     pub root_mod_path: Vec<String>,
+    pub root_cfg_tags: Vec<String>,
 }
 
 pub fn normalize_module_arg(raw: &str) -> Result<Vec<String>, String> {
@@ -52,9 +55,10 @@ fn meta_is_cfg_test(meta: &Meta) -> bool {
             if list.path.is_ident("not") {
                 return false;
             }
-            let Ok(inner) =
-                syn::parse::Parser::parse2(Punctuated::<Meta, Token![,]>::parse_terminated, list.tokens.clone())
-            else {
+            let Ok(inner) = syn::parse::Parser::parse2(
+                Punctuated::<Meta, Token![,]>::parse_terminated,
+                list.tokens.clone(),
+            ) else {
                 return false;
             };
             if list.path.is_ident("all") {
@@ -85,7 +89,7 @@ fn attr_path_value(attrs: &[Attribute]) -> Option<String> {
     None
 }
 
-fn find_crate_root_file(crate_root: &Path, crate_name: &str) -> Result<PathBuf, String> {
+pub fn find_crate_root_file(crate_root: &Path, crate_name: &str) -> Result<PathBuf, String> {
     let manifest_path = crate_root.join("Cargo.toml");
     if manifest_path.is_file() {
         let manifest = std::fs::read_to_string(&manifest_path)
@@ -233,6 +237,7 @@ pub fn collect_module_files(
         &root_file,
         &root_dir,
         Vec::new(),
+        Vec::new(),
         targets,
         &mut files,
         &mut found_targets,
@@ -252,19 +257,21 @@ pub fn collect_module_files(
     Ok(files)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn load_module_file(
     file_path: &Path,
     dir_for_children: &Path,
     mod_path: Vec<String>,
+    cfg_tags: Vec<String>,
     targets: &[Vec<String>],
     files: &mut Vec<ScannedFile>,
     found_targets: &mut BTreeSet<Vec<String>>,
-    visited_files: &mut BTreeSet<PathBuf>,
+    visited_files: &mut BTreeSet<(PathBuf, Vec<String>, Vec<String>)>,
 ) -> Result<(), String> {
     let canonical = file_path
         .canonicalize()
         .unwrap_or_else(|_| file_path.to_path_buf());
-    if !visited_files.insert(canonical) {
+    if !visited_files.insert((canonical, mod_path.clone(), cfg_tags.clone())) {
         return Ok(());
     }
 
@@ -282,6 +289,7 @@ fn load_module_file(
         &parsed.items,
         dir_for_children,
         &mod_path,
+        &cfg_tags,
         targets,
         found_targets,
         &mut child_files,
@@ -295,14 +303,16 @@ fn load_module_file(
             source,
             parsed,
             root_mod_path: mod_path,
+            root_cfg_tags: cfg_tags,
         });
     }
 
-    for (child_file, child_dir, child_mod) in child_files {
+    for (child_file, child_dir, child_mod, child_cfgs) in child_files {
         load_module_file(
             &child_file,
             &child_dir,
             child_mod,
+            child_cfgs,
             targets,
             files,
             found_targets,
@@ -318,7 +328,7 @@ fn has_inline_target(items: &[Item], mod_path: &[String], targets: &[Vec<String>
         let Item::Mod(item_mod) = item else {
             continue;
         };
-        if item_mod.ident == "tests" || has_cfg_test(&item_mod.attrs) {
+        if has_cfg_test(&item_mod.attrs) {
             continue;
         }
         let Some((_, inner)) = &item_mod.content else {
@@ -340,15 +350,16 @@ fn collect_child_mods(
     items: &[Item],
     dir_for_children: &Path,
     mod_path: &[String],
+    cfg_tags: &[String],
     targets: &[Vec<String>],
     found_targets: &mut BTreeSet<Vec<String>>,
-    out: &mut Vec<(PathBuf, PathBuf, Vec<String>)>,
+    out: &mut Vec<(PathBuf, PathBuf, Vec<String>, Vec<String>)>,
 ) -> Result<(), String> {
     for item in items {
         let Item::Mod(item_mod) = item else {
             continue;
         };
-        if item_mod.ident == "tests" || has_cfg_test(&item_mod.attrs) {
+        if has_cfg_test(&item_mod.attrs) {
             continue;
         }
         let name = item_mod.ident.to_string();
@@ -359,6 +370,9 @@ fn collect_child_mods(
             continue;
         }
 
+        let mut child_cfgs = cfg_tags.to_vec();
+        child_cfgs.extend(key::extract_cfg_tags(&item_mod.attrs));
+
         if let Some((_, inner)) = &item_mod.content {
             if targets.contains(&child_mod) {
                 found_targets.insert(child_mod.clone());
@@ -367,28 +381,40 @@ fn collect_child_mods(
                 Some(rel) => dir_for_children.join(rel),
                 None => dir_for_children.join(&name),
             };
-            collect_child_mods(inner, &child_dir, &child_mod, targets, found_targets, out)?;
+            collect_child_mods(
+                inner,
+                &child_dir,
+                &child_mod,
+                &child_cfgs,
+                targets,
+                found_targets,
+                out,
+            )?;
         } else {
             let child_file = resolve_external_mod(dir_for_children, &name, &item_mod.attrs)?;
-            let child_dir = if child_file.file_name().and_then(|s| s.to_str()) == Some("mod.rs") {
-                child_file
-                    .parent()
-                    .unwrap_or(dir_for_children)
-                    .to_path_buf()
-            } else {
-                let stem = child_file
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or(&name);
-                child_file
-                    .parent()
-                    .unwrap_or(dir_for_children)
-                    .join(stem)
-            };
-            out.push((child_file, child_dir, child_mod));
+            let child_dir = child_mod_dir(dir_for_children, &child_file, &name);
+            out.push((child_file, child_dir, child_mod, child_cfgs));
         }
     }
     Ok(())
+}
+
+fn child_mod_dir(dir_for_children: &Path, child_file: &Path, name: &str) -> PathBuf {
+    if child_file.file_name().and_then(|s| s.to_str()) == Some("mod.rs") {
+        child_file
+            .parent()
+            .unwrap_or(dir_for_children)
+            .to_path_buf()
+    } else {
+        let stem = child_file
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or(name);
+        child_file
+            .parent()
+            .unwrap_or(dir_for_children)
+            .join(stem)
+    }
 }
 
 fn resolve_external_mod(
@@ -420,6 +446,128 @@ fn resolve_external_mod(
         direct.display(),
         mod_rs.display()
     ))
+}
+
+pub fn walk_crate_tree<F>(
+    crate_root: &Path,
+    crate_name: &str,
+    cached_files: &[ScannedFile],
+    mut on_module: F,
+) -> Result<(), String>
+where
+    F: FnMut(&[String], Option<&Visibility>, &[Item]),
+{
+    let root_file = find_crate_root_file(crate_root, crate_name)?;
+    let root_dir = root_file
+        .parent()
+        .ok_or_else(|| format!("crate root {} has no parent directory", root_file.display()))?
+        .to_path_buf();
+
+    let mut cache: HashMap<PathBuf, &syn::File> = HashMap::new();
+    for sf in cached_files {
+        let canonical = sf.path.canonicalize().unwrap_or_else(|_| sf.path.clone());
+        cache.insert(canonical, &sf.parsed);
+    }
+
+    let mut visited = BTreeSet::new();
+    walk_module_file(
+        &root_file,
+        &root_dir,
+        Vec::new(),
+        None,
+        &cache,
+        &mut visited,
+        &mut on_module,
+    )
+}
+
+fn walk_module_file<F>(
+    file_path: &Path,
+    dir_for_children: &Path,
+    mod_path: Vec<String>,
+    mod_vis: Option<&Visibility>,
+    cache: &HashMap<PathBuf, &syn::File>,
+    visited: &mut BTreeSet<(PathBuf, Vec<String>)>,
+    on_module: &mut F,
+) -> Result<(), String>
+where
+    F: FnMut(&[String], Option<&Visibility>, &[Item]),
+{
+    let canonical = file_path
+        .canonicalize()
+        .unwrap_or_else(|_| file_path.to_path_buf());
+    if !visited.insert((canonical.clone(), mod_path.clone())) {
+        return Ok(());
+    }
+
+    let owned_file;
+    let parsed: &syn::File = if let Some(cached) = cache.get(&canonical) {
+        cached
+    } else {
+        let Ok(source) = std::fs::read_to_string(file_path) else {
+            return Ok(());
+        };
+        let Ok(file) = syn::parse_file(&source) else {
+            return Ok(());
+        };
+        owned_file = file;
+        &owned_file
+    };
+
+    on_module(&mod_path, mod_vis, &parsed.items);
+    walk_child_items(
+        &parsed.items,
+        dir_for_children,
+        &mod_path,
+        cache,
+        visited,
+        on_module,
+    )
+}
+
+fn walk_child_items<F>(
+    items: &[Item],
+    dir_for_children: &Path,
+    mod_path: &[String],
+    cache: &HashMap<PathBuf, &syn::File>,
+    visited: &mut BTreeSet<(PathBuf, Vec<String>)>,
+    on_module: &mut F,
+) -> Result<(), String>
+where
+    F: FnMut(&[String], Option<&Visibility>, &[Item]),
+{
+    for item in items {
+        let Item::Mod(item_mod) = item else {
+            continue;
+        };
+        if has_cfg_test(&item_mod.attrs) {
+            continue;
+        }
+        let name = item_mod.ident.to_string();
+        let mut child_mod = mod_path.to_vec();
+        child_mod.push(name.clone());
+
+        if let Some((_, inner)) = &item_mod.content {
+            on_module(&child_mod, Some(&item_mod.vis), inner);
+            let child_dir = match attr_path_value(&item_mod.attrs) {
+                Some(rel) => dir_for_children.join(rel),
+                None => dir_for_children.join(&name),
+            };
+            walk_child_items(inner, &child_dir, &child_mod, cache, visited, on_module)?;
+        } else if let Ok(child_file) = resolve_external_mod(dir_for_children, &name, &item_mod.attrs) {
+            let child_dir = child_mod_dir(dir_for_children, &child_file, &name);
+            walk_module_file(
+                &child_file,
+                &child_dir,
+                child_mod,
+                Some(&item_mod.vis),
+                cache,
+                visited,
+                on_module,
+            )?;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

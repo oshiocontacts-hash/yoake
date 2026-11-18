@@ -199,7 +199,9 @@ pub fn plan_remove_hook_attrs(
     edits: &mut Vec<TextEdit>,
 ) {
     for found in attr::find_hook_attrs(attrs, source, idx) {
-        plan_remove_attr(source, idx, &attrs[found.attr_index], edits);
+        if found.parsed.skip.is_none() {
+            plan_remove_attr(source, idx, &attrs[found.attr_index], edits);
+        }
     }
 }
 
@@ -410,7 +412,12 @@ pub fn plan_trait_impl_conversions(
         helper_lines.push(format!("{method_indent}{hook_attr}"));
         let mut has_inline_always = false;
         for attr in &method.attrs {
-            if attr.path().is_ident("cfg") || attr.path().is_ident("allow") {
+            if attr.path().is_ident("cfg")
+                || attr.path().is_ident("allow")
+                || attr.path().is_ident("expect")
+                || attr.path().is_ident("warn")
+                || attr.path().is_ident("deny")
+            {
                 let (as_, ae) = idx.span_range(source, attr.span());
                 helper_lines.push(format!("{method_indent}{}", &source[as_..ae]));
             } else if attr.path().is_ident("inline")
