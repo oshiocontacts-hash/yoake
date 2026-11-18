@@ -127,6 +127,8 @@ yoake-hook-baseline = ["horizon-client-lib/yoake-hook-baseline"]
 yoake-callsite-baseline = ["horizon-client-lib/yoake-callsite-baseline"]
 # MX3G1: compiles the generated binding glue (src/yoake_glue) into the game and entities modules. Off by default.
 yoake2-slice = ["dep:yoake-slice", "horizon-client-lib/yoake2-slice"]
+# Test-only: typed hook registration and bench constructors (`entities::hook_bench`, `StandStep::for_hook_bench`).
+yoake-hook-bench = ["horizon-client-lib/yoake-hook-bench"]
 default = ["audio", "controllers"]
 test-support = []
 dev-capture = ["horizon-client-lib/dev-capture", "horizon-client-render/dev-capture", "horizon-protocol/dev-capture"]
@@ -187,4 +189,4 @@ naga = { version = "30.0.1", features = ["wgsl-in", "hlsl-out", "msl-out", "spv-
 [[test]]
 name = "yoake2_loader"
 path = "tests/yoake2_loader.rs"
-required-features = ["yoake2-slice"]
+required-features = ["yoake2-slice", "yoake-hook-bench"]

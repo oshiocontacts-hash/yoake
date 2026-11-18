@@ -70,4 +70,4 @@ jobs:
         run: cargo test --locked -j 4 -p yoake-bindgen --test engine -- --ignored --nocapture
       - name: Engine tests with the glue
         shell: bash
-        run: cargo test --locked -j 4 -p horizon-client-lib --features yoake2-slice --test yoake2_glue --test yoake2_engine_call --test yoake2_slice
+        run: cargo test --locked -j 4 -p horizon-client-lib --features yoake2-slice,yoake-hook-bench --test yoake2_glue --test yoake2_engine_call --test yoake2_slice --test yoake2_bridge
