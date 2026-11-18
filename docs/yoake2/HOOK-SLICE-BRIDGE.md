@@ -74,13 +74,47 @@ first bridge.
 ### Which hooks are bridgeable
 
 The slice passes one argument to the guest, so a hook is bridgeable when:
-- its first parameter is `&mut T` or `&T` where T has a generated `FieldTable` (the yoake-bindgen field tables of
+- its first parameter is `&mut T` where T has a generated `FieldTable` (the yoake-bindgen field tables of
   MX3G1, for example ArmorStand, ItemEntity, ExperienceOrb; `Game` uses `dispatch_root_id` instead);
 - the other parameters are captured by the `orig` closure unchanged (the guest cannot see or replace them yet);
-- the result is `()`, an integer, `bool` or `f32`/`f64` (sent as `i64`; floats as bits), or the hook ignores the
-  guest's value. Anything else is listed in an "unbridged" report generated next to the module.
+- the result is:
+  * `()`, an integer, `bool`, or `f32`/`f64` (round-tripped as `i64`; floats as bits): the guest may replace
+    the result or cancel the call by not calling `original`;
+  * any other non-borrowed result type `R` (no non-`'static` lifetimes, not `impl Trait` or `!`): bridged
+    in **observe-only mode** and listed in `hook_bridge::OBSERVE_ONLY`.
+
+Anything else (non-`&mut` arg0, missing `FieldTable`, arg0 or return type with a non-`'static` lifetime,
+generic parameters, or `bridge-exclude.txt` entries) cannot be bridged and is listed in
+`hook_bridge::UNBRIDGED`.
 
 Call-site shims are bridged the same way: their first parameter is the receiver.
+
+#### Observe-only mode (`OBSERVE_ONLY`)
+
+When a bridgeable hook returns a type `R` that does not fit an `i64`, the generated dispatcher keeps `R`
+on the host side:
+
+```rust
+fn __bridge_N(original: &mut dyn FnMut(&mut T, A) -> R, p0: &mut T, p1: A) -> R {
+    let mut result: Option<R> = None;
+    let _ = yoake_slice::runtime::dispatch_id(N, p0, &TABLE, &mut |p0| {
+        result = Some(original(p0, p1));
+        0
+    });
+    match result {
+        Some(value) => value,
+        // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+        None => original(p0, p1),
+    }
+}
+```
+
+Semantics:
+- the guest sees the hook and its `arg0` handle and may call `original` zero or more times, but cannot
+  replace the result (its `i64` return value is ignored);
+- the **last** `original` result is returned;
+- if the guest never calls `original`, `original` runs once after the guest returns, so the hooked fn
+  cannot be cancelled in this mode.
 
 ## Changes needed at merge time
 

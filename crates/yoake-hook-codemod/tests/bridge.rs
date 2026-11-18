@@ -95,6 +95,13 @@ impl Thing {
     pub fn read_count(&self) -> i32 {
         self.count
     }
+
+    #[yoake_hook_macro::yoake_hook(method, id = 9, key = "demo::entities::Thing::take_pair")]
+    pub fn take_pair(&mut self, delta: &mut i32) -> Option<Self> {
+        self.count += *delta;
+        *delta = 0;
+        None
+    }
 }
 
 #[yoake_hook_macro::yoake_hook(id = 4, key = "demo::entities::reset_thing")]
@@ -114,6 +121,19 @@ pub fn no_table(_o: &mut Other) {}
 #[inline(always)]
 fn __yoake_cs_7(recv: &mut crate::entities::Thing) {
     crate::entities::reset_thing(recv)
+}
+
+#[yoake_hook_macro::yoake_hook(id = 10, key = "fn:1@call:fn:5", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_10(recv: &mut crate::entities::Thing, a0: i32) -> std::option::Option<std::vec::Vec<i32>> {
+    let _ = (recv, a0);
+    None
+}
+
+#[yoake_hook_macro::yoake_hook(id = 11, key = "fn:1@call:fn:3", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_11<'r>(recv: &'r mut crate::entities::Thing) -> &'r mut i32 {
+    &mut recv.count
 }
 
 include!("yoake_glue/entities.rs");
@@ -156,7 +176,10 @@ impl Game<'_> {
     { "id": 5, "key": "demo::entities::bad_ret", "sig": "0000000000000005", "status": "live", "kind": "fn" },
     { "id": 6, "key": "demo::entities::no_table", "sig": "0000000000000006", "status": "live", "kind": "fn" },
     { "id": 7, "key": "fn:1@call:fn:4", "sig": "0000000000000007", "status": "live", "kind": "callsite" },
-    { "id": 8, "key": "demo::game::item_use::Game::tick_item", "sig": "0000000000000008", "status": "live", "kind": "fn" }
+    { "id": 8, "key": "demo::game::item_use::Game::tick_item", "sig": "0000000000000008", "status": "live", "kind": "fn" },
+    { "id": 9, "key": "demo::entities::Thing::take_pair", "sig": "0000000000000009", "status": "live", "kind": "fn" },
+    { "id": 10, "key": "fn:1@call:fn:5", "sig": "0000000000000010", "status": "live", "kind": "callsite" },
+    { "id": 11, "key": "fn:1@call:fn:3", "sig": "0000000000000011", "status": "live", "kind": "callsite" }
   ],
   "excluded": []
 }
@@ -257,12 +280,67 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
         entities_src.contains("if id >= yoake_slice::runtime::SYNTHETIC_HOOK_BASE"),
         "{entities_src}"
     );
+    assert!(
+        entities_src.contains("/// Hooks listed in `OBSERVE_ONLY`"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("cannot be cancelled in this mode"),
+        "{entities_src}"
+    );
+    // Observe-only non-i64 return types: id 5 (free fn), id 9 (method returning Option<Self>), id 10 (callsite).
+    assert!(entities_src.contains("fn __bridge_5("), "{entities_src}");
+    assert!(
+        entities_src.contains("let mut result: Option<(i32, i32)> = None;"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("result = Some(original(p0)); 0"),
+        "{entities_src}"
+    );
+    assert!(entities_src.contains("None => original(p0),"), "{entities_src}");
+    assert!(entities_src.contains("fn __bridge_9("), "{entities_src}");
+    assert!(
+        entities_src.contains("let mut result: Option<Option<Thing>> = None;"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("result = Some(original(p0, &mut *p1)); 0"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("None => original(p0, &mut *p1),"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("Thing::__yoake_register_take_pair(__bridge_9, order).is_ok()"),
+        "{entities_src}"
+    );
+    assert!(entities_src.contains("fn __bridge_10("), "{entities_src}");
+    assert!(
+        entities_src.contains("let mut result: Option<std::option::Option<std::vec::Vec<i32>>> = None;"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("super::__yoake_register___yoake_cs_10(cb, order).is_ok()"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("pub const OBSERVE_ONLY: &[u32] = &[\n        5,\n        9,\n        10,\n    ];"),
+        "{entities_src}"
+    );
     assert!(!entities_src.contains("fn __bridge_3("), "{entities_src}");
-    assert!(!entities_src.contains("fn __bridge_5("), "{entities_src}");
     assert!(!entities_src.contains("fn __bridge_6("), "{entities_src}");
-    assert!(entities_src.contains("(3, "), "{entities_src}");
-    assert!(entities_src.contains("(5, "), "{entities_src}");
-    assert!(entities_src.contains("(6, "), "{entities_src}");
+    assert!(!entities_src.contains("fn __bridge_11("), "{entities_src}");
+    assert!(entities_src.contains("(3, \""), "{entities_src}");
+    assert!(!entities_src.contains("(5, \""), "{entities_src}");
+    assert!(entities_src.contains("(6, \""), "{entities_src}");
+    assert!(!entities_src.contains("(9, \""), "{entities_src}");
+    assert!(!entities_src.contains("(10, \""), "{entities_src}");
+    assert!(
+        entities_src.contains("(11, \"return type `&'r mut i32` has non-static lifetime\")"),
+        "{entities_src}"
+    );
 
     let game_src = fs::read_to_string(&game_bridge).unwrap();
     assert!(game_src.contains("fn __bridge_8("), "{game_src}");
@@ -274,6 +352,10 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
     );
     assert!(
         game_src.contains("Game::__yoake_register_tick_item(__bridge_8, order).is_ok()"),
+        "{game_src}"
+    );
+    assert!(
+        game_src.contains("pub const OBSERVE_ONLY: &[u32] = &[\n    ];"),
         "{game_src}"
     );
 
@@ -308,9 +390,13 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
     assert_eq!(chk_stale.status.code(), Some(1));
     assert_eq!(fs::read_to_string(&entities_bridge).unwrap(), stale_content);
 
-    // Exclude file moves listed id into UNBRIDGED with its reason.
+    // Exclude file moves listed ids into UNBRIDGED with their reasons (including observe-only ids).
     let exclude_path = dir.path().join("custom-exclude.txt");
-    fs::write(&exclude_path, "# ignore free fn\n4 excluded by test\n").unwrap();
+    fs::write(
+        &exclude_path,
+        "# ignore free fn and observe-only fn\n4 excluded by test\n5 excluded observe-only\n",
+    )
+    .unwrap();
     let gen_excl = Command::new(codemod_bin())
         .args(["bridge", "--crate-root"])
         .arg(dir.path())
@@ -325,8 +411,17 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
     assert!(gen_excl.status.success());
     let entities_excl = fs::read_to_string(&entities_bridge).unwrap();
     assert!(!entities_excl.contains("fn __bridge_4("), "{entities_excl}");
+    assert!(!entities_excl.contains("fn __bridge_5("), "{entities_excl}");
     assert!(
         entities_excl.contains("(4, \"excluded by test\")"),
+        "{entities_excl}"
+    );
+    assert!(
+        entities_excl.contains("(5, \"excluded observe-only\")"),
+        "{entities_excl}"
+    );
+    assert!(
+        entities_excl.contains("pub const OBSERVE_ONLY: &[u32] = &[\n        9,\n        10,\n    ];"),
         "{entities_excl}"
     );
 }

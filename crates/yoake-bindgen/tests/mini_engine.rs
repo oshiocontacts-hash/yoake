@@ -87,20 +87,57 @@ fn prepared(name: &str) -> PathBuf {
     dir
 }
 
-/// `libyoake_slice-*.rlib` next to this test binary (cargo builds the dev-dependency there).
-fn yoake_slice_rlib() -> (PathBuf, PathBuf) {
-    let deps = std::env::current_exe().unwrap().parent().unwrap().to_path_buf();
-    let mut best: Option<(std::time::SystemTime, PathBuf)> = None;
-    for entry in std::fs::read_dir(&deps).unwrap().flatten() {
-        let name = entry.file_name().to_string_lossy().into_owned();
-        if name.starts_with("libyoake_slice-") && name.ends_with(".rlib") {
-            let modified = entry.metadata().unwrap().modified().unwrap();
-            if best.as_ref().is_none_or(|(t, _)| modified > *t) {
-                best = Some((modified, entry.path()));
+/// `libyoake_slice-*.rlib` and the directories to pass as `-L dependency=`. Cargo builds the
+/// dev-dependency next to this test binary in the classic layout (`<profile>/deps`). Some cargo versions use
+/// a per-unit layout instead (`<profile>/build/<crate>/<hash>/out/`, one directory per crate): there the rlib
+/// is under `build/yoake-slice/*/out`, and every unit's `out` directory is a dependency directory.
+fn yoake_slice_rlib() -> (Vec<PathBuf>, PathBuf) {
+    fn newest_rlib(dir: &std::path::Path, best: &mut Option<(std::time::SystemTime, PathBuf)>) {
+        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name.starts_with("libyoake_slice-") && name.ends_with(".rlib") {
+                let modified = entry.metadata().unwrap().modified().unwrap();
+                if best.as_ref().is_none_or(|(t, _)| modified > *t) {
+                    *best = Some((modified, entry.path()));
+                }
             }
         }
     }
-    (deps, best.expect("libyoake_slice rlib next to the test binary").1)
+    let exe_dir = std::env::current_exe().unwrap().parent().unwrap().to_path_buf();
+    let mut best = None;
+    newest_rlib(&exe_dir, &mut best);
+    if let Some((_, rlib)) = best {
+        return (vec![exe_dir], rlib);
+    }
+    // Per-unit layout: find `<profile>/build` above the test binary.
+    let build = exe_dir
+        .ancestors()
+        .find(|dir| dir.file_name().is_some_and(|name| name == "build"))
+        .expect("test binary under <profile>/deps or <profile>/build")
+        .to_path_buf();
+    let mut dirs = Vec::new();
+    for unit in std::fs::read_dir(&build).unwrap().flatten() {
+        for hash in std::fs::read_dir(unit.path()).into_iter().flatten().flatten() {
+            let out = hash.path().join("out");
+            if out.is_dir() {
+                if unit.file_name() == "yoake-slice" {
+                    newest_rlib(&out, &mut best);
+                }
+                dirs.push(out);
+            }
+        }
+    }
+    (dirs, best.expect("libyoake_slice rlib under <profile>/build/yoake-slice").1)
+}
+
+/// The `-L dependency=` arguments as a rustc `@argfile`: the per-unit layout has one directory per crate,
+/// which is longer than a Windows command line allows.
+fn dependency_argfile(dir: &std::path::Path, deps: &[PathBuf]) -> String {
+    let path = dir.join("dependency.args");
+    let text: String = deps.iter().map(|d| format!("-L\ndependency={}\n", d.display())).collect();
+    std::fs::write(&path, text).unwrap();
+    format!("@{}", path.display())
 }
 
 #[test]
@@ -111,8 +148,7 @@ fn generated_glue_compiles_and_every_binding_works() {
     let exe = dir.join(if cfg!(windows) { "mini_prog.exe" } else { "mini_prog" });
     let compile = Command::new("rustc")
         .args(["--edition", "2021", "--cfg", "glue", "--crate-name", "mini_prog", "--crate-type", "bin"])
-        .arg("-L")
-        .arg(format!("dependency={}", deps.display()))
+        .arg(dependency_argfile(&dir, &deps))
         .arg("--extern")
         .arg(format!("yoake_slice={}", rlib.display()))
         .arg("-o")
@@ -136,8 +172,7 @@ fn compile_glue(dir: &Path, glue: &str) -> std::process::Output {
     let (deps, rlib) = yoake_slice_rlib();
     Command::new("rustc")
         .args(["--edition", "2021", "--cfg", "glue", "--crate-name", "mini_prog", "--crate-type", "bin"])
-        .arg("-L")
-        .arg(format!("dependency={}", deps.display()))
+        .arg(dependency_argfile(&dir, &deps))
         .arg("--extern")
         .arg(format!("yoake_slice={}", rlib.display()))
         .arg("-o")
