@@ -63,8 +63,12 @@ jobs:
             parent=$(git rev-parse "$commit^" 2>/dev/null || true)
             [ -n "$parent" ] || continue
             dump "$parent" "$RUNNER_TEMP/base"; dump "$commit" "$RUNNER_TEMP/current"
-            if [ ! -f "$RUNNER_TEMP/base/meta.json" ] || [ ! -f "$RUNNER_TEMP/current/meta.json" ]; then
-              continue
+            if [ ! -f "$RUNNER_TEMP/base/meta.json" ]; then
+              continue # the ledger did not exist yet
+            fi
+            if [ ! -f "$RUNNER_TEMP/current/meta.json" ]; then
+              echo "error: $commit removes hook-ledger/meta.json, which its parent $parent has" >&2
+              exit 1
             fi
             echo "== $parent -> $commit"
             "$codemod" check-history --base "$RUNNER_TEMP/base" --current "$RUNNER_TEMP/current"

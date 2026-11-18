@@ -12013,6 +12013,8 @@ impl Game<'_> {
     /// `Player.doSweepAttack` after a successful hit, in vanilla's order: the
     /// sweep sound, the victims around `target` (its box, and the mob that
     /// was hit, when there is one) and then the arc.
+    // Game is pub(crate) for hook registration; these keep their private argument types.
+    #[allow(private_interfaces)]
     pub(super) fn sweep_attack(
         &mut self,
         at: [f64; 3],
@@ -12056,6 +12058,8 @@ impl Game<'_> {
     /// its entity id; `crit`: whether `melee_damage` decided the hit critical,
     /// mods' `critical_hit` included), the sweep around the target's box `area`
     /// and the strong or weak sound.
+    // Game is pub(crate) for hook registration; these keep their private argument types.
+    #[allow(private_interfaces)]
     pub(super) fn attack_effects(
         &mut self,
         area: Aabb,
@@ -13236,6 +13240,8 @@ impl Game<'_> {
     /// bucket: the block outline or a source fluid, whichever is nearer. A
     /// waterlogged block is a block hit (its outline is the block's, its
     /// fluid a source); flowing fluid has no shape to pick.
+    // Game is pub(crate) for hook registration; these keep their private argument types.
+    #[allow(private_interfaces)]
     pub(super) fn bucket_hit(&self) -> Option<Hit> {
         let origin = self.aim().map_or([0.0; 3], |(origin, _)| origin);
         let distance = |p: [f64; 3]| {
@@ -13256,6 +13262,8 @@ impl Game<'_> {
     /// seagrass); every other bucket empties into the block the clicked face
     /// leads to. `SolidBucketItem` places like a block item, into a
     /// replaceable clicked block.
+    // Game is pub(crate) for hook registration; these keep their private argument types.
+    #[allow(private_interfaces)]
     pub(super) fn bucket_target(&self, content: BucketContent, hit: &Hit) -> [i32; 3] {
         let clicked = self.world.block(hit.pos[0], hit.pos[1], hit.pos[2]);
         let behaviours = self.res.behaviours();
@@ -17612,6 +17620,8 @@ impl ApplicationHandler for Game<'_> {
 impl Game<'_> {
     /// winit's `window_event`. The control socket and the pad menu call it too, with the
     /// input they make up.
+    // Game is pub(crate) for hook registration; these keep their private argument types.
+    #[allow(private_interfaces)]
     pub(super) fn handle_window_event(
         &mut self,
         event_loop: &dyn EventLoopCtl,
@@ -19156,6 +19166,8 @@ impl Game<'_> {
     }
     /// winit's `about_to_wait`: what happens between frames (stop requests, the closing
     /// save, world entry, the control socket, pads), then the next frame.
+    // Game is pub(crate) for hook registration; these keep their private argument types.
+    #[allow(private_interfaces)]
     pub(super) fn idle(&mut self, event_loop: &dyn EventLoopCtl) {
         crate::mod_guard::maintenance();
         crate::entry::wasm_mods::drain_resources(self);
