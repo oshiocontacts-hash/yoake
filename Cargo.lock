@@ -1658,6 +1658,7 @@ dependencies = [
  "winresource",
  "yoake-inject-macro",
  "yoake-inject-rt",
+ "yoake-slice",
  "yoake-test-runner",
  "yoake-wasm",
  "zip",
@@ -1881,6 +1882,7 @@ dependencies = [
  "serde_json",
  "yoake-inject-macro",
  "yoake-inject-rt",
+ "yoake-slice",
 ]
 
 [[package]]
@@ -6134,6 +6136,15 @@ dependencies = [
  "serde_json",
  "toml",
  "yoake-wasm",
+]
+
+[[package]]
+name = "yoake-bindgen"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "yoake-slice",
 ]
 
 [[package]]

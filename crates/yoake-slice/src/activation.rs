@@ -23,8 +23,9 @@
 //! # Unsafe surface
 //!
 //! Exactly these functions contain `unsafe` (each block marked `SAFETY`): `get_impl`, `set_impl`,
-//! `run_cell`, `run_cell2`, and the three call sites that invoke them through the stored function
-//! pointers ([`get`], [`set`], [`run_original`]).
+//! `run_cell`, `run_cell2`, `with_arg` (MX3G1: typed receiver for generated glue, `TypeId`-checked)
+//! and the three call sites that invoke them through the stored function pointers ([`get`], [`set`],
+//! [`run_original`]).
 //!
 //! Invariants: the pointers come from `&mut` borrows that [`scope`] holds for its whole call; the
 //! record is removed from the thread-local stack by the private guard's `Drop` before `scope`
@@ -39,6 +40,7 @@
 //! use yoake_slice::activation::Activation;
 //! ```
 
+use std::any::TypeId;
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -59,6 +61,8 @@ pub enum Status {
     BadField = 3,
     /// The activation has no such argument index.
     NoSuchArg = 4,
+    /// [`with_arg`]: the argument behind the handle is not a `T` (MX3G1).
+    WrongType = 5,
 }
 
 /// A handle root (MX3C1 "paths from a root"). Only the hook-argument root exists in the slice.
@@ -89,6 +93,8 @@ pub struct FieldTable<T> {
 /// One registered argument, type-erased: the pointer, its table and two monomorphized accessors.
 #[derive(Clone, Copy)]
 struct ArgSlot {
+    /// `TypeId` of `T`, so [`with_arg`] can refuse a handle that points at another type.
+    type_id: TypeId,
     ptr: *mut (),
     table: *const (),
     get: unsafe fn(*mut (), *const (), u32) -> Option<i64>,
@@ -98,6 +104,7 @@ struct ArgSlot {
 impl ArgSlot {
     fn new<T: 'static>(ptr: *mut T, table: &'static FieldTable<T>) -> Self {
         Self {
+            type_id: TypeId::of::<T>(),
             ptr: ptr.cast(),
             table: (table as *const FieldTable<T>).cast(),
             get: get_impl::<T>,
@@ -360,6 +367,23 @@ pub fn set(handle: u64, field: u32, value: i64) -> Result<(), Status> {
     }
 }
 
+/// Runs `f` on the argument behind `handle`, which must be a `T` (MX3G1: the receiver of generated
+/// glue for `&self` / `&mut self` methods). Same rules as [`get`]: the activation is locked while `f`
+/// runs (so `f` may open nested activations but a second access through any handle of this
+/// activation is `Locked`), and the lock is released when `f` returns or unwinds. A handle to
+/// another type is `Status::WrongType` and `f` does not run.
+pub fn with_arg<T: 'static, R>(handle: u64, f: impl FnOnce(&mut T) -> R) -> Result<R, Status> {
+    let (slot, _unlend) = lend_arg(handle)?;
+    if slot.type_id != TypeId::of::<T>() {
+        return Err(Status::WrongType);
+    }
+    // SAFETY: `slot.ptr` was registered by an open `scope` as a `*mut T` (the `TypeId` just
+    // checked says `T` is that type), its borrow is held for the whole `scope` call and `lend_arg`
+    // just found the record; the activation stays locked until `_unlend` drops, so no other
+    // reference to `*ptr` is in use.
+    Ok(f(unsafe { &mut *slot.ptr.cast::<T>() }))
+}
+
 /// Runs the activation's `original`, with its handles lent for the duration. Returns the result
 /// the engine body returned. The arena is not borrowed while `original` runs, so it may open and
 /// close nested activations (re-entrancy).
@@ -415,6 +439,22 @@ mod tests {
 
     fn nop(_: &mut Thing) -> i64 {
         0
+    }
+
+    #[test]
+    fn with_arg_gives_the_typed_receiver_and_refuses_another_type() {
+        let mut thing = Thing { count: 3, x: 1.5 };
+        scope(&mut thing, &THING, &mut nop, |h| {
+            assert_eq!(with_arg::<Thing, _>(h, |t| { t.count += 4; t.count }), Ok(7));
+            assert_eq!(with_arg::<String, _>(h, |_| ()), Err(Status::WrongType));
+            // the lock is released after both calls
+            assert_eq!(get(h, 0), Ok(7));
+            // a nested call from inside `f` through the same activation is Locked
+            let inner = with_arg::<Thing, _>(h, |_| with_arg::<Thing, _>(h, |_| ()));
+            assert_eq!(inner, Ok(Err(Status::Locked)));
+            assert_eq!(with_arg::<Thing, _>(h | 5, |_| ()), Err(Status::NoSuchArg));
+        });
+        assert_eq!(thing.count, 7);
     }
 
     #[test]

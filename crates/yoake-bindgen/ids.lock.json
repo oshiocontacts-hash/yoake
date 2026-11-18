@@ -1,0 +1,2718 @@
+{
+  "format": 1,
+  "rustdoc_format_version": 61,
+  "bindings": [
+    {
+      "id": 1,
+      "path": "entities::ArmorStand.disabled_slots#get",
+      "sig": "get disabled_slots: i32",
+      "status": "bound"
+    },
+    {
+      "id": 2,
+      "path": "entities::ArmorStand.disabled_slots#set",
+      "sig": "set disabled_slots: i32",
+      "status": "bound"
+    },
+    {
+      "id": 3,
+      "path": "entities::ArmorStand.enchantment_block#get",
+      "sig": "get enchantment_block: Option<horizon_core::position::BlockPos>",
+      "status": "bound"
+    },
+    {
+      "id": 4,
+      "path": "entities::ArmorStand.enchantment_block#set",
+      "sig": "set enchantment_block: Option<horizon_core::position::BlockPos>",
+      "status": "bound"
+    },
+    {
+      "id": 5,
+      "path": "entities::ArmorStand.enchantment_fall_distance#get",
+      "sig": "get enchantment_fall_distance: f64",
+      "status": "bound"
+    },
+    {
+      "id": 6,
+      "path": "entities::ArmorStand.enchantment_fall_distance#set",
+      "sig": "set enchantment_fall_distance: f64",
+      "status": "bound"
+    },
+    {
+      "id": 7,
+      "path": "entities::ArmorStand.fire_ticks#get",
+      "sig": "get fire_ticks: i32",
+      "status": "bound"
+    },
+    {
+      "id": 8,
+      "path": "entities::ArmorStand.fire_ticks#set",
+      "sig": "set fire_ticks: i32",
+      "status": "bound"
+    },
+    {
+      "id": 9,
+      "path": "entities::ArmorStand.health#get",
+      "sig": "get health: f32",
+      "status": "bound"
+    },
+    {
+      "id": 10,
+      "path": "entities::ArmorStand.health#set",
+      "sig": "set health: f32",
+      "status": "bound"
+    },
+    {
+      "id": 11,
+      "path": "entities::ArmorStand.id#get",
+      "sig": "get id: u32",
+      "status": "bound"
+    },
+    {
+      "id": 12,
+      "path": "entities::ArmorStand.id#set",
+      "sig": "set id: u32",
+      "status": "bound"
+    },
+    {
+      "id": 13,
+      "path": "entities::ArmorStand.invisible#get",
+      "sig": "get invisible: bool",
+      "status": "bound"
+    },
+    {
+      "id": 14,
+      "path": "entities::ArmorStand.invisible#set",
+      "sig": "set invisible: bool",
+      "status": "bound"
+    },
+    {
+      "id": 15,
+      "path": "entities::ArmorStand.last_hit#get",
+      "sig": "get last_hit: i64",
+      "status": "bound"
+    },
+    {
+      "id": 16,
+      "path": "entities::ArmorStand.last_hit#set",
+      "sig": "set last_hit: i64",
+      "status": "bound"
+    },
+    {
+      "id": 17,
+      "path": "entities::ArmorStand.marker#get",
+      "sig": "get marker: bool",
+      "status": "bound"
+    },
+    {
+      "id": 18,
+      "path": "entities::ArmorStand.marker#set",
+      "sig": "set marker: bool",
+      "status": "bound"
+    },
+    {
+      "id": 19,
+      "path": "entities::ArmorStand.name_visible#get",
+      "sig": "get name_visible: bool",
+      "status": "bound"
+    },
+    {
+      "id": 20,
+      "path": "entities::ArmorStand.name_visible#set",
+      "sig": "set name_visible: bool",
+      "status": "bound"
+    },
+    {
+      "id": 21,
+      "path": "entities::ArmorStand.no_base_plate#get",
+      "sig": "get no_base_plate: bool",
+      "status": "bound"
+    },
+    {
+      "id": 22,
+      "path": "entities::ArmorStand.no_base_plate#set",
+      "sig": "set no_base_plate: bool",
+      "status": "bound"
+    },
+    {
+      "id": 23,
+      "path": "entities::ArmorStand.no_gravity#get",
+      "sig": "get no_gravity: bool",
+      "status": "bound"
+    },
+    {
+      "id": 24,
+      "path": "entities::ArmorStand.no_gravity#set",
+      "sig": "set no_gravity: bool",
+      "status": "bound"
+    },
+    {
+      "id": 25,
+      "path": "entities::ArmorStand.on_ground#get",
+      "sig": "get on_ground: bool",
+      "status": "bound"
+    },
+    {
+      "id": 26,
+      "path": "entities::ArmorStand.on_ground#set",
+      "sig": "set on_ground: bool",
+      "status": "bound"
+    },
+    {
+      "id": 27,
+      "path": "entities::ArmorStand.pose#get",
+      "sig": "get pose: [[f32; 3]; 6]",
+      "status": "bound"
+    },
+    {
+      "id": 28,
+      "path": "entities::ArmorStand.pose#set",
+      "sig": "set pose: [[f32; 3]; 6]",
+      "status": "bound"
+    },
+    {
+      "id": 29,
+      "path": "entities::ArmorStand.position#get",
+      "sig": "get position: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 30,
+      "path": "entities::ArmorStand.position#set",
+      "sig": "set position: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 31,
+      "path": "entities::ArmorStand.previous#get",
+      "sig": "get previous: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 32,
+      "path": "entities::ArmorStand.previous#set",
+      "sig": "set previous: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 33,
+      "path": "entities::ArmorStand.previous_yaw#get",
+      "sig": "get previous_yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 34,
+      "path": "entities::ArmorStand.previous_yaw#set",
+      "sig": "set previous_yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 35,
+      "path": "entities::ArmorStand.show_arms#get",
+      "sig": "get show_arms: bool",
+      "status": "bound"
+    },
+    {
+      "id": 36,
+      "path": "entities::ArmorStand.show_arms#set",
+      "sig": "set show_arms: bool",
+      "status": "bound"
+    },
+    {
+      "id": 37,
+      "path": "entities::ArmorStand.small#get",
+      "sig": "get small: bool",
+      "status": "bound"
+    },
+    {
+      "id": 38,
+      "path": "entities::ArmorStand.small#set",
+      "sig": "set small: bool",
+      "status": "bound"
+    },
+    {
+      "id": 39,
+      "path": "entities::ArmorStand.support#get",
+      "sig": "get support: horizon_world::ground_support::GroundState",
+      "status": "bound"
+    },
+    {
+      "id": 40,
+      "path": "entities::ArmorStand.support#set",
+      "sig": "set support: horizon_world::ground_support::GroundState",
+      "status": "bound"
+    },
+    {
+      "id": 41,
+      "path": "entities::ArmorStand.vehicle#get",
+      "sig": "get vehicle: Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 42,
+      "path": "entities::ArmorStand.vehicle#set",
+      "sig": "set vehicle: Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 43,
+      "path": "entities::ArmorStand.velocity#get",
+      "sig": "get velocity: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 44,
+      "path": "entities::ArmorStand.velocity#set",
+      "sig": "set velocity: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 45,
+      "path": "entities::ArmorStand.yaw#get",
+      "sig": "get yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 46,
+      "path": "entities::ArmorStand.yaw#set",
+      "sig": "set yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 47,
+      "path": "entities::Cushion.check_interval#get",
+      "sig": "get check_interval: u32",
+      "status": "bound"
+    },
+    {
+      "id": 48,
+      "path": "entities::Cushion.check_interval#set",
+      "sig": "set check_interval: u32",
+      "status": "bound"
+    },
+    {
+      "id": 49,
+      "path": "entities::Cushion.color#get",
+      "sig": "get color: u8",
+      "status": "bound"
+    },
+    {
+      "id": 50,
+      "path": "entities::Cushion.color#set",
+      "sig": "set color: u8",
+      "status": "bound"
+    },
+    {
+      "id": 51,
+      "path": "entities::Cushion.id#get",
+      "sig": "get id: u32",
+      "status": "bound"
+    },
+    {
+      "id": 52,
+      "path": "entities::Cushion.id#set",
+      "sig": "set id: u32",
+      "status": "bound"
+    },
+    {
+      "id": 53,
+      "path": "entities::Cushion.pos#get",
+      "sig": "get pos: [i32; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 54,
+      "path": "entities::Cushion.pos#set",
+      "sig": "set pos: [i32; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 55,
+      "path": "entities::Cushion.position#get",
+      "sig": "get position: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 56,
+      "path": "entities::Cushion.position#set",
+      "sig": "set position: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 57,
+      "path": "entities::Cushion.yaw#get",
+      "sig": "get yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 58,
+      "path": "entities::Cushion.yaw#set",
+      "sig": "set yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 59,
+      "path": "entities::Experience.level#get",
+      "sig": "get level: i32",
+      "status": "bound"
+    },
+    {
+      "id": 60,
+      "path": "entities::Experience.level#set",
+      "sig": "set level: i32",
+      "status": "bound"
+    },
+    {
+      "id": 61,
+      "path": "entities::Experience.progress#get",
+      "sig": "get progress: f32",
+      "status": "bound"
+    },
+    {
+      "id": 62,
+      "path": "entities::Experience.progress#set",
+      "sig": "set progress: f32",
+      "status": "bound"
+    },
+    {
+      "id": 63,
+      "path": "entities::Experience.total#get",
+      "sig": "get total: i32",
+      "status": "bound"
+    },
+    {
+      "id": 64,
+      "path": "entities::Experience.total#set",
+      "sig": "set total: i32",
+      "status": "bound"
+    },
+    {
+      "id": 65,
+      "path": "entities::ExperienceOrb.age#get",
+      "sig": "get age: u32",
+      "status": "bound"
+    },
+    {
+      "id": 66,
+      "path": "entities::ExperienceOrb.age#set",
+      "sig": "set age: u32",
+      "status": "bound"
+    },
+    {
+      "id": 67,
+      "path": "entities::ExperienceOrb.count#get",
+      "sig": "get count: u32",
+      "status": "bound"
+    },
+    {
+      "id": 68,
+      "path": "entities::ExperienceOrb.count#set",
+      "sig": "set count: u32",
+      "status": "bound"
+    },
+    {
+      "id": 69,
+      "path": "entities::ExperienceOrb.health#get",
+      "sig": "get health: i32",
+      "status": "bound"
+    },
+    {
+      "id": 70,
+      "path": "entities::ExperienceOrb.health#set",
+      "sig": "set health: i32",
+      "status": "bound"
+    },
+    {
+      "id": 71,
+      "path": "entities::ExperienceOrb.id#get",
+      "sig": "get id: u32",
+      "status": "bound"
+    },
+    {
+      "id": 72,
+      "path": "entities::ExperienceOrb.id#set",
+      "sig": "set id: u32",
+      "status": "bound"
+    },
+    {
+      "id": 73,
+      "path": "entities::ExperienceOrb.no_gravity#get",
+      "sig": "get no_gravity: bool",
+      "status": "bound"
+    },
+    {
+      "id": 74,
+      "path": "entities::ExperienceOrb.no_gravity#set",
+      "sig": "set no_gravity: bool",
+      "status": "bound"
+    },
+    {
+      "id": 75,
+      "path": "entities::ExperienceOrb.on_ground#get",
+      "sig": "get on_ground: bool",
+      "status": "bound"
+    },
+    {
+      "id": 76,
+      "path": "entities::ExperienceOrb.on_ground#set",
+      "sig": "set on_ground: bool",
+      "status": "bound"
+    },
+    {
+      "id": 77,
+      "path": "entities::ExperienceOrb.position#get",
+      "sig": "get position: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 78,
+      "path": "entities::ExperienceOrb.position#set",
+      "sig": "set position: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 79,
+      "path": "entities::ExperienceOrb.previous#get",
+      "sig": "get previous: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 80,
+      "path": "entities::ExperienceOrb.previous#set",
+      "sig": "set previous: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 81,
+      "path": "entities::ExperienceOrb.ticks#get",
+      "sig": "get ticks: u32",
+      "status": "bound"
+    },
+    {
+      "id": 82,
+      "path": "entities::ExperienceOrb.ticks#set",
+      "sig": "set ticks: u32",
+      "status": "bound"
+    },
+    {
+      "id": 83,
+      "path": "entities::ExperienceOrb.value#get",
+      "sig": "get value: u32",
+      "status": "bound"
+    },
+    {
+      "id": 84,
+      "path": "entities::ExperienceOrb.value#set",
+      "sig": "set value: u32",
+      "status": "bound"
+    },
+    {
+      "id": 85,
+      "path": "entities::ExperienceOrb.velocity#get",
+      "sig": "get velocity: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 86,
+      "path": "entities::ExperienceOrb.velocity#set",
+      "sig": "set velocity: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 87,
+      "path": "entities::ItemEntity.age#get",
+      "sig": "get age: i32",
+      "status": "bound"
+    },
+    {
+      "id": 88,
+      "path": "entities::ItemEntity.age#set",
+      "sig": "set age: i32",
+      "status": "bound"
+    },
+    {
+      "id": 89,
+      "path": "entities::ItemEntity.bob_offset#get",
+      "sig": "get bob_offset: f32",
+      "status": "bound"
+    },
+    {
+      "id": 90,
+      "path": "entities::ItemEntity.bob_offset#set",
+      "sig": "set bob_offset: f32",
+      "status": "bound"
+    },
+    {
+      "id": 91,
+      "path": "entities::ItemEntity.fire_ticks#get",
+      "sig": "get fire_ticks: i32",
+      "status": "bound"
+    },
+    {
+      "id": 92,
+      "path": "entities::ItemEntity.fire_ticks#set",
+      "sig": "set fire_ticks: i32",
+      "status": "bound"
+    },
+    {
+      "id": 93,
+      "path": "entities::ItemEntity.health#get",
+      "sig": "get health: i32",
+      "status": "bound"
+    },
+    {
+      "id": 94,
+      "path": "entities::ItemEntity.health#set",
+      "sig": "set health: i32",
+      "status": "bound"
+    },
+    {
+      "id": 95,
+      "path": "entities::ItemEntity.horizontal_collision#get",
+      "sig": "get horizontal_collision: bool",
+      "status": "bound"
+    },
+    {
+      "id": 96,
+      "path": "entities::ItemEntity.horizontal_collision#set",
+      "sig": "set horizontal_collision: bool",
+      "status": "bound"
+    },
+    {
+      "id": 97,
+      "path": "entities::ItemEntity.id#get",
+      "sig": "get id: u32",
+      "status": "bound"
+    },
+    {
+      "id": 98,
+      "path": "entities::ItemEntity.id#set",
+      "sig": "set id: u32",
+      "status": "bound"
+    },
+    {
+      "id": 99,
+      "path": "entities::ItemEntity.needs_sync#get",
+      "sig": "get needs_sync: bool",
+      "status": "bound"
+    },
+    {
+      "id": 100,
+      "path": "entities::ItemEntity.needs_sync#set",
+      "sig": "set needs_sync: bool",
+      "status": "bound"
+    },
+    {
+      "id": 101,
+      "path": "entities::ItemEntity.no_gravity#get",
+      "sig": "get no_gravity: bool",
+      "status": "bound"
+    },
+    {
+      "id": 102,
+      "path": "entities::ItemEntity.no_gravity#set",
+      "sig": "set no_gravity: bool",
+      "status": "bound"
+    },
+    {
+      "id": 103,
+      "path": "entities::ItemEntity.on_ground#get",
+      "sig": "get on_ground: bool",
+      "status": "bound"
+    },
+    {
+      "id": 104,
+      "path": "entities::ItemEntity.on_ground#set",
+      "sig": "set on_ground: bool",
+      "status": "bound"
+    },
+    {
+      "id": 105,
+      "path": "entities::ItemEntity.pickup_delay#get",
+      "sig": "get pickup_delay: i64",
+      "status": "bound"
+    },
+    {
+      "id": 106,
+      "path": "entities::ItemEntity.pickup_delay#set",
+      "sig": "set pickup_delay: i64",
+      "status": "bound"
+    },
+    {
+      "id": 107,
+      "path": "entities::ItemEntity.position#get",
+      "sig": "get position: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 108,
+      "path": "entities::ItemEntity.position#set",
+      "sig": "set position: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 109,
+      "path": "entities::ItemEntity.previous#get",
+      "sig": "get previous: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 110,
+      "path": "entities::ItemEntity.previous#set",
+      "sig": "set previous: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 111,
+      "path": "entities::ItemEntity.stuck#get",
+      "sig": "get stuck: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 112,
+      "path": "entities::ItemEntity.stuck#set",
+      "sig": "set stuck: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 113,
+      "path": "entities::ItemEntity.target#get",
+      "sig": "get target: Option<[i32; 4]>",
+      "status": "bound"
+    },
+    {
+      "id": 114,
+      "path": "entities::ItemEntity.target#set",
+      "sig": "set target: Option<[i32; 4]>",
+      "status": "bound"
+    },
+    {
+      "id": 115,
+      "path": "entities::ItemEntity.thrower#get",
+      "sig": "get thrower: Option<[i32; 4]>",
+      "status": "bound"
+    },
+    {
+      "id": 116,
+      "path": "entities::ItemEntity.thrower#set",
+      "sig": "set thrower: Option<[i32; 4]>",
+      "status": "bound"
+    },
+    {
+      "id": 117,
+      "path": "entities::ItemEntity.ticks#get",
+      "sig": "get ticks: u32",
+      "status": "bound"
+    },
+    {
+      "id": 118,
+      "path": "entities::ItemEntity.ticks#set",
+      "sig": "set ticks: u32",
+      "status": "bound"
+    },
+    {
+      "id": 119,
+      "path": "entities::ItemEntity.velocity#get",
+      "sig": "get velocity: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 120,
+      "path": "entities::ItemEntity.velocity#set",
+      "sig": "set velocity: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 121,
+      "path": "entities::ItemEntity.vertical_collision#get",
+      "sig": "get vertical_collision: bool",
+      "status": "bound"
+    },
+    {
+      "id": 122,
+      "path": "entities::ItemEntity.vertical_collision#set",
+      "sig": "set vertical_collision: bool",
+      "status": "bound"
+    },
+    {
+      "id": 123,
+      "path": "entities::ItemEnvironmentTick.alive#get",
+      "sig": "get alive: bool",
+      "status": "bound"
+    },
+    {
+      "id": 124,
+      "path": "entities::ItemEnvironmentTick.alive#set",
+      "sig": "set alive: bool",
+      "status": "bound"
+    },
+    {
+      "id": 125,
+      "path": "entities::ItemEnvironmentTick.lava_hurt#get",
+      "sig": "get lava_hurt: bool",
+      "status": "bound"
+    },
+    {
+      "id": 126,
+      "path": "entities::ItemEnvironmentTick.lava_hurt#set",
+      "sig": "set lava_hurt: bool",
+      "status": "bound"
+    },
+    {
+      "id": 127,
+      "path": "entities::ItemFrame.check_interval#get",
+      "sig": "get check_interval: u32",
+      "status": "bound"
+    },
+    {
+      "id": 128,
+      "path": "entities::ItemFrame.check_interval#set",
+      "sig": "set check_interval: u32",
+      "status": "bound"
+    },
+    {
+      "id": 129,
+      "path": "entities::ItemFrame.drop_chance#get",
+      "sig": "get drop_chance: f32",
+      "status": "bound"
+    },
+    {
+      "id": 130,
+      "path": "entities::ItemFrame.drop_chance#set",
+      "sig": "set drop_chance: f32",
+      "status": "bound"
+    },
+    {
+      "id": 131,
+      "path": "entities::ItemFrame.facing#get",
+      "sig": "get facing: u8",
+      "status": "bound"
+    },
+    {
+      "id": 132,
+      "path": "entities::ItemFrame.facing#set",
+      "sig": "set facing: u8",
+      "status": "bound"
+    },
+    {
+      "id": 133,
+      "path": "entities::ItemFrame.fixed#get",
+      "sig": "get fixed: bool",
+      "status": "bound"
+    },
+    {
+      "id": 134,
+      "path": "entities::ItemFrame.fixed#set",
+      "sig": "set fixed: bool",
+      "status": "bound"
+    },
+    {
+      "id": 135,
+      "path": "entities::ItemFrame.glow#get",
+      "sig": "get glow: bool",
+      "status": "bound"
+    },
+    {
+      "id": 136,
+      "path": "entities::ItemFrame.glow#set",
+      "sig": "set glow: bool",
+      "status": "bound"
+    },
+    {
+      "id": 137,
+      "path": "entities::ItemFrame.id#get",
+      "sig": "get id: u32",
+      "status": "bound"
+    },
+    {
+      "id": 138,
+      "path": "entities::ItemFrame.id#set",
+      "sig": "set id: u32",
+      "status": "bound"
+    },
+    {
+      "id": 139,
+      "path": "entities::ItemFrame.invisible#get",
+      "sig": "get invisible: bool",
+      "status": "bound"
+    },
+    {
+      "id": 140,
+      "path": "entities::ItemFrame.invisible#set",
+      "sig": "set invisible: bool",
+      "status": "bound"
+    },
+    {
+      "id": 141,
+      "path": "entities::ItemFrame.pos#get",
+      "sig": "get pos: [i32; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 142,
+      "path": "entities::ItemFrame.pos#set",
+      "sig": "set pos: [i32; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 143,
+      "path": "entities::ItemFrame.rotation#get",
+      "sig": "get rotation: u8",
+      "status": "bound"
+    },
+    {
+      "id": 144,
+      "path": "entities::ItemFrame.rotation#set",
+      "sig": "set rotation: u8",
+      "status": "bound"
+    },
+    {
+      "id": 145,
+      "path": "entities::ItemStep.moved#get",
+      "sig": "get moved: bool",
+      "status": "bound"
+    },
+    {
+      "id": 146,
+      "path": "entities::ItemStep.moved#set",
+      "sig": "set moved: bool",
+      "status": "bound"
+    },
+    {
+      "id": 147,
+      "path": "entities::ItemStep.old_velocity#get",
+      "sig": "get old_velocity: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 148,
+      "path": "entities::ItemStep.old_velocity#set",
+      "sig": "set old_velocity: horizon_core::geometry::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 149,
+      "path": "entities::Painting.check_interval#get",
+      "sig": "get check_interval: u32",
+      "status": "bound"
+    },
+    {
+      "id": 150,
+      "path": "entities::Painting.check_interval#set",
+      "sig": "set check_interval: u32",
+      "status": "bound"
+    },
+    {
+      "id": 151,
+      "path": "entities::Painting.facing#get",
+      "sig": "get facing: u8",
+      "status": "bound"
+    },
+    {
+      "id": 152,
+      "path": "entities::Painting.facing#set",
+      "sig": "set facing: u8",
+      "status": "bound"
+    },
+    {
+      "id": 153,
+      "path": "entities::Painting.height#get",
+      "sig": "get height: i32",
+      "status": "bound"
+    },
+    {
+      "id": 154,
+      "path": "entities::Painting.height#set",
+      "sig": "set height: i32",
+      "status": "bound"
+    },
+    {
+      "id": 155,
+      "path": "entities::Painting.id#get",
+      "sig": "get id: u32",
+      "status": "bound"
+    },
+    {
+      "id": 156,
+      "path": "entities::Painting.id#set",
+      "sig": "set id: u32",
+      "status": "bound"
+    },
+    {
+      "id": 157,
+      "path": "entities::Painting.pos#get",
+      "sig": "get pos: [i32; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 158,
+      "path": "entities::Painting.pos#set",
+      "sig": "set pos: [i32; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 159,
+      "path": "entities::Painting.width#get",
+      "sig": "get width: i32",
+      "status": "bound"
+    },
+    {
+      "id": 160,
+      "path": "entities::Painting.width#set",
+      "sig": "set width: i32",
+      "status": "bound"
+    },
+    {
+      "id": 161,
+      "path": "entities::StandStep.falling#get",
+      "sig": "get falling: bool",
+      "status": "bound"
+    },
+    {
+      "id": 162,
+      "path": "entities::StandStep.falling#set",
+      "sig": "set falling: bool",
+      "status": "bound"
+    },
+    {
+      "id": 163,
+      "path": "entities::StandStep.friction#get",
+      "sig": "get friction: f32",
+      "status": "bound"
+    },
+    {
+      "id": 164,
+      "path": "entities::StandStep.friction#set",
+      "sig": "set friction: f32",
+      "status": "bound"
+    },
+    {
+      "id": 165,
+      "path": "entities::dye_index",
+      "sig": "fn dye_index(&str) -> u8",
+      "status": "bound"
+    },
+    {
+      "id": 166,
+      "path": "entities::move_applies",
+      "sig": "fn move_applies(horizon_core::geometry::Vec3, horizon_core::geometry::Vec3) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 167,
+      "path": "entities::slime_step_on_scale",
+      "sig": "fn slime_step_on_scale(f64) -> Option<f64>",
+      "status": "bound"
+    },
+    {
+      "id": 168,
+      "path": "entities::vertical_collision_velocity",
+      "sig": "fn vertical_collision_velocity(f64, f64, f64, bool, bool) -> f64",
+      "status": "bound"
+    },
+    {
+      "id": 169,
+      "path": "items::BlockReduction.base#get",
+      "sig": "get base: f32",
+      "status": "bound"
+    },
+    {
+      "id": 170,
+      "path": "items::BlockReduction.base#set",
+      "sig": "set base: f32",
+      "status": "bound"
+    },
+    {
+      "id": 171,
+      "path": "items::BlockReduction.factor#get",
+      "sig": "get factor: f32",
+      "status": "bound"
+    },
+    {
+      "id": 172,
+      "path": "items::BlockReduction.factor#set",
+      "sig": "set factor: f32",
+      "status": "bound"
+    },
+    {
+      "id": 173,
+      "path": "items::BlockReduction.horizontal_angle#get",
+      "sig": "get horizontal_angle: f32",
+      "status": "bound"
+    },
+    {
+      "id": 174,
+      "path": "items::BlockReduction.horizontal_angle#set",
+      "sig": "set horizontal_angle: f32",
+      "status": "bound"
+    },
+    {
+      "id": 175,
+      "path": "items::BlockReduction.types#get",
+      "sig": "get types: Option<Vec<String>>",
+      "status": "bound"
+    },
+    {
+      "id": 176,
+      "path": "items::BlockReduction.types#set",
+      "sig": "set types: Option<Vec<String>>",
+      "status": "bound"
+    },
+    {
+      "id": 177,
+      "path": "items::BlocksAttacks.block_sound#get",
+      "sig": "get block_sound: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 178,
+      "path": "items::BlocksAttacks.block_sound#set",
+      "sig": "set block_sound: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 179,
+      "path": "items::BlocksAttacks.bypassed_by#get",
+      "sig": "get bypassed_by: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 180,
+      "path": "items::BlocksAttacks.bypassed_by#set",
+      "sig": "set bypassed_by: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 181,
+      "path": "items::BlocksAttacks.delay_seconds#get",
+      "sig": "get delay_seconds: f32",
+      "status": "bound"
+    },
+    {
+      "id": 182,
+      "path": "items::BlocksAttacks.delay_seconds#set",
+      "sig": "set delay_seconds: f32",
+      "status": "bound"
+    },
+    {
+      "id": 183,
+      "path": "items::BlocksAttacks.disable_scale#get",
+      "sig": "get disable_scale: f32",
+      "status": "bound"
+    },
+    {
+      "id": 184,
+      "path": "items::BlocksAttacks.disable_scale#set",
+      "sig": "set disable_scale: f32",
+      "status": "bound"
+    },
+    {
+      "id": 185,
+      "path": "items::BlocksAttacks.disabled_sound#get",
+      "sig": "get disabled_sound: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 186,
+      "path": "items::BlocksAttacks.disabled_sound#set",
+      "sig": "set disabled_sound: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 187,
+      "path": "items::BlocksAttacks.item_damage#get",
+      "sig": "get item_damage: (f32, f32, f32)",
+      "status": "bound"
+    },
+    {
+      "id": 188,
+      "path": "items::BlocksAttacks.item_damage#set",
+      "sig": "set item_damage: (f32, f32, f32)",
+      "status": "bound"
+    },
+    {
+      "id": 189,
+      "path": "items::BlocksAttacks.reductions#get",
+      "sig": "get reductions: Vec<BlockReduction>",
+      "status": "bound"
+    },
+    {
+      "id": 190,
+      "path": "items::BlocksAttacks.reductions#set",
+      "sig": "set reductions: Vec<BlockReduction>",
+      "status": "bound"
+    },
+    {
+      "id": 191,
+      "path": "items::ConsumeEffectSpec.amplifier#get",
+      "sig": "get amplifier: i32",
+      "status": "bound"
+    },
+    {
+      "id": 192,
+      "path": "items::ConsumeEffectSpec.amplifier#set",
+      "sig": "set amplifier: i32",
+      "status": "bound"
+    },
+    {
+      "id": 193,
+      "path": "items::ConsumeEffectSpec.duration#get",
+      "sig": "get duration: i32",
+      "status": "bound"
+    },
+    {
+      "id": 194,
+      "path": "items::ConsumeEffectSpec.duration#set",
+      "sig": "set duration: i32",
+      "status": "bound"
+    },
+    {
+      "id": 195,
+      "path": "items::ConsumeEffectSpec.id#get",
+      "sig": "get id: String",
+      "status": "bound"
+    },
+    {
+      "id": 196,
+      "path": "items::ConsumeEffectSpec.id#set",
+      "sig": "set id: String",
+      "status": "bound"
+    },
+    {
+      "id": 197,
+      "path": "items::Instrument.range#get",
+      "sig": "get range: f32",
+      "status": "bound"
+    },
+    {
+      "id": 198,
+      "path": "items::Instrument.range#set",
+      "sig": "set range: f32",
+      "status": "bound"
+    },
+    {
+      "id": 199,
+      "path": "items::Instrument.sound#get",
+      "sig": "get sound: String",
+      "status": "bound"
+    },
+    {
+      "id": 200,
+      "path": "items::Instrument.sound#set",
+      "sig": "set sound: String",
+      "status": "bound"
+    },
+    {
+      "id": 201,
+      "path": "items::Instrument.use_duration#get",
+      "sig": "get use_duration: f32",
+      "status": "bound"
+    },
+    {
+      "id": 202,
+      "path": "items::Instrument.use_duration#set",
+      "sig": "set use_duration: f32",
+      "status": "bound"
+    },
+    {
+      "id": 203,
+      "path": "items::ItemInfo.attack_damage#get",
+      "sig": "get attack_damage: f32",
+      "status": "bound"
+    },
+    {
+      "id": 204,
+      "path": "items::ItemInfo.attack_damage#set",
+      "sig": "set attack_damage: f32",
+      "status": "bound"
+    },
+    {
+      "id": 205,
+      "path": "items::ItemInfo.attack_speed#get",
+      "sig": "get attack_speed: f32",
+      "status": "bound"
+    },
+    {
+      "id": 206,
+      "path": "items::ItemInfo.attack_speed#set",
+      "sig": "set attack_speed: f32",
+      "status": "bound"
+    },
+    {
+      "id": 207,
+      "path": "items::ItemInfo.block#get",
+      "sig": "get block: Option<horizon_world::registry::BlockStateId>",
+      "status": "bound"
+    },
+    {
+      "id": 208,
+      "path": "items::ItemInfo.block#set",
+      "sig": "set block: Option<horizon_world::registry::BlockStateId>",
+      "status": "bound"
+    },
+    {
+      "id": 209,
+      "path": "items::ItemInfo.block_transformer#get",
+      "sig": "get block_transformer: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 210,
+      "path": "items::ItemInfo.block_transformer#set",
+      "sig": "set block_transformer: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 211,
+      "path": "items::ItemInfo.blocks_attacks#get",
+      "sig": "get blocks_attacks: Option<BlocksAttacks>",
+      "status": "bound"
+    },
+    {
+      "id": 212,
+      "path": "items::ItemInfo.blocks_attacks#set",
+      "sig": "set blocks_attacks: Option<BlocksAttacks>",
+      "status": "bound"
+    },
+    {
+      "id": 213,
+      "path": "items::ItemInfo.bundle#get",
+      "sig": "get bundle: bool",
+      "status": "bound"
+    },
+    {
+      "id": 214,
+      "path": "items::ItemInfo.bundle#set",
+      "sig": "set bundle: bool",
+      "status": "bound"
+    },
+    {
+      "id": 215,
+      "path": "items::ItemInfo.can_always_eat#get",
+      "sig": "get can_always_eat: bool",
+      "status": "bound"
+    },
+    {
+      "id": 216,
+      "path": "items::ItemInfo.can_always_eat#set",
+      "sig": "set can_always_eat: bool",
+      "status": "bound"
+    },
+    {
+      "id": 217,
+      "path": "items::ItemInfo.can_destroy_blocks_in_creative#get",
+      "sig": "get can_destroy_blocks_in_creative: bool",
+      "status": "bound"
+    },
+    {
+      "id": 218,
+      "path": "items::ItemInfo.can_destroy_blocks_in_creative#set",
+      "sig": "set can_destroy_blocks_in_creative: bool",
+      "status": "bound"
+    },
+    {
+      "id": 219,
+      "path": "items::ItemInfo.can_sprint#get",
+      "sig": "get can_sprint: bool",
+      "status": "bound"
+    },
+    {
+      "id": 220,
+      "path": "items::ItemInfo.can_sprint#set",
+      "sig": "set can_sprint: bool",
+      "status": "bound"
+    },
+    {
+      "id": 221,
+      "path": "items::ItemInfo.components#get",
+      "sig": "get components: Vec<String>",
+      "status": "bound"
+    },
+    {
+      "id": 222,
+      "path": "items::ItemInfo.components#set",
+      "sig": "set components: Vec<String>",
+      "status": "bound"
+    },
+    {
+      "id": 223,
+      "path": "items::ItemInfo.crafting_remainder#get",
+      "sig": "get crafting_remainder: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 224,
+      "path": "items::ItemInfo.crafting_remainder#set",
+      "sig": "set crafting_remainder: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 225,
+      "path": "items::ItemInfo.cushion_color#get",
+      "sig": "get cushion_color: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 226,
+      "path": "items::ItemInfo.cushion_color#set",
+      "sig": "set cushion_color: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 227,
+      "path": "items::ItemInfo.disable_blocking_seconds#get",
+      "sig": "get disable_blocking_seconds: f32",
+      "status": "bound"
+    },
+    {
+      "id": 228,
+      "path": "items::ItemInfo.disable_blocking_seconds#set",
+      "sig": "set disable_blocking_seconds: f32",
+      "status": "bound"
+    },
+    {
+      "id": 229,
+      "path": "items::ItemInfo.dye#get",
+      "sig": "get dye: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 230,
+      "path": "items::ItemInfo.dye#set",
+      "sig": "set dye: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 231,
+      "path": "items::ItemInfo.equip_asset#get",
+      "sig": "get equip_asset: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 232,
+      "path": "items::ItemInfo.equip_asset#set",
+      "sig": "set equip_asset: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 233,
+      "path": "items::ItemInfo.equip_damage_on_hurt#get",
+      "sig": "get equip_damage_on_hurt: bool",
+      "status": "bound"
+    },
+    {
+      "id": 234,
+      "path": "items::ItemInfo.equip_damage_on_hurt#set",
+      "sig": "set equip_damage_on_hurt: bool",
+      "status": "bound"
+    },
+    {
+      "id": 235,
+      "path": "items::ItemInfo.equip_dispensable#get",
+      "sig": "get equip_dispensable: bool",
+      "status": "bound"
+    },
+    {
+      "id": 236,
+      "path": "items::ItemInfo.equip_dispensable#set",
+      "sig": "set equip_dispensable: bool",
+      "status": "bound"
+    },
+    {
+      "id": 237,
+      "path": "items::ItemInfo.equip_slot#get",
+      "sig": "get equip_slot: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 238,
+      "path": "items::ItemInfo.equip_slot#set",
+      "sig": "set equip_slot: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 239,
+      "path": "items::ItemInfo.equip_sound#get",
+      "sig": "get equip_sound: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 240,
+      "path": "items::ItemInfo.equip_sound#set",
+      "sig": "set equip_sound: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 241,
+      "path": "items::ItemInfo.fire_resistant#get",
+      "sig": "get fire_resistant: bool",
+      "status": "bound"
+    },
+    {
+      "id": 242,
+      "path": "items::ItemInfo.fire_resistant#set",
+      "sig": "set fire_resistant: bool",
+      "status": "bound"
+    },
+    {
+      "id": 243,
+      "path": "items::ItemInfo.food#get",
+      "sig": "get food: Option<(u32, f32)>",
+      "status": "bound"
+    },
+    {
+      "id": 244,
+      "path": "items::ItemInfo.food#set",
+      "sig": "set food: Option<(u32, f32)>",
+      "status": "bound"
+    },
+    {
+      "id": 245,
+      "path": "items::ItemInfo.glider#get",
+      "sig": "get glider: bool",
+      "status": "bound"
+    },
+    {
+      "id": 246,
+      "path": "items::ItemInfo.glider#set",
+      "sig": "set glider: bool",
+      "status": "bound"
+    },
+    {
+      "id": 247,
+      "path": "items::ItemInfo.interact_vibrations#get",
+      "sig": "get interact_vibrations: bool",
+      "status": "bound"
+    },
+    {
+      "id": 248,
+      "path": "items::ItemInfo.interact_vibrations#set",
+      "sig": "set interact_vibrations: bool",
+      "status": "bound"
+    },
+    {
+      "id": 249,
+      "path": "items::ItemInfo.jukebox_song#get",
+      "sig": "get jukebox_song: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 250,
+      "path": "items::ItemInfo.jukebox_song#set",
+      "sig": "set jukebox_song: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 251,
+      "path": "items::ItemInfo.max_damage#get",
+      "sig": "get max_damage: u32",
+      "status": "bound"
+    },
+    {
+      "id": 252,
+      "path": "items::ItemInfo.max_damage#set",
+      "sig": "set max_damage: u32",
+      "status": "bound"
+    },
+    {
+      "id": 253,
+      "path": "items::ItemInfo.max_stack#get",
+      "sig": "get max_stack: u32",
+      "status": "bound"
+    },
+    {
+      "id": 254,
+      "path": "items::ItemInfo.max_stack#set",
+      "sig": "set max_stack: u32",
+      "status": "bound"
+    },
+    {
+      "id": 255,
+      "path": "items::ItemInfo.model#get",
+      "sig": "get model: String",
+      "status": "bound"
+    },
+    {
+      "id": 256,
+      "path": "items::ItemInfo.model#set",
+      "sig": "set model: String",
+      "status": "bound"
+    },
+    {
+      "id": 257,
+      "path": "items::ItemInfo.modifiers#get",
+      "sig": "get modifiers: Vec<(String, String, f64, String, String)>",
+      "status": "bound"
+    },
+    {
+      "id": 258,
+      "path": "items::ItemInfo.modifiers#set",
+      "sig": "set modifiers: Vec<(String, String, f64, String, String)>",
+      "status": "bound"
+    },
+    {
+      "id": 259,
+      "path": "items::ItemInfo.remainder#get",
+      "sig": "get remainder: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 260,
+      "path": "items::ItemInfo.remainder#set",
+      "sig": "set remainder: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 261,
+      "path": "items::ItemInfo.swappable#get",
+      "sig": "get swappable: bool",
+      "status": "bound"
+    },
+    {
+      "id": 262,
+      "path": "items::ItemInfo.swappable#set",
+      "sig": "set swappable: bool",
+      "status": "bound"
+    },
+    {
+      "id": 263,
+      "path": "items::ItemInfo.tool#get",
+      "sig": "get tool: Vec<ToolRule>",
+      "status": "bound"
+    },
+    {
+      "id": 264,
+      "path": "items::ItemInfo.tool#set",
+      "sig": "set tool: Vec<ToolRule>",
+      "status": "bound"
+    },
+    {
+      "id": 265,
+      "path": "items::ItemInfo.tool_damage_per_block#get",
+      "sig": "get tool_damage_per_block: Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 266,
+      "path": "items::ItemInfo.tool_damage_per_block#set",
+      "sig": "set tool_damage_per_block: Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 267,
+      "path": "items::ItemInfo.tool_default_speed#get",
+      "sig": "get tool_default_speed: f32",
+      "status": "bound"
+    },
+    {
+      "id": 268,
+      "path": "items::ItemInfo.tool_default_speed#set",
+      "sig": "set tool_default_speed: f32",
+      "status": "bound"
+    },
+    {
+      "id": 269,
+      "path": "items::ItemInfo.use_remainder#get",
+      "sig": "get use_remainder: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 270,
+      "path": "items::ItemInfo.use_remainder#set",
+      "sig": "set use_remainder: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 271,
+      "path": "items::ItemInfo.use_speed#get",
+      "sig": "get use_speed: f32",
+      "status": "bound"
+    },
+    {
+      "id": 272,
+      "path": "items::ItemInfo.use_speed#set",
+      "sig": "set use_speed: f32",
+      "status": "bound"
+    },
+    {
+      "id": 273,
+      "path": "items::ItemInfo.villager_food#get",
+      "sig": "get villager_food: Option<i32>",
+      "status": "bound"
+    },
+    {
+      "id": 274,
+      "path": "items::ItemInfo.villager_food#set",
+      "sig": "set villager_food: Option<i32>",
+      "status": "bound"
+    },
+    {
+      "id": 275,
+      "path": "items::ItemInfo.weapon_damage#get",
+      "sig": "get weapon_damage: Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 276,
+      "path": "items::ItemInfo.weapon_damage#set",
+      "sig": "set weapon_damage: Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 277,
+      "path": "items::ItemStack.count#get",
+      "sig": "get count: u32",
+      "status": "bound"
+    },
+    {
+      "id": 278,
+      "path": "items::ItemStack.count#set",
+      "sig": "set count: u32",
+      "status": "bound"
+    },
+    {
+      "id": 279,
+      "path": "items::ItemStack.damage#get",
+      "sig": "get damage: u32",
+      "status": "bound"
+    },
+    {
+      "id": 280,
+      "path": "items::ItemStack.damage#set",
+      "sig": "set damage: u32",
+      "status": "bound"
+    },
+    {
+      "id": 281,
+      "path": "items::Song.comparator#get",
+      "sig": "get comparator: i32",
+      "status": "bound"
+    },
+    {
+      "id": 282,
+      "path": "items::Song.comparator#set",
+      "sig": "set comparator: i32",
+      "status": "bound"
+    },
+    {
+      "id": 283,
+      "path": "items::Song.length_ticks#get",
+      "sig": "get length_ticks: i64",
+      "status": "bound"
+    },
+    {
+      "id": 284,
+      "path": "items::Song.length_ticks#set",
+      "sig": "set length_ticks: i64",
+      "status": "bound"
+    },
+    {
+      "id": 285,
+      "path": "items::Song.sound#get",
+      "sig": "get sound: String",
+      "status": "bound"
+    },
+    {
+      "id": 286,
+      "path": "items::Song.sound#set",
+      "sig": "set sound: String",
+      "status": "bound"
+    },
+    {
+      "id": 287,
+      "path": "items::ToolRule.blocks#get",
+      "sig": "get blocks: Vec<String>",
+      "status": "bound"
+    },
+    {
+      "id": 288,
+      "path": "items::ToolRule.blocks#set",
+      "sig": "set blocks: Vec<String>",
+      "status": "bound"
+    },
+    {
+      "id": 289,
+      "path": "items::ToolRule.correct#get",
+      "sig": "get correct: Option<bool>",
+      "status": "bound"
+    },
+    {
+      "id": 290,
+      "path": "items::ToolRule.correct#set",
+      "sig": "set correct: Option<bool>",
+      "status": "bound"
+    },
+    {
+      "id": 291,
+      "path": "items::ToolRule.speed#get",
+      "sig": "get speed: Option<f32>",
+      "status": "bound"
+    },
+    {
+      "id": 292,
+      "path": "items::ToolRule.speed#set",
+      "sig": "set speed: Option<f32>",
+      "status": "bound"
+    },
+    {
+      "id": 293,
+      "path": "items::fire_starter_sound",
+      "sig": "fn fire_starter_sound(bool) -> &str",
+      "status": "bound"
+    },
+    {
+      "id": 294,
+      "path": "items::publish_registry_for_checks",
+      "sig": "fn publish_registry_for_checks() -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 295,
+      "path": "items::published_stack_limit",
+      "sig": "fn published_stack_limit(&str) -> Option<Option<u32>>",
+      "status": "bound"
+    },
+    {
+      "id": 296,
+      "path": "items::villager_food",
+      "sig": "fn villager_food(&str) -> Option<i32>",
+      "status": "bound"
+    },
+    {
+      "id": 297,
+      "path": "entities::<ArmorStand as EntityRules>::get_default_gravity",
+      "sig": "fn get_default_gravity(&Self) -> f64",
+      "status": "bound"
+    },
+    {
+      "id": 298,
+      "path": "entities::<ArmorStand as EntityRules>::is_no_gravity",
+      "sig": "fn is_no_gravity(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 299,
+      "path": "entities::<ArmorStand as EntityRules>::is_pushed_by_fluid",
+      "sig": "fn is_pushed_by_fluid(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 300,
+      "path": "entities::<Cushion as Clone>::clone",
+      "sig": "fn clone(&Self) -> Cushion",
+      "status": "bound"
+    },
+    {
+      "id": 301,
+      "path": "entities::<Experience as Clone>::clone",
+      "sig": "fn clone(&Self) -> Experience",
+      "status": "bound"
+    },
+    {
+      "id": 302,
+      "path": "entities::<Experience as Default>::default",
+      "sig": "fn default() -> Experience",
+      "status": "bound"
+    },
+    {
+      "id": 303,
+      "path": "entities::<Experience as State>::type_name",
+      "sig": "fn type_name() -> &str",
+      "status": "bound"
+    },
+    {
+      "id": 304,
+      "path": "entities::<ExperienceOrb as EntityRules>::get_default_gravity",
+      "sig": "fn get_default_gravity(&Self) -> f64",
+      "status": "bound"
+    },
+    {
+      "id": 305,
+      "path": "entities::<ExperienceOrb as EntityRules>::is_no_gravity",
+      "sig": "fn is_no_gravity(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 306,
+      "path": "entities::<ItemEntity as EntityRules>::get_default_gravity",
+      "sig": "fn get_default_gravity(&Self) -> f64",
+      "status": "bound"
+    },
+    {
+      "id": 307,
+      "path": "entities::<ItemEntity as EntityRules>::is_no_gravity",
+      "sig": "fn is_no_gravity(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 308,
+      "path": "entities::<ItemStep as Clone>::clone",
+      "sig": "fn clone(&Self) -> ItemStep",
+      "status": "bound"
+    },
+    {
+      "id": 309,
+      "path": "entities::<StandMedium as Clone>::clone",
+      "sig": "fn clone(&Self) -> StandMedium",
+      "status": "bound"
+    },
+    {
+      "id": 310,
+      "path": "entities::<StandMedium as PartialEq>::eq",
+      "sig": "fn eq(&Self, &StandMedium) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 311,
+      "path": "entities::<StandStep as Clone>::clone",
+      "sig": "fn clone(&Self) -> StandStep",
+      "status": "bound"
+    },
+    {
+      "id": 312,
+      "path": "entities::ArmorStand::feet_are_leather_boots",
+      "sig": "fn feet_are_leather_boots(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 313,
+      "path": "entities::ArmorStand::filter_flag",
+      "sig": "fn filter_flag(usize) -> u32",
+      "status": "bound"
+    },
+    {
+      "id": 314,
+      "path": "entities::ArmorStand::interpolate",
+      "sig": "fn interpolate(&mut Self, Option<(Vec3, f32)>) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 315,
+      "path": "entities::ArmorStand::is_disabled",
+      "sig": "fn is_disabled(&Self, usize) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 316,
+      "path": "entities::ArmorStand::render_position",
+      "sig": "fn render_position(&Self, f64) -> Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 317,
+      "path": "entities::ArmorStand::render_yaw",
+      "sig": "fn render_yaw(&Self, f32) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 318,
+      "path": "entities::ArmorStand::snap",
+      "sig": "fn snap(&mut Self, Vec3, f32) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 319,
+      "path": "entities::ArmorStand::swap_locked",
+      "sig": "fn swap_locked(&Self, usize) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 320,
+      "path": "entities::ArmorStand::tick_settle",
+      "sig": "fn tick_settle(&mut Self, StandMedium, StandStep) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 321,
+      "path": "entities::Cushion::bounds",
+      "sig": "fn bounds(&Self) -> ([f64; 3], [f64; 3])",
+      "status": "bound"
+    },
+    {
+      "id": 322,
+      "path": "entities::Cushion::color_name",
+      "sig": "fn color_name(&Self) -> &str",
+      "status": "bound"
+    },
+    {
+      "id": 323,
+      "path": "entities::Cushion::dismount",
+      "sig": "fn dismount(&Self) -> Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 324,
+      "path": "entities::Cushion::item",
+      "sig": "fn item(&Self) -> String",
+      "status": "bound"
+    },
+    {
+      "id": 325,
+      "path": "entities::Cushion::seat",
+      "sig": "fn seat(&Self) -> Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 326,
+      "path": "entities::Experience::death_reward",
+      "sig": "fn death_reward(&Self, bool) -> u32",
+      "status": "bound"
+    },
+    {
+      "id": 327,
+      "path": "entities::Experience::give",
+      "sig": "fn give(&mut Self, i32) -> Option<i32>",
+      "status": "bound"
+    },
+    {
+      "id": 328,
+      "path": "entities::Experience::needed",
+      "sig": "fn needed(i32) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 329,
+      "path": "entities::Experience::respawn",
+      "sig": "fn respawn(&mut Self, bool) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 330,
+      "path": "entities::Experience::yoake_state_level",
+      "sig": "fn yoake_state_level(&Self) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 331,
+      "path": "entities::Experience::yoake_state_progress",
+      "sig": "fn yoake_state_progress(&Self) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 332,
+      "path": "entities::Experience::yoake_state_total",
+      "sig": "fn yoake_state_total(&Self) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 333,
+      "path": "entities::ExperienceOrb::can_merge",
+      "sig": "fn can_merge(&Self, u32, u32) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 334,
+      "path": "entities::ExperienceOrb::hurt",
+      "sig": "fn hurt(&mut Self, f32) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 335,
+      "path": "entities::ExperienceOrb::icon",
+      "sig": "fn icon(&Self) -> u32",
+      "status": "bound"
+    },
+    {
+      "id": 336,
+      "path": "entities::ExperienceOrb::split",
+      "sig": "fn split(u32) -> u32",
+      "status": "bound"
+    },
+    {
+      "id": 337,
+      "path": "entities::ItemCells::add",
+      "sig": "fn add(&mut Self, usize, Vec3) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 338,
+      "path": "entities::ItemCells::cell",
+      "sig": "fn cell(Vec3) -> (i32, i32, i32)",
+      "status": "bound"
+    },
+    {
+      "id": 339,
+      "path": "entities::ItemCells::moved",
+      "sig": "fn moved(&mut Self, usize, Vec3, Vec3) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 340,
+      "path": "entities::ItemCells::remove",
+      "sig": "fn remove(&mut Self, usize, Vec3) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 341,
+      "path": "entities::ItemEntity::has_infinite_pickup_delay",
+      "sig": "fn has_infinite_pickup_delay(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 342,
+      "path": "entities::ItemEntity::honey_block_inside",
+      "sig": "fn honey_block_inside(&mut Self, [i32; 3]) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 343,
+      "path": "entities::ItemEntity::mergeable",
+      "sig": "fn mergeable(&Self, i32, u32) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 344,
+      "path": "entities::ItemEntity::piston_slime_bounce",
+      "sig": "fn piston_slime_bounce(&mut Self, Direction) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 345,
+      "path": "entities::ItemEnvironmentTick::should_play_lava_hurt_sound",
+      "sig": "fn should_play_lava_hurt_sound(&Self, u32) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 346,
+      "path": "entities::ItemFrame::bounds",
+      "sig": "fn bounds(&Self) -> ([f64; 3], [f64; 3])",
+      "status": "bound"
+    },
+    {
+      "id": 347,
+      "path": "entities::ItemFrame::kind",
+      "sig": "fn kind(&Self) -> &str",
+      "status": "bound"
+    },
+    {
+      "id": 348,
+      "path": "entities::ItemFrame::step",
+      "sig": "fn step(&Self) -> [i32; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 349,
+      "path": "entities::ObstacleGrid::is_empty",
+      "sig": "fn is_empty(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 350,
+      "path": "entities::Painting::bounds",
+      "sig": "fn bounds(&Self) -> ([f64; 3], [f64; 3])",
+      "status": "bound"
+    },
+    {
+      "id": 351,
+      "path": "entities::Painting::left",
+      "sig": "fn left(&Self) -> [i32; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 352,
+      "path": "entities::Painting::step",
+      "sig": "fn step(&Self) -> [i32; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 353,
+      "path": "entities::StandMedium::from_heights",
+      "sig": "fn from_heights(f64, f64) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 354,
+      "path": "items::<BlockReduction as Clone>::clone",
+      "sig": "fn clone(&Self) -> BlockReduction",
+      "status": "bound"
+    },
+    {
+      "id": 355,
+      "path": "items::<BlocksAttacks as Clone>::clone",
+      "sig": "fn clone(&Self) -> BlocksAttacks",
+      "status": "bound"
+    },
+    {
+      "id": 356,
+      "path": "items::<ConsumeEffectSpec as Clone>::clone",
+      "sig": "fn clone(&Self) -> ConsumeEffectSpec",
+      "status": "bound"
+    },
+    {
+      "id": 357,
+      "path": "items::<ConsumeEffectSpec as PartialEq>::eq",
+      "sig": "fn eq(&Self, &ConsumeEffectSpec) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 358,
+      "path": "items::<Instrument as Clone>::clone",
+      "sig": "fn clone(&Self) -> Instrument",
+      "status": "bound"
+    },
+    {
+      "id": 359,
+      "path": "items::<ToolRule as Clone>::clone",
+      "sig": "fn clone(&Self) -> ToolRule",
+      "status": "bound"
+    },
+    {
+      "id": 360,
+      "path": "items::Instrument::use_ticks",
+      "sig": "fn use_ticks(&Self) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 361,
+      "path": "items::Items::block_in_tag",
+      "sig": "fn block_in_tag(&Self, &str, &str) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 362,
+      "path": "items::Items::block_matches",
+      "sig": "fn block_matches(&Self, &str, &str) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 363,
+      "path": "items::Items::has_loot_table",
+      "sig": "fn has_loot_table(&Self, &str) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 364,
+      "path": "items::Items::item_in_tag",
+      "sig": "fn item_in_tag(&Self, &str, &str) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 365,
+      "path": "items::Items::loot_sequence",
+      "sig": "fn loot_sequence(&Self, &str) -> Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 366,
+      "path": "items::Song::finished",
+      "sig": "fn finished(&Self, i64) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 367,
+      "path": "entities::<Painting as Clone>::clone",
+      "sig": "fn clone(&Self) -> Painting",
+      "status": "bound"
+    },
+    {
+      "id": 368,
+      "path": "entities::Painting.variant#get",
+      "sig": "get variant: std::sync::Arc<str>",
+      "status": "bound"
+    },
+    {
+      "id": 369,
+      "path": "entities::Painting.variant#set",
+      "sig": "set variant: std::sync::Arc<str>",
+      "status": "bound"
+    },
+    {
+      "id": 370,
+      "path": "items::<ItemStack as Clone>::clone",
+      "sig": "fn clone(&Self) -> ItemStack",
+      "status": "bound"
+    },
+    {
+      "id": 371,
+      "path": "items::<ItemStack as PartialEq>::eq",
+      "sig": "fn eq(&Self, &ItemStack) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 372,
+      "path": "items::ItemInfo.custom_components#get",
+      "sig": "get custom_components: std::collections::BTreeMap<String, horizon_world::nbt::Tag>",
+      "status": "bound"
+    },
+    {
+      "id": 373,
+      "path": "items::ItemInfo.custom_components#set",
+      "sig": "set custom_components: std::collections::BTreeMap<String, horizon_world::nbt::Tag>",
+      "status": "bound"
+    },
+    {
+      "id": 374,
+      "path": "items::ItemInfo.equip_allowed#get",
+      "sig": "get equip_allowed: Option<std::collections::HashSet<String>>",
+      "status": "bound"
+    },
+    {
+      "id": 375,
+      "path": "items::ItemInfo.equip_allowed#set",
+      "sig": "set equip_allowed: Option<std::collections::HashSet<String>>",
+      "status": "bound"
+    },
+    {
+      "id": 376,
+      "path": "items::ItemInfo.id#get",
+      "sig": "get id: std::sync::Arc<str>",
+      "status": "bound"
+    },
+    {
+      "id": 377,
+      "path": "items::ItemInfo.id#set",
+      "sig": "set id: std::sync::Arc<str>",
+      "status": "bound"
+    },
+    {
+      "id": 378,
+      "path": "items::ItemInfo.use_cooldown#get",
+      "sig": "get use_cooldown: Option<crate::cooldowns::UseCooldown>",
+      "status": "bound"
+    },
+    {
+      "id": 379,
+      "path": "items::ItemInfo.use_cooldown#set",
+      "sig": "set use_cooldown: Option<crate::cooldowns::UseCooldown>",
+      "status": "bound"
+    },
+    {
+      "id": 380,
+      "path": "items::ItemStack.item#get",
+      "sig": "get item: std::sync::Arc<str>",
+      "status": "bound"
+    },
+    {
+      "id": 381,
+      "path": "items::ItemStack.item#set",
+      "sig": "set item: std::sync::Arc<str>",
+      "status": "bound"
+    },
+    {
+      "id": 382,
+      "path": "items::Items.block_tags#get",
+      "sig": "get block_tags: std::collections::HashMap<String, std::collections::HashSet<String>>",
+      "status": "bound"
+    },
+    {
+      "id": 383,
+      "path": "items::Items.block_tags#set",
+      "sig": "set block_tags: std::collections::HashMap<String, std::collections::HashSet<String>>",
+      "status": "bound"
+    },
+    {
+      "id": 384,
+      "path": "items::Items.instruments#get",
+      "sig": "get instruments: std::collections::HashMap<String, Instrument>",
+      "status": "bound"
+    },
+    {
+      "id": 385,
+      "path": "items::Items.instruments#set",
+      "sig": "set instruments: std::collections::HashMap<String, Instrument>",
+      "status": "bound"
+    },
+    {
+      "id": 386,
+      "path": "items::Items.item_tag_order#get",
+      "sig": "get item_tag_order: std::collections::HashMap<String, Vec<String>>",
+      "status": "bound"
+    },
+    {
+      "id": 387,
+      "path": "items::Items.item_tag_order#set",
+      "sig": "set item_tag_order: std::collections::HashMap<String, Vec<String>>",
+      "status": "bound"
+    },
+    {
+      "id": 388,
+      "path": "items::Items.item_tags#get",
+      "sig": "get item_tags: std::collections::HashMap<String, std::collections::HashSet<String>>",
+      "status": "bound"
+    },
+    {
+      "id": 389,
+      "path": "items::Items.item_tags#set",
+      "sig": "set item_tags: std::collections::HashMap<String, std::collections::HashSet<String>>",
+      "status": "bound"
+    },
+    {
+      "id": 390,
+      "path": "items::Items.order#get",
+      "sig": "get order: Vec<std::sync::Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 391,
+      "path": "items::Items.order#set",
+      "sig": "set order: Vec<std::sync::Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 392,
+      "path": "items::Items.registry_order#get",
+      "sig": "get registry_order: Vec<std::sync::Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 393,
+      "path": "items::Items.registry_order#set",
+      "sig": "set registry_order: Vec<std::sync::Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 394,
+      "path": "items::Items::instrument",
+      "sig": "fn instrument(&Self, &ItemStack) -> Option<Instrument>",
+      "status": "bound"
+    },
+    {
+      "id": 395,
+      "path": "items::Items::resists_cactus",
+      "sig": "fn resists_cactus(&Self, &ItemStack) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 396,
+      "path": "items::Items::resists_fire",
+      "sig": "fn resists_fire(&Self, &ItemStack, &str) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 397,
+      "path": "items::entity_spec",
+      "sig": "fn entity_spec(&std::collections::HashMap<String, std::collections::HashSet<String>>, &str) -> std::collections::HashSet<String>",
+      "status": "bound"
+    },
+    {
+      "id": 398,
+      "path": "items::instrument_id",
+      "sig": "fn instrument_id(&ItemStack) -> Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 399,
+      "path": "items::take_held_drop",
+      "sig": "fn take_held_drop(&mut Option<ItemStack>, bool, bool) -> Option<ItemStack>",
+      "status": "bound"
+    },
+    {
+      "id": 400,
+      "path": "entities::<ItemCells as Default>::default",
+      "sig": "fn default() -> ItemCells",
+      "status": "bound"
+    },
+    {
+      "id": 401,
+      "path": "entities::ItemCells.cells#get",
+      "sig": "get cells: crate::fast_hash::FxHashMap<(i32, i32, i32), Vec<u32>>",
+      "status": "bound"
+    },
+    {
+      "id": 402,
+      "path": "entities::ItemCells.cells#set",
+      "sig": "set cells: crate::fast_hash::FxHashMap<(i32, i32, i32), Vec<u32>>",
+      "status": "bound"
+    },
+    {
+      "id": 403,
+      "path": "entities::ObstacleGrid.cells#get",
+      "sig": "get cells: crate::fast_hash::FxHashMap<(i32, i32, i32), Vec<u32>>",
+      "status": "bound"
+    },
+    {
+      "id": 404,
+      "path": "entities::ObstacleGrid.cells#set",
+      "sig": "set cells: crate::fast_hash::FxHashMap<(i32, i32, i32), Vec<u32>>",
+      "status": "bound"
+    },
+    {
+      "id": 405,
+      "path": "entities::slime_support_name",
+      "sig": "fn slime_support_name(&str, Option<&str>) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 406,
+      "path": "entity_query::<NativeEntityInfo as Clone>::clone",
+      "sig": "fn clone(&Self) -> NativeEntityInfo",
+      "status": "bound"
+    },
+    {
+      "id": 407,
+      "path": "entity_query::<NativeEntityInfo as PartialEq>::eq",
+      "sig": "fn eq(&Self, &NativeEntityInfo) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 408,
+      "path": "entity_query::<QueryUsage as Clone>::clone",
+      "sig": "fn clone(&Self) -> QueryUsage",
+      "status": "bound"
+    },
+    {
+      "id": 409,
+      "path": "entity_query::<QueryUsage as Default>::default",
+      "sig": "fn default() -> QueryUsage",
+      "status": "bound"
+    },
+    {
+      "id": 410,
+      "path": "entity_query::<QueryUsage as PartialEq>::eq",
+      "sig": "fn eq(&Self, &QueryUsage) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 411,
+      "path": "entity_query::<Sphere as Clone>::clone",
+      "sig": "fn clone(&Self) -> Sphere",
+      "status": "bound"
+    },
+    {
+      "id": 412,
+      "path": "entity_query::Game::native_entities_in",
+      "sig": "fn native_entities_in(&mut Self, &str, [f64; 3], f64) -> Result<Vec<NativeEntityInfo>, String>",
+      "status": "bound"
+    },
+    {
+      "id": 413,
+      "path": "entity_query::NativeEntityInfo.alive#get",
+      "sig": "get alive: bool",
+      "status": "bound"
+    },
+    {
+      "id": 414,
+      "path": "entity_query::NativeEntityInfo.alive#set",
+      "sig": "set alive: bool",
+      "status": "bound"
+    },
+    {
+      "id": 415,
+      "path": "entity_query::NativeEntityInfo.bounding_box#get",
+      "sig": "get bounding_box: [[f64; 3]; 2]",
+      "status": "bound"
+    },
+    {
+      "id": 416,
+      "path": "entity_query::NativeEntityInfo.bounding_box#set",
+      "sig": "set bounding_box: [[f64; 3]; 2]",
+      "status": "bound"
+    },
+    {
+      "id": 417,
+      "path": "entity_query::NativeEntityInfo.dimension#get",
+      "sig": "get dimension: String",
+      "status": "bound"
+    },
+    {
+      "id": 418,
+      "path": "entity_query::NativeEntityInfo.dimension#set",
+      "sig": "set dimension: String",
+      "status": "bound"
+    },
+    {
+      "id": 419,
+      "path": "entity_query::NativeEntityInfo.id#get",
+      "sig": "get id: u32",
+      "status": "bound"
+    },
+    {
+      "id": 420,
+      "path": "entity_query::NativeEntityInfo.id#set",
+      "sig": "set id: u32",
+      "status": "bound"
+    },
+    {
+      "id": 421,
+      "path": "entity_query::NativeEntityInfo.kind#get",
+      "sig": "get kind: String",
+      "status": "bound"
+    },
+    {
+      "id": 422,
+      "path": "entity_query::NativeEntityInfo.kind#set",
+      "sig": "set kind: String",
+      "status": "bound"
+    },
+    {
+      "id": 423,
+      "path": "entity_query::NativeEntityInfo.player_uuid#get",
+      "sig": "get player_uuid: Option<u128>",
+      "status": "bound"
+    },
+    {
+      "id": 424,
+      "path": "entity_query::NativeEntityInfo.player_uuid#set",
+      "sig": "set player_uuid: Option<u128>",
+      "status": "bound"
+    },
+    {
+      "id": 425,
+      "path": "entity_query::NativeEntityInfo.position#get",
+      "sig": "get position: [f64; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 426,
+      "path": "entity_query::NativeEntityInfo.position#set",
+      "sig": "set position: [f64; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 427,
+      "path": "entity_query::QueryBudgets.mods#get",
+      "sig": "get mods: Vec<QueryUsage>",
+      "status": "bound"
+    },
+    {
+      "id": 428,
+      "path": "entity_query::QueryBudgets.mods#set",
+      "sig": "set mods: Vec<QueryUsage>",
+      "status": "bound"
+    },
+    {
+      "id": 429,
+      "path": "entity_query::QueryUsage.candidates#get",
+      "sig": "get candidates: usize",
+      "status": "bound"
+    },
+    {
+      "id": 430,
+      "path": "entity_query::QueryUsage.candidates#set",
+      "sig": "set candidates: usize",
+      "status": "bound"
+    },
+    {
+      "id": 431,
+      "path": "entity_query::QueryUsage.mod_index#get",
+      "sig": "get mod_index: usize",
+      "status": "bound"
+    },
+    {
+      "id": 432,
+      "path": "entity_query::QueryUsage.mod_index#set",
+      "sig": "set mod_index: usize",
+      "status": "bound"
+    },
+    {
+      "id": 433,
+      "path": "entity_query::QueryUsage.queries#get",
+      "sig": "get queries: usize",
+      "status": "bound"
+    },
+    {
+      "id": 434,
+      "path": "entity_query::QueryUsage.queries#set",
+      "sig": "set queries: usize",
+      "status": "bound"
+    },
+    {
+      "id": 435,
+      "path": "entity_query::QueryUsage.results#get",
+      "sig": "get results: usize",
+      "status": "bound"
+    },
+    {
+      "id": 436,
+      "path": "entity_query::QueryUsage.results#set",
+      "sig": "set results: usize",
+      "status": "bound"
+    },
+    {
+      "id": 437,
+      "path": "entity_query::Sphere.center#get",
+      "sig": "get center: [f64; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 438,
+      "path": "entity_query::Sphere.center#set",
+      "sig": "set center: [f64; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 439,
+      "path": "entity_query::Sphere.radius#get",
+      "sig": "get radius: f64",
+      "status": "bound"
+    },
+    {
+      "id": 440,
+      "path": "entity_query::Sphere.radius#set",
+      "sig": "set radius: f64",
+      "status": "bound"
+    },
+    {
+      "id": 441,
+      "path": "entity_query::Sphere::intersects",
+      "sig": "fn intersects(Self, [[f64; 3]; 2]) -> Result<bool, String>",
+      "status": "bound"
+    },
+    {
+      "id": 442,
+      "path": "entity_query::Sphere::new",
+      "sig": "fn new([f64; 3], f64) -> Result<Self, String>",
+      "status": "bound"
+    },
+    {
+      "id": 443,
+      "path": "entity_query::coordinates",
+      "sig": "fn coordinates(horizon_core::geometry::Vec3) -> [f64; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 444,
+      "path": "entity_query::midpoint",
+      "sig": "fn midpoint([[f64; 3]; 2]) -> [f64; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 445,
+      "path": "entity_query::player_id",
+      "sig": "fn player_id(i32) -> Result<u32, String>",
+      "status": "bound"
+    },
+    {
+      "id": 446,
+      "path": "entity_query::require_server_context",
+      "sig": "fn require_server_context(super::execution_role::ExecutionRole, bool, bool, bool) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 447,
+      "path": "game_items::Game::native_client_item_in_tag",
+      "sig": "fn native_client_item_in_tag(&Self, &str, &str) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 448,
+      "path": "game_items::Game::native_client_item_tags_ready",
+      "sig": "fn native_client_item_tags_ready(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 449,
+      "path": "game_items::Game::native_item_is_block",
+      "sig": "fn native_item_is_block(&Self, &str) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 450,
+      "path": "items::Items::can_destroy_block",
+      "sig": "fn can_destroy_block(&Self, Option<&ItemStack>, bool) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 451,
+      "path": "items::Items::correct_for_drops",
+      "sig": "fn correct_for_drops(&Self, Option<&ItemStack>, &str) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 452,
+      "path": "items::Items::mining_speed",
+      "sig": "fn mining_speed(&Self, Option<&ItemStack>, &str) -> f32",
+      "status": "bound"
+    }
+  ]
+}

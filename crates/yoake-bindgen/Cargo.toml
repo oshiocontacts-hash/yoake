@@ -1,0 +1,18 @@
+[package]
+name = "yoake-bindgen"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Yoake 2.0 binding generator (MX3G1): reads rustdoc JSON of the engine and writes the glue that is include!d inside each engine module. A build-time tool, not part of the game."
+publish = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.151"
+
+[dev-dependencies]
+yoake-slice = { path = "../yoake-slice" }
+
+[lints]
+workspace = true

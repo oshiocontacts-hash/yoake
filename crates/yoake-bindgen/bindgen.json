@@ -1,0 +1,44 @@
+{
+  "docs": [
+    "target/doc/horizon_client_lib.json",
+    "target/doc/horizon_client.json",
+    "target/doc/horizon_items.json",
+    "target/doc/horizon_core.json",
+    "target/doc/horizon_world.json",
+    "target/doc/horizon_client_core.json"
+  ],
+  "lock": "crates/yoake-bindgen/ids.lock.json",
+  "report_dir": "docs/yoake2/bindgen",
+  "targets": [
+    {
+      "name": "items",
+      "crate_name": "horizon_items",
+      "source": "horizon-items/src/items.rs",
+      "glue": "crates/horizon-items/src/yoake_glue/items.rs"
+    },
+    {
+      "name": "entities",
+      "crate_name": "horizon_client_lib",
+      "source": "horizon-client/src/entities.rs",
+      "glue": "crates/horizon-client/src/yoake_glue/entities.rs"
+    },
+    {
+      "name": "game_items",
+      "crate_name": "horizon_client",
+      "source": "horizon-client/src/game/native_client_items.rs",
+      "glue": "crates/horizon-client/src/yoake_glue/game_items.rs",
+      "roots": [
+        "Game"
+      ]
+    },
+    {
+      "name": "entity_query",
+      "crate_name": "horizon_client",
+      "source": "horizon-client/src/game/native_entity_query.rs",
+      "glue": "crates/horizon-client/src/yoake_glue/entity_query.rs",
+      "roots": [
+        "Game"
+      ]
+    }
+  ]
+}

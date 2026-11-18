@@ -113,7 +113,7 @@ wgpu = { version = "30.0.1", default-features = false, features = ["gles"] }
 yoake-hook-baseline = []
 yoake-hook-bench = []
 # MX3V1 vertical slice: a WASM core module hooks ArmorStand::tick_settle (docs/yoake2/reports/MX3V1.md). Off by default.
-yoake2-slice = ["dep:yoake-slice", "yoake-hook-bench"]
+yoake2-slice = ["dep:yoake-slice", "yoake-hook-bench", "horizon-items/yoake2-slice"]
 dev-capture = ["horizon-client-render/dev-capture", "horizon-protocol/dev-capture"]
 default = ["audio", "controllers"]
 # Sound output. Without it (and `controllers`) the program links neither libasound nor libudev on
@@ -253,4 +253,9 @@ path = "../horizon-client/examples/chunk_encoding_bench.rs"
 [[test]]
 name = "yoake2_slice"
 path = "../horizon-client/tests/yoake2_slice.rs"
+required-features = ["yoake2-slice"]
+
+[[test]]
+name = "yoake2_glue"
+path = "../horizon-client/tests/yoake2_glue.rs"
 required-features = ["yoake2-slice"]

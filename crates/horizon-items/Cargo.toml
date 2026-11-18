@@ -15,8 +15,12 @@ horizon-world = { path = "../horizon-world" }
 serde = { version = "1", features = ["derive"] }
 log = "0.4"
 serde_json = { version = "1.0.151", features = ["raw_value"] }
+# MX3G1: the wire codec and the hook-argument receiver of the generated glue (feature `yoake2-slice` only).
+yoake-slice = { path = "../yoake-slice", optional = true }
 
 [features]
+# MX3G1: compiles the generated binding glue (src/yoake_glue) into the items module. Off by default.
+yoake2-slice = ["dep:yoake-slice"]
 # Test helpers (`Items::for_tests`, `enchant::tests`) for horizon-client's unit tests.
 test-support = []
 

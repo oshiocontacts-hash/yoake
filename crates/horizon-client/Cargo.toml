@@ -49,6 +49,8 @@ horizon-narrator = { path = "../horizon-narrator" }
 yoake-wasm = { path = "../yoake-wasm" }
 # The engine side of `yoake test`: runs only with a `--yoake-test*` flag (docs/yoake-wasm-dev.md).
 yoake-test-runner = { path = "../yoake-test-runner" }
+# MX3G1: the wire codec and handle receivers of the generated glue (feature `yoake2-slice` only).
+yoake-slice = { path = "../yoake-slice", optional = true }
 horizon-mods = { path = "../horizon-mods", default-features = false, features = ["index", "yak"] }
 toml = "1.1.6"
 wgpu = { version = "30.0.1", default-features = false, features = ["std", "parking_lot", "vulkan", "metal", "wgsl", "naga-ir"] }
@@ -119,6 +121,8 @@ winresource = "0.1"
 
 [features]
 yoake-hook-baseline = ["horizon-client-lib/yoake-hook-baseline"]
+# MX3G1: compiles the generated binding glue (src/yoake_glue) into the game and entities modules. Off by default.
+yoake2-slice = ["dep:yoake-slice", "horizon-client-lib/yoake2-slice"]
 default = ["audio", "controllers"]
 test-support = []
 dev-capture = ["horizon-client-lib/dev-capture", "horizon-client-render/dev-capture", "horizon-protocol/dev-capture"]

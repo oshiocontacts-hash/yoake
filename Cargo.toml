@@ -43,6 +43,7 @@ members = [
     "crates/yoake-hook-macro",
     "crates/yoake-hook-rt",
     "crates/yoake-slice",
+    "crates/yoake-bindgen",
     "crates/yoake-value",
     "crates/yoake-wasm",
     "crates/yoake-cli",
