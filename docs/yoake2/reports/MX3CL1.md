@@ -9,7 +9,7 @@ Branch `yoake2/client-hooks` (based on 3828f998b, merged with `vps/yoake2/merge`
 - [x] 3. Synthetic hooks `HOOK_CLIENT_TICK = 0x8000_0002` (`tick_remote`), `HOOK_HUD_RENDER = 0x8000_0003` (`Game::hud`); SDK `hooks::CLIENT_TICK` / `hooks::HUD_RENDER`; rows in `ENGINE_DISPATCHED` (Full, Full, ObserveOnly)
 - [x] 4. Tests (`crates/horizon-client/tests/yoake2_loader.rs`, no game resources)
 - [x] 5. `docs/yoake2/ENGINE_CALL_ABI.md`, section "Sides and threads (MX3CL1)"
-- [ ] 6. Suites green (see "Test results")
+- [x] 6. Suites green except the SDK-guest example harness (see "Test results")
 - [x] 7. This report
 - [ ] push `git push vps yoake2/client-hooks`
 
@@ -26,7 +26,18 @@ Branch `yoake2/client-hooks` (based on 3828f998b, merged with `vps/yoake2/merge`
 
 ## Test results
 
-(filled in below)
+Toolchain `cargo +1.100.0 ... -j 4`, features `yoake2-slice,yoake-hook-bench` where needed. Run after merging `vps/yoake2/merge` (18c35c022).
+
+| suite | result |
+|---|---|
+| `horizon-mods --features yak` (all) | 41 passed (incl. new `full_access_side_defaults_to_server_and_accepts_client_and_both`) |
+| `yoake-slice` | 28 + 1 + 73 passed |
+| `horizon-client --test yoake2_loader` | 25 passed (19 existing + 6 new: side loading, client ticks, server-only not on client, both = separate instances, client trap, no-mod no-op) |
+| `horizon-client --lib yoake2` | 1 passed (`bridge_modules_claim_disjoint_ids`, now also checks the mode of every `ENGINE_DISPATCHED` row), 4 ignored (need game resources) |
+| `cargo check -p horizon-client` (no `yoake2-slice`) | ok: the new call sites are empty functions |
+| `horizon-client --test yoake2_examples` | **not green in this environment**: both tests compile guests with the SDK and fail with `can't find crate for core` (the harness wants a wasm target this toolchain lacks: installed targets are `wasm32-unknown-unknown` and the host). The failure is in the SDK build step, before any of my code runs; not investigated further (要確認 below). |
+| `yoake2_bridge` (a `horizon-client-lib` test) | not run: my change touches nothing it covers |
+| game-resource tests (`yoake2_game_tests`) | not run (no resources; no game launch allowed) |
 
 ## 要確認 (not guessed)
 
@@ -36,3 +47,4 @@ Branch `yoake2/client-hooks` (based on 3828f998b, merged with `vps/yoake2/merge`
 4. **`HUD_RENDER` argument.** Argument 0 is a handle to nothing rather than "no handle". Changing that needs a runtime entry without arguments.
 5. **`CLIENT_TICK` and the replay / paused-reconfiguration states.** It runs from `tick_remote`, so it also runs while the level is loading and during reconfiguration; replays use the same path. Whether mods want it suppressed there is open.
 6. **Real-game check.** The client hooks' call sites compile but were not exercised in a running client (the game-resource tests in `game/yoake2_game_tests.rs` need resources and a `Game`; not run).
+7. **yoake2_examples** fails here with `can't find crate for core` while compiling the SDK for the guest harness (missing wasm target for the toolchain in use); it needs a toolchain with the harness's wasm target before the example guests can be re-run.
