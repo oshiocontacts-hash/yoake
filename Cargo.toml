@@ -42,6 +42,8 @@ members = [
     "crates/yoake-inject-spec",
     "crates/yoake-hook-macro",
     "crates/yoake-hook-rt",
+    "crates/yoake-hook-ledger",
+    "crates/yoake-hook-codemod",
     "crates/yoake-value",
     "crates/yoake-wasm",
     "crates/yoake-cli",

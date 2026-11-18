@@ -23,6 +23,8 @@ horizon-items = { path = "../horizon-items" }
 horizon-core = { path = "../horizon-core" }
 yoake-inject-macro = { path = "../yoake-inject-macro" }
 yoake-inject-rt = { path = "../yoake-inject-rt" }
+yoake-hook-macro = { path = "../yoake-hook-macro" }
+yoake-hook-rt = { path = "../yoake-hook-rt" }
 # OptiFine-format pack files: custom entity models, random entity textures.
 horizon-optifine = { path = "../horizon-optifine" }
 # The server thread ahead of the workers (MinecraftServer.spin's Thread.setPriority).

@@ -1656,6 +1656,8 @@ dependencies = [
  "wgpu",
  "winit",
  "winresource",
+ "yoake-hook-macro",
+ "yoake-hook-rt",
  "yoake-inject-macro",
  "yoake-inject-rt",
  "yoake-test-runner",
@@ -6148,6 +6150,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "yoake-hook-codemod"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde_json",
+ "syn 2.0.119",
+ "yoake-hook-ledger",
+]
+
+[[package]]
+name = "yoake-hook-ledger"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "yoake-hook-macro"
 version = "0.1.0"
 dependencies = [
@@ -6160,6 +6181,7 @@ dependencies = [
 name = "yoake-hook-rt"
 version = "0.1.0"
 dependencies = [
+ "yoake-hook-ledger",
  "yoake-hook-macro",
 ]
 

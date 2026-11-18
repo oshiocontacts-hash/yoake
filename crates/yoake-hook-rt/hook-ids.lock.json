@@ -1,73 +1,943 @@
-[
-  { "id": 1, "path": "horizon-client::entities", "fn": "vertical_collision_velocity" },
-  { "id": 2, "path": "horizon-client::entities", "fn": "move_applies" },
-  { "id": 3, "path": "horizon-client::entities", "fn": "slime_step_on_scale" },
-  { "id": 4, "path": "horizon-client::entities", "fn": "slime_support_name" },
-  { "id": 5, "path": "horizon-client::entities", "fn": "item_support_is_slime" },
-  { "id": 6, "path": "horizon-client::entities", "fn": "slime_at" },
-  { "id": 7, "path": "horizon-client::entities::ItemEnvironmentTick", "fn": "should_play_lava_hurt_sound" },
-  { "id": 8, "path": "horizon-client::entities::ItemEntity", "fn": "bounds" },
-  { "id": 9, "path": "horizon-client::entities::ItemEntity", "fn": "environment_tick" },
-  { "id": 10, "path": "horizon-client::entities::ItemEntity", "fn": "hurt" },
-  { "id": 11, "path": "horizon-client::entities::ItemEntity", "fn": "inside_block" },
-  { "id": 12, "path": "horizon-client::entities::ItemEntity", "fn": "move_towards_closest_space" },
-  { "id": 13, "path": "horizon-client::entities::ItemEntity", "fn": "tick_settle" },
-  { "id": 14, "path": "horizon-client::entities::ItemEntity", "fn": "stuck_multiplier" },
-  { "id": 15, "path": "horizon-client::entities::ItemEntity", "fn": "slime_step_on" },
-  { "id": 16, "path": "horizon-client::entities::ItemEntity", "fn": "piston_slime_bounce" },
-  { "id": 17, "path": "horizon-client::entities::ItemEntity", "fn": "apply_honey_slide" },
-  { "id": 18, "path": "horizon-client::entities::ItemEntity", "fn": "honey_block_inside" },
-  { "id": 19, "path": "horizon-client::entities::ItemEntity", "fn": "has_infinite_pickup_delay" },
-  { "id": 20, "path": "horizon-client::entities::ItemEntity", "fn": "mergeable" },
-  { "id": 21, "path": "horizon-client::entities::ObstacleGrid", "fn": "new" },
-  { "id": 22, "path": "horizon-client::entities::ObstacleGrid", "fn": "span" },
-  { "id": 23, "path": "horizon-client::entities::ObstacleGrid", "fn": "is_empty" },
-  { "id": 24, "path": "horizon-client::entities::ObstacleGrid", "fn": "near" },
-  { "id": 25, "path": "horizon-client::entities::ItemCells", "fn": "new" },
-  { "id": 26, "path": "horizon-client::entities::ItemCells", "fn": "cell" },
-  { "id": 27, "path": "horizon-client::entities::ItemCells", "fn": "add" },
-  { "id": 28, "path": "horizon-client::entities::ItemCells", "fn": "remove" },
-  { "id": 29, "path": "horizon-client::entities::ItemCells", "fn": "moved" },
-  { "id": 30, "path": "horizon-client::entities::ItemCells", "fn": "near" },
-  { "id": 31, "path": "horizon-client::entities::ExperienceOrb", "fn": "hurt" },
-  { "id": 32, "path": "horizon-client::entities::ExperienceOrb", "fn": "box_at" },
-  { "id": 33, "path": "horizon-client::entities::ExperienceOrb", "fn": "bounds" },
-  { "id": 34, "path": "horizon-client::entities::ExperienceOrb", "fn": "can_merge" },
-  { "id": 35, "path": "horizon-client::entities::ExperienceOrb", "fn": "split" },
-  { "id": 36, "path": "horizon-client::entities::ExperienceOrb", "fn": "icon" },
-  { "id": 37, "path": "horizon-client::entities::ExperienceOrb", "fn": "tick" },
-  { "id": 38, "path": "horizon-client::entities::ExperienceOrb", "fn": "move_towards_closest_space" },
-  { "id": 39, "path": "horizon-client::entities", "fn": "towards_closest_space" },
-  { "id": 40, "path": "horizon-client::entities::Experience", "fn": "death_reward" },
-  { "id": 41, "path": "horizon-client::entities::Experience", "fn": "respawn" },
-  { "id": 42, "path": "horizon-client::entities::Experience", "fn": "needed" },
-  { "id": 43, "path": "horizon-client::entities::Experience", "fn": "give" },
-  { "id": 44, "path": "horizon-client::entities::Painting", "fn": "step" },
-  { "id": 45, "path": "horizon-client::entities::Painting", "fn": "left" },
-  { "id": 46, "path": "horizon-client::entities::Painting", "fn": "bounds" },
-  { "id": 47, "path": "horizon-client::entities", "fn": "dye_index" },
-  { "id": 48, "path": "horizon-client::entities::Cushion", "fn": "bounds" },
-  { "id": 49, "path": "horizon-client::entities::Cushion", "fn": "color_name" },
-  { "id": 50, "path": "horizon-client::entities::Cushion", "fn": "item" },
-  { "id": 51, "path": "horizon-client::entities::Cushion", "fn": "seat" },
-  { "id": 52, "path": "horizon-client::entities::Cushion", "fn": "dismount" },
-  { "id": 53, "path": "horizon-client::entities::ItemFrame", "fn": "step" },
-  { "id": 54, "path": "horizon-client::entities::ItemFrame", "fn": "kind" },
-  { "id": 55, "path": "horizon-client::entities::ItemFrame", "fn": "bounds" },
-  { "id": 56, "path": "horizon-client::entities::StandMedium", "fn": "from_heights" },
-  { "id": 57, "path": "horizon-client::entities::StandStep", "fn": "for_hook_bench" },
-  { "id": 58, "path": "horizon-client::entities::ArmorStand", "fn": "name_with_tag" },
-  { "id": 59, "path": "horizon-client::entities::ArmorStand", "fn": "render_position" },
-  { "id": 60, "path": "horizon-client::entities::ArmorStand", "fn": "render_yaw" },
-  { "id": 61, "path": "horizon-client::entities::ArmorStand", "fn": "interpolate" },
-  { "id": 62, "path": "horizon-client::entities::ArmorStand", "fn": "snap" },
-  { "id": 63, "path": "horizon-client::entities::ArmorStand", "fn": "new" },
-  { "id": 64, "path": "horizon-client::entities::ArmorStand", "fn": "filter_flag" },
-  { "id": 65, "path": "horizon-client::entities::ArmorStand", "fn": "is_disabled" },
-  { "id": 66, "path": "horizon-client::entities::ArmorStand", "fn": "swap_locked" },
-  { "id": 67, "path": "horizon-client::entities::ArmorStand", "fn": "environment_tick" },
-  { "id": 68, "path": "horizon-client::entities::ArmorStand", "fn": "bounds" },
-  { "id": 69, "path": "horizon-client::entities::ArmorStand", "fn": "feet_are_leather_boots" },
-  { "id": 70, "path": "horizon-client::entities::ArmorStand", "fn": "tick_move" },
-  { "id": 71, "path": "horizon-client::entities::ArmorStand", "fn": "tick_settle" }
-]
+{
+  "version": 1,
+  "next_id": 126,
+  "entries": [
+    {
+      "id": 1,
+      "key": "horizon_client_lib::entities::vertical_collision_velocity",
+      "sig": "034fe7360d924aef",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 2,
+      "key": "horizon_client_lib::entities::move_applies",
+      "sig": "a97effe5bece010d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 3,
+      "key": "horizon_client_lib::entities::slime_step_on_scale",
+      "sig": "be746c2177ce4293",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 4,
+      "key": "horizon_client_lib::entities::slime_support_name",
+      "sig": "dc71e38cf25549b9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 5,
+      "key": "horizon_client_lib::entities::item_support_is_slime",
+      "sig": "df3abef40c05f19f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 6,
+      "key": "horizon_client_lib::entities::slime_at",
+      "sig": "7a0104584a51a063",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 7,
+      "key": "horizon_client_lib::entities::ItemEnvironmentTick::should_play_lava_hurt_sound",
+      "sig": "6a6f994480dc07a9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 8,
+      "key": "horizon_client_lib::entities::ItemEntity::bounds",
+      "sig": "d5d4a18b3e019846",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 9,
+      "key": "horizon_client_lib::entities::ItemEntity::environment_tick",
+      "sig": "d8a6581a530798b9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10,
+      "key": "horizon_client_lib::entities::ItemEntity::hurt",
+      "sig": "b24b12680b39f314",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11,
+      "key": "horizon_client_lib::entities::ItemEntity::inside_block",
+      "sig": "e652eb0f7c36ffd7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12,
+      "key": "horizon_client_lib::entities::ItemEntity::move_towards_closest_space",
+      "sig": "5fa45adb058e532c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 13,
+      "key": "horizon_client_lib::entities::ItemEntity::tick_settle",
+      "sig": "16cffd4ebd7012b3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 14,
+      "key": "horizon_client_lib::entities::ItemEntity::stuck_multiplier",
+      "sig": "14e88c89c5894a32",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 15,
+      "key": "horizon_client_lib::entities::ItemEntity::slime_step_on",
+      "sig": "d977711bec4f3b78",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 16,
+      "key": "horizon_client_lib::entities::ItemEntity::piston_slime_bounce",
+      "sig": "c96c0ac4cb5b54db",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 17,
+      "key": "horizon_client_lib::entities::ItemEntity::apply_honey_slide",
+      "sig": "6a53f5f6abf29e75",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 18,
+      "key": "horizon_client_lib::entities::ItemEntity::honey_block_inside",
+      "sig": "4a035239e91c3d70",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 19,
+      "key": "horizon_client_lib::entities::ItemEntity::has_infinite_pickup_delay",
+      "sig": "b4ae0ff9363cb21d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 20,
+      "key": "horizon_client_lib::entities::ItemEntity::mergeable",
+      "sig": "eb17573e2455aa61",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 21,
+      "key": "horizon_client_lib::entities::ObstacleGrid::new",
+      "sig": "436012ea0f2208ea",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 22,
+      "key": "horizon_client_lib::entities::ObstacleGrid::span",
+      "sig": "d27407d9073d506c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 23,
+      "key": "horizon_client_lib::entities::ObstacleGrid::is_empty",
+      "sig": "1500d9879b00e7d7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 24,
+      "key": "horizon_client_lib::entities::ObstacleGrid::near",
+      "sig": "b0790d9c120e3d11",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 25,
+      "key": "horizon_client_lib::entities::ItemCells::new",
+      "sig": "067b957f6900dd81",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 26,
+      "key": "horizon_client_lib::entities::ItemCells::cell",
+      "sig": "4d3ab1b3896522c9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 27,
+      "key": "horizon_client_lib::entities::ItemCells::add",
+      "sig": "72ebfc66bdf825a4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 28,
+      "key": "horizon_client_lib::entities::ItemCells::remove",
+      "sig": "e461c1021d2ded0d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 29,
+      "key": "horizon_client_lib::entities::ItemCells::moved",
+      "sig": "039cbdea2bd74393",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 30,
+      "key": "horizon_client_lib::entities::ItemCells::near",
+      "sig": "1f8a5bb6704eca7d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 31,
+      "key": "horizon_client_lib::entities::ExperienceOrb::hurt",
+      "sig": "09844c1300fba0a8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 32,
+      "key": "horizon_client_lib::entities::ExperienceOrb::box_at",
+      "sig": "e56467ea0dc9c5b4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 33,
+      "key": "horizon_client_lib::entities::ExperienceOrb::bounds",
+      "sig": "d5d4a18b3e019846",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 34,
+      "key": "horizon_client_lib::entities::ExperienceOrb::can_merge",
+      "sig": "07867778b4acbc4a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 35,
+      "key": "horizon_client_lib::entities::ExperienceOrb::split",
+      "sig": "3f5235b09ac481bc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 36,
+      "key": "horizon_client_lib::entities::ExperienceOrb::icon",
+      "sig": "40e9f8b6b761c842",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 37,
+      "key": "horizon_client_lib::entities::ExperienceOrb::tick",
+      "sig": "56763a62952bf1f8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 38,
+      "key": "horizon_client_lib::entities::ExperienceOrb::move_towards_closest_space",
+      "sig": "5fa45adb058e532c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 39,
+      "key": "horizon_client_lib::entities::towards_closest_space",
+      "sig": "a08c4806fdf08f01",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 40,
+      "key": "horizon_client_lib::entities::Experience::death_reward",
+      "sig": "8fd879fd3ffbd64a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 41,
+      "key": "horizon_client_lib::entities::Experience::respawn",
+      "sig": "65e6003abb2fb2ad",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 42,
+      "key": "horizon_client_lib::entities::Experience::needed",
+      "sig": "496232b43a6b6b7c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 43,
+      "key": "horizon_client_lib::entities::Experience::give",
+      "sig": "c5648b3e18f3bfc0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 44,
+      "key": "horizon_client_lib::entities::Painting::step",
+      "sig": "3925e0d4e19ab829",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 45,
+      "key": "horizon_client_lib::entities::Painting::left",
+      "sig": "a2598ba42312b754",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 46,
+      "key": "horizon_client_lib::entities::Painting::bounds",
+      "sig": "f664b1cda69bd95b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 47,
+      "key": "horizon_client_lib::entities::dye_index",
+      "sig": "dfeb69e9200b1819",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 48,
+      "key": "horizon_client_lib::entities::Cushion::bounds",
+      "sig": "f664b1cda69bd95b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 49,
+      "key": "horizon_client_lib::entities::Cushion::color_name",
+      "sig": "3f87c705ffeb9780",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 50,
+      "key": "horizon_client_lib::entities::Cushion::item",
+      "sig": "8c8f1dae7377b733",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 51,
+      "key": "horizon_client_lib::entities::Cushion::seat",
+      "sig": "1a1a0006f4f80b4b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 52,
+      "key": "horizon_client_lib::entities::Cushion::dismount",
+      "sig": "9fb6e18fa22e1bab",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 53,
+      "key": "horizon_client_lib::entities::ItemFrame::step",
+      "sig": "3925e0d4e19ab829",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 54,
+      "key": "horizon_client_lib::entities::ItemFrame::kind",
+      "sig": "6831b872415ac7f3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 55,
+      "key": "horizon_client_lib::entities::ItemFrame::bounds",
+      "sig": "f664b1cda69bd95b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 56,
+      "key": "horizon_client_lib::entities::StandMedium::from_heights",
+      "sig": "18e60bd06b9b286f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 57,
+      "key": "horizon_client_lib::entities::StandStep::for_hook_bench",
+      "sig": "3513ffea081b1d7d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 58,
+      "key": "horizon_client_lib::entities::ArmorStand::name_with_tag",
+      "sig": "80e1a6a3c8a4b6f1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 59,
+      "key": "horizon_client_lib::entities::ArmorStand::render_position",
+      "sig": "85c0822cb48a208c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 60,
+      "key": "horizon_client_lib::entities::ArmorStand::render_yaw",
+      "sig": "1d71dc8dc90810c1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 61,
+      "key": "horizon_client_lib::entities::ArmorStand::interpolate",
+      "sig": "2689c5d7260845c5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 62,
+      "key": "horizon_client_lib::entities::ArmorStand::snap",
+      "sig": "d12c61bff4e12aa6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 63,
+      "key": "horizon_client_lib::entities::ArmorStand::new",
+      "sig": "4a03edd723b70516",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 64,
+      "key": "horizon_client_lib::entities::ArmorStand::filter_flag",
+      "sig": "a7b224560a6eeb44",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 65,
+      "key": "horizon_client_lib::entities::ArmorStand::is_disabled",
+      "sig": "fe9d86268a20446e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 66,
+      "key": "horizon_client_lib::entities::ArmorStand::swap_locked",
+      "sig": "4bac9b19ab6cecbf",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 67,
+      "key": "horizon_client_lib::entities::ArmorStand::environment_tick",
+      "sig": "a9214939c3ce05a9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 68,
+      "key": "horizon_client_lib::entities::ArmorStand::bounds",
+      "sig": "d5d4a18b3e019846",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 69,
+      "key": "horizon_client_lib::entities::ArmorStand::feet_are_leather_boots",
+      "sig": "c790fb48ba877950",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 70,
+      "key": "horizon_client_lib::entities::ArmorStand::tick_move",
+      "sig": "472c67855659ae8b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 71,
+      "key": "horizon_client_lib::entities::ArmorStand::tick_settle",
+      "sig": "6a5e8bca5aac466f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 72,
+      "key": "horizon_client_lib::entities::<ItemEntity as EntityRules>::is_no_gravity",
+      "sig": "26e679431eef5c7c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 73,
+      "key": "horizon_client_lib::entities::<ItemEntity as EntityRules>::get_default_gravity",
+      "sig": "2f316c4a95274de8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 74,
+      "key": "horizon_client_lib::entities::<ExperienceOrb as EntityRules>::is_no_gravity",
+      "sig": "26e679431eef5c7c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 75,
+      "key": "horizon_client_lib::entities::<ExperienceOrb as EntityRules>::get_default_gravity",
+      "sig": "2f316c4a95274de8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 76,
+      "key": "horizon_client_lib::entities::<ArmorStand as EntityRules>::is_no_gravity",
+      "sig": "26e679431eef5c7c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 77,
+      "key": "horizon_client_lib::entities::<ArmorStand as EntityRules>::get_default_gravity",
+      "sig": "2f316c4a95274de8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 78,
+      "key": "horizon_client_lib::entities::<ArmorStand as EntityRules>::is_pushed_by_fluid",
+      "sig": "d3926e9edb4619ba",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 79,
+      "key": "horizon_client_lib::entities::fluids::update_entity_fluids",
+      "sig": "157935af0fa16085",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 80,
+      "key": "horizon_client_lib::entities::fluids::ItemEntity::fluid_eye_y",
+      "sig": "ff3e8be381cde2e7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 81,
+      "key": "horizon_client_lib::entities::fluids::ExperienceOrb::update_fluids",
+      "sig": "429ff7c62ec5c3d5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 82,
+      "key": "horizon_client_lib::entities::fluids::ArmorStand::fluid_eye_y",
+      "sig": "ff3e8be381cde2e7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 83,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidMembership>::fluid_in_tag",
+      "sig": "d10163a4e86e569b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 84,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::is_player_class",
+      "sig": "7a4cef07f54c3f0c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 85,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::velocity",
+      "sig": "1dfeb84774de027c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 86,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::add_delta_movement",
+      "sig": "eac164b89d525b52",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 87,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::interaction_box",
+      "sig": "9ba3a37208232739",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 88,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::loaded_chunk",
+      "sig": "c3e7855349108bc1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 89,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::bounding_box_min_y",
+      "sig": "cb0e90960d77d004",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 90,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_x",
+      "sig": "fff3f629f590e8e5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 91,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::eye_y",
+      "sig": "2ffab87f4d2a0639",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 92,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_z",
+      "sig": "53654c05bd7ee90f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 93,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_state",
+      "sig": "bf3cad5cbd9c233a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 94,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_height",
+      "sig": "447d179a23b6105f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 95,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::camera_height",
+      "sig": "dba689e3baba3738",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 96,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::flow",
+      "sig": "2783a8a3c07b258d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 97,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::fluid",
+      "sig": "da2d05a4e21c09c3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 98,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::sturdy_down",
+      "sig": "429a9e90bca2792a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 99,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::fluid",
+      "sig": "701d912da02a675c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 100,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::block",
+      "sig": "8df9946cb387d523",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 101,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::blocks_fluid_flow",
+      "sig": "a561e7a3b56c043b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 102,
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::is_ice_class",
+      "sig": "7494076198b890fa",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 103,
+      "key": "horizon_client::game::item_use::Game::start_using_item",
+      "sig": "69d431bae56defcc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 104,
+      "key": "horizon_client::game::item_use::Game::use_duration",
+      "sig": "a6f93c99878d231c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 105,
+      "key": "horizon_client::game::item_use::Game::mod_use",
+      "sig": "827cdf222ac21f4c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 106,
+      "key": "horizon_client::game::item_use::Game::start_mod_use",
+      "sig": "038a1c3c10e8f049",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 107,
+      "key": "horizon_client::game::item_use::Game::tick_mod_use",
+      "sig": "7b0aa20212e7754f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 108,
+      "key": "horizon_client::game::item_use::Game::complete_using_item",
+      "sig": "f63c6f957170469e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 109,
+      "key": "horizon_client::game::item_use::Game::use_item_finished",
+      "sig": "6b1b9eb3d1397a55",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 110,
+      "key": "horizon_client::game::item_use::Game::use_item_ticked",
+      "sig": "5911b8b95eb89bf0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 111,
+      "key": "horizon_client::game::item_use::Game::item_on_use_tick",
+      "sig": "4402e91765838438",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 112,
+      "key": "horizon_client::game::item_use::Game::ticks_held",
+      "sig": "6b1c07852926b9da",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 113,
+      "key": "horizon_client::game::item_use::Game::use_item_stopped",
+      "sig": "4254b64e05eb51d7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 114,
+      "key": "horizon_client::game::item_use::Game::mod_release_using",
+      "sig": "c490f74b44149184",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 115,
+      "key": "horizon_client::game::item_use::Game::can_eat",
+      "sig": "59236730c7e59304",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 116,
+      "key": "horizon_client::game::item_use::tick_left",
+      "sig": "edf81cf1a1fe060f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 117,
+      "key": "horizon_client::game::item_use::release_parts",
+      "sig": "870de481498e475f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 118,
+      "key": "horizon_client::game::item_use::bow_release_power",
+      "sig": "be343cb3b797ceff",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 119,
+      "key": "horizon_client::game::item_use::ticks_left",
+      "sig": "70cf982ec0c9504f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 120,
+      "key": "horizon_client::game::item_use::held",
+      "sig": "5ca0813e852ac070",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 121,
+      "key": "horizon_client::game::item_use::duration_leaving",
+      "sig": "50176e2a84bf52a6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 122,
+      "key": "horizon_client::game::item_use::start_of",
+      "sig": "ddd81a236a5819c9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 123,
+      "key": "horizon_client::game::item_use::consumes_at_once",
+      "sig": "9248d4e6b3ff7b79",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 124,
+      "key": "horizon_client::game::item_use::count_down",
+      "sig": "1b9defaf4d581660",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 125,
+      "key": "horizon_client::game::item_use::use_pose",
+      "sig": "3d2390d3449dbbb8",
+      "status": "live",
+      "kind": "fn"
+    }
+  ],
+  "excluded": [
+    {
+      "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::block_position",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::block_state",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::in_block_state",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::is_fall_flying",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::is_spectator",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::set_last_climbable_position",
+      "reason": "destructuring argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::ArmorStand::on_pos_legacy",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move",
+      "reason": "destructuring argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::is_face_sturdy",
+      "reason": "destructuring argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::chunk_sections",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours",
+      "reason": "nested callable borrow",
+      "kind": "fn"
+    }
+  ]
+}

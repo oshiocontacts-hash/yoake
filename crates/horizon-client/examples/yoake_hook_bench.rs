@@ -39,9 +39,8 @@ fn main() {
     let mode = std::env::args().nth(1).unwrap_or_else(|| "null".into());
     if mode == "noop" {
         #[cfg(not(feature = "yoake-hook-baseline"))]
-        yoake_hook_rt::register::<SettleCallback>(
-            ArmorStand::__YOAKE_HOOK_ID_tick_settle,
-            noop_settle,
+        ArmorStand::__yoake_register_tick_settle(
+            noop_settle as SettleCallback,
             yoake_hook_rt::Order::default(),
         )
         .unwrap();

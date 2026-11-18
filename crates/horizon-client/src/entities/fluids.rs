@@ -31,6 +31,10 @@ struct EntityFluidWorld<'a> {
 /// `velocity` with vanilla's scales (water 0.014, lava 0.007 fast or
 /// 0.0023333 slow). Items, experience orbs and armour stands call it for themselves; a boat
 /// calls it from its own tick, before `floatBoat` scales the velocity.
+#[yoake_hook_macro::yoake_hook(
+    id = 79,
+    key = "horizon_client_lib::entities::fluids::update_entity_fluids"
+)]
 pub fn update_entity_fluids(
     bounds: Aabb,
     position: Vec3,
@@ -68,6 +72,11 @@ pub fn update_entity_fluids(
 impl ItemEntity {
     /// `Entity.getEyeY` of an item (eye height 0.2125), where
     /// `updateFluidHeightAndDoFluidPushing` reads the fluid.
+    #[yoake_hook_macro::yoake_hook(
+        method,
+        id = 80,
+        key = "horizon_client_lib::entities::fluids::ItemEntity::fluid_eye_y"
+    )]
     pub fn fluid_eye_y(&self) -> f64 {
         self.position.y + f64::from(0.2125f32)
     }
@@ -81,6 +90,11 @@ impl ItemEntity {
 impl ExperienceOrb {
     /// `Entity.updateFluidInteraction`: refreshes fluid immersion over the
     /// orb's box and pushes its velocity by any water or lava current.
+    #[yoake_hook_macro::yoake_hook(
+        method,
+        id = 81,
+        key = "horizon_client_lib::entities::fluids::ExperienceOrb::update_fluids"
+    )]
     pub fn update_fluids(&mut self, world: &World, fluids: &FluidResources) -> (f64, f64) {
         update_entity_fluids(
             self.bounds(),
@@ -94,6 +108,11 @@ impl ExperienceOrb {
 }
 impl ArmorStand {
     /// `Entity.getEyeY` of a stand: its eye height by size.
+    #[yoake_hook_macro::yoake_hook(
+        method,
+        id = 82,
+        key = "horizon_client_lib::entities::fluids::ArmorStand::fluid_eye_y"
+    )]
     pub fn fluid_eye_y(&self) -> f64 {
         let eye = if self.small {
             f64::from(0.9875f32 * 0.9)
@@ -116,18 +135,49 @@ impl ArmorStand {
 }
 impl FluidMembership for EntityFluidWorld<'_> {
     fn fluid_in_tag(&self, kind: FluidKind, tag: FluidTagId) -> bool {
+        self.__yoake_trait_fluid_membership_fluid_in_tag(kind, tag)
+    }
+}
+impl EntityFluidWorld<'_> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 83, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidMembership>::fluid_in_tag")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_membership_fluid_in_tag(
+        &self,
+        kind: FluidKind,
+        tag: FluidTagId,
+    ) -> bool {
         FluidTags.fluid_in_tag(kind, tag)
     }
 }
 impl CurrentTarget for EntityFluidWorld<'_> {
     type Error = Error;
     fn is_player_class(&self) -> bool {
-        false
+        self.__yoake_trait_current_target_is_player_class()
     }
     fn velocity(&mut self) -> Result<Vec3, Error> {
-        Ok(*self.velocity)
+        self.__yoake_trait_current_target_velocity()
     }
     fn add_delta_movement(&mut self, delta: Vec3) -> Result<(), Error> {
+        self.__yoake_trait_current_target_add_delta_movement(delta)
+    }
+}
+impl EntityFluidWorld<'_> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 84, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::is_player_class")]
+    #[inline(always)]
+    fn __yoake_trait_current_target_is_player_class(&self) -> bool {
+        false
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 85, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::velocity")]
+    #[inline(always)]
+    fn __yoake_trait_current_target_velocity(&mut self) -> Result<Vec3, Error> {
+        Ok(*self.velocity)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 86, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::add_delta_movement")]
+    #[inline(always)]
+    fn __yoake_trait_current_target_add_delta_movement(
+        &mut self,
+        delta: Vec3,
+    ) -> Result<(), Error> {
         let v = *self.velocity;
         let sum = Vec3::new(v.x + delta.x, v.y + delta.y, v.z + delta.z);
         if delta.is_finite() && sum.is_finite() {
@@ -140,10 +190,10 @@ impl FluidInteractionWorld for EntityFluidWorld<'_> {
     type Error = Error;
     type Chunk = ();
     fn interaction_box(&mut self) -> Result<Option<Aabb>, Error> {
-        Ok(Some(self.bounds.deflate(Vec3::new(0.001, 0.001, 0.001))))
+        self.__yoake_trait_fluid_interaction_world_interaction_box()
     }
     fn loaded_chunk(&mut self, x: i32, z: i32) -> Result<Option<()>, Error> {
-        Ok(self.world.chunks.contains_key(&(x, z)).then_some(()))
+        self.__yoake_trait_fluid_interaction_world_loaded_chunk(x, z)
     }
     fn chunk_sections(&mut self, _: ()) -> Result<FluidSections<'_>, Error> {
         let layout = self.world.layout();
@@ -153,36 +203,121 @@ impl FluidInteractionWorld for EntityFluidWorld<'_> {
         })
     }
     fn bounding_box_min_y(&self) -> f64 {
-        self.position.y
+        self.__yoake_trait_fluid_interaction_world_bounding_box_min_y()
     }
     fn block_x(&self) -> i32 {
-        self.position.x.floor() as i32
+        self.__yoake_trait_fluid_interaction_world_block_x()
     }
     fn eye_y(&mut self) -> Result<f64, Error> {
-        Ok(self.eye_y)
+        self.__yoake_trait_fluid_interaction_world_eye_y()
     }
     fn block_z(&self) -> i32 {
-        self.position.z.floor() as i32
+        self.__yoake_trait_fluid_interaction_world_block_z()
     }
     fn fluid_state(&mut self, p: BlockPos) -> Result<FluidState, Error> {
-        Ok(self.fluids.fluid(self.world.block(p.x, p.y, p.z)))
+        self.__yoake_trait_fluid_interaction_world_fluid_state(p)
     }
     fn fluid_height(&mut self, f: FluidState, p: BlockPos) -> Result<f32, Error> {
-        f.height_at(self, [p.x, p.y, p.z])
+        self.__yoake_trait_fluid_interaction_world_fluid_height(f, p)
     }
     fn camera_height(&mut self, f: FluidState, p: BlockPos) -> Result<f32, Error> {
-        f.camera_height_at(self, [p.x, p.y, p.z])
+        self.__yoake_trait_fluid_interaction_world_camera_height(f, p)
     }
     fn flow(&mut self, f: FluidState, p: BlockPos) -> Result<Vec3, Error> {
+        self.__yoake_trait_fluid_interaction_world_flow(f, p)
+    }
+}
+impl EntityFluidWorld<'_> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 87, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::interaction_box")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_interaction_world_interaction_box(
+        &mut self,
+    ) -> Result<Option<Aabb>, Error> {
+        Ok(Some(self.bounds.deflate(Vec3::new(0.001, 0.001, 0.001))))
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 88, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::loaded_chunk")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_interaction_world_loaded_chunk(
+        &mut self,
+        x: i32,
+        z: i32,
+    ) -> Result<Option<()>, Error> {
+        Ok(self.world.chunks.contains_key(&(x, z)).then_some(()))
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 89, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::bounding_box_min_y")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_interaction_world_bounding_box_min_y(&self) -> f64 {
+        self.position.y
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 90, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_x")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_interaction_world_block_x(&self) -> i32 {
+        self.position.x.floor() as i32
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 91, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::eye_y")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_interaction_world_eye_y(&mut self) -> Result<f64, Error> {
+        Ok(self.eye_y)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 92, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_z")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_interaction_world_block_z(&self) -> i32 {
+        self.position.z.floor() as i32
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 93, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_state")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_interaction_world_fluid_state(
+        &mut self,
+        p: BlockPos,
+    ) -> Result<FluidState, Error> {
+        Ok(self.fluids.fluid(self.world.block(p.x, p.y, p.z)))
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 94, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_height")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_interaction_world_fluid_height(
+        &mut self,
+        f: FluidState,
+        p: BlockPos,
+    ) -> Result<f32, Error> {
+        f.height_at(self, [p.x, p.y, p.z])
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 95, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::camera_height")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_interaction_world_camera_height(
+        &mut self,
+        f: FluidState,
+        p: BlockPos,
+    ) -> Result<f32, Error> {
+        f.camera_height_at(self, [p.x, p.y, p.z])
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 96, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::flow")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_interaction_world_flow(
+        &mut self,
+        f: FluidState,
+        p: BlockPos,
+    ) -> Result<Vec3, Error> {
         flow_at(self, f, p)
     }
 }
 impl FluidHeightWorld for EntityFluidWorld<'_> {
     type Error = Error;
     fn fluid(&mut self, p: [i32; 3]) -> Result<FluidState, Error> {
-        Ok(self.fluids.fluid(self.world.block(p[0], p[1], p[2])))
+        self.__yoake_trait_fluid_height_world_fluid(p)
     }
     fn sturdy_down(&mut self, p: [i32; 3]) -> Result<bool, Error> {
+        self.__yoake_trait_fluid_height_world_sturdy_down(p)
+    }
+}
+impl EntityFluidWorld<'_> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 97, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::fluid")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_height_world_fluid(&mut self, p: [i32; 3]) -> Result<FluidState, Error> {
+        Ok(self.fluids.fluid(self.world.block(p[0], p[1], p[2])))
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 98, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::sturdy_down")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_height_world_sturdy_down(&mut self, p: [i32; 3]) -> Result<bool, Error> {
         let state = self.world.block(p[0], p[1], p[2]);
         Ok(self.fluids.sturdy(state, Direction::Down))
     }
@@ -191,16 +326,16 @@ impl FluidFlowWorld for EntityFluidWorld<'_> {
     type Error = Error;
     type Block = BlockStateId;
     fn fluid(&mut self, p: BlockPos) -> Result<FluidState, Error> {
-        Ok(self.fluids.fluid(self.world.block(p.x, p.y, p.z)))
+        self.__yoake_trait_fluid_flow_world_fluid(p)
     }
     fn block(&mut self, p: BlockPos) -> Result<BlockStateId, Error> {
-        Ok(self.world.block(p.x, p.y, p.z))
+        self.__yoake_trait_fluid_flow_world_block(p)
     }
     fn blocks_fluid_flow(&self, s: BlockStateId) -> bool {
-        self.fluids.blocks_flow(s)
+        self.__yoake_trait_fluid_flow_world_blocks_fluid_flow(s)
     }
     fn is_ice_class(&self, s: BlockStateId) -> bool {
-        self.fluids.ice(s)
+        self.__yoake_trait_fluid_flow_world_is_ice_class(s)
     }
     fn is_face_sturdy(
         &mut self,
@@ -209,6 +344,28 @@ impl FluidFlowWorld for EntityFluidWorld<'_> {
         d: Direction,
     ) -> Result<bool, Error> {
         Ok(self.fluids.sturdy(s, d))
+    }
+}
+impl EntityFluidWorld<'_> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 99, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::fluid")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_flow_world_fluid(&mut self, p: BlockPos) -> Result<FluidState, Error> {
+        Ok(self.fluids.fluid(self.world.block(p.x, p.y, p.z)))
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 100, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::block")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_flow_world_block(&mut self, p: BlockPos) -> Result<BlockStateId, Error> {
+        Ok(self.world.block(p.x, p.y, p.z))
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 101, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::blocks_fluid_flow")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_flow_world_blocks_fluid_flow(&self, s: BlockStateId) -> bool {
+        self.fluids.blocks_flow(s)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = EntityFluidWorld<'_>, id = 102, key = "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::is_ice_class")]
+    #[inline(always)]
+    fn __yoake_trait_fluid_flow_world_is_ice_class(&self, s: BlockStateId) -> bool {
+        self.fluids.ice(s)
     }
 }
 

@@ -6,11 +6,16 @@ fingerprint, identity, or ABI checks. Do not connect arbitrary DLLs to these saf
 
 ## Mechanics
 
-`#[yoake_hook(id = N)]` instruments a function against a single global slot array
-`yoake_hook_rt::SLOTS: [Slot; MAX_SLOTS]` (`MAX_SLOTS = 4096`) and emits a compile-time
-assertion that `id < MAX_SLOTS` plus `pub const __YOAKE_HOOK_ID_<function>: usize = N;`
-(inside the `impl` for `#[yoake_hook(method, id = N)]`, including associated functions).
-No per-function static or registration getter is emitted.
+`#[yoake_hook(id = N, key = "crate::module::function")]` instruments a function
+against a single global slot array. `build.rs` validates `hook-ids.lock.json` and generates
+`MAX_SLOTS = next_id`, `TEST_ID_BASE = next_id`, `TEST_SLOTS = 64`, and `LEDGER_KEYS`.
+`SLOTS` has `MAX_SLOTS + TEST_SLOTS` entries. The macro emits a compile-time
+`assert_ledger_key(N, key)` check plus `pub const __YOAKE_HOOK_ID_<function>: usize = N;`
+(inside the `impl` for `#[yoake_hook(method, id = N, key = "...")]`, including associated
+functions). Tests use `#[yoake_hook(test_id = K)]`, where `K < 64`, which selects
+`TEST_ID_BASE + K` without a ledger key. No per-function static slot is emitted. Each hook has a
+typed `__yoake_register_<function>(callback, order)` function; free functions also expose
+`__YoakeHook_<function>` when its generic parameters can be represented in a public alias.
 
 Callbacks are **around** hooks. On entry, the wrapper performs one `Acquire` load of
 `SLOTS[N]`. If null, it runs the original body via an `#[inline(always)]` helper with no
@@ -22,9 +27,9 @@ replaced arguments), or multiple times; calling `original` from entry `i` invoke
 
 ```rust
 use yoake_hook_macro::yoake_hook;
-use yoake_hook_rt::{Order, register};
+use yoake_hook_rt::Order;
 
-#[yoake_hook(id = 1)]
+#[yoake_hook(test_id = 1)]
 fn score(value: u32) -> u32 {
     value + 1
 }
@@ -34,31 +39,35 @@ fn double_after_replace(original: &mut dyn FnMut(u32) -> u32, _value: u32) -> u3
 }
 
 fn main() {
-    register::<fn(&mut dyn FnMut(u32) -> u32, u32) -> u32>(
-        __YOAKE_HOOK_ID_score,
-        double_after_replace,
-        Order::default(),
-    )
-    .unwrap();
+    __yoake_register_score(double_after_replace, Order::default()).unwrap();
     assert_eq!(score(1), 82);
 }
 ```
 
-Callbacks are `fn(...)` pointers, not capturing closures, registered via
-`yoake_hook_rt::register::<Callback>(id, callback, order)`. Borrowed inputs use
+Callbacks are `fn(...)` pointers, not capturing closures. Use the generated typed registration
+function rather than spelling the callback type or calling `register` directly. Borrowed inputs use
 higher-ranked function pointers, never a `'static` data requirement. For example, a
 method `fn f(&mut self, value: &str) -> usize` uses
 `fn(&mut dyn FnMut(&mut Self, &str) -> usize, &mut Self, &str) -> usize`
 (desugaring to `for<'o, 's, 'b>`). Shared named lifetimes between arguments remain
 shared in both the `dyn for<...> FnMut(...)` trait object and the outer `fn(...)`
 binder. Capturing closures can still be *arguments* through supported borrowed
-`dyn FnMut(usize)` types.
+`dyn FnMut(usize)` types. For a method on `impl Holder<'_>`, pass
+`self_ty = Holder<'_>`: the macro substitutes that type for `Self` in callback inputs and
+binds each of its lifetimes with `for<...>`, so the erased callback pointer is `'static`.
 
 One slot is shared across monomorphizations of `'static`-bounded generic functions and
 const generics. Each entry stores its exact callback pointer using `Any`; `Snapshot::next`
-skips entries whose `TypeId` does not match the active instantiation. Generic type
+skips entries whose `TypeId` does not match the active instantiation. Debug builds additionally
+record one `TypeId` per slot and reject a registration with a different type. Generic type
 parameters must already explicitly have `'static` bounds. The macro never adds bounds to
 restrict existing vanilla callers.
+
+The hand-written call-site proof uses `callsite!(test_id = K, callee, (arg0, arg1))`. Its callback
+type is `CallsiteHook<(A0, A1), R>`: the argument tuple can be passed to `original`, replaced, or
+ignored to skip the call. The empty slot invokes `callee(arg0, arg1)` directly after one `Acquire`
+load, and other calls to the same callee are untouched. This proof currently requires `'static`
+argument and return types.
 
 Registered calls visit priority-descending, mod-load-order-ascending, then insertion-order
 callbacks. Explicit `return` and `?` stay inside the `#[inline(always)]` original helper.
@@ -98,14 +107,15 @@ futures needs a different lifetime and phase contract, not casts or relaxed chec
 ## Instrumentation and reproduction
 
 Every production function in `horizon-client/src/entities.rs` has a numbered hook
-(`id = 1..=71`; slot `0` stays unused) matching `crates/yoake-hook-rt/hook-ids.lock.json`,
-or an explicit exclusion. Test-only helper functions are left alone. `yoake-hook-baseline`
+(`id = 1..=71`; slot `0` stays unused) whose id/key pair is checked against
+`crates/yoake-hook-rt/hook-ids.lock.json`, or an explicit exclusion. Test-only helper
+functions are left alone. `yoake-hook-baseline`
 disables those attributes; `yoake-hook-bench` exposes the small `StandStep` fixture
 constructor and enables the example. Neither feature is a player-facing option. Normal
 builds are instrumented for this spike.
 
 ```text
-cargo test --offline -j 4 -p yoake-hook-macro -p yoake-hook-rt
+cargo test --offline -j 4 -p yoake-hook-ledger -p yoake-hook-macro -p yoake-hook-rt
 cargo build --offline -j 4 -p yoake-hook-rt --release --example inline_probe
 cargo build --offline -j 4 -p horizon-client-lib --release --example yoake_hook_bench --features yoake-hook-bench
 cargo build --offline -j 4 -p horizon-client-lib --release --example yoake_hook_bench --features yoake-hook-bench,yoake-hook-baseline

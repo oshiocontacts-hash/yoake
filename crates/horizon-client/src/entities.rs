@@ -33,7 +33,13 @@ const ITEM_SLIME_BOUNCE: f32 = 0.8;
 /// how far the move got. Landing on slime (`below`) bounces by the block's
 /// restitution `1.0f * 0.8f`, with the gravity and air drag the part of the tick
 /// after the hit would have added back; any other collision zeroes Y.
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 1))]
+#[cfg_attr(
+    not(feature = "yoake-hook-baseline"),
+    yoake_hook(
+        id = 1,
+        key = "horizon_client_lib::entities::vertical_collision_velocity"
+    )
+)]
 pub fn vertical_collision_velocity(
     current_y: f64,
     moved_y: f64,
@@ -53,7 +59,10 @@ pub fn vertical_collision_velocity(
 /// `Entity.move`: the position only changes when the collided step is longer
 /// than `sqrt(1e-7)` or nothing was cut off; a tiny step against a wall or floor
 /// is dropped (its collision effects still run).
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 2))]
+#[cfg_attr(
+    not(feature = "yoake-hook-baseline"),
+    yoake_hook(id = 2, key = "horizon_client_lib::entities::move_applies")
+)]
 pub fn move_applies(wanted: Vec3, moved: Vec3) -> bool {
     let moved_sq = moved.length_squared();
     moved_sq > 1.0e-7 || wanted.length_squared() - moved_sq < 1.0e-7
@@ -61,13 +70,19 @@ pub fn move_applies(wanted: Vec3, moved: Vec3) -> bool {
 
 /// `SlimeBlock.stepOn`: a slow walk or slide on slime drags the horizontal
 /// speed (`0.4 + |dy| * 0.2`); a fast vertical speed leaves it alone.
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 3))]
+#[cfg_attr(
+    not(feature = "yoake-hook-baseline"),
+    yoake_hook(id = 3, key = "horizon_client_lib::entities::slime_step_on_scale")
+)]
 pub fn slime_step_on_scale(velocity_y: f64) -> Option<f64> {
     let abs_delta_y = velocity_y.abs();
     (abs_delta_y < 0.1).then_some(0.4 + abs_delta_y * 0.2)
 }
 
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 4))]
+#[cfg_attr(
+    not(feature = "yoake-hook-baseline"),
+    yoake_hook(id = 4, key = "horizon_client_lib::entities::slime_support_name")
+)]
 fn slime_support_name(block: &str, moving_moved: Option<&str>) -> bool {
     block == "minecraft:slime_block" || moving_moved == Some("minecraft:slime_block")
 }
@@ -75,7 +90,10 @@ fn slime_support_name(block: &str, moving_moved: Option<&str>) -> bool {
 /// The block under an item, including `Entity.getOnPos` (~1e-5) as well as the
 /// friction sample (`y - 0.999999`). A piston-moved slime is `moving_piston`
 /// with `movedState = slime`, which has the bounce, not the moving piston.
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 5))]
+#[cfg_attr(
+    not(feature = "yoake-hook-baseline"),
+    yoake_hook(id = 5, key = "horizon_client_lib::entities::item_support_is_slime")
+)]
 fn item_support_is_slime(world: &World, facts: &BlockFacts, position: Vec3) -> bool {
     let x = position.x.floor() as i32;
     let z = position.z.floor() as i32;
@@ -85,7 +103,10 @@ fn item_support_is_slime(world: &World, facts: &BlockFacts, position: Vec3) -> b
         || (on_y != friction_y && slime_at(world, facts, x, on_y, z))
 }
 
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 6))]
+#[cfg_attr(
+    not(feature = "yoake-hook-baseline"),
+    yoake_hook(id = 6, key = "horizon_client_lib::entities::slime_at")
+)]
 fn slime_at(world: &World, facts: &BlockFacts, x: i32, y: i32, z: i32) -> bool {
     let block = &*facts.get(world.block(x, y, z)).name;
     let moving_moved = world
@@ -150,68 +171,137 @@ pub struct ItemEnvironmentTick {
     pub spilled: Vec<ItemStack>,
 }
 impl ItemEnvironmentTick {
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 7))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 7,
+            key = "horizon_client_lib::entities::ItemEnvironmentTick::should_play_lava_hurt_sound"
+        )
+    )]
     pub fn should_play_lava_hurt_sound(&self, tick: u32) -> bool {
         self.lava_hurt && (!self.alive || tick.is_multiple_of(10))
     }
 }
 impl crate::entity_rules::EntityRules for ItemEntity {
-    #[cfg_attr(
-        not(feature = "yoake-hook-baseline"),
-        yoake_hook(skip = "trait methods cannot add a registration getter")
-    )]
     fn is_no_gravity(&self) -> bool {
-        self.no_gravity
+        self.__yoake_trait_entity_rules_is_no_gravity()
     }
     /// `ItemEntity.getDefaultGravity`.
+    fn get_default_gravity(&self) -> f64 {
+        self.__yoake_trait_entity_rules_get_default_gravity()
+    }
+}
+impl ItemEntity {
     #[cfg_attr(
         not(feature = "yoake-hook-baseline"),
-        yoake_hook(skip = "trait methods cannot add a registration getter")
+        yoake_hook(
+            method,
+            id = 72,
+            key = "horizon_client_lib::entities::<ItemEntity as EntityRules>::is_no_gravity"
+        )
     )]
-    fn get_default_gravity(&self) -> f64 {
+    #[inline(always)]
+    fn __yoake_trait_entity_rules_is_no_gravity(&self) -> bool {
+        self.no_gravity
+    }
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 73,
+            key = "horizon_client_lib::entities::<ItemEntity as EntityRules>::get_default_gravity"
+        )
+    )]
+    #[inline(always)]
+    fn __yoake_trait_entity_rules_get_default_gravity(&self) -> f64 {
         0.04
     }
 }
 impl crate::entity_rules::EntityRules for ExperienceOrb {
-    #[cfg_attr(
-        not(feature = "yoake-hook-baseline"),
-        yoake_hook(skip = "trait methods cannot add a registration getter")
-    )]
     fn is_no_gravity(&self) -> bool {
-        self.no_gravity
+        self.__yoake_trait_entity_rules_is_no_gravity()
     }
     /// `ExperienceOrb.getDefaultGravity`.
+    fn get_default_gravity(&self) -> f64 {
+        self.__yoake_trait_entity_rules_get_default_gravity()
+    }
+}
+impl ExperienceOrb {
     #[cfg_attr(
         not(feature = "yoake-hook-baseline"),
-        yoake_hook(skip = "trait methods cannot add a registration getter")
+        yoake_hook(
+            method,
+            id = 74,
+            key = "horizon_client_lib::entities::<ExperienceOrb as EntityRules>::is_no_gravity"
+        )
     )]
-    fn get_default_gravity(&self) -> f64 {
+    #[inline(always)]
+    fn __yoake_trait_entity_rules_is_no_gravity(&self) -> bool {
+        self.no_gravity
+    }
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 75,
+            key = "horizon_client_lib::entities::<ExperienceOrb as EntityRules>::get_default_gravity"
+        )
+    )]
+    #[inline(always)]
+    fn __yoake_trait_entity_rules_get_default_gravity(&self) -> f64 {
         0.03
     }
 }
 impl crate::entity_rules::EntityRules for ArmorStand {
-    #[cfg_attr(
-        not(feature = "yoake-hook-baseline"),
-        yoake_hook(skip = "trait methods cannot add a registration getter")
-    )]
     fn is_no_gravity(&self) -> bool {
-        self.no_gravity
+        self.__yoake_trait_entity_rules_is_no_gravity()
     }
     /// `LivingEntity.getDefaultGravity`.
-    #[cfg_attr(
-        not(feature = "yoake-hook-baseline"),
-        yoake_hook(skip = "trait methods cannot add a registration getter")
-    )]
     fn get_default_gravity(&self) -> f64 {
-        0.08
+        self.__yoake_trait_entity_rules_get_default_gravity()
     }
     /// The code's reading of `Entity.isPushedByFluid` for a marker stand: it
     /// takes no fluid push and is never in water.
+    fn is_pushed_by_fluid(&self) -> bool {
+        self.__yoake_trait_entity_rules_is_pushed_by_fluid()
+    }
+}
+impl ArmorStand {
     #[cfg_attr(
         not(feature = "yoake-hook-baseline"),
-        yoake_hook(skip = "trait methods cannot add a registration getter")
+        yoake_hook(
+            method,
+            id = 76,
+            key = "horizon_client_lib::entities::<ArmorStand as EntityRules>::is_no_gravity"
+        )
     )]
-    fn is_pushed_by_fluid(&self) -> bool {
+    #[inline(always)]
+    fn __yoake_trait_entity_rules_is_no_gravity(&self) -> bool {
+        self.no_gravity
+    }
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 77,
+            key = "horizon_client_lib::entities::<ArmorStand as EntityRules>::get_default_gravity"
+        )
+    )]
+    #[inline(always)]
+    fn __yoake_trait_entity_rules_get_default_gravity(&self) -> f64 {
+        0.08
+    }
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 78,
+            key = "horizon_client_lib::entities::<ArmorStand as EntityRules>::is_pushed_by_fluid"
+        )
+    )]
+    #[inline(always)]
+    fn __yoake_trait_entity_rules_is_pushed_by_fluid(&self) -> bool {
         !self.marker
     }
 }
@@ -262,7 +352,14 @@ impl ItemEntity {
 }
 impl ItemEntity {
     pub const WIDTH: f64 = 0.25;
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 8))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 8,
+            key = "horizon_client_lib::entities::ItemEntity::bounds"
+        )
+    )]
     pub fn bounds(&self) -> Aabb {
         let h = Self::WIDTH / 2.0;
         Aabb::new(
@@ -274,7 +371,14 @@ impl ItemEntity {
             ),
         )
     }
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 9))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 9,
+            key = "horizon_client_lib::entities::ItemEntity::environment_tick"
+        )
+    )]
     pub fn environment_tick(
         &mut self,
         world: &World,
@@ -336,7 +440,14 @@ impl ItemEntity {
     /// whose health reaches 0 is destroyed at once (`ItemStack.onDestroyed`,
     /// then `discard`), so what it held leaves it here. None while the item
     /// survives; the emptied stacks otherwise.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 10))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 10,
+            key = "horizon_client_lib::entities::ItemEntity::hurt"
+        )
+    )]
     pub fn hurt(&mut self, amount: i32) -> Option<Vec<ItemStack>> {
         self.health -= amount;
         if self.health > 0 {
@@ -353,7 +464,14 @@ impl ItemEntity {
     /// `ItemEntity.tick` on a server: an item whose box is inside a block
     /// (one placed where it lay) has no physics this tick
     /// (`level.noCollision(box.deflate(1.0E-7))`).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 11))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 11,
+            key = "horizon_client_lib::entities::ItemEntity::inside_block"
+        )
+    )]
     pub fn inside_block(&self, world: &World, collision: &BlockCollisionRegistry<'_>) -> bool {
         let mut scene = SceneCollisions {
             world,
@@ -367,7 +485,14 @@ impl ItemEntity {
     /// towards the nearest side of its block (north, south, west, east or
     /// up) without a full collision cube, at `speed` (`nextFloat() * 0.2 +
     /// 0.1`).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 12))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 12,
+            key = "horizon_client_lib::entities::ItemEntity::move_towards_closest_space"
+        )
+    )]
     pub fn move_towards_closest_space(&mut self, world: &World, facts: &BlockFacts, speed: f32) {
         self.velocity = towards_closest_space(
             self.position,
@@ -383,10 +508,6 @@ impl ItemEntity {
     /// it pushes by a bubble column next (`Entity::push_by_bubble_column`) and
     /// then calls [`ItemEntity::tick_settle`]. `no_physics`: the item moves
     /// through blocks this tick ([`ItemEntity::inside_block`]).
-    #[cfg_attr(
-        not(feature = "yoake-hook-baseline"),
-        yoake_hook(skip = "destructured arguments need binding normalization")
-    )]
     pub fn tick_move(
         &mut self,
         world: &World,
@@ -515,7 +636,14 @@ impl ItemEntity {
     /// drag, block contact, age. Returns false when the item should be
     /// removed. The game then runs the fluid push again (`ItemEntity.tick`
     /// refreshes immersion after moving).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 13))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 13,
+            key = "horizon_client_lib::entities::ItemEntity::tick_settle"
+        )
+    )]
     pub fn tick_settle(
         &mut self,
         world: &World,
@@ -591,7 +719,14 @@ impl ItemEntity {
     /// living entity, is stuck whatever block its feet are in): the speed
     /// factor of the last such block the item's box (deflated by `1.0E-5`) is
     /// in.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 14))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 14,
+            key = "horizon_client_lib::entities::ItemEntity::stuck_multiplier"
+        )
+    )]
     fn stuck_multiplier(&self, world: &World, facts: &BlockFacts) -> Option<Vec3> {
         let b = self.bounds().deflate(Vec3::new(1e-5, 1e-5, 1e-5));
         let (lo, hi) = (b.min_position(), b.max_position());
@@ -615,7 +750,14 @@ impl ItemEntity {
     }
     /// `SlimeBlock.stepOn` for an item on the ground: slow vertical speed
     /// drags the horizontal speed, on idle ticks too.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 15))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 15,
+            key = "horizon_client_lib::entities::ItemEntity::slime_step_on"
+        )
+    )]
     fn slime_step_on(&mut self, world: &World, facts: &BlockFacts) {
         if !self.on_ground {
             return;
@@ -638,7 +780,14 @@ impl ItemEntity {
     /// runs `Entity.move(MoverType.PISTON)`, which leaves the ground on an
     /// upward push; without that, `ItemEntity.tick` skips movement 3 of 4 ticks
     /// while `onGround` with no horizontal speed and gravity eats the bounce.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 16))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 16,
+            key = "horizon_client_lib::entities::ItemEntity::piston_slime_bounce"
+        )
+    )]
     pub fn piston_slime_bounce(&mut self, movement: Direction) {
         self.velocity = horizon_world::piston_push::bounce_velocity(movement, self.velocity);
         self.on_ground = false;
@@ -648,7 +797,14 @@ impl ItemEntity {
     /// (`Entity.checkInsideBlocks`, deflated by `1.0E-5`). Slide sounds and
     /// entity event 53 are skipped (`doesEntityDoHoneyBlockSlideEffects` is
     /// false for an item).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 17))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 17,
+            key = "horizon_client_lib::entities::ItemEntity::apply_honey_slide"
+        )
+    )]
     fn apply_honey_slide(&mut self, world: &World, facts: &BlockFacts) {
         let b = self.bounds().deflate(Vec3::new(1e-5, 1e-5, 1e-5));
         let (lo, hi) = (b.min_position(), b.max_position());
@@ -665,7 +821,14 @@ impl ItemEntity {
     /// `HoneyBlock.isSlidingDown` then `doSlideMovement`. `getOldDeltaY` /
     /// `getNewDeltaY` wrap the stored velocity the same way they do for every
     /// entity (`vy / 0.98F + 0.08`).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 18))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 18,
+            key = "horizon_client_lib::entities::ItemEntity::honey_block_inside"
+        )
+    )]
     pub(crate) fn honey_block_inside(&mut self, pos: [i32; 3]) {
         let old_delta_y = |dy: f64| dy / f64::from(0.98_f32) + 0.08;
         let new_delta_y = |dy: f64| (dy - 0.08) * f64::from(0.98_f32);
@@ -691,13 +854,27 @@ impl ItemEntity {
             Vec3::new(v.x, new_delta_y(-0.05), v.z)
         };
     }
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 19))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 19,
+            key = "horizon_client_lib::entities::ItemEntity::has_infinite_pickup_delay"
+        )
+    )]
     fn has_infinite_pickup_delay(&self) -> bool {
         self.pickup_delay == i64::from(i16::MAX) || self.pickup_delay == i64::from(u32::MAX)
     }
     /// `ItemEntity.isMergable` at `age`: a stack below its size whose pickup
     /// delay isn't infinite, before its lifetime ends.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 20))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 20,
+            key = "horizon_client_lib::entities::ItemEntity::mergeable"
+        )
+    )]
     fn mergeable(&self, age: i32, max_stack: u32) -> bool {
         !self.has_infinite_pickup_delay()
             && age != i16::MIN as i32
@@ -715,7 +892,14 @@ pub struct ObstacleGrid {
 }
 impl ObstacleGrid {
     const CELL: f64 = 8.0;
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 21))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 21,
+            key = "horizon_client_lib::entities::ObstacleGrid::new"
+        )
+    )]
     pub fn new(boxes: Vec<Aabb>) -> Self {
         let mut cells: crate::fast_hash::FxHashMap<(i32, i32, i32), Vec<u32>> = Default::default();
         for (i, b) in boxes.iter().enumerate() {
@@ -730,7 +914,14 @@ impl ObstacleGrid {
         }
         Self { cells, boxes }
     }
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 22))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 22,
+            key = "horizon_client_lib::entities::ObstacleGrid::span"
+        )
+    )]
     fn span(b: Aabb) -> ((i32, i32, i32), (i32, i32, i32)) {
         let cell = |v: Vec3| {
             (
@@ -741,12 +932,26 @@ impl ObstacleGrid {
         };
         (cell(b.min_position()), cell(b.max_position()))
     }
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 23))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 23,
+            key = "horizon_client_lib::entities::ObstacleGrid::is_empty"
+        )
+    )]
     pub fn is_empty(&self) -> bool {
         self.boxes.is_empty()
     }
     /// The boxes meeting `area` (`getEntityCollisions`'s query box), in the order they were given.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 24))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 24,
+            key = "horizon_client_lib::entities::ObstacleGrid::near"
+        )
+    )]
     pub fn near(&self, area: Aabb, out: &mut Vec<Aabb>) {
         out.clear();
         if self.boxes.is_empty() {
@@ -781,7 +986,10 @@ pub struct ItemCells {
     cells: crate::fast_hash::FxHashMap<(i32, i32, i32), Vec<u32>>,
 }
 impl ItemCells {
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 25))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(method, id = 25, key = "horizon_client_lib::entities::ItemCells::new")
+    )]
     pub fn new(items: &[ItemEntity]) -> Self {
         let mut cells = Self::default();
         for (i, item) in items.iter().enumerate() {
@@ -789,21 +997,41 @@ impl ItemCells {
         }
         cells
     }
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 26))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(method, id = 26, key = "horizon_client_lib::entities::ItemCells::cell")
+    )]
     fn cell(p: Vec3) -> (i32, i32, i32) {
         (p.x.floor() as i32, p.y.floor() as i32, p.z.floor() as i32)
     }
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 27))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(method, id = 27, key = "horizon_client_lib::entities::ItemCells::add")
+    )]
     fn add(&mut self, i: usize, at: Vec3) {
         self.cells.entry(Self::cell(at)).or_default().push(i as u32);
     }
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 28))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 28,
+            key = "horizon_client_lib::entities::ItemCells::remove"
+        )
+    )]
     pub fn remove(&mut self, i: usize, at: Vec3) {
         if let Some(list) = self.cells.get_mut(&Self::cell(at)) {
             list.retain(|&j| j as usize != i);
         }
     }
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 29))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 29,
+            key = "horizon_client_lib::entities::ItemCells::moved"
+        )
+    )]
     pub fn moved(&mut self, i: usize, from: Vec3, to: Vec3) {
         if Self::cell(from) != Self::cell(to) {
             self.remove(i, from);
@@ -813,7 +1041,10 @@ impl ItemCells {
     /// The items whose cells could hold a box meeting `area`, in the order
     /// they were added (vanilla lists a section's entities in the order they
     /// entered it).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 30))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(method, id = 30, key = "horizon_client_lib::entities::ItemCells::near")
+    )]
     fn near(&self, area: Aabb, out: &mut Vec<u32>) {
         out.clear();
         // An item's box reaches 0.125 sideways and 0.25 up from its position.
@@ -840,10 +1071,6 @@ impl ItemCells {
 /// stack or gives it its own, the smaller into the larger
 /// (`ItemEntity.tryToMerge`), until this item is used up. An emptied item is
 /// marked in `removed`.
-#[cfg_attr(
-    not(feature = "yoake-hook-baseline"),
-    yoake_hook(skip = "nested callable borrows need independent lifetime binders")
-)]
 pub fn merge_with_neighbours(
     items: &mut [ItemEntity],
     removed: &mut [bool],
@@ -932,13 +1159,27 @@ pub struct ExperienceOrb {
 impl ExperienceOrb {
     /// `ExperienceOrb.hurtServer`: the damage comes off the health as an
     /// `int`; an orb at 0 or below is discarded. True when it is gone.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 31))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 31,
+            key = "horizon_client_lib::entities::ExperienceOrb::hurt"
+        )
+    )]
     pub fn hurt(&mut self, damage: f32) -> bool {
         self.health = (self.health as f32 - damage) as i32;
         self.health <= 0
     }
     /// The box of an orb whose `position` (the bottom of the box) is `at`.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 32))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 32,
+            key = "horizon_client_lib::entities::ExperienceOrb::box_at"
+        )
+    )]
     pub fn box_at(at: Vec3) -> Aabb {
         let h = 0.25;
         Aabb::new(
@@ -946,7 +1187,14 @@ impl ExperienceOrb {
             Vec3::new(at.x + h, at.y + 0.5, at.z + h),
         )
     }
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 33))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 33,
+            key = "horizon_client_lib::entities::ExperienceOrb::bounds"
+        )
+    )]
     pub fn bounds(&self) -> Aabb {
         Self::box_at(self.position)
     }
@@ -956,10 +1204,6 @@ impl ExperienceOrb {
     /// around it. `None` when the box is already free (the orb then keeps its
     /// exact position) or when nothing free is that close. `shape(p)` is the
     /// block's collision shape at `p`, in world coordinates.
-    #[cfg_attr(
-        not(feature = "yoake-hook-baseline"),
-        yoake_hook(skip = "impl Trait input has no nameable callback type")
-    )]
     pub fn unstuck(
         at: Vec3,
         border: &BorderBounds,
@@ -994,12 +1238,26 @@ impl ExperienceOrb {
     }
     /// `ExperienceOrb.canMerge(orb, id, value)` for an orb that is not removed:
     /// the same value and ids a multiple of 40 apart.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 34))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 34,
+            key = "horizon_client_lib::entities::ExperienceOrb::can_merge"
+        )
+    )]
     pub fn can_merge(&self, id: u32, value: u32) -> bool {
         self.value == value && (self.id as i32).wrapping_sub(id as i32) % 40 == 0
     }
     /// ExperienceOrb.getExperienceValue: the largest orb size not above `value`.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 35))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 35,
+            key = "horizon_client_lib::entities::ExperienceOrb::split"
+        )
+    )]
     pub fn split(value: u32) -> u32 {
         [2477, 1237, 617, 307, 149, 73, 37, 17, 7, 3, 1]
             .into_iter()
@@ -1007,7 +1265,14 @@ impl ExperienceOrb {
             .unwrap_or(1)
     }
     /// ExperienceOrb.getIcon
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 36))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 36,
+            key = "horizon_client_lib::entities::ExperienceOrb::icon"
+        )
+    )]
     pub fn icon(&self) -> u32 {
         match self.value {
             2477.. => 10,
@@ -1023,7 +1288,14 @@ impl ExperienceOrb {
             _ => 0,
         }
     }
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 37))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 37,
+            key = "horizon_client_lib::entities::ExperienceOrb::tick"
+        )
+    )]
     pub fn tick(
         &mut self,
         world: &World,
@@ -1154,7 +1426,14 @@ impl ExperienceOrb {
     /// towards the nearest side of its block (north, south, west, east or
     /// up) without a full collision cube, at `speed` (the orb's own
     /// random, `nextFloat() * 0.2 + 0.1`).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 38))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 38,
+            key = "horizon_client_lib::entities::ExperienceOrb::move_towards_closest_space"
+        )
+    )]
     fn move_towards_closest_space(&mut self, world: &World, facts: &BlockFacts, speed: f32) {
         self.velocity = towards_closest_space(
             self.position,
@@ -1171,7 +1450,10 @@ impl ExperienceOrb {
 /// nearest side of its block (north, south, west, east or up) without a full
 /// collision cube, at `speed` (`nextFloat() * 0.2 + 0.1`). Items and
 /// experience orbs share it.
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 39))]
+#[cfg_attr(
+    not(feature = "yoake-hook-baseline"),
+    yoake_hook(id = 39, key = "horizon_client_lib::entities::towards_closest_space")
+)]
 fn towards_closest_space(
     position: Vec3,
     bounds: Aabb,
@@ -1234,7 +1516,14 @@ pub struct Experience {
 }
 impl Experience {
     /// `Player.getBaseExperienceReward`: keep-inventory and spectators drop none.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 40))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 40,
+            key = "horizon_client_lib::entities::Experience::death_reward"
+        )
+    )]
     pub fn death_reward(&self, keep: bool) -> u32 {
         if keep {
             0
@@ -1243,13 +1532,27 @@ impl Experience {
         }
     }
     /// `ServerPlayer.restoreFrom`: only keep-inventory and spectators retain XP.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 41))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 41,
+            key = "horizon_client_lib::entities::Experience::respawn"
+        )
+    )]
     pub fn respawn(&mut self, keep: bool) {
         if !keep {
             *self = Self::default();
         }
     }
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 42))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 42,
+            key = "horizon_client_lib::entities::Experience::needed"
+        )
+    )]
     pub fn needed(level: i32) -> i32 {
         if level >= 30 {
             112 + (level - 30) * 9
@@ -1261,7 +1564,14 @@ impl Experience {
     }
     /// Returns the first multiple of 5 the player reached, where each level
     /// gained would play the level-up sound (`Player.giveExperienceLevels`).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 43))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 43,
+            key = "horizon_client_lib::entities::Experience::give"
+        )
+    )]
     pub fn give(&mut self, points: i32) -> Option<i32> {
         let mut sound_level = None;
         self.progress += points as f32 / Self::needed(self.level) as f32;
@@ -1292,17 +1602,30 @@ pub struct Painting {
     pub check_interval: u32,
 }
 impl Painting {
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 44))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(method, id = 44, key = "horizon_client_lib::entities::Painting::step")
+    )]
     pub fn step(&self) -> [i32; 3] {
         [[0, 0, 1], [-1, 0, 0], [0, 0, -1], [1, 0, 0]][usize::from(self.facing & 3)]
     }
     /// Direction.getCounterClockWise (the painting's left as it faces out).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 45))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(method, id = 45, key = "horizon_client_lib::entities::Painting::left")
+    )]
     pub fn left(&self) -> [i32; 3] {
         [[1, 0, 0], [0, 0, 1], [-1, 0, 0], [0, 0, -1]][usize::from(self.facing & 3)]
     }
     /// Painting.calculateBoundingBox: (min, max).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 46))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 46,
+            key = "horizon_client_lib::entities::Painting::bounds"
+        )
+    )]
     pub fn bounds(&self) -> ([f64; 3], [f64; 3]) {
         let s = self.step().map(f64::from);
         let l = self.left().map(f64::from);
@@ -1335,7 +1658,10 @@ impl Painting {
 }
 /// The `DyeColor` ordinal of a colour name (`DyeColor.byName`), white when
 /// the name is unknown.
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 47))]
+#[cfg_attr(
+    not(feature = "yoake-hook-baseline"),
+    yoake_hook(id = 47, key = "horizon_client_lib::entities::dye_index")
+)]
 pub fn dye_index(name: &str) -> u8 {
     crate::mobs::render::DYE_NAMES
         .iter()
@@ -1360,7 +1686,10 @@ pub struct Cushion {
 }
 impl Cushion {
     /// `Entity.makeBoundingBox`: x and z half a block out, y to y + 0.25.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 48))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(method, id = 48, key = "horizon_client_lib::entities::Cushion::bounds")
+    )]
     pub fn bounds(&self) -> ([f64; 3], [f64; 3]) {
         let p = self.position;
         (
@@ -1369,23 +1698,43 @@ impl Cushion {
         )
     }
     /// The `DyeColor` name of the cushion.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 49))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 49,
+            key = "horizon_client_lib::entities::Cushion::color_name"
+        )
+    )]
     pub fn color_name(&self) -> &'static str {
         crate::mobs::render::DYE_NAMES[usize::from(self.color.min(15))]
     }
     /// `Cushion.getCushionItemStackWithData`: the matching coloured item.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 50))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(method, id = 50, key = "horizon_client_lib::entities::Cushion::item")
+    )]
     pub fn item(&self) -> String {
         format!("minecraft:{}_cushion", self.color_name())
     }
     /// `Cushion.interact`'s seat: the vehicle's PASSENGER attachment
     /// `(0, 0.25, 0)` less the player's `(0, 0.6, 0)`.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 51))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(method, id = 51, key = "horizon_client_lib::entities::Cushion::seat")
+    )]
     pub fn seat(&self) -> Vec3 {
         Vec3::new(self.position.x, self.position.y - 0.35, self.position.z)
     }
     /// `Entity.getDismountLocationForPassenger`: on top of the cushion.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 52))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 52,
+            key = "horizon_client_lib::entities::Cushion::dismount"
+        )
+    )]
     pub fn dismount(&self) -> Vec3 {
         Vec3::new(self.position.x, self.position.y + 0.25, self.position.z)
     }
@@ -1407,7 +1756,10 @@ pub struct ItemFrame {
     pub check_interval: u32,
 }
 impl ItemFrame {
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 53))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(method, id = 53, key = "horizon_client_lib::entities::ItemFrame::step")
+    )]
     pub fn step(&self) -> [i32; 3] {
         [
             [0, -1, 0],
@@ -1418,7 +1770,10 @@ impl ItemFrame {
             [1, 0, 0],
         ][usize::from(self.facing.min(5))]
     }
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 54))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(method, id = 54, key = "horizon_client_lib::entities::ItemFrame::kind")
+    )]
     pub fn kind(&self) -> &'static str {
         if self.glow {
             "minecraft:glow_item_frame"
@@ -1427,7 +1782,14 @@ impl ItemFrame {
         }
     }
     /// ItemFrame.createBoundingBox (without a framed map): (min, max).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 55))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 55,
+            key = "horizon_client_lib::entities::ItemFrame::bounds"
+        )
+    )]
     pub fn bounds(&self) -> ([f64; 3], [f64; 3]) {
         let s = self.step().map(f64::from);
         let c: [f64; 3] = std::array::from_fn(|i| f64::from(self.pos[i]) + 0.5 - s[i] * 0.46875);
@@ -1505,7 +1867,14 @@ pub enum StandMedium {
     },
 }
 impl StandMedium {
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 56))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 56,
+            key = "horizon_client_lib::entities::StandMedium::from_heights"
+        )
+    )]
     pub fn from_heights(water_height: f64, lava_height: f64) -> Self {
         if water_height > 0.0 {
             Self::Water
@@ -1525,48 +1894,24 @@ struct StandClimbing<'a> {
 }
 impl horizon_world::climbing::ClimbingWorld for StandClimbing<'_> {
     type Error = std::convert::Infallible;
-    #[cfg_attr(
-        not(feature = "yoake-hook-baseline"),
-        yoake_hook(skip = "trait methods cannot add a registration getter")
-    )]
     fn is_spectator(&mut self) -> Result<bool, Self::Error> {
         Ok(false)
     }
-    #[cfg_attr(
-        not(feature = "yoake-hook-baseline"),
-        yoake_hook(skip = "trait methods cannot add a registration getter")
-    )]
     fn is_fall_flying(&mut self) -> Result<bool, Self::Error> {
         Ok(false)
     }
-    #[cfg_attr(
-        not(feature = "yoake-hook-baseline"),
-        yoake_hook(skip = "trait methods cannot add a registration getter")
-    )]
     fn block_position(&mut self) -> Result<BlockPos, Self::Error> {
         Ok(self.position)
     }
-    #[cfg_attr(
-        not(feature = "yoake-hook-baseline"),
-        yoake_hook(skip = "trait methods cannot add a registration getter")
-    )]
     fn in_block_state(&mut self) -> Result<horizon_world::registry::BlockStateId, Self::Error> {
         self.block_state(self.position)
     }
-    #[cfg_attr(
-        not(feature = "yoake-hook-baseline"),
-        yoake_hook(skip = "trait methods cannot add a registration getter")
-    )]
     fn block_state(
         &mut self,
         p: BlockPos,
     ) -> Result<horizon_world::registry::BlockStateId, Self::Error> {
         Ok(self.world.block(p.x, p.y, p.z))
     }
-    #[cfg_attr(
-        not(feature = "yoake-hook-baseline"),
-        yoake_hook(skip = "trait methods cannot add a registration getter")
-    )]
     fn set_last_climbable_position(&mut self, _: BlockPos) {}
 }
 /// What a stand's travel carries from [`ArmorStand::tick_move`] to
@@ -1578,7 +1923,14 @@ pub struct StandStep {
 }
 #[cfg(feature = "yoake-hook-bench")]
 impl StandStep {
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 57))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 57,
+            key = "horizon_client_lib::entities::StandStep::for_hook_bench"
+        )
+    )]
     pub fn for_hook_bench(falling: bool, friction: f32) -> Self {
         Self { falling, friction }
     }
@@ -1607,7 +1959,14 @@ impl ArmorStand {
 impl ArmorStand {
     /// `NameTagItem.interactLivingEntity`: a custom name handles the use;
     /// only a living target changes. Stack consumption belongs to the caller.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 58))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 58,
+            key = "horizon_client_lib::entities::ArmorStand::name_with_tag"
+        )
+    )]
     pub fn name_with_tag(&mut self, stack: &ItemStack) -> bool {
         if &*stack.item != "minecraft:name_tag" {
             return false;
@@ -1635,14 +1994,28 @@ impl ArmorStand {
     ];
     /// Where the renderer draws the stand `alpha` of the way through the tick
     /// (`EntityRenderer`'s `Mth.lerp(partialTick, xo, x)` and so on).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 59))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 59,
+            key = "horizon_client_lib::entities::ArmorStand::render_position"
+        )
+    )]
     pub fn render_position(&self, alpha: f64) -> Vec3 {
         self.previous.lerp(self.position, alpha)
     }
     /// The body's yaw `alpha` of the way through the tick
     /// (`LivingEntityRenderer.solveBodyRot`: `Mth.rotLerp(partialTick,
     /// yBodyRotO, yBodyRot)`).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 60))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 60,
+            key = "horizon_client_lib::entities::ArmorStand::render_yaw"
+        )
+    )]
     pub fn render_yaw(&self, alpha: f32) -> f32 {
         self.previous_yaw + alpha * crate::camera::wrap_degrees(self.yaw - self.previous_yaw)
     }
@@ -1652,7 +2025,14 @@ impl ArmorStand {
     /// put at, when one is due). The yaw
     /// turns the short way and stays continuous, so a frame between ticks
     /// never spins it.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 61))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 61,
+            key = "horizon_client_lib::entities::ArmorStand::interpolate"
+        )
+    )]
     pub fn interpolate(&mut self, step: Option<(Vec3, f32)>) {
         self.previous = self.position;
         self.previous_yaw = self.yaw;
@@ -1663,14 +2043,24 @@ impl ArmorStand {
     }
     /// Put there at once, with nothing to blend from
     /// (`Entity.snapTo`).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 62))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 62,
+            key = "horizon_client_lib::entities::ArmorStand::snap"
+        )
+    )]
     pub fn snap(&mut self, at: Vec3, yaw: f32) {
         self.position = at;
         self.previous = at;
         self.yaw = yaw;
         self.previous_yaw = yaw;
     }
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 63))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(method, id = 63, key = "horizon_client_lib::entities::ArmorStand::new")
+    )]
     pub fn new(id: u32, position: Vec3, yaw: f32) -> Self {
         Self {
             join: Default::default(),
@@ -1705,10 +2095,6 @@ impl ArmorStand {
     /// `Entity.getOnPos(0.2)` (`getOnPosLegacy`): the supporting block's
     /// column 0.2 below the feet, the supporting block itself when `tall`
     /// says it is a fence, wall or fence gate, else the cell 0.2 below.
-    #[cfg_attr(
-        not(feature = "yoake-hook-baseline"),
-        yoake_hook(skip = "impl Trait input has no nameable callback type")
-    )]
     pub fn on_pos_legacy(&self, tall: impl Fn(BlockPos) -> bool) -> BlockPos {
         let y = (self.position.y - f64::from(0.2_f32)).floor() as i32;
         match self.support.supporting_block {
@@ -1723,19 +2109,40 @@ impl ArmorStand {
     }
     /// `EquipmentSlot.getFilterFlag` of an `equipment` index (main hand, off
     /// hand, feet, legs, chest, head).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 64))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 64,
+            key = "horizon_client_lib::entities::ArmorStand::filter_flag"
+        )
+    )]
     fn filter_flag(slot: usize) -> u32 {
         [0, 5, 1, 2, 3, 4][slot]
     }
     /// `ArmorStand.isDisabled`: the slot is locked, or it is a hand and the
     /// stand has no arms.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 65))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 65,
+            key = "horizon_client_lib::entities::ArmorStand::is_disabled"
+        )
+    )]
     pub fn is_disabled(&self, slot: usize) -> bool {
         self.disabled_slots & (1 << Self::filter_flag(slot)) != 0 || (slot < 2 && !self.show_arms)
     }
     /// The `swapItem` locks: taking from a filled slot or putting into an
     /// empty one can each be disabled.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 66))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 66,
+            key = "horizon_client_lib::entities::ArmorStand::swap_locked"
+        )
+    )]
     pub fn swap_locked(&self, slot: usize) -> bool {
         let offset = if self.equipment[slot].is_some() {
             8
@@ -1744,7 +2151,14 @@ impl ArmorStand {
         };
         self.disabled_slots & (1 << (Self::filter_flag(slot) + offset)) != 0
     }
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 67))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 67,
+            key = "horizon_client_lib::entities::ArmorStand::environment_tick"
+        )
+    )]
     pub fn environment_tick(
         &mut self,
         world: &World,
@@ -1795,7 +2209,14 @@ impl ArmorStand {
         self.health > 0.5
     }
     /// EntityType.ARMOR_STAND dimensions (0.5 x 1.975, half for small).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 68))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 68,
+            key = "horizon_client_lib::entities::ArmorStand::bounds"
+        )
+    )]
     pub fn bounds(&self) -> Aabb {
         let s = if self.small { 0.5 } else { 1.0 };
         let (w, h) = (0.25 * s, 1.975 * s);
@@ -1806,7 +2227,14 @@ impl ArmorStand {
         )
     }
     /// Leather boots on its feet: it walks on powder snow (`PowderSnowBlock.canEntityWalkOnPowderSnow`).
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 69))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 69,
+            key = "horizon_client_lib::entities::ArmorStand::feet_are_leather_boots"
+        )
+    )]
     fn feet_are_leather_boots(&self) -> bool {
         self.equipment[2]
             .as_ref()
@@ -1825,7 +2253,14 @@ impl ArmorStand {
     /// this up to the blocks' push, then the bubble column
     /// (`Entity::push_by_bubble_column`), then [`ArmorStand::tick_settle`].
     /// None: a marker or a stand with `NoGravity` does not travel.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 70))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 70,
+            key = "horizon_client_lib::entities::ArmorStand::tick_move"
+        )
+    )]
     pub fn tick_move(
         &mut self,
         scene: &mut crate::collisions::SceneCollisions,
@@ -1951,7 +2386,14 @@ impl ArmorStand {
     /// and sink, or the air drag and gravity. The blocks' push (a bubble
     /// column) comes after this, as `LivingEntity.aiStep` applies the block
     /// effects after `travel`.
-    #[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(method, id = 71))]
+    #[cfg_attr(
+        not(feature = "yoake-hook-baseline"),
+        yoake_hook(
+            method,
+            id = 71,
+            key = "horizon_client_lib::entities::ArmorStand::tick_settle"
+        )
+    )]
     pub fn tick_settle(&mut self, medium: StandMedium, step: StandStep) {
         use crate::entity_rules::EntityRules;
         let StandStep { falling, friction } = step;

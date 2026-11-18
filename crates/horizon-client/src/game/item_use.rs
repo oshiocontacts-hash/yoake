@@ -18,6 +18,7 @@ impl Game<'_> {
     /// `getUseDuration` ticks, which mods may change or refuse
     /// (`LivingEntityUseItemEvent.Start`), on both sides as in vanilla. True
     /// when the use started.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 103, key = "horizon_client::game::item_use::Game::start_using_item")]
     pub(super) fn start_using_item(&mut self) -> bool {
         let Some(stack) = self.held().cloned().filter(|_| self.using.is_none()) else {
             return false;
@@ -40,6 +41,7 @@ impl Game<'_> {
     /// `ItemStack.getUseDuration`: a consumable's time, 72000 for what is
     /// held until let go, the fixed times of brushes, bundles, spyglasses and
     /// goat horns, 0 for the rest, then a mod's answer.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 104, key = "horizon_client::game::item_use::Game::use_duration")]
     pub(super) fn use_duration(&self, stack: &ItemStack) -> i32 {
         let info = self.items().get(&stack.item);
         let mut duration = match &*stack.item {
@@ -62,6 +64,7 @@ impl Game<'_> {
     /// Whether `stack` is a mod's item that only a mod uses over time: no
     /// `consumable`, `blocks_attacks` or kinetic weapon of vanilla's own, and
     /// a `native_use_duration` above 0. Its use is its own `Item.use`.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 105, key = "horizon_client::game::item_use::Game::mod_use")]
     pub(super) fn mod_use(&self, stack: &ItemStack) -> bool {
         !stack.item.starts_with("minecraft:")
             && self
@@ -72,6 +75,7 @@ impl Game<'_> {
             && self.use_duration(stack) > 0
     }
     /// A right click with a `mod_use` item: `startUsingItem` (CONSUME).
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 106, key = "horizon_client::game::item_use::Game::start_mod_use")]
     pub(super) fn start_mod_use(&mut self, stack: &ItemStack) -> bool {
         if !self.mod_use(stack) {
             return false;
@@ -81,6 +85,7 @@ impl Game<'_> {
     }
     /// `LivingEntity.updateUsingItem` for a `mod_use` item used `ticks` so far:
     /// `completeUsingItem` once its duration ran out.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 107, key = "horizon_client::game::item_use::Game::tick_mod_use")]
     pub(super) fn tick_mod_use(&mut self, slot: usize, ticks: u32, stack: &ItemStack) {
         self.item_on_use_tick(stack, ticks);
         if let Some(ticks) = count_down(ticks, self.use_duration) {
@@ -97,6 +102,7 @@ impl Game<'_> {
     /// told, `ItemStack.finishUsingItem` (a consumable is eaten, a potion
     /// drunk, a spyglass lowered, anything else given back) with its use
     /// cooldown, then `LivingEntityUseItemEvent.Finish`.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 108, key = "horizon_client::game::item_use::Game::complete_using_item")]
     pub(super) fn complete_using_item(&mut self, slot: usize, stack: &ItemStack, info: &ItemInfo) {
         // a potion is drunk (no last tick of its own: a mod's tick ran it out).
         if self.finish_drinking(slot, stack) {
@@ -118,6 +124,7 @@ impl Game<'_> {
     }
     /// `LivingEntityUseItemEvent.Finish` after `finishUsingItem` of `stack`
     /// (no ticks left): the hand holds what a mod made the result.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 109, key = "horizon_client::game::item_use::Game::use_item_finished")]
     pub(super) fn use_item_finished(&mut self, stack: &ItemStack) {
         let mut result = self.held().cloned();
         let before = result.clone();
@@ -132,6 +139,7 @@ impl Game<'_> {
     /// `updatingUsingItem` starts: a mod may change the ticks left, which
     /// moves the end. False when it ran the use out (`tick_ran_out`): the
     /// item's tick and countdown are skipped.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 110, key = "horizon_client::game::item_use::Game::use_item_ticked")]
     pub(super) fn use_item_ticked(&mut self, stack: &ItemStack, ticks: u32) -> bool {
         let before = ticks_left(self.use_duration, ticks);
         let (mut remaining, mut canceled) = (before, false);
@@ -143,6 +151,7 @@ impl Game<'_> {
         left > 0 || !set
     }
     /// A mod's `Item.onUseTick` of `stack` used `ticks`, while ticks are left.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 111, key = "horizon_client::game::item_use::Game::item_on_use_tick")]
     pub(super) fn item_on_use_tick(&mut self, stack: &ItemStack, ticks: u32) {
         let remaining = ticks_left(self.use_duration, ticks);
         if remaining > 0 {
@@ -153,6 +162,7 @@ impl Game<'_> {
     /// the ticks left (`BowItem.releaseUsing`, `CrossbowItem.onUseTick`,
     /// `TridentItem.releaseUsing`), `ticks` unless a mod's Start or Tick
     /// moved the ticks left.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 112, key = "horizon_client::game::item_use::Game::ticks_held")]
     pub(super) fn ticks_held(&self, stack: &ItemStack, ticks: u32) -> u32 {
         held(
             self.use_duration(stack),
@@ -161,6 +171,7 @@ impl Game<'_> {
     }
     /// `LivingEntityUseItemEvent.Stop` as `releaseUsingItem` lets go of
     /// `stack` used `ticks`: false when a mod skips its `releaseUsing`.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 113, key = "horizon_client::game::item_use::Game::use_item_stopped")]
     pub(super) fn use_item_stopped(&mut self, stack: &ItemStack, ticks: u32) -> bool {
         let mut canceled = false;
         let remaining = ticks_left(self.use_duration, ticks);
@@ -170,6 +181,7 @@ impl Game<'_> {
     }
     /// A mod's `Item.releaseUsing` of `stack` used `ticks`: when it says it
     /// was used, `ItemStack.releaseUsing` applies the use cooldown.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 114, key = "horizon_client::game::item_use::Game::mod_release_using")]
     pub(super) fn mod_release_using(&mut self, stack: &ItemStack, ticks: u32) {
         let mut used = false;
         let remaining = ticks_left(self.use_duration, ticks);
@@ -180,6 +192,7 @@ impl Game<'_> {
     }
     /// `Player.canEat(canAlwaysEat)` for `stack`, food that is eaten only
     /// when hungry, then a mod's answer.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 115, key = "horizon_client::game::item_use::Game::can_eat")]
     pub(super) fn can_eat(&self, stack: &ItemStack, can_always_eat: bool) -> bool {
         let mut can_eat = can_always_eat
             || self.creative
@@ -196,6 +209,7 @@ impl Game<'_> {
 /// whether a mod ever set this use's: once one did, the use goes on only
 /// while some are left, else it ran out. A use no mod touched goes on as
 /// vanilla's own do (an eye of ender's has none from the start).
+#[yoake_hook_macro::yoake_hook(id = 116, key = "horizon_client::game::item_use::tick_left")]
 fn tick_left(before: i32, remaining: i32, canceled: bool, set: bool) -> (i32, bool) {
     let left = if canceled { -1 } else { remaining };
     (left, set || canceled || remaining != before)
@@ -205,10 +219,12 @@ fn tick_left(before: i32, remaining: i32, canceled: bool, set: bool) -> (i32, bo
 /// `releaseUsing` (not when a mod's `Stop` canceled, nor when the hand
 /// changed item, which stops the use without one), and the spyglass's
 /// sound (not when canceled).
+#[yoake_hook_macro::yoake_hook(id = 117, key = "horizon_client::game::item_use::release_parts")]
 pub(super) fn release_parts(canceled: bool, hand_changed: bool) -> (bool, bool) {
     (!canceled && !hand_changed, !canceled)
 }
 
+#[yoake_hook_macro::yoake_hook(id = 118, key = "horizon_client::game::item_use::bow_release_power")]
 pub(super) fn bow_release_power(has_ammo: bool, charge: i32, canceled: bool) -> Option<f32> {
     if canceled || charge < 0 || !has_ammo {
         return None;
@@ -219,18 +235,21 @@ pub(super) fn bow_release_power(has_ammo: bool, charge: i32, canceled: bool) -> 
 }
 
 /// `useItemRemaining` of a use of `duration` ticks, `ticks` old.
+#[yoake_hook_macro::yoake_hook(id = 119, key = "horizon_client::game::item_use::ticks_left")]
 fn ticks_left(duration: i32, ticks: u32) -> i32 {
     duration.saturating_sub_unsigned(ticks)
 }
 
 /// `getUseDuration(stack) - remainingTime` of a use of `own` ticks with
 /// `remaining` left, none below 0.
+#[yoake_hook_macro::yoake_hook(id = 120, key = "horizon_client::game::item_use::held")]
 fn held(own: i32, remaining: i32) -> u32 {
     u32::try_from(i64::from(own) - i64::from(remaining)).unwrap_or(0)
 }
 
 /// The duration that leaves `remaining` ticks of a use `ticks` old, as a
 /// mod's `Tick` set them.
+#[yoake_hook_macro::yoake_hook(id = 121, key = "horizon_client::game::item_use::duration_leaving")]
 fn duration_leaving(ticks: u32, remaining: i32) -> i32 {
     remaining.saturating_add_unsigned(ticks)
 }
@@ -240,12 +259,14 @@ fn duration_leaving(ticks: u32, remaining: i32) -> i32 {
 /// mod set the ticks left to none. Such a use runs out on its first tick
 /// (`tick_left`), as NeoForge's `--useItemRemaining <= 0` completes it, while
 /// an item's own 0 (an eye of ender) is held until let go, as vanilla's.
+#[yoake_hook_macro::yoake_hook(id = 122, key = "horizon_client::game::item_use::start_of")]
 fn start_of(own: i32, duration: i32, canceled: bool) -> Option<bool> {
     (!canceled && duration >= 0).then_some(duration == 0 && own != 0)
 }
 
 /// `Consumable.startConsuming`: a time of 0 or less is no use, the item is
 /// consumed at once (`onConsume`).
+#[yoake_hook_macro::yoake_hook(id = 123, key = "horizon_client::game::item_use::consumes_at_once")]
 pub(super) fn consumes_at_once(consume_ticks: i32) -> bool {
     consume_ticks <= 0
 }
@@ -254,6 +275,7 @@ pub(super) fn consumes_at_once(consume_ticks: i32) -> bool {
 /// `duration` ticks: the ticks used after this one, none on the tick it runs
 /// out. A time of 0 or less, or one a mod cut below what was used, never
 /// does: the use lasts until let go.
+#[yoake_hook_macro::yoake_hook(id = 124, key = "horizon_client::game::item_use::count_down")]
 pub(super) fn count_down(ticks: u32, duration: i32) -> Option<u32> {
     let ticks = ticks + 1;
     (i64::from(duration) - i64::from(ticks) != 0).then_some(ticks)
@@ -262,6 +284,7 @@ pub(super) fn count_down(ticks: u32, duration: i32) -> Option<u32> {
 /// The first person pose of a hand using an item of `animation`
 /// (`ItemInHandRenderer.renderArmWithItem`'s switch), for an item of no
 /// pose of its own.
+#[yoake_hook_macro::yoake_hook(id = 125, key = "horizon_client::game::item_use::use_pose")]
 pub(super) fn use_pose(
     animation: UseAnimation,
     remaining: f32,

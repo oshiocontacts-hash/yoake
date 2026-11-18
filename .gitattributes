@@ -7,3 +7,4 @@ docs/api/*-reference.md text eol=lf
 launcher/tests/fixtures/yoake-schema2/** -text
 crates/yoake-wasm/wit/inject-sites.json text eol=lf
 launcher/tests/fixtures/yoake-presentation/** -text
+crates/yoake-hook-rt/hook-ids.lock.json text eol=lf

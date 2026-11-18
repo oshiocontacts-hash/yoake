@@ -3,7 +3,7 @@ use yoake_hook_macro::yoake_hook;
 
 static CALLS: AtomicUsize = AtomicUsize::new(0);
 
-#[yoake_hook(id = 1)]
+#[yoake_hook(test_id = 1)]
 #[inline(always)]
 fn inlined_leaf(value: u64) -> u64 {
     value.wrapping_add(1)
@@ -22,12 +22,7 @@ pub fn yoake_inline_driver(value: u64) -> u64 {
 
 fn main() {
     assert_eq!(yoake_inline_driver(4), 5);
-    yoake_hook_rt::register::<fn(&mut dyn FnMut(u64) -> u64, u64) -> u64>(
-        __YOAKE_HOOK_ID_inlined_leaf,
-        boost,
-        yoake_hook_rt::Order::default(),
-    )
-    .unwrap();
+    __yoake_register_inlined_leaf(boost, yoake_hook_rt::Order::default()).unwrap();
     let mut checksum = 0;
     for value in 0..100 {
         checksum += yoake_inline_driver(value);
