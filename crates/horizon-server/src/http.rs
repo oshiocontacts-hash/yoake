@@ -4,14 +4,16 @@
 
 use std::{
     io::{BufRead, BufReader, Read, Write},
-    net::{SocketAddr, TcpListener, TcpStream},
-    time::Duration,
+    net::{Shutdown, SocketAddr, TcpListener, TcpStream},
+    time::{Duration, Instant},
 };
 
 /// The largest request body the API takes (a console command, a settings change).
 const MAX_BODY: usize = 1 << 20;
 /// The longest request line or header line taken.
 const MAX_LINE: usize = 8 << 10;
+const ERROR_DRAIN_LIMIT: usize = 256 << 10;
+const ERROR_DRAIN_TIMEOUT: Duration = Duration::from_secs(1);
 
 pub struct Request {
     pub method: String,
@@ -221,6 +223,28 @@ pub fn write_head(mut out: impl Write, response: &Response) -> std::io::Result<(
     out.flush()
 }
 
+fn close_after_error(mut stream: &TcpStream, byte_limit: usize, timeout: Duration) {
+    let _ = stream.shutdown(Shutdown::Write);
+    let deadline = Instant::now() + timeout;
+    let mut remaining = byte_limit;
+    let mut buffer = [0; 4096];
+    while remaining > 0 {
+        let Some(time_left) = deadline.checked_duration_since(Instant::now()) else {
+            break;
+        };
+        if time_left.is_zero() || stream.set_read_timeout(Some(time_left)).is_err() {
+            break;
+        }
+        let read_limit = remaining.min(buffer.len());
+        match stream.read(&mut buffer[..read_limit]) {
+            Ok(0) => break,
+            Ok(count) => remaining -= count,
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(_) => break,
+        }
+    }
+}
+
 /// Serves `handle` on `listener` until the process ends, a thread per connection.
 pub fn serve(
     listener: TcpListener,
@@ -236,11 +260,13 @@ pub fn serve(
                     .name("api-client".into())
                     .spawn(move || {
                         let _ = stream.set_read_timeout(Some(Duration::from_secs(10)));
-                        let response = match read_request(&stream) {
-                            Ok(request) => handle(&request),
-                            Err(response) => response,
-                        };
-                        write_response(&stream, response);
+                        match read_request(&stream) {
+                            Ok(request) => write_response(&stream, handle(&request)),
+                            Err(response) => {
+                                write_response(&stream, response);
+                                close_after_error(&stream, ERROR_DRAIN_LIMIT, ERROR_DRAIN_TIMEOUT);
+                            }
+                        }
                     });
             }
         })?;
@@ -324,14 +350,93 @@ mod tests {
         stream
             .set_read_timeout(Some(Duration::from_secs(5)))
             .unwrap();
-        // A request line that never ends, sent at once so the refused reply
-        // (and the close) can't reset the write side first.
         let mut flood = b"GET /".to_vec();
         flood.extend_from_slice(&[b'a'; 100_000]);
-        let _ = stream.write_all(&flood);
-        let _ = stream.shutdown(std::net::Shutdown::Write);
+        stream.write_all(&flood).unwrap();
+        stream.shutdown(Shutdown::Write).unwrap();
         let mut text = String::new();
-        let _ = stream.read_to_string(&mut text);
+        stream.read_to_string(&mut text).unwrap();
         assert!(text.starts_with("HTTP/1.1 400"), "{text}");
+    }
+
+    #[test]
+    fn oversized_body_reply_survives_unread_input() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        serve(listener, |_| Response::text(200, "text/plain", "ok")).unwrap();
+        let mut stream = TcpStream::connect(address).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        stream
+            .write_all(b"POST / HTTP/1.1\r\nContent-Length: 1048577\r\n\r\n")
+            .unwrap();
+        stream.write_all(&[b'a'; 100_000]).unwrap();
+        stream.shutdown(Shutdown::Write).unwrap();
+        let mut text = String::new();
+        stream.read_to_string(&mut text).unwrap();
+        assert!(text.starts_with("HTTP/1.1 413"), "{text}");
+    }
+
+    #[test]
+    fn error_reply_fin_does_not_wait_for_client_eof() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        serve(listener, |_| Response::text(200, "text/plain", "ok")).unwrap();
+        let mut stream = TcpStream::connect(address).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        stream.write_all(&[b'a'; MAX_LINE + 1]).unwrap();
+        let mut text = String::new();
+        stream.read_to_string(&mut text).unwrap();
+        assert!(text.starts_with("HTTP/1.1 400"), "{text}");
+    }
+
+    #[test]
+    fn error_drain_stops_at_byte_limit() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let mut client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        let (server, _) = listener.accept().unwrap();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            close_after_error(&server, 32, Duration::from_secs(30));
+            sender.send(()).unwrap();
+        });
+        client.write_all(&[b'a'; 32]).unwrap();
+        let finished = receiver.recv_timeout(Duration::from_secs(5)).is_ok();
+        drop(client);
+        worker.join().unwrap();
+        assert!(finished, "drain did not stop at the byte limit");
+    }
+
+    #[test]
+    fn error_drain_deadline_survives_trickling_input() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let mut client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        let (server, _) = listener.accept().unwrap();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            close_after_error(&server, 1024, Duration::from_millis(200));
+            sender.send(()).unwrap();
+        });
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut finished = false;
+        while Instant::now() < deadline {
+            if receiver.try_recv().is_ok() {
+                finished = true;
+                break;
+            }
+            if client.write_all(b"a").is_err() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        if !finished {
+            finished = receiver.recv_timeout(Duration::from_secs(1)).is_ok();
+        }
+        drop(client);
+        worker.join().unwrap();
+        assert!(finished, "trickling input extended the drain deadline");
     }
 }
