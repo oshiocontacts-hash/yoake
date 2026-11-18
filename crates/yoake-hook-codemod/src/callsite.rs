@@ -2253,6 +2253,11 @@ fn execute_with_thir(
     }
 
     for hot_key in hot_callers.keys() {
+        if let Some((crate_seg, _)) = hot_key.split_once("::")
+            && key::normalize_crate_name(crate_seg) != crate_ident
+        {
+            continue;
+        }
         if !scanned_fn_keys.contains(hot_key) {
             eprintln!(
                 "warning: callsite-hot-callers.txt key '{hot_key}' matched no fn in scanned modules"

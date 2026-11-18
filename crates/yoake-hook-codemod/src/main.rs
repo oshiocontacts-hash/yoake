@@ -1,4 +1,5 @@
 mod attr;
+mod bridge;
 mod callsite;
 mod edit;
 mod eligible;
@@ -62,6 +63,7 @@ pub struct VerifyCallsitesConfig {
 
 enum Command {
     Run(Config),
+    Bridge(bridge::BridgeConfig),
     CheckHistory(HistoryConfig),
     TrackCallerScan(TrackCallerScanConfig),
     VerifyCallsites(VerifyCallsitesConfig),
@@ -73,6 +75,8 @@ fn usage() -> &'static str {
      --ledger <dir> --module <mod> [--module <mod>...] [--rename OLD=NEW]... [--tombstone KEY]... \
      [--callsites] [--thir <calls.json>] [--accept-site KEY@FILE:LINE:COL]... [--rename-site OLD=NEW]... [--tombstone-site KEY]... \
      [--engine-crates LIST]... [--retire-ineligible] [--rustfmt]\n  \
+     yoake-hook-codemod bridge --crate-root <dir> --crate-name <name> \
+     --ledger <dir> --module <mod> [--module <mod>...] [--glue <file>...] [--exclude-file <file>] [--check]\n  \
      yoake-hook-codemod check-history --base <dir> --current <dir>\n  \
      yoake-hook-codemod track-caller-scan --workspace <dir> --out <file>\n  \
      yoake-hook-codemod verify-callsites --crate-name <name> --ledger <dir> --thir <calls.json>"
@@ -112,6 +116,9 @@ fn parse_args() -> Result<Option<Command>, String> {
         return Ok(None);
     }
 
+    if first == "bridge" {
+        return parse_bridge_args(args);
+    }
     if first == "check-history" {
         return parse_check_history_args(&mut args);
     }
@@ -127,7 +134,7 @@ fn parse_args() -> Result<Option<Command>, String> {
         "check" => Mode::Check,
         other => {
             return Err(format!(
-                "expected 'apply', 'check', 'check-history', 'track-caller-scan', or 'verify-callsites', got '{other}'\n{}",
+                "expected 'apply', 'check', 'bridge', 'check-history', 'track-caller-scan', or 'verify-callsites', got '{other}'\n{}",
                 usage()
             ));
         }
@@ -332,6 +339,83 @@ fn parse_verify_callsites_args(args: &mut std::env::Args) -> Result<Option<Comma
     })))
 }
 
+fn parse_bridge_args(args: std::env::Args) -> Result<Option<Command>, String> {
+    let mut args = args.peekable();
+    let mut check = false;
+    let mut crate_root = None;
+    let mut crate_name = None;
+    let mut ledger = None;
+    let mut modules = Vec::new();
+    let mut glues = Vec::new();
+    let mut exclude_file = None;
+
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "-h" | "--help" => {
+                println!("{}", usage());
+                return Ok(None);
+            }
+            "--check" => check = true,
+            "--crate-root" => {
+                let val = args
+                    .next()
+                    .ok_or_else(|| "missing value for --crate-root".to_string())?;
+                crate_root = Some(PathBuf::from(val));
+            }
+            "--crate-name" => {
+                crate_name = Some(
+                    args.next()
+                        .ok_or_else(|| "missing value for --crate-name".to_string())?,
+                );
+            }
+            "--ledger" => {
+                let val = args
+                    .next()
+                    .ok_or_else(|| "missing value for --ledger".to_string())?;
+                ledger = Some(PathBuf::from(val));
+            }
+            "--module" => {
+                let val = args
+                    .next()
+                    .ok_or_else(|| "missing value for --module".to_string())?;
+                modules.push(val);
+            }
+            "--glue" => {
+                let first = args
+                    .next()
+                    .ok_or_else(|| "missing value for --glue".to_string())?;
+                glues.push(PathBuf::from(first));
+                while args.peek().is_some_and(|next| !next.starts_with('-')) {
+                    glues.push(PathBuf::from(args.next().unwrap()));
+                }
+            }
+            "--exclude-file" => {
+                let val = args
+                    .next()
+                    .ok_or_else(|| "missing value for --exclude-file".to_string())?;
+                exclude_file = Some(PathBuf::from(val));
+            }
+            other => return Err(format!("unknown argument '{other}'\n{}", usage())),
+        }
+    }
+
+    let crate_root = crate_root.ok_or_else(|| format!("missing --crate-root\n{}", usage()))?;
+    let crate_name = crate_name.ok_or_else(|| format!("missing --crate-name\n{}", usage()))?;
+    let ledger = ledger.ok_or_else(|| format!("missing --ledger\n{}", usage()))?;
+    if modules.is_empty() {
+        return Err(format!("at least one --module is required\n{}", usage()));
+    }
+    Ok(Some(Command::Bridge(bridge::BridgeConfig {
+        check,
+        crate_root,
+        crate_name,
+        ledger,
+        modules,
+        glues,
+        exclude_file,
+    })))
+}
+
 fn main() -> ExitCode {
     let command = match parse_args() {
         Ok(Some(cmd)) => cmd,
@@ -344,6 +428,7 @@ fn main() -> ExitCode {
 
     let result = match command {
         Command::Run(config) => run::execute(&config),
+        Command::Bridge(config) => bridge::execute(&config),
         Command::CheckHistory(history) => ledger_io::run_check_history(&history.base, &history.current),
         Command::TrackCallerScan(scan) => track_caller::run_scan(&scan.workspace, &scan.out),
         Command::VerifyCallsites(verify) => {

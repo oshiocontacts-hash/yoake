@@ -1,0 +1,1316 @@
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Path, PathBuf};
+
+use quote::quote;
+use syn::spanned::Spanned;
+use syn::visit::Visit;
+use syn::visit_mut::{self, VisitMut};
+use syn::{
+    Attribute, FnArg, GenericArgument, ImplItem, Item, Lifetime, LitStr, PathArguments,
+    ReturnType, Signature, Type,
+};
+use yoake_hook_ledger::{Kind, LedgerSet};
+
+use crate::attr;
+use crate::edit::LineIndex;
+use crate::types::CrateIndex;
+use crate::{eligible, key, ledger_io, modules, run};
+
+pub struct BridgeConfig {
+    pub check: bool,
+    pub crate_root: PathBuf,
+    pub crate_name: String,
+    pub ledger: PathBuf,
+    pub modules: Vec<String>,
+    pub glues: Vec<PathBuf>,
+    pub exclude_file: Option<PathBuf>,
+}
+
+struct ModuleOutput {
+    path: PathBuf,
+    content: String,
+    bridged: usize,
+    unbridged: usize,
+}
+
+pub fn execute(config: &BridgeConfig) -> Result<bool, String> {
+    let crate_ident = key::normalize_crate_name(&config.crate_name);
+    let targets = config
+        .modules
+        .iter()
+        .map(|m| modules::normalize_module_arg(m))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let root_file = modules::find_crate_root_file(&config.crate_root, &config.crate_name)?;
+    let root_dir = root_file
+        .parent()
+        .ok_or_else(|| format!("crate root {} has no parent directory", root_file.display()))?;
+    let glue_out_dir = root_dir.join("yoake_glue");
+
+    let exclude_path = config
+        .exclude_file
+        .clone()
+        .unwrap_or_else(|| config.ledger.join("bridge-exclude.txt"));
+    let excludes = load_bridge_excludes(&exclude_path)?;
+    let ledger_set = ledger_io::load_ledger_set(&config.ledger)?;
+    let crate_index = CrateIndex::build(&config.crate_root, &config.crate_name, &crate_ident, &[])?;
+    let includes = collect_glue_includes(&config.crate_root, &config.crate_name)?;
+    let field_tables = load_field_tables(&config.glues, &crate_ident, &includes)?;
+
+    let mut outputs = Vec::with_capacity(targets.len());
+    for target_mod in &targets {
+        let scanned_files = modules::collect_module_files(
+            &config.crate_root,
+            &config.crate_name,
+            std::slice::from_ref(target_mod),
+        )?;
+        let colliding_short_keys = run::collect_colliding_short_keys(
+            &crate_ident,
+            std::slice::from_ref(target_mod),
+            &scanned_files,
+        );
+        let hooks = collect_module_hooks(
+            &crate_ident,
+            target_mod,
+            &scanned_files,
+            &colliding_short_keys,
+            &ledger_set,
+        )?;
+        let (content, bridged, unbridged) = render_bridge_module(
+            &crate_ident,
+            target_mod,
+            &hooks,
+            &crate_index,
+            &field_tables,
+            &excludes,
+        )?;
+        let file_name = format!("hook_bridge_{}.rs", target_mod.join("__"));
+        outputs.push(ModuleOutput {
+            path: glue_out_dir.join(file_name),
+            content,
+            bridged,
+            unbridged,
+        });
+    }
+
+    if config.check {
+        let mut dirty = false;
+        for out in &outputs {
+            match std::fs::read_to_string(&out.path) {
+                Ok(existing) if existing == out.content => {}
+                Ok(_) => {
+                    println!("check: stale bridge file {}", out.path.display());
+                    dirty = true;
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                    println!("check: missing bridge file {}", out.path.display());
+                    dirty = true;
+                }
+                Err(err) => {
+                    return Err(format!("failed to read {}: {err}", out.path.display()));
+                }
+            }
+        }
+        if dirty {
+            return Ok(false);
+        }
+        println!("check: clean ({} bridge file(s))", outputs.len());
+        return Ok(true);
+    }
+
+    std::fs::create_dir_all(&glue_out_dir)
+        .map_err(|e| format!("failed to create {}: {e}", glue_out_dir.display()))?;
+    for out in &outputs {
+        std::fs::write(&out.path, &out.content)
+            .map_err(|e| format!("failed to write {}: {e}", out.path.display()))?;
+        println!(
+            "bridge: {} (bridged={}, unbridged={})",
+            out.path.display(),
+            out.bridged,
+            out.unbridged
+        );
+    }
+    Ok(true)
+}
+
+fn load_bridge_excludes(path: &Path) -> Result<BTreeMap<u32, String>, String> {
+    if !path.is_file() {
+        return Ok(BTreeMap::new());
+    }
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
+    let mut out = BTreeMap::new();
+    for (line_idx, raw_line) in text.lines().enumerate() {
+        let trimmed = raw_line.split('#').next().unwrap_or("").trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let Some((id_str, reason_raw)) = trimmed.split_once(char::is_whitespace) else {
+            return Err(format!(
+                "{}:{}: expected '<id> <reason>', got '{trimmed}'",
+                path.display(),
+                line_idx + 1
+            ));
+        };
+        let reason = reason_raw.trim();
+        if reason.is_empty() {
+            return Err(format!(
+                "{}:{}: expected '<id> <reason>', got '{trimmed}'",
+                path.display(),
+                line_idx + 1
+            ));
+        }
+        let id: u32 = id_str.parse().map_err(|_| {
+            format!(
+                "{}:{}: invalid hook id '{id_str}'",
+                path.display(),
+                line_idx + 1
+            )
+        })?;
+        out.insert(id, reason.to_string());
+    }
+    Ok(out)
+}
+
+fn collect_glue_includes(
+    crate_root: &Path,
+    crate_name: &str,
+) -> Result<Vec<(Vec<String>, String)>, String> {
+    let mut includes = Vec::new();
+    modules::walk_crate_tree(crate_root, crate_name, &[], |mod_path, _, items| {
+        for item in items {
+            if let Item::Macro(im) = item
+                && im.mac.path.is_ident("include")
+                && let Ok(lit) = syn::parse2::<LitStr>(im.mac.tokens.clone())
+            {
+                includes.push((mod_path.to_vec(), lit.value().replace('\\', "/")));
+            }
+        }
+    })?;
+    Ok(includes)
+}
+
+fn load_field_tables(
+    glues: &[PathBuf],
+    crate_ident: &str,
+    includes: &[(Vec<String>, String)],
+) -> Result<BTreeMap<String, String>, String> {
+    let mut tables = BTreeMap::new();
+    for glue_path in glues {
+        let source = std::fs::read_to_string(glue_path)
+            .map_err(|e| format!("failed to read glue {}: {e}", glue_path.display()))?;
+        let parsed = syn::parse_file(&source)
+            .map_err(|e| format!("failed to parse glue {}: {e}", glue_path.display()))?;
+        let (header_crate, header_mod) = parse_glue_header(&source);
+        let glue_crate = header_crate
+            .or_else(|| find_crate_name_for_file(glue_path))
+            .unwrap_or_else(|| crate_ident.to_string());
+
+        let norm_glue = glue_path.to_string_lossy().replace('\\', "/");
+        let file_name = glue_path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+        let include_mod = if glue_crate == crate_ident {
+            includes
+                .iter()
+                .find(|(_, inc)| {
+                    norm_glue.ends_with(inc.as_str())
+                        || (!file_name.is_empty() && inc.ends_with(&format!("/{file_name}")))
+                        || inc == file_name
+                })
+                .map(|(m, _)| m.clone())
+        } else {
+            None
+        };
+
+        let mut submod = Vec::new();
+        collect_glue_statics(
+            &parsed.items,
+            &glue_crate,
+            crate_ident,
+            header_mod.as_deref(),
+            include_mod.as_deref(),
+            glue_path,
+            &mut submod,
+            &mut tables,
+        );
+    }
+    Ok(tables)
+}
+
+fn parse_glue_header(source: &str) -> (Option<String>, Option<String>) {
+    for line in source.lines().take(10) {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("// Module `")
+            && let Some((mod_name, after_mod)) = rest.split_once("` of crate `")
+            && let Some((crate_name, _)) = after_mod.split_once('`')
+        {
+            return (
+                Some(key::normalize_crate_name(crate_name)),
+                Some(mod_name.to_string()),
+            );
+        }
+    }
+    (None, None)
+}
+
+fn find_crate_name_for_file(file_path: &Path) -> Option<String> {
+    let mut dir = file_path.parent()?;
+    loop {
+        let manifest = dir.join("Cargo.toml");
+        if manifest.is_file()
+            && let Ok(text) = std::fs::read_to_string(&manifest)
+        {
+            let mut section = String::new();
+            let mut pkg_name = None;
+            let mut lib_name = None;
+            for raw in text.lines() {
+                let line = raw.split('#').next().unwrap_or("").trim();
+                if line.starts_with('[') && line.ends_with(']') {
+                    section = line.to_string();
+                    continue;
+                }
+                if let Some((k, v)) = line.split_once('=') {
+                    let k = k.trim();
+                    let v = v.trim();
+                    if v.len() >= 2
+                        && ((v.starts_with('"') && v.ends_with('"'))
+                            || (v.starts_with('\'') && v.ends_with('\'')))
+                    {
+                        let val = &v[1..v.len() - 1];
+                        if section == "[package]" && k == "name" {
+                            pkg_name = Some(val.to_string());
+                        } else if section == "[lib]" && k == "name" {
+                            lib_name = Some(val.to_string());
+                        }
+                    }
+                }
+            }
+            if let Some(name) = lib_name.or(pkg_name) {
+                return Some(key::normalize_crate_name(&name));
+            }
+        }
+        dir = dir.parent()?;
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn collect_glue_statics(
+    items: &[Item],
+    glue_crate: &str,
+    target_crate: &str,
+    header_mod: Option<&str>,
+    include_mod: Option<&[String]>,
+    glue_path: &Path,
+    submod: &mut Vec<String>,
+    tables: &mut BTreeMap<String, String>,
+) {
+    for item in items {
+        match item {
+            Item::Mod(item_mod) => {
+                if let Some((_, inner)) = &item_mod.content {
+                    submod.push(item_mod.ident.to_string());
+                    collect_glue_statics(
+                        inner,
+                        glue_crate,
+                        target_crate,
+                        header_mod,
+                        include_mod,
+                        glue_path,
+                        submod,
+                        tables,
+                    );
+                    submod.pop();
+                }
+            }
+            Item::Static(item_static) => {
+                let Some(inner_ty) = extract_field_table_inner_ty(&item_static.ty) else {
+                    continue;
+                };
+                let Some((canon_ty, type_mod)) = resolve_glue_inner_ty(
+                    inner_ty,
+                    glue_crate,
+                    header_mod,
+                    include_mod,
+                    glue_path,
+                ) else {
+                    continue;
+                };
+                let host_mod: Vec<String> = if let Some(im) = include_mod {
+                    im.to_vec()
+                } else if let Some(hm) = header_mod {
+                    hm.split("::").map(str::to_string).collect()
+                } else if !type_mod.is_empty() {
+                    type_mod
+                } else if let Some(stem) = glue_path.file_stem().and_then(|s| s.to_str()) {
+                    vec![stem.to_string()]
+                } else {
+                    Vec::new()
+                };
+                let mut parts = Vec::new();
+                if glue_crate == target_crate {
+                    parts.push("crate".to_string());
+                } else {
+                    parts.push(glue_crate.to_string());
+                }
+                parts.extend(host_mod);
+                parts.extend(submod.iter().cloned());
+                parts.push(item_static.ident.to_string());
+                tables.insert(canon_ty, parts.join("::"));
+            }
+            _ => {}
+        }
+    }
+}
+
+fn extract_field_table_inner_ty(ty: &Type) -> Option<&Type> {
+    let mut cur = ty;
+    loop {
+        match cur {
+            Type::Group(g) => cur = &g.elem,
+            Type::Paren(p) => cur = &p.elem,
+            _ => break,
+        }
+    }
+    let Type::Path(tp) = cur else {
+        return None;
+    };
+    let last = tp.path.segments.last()?;
+    if last.ident != "FieldTable" {
+        return None;
+    }
+    let PathArguments::AngleBracketed(ab) = &last.arguments else {
+        return None;
+    };
+    if ab.args.len() != 1 {
+        return None;
+    }
+    match ab.args.first()? {
+        GenericArgument::Type(inner) => Some(inner),
+        _ => None,
+    }
+}
+
+fn resolve_glue_inner_ty(
+    mut ty: &Type,
+    glue_crate: &str,
+    header_mod: Option<&str>,
+    include_mod: Option<&[String]>,
+    glue_path: &Path,
+) -> Option<(String, Vec<String>)> {
+    loop {
+        match ty {
+            Type::Group(g) => ty = &g.elem,
+            Type::Paren(p) => ty = &p.elem,
+            _ => break,
+        }
+    }
+    let Type::Path(tp) = ty else {
+        return None;
+    };
+    if tp.qself.is_some() {
+        return None;
+    }
+    let segs: Vec<String> = tp.path.segments.iter().map(|s| s.ident.to_string()).collect();
+    if segs.is_empty() {
+        return None;
+    }
+    if segs[0] == "crate" && segs.len() >= 2 {
+        let type_mod = segs[1..segs.len() - 1].to_vec();
+        let canon = format!("{glue_crate}::{}", segs[1..].join("::"));
+        return Some((canon, type_mod));
+    }
+    if segs.len() == 1 {
+        let mod_segs: Vec<String> = if let Some(im) = include_mod {
+            im.to_vec()
+        } else if let Some(hm) = header_mod {
+            hm.split("::").map(str::to_string).collect()
+        } else if let Some(stem) = glue_path.file_stem().and_then(|s| s.to_str()) {
+            vec![stem.to_string()]
+        } else {
+            Vec::new()
+        };
+        let canon = if mod_segs.is_empty() {
+            format!("{glue_crate}::{}", segs[0])
+        } else {
+            format!("{glue_crate}::{}::{}", mod_segs.join("::"), segs[0])
+        };
+        return Some((canon, mod_segs));
+    }
+    Some((segs.join("::"), Vec::new()))
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum HookKind {
+    Method,
+    FreeFn,
+    Callsite,
+}
+
+struct CollectedHook {
+    id: u32,
+    kind: HookKind,
+    fn_ident: syn::Ident,
+    sig: Signature,
+    self_ty: Option<Type>,
+    hook_self_ty: Option<Type>,
+    mod_path: Vec<String>,
+    rel_mod: Vec<String>,
+    cfg_attrs: Vec<String>,
+}
+
+fn collect_cfg_attrs_from_slice(
+    attrs: &[Attribute],
+    source: &str,
+    idx: &LineIndex,
+) -> Vec<String> {
+    let mut out = Vec::new();
+    for attr in attrs {
+        if attr.path().is_ident("cfg") {
+            let (s, e) = idx.span_range(source, attr.span());
+            out.push(source[s..e].to_string());
+        }
+    }
+    out
+}
+
+fn collect_module_hooks(
+    crate_ident: &str,
+    target_mod: &[String],
+    scanned_files: &[modules::ScannedFile],
+    colliding_short_keys: &BTreeSet<String>,
+    ledger_set: &LedgerSet,
+) -> Result<Vec<CollectedHook>, String> {
+    let mut live_fn_by_key: BTreeMap<String, u32> = BTreeMap::new();
+    let mut live_cs_by_id: BTreeSet<u32> = BTreeSet::new();
+    if let Some(shard) = ledger_set.shard(crate_ident) {
+        for entry in shard.live() {
+            match entry.kind {
+                Kind::Fn => {
+                    live_fn_by_key.insert(entry.key.clone(), entry.id);
+                }
+                Kind::Callsite => {
+                    live_cs_by_id.insert(entry.id);
+                }
+                Kind::Store => {}
+            }
+        }
+    }
+
+    let mut hooks = Vec::new();
+    for file in scanned_files {
+        let idx = LineIndex::new(&file.source);
+        let root_cfg_attrs: Vec<String> = file
+            .root_cfg_tags
+            .iter()
+            .filter_map(|tag| tag.strip_prefix('[').and_then(|s| s.strip_suffix(']')))
+            .map(|inner| format!("#[{inner}]"))
+            .collect();
+        let mut collector = HookCollector {
+            crate_ident,
+            target_mod,
+            source: &file.source,
+            idx: &idx,
+            colliding_short_keys,
+            live_fn_by_key: &live_fn_by_key,
+            live_cs_by_id: &live_cs_by_id,
+            mod_path: file.root_mod_path.clone(),
+            mod_cfg_tags: file.root_cfg_tags.clone(),
+            mod_cfg_attrs: root_cfg_attrs,
+            hooks: &mut hooks,
+        };
+        collector.visit_items(&file.parsed.items);
+    }
+
+    hooks.sort_by_key(|h| h.id);
+    Ok(hooks)
+}
+
+struct HookCollector<'a> {
+    crate_ident: &'a str,
+    target_mod: &'a [String],
+    source: &'a str,
+    idx: &'a LineIndex,
+    colliding_short_keys: &'a BTreeSet<String>,
+    live_fn_by_key: &'a BTreeMap<String, u32>,
+    live_cs_by_id: &'a BTreeSet<u32>,
+    mod_path: Vec<String>,
+    mod_cfg_tags: Vec<String>,
+    mod_cfg_attrs: Vec<String>,
+    hooks: &'a mut Vec<CollectedHook>,
+}
+
+impl HookCollector<'_> {
+    fn visit_items(&mut self, items: &[Item]) {
+        let in_target = self.mod_path.starts_with(self.target_mod);
+        let prefix = key::module_prefix(self.crate_ident, &self.mod_path);
+        let (matched_helpers, _) = if in_target {
+            run::pair_converted_trait_helpers(
+                self.source,
+                self.idx,
+                &prefix,
+                &self.mod_cfg_tags,
+                self.colliding_short_keys,
+                items,
+            )
+        } else {
+            (BTreeMap::new(), BTreeMap::new())
+        };
+
+        for item in items {
+            match item {
+                Item::Mod(item_mod) => {
+                    if modules::has_cfg_test(&item_mod.attrs) {
+                        continue;
+                    }
+                    if let Some((_, inner)) = &item_mod.content {
+                        let prev_path = self.mod_path.clone();
+                        let prev_tags = self.mod_cfg_tags.clone();
+                        let prev_attrs = self.mod_cfg_attrs.clone();
+                        self.mod_path.push(item_mod.ident.to_string());
+                        self.mod_cfg_tags.extend(key::extract_cfg_tags(&item_mod.attrs));
+                        self.mod_cfg_attrs.extend(collect_cfg_attrs_from_slice(
+                            &item_mod.attrs,
+                            self.source,
+                            self.idx,
+                        ));
+                        self.visit_items(inner);
+                        self.mod_path = prev_path;
+                        self.mod_cfg_tags = prev_tags;
+                        self.mod_cfg_attrs = prev_attrs;
+                    }
+                }
+                Item::Fn(item_fn) if in_target && !modules::has_cfg_test(&item_fn.attrs) => {
+                    let found_attrs = attr::find_hook_attrs(&item_fn.attrs, self.source, self.idx);
+                    let Some(active_attr) = found_attrs.iter().find(|a| a.parsed.skip.is_none())
+                    else {
+                        continue;
+                    };
+                    let ident_str = item_fn.sig.ident.to_string();
+                    let is_cs = ident_str.starts_with("__yoake_cs_")
+                        || active_attr.parsed.kind.as_deref() == Some("callsite");
+                    let rel_mod = self.mod_path[self.target_mod.len()..].to_vec();
+                    let mut cfg_attrs = self.mod_cfg_attrs.clone();
+                    cfg_attrs.extend(collect_cfg_attrs_from_slice(
+                        &item_fn.attrs,
+                        self.source,
+                        self.idx,
+                    ));
+                    if is_cs {
+                        let cs_id = ident_str
+                            .strip_prefix("__yoake_cs_")
+                            .and_then(|s| s.parse::<u32>().ok())
+                            .or(active_attr.parsed.id);
+                        if let Some(id) = cs_id
+                            && self.live_cs_by_id.contains(&id)
+                        {
+                            self.hooks.push(CollectedHook {
+                                id,
+                                kind: HookKind::Callsite,
+                                fn_ident: item_fn.sig.ident.clone(),
+                                sig: item_fn.sig.clone(),
+                                self_ty: None,
+                                hook_self_ty: None,
+                                mod_path: self.mod_path.clone(),
+                                rel_mod,
+                                cfg_attrs,
+                            });
+                        }
+                    } else {
+                        let mut fn_cfg_tags = self.mod_cfg_tags.clone();
+                        fn_cfg_tags.extend(key::extract_cfg_tags(&item_fn.attrs));
+                        let fn_key =
+                            key::free_fn_key(&prefix, &item_fn.sig.ident, &fn_cfg_tags);
+                        if let Some(&id) = self.live_fn_by_key.get(&fn_key) {
+                            self.hooks.push(CollectedHook {
+                                id,
+                                kind: HookKind::FreeFn,
+                                fn_ident: item_fn.sig.ident.clone(),
+                                sig: item_fn.sig.clone(),
+                                self_ty: None,
+                                hook_self_ty: None,
+                                mod_path: self.mod_path.clone(),
+                                rel_mod,
+                                cfg_attrs,
+                            });
+                        }
+                    }
+                }
+                Item::Impl(item_impl)
+                    if in_target
+                        && item_impl.trait_.is_none()
+                        && !modules::has_cfg_test(&item_impl.attrs) =>
+                {
+                    let mut impl_cfg_tags = self.mod_cfg_tags.clone();
+                    impl_cfg_tags.extend(key::extract_cfg_tags(&item_impl.attrs));
+                    let mut impl_cfg_attrs = self.mod_cfg_attrs.clone();
+                    impl_cfg_attrs.extend(collect_cfg_attrs_from_slice(
+                        &item_impl.attrs,
+                        self.source,
+                        self.idx,
+                    ));
+                    let rel_mod = self.mod_path[self.target_mod.len()..].to_vec();
+                    for impl_item in &item_impl.items {
+                        let ImplItem::Fn(method) = impl_item else {
+                            continue;
+                        };
+                        if modules::has_cfg_test(&method.attrs) {
+                            continue;
+                        }
+                        let found_attrs =
+                            attr::find_hook_attrs(&method.attrs, self.source, self.idx);
+                        let Some(active_attr) =
+                            found_attrs.iter().find(|a| a.parsed.skip.is_none())
+                        else {
+                            continue;
+                        };
+                        let method_span = self.idx.span_range(self.source, method.span());
+                        let fn_key = if let Some(trait_key) = matched_helpers.get(&method_span) {
+                            trait_key.clone()
+                        } else {
+                            let mut fn_cfg_tags = impl_cfg_tags.clone();
+                            fn_cfg_tags.extend(key::extract_cfg_tags(&method.attrs));
+                            key::inherent_method_key(
+                                &prefix,
+                                &item_impl.self_ty,
+                                &method.sig.ident,
+                                &fn_cfg_tags,
+                            )
+                        };
+                        if let Some(&id) = self.live_fn_by_key.get(&fn_key) {
+                            let mut cfg_attrs = impl_cfg_attrs.clone();
+                            cfg_attrs.extend(collect_cfg_attrs_from_slice(
+                                &method.attrs,
+                                self.source,
+                                self.idx,
+                            ));
+                            let hook_self_ty = active_attr
+                                .parsed
+                                .self_ty
+                                .as_deref()
+                                .and_then(|s| syn::parse_str::<Type>(s).ok());
+                            self.hooks.push(CollectedHook {
+                                id,
+                                kind: HookKind::Method,
+                                fn_ident: method.sig.ident.clone(),
+                                sig: method.sig.clone(),
+                                self_ty: Some((*item_impl.self_ty).clone()),
+                                hook_self_ty,
+                                mod_path: self.mod_path.clone(),
+                                rel_mod: rel_mod.clone(),
+                                cfg_attrs,
+                            });
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
+enum DispatchTarget {
+    FieldTable(String),
+    Root,
+}
+
+#[derive(Clone)]
+enum RetKind {
+    Unit,
+    Bool,
+    Int(String),
+    F32,
+    F64,
+}
+
+#[derive(Clone, Copy)]
+enum ParamPass {
+    ReborrowMut,
+    Copy,
+    ByValue,
+}
+
+struct BridgedHook {
+    id: u32,
+    kind: HookKind,
+    fn_ident: syn::Ident,
+    rel_mod: Vec<String>,
+    cfg_attrs: Vec<String>,
+    shared_lifetimes: Vec<Lifetime>,
+    dyn_lifetimes: Vec<Lifetime>,
+    dyn_arg_types: Vec<Type>,
+    param_types: Vec<Type>,
+    param_passes: Vec<ParamPass>,
+    ret_type: Option<Type>,
+    ret_kind: RetKind,
+    dispatch: DispatchTarget,
+    reg_self_ty: Option<Type>,
+}
+
+struct ReplaceSelf<'a>(&'a Type);
+
+impl VisitMut for ReplaceSelf<'_> {
+    fn visit_type_mut(&mut self, ty: &mut Type) {
+        if matches!(ty, Type::Path(p) if p.qself.is_none() && p.path.is_ident("Self")) {
+            *ty = self.0.clone();
+        } else {
+            visit_mut::visit_type_mut(self, ty);
+        }
+    }
+}
+
+#[derive(Default)]
+struct NamedLifetimeCounts {
+    counts: BTreeMap<String, usize>,
+    order: Vec<String>,
+}
+
+impl<'ast> Visit<'ast> for NamedLifetimeCounts {
+    fn visit_lifetime(&mut self, lifetime: &'ast Lifetime) {
+        let name = lifetime.ident.to_string();
+        if name != "static" && name != "_" {
+            let entry = self.counts.entry(name.clone()).or_insert(0);
+            if *entry == 0 {
+                self.order.push(name);
+            }
+            *entry += 1;
+        }
+    }
+}
+
+struct BridgeLifetimeNormalizer {
+    shared: BTreeSet<String>,
+    rename: BTreeMap<String, Lifetime>,
+    elide_all: bool,
+}
+
+impl VisitMut for BridgeLifetimeNormalizer {
+    fn visit_lifetime_mut(&mut self, lifetime: &mut Lifetime) {
+        let name = lifetime.ident.to_string();
+        if name == "static" || name == "_" {
+            return;
+        }
+        if !self.elide_all && self.shared.contains(&name) {
+            if let Some(mapped) = self.rename.get(&name) {
+                *lifetime = mapped.clone();
+            }
+        } else {
+            *lifetime = Lifetime::new("'_", lifetime.span());
+        }
+    }
+
+    fn visit_type_reference_mut(&mut self, reference: &mut syn::TypeReference) {
+        if let Some(lt) = &reference.lifetime {
+            let name = lt.ident.to_string();
+            if name != "static" {
+                if !self.elide_all && self.shared.contains(&name) {
+                    if let Some(mapped) = self.rename.get(&name) {
+                        reference.lifetime = Some(mapped.clone());
+                    }
+                } else {
+                    reference.lifetime = None;
+                }
+            }
+        }
+        visit_mut::visit_type_mut(self, &mut reference.elem);
+        if let Type::TraitObject(object) = &mut *reference.elem {
+            object.bounds = std::mem::take(&mut object.bounds)
+                .into_iter()
+                .filter(|bound| {
+                    !matches!(bound, syn::TypeParamBound::Lifetime(lt) if lt.ident != "static")
+                })
+                .collect();
+        }
+    }
+}
+
+fn unwrap_type_parens(mut ty: &Type) -> &Type {
+    loop {
+        match ty {
+            Type::Group(g) => ty = &g.elem,
+            Type::Paren(p) => ty = &p.elem,
+            _ => return ty,
+        }
+    }
+}
+
+fn format_type_tokens(ty: &Type) -> String {
+    let raw = quote!(#ty).to_string();
+    clean_rust_tokens(&raw)
+}
+
+fn clean_rust_tokens(raw: &str) -> String {
+    let mut s = raw
+        .replace(" :: ", "::")
+        .replace(" ,", ",")
+        .replace(" ;", ";")
+        .replace("& mut ", "&mut ")
+        .replace("& '", "&'")
+        .replace("' _", "'_")
+        .replace("< ", "<")
+        .replace(" <", "<")
+        .replace("( ", "(")
+        .replace(" )", ")")
+        .replace("[ ", "[")
+        .replace(" ]", "]");
+    while s.contains(" >") {
+        s = s.replace(" >", ">");
+    }
+    s.replace("& ", "&")
+}
+
+fn classify_ret(output: &ReturnType) -> Result<(Option<Type>, RetKind), String> {
+    let ty = match output {
+        ReturnType::Default => return Ok((None, RetKind::Unit)),
+        ReturnType::Type(_, ty) => ty.as_ref(),
+    };
+    let inner = unwrap_type_parens(ty);
+    if let Type::Tuple(t) = inner
+        && t.elems.is_empty()
+    {
+        return Ok((None, RetKind::Unit));
+    }
+    if let Type::Path(tp) = inner
+        && tp.qself.is_none()
+        && tp.path.leading_colon.is_none()
+        && tp.path.segments.len() == 1
+        && tp.path.segments[0].arguments.is_empty()
+    {
+        let name = tp.path.segments[0].ident.to_string();
+        let kind = match name.as_str() {
+            "bool" => RetKind::Bool,
+            "i8" | "i16" | "i32" | "i64" | "isize" | "u8" | "u16" | "u32" | "u64" | "usize" => {
+                RetKind::Int(name)
+            }
+            "f32" => RetKind::F32,
+            "f64" => RetKind::F64,
+            _ => {
+                return Err(format!("unsupported return type `{}`", format_type_tokens(ty)));
+            }
+        };
+        return Ok((Some(ty.clone()), kind));
+    }
+    Err(format!("unsupported return type `{}`", format_type_tokens(ty)))
+}
+
+fn lookup_field_table(canon: &str, field_tables: &BTreeMap<String, String>) -> Option<String> {
+    if let Some(path) = field_tables.get(canon) {
+        return Some(path.clone());
+    }
+    for prefix in ["horizon_client::", "horizon_client_lib::", "horizon_client_render::"] {
+        if let Some(rest) = canon.strip_prefix(prefix) {
+            if let Some(path) = field_tables.get(&format!("horizon_items::{rest}")) {
+                return Some(path.clone());
+            }
+            if let Some(path) = field_tables.get(&format!("horizon_client_lib::{rest}")) {
+                return Some(path.clone());
+            }
+        }
+    }
+    None
+}
+
+fn classify_hook(
+    crate_ident: &str,
+    target_mod: &[String],
+    hook: &CollectedHook,
+    crate_index: &CrateIndex,
+    field_tables: &BTreeMap<String, String>,
+) -> Result<BridgedHook, String> {
+    if hook.sig.generics.type_params().next().is_some()
+        || hook.sig.generics.const_params().next().is_some()
+    {
+        return Err("generic parameters".to_string());
+    }
+    if hook.sig.inputs.is_empty() {
+        return Err("no parameters".to_string());
+    }
+
+    let effective_self_ty = hook.hook_self_ty.as_ref().or(hook.self_ty.as_ref());
+    let replace_self = |ty: &Type| -> Type {
+        let mut out = ty.clone();
+        if let Some(self_ty) = effective_self_ty {
+            ReplaceSelf(self_ty).visit_type_mut(&mut out);
+        }
+        out
+    };
+
+    let mut raw_param_types = Vec::with_capacity(hook.sig.inputs.len());
+    let arg0_inner = match &hook.sig.inputs[0] {
+        FnArg::Receiver(r) => {
+            if r.reference.is_none() {
+                return Err("by-value self".to_string());
+            }
+            if r.mutability.is_none() {
+                return Err("arg0 is &self, needs &mut".to_string());
+            }
+            let self_ty = effective_self_ty.ok_or_else(|| "missing impl self type".to_string())?;
+            raw_param_types.push(replace_self(&r.ty));
+            self_ty.clone()
+        }
+        FnArg::Typed(pt) => {
+            let replaced = replace_self(&pt.ty);
+            let inner = unwrap_type_parens(&replaced);
+            let Type::Reference(r) = inner else {
+                return Err("arg0 is not &mut T".to_string());
+            };
+            if r.mutability.is_none() {
+                return Err("arg0 is &T, needs &mut T".to_string());
+            }
+            let elem = r.elem.as_ref().clone();
+            raw_param_types.push(replaced);
+            elem
+        }
+    };
+
+    let canon = crate_index.resolve_bridge_type_canon(&hook.mod_path, &arg0_inner);
+    let root_canon = format!("{crate_ident}::game::Game");
+    let dispatch = if canon.as_deref() == Some(root_canon.as_str()) {
+        DispatchTarget::Root
+    } else if eligible::type_has_non_static_lifetime(&arg0_inner) {
+        return Err("arg0 type has non-static lifetime".to_string());
+    } else if let Some(c) = &canon
+        && let Some(ft_path) = lookup_field_table(c, field_tables)
+    {
+        DispatchTarget::FieldTable(ft_path)
+    } else {
+        let label = canon.unwrap_or_else(|| format_type_tokens(&arg0_inner));
+        return Err(format!("no FieldTable for `{label}`"));
+    };
+
+    let (ret_type, ret_kind) = classify_ret(&hook.sig.output)?;
+
+    let mut param_passes = Vec::with_capacity(hook.sig.inputs.len().saturating_sub(1));
+    for arg in hook.sig.inputs.iter().skip(1) {
+        let FnArg::Typed(pt) = arg else {
+            return Err("unexpected receiver argument".to_string());
+        };
+        let replaced = replace_self(&pt.ty);
+        let pass = match unwrap_type_parens(&replaced) {
+            Type::Reference(r) if r.mutability.is_some() => ParamPass::ReborrowMut,
+            Type::Reference(_) => ParamPass::Copy,
+            _ => ParamPass::ByValue,
+        };
+        param_passes.push(pass);
+        raw_param_types.push(replaced);
+    }
+
+    let mut counts = NamedLifetimeCounts::default();
+    for ty in &raw_param_types {
+        counts.visit_type(ty);
+    }
+    if let Some(rt) = &ret_type {
+        counts.visit_type(rt);
+    }
+    let shared_names: BTreeSet<String> = counts
+        .counts
+        .iter()
+        .filter_map(|(k, &v)| (v >= 2).then_some(k.clone()))
+        .collect();
+    let shared_lifetimes: Vec<Lifetime> = counts
+        .order
+        .iter()
+        .filter(|name| shared_names.contains(*name))
+        .map(|name| Lifetime::new(&format!("'{name}"), proc_macro2::Span::call_site()))
+        .collect();
+    let dyn_lifetimes: Vec<Lifetime> = (0..shared_lifetimes.len())
+        .map(|i| Lifetime::new(&format!("'__yoake_dyn_{i}"), proc_macro2::Span::call_site()))
+        .collect();
+    let dyn_rename: BTreeMap<String, Lifetime> = counts
+        .order
+        .iter()
+        .filter(|name| shared_names.contains(*name))
+        .zip(dyn_lifetimes.iter().cloned())
+        .map(|(n, lt)| (n.clone(), lt))
+        .collect();
+
+    let mut param_norm = BridgeLifetimeNormalizer {
+        shared: shared_names.clone(),
+        rename: BTreeMap::new(),
+        elide_all: false,
+    };
+    let mut dyn_norm = BridgeLifetimeNormalizer {
+        shared: shared_names,
+        rename: dyn_rename,
+        elide_all: false,
+    };
+    let mut param_types = Vec::with_capacity(raw_param_types.len());
+    let mut dyn_arg_types = Vec::with_capacity(raw_param_types.len());
+    for ty in &raw_param_types {
+        let mut pty = ty.clone();
+        param_norm.visit_type_mut(&mut pty);
+        param_types.push(crate_index.rewrite_type_for_bridge(&hook.mod_path, target_mod, &pty));
+
+        let mut dty = ty.clone();
+        dyn_norm.visit_type_mut(&mut dty);
+        dyn_arg_types.push(crate_index.rewrite_type_for_bridge(&hook.mod_path, target_mod, &dty));
+    }
+
+    let reg_self_ty = if hook.kind == HookKind::Method {
+        effective_self_ty.map(|st| {
+            let mut sty = st.clone();
+            let mut elide = BridgeLifetimeNormalizer {
+                shared: BTreeSet::new(),
+                rename: BTreeMap::new(),
+                elide_all: true,
+            };
+            elide.visit_type_mut(&mut sty);
+            crate_index.rewrite_type_for_bridge(&hook.mod_path, target_mod, &sty)
+        })
+    } else {
+        None
+    };
+
+    Ok(BridgedHook {
+        id: hook.id,
+        kind: hook.kind,
+        fn_ident: hook.fn_ident.clone(),
+        rel_mod: hook.rel_mod.clone(),
+        cfg_attrs: hook.cfg_attrs.clone(),
+        shared_lifetimes,
+        dyn_lifetimes,
+        dyn_arg_types,
+        param_types,
+        param_passes,
+        ret_type,
+        ret_kind,
+        dispatch,
+        reg_self_ty,
+    })
+}
+
+fn render_bridge_module(
+    crate_ident: &str,
+    target_mod: &[String],
+    hooks: &[CollectedHook],
+    crate_index: &CrateIndex,
+    field_tables: &BTreeMap<String, String>,
+    excludes: &BTreeMap<u32, String>,
+) -> Result<(String, usize, usize), String> {
+    let mut bridged = Vec::new();
+    let mut unbridged: Vec<(u32, String)> = Vec::new();
+
+    for hook in hooks {
+        if let Some(reason) = excludes.get(&hook.id) {
+            unbridged.push((hook.id, reason.clone()));
+            continue;
+        }
+        match classify_hook(crate_ident, target_mod, hook, crate_index, field_tables) {
+            Ok(bh) => bridged.push(bh),
+            Err(reason) => unbridged.push((hook.id, reason)),
+        }
+    }
+
+    let mut out = String::new();
+    out.push_str("// @generated by yoake-hook-codemod bridge. DO NOT EDIT.\n\n");
+    out.push_str(
+        "#[allow(\n\
+         \x20   dead_code,\n\
+         \x20   unused_mut,\n\
+         \x20   unused_variables,\n\
+         \x20   unused_parens,\n\
+         \x20   unused_imports,\n\
+         \x20   non_snake_case,\n\
+         \x20   clippy::all\n\
+         )]\n",
+    );
+    out.push_str("pub mod hook_bridge {\n");
+    out.push_str("    use super::*;\n");
+
+    for bh in &bridged {
+        out.push('\n');
+        out.push_str(&render_bridged_fn(bh));
+    }
+
+    out.push_str("\n    pub fn install(registered: &[(u32, i32)]) -> Vec<u32> {\n");
+    out.push_str("        let mut unbridged = Vec::new();\n");
+    out.push_str("        for &(id, priority) in registered {\n");
+    out.push_str("            if id >= yoake_slice::runtime::SYNTHETIC_HOOK_BASE {\n");
+    out.push_str("                unbridged.push(id);\n");
+    out.push_str("                continue;\n");
+    out.push_str("            }\n");
+    out.push_str("            let order = yoake_hook_rt::Order {\n");
+    out.push_str("                priority,\n");
+    out.push_str("                mod_load_order: 0,\n");
+    out.push_str("            };\n");
+    out.push_str("            let ok = match id {\n");
+    for bh in &bridged {
+        out.push_str(&render_install_arm(bh)?);
+    }
+    out.push_str("                _ => false,\n");
+    out.push_str("            };\n");
+    out.push_str("            if !ok {\n");
+    out.push_str("                unbridged.push(id);\n");
+    out.push_str("            }\n");
+    out.push_str("        }\n");
+    out.push_str("        unbridged\n");
+    out.push_str("    }\n\n");
+
+    out.push_str("    pub const UNBRIDGED: &[(u32, &str)] = &[\n");
+    for (id, reason) in &unbridged {
+        out.push_str(&format!("        ({id}, {reason:?}),\n"));
+    }
+    out.push_str("    ];\n");
+    out.push_str("}\n");
+
+    Ok((out, bridged.len(), unbridged.len()))
+}
+
+fn render_bridged_fn(bh: &BridgedHook) -> String {
+    let mut out = String::new();
+    for cfg in &bh.cfg_attrs {
+        out.push_str(&format!("    {cfg}\n"));
+    }
+
+    let generics = if bh.shared_lifetimes.is_empty() {
+        String::new()
+    } else {
+        let lts: Vec<String> = bh
+            .shared_lifetimes
+            .iter()
+            .map(|lt| format!("'{ident}", ident = lt.ident))
+            .collect();
+        format!("<{}>", lts.join(", "))
+    };
+    let dyn_for = if bh.dyn_lifetimes.is_empty() {
+        String::new()
+    } else {
+        let lts: Vec<String> = bh
+            .dyn_lifetimes
+            .iter()
+            .map(|lt| format!("'{ident}", ident = lt.ident))
+            .collect();
+        format!("for<{}> ", lts.join(", "))
+    };
+    let dyn_params: Vec<String> = bh.dyn_arg_types.iter().map(format_type_tokens).collect();
+    let ret_sig = bh
+        .ret_type
+        .as_ref()
+        .map(|ty| format!(" -> {}", format_type_tokens(ty)))
+        .unwrap_or_default();
+
+    out.push_str(&format!("    fn __bridge_{}{generics}(\n", bh.id));
+    out.push_str(&format!(
+        "        original: &mut dyn {dyn_for}FnMut({}){ret_sig},\n",
+        dyn_params.join(", ")
+    ));
+    for (idx, pty) in bh.param_types.iter().enumerate() {
+        out.push_str(&format!("        p{idx}: {},\n", format_type_tokens(pty)));
+    }
+    out.push_str(&format!("    ){ret_sig} {{\n"));
+
+    let mut call_args = vec!["p0".to_string()];
+    for (idx, pass) in bh.param_passes.iter().enumerate() {
+        let p = idx + 1;
+        match pass {
+            ParamPass::ReborrowMut => call_args.push(format!("&mut *p{p}")),
+            ParamPass::Copy | ParamPass::ByValue => call_args.push(format!("p{p}")),
+        }
+    }
+    let orig_call = format!("original({})", call_args.join(", "));
+    let closure_body = match &bh.ret_kind {
+        RetKind::Unit => format!("{{ {orig_call}; 0 }}"),
+        RetKind::Bool => format!("i64::from({orig_call})"),
+        RetKind::Int(name) if name == "i64" => orig_call,
+        RetKind::Int(_) => format!("({orig_call}) as i64"),
+        RetKind::F32 => format!("i64::from({orig_call}.to_bits())"),
+        RetKind::F64 => format!("{orig_call}.to_bits() as i64"),
+    };
+    let dispatch_call = match &bh.dispatch {
+        DispatchTarget::FieldTable(ft_path) => format!(
+            "yoake_slice::runtime::dispatch_id({}, p0, &{ft_path}, &mut |p0| {closure_body})",
+            bh.id
+        ),
+        DispatchTarget::Root => format!(
+            "yoake_slice::runtime::dispatch_root_id({}, p0, &mut |p0| {closure_body})",
+            bh.id
+        ),
+    };
+    match &bh.ret_kind {
+        RetKind::Unit => out.push_str(&format!("        let _ = {dispatch_call};\n")),
+        RetKind::Bool => out.push_str(&format!("        {dispatch_call} != 0\n")),
+        RetKind::Int(name) if name == "i64" => out.push_str(&format!("        {dispatch_call}\n")),
+        RetKind::Int(name) => out.push_str(&format!("        {dispatch_call} as {name}\n")),
+        RetKind::F32 => {
+            out.push_str(&format!("        f32::from_bits({dispatch_call} as u32)\n"))
+        }
+        RetKind::F64 => {
+            out.push_str(&format!("        f64::from_bits({dispatch_call} as u64)\n"))
+        }
+    }
+    out.push_str("    }\n");
+    out
+}
+
+fn render_install_arm(bh: &BridgedHook) -> Result<String, String> {
+    let mut out = String::new();
+    for cfg in &bh.cfg_attrs {
+        out.push_str(&format!("                {cfg}\n"));
+    }
+    match bh.kind {
+        HookKind::Method => {
+            let self_ty = bh
+                .reg_self_ty
+                .as_ref()
+                .ok_or_else(|| format!("missing self_ty for method hook {}", bh.id))?;
+            let reg_path = format_method_register_path(self_ty, &bh.fn_ident);
+            out.push_str(&format!(
+                "                {} => {reg_path}(__bridge_{}, order).is_ok(),\n",
+                bh.id, bh.id
+            ));
+        }
+        HookKind::FreeFn | HookKind::Callsite => {
+            let mod_prefix = if bh.rel_mod.is_empty() {
+                "super".to_string()
+            } else {
+                format!("super::{}", bh.rel_mod.join("::"))
+            };
+            let alias = format!("{mod_prefix}::__YoakeHook_{}", bh.fn_ident);
+            let reg_fn = format!("{mod_prefix}::__yoake_register_{}", bh.fn_ident);
+            out.push_str(&format!("                {} => {{\n", bh.id));
+            out.push_str(&format!(
+                "                    let cb: {alias} = __bridge_{};\n",
+                bh.id
+            ));
+            out.push_str(&format!("                    {reg_fn}(cb, order).is_ok()\n"));
+            out.push_str("                }\n");
+        }
+    }
+    Ok(out)
+}
+
+fn format_method_register_path(ty: &Type, fn_ident: &syn::Ident) -> String {
+    let inner = unwrap_type_parens(ty);
+    if let Type::Path(tp) = inner
+        && tp.qself.is_none()
+    {
+        let only_lifetimes = tp.path.segments.iter().all(|seg| match &seg.arguments {
+            PathArguments::None => true,
+            PathArguments::AngleBracketed(ab) => ab
+                .args
+                .iter()
+                .all(|a| matches!(a, GenericArgument::Lifetime(_))),
+            PathArguments::Parenthesized(_) => false,
+        });
+        if only_lifetimes {
+            let segs: Vec<String> = tp
+                .path
+                .segments
+                .iter()
+                .map(|s| s.ident.to_string())
+                .collect();
+            let prefix = if tp.path.leading_colon.is_some() {
+                "::"
+            } else {
+                ""
+            };
+            return format!("{prefix}{}::__yoake_register_{fn_ident}", segs.join("::"));
+        }
+    }
+    format!(
+        "<{}>::__yoake_register_{fn_ident}",
+        format_type_tokens(inner)
+    )
+}

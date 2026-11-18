@@ -6,19 +6,16 @@
 //! The guests are WAT generated per scenario (binding id and argument bytes are data segments), so the
 //! ids always come from the generated tables, never from a copy.
 
-use horizon_client_lib::entities::{self, ArmorStand, ItemEntity, StandMedium, StandStep};
+use horizon_client_lib::entities::{self, hook_bench, ArmorStand, ItemEntity, StandMedium, StandStep};
 use horizon_client_lib::items::ItemStack;
 use std::sync::Arc;
 use horizon_client_lib::items;
 use horizon_core::geometry::Vec3;
 use std::cell::Cell;
 use std::sync::Once;
-use yoake_hook_rt::Order;
 use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, Status, live_activations};
 use yoake_slice::codec::{CallError, Encode};
 use yoake_slice::runtime::{self, ModConfig, call_status, set_engine_dispatch};
-
-type SettleCallback = fn(&mut dyn FnMut(&mut ArmorStand, StandMedium, StandStep), &mut ArmorStand, StandMedium, StandStep);
 
 fn table() -> &'static FieldTable<ArmorStand> {
     &entities::yoake_glue::FIELDS_crate__entities__ArmorStand
@@ -68,8 +65,8 @@ fn dispatch(handle: u64, id: u32, args: &[u8], out: &mut Vec<u8>) -> Result<(), 
 fn setup() {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
-        yoake_hook_rt::register::<SettleCallback>(ArmorStand::__YOAKE_HOOK_ID_tick_settle, wasm_settle, Order { priority: 10, mod_load_order: 0 }).unwrap();
-        yoake_hook_rt::register::<SettleCallback>(ArmorStand::__YOAKE_HOOK_ID_tick_settle, counting_entry, Order { priority: 0, mod_load_order: 0 }).unwrap();
+        hook_bench::register_tick_settle(wasm_settle, 10, 0);
+        hook_bench::register_tick_settle(counting_entry, 0, 0);
         set_engine_dispatch(Some(dispatch));
     });
     ORIGINAL_RUNS.set(0);

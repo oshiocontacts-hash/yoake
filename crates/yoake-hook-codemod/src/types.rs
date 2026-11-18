@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use syn::{Item, Type, UseTree, Visibility};
+use syn::visit_mut::{self, VisitMut};
+use syn::{GenericArgument, Ident, Item, PathArguments, PathSegment, Type, UseTree, Visibility};
 
 use crate::modules::{self, ScannedFile};
 
@@ -626,6 +627,325 @@ impl CrateIndex {
             }
         }
         segs.join("::")
+    }
+
+    pub fn resolve_bridge_type_canon(&self, from_mod: &[String], ty: &Type) -> Option<String> {
+        self.resolve_bridge_type_canon_depth(from_mod, ty, 0)
+    }
+
+    fn resolve_bridge_type_canon_depth(
+        &self,
+        from_mod: &[String],
+        mut ty: &Type,
+        depth: usize,
+    ) -> Option<String> {
+        if depth > 8 {
+            return None;
+        }
+        loop {
+            match ty {
+                Type::Group(g) => ty = &g.elem,
+                Type::Paren(p) => ty = &p.elem,
+                _ => break,
+            }
+        }
+        let Type::Path(tp) = ty else {
+            return None;
+        };
+        if tp.qself.is_some() {
+            return None;
+        }
+        for seg in &tp.path.segments {
+            match &seg.arguments {
+                PathArguments::None => {}
+                PathArguments::AngleBracketed(ab) => {
+                    if ab
+                        .args
+                        .iter()
+                        .any(|a| !matches!(a, GenericArgument::Lifetime(_)))
+                    {
+                        return None;
+                    }
+                }
+                PathArguments::Parenthesized(_) => return None,
+            }
+        }
+        let segs: Vec<String> = tp.path.segments.iter().map(|s| s.ident.to_string()).collect();
+        let last = segs.last()?.clone();
+        let leading_colon = tp.path.leading_colon.is_some();
+        if !leading_colon && segs.len() == 1 && is_primitive_type(&last) {
+            return Some(last);
+        }
+        if let Some(resolved) = self.resolve_type_path(from_mod, leading_colon, &segs, depth) {
+            if let Some(alias) = resolved.decls.iter().find(|d| d.kind == TypeDeclKind::TypeAlias)
+                && !resolved
+                    .decls
+                    .iter()
+                    .any(|d| d.kind == TypeDeclKind::StructEnumUnion)
+                && let Some(target) = &alias.alias_target
+                && let Some(canon) =
+                    self.resolve_bridge_type_canon_depth(&resolved.decl_mod, target, depth + 1)
+            {
+                return Some(canon);
+            }
+            let item_name = if segs.len() == 1
+                && let Some(info) = self.modules.get(from_mod)
+                && let Some(ub) = info
+                    .uses
+                    .iter()
+                    .find(|u| u.local_name.as_deref() == Some(last.as_str()))
+                && let Some(orig) = ub.segments.last()
+            {
+                orig.clone()
+            } else {
+                last
+            };
+            let prefix = crate::key::module_prefix(&self.crate_ident, &resolved.decl_mod);
+            return Some(format!("{prefix}::{item_name}"));
+        }
+        Some(self.resolve_bridge_external_path(from_mod, leading_colon, &segs, depth))
+    }
+
+    fn resolve_bridge_external_path(
+        &self,
+        from_mod: &[String],
+        leading_colon: bool,
+        segs: &[String],
+        depth: usize,
+    ) -> String {
+        if depth > 8 || segs.is_empty() {
+            return segs.join("::");
+        }
+        if leading_colon {
+            return segs.join("::");
+        }
+        let first = &segs[0];
+        if first == "crate" || first == &self.crate_ident {
+            if segs.len() >= 2
+                && let Some(root) = self.modules.get(&Vec::new())
+                && let Some(ub) = root
+                    .uses
+                    .iter()
+                    .find(|u| u.local_name.as_deref() == Some(segs[1].as_str()))
+            {
+                let mut expanded = ub.segments.clone();
+                expanded.extend_from_slice(&segs[2..]);
+                return self.resolve_bridge_external_path(
+                    &[],
+                    ub.leading_colon,
+                    &expanded,
+                    depth + 1,
+                );
+            }
+            if segs.len() == 1 {
+                return self.crate_ident.clone();
+            }
+            return format!("{}::{}", self.crate_ident, segs[1..].join("::"));
+        }
+        if first == "self" {
+            let mut m = from_mod.to_vec();
+            m.extend_from_slice(&segs[1..]);
+            return crate::key::module_prefix(&self.crate_ident, &m);
+        }
+        if first == "super" {
+            let supers = segs.iter().take_while(|s| s.as_str() == "super").count();
+            if supers <= from_mod.len() {
+                let mut m = from_mod[..from_mod.len() - supers].to_vec();
+                m.extend_from_slice(&segs[supers..]);
+                return crate::key::module_prefix(&self.crate_ident, &m);
+            }
+        }
+        if let Some(info) = self.modules.get(from_mod)
+            && let Some(ub) = info
+                .uses
+                .iter()
+                .find(|u| u.local_name.as_deref() == Some(first.as_str()))
+        {
+            let mut expanded = ub.segments.clone();
+            expanded.extend_from_slice(&segs[1..]);
+            return self.resolve_bridge_external_path(
+                from_mod,
+                ub.leading_colon,
+                &expanded,
+                depth + 1,
+            );
+        }
+        self.resolve_external_or_path(from_mod, false, segs)
+    }
+
+    pub fn rewrite_type_for_bridge(
+        &self,
+        fn_mod_path: &[String],
+        target_mod: &[String],
+        ty: &Type,
+    ) -> Type {
+        let mut out = ty.clone();
+        let mut rewriter = BridgeTypeRewriter {
+            index: self,
+            fn_mod_path,
+            target_mod,
+        };
+        rewriter.visit_type_mut(&mut out);
+        out
+    }
+}
+
+struct BridgeTypeRewriter<'a> {
+    index: &'a CrateIndex,
+    fn_mod_path: &'a [String],
+    target_mod: &'a [String],
+}
+
+impl BridgeTypeRewriter<'_> {
+    fn rel_prefix(&self) -> Option<&[String]> {
+        self.fn_mod_path.strip_prefix(self.target_mod)
+    }
+
+    fn resolve_rel_keywords(&self, segs: &[String]) -> Option<(bool, Vec<String>)> {
+        let first = segs.first()?;
+        if first == "self" {
+            let mut out = vec!["super".to_string()];
+            if let Some(rel) = self.rel_prefix() {
+                out.extend_from_slice(rel);
+            }
+            out.extend_from_slice(&segs[1..]);
+            return Some((false, out));
+        }
+        if first == "super" {
+            let supers = segs.iter().take_while(|s| s.as_str() == "super").count();
+            let rel_len = self.rel_prefix().map_or(0, <[String]>::len);
+            if supers <= rel_len {
+                let mut out = vec!["super".to_string()];
+                if let Some(rel) = self.rel_prefix() {
+                    out.extend_from_slice(&rel[..rel_len - supers]);
+                }
+                out.extend_from_slice(&segs[supers..]);
+                return Some((false, out));
+            }
+            if supers <= self.fn_mod_path.len() {
+                let mut out = vec!["crate".to_string()];
+                out.extend_from_slice(&self.fn_mod_path[..self.fn_mod_path.len() - supers]);
+                out.extend_from_slice(&segs[supers..]);
+                return Some((false, out));
+            }
+        }
+        None
+    }
+}
+
+fn make_path_segment(name: &str, arguments: PathArguments) -> PathSegment {
+    PathSegment {
+        ident: Ident::new(name, proc_macro2::Span::call_site()),
+        arguments,
+    }
+}
+
+fn rebuild_path_with_prefix(
+    path: &mut syn::Path,
+    leading_colon: bool,
+    prefix: &[String],
+    drop_first_seg: bool,
+    keep_first_args: bool,
+) {
+    let mut new_segs = syn::punctuated::Punctuated::new();
+    let tail_start = usize::from(drop_first_seg);
+    let first_args = if keep_first_args {
+        path.segments
+            .first()
+            .map(|s| s.arguments.clone())
+            .unwrap_or(PathArguments::None)
+    } else {
+        PathArguments::None
+    };
+    for (i, name) in prefix.iter().enumerate() {
+        let args = if keep_first_args && i + 1 == prefix.len() {
+            first_args.clone()
+        } else {
+            PathArguments::None
+        };
+        new_segs.push(make_path_segment(name, args));
+    }
+    for seg in path.segments.iter().skip(tail_start) {
+        new_segs.push(seg.clone());
+    }
+    if leading_colon {
+        path.leading_colon = Some(Default::default());
+    }
+    path.segments = new_segs;
+}
+
+impl VisitMut for BridgeTypeRewriter<'_> {
+    fn visit_type_path_mut(&mut self, tp: &mut syn::TypePath) {
+        visit_mut::visit_type_path_mut(self, tp);
+        if tp.qself.is_some() || tp.path.leading_colon.is_some() {
+            return;
+        }
+        let segs: Vec<String> = tp.path.segments.iter().map(|s| s.ident.to_string()).collect();
+        if segs.is_empty() {
+            return;
+        }
+        if segs[0] == "self" || segs[0] == "super" {
+            let supers = if segs[0] == "self" {
+                1
+            } else {
+                segs.iter().take_while(|s| s.as_str() == "super").count()
+            };
+            if let Some((lc, resolved)) = self.resolve_rel_keywords(&segs[..supers]) {
+                let mut new_segs = syn::punctuated::Punctuated::new();
+                for name in &resolved {
+                    new_segs.push(make_path_segment(name, PathArguments::None));
+                }
+                for seg in tp.path.segments.iter().skip(supers) {
+                    new_segs.push(seg.clone());
+                }
+                if lc {
+                    tp.path.leading_colon = Some(Default::default());
+                }
+                tp.path.segments = new_segs;
+            }
+            return;
+        }
+
+        if self.fn_mod_path == self.target_mod || segs[0] == "crate" {
+            return;
+        }
+        if segs.len() == 1 && is_primitive_type(&segs[0]) {
+            return;
+        }
+
+        let Some(rel) = self.rel_prefix() else {
+            return;
+        };
+        let mut child_mod = self.fn_mod_path.to_vec();
+        child_mod.push(segs[0].clone());
+        let is_local = self.index.modules.contains_key(&child_mod)
+            || self
+                .index
+                .modules
+                .get(self.fn_mod_path)
+                .is_some_and(|info| info.types.contains_key(&segs[0]));
+        if is_local {
+            let mut prefix = vec!["super".to_string()];
+            prefix.extend_from_slice(rel);
+            rebuild_path_with_prefix(&mut tp.path, false, &prefix, false, false);
+            return;
+        }
+
+        if let Some(info) = self.index.modules.get(self.fn_mod_path)
+            && let Some(ub) = info
+                .uses
+                .iter()
+                .find(|u| u.local_name.as_deref() == Some(segs[0].as_str()))
+        {
+            let (lc, resolved) = if !ub.leading_colon
+                && let Some(res) = self.resolve_rel_keywords(&ub.segments)
+            {
+                res
+            } else {
+                (ub.leading_colon, ub.segments.clone())
+            };
+            rebuild_path_with_prefix(&mut tp.path, lc, &resolved, true, true);
+        }
     }
 }
 

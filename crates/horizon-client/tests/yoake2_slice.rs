@@ -7,21 +7,13 @@
 //!   cargo test --offline --release -j 4 -p horizon-client-lib --features yoake2-slice \
 //!     --test yoake2_slice -- --ignored --nocapture bench_round_trip
 
-use horizon_client_lib::entities::{ArmorStand, StandMedium, StandStep};
+use horizon_client_lib::entities::{hook_bench, ArmorStand, StandMedium, StandStep};
 use horizon_core::geometry::Vec3;
 use std::cell::{Cell, RefCell};
 use std::sync::Once;
-use yoake_hook_rt::Order;
 use yoake_slice::GUEST_WAT;
 use yoake_slice::activation::{FieldTable, live_activations};
 use yoake_slice::runtime::{self, ModConfig};
-
-type SettleCallback = fn(
-    &mut dyn FnMut(&mut ArmorStand, StandMedium, StandStep),
-    &mut ArmorStand,
-    StandMedium,
-    StandStep,
-);
 
 /// Field ids of the hand-written accessor table (what a generator would emit for the type).
 const F_FIRE_TICKS: u32 = 0;
@@ -88,24 +80,14 @@ static REGISTER_COUNTING: Once = Once::new();
 
 fn register_wasm() {
     REGISTER_WASM.call_once(|| {
-        yoake_hook_rt::register::<SettleCallback>(
-            ArmorStand::__YOAKE_HOOK_ID_tick_settle,
-            wasm_settle,
-            Order { priority: 10, mod_load_order: 0 },
-        )
-        .unwrap();
+        hook_bench::register_tick_settle(wasm_settle, 10, 0);
     });
 }
 
 fn register_all() {
     register_wasm();
     REGISTER_COUNTING.call_once(|| {
-        yoake_hook_rt::register::<SettleCallback>(
-            ArmorStand::__YOAKE_HOOK_ID_tick_settle,
-            counting_entry,
-            Order { priority: 0, mod_load_order: 0 },
-        )
-        .unwrap();
+        hook_bench::register_tick_settle(counting_entry, 0, 0);
     });
 }
 
