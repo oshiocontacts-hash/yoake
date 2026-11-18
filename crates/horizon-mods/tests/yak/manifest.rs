@@ -447,3 +447,39 @@ client = "bin/wasm/a.wasm"
         assert!(parse(permission, &http).is_err(), "{host}");
     }
 }
+
+/// MX3CL1: `[wasm] side` of a full-access mod.
+#[test]
+fn full_access_side_defaults_to_server_and_accepts_client_and_both() {
+    use horizon_mods::yak::FullAccessSide;
+    let parse = |side_table: &str, wasm_side: &str| {
+        let data = DATA.replace("[side]\nclient = true\nserver = true", side_table);
+        Manifest::parse(&format!(
+            "{data}\n[wasm]\ninterface = \"1.0\"\nserver = \"bin/wasm/m.wasm\"\nworld = \"full-access\"\n{wasm_side}\n"
+        ))
+    };
+    let both = "[side]\nclient = true\nserver = true";
+    let side_of = |m: Manifest| m.wasm.unwrap().full_access_side();
+    assert_eq!(side_of(parse(both, "").unwrap()), FullAccessSide::Server, "no side: server, as before");
+    assert_eq!(side_of(parse(both, "side = \"server\"").unwrap()), FullAccessSide::Server);
+    assert_eq!(side_of(parse(both, "side = \"client\"").unwrap()), FullAccessSide::Client);
+    assert_eq!(side_of(parse(both, "side = \"both\"").unwrap()), FullAccessSide::Both);
+    assert!(FullAccessSide::Both.includes_client() && FullAccessSide::Both.includes_server());
+    assert!(FullAccessSide::Client.includes_client() && !FullAccessSide::Client.includes_server());
+    assert!(!FullAccessSide::Server.includes_client() && FullAccessSide::Server.includes_server());
+    for bad in ["side = \"Client\"", "side = \"world\"", "side = \"\"", "side = 1"] {
+        assert!(parse(both, bad).is_err(), "{bad}");
+    }
+    // the [side] table must agree with where the module runs
+    let client_only = "[side]\nclient = true\nserver = false";
+    let server_only = "[side]\nclient = false\nserver = true";
+    assert!(parse(client_only, "side = \"client\"").is_ok());
+    assert!(parse(client_only, "").unwrap_err().contains("side.server"));
+    assert!(parse(client_only, "side = \"both\"").unwrap_err().contains("side.server"));
+    assert!(parse(server_only, "side = \"client\"").unwrap_err().contains("side.client"));
+    assert!(parse(server_only, "side = \"both\"").unwrap_err().contains("side.client"));
+    assert!(parse(server_only, "").is_ok());
+    // wasm.side belongs to full-access only
+    let sandboxed = Manifest::parse(&with_wasm("\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/a.wasm\"\nside = \"client\"\n"));
+    assert!(sandboxed.unwrap_err().contains("full-access"));
+}
