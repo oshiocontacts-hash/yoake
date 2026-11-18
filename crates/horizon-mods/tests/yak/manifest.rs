@@ -447,3 +447,31 @@ client = "bin/wasm/a.wasm"
         assert!(parse(permission, &http).is_err(), "{host}");
     }
 }
+
+/// MX3CL1: a full-access mod's modules say where it runs: `wasm.server` on the server thread, `wasm.client` on the
+/// client thread, and [side] must agree.
+#[test]
+fn full_access_modules_decide_the_threads_and_side_must_agree() {
+    let parse = |side_table: &str, wasm_modules: &str| {
+        let data = DATA.replace("[side]\nclient = true\nserver = true", side_table);
+        Manifest::parse(&format!("{data}\n[wasm]\ninterface = \"1.0\"\n{wasm_modules}\nworld = \"full-access\"\n"))
+    };
+    let (server, client) = ("server = \"bin/wasm/s.wasm\"", "client = \"bin/wasm/c.wasm\"");
+    let both_modules = format!("{server}\n{client}");
+    let (s_only, c_only, both) = ("[side]\nclient = false\nserver = true", "[side]\nclient = true\nserver = false", "[side]\nclient = true\nserver = true");
+    assert!(parse(s_only, server).is_ok(), "the old server-only shape still parses");
+    assert!(parse(c_only, client).is_ok());
+    let m = parse(both, &both_modules).unwrap();
+    let wasm = m.wasm.unwrap();
+    assert!(wasm.server.is_some() && wasm.client.is_some(), "a mod may declare both: two instances");
+    assert!(parse(both, "").unwrap_err().contains("wasm.server"), "needs at least one module");
+    // [side] against the modules, both directions
+    assert!(parse(both, server).unwrap_err().contains("side.client"));
+    assert!(parse(both, client).unwrap_err().contains("side.server"));
+    assert!(parse(s_only, &both_modules).unwrap_err().contains("side.client"));
+    assert!(parse(c_only, &both_modules).unwrap_err().contains("side.server"));
+    assert!(parse(c_only, server).is_err());
+    assert!(parse(s_only, client).is_err());
+    // the old `side` key of the first MX3CL1 draft is gone
+    assert!(parse(both, &format!("{both_modules}\nside = \"both\"")).is_err());
+}

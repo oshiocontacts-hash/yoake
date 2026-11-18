@@ -187,6 +187,8 @@ impl Game<'_> {
 
     pub(super) fn native_session_ready(&mut self) {
         if let Some(destination) = self.native_session.ready() {
+            // MX3CL1: client-side full-access mods load for this session (empty without the yoake2 feature)
+            self.yoake2_client_session_start_hook();
             self.native_client_logged_in(destination.single_player, destination.address.as_deref());
         }
     }
@@ -194,6 +196,7 @@ impl Game<'_> {
     pub(super) fn native_session_left(&mut self) {
         if self.native_session.left() {
             self.native_client_logged_out();
+            self.yoake2_client_session_end_hook();
         }
     }
 

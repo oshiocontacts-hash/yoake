@@ -6039,6 +6039,8 @@ impl Game<'_> {
         self.native_local_player_tick_end();
         // Client mods tick on any server, single player's own included.
         self.native_tick();
+        // MX3CL1: full-access mods of the client side (a no-op unless one registered for it)
+        self.yoake2_client_tick_hook();
         self.tell_native_now();
         // Far tiles the samplers asked for (`lod_net`).
         if let Some(r) = &self.remote {

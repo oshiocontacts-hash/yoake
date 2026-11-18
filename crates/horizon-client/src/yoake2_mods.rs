@@ -32,7 +32,7 @@ use std::fmt;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-use horizon_mods::yak::{Archive, PublicKey};
+use horizon_mods::yak::{Archive, PublicKey, Wasm};
 pub use horizon_mods::yak::control::{
     APPROVED_ARG, APPROVED_ENV, AllowEntry, AllowFile, ApprovedEntry, ApprovedList, Control, ListDiff, Origin, OriginFile, OriginRecord,
     control_dir_in, guard, install_package, remove_package, sha256_hex,
@@ -43,11 +43,52 @@ fn short(hash: &str) -> &str {
     hash.get(..12).unwrap_or(hash)
 }
 
+/// MX3CL1: the thread a loader call fills. The runtime keeps its mods per thread, so "the server's mods" and "the
+/// client's mods" are two separate runtimes (two separate instances of a `both` mod).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ThreadSide {
+    /// The simulation thread (integrated or dedicated server).
+    Server,
+    /// The window's thread.
+    Client,
+}
+
+impl ThreadSide {
+    fn index(self) -> usize {
+        match self {
+            ThreadSide::Server => 0,
+            ThreadSide::Client => 1,
+        }
+    }
+
+    /// Whether a mod declares a module for this thread: `wasm.server` runs on the server thread, `wasm.client` on the
+    /// client thread (a mod may declare both: two separate instances).
+    pub fn runs(self, wasm: &Wasm) -> bool {
+        match self {
+            ThreadSide::Server => wasm.server.is_some(),
+            ThreadSide::Client => wasm.client.is_some(),
+        }
+    }
+
+    fn other(self) -> ThreadSide {
+        match self {
+            ThreadSide::Server => ThreadSide::Client,
+            ThreadSide::Client => ThreadSide::Server,
+        }
+    }
+}
+
 /// Why a package was not loaded as a full-access mod.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Refusal {
     /// Not a full-access package: leave it to the sandboxed WebAssembly path.
     Sandboxed,
+    /// A full-access package that declares no module for this thread (`wasm.server` / `wasm.client`): not an
+    /// error, the other loader takes it.
+    OtherSide,
+    /// This thread already holds the other side\x27s mods (a server runtime and a client runtime would share one
+    /// thread-local runtime, and their hooks would mix): nothing is loaded.
+    SharedThread { loading: ThreadSide, holds: ThreadSide },
     /// A full-access package nobody allowed.
     NotAllowed,
     /// The id was allowed, but for other content: the package changed since the player approved it (an update, a
@@ -74,6 +115,11 @@ impl fmt::Display for Refusal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Refusal::Sandboxed => write!(f, "not a full-access package (left to the sandboxed path)"),
+            Refusal::OtherSide => write!(f, "a full-access mod for the other side (left to the other loader)"),
+            Refusal::SharedThread { loading, holds } => write!(
+                f,
+                "this thread already runs {holds:?}-side full-access mods: {loading:?}-side mods would share its runtime (server and client mods need separate threads), not loaded"
+            ),
             Refusal::NotAllowed => write!(f, "full-access mod nobody approved (add it to {})", AllowFile::FILE_NAME),
             Refusal::ContentChanged { id, allowed, actual } => write!(
                 f,
@@ -133,11 +179,27 @@ pub struct Loaded {
 /// recorded when the package arrived (`None`: nothing was, so it is never full-access). Must run on the thread
 /// whose hooks it should join.
 pub fn load_package(bytes: Vec<u8>, origin: Option<Origin>, allow: &AllowFile, trusted: &[PublicKey], cfg: ModConfig) -> Result<Loaded, Refusal> {
+    load_package_on(ThreadSide::Server, bytes, origin, allow, trusted, cfg)
+}
+
+/// [`load_package`] for the thread `side`: a mod whose `[wasm] side` does not include it is [`Refusal::OtherSide`]
+/// (checked before the policy, so the other thread's mods are never judged, or reported, twice). The policy is the
+/// same on both sides.
+pub fn load_package_on(side: ThreadSide, bytes: Vec<u8>, origin: Option<Origin>, allow: &AllowFile, trusted: &[PublicKey], cfg: ModConfig) -> Result<Loaded, Refusal> {
     let sha256 = sha256_hex(&bytes);
     let mut archive = Archive::new(Cursor::new(bytes)).map_err(Refusal::Package)?;
     let id = archive.manifest().id.clone();
-    if !archive.manifest().wasm.as_ref().is_some_and(|wasm| wasm.full_access()) {
-        return Err(Refusal::Sandboxed);
+    match archive.manifest().wasm.as_ref().filter(|wasm| wasm.full_access()) {
+        None => return Err(Refusal::Sandboxed),
+        Some(wasm) if !side.runs(wasm) => return Err(Refusal::OtherSide),
+        Some(_) => {}
+    }
+    // one runtime per thread: a client runtime and a server runtime must never be filled on the same thread
+    if LOADED.with(|loaded| !loaded.borrow()[side.other().index()].is_empty()) {
+        let refusal = Refusal::SharedThread { loading: side, holds: side.other() };
+        log::warn!("yoake: full-access mod \x27{id}\x27 {refusal}");
+        eprintln!("yoake: full-access mod \x27{id}\x27 {refusal}");
+        return Err(refusal);
     }
     // an unknown origin, a server's or a friend's package is refused before anything else looks at it
     let origin = match origin {
@@ -160,7 +222,7 @@ pub fn load_package(bytes: Vec<u8>, origin: Option<Origin>, allow: &AllowFile, t
             other => other,
         });
     }
-    let module = archive.full_access_module().map_err(Refusal::Package)?.ok_or_else(|| Refusal::Package("no full-access module".into()))?;
+    let module = archive.full_access_module(side == ThreadSide::Client).map_err(Refusal::Package)?.ok_or_else(|| Refusal::Package("no full-access module".into()))?;
     // the ABI version is read from the module bytes: no guest code has run yet
     let abi = match runtime::module_abi_version(&module) {
         Err(e) => return Err(Refusal::Abi(e.to_string())),
@@ -199,7 +261,7 @@ impl LoadReport {
     pub fn messages(&self) -> Vec<String> {
         let mut lines: Vec<String> = self.problems.clone();
         for (path, refusal) in &self.skipped {
-            if *refusal != Refusal::Sandboxed {
+            if !matches!(refusal, Refusal::Sandboxed | Refusal::OtherSide) {
                 lines.push(format!("full-access mod {} not loaded: {refusal}", path.display()));
             }
         }
@@ -230,6 +292,12 @@ impl LoadReport {
 /// full-access mod. `origins` says where each package came from. Packages that are not full-access are listed as
 /// skipped with [`Refusal::Sandboxed`]. Two packages with the same id make every full-access one of them refuse.
 pub fn load_dir(dir: &Path, origins: &OriginFile, allow: &AllowFile, trusted: &[PublicKey], cfg: &ModConfig) -> LoadReport {
+    load_dir_on(ThreadSide::Server, dir, origins, allow, trusted, cfg)
+}
+
+/// [`load_dir`] for the thread `side` (MX3CL1): only mods whose `[wasm] side` includes it are considered; the others
+/// are listed as [`Refusal::OtherSide`].
+pub fn load_dir_on(side: ThreadSide, dir: &Path, origins: &OriginFile, allow: &AllowFile, trusted: &[PublicKey], cfg: &ModConfig) -> LoadReport {
     let mut report = LoadReport::default();
     let Ok(entries) = std::fs::read_dir(dir) else { return report };
     let mut files: Vec<PathBuf> = entries.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "yak")).collect();
@@ -263,17 +331,17 @@ pub fn load_dir(dir: &Path, origins: &OriginFile, allow: &AllowFile, trusted: &[
             let names = &by_id[id];
             if names.len() > 1 {
                 // a duplicate id: every full-access package of the group refuses (a sandboxed one is not our business)
-                let full_access = Archive::new(Cursor::new(pack.bytes.clone()))
-                    .ok()
-                    .is_some_and(|a| a.manifest().wasm.as_ref().is_some_and(|w| w.full_access()));
+                let wasm = Archive::new(Cursor::new(pack.bytes.clone())).ok().and_then(|a| a.manifest().wasm.clone()).filter(|w| w.full_access());
+                let full_access = wasm.is_some();
+                let other_side = wasm.as_ref().is_some_and(|w| !side.runs(w));
                 let me = pack.path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
                 let others = names.iter().filter(|n| **n != me).cloned().collect();
-                report.skipped.push((pack.path, if full_access { Refusal::DuplicateId { id: id.clone(), others } } else { Refusal::Sandboxed }));
+                report.skipped.push((pack.path, if other_side { Refusal::OtherSide } else if full_access { Refusal::DuplicateId { id: id.clone(), others } } else { Refusal::Sandboxed }));
                 continue;
             }
         }
         let origin = origins.origin_of(&sha256_hex(&pack.bytes));
-        match load_package(pack.bytes, origin, allow, trusted, cfg.clone()) {
+        match load_package_on(side, pack.bytes, origin, allow, trusted, cfg.clone()) {
             Ok(loaded) => report.loaded.push(loaded),
             Err(refusal) => report.skipped.push((pack.path, refusal)),
         }
@@ -285,21 +353,22 @@ pub fn load_dir(dir: &Path, origins: &OriginFile, allow: &AllowFile, trusted: &[
 }
 
 thread_local! {
-    static LOADED: std::cell::RefCell<Vec<ModId>> = const { std::cell::RefCell::new(Vec::new()) };
+    /// This thread's loaded mods, per [`ThreadSide`] (indexed by `ThreadSide::index`).
+    static LOADED: std::cell::RefCell<[Vec<ModId>; 2]> = const { std::cell::RefCell::new([Vec::new(), Vec::new()]) };
 }
 
 /// Unloads the mods of the previous world; returns what could not be unloaded (those stay in the list).
-fn unload_previous() -> Vec<String> {
+fn unload_previous(side: ThreadSide) -> Vec<String> {
     LOADED.with(|loaded| {
         let mut errors = Vec::new();
         let mut still = Vec::new();
-        for id in loaded.borrow_mut().drain(..) {
+        for id in loaded.borrow_mut()[side.index()].drain(..) {
             if let Err(e) = runtime::unload(id) {
                 errors.push(format!("could not unload mod {id:?} of the previous world: {e:#}"));
                 still.push(id);
             }
         }
-        loaded.borrow_mut().extend(still);
+        loaded.borrow_mut()[side.index()].extend(still);
         errors
     })
 }
@@ -335,7 +404,33 @@ pub fn process_approved_list() -> Option<&'static ApprovedList> {
 /// [`ModConfig::full_access`] gives the limits. Mods of a previous world are unloaded first; when one cannot be
 /// unloaded nothing new is loaded (two generations of mods on one hook would be worse) and the report says why.
 pub fn load_world_mods(mods_dir: &Path, approved: Option<&ApprovedList>) -> LoadReport {
-    let errors = unload_previous();
+    load_mods_on(ThreadSide::Server, mods_dir, approved)
+}
+
+/// MX3CL1: the client's session start: [`load_world_mods`] for the window's thread. Loads the approved full-access mods
+/// whose `[wasm] side` is `client` or `both` into this thread's own runtime (separate from the server's, even for a `both`
+/// mod). The same approved list and trust rules; the mods' own `yoake_init` runs here.
+pub fn load_client_mods(mods_dir: &Path, approved: Option<&ApprovedList>) -> LoadReport {
+    load_mods_on(ThreadSide::Client, mods_dir, approved)
+}
+
+/// MX3CL1: the client's session end: unloads this thread's client-side mods. Returns what could not be unloaded.
+pub fn unload_client_mods() -> Vec<String> {
+    let errors = unload_previous(ThreadSide::Client);
+    for line in &errors {
+        log::warn!("yoake: {line}");
+        eprintln!("yoake: {line}");
+    }
+    errors
+}
+
+/// Whether this thread has client-side mods loaded (a cheap check for the session hooks).
+pub fn client_mods_loaded() -> bool {
+    LOADED.with(|loaded| !loaded.borrow()[ThreadSide::Client.index()].is_empty())
+}
+
+fn load_mods_on(side: ThreadSide, mods_dir: &Path, approved: Option<&ApprovedList>) -> LoadReport {
+    let errors = unload_previous(side);
     if !errors.is_empty() {
         let report = LoadReport { problems: errors, ..LoadReport::default() };
         announce(&report);
@@ -345,31 +440,36 @@ pub fn load_world_mods(mods_dir: &Path, approved: Option<&ApprovedList>) -> Load
     let trusted = horizon_mods::yak::trusted_keys();
     // before any `yoake_init` runs, so `hook_register` can tell each guest the mode of the ids it asks for
     yoake_slice::bridge::set_mode_resolver(Some(hook_mode));
-    let mut report = load_dir(mods_dir, &origins, &allow, &trusted, &ModConfig::full_access());
+    let mut report = load_dir_on(side, mods_dir, &origins, &allow, &trusted, &ModConfig::full_access());
     // the "no list" note is only worth a line when there is a full-access package that it affects
-    if approved.is_none() && report.skipped.iter().any(|(_, r)| !matches!(r, Refusal::Sandboxed)) {
+    if approved.is_none() && report.skipped.iter().any(|(_, r)| !matches!(r, Refusal::Sandboxed | Refusal::OtherSide)) {
         report.problems.push(format!("the launcher gave no approved list ({APPROVED_ARG} or {APPROVED_ENV}): no full-access mod will run"));
     }
-    LOADED.with(|loaded| loaded.borrow_mut().extend(report.loaded.iter().map(|l| l.module)));
+    LOADED.with(|loaded| loaded.borrow_mut()[side.index()].extend(report.loaded.iter().map(|l| l.module)));
     report.unbridged = install_bridges(&report.loaded);
     announce(&report);
     report
 }
 
+/// Engine-synthetic hooks (ids at and above `SYNTHETIC_HOOK_BASE`) that the engine itself dispatches, with their mode.
+/// They have no generated bridge: `hook_mode` answers from this table first and `install_bridges` never lists them
+/// as unbridged. MX3CL1: the two client hooks are dispatched on the window's thread (`Game::yoake2_client_tick`, the HUD
+/// call in `Game::hud`); a mod that registers one of them on the wrong thread is simply never entered.
+pub const ENGINE_DISPATCHED: &[(u32, yoake_slice::bridge::Mode)] = &[
+    (runtime::HOOK_SERVER_TICK, yoake_slice::bridge::Mode::Full),
+    (runtime::HOOK_CLIENT_TICK, yoake_slice::bridge::Mode::Full),
+    (runtime::HOOK_HUD_RENDER, yoake_slice::bridge::Mode::ObserveOnly),
+];
+
 /// The mode of ledger hook `id` in this engine build: the generated bridges' `mode` (ledger ids are unique across
 /// crates, so at most one bridge knows `id`). `None`: no bridge can call it. Installed as the process-wide
 /// [`yoake_slice::bridge::ModeResolver`], so `hook_register` tells the guest (ENGINE_CALL_ABI.md, "Hook modes").
 pub fn hook_mode(id: u32) -> Option<yoake_slice::bridge::Mode> {
-    if ENGINE_DISPATCHED.contains(&id) {
-        return Some(yoake_slice::bridge::Mode::Full);
+    if let Some(&(_, mode)) = ENGINE_DISPATCHED.iter().find(|(hook, _)| *hook == id) {
+        return Some(mode);
     }
     crate::entities::hook_bridge::mode(id).or_else(|| crate::game::item_use_hook_bridge::mode(id))
 }
-
-/// Synthetic hook ids (at and above `SYNTHETIC_HOOK_BASE`) the engine dispatches itself, with no bridge: their call
-/// site is written by hand (`runtime::HOOK_SERVER_TICK`: `Game::yoake2_server_tick`, every server tick, result
-/// ignored). Always callable, Full mode, never in a bridge report.
-pub const ENGINE_DISPATCHED: &[u32] = &[runtime::HOOK_SERVER_TICK];
 
 /// After the mods' `yoake_init` registered their hook ids: installs the generated bridge dispatcher
 /// (`hook_bridge::install`, docs/yoake2/HOOK-SLICE-BRIDGE.md) of every id any of `loaded` registered. Each id is
@@ -388,7 +488,7 @@ pub fn install_bridges(loaded: &[Loaded]) -> Vec<(String, Vec<(u32, String)>)> {
             .map(|s| s.registered)
             .unwrap_or_default()
             .into_iter()
-            .filter(|(id, _)| *id != 0 && !ENGINE_DISPATCHED.contains(id))
+            .filter(|(id, _)| *id != 0 && !ENGINE_DISPATCHED.iter().any(|(hook, _)| hook == id))
             .collect();
         let reports = [crate::entities::hook_bridge::install(&registered), crate::game::item_use_hook_bridge::install(&registered)];
         let missing: Vec<(u32, String)> = registered
@@ -418,6 +518,25 @@ fn announce(report: &LoadReport) {
     }
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// MX3CL1: the client-thread hooks
+// ---------------------------------------------------------------------------------------------------------------
+
+/// Enters the client-side mods of this thread for [`runtime::HOOK_CLIENT_TICK`] (once per client tick); `root` is the
+/// client's `Game`, argument 0 of the hook. With no mod registered for the id this is one thread-local read and the
+/// closure is not even built. Must run on the thread the client mods were loaded on ([`load_client_mods`]).
+pub fn dispatch_client_tick<G: yoake_slice::activation::PathRoot>(root: &mut G) {
+    runtime::dispatch_root_id(runtime::HOOK_CLIENT_TICK, root, &mut |_| 0);
+}
+
+/// Enters the client-side mods of this thread for [`runtime::HOOK_HUD_RENDER`] (once per frame, after the vanilla HUD).
+/// Observe-only and without handle arguments (argument 0 is a handle to nothing: every field is `BadField`); the guest
+/// uses it as a point to call engine functions.
+pub fn dispatch_hud_render() {
+    static NOTHING: yoake_slice::activation::FieldTable<()> = yoake_slice::activation::FieldTable { get: |_, _| None, set: |_, _, _| false };
+    runtime::dispatch_id(runtime::HOOK_HUD_RENDER, &mut (), &NOTHING, &mut |_| 0);
+}
+
 #[cfg(test)]
 mod tests {
     /// `yoake_slice::bridge::install_once` keys by hook id alone: two bridge modules must never claim one id (the
@@ -428,9 +547,9 @@ mod tests {
         let entities = crate::entities::hook_bridge::BRIDGED;
         let item_use = crate::game::item_use_hook_bridge::BRIDGED;
         assert!(entities.iter().all(|id| item_use.binary_search(id).is_err()), "an id in both bridges");
-        for id in super::ENGINE_DISPATCHED {
+        for (id, mode) in super::ENGINE_DISPATCHED {
             assert!(entities.binary_search(id).is_err() && item_use.binary_search(id).is_err());
-            assert_eq!(super::hook_mode(*id), Some(yoake_slice::bridge::Mode::Full));
+            assert_eq!(super::hook_mode(*id), Some(*mode));
         }
     }
 }

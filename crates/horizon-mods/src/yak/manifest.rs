@@ -257,8 +257,10 @@ impl Wasm {
             return Err("wasm interfaces 1.1/1.2 require wasm.world = \"inject-mod\"; ordinary hook worlds use 1.0".into());
         }
         if self.full_access() {
-            if self.server.is_none() || self.client.is_some() {
-                return Err("wasm.world full-access is a server module: declare wasm.server and no wasm.client".into());
+            // MX3CL1: `wasm.server` runs on the server thread, `wasm.client` on the client thread; both may be declared
+            // (two separate instances, each a core module)
+            if self.server.is_none() && self.client.is_none() {
+                return Err("wasm.world full-access needs wasm.server (runs on the server thread) and/or wasm.client (runs on the client thread)".into());
             }
             if !self.permissions.is_empty() {
                 return Err("a full-access mod has no [wasm] permissions: it is all-or-nothing and needs the player's allow".into());
@@ -548,8 +550,14 @@ impl Manifest {
                 );
             }
         }
-        if self.wasm.as_ref().is_some_and(Wasm::full_access) && !self.side.server {
-            return Err("a full-access mod runs where the world is simulated: side.server must be true".into());
+        if let Some(wasm) = self.wasm.as_ref().filter(|wasm| wasm.full_access()) {
+            // MX3CL1: [side] and the declared modules must agree
+            if self.side.server != wasm.server.is_some() {
+                return Err("a full-access mod: side.server must be true exactly when wasm.server is declared".into());
+            }
+            if self.side.client != wasm.client.is_some() {
+                return Err("a full-access mod: side.client must be true exactly when wasm.client is declared".into());
+            }
         }
         if let Some(wasm) = &self.wasm {
             if self.bin.is_some() {
