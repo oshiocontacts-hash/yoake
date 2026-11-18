@@ -61,22 +61,58 @@ pub struct ModConfig {
     pub epoch_ticks: Option<u64>,
     /// Pause the epoch budget while `original` runs (C0 section 3). Off only as a negative control.
     pub pause_epoch_in_original: bool,
+    /// The watchdog: an activation whose guest code runs longer than this many milliseconds (time inside
+    /// `original` is not counted) is **logged**, once per activation, and keeps running; it is never trapped.
+    /// Ignored when `epoch_ticks` is set (that budget traps). `None`: no watchdog.
+    pub watchdog_ms: Option<u64>,
 }
 
 impl ModConfig {
+    /// The limits of the slice's tests: 1 million fuel per activation, no epoch, no watchdog.
     pub fn new(hook_export: &str) -> Self {
         Self {
             hook_export: hook_export.to_owned(),
             fuel: Some(1_000_000),
             epoch_ticks: None,
             pause_epoch_in_original: true,
+            watchdog_ms: None,
         }
     }
+
+    /// The policy for a full-access mod (design 4b, `ENGINE_CALL_ABI.md`): a multiplexed guest, **no fuel
+    /// limit and no trapping epoch** per activation, and a watchdog that only logs an activation whose guest
+    /// time exceeds [`WATCHDOG_MS`]. `yoake_init` keeps its finite budget ([`INIT_FUEL`]).
+    pub fn full_access() -> Self {
+        Self { fuel: None, epoch_ticks: None, watchdog_ms: Some(WATCHDOG_MS), ..Self::new("") }
+    }
+
+    /// The deadline the epoch machinery works with (a trapping budget or the watchdog), in milliseconds.
+    fn epoch_ms(&self) -> Option<u64> {
+        self.epoch_ticks.or(self.watchdog_ms)
+    }
+
+    /// Milliseconds per epoch tick: 1 for a trapping budget, coarser for the logging watchdog (it only has to
+    /// notice a slow activation, and a ticker thread that wakes every millisecond per mod would be a cost).
+    fn tick_ms(&self) -> u64 {
+        if self.epoch_ticks.is_some() { 1 } else { WATCHDOG_TICK_MS }
+    }
+
+    /// `ms` as a deadline in epoch ticks (at least one).
+    fn ticks_for(&self, ms: u64) -> u64 {
+        ms.div_ceil(self.tick_ms()).max(1)
+    }
 }
+
+/// The full-access watchdog threshold: a slower activation is logged.
+pub const WATCHDOG_MS: u64 = 50;
+/// Period of the watchdog's ticker thread in milliseconds.
+const WATCHDOG_TICK_MS: u64 = 5;
 
 struct EpochAct {
     guest_used: u64,
     resumed_at: u64,
+    /// The watchdog already logged this activation.
+    logged: bool,
 }
 
 struct Host {
@@ -101,6 +137,11 @@ struct Host {
     reports: Vec<(i32, i64)>,
     entries: u64,
     max_fuel_used: u64,
+    /// Activations the watchdog logged as slow, and the longest guest time seen when it fired (ms).
+    slow_activations: u64,
+    slowest_ms: u64,
+    /// This mod's name (for log lines).
+    name: String,
     depth: u32,
     /// The open activations of this instance, innermost last (their entry numbers).
     acts: Vec<u64>,
@@ -114,6 +155,8 @@ impl Host {
     fn disable(&mut self) {
         self.disabled = true;
         self.dead.set(true);
+        // chains are cached per hook id: a dead mod must leave them
+        invalidate_chains();
     }
 }
 
@@ -164,10 +207,31 @@ struct Rt {
     /// Every mod loaded on this thread, in load order.
     mods: RefCell<Vec<Rc<ModSlot>>>,
     next_load: Cell<u64>,
+    /// The chain of each hook id, built on first use (see [`chain_for`]). Valid while `generation` equals
+    /// `chains_generation`; a load, an unload or a mod's death bumps `generation`.
+    chains: RefCell<Option<std::collections::HashMap<u32, Chain>>>,
+    generation: Cell<u64>,
+    chains_generation: Cell<u64>,
 }
 
+/// The mods of one hook id in chain order (shared, so a hook entry clones one pointer).
+type Chain = Rc<Vec<Rc<ModSlot>>>;
+
 thread_local! {
-    static RT: Rt = const { Rt { mods: RefCell::new(Vec::new()), next_load: Cell::new(1) } };
+    static RT: Rt = const {
+        Rt {
+            mods: RefCell::new(Vec::new()),
+            next_load: Cell::new(1),
+            chains: RefCell::new(None),
+            generation: Cell::new(0),
+            chains_generation: Cell::new(0),
+        }
+    };
+}
+
+/// Forgets the cached chains of this thread (a mod was loaded, unloaded or died).
+fn invalidate_chains() {
+    let _ = RT.try_with(|rt| rt.generation.set(rt.generation.get() + 1));
 }
 
 /// Restores the previous `active` pointer, also when a panic unwinds through.
@@ -240,17 +304,19 @@ pub mod register_status {
 pub fn load(wasm_or_wat: &[u8], cfg: ModConfig, name: &str) -> R<ModId> {
     let mut config = Config::new();
     // fuel is always on: `yoake_init` needs a finite budget even for an unmetered mod
-    config.consume_fuel(true).epoch_interruption(cfg.epoch_ticks.is_some());
+    config.consume_fuel(true).epoch_interruption(cfg.epoch_ms().is_some());
     let engine = Engine::new(&config)?;
     let module = Module::new(&engine, wasm_or_wat)?;
     let ticks = Arc::new(AtomicU64::new(0));
-    let ticker = cfg.epoch_ticks.map(|_| {
+    let ticker = cfg.epoch_ms().map(|_| {
         let stop = Arc::new(AtomicBool::new(false));
         let (flag, counter, engine) = (stop.clone(), ticks.clone(), engine.clone());
+        // `ticks` counts milliseconds; one epoch tick is `period` of them
+        let period = cfg.tick_ms();
         let thread = std::thread::spawn(move || {
             while !flag.load(Ordering::Relaxed) {
-                std::thread::sleep(Duration::from_millis(1));
-                counter.fetch_add(1, Ordering::Relaxed);
+                std::thread::sleep(Duration::from_millis(period));
+                counter.fetch_add(period, Ordering::Relaxed);
                 engine.increment_epoch();
             }
         });
@@ -277,6 +343,9 @@ pub fn load(wasm_or_wat: &[u8], cfg: ModConfig, name: &str) -> R<ModId> {
         reports: Vec::new(),
         entries: 0,
         max_fuel_used: 0,
+        slow_activations: 0,
+        slowest_ms: 0,
+        name: name.to_owned(),
         depth: 0,
         acts: Vec::new(),
         tickets: Vec::new(),
@@ -284,8 +353,12 @@ pub fn load(wasm_or_wat: &[u8], cfg: ModConfig, name: &str) -> R<ModId> {
     };
     let mut store = Store::new(&engine, host);
     store.set_fuel(INITIAL_FUEL)?;
-    if store.data().cfg.epoch_ticks.is_some() {
+    if store.data().cfg.epoch_ms().is_some() {
         store.set_epoch_deadline(u64::MAX / 4);
+    }
+    if store.data().cfg.epoch_ticks.is_none() && store.data().cfg.watchdog_ms.is_some() {
+        // the watchdog: an expired deadline logs and goes on, it never traps
+        store.epoch_deadline_callback(watchdog_fired);
     }
     let instance = linker.instantiate(&mut store, &module)?;
     let memory = instance.get_memory(&mut store, "memory");
@@ -307,7 +380,7 @@ pub fn load(wasm_or_wat: &[u8], cfg: ModConfig, name: &str) -> R<ModId> {
                 store.data_mut().in_init = false;
                 result.map_err(|e| Error::msg(format!("yoake_init failed: {e:#}")))?;
                 store.set_fuel(INITIAL_FUEL)?;
-                if store.data().cfg.epoch_ticks.is_some() {
+                if store.data().cfg.epoch_ms().is_some() {
                     store.set_epoch_deadline(u64::MAX / 4);
                 }
             }
@@ -334,6 +407,8 @@ pub fn load(wasm_or_wat: &[u8], cfg: ModConfig, name: &str) -> R<ModId> {
         match rt.mods.try_borrow_mut() {
             Ok(mut mods) => {
                 mods.push(slot);
+                drop(mods);
+                invalidate_chains();
                 Ok(id)
             }
             Err(_) => Err(Error::msg("load: the mod list is in use")),
@@ -350,6 +425,8 @@ pub fn unload(id: ModId) -> R<()> {
             return Err(Error::msg("unload: this mod's guest is running (called from inside its hook)"));
         }
         mods.remove(index);
+        drop(mods);
+        invalidate_chains();
         Ok(())
     })
 }
@@ -370,6 +447,8 @@ pub fn uninstall() -> R<()> {
             return Err(Error::msg("uninstall: this thread's guest is running (called from inside a hook)"));
         }
         mods.clear();
+        drop(mods);
+        invalidate_chains();
         Ok(())
     })
 }
@@ -394,6 +473,10 @@ pub struct Stats {
     pub fuel_left: Option<u64>,
     /// `(hook id, priority)` the guest registered, sorted by id.
     pub registered: Vec<(u32, i32)>,
+    /// Activations the watchdog logged as slow (guest time over `ModConfig::watchdog_ms`).
+    pub slow_activations: u64,
+    /// The longest guest time (ms) the watchdog saw when it fired; 0 when it never did.
+    pub slowest_ms: u64,
 }
 
 fn slot_stats(slot: &ModSlot) -> Stats {
@@ -413,6 +496,8 @@ fn slot_stats(slot: &ModSlot) -> Stats {
                 epoch_depth: host.epoch.len(),
                 fuel_left: inst.store.get_fuel().ok(),
                 registered,
+                slow_activations: host.slow_activations,
+                slowest_ms: host.slowest_ms,
             }
         }
         Err(_) => Stats { installed: true, busy: true, disabled: slot.dead.get(), registered, ..Stats::default() },
@@ -467,7 +552,7 @@ pub fn take_reports_of(id: ModId) -> R<Vec<(i32, i64)>> {
 /// nested hook sets its own deadline and must not leave it behind). Every import that can reach
 /// engine code goes through here; use [`engine_import!`] to register one so it cannot be forgotten.
 fn native<T>(caller: &mut Caller<'_, Host>, f: impl FnOnce() -> T) -> T {
-    let epoch_on = caller.data().cfg.epoch_ticks.is_some() && caller.data().cfg.pause_epoch_in_original;
+    let epoch_on = caller.data().cfg.epoch_ms().is_some() && caller.data().cfg.pause_epoch_in_original;
     if epoch_on {
         // the guest's time so far in this activation is charged, the engine's is not
         let now = caller.data().ticks.load(Ordering::Relaxed);
@@ -482,13 +567,14 @@ fn native<T>(caller: &mut Caller<'_, Host>, f: impl FnOnce() -> T) -> T {
     };
     if epoch_on {
         let now = caller.data().ticks.load(Ordering::Relaxed);
-        let budget = caller.data().cfg.epoch_ticks.unwrap_or(1);
+        let budget = caller.data().cfg.epoch_ms().unwrap_or(1);
         let mut remaining = budget;
         if let Some(top) = caller.data_mut().epoch.last_mut() {
             top.resumed_at = now;
             remaining = budget.saturating_sub(top.guest_used).max(1);
         }
-        caller.as_context_mut().set_epoch_deadline(remaining);
+        let ticks = caller.data().cfg.ticks_for(remaining);
+        caller.as_context_mut().set_epoch_deadline(ticks);
     }
     out
 }
@@ -756,10 +842,11 @@ fn enter(ctx: &mut StoreContextMut<'static, Host>) -> Option<u64> {
         }
         None => None,
     };
-    if let Some(budget) = ctx.data().cfg.epoch_ticks {
+    if let Some(budget) = ctx.data().cfg.epoch_ms() {
         let now = ctx.data().ticks.load(Ordering::Relaxed);
-        ctx.data_mut().epoch.push(EpochAct { guest_used: 0, resumed_at: now });
-        ctx.set_epoch_deadline(budget);
+        ctx.data_mut().epoch.push(EpochAct { guest_used: 0, resumed_at: now, logged: false });
+        let ticks = ctx.data().cfg.ticks_for(budget);
+        ctx.set_epoch_deadline(ticks);
     }
     saved
 }
@@ -777,10 +864,38 @@ fn leave(ctx: &mut StoreContextMut<'static, Host>, saved_fuel: Option<u64>) {
             host.max_fuel_used = host.max_fuel_used.max(used);
         }
         ctx.set_fuel(saved).ok();
+    } else if ctx.data().cfg.fuel.is_none() && ctx.data().depth == 0 {
+        // unmetered: a top-level activation starts from a full tank, so there is no cumulative limit either
+        ctx.set_fuel(INITIAL_FUEL).ok();
     }
-    if ctx.data().cfg.epoch_ticks.is_some() {
+    if ctx.data().cfg.epoch_ms().is_some() {
         ctx.data_mut().epoch.pop();
     }
+}
+
+/// The watchdog's epoch callback: an activation's guest time went over `watchdog_ms`. Logs it (once per
+/// activation), counts it, and lets the guest go on with a fresh deadline: it never traps.
+fn watchdog_fired(mut ctx: StoreContextMut<'_, Host>) -> R<wasmtime::UpdateDeadline> {
+    let threshold = ctx.data().cfg.watchdog_ms.unwrap_or(WATCHDOG_MS);
+    let again = ctx.data().cfg.ticks_for(threshold);
+    let now = ctx.data().ticks.load(Ordering::Relaxed);
+    let host = ctx.data_mut();
+    let Some(top) = host.epoch.last_mut() else {
+        // not inside an activation (`yoake_init`, which has its own fuel budget): nothing to report
+        return Ok(wasmtime::UpdateDeadline::Continue(again));
+    };
+    let used = top.guest_used + now.saturating_sub(top.resumed_at);
+    let first = !top.logged;
+    top.logged = true;
+    host.slowest_ms = host.slowest_ms.max(used);
+    if first {
+        host.slow_activations += 1;
+        eprintln!(
+            "yoake: mod {}: a hook activation has run {used} ms of guest time (watchdog: {threshold} ms); it is not stopped",
+            host.name
+        );
+    }
+    Ok(wasmtime::UpdateDeadline::Continue(again))
 }
 
 enum Entry {
@@ -797,7 +912,8 @@ enum Outcome {
     Trapped(Finished),
 }
 
-/// Deepest guest nesting (hook -> import -> engine -> hook ...). Past it a hooked call falls
+/// Deepest guest nesting (**per mod**: each mod has its own depth counter, so a chain of several mods can
+/// nest deeper in total) (hook -> import -> engine -> hook ...). Past it a hooked call falls
 /// through to the original body and the guest is not entered, so guest-driven recursion (for
 /// example through a field accessor) cannot exhaust the native stack. 16, not more: every level is a
 /// wasm entry plus host frames under wasmtime's one stack budget, which ran out at depth 58 in a debug
@@ -808,19 +924,29 @@ type ScopeFn<'s> = &'s mut dyn FnMut(u64) -> R<i64>;
 
 /// The mods registered for `hook_id`, in chain order: `(priority, load order)`, lowest first. The first is
 /// the outermost wrapper (its `original` runs the next mod); a dead mod is not in the chain.
-fn chain_for(hook_id: u32) -> Vec<Rc<ModSlot>> {
+///
+/// Chains are cached per hook id (hot path: every hooked engine call asks): the cache is dropped when a mod is
+/// loaded or unloaded or dies (`invalidate_chains`). A mod's registrations only change inside its `yoake_init`,
+/// before it is in the list, so they cannot make a cached chain stale.
+fn chain_for(hook_id: u32) -> Chain {
     RT.with(|rt| {
-        let mods = rt.mods.borrow();
-        if mods.is_empty() {
-            return Vec::new();
+        if rt.chains_generation.get() != rt.generation.get() {
+            *rt.chains.borrow_mut() = None;
+            rt.chains_generation.set(rt.generation.get());
         }
+        if let Some(chain) = rt.chains.borrow().as_ref().and_then(|cache| cache.get(&hook_id)) {
+            return chain.clone();
+        }
+        let mods = rt.mods.borrow();
         let mut found: Vec<(i32, u64, Rc<ModSlot>)> = mods
             .iter()
             .filter(|m| !m.dead.get())
             .filter_map(|m| m.registered.borrow().get(&hook_id).map(|priority| (*priority, m.load_order, m.clone())))
             .collect();
         found.sort_by_key(|(priority, order, _)| (*priority, *order));
-        found.into_iter().map(|(_, _, slot)| slot).collect()
+        let chain: Chain = Rc::new(found.into_iter().map(|(_, _, slot)| slot).collect());
+        rt.chains.borrow_mut().get_or_insert_with(Default::default).insert(hook_id, chain.clone());
+        chain
     })
 }
 
