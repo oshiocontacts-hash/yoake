@@ -1,0 +1,20 @@
+format = 1
+id = "my_full_access_mod"
+version = "0.1.0"
+name = "My Full-Access Mod"
+name_ja = "はじめてのフルアクセス MOD"
+authors = ["Your Name"]
+description = "Starter template: counts server ticks and reads the experience total of the game."
+
+[yoake]
+version = ">=0.0.0"
+
+[side]
+client = false
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.0"
+server = "bin/wasm/my_full_access_mod.wasm"
+world = "full-access"
