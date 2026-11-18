@@ -142,6 +142,47 @@ through `with_arg` (`&mut T`), and that is refused. This is deliberate. A later 
 must hand out only `&T` (never build a `&mut T` from the shared pointer), and only to bindings whose receiver is
 `&self`.
 
+## Sides and threads (MX3CL1)
+
+The runtime is per thread: every thread that loads mods has its own set of instances, each in its own store. There are
+two such threads, and a full-access mod says where it runs with `[wasm] side` (only valid with
+`world = "full-access"`):
+
+| `side` | loaded on |
+|---|---|
+| `server` (the default, also when the key is absent) | the simulation thread: integrated-server or dedicated-server world start (`load_world_mods`) |
+| `client` | the window's thread, when a client session becomes ready (`load_client_mods`) |
+| `both` | both threads, as two separate instances |
+
+- The module is still declared as `wasm.server` (one core module for any side). `[side]` of the manifest must agree:
+  `side.server = true` when the mod runs on the server, `side.client = true` when it runs on the client.
+- **Same trust, same bytes.** The client side takes the same launcher-approved list (`--full-access-approved`) and the
+  same rules as the server side: only a package whose bytes hash to an approved `local`/`catalog` entry loads; a server's or
+  a friend's package never does. A package for the other side is skipped without a message (`Refusal::OtherSide`); it is
+  judged (and reported) once, by the loader of its own side.
+- **Lifetime.** Client mods load at `native_session_ready` (a client game only, once per session, after login) and are
+  dropped at `native_session_left`; a new session loads them again from the approved list. `yoake_init` of a client
+  instance runs on the client thread.
+- **No shared state.** A `both` mod's two instances share no memory, no globals, no registrations, and a trap or a
+  budget breach disables only the instance on that thread. To talk across threads a mod uses the game's own channels
+  (packets, files); there is no cross-thread call.
+- **Engine-dispatched hooks** (ids >= `0x8000_0000`, no generated bridge; `hook_register` says Full, or observe-only
+  where noted, and the loader never lists them as unbridged):
+
+  | id | name | thread | when | argument 0 | mode |
+  |---|---|---|---|---|---|
+  | `0x8000_0001` | `SERVER_TICK` | server | once per server tick | the server's `Game` root | Full |
+  | `0x8000_0002` | `CLIENT_TICK` | client | once per client tick (`tick_remote`, after the client mods' own tick) | the client's `Game` root | Full |
+  | `0x8000_0003` | `HUD_RENDER` | client | once per frame, after the vanilla HUD was built (`Game::hud`) | none yet | observe-only |
+
+  A mod that registers a hook on a thread that never dispatches it (a server-side mod registering `CLIENT_TICK`) is not
+  an error and is never entered. `CLIENT_TICK` has path handles like `SERVER_TICK` (generated `Game.<name>#handle`
+  bindings resolve against the client's `Game`; mind that a client `Game` mirrors a server's world, it does not own it).
+  `HUD_RENDER` carries a handle to nothing: it only gives the guest a point in the frame from which to call engine
+  functions; it cannot draw into the HUD yet. The SDK constants are `hooks::CLIENT_TICK` and `hooks::HUD_RENDER`.
+- **Cost with no mod.** Each dispatch is one thread-local read (the chain lookup finds no mod loaded on the thread) and
+  the engine's original behaviour; without the `yoake2-slice` feature the call sites are empty functions.
+
 ## The Rust guest SDK
 
 `crates/yoake-guest-sdk` (`no_std`, wasm32): `call` (with the ticket handling above, never a retry), `original`, `get`,

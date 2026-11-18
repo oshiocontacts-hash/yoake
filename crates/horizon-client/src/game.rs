@@ -219,6 +219,7 @@ mod native_camera;
 mod native_chat;
 mod native_claimed_items;
 mod native_client_items;
+mod yoake2_client;
 pub mod native_client_map;
 mod native_client_state;
 mod native_components;
@@ -8677,6 +8678,8 @@ impl Game<'_> {
         self.frame_graph
             .draw(self.settings.horizon.overlay, &mut batch, &self.gui.atlas);
         self.draw_pad_cursor(&mut batch);
+        // MX3CL1: after the whole vanilla HUD; a no-op unless a client-side full-access mod registered for it
+        self.yoake2_hud_render_hook();
         self.resolve_inline_profiles(&batch.inline_profiles);
         batch
     }
