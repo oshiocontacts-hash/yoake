@@ -28,9 +28,12 @@ jobs:
           cargo build --locked -p yoake-hook-codemod
           codemod=target/debug/yoake-hook-codemod
           grep -v '^[[:space:]]*\(#\|$\)' hook-ledger/modules.txt | tr -d '\r' |
-          while read -r root name module; do
-            echo "== $name $module"
-            "$codemod" check --crate-root "$root" --crate-name "$name" --ledger hook-ledger --module "$module"
+          while read -r root name module flags; do
+            echo "== $name $module $flags"
+            extra=()
+            case " $flags " in *" callsites=true "*) extra+=(--callsites) ;; esac
+            # Without --thir: rewritten call sites carry their identity and types in the source.
+            "$codemod" check "${extra[@]}" --crate-root "$root" --crate-name "$name" --ledger hook-ledger --module "$module"
           done
 
       - name: Ledger history check, commit by commit (append-only)

@@ -50,9 +50,23 @@ pub fn parse_reader<R: BufRead>(reader: R, options: &ParseOptions) -> Result<Dum
         .iter()
         .map(|file| file.replace('\\', "/"))
         .collect();
+    let digests = if !options.file_digests.is_empty() {
+        options.file_digests.clone()
+    } else if let Some(workspace) = &options.workspace {
+        crate::collect_file_digests(workspace, &options.files)?
+    } else {
+        BTreeMap::new()
+    };
     let mut files = targets
         .iter()
-        .map(|file| (file.clone(), FileSummary::default()))
+        .map(|file| {
+            let mut summary = FileSummary::default();
+            if let Some(digest) = digests.get(file) {
+                summary.sha = digest.sha.clone();
+                summary.len = digest.len;
+            }
+            (file.clone(), summary)
+        })
         .collect::<BTreeMap<_, _>>();
     let mut calls = Vec::new();
     let mut stack: Vec<RawCall> = Vec::new();
@@ -169,9 +183,11 @@ pub fn parse_reader<R: BufRead>(reader: R, options: &ParseOptions) -> Result<Dum
             .and_then(|call| call.caller_def.split("::").next().map(str::to_owned))
             .unwrap_or_default()
     });
+    let source_snapshot = crate::compute_source_snapshot(&files);
     Ok(Dump {
         toolchain: options.toolchain.clone(),
         crate_name,
+        source_snapshot,
         files,
         calls,
     })
@@ -222,6 +238,9 @@ fn update_expr(expr: &mut ExprFrame, indent: usize, text: &str, tree: &mut Recei
     if indent == expr.indent + 8 {
         let kind = match text {
             "Scope {" => Some(NodeKind::Scope),
+            // An unsizing or other pointer coercion (`&[T; N]` -> `&[T]`): transparent for the
+            // receiver adjustment, the call site coerces the same way.
+            "Pointer {" => Some(NodeKind::Pointer),
             "Borrow (" => Some(NodeKind::Borrow),
             "Deref {" => Some(NodeKind::Deref),
             "Call {" => Some(NodeKind::Call),

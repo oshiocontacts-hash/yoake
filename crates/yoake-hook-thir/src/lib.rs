@@ -1,7 +1,7 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::io::BufReader;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 mod model;
 mod normalize;
@@ -44,12 +44,75 @@ impl From<serde_json::Error> for Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+const FNV_PRIME: u64 = 0x100000001b3;
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct FileDigest {
+    pub sha: String,
+    pub len: u64,
+}
+
+pub fn fnv1a_64(bytes: &[u8]) -> u64 {
+    let mut hash = FNV_OFFSET_BASIS;
+    for &byte in bytes {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+    hash
+}
+
+pub fn format_hash(hash: u64) -> String {
+    format!("{hash:016x}")
+}
+
+pub fn hash_file_bytes(bytes: &[u8]) -> FileDigest {
+    FileDigest {
+        sha: format_hash(fnv1a_64(bytes)),
+        len: bytes.len() as u64,
+    }
+}
+
+pub fn collect_file_digests(workspace: &Path, files: &[String]) -> Result<BTreeMap<String, FileDigest>> {
+    let mut digests = BTreeMap::new();
+    for file in files {
+        let key = file.replace('\\', "/");
+        let path = workspace.join(file);
+        let bytes = std::fs::read(&path).map_err(|error| {
+            Error::new(format!("failed to read source file {}: {error}", path.display()))
+        })?;
+        digests.insert(key, hash_file_bytes(&bytes));
+    }
+    Ok(digests)
+}
+
+pub fn compute_source_snapshot(files: &BTreeMap<String, FileSummary>) -> String {
+    let mut hash = FNV_OFFSET_BASIS;
+    for (path, summary) in files {
+        for &byte in path.as_bytes() {
+            hash ^= u64::from(byte);
+            hash = hash.wrapping_mul(FNV_PRIME);
+        }
+        hash ^= 0;
+        hash = hash.wrapping_mul(FNV_PRIME);
+        for &byte in summary.sha.as_bytes() {
+            hash ^= u64::from(byte);
+            hash = hash.wrapping_mul(FNV_PRIME);
+        }
+        hash ^= u64::from(b'\n');
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+    format_hash(hash)
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct ParseOptions {
     pub files: Vec<String>,
     pub externs: BTreeSet<String>,
     pub crate_name: Option<String>,
     pub toolchain: String,
+    pub workspace: Option<PathBuf>,
+    pub file_digests: BTreeMap<String, FileDigest>,
 }
 
 pub fn parse_file(thir: &Path, options: &ParseOptions) -> Result<Dump> {

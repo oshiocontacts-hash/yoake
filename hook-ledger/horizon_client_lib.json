@@ -717,9 +717,6003 @@
       "sig": "7494076198b890fa",
       "status": "tombstone",
       "kind": "fn"
+    },
+    {
+      "id": 187,
+      "key": "fn:2@call:horizon_core::geometry::Vec3::length_squared",
+      "sig": "494eed9dcbe47e51",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 2,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Vec3::length_squared",
+        "anchor": "a76a13878fca62eb",
+        "stmt_path": [
+          "81bdb3a8cbf7535c"
+        ],
+        "context": [
+          "0000000000000000",
+          "8a06b4f7241356a8"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_187"
+      }
+    },
+    {
+      "id": 188,
+      "key": "fn:2@call:horizon_core::geometry::Vec3::length_squared#1",
+      "sig": "494eed9dcbe47e51",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 2,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Vec3::length_squared",
+        "anchor": "71fc92d444bf801d",
+        "stmt_path": [
+          "8a06b4f7241356a8"
+        ],
+        "context": [
+          "81bdb3a8cbf7535c",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_188"
+      }
+    },
+    {
+      "id": 189,
+      "key": "fn:3@call:f64::abs",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 3,
+        "callee_fn": null,
+        "callee_path": "f64::abs",
+        "anchor": "6f2c3ea003f10f87",
+        "stmt_path": [
+          "e16b39ca60438ab5"
+        ],
+        "context": [
+          "0000000000000000",
+          "b39a11846ed4e17f"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_189"
+      }
+    },
+    {
+      "id": 190,
+      "key": "fn:3@call:bool::then_some",
+      "sig": "e60978b9c91a6958",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 3,
+        "callee_fn": null,
+        "callee_path": "bool::then_some",
+        "anchor": "b39a11846ed4e17f",
+        "stmt_path": [
+          "b39a11846ed4e17f"
+        ],
+        "context": [
+          "e16b39ca60438ab5",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_190"
+      }
+    },
+    {
+      "id": 191,
+      "key": "fn:5@call:f64::floor",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 5,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "3755cbe2b9d0d66b",
+        "stmt_path": [
+          "6483ed13c6b8dd3c"
+        ],
+        "context": [
+          "0000000000000000",
+          "27b0b4f756488360"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_191"
+      }
+    },
+    {
+      "id": 192,
+      "key": "fn:5@call:f64::floor#1",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 5,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "a447724944bf87d5",
+        "stmt_path": [
+          "27b0b4f756488360"
+        ],
+        "context": [
+          "6483ed13c6b8dd3c",
+          "620f237a88fb116a"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_192"
+      }
+    },
+    {
+      "id": 193,
+      "key": "fn:5@call:f64::floor#2",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 5,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "cc95f2de5e644a07",
+        "stmt_path": [
+          "620f237a88fb116a"
+        ],
+        "context": [
+          "27b0b4f756488360",
+          "01ec6442118df11b"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_193"
+      }
+    },
+    {
+      "id": 194,
+      "key": "fn:5@call:f64::floor#3",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 5,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "23f8c6ffb8d58be3",
+        "stmt_path": [
+          "01ec6442118df11b"
+        ],
+        "context": [
+          "620f237a88fb116a",
+          "286d911425fd28b2"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_194"
+      }
+    },
+    {
+      "id": 195,
+      "key": "fn:6@call:horizon_client_render::blocks::BlockFacts::get",
+      "sig": "e31b1183c1a36317",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 6,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::blocks::BlockFacts::get",
+        "anchor": "9f54b92884a4380a",
+        "stmt_path": [
+          "025cc82183c3aeb1"
+        ],
+        "context": [
+          "0000000000000000",
+          "73a348d83417fc98"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_195"
+      }
+    },
+    {
+      "id": 196,
+      "key": "fn:6@call:horizon_client_render::world::World::block",
+      "sig": "b9858fbdc8e21a03",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 6,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::world::World::block",
+        "anchor": "645e8555ef40ee00",
+        "stmt_path": [
+          "025cc82183c3aeb1"
+        ],
+        "context": [
+          "0000000000000000",
+          "73a348d83417fc98"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_196"
+      }
+    },
+    {
+      "id": 197,
+      "key": "fn:6@call:[([i32; 3_usize], horizon_world::piston_shape::MovingPistonState)]::iter",
+      "sig": "dba8a0de975e1160",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 6,
+        "callee_fn": null,
+        "callee_path": "[([i32; 3_usize], horizon_world::piston_shape::MovingPistonState)]::iter",
+        "anchor": "d7e51c027166536f",
+        "stmt_path": [
+          "73a348d83417fc98"
+        ],
+        "context": [
+          "025cc82183c3aeb1",
+          "ffaa69b0fe062193"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_197"
+      }
+    },
+    {
+      "id": 198,
+      "key": "fn:6@call:horizon_client_render::blocks::BlockFacts::get#1",
+      "sig": "e31b1183c1a36317",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 6,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::blocks::BlockFacts::get",
+        "anchor": "2bfc96cf9dd4af7b",
+        "stmt_path": [
+          "73a348d83417fc98"
+        ],
+        "context": [
+          "025cc82183c3aeb1",
+          "ffaa69b0fe062193"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_198"
+      }
+    },
+    {
+      "id": 199,
+      "key": "fn:7@call:u32::is_multiple_of",
+      "sig": "0a5401a6c4dd3307",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 7,
+        "callee_fn": null,
+        "callee_path": "u32::is_multiple_of",
+        "anchor": "98abc3c9bf1c1d8d",
+        "stmt_path": [
+          "5c57fa6e99e57ee4"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_199"
+      }
+    },
+    {
+      "id": 200,
+      "key": "fn:72@call:horizon_client_lib::entities::ItemEntity::__yoake_trait_entity_rules_is_no_gravity",
+      "sig": "39fe8095e2be1619",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 72,
+        "callee_fn": null,
+        "callee_path": "horizon_client_lib::entities::ItemEntity::__yoake_trait_entity_rules_is_no_gravity",
+        "anchor": "f834d650bfb82d2c",
+        "stmt_path": [
+          "f834d650bfb82d2c"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_200"
+      }
+    },
+    {
+      "id": 201,
+      "key": "fn:73@call:horizon_client_lib::entities::ItemEntity::__yoake_trait_entity_rules_get_default_gravity",
+      "sig": "abb0f63ff9c4613f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 73,
+        "callee_fn": null,
+        "callee_path": "horizon_client_lib::entities::ItemEntity::__yoake_trait_entity_rules_get_default_gravity",
+        "anchor": "5479a6e51d2260cc",
+        "stmt_path": [
+          "5479a6e51d2260cc"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_201"
+      }
+    },
+    {
+      "id": 202,
+      "key": "fn:74@call:horizon_client_lib::entities::ExperienceOrb::__yoake_trait_entity_rules_is_no_gravity",
+      "sig": "479727db217ad56c",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 74,
+        "callee_fn": null,
+        "callee_path": "horizon_client_lib::entities::ExperienceOrb::__yoake_trait_entity_rules_is_no_gravity",
+        "anchor": "f834d650bfb82d2c",
+        "stmt_path": [
+          "f834d650bfb82d2c"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_202"
+      }
+    },
+    {
+      "id": 203,
+      "key": "fn:75@call:horizon_client_lib::entities::ExperienceOrb::__yoake_trait_entity_rules_get_default_gravity",
+      "sig": "0c371d676893af5c",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 75,
+        "callee_fn": null,
+        "callee_path": "horizon_client_lib::entities::ExperienceOrb::__yoake_trait_entity_rules_get_default_gravity",
+        "anchor": "5479a6e51d2260cc",
+        "stmt_path": [
+          "5479a6e51d2260cc"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_203"
+      }
+    },
+    {
+      "id": 204,
+      "key": "fn:76@call:horizon_client_lib::entities::ArmorStand::__yoake_trait_entity_rules_is_no_gravity",
+      "sig": "ff1f0050330fd846",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 76,
+        "callee_fn": null,
+        "callee_path": "horizon_client_lib::entities::ArmorStand::__yoake_trait_entity_rules_is_no_gravity",
+        "anchor": "f834d650bfb82d2c",
+        "stmt_path": [
+          "f834d650bfb82d2c"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_204"
+      }
+    },
+    {
+      "id": 205,
+      "key": "fn:77@call:horizon_client_lib::entities::ArmorStand::__yoake_trait_entity_rules_get_default_gravity",
+      "sig": "3e94671c83fd8266",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 77,
+        "callee_fn": null,
+        "callee_path": "horizon_client_lib::entities::ArmorStand::__yoake_trait_entity_rules_get_default_gravity",
+        "anchor": "5479a6e51d2260cc",
+        "stmt_path": [
+          "5479a6e51d2260cc"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_205"
+      }
+    },
+    {
+      "id": 206,
+      "key": "fn:78@call:horizon_client_lib::entities::ArmorStand::__yoake_trait_entity_rules_is_pushed_by_fluid",
+      "sig": "ff1f0050330fd846",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 78,
+        "callee_fn": null,
+        "callee_path": "horizon_client_lib::entities::ArmorStand::__yoake_trait_entity_rules_is_pushed_by_fluid",
+        "anchor": "3cce2d6e2f14d670",
+        "stmt_path": [
+          "3cce2d6e2f14d670"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_206"
+      }
+    },
+    {
+      "id": 207,
+      "key": "fn:9@call:horizon_client_render::world::World::block",
+      "sig": "b9858fbdc8e21a03",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::world::World::block",
+        "anchor": "d28313cccd594093",
+        "stmt_path": [
+          "ab33b38ebad770b9"
+        ],
+        "context": [
+          "0000000000000000",
+          "dcfb9cea6b66b769"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_207"
+      }
+    },
+    {
+      "id": 208,
+      "key": "fn:9@call:f64::floor",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "5ae7fc0cd73b6c89",
+        "stmt_path": [
+          "ab33b38ebad770b9"
+        ],
+        "context": [
+          "0000000000000000",
+          "dcfb9cea6b66b769"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_208"
+      }
+    },
+    {
+      "id": 209,
+      "key": "fn:9@call:f64::floor#1",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "125329f0a6a9a28b",
+        "stmt_path": [
+          "ab33b38ebad770b9"
+        ],
+        "context": [
+          "0000000000000000",
+          "dcfb9cea6b66b769"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_209"
+      }
+    },
+    {
+      "id": 210,
+      "key": "fn:9@call:f64::floor#2",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "a53b281311c07f6f",
+        "stmt_path": [
+          "ab33b38ebad770b9"
+        ],
+        "context": [
+          "0000000000000000",
+          "dcfb9cea6b66b769"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_210"
+      }
+    },
+    {
+      "id": 211,
+      "key": "fn:9@call:horizon_client_render::blocks::BlockFacts::get",
+      "sig": "e31b1183c1a36317",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::blocks::BlockFacts::get",
+        "anchor": "8b3f866b581c089e",
+        "stmt_path": [
+          "dcfb9cea6b66b769"
+        ],
+        "context": [
+          "ab33b38ebad770b9",
+          "dfa8f649ee06c9de"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_211"
+      }
+    },
+    {
+      "id": 212,
+      "key": "fn:9@call:horizon_client_render::items::Items::resists_fire",
+      "sig": "70aecfec6a4e7913",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::items::Items::resists_fire",
+        "anchor": "ef025a8343fc727d",
+        "stmt_path": [
+          "dfa8f649ee06c9de"
+        ],
+        "context": [
+          "dcfb9cea6b66b769",
+          "77791d9806295c5a"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_212"
+      }
+    },
+    {
+      "id": 213,
+      "key": "fn:9@call:horizon_client_render::items::Items::resists_fire#1",
+      "sig": "70aecfec6a4e7913",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::items::Items::resists_fire",
+        "anchor": "500a71f6137cfba3",
+        "stmt_path": [
+          "f6e92370a4bb5090",
+          "1fab3b84c3442211"
+        ],
+        "context": [
+          "0000000000000000",
+          "e6c0f52dd9996198"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_213"
+      }
+    },
+    {
+      "id": 214,
+      "key": "fn:9@call:<Self as core::iter::traits::collect::Extend>::extend",
+      "sig": "2b9c7b57107203c6",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "<Self as core::iter::traits::collect::Extend>::extend",
+        "anchor": "f4c1a84c9f171184",
+        "stmt_path": [
+          "f6e92370a4bb5090",
+          "1fab3b84c3442211",
+          "fc22b9325433278d"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_214"
+      }
+    },
+    {
+      "id": 215,
+      "key": "fn:9@call:fn:10",
+      "sig": "1d3690ffcfc2c7c0",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": 10,
+        "callee_path": "horizon_client_lib::entities::ItemEntity::hurt",
+        "anchor": "74dced477703f58c",
+        "stmt_path": [
+          "f6e92370a4bb5090",
+          "1fab3b84c3442211",
+          "fc22b9325433278d"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_215"
+      }
+    },
+    {
+      "id": 216,
+      "key": "fn:9@call:std::option::Option::unwrap_or_default",
+      "sig": "722b5c0057b95434",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::unwrap_or_default",
+        "anchor": "8e5bd9289bf8bfbe",
+        "stmt_path": [
+          "f6e92370a4bb5090",
+          "1fab3b84c3442211",
+          "fc22b9325433278d"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_216"
+      }
+    },
+    {
+      "id": 217,
+      "key": "fn:9@call:<Self as core::cmp::Ord>::max",
+      "sig": "48dabd9959e2c29f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "<Self as core::cmp::Ord>::max",
+        "anchor": "e797a5e090a58fb2",
+        "stmt_path": [
+          "ecc0a13588ec74c4",
+          "885f9149c7c36ef3"
+        ],
+        "context": [
+          "0000000000000000",
+          "df3ec1ad1bab46ca"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_217"
+      }
+    },
+    {
+      "id": 218,
+      "key": "fn:9@call:horizon_client_render::items::Items::resists_fire#2",
+      "sig": "70aecfec6a4e7913",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::items::Items::resists_fire",
+        "anchor": "bb9b078f53b82f0b",
+        "stmt_path": [
+          "ecc0a13588ec74c4",
+          "df3ec1ad1bab46ca"
+        ],
+        "context": [
+          "885f9149c7c36ef3",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_218"
+      }
+    },
+    {
+      "id": 219,
+      "key": "fn:9@call:<Self as core::iter::traits::collect::Extend>::extend#1",
+      "sig": "2b9c7b57107203c6",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "<Self as core::iter::traits::collect::Extend>::extend",
+        "anchor": "4e6c03fe216ee88f",
+        "stmt_path": [
+          "ecc0a13588ec74c4",
+          "df3ec1ad1bab46ca",
+          "b0737cd2cf7569dc"
+        ],
+        "context": [
+          "0000000000000000",
+          "0b84ccf1bd8b5e49"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_219"
+      }
+    },
+    {
+      "id": 220,
+      "key": "fn:9@call:fn:10#1",
+      "sig": "1d3690ffcfc2c7c0",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": 10,
+        "callee_path": "horizon_client_lib::entities::ItemEntity::hurt",
+        "anchor": "74cbf14776f58925",
+        "stmt_path": [
+          "ecc0a13588ec74c4",
+          "df3ec1ad1bab46ca",
+          "b0737cd2cf7569dc"
+        ],
+        "context": [
+          "0000000000000000",
+          "0b84ccf1bd8b5e49"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_220"
+      }
+    },
+    {
+      "id": 221,
+      "key": "fn:9@call:std::option::Option::unwrap_or_default#1",
+      "sig": "722b5c0057b95434",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::unwrap_or_default",
+        "anchor": "1ac0f870e297f097",
+        "stmt_path": [
+          "ecc0a13588ec74c4",
+          "df3ec1ad1bab46ca",
+          "b0737cd2cf7569dc"
+        ],
+        "context": [
+          "0000000000000000",
+          "0b84ccf1bd8b5e49"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_221"
+      }
+    },
+    {
+      "id": 222,
+      "key": "fn:9@call:fn:8",
+      "sig": "bfb7d56fd4d264b0",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": 8,
+        "callee_path": "horizon_client_lib::entities::ItemEntity::bounds",
+        "anchor": "44281a01a4d2dbc9",
+        "stmt_path": [
+          "38b3c6949f4f43f5"
+        ],
+        "context": [
+          "ecc0a13588ec74c4",
+          "1fc0e35f1c61bf3a"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_222"
+      }
+    },
+    {
+      "id": 223,
+      "key": "fn:9@call:<Self as core::cmp::Ord>::max#1",
+      "sig": "48dabd9959e2c29f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "<Self as core::cmp::Ord>::max",
+        "anchor": "4105d7f26d9da34e",
+        "stmt_path": [
+          "1fc0e35f1c61bf3a",
+          "4bb810983f80dcb7"
+        ],
+        "context": [
+          "0000000000000000",
+          "08a005930ccb1972"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_223"
+      }
+    },
+    {
+      "id": 224,
+      "key": "fn:9@call:horizon_client_render::items::Items::resists_fire#3",
+      "sig": "70aecfec6a4e7913",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::items::Items::resists_fire",
+        "anchor": "ef025a8343fc727d",
+        "stmt_path": [
+          "1fc0e35f1c61bf3a",
+          "08a005930ccb1972"
+        ],
+        "context": [
+          "4bb810983f80dcb7",
+          "0000000000000000"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_224"
+      }
+    },
+    {
+      "id": 225,
+      "key": "fn:9@call:<Self as core::iter::traits::collect::Extend>::extend#2",
+      "sig": "2b9c7b57107203c6",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "<Self as core::iter::traits::collect::Extend>::extend",
+        "anchor": "8bd9f8021566d0fb",
+        "stmt_path": [
+          "1fc0e35f1c61bf3a",
+          "08a005930ccb1972",
+          "0a312b8a5db4b640"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_225"
+      }
+    },
+    {
+      "id": 226,
+      "key": "fn:9@call:fn:10#2",
+      "sig": "1d3690ffcfc2c7c0",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": 10,
+        "callee_path": "horizon_client_lib::entities::ItemEntity::hurt",
+        "anchor": "b2b9647ed76c0a1f",
+        "stmt_path": [
+          "1fc0e35f1c61bf3a",
+          "08a005930ccb1972",
+          "0a312b8a5db4b640"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_226"
+      }
+    },
+    {
+      "id": 227,
+      "key": "fn:9@call:std::option::Option::unwrap_or_default#2",
+      "sig": "722b5c0057b95434",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::unwrap_or_default",
+        "anchor": "53c1eaed2773bf2d",
+        "stmt_path": [
+          "1fc0e35f1c61bf3a",
+          "08a005930ccb1972",
+          "0a312b8a5db4b640"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_227"
+      }
+    },
+    {
+      "id": 228,
+      "key": "fn:9@call:fn:8#1",
+      "sig": "bfb7d56fd4d264b0",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": 8,
+        "callee_path": "horizon_client_lib::entities::ItemEntity::bounds",
+        "anchor": "44281a01a4d2dbc9",
+        "stmt_path": [
+          "c9945584b851b391"
+        ],
+        "context": [
+          "1fc0e35f1c61bf3a",
+          "dcca1288b814a8d4"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_228"
+      }
+    },
+    {
+      "id": 229,
+      "key": "fn:9@call:horizon_client_render::items::Items::resists_cactus",
+      "sig": "458e18e963d00124",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::items::Items::resists_cactus",
+        "anchor": "efb89a7677ee80c5",
+        "stmt_path": [
+          "c9945584b851b391"
+        ],
+        "context": [
+          "1fc0e35f1c61bf3a",
+          "dcca1288b814a8d4"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_229"
+      }
+    },
+    {
+      "id": 230,
+      "key": "fn:9@call:<Self as core::iter::traits::collect::Extend>::extend#3",
+      "sig": "2b9c7b57107203c6",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "<Self as core::iter::traits::collect::Extend>::extend",
+        "anchor": "f4c1a84c9f171184",
+        "stmt_path": [
+          "c9945584b851b391",
+          "fc22b9325433278d"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_230"
+      }
+    },
+    {
+      "id": 231,
+      "key": "fn:9@call:fn:10#3",
+      "sig": "1d3690ffcfc2c7c0",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": 10,
+        "callee_path": "horizon_client_lib::entities::ItemEntity::hurt",
+        "anchor": "74dced477703f58c",
+        "stmt_path": [
+          "c9945584b851b391",
+          "fc22b9325433278d"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_231"
+      }
+    },
+    {
+      "id": 232,
+      "key": "fn:9@call:std::option::Option::unwrap_or_default#3",
+      "sig": "722b5c0057b95434",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 9,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::unwrap_or_default",
+        "anchor": "8e5bd9289bf8bfbe",
+        "stmt_path": [
+          "c9945584b851b391",
+          "fc22b9325433278d"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_232"
+      }
+    },
+    {
+      "id": 233,
+      "key": "fn:10@call:<Self as core::iter::traits::collect::Extend>::extend",
+      "sig": "2b9c7b57107203c6",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 10,
+        "callee_fn": null,
+        "callee_path": "<Self as core::iter::traits::collect::Extend>::extend",
+        "anchor": "2a11b9e4f72b1ca8",
+        "stmt_path": [
+          "a73b730ffe418dc9"
+        ],
+        "context": [
+          "33fde6d0b5f281d8",
+          "0016e53a2ccb1f71"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_233"
+      }
+    },
+    {
+      "id": 234,
+      "key": "fn:11@call:fn:8",
+      "sig": "bfb7d56fd4d264b0",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 11,
+        "callee_fn": 8,
+        "callee_path": "horizon_client_lib::entities::ItemEntity::bounds",
+        "anchor": "44281a01a4d2dbc9",
+        "stmt_path": [
+          "08d22e4df9341e88"
+        ],
+        "context": [
+          "a6d72733278f3ec4",
+          "b10630cd3639d0d7"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_234"
+      }
+    },
+    {
+      "id": 235,
+      "key": "fn:11@call:horizon_core::geometry::Aabb::deflate",
+      "sig": "a5e1553a04013f41",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 11,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::deflate",
+        "anchor": "7e3765f7cefdfa73",
+        "stmt_path": [
+          "08d22e4df9341e88"
+        ],
+        "context": [
+          "a6d72733278f3ec4",
+          "b10630cd3639d0d7"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_235"
+      }
+    },
+    {
+      "id": 236,
+      "key": "fn:12@call:fn:8",
+      "sig": "bfb7d56fd4d264b0",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 12,
+        "callee_fn": 8,
+        "callee_path": "horizon_client_lib::entities::ItemEntity::bounds",
+        "anchor": "44281a01a4d2dbc9",
+        "stmt_path": [
+          "c641ddf7c765730a"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_236"
+      }
+    },
+    {
+      "id": 237,
+      "key": "fn:13@call:fn:15",
+      "sig": "fcfb373ad95201fe",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 13,
+        "callee_fn": 15,
+        "callee_path": "horizon_client_lib::entities::ItemEntity::slime_step_on",
+        "anchor": "94ff2cbc56219c82",
+        "stmt_path": [
+          "93fdf2cf3edaaa6d",
+          "2a340842e0368292",
+          "4f35bd065b1d4e5b"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_237"
+      }
+    },
+    {
+      "id": 238,
+      "key": "fn:13@call:horizon_client_render::world::World::block",
+      "sig": "b9858fbdc8e21a03",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 13,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::world::World::block",
+        "anchor": "c2ba0012a0cef7f5",
+        "stmt_path": [
+          "93fdf2cf3edaaa6d",
+          "1b9a29b0919c2688",
+          "8de371d046e022ef"
+        ],
+        "context": [
+          "0000000000000000",
+          "2aa7789a57e5f10c"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_238"
+      }
+    },
+    {
+      "id": 239,
+      "key": "fn:13@call:f64::floor",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 13,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "5ae7fc0cd73b6c89",
+        "stmt_path": [
+          "93fdf2cf3edaaa6d",
+          "1b9a29b0919c2688",
+          "8de371d046e022ef"
+        ],
+        "context": [
+          "0000000000000000",
+          "2aa7789a57e5f10c"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_239"
+      }
+    },
+    {
+      "id": 240,
+      "key": "fn:13@call:f64::floor#1",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 13,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "4c5682e28ae3c319",
+        "stmt_path": [
+          "93fdf2cf3edaaa6d",
+          "1b9a29b0919c2688",
+          "8de371d046e022ef"
+        ],
+        "context": [
+          "0000000000000000",
+          "2aa7789a57e5f10c"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_240"
+      }
+    },
+    {
+      "id": 241,
+      "key": "fn:13@call:f64::floor#2",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 13,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "a53b281311c07f6f",
+        "stmt_path": [
+          "93fdf2cf3edaaa6d",
+          "1b9a29b0919c2688",
+          "8de371d046e022ef"
+        ],
+        "context": [
+          "0000000000000000",
+          "2aa7789a57e5f10c"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_241"
+      }
+    },
+    {
+      "id": 242,
+      "key": "fn:13@call:horizon_client_render::blocks::BlockFacts::get",
+      "sig": "e31b1183c1a36317",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 13,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::blocks::BlockFacts::get",
+        "anchor": "7df452d2e5b65aa6",
+        "stmt_path": [
+          "93fdf2cf3edaaa6d",
+          "1b9a29b0919c2688",
+          "2aa7789a57e5f10c"
+        ],
+        "context": [
+          "8de371d046e022ef",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_242"
+      }
+    },
+    {
+      "id": 243,
+      "key": "fn:13@call:horizon_core::geometry::Vec3::add_vector",
+      "sig": "df14f565c8f0dd8b",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 13,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Vec3::add_vector",
+        "anchor": "739af8b1e5c4b6bc",
+        "stmt_path": [
+          "e48c071cde9e08c9",
+          "1be50c7e86e17c85",
+          "2c7470f0e2351b43"
+        ],
+        "context": [
+          "0000000000000000",
+          "06dcf2825b8609f6"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_243"
+      }
+    },
+    {
+      "id": 244,
+      "key": "fn:13@call:horizon_client_render::world::World::block#1",
+      "sig": "b9858fbdc8e21a03",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 13,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::world::World::block",
+        "anchor": "23e014ff14954dd2",
+        "stmt_path": [
+          "e48c071cde9e08c9",
+          "1be50c7e86e17c85",
+          "06dcf2825b8609f6"
+        ],
+        "context": [
+          "2c7470f0e2351b43",
+          "ca05ed320d2b8fe4"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_244"
+      }
+    },
+    {
+      "id": 245,
+      "key": "fn:13@call:horizon_client_render::blocks::BlockFacts::get#1",
+      "sig": "e31b1183c1a36317",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 13,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::blocks::BlockFacts::get",
+        "anchor": "44cc39696ffafe96",
+        "stmt_path": [
+          "e48c071cde9e08c9",
+          "1be50c7e86e17c85",
+          "ca05ed320d2b8fe4"
+        ],
+        "context": [
+          "06dcf2825b8609f6",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_245"
+      }
+    },
+    {
+      "id": 246,
+      "key": "fn:13@call:fn:8",
+      "sig": "bfb7d56fd4d264b0",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 13,
+        "callee_fn": 8,
+        "callee_path": "horizon_client_lib::entities::ItemEntity::bounds",
+        "anchor": "44281a01a4d2dbc9",
+        "stmt_path": [
+          "e48c071cde9e08c9",
+          "7dbabcf3167d0f8e"
+        ],
+        "context": [
+          "1be50c7e86e17c85",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_246"
+      }
+    },
+    {
+      "id": 247,
+      "key": "fn:13@call:horizon_client_render::world::World::block#2",
+      "sig": "b9858fbdc8e21a03",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 13,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::world::World::block",
+        "anchor": "23e014ff14954dd2",
+        "stmt_path": [
+          "e48c071cde9e08c9",
+          "7dbabcf3167d0f8e",
+          "06dcf2825b8609f6"
+        ],
+        "context": [
+          "0000000000000000",
+          "4a9b86b38ac490e5"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_247"
+      }
+    },
+    {
+      "id": 248,
+      "key": "fn:13@call:horizon_client_render::blocks::BlockFacts::get#2",
+      "sig": "e31b1183c1a36317",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 13,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::blocks::BlockFacts::get",
+        "anchor": "44cc39696ffafe96",
+        "stmt_path": [
+          "e48c071cde9e08c9",
+          "7dbabcf3167d0f8e",
+          "4a9b86b38ac490e5"
+        ],
+        "context": [
+          "06dcf2825b8609f6",
+          "0000000000000000"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_248"
+      }
+    },
+    {
+      "id": 249,
+      "key": "fn:13@call:horizon_core::geometry::Vec3::subtract",
+      "sig": "df14f565c8f0dd8b",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 13,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Vec3::subtract",
+        "anchor": "678bd16882225e52",
+        "stmt_path": [
+          "5bedfaac12628472"
+        ],
+        "context": [
+          "e48c071cde9e08c9",
+          "e4bf2a22f3b1987e"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_249"
+      }
+    },
+    {
+      "id": 250,
+      "key": "fn:13@call:horizon_core::geometry::Vec3::length_squared",
+      "sig": "494eed9dcbe47e51",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 13,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Vec3::length_squared",
+        "anchor": "fcb28b04d27aa7d9",
+        "stmt_path": [
+          "5bedfaac12628472"
+        ],
+        "context": [
+          "e48c071cde9e08c9",
+          "e4bf2a22f3b1987e"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_250"
+      }
+    },
+    {
+      "id": 251,
+      "key": "fn:14@call:fn:8",
+      "sig": "bfb7d56fd4d264b0",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 14,
+        "callee_fn": 8,
+        "callee_path": "horizon_client_lib::entities::ItemEntity::bounds",
+        "anchor": "44281a01a4d2dbc9",
+        "stmt_path": [
+          "289337d602886dd2"
+        ],
+        "context": [
+          "0000000000000000",
+          "069615d9aa577d58"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_251"
+      }
+    },
+    {
+      "id": 252,
+      "key": "fn:14@call:horizon_core::geometry::Aabb::deflate",
+      "sig": "a5e1553a04013f41",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 14,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::deflate",
+        "anchor": "b1878f64bcf985ab",
+        "stmt_path": [
+          "289337d602886dd2"
+        ],
+        "context": [
+          "0000000000000000",
+          "069615d9aa577d58"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_252"
+      }
+    },
+    {
+      "id": 253,
+      "key": "fn:14@call:horizon_core::geometry::Aabb::min_position",
+      "sig": "c9c87865d6efc8b4",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 14,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::min_position",
+        "anchor": "a2af4068410237f4",
+        "stmt_path": [
+          "069615d9aa577d58"
+        ],
+        "context": [
+          "289337d602886dd2",
+          "1a4b3f71dc89d1f6"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_253"
+      }
+    },
+    {
+      "id": 254,
+      "key": "fn:14@call:horizon_core::geometry::Aabb::max_position",
+      "sig": "c9c87865d6efc8b4",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 14,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::max_position",
+        "anchor": "7021cbbbb1b0865e",
+        "stmt_path": [
+          "069615d9aa577d58"
+        ],
+        "context": [
+          "289337d602886dd2",
+          "1a4b3f71dc89d1f6"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_254"
+      }
+    },
+    {
+      "id": 255,
+      "key": "fn:14@call:f64::floor",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 14,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "c55b1ef2a030944d",
+        "stmt_path": [
+          "6a04cc53bf019e0b"
+        ],
+        "context": [
+          "1a4b3f71dc89d1f6",
+          "9bcdc0ada7f7a0ab"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_255"
+      }
+    },
+    {
+      "id": 256,
+      "key": "fn:14@call:f64::floor#1",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 14,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "18c5a158159b1afb",
+        "stmt_path": [
+          "6a04cc53bf019e0b"
+        ],
+        "context": [
+          "1a4b3f71dc89d1f6",
+          "9bcdc0ada7f7a0ab"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_256"
+      }
+    },
+    {
+      "id": 257,
+      "key": "fn:14@call:f64::floor#2",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 14,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "66948c623470cd4e",
+        "stmt_path": [
+          "6a04cc53bf019e0b",
+          "72d9560a2887ef26"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_257"
+      }
+    },
+    {
+      "id": 258,
+      "key": "fn:14@call:f64::floor#3",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 14,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "490b5c6f490bfa04",
+        "stmt_path": [
+          "6a04cc53bf019e0b",
+          "72d9560a2887ef26"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_258"
+      }
+    },
+    {
+      "id": 259,
+      "key": "fn:14@call:f64::floor#4",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 14,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "843d3c2f0e6cedc3",
+        "stmt_path": [
+          "6a04cc53bf019e0b",
+          "72d9560a2887ef26",
+          "02fc053dfde79e3e"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_259"
+      }
+    },
+    {
+      "id": 260,
+      "key": "fn:14@call:f64::floor#5",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 14,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "1ac185397cb12c65",
+        "stmt_path": [
+          "6a04cc53bf019e0b",
+          "72d9560a2887ef26",
+          "02fc053dfde79e3e"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_260"
+      }
+    },
+    {
+      "id": 261,
+      "key": "fn:14@call:horizon_client_render::blocks::BlockFacts::get",
+      "sig": "e31b1183c1a36317",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 14,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::blocks::BlockFacts::get",
+        "anchor": "9f54b92884a4380a",
+        "stmt_path": [
+          "6a04cc53bf019e0b",
+          "72d9560a2887ef26",
+          "02fc053dfde79e3e",
+          "92a90a97abf141ff"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_261"
+      }
+    },
+    {
+      "id": 262,
+      "key": "fn:14@call:horizon_client_render::world::World::block",
+      "sig": "b9858fbdc8e21a03",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 14,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::world::World::block",
+        "anchor": "645e8555ef40ee00",
+        "stmt_path": [
+          "6a04cc53bf019e0b",
+          "72d9560a2887ef26",
+          "02fc053dfde79e3e",
+          "92a90a97abf141ff"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_262"
+      }
+    },
+    {
+      "id": 263,
+      "key": "fn:15@call:horizon_core::geometry::Vec3::add_vector",
+      "sig": "df14f565c8f0dd8b",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 15,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Vec3::add_vector",
+        "anchor": "739af8b1e5c4b6bc",
+        "stmt_path": [
+          "2c7470f0e2351b43"
+        ],
+        "context": [
+          "0289ee83976635cb",
+          "e85f0a2ea8a37f90"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_263"
+      }
+    },
+    {
+      "id": 264,
+      "key": "fn:15@call:horizon_client_render::blocks::BlockFacts::get",
+      "sig": "e31b1183c1a36317",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 15,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::blocks::BlockFacts::get",
+        "anchor": "ff367407be84c290",
+        "stmt_path": [
+          "e85f0a2ea8a37f90"
+        ],
+        "context": [
+          "2c7470f0e2351b43",
+          "169bd3f310e12f42"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_264"
+      }
+    },
+    {
+      "id": 265,
+      "key": "fn:15@call:horizon_client_render::world::World::block",
+      "sig": "b9858fbdc8e21a03",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 15,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::world::World::block",
+        "anchor": "23e014ff14954dd2",
+        "stmt_path": [
+          "e85f0a2ea8a37f90"
+        ],
+        "context": [
+          "2c7470f0e2351b43",
+          "169bd3f310e12f42"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_265"
+      }
+    },
+    {
+      "id": 266,
+      "key": "fn:17@call:fn:8",
+      "sig": "bfb7d56fd4d264b0",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 17,
+        "callee_fn": 8,
+        "callee_path": "horizon_client_lib::entities::ItemEntity::bounds",
+        "anchor": "44281a01a4d2dbc9",
+        "stmt_path": [
+          "289337d602886dd2"
+        ],
+        "context": [
+          "0000000000000000",
+          "069615d9aa577d58"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_266"
+      }
+    },
+    {
+      "id": 267,
+      "key": "fn:17@call:horizon_core::geometry::Aabb::deflate",
+      "sig": "a5e1553a04013f41",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 17,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::deflate",
+        "anchor": "b1878f64bcf985ab",
+        "stmt_path": [
+          "289337d602886dd2"
+        ],
+        "context": [
+          "0000000000000000",
+          "069615d9aa577d58"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_267"
+      }
+    },
+    {
+      "id": 268,
+      "key": "fn:17@call:horizon_core::geometry::Aabb::min_position",
+      "sig": "c9c87865d6efc8b4",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 17,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::min_position",
+        "anchor": "a2af4068410237f4",
+        "stmt_path": [
+          "069615d9aa577d58"
+        ],
+        "context": [
+          "289337d602886dd2",
+          "7dcfd2df3178c933"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_268"
+      }
+    },
+    {
+      "id": 269,
+      "key": "fn:17@call:horizon_core::geometry::Aabb::max_position",
+      "sig": "c9c87865d6efc8b4",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 17,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::max_position",
+        "anchor": "7021cbbbb1b0865e",
+        "stmt_path": [
+          "069615d9aa577d58"
+        ],
+        "context": [
+          "289337d602886dd2",
+          "7dcfd2df3178c933"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_269"
+      }
+    },
+    {
+      "id": 270,
+      "key": "fn:17@call:f64::floor",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 17,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "c55b1ef2a030944d",
+        "stmt_path": [
+          "7dcfd2df3178c933"
+        ],
+        "context": [
+          "069615d9aa577d58",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_270"
+      }
+    },
+    {
+      "id": 271,
+      "key": "fn:17@call:f64::floor#1",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 17,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "18c5a158159b1afb",
+        "stmt_path": [
+          "7dcfd2df3178c933"
+        ],
+        "context": [
+          "069615d9aa577d58",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_271"
+      }
+    },
+    {
+      "id": 272,
+      "key": "fn:17@call:f64::floor#2",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 17,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "66948c623470cd4e",
+        "stmt_path": [
+          "7dcfd2df3178c933",
+          "65893658a14f59d6"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_272"
+      }
+    },
+    {
+      "id": 273,
+      "key": "fn:17@call:f64::floor#3",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 17,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "490b5c6f490bfa04",
+        "stmt_path": [
+          "7dcfd2df3178c933",
+          "65893658a14f59d6"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_273"
+      }
+    },
+    {
+      "id": 274,
+      "key": "fn:17@call:f64::floor#4",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 17,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "843d3c2f0e6cedc3",
+        "stmt_path": [
+          "7dcfd2df3178c933",
+          "65893658a14f59d6",
+          "7da552bcdc5deaf4"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_274"
+      }
+    },
+    {
+      "id": 275,
+      "key": "fn:17@call:f64::floor#5",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 17,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "1ac185397cb12c65",
+        "stmt_path": [
+          "7dcfd2df3178c933",
+          "65893658a14f59d6",
+          "7da552bcdc5deaf4"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_275"
+      }
+    },
+    {
+      "id": 276,
+      "key": "fn:17@call:horizon_client_render::blocks::BlockFacts::get",
+      "sig": "e31b1183c1a36317",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 17,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::blocks::BlockFacts::get",
+        "anchor": "9f54b92884a4380a",
+        "stmt_path": [
+          "7dcfd2df3178c933",
+          "65893658a14f59d6",
+          "7da552bcdc5deaf4",
+          "6f07db843c0c4879"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_276"
+      }
+    },
+    {
+      "id": 277,
+      "key": "fn:17@call:horizon_client_render::world::World::block",
+      "sig": "b9858fbdc8e21a03",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 17,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::world::World::block",
+        "anchor": "645e8555ef40ee00",
+        "stmt_path": [
+          "7dcfd2df3178c933",
+          "65893658a14f59d6",
+          "7da552bcdc5deaf4",
+          "6f07db843c0c4879"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_277"
+      }
+    },
+    {
+      "id": 278,
+      "key": "fn:17@call:fn:18",
+      "sig": "abfb48934a4c6b8b",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 17,
+        "callee_fn": 18,
+        "callee_path": "horizon_client_lib::entities::ItemEntity::honey_block_inside",
+        "anchor": "be3d75d72762e8e7",
+        "stmt_path": [
+          "7dcfd2df3178c933",
+          "65893658a14f59d6",
+          "7da552bcdc5deaf4",
+          "6f07db843c0c4879",
+          "a5581897ed11add4"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_278"
+      }
+    },
+    {
+      "id": 279,
+      "key": "fn:18@call:f64::abs",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 18,
+        "callee_fn": null,
+        "callee_path": "f64::abs",
+        "anchor": "637feeb83951cb63",
+        "stmt_path": [
+          "a64d6b056b53a12c"
+        ],
+        "context": [
+          "d2a5178318f5f264",
+          "dcbbe61295c3b266"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_279"
+      }
+    },
+    {
+      "id": 280,
+      "key": "fn:18@call:f64::abs#1",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 18,
+        "callee_fn": null,
+        "callee_path": "f64::abs",
+        "anchor": "eac704d383c36157",
+        "stmt_path": [
+          "dcbbe61295c3b266"
+        ],
+        "context": [
+          "a64d6b056b53a12c",
+          "316a6f57563a38be"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_280"
+      }
+    },
+    {
+      "id": 281,
+      "key": "fn:20@call:fn:19",
+      "sig": "39fe8095e2be1619",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 20,
+        "callee_fn": 19,
+        "callee_path": "horizon_client_lib::entities::ItemEntity::has_infinite_pickup_delay",
+        "anchor": "f46b90c21c259178",
+        "stmt_path": [
+          "38a2678c5a25477b"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_281"
+      }
+    },
+    {
+      "id": 282,
+      "key": "fn:21@call:[horizon_core::geometry::Aabb]::iter",
+      "sig": "817bca4c6e1a36d4",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 21,
+        "callee_fn": null,
+        "callee_path": "[horizon_core::geometry::Aabb]::iter",
+        "anchor": "694075754a311795",
+        "stmt_path": [
+          "80c0ac65ca15715c"
+        ],
+        "context": [
+          "e95ab9211d1290ab",
+          "a2ef700cdd6f2ab3"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_282"
+      }
+    },
+    {
+      "id": 283,
+      "key": "fn:21@call:<Self as core::iter::traits::iterator::Iterator>::enumerate",
+      "sig": "bcbad0ff3f178616",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 21,
+        "callee_fn": null,
+        "callee_path": "<Self as core::iter::traits::iterator::Iterator>::enumerate",
+        "anchor": "ab9d87de95429236",
+        "stmt_path": [
+          "80c0ac65ca15715c"
+        ],
+        "context": [
+          "e95ab9211d1290ab",
+          "a2ef700cdd6f2ab3"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_283"
+      }
+    },
+    {
+      "id": 284,
+      "key": "fn:21@call:std::collections::HashMap::entry",
+      "sig": "c2c7d3811a596b2f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 21,
+        "callee_fn": null,
+        "callee_path": "std::collections::HashMap::entry",
+        "anchor": "0ded16b10f41cba3",
+        "stmt_path": [
+          "80c0ac65ca15715c",
+          "2c3d0c5da5d5f096",
+          "6ae531fe227f8095",
+          "52a6cad3cacaf159",
+          "752336abd321b592"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_284"
+      }
+    },
+    {
+      "id": 285,
+      "key": "fn:21@call:std::collections::hash_map::Entry::or_default",
+      "sig": "819ba4c820644b55",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 21,
+        "callee_fn": null,
+        "callee_path": "std::collections::hash_map::Entry::or_default",
+        "anchor": "2bbd32113a59ba67",
+        "stmt_path": [
+          "80c0ac65ca15715c",
+          "2c3d0c5da5d5f096",
+          "6ae531fe227f8095",
+          "52a6cad3cacaf159",
+          "752336abd321b592"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_285"
+      }
+    },
+    {
+      "id": 286,
+      "key": "fn:21@call:std::vec::Vec::push",
+      "sig": "302cd3484316cfd5",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 21,
+        "callee_fn": null,
+        "callee_path": "std::vec::Vec::push",
+        "anchor": "edec8892582c371d",
+        "stmt_path": [
+          "80c0ac65ca15715c",
+          "2c3d0c5da5d5f096",
+          "6ae531fe227f8095",
+          "52a6cad3cacaf159",
+          "752336abd321b592"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_286"
+      }
+    },
+    {
+      "id": 287,
+      "key": "fn:22@call:f64::floor",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 22,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "e8649141a7c030d8",
+        "stmt_path": [
+          "f9782023769c24b4",
+          "f46ccfb25d2fdb38"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_287"
+      }
+    },
+    {
+      "id": 288,
+      "key": "fn:22@call:f64::floor#1",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 22,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "4c51a5423c2268d7",
+        "stmt_path": [
+          "f9782023769c24b4",
+          "f46ccfb25d2fdb38"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_288"
+      }
+    },
+    {
+      "id": 289,
+      "key": "fn:22@call:f64::floor#2",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 22,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "829363214bf86286",
+        "stmt_path": [
+          "f9782023769c24b4",
+          "f46ccfb25d2fdb38"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_289"
+      }
+    },
+    {
+      "id": 290,
+      "key": "fn:22@call:horizon_core::geometry::Aabb::min_position",
+      "sig": "c9c87865d6efc8b4",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 22,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::min_position",
+        "anchor": "a2af4068410237f4",
+        "stmt_path": [
+          "269dde9fcca99762"
+        ],
+        "context": [
+          "f9782023769c24b4",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_290"
+      }
+    },
+    {
+      "id": 291,
+      "key": "fn:22@call:horizon_core::geometry::Aabb::max_position",
+      "sig": "c9c87865d6efc8b4",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 22,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::max_position",
+        "anchor": "7021cbbbb1b0865e",
+        "stmt_path": [
+          "269dde9fcca99762"
+        ],
+        "context": [
+          "f9782023769c24b4",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_291"
+      }
+    },
+    {
+      "id": 292,
+      "key": "fn:23@call:std::vec::Vec::is_empty",
+      "sig": "d95b7a5834fc205d",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 23,
+        "callee_fn": null,
+        "callee_path": "std::vec::Vec::is_empty",
+        "anchor": "709f7fe29b0a576b",
+        "stmt_path": [
+          "709f7fe29b0a576b"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_292"
+      }
+    },
+    {
+      "id": 293,
+      "key": "fn:24@call:std::vec::Vec::clear",
+      "sig": "f8ff216e4796824c",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 24,
+        "callee_fn": null,
+        "callee_path": "std::vec::Vec::clear",
+        "anchor": "8c12f1c5a08cff7f",
+        "stmt_path": [
+          "913016cfcf95c08c"
+        ],
+        "context": [
+          "0000000000000000",
+          "0a581d4815fff1ed"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_293"
+      }
+    },
+    {
+      "id": 294,
+      "key": "fn:24@call:std::vec::Vec::is_empty",
+      "sig": "d95b7a5834fc205d",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 24,
+        "callee_fn": null,
+        "callee_path": "std::vec::Vec::is_empty",
+        "anchor": "709f7fe29b0a576b",
+        "stmt_path": [
+          "0a581d4815fff1ed"
+        ],
+        "context": [
+          "913016cfcf95c08c",
+          "59b87b8ecc77115f"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_294"
+      }
+    },
+    {
+      "id": 295,
+      "key": "fn:24@call:std::collections::HashMap::get",
+      "sig": "1db86cdcd1af2cc2",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 24,
+        "callee_fn": null,
+        "callee_path": "std::collections::HashMap::get",
+        "anchor": "a3c5aa17ab7c7bbb",
+        "stmt_path": [
+          "4846e9264a710c01",
+          "376ab2d7d7e644cc",
+          "2f6fb816e5938a9a",
+          "436e2e044f31ee6f"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_295"
+      }
+    },
+    {
+      "id": 296,
+      "key": "fn:24@call:<Self as core::iter::traits::collect::Extend>::extend",
+      "sig": "edb1dd344ffb590c",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 24,
+        "callee_fn": null,
+        "callee_path": "<Self as core::iter::traits::collect::Extend>::extend",
+        "anchor": "26aeb701048be294",
+        "stmt_path": [
+          "4846e9264a710c01",
+          "376ab2d7d7e644cc",
+          "2f6fb816e5938a9a",
+          "436e2e044f31ee6f",
+          "46c3a5bab9b22f5d"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_296"
+      }
+    },
+    {
+      "id": 297,
+      "key": "fn:24@call:[u32]::sort_unstable",
+      "sig": "f5f62c2697abff38",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 24,
+        "callee_fn": null,
+        "callee_path": "[u32]::sort_unstable",
+        "anchor": "2b752c45cabab4cb",
+        "stmt_path": [
+          "92cf2a977b4173d0"
+        ],
+        "context": [
+          "4846e9264a710c01",
+          "7c38b68b9020acf7"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_297"
+      }
+    },
+    {
+      "id": 298,
+      "key": "fn:24@call:std::vec::Vec::dedup",
+      "sig": "46b7f0ae60959b03",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 24,
+        "callee_fn": null,
+        "callee_path": "std::vec::Vec::dedup",
+        "anchor": "cf03bd8552b8dd96",
+        "stmt_path": [
+          "7c38b68b9020acf7"
+        ],
+        "context": [
+          "92cf2a977b4173d0",
+          "48fa7db65a1c502a"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_298"
+      }
+    },
+    {
+      "id": 299,
+      "key": "fn:24@call:<Self as core::iter::traits::collect::IntoIterator>::into_iter",
+      "sig": "642d1a64ea07697d",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 24,
+        "callee_fn": null,
+        "callee_path": "<Self as core::iter::traits::collect::IntoIterator>::into_iter",
+        "anchor": "6b0fe1303b59caf7",
+        "stmt_path": [
+          "48fa7db65a1c502a"
+        ],
+        "context": [
+          "7c38b68b9020acf7",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_299"
+      }
+    },
+    {
+      "id": 300,
+      "key": "fn:24@call:horizon_core::geometry::Aabb::intersects",
+      "sig": "819936ee9e7b0ccb",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 24,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::intersects",
+        "anchor": "7db9d7f9afe4a923",
+        "stmt_path": [
+          "48fa7db65a1c502a"
+        ],
+        "context": [
+          "7c38b68b9020acf7",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_300"
+      }
+    },
+    {
+      "id": 301,
+      "key": "fn:25@call:[entities::ItemEntity]::iter",
+      "sig": "34ed84145c1b1120",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 25,
+        "callee_fn": null,
+        "callee_path": "[entities::ItemEntity]::iter",
+        "anchor": "b70991ce200716de",
+        "stmt_path": [
+          "b3b5b2e2a6a8f265"
+        ],
+        "context": [
+          "915d1cf1ede94cbd",
+          "0c99365e92f7d2f2"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_301"
+      }
+    },
+    {
+      "id": 302,
+      "key": "fn:25@call:<Self as core::iter::traits::iterator::Iterator>::enumerate",
+      "sig": "336540e809a2a690",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 25,
+        "callee_fn": null,
+        "callee_path": "<Self as core::iter::traits::iterator::Iterator>::enumerate",
+        "anchor": "7a53b1708a6e8f8d",
+        "stmt_path": [
+          "b3b5b2e2a6a8f265"
+        ],
+        "context": [
+          "915d1cf1ede94cbd",
+          "0c99365e92f7d2f2"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_302"
+      }
+    },
+    {
+      "id": 303,
+      "key": "fn:25@call:fn:27",
+      "sig": "803301f782b61ffe",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 25,
+        "callee_fn": 27,
+        "callee_path": "horizon_client_lib::entities::ItemCells::add",
+        "anchor": "090253ee4fbae393",
+        "stmt_path": [
+          "b3b5b2e2a6a8f265",
+          "09d845f17a90d678"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_303"
+      }
+    },
+    {
+      "id": 304,
+      "key": "fn:26@call:f64::floor",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 26,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "cac1b54cbe9e543a",
+        "stmt_path": [
+          "9ea63bb4c3effa98"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_304"
+      }
+    },
+    {
+      "id": 305,
+      "key": "fn:26@call:f64::floor#1",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 26,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "481beabd832eaa19",
+        "stmt_path": [
+          "9ea63bb4c3effa98"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_305"
+      }
+    },
+    {
+      "id": 306,
+      "key": "fn:26@call:f64::floor#2",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 26,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "6e9732722aa1d418",
+        "stmt_path": [
+          "9ea63bb4c3effa98"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_306"
+      }
+    },
+    {
+      "id": 307,
+      "key": "fn:27@call:std::collections::HashMap::entry",
+      "sig": "c2c7d3811a596b2f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 27,
+        "callee_fn": null,
+        "callee_path": "std::collections::HashMap::entry",
+        "anchor": "26f091fd772ffb0b",
+        "stmt_path": [
+          "b9aa75501a40f26a"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_307"
+      }
+    },
+    {
+      "id": 308,
+      "key": "fn:27@call:std::collections::hash_map::Entry::or_default",
+      "sig": "819ba4c820644b55",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 27,
+        "callee_fn": null,
+        "callee_path": "std::collections::hash_map::Entry::or_default",
+        "anchor": "0a03c33c1c4e591f",
+        "stmt_path": [
+          "b9aa75501a40f26a"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_308"
+      }
+    },
+    {
+      "id": 309,
+      "key": "fn:27@call:std::vec::Vec::push",
+      "sig": "302cd3484316cfd5",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 27,
+        "callee_fn": null,
+        "callee_path": "std::vec::Vec::push",
+        "anchor": "76091ee9d2282ad5",
+        "stmt_path": [
+          "b9aa75501a40f26a"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_309"
+      }
+    },
+    {
+      "id": 310,
+      "key": "fn:28@call:std::collections::HashMap::get_mut",
+      "sig": "59dfc7029e08dc16",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 28,
+        "callee_fn": null,
+        "callee_path": "std::collections::HashMap::get_mut",
+        "anchor": "fca8b8b5be36c15e",
+        "stmt_path": [
+          "1c0fed34f3e5aa30"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_310"
+      }
+    },
+    {
+      "id": 311,
+      "key": "fn:29@call:fn:28",
+      "sig": "803301f782b61ffe",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 29,
+        "callee_fn": 28,
+        "callee_path": "horizon_client_lib::entities::ItemCells::remove",
+        "anchor": "a36aed8ffa9a60ab",
+        "stmt_path": [
+          "106e60abc0b014d1",
+          "49123ba6d45214b0"
+        ],
+        "context": [
+          "0000000000000000",
+          "d718aa0aae9eb2be"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_311"
+      }
+    },
+    {
+      "id": 312,
+      "key": "fn:29@call:fn:27",
+      "sig": "803301f782b61ffe",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 29,
+        "callee_fn": 27,
+        "callee_path": "horizon_client_lib::entities::ItemCells::add",
+        "anchor": "f6925205e8dc7771",
+        "stmt_path": [
+          "106e60abc0b014d1",
+          "d718aa0aae9eb2be"
+        ],
+        "context": [
+          "49123ba6d45214b0",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_312"
+      }
+    },
+    {
+      "id": 313,
+      "key": "fn:30@call:std::vec::Vec::clear",
+      "sig": "46b7f0ae60959b03",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 30,
+        "callee_fn": null,
+        "callee_path": "std::vec::Vec::clear",
+        "anchor": "8c12f1c5a08cff7f",
+        "stmt_path": [
+          "913016cfcf95c08c"
+        ],
+        "context": [
+          "0000000000000000",
+          "5feb9937d1d42908"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_313"
+      }
+    },
+    {
+      "id": 314,
+      "key": "fn:30@call:horizon_core::geometry::Aabb::min_position",
+      "sig": "c9c87865d6efc8b4",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 30,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::min_position",
+        "anchor": "467c1337c8b2253f",
+        "stmt_path": [
+          "5feb9937d1d42908"
+        ],
+        "context": [
+          "913016cfcf95c08c",
+          "33cd011c1945c9d0"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_314"
+      }
+    },
+    {
+      "id": 315,
+      "key": "fn:30@call:horizon_core::geometry::Aabb::max_position",
+      "sig": "c9c87865d6efc8b4",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 30,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::max_position",
+        "anchor": "7f53f95f8f9a1a35",
+        "stmt_path": [
+          "5feb9937d1d42908"
+        ],
+        "context": [
+          "913016cfcf95c08c",
+          "33cd011c1945c9d0"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_315"
+      }
+    },
+    {
+      "id": 316,
+      "key": "fn:30@call:std::collections::HashMap::get",
+      "sig": "1db86cdcd1af2cc2",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 30,
+        "callee_fn": null,
+        "callee_path": "std::collections::HashMap::get",
+        "anchor": "a3c5aa17ab7c7bbb",
+        "stmt_path": [
+          "870b7a01d886537f",
+          "0b26797232b01f66",
+          "484146e3e26d503e",
+          "3d7fddb630fe06b3"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_316"
+      }
+    },
+    {
+      "id": 317,
+      "key": "fn:30@call:std::vec::Vec::extend_from_slice",
+      "sig": "59ea766309c17161",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 30,
+        "callee_fn": null,
+        "callee_path": "std::vec::Vec::extend_from_slice",
+        "anchor": "7fbc1b2faf29df82",
+        "stmt_path": [
+          "870b7a01d886537f",
+          "0b26797232b01f66",
+          "484146e3e26d503e",
+          "3d7fddb630fe06b3",
+          "3681eb06a427275b"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_317"
+      }
+    },
+    {
+      "id": 318,
+      "key": "fn:30@call:[u32]::sort_unstable",
+      "sig": "f5f62c2697abff38",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 30,
+        "callee_fn": null,
+        "callee_path": "[u32]::sort_unstable",
+        "anchor": "1e20ab96d21195cb",
+        "stmt_path": [
+          "43198146f3e1c6d0"
+        ],
+        "context": [
+          "870b7a01d886537f",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_318"
+      }
+    },
+    {
+      "id": 319,
+      "key": "fn:34@call:i32::wrapping_sub",
+      "sig": "48dabd9959e2c29f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 34,
+        "callee_fn": null,
+        "callee_path": "i32::wrapping_sub",
+        "anchor": "d178143506b5cc20",
+        "stmt_path": [
+          "531d254c516baabd"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_319"
+      }
+    },
+    {
+      "id": 320,
+      "key": "fn:35@call:<Self as core::iter::traits::collect::IntoIterator>::into_iter",
+      "sig": "daf10ce0d12100d8",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 35,
+        "callee_fn": null,
+        "callee_path": "<Self as core::iter::traits::collect::IntoIterator>::into_iter",
+        "anchor": "d70720ce9c9a82ef",
+        "stmt_path": [
+          "8fb9300c123dd838"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_320"
+      }
+    },
+    {
+      "id": 321,
+      "key": "fn:35@call:std::option::Option::unwrap_or",
+      "sig": "c76683fdb254771a",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 35,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::unwrap_or",
+        "anchor": "8fb9300c123dd838",
+        "stmt_path": [
+          "8fb9300c123dd838"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_321"
+      }
+    },
+    {
+      "id": 322,
+      "key": "fn:37@call:horizon_client_render::world::World::block",
+      "sig": "b9858fbdc8e21a03",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::world::World::block",
+        "anchor": "27591042d3097dda",
+        "stmt_path": [
+          "919709ab8c76b9f6"
+        ],
+        "context": [
+          "6a1d800f071275af",
+          "67a29a3bc3aa456d"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_322"
+      }
+    },
+    {
+      "id": 323,
+      "key": "fn:37@call:f64::floor",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "5ae7fc0cd73b6c89",
+        "stmt_path": [
+          "919709ab8c76b9f6"
+        ],
+        "context": [
+          "6a1d800f071275af",
+          "67a29a3bc3aa456d"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_323"
+      }
+    },
+    {
+      "id": 324,
+      "key": "fn:37@call:f64::floor#1",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "5271fe4239ce596a",
+        "stmt_path": [
+          "919709ab8c76b9f6"
+        ],
+        "context": [
+          "6a1d800f071275af",
+          "67a29a3bc3aa456d"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_324"
+      }
+    },
+    {
+      "id": 325,
+      "key": "fn:37@call:f64::floor#2",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "a53b281311c07f6f",
+        "stmt_path": [
+          "919709ab8c76b9f6"
+        ],
+        "context": [
+          "6a1d800f071275af",
+          "67a29a3bc3aa456d"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_325"
+      }
+    },
+    {
+      "id": 326,
+      "key": "fn:37@call:fn:33",
+      "sig": "82d134dce97af7f1",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": 33,
+        "callee_path": "horizon_client_lib::entities::ExperienceOrb::bounds",
+        "anchor": "44281a01a4d2dbc9",
+        "stmt_path": [
+          "67a29a3bc3aa456d"
+        ],
+        "context": [
+          "919709ab8c76b9f6",
+          "a6d72733278f3ec4"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_326"
+      }
+    },
+    {
+      "id": 327,
+      "key": "fn:37@call:horizon_client_render::blocks::BlockFacts::get",
+      "sig": "e31b1183c1a36317",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::blocks::BlockFacts::get",
+        "anchor": "7525c2c5401c9c9e",
+        "stmt_path": [
+          "ff4e316c9508a53e"
+        ],
+        "context": [
+          "abbad8ee2d753900",
+          "5a7e984447cd9c78"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_327"
+      }
+    },
+    {
+      "id": 328,
+      "key": "fn:37@call:f64::min",
+      "sig": "5a589f4650a6d8c5",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "f64::min",
+        "anchor": "9cb9171a6237ead9",
+        "stmt_path": [
+          "ff4e316c9508a53e",
+          "99099a03d086c9f0"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_328"
+      }
+    },
+    {
+      "id": 329,
+      "key": "fn:37@call:<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity",
+      "sig": "0c371d676893af5c",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity",
+        "anchor": "8713a7b30aa5f857",
+        "stmt_path": [
+          "ff4e316c9508a53e",
+          "2f50bc1895d0b426"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_329"
+      }
+    },
+    {
+      "id": 330,
+      "key": "fn:37@call:horizon_client_render::blocks::BlockFacts::get#1",
+      "sig": "e31b1183c1a36317",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::blocks::BlockFacts::get",
+        "anchor": "7525c2c5401c9c9e",
+        "stmt_path": [
+          "5a7e984447cd9c78"
+        ],
+        "context": [
+          "ff4e316c9508a53e",
+          "48b1267e0fe98335"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_330"
+      }
+    },
+    {
+      "id": 331,
+      "key": "fn:37@call:f64::sqrt",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "f64::sqrt",
+        "anchor": "17956ec15d35eeeb",
+        "stmt_path": [
+          "48b1267e0fe98335",
+          "38343c8ec4d1c46c"
+        ],
+        "context": [
+          "a96af3f9b436b800",
+          "203cd1bb8fa9340b"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_331"
+      }
+    },
+    {
+      "id": 332,
+      "key": "fn:37@call:std::option::Option::is_none",
+      "sig": "e8ebc6b14a125a57",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::is_none",
+        "anchor": "290f8d5bb062ae9a",
+        "stmt_path": [
+          "6b6724dbf863aeb6"
+        ],
+        "context": [
+          "48b1267e0fe98335",
+          "acc3b99b434d29a0"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_332"
+      }
+    },
+    {
+      "id": 333,
+      "key": "fn:37@call:horizon_core::geometry::Aabb::move_by",
+      "sig": "a5e1553a04013f41",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::move_by",
+        "anchor": "9b97d691013de279",
+        "stmt_path": [
+          "6b6724dbf863aeb6",
+          "4d7c77cc4a1a9e8e"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_333"
+      }
+    },
+    {
+      "id": 334,
+      "key": "fn:37@call:fn:38",
+      "sig": "9a96257fccf37afe",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": 38,
+        "callee_path": "horizon_client_lib::entities::ExperienceOrb::move_towards_closest_space",
+        "anchor": "3b06b66798022edf",
+        "stmt_path": [
+          "6b6724dbf863aeb6",
+          "4d7c77cc4a1a9e8e",
+          "4e96d6074bb5ad6c"
+        ],
+        "context": [
+          "454ff3d9da5b2798",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_334"
+      }
+    },
+    {
+      "id": 335,
+      "key": "fn:37@call:f64::abs",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "f64::abs",
+        "anchor": "9c475d8d4399b160",
+        "stmt_path": [
+          "e2d60974f9e304f5"
+        ],
+        "context": [
+          "de50906afbb4be4c",
+          "da2fae621f1751f3"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_335"
+      }
+    },
+    {
+      "id": 336,
+      "key": "fn:37@call:f64::abs#1",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "f64::abs",
+        "anchor": "8d5691d31407cad4",
+        "stmt_path": [
+          "da2fae621f1751f3"
+        ],
+        "context": [
+          "e2d60974f9e304f5",
+          "371019b8c3bbc4be"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_336"
+      }
+    },
+    {
+      "id": 337,
+      "key": "fn:37@call:horizon_client_render::world::World::block#1",
+      "sig": "b9858fbdc8e21a03",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::world::World::block",
+        "anchor": "c2ba0012a0cef7f5",
+        "stmt_path": [
+          "f036c87d218b64b2",
+          "8de371d046e022ef"
+        ],
+        "context": [
+          "0000000000000000",
+          "cb44c6e7b88723a0"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_337"
+      }
+    },
+    {
+      "id": 338,
+      "key": "fn:37@call:f64::floor#3",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "5ae7fc0cd73b6c89",
+        "stmt_path": [
+          "f036c87d218b64b2",
+          "8de371d046e022ef"
+        ],
+        "context": [
+          "0000000000000000",
+          "cb44c6e7b88723a0"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_338"
+      }
+    },
+    {
+      "id": 339,
+      "key": "fn:37@call:f64::floor#4",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "4c5682e28ae3c319",
+        "stmt_path": [
+          "f036c87d218b64b2",
+          "8de371d046e022ef"
+        ],
+        "context": [
+          "0000000000000000",
+          "cb44c6e7b88723a0"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_339"
+      }
+    },
+    {
+      "id": 340,
+      "key": "fn:37@call:f64::floor#5",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "a53b281311c07f6f",
+        "stmt_path": [
+          "f036c87d218b64b2",
+          "8de371d046e022ef"
+        ],
+        "context": [
+          "0000000000000000",
+          "cb44c6e7b88723a0"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_340"
+      }
+    },
+    {
+      "id": 341,
+      "key": "fn:37@call:horizon_client_render::blocks::BlockFacts::get#2",
+      "sig": "e31b1183c1a36317",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 37,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::blocks::BlockFacts::get",
+        "anchor": "7df452d2e5b65aa6",
+        "stmt_path": [
+          "f036c87d218b64b2",
+          "cb44c6e7b88723a0"
+        ],
+        "context": [
+          "8de371d046e022ef",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_341"
+      }
+    },
+    {
+      "id": 342,
+      "key": "fn:38@call:fn:33",
+      "sig": "82d134dce97af7f1",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 38,
+        "callee_fn": 33,
+        "callee_path": "horizon_client_lib::entities::ExperienceOrb::bounds",
+        "anchor": "44281a01a4d2dbc9",
+        "stmt_path": [
+          "c641ddf7c765730a"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_342"
+      }
+    },
+    {
+      "id": 343,
+      "key": "fn:39@call:horizon_core::geometry::Aabb::min_position",
+      "sig": "c9c87865d6efc8b4",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 39,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::min_position",
+        "anchor": "3b91da6a93f4ec9b",
+        "stmt_path": [
+          "388e152fe8a80e64"
+        ],
+        "context": [
+          "0000000000000000",
+          "a27d49ff93885f9b"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_343"
+      }
+    },
+    {
+      "id": 344,
+      "key": "fn:39@call:horizon_core::geometry::Aabb::max_position",
+      "sig": "c9c87865d6efc8b4",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 39,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::max_position",
+        "anchor": "1a2eb7a2d406fc49",
+        "stmt_path": [
+          "388e152fe8a80e64"
+        ],
+        "context": [
+          "0000000000000000",
+          "a27d49ff93885f9b"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_344"
+      }
+    },
+    {
+      "id": 345,
+      "key": "fn:39@call:f64::floor",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 39,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "adc596d61de2eb99",
+        "stmt_path": [
+          "a27d49ff93885f9b"
+        ],
+        "context": [
+          "388e152fe8a80e64",
+          "3e48a9e347e69761"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_345"
+      }
+    },
+    {
+      "id": 346,
+      "key": "fn:39@call:f64::floor#1",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 39,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "306b6165595295ba",
+        "stmt_path": [
+          "a27d49ff93885f9b"
+        ],
+        "context": [
+          "388e152fe8a80e64",
+          "3e48a9e347e69761"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_346"
+      }
+    },
+    {
+      "id": 347,
+      "key": "fn:39@call:f64::floor#2",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 39,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "716d8f556cd3083f",
+        "stmt_path": [
+          "a27d49ff93885f9b"
+        ],
+        "context": [
+          "388e152fe8a80e64",
+          "3e48a9e347e69761"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_347"
+      }
+    },
+    {
+      "id": 348,
+      "key": "fn:39@call:horizon_client_render::blocks::BlockFacts::get",
+      "sig": "e31b1183c1a36317",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 39,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::blocks::BlockFacts::get",
+        "anchor": "8ee32d3806c5f760",
+        "stmt_path": [
+          "d23c42009abeaccb",
+          "0f0b048f04784ba1"
+        ],
+        "context": [
+          "34e0d9dbcc0711c9",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_348"
+      }
+    },
+    {
+      "id": 349,
+      "key": "fn:39@call:horizon_client_render::world::World::block",
+      "sig": "b9858fbdc8e21a03",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 39,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::world::World::block",
+        "anchor": "7a03058857ca1b18",
+        "stmt_path": [
+          "d23c42009abeaccb",
+          "0f0b048f04784ba1"
+        ],
+        "context": [
+          "34e0d9dbcc0711c9",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_349"
+      }
+    },
+    {
+      "id": 350,
+      "key": "fn:39@call:horizon_core::geometry::Vec3::scale",
+      "sig": "cfa0c6f0ea06a869",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 39,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Vec3::scale",
+        "anchor": "6d3d82321ed3ea83",
+        "stmt_path": [
+          "220bd3064f3e418e"
+        ],
+        "context": [
+          "cecc34ac4f701045",
+          "676260602c90c6a6"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_350"
+      }
+    },
+    {
+      "id": 351,
+      "key": "fn:40@call:i32::wrapping_mul",
+      "sig": "48dabd9959e2c29f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 40,
+        "callee_fn": null,
+        "callee_path": "i32::wrapping_mul",
+        "anchor": "84ee69a9709fea0e",
+        "stmt_path": [
+          "e66212b50856d53c",
+          "6d1b32c9e68df18f"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_351"
+      }
+    },
+    {
+      "id": 352,
+      "key": "fn:40@call:<Self as core::cmp::Ord>::clamp",
+      "sig": "17925ac456d8ed87",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 40,
+        "callee_fn": null,
+        "callee_path": "<Self as core::cmp::Ord>::clamp",
+        "anchor": "6829c5238736f2e3",
+        "stmt_path": [
+          "e66212b50856d53c",
+          "6d1b32c9e68df18f"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_352"
+      }
+    },
+    {
+      "id": 353,
+      "key": "fn:43@call:i32::saturating_add",
+      "sig": "48dabd9959e2c29f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 43,
+        "callee_fn": null,
+        "callee_path": "i32::saturating_add",
+        "anchor": "754b88caa827d8b3",
+        "stmt_path": [
+          "f18bab437cfb42f6"
+        ],
+        "context": [
+          "4b02e3374f8d8a61",
+          "19abfdcc66d21179"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_353"
+      }
+    },
+    {
+      "id": 354,
+      "key": "fn:43@call:<Self as core::cmp::Ord>::max",
+      "sig": "48dabd9959e2c29f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 43,
+        "callee_fn": null,
+        "callee_path": "<Self as core::cmp::Ord>::max",
+        "anchor": "720f71cb1b4bfb92",
+        "stmt_path": [
+          "f18bab437cfb42f6"
+        ],
+        "context": [
+          "4b02e3374f8d8a61",
+          "19abfdcc66d21179"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_354"
+      }
+    },
+    {
+      "id": 355,
+      "key": "fn:43@call:std::option::Option::get_or_insert",
+      "sig": "6456362a6e181922",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 43,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::get_or_insert",
+        "anchor": "15ae45d4dbf185b6",
+        "stmt_path": [
+          "19abfdcc66d21179",
+          "120729636663863e",
+          "c8a635b1bb65ee97"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_355"
+      }
+    },
+    {
+      "id": 356,
+      "key": "fn:46@call:fn:44",
+      "sig": "ba15b514cb8eb13c",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 46,
+        "callee_fn": 44,
+        "callee_path": "horizon_client_lib::entities::Painting::step",
+        "anchor": "b2bdf85c75dbdf7e",
+        "stmt_path": [
+          "4e9cdb0e830de1c7"
+        ],
+        "context": [
+          "0000000000000000",
+          "ba2d4d849ef7a0b1"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_356"
+      }
+    },
+    {
+      "id": 357,
+      "key": "fn:46@call:fn:45",
+      "sig": "ba15b514cb8eb13c",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 46,
+        "callee_fn": 45,
+        "callee_path": "horizon_client_lib::entities::Painting::left",
+        "anchor": "d3b573a272bedff5",
+        "stmt_path": [
+          "ba2d4d849ef7a0b1"
+        ],
+        "context": [
+          "4e9cdb0e830de1c7",
+          "d0fa01cc50059837"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_357"
+      }
+    },
+    {
+      "id": 358,
+      "key": "fn:47@call:[&'{erased} str]::iter",
+      "sig": "4a98af66e992cbd5",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 47,
+        "callee_fn": null,
+        "callee_path": "[&'{erased} str]::iter",
+        "anchor": "d5091ccd8d987ccf",
+        "stmt_path": [
+          "19e31ffdfedfaea9"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_358"
+      }
+    },
+    {
+      "id": 359,
+      "key": "fn:47@call:std::option::Option::unwrap_or",
+      "sig": "afbbdfd4b4e7bd86",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 47,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::unwrap_or",
+        "anchor": "5a754b621234bf5c",
+        "stmt_path": [
+          "19e31ffdfedfaea9"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_359"
+      }
+    },
+    {
+      "id": 360,
+      "key": "fn:49@call:<Self as core::cmp::Ord>::min",
+      "sig": "6b5420a8bc6e1b7e",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 49,
+        "callee_fn": null,
+        "callee_path": "<Self as core::cmp::Ord>::min",
+        "anchor": "b34e224590472e79",
+        "stmt_path": [
+          "c0d5ea669eb544fd"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_360"
+      }
+    },
+    {
+      "id": 361,
+      "key": "fn:53@call:<Self as core::cmp::Ord>::min",
+      "sig": "6b5420a8bc6e1b7e",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 53,
+        "callee_fn": null,
+        "callee_path": "<Self as core::cmp::Ord>::min",
+        "anchor": "6ab63d53a55208e7",
+        "stmt_path": [
+          "4bb85794effc18d1"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_361"
+      }
+    },
+    {
+      "id": 362,
+      "key": "fn:55@call:fn:53",
+      "sig": "bf38f926bb44c5be",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 55,
+        "callee_fn": 53,
+        "callee_path": "horizon_client_lib::entities::ItemFrame::step",
+        "anchor": "b2bdf85c75dbdf7e",
+        "stmt_path": [
+          "4e9cdb0e830de1c7"
+        ],
+        "context": [
+          "0000000000000000",
+          "dede4756e1348edd"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_362"
+      }
+    },
+    {
+      "id": 363,
+      "key": "fn:58@call:horizon_client_render::items::ItemStack::data",
+      "sig": "751855994537c0ab",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 58,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::items::ItemStack::data",
+        "anchor": "ea321d4220e877d0",
+        "stmt_path": [
+          "5dd296fe34005670"
+        ],
+        "context": [
+          "07d12503ecea6a8e",
+          "8e4a8c1e98084ed1"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_363"
+      }
+    },
+    {
+      "id": 364,
+      "key": "fn:58@call:std::option::Option::as_ref",
+      "sig": "7cb54b1837a3eae3",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 58,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::as_ref",
+        "anchor": "29812b36bfafbc6b",
+        "stmt_path": [
+          "5dd296fe34005670"
+        ],
+        "context": [
+          "07d12503ecea6a8e",
+          "8e4a8c1e98084ed1"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_364"
+      }
+    },
+    {
+      "id": 365,
+      "key": "fn:59@call:horizon_core::geometry::Vec3::lerp",
+      "sig": "d3ed072698f75e6d",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 59,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Vec3::lerp",
+        "anchor": "855384e27c7247a5",
+        "stmt_path": [
+          "855384e27c7247a5"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_365"
+      }
+    },
+    {
+      "id": 366,
+      "key": "fn:66@call:std::option::Option::is_some",
+      "sig": "1037b3aa4b060925",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 66,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::is_some",
+        "anchor": "c49bdfab3ef282f1",
+        "stmt_path": [
+          "a55c9626156cde88"
+        ],
+        "context": [
+          "0000000000000000",
+          "38a041f6bae5e37c"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_366"
+      }
+    },
+    {
+      "id": 367,
+      "key": "fn:67@call:fn:68",
+      "sig": "c9b6df94ef6d5fd7",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 67,
+        "callee_fn": 68,
+        "callee_path": "horizon_client_lib::entities::ArmorStand::bounds",
+        "anchor": "44281a01a4d2dbc9",
+        "stmt_path": [
+          "23e9e25f6db4bfd0"
+        ],
+        "context": [
+          "0000000000000000",
+          "775da600cbaa66e6"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_367"
+      }
+    },
+    {
+      "id": 368,
+      "key": "fn:67@call:horizon_core::geometry::Aabb::min_position",
+      "sig": "c9c87865d6efc8b4",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 67,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::min_position",
+        "anchor": "6163a1695af31b30",
+        "stmt_path": [
+          "23e9e25f6db4bfd0"
+        ],
+        "context": [
+          "0000000000000000",
+          "775da600cbaa66e6"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_368"
+      }
+    },
+    {
+      "id": 369,
+      "key": "fn:67@call:fn:68#1",
+      "sig": "c9b6df94ef6d5fd7",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 67,
+        "callee_fn": 68,
+        "callee_path": "horizon_client_lib::entities::ArmorStand::bounds",
+        "anchor": "44281a01a4d2dbc9",
+        "stmt_path": [
+          "23e9e25f6db4bfd0"
+        ],
+        "context": [
+          "0000000000000000",
+          "775da600cbaa66e6"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_369"
+      }
+    },
+    {
+      "id": 370,
+      "key": "fn:67@call:horizon_core::geometry::Aabb::max_position",
+      "sig": "c9c87865d6efc8b4",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 67,
+        "callee_fn": null,
+        "callee_path": "horizon_core::geometry::Aabb::max_position",
+        "anchor": "64036bbc185a4aa2",
+        "stmt_path": [
+          "23e9e25f6db4bfd0"
+        ],
+        "context": [
+          "0000000000000000",
+          "775da600cbaa66e6"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_370"
+      }
+    },
+    {
+      "id": 371,
+      "key": "fn:67@call:f64::floor",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 67,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "c55b1ef2a030944d",
+        "stmt_path": [
+          "a3cce2335804b957"
+        ],
+        "context": [
+          "3a1f5da7a8f4bb69",
+          "0287369e729d3076"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_371"
+      }
+    },
+    {
+      "id": 372,
+      "key": "fn:67@call:f64::floor#1",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 67,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "18c5a158159b1afb",
+        "stmt_path": [
+          "a3cce2335804b957"
+        ],
+        "context": [
+          "3a1f5da7a8f4bb69",
+          "0287369e729d3076"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_372"
+      }
+    },
+    {
+      "id": 373,
+      "key": "fn:67@call:f64::floor#2",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 67,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "66948c623470cd4e",
+        "stmt_path": [
+          "a3cce2335804b957",
+          "56c237b8153122b6"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_373"
+      }
+    },
+    {
+      "id": 374,
+      "key": "fn:67@call:f64::ceil",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 67,
+        "callee_fn": null,
+        "callee_path": "f64::ceil",
+        "anchor": "8ba3599a4b10b8dd",
+        "stmt_path": [
+          "a3cce2335804b957",
+          "56c237b8153122b6"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_374"
+      }
+    },
+    {
+      "id": 375,
+      "key": "fn:67@call:f64::floor#3",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 67,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "843d3c2f0e6cedc3",
+        "stmt_path": [
+          "a3cce2335804b957",
+          "56c237b8153122b6",
+          "40d4bf2923019f76"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_375"
+      }
+    },
+    {
+      "id": 376,
+      "key": "fn:67@call:f64::floor#4",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 67,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "1ac185397cb12c65",
+        "stmt_path": [
+          "a3cce2335804b957",
+          "56c237b8153122b6",
+          "40d4bf2923019f76"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_376"
+      }
+    },
+    {
+      "id": 377,
+      "key": "fn:67@call:horizon_client_render::blocks::BlockFacts::get",
+      "sig": "e31b1183c1a36317",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 67,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::blocks::BlockFacts::get",
+        "anchor": "9f54b92884a4380a",
+        "stmt_path": [
+          "a3cce2335804b957",
+          "56c237b8153122b6",
+          "40d4bf2923019f76",
+          "a67e20568981ae27"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_377"
+      }
+    },
+    {
+      "id": 378,
+      "key": "fn:67@call:horizon_client_render::world::World::block",
+      "sig": "b9858fbdc8e21a03",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 67,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::world::World::block",
+        "anchor": "645e8555ef40ee00",
+        "stmt_path": [
+          "a3cce2335804b957",
+          "56c237b8153122b6",
+          "40d4bf2923019f76",
+          "a67e20568981ae27"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_378"
+      }
+    },
+    {
+      "id": 379,
+      "key": "fn:67@call:<Self as core::cmp::Ord>::max",
+      "sig": "48dabd9959e2c29f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 67,
+        "callee_fn": null,
+        "callee_path": "<Self as core::cmp::Ord>::max",
+        "anchor": "e797a5e090a58fb2",
+        "stmt_path": [
+          "5c7831fb3d4aeb26",
+          "885f9149c7c36ef3"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_379"
+      }
+    },
+    {
+      "id": 380,
+      "key": "fn:67@call:fn:68#2",
+      "sig": "c9b6df94ef6d5fd7",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 67,
+        "callee_fn": 68,
+        "callee_path": "horizon_client_lib::entities::ArmorStand::bounds",
+        "anchor": "44281a01a4d2dbc9",
+        "stmt_path": [
+          "15b1e9a9112bdde9"
+        ],
+        "context": [
+          "5c7831fb3d4aeb26",
+          "5a8d9fe2ddc9857c"
+        ],
+        "dup_rank": 2,
+        "shim": "__yoake_cs_380"
+      }
+    },
+    {
+      "id": 381,
+      "key": "fn:69@call:std::option::Option::as_ref",
+      "sig": "6f83a7f29ab48e0d",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 69,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::as_ref",
+        "anchor": "9b54d7beb0482be2",
+        "stmt_path": [
+          "da309559e80826cd"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_381"
+      }
+    },
+    {
+      "id": 382,
+      "key": "fn:70@call:fn:69",
+      "sig": "ff1f0050330fd846",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": 69,
+        "callee_path": "horizon_client_lib::entities::ArmorStand::feet_are_leather_boots",
+        "anchor": "c31bb26e3afbd095",
+        "stmt_path": [
+          "ca5a58ca6022ae3e"
+        ],
+        "context": [
+          "fe791afb65b3410d",
+          "5d803b000b0e6537"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_382"
+      }
+    },
+    {
+      "id": 383,
+      "key": "fn:70@call:bool::then_some",
+      "sig": "e0d3d2f5831ad44c",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": null,
+        "callee_path": "bool::then_some",
+        "anchor": "27a2dab44595ce48",
+        "stmt_path": [
+          "ca5a58ca6022ae3e"
+        ],
+        "context": [
+          "fe791afb65b3410d",
+          "5d803b000b0e6537"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_383"
+      }
+    },
+    {
+      "id": 384,
+      "key": "fn:70@call:f64::abs",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": null,
+        "callee_path": "f64::abs",
+        "anchor": "6dfea837fe13051a",
+        "stmt_path": [
+          "cbd2554d09c3c803"
+        ],
+        "context": [
+          "5d803b000b0e6537",
+          "e02d8461b542a81d"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_384"
+      }
+    },
+    {
+      "id": 385,
+      "key": "fn:70@call:f64::abs#1",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": null,
+        "callee_path": "f64::abs",
+        "anchor": "e24df33ddd33538d",
+        "stmt_path": [
+          "cbd2554d09c3c803"
+        ],
+        "context": [
+          "5d803b000b0e6537",
+          "e02d8461b542a81d"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_385"
+      }
+    },
+    {
+      "id": 386,
+      "key": "fn:70@call:f64::abs#2",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": null,
+        "callee_path": "f64::abs",
+        "anchor": "231a63282232700c",
+        "stmt_path": [
+          "cbd2554d09c3c803"
+        ],
+        "context": [
+          "5d803b000b0e6537",
+          "e02d8461b542a81d"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_386"
+      }
+    },
+    {
+      "id": 387,
+      "key": "fn:70@call:<Self as horizon_client_lib::entity_rules::EntityRules>::is_no_gravity",
+      "sig": "ff1f0050330fd846",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": null,
+        "callee_path": "<Self as horizon_client_lib::entity_rules::EntityRules>::is_no_gravity",
+        "anchor": "5d6c43ee26d3db71",
+        "stmt_path": [
+          "eec9c126ebd153fb"
+        ],
+        "context": [
+          "e02d8461b542a81d",
+          "4b6b7598879ed4a6"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_387"
+      }
+    },
+    {
+      "id": 388,
+      "key": "fn:70@call:horizon_client_render::world::World::block",
+      "sig": "b9858fbdc8e21a03",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::world::World::block",
+        "anchor": "5fc70e55ac9c1717",
+        "stmt_path": [
+          "69c8cf88e3f844f1",
+          "45efeefa41540599"
+        ],
+        "context": [
+          "0000000000000000",
+          "151092f94ce2240a"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_388"
+      }
+    },
+    {
+      "id": 389,
+      "key": "fn:70@call:f64::floor",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "5ae7fc0cd73b6c89",
+        "stmt_path": [
+          "69c8cf88e3f844f1",
+          "45efeefa41540599"
+        ],
+        "context": [
+          "0000000000000000",
+          "151092f94ce2240a"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_389"
+      }
+    },
+    {
+      "id": 390,
+      "key": "fn:70@call:f64::floor#1",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "4d7c4f77fd089ded",
+        "stmt_path": [
+          "69c8cf88e3f844f1",
+          "45efeefa41540599"
+        ],
+        "context": [
+          "0000000000000000",
+          "151092f94ce2240a"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_390"
+      }
+    },
+    {
+      "id": 391,
+      "key": "fn:70@call:f64::floor#2",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": null,
+        "callee_path": "f64::floor",
+        "anchor": "a53b281311c07f6f",
+        "stmt_path": [
+          "69c8cf88e3f844f1",
+          "45efeefa41540599"
+        ],
+        "context": [
+          "0000000000000000",
+          "151092f94ce2240a"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_391"
+      }
+    },
+    {
+      "id": 392,
+      "key": "fn:70@call:horizon_client_render::blocks::BlockFacts::get",
+      "sig": "e31b1183c1a36317",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": null,
+        "callee_path": "horizon_client_render::blocks::BlockFacts::get",
+        "anchor": "7df452d2e5b65aa6",
+        "stmt_path": [
+          "69c8cf88e3f844f1",
+          "151092f94ce2240a"
+        ],
+        "context": [
+          "45efeefa41540599",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_392"
+      }
+    },
+    {
+      "id": 393,
+      "key": "fn:70@call:f64::clamp",
+      "sig": "788d675a93388487",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": null,
+        "callee_path": "f64::clamp",
+        "anchor": "d3b0c07213b109c1",
+        "stmt_path": [
+          "60861bc65e5c0bd2",
+          "2b8622824d84e304"
+        ],
+        "context": [
+          "71443de306b24253",
+          "f76d16743051b9f8"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_393"
+      }
+    },
+    {
+      "id": 394,
+      "key": "fn:70@call:f64::clamp#1",
+      "sig": "788d675a93388487",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": null,
+        "callee_path": "f64::clamp",
+        "anchor": "7c1bf7a5be00b3a7",
+        "stmt_path": [
+          "60861bc65e5c0bd2",
+          "f76d16743051b9f8"
+        ],
+        "context": [
+          "2b8622824d84e304",
+          "caee725a874d6707"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_394"
+      }
+    },
+    {
+      "id": 395,
+      "key": "fn:70@call:f64::is_nan",
+      "sig": "deaf6e15f366afe9",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": null,
+        "callee_path": "f64::is_nan",
+        "anchor": "79890f30f5a8fb5e",
+        "stmt_path": [
+          "60861bc65e5c0bd2",
+          "caee725a874d6707"
+        ],
+        "context": [
+          "f76d16743051b9f8",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_395"
+      }
+    },
+    {
+      "id": 396,
+      "key": "fn:70@call:f64::max",
+      "sig": "5a589f4650a6d8c5",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": null,
+        "callee_path": "f64::max",
+        "anchor": "df2e8fe42d07d8ce",
+        "stmt_path": [
+          "60861bc65e5c0bd2",
+          "caee725a874d6707",
+          "8f35846666d199b6"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_396"
+      }
+    },
+    {
+      "id": 397,
+      "key": "fn:70@call:fn:68",
+      "sig": "c9b6df94ef6d5fd7",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": 68,
+        "callee_path": "horizon_client_lib::entities::ArmorStand::bounds",
+        "anchor": "44281a01a4d2dbc9",
+        "stmt_path": [
+          "4fe531fb71c497a2"
+        ],
+        "context": [
+          "fcbeb821ae283bc6",
+          "de5aba6fb23944e9"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_397"
+      }
+    },
+    {
+      "id": 398,
+      "key": "fn:70@call:fn:68#1",
+      "sig": "c9b6df94ef6d5fd7",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": 68,
+        "callee_path": "horizon_client_lib::entities::ArmorStand::bounds",
+        "anchor": "44281a01a4d2dbc9",
+        "stmt_path": [
+          "de5aba6fb23944e9",
+          "d765747dd85a2430"
+        ],
+        "context": [
+          "eaa1e9653a1723f4",
+          "6c25b0f007a1071d"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_398"
+      }
+    },
+    {
+      "id": 399,
+      "key": "fn:70@call:f64::abs#3",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": null,
+        "callee_path": "f64::abs",
+        "anchor": "9c475d8d4399b160",
+        "stmt_path": [
+          "de5aba6fb23944e9",
+          "6c25b0f007a1071d"
+        ],
+        "context": [
+          "d765747dd85a2430",
+          "e3b553336db8c118"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_399"
+      }
+    },
+    {
+      "id": 400,
+      "key": "fn:70@call:f64::abs#4",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 70,
+        "callee_fn": null,
+        "callee_path": "f64::abs",
+        "anchor": "8d5691d31407cad4",
+        "stmt_path": [
+          "de5aba6fb23944e9",
+          "47354327a5eed483"
+        ],
+        "context": [
+          "e3b553336db8c118",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_400"
+      }
+    },
+    {
+      "id": 401,
+      "key": "fn:71@call:<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity",
+      "sig": "3e94671c83fd8266",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 71,
+        "callee_fn": null,
+        "callee_path": "<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity",
+        "anchor": "8713a7b30aa5f857",
+        "stmt_path": [
+          "6af4bf8c82b0c9f6"
+        ],
+        "context": [
+          "ae6f12986cacf7d0",
+          "bfacf5055dddb0fb"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_401"
+      }
+    },
+    {
+      "id": 402,
+      "key": "fn:71@call:f64::abs",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 71,
+        "callee_fn": null,
+        "callee_path": "f64::abs",
+        "anchor": "e8cdfe3acd8af180",
+        "stmt_path": [
+          "bfacf5055dddb0fb",
+          "d4d1f702fdd2ac2d",
+          "40e30c36c41aa5a1"
+        ],
+        "context": [
+          "97c9914cc545c193",
+          "33645b1aa127c256"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_402"
+      }
+    },
+    {
+      "id": 403,
+      "key": "fn:71@call:f64::abs#1",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 71,
+        "callee_fn": null,
+        "callee_path": "f64::abs",
+        "anchor": "d730310aa1c050a8",
+        "stmt_path": [
+          "bfacf5055dddb0fb",
+          "d4d1f702fdd2ac2d",
+          "40e30c36c41aa5a1"
+        ],
+        "context": [
+          "97c9914cc545c193",
+          "33645b1aa127c256"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_403"
+      }
+    },
+    {
+      "id": 404,
+      "key": "fn:71@call:<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity#1",
+      "sig": "3e94671c83fd8266",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 71,
+        "callee_fn": null,
+        "callee_path": "<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity",
+        "anchor": "8713a7b30aa5f857",
+        "stmt_path": [
+          "bfacf5055dddb0fb",
+          "92cc8275eb33d6af"
+        ],
+        "context": [
+          "ec045d3a7e4f7b0e",
+          "40e30c36c41aa5a1"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_404"
+      }
+    },
+    {
+      "id": 405,
+      "key": "fn:71@call:f64::abs#2",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 71,
+        "callee_fn": null,
+        "callee_path": "f64::abs",
+        "anchor": "e8cdfe3acd8af180",
+        "stmt_path": [
+          "bfacf5055dddb0fb",
+          "40e30c36c41aa5a1"
+        ],
+        "context": [
+          "92cc8275eb33d6af",
+          "d5f5942094aaa2b3"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_405"
+      }
+    },
+    {
+      "id": 406,
+      "key": "fn:71@call:f64::abs#3",
+      "sig": "650bc5531a88862f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 71,
+        "callee_fn": null,
+        "callee_path": "f64::abs",
+        "anchor": "d730310aa1c050a8",
+        "stmt_path": [
+          "bfacf5055dddb0fb",
+          "40e30c36c41aa5a1"
+        ],
+        "context": [
+          "92cc8275eb33d6af",
+          "d5f5942094aaa2b3"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_406"
+      }
+    },
+    {
+      "id": 407,
+      "key": "fn:71@call:<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity#2",
+      "sig": "3e94671c83fd8266",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 71,
+        "callee_fn": null,
+        "callee_path": "<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity",
+        "anchor": "8713a7b30aa5f857",
+        "stmt_path": [
+          "bfacf5055dddb0fb",
+          "cf23b94aa8f9f646"
+        ],
+        "context": [
+          "cc53e5df3493adc8",
+          "0000000000000000"
+        ],
+        "dup_rank": 2,
+        "shim": "__yoake_cs_407"
+      }
+    },
+    {
+      "id": 408,
+      "key": "fn:79@call:horizon_world::entity_fluid::EntityFluidInteraction::fluid_height",
+      "sig": "b2e3e528db4348cd",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 79,
+        "callee_fn": null,
+        "callee_path": "horizon_world::entity_fluid::EntityFluidInteraction::fluid_height",
+        "anchor": "2760bb09d6ec8835",
+        "stmt_path": [
+          "89e7c07db89ae5e5"
+        ],
+        "context": [
+          "1d1a498cfff839eb",
+          "c96cfda7f926dd95"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_408"
+      }
+    },
+    {
+      "id": 409,
+      "key": "fn:79@call:horizon_world::entity_fluid::EntityFluidInteraction::fluid_height#1",
+      "sig": "b2e3e528db4348cd",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 79,
+        "callee_fn": null,
+        "callee_path": "horizon_world::entity_fluid::EntityFluidInteraction::fluid_height",
+        "anchor": "8cbdfa8193ef9038",
+        "stmt_path": [
+          "c96cfda7f926dd95"
+        ],
+        "context": [
+          "89e7c07db89ae5e5",
+          "c3500f9e0d2aa1de"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_409"
+      }
+    },
+    {
+      "id": 410,
+      "key": "fn:81@call:fn:33",
+      "sig": "82d134dce97af7f1",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 81,
+        "callee_fn": 33,
+        "callee_path": "horizon_client_lib::entities::ExperienceOrb::bounds",
+        "anchor": "44281a01a4d2dbc9",
+        "stmt_path": [
+          "c05712fc501fbf76"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_410"
+      }
     }
   ],
   "excluded": [
+    {
+      "key": "fn:10@call:horizon_items::bundle::destroyed",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:10@call:horizon_items::item_data::destroyed_container",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:11@call:horizon_client_render::collisions::no_collision_empty",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:11@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:12@call:fn:39",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:13@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:13@call:core::convert::From::from#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:13@call:horizon_client_lib::block_contact::emit",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:13@call:horizon_client_lib::block_contact::swept_inside",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:13@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:13@call:horizon_core::geometry::{impl#4}::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:13@call:horizon_core::position::iter::{impl#6}::containing",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:14@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:14@call:core::convert::From::from#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:14@call:core::convert::From::from#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:14@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:14@call:horizon_core::geometry::{impl#4}::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:14@call:horizon_core::geometry::{impl#4}::new#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:15@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:15@call:fn:3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:15@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:15@call:horizon_core::position::iter::{impl#6}::containing",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:16@call:horizon_world::piston_push::bounce_velocity",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:17@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:18@call:[i32; 3_usize]::map",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:18@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:18@call:core::convert::From::from#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:18@call:core::ops::function::Fn::call",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:18@call:core::ops::function::Fn::call#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:18@call:core::ops::function::Fn::call#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:18@call:core::ops::function::Fn::call#3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:18@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:18@call:horizon_core::geometry::{impl#4}::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:19@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:19@call:core::convert::From::from#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:1@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:1@call:core::convert::From::from#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:21@call:core::default::Default::default",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:21@call:horizon_client_lib::entities::{impl#8}::span",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:22@call:core::ops::function::Fn::call",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:22@call:core::ops::function::Fn::call#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:24@call:<Self as core::iter::traits::collect::Extend>::extend#1",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:24@call:<Self as core::iter::traits::iterator::Iterator>::filter",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:24@call:<Self as core::iter::traits::iterator::Iterator>::map",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:24@call:alloc::vec::{impl#0}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:24@call:horizon_client_lib::entities::{impl#8}::span",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:25@call:core::default::Default::default",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:27@call:horizon_client_lib::entities::{impl#9}::cell",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:28@call:horizon_client_lib::entities::{impl#9}::cell",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:28@call:std::vec::Vec::retain",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:29@call:horizon_client_lib::entities::{impl#9}::cell",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:29@call:horizon_client_lib::entities::{impl#9}::cell#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:30@call:horizon_client_lib::entities::{impl#9}::cell",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:30@call:horizon_client_lib::entities::{impl#9}::cell#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:30@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:30@call:horizon_core::geometry::{impl#4}::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:32@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:32@call:horizon_core::geometry::{impl#4}::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:32@call:horizon_core::geometry::{impl#5}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:33@call:horizon_client_lib::entities::{impl#10}::box_at",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:35@call:<Self as core::iter::traits::iterator::Iterator>::find",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:core::convert::From::from#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:core::convert::From::from#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:core::convert::From::from#3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:core::ops::function::FnMut::call_mut",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:core::ops::function::FnMut::call_mut#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:core::ops::function::FnMut::call_mut#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:core::ops::function::FnMut::call_mut#3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:core::ops::function::FnMut::call_mut#4",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:fn:81",
+      "reason": "argument type is only nameable through a private module (crate::motion::fluids)",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:37@call:horizon_client_render::collisions::SceneCollisions::resolve_in_border",
+      "reason": "unparseable return type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:horizon_client_render::collisions::no_collision_empty",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:horizon_client_render::collisions::no_collision_empty#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:horizon_core::geometry::{impl#4}::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:horizon_core::geometry::{impl#4}::new#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:horizon_core::geometry::{impl#4}::new#3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:horizon_core::geometry::{impl#4}::new#4",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:std::option::Option::map",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:std::result::Result::unwrap_or",
+      "reason": "dyn receiver",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:38@call:fn:39",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:39@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:39@call:core::convert::From::from#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:39@call:core::convert::From::from#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:39@call:core::convert::From::from#3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:39@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:39@call:horizon_core::geometry::{impl#4}::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:39@call:horizon_core::geometry::{impl#4}::new#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:39@call:horizon_core::geometry::{impl#4}::new#3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:41@call:core::default::Default::default",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:43@call:horizon_client_lib::entities::{impl#11}::needed",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:43@call:horizon_client_lib::entities::{impl#11}::needed#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:43@call:horizon_client_lib::entities::{impl#11}::needed#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:44@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:45@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:46@call:[i32; 3_usize]::map",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:46@call:[i32; 3_usize]::map#1",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:46@call:core::array::from_fn",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:46@call:core::array::from_fn#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:46@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:46@call:core::convert::From::from#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:46@call:core::convert::From::from#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:46@call:core::convert::From::from#3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:46@call:core::convert::From::from#4",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:46@call:core::convert::From::from#5",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:46@call:core::ops::function::Fn::call",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:46@call:core::ops::function::Fn::call#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:47@call:<Self as core::iter::traits::iterator::Iterator>::position",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:49@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:50@call:fn:49",
+      "reason": "inside macro invocation",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:51@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:52@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:53@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:55@call:[i32; 3_usize]::map",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:55@call:core::array::from_fn",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:55@call:core::array::from_fn#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:55@call:core::array::from_fn#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:55@call:core::array::from_fn#3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:55@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:58@call:horizon_client_core::component::name_text",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:58@call:std::option::Option::and_then",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:5@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:5@call:fn:6",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:5@call:fn:6#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:60@call:horizon_client_render::camera::wrap_degrees",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:61@call:horizon_client_render::camera::wrap_degrees",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:63@call:core::default::Default::default",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:63@call:core::default::Default::default#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:63@call:core::default::Default::default#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:63@call:core::default::Default::default#3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:65@call:horizon_client_lib::entities::{impl#17}::filter_flag",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:66@call:horizon_client_lib::entities::{impl#17}::filter_flag",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:67@call:horizon_client_lib::motion::environment::fire_contact",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:68@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:68@call:horizon_core::geometry::{impl#4}::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:68@call:horizon_core::geometry::{impl#5}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:69@call:std::option::Option::is_some_and",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:6@call:<Self as core::iter::traits::iterator::Iterator>::find",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:6@call:fn:4",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:6@call:std::option::Option::map",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:core::convert::From::from#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:core::convert::From::from#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:core::convert::From::from#3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:core::default::Default::default",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:core::ops::function::Fn::call",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:core::ops::function::Fn::call#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:horizon_client_render::collisions::SceneCollisions::resolve_in_border",
+      "reason": "unparseable return type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:horizon_core::geometry::{impl#4}::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:horizon_core::position::iter::{impl#6}::containing",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:horizon_world::climbing::on_climbable",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:horizon_world::collision_context::{impl#1}::for_entity",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:horizon_world::ground_support::GroundState::check_support",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:horizon_world::ground_support::find_supporting_block",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:std::option::Option::map",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:std::result::Result::unwrap_or",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:71@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:71@call:core::convert::From::from#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:71@call:core::convert::From::from#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:71@call:core::convert::From::from#3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:71@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:71@call:horizon_core::geometry::{impl#4}::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:71@call:horizon_core::geometry::{impl#4}::new#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:79@call:horizon_world::entity_fluid::EntityFluidInteraction::apply_current",
+      "reason": "unwritable return type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:79@call:horizon_world::entity_fluid::EntityFluidInteraction::apply_current#1",
+      "reason": "unwritable return type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:79@call:horizon_world::entity_fluid::EntityFluidInteraction::update",
+      "reason": "unwritable return type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:79@call:horizon_world::entity_fluid::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:79@call:std::result::Result::is_err",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:80@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:81@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:81@call:fn:79",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:82@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:82@call:core::convert::From::from#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:8@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:8@call:horizon_core::geometry::{impl#4}::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:8@call:horizon_core::geometry::{impl#5}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:9@call:alloc::vec::{impl#0}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:9@call:horizon_client_lib::motion::environment::cactus_contact",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:9@call:horizon_client_lib::motion::environment::fire_contact",
+      "reason": "path call",
+      "kind": "callsite"
+    },
     {
       "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::block_position",
       "reason": "self type has no crate-level path",
@@ -731,9 +6725,19 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::block_state@call:horizon_client_render::world::World::block",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::in_block_state",
       "reason": "self type has no crate-level path",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::in_block_state@call:<Self as horizon_world::climbing::ClimbingWorld>::block_state",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
     },
     {
       "key": "horizon_client_lib::entities::<StandClimbing as ClimbingWorld>::is_fall_flying",
@@ -756,9 +6760,169 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::ArmorStand::on_pos_legacy@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ArmorStand::on_pos_legacy@call:core::ops::function::Fn::call",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ArmorStand::on_pos_legacy@call:f64::floor",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ArmorStand::on_pos_legacy@call:f64::floor#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ArmorStand::on_pos_legacy@call:f64::floor#2",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ArmorStand::on_pos_legacy@call:horizon_core::position::{impl#1}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ArmorStand::on_pos_legacy@call:horizon_core::position::{impl#1}::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::ExperienceOrb::unstuck",
       "reason": "impl Trait argument",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:<Self as core::iter::traits::iterator::Iterator>::any",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:[horizon_core::geometry::Aabb]::iter",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:core::ops::function::Fn::call",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:core::ops::function::Fn::call#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:core::ops::function::Fn::call#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:core::ops::function::FnMut::call_mut",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:f64::floor",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:f64::floor#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_client_lib::entities::{impl#10}::box_at",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::Aabb::average_size",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::Aabb::center",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::Aabb::center#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::Aabb::intersects",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::Aabb::min_position",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::Aabb::size",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::Aabb::size#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::Vec3::subtract",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::VoxelShape::boxes",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::{impl#4}::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::{impl#5}::of_size",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::position::{impl#1}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_world::level::portal_travel::find_free_position",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:std::option::Option::is_some_and",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:std::option::Option::map",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
     },
     {
       "key": "horizon_client_lib::entities::ItemEntity::tick_move",
@@ -766,9 +6930,154 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:core::convert::From::from#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:core::ops::function::Fn::call",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:core::ops::function::Fn::call#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:f64::abs",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:fn:1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:fn:14",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:fn:15",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:fn:17",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:fn:19",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:fn:2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:fn:5",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:fn:8",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:horizon_client_render::collisions::EntityCollisions::resolve",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:horizon_core::geometry::Vec3::length_squared",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:horizon_core::geometry::Vec3::multiply",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:horizon_core::geometry::{impl#4}::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:horizon_core::geometry::{impl#4}::new#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:std::option::Option::map",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:std::option::Option::unwrap_or",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:std::result::Result::unwrap_or",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:u32::is_multiple_of",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:u32::wrapping_add",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::add_delta_movement",
       "reason": "self type has no crate-level path",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::add_delta_movement@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_current_target_add_delta_movement",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::add_delta_movement@call:horizon_core::geometry::Vec3::is_finite",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::add_delta_movement@call:horizon_core::geometry::Vec3::is_finite#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::add_delta_movement@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
     },
     {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::is_player_class",
@@ -776,9 +7085,19 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::is_player_class@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_current_target_is_player_class",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::velocity",
       "reason": "self type has no crate-level path",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::velocity@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_current_target_velocity",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
     },
     {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::block",
@@ -786,9 +7105,29 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::block@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_flow_world_block",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::block@call:horizon_client_render::world::World::block",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::blocks_fluid_flow",
       "reason": "self type has no crate-level path",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::blocks_fluid_flow@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_flow_world_blocks_fluid_flow",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::blocks_fluid_flow@call:horizon_client_lib::motion::fluids::FluidResources::blocks_flow",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
     },
     {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::fluid",
@@ -796,9 +7135,29 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::fluid@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_flow_world_fluid",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::fluid@call:horizon_client_lib::motion::fluids::FluidResources::fluid",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::fluid@call:horizon_client_render::world::World::block",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::is_face_sturdy",
       "reason": "self type has no crate-level path",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::is_face_sturdy@call:horizon_client_lib::motion::fluids::FluidResources::sturdy",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
     },
     {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::is_ice_class",
@@ -806,9 +7165,34 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::is_ice_class@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_flow_world_is_ice_class",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::is_ice_class@call:horizon_client_lib::motion::fluids::FluidResources::ice",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::fluid",
       "reason": "self type has no crate-level path",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::fluid@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_height_world_fluid",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::fluid@call:horizon_client_lib::motion::fluids::FluidResources::fluid",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::fluid@call:horizon_client_render::world::World::block",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
     },
     {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::sturdy_down",
@@ -816,9 +7200,34 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::sturdy_down@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_height_world_sturdy_down",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::sturdy_down@call:horizon_client_lib::motion::fluids::FluidResources::sturdy",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::sturdy_down@call:horizon_client_render::world::World::block",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_x",
       "reason": "self type has no crate-level path",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_x@call:f64::floor",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_x@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_interaction_world_block_x",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
     },
     {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_z",
@@ -826,9 +7235,24 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_z@call:f64::floor",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_z@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_interaction_world_block_z",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::bounding_box_min_y",
       "reason": "self type has no crate-level path",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::bounding_box_min_y@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_interaction_world_bounding_box_min_y",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
     },
     {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::camera_height",
@@ -836,9 +7260,34 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::camera_height@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_interaction_world_camera_height",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::camera_height@call:horizon_world::fluid::FluidState::camera_height_at",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::chunk_sections",
       "reason": "self type has no crate-level path",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::chunk_sections@call:horizon_client_render::chunk::ColumnLayout::min_y",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::chunk_sections@call:horizon_client_render::chunk::every_section",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::chunk_sections@call:horizon_client_render::world::World::layout",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
     },
     {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::eye_y",
@@ -846,9 +7295,24 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::eye_y@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_interaction_world_eye_y",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::flow",
       "reason": "self type has no crate-level path",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::flow@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_interaction_world_flow",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::flow@call:horizon_world::fluid_flow::flow_at",
+      "reason": "path call",
+      "kind": "callsite"
     },
     {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_height",
@@ -856,9 +7320,34 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_height@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_interaction_world_fluid_height",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_height@call:horizon_world::fluid::FluidState::height_at",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_state",
       "reason": "self type has no crate-level path",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_state@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_interaction_world_fluid_state",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_state@call:horizon_client_lib::motion::fluids::FluidResources::fluid",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_state@call:horizon_client_render::world::World::block",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
     },
     {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::interaction_box",
@@ -866,14 +7355,54 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::interaction_box@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_interaction_world_interaction_box",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::interaction_box@call:horizon_core::geometry::Aabb::deflate",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::interaction_box@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::loaded_chunk",
       "reason": "self type has no crate-level path",
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::loaded_chunk@call:bool::then_some",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::loaded_chunk@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_interaction_world_loaded_chunk",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::loaded_chunk@call:std::collections::HashMap::contains_key",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidMembership>::fluid_in_tag",
       "reason": "self type has no crate-level path",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidMembership>::fluid_in_tag@call:<Self as horizon_world::entity_fluid::FluidMembership>::fluid_in_tag",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidMembership>::fluid_in_tag@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_membership_fluid_in_tag",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
     },
     {
       "key": "horizon_client_lib::entities::hook_bench::noop_settle[cfg(all(feature=\"yoake-hook-bench\",not(feature=\"yoake-hook-baseline\")))]",
@@ -891,6 +7420,126 @@
       "key": "horizon_client_lib::entities::merge_with_neighbours",
       "reason": "nested callable borrow",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:<Self as core::cmp::Ord>::max",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:<Self as core::cmp::Ord>::min",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:<Self as core::cmp::Ord>::min#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:<Self as core::cmp::Ord>::min#2",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:alloc::vec::{impl#0}::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:core::ops::function::Fn::call",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:core::ops::function::Fn::call#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:core::ops::function::Fn::call#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:core::ops::function::Fn::call#3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:core::ops::function::Fn::call#4",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:core::ops::function::Fn::call#5",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:core::ops::function::Fn::call#6",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:core::ops::function::Fn::call#7",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:fn:20",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:fn:20#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:fn:28",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:fn:30",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:fn:8",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:fn:8#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:horizon_client_render::items::ItemStack::same_item_same_components",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:horizon_core::geometry::Aabb::inflate",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:horizon_core::geometry::Aabb::intersects",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:horizon_core::geometry::{impl#4}::new",
+      "reason": "path call",
+      "kind": "callsite"
     }
   ]
 }

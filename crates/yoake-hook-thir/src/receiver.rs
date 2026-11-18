@@ -5,6 +5,7 @@ pub enum NodeKind {
     #[default]
     Other,
     Scope,
+    Pointer,
     Borrow,
     Deref,
     Call,
@@ -54,7 +55,7 @@ impl ReceiverTree {
         while let Some(index) = current {
             let node = &self.nodes[index];
             match node.kind {
-                NodeKind::Scope => {
+                NodeKind::Scope | NodeKind::Pointer => {
                     current = node.children.first().copied();
                 }
                 NodeKind::Borrow => {

@@ -1,13 +1,15 @@
 use std::collections::BTreeMap;
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{Error, ParseOptions, Result, parse_file, write_json};
+use crate::{Error, FileDigest, ParseOptions, Result, collect_file_digests, parse_file, write_json};
 
 const MIN_START_FREE: u64 = 10 * 1024 * 1024 * 1024;
 #[cfg(windows)]
 const MIN_RUNNING_FREE: u64 = 5 * 1024 * 1024 * 1024;
+const WORKSPACE_MARKER_NAME: &str = ".yoake-workspace-root";
 
 #[derive(Clone, Debug)]
 pub struct DumpOptions {
@@ -16,9 +18,19 @@ pub struct DumpOptions {
     pub workspace: PathBuf,
     pub out: PathBuf,
     pub files: Vec<String>,
+    pub allow_shared_target: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TargetDirDecision {
+    Skip,
+    WriteMarker,
+    AllowExisting,
 }
 
 pub fn dump(options: &DumpOptions) -> Result<()> {
+    check_target_dir_guard(&options.workspace, options.allow_shared_target)?;
+    let file_digests = collect_file_digests(&options.workspace, &options.files)?;
     let toolchain = rustc_version()?;
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -71,7 +83,14 @@ pub fn dump(options: &DumpOptions) -> Result<()> {
         .env("RUSTC_BOOTSTRAP", "1")
         .stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr));
-    let result = run_and_parse(command, options, &thir_path, &externs, toolchain);
+    let result = run_and_parse(
+        command,
+        options,
+        &thir_path,
+        &externs,
+        toolchain,
+        &file_digests,
+    );
     // YOAKE_THIR_KEEP=1 keeps the dump so `parse` can be re-run without rustc (debugging only).
     if std::env::var_os("YOAKE_THIR_KEEP").is_none() {
         let _ = std::fs::remove_file(&thir_path);
@@ -103,6 +122,7 @@ fn run_and_parse(
     thir_path: &Path,
     externs: &std::collections::BTreeSet<String>,
     toolchain: String,
+    file_digests: &BTreeMap<String, FileDigest>,
 ) -> Result<()> {
     let mut child = command.spawn()?;
     let status = wait_for_rustc(&mut child, &options.out)?;
@@ -116,6 +136,8 @@ fn run_and_parse(
             externs: externs.clone(),
             crate_name: Some(options.crate_name.clone()),
             toolchain,
+            workspace: Some(options.workspace.clone()),
+            file_digests: file_digests.clone(),
         },
     )?;
     write_json(&parsed, &options.out)
@@ -287,4 +309,176 @@ fn free_disk_space(path: &Path) -> Option<u64> {
         GetDiskFreeSpaceExW(wide.as_ptr(), &mut free, std::ptr::null_mut(), std::ptr::null_mut())
     };
     (result != 0).then_some(free)
+}
+
+pub fn resolve_target_dir(workspace: &Path, cargo_target_dir: Option<&OsStr>) -> PathBuf {
+    match cargo_target_dir.filter(|value| !value.is_empty()) {
+        Some(raw) => {
+            let path = PathBuf::from(raw);
+            if path.is_relative() {
+                workspace.join(path)
+            } else {
+                path
+            }
+        }
+        None => workspace.join("target"),
+    }
+}
+
+pub fn canonical_workspace_root(workspace: &Path) -> Result<String> {
+    let canonical = std::fs::canonicalize(workspace).map_err(|error| {
+        Error::new(format!(
+            "failed to canonicalize workspace {}: {error}",
+            workspace.display()
+        ))
+    })?;
+    Ok(strip_verbatim_prefix(&canonical.to_string_lossy()))
+}
+
+fn strip_verbatim_prefix(path: &str) -> String {
+    if let Some(rest) = path.strip_prefix(r"\\?\")
+        && !rest.starts_with(r"UNC\")
+    {
+        rest.to_owned()
+    } else {
+        path.to_owned()
+    }
+}
+
+fn normalize_root_for_cmp(root: &str) -> String {
+    let trimmed = strip_verbatim_prefix(root.trim());
+    let slashes = trimmed.replace('\\', "/");
+    let without_trailing = slashes.trim_end_matches('/');
+    #[cfg(windows)]
+    {
+        without_trailing.to_ascii_lowercase()
+    }
+    #[cfg(not(windows))]
+    {
+        without_trailing.to_owned()
+    }
+}
+
+pub fn decide_target_dir_guard(
+    target_dir: &Path,
+    this_root: &str,
+    existing_marker: Option<&str>,
+    allow_shared_target: bool,
+) -> Result<TargetDirDecision> {
+    if allow_shared_target {
+        return Ok(TargetDirDecision::Skip);
+    }
+    let marker = existing_marker.map(str::trim).filter(|value| !value.is_empty());
+    match marker {
+        None => Ok(TargetDirDecision::WriteMarker),
+        Some(marker_root)
+            if normalize_root_for_cmp(marker_root) == normalize_root_for_cmp(this_root) =>
+        {
+            Ok(TargetDirDecision::AllowExisting)
+        }
+        Some(marker_root) => Err(Error::new(format!(
+            "refusing to share CARGO_TARGET_DIR {} between worktrees ({} vs {}): cargo reuses artifacts across worktrees with stale sources; use a separate target dir or pass --allow-shared-target",
+            target_dir.display(),
+            marker_root,
+            this_root,
+        ))),
+    }
+}
+
+pub fn check_target_dir_guard(workspace: &Path, allow_shared_target: bool) -> Result<()> {
+    let cargo_target_dir = std::env::var_os("CARGO_TARGET_DIR");
+    let target_dir = resolve_target_dir(workspace, cargo_target_dir.as_deref());
+    check_target_dir_guard_at(workspace, &target_dir, allow_shared_target)
+}
+
+pub fn check_target_dir_guard_at(
+    workspace: &Path,
+    target_dir: &Path,
+    allow_shared_target: bool,
+) -> Result<()> {
+    if allow_shared_target {
+        return Ok(());
+    }
+    let this_root = canonical_workspace_root(workspace)?;
+    let marker_path = target_dir.join(WORKSPACE_MARKER_NAME);
+    let existing_marker = match std::fs::read_to_string(&marker_path) {
+        Ok(contents) => Some(contents),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => {
+            return Err(Error::new(format!(
+                "failed to read {}: {error}",
+                marker_path.display()
+            )));
+        }
+    };
+    if decide_target_dir_guard(
+        target_dir,
+        &this_root,
+        existing_marker.as_deref(),
+        allow_shared_target,
+    )? == TargetDirDecision::WriteMarker
+    {
+        std::fs::create_dir_all(target_dir)?;
+        std::fs::write(&marker_path, format!("{this_root}\n"))?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn target_dir_guard_decisions() {
+        let target = Path::new("/tmp/shared-target");
+        assert_eq!(
+            decide_target_dir_guard(target, "/repo/wt-a", None, false).unwrap(),
+            TargetDirDecision::WriteMarker
+        );
+        assert_eq!(
+            decide_target_dir_guard(target, "/repo/wt-a", Some("/repo/wt-a\n"), false).unwrap(),
+            TargetDirDecision::AllowExisting
+        );
+        let err = decide_target_dir_guard(target, "/repo/wt-b", Some("/repo/wt-a\n"), false)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("refusing to share CARGO_TARGET_DIR"), "{err}");
+        assert!(err.contains("/repo/wt-a vs /repo/wt-b"), "{err}");
+        assert!(err.contains("--allow-shared-target"), "{err}");
+        assert_eq!(
+            decide_target_dir_guard(target, "/repo/wt-b", Some("/repo/wt-a\n"), true).unwrap(),
+            TargetDirDecision::Skip
+        );
+    }
+
+    #[test]
+    fn target_dir_guard_writes_reads_and_skips_marker_on_disk() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let base = std::env::temp_dir().join(format!("yoake_thir_guard_{}_{}", std::process::id(), nonce));
+        let ws_a = base.join("wt-a");
+        let ws_b = base.join("wt-b");
+        let target = base.join("shared-target");
+        std::fs::create_dir_all(&ws_a).unwrap();
+        std::fs::create_dir_all(&ws_b).unwrap();
+
+        check_target_dir_guard_at(&ws_a, &target, false).unwrap();
+        let marker_path = target.join(WORKSPACE_MARKER_NAME);
+        let written = std::fs::read_to_string(&marker_path).unwrap();
+        assert_eq!(written.trim(), canonical_workspace_root(&ws_a).unwrap());
+
+        check_target_dir_guard_at(&ws_a, &target, false).unwrap();
+
+        let err = check_target_dir_guard_at(&ws_b, &target, false)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("refusing to share CARGO_TARGET_DIR"), "{err}");
+
+        check_target_dir_guard_at(&ws_b, &target, true).unwrap();
+        assert_eq!(std::fs::read_to_string(&marker_path).unwrap(), written);
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
 }

@@ -12,6 +12,8 @@ fn parse_sample() -> yoake_hook_thir::Dump {
             externs: BTreeSet::new(),
             crate_name: Some("thir_fixture".into()),
             toolchain: "fixture".into(),
+            workspace: None,
+            file_digests: Default::default(),
         },
     )
     .unwrap()
@@ -91,4 +93,75 @@ fn rejects_a_dump_without_call_spans() {
     )
     .unwrap_err();
     assert!(error.to_string().contains("no THIR Call node"));
+}
+
+#[test]
+fn computes_file_sha_len_and_source_snapshot_for_listed_file() {
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let dir = std::env::temp_dir().join(format!(
+        "yoake_thir_snapshot_{}_{}",
+        std::process::id(),
+        nonce
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    let source = b"pub fn alpha() {}\npub fn beta() { alpha(); }\n";
+    std::fs::write(dir.join("src/mini.rs"), source).unwrap();
+
+    let tiny_thir = "\
+DefId(0:1 ~ mini[abcd]::beta):
+body:
+    Expr {
+        ty: ()
+        span: src/mini.rs:2:33: 2:42 (#0)
+        kind:
+            Call {
+                ty: FnDef(DefId(0:2 ~ mini[abcd]::alpha), [])
+                from_hir_call: true
+                fn_span: src/mini.rs:2:33: 2:42 (#0)
+                fun:
+                    Expr {
+                        ty: FnDef(DefId(0:2 ~ mini[abcd]::alpha), [])
+                        span: src/mini.rs:2:33: 2:38 (#0)
+                    }
+                args: [
+                ]
+            }
+    }
+";
+    let dump = parse_str(
+        tiny_thir,
+        &ParseOptions {
+            files: vec!["src/mini.rs".into()],
+            externs: BTreeSet::new(),
+            crate_name: Some("mini".into()),
+            toolchain: "fixture".into(),
+            workspace: Some(dir.clone()),
+            ..ParseOptions::default()
+        },
+    )
+    .unwrap();
+    let summary = &dump.files["src/mini.rs"];
+    assert_eq!(summary.written_calls, 1);
+    assert_eq!(summary.len, source.len() as u64);
+    assert_eq!(
+        summary.sha,
+        yoake_hook_thir::format_hash(yoake_hook_thir::fnv1a_64(source))
+    );
+    assert_eq!(summary.sha.len(), 16);
+    assert_eq!(
+        dump.source_snapshot,
+        yoake_hook_thir::compute_source_snapshot(&dump.files)
+    );
+    assert_eq!(dump.source_snapshot.len(), 16);
+
+    let json = serde_json::to_value(&dump).unwrap();
+    assert_eq!(json["files"]["src/mini.rs"]["sha"], summary.sha);
+    assert_eq!(json["files"]["src/mini.rs"]["len"], source.len() as u64);
+    assert_eq!(json["source_snapshot"], dump.source_snapshot);
+
+    let _ = std::fs::remove_dir_all(&dir);
 }

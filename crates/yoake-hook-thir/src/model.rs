@@ -7,13 +7,19 @@ pub struct Dump {
     pub toolchain: String,
     #[serde(rename = "crate")]
     pub crate_name: String,
+    #[serde(default)]
+    pub source_snapshot: String,
     pub files: BTreeMap<String, FileSummary>,
     pub calls: Vec<Call>,
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FileSummary {
     pub written_calls: usize,
+    #[serde(default)]
+    pub sha: String,
+    #[serde(default)]
+    pub len: u64,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]

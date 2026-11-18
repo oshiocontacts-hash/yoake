@@ -54,6 +54,11 @@ Per crate listed with `callsites = true` in `hook-ledger/modules.txt`:
    committed fixture.
 4. **Span join, 1:1:** every THIR `#0` call is joined to exactly one syn call expression by its span.
    Every unjoined call on either side gets a reason. Calls inside macro arguments are excluded.
+5. **Worktree target-dir guard and staleness:** `yoake-hook-thir dump` refuses a `CARGO_TARGET_DIR`
+   whose `.yoake-workspace-root` marker belongs to another worktree unless `--allow-shared-target` is
+   passed (see [BUILDING-WORKTREES.md](BUILDING-WORKTREES.md)). It also records per-file FNV-1a 64 hashes,
+   byte lengths, and a `source_snapshot` so `yoake-hook-codemod --thir` rejects stale dumps before
+   running matching.
 
 ## 3. Ledger entries (`kind: callsite`)
 

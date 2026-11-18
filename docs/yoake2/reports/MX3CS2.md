@@ -85,11 +85,55 @@ The bench example (`yoake_hook_bench`, release) with 65,536 slots (yoake2/ids) a
 The 8 MiB are committed but untouched pages stay out of physical memory. The first run of the large build
 peaked at 13.4 MB working set; the second run did not, and this was not investigated further.
 
+## Phase 1b: entities (2026-11-19)
+
+Same pipeline on `entities` + `entities::fluids` (crate `horizon_client_lib`, `callsites=true` in
+hook-ledger/modules.txt).
+
+- THIR: 536 written calls (343 method: 341 concrete, 2 dyn; 193 path), 4 min for the dump.
+- **224 call sites rewritten.** Excluded with reasons (312): path call 193, caller not in the fn ledger 92
+  (callers that are not hooked themselves, such as the 20 tombstoned `EntityFluidWorld` methods and the
+  codemod's trait delegations), unwritable argument type 19 (closures), unwritable return type 3 (the never
+  type `!`), unparseable return type 2, dyn receiver 1, inside a macro invocation 1, and 1 manual exclusion:
+  `fn:37@call:fn:81` (`ExperienceOrb::update_fluids`), whose argument type
+  `crate::motion::fluids::FluidResources` is only nameable through a private module. 31 syn calls have no THIR
+  call: tuple-struct and enum constructors (`Ok`, `Some`, ...) and code under the inactive
+  `yoake-hook-bench` feature.
+- **THIR re-verify after the rewrite: 224 of 224 shims call exactly the recorded callee** (0 mismatch, 0
+  missing).
+- Empty slots: `horizon-client-lib --lib` 1619 passed, `horizon-client --lib` 1193 passed (both unchanged).
+  `codemod check --callsites` is clean for both modules; entities.rs, fluids.rs and item_use.rs are
+  rustfmt-clean. Ledger: horizon_client_lib 82 fn + 224 callsite live, 20 fn tombstones; horizon_client
+  23 fn + 61 callsite live; meta next_id 411.
+
+The compile-then-exclude round found five systematic problems, all fixed in the tools rather than excluded:
+- `Vec<T, std::alloc::Global>`: the default allocator argument needs the unstable `allocator_api` to be
+  written, so the normaliser drops `, std::alloc::Global>`;
+- the never type `!` inside a type (`Result<T, E<!>>`) is unstable to write: such types are unwritable;
+- an unsizing coercion (`DYE_NAMES.iter()`, array to slice) is a THIR `Pointer { cast: Unsize }` node, now
+  transparent when computing the receiver adjustment (the call site coerces the same way);
+- a borrowed return with one borrowed input that is not a borrowed receiver (`Iter<'_, T>` by value ->
+  `Enumerate<Iter<'_, T>>`) ties that input's and the result's elided lifetimes to one named `'r`;
+- manual exclusions (`"manual": true`, SF3) were not applied to call-site candidates; they now are.
+
+### Coordinator's two additions
+
+- **Stale THIR:** `yoake-hook-thir` records each listed file's FNV-1a hash and length and a
+  `source_snapshot`; `apply`/`check` with `--thir` fail first with
+  `THIR is stale: <file> changed since the dump (dump sha .., now ..); re-run yoake-hook-thir dump`.
+  Checked on the real tree: passing the pre-rewrite entities dump gives that error and no `lost` site.
+- **Shared target dirs:** `yoake-hook-thir dump` writes `<target>/.yoake-workspace-root` and refuses a target
+  dir whose marker names another worktree (`--allow-shared-target` overrides). Checked on the real tree: a dump
+  from wt-y2ids wrote the marker and the next dump from wt-y2cs was refused. Notes in
+  docs/yoake2/BUILDING-WORKTREES.md, linked from CALLSITE-PLAN.md.
+- CI: `.github/workflows/yoake-hooks.yml` now passes `--callsites` for modules flagged in modules.txt.
+
+Tooling note: horizon-client-lib's sources appear in THIR as `crates/horizon-client-lib/../horizon-client/src/...`,
+so `--file` must be given in that form; the parser does not yet normalise `..`.
+
 ## Open problems
 
-- `check --callsites --thir <stale file>` reports every rewritten site as `lost`. With a THIR dump taken after
-  the rewrite it is clean. It should detect a stale dump (its spans no longer match the source) and fail with
-  that message.
+- (fixed in Phase 1b) `check --callsites --thir <stale file>` used to report every rewritten site as `lost`.
 - Path calls (`Type::f(x)`, `f(x)`) are Phase 2; so are calls with closure arguments (the shim would need the
   closure's type) and the generic and `dyn` receivers.
 - The codemod does not yet run the compile-then-exclude loop of the plan; item_use compiled after the two fixes
@@ -98,4 +142,5 @@ peaked at 13.4 MB working set; the second run did not, and this was not investig
   artifact hash in every worktree and decides freshness from file times, so a build in one worktree can
   silently reuse another worktree's newer artifact. The first SLOT_CAPACITY measurement here was wrong for that
   reason and was redone after touching the source. CI is unaffected (one checkout per job).
-- Next: entities (316 method calls) with the same pipeline.
+- `--file` paths are not normalised (`..`); the compile-then-exclude loop is still manual (one manual exclusion in
+  entities).

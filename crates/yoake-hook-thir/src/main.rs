@@ -21,8 +21,13 @@ fn run() -> Result<()> {
                 workspace: PathBuf::new(),
                 out: PathBuf::new(),
                 files: Vec::new(),
+                allow_shared_target: false,
             };
             while let Some(name) = arguments.next() {
+                if name == "--allow-shared-target" {
+                    options.allow_shared_target = true;
+                    continue;
+                }
                 let value = arguments.next().ok_or_else(|| Error::new(format!("{name} needs a value")))?;
                 match name.as_str() {
                     "--crate-pkg" => options.crate_pkg = value,
@@ -46,6 +51,7 @@ fn run() -> Result<()> {
         Some("parse") => {
             let mut thir = None;
             let mut out = None;
+            let mut workspace = None;
             let mut options = ParseOptions {
                 toolchain: "unknown (parse subcommand)".into(),
                 ..ParseOptions::default()
@@ -55,6 +61,7 @@ fn run() -> Result<()> {
                 match name.as_str() {
                     "--thir" => thir = Some(PathBuf::from(value)),
                     "--out" => out = Some(PathBuf::from(value)),
+                    "--workspace" => workspace = Some(PathBuf::from(value)),
                     "--file" => options.files.push(value),
                     "--extern" => {
                         options.externs.insert(value);
@@ -65,6 +72,7 @@ fn run() -> Result<()> {
             if options.files.is_empty() {
                 return Err(Error::new(usage()));
             }
+            options.workspace = Some(workspace.unwrap_or_else(|| PathBuf::from(".")));
             let thir = thir.ok_or_else(|| Error::new("parse requires --thir"))?;
             let out = out.ok_or_else(|| Error::new("parse requires --out"))?;
             let parsed = parse_file(&thir, &options)?;
@@ -75,7 +83,7 @@ fn run() -> Result<()> {
 }
 
 fn usage() -> &'static str {
-    "usage:\n  yoake-hook-thir dump --crate-pkg PKG --crate-name CRATE --workspace DIR --out JSON --file PATH...\n  yoake-hook-thir parse --thir FILE --out JSON --file PATH... [--extern NAME]..."
+    "usage:\n  yoake-hook-thir dump --crate-pkg PKG --crate-name CRATE --workspace DIR --out JSON --file PATH... [--allow-shared-target]\n  yoake-hook-thir parse --thir FILE --out JSON --file PATH... [--workspace DIR] [--extern NAME]..."
 }
 
 #[allow(dead_code)]

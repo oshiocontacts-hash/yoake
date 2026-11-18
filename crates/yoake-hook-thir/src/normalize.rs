@@ -9,10 +9,15 @@ const UNWRITABLE: &[&str] = &[
 ];
 
 pub fn normalize_type(raw: &str, local_crate: &str, externs: &BTreeSet<String>) -> Option<String> {
-    if UNWRITABLE.iter().any(|needle| raw.contains(needle)) {
+    if UNWRITABLE.iter().any(|needle| raw.contains(needle)) || mentions_never(raw) {
         return None;
     }
-    let raw = replace_regions(&strip_defid_hashes(raw));
+    // The default allocator argument (`Vec<T, std::alloc::Global>`) can only be written with the
+    // unstable `allocator_api`; dropping it gives the same type.
+    let raw = raw
+        .replace(", std::alloc::Global>", ">")
+        .replace(", alloc::alloc::Global>", ">");
+    let raw = replace_regions(&strip_defid_hashes(&raw));
     Some(prefix_local_paths(&raw, local_crate, externs))
 }
 
@@ -178,4 +183,17 @@ fn is_keyword_or_primitive(word: &str) -> bool {
             | "Self" | "self" | "super" | "crate" | "dyn" | "impl" | "fn" | "for"
             | "mut" | "ref" | "where" | "const" | "unsafe" | "extern" | "move" | "type"
     )
+}
+
+/// The never type `!` as a type (for example `Result<T, E<!>>`) is unstable to write.
+fn mentions_never(ty: &str) -> bool {
+    let bytes = ty.as_bytes();
+    bytes.iter().enumerate().any(|(index, &byte)| {
+        byte == b'!'
+            && bytes.get(index + 1) != Some(&b'=')
+            && index
+                .checked_sub(1)
+                .and_then(|before| ty[..=before].trim_end().chars().last())
+                .is_none_or(|c| matches!(c, '<' | ',' | '(' | '>' | '&' | ' '))
+    })
 }

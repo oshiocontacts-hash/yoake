@@ -51,6 +51,29 @@ fn codemod_bin() -> &'static str {
     env!("CARGO_BIN_EXE_yoake-hook-codemod")
 }
 
+fn fnv1a_hex(bytes: &[u8]) -> String {
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for &byte in bytes {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    format!("{hash:016x}")
+}
+
+fn thir_with_file(src: &str, calls: serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "crate": "demo",
+        "files": {
+            "src/bag.rs": {
+                "written_calls": 0,
+                "sha": fnv1a_hex(src.as_bytes()),
+                "len": src.len()
+            }
+        },
+        "calls": calls
+    })
+}
+
 fn write_fixture_crate(root: &Path, bag_rs: &str, ledger_json: &str, next_id: u32) {
     fs::create_dir_all(root.join("src")).unwrap();
     fs::create_dir_all(root.join("ledger")).unwrap();
@@ -138,9 +161,9 @@ impl Bag {
     };
     let is_empty_span = span_of(bag_rs, "self.items.is_empty()");
 
-    let calls_json = serde_json::json!({
-        "crate": "demo",
-        "calls": [
+    let calls_json = thir_with_file(
+        bag_rs,
+        serde_json::json!([
             {
                 "file": "src/bag.rs",
                 "span": first_call_span,
@@ -225,8 +248,8 @@ impl Bag {
                 "recv_adjust": { "borrow": "shared", "derefs": 0 },
                 "resolution": "concrete"
             }
-        ]
-    });
+        ]),
+    );
     let thir_path = dir.path().join("calls.json");
     fs::write(&thir_path, serde_json::to_string_pretty(&calls_json).unwrap()).unwrap();
 
@@ -297,9 +320,9 @@ impl Bag {
     assert!(chk.status.success(), "syn-only check failed:\n{chk_out}\n{chk_err}");
     assert!(chk_out.contains("check: clean"), "{chk_out}");
 
-    let calls2_json = serde_json::json!({
-        "crate": "demo",
-        "calls": [
+    let calls2_json = thir_with_file(
+        &rewritten,
+        serde_json::json!([
             {
                 "file": "src/bag.rs",
                 "span": span_of(&rewritten, "__yoake_cs_10(&self.items)"),
@@ -385,8 +408,8 @@ impl Bag {
                 "recv_adjust": { "borrow": "none", "derefs": 0 },
                 "resolution": "concrete"
             }
-        ]
-    });
+        ]),
+    );
     let thir2_path = dir.path().join("calls2.json");
     fs::write(&thir2_path, serde_json::to_string_pretty(&calls2_json).unwrap()).unwrap();
 
@@ -460,9 +483,9 @@ fn __yoake_cs_10(recv: &[u32]) -> std::option::Option<&u32> {
 "#;
     write_fixture_crate(dir.path(), bag_rs, ledger_json, 11);
 
-    let calls_json = serde_json::json!({
-        "crate": "demo",
-        "calls": [
+    let calls_json = thir_with_file(
+        bag_rs,
+        serde_json::json!([
             {
                 "file": "src/bag.rs",
                 "span": span_of(bag_rs, "__yoake_cs_10(&self.items)"),
@@ -506,8 +529,8 @@ fn __yoake_cs_10(recv: &[u32]) -> std::option::Option<&u32> {
                 "recv_adjust": { "borrow": "none", "derefs": 0 },
                 "resolution": "concrete"
             }
-        ]
-    });
+        ]),
+    );
     let thir_path = dir.path().join("calls.json");
     fs::write(&thir_path, serde_json::to_string_pretty(&calls_json).unwrap()).unwrap();
 
@@ -554,9 +577,9 @@ impl Bag {
 "#;
     write_fixture_crate(dir.path(), bag_rs, ledger_json, 10);
 
-    let calls_json = serde_json::json!({
-        "crate": "demo",
-        "calls": [
+    let calls_json = thir_with_file(
+        bag_rs,
+        serde_json::json!([
             {
                 "file": "src/bag.rs",
                 "span": span_of(bag_rs, "self.items.first()"),
@@ -579,8 +602,8 @@ impl Bag {
                 "recv_adjust": { "borrow": "shared", "derefs": 0 },
                 "resolution": "concrete"
             }
-        ]
-    });
+        ]),
+    );
     let thir_path = dir.path().join("calls.json");
     fs::write(&thir_path, serde_json::to_string_pretty(&calls_json).unwrap()).unwrap();
 
@@ -625,9 +648,9 @@ impl Bag {
 "#;
     write_fixture_crate(dir.path(), before_rs, ledger_json, 10);
 
-    let before_calls = serde_json::json!({
-        "crate": "demo",
-        "calls": [
+    let before_calls = thir_with_file(
+        before_rs,
+        serde_json::json!([
             {
                 "file": "src/bag.rs",
                 "span": span_of(before_rs, "self.ping()"),
@@ -639,8 +662,8 @@ impl Bag {
                 "recv_adjust": { "borrow": "none", "derefs": 0 },
                 "resolution": "concrete"
             }
-        ]
-    });
+        ]),
+    );
     let thir_path = dir.path().join("calls.json");
     fs::write(&thir_path, serde_json::to_string_pretty(&before_calls).unwrap()).unwrap();
 
@@ -673,9 +696,9 @@ impl Bag {
 ";
     fs::write(dir.path().join("src/bag.rs"), after_rs).unwrap();
     let ping_span = span_of(after_rs, "self.ping()");
-    let after_calls = serde_json::json!({
-        "crate": "demo",
-        "calls": [
+    let after_calls = thir_with_file(
+        after_rs,
+        serde_json::json!([
             {
                 "file": "src/bag.rs",
                 "span": ping_span,
@@ -687,8 +710,8 @@ impl Bag {
                 "recv_adjust": { "borrow": "none", "derefs": 0 },
                 "resolution": "concrete"
             }
-        ]
-    });
+        ]),
+    );
     fs::write(&thir_path, serde_json::to_string_pretty(&after_calls).unwrap()).unwrap();
 
     let expected_moved = format!(
@@ -741,12 +764,10 @@ impl Bag {
     assert!(moved_rewritten.contains("key = \"fn:1@call:fn:2\""), "{moved_rewritten}");
 
     // Delete the rewritten call and shim -> lost until --tombstone-site.
-    fs::write(
-        dir.path().join("src/bag.rs"),
-        "pub struct Bag;\nimpl Bag {\n    pub fn run(&self, _cond: bool) {}\n    pub fn ping(&self) {}\n}\n",
-    )
-    .unwrap();
-    let empty_calls = serde_json::json!({ "crate": "demo", "calls": [] });
+    let empty_rs =
+        "pub struct Bag;\nimpl Bag {\n    pub fn run(&self, _cond: bool) {}\n    pub fn ping(&self) {}\n}\n";
+    fs::write(dir.path().join("src/bag.rs"), empty_rs).unwrap();
+    let empty_calls = thir_with_file(empty_rs, serde_json::json!([]));
     fs::write(&thir_path, serde_json::to_string_pretty(&empty_calls).unwrap()).unwrap();
 
     let fail_lost = Command::new(codemod_bin())
@@ -819,9 +840,9 @@ impl Bag {
 "#;
     write_fixture_crate(dir.path(), bag_rs, ledger_json, 11);
 
-    let calls_json = serde_json::json!({
-        "crate": "demo",
-        "calls": [
+    let calls_json = thir_with_file(
+        bag_rs,
+        serde_json::json!([
             {
                 "file": "src/bag.rs",
                 "span": span_of(bag_rs, "self.pong()"),
@@ -833,8 +854,8 @@ impl Bag {
                 "recv_adjust": { "borrow": "none", "derefs": 0 },
                 "resolution": "concrete"
             }
-        ]
-    });
+        ]),
+    );
     let thir_path = dir.path().join("calls.json");
     fs::write(&thir_path, serde_json::to_string_pretty(&calls_json).unwrap()).unwrap();
 
@@ -902,9 +923,9 @@ impl Bag {
         serde_json::to_string_pretty(&updated_ledger).unwrap(),
     )
     .unwrap();
-    let exec_calls = serde_json::json!({
-        "crate": "demo",
-        "calls": [
+    let exec_calls = thir_with_file(
+        &exec_rs,
+        serde_json::json!([
             {
                 "file": "src/bag.rs",
                 "span": span_of(&exec_rs, "__yoake_cs_10(self)"),
@@ -926,8 +947,8 @@ impl Bag {
                 "recv_adjust": { "borrow": "none", "derefs": 0 },
                 "resolution": "concrete"
             }
-        ]
-    });
+        ]),
+    );
     fs::write(&thir_path, serde_json::to_string_pretty(&exec_calls).unwrap()).unwrap();
 
     let caller_rename = Command::new(codemod_bin())
@@ -984,9 +1005,9 @@ impl Bag {
 "#;
     write_fixture_crate(dir.path(), before_rs, ledger_json, 10);
 
-    let before_calls = serde_json::json!({
-        "crate": "demo",
-        "calls": [
+    let before_calls = thir_with_file(
+        before_rs,
+        serde_json::json!([
             {
                 "file": "src/bag.rs",
                 "span": span_of(before_rs, "self.len_a()"),
@@ -998,8 +1019,8 @@ impl Bag {
                 "recv_adjust": { "borrow": "none", "derefs": 0 },
                 "resolution": "concrete"
             }
-        ]
-    });
+        ]),
+    );
     let thir_path = dir.path().join("calls.json");
     fs::write(&thir_path, serde_json::to_string_pretty(&before_calls).unwrap()).unwrap();
 
@@ -1030,9 +1051,9 @@ impl Bag {
 ";
     fs::write(dir.path().join("src/bag.rs"), after_rs).unwrap();
     let len_span = span_of(after_rs, "(self).len_a()");
-    let after_calls = serde_json::json!({
-        "crate": "demo",
-        "calls": [
+    let after_calls = thir_with_file(
+        after_rs,
+        serde_json::json!([
             {
                 "file": "src/bag.rs",
                 "span": len_span,
@@ -1044,8 +1065,8 @@ impl Bag {
                 "recv_adjust": { "borrow": "none", "derefs": 0 },
                 "resolution": "concrete"
             }
-        ]
-    });
+        ]),
+    );
     fs::write(&thir_path, serde_json::to_string_pretty(&after_calls).unwrap()).unwrap();
 
     let check_changed = Command::new(codemod_bin())
@@ -1097,4 +1118,111 @@ impl Bag {
     let rewritten = fs::read_to_string(dir.path().join("src/bag.rs")).unwrap();
     assert!(rewritten.contains("__yoake_cs_10((self)) + 1"), "{rewritten}");
     assert!(rewritten.contains("key = \"fn:1@call:fn:2\""), "{rewritten}");
+}
+
+#[test]
+fn stale_or_missing_sha_thir_fails_before_reporting_lost() {
+    let dir = TestDir::new("stale_thir");
+    let before_rs = "\
+pub struct Bag;
+
+impl Bag {
+    pub fn run(&self) {
+        self.ping();
+    }
+
+    pub fn ping(&self) {}
+}
+";
+    let ledger_json = r#"{
+  "crate": "demo",
+  "entries": [
+    { "id": 1, "key": "demo::bag::Bag::run", "sig": "0000000000000001", "status": "live", "kind": "fn" },
+    { "id": 2, "key": "demo::bag::Bag::ping", "sig": "0000000000000002", "status": "live", "kind": "fn" }
+  ],
+  "excluded": []
+}
+"#;
+    write_fixture_crate(dir.path(), before_rs, ledger_json, 10);
+
+    let calls_json = thir_with_file(
+        before_rs,
+        serde_json::json!([
+            {
+                "file": "src/bag.rs",
+                "span": span_of(before_rs, "self.ping()"),
+                "ctxt": 0,
+                "kind": "method",
+                "callee": "demo::bag::Bag::ping",
+                "ret_ty": "()",
+                "args": [ { "ty": "&'_ crate::bag::Bag" } ],
+                "recv_adjust": { "borrow": "none", "derefs": 0 },
+                "resolution": "concrete"
+            }
+        ]),
+    );
+    let thir_path = dir.path().join("calls.json");
+    fs::write(&thir_path, serde_json::to_string_pretty(&calls_json).unwrap()).unwrap();
+
+    // Matching sha passes.
+    let apply_ok = Command::new(codemod_bin())
+        .args(["apply", "--callsites", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "bag", "--thir"])
+        .arg(&thir_path)
+        .output()
+        .unwrap();
+    assert!(
+        apply_ok.status.success(),
+        "matching sha should pass:\n{}",
+        String::from_utf8_lossy(&apply_ok.stderr)
+    );
+
+    // After apply, `src/bag.rs` was rewritten while `calls.json` still holds the pre-rewrite sha.
+    // Even though `self.ping()` was rewritten to `__yoake_cs_10(self)` (which would look `lost`
+    // against the old THIR), codemod must fail with `THIR is stale` and never report `lost`.
+    for mode in ["check", "apply"] {
+        let stale_out = Command::new(codemod_bin())
+            .args([mode, "--callsites", "--crate-root"])
+            .arg(dir.path())
+            .args(["--crate-name", "demo", "--ledger"])
+            .arg(dir.path().join("ledger"))
+            .args(["--module", "bag", "--thir"])
+            .arg(&thir_path)
+            .output()
+            .unwrap();
+        assert!(!stale_out.status.success(), "{mode} should fail on stale THIR");
+        let err = String::from_utf8_lossy(&stale_out.stderr);
+        assert!(err.contains("THIR is stale"), "{mode} stderr:\n{err}");
+        assert!(
+            err.contains("re-run yoake-hook-thir dump"),
+            "{mode} stderr:\n{err}"
+        );
+        assert!(!err.contains("callsite lost"), "{mode} stderr:\n{err}");
+    }
+
+    // Missing `sha` in the dump is also a hard error before matching/lost reporting.
+    let no_sha_json = serde_json::json!({
+        "crate": "demo",
+        "files": {
+            "src/bag.rs": { "written_calls": 1 }
+        },
+        "calls": []
+    });
+    fs::write(&thir_path, serde_json::to_string_pretty(&no_sha_json).unwrap()).unwrap();
+    let missing_out = Command::new(codemod_bin())
+        .args(["check", "--callsites", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "bag", "--thir"])
+        .arg(&thir_path)
+        .output()
+        .unwrap();
+    assert!(!missing_out.status.success());
+    let missing_err = String::from_utf8_lossy(&missing_out.stderr);
+    assert!(missing_err.contains("THIR is stale"), "{missing_err}");
+    assert!(!missing_err.contains("callsite lost"), "{missing_err}");
 }
