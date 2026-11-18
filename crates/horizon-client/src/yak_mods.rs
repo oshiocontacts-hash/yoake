@@ -515,6 +515,12 @@ pub(crate) fn wasm_mods_from(
         let Some(wasm) = &entry.manifest.wasm else {
             continue;
         };
+        // MX3L2: a full-access package holds a core module for the engine_call ABI, not a component. This
+        // sandboxed path never loads it (the full-access loader, `yoake2_mods`, is the only one that may).
+        if wasm.full_access() {
+            log::info!("YAK {}: full-access package, left to the full-access loader (not loaded as a sandboxed component)", entry.manifest.id);
+            continue;
+        }
         let path = match side {
             WasmSide::Client => &wasm.client,
             WasmSide::Server => &wasm.server,
@@ -571,6 +577,9 @@ fn wasm_preflight(
         return Err("package declares both native and wasm code".into());
     }
     let wasm = manifest.wasm.as_ref().ok_or("no wasm declared")?;
+    if wasm.full_access() {
+        return Err("full-access package: only the full-access loader may load it".into());
+    }
     let declared = match side {
         WasmSide::Client => &wasm.client,
         WasmSide::Server => &wasm.server,

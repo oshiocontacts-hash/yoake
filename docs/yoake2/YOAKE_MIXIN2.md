@@ -77,6 +77,7 @@ Coverage target: public and crate-visible functions of the gameplay, world, rend
 
 - The engine keeps **one owner root key** plus a **spare root**. The author list in the feed is owner-signed and has a sequence high-water mark and an expiry. Release hashes are co-signed in the owner catalog (double signing, Fable item 10). There is a hash denylist.
 - A local drop-in needs no signature: the player chose it. It is still verified as a valid component, and the launcher warns that it has full access.
+- **Full-access approval names content, not an id** (MX3L2): the player's switch records the package SHA-256, so an update or a replaced file is not loaded until approved again. Origin (`local` / `catalog` / `server` / `friend`) is metadata recorded when the package arrives, not the folder it sits in; no record means not full-access, and server/friend packages are never full-access. See `ENGINE_CALL_ABI.md`, "Loader hardening".
 
 ### 2.6 Freezing and engine generations
 

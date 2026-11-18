@@ -640,3 +640,24 @@ fn config_sync_is_enabled_only_for_a_capable_synced_server_module() {
     let runtime = Runtime::read(&fixture.0, &build(), &[]);
     assert!(runtime.synced_config);
 }
+
+/// MX3L2: a full-access package is a core module for the `engine_call` ABI; the sandboxed component path must
+/// skip it (and refuse it in preflight) instead of trying to load it. Feature-gated so the feature-off test count
+/// of the crate stays as it was.
+#[cfg(feature = "yoake2-slice")]
+#[test]
+fn the_sandboxed_path_skips_full_access_packages() {
+    let fixture = Fixture::new();
+    let entry = fixture.install(&server_wasm_source("world = \"full-access\"\n"));
+    assert!(entry.manifest.wasm.as_ref().unwrap().full_access());
+    fixture.write(&entry.root.join("bin/wasm/server.wasm"), b"\0asm\x01\0\0\0");
+    assert!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Server, &[], true).is_empty(), "skipped on the server side");
+    assert!(wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Client, &[], true).is_empty());
+    assert!(wasm_preflight(&entry, "bin/wasm/server.wasm", WasmSide::Server, &[], true).unwrap_err().contains("full-access"), "and refused if asked directly");
+    // an ordinary server module next to it still loads
+    let plain = fixture.install(&server_wasm_source("").replace("server_mod", "plain_mod"));
+    fixture.write(&plain.root.join("bin/wasm/server.wasm"), b"\0asm\x01\0\0\0");
+    let both = [entry, plain];
+    let found = wasm_mods_from(&both, WasmSide::Server, &[], true);
+    assert_eq!(found.iter().map(|m| m.mod_id.as_str()).collect::<Vec<_>>(), ["plain_mod"]);
+}

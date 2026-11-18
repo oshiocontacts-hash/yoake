@@ -137,15 +137,19 @@ fn pack_mod(dir: &Path, id: &str, wasm: &[u8]) -> PathBuf {
     )
     .unwrap();
     std::fs::write(src.join("bin/wasm/mod.wasm"), wasm).unwrap();
-    let out = dir.join(format!("{id}.yak"));
-    horizon_mods::yak::pack_directory(&src, &out, &std::collections::BTreeMap::new()).unwrap();
-    out
+    let built = dir.join(format!("{id}.built"));
+    horizon_mods::yak::pack_directory(&src, &built, &std::collections::BTreeMap::new()).unwrap();
+    // arrives like a player's own install: the file lands in the folder and its origin is recorded
+    let bytes = std::fs::read(&built).unwrap();
+    std::fs::remove_file(&built).unwrap();
+    crate::yoake2_mods::install_package(dir, &format!("{id}.yak"), &bytes, crate::yoake2_mods::Origin::Local, None).unwrap();
+    dir.join(format!("{id}.yak"))
 }
 
 #[test]
 #[ignore = "needs HORIZON_TEST_RESOURCES (the game resources)"]
 fn two_rust_mods_compose_in_the_server_tick_of_a_real_game_and_a_trap_leaves_the_others_working() {
-    use crate::yoake2_mods::{AllowFile, Origin, Refusal, load_dir};
+    use crate::yoake2_mods::{AllowFile, OriginFile, Refusal, load_dir};
 
     let sdk = Path::new(env!("CARGO_MANIFEST_DIR")).join("../yoake-guest-sdk");
     let scratch = std::env::temp_dir().join("yoake2_two_mods");
@@ -162,7 +166,7 @@ fn two_rust_mods_compose_in_the_server_tick_of_a_real_game_and_a_trap_leaves_the
     pack_mod(&mods, "d_denied", &a);
     let mut allow = AllowFile::default();
     for id in ["a_outer", "b_inner", "c_trap"] {
-        allow.set(id, true);
+        allow.allow_package(&std::fs::read(mods.join(format!("{id}.yak"))).unwrap()).unwrap();
     }
     allow.save(&mods).unwrap();
 
@@ -170,7 +174,7 @@ fn two_rust_mods_compose_in_the_server_tick_of_a_real_game_and_a_trap_leaves_the
         super::native_client_items::yoake2_install_dispatch();
         game.dropped.push(item(ITEM, 12.5));
         let _ = runtime::uninstall();
-        let report = load_dir(&mods, Origin::LocalFolder, &AllowFile::load(&mods).unwrap(), &[], &ModConfig::new(""));
+        let report = load_dir(&mods, &OriginFile::load(&mods).unwrap(), &AllowFile::load(&mods).unwrap(), &[], &ModConfig::new(""));
         assert_eq!(report.loaded.iter().map(|l| l.id.as_str()).collect::<Vec<_>>(), ["a_outer", "b_inner", "c_trap"]);
         assert_eq!(report.skipped.len(), 1);
         assert_eq!(report.skipped[0].1, Refusal::NotAllowed, "d_denied was not switched on, so it never loaded");

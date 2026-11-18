@@ -29,3 +29,7 @@ required-features = ["wasm"]
 [[test]]
 name = "multi"
 required-features = ["wasm"]
+
+[[test]]
+name = "policy"
+required-features = ["wasm"]

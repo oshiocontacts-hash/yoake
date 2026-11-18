@@ -99,9 +99,62 @@ It builds to a **core module** with the installed `wasm32-wasip2` target and no 
 - **Handles of one mod are its own.** A path handle or hook-argument handle belongs to the activation of one mod; another
   mod's activation of the same hook has its own handles.
 - **Full-access packages** are `.yak` files with `[wasm] interface = "1.0"`, `server = "bin/wasm/<name>.wasm"` and
-  `world = "full-access"` (a core module, no `client`, no `[wasm] permissions`, `side.server = true`). They run only when
-  the player switched them on in `<mods folder>/full-access.toml` (`[allow]` `<id> = true`) or, for a catalog package, a
-  key of the trust list signed them. A package delivered by a server or a friend is never full-access. A manifest without
-  that world is the sandboxed WebAssembly path, untouched.
+  `world = "full-access"` (a core module, no `client`, no `[wasm] permissions`, `side.server = true`). A manifest
+  without that world is the sandboxed WebAssembly path, untouched; that path skips full-access packages explicitly
+  (MX3L2, below). When a package may run is in "Loader hardening" below.
 - **Never hold a guest borrow across `original`** (a `RefCell` guard, a `static mut` reference): the engine may call a hook
   that enters this guest again, the nested hook finds the borrow taken, panics, and a panic is a trap.
+
+## Loader hardening (MX3L2)
+
+**Permission is bound to content; the origin is metadata recorded on arrival.**
+
+- The player's approval is an entry of `<mods folder>/full-access.toml`:
+  `[[allow]] id = "..." version = "..." sha256 = "<64 hex of the .yak file>"`. The loader hashes the package file; a
+  package whose bytes differ from the approved ones (an update, a replaced file) is **not loaded** and reported as
+  `ContentChanged` ("changed since it was approved ... approve it again"). Approving again replaces the old entry. The
+  MX3L1 form (`[allow] id = true`) names no content: it is read, listed in the report and approves nothing.
+- The origin of a package is **not** inferred from the folder. It is the record written when the package arrived,
+  `<mods folder>/yak-origins.toml`: `[[package]] sha256 = ... id = ... version = ... origin = "local" | "catalog" |
+  "server" | "friend"` (+ `signer` for the catalog). `yoake2_mods::install_package` stores a file and records its origin;
+  the player's own installs use `local`, catalog downloads `catalog` (with the signer), deliveries from a server or a
+  friend `server` / `friend`. Nothing in this tree delivers full-access packages yet (the launcher extracts sandboxed
+  packages into `yoake-mods/<id>/<version>/`, which this loader never reads), so a future delivery path **must** call
+  `install_package` with its origin. The record is keyed by hash and distrust is sticky: bytes that arrived from a
+  server or a friend stay `server`/`friend` when the same bytes are installed locally later (delete the record to start
+  over). Only the game and the launcher write the file; a mod cannot.
+- **No record, an unreadable record, or an origin word this build does not know is an unknown origin: never
+  full-access** (`UnknownOrigin`). A `server` or `friend` package is never full-access either, even with its hash
+  approved (checked before the signature and before the approval). Only `local` (approved) and `catalog` (approved, or
+  signed by a key of the trust list) can run.
+- **Duplicates**: when two `.yak` files of the folder carry the same manifest id, every full-access one of them is
+  refused (`DuplicateId`, naming the other file); other mods load. Same bytes under two names count too.
+- `load_world_mods` unloads the previous world's mods first; if one cannot be unloaded (its guest is running) it keeps
+  it, loads nothing new and reports the error.
+
+**The sandboxed path skips full-access packages.** `yak_mods::wasm_mods_from` (both sides) skips a manifest with
+`world = "full-access"` with a log line, and `wasm_preflight` refuses it if asked directly, so the component loader
+never sees the core module.
+
+**Fuel policy of a full-access mod** (design 4b: no hard per-call limit, a watchdog only logs). `ModConfig::full_access()`:
+
+| | tests' `ModConfig::new` | `ModConfig::full_access()` (the loader's) |
+|---|---|---|
+| fuel per activation | 1,000,000 (traps when spent) | **none**: an activation starts from a full tank (`INITIAL_FUEL`, refilled after every top-level activation) |
+| trapping epoch (`epoch_ticks`) | off (configurable) | off |
+| watchdog (`watchdog_ms`) | off (configurable) | **50 ms** of the guest's own time per activation (time inside `original` is not counted) |
+| `yoake_init` | 50 M fuel, 2000 epoch ticks | the same: **still finite**; a spinning init fails the load |
+
+The watchdog is an epoch deadline with a callback: when an activation's guest time passes the threshold, one
+`yoake: mod <id>: a hook activation has run N ms of guest time ... it is not stopped` line goes to stderr, `Stats::slow_activations`
+and `slowest_ms` count it, and the guest runs on with a fresh deadline; it **never traps** (the mod is not disabled). It
+logs once per activation. Its ticker thread wakes every 5 ms (a trapping `epoch_ticks` budget keeps the 1 ms ticker);
+`epoch_ticks`, if set, wins and traps as before. The remaining stoppers of a runaway guest are the process and the
+player (a mod can hang the server thread; that is the price of full access).
+
+**Depth cap**: `MAX_DEPTH` (16 nested activations) is **per mod**, each store counts its own; with several mods in one
+chain the total nesting can be deeper than 16 (each level still costs native stack).
+
+**Chains are cached per hook id** (`chain_for`): built on first use, dropped whenever a mod is loaded, unloaded or dies
+(a generation counter), so the hot path is one hash lookup and an `Rc` clone. A mod's registrations change only
+inside its `yoake_init`, before it is in the list.
