@@ -221,6 +221,28 @@ impl Client {
         if snapshot != plan.snapshot || environment != plan.environment {
             return Err(Error::Stale);
         }
+        // a plan that only adds full-access packages leaves the sandboxed store alone
+        let sandboxed = plan.full_chosen.is_empty()
+            || plan
+                .chosen
+                .iter()
+                .any(|candidate| !matches!(candidate.source, Source::Installed(_)));
+        if sandboxed {
+            self.apply_sandboxed(&plan, &environment, dev_unsigned_dll, old)?;
+        }
+        for candidate in &plan.full_chosen {
+            self.install_full_access(&plan.home, candidate)?;
+        }
+        Ok(())
+    }
+
+    fn apply_sandboxed(
+        &self,
+        plan: &InstallPlan,
+        environment: &InstanceEnvironment,
+        dev_unsigned_dll: bool,
+        old: State,
+    ) -> Result<(), Error> {
         let mut records = Vec::new();
         let mut created = Vec::new();
         for candidate in &plan.chosen {
@@ -307,4 +329,54 @@ fn enabled_order(state: &State, active: &[String]) -> Result<Vec<String>, Error>
         ));
     }
     Ok(resolution.order)
+}
+
+impl Client {
+    /// Puts a full-access package into `<home>/mods/` (MX3U1): a top-level `.yak` with an origin record, **not
+    /// approved**. A local file goes through `Control::install_local` (origin `local`); a catalog version is
+    /// downloaded, checked against the signed catalog and recorded with origin `catalog` and its signer.
+    fn install_full_access(&self, home: &Path, candidate: &Candidate) -> Result<(), Error> {
+        let to_error = Error::Storage;
+        match &candidate.source {
+            Source::Local { path, hash, .. } => {
+                if hash_file(path)? != *hash {
+                    return Err(Error::Stale);
+                }
+                crate::full_access::install_local_in(&self.data, home, path, Some(hash))
+                    .map(|_| ())
+                    .map_err(to_error)
+            }
+            Source::Catalog(version, proof) => {
+                self.verify(proof.clone(), false)?;
+                let auth = self.authorization()?;
+                let mut bytes = Vec::new();
+                self.http
+                    .open(&version.url, Some(&auth), version.size)?
+                    .take(version.size + 1)
+                    .read_to_end(&mut bytes)?;
+                if bytes.len() as u64 != version.size
+                    || horizon_release_sign::sha256_hex(&bytes) != version.sha256
+                {
+                    return Err(FeedError::HashMismatch.into());
+                }
+                let archive = Archive::from_catalog(std::io::Cursor::new(&bytes), version)
+                    .map_err(Error::Invalid)?;
+                let signer = archive
+                    .verify_signature(&self.keys)
+                    .map_err(Error::Invalid)?
+                    .map(|key| key.iter().map(|byte| format!("{byte:02x}")).collect::<String>());
+                let name = format!("{}-{}.yak", version.manifest.id, version.version);
+                crate::full_access::install_catalog_in(
+                    &self.data,
+                    home,
+                    &name,
+                    &bytes,
+                    signer.as_deref(),
+                )
+                .map(|_| ())
+                .map_err(to_error)
+            }
+            Source::Installed(_) => Ok(()),
+        }
+    }
 }

@@ -378,6 +378,8 @@ struct Launcher {
     quick_play: Option<(&'static str, String)>,
     /// The instance the running game plays and when it started: its play time grows on exit.
     client_run: Option<(String, Instant)>,
+    /// The running Yoake game's list of approved full-access mods (a run folder); dropped when the game exits.
+    client_full_access: Option<horizon_launcher::full_access::RunFolder>,
     /// The running game's instance variables, for its post-exit command.
     client_vars: horizon_launcher::launch::Vars,
     /// Settings' Game arguments field: the line, whether it has focus, and its focus handle.
@@ -684,6 +686,7 @@ impl Launcher {
             social_handoff: None,
             quick_play: None,
             client_run: None,
+            client_full_access: None,
             client_vars: Vec::new(),
             collection: collection::Collection::load(),
             agents: agents_page::AgentsUi::default(),
@@ -1405,6 +1408,13 @@ impl Launcher {
                         }
                         let launch = instance.map(|i| i.launch).unwrap_or_default();
                         horizon_launcher::launch::limit_memory(&mut cmd, &launch);
+                        // MX3U1: the approved full-access list for this launch (the problem, if any, is kept for
+                        // `full_access::last_launch_problem`).
+                        if yoake {
+                            let prepared = horizon_launcher::full_access::prepare(&instance_home);
+                            prepared.apply(&mut cmd);
+                            self.client_full_access = prepared.run;
+                        }
                         let mut cmd = horizon_launcher::launch::wrap(cmd, &launch);
                         if yoake {
                             cmd.env("HORIZON_HOME", &instance_home);
@@ -1424,6 +1434,7 @@ impl Launcher {
                                 }
                             }
                             Err(e) => {
+                                self.client_full_access = None;
                                 self.client_error = Some(e);
                                 self.fail_social_handoff(handoff);
                             }
@@ -1595,6 +1606,7 @@ impl Launcher {
                         }
                         Job::Client => {
                             self.client = None;
+                            self.client_full_access = None;
                             self.friends_game_ended();
                             self.come_back(cx);
                             // The game saved: last played, sizes and pictures changed.
@@ -6152,6 +6164,8 @@ fn main() {
         &social::handoff::folder(&backend::data_dir()),
         social::handoff::MAX_AGE,
     );
+    // Approved-list folders of games that were never closed properly (a crashed launcher).
+    horizon_launcher::full_access::remove_stale_runs();
     // What the launcher downloads goes through the player's proxy, if they set one: the parts
     // that build their own agents (`horizon-port-pack`) are told before anything starts.
     horizon_launcher::proxy::announce(horizon_launcher::backend::Settings::load().proxy);

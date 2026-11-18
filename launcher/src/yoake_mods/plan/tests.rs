@@ -3,6 +3,7 @@ use super::*;
 mod fixtures;
 mod lifecycle;
 mod local;
+mod full_access;
 
 use fixtures::Fixture;
 
