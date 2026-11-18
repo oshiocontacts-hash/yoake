@@ -33,7 +33,10 @@ fn after(wait: Duration) -> Instant {
 
 pub struct TlsChannel<C> {
     conn: C,
+    #[cfg(not(test))]
     sock: TcpStream,
+    #[cfg(test)]
+    sock: Box<dyn tests::TestTransport>,
     incoming: Vec<u8>,
     pending_send: Option<PendingSend>,
     timeouts: ChannelTimeouts,
@@ -65,6 +68,8 @@ where
 {
     sock.set_nonblocking(true)?;
     let _ = sock.set_nodelay(true);
+    #[cfg(test)]
+    let sock: Box<dyn tests::TestTransport> = Box::new(sock);
     let mut channel = TlsChannel {
         conn,
         sock,
