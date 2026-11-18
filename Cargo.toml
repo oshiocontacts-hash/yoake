@@ -44,6 +44,8 @@ members = [
     "crates/yoake-hook-rt",
     "crates/yoake-hook-ledger",
     "crates/yoake-hook-codemod",
+    "crates/yoake-hook-thir",
+    "crates/yoake-callsite-match",
     "crates/yoake-value",
     "crates/yoake-wasm",
     "crates/yoake-cli",

@@ -1,4 +1,5 @@
 mod attr;
+mod callsite;
 mod edit;
 mod eligible;
 mod key;
@@ -16,6 +17,14 @@ pub enum Mode {
     Check,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AcceptSite {
+    pub key: String,
+    pub file: String,
+    pub line: usize,
+    pub col: usize,
+}
+
 pub struct Config {
     pub mode: Mode,
     pub crate_root: PathBuf,
@@ -24,6 +33,11 @@ pub struct Config {
     pub modules: Vec<String>,
     pub renames: Vec<(String, String)>,
     pub tombstones: Vec<String>,
+    pub callsites: bool,
+    pub thir: Option<PathBuf>,
+    pub accept_sites: Vec<AcceptSite>,
+    pub rename_sites: Vec<(String, String)>,
+    pub tombstone_sites: Vec<String>,
     pub rustfmt: bool,
 }
 
@@ -40,8 +54,27 @@ enum Command {
 fn usage() -> &'static str {
     "usage:\n  \
      yoake-hook-codemod <apply|check> --crate-root <dir> --crate-name <name> \
-     --ledger <dir> --module <mod> [--module <mod>...] [--rename OLD=NEW]... [--tombstone KEY]... [--rustfmt]\n  \
+     --ledger <dir> --module <mod> [--module <mod>...] [--rename OLD=NEW]... [--tombstone KEY]... \
+     [--callsites] [--thir <calls.json>] [--accept-site KEY@FILE:LINE:COL]... [--rename-site OLD=NEW]... [--tombstone-site KEY]... [--rustfmt]\n  \
      yoake-hook-codemod check-history --base <dir> --current <dir>"
+}
+
+fn parse_accept_site(raw: &str) -> Result<AcceptSite, String> {
+    let err = || format!("--accept-site expects KEY@FILE:LINE:COL, got '{raw}'");
+    let (rest, col_str) = raw.rsplit_once(':').ok_or_else(err)?;
+    let (rest, line_str) = rest.rsplit_once(':').ok_or_else(err)?;
+    let (key, file) = rest.rsplit_once('@').ok_or_else(err)?;
+    let line: usize = line_str.parse().map_err(|_| err())?;
+    let col: usize = col_str.parse().map_err(|_| err())?;
+    if key.is_empty() || file.is_empty() || line == 0 || col == 0 {
+        return Err(err());
+    }
+    Ok(AcceptSite {
+        key: key.to_string(),
+        file: file.to_string(),
+        line,
+        col,
+    })
 }
 
 fn next_arg(args: &mut std::env::Args, flag: &str) -> Result<String, String> {
@@ -81,6 +114,11 @@ fn parse_args() -> Result<Option<Command>, String> {
     let mut modules = Vec::new();
     let mut renames = Vec::new();
     let mut tombstones = Vec::new();
+    let mut callsites = false;
+    let mut thir = None;
+    let mut accept_sites = Vec::new();
+    let mut rename_sites = Vec::new();
+    let mut tombstone_sites = Vec::new();
     let mut rustfmt = false;
 
     while let Some(arg) = args.next() {
@@ -110,6 +148,29 @@ fn parse_args() -> Result<Option<Command>, String> {
                 }
                 tombstones.push(key);
             }
+            "--callsites" => callsites = true,
+            "--thir" => thir = Some(PathBuf::from(next_arg(&mut args, "--thir")?)),
+            "--accept-site" => {
+                let raw = next_arg(&mut args, "--accept-site")?;
+                accept_sites.push(parse_accept_site(&raw)?);
+            }
+            "--rename-site" => {
+                let raw = next_arg(&mut args, "--rename-site")?;
+                let Some((old_key, new_key)) = raw.split_once('=') else {
+                    return Err(format!("--rename-site expects OLD=NEW, got '{raw}'"));
+                };
+                if old_key.is_empty() || new_key.is_empty() {
+                    return Err(format!("--rename-site keys must be non-empty, got '{raw}'"));
+                }
+                rename_sites.push((old_key.to_string(), new_key.to_string()));
+            }
+            "--tombstone-site" => {
+                let key = next_arg(&mut args, "--tombstone-site")?;
+                if key.is_empty() {
+                    return Err("--tombstone-site key must be non-empty".to_string());
+                }
+                tombstone_sites.push(key);
+            }
             "--rustfmt" => rustfmt = true,
             other => return Err(format!("unknown argument '{other}'\n{}", usage())),
         }
@@ -121,6 +182,20 @@ fn parse_args() -> Result<Option<Command>, String> {
     if modules.is_empty() {
         return Err(format!("at least one --module is required\n{}", usage()));
     }
+    if thir.is_some() && !callsites {
+        return Err("--thir requires --callsites".to_string());
+    }
+    if (!accept_sites.is_empty() || !rename_sites.is_empty() || !tombstone_sites.is_empty())
+        && !callsites
+    {
+        return Err("--accept-site, --rename-site, and --tombstone-site require --callsites".to_string());
+    }
+    if (!accept_sites.is_empty() || !rename_sites.is_empty()) && thir.is_none() {
+        return Err("--accept-site and --rename-site require --thir <calls.json>".to_string());
+    }
+    if callsites && mode == Mode::Apply && thir.is_none() {
+        return Err("apply --callsites requires --thir <calls.json>".to_string());
+    }
 
     Ok(Some(Command::Run(Config {
         mode,
@@ -130,6 +205,11 @@ fn parse_args() -> Result<Option<Command>, String> {
         modules,
         renames,
         tombstones,
+        callsites,
+        thir,
+        accept_sites,
+        rename_sites,
+        tombstone_sites,
         rustfmt,
     })))
 }

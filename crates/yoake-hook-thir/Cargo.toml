@@ -1,0 +1,20 @@
+[package]
+name = "yoake-hook-thir"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "yoake_hook_thir"
+
+[[bin]]
+name = "yoake-hook-thir"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[lints]
+workspace = true

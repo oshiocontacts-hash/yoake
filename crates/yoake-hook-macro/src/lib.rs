@@ -14,6 +14,7 @@ enum RawOption {
     Id(LitInt),
     TestId(LitInt),
     Key(LitStr),
+    Kind(Ident),
     SelfTy(Type),
     Skip(LitStr),
 }
@@ -25,10 +26,10 @@ impl Parse for RawOption {
             return Ok(Self::Method);
         }
         let kind = name.to_string();
-        if !matches!(kind.as_str(), "id" | "test_id" | "key" | "self_ty" | "skip") {
+        if !matches!(kind.as_str(), "id" | "test_id" | "key" | "kind" | "self_ty" | "skip") {
             return Err(syn::Error::new(
                 name.span(),
-                "expected method, id, key, test_id, self_ty, or skip",
+                "expected method, id, key, kind, test_id, self_ty, or skip",
             ));
         }
         input.parse::<Token![=]>()?;
@@ -36,6 +37,7 @@ impl Parse for RawOption {
             "id" => Ok(Self::Id(input.parse()?)),
             "test_id" => Ok(Self::TestId(input.parse()?)),
             "key" => Ok(Self::Key(input.parse()?)),
+            "kind" => Ok(Self::Kind(input.parse()?)),
             "self_ty" => Ok(Self::SelfTy(input.parse()?)),
             "skip" => Ok(Self::Skip(input.parse()?)),
             _ => unreachable!(),
@@ -61,6 +63,7 @@ fn expand(
     let mut slot_id: Option<usize> = None;
     let mut test_id: Option<usize> = None;
     let mut key: Option<LitStr> = None;
+    let mut kind: Option<Ident> = None;
     let mut self_ty: Option<Type> = None;
     for option in options {
         match option {
@@ -82,6 +85,12 @@ fn expand(
                     return Err(syn::Error::new_spanned(value, "duplicate key"));
                 }
             }
+            RawOption::Kind(value) => {
+                if kind.is_some() {
+                    return Err(syn::Error::new_spanned(value, "duplicate kind"));
+                }
+                kind = Some(value);
+            }
             RawOption::SelfTy(value) => {
                 if self_ty.replace(value.clone()).is_some() {
                     return Err(syn::Error::new_spanned(value, "duplicate self_ty"));
@@ -95,12 +104,23 @@ fn expand(
             }
         }
     }
+    let callsite = match &kind {
+        Some(value) if value == "callsite" => true,
+        Some(value) if value == "fn" => false,
+        Some(value) => return Err(syn::Error::new(value.span(), "kind must be fn or callsite")),
+        None => false,
+    };
     let mut function: ItemFn = syn::parse2(item)?;
     if skip {
-        if slot_id.is_some() || test_id.is_some() || key.is_some() || self_ty.is_some() {
+        if slot_id.is_some()
+            || test_id.is_some()
+            || key.is_some()
+            || kind.is_some()
+            || self_ty.is_some()
+        {
             return Err(syn::Error::new_spanned(
                 &function.sig,
-                "skip cannot be combined with id, test_id, key, or self_ty",
+                "skip cannot be combined with id, test_id, key, kind, or self_ty",
             ));
         }
         return Ok(quote!(#function));
@@ -109,6 +129,12 @@ fn expand(
         return Err(syn::Error::new_spanned(
             &function.sig,
             "test_id cannot be combined with id or key",
+        ));
+    }
+    if callsite && test_id.is_some() {
+        return Err(syn::Error::new_spanned(
+            &function.sig,
+            "callsite requires an engine id and key",
         ));
     }
     if test_id.is_none() && slot_id.is_some() != key.is_some() {
@@ -151,13 +177,24 @@ fn expand(
         };
         let key = key.unwrap();
         let function_name = &function.sig.ident;
+        if callsite && function_name.to_string() != format!("__yoake_cs_{slot_id}") {
+            return Err(syn::Error::new_spanned(
+                function_name,
+                format!("callsite shim must be named __yoake_cs_{slot_id}"),
+            ));
+        }
+        let name_assert = if callsite {
+            quote!()
+        } else {
+            quote!(const _: () = ::yoake_hook_rt::assert_hook_name(#key, stringify!(#function_name));)
+        };
         let assert = quote! {
             const _: () = ::yoake_hook_rt::assert_ledger_key(
                 crate::__yoake_hook_keys::KEYS,
                 #slot_id,
                 #key,
             );
-            const _: () = ::yoake_hook_rt::assert_hook_name(#key, stringify!(#function_name));
+            #name_assert
         };
         let claim_ident = format_ident!("__YOAKE_HOOK_CLAIM_{slot_id}");
         let export_name = format!("__yoake_hook_slot_{slot_id}");
@@ -226,13 +263,16 @@ fn expand(
             ));
         }
     }
-    let mut result_type: Type = match &signature.output {
+    if callsite {
+        prepare_callsite_lifetimes(&mut function.sig)?;
+    }
+    let mut result_type: Type = match &function.sig.output {
         ReturnType::Default => syn::parse_quote!(()),
         ReturnType::Type(_, result) => *result.clone(),
     };
     let mut result_check = Unsupported::default();
     result_check.visit_type(&result_type);
-    if result_check.opaque || result_check.borrowed_result {
+    if result_check.opaque || (!callsite && result_check.borrowed_result) {
         return Err(syn::Error::new_spanned(
             &result_type,
             "S2 cannot hook opaque, never, or non-static borrowed results; use skip",
@@ -310,6 +350,10 @@ fn expand(
             replace.visit_type_mut(input_type);
         }
     }
+    // A named lifetime is "shared" when it appears twice among the inputs, or in an input and
+    // in the result (a call-site shim `fn s<'r>(recv: &'r T<'_>) -> &'r U`); eliding it would
+    // leave the result's borrow ambiguous.
+    lifetime_counts.visit_type(&result_type);
     let has_shared_named = self_ty_has_lifetimes
         || lifetime_counts.counts.values().any(|&count| count >= 2);
     let mut cb_lifetimes = CallbackLifetimes::with_prefix("'__yoake_cb_");
@@ -635,6 +679,136 @@ fn token_stream_uses_ident(tokens: &proc_macro2::TokenStream, ident: &Ident) -> 
     })
 }
 
+fn prepare_callsite_lifetimes(signature: &mut syn::Signature) -> syn::Result<()> {
+    let ReturnType::Type(_, result) = &signature.output else { return Ok(()) };
+    let mut elided_result = ElidedReferences::default();
+    elided_result.visit_type(result);
+    if !elided_result.0 {
+        return Ok(());
+    }
+    let borrowed: Vec<usize> = signature
+        .inputs
+        .iter()
+        .enumerate()
+        .filter_map(|(index, argument)| {
+            let ty = match argument {
+                FnArg::Receiver(receiver) => &receiver.ty,
+                FnArg::Typed(argument) => &argument.ty,
+            };
+            let mut check = Unsupported::default();
+            check.visit_type(ty);
+            check.borrowed_result.then_some(index)
+        })
+        .collect();
+    if borrowed.len() != 1 {
+        return Err(syn::Error::new_spanned(
+            &signature.output,
+            "borrowed return with several borrowed inputs",
+        ));
+    }
+    let input_ty = match &signature.inputs[borrowed[0]] {
+        FnArg::Receiver(receiver) => &receiver.ty,
+        FnArg::Typed(argument) => &argument.ty,
+    };
+    let mut input_lifetime = InputLifetime::default();
+    input_lifetime.visit_type(input_ty);
+    let has_named_lifetime = input_lifetime.named.is_some();
+    let lifetime = input_lifetime
+        .named
+        .unwrap_or_else(|| Lifetime::new("'__yoake_site", Span::call_site()));
+    if !has_named_lifetime {
+        let mut parameters = Punctuated::new();
+        parameters.push(GenericParam::Lifetime(syn::LifetimeParam::new(lifetime.clone())));
+        parameters.extend(std::mem::take(&mut signature.generics.params));
+        signature.generics.params = parameters;
+    }
+    let input_ty = match &mut signature.inputs[borrowed[0]] {
+        FnArg::Receiver(receiver) => &mut receiver.ty,
+        FnArg::Typed(argument) => &mut argument.ty,
+    };
+    let mut bind_input = BindElided {
+        lifetime: lifetime.clone(),
+        references: 0,
+    };
+    bind_input.visit_type_mut(input_ty);
+    if bind_input.references == 0 {
+        let mut bind_placeholder = BindPlaceholder(lifetime.clone());
+        bind_placeholder.visit_type_mut(input_ty);
+    }
+    let ReturnType::Type(_, result) = &mut signature.output else { unreachable!() };
+    BindElided {
+        lifetime,
+        references: 0,
+    }
+    .visit_type_mut(result);
+    Ok(())
+}
+
+#[derive(Default)]
+struct ElidedReferences(bool);
+
+impl<'ast> Visit<'ast> for ElidedReferences {
+    fn visit_type_reference(&mut self, reference: &'ast syn::TypeReference) {
+        if reference
+            .lifetime
+            .as_ref()
+            .is_none_or(|lifetime| lifetime.ident == "_")
+        {
+            self.0 = true;
+        }
+        visit::visit_type_reference(self, reference);
+    }
+}
+
+#[derive(Default)]
+struct InputLifetime {
+    seen: bool,
+    named: Option<Lifetime>,
+}
+
+impl<'ast> Visit<'ast> for InputLifetime {
+    fn visit_type_reference(&mut self, reference: &'ast syn::TypeReference) {
+        if !self.seen {
+            self.seen = true;
+            self.named = reference
+                .lifetime
+                .as_ref()
+                .filter(|lifetime| lifetime.ident != "_")
+                .cloned();
+        }
+        visit::visit_type_reference(self, reference);
+    }
+}
+
+struct BindElided {
+    lifetime: Lifetime,
+    references: usize,
+}
+
+impl VisitMut for BindElided {
+    fn visit_type_reference_mut(&mut self, reference: &mut syn::TypeReference) {
+        self.references += 1;
+        if reference
+            .lifetime
+            .as_ref()
+            .is_none_or(|lifetime| lifetime.ident == "_")
+        {
+            reference.lifetime = Some(self.lifetime.clone());
+        }
+        visit_mut::visit_type_reference_mut(self, reference);
+    }
+}
+
+struct BindPlaceholder(Lifetime);
+
+impl VisitMut for BindPlaceholder {
+    fn visit_lifetime_mut(&mut self, lifetime: &mut Lifetime) {
+        if lifetime.ident == "_" {
+            *lifetime = self.0.clone();
+        }
+    }
+}
+
 fn is_static_bound(bound: &syn::TypeParamBound) -> bool {
     matches!(bound, syn::TypeParamBound::Lifetime(lifetime) if lifetime.ident == "static")
 }
@@ -897,6 +1071,45 @@ mod tests {
         assert!(test.contains("export_name = \"__yoake_hook_test_slot_3\""));
         assert!(expand(quote!(test_id = 64), function.clone()).is_err());
         assert!(expand(quote!(test_id = 1, key = "no"), function).is_err());
+    }
+
+    #[test]
+    fn callsite_shims_validate_names_and_support_borrowed_returns() {
+        let function = quote!(
+            fn __yoake_cs_17(recv: &Game) -> Option<&ItemStack> {
+                recv.held()
+            }
+        );
+        let expanded = expand(
+            quote!(id = 17, key = "fn:103@call:fn:2207", kind = callsite),
+            function.clone(),
+        )
+        .unwrap()
+        .to_string();
+        assert!(expanded.contains("assert_ledger_key"));
+        assert!(!expanded.contains("assert_hook_name"));
+        assert!(expanded.contains("'__yoake_site"));
+        assert!(expanded.contains("pub (crate) fn __yoake_register___yoake_cs_17"));
+
+        let wrong = expand(
+            quote!(id = 17, key = "fn:103@call:fn:2207", kind = callsite),
+            quote!(fn held(recv: &Game) -> Option<&ItemStack> { recv.held() }),
+        )
+        .unwrap_err();
+        assert!(wrong.to_string().contains("__yoake_cs_17"), "{wrong}");
+        let ambiguous = expand(
+            quote!(id = 17, key = "fn:103@call:fn:2207", kind = callsite),
+            quote!(fn __yoake_cs_17(left: &str, right: &str) -> &str { left }),
+        )
+        .unwrap_err();
+        assert!(ambiguous.to_string().contains("several borrowed inputs"), "{ambiguous}");
+        assert!(expand(
+            quote!(id = 17, key = "x", kind = callsite, kind = callsite),
+            function,
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("duplicate kind"));
     }
 
     #[test]

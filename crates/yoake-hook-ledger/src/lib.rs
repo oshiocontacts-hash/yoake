@@ -9,7 +9,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-pub const TEST_ID_BASE: u32 = (1 << 16) - 64;
+pub const TEST_ID_BASE: u32 = (1 << 20) - 64;
 
 pub mod build;
 mod set;
@@ -51,8 +51,22 @@ pub struct Entry {
     pub status: Status,
     #[serde(default)]
     pub kind: Kind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub site: Option<CallSite>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub renamed_from: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CallSite {
+    pub caller: u32,
+    pub callee_fn: Option<u32>,
+    pub callee_path: String,
+    pub anchor: String,
+    pub stmt_path: Vec<String>,
+    pub context: [String; 2],
+    pub dup_rank: u32,
+    pub shim: String,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -282,6 +296,7 @@ impl Ledger {
             sig: sig.to_owned(),
             status: Status::Live,
             kind,
+            site: None,
             renamed_from: Vec::new(),
         });
         self.unexclude(key);

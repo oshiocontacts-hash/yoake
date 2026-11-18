@@ -3,8 +3,21 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use yoake_hook_ledger::LedgerSet;
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SiteMeta {
+    pub caller: u32,
+    pub callee_fn: Option<u32>,
+    pub callee_path: String,
+    pub anchor: String,
+    pub stmt_path: Vec<String>,
+    pub context: [String; 2],
+    pub dup_rank: u32,
+    pub shim: String,
+}
 
 static TEMP_SEQ: AtomicU64 = AtomicU64::new(0);
 
@@ -91,20 +104,100 @@ pub fn read_manual_exclusions(
     Ok(out)
 }
 
+pub fn read_callsite_sites(
+    dir: &Path,
+    crate_ident: &str,
+) -> Result<BTreeMap<u32, SiteMeta>, String> {
+    let shard_path = dir.join(format!("{crate_ident}.json"));
+    if !shard_path.is_file() {
+        return Ok(BTreeMap::new());
+    }
+    let text = std::fs::read_to_string(&shard_path)
+        .map_err(|e| format!("failed to read {}: {e}", shard_path.display()))?;
+    let val: Value = serde_json::from_str(&text)
+        .map_err(|e| format!("invalid JSON in {}: {e}", shard_path.display()))?;
+
+    let mut out = BTreeMap::new();
+    if let Some(arr) = val.get("entries").and_then(Value::as_array) {
+        for item in arr {
+            if let (Some(id), Some(site_val)) = (
+                item.get("id").and_then(Value::as_u64).and_then(|v| u32::try_from(v).ok()),
+                item.get("site").filter(|v| !v.is_null()),
+            ) {
+                let site: SiteMeta = serde_json::from_value(site_val.clone()).map_err(|e| {
+                    format!("invalid callsite site metadata for id {id} in {}: {e}", shard_path.display())
+                })?;
+                out.insert(id, site);
+            }
+        }
+    }
+    Ok(out)
+}
+
+pub fn read_all_fn_keys(dir: &Path) -> Result<Vec<(String, u32)>, String> {
+    if !dir.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut out = Vec::new();
+    let entries = std::fs::read_dir(dir)
+        .map_err(|e| format!("failed to read ledger dir {}: {e}", dir.display()))?;
+    for item in entries {
+        let path = item.map_err(|e| format!("failed to read ledger entry: {e}"))?.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("json")
+            || path.file_name().and_then(|s| s.to_str()) == Some("meta.json")
+        {
+            continue;
+        }
+        let text = std::fs::read_to_string(&path)
+            .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
+        let val: Value = serde_json::from_str(&text)
+            .map_err(|e| format!("invalid JSON in {}: {e}", path.display()))?;
+        if let Some(arr) = val.get("entries").and_then(Value::as_array) {
+            for entry in arr {
+                let status = entry.get("status").and_then(Value::as_str);
+                let kind = entry.get("kind").and_then(Value::as_str).unwrap_or("fn");
+                if status == Some("live")
+                    && kind == "fn"
+                    && let (Some(key), Some(id)) = (
+                        entry.get("key").and_then(Value::as_str),
+                        entry.get("id").and_then(Value::as_u64).and_then(|v| u32::try_from(v).ok()),
+                    )
+                {
+                    out.push((key.to_string(), id));
+                }
+            }
+        }
+    }
+    Ok(out)
+}
+
 pub fn stage_ledger_set(
     ledger_set: &LedgerSet,
     crate_ident: &str,
     manual_keys: &BTreeSet<String>,
+) -> Result<TempDirGuard, String> {
+    let empty_sites = BTreeMap::new();
+    stage_ledger_set_with_sites(ledger_set, crate_ident, manual_keys, &empty_sites)
+}
+
+pub fn stage_ledger_set_with_sites(
+    ledger_set: &LedgerSet,
+    crate_ident: &str,
+    manual_keys: &BTreeSet<String>,
+    callsite_sites: &BTreeMap<u32, SiteMeta>,
 ) -> Result<TempDirGuard, String> {
     let staging = TempDirGuard::new("stage")?;
     ledger_set
         .save(staging.path())
         .map_err(|e| format!("failed to stage ledger: {e}"))?;
 
-    if !manual_keys.is_empty() {
-        let shard_path = staging.path().join(format!("{crate_ident}.json"));
-        if shard_path.is_file() {
+    let shard_path = staging.path().join(format!("{crate_ident}.json"));
+    if shard_path.is_file() {
+        if !manual_keys.is_empty() {
             patch_manual_in_shard_json(&shard_path, manual_keys)?;
+        }
+        if !callsite_sites.is_empty() {
+            patch_callsite_sites_in_shard_json(&shard_path, callsite_sites)?;
         }
     }
     Ok(staging)
@@ -113,7 +206,7 @@ pub fn stage_ledger_set(
 fn patch_manual_in_shard_json(path: &Path, manual_keys: &BTreeSet<String>) -> Result<(), String> {
     let text = std::fs::read_to_string(path)
         .map_err(|e| format!("failed to read staged shard {}: {e}", path.display()))?;
-    let Some(arr_bounds) = find_excluded_array_bounds(&text) else {
+    let Some(arr_bounds) = find_top_array_bounds(&text, "\"excluded\"") else {
         return Ok(());
     };
     let object_spans = find_array_object_spans(&text, arr_bounds.0, arr_bounds.1);
@@ -154,6 +247,149 @@ fn patch_manual_in_shard_json(path: &Path, manual_keys: &BTreeSet<String>) -> Re
         .map_err(|e| format!("failed to update staged shard {}: {e}", path.display()))
 }
 
+fn format_indented_json<T: Serialize>(value: &T, base_indent: &str) -> Result<String, String> {
+    let raw = serde_json::to_string_pretty(value)
+        .map_err(|e| format!("failed to serialize site metadata: {e}"))?;
+    let mut out = String::with_capacity(raw.len() + 64);
+    for (idx, line) in raw.lines().enumerate() {
+        if idx > 0 {
+            out.push('\n');
+            out.push_str(base_indent);
+        }
+        out.push_str(line);
+    }
+    Ok(out)
+}
+
+fn find_field_value_span(obj_slice: &str, field_key_quoted: &str) -> Option<(usize, usize)> {
+    let bytes = obj_slice.as_bytes();
+    let mut i = 0;
+    let mut depth = 0usize;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'"' => {
+                let start = i;
+                let end = skip_json_string(bytes, i);
+                if depth == 1 && &obj_slice[start..end] == field_key_quoted {
+                    let mut j = end;
+                    while j < bytes.len() && bytes[j].is_ascii_whitespace() {
+                        j += 1;
+                    }
+                    if j < bytes.len() && bytes[j] == b':' {
+                        j += 1;
+                        while j < bytes.len() && bytes[j].is_ascii_whitespace() {
+                            j += 1;
+                        }
+                        let val_start = j;
+                        if j >= bytes.len() {
+                            return None;
+                        }
+                        if bytes[j] == b'"' {
+                            return Some((val_start, skip_json_string(bytes, j)));
+                        }
+                        if bytes[j] == b'{' || bytes[j] == b'[' {
+                            let mut val_depth = 0usize;
+                            while j < bytes.len() {
+                                match bytes[j] {
+                                    b'"' => j = skip_json_string(bytes, j),
+                                    b'{' | b'[' => {
+                                        val_depth += 1;
+                                        j += 1;
+                                    }
+                                    b'}' | b']' => {
+                                        val_depth -= 1;
+                                        j += 1;
+                                        if val_depth == 0 {
+                                            return Some((val_start, j));
+                                        }
+                                    }
+                                    _ => j += 1,
+                                }
+                            }
+                            return None;
+                        }
+                        while j < bytes.len()
+                            && !bytes[j].is_ascii_whitespace()
+                            && bytes[j] != b','
+                            && bytes[j] != b'}'
+                        {
+                            j += 1;
+                        }
+                        return Some((val_start, j));
+                    }
+                }
+                i = end;
+            }
+            b'{' => {
+                depth += 1;
+                i += 1;
+            }
+            b'}' => {
+                depth = depth.saturating_sub(1);
+                i += 1;
+            }
+            _ => i += 1,
+        }
+    }
+    None
+}
+
+fn patch_callsite_sites_in_shard_json(
+    path: &Path,
+    callsite_sites: &BTreeMap<u32, SiteMeta>,
+) -> Result<(), String> {
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| format!("failed to read staged shard {}: {e}", path.display()))?;
+    let Some(arr_bounds) = find_top_array_bounds(&text, "\"entries\"") else {
+        return Ok(());
+    };
+    let object_spans = find_array_object_spans(&text, arr_bounds.0, arr_bounds.1);
+
+    let mut edits: Vec<(usize, usize, String)> = Vec::new();
+    for (start, end) in object_spans {
+        let obj_slice = &text[start..=end];
+        let Ok(val) = serde_json::from_str::<Value>(obj_slice) else {
+            continue;
+        };
+        let Some(id) = val
+            .get("id")
+            .and_then(Value::as_u64)
+            .and_then(|v| u32::try_from(v).ok())
+        else {
+            continue;
+        };
+        let Some(site_meta) = callsite_sites.get(&id) else {
+            continue;
+        };
+        let expected_val = serde_json::to_value(site_meta)
+            .map_err(|e| format!("failed to serialize site metadata: {e}"))?;
+        if val.get("site") == Some(&expected_val) {
+            continue;
+        }
+        let formatted_site = format_indented_json(site_meta, "      ")?;
+        if let Some((vs, ve)) = find_field_value_span(obj_slice, "\"site\"") {
+            edits.push((start + vs, start + ve, formatted_site));
+        } else if let Some(rel_nl) = obj_slice.rfind('\n') {
+            let insert_at = start + rel_nl;
+            edits.push((
+                insert_at,
+                insert_at,
+                format!(",\n      \"site\": {formatted_site}"),
+            ));
+        }
+    }
+
+    if edits.is_empty() {
+        return Ok(());
+    }
+    let mut out = text;
+    for (start, end, rep) in edits.into_iter().rev() {
+        out.replace_range(start..end, &rep);
+    }
+    std::fs::write(path, out)
+        .map_err(|e| format!("failed to update staged shard {}: {e}", path.display()))
+}
+
 fn skip_json_string(bytes: &[u8], mut i: usize) -> usize {
     i += 1; // skip opening '"'
     while i < bytes.len() {
@@ -166,7 +402,7 @@ fn skip_json_string(bytes: &[u8], mut i: usize) -> usize {
     bytes.len()
 }
 
-fn find_excluded_array_bounds(text: &str) -> Option<(usize, usize)> {
+fn find_top_array_bounds(text: &str, field_key_quoted: &str) -> Option<(usize, usize)> {
     let bytes = text.as_bytes();
     let mut i = 0;
     let mut depth = 0usize;
@@ -175,7 +411,7 @@ fn find_excluded_array_bounds(text: &str) -> Option<(usize, usize)> {
             b'"' => {
                 let start = i;
                 let end = skip_json_string(bytes, i);
-                if depth == 1 && &text[start..end] == "\"excluded\"" {
+                if depth == 1 && &text[start..end] == field_key_quoted {
                     let mut j = end;
                     while j < bytes.len() && bytes[j].is_ascii_whitespace() {
                         j += 1;

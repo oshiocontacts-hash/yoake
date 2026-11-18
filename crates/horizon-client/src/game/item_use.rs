@@ -20,17 +20,19 @@ impl Game<'_> {
     /// when the use started.
     #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 103, key = "horizon_client::game::item_use::Game::start_using_item")]
     pub(super) fn start_using_item(&mut self) -> bool {
-        let Some(stack) = self.held().cloned().filter(|_| self.using.is_none()) else {
+        let Some(stack) =
+            __yoake_cs_127(__yoake_cs_126(&*self)).filter(|_| __yoake_cs_128(&self.using))
+        else {
             return false;
         };
-        let own = self.use_duration(&stack);
+        let own = __yoake_cs_129(&*self, &stack);
         let (mut duration, mut canceled) = (own, false);
         let hand = self.hand;
-        self.native_living_entity_use_item_start(&stack, None, hand, &mut duration, &mut canceled);
+        __yoake_cs_130(&mut *self, &stack, None, hand, &mut duration, &mut canceled);
         let Some(ticks_set) = start_of(own, duration, canceled) else {
             return false;
         };
-        self.using = Some((self.held_slot(), 0));
+        self.using = Some((__yoake_cs_131(&*self), 0));
         self.use_duration = duration;
         self.use_ticks_set = ticks_set;
         // A new charge hears the crossbow's loading sounds again
@@ -43,22 +45,24 @@ impl Game<'_> {
     /// goat horns, 0 for the rest, then a mod's answer.
     #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 104, key = "horizon_client::game::item_use::Game::use_duration")]
     pub(super) fn use_duration(&self, stack: &ItemStack) -> i32 {
-        let info = self.items().get(&stack.item);
+        let info = __yoake_cs_133(&*__yoake_cs_132(&*self), &stack.item);
         let mut duration = match &*stack.item {
             "minecraft:bow" | "minecraft:crossbow" | "minecraft:trident" => 72_000,
             "minecraft:spyglass" => 1200,
             "minecraft:brush" => 200,
             _ if info.is_some_and(|i| i.bundle) => 200,
-            _ if let Some(i) = self.res.items().instrument(stack) => i.use_ticks(),
+            _ if let Some(i) = __yoake_cs_135(&*__yoake_cs_134(&*self.res), stack) => {
+                __yoake_cs_136(&i)
+            }
             _ => match info {
-                Some(i) if let Some(c) = &i.consumable => c.ticks(),
-                Some(i) if i.blocks_attacks.is_some() => 72_000,
-                _ if Kinetic::of(&stack.item).is_some() => 72_000,
+                Some(i) if let Some(c) = &i.consumable => __yoake_cs_137(&*c),
+                Some(i) if __yoake_cs_138(&i.blocks_attacks) => 72_000,
+                _ if __yoake_cs_139(&Kinetic::of(&stack.item)) => 72_000,
                 _ => 0,
             },
         };
         super::native_item_behaviors::duration(stack, &mut duration);
-        self.native_use_duration(stack, &mut duration);
+        __yoake_cs_140(&*self, stack, &mut duration);
         duration
     }
     /// Whether `stack` is a mod's item that only a mod uses over time: no
@@ -66,37 +70,36 @@ impl Game<'_> {
     /// a `native_use_duration` above 0. Its use is its own `Item.use`.
     #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 105, key = "horizon_client::game::item_use::Game::mod_use")]
     pub(super) fn mod_use(&self, stack: &ItemStack) -> bool {
-        !stack.item.starts_with("minecraft:")
-            && self
-                .items()
-                .get(&stack.item)
-                .is_some_and(|i| i.consumable.is_none() && i.blocks_attacks.is_none())
-            && Kinetic::of(&stack.item).is_none()
-            && self.use_duration(stack) > 0
+        !__yoake_cs_141(&*stack.item, "minecraft:")
+            && __yoake_cs_143(&*__yoake_cs_142(&*self), &stack.item)
+                .is_some_and(|i| __yoake_cs_144(&i.consumable) && __yoake_cs_145(&i.blocks_attacks))
+            && __yoake_cs_146(&Kinetic::of(&stack.item))
+            && __yoake_cs_147(&*self, stack) > 0
     }
     /// A right click with a `mod_use` item: `startUsingItem` (CONSUME).
     #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 106, key = "horizon_client::game::item_use::Game::start_mod_use")]
     pub(super) fn start_mod_use(&mut self, stack: &ItemStack) -> bool {
-        if !self.mod_use(stack) {
+        if !__yoake_cs_148(&*self, stack) {
             return false;
         }
-        self.start_using_item();
+        __yoake_cs_149(&mut *self);
         true
     }
     /// `LivingEntity.updateUsingItem` for a `mod_use` item used `ticks` so far:
     /// `completeUsingItem` once its duration ran out.
     #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 107, key = "horizon_client::game::item_use::Game::tick_mod_use")]
     pub(super) fn tick_mod_use(&mut self, slot: usize, ticks: u32, stack: &ItemStack) {
-        self.item_on_use_tick(stack, ticks);
+        __yoake_cs_150(&mut *self, stack, ticks);
         if let Some(ticks) = count_down(ticks, self.use_duration) {
             self.using = Some((slot, ticks));
             return;
         }
-        let Some(info) = self.items().get(&stack.item).cloned() else {
+        let Some(info) = __yoake_cs_153(__yoake_cs_152(&*__yoake_cs_151(&*self), &stack.item))
+        else {
             self.using = None;
             return;
         };
-        self.complete_using_item(slot, stack, &info);
+        __yoake_cs_154(&mut *self, slot, stack, &info);
     }
     /// `ServerPlayer.completeUsingItem` of `stack` in `slot`: the client is
     /// told, `ItemStack.finishUsingItem` (a consumable is eaten, a potion
@@ -105,34 +108,34 @@ impl Game<'_> {
     #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 108, key = "horizon_client::game::item_use::Game::complete_using_item")]
     pub(super) fn complete_using_item(&mut self, slot: usize, stack: &ItemStack, info: &ItemInfo) {
         // a potion is drunk (no last tick of its own: a mod's tick ran it out).
-        if self.finish_drinking(slot, stack) {
-            self.use_item_finished(stack);
-            self.use_vibration(stack);
+        if __yoake_cs_155(&mut *self, slot, stack) {
+            __yoake_cs_156(&mut *self, stack);
+            __yoake_cs_157(&mut *self, stack);
             return;
         }
         self.using = None;
-        self.send_use_item_complete();
-        self.apply_use_cooldown(stack);
+        __yoake_cs_158(&mut *self);
+        __yoake_cs_159(&mut *self, stack);
         if let Some(consumable) = &info.consumable {
-            self.finish_consuming(info, consumable, stack);
+            __yoake_cs_160(&mut *self, info, consumable, stack);
         } else if &*stack.item == "minecraft:spyglass" {
-            self.stop_spyglass();
+            __yoake_cs_161(&mut *self);
         }
-        self.use_item_finished(stack);
+        __yoake_cs_162(&mut *self, stack);
         // `LivingEntity.completeUsingItem` ends with `stopUsingItem`.
-        self.use_vibration(stack);
+        __yoake_cs_163(&mut *self, stack);
     }
     /// `LivingEntityUseItemEvent.Finish` after `finishUsingItem` of `stack`
     /// (no ticks left): the hand holds what a mod made the result.
     #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 109, key = "horizon_client::game::item_use::Game::use_item_finished")]
     pub(super) fn use_item_finished(&mut self, stack: &ItemStack) {
-        let mut result = self.held().cloned();
-        let before = result.clone();
+        let mut result = __yoake_cs_165(__yoake_cs_164(&*self));
+        let before = __yoake_cs_166(&result);
         let hand = self.hand;
-        self.item_behavior_finish(stack, &mut result);
-        self.native_living_entity_use_item_finish(stack, None, hand, 0, &mut result);
+        __yoake_cs_167(&mut *self, stack, &mut result);
+        __yoake_cs_168(&mut *self, stack, None, hand, 0, &mut result);
         if result != before {
-            *self.held_mut() = result.filter(|s| s.count > 0);
+            *__yoake_cs_169(&mut *self) = result.filter(|s| s.count > 0);
         }
     }
     /// `LivingEntityUseItemEvent.Tick` for `stack` in use `ticks` so far, as
@@ -143,8 +146,8 @@ impl Game<'_> {
     pub(super) fn use_item_ticked(&mut self, stack: &ItemStack, ticks: u32) -> bool {
         let before = ticks_left(self.use_duration, ticks);
         let (mut remaining, mut canceled) = (before, false);
-        let hand = self.used_hand().unwrap_or(self.hand);
-        self.native_living_entity_use_item_tick(stack, None, hand, &mut remaining, &mut canceled);
+        let hand = __yoake_cs_171(__yoake_cs_170(&*self), self.hand);
+        __yoake_cs_172(&mut *self, stack, None, hand, &mut remaining, &mut canceled);
         let (left, set) = tick_left(before, remaining, canceled, self.use_ticks_set);
         self.use_ticks_set = set;
         self.use_duration = duration_leaving(ticks, left);
@@ -155,7 +158,7 @@ impl Game<'_> {
     pub(super) fn item_on_use_tick(&mut self, stack: &ItemStack, ticks: u32) {
         let remaining = ticks_left(self.use_duration, ticks);
         if remaining > 0 {
-            self.native_on_use_tick(stack, None, remaining);
+            __yoake_cs_173(&mut *self, stack, None, remaining);
         }
     }
     /// How long `stack`, used `ticks`, counts as held: `getUseDuration` less
@@ -165,7 +168,7 @@ impl Game<'_> {
     #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 112, key = "horizon_client::game::item_use::Game::ticks_held")]
     pub(super) fn ticks_held(&self, stack: &ItemStack, ticks: u32) -> u32 {
         held(
-            self.use_duration(stack),
+            __yoake_cs_174(&*self, stack),
             ticks_left(self.use_duration, ticks),
         )
     }
@@ -176,7 +179,7 @@ impl Game<'_> {
         let mut canceled = false;
         let remaining = ticks_left(self.use_duration, ticks);
         let hand = self.hand;
-        self.native_living_entity_use_item_stop(stack, None, hand, remaining, &mut canceled);
+        __yoake_cs_175(&mut *self, stack, None, hand, remaining, &mut canceled);
         !canceled
     }
     /// A mod's `Item.releaseUsing` of `stack` used `ticks`: when it says it
@@ -185,9 +188,9 @@ impl Game<'_> {
     pub(super) fn mod_release_using(&mut self, stack: &ItemStack, ticks: u32) {
         let mut used = false;
         let remaining = ticks_left(self.use_duration, ticks);
-        self.native_release_using(stack, None, remaining, &mut used);
+        __yoake_cs_176(&mut *self, stack, None, remaining, &mut used);
         if used {
-            self.apply_use_cooldown(stack);
+            __yoake_cs_177(&mut *self, stack);
         }
     }
     /// `Player.canEat(canAlwaysEat)` for `stack`, food that is eaten only
@@ -196,11 +199,8 @@ impl Game<'_> {
     pub(super) fn can_eat(&self, stack: &ItemStack, can_always_eat: bool) -> bool {
         let mut can_eat = can_always_eat
             || self.creative
-            || self
-                .player
-                .as_ref()
-                .is_some_and(|p| p.health.food.food < 20);
-        self.native_can_eat(stack, &mut can_eat);
+            || __yoake_cs_178(&self.player).is_some_and(|p| p.health.food.food < 20);
+        __yoake_cs_179(&*self, stack, &mut can_eat);
         can_eat
     }
 }
@@ -230,28 +230,28 @@ pub(super) fn bow_release_power(has_ammo: bool, charge: i32, canceled: bool) -> 
         return None;
     }
     let f = charge as f32 / 20.0;
-    let power = ((f * f + f * 2.0) / 3.0).min(1.0);
-    (power >= 0.1).then_some(power)
+    let power = __yoake_cs_180(((f * f + f * 2.0) / 3.0), 1.0);
+    __yoake_cs_181((power >= 0.1), power)
 }
 
 /// `useItemRemaining` of a use of `duration` ticks, `ticks` old.
 #[yoake_hook_macro::yoake_hook(id = 119, key = "horizon_client::game::item_use::ticks_left")]
 fn ticks_left(duration: i32, ticks: u32) -> i32 {
-    duration.saturating_sub_unsigned(ticks)
+    __yoake_cs_182(duration, ticks)
 }
 
 /// `getUseDuration(stack) - remainingTime` of a use of `own` ticks with
 /// `remaining` left, none below 0.
 #[yoake_hook_macro::yoake_hook(id = 120, key = "horizon_client::game::item_use::held")]
 fn held(own: i32, remaining: i32) -> u32 {
-    u32::try_from(i64::from(own) - i64::from(remaining)).unwrap_or(0)
+    __yoake_cs_183(u32::try_from(i64::from(own) - i64::from(remaining)), 0)
 }
 
 /// The duration that leaves `remaining` ticks of a use `ticks` old, as a
 /// mod's `Tick` set them.
 #[yoake_hook_macro::yoake_hook(id = 121, key = "horizon_client::game::item_use::duration_leaving")]
 fn duration_leaving(ticks: u32, remaining: i32) -> i32 {
-    remaining.saturating_add_unsigned(ticks)
+    __yoake_cs_184(remaining, ticks)
 }
 
 /// What a `Start` left of a use of `own` ticks: None refused (a cancel, or
@@ -261,7 +261,7 @@ fn duration_leaving(ticks: u32, remaining: i32) -> i32 {
 /// an item's own 0 (an eye of ender) is held until let go, as vanilla's.
 #[yoake_hook_macro::yoake_hook(id = 122, key = "horizon_client::game::item_use::start_of")]
 fn start_of(own: i32, duration: i32, canceled: bool) -> Option<bool> {
-    (!canceled && duration >= 0).then_some(duration == 0 && own != 0)
+    __yoake_cs_185((!canceled && duration >= 0), duration == 0 && own != 0)
 }
 
 /// `Consumable.startConsuming`: a time of 0 or less is no use, the item is
@@ -278,7 +278,7 @@ pub(super) fn consumes_at_once(consume_ticks: i32) -> bool {
 #[yoake_hook_macro::yoake_hook(id = 124, key = "horizon_client::game::item_use::count_down")]
 pub(super) fn count_down(ticks: u32, duration: i32) -> Option<u32> {
     let ticks = ticks + 1;
-    (i64::from(duration) - i64::from(ticks) != 0).then_some(ticks)
+    __yoake_cs_186((i64::from(duration) - i64::from(ticks) != 0), ticks)
 }
 
 /// The first person pose of a hand using an item of `animation`
@@ -473,4 +473,428 @@ mod tests {
             assert!(matches!(pose(animation), ItemPose::Using));
         }
     }
+}
+
+// Generated by yoake-hook-codemod: call-site shims (hook-ledger). Do not edit by hand.
+#[yoake_hook_macro::yoake_hook(id = 126, key = "fn:103@call:horizon_client::game::Game::held", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_126<'r>(
+    recv: &'r crate::game::Game<'_>,
+) -> std::option::Option<&'r horizon_client_lib::items::ItemStack> {
+    recv.held()
+}
+#[yoake_hook_macro::yoake_hook(id = 127, key = "fn:103@call:std::option::Option::cloned", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_127(
+    recv: std::option::Option<&horizon_client_lib::items::ItemStack>,
+) -> std::option::Option<horizon_client_lib::items::ItemStack> {
+    recv.cloned()
+}
+#[yoake_hook_macro::yoake_hook(id = 128, key = "fn:103@call:std::option::Option::is_none", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_128(recv: &std::option::Option<(usize, u32)>) -> bool {
+    recv.is_none()
+}
+#[yoake_hook_macro::yoake_hook(id = 129, key = "fn:103@call:fn:104", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_129(recv: &crate::game::Game<'_>, a0: &horizon_client_lib::items::ItemStack) -> i32 {
+    recv.use_duration(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 130, key = "fn:103@call:horizon_client::game::Game::native_living_entity_use_item_start", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_130(
+    recv: &mut crate::game::Game<'_>,
+    a0: &horizon_client_lib::items::ItemStack,
+    a1: std::option::Option<i32>,
+    a2: horizon_client_lib::first_person::Hand,
+    a3: &mut i32,
+    a4: &mut bool,
+) {
+    recv.native_living_entity_use_item_start(a0, a1, a2, a3, a4)
+}
+#[yoake_hook_macro::yoake_hook(id = 131, key = "fn:103@call:horizon_client::game::Game::held_slot", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_131(recv: &crate::game::Game<'_>) -> usize {
+    recv.held_slot()
+}
+#[yoake_hook_macro::yoake_hook(id = 132, key = "fn:104@call:horizon_client::game::Game::items", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_132<'r>(recv: &'r crate::game::Game<'_>) -> &'r horizon_client_lib::items::Items {
+    recv.items()
+}
+#[yoake_hook_macro::yoake_hook(id = 133, key = "fn:104@call:horizon_client_lib::items::Items::get", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_133<'r>(
+    recv: &'r horizon_client_lib::items::Items,
+    a0: &str,
+) -> std::option::Option<&'r horizon_client_lib::items::ItemInfo> {
+    recv.get(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 134, key = "fn:104@call:horizon_client::game::Resources::items", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_134<'r>(recv: &'r crate::game::Resources) -> &'r horizon_client_lib::items::Items {
+    recv.items()
+}
+#[yoake_hook_macro::yoake_hook(id = 135, key = "fn:104@call:horizon_client_lib::items::Items::instrument", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_135(
+    recv: &horizon_client_lib::items::Items,
+    a0: &horizon_client_lib::items::ItemStack,
+) -> std::option::Option<horizon_client_lib::items::Instrument> {
+    recv.instrument(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 136, key = "fn:104@call:horizon_client_lib::items::Instrument::use_ticks", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_136(recv: &horizon_client_lib::items::Instrument) -> i32 {
+    recv.use_ticks()
+}
+#[yoake_hook_macro::yoake_hook(id = 137, key = "fn:104@call:horizon_world::consumable::Consumable::ticks", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_137(
+    recv: &horizon_world::consumable::Consumable<
+        std::string::String,
+        horizon_client_lib::items::ConsumeEffect,
+    >,
+) -> i32 {
+    recv.ticks()
+}
+#[yoake_hook_macro::yoake_hook(id = 138, key = "fn:104@call:std::option::Option::is_some", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_138(recv: &std::option::Option<horizon_client_lib::items::BlocksAttacks>) -> bool {
+    recv.is_some()
+}
+#[yoake_hook_macro::yoake_hook(id = 139, key = "fn:104@call:std::option::Option::is_some#1", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_139(recv: &std::option::Option<horizon_client_lib::spear::Kinetic>) -> bool {
+    recv.is_some()
+}
+#[yoake_hook_macro::yoake_hook(id = 140, key = "fn:104@call:horizon_client::game::Game::native_use_duration", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_140(
+    recv: &crate::game::Game<'_>,
+    a0: &horizon_client_lib::items::ItemStack,
+    a1: &mut i32,
+) {
+    recv.native_use_duration(a0, a1)
+}
+#[yoake_hook_macro::yoake_hook(id = 141, key = "fn:105@call:str::starts_with", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_141(recv: &str, a0: &str) -> bool {
+    recv.starts_with(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 142, key = "fn:105@call:horizon_client::game::Game::items", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_142<'r>(recv: &'r crate::game::Game<'_>) -> &'r horizon_client_lib::items::Items {
+    recv.items()
+}
+#[yoake_hook_macro::yoake_hook(id = 143, key = "fn:105@call:horizon_client_lib::items::Items::get", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_143<'r>(
+    recv: &'r horizon_client_lib::items::Items,
+    a0: &str,
+) -> std::option::Option<&'r horizon_client_lib::items::ItemInfo> {
+    recv.get(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 144, key = "fn:105@call:std::option::Option::is_none", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_144(
+    recv: &std::option::Option<
+        horizon_world::consumable::Consumable<
+            std::string::String,
+            horizon_client_lib::items::ConsumeEffect,
+        >,
+    >,
+) -> bool {
+    recv.is_none()
+}
+#[yoake_hook_macro::yoake_hook(id = 145, key = "fn:105@call:std::option::Option::is_none#1", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_145(recv: &std::option::Option<horizon_client_lib::items::BlocksAttacks>) -> bool {
+    recv.is_none()
+}
+#[yoake_hook_macro::yoake_hook(id = 146, key = "fn:105@call:std::option::Option::is_none#2", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_146(recv: &std::option::Option<horizon_client_lib::spear::Kinetic>) -> bool {
+    recv.is_none()
+}
+#[yoake_hook_macro::yoake_hook(id = 147, key = "fn:105@call:fn:104", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_147(recv: &crate::game::Game<'_>, a0: &horizon_client_lib::items::ItemStack) -> i32 {
+    recv.use_duration(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 148, key = "fn:106@call:fn:105", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_148(recv: &crate::game::Game<'_>, a0: &horizon_client_lib::items::ItemStack) -> bool {
+    recv.mod_use(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 149, key = "fn:106@call:fn:103", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_149(recv: &mut crate::game::Game<'_>) -> bool {
+    recv.start_using_item()
+}
+#[yoake_hook_macro::yoake_hook(id = 150, key = "fn:107@call:fn:111", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_150(
+    recv: &mut crate::game::Game<'_>,
+    a0: &horizon_client_lib::items::ItemStack,
+    a1: u32,
+) {
+    recv.item_on_use_tick(a0, a1)
+}
+#[yoake_hook_macro::yoake_hook(id = 151, key = "fn:107@call:horizon_client::game::Game::items", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_151<'r>(recv: &'r crate::game::Game<'_>) -> &'r horizon_client_lib::items::Items {
+    recv.items()
+}
+#[yoake_hook_macro::yoake_hook(id = 152, key = "fn:107@call:horizon_client_lib::items::Items::get", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_152<'r>(
+    recv: &'r horizon_client_lib::items::Items,
+    a0: &str,
+) -> std::option::Option<&'r horizon_client_lib::items::ItemInfo> {
+    recv.get(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 153, key = "fn:107@call:std::option::Option::cloned", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_153(
+    recv: std::option::Option<&horizon_client_lib::items::ItemInfo>,
+) -> std::option::Option<horizon_client_lib::items::ItemInfo> {
+    recv.cloned()
+}
+#[yoake_hook_macro::yoake_hook(id = 154, key = "fn:107@call:fn:108", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_154(
+    recv: &mut crate::game::Game<'_>,
+    a0: usize,
+    a1: &horizon_client_lib::items::ItemStack,
+    a2: &horizon_client_lib::items::ItemInfo,
+) {
+    recv.complete_using_item(a0, a1, a2)
+}
+#[yoake_hook_macro::yoake_hook(id = 155, key = "fn:108@call:horizon_client::game::Game::finish_drinking", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_155(
+    recv: &mut crate::game::Game<'_>,
+    a0: usize,
+    a1: &horizon_client_lib::items::ItemStack,
+) -> bool {
+    recv.finish_drinking(a0, a1)
+}
+#[yoake_hook_macro::yoake_hook(id = 156, key = "fn:108@call:fn:109", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_156(recv: &mut crate::game::Game<'_>, a0: &horizon_client_lib::items::ItemStack) {
+    recv.use_item_finished(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 157, key = "fn:108@call:horizon_client::game::Game::use_vibration", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_157(recv: &mut crate::game::Game<'_>, a0: &horizon_client_lib::items::ItemStack) {
+    recv.use_vibration(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 158, key = "fn:108@call:horizon_client::game::Game::send_use_item_complete", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_158(recv: &mut crate::game::Game<'_>) {
+    recv.send_use_item_complete()
+}
+#[yoake_hook_macro::yoake_hook(id = 159, key = "fn:108@call:horizon_client::game::Game::apply_use_cooldown", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_159(recv: &mut crate::game::Game<'_>, a0: &horizon_client_lib::items::ItemStack) {
+    recv.apply_use_cooldown(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 160, key = "fn:108@call:horizon_client::game::Game::finish_consuming", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_160(
+    recv: &mut crate::game::Game<'_>,
+    a0: &horizon_client_lib::items::ItemInfo,
+    a1: &horizon_world::consumable::Consumable<
+        std::string::String,
+        horizon_client_lib::items::ConsumeEffect,
+    >,
+    a2: &horizon_client_lib::items::ItemStack,
+) {
+    recv.finish_consuming(a0, a1, a2)
+}
+#[yoake_hook_macro::yoake_hook(id = 161, key = "fn:108@call:horizon_client::game::Game::stop_spyglass", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_161(recv: &mut crate::game::Game<'_>) {
+    recv.stop_spyglass()
+}
+#[yoake_hook_macro::yoake_hook(id = 162, key = "fn:108@call:fn:109#1", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_162(recv: &mut crate::game::Game<'_>, a0: &horizon_client_lib::items::ItemStack) {
+    recv.use_item_finished(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 163, key = "fn:108@call:horizon_client::game::Game::use_vibration#1", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_163(recv: &mut crate::game::Game<'_>, a0: &horizon_client_lib::items::ItemStack) {
+    recv.use_vibration(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 164, key = "fn:109@call:horizon_client::game::Game::held", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_164<'r>(
+    recv: &'r crate::game::Game<'_>,
+) -> std::option::Option<&'r horizon_client_lib::items::ItemStack> {
+    recv.held()
+}
+#[yoake_hook_macro::yoake_hook(id = 165, key = "fn:109@call:std::option::Option::cloned", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_165(
+    recv: std::option::Option<&horizon_client_lib::items::ItemStack>,
+) -> std::option::Option<horizon_client_lib::items::ItemStack> {
+    recv.cloned()
+}
+#[yoake_hook_macro::yoake_hook(id = 166, key = "fn:109@call:<Self as core::clone::Clone>::clone", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_166(
+    recv: &std::option::Option<horizon_client_lib::items::ItemStack>,
+) -> std::option::Option<horizon_client_lib::items::ItemStack> {
+    recv.clone()
+}
+#[yoake_hook_macro::yoake_hook(id = 167, key = "fn:109@call:horizon_client::game::Game::item_behavior_finish", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_167(
+    recv: &mut crate::game::Game<'_>,
+    a0: &horizon_client_lib::items::ItemStack,
+    a1: &mut std::option::Option<horizon_client_lib::items::ItemStack>,
+) {
+    recv.item_behavior_finish(a0, a1)
+}
+#[yoake_hook_macro::yoake_hook(id = 168, key = "fn:109@call:horizon_client::game::Game::native_living_entity_use_item_finish", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_168(
+    recv: &mut crate::game::Game<'_>,
+    a0: &horizon_client_lib::items::ItemStack,
+    a1: std::option::Option<i32>,
+    a2: horizon_client_lib::first_person::Hand,
+    a3: i32,
+    a4: &mut std::option::Option<horizon_client_lib::items::ItemStack>,
+) {
+    recv.native_living_entity_use_item_finish(a0, a1, a2, a3, a4)
+}
+#[yoake_hook_macro::yoake_hook(id = 169, key = "fn:109@call:horizon_client::game::Game::held_mut", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_169<'r>(
+    recv: &'r mut crate::game::Game<'_>,
+) -> &'r mut std::option::Option<horizon_client_lib::items::ItemStack> {
+    recv.held_mut()
+}
+#[yoake_hook_macro::yoake_hook(id = 170, key = "fn:110@call:horizon_client::game::Game::used_hand", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_170(
+    recv: &crate::game::Game<'_>,
+) -> std::option::Option<horizon_client_lib::first_person::Hand> {
+    recv.used_hand()
+}
+#[yoake_hook_macro::yoake_hook(id = 171, key = "fn:110@call:std::option::Option::unwrap_or", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_171(
+    recv: std::option::Option<horizon_client_lib::first_person::Hand>,
+    a0: horizon_client_lib::first_person::Hand,
+) -> horizon_client_lib::first_person::Hand {
+    recv.unwrap_or(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 172, key = "fn:110@call:horizon_client::game::Game::native_living_entity_use_item_tick", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_172(
+    recv: &mut crate::game::Game<'_>,
+    a0: &horizon_client_lib::items::ItemStack,
+    a1: std::option::Option<i32>,
+    a2: horizon_client_lib::first_person::Hand,
+    a3: &mut i32,
+    a4: &mut bool,
+) {
+    recv.native_living_entity_use_item_tick(a0, a1, a2, a3, a4)
+}
+#[yoake_hook_macro::yoake_hook(id = 173, key = "fn:111@call:horizon_client::game::Game::native_on_use_tick", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_173(
+    recv: &mut crate::game::Game<'_>,
+    a0: &horizon_client_lib::items::ItemStack,
+    a1: std::option::Option<i32>,
+    a2: i32,
+) {
+    recv.native_on_use_tick(a0, a1, a2)
+}
+#[yoake_hook_macro::yoake_hook(id = 174, key = "fn:112@call:fn:104", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_174(recv: &crate::game::Game<'_>, a0: &horizon_client_lib::items::ItemStack) -> i32 {
+    recv.use_duration(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 175, key = "fn:113@call:horizon_client::game::Game::native_living_entity_use_item_stop", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_175(
+    recv: &mut crate::game::Game<'_>,
+    a0: &horizon_client_lib::items::ItemStack,
+    a1: std::option::Option<i32>,
+    a2: horizon_client_lib::first_person::Hand,
+    a3: i32,
+    a4: &mut bool,
+) {
+    recv.native_living_entity_use_item_stop(a0, a1, a2, a3, a4)
+}
+#[yoake_hook_macro::yoake_hook(id = 176, key = "fn:114@call:horizon_client::game::Game::native_release_using", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_176(
+    recv: &mut crate::game::Game<'_>,
+    a0: &horizon_client_lib::items::ItemStack,
+    a1: std::option::Option<i32>,
+    a2: i32,
+    a3: &mut bool,
+) {
+    recv.native_release_using(a0, a1, a2, a3)
+}
+#[yoake_hook_macro::yoake_hook(id = 177, key = "fn:114@call:horizon_client::game::Game::apply_use_cooldown", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_177(recv: &mut crate::game::Game<'_>, a0: &horizon_client_lib::items::ItemStack) {
+    recv.apply_use_cooldown(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 178, key = "fn:115@call:std::option::Option::as_ref", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_178<'r>(
+    recv: &'r std::option::Option<horizon_client_lib::motion::PlayerMotion>,
+) -> std::option::Option<&'r horizon_client_lib::motion::PlayerMotion> {
+    recv.as_ref()
+}
+#[yoake_hook_macro::yoake_hook(id = 179, key = "fn:115@call:horizon_client::game::Game::native_can_eat", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_179(
+    recv: &crate::game::Game<'_>,
+    a0: &horizon_client_lib::items::ItemStack,
+    a1: &mut bool,
+) {
+    recv.native_can_eat(a0, a1)
+}
+#[yoake_hook_macro::yoake_hook(id = 180, key = "fn:118@call:f32::min", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_180(recv: f32, a0: f32) -> f32 {
+    recv.min(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 181, key = "fn:118@call:bool::then_some", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_181(recv: bool, a0: f32) -> std::option::Option<f32> {
+    recv.then_some(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 182, key = "fn:119@call:i32::saturating_sub_unsigned", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_182(recv: i32, a0: u32) -> i32 {
+    recv.saturating_sub_unsigned(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 183, key = "fn:120@call:std::result::Result::unwrap_or", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_183(recv: std::result::Result<u32, std::num::TryFromIntError>, a0: u32) -> u32 {
+    recv.unwrap_or(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 184, key = "fn:121@call:i32::saturating_add_unsigned", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_184(recv: i32, a0: u32) -> i32 {
+    recv.saturating_add_unsigned(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 185, key = "fn:122@call:bool::then_some", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_185(recv: bool, a0: bool) -> std::option::Option<bool> {
+    recv.then_some(a0)
+}
+#[yoake_hook_macro::yoake_hook(id = 186, key = "fn:124@call:bool::then_some", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_186(recv: bool, a0: u32) -> std::option::Option<u32> {
+    recv.then_some(a0)
 }

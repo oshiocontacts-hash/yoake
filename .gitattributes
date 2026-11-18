@@ -9,3 +9,4 @@ crates/yoake-wasm/wit/inject-sites.json text eol=lf
 launcher/tests/fixtures/yoake-presentation/** -text
 hook-ledger/*.json text eol=lf
 hook-ledger/modules.txt text eol=lf
+crates/yoake-hook-thir/tests/fixtures/*.txt text eol=lf

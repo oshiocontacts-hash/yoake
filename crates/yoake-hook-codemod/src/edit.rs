@@ -405,6 +405,7 @@ pub fn plan_trait_impl_conversions(
             self_ty_norm: conv.self_ty_norm.as_deref(),
             id: conv.id,
             key: &conv.key,
+            kind: None,
         };
         let hook_attr = format_hook_attr(&expected, None, None, style);
 

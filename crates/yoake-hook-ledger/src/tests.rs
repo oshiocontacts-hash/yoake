@@ -157,6 +157,35 @@ fn callsite_and_store_kinds_round_trip() {
 }
 
 #[test]
+fn callsite_site_round_trips_and_is_omitted_for_other_entries() {
+    let mut ledger = Ledger::new();
+    ledger.assign(Kind::Callsite, "fn:103@call:fn:2207", "call");
+    let site = super::CallSite {
+        caller: 103,
+        callee_fn: Some(2207),
+        callee_path: "horizon_client::game::Game::held".into(),
+        anchor: "0123456789abcdef".into(),
+        stmt_path: vec!["9c1e".into(), "02ab".into()],
+        context: ["77d0".into(), "0000".into()],
+        dup_rank: 0,
+        shim: "__yoake_cs_1".into(),
+    };
+    ledger.entries[0].site = Some(site.clone());
+    let json = ledger.to_json();
+    assert!(json.contains("\"callee_fn\": 2207"));
+    let parsed = Ledger::from_json(&json).unwrap();
+    assert_eq!(parsed.entries[0].site, Some(site));
+    assert_eq!(parsed.to_json(), json);
+
+    let mut function = Ledger::new();
+    function.assign(Kind::Fn, "demo::f", "sig");
+    assert!(!function.to_json().contains("\"site\""));
+    let without_callee = json.replace("\"callee_fn\": 2207", "\"callee_fn\": null");
+    let parsed = Ledger::from_json(&without_callee).unwrap();
+    assert_eq!(parsed.entries[0].site.as_ref().unwrap().callee_fn, None);
+}
+
+#[test]
 fn live_keys_are_unique_even_across_kinds() {
     invalid(
         r#"{"version":1,"next_id":3,"entries":[{"id":1,"key":"a","sig":"","status":"live","kind":"fn"},{"id":2,"key":"a","sig":"","status":"live","kind":"callsite"}],"excluded":[]}"#,

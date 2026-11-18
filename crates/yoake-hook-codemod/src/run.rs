@@ -35,7 +35,7 @@ struct HelperTarget {
 }
 
 #[derive(Clone)]
-struct PairedHelper {
+pub(crate) struct PairedHelper {
     impl_close_brace_start: usize,
     method: ImplItemFn,
 }
@@ -185,6 +185,7 @@ impl VisitMut for FileVisitor<'_, '_> {
             || self.current_caller.is_some()
             || !self.in_target_mod
             || modules::has_cfg_test(&item_fn.attrs)
+            || is_callsite_shim_fn(item_fn, self.source, self.idx)
         {
             return;
         }
@@ -240,6 +241,7 @@ impl VisitMut for FileVisitor<'_, '_> {
                     self_ty_norm: None,
                     id,
                     key: &fn_key,
+                    kind: None,
                 };
                 edit::plan_ensure_attr(
                     self.source,
@@ -442,6 +444,7 @@ impl VisitMut for FileVisitor<'_, '_> {
                         self_ty_norm: self_ty_norm.as_deref(),
                         id,
                         key: &fn_key,
+                        kind: None,
                     };
                     edit::plan_ensure_attr(
                         self.source,
@@ -556,6 +559,7 @@ impl VisitMut for FileVisitor<'_, '_> {
                         self_ty_norm: self_ty_norm.as_deref(),
                         id,
                         key: &fn_key,
+                        kind: None,
                     };
                     let anchor = edit::fn_insert_anchor(
                         self.source,
@@ -717,6 +721,9 @@ impl VisitMut for FileVisitor<'_, '_> {
 }
 
 pub fn execute(config: &Config) -> Result<bool, String> {
+    if config.callsites {
+        return crate::callsite::execute(config);
+    }
     let crate_ident = key::normalize_crate_name(&config.crate_name);
     let targets = config
         .modules
@@ -928,7 +935,16 @@ fn reconcile_missing_keys(
     Ok(())
 }
 
-fn collect_colliding_short_keys(
+fn is_callsite_shim_fn(item_fn: &ItemFn, source: &str, idx: &LineIndex) -> bool {
+    if item_fn.sig.ident.to_string().starts_with("__yoake_cs_") {
+        return true;
+    }
+    attr::find_hook_attrs(&item_fn.attrs, source, idx)
+        .iter()
+        .any(|a| a.parsed.kind.as_deref() == Some("callsite"))
+}
+
+pub(crate) fn collect_colliding_short_keys(
     crate_ident: &str,
     targets: &[Vec<String>],
     scanned_files: &[modules::ScannedFile],
@@ -980,7 +996,10 @@ fn collect_short_keys_in_items(
         );
         for item in items {
             match item {
-                Item::Fn(item_fn) if !modules::has_cfg_test(&item_fn.attrs) => {
+                Item::Fn(item_fn)
+                    if !modules::has_cfg_test(&item_fn.attrs)
+                        && !is_callsite_shim_fn(item_fn, source, idx) =>
+                {
                     let mut cfgs = mod_cfg_tags.to_vec();
                     cfgs.extend(key::extract_cfg_tags(&item_fn.attrs));
                     let k = key::free_fn_key(&prefix, &item_fn.sig.ident, &cfgs);
@@ -1053,7 +1072,7 @@ fn collect_short_keys_in_items(
     }
 }
 
-fn pair_converted_trait_helpers(
+pub(crate) fn pair_converted_trait_helpers(
     source: &str,
     idx: &LineIndex,
     prefix: &str,

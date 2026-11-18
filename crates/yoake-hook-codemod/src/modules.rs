@@ -13,6 +13,66 @@ pub struct ScannedFile {
     pub root_cfg_tags: Vec<String>,
 }
 
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ModuleSpec {
+    pub crate_root: PathBuf,
+    pub crate_name: String,
+    pub module: String,
+    pub callsites: bool,
+}
+
+#[allow(dead_code)]
+pub fn parse_modules_line(line: &str) -> Result<Option<ModuleSpec>, String> {
+    let trimmed = line.split('#').next().unwrap_or("").trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    let mut parts = trimmed.split_whitespace();
+    let Some(root) = parts.next() else {
+        return Ok(None);
+    };
+    let crate_name = parts
+        .next()
+        .ok_or_else(|| format!("missing crate name in modules line: '{trimmed}'"))?;
+    let module = parts
+        .next()
+        .ok_or_else(|| format!("missing module path in modules line: '{trimmed}'"))?;
+    let mut callsites = false;
+    for flag in parts {
+        if let Some((key, val)) = flag.split_once('=') {
+            if key == "callsites" {
+                callsites = match val {
+                    "true" => true,
+                    "false" => false,
+                    other => {
+                        return Err(format!(
+                            "invalid callsites flag value '{other}' in modules line: '{trimmed}'"
+                        ));
+                    }
+                };
+            }
+        }
+    }
+    Ok(Some(ModuleSpec {
+        crate_root: PathBuf::from(root),
+        crate_name: crate_name.to_string(),
+        module: module.to_string(),
+        callsites,
+    }))
+}
+
+#[allow(dead_code)]
+pub fn parse_modules_txt(text: &str) -> Result<Vec<ModuleSpec>, String> {
+    let mut out = Vec::new();
+    for line in text.lines() {
+        if let Some(spec) = parse_modules_line(line)? {
+            out.push(spec);
+        }
+    }
+    Ok(out)
+}
+
 pub fn normalize_module_arg(raw: &str) -> Result<Vec<String>, String> {
     let trimmed = raw.trim().strip_prefix("::").unwrap_or(raw.trim());
     let trimmed = trimmed.strip_prefix("crate::").unwrap_or(trimmed);
@@ -584,5 +644,39 @@ mod tests {
 
         let table = "[package]\nname = \"a\"\nedition = { workspace = true }\n";
         assert_eq!(parse_package_edition(table), None);
+    }
+
+    #[test]
+    fn parse_modules_txt_supports_callsites_and_ignores_unknown_flags() {
+        let input = "\
+# comment
+crates/horizon-client-lib horizon_client_lib entities
+crates/horizon-client horizon_client game::item_use callsites=true foo=bar
+crates/demo demo mod_a callsites=false other=123
+";
+        let specs = parse_modules_txt(input).unwrap();
+        assert_eq!(
+            specs,
+            vec![
+                ModuleSpec {
+                    crate_root: PathBuf::from("crates/horizon-client-lib"),
+                    crate_name: "horizon_client_lib".to_string(),
+                    module: "entities".to_string(),
+                    callsites: false,
+                },
+                ModuleSpec {
+                    crate_root: PathBuf::from("crates/horizon-client"),
+                    crate_name: "horizon_client".to_string(),
+                    module: "game::item_use".to_string(),
+                    callsites: true,
+                },
+                ModuleSpec {
+                    crate_root: PathBuf::from("crates/demo"),
+                    crate_name: "demo".to_string(),
+                    module: "mod_a".to_string(),
+                    callsites: false,
+                },
+            ]
+        );
     }
 }

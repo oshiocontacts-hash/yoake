@@ -161,7 +161,1472 @@
       "sig": "3d2390d3449dbbb8",
       "status": "live",
       "kind": "fn"
+    },
+    {
+      "id": 126,
+      "key": "fn:103@call:horizon_client::game::Game::held",
+      "sig": "7ba72043588e1145",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 103,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::held",
+        "anchor": "7a756ed9c8d28887",
+        "stmt_path": [
+          "861c2ffc7225cf82"
+        ],
+        "context": [
+          "0000000000000000",
+          "30b1cddb51185e6b"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_126"
+      }
+    },
+    {
+      "id": 127,
+      "key": "fn:103@call:std::option::Option::cloned",
+      "sig": "36a9c1690be57279",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 103,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::cloned",
+        "anchor": "dac56276fd5bb69f",
+        "stmt_path": [
+          "861c2ffc7225cf82"
+        ],
+        "context": [
+          "0000000000000000",
+          "30b1cddb51185e6b"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_127"
+      }
+    },
+    {
+      "id": 128,
+      "key": "fn:103@call:std::option::Option::is_none",
+      "sig": "088c18cfff3ca863",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 103,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::is_none",
+        "anchor": "025dc2f3fe47ccbb",
+        "stmt_path": [
+          "861c2ffc7225cf82"
+        ],
+        "context": [
+          "0000000000000000",
+          "30b1cddb51185e6b"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_128"
+      }
+    },
+    {
+      "id": 129,
+      "key": "fn:103@call:fn:104",
+      "sig": "6caead2f55dabcce",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 103,
+        "callee_fn": 104,
+        "callee_path": "horizon_client::game::Game::use_duration",
+        "anchor": "89cfaf14fb2ae75a",
+        "stmt_path": [
+          "30b1cddb51185e6b"
+        ],
+        "context": [
+          "861c2ffc7225cf82",
+          "10cda1f3f192697c"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_129"
+      }
+    },
+    {
+      "id": 130,
+      "key": "fn:103@call:horizon_client::game::Game::native_living_entity_use_item_start",
+      "sig": "3bec471d40f15144",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 103,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::native_living_entity_use_item_start",
+        "anchor": "c3252fdb1355d5aa",
+        "stmt_path": [
+          "ee05e241dad9e563"
+        ],
+        "context": [
+          "67736856569e3dac",
+          "051912c2e440425f"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_130"
+      }
+    },
+    {
+      "id": 131,
+      "key": "fn:103@call:horizon_client::game::Game::held_slot",
+      "sig": "12543c46c11d4e4a",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 103,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::held_slot",
+        "anchor": "c6b527edb1111d4a",
+        "stmt_path": [
+          "1bc2e01301391bf6"
+        ],
+        "context": [
+          "051912c2e440425f",
+          "2d5d4feb0eecf9af"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_131"
+      }
+    },
+    {
+      "id": 132,
+      "key": "fn:104@call:horizon_client::game::Game::items",
+      "sig": "716f34e0caa7623f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 104,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::items",
+        "anchor": "427ed15e6a5f28b2",
+        "stmt_path": [
+          "945c3cfd4c45d117"
+        ],
+        "context": [
+          "0000000000000000",
+          "3aaac734f6dde3a3"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_132"
+      }
+    },
+    {
+      "id": 133,
+      "key": "fn:104@call:horizon_client_lib::items::Items::get",
+      "sig": "6a7ba43247d0e1ac",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 104,
+        "callee_fn": null,
+        "callee_path": "horizon_client_lib::items::Items::get",
+        "anchor": "e2f16358c9a798ce",
+        "stmt_path": [
+          "945c3cfd4c45d117"
+        ],
+        "context": [
+          "0000000000000000",
+          "3aaac734f6dde3a3"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_133"
+      }
+    },
+    {
+      "id": 134,
+      "key": "fn:104@call:horizon_client::game::Resources::items",
+      "sig": "5293b220c226a068",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 104,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Resources::items",
+        "anchor": "31a8fde450d3a206",
+        "stmt_path": [
+          "3aaac734f6dde3a3"
+        ],
+        "context": [
+          "945c3cfd4c45d117",
+          "76c11b10f7de04f5"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_134"
+      }
+    },
+    {
+      "id": 135,
+      "key": "fn:104@call:horizon_client_lib::items::Items::instrument",
+      "sig": "b4b64ca5186d22db",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 104,
+        "callee_fn": null,
+        "callee_path": "horizon_client_lib::items::Items::instrument",
+        "anchor": "a44f278a34bb61a4",
+        "stmt_path": [
+          "3aaac734f6dde3a3"
+        ],
+        "context": [
+          "945c3cfd4c45d117",
+          "76c11b10f7de04f5"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_135"
+      }
+    },
+    {
+      "id": 136,
+      "key": "fn:104@call:horizon_client_lib::items::Instrument::use_ticks",
+      "sig": "8ee605cc1f22dbb5",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 104,
+        "callee_fn": null,
+        "callee_path": "horizon_client_lib::items::Instrument::use_ticks",
+        "anchor": "a3a87a3e71fadc5f",
+        "stmt_path": [
+          "3aaac734f6dde3a3"
+        ],
+        "context": [
+          "945c3cfd4c45d117",
+          "76c11b10f7de04f5"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_136"
+      }
+    },
+    {
+      "id": 137,
+      "key": "fn:104@call:horizon_world::consumable::Consumable::ticks",
+      "sig": "27c2980ce6ebd412",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 104,
+        "callee_fn": null,
+        "callee_path": "horizon_world::consumable::Consumable::ticks",
+        "anchor": "d5e3d90271670641",
+        "stmt_path": [
+          "3aaac734f6dde3a3"
+        ],
+        "context": [
+          "945c3cfd4c45d117",
+          "76c11b10f7de04f5"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_137"
+      }
+    },
+    {
+      "id": 138,
+      "key": "fn:104@call:std::option::Option::is_some",
+      "sig": "5f7f2d554144842c",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 104,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::is_some",
+        "anchor": "1327e13b58ad827a",
+        "stmt_path": [
+          "3aaac734f6dde3a3"
+        ],
+        "context": [
+          "945c3cfd4c45d117",
+          "76c11b10f7de04f5"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_138"
+      }
+    },
+    {
+      "id": 139,
+      "key": "fn:104@call:std::option::Option::is_some#1",
+      "sig": "31526ba1e46f4d23",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 104,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::is_some",
+        "anchor": "28ad99f95a2734ad",
+        "stmt_path": [
+          "3aaac734f6dde3a3"
+        ],
+        "context": [
+          "945c3cfd4c45d117",
+          "76c11b10f7de04f5"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_139"
+      }
+    },
+    {
+      "id": 140,
+      "key": "fn:104@call:horizon_client::game::Game::native_use_duration",
+      "sig": "9d95e1d0d5dc6b5d",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 104,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::native_use_duration",
+        "anchor": "00a7460e75da999e",
+        "stmt_path": [
+          "f6d5af924273135f"
+        ],
+        "context": [
+          "76c11b10f7de04f5",
+          "8af203ac9dd3208d"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_140"
+      }
+    },
+    {
+      "id": 141,
+      "key": "fn:105@call:str::starts_with",
+      "sig": "097afe5846d85ed3",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 105,
+        "callee_fn": null,
+        "callee_path": "str::starts_with",
+        "anchor": "7810b5e25771d618",
+        "stmt_path": [
+          "fd28be4e658de0f3"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_141"
+      }
+    },
+    {
+      "id": 142,
+      "key": "fn:105@call:horizon_client::game::Game::items",
+      "sig": "716f34e0caa7623f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 105,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::items",
+        "anchor": "427ed15e6a5f28b2",
+        "stmt_path": [
+          "fd28be4e658de0f3"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_142"
+      }
+    },
+    {
+      "id": 143,
+      "key": "fn:105@call:horizon_client_lib::items::Items::get",
+      "sig": "6a7ba43247d0e1ac",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 105,
+        "callee_fn": null,
+        "callee_path": "horizon_client_lib::items::Items::get",
+        "anchor": "e2f16358c9a798ce",
+        "stmt_path": [
+          "fd28be4e658de0f3"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_143"
+      }
+    },
+    {
+      "id": 144,
+      "key": "fn:105@call:std::option::Option::is_none",
+      "sig": "e1e3457961cb00c5",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 105,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::is_none",
+        "anchor": "b14290fa3796081b",
+        "stmt_path": [
+          "fd28be4e658de0f3"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_144"
+      }
+    },
+    {
+      "id": 145,
+      "key": "fn:105@call:std::option::Option::is_none#1",
+      "sig": "5f7f2d554144842c",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 105,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::is_none",
+        "anchor": "81c6b72a9dd31b6c",
+        "stmt_path": [
+          "fd28be4e658de0f3"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_145"
+      }
+    },
+    {
+      "id": 146,
+      "key": "fn:105@call:std::option::Option::is_none#2",
+      "sig": "31526ba1e46f4d23",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 105,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::is_none",
+        "anchor": "2aa3a81b3aabcceb",
+        "stmt_path": [
+          "fd28be4e658de0f3"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_146"
+      }
+    },
+    {
+      "id": 147,
+      "key": "fn:105@call:fn:104",
+      "sig": "6caead2f55dabcce",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 105,
+        "callee_fn": 104,
+        "callee_path": "horizon_client::game::Game::use_duration",
+        "anchor": "619efca3d3214d1e",
+        "stmt_path": [
+          "fd28be4e658de0f3"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_147"
+      }
+    },
+    {
+      "id": 148,
+      "key": "fn:106@call:fn:105",
+      "sig": "d0bef13455df1720",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 106,
+        "callee_fn": 105,
+        "callee_path": "horizon_client::game::Game::mod_use",
+        "anchor": "1c793ecbd16e9510",
+        "stmt_path": [
+          "5d13e5c4e6984fca"
+        ],
+        "context": [
+          "0000000000000000",
+          "65783ecf9f941614"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_148"
+      }
+    },
+    {
+      "id": 149,
+      "key": "fn:106@call:fn:103",
+      "sig": "098343198b12a2b6",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 106,
+        "callee_fn": 103,
+        "callee_path": "horizon_client::game::Game::start_using_item",
+        "anchor": "90e059d3c0383fa7",
+        "stmt_path": [
+          "65783ecf9f941614"
+        ],
+        "context": [
+          "5d13e5c4e6984fca",
+          "5b5c98ef514dbfa5"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_149"
+      }
+    },
+    {
+      "id": 150,
+      "key": "fn:107@call:fn:111",
+      "sig": "8a57113f5a19430f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 107,
+        "callee_fn": 111,
+        "callee_path": "horizon_client::game::Game::item_on_use_tick",
+        "anchor": "c617325ba24de269",
+        "stmt_path": [
+          "e74ce3b4ca579156"
+        ],
+        "context": [
+          "0000000000000000",
+          "ac313f6935f01277"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_150"
+      }
+    },
+    {
+      "id": 151,
+      "key": "fn:107@call:horizon_client::game::Game::items",
+      "sig": "716f34e0caa7623f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 107,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::items",
+        "anchor": "427ed15e6a5f28b2",
+        "stmt_path": [
+          "144037f33befe22e"
+        ],
+        "context": [
+          "ac313f6935f01277",
+          "9863f918d6a1e603"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_151"
+      }
+    },
+    {
+      "id": 152,
+      "key": "fn:107@call:horizon_client_lib::items::Items::get",
+      "sig": "6a7ba43247d0e1ac",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 107,
+        "callee_fn": null,
+        "callee_path": "horizon_client_lib::items::Items::get",
+        "anchor": "e2f16358c9a798ce",
+        "stmt_path": [
+          "144037f33befe22e"
+        ],
+        "context": [
+          "ac313f6935f01277",
+          "9863f918d6a1e603"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_152"
+      }
+    },
+    {
+      "id": 153,
+      "key": "fn:107@call:std::option::Option::cloned",
+      "sig": "d91a5ac8b63ce3df",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 107,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::cloned",
+        "anchor": "8496a4c60ca1db00",
+        "stmt_path": [
+          "144037f33befe22e"
+        ],
+        "context": [
+          "ac313f6935f01277",
+          "9863f918d6a1e603"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_153"
+      }
+    },
+    {
+      "id": 154,
+      "key": "fn:107@call:fn:108",
+      "sig": "ef7fb7672f1976ef",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 107,
+        "callee_fn": 108,
+        "callee_path": "horizon_client::game::Game::complete_using_item",
+        "anchor": "79432aaf6e8b424a",
+        "stmt_path": [
+          "9863f918d6a1e603"
+        ],
+        "context": [
+          "144037f33befe22e",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_154"
+      }
+    },
+    {
+      "id": 155,
+      "key": "fn:108@call:horizon_client::game::Game::finish_drinking",
+      "sig": "2cdfb1a4a88f4330",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 108,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::finish_drinking",
+        "anchor": "fa0675145aa477b4",
+        "stmt_path": [
+          "7cbc593e8dcace46"
+        ],
+        "context": [
+          "0000000000000000",
+          "155bc05a34d5544b"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_155"
+      }
+    },
+    {
+      "id": 156,
+      "key": "fn:108@call:fn:109",
+      "sig": "398f3d2e0b4a9779",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 108,
+        "callee_fn": 109,
+        "callee_path": "horizon_client::game::Game::use_item_finished",
+        "anchor": "69f551cc879dec66",
+        "stmt_path": [
+          "7cbc593e8dcace46",
+          "a9c65b8a7158a207"
+        ],
+        "context": [
+          "0000000000000000",
+          "6363b407e6aa262f"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_156"
+      }
+    },
+    {
+      "id": 157,
+      "key": "fn:108@call:horizon_client::game::Game::use_vibration",
+      "sig": "398f3d2e0b4a9779",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 108,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::use_vibration",
+        "anchor": "f041baa0ae23b3ae",
+        "stmt_path": [
+          "7cbc593e8dcace46",
+          "6363b407e6aa262f"
+        ],
+        "context": [
+          "a9c65b8a7158a207",
+          "8f0d9df748daa0ec"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_157"
+      }
+    },
+    {
+      "id": 158,
+      "key": "fn:108@call:horizon_client::game::Game::send_use_item_complete",
+      "sig": "11d1ca7bb423040d",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 108,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::send_use_item_complete",
+        "anchor": "92516e2a0ba3e8d6",
+        "stmt_path": [
+          "44471e71c784cab7"
+        ],
+        "context": [
+          "155bc05a34d5544b",
+          "146d76e6fa168fff"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_158"
+      }
+    },
+    {
+      "id": 159,
+      "key": "fn:108@call:horizon_client::game::Game::apply_use_cooldown",
+      "sig": "398f3d2e0b4a9779",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 108,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::apply_use_cooldown",
+        "anchor": "49caee4ffab09abe",
+        "stmt_path": [
+          "146d76e6fa168fff"
+        ],
+        "context": [
+          "44471e71c784cab7",
+          "778b01ebba79236c"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_159"
+      }
+    },
+    {
+      "id": 160,
+      "key": "fn:108@call:horizon_client::game::Game::finish_consuming",
+      "sig": "44295948a50fc5fa",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 108,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::finish_consuming",
+        "anchor": "5a154a4238873fe8",
+        "stmt_path": [
+          "778b01ebba79236c",
+          "996d01860dd17389"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_160"
+      }
+    },
+    {
+      "id": 161,
+      "key": "fn:108@call:horizon_client::game::Game::stop_spyglass",
+      "sig": "11d1ca7bb423040d",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 108,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::stop_spyglass",
+        "anchor": "347e46db282ca4c9",
+        "stmt_path": [
+          "778b01ebba79236c",
+          "5f37586543dc4736"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_161"
+      }
+    },
+    {
+      "id": 162,
+      "key": "fn:108@call:fn:109#1",
+      "sig": "398f3d2e0b4a9779",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 108,
+        "callee_fn": 109,
+        "callee_path": "horizon_client::game::Game::use_item_finished",
+        "anchor": "69f551cc879dec66",
+        "stmt_path": [
+          "a9c65b8a7158a207"
+        ],
+        "context": [
+          "778b01ebba79236c",
+          "6363b407e6aa262f"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_162"
+      }
+    },
+    {
+      "id": 163,
+      "key": "fn:108@call:horizon_client::game::Game::use_vibration#1",
+      "sig": "398f3d2e0b4a9779",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 108,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::use_vibration",
+        "anchor": "f041baa0ae23b3ae",
+        "stmt_path": [
+          "6363b407e6aa262f"
+        ],
+        "context": [
+          "a9c65b8a7158a207",
+          "0000000000000000"
+        ],
+        "dup_rank": 1,
+        "shim": "__yoake_cs_163"
+      }
+    },
+    {
+      "id": 164,
+      "key": "fn:109@call:horizon_client::game::Game::held",
+      "sig": "7ba72043588e1145",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 109,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::held",
+        "anchor": "7a756ed9c8d28887",
+        "stmt_path": [
+          "7f490ca2b538d697"
+        ],
+        "context": [
+          "0000000000000000",
+          "36e7354618d5e4f2"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_164"
+      }
+    },
+    {
+      "id": 165,
+      "key": "fn:109@call:std::option::Option::cloned",
+      "sig": "36a9c1690be57279",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 109,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::cloned",
+        "anchor": "dac56276fd5bb69f",
+        "stmt_path": [
+          "7f490ca2b538d697"
+        ],
+        "context": [
+          "0000000000000000",
+          "36e7354618d5e4f2"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_165"
+      }
+    },
+    {
+      "id": 166,
+      "key": "fn:109@call:<Self as core::clone::Clone>::clone",
+      "sig": "9879a1f79ff1ad8f",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 109,
+        "callee_fn": null,
+        "callee_path": "<Self as core::clone::Clone>::clone",
+        "anchor": "4d7c3140e4b79920",
+        "stmt_path": [
+          "36e7354618d5e4f2"
+        ],
+        "context": [
+          "7f490ca2b538d697",
+          "67736856569e3dac"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_166"
+      }
+    },
+    {
+      "id": 167,
+      "key": "fn:109@call:horizon_client::game::Game::item_behavior_finish",
+      "sig": "a31cd7f529d6529a",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 109,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::item_behavior_finish",
+        "anchor": "79b3bf3e21a8d71f",
+        "stmt_path": [
+          "75451a9331e5922c"
+        ],
+        "context": [
+          "67736856569e3dac",
+          "d74958444dbe1946"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_167"
+      }
+    },
+    {
+      "id": 168,
+      "key": "fn:109@call:horizon_client::game::Game::native_living_entity_use_item_finish",
+      "sig": "d5627e637153c65b",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 109,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::native_living_entity_use_item_finish",
+        "anchor": "99e948ce224fe299",
+        "stmt_path": [
+          "d74958444dbe1946"
+        ],
+        "context": [
+          "75451a9331e5922c",
+          "04146f2f240e067c"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_168"
+      }
+    },
+    {
+      "id": 169,
+      "key": "fn:109@call:horizon_client::game::Game::held_mut",
+      "sig": "15787c1ea17025a9",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 109,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::held_mut",
+        "anchor": "19df4ab3a82197fa",
+        "stmt_path": [
+          "04146f2f240e067c",
+          "6c9ade07836460e3"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_169"
+      }
+    },
+    {
+      "id": 170,
+      "key": "fn:110@call:horizon_client::game::Game::used_hand",
+      "sig": "e64c25e0b6cab77b",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 110,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::used_hand",
+        "anchor": "e9a789494e2d3fa9",
+        "stmt_path": [
+          "771c2227a694da48"
+        ],
+        "context": [
+          "9daa392f1553b469",
+          "3041d94451bb2876"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_170"
+      }
+    },
+    {
+      "id": 171,
+      "key": "fn:110@call:std::option::Option::unwrap_or",
+      "sig": "0fd910f52b589aa0",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 110,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::unwrap_or",
+        "anchor": "23ed5d84e356e55a",
+        "stmt_path": [
+          "771c2227a694da48"
+        ],
+        "context": [
+          "9daa392f1553b469",
+          "3041d94451bb2876"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_171"
+      }
+    },
+    {
+      "id": 172,
+      "key": "fn:110@call:horizon_client::game::Game::native_living_entity_use_item_tick",
+      "sig": "3bec471d40f15144",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 110,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::native_living_entity_use_item_tick",
+        "anchor": "eb014200bedd1e89",
+        "stmt_path": [
+          "3041d94451bb2876"
+        ],
+        "context": [
+          "771c2227a694da48",
+          "8b9af84b4ac2167b"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_172"
+      }
+    },
+    {
+      "id": 173,
+      "key": "fn:111@call:horizon_client::game::Game::native_on_use_tick",
+      "sig": "db3d49233a886388",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 111,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::native_on_use_tick",
+        "anchor": "5fd1993a04cfaa85",
+        "stmt_path": [
+          "286ffb996ff02569",
+          "a0d21b962cdf20da"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_173"
+      }
+    },
+    {
+      "id": 174,
+      "key": "fn:112@call:fn:104",
+      "sig": "6caead2f55dabcce",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 112,
+        "callee_fn": 104,
+        "callee_path": "horizon_client::game::Game::use_duration",
+        "anchor": "619efca3d3214d1e",
+        "stmt_path": [
+          "0651acd3fc795595"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_174"
+      }
+    },
+    {
+      "id": 175,
+      "key": "fn:113@call:horizon_client::game::Game::native_living_entity_use_item_stop",
+      "sig": "baa53276cfb2e5b2",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 113,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::native_living_entity_use_item_stop",
+        "anchor": "7dbe48638db736e0",
+        "stmt_path": [
+          "618bdc29ce523621"
+        ],
+        "context": [
+          "67736856569e3dac",
+          "b3d271567ffa682f"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_175"
+      }
+    },
+    {
+      "id": 176,
+      "key": "fn:114@call:horizon_client::game::Game::native_release_using",
+      "sig": "99737249172ed5fe",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 114,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::native_release_using",
+        "anchor": "e2d2a38e2594ba19",
+        "stmt_path": [
+          "00a60c89dbb847c6"
+        ],
+        "context": [
+          "9926abac112a3dc9",
+          "704d61892ae15bdf"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_176"
+      }
+    },
+    {
+      "id": 177,
+      "key": "fn:114@call:horizon_client::game::Game::apply_use_cooldown",
+      "sig": "398f3d2e0b4a9779",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 114,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::apply_use_cooldown",
+        "anchor": "49caee4ffab09abe",
+        "stmt_path": [
+          "704d61892ae15bdf",
+          "146d76e6fa168fff"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_177"
+      }
+    },
+    {
+      "id": 178,
+      "key": "fn:115@call:std::option::Option::as_ref",
+      "sig": "dc36448d6c44e973",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 115,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::as_ref",
+        "anchor": "5033960732b43931",
+        "stmt_path": [
+          "895fc1500728e233"
+        ],
+        "context": [
+          "0000000000000000",
+          "568772e6ced1e8a3"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_178"
+      }
+    },
+    {
+      "id": 179,
+      "key": "fn:115@call:horizon_client::game::Game::native_can_eat",
+      "sig": "75f185390fa59067",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 115,
+        "callee_fn": null,
+        "callee_path": "horizon_client::game::Game::native_can_eat",
+        "anchor": "f5abc66784e3a56a",
+        "stmt_path": [
+          "568772e6ced1e8a3"
+        ],
+        "context": [
+          "895fc1500728e233",
+          "76f223f863ba250c"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_179"
+      }
+    },
+    {
+      "id": 180,
+      "key": "fn:118@call:f32::min",
+      "sig": "2cbe3ed7f04570b4",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 118,
+        "callee_fn": null,
+        "callee_path": "f32::min",
+        "anchor": "dee8349a72b4ed12",
+        "stmt_path": [
+          "f2ae376c784868e6"
+        ],
+        "context": [
+          "4c08ca7bf230ba94",
+          "adc7daa5f000a6e1"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_180"
+      }
+    },
+    {
+      "id": 181,
+      "key": "fn:118@call:bool::then_some",
+      "sig": "015e53522cacbb34",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 118,
+        "callee_fn": null,
+        "callee_path": "bool::then_some",
+        "anchor": "adc7daa5f000a6e1",
+        "stmt_path": [
+          "adc7daa5f000a6e1"
+        ],
+        "context": [
+          "f2ae376c784868e6",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_181"
+      }
+    },
+    {
+      "id": 182,
+      "key": "fn:119@call:i32::saturating_sub_unsigned",
+      "sig": "f0055b38dffed28b",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 119,
+        "callee_fn": null,
+        "callee_path": "i32::saturating_sub_unsigned",
+        "anchor": "8982bb8016638365",
+        "stmt_path": [
+          "8982bb8016638365"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_182"
+      }
+    },
+    {
+      "id": 183,
+      "key": "fn:120@call:std::result::Result::unwrap_or",
+      "sig": "069c7a7c1b3633ff",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 120,
+        "callee_fn": null,
+        "callee_path": "std::result::Result::unwrap_or",
+        "anchor": "f55d0b296dc68f27",
+        "stmt_path": [
+          "f55d0b296dc68f27"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_183"
+      }
+    },
+    {
+      "id": 184,
+      "key": "fn:121@call:i32::saturating_add_unsigned",
+      "sig": "f0055b38dffed28b",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 121,
+        "callee_fn": null,
+        "callee_path": "i32::saturating_add_unsigned",
+        "anchor": "c9549f70e9568786",
+        "stmt_path": [
+          "c9549f70e9568786"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_184"
+      }
+    },
+    {
+      "id": 185,
+      "key": "fn:122@call:bool::then_some",
+      "sig": "9e6b3085624f017a",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 122,
+        "callee_fn": null,
+        "callee_path": "bool::then_some",
+        "anchor": "d32c31ca90c5f9dc",
+        "stmt_path": [
+          "d32c31ca90c5f9dc"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_185"
+      }
+    },
+    {
+      "id": 186,
+      "key": "fn:124@call:bool::then_some",
+      "sig": "ef03a93edf0188c8",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 124,
+        "callee_fn": null,
+        "callee_path": "bool::then_some",
+        "anchor": "e907484cc051acb0",
+        "stmt_path": [
+          "e907484cc051acb0"
+        ],
+        "context": [
+          "312aa0efe7dfd6e0",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_186"
+      }
     }
   ],
-  "excluded": []
+  "excluded": [
+    {
+      "key": "fn:103@call:fn:122",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:103@call:std::option::Option::filter",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:104@call:horizon_client::game::native_item_behaviors::duration",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:104@call:horizon_client_lib::spear::{impl#1}::of",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:104@call:std::option::Option::is_some_and",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:105@call:horizon_client_lib::spear::{impl#1}::of",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:105@call:std::option::Option::is_some_and",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:107@call:fn:124",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:109@call:std::option::Option::filter",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:110@call:fn:116",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:110@call:fn:119",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:110@call:fn:121",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:111@call:fn:119",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:112@call:fn:119",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:112@call:fn:120",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:113@call:fn:119",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:114@call:fn:119",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:115@call:std::option::Option::is_some_and",
+      "reason": "unwritable arg type",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:120@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:120@call:core::convert::From::from#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:120@call:core::convert::TryFrom::try_from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:124@call:core::convert::From::from",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:124@call:core::convert::From::from#1",
+      "reason": "path call",
+      "kind": "callsite"
+    }
+  ]
 }

@@ -21,6 +21,7 @@ pub struct HookAttrArgs {
     pub self_ty: Option<String>,
     pub id: Option<u32>,
     pub key: Option<String>,
+    pub kind: Option<String>,
     pub skip: Option<String>,
     pub test_id: Option<u32>,
     pub valid_syntax: bool,
@@ -40,6 +41,7 @@ pub struct ExpectedHookAttr<'a> {
     pub self_ty_norm: Option<&'a str>,
     pub id: u32,
     pub key: &'a str,
+    pub kind: Option<&'a str>,
 }
 
 pub fn detect_file_style(items: &[Item], source: &str) -> FileStyle {
@@ -250,6 +252,10 @@ fn parse_hook_args(tokens: TokenStream) -> HookAttrArgs {
                     input.parse::<Token![=]>()?;
                     let lit: LitStr = input.parse()?;
                     args.key = Some(lit.value());
+                } else if ident == "kind" {
+                    input.parse::<Token![=]>()?;
+                    let kind_ident: syn::Ident = input.parse()?;
+                    args.kind = Some(kind_ident.to_string());
                 } else if ident == "skip" {
                     input.parse::<Token![=]>()?;
                     let lit: LitStr = input.parse()?;
@@ -285,6 +291,7 @@ pub fn matches_expected(found: &FoundHookAttr, expected: &ExpectedHookAttr<'_>) 
         && p.method == expected.method
         && p.id == Some(expected.id)
         && p.key.as_deref() == Some(expected.key)
+        && p.kind.as_deref() == expected.kind
         && p.self_ty.as_deref() == expected.self_ty_norm
 }
 
@@ -304,6 +311,9 @@ pub fn format_hook_attr(
     parts.push(format!("id = {}", expected.id));
     let escaped_key = serde_json::to_string(expected.key).unwrap_or_else(|_| format!("\"{}\"", expected.key));
     parts.push(format!("key = {escaped_key}"));
+    if let Some(kind) = expected.kind {
+        parts.push(format!("kind = {kind}"));
+    }
 
     let path = attr_path.unwrap_or_else(|| {
         if style.imports_yoake_hook {

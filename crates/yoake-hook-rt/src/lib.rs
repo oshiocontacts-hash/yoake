@@ -3,7 +3,7 @@ use std::cmp::Reverse;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::{Arc, Mutex};
 
-pub const SLOT_CAPACITY: usize = 1 << 16;
+pub const SLOT_CAPACITY: usize = 1 << 20;
 pub const TEST_SLOTS: usize = 64;
 pub const TEST_ID_BASE: usize = SLOT_CAPACITY - TEST_SLOTS;
 
