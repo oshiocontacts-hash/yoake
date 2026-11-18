@@ -35,9 +35,9 @@ pub mod __yoake_slice_bridge {
 }
 ```
 
-`OUT_DIR/yoake_slice_bridge.rs` is written by the crate's build.rs (the same `yoake_hook_ledger::build` step that
-writes KEYS) from the shard plus the codemod's per-hook signature record. For every live id N whose shape is
-bridgeable it contains a dispatcher and an installer:
+`yoake-hook-codemod bridge` writes `src/yoake_glue/hook_bridge_<module>.rs` for each scanned module (included
+into that module under `#[cfg(feature = "yoake2-slice")]`). For every live id N whose shape is bridgeable,
+`pub mod hook_bridge` contains a dispatcher, `BRIDGED`, `OBSERVE_ONLY`, `UNBRIDGED`, `mode`, and `install`:
 
 ```rust
 // ledger id 71: horizon_client_lib::entities::ArmorStand::tick_settle
@@ -51,36 +51,82 @@ fn __bridge_71(
         &mut |stand| { original(stand, medium, step); 0 });
 }
 
-pub fn install(registered: &[(u32, i32)]) -> Vec<u32> {      // returns ids it could not bridge
-    let mut unbridged = Vec::new();
-    for &(id, priority) in registered {
-        let order = yoake_hook_rt::Order { priority, mod_load_order: 0 };
-        let ok = match id {
-            71 => crate::entities::ArmorStand::__yoake_register_tick_settle(__bridge_71, order).is_ok(),
-            // ... one arm per bridgeable id
-            _ => false,
-        };
-        if !ok { unbridged.push(id); }
+pub const BRIDGED: &[u32] = &[
+    // sorted list of every id this module can install
+    71,
+];
+
+pub fn mode(id: u32) -> Option<yoake_slice::bridge::Mode> {
+    if BRIDGED.binary_search(&id).is_err() {
+        return None;
     }
-    unbridged
+    if OBSERVE_ONLY.binary_search(&id).is_ok() {
+        Some(yoake_slice::bridge::Mode::ObserveOnly)
+    } else {
+        Some(yoake_slice::bridge::Mode::Full)
+    }
+}
+
+pub fn install(registered: &[(u32, i32)]) -> yoake_slice::bridge::InstallReport {
+    let mut report = yoake_slice::bridge::InstallReport::default();
+    for &(id, priority) in registered {
+        if id >= yoake_slice::runtime::SYNTHETIC_HOOK_BASE {
+            report.not_mine.push(id);
+            continue;
+        }
+        let order = yoake_hook_rt::Order { priority, mod_load_order: 0 };
+        let outcome: Option<Result<(), &'static str>> = match id {
+            71 => Some(yoake_slice::bridge::install_once(id, || {
+                ArmorStand::__yoake_register_tick_settle(__bridge_71, order)
+            })),
+            // ... one arm per id in BRIDGED
+            _ => None,
+        };
+        match outcome {
+            Some(Ok(())) => report.installed.push(id),
+            Some(Err(err)) => report.failed.push((id, err)),
+            None => {
+                if let Some(&entry) = UNBRIDGED.iter().find(|&&(u_id, _)| u_id == id) {
+                    report.not_bridgeable.push(entry);
+                } else {
+                    report.not_mine.push(id);
+                }
+            }
+        }
+    }
+    report
 }
 ```
+
+### Installing and querying hooks (`install`, `install_once`, `InstallReport`, `mode`)
+
+Registering appends to a slot's chain and nothing removes an entry (S2 hot-reload generation, MX3S2 open problem 3),
+so `hook_bridge::install` wraps every typed registration in `yoake_slice::bridge::install_once(id, || ...)`.
+`install_once` runs the registration **at most once per process** and caches the first `Result<(), &'static str>`
+outcome (including failures, which are not retried): a second world, or a second mod on the same id, reuses the
+dispatcher instead of adding another one (which would run guests twice per call). An installed dispatcher whose id
+no loaded mod registers any more (the mod was unloaded with its world, or the call comes from a thread without mods)
+looks up an empty chain and runs the original. Which guests run, and in what order, is the runtime's chain for that
+id (priority, then load order); the dispatcher's own slot order uses the priority of the first mod that registered it.
+
+`install` returns a `yoake_slice::bridge::InstallReport` that keeps the three failure/skip cases distinct:
+- `installed`: ids in `BRIDGED` whose `install_once` returned `Ok(())` (installed now or earlier in the process).
+- `failed`: `(id, reason)` for ids in `BRIDGED` whose typed registration returned `Err(reason)` (e.g., slot full or
+  callback type mismatch).
+- `not_bridgeable`: `(id, reason)` for ids in this module's `UNBRIDGED` list.
+- `not_mine`: everything else — another module's id, an unknown id, or `id >= yoake_slice::runtime::SYNTHETIC_HOOK_BASE`.
+
+`hook_bridge::mode(id)` returns `Some(Mode::Full)` or `Some(Mode::ObserveOnly)` for ids in `BRIDGED`, and `None`
+otherwise (for `UNBRIDGED` or unknown ids). The loader combines the modules' `mode` functions into
+`yoake_slice::bridge::set_mode_resolver` so `hook_register` can tell guests what mode a hook runs in.
 
 The production loader does this in `yoake2_mods::install_bridges`, called by `load_world_mods` once the world's
 mods have run `yoake_init`: it takes the union of the ids every loaded mod registered (`runtime::stats_of`, id 0 =
 legacy guest left out), tries each bridge's `install` in turn (entities, then `game::item_use`; ledger ids are unique
 across crates) and reports, per mod, the ids no bridge took (`LoadReport::unbridged`, one line each in
 `LoadReport::messages`). Only the slots a guest asked for get a callback; every other slot stays empty and costs one
-load.
-
-Registering appends to a slot's chain and nothing removes an entry (S2 hot-reload generation, MX3S2 open problem 3),
-so `install_bridges` installs each id **at most once per process** (a process-wide map id -> installed): a second
-world, or a second mod on the same id, reuses the dispatcher instead of adding another one (the guests would run
-twice). An installed dispatcher whose id no loaded mod registers any more (the mod was unloaded with its world, or the
-call comes from a thread without mods) looks up an empty chain and runs the original. Which guests run, and in what
-order, is the runtime's chain for that id (priority, then load order); the dispatcher's own slot order is the
-priority of the first mod that registered the id. Test: `yoake2_loader`
-`a_loaded_mod_that_registers_a_bridged_hook_id_is_called_by_the_engine` (approved list, two world starts).
+load. Test: `yoake2_loader` `a_loaded_mod_that_registers_a_bridged_hook_id_is_called_by_the_engine` (approved list,
+two world starts).
 
 ### Which hooks are bridgeable
 
@@ -99,6 +145,32 @@ generic parameters, or `bridge-exclude.txt` entries) cannot be bridged and is li
 `hook_bridge::UNBRIDGED`.
 
 Call-site shims are bridged the same way: their first parameter is the receiver.
+
+#### Results
+
+Full-mode dispatchers (`Mode::Full`) encode the original's result as `i64` for the guest and decode the guest's `i64`
+return value back through `yoake_slice::bridge::{encode, decode}`:
+
+| Result type | Encode (`orig` -> guest) | Decode (guest -> host) | Out of range when |
+|---|---|---|---|
+| `()` | `0` | ignored (`()`) | never |
+| `bool` | `encode::bool(r)` (`0` / `1`) | `decode::bool(value)` | `value` is not `0` or `1` |
+| `i64` | `r` (identity) | `value` (identity) | never |
+| `u64` | `encode::u64(r)` (bit pattern) | `decode::u64(value)` | never |
+| `usize` | `encode::usize(r)` (two's complement) | `decode::int::<usize>(value)` | `value < 0` (or `> usize::MAX`) |
+| `isize` | `r as i64` | `decode::int::<isize>(value)` | outside `isize::MIN..=isize::MAX` |
+| `i8`, `i16`, `i32`, `u8`, `u16`, `u32` | `encode::int(r)` | `decode::int::<T>(value)` | outside `T::MIN..=T::MAX` |
+| `f32` | `encode::f32(r)` (bits in low 32 bits) | `decode::f32(value)` | outside `0..=u32::MAX` |
+| `f64` | `encode::f64(r)` (64-bit pattern) | `decode::f64(value)` | never |
+
+When a type can be out of range, the dispatcher tracks `let mut last: Option<T> = None;` inside the `original`
+closure. If `decode` returns `None`:
+1. The dispatcher calls `yoake_slice::bridge::note_out_of_range(id, value)` (which increments `out_of_range_count()`
+   and prints once per hook id to stderr).
+2. If `original` ran during the guest's activation, the last `original` result (`last`) is returned; otherwise
+   `original` runs now and its result is returned.
+
+Types that can never be out of range (`()`, `i64`, `u64`, `f64`) do not track `last`.
 
 #### Observe-only mode (`OBSERVE_ONLY`)
 

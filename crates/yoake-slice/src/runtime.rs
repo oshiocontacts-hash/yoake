@@ -287,9 +287,13 @@ pub const MAX_REGISTRATIONS: usize = 4096;
 pub const INIT_FUEL: u64 = 50_000_000;
 pub const INIT_EPOCH_TICKS: u64 = 2000;
 
-/// `hook_register` results (negative = refused).
+/// `hook_register` results (negative = refused, positive = registered with a restriction).
 pub mod register_status {
     pub const OK: i32 = 0;
+    /// Registered for a hook whose result cannot be replaced and which cannot be cancelled.
+    pub const OBSERVE_ONLY: i32 = 1;
+    /// Registered, but this engine build cannot call the id.
+    pub const NOT_CALLABLE: i32 = 2;
     /// Called outside `yoake_init`.
     pub const NOT_IN_INIT: i32 = -1;
     /// This mod already registered [`super::MAX_REGISTRATIONS`] ids.
@@ -631,7 +635,7 @@ pub const MAX_CALL_ARG_BYTES: usize = 1 << 20;
 
 /// `engine_call` results: `>= 0` is the number of result bytes written at `out_ptr`; negative is one
 /// of these (handle statuses are `HANDLE_BASE - status`: Stale = -17, Locked = -18, BadField = -19,
-/// NoSuchArg = -20, WrongType = -21). An engine panic is not a status: it traps the guest.
+/// NoSuchArg = -20, WrongType = -21, LimitReached = -22, ReadOnly = -23). An engine panic is not a status: it traps the guest.
 pub mod call_status {
     pub const ARGS_TOO_LARGE: i32 = -1;
     /// The result needs more than `out_cap` bytes; its length is written as a little-endian `u32` at
@@ -816,8 +820,13 @@ fn build_linker(engine: &Engine) -> R<Linker<Host>> {
         if registered.len() >= MAX_REGISTRATIONS && !registered.contains_key(&(id as u32)) {
             return register_status::TOO_MANY;
         }
+        let status = match crate::bridge::mode_of(id as u32) {
+            None | Some(Some(crate::bridge::Mode::Full)) => register_status::OK,
+            Some(Some(crate::bridge::Mode::ObserveOnly)) => register_status::OBSERVE_ONLY,
+            Some(None) => register_status::NOT_CALLABLE,
+        };
         registered.insert(id as u32, priority);
-        register_status::OK
+        status
     })?;
     // not engine imports: they only touch the host state
     linker.func_wrap("env", "report", |mut c: Caller<'_, Host>, slot: i32, value: i64| {
@@ -982,6 +991,25 @@ fn chain_step<T: 'static>(chain: &[Rc<ModSlot>], from: usize, hook_id: u32, arg:
         Outcome::Fallthrough => next(arg),
         Outcome::Trapped(done) => {
             // the trapped mod is out of every chain now; the rest of the chain (and the engine) still run
+            if done.original_calls == 0 { next(arg) } else { done.last_result }
+        }
+    }
+}
+
+/// [`dispatch_id`] with a shared argument: `get` works, `set` is `ReadOnly`, and `original` receives `&T`.
+pub fn dispatch_id_ref<T: 'static>(hook_id: u32, arg: &T, table: &'static activation::RefFieldTable<T>, orig: &mut dyn FnMut(&T) -> i64) -> i64 {
+    let Some(chain) = chain_for(hook_id).filter(|c| !c.is_empty()) else { return orig(arg) };
+    chain_step_ref(&chain, 0, hook_id, arg, table, orig)
+}
+
+fn chain_step_ref<T: 'static>(chain: &[Rc<ModSlot>], from: usize, hook_id: u32, arg: &T, table: &'static activation::RefFieldTable<T>, orig: &mut dyn FnMut(&T) -> i64) -> i64 {
+    let Some(i) = next_live(chain, from) else { return orig(arg) };
+    let mut next = |a: &T| chain_step_ref(chain, i + 1, hook_id, a, table, &mut *orig);
+    let outcome = dispatch_with(&chain[i], hook_id, |body| activation::scope_ref(arg, table, &mut next, |h| body(h)));
+    match outcome {
+        Outcome::Value(value) => value,
+        Outcome::Fallthrough => next(arg),
+        Outcome::Trapped(done) => {
             if done.original_calls == 0 { next(arg) } else { done.last_result }
         }
     }

@@ -7,8 +7,8 @@ const TICK_SETTLE: u32 = 71;
 const ENVIRONMENT_HURT: u32 = 215;
 
 fn init(r: &mut Registrar) {
-    r.hook(TICK_SETTLE, 0);
-    r.hook(ENVIRONMENT_HURT, 5);
+    r.hook(TICK_SETTLE, 0).unwrap();
+    r.hook(ENVIRONMENT_HURT, 5).unwrap();
 }
 
 fn hook(id: u32, handle: Handle) -> i64 {

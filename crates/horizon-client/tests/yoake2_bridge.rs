@@ -148,8 +148,9 @@ fn sdk_guest_reaches_function_and_callsite_hooks_and_originals_run() {
 
     runtime::install(&build_guest(), ModConfig::new("")).unwrap();
     assert_eq!(runtime::stats().registered, vec![(71, 0), (215, 5)]);
-    let unbridged = hook_bridge::install(&runtime::stats().registered);
-    assert!(unbridged.is_empty(), "unbridged hook ids: {unbridged:?}");
+    let report = hook_bridge::install(&runtime::stats().registered);
+    assert_eq!(report.installed, [71, 215], "{report:?}");
+    assert!(report.not_mine.is_empty() && report.not_bridgeable.is_empty() && report.failed.is_empty(), "{report:?}");
 
     let mut hooked = stand();
     hooked.tick_settle(StandMedium::Air, step);
@@ -182,4 +183,156 @@ fn sdk_guest_reaches_function_and_callsite_hooks_and_originals_run() {
     let stats = runtime::stats();
     assert_eq!(stats.entries, 2);
     assert!(!stats.disabled, "{:?}", stats.trap);
+}
+
+// ---- Hook semantics through the generated bridge (review cases). Each test installs a WAT guest on its own thread
+// (the runtime keeps mods per thread; the bridge dispatchers are process-wide and installed once).
+
+/// A guest on ledger hook `id` whose `yoake_hook` reports `(1, 1)` on entry and then runs `body` (which must leave
+/// the i64 result on the stack). `$orig` calls the original through the handle.
+fn wat_guest(id: u32, body: &str) -> String {
+    format!(
+        r#"(module
+  (import "env" "original" (func $orig (param i64 i32) (result i32)))
+  (import "env" "hook_register" (func $register (param i32 i32) (result i32)))
+  (import "env" "report" (func $report (param i32 i64)))
+  (memory (export "memory") 1)
+  (func (export "yoake_init") (drop (call $register (i32.const {id}) (i32.const 0))))
+  (func (export "yoake_hook") (param $id i32) (param $h i64) (result i64)
+    (call $report (i32.const 1) (i64.const 1))
+    {body}))"#
+    )
+}
+
+const CALL_ORIGINAL: &str = "(drop (call $orig (local.get $h) (i32.const 64)))";
+
+fn with_guest<R>(id: u32, body: &str, f: impl FnOnce() -> R) -> R {
+    runtime::uninstall().unwrap();
+    runtime::install(wat_guest(id, body).as_bytes(), ModConfig::new("")).unwrap();
+    let report = hook_bridge::install(&runtime::stats().registered);
+    assert_eq!(report.installed, [id], "{report:?}");
+    let out = f();
+    out
+}
+
+fn entries() -> usize {
+    reports(&runtime::take_reports().unwrap(), 1).len()
+}
+
+/// A fresh stand after `times` settle steps. Call it before installing a guest: once a guest is on hook 71 these
+/// calls go through it too.
+fn settled(times: usize) -> ArmorStand {
+    let mut s = stand();
+    for _ in 0..times {
+        s.tick_settle(StandMedium::Air, StandStep::for_hook_bench(true, 0.6));
+    }
+    s
+}
+
+fn hooked_settle() -> ArmorStand {
+    let mut s = stand();
+    s.tick_settle(StandMedium::Air, StandStep::for_hook_bench(true, 0.6));
+    s
+}
+
+#[test]
+fn a_full_hook_whose_guest_does_not_call_original_is_cancelled() {
+    let (zero, one) = (settled(0).velocity, settled(1).velocity);
+    assert_ne!(one, zero, "the settle step changes the velocity (else this test proves nothing)");
+    with_guest(71, "(i64.const 0)", || {
+        assert_eq!(hooked_settle().velocity, zero, "the original did not run");
+        assert_eq!(entries(), 1);
+        assert!(!runtime::stats().disabled);
+    });
+    runtime::uninstall().unwrap();
+}
+
+#[test]
+fn a_guest_that_calls_original_twice_runs_it_twice() {
+    let (one, two) = (settled(1).velocity, settled(2).velocity);
+    assert_ne!(two, one);
+    with_guest(71, &format!("{CALL_ORIGINAL} {CALL_ORIGINAL} (i64.const 0)"), || {
+        assert_eq!(hooked_settle().velocity, two);
+        assert_eq!(entries(), 1);
+    });
+    runtime::uninstall().unwrap();
+}
+
+#[test]
+fn a_trap_before_original_disables_the_mod_and_the_original_still_runs() {
+    let one = settled(1).velocity;
+    with_guest(71, "(unreachable)", || {
+        assert_eq!(hooked_settle().velocity, one, "the original ran once");
+        let stats = runtime::stats();
+        assert!(stats.disabled && stats.trap.is_some(), "{stats:?}");
+        // disabled: the next call does not enter the guest and runs the original
+        assert_eq!(hooked_settle().velocity, one);
+        assert_eq!(runtime::stats().entries, 1);
+    });
+    runtime::uninstall().unwrap();
+}
+
+#[test]
+fn a_trap_after_original_keeps_the_original_result_and_does_not_run_it_again() {
+    let one = settled(1).velocity;
+    with_guest(71, &format!("{CALL_ORIGINAL} (unreachable)"), || {
+        assert_eq!(hooked_settle().velocity, one, "the original ran exactly once");
+        assert!(runtime::stats().disabled);
+    });
+    runtime::uninstall().unwrap();
+}
+
+#[test]
+fn installing_twice_adds_no_second_dispatcher() {
+    let one = settled(1).velocity;
+    with_guest(71, &format!("{CALL_ORIGINAL} (i64.const 0)"), || {
+        let again = hook_bridge::install(&runtime::stats().registered);
+        assert_eq!(again.installed, [71], "already installed counts as installed: {again:?}");
+        assert!(yoake_slice::bridge::is_installed(71));
+        assert_eq!(hooked_settle().velocity, one);
+        assert_eq!(entries(), 1, "the guest was entered once per call");
+    });
+    runtime::uninstall().unwrap();
+}
+
+#[test]
+fn install_separates_installed_not_bridgeable_and_not_mine() {
+    // 1: an entities hook that cannot be bridged; 103: a game::item_use hook (another module); 0x8000_0000: synthetic
+    let report = hook_bridge::install(&[(71, 0), (1, 0), (103, 0), (0x8000_0000, 0), (999_999, 0)]);
+    assert_eq!(report.installed, [71]);
+    assert_eq!(report.not_bridgeable.iter().map(|(id, _)| *id).collect::<Vec<_>>(), [1]);
+    assert_eq!(report.not_mine, [103, 0x8000_0000, 999_999]);
+    assert!(report.failed.is_empty());
+    use yoake_slice::bridge::Mode;
+    assert_eq!(hook_bridge::mode(71), Some(Mode::Full));
+    assert_eq!(hook_bridge::mode(215), Some(Mode::ObserveOnly));
+    assert_eq!(hook_bridge::mode(1), None);
+    assert_eq!(hook_bridge::mode(103), None, "another module's id");
+    assert!(hook_bridge::BRIDGED.windows(2).all(|w| w[0] < w[1]) && hook_bridge::OBSERVE_ONLY.windows(2).all(|w| w[0] < w[1]), "sorted for binary_search");
+}
+
+fn stone() -> ItemStack {
+    ItemStack { item: Arc::from("minecraft:stone"), count: 1, damage: 0, extra: None }
+}
+
+#[test]
+fn a_bool_result_is_replaced_by_the_guest_and_out_of_range_values_keep_the_original_result() {
+    // hook 58: ArmorStand::name_with_tag(&mut self, &ItemStack) -> bool; with a stone the original returns false
+    assert!(!stand().name_with_tag(&stone()));
+    with_guest(58, "(i64.const 1)", || {
+        assert!(stand().name_with_tag(&stone()), "the guest's 1 is true");
+    });
+    let before = yoake_slice::bridge::out_of_range_count();
+    with_guest(58, "(i64.const 5)", || {
+        assert!(!stand().name_with_tag(&stone()), "5 is not a bool: the original ran and its false is used");
+    });
+    with_guest(58, &format!("{CALL_ORIGINAL} (i64.const -1)"), || {
+        assert!(!stand().name_with_tag(&stone()), "-1 is not a bool: the original's last result is used");
+        assert_eq!(entries(), 1);
+    });
+    assert!(yoake_slice::bridge::out_of_range_count() >= before + 2, "both counted (other tests may add more)");
+    with_guest(58, &format!("{CALL_ORIGINAL} (i64.const 0)"), || {
+        assert!(!stand().name_with_tag(&stone()));
+    });
+    runtime::uninstall().unwrap();
 }

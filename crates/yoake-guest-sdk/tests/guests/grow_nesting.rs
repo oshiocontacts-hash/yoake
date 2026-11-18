@@ -7,8 +7,8 @@ use alloc::vec::Vec;
 use yoake_guest_sdk::{Handle, Registrar, export_guest, original, report};
 
 fn init(r: &mut Registrar) {
-    r.hook(1, 0);
-    r.hook(2, 0);
+    r.hook(1, 0).unwrap();
+    r.hook(2, 0).unwrap();
 }
 
 fn pages() -> i64 {

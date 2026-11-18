@@ -33,3 +33,11 @@ required-features = ["wasm"]
 [[test]]
 name = "policy"
 required-features = ["wasm"]
+
+[[test]]
+name = "modes"
+required-features = ["wasm"]
+
+[[test]]
+name = "readonly"
+required-features = ["wasm"]

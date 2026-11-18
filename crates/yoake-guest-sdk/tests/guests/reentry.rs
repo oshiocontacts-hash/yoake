@@ -10,8 +10,8 @@ const OUTER: u32 = 1;
 const INNER: u32 = 2;
 
 fn init(r: &mut Registrar) {
-    r.hook(OUTER, 0);
-    r.hook(INNER, 5);
+    r.hook(OUTER, 0).unwrap();
+    r.hook(INNER, 5).unwrap();
 }
 
 /// Burns shadow stack: every level keeps a 32-word array alive across the recursive call.

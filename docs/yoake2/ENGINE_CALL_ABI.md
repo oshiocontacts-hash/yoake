@@ -25,7 +25,7 @@ Return value:
 | `-5` | unknown id |
 | `-6` | the host registered no dispatcher |
 | `-8` | the result did not fit and this activation already holds 8 kept results or 16 MiB: **the call ran, its result is lost**. Size the buffer first |
-| `-17 … -21` | handle errors: Stale, Locked, BadField, NoSuchArg, WrongType (nothing ran) |
+| `-17 … -23` | handle errors: Stale, Locked, BadField, NoSuchArg, WrongType, LimitReached, ReadOnly (nothing ran) |
 
 An engine panic caused by the arguments is not a status: the guest traps, the mod is disabled (the trap rule), and the
 host logs `engine state may be inconsistent` with the binding id.
@@ -72,6 +72,45 @@ One guest, many hooks, thousands of ids: the guest exports **one** entry point a
 - Hook ids: S2 slot ids (the codemod ledger) are the small numbers; engine-synthetic hooks are at and above
   `0x8000_0000`. `0x8000_0001` is `Game::yoake2_server_tick`, the hook whose argument 0 is the `Game` root.
   `priority` is recorded and reported (`runtime::stats().registered`); ordering several mods by it is the loader's job.
+
+## Hook modes and results
+
+`hook_register` returns `0` for a **Full** hook (and also when the host has no bridge mode resolver), `1` for
+**ObserveOnly**, and `2` for **NotCallable**. All three statuses mean that the id was registered. Negative statuses
+mean that it was not registered: `-1` outside `yoake_init`, `-2` over the registration cap, and `-3` for reserved id
+0. The Rust SDK exposes the non-negative outcomes as `Result<HookMode, RegisterError>` from `Registrar::hook`.
+
+- **Full**: the guest's `i64` return value is decoded as the hooked function's result. Calling `original` runs the
+  next guest in the chain, or the real original when this guest is last. Not calling it skips the rest of the chain
+  and cancels the real original; the guest's return value replaces that result.
+- **ObserveOnly**: the hooked function's result type cannot round-trip through `i64`, so the guest's return value is
+  ignored and it cannot replace the result or cancel the call. Each guest may call `original` any number of times.
+  An upstream guest's `original` runs the next guest, not necessarily the real original: the real original runs only
+  when that call reaches the end of the live chain. If an upstream guest does not call `original`, downstream guests
+  do not run during that activation. After the outermost guest returns, the bridge runs the real original directly if
+  no chain call reached it; this fallback does not run skipped downstream guests. If the real original ran more than
+  once through repeated `original` calls, its last result is used.
+- **NotCallable**: registration is harmless and is included in the loader's report, but this engine build has no
+  callable bridge for the id, so its hook will not be entered.
+
+For a Full hook, the original's result is encoded for `original`, and the guest's returned `i64` is decoded, as
+follows: `()` is `0`; `bool` is `0` or `1`; signed integers and unsigned integers narrower than 64 bits use their
+numeric value and must fit the result type; `u64` uses its two's-complement 64-bit pattern (every `i64` is a valid
+`u64`); `usize` is passed to `original` as that pattern but a guest result must be a value in `0..=i64::MAX`; `f32` uses
+its bits as a value in `0..=u32::MAX`; and `f64` uses its 64-bit pattern. A guest result outside the decodable range
+(for example `2` for `bool`, a negative `u8`, or a negative `f32` bit pattern) is rejected. The bridge then uses the
+original's result, running the original if it has not run, and counts the rejection in `bridge::out_of_range_count`.
+
+## Read-only hook arguments
+
+A hook whose argument 0 is `&T` / `&self` uses `runtime::dispatch_id_ref` with a `RefFieldTable<T>` (`get: fn(&T, ...)`),
+emitted next to the mutable `FieldTable<T>` for types whose getters only read fields. Its handle supports `get`, and its
+`original` receives the same shared argument; chain order, re-entry, the lending lock, original-call recording, and
+trap fallback are the same as for mutable dispatch. `set` returns handle status `7` (`ReadOnly`) without changing the
+argument. The direct `get` / `set` imports return `0` on success or the positive handle status on failure. A typed
+mutable receiver requested by `engine_call` on a shared argument is refused as `-23` (`HANDLE_BASE - 7`), and the
+binding does not run. This is distinct from `engine_call` status `-4`, which means a setter targets a field that is
+read-only in the binding schema. A shared activation never turns its `&T` into `&mut T`.
 
 ## The Rust guest SDK
 

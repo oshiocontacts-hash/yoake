@@ -81,6 +81,4 @@ Fixes made during the merge:
   fits next to LENOVO's build directories (the raw THIR tree passed 3.8 GB and the 5 GB watchdog stopped it with 13 GB free); it was written to another
   drive. CI runners need the free-disk check of the verify job, and a per-module THIR filter (or `-Zdump-mir` with a
   filter) would make it much smaller.
-- Loader wiring: nothing calls the bridge's `install` outside the test yet. The loader (MX3L2's `yoake2_mods.rs`) should
-  call `horizon_client_lib::entities::hook_bridge::install` and `horizon_client::game::item_use::hook_bridge::install`
-  after installing the guests; left for you, since that file is being reviewed.
+- Loader wiring: done in the next round, see MX3MERGE2.md.

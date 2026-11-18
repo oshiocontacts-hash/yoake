@@ -10,7 +10,7 @@
 //! extern crate alloc;
 //! use yoake_guest_sdk::{Handle, Registrar, export_guest, hooks};
 //!
-//! fn init(r: &mut Registrar) { r.hook(hooks::SERVER_TICK, 0); }
+//! fn init(r: &mut Registrar) { r.hook(hooks::SERVER_TICK, 0).unwrap(); }
 //! fn hook(id: u32, root: Handle) -> i64 { /* find entities, read, write */ 0 }
 //! export_guest!(init, hook);
 //! ```
@@ -74,7 +74,7 @@ pub mod status {
 pub enum Error {
     /// The call was refused or failed: the raw negative status (see [`status`]).
     Status(i32),
-    /// The handle is not usable: 1 Stale, 2 Locked, 3 BadField, 4 NoSuchArg, 5 WrongType, 6 LimitReached.
+    /// The handle is not usable: 1 Stale, 2 Locked, 3 BadField, 4 NoSuchArg, 5 WrongType, 6 LimitReached, 7 ReadOnly.
     Handle(i32),
     /// The result bytes did not decode as the stub's type.
     Decode(CallError),
@@ -82,7 +82,7 @@ pub enum Error {
 
 impl Error {
     pub fn from_status(status: i32) -> Error {
-        if (status::HANDLE_BASE - 6..=status::HANDLE_BASE - 1).contains(&status) {
+        if (status::HANDLE_BASE - 7..=status::HANDLE_BASE - 1).contains(&status) {
             Error::Handle(status::HANDLE_BASE - status)
         } else {
             Error::Status(status)
@@ -162,6 +162,38 @@ pub fn report(slot: i32, value: i64) {
     unsafe { sys::report(slot, value) }
 }
 
+/// How the engine can call a registered hook.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HookMode {
+    /// The guest may replace the result or cancel the call by not calling `original`.
+    Full,
+    /// The guest cannot replace the result or cancel the call.
+    ObserveOnly,
+    /// Registration was recorded, but this engine build cannot call the id.
+    NotCallable,
+}
+
+/// Why a hook registration was refused.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RegisterError {
+    NotInInit,
+    TooMany,
+    ReservedId,
+    Unknown(i32),
+}
+
+fn registration_outcome(status: i32) -> Result<HookMode, RegisterError> {
+    match status {
+        0 => Ok(HookMode::Full),
+        1 => Ok(HookMode::ObserveOnly),
+        2 => Ok(HookMode::NotCallable),
+        -1 => Err(RegisterError::NotInInit),
+        -2 => Err(RegisterError::TooMany),
+        -3 => Err(RegisterError::ReservedId),
+        other => Err(RegisterError::Unknown(other)),
+    }
+}
+
 /// Handed to `init`: says which hooks this guest wants. A hook it does not register never enters the guest.
 pub struct Registrar(());
 
@@ -171,9 +203,9 @@ impl Registrar {
         Registrar(())
     }
 
-    pub fn hook(&mut self, id: u32, priority: i32) {
+    pub fn hook(&mut self, id: u32, priority: i32) -> Result<HookMode, RegisterError> {
         // SAFETY: plain values.
-        unsafe { sys::hook_register(id as i32, priority) };
+        registration_outcome(unsafe { sys::hook_register(id as i32, priority) })
     }
 }
 
@@ -219,10 +251,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn registration_statuses_map_to_modes_and_errors() {
+        assert_eq!(registration_outcome(0), Ok(HookMode::Full));
+        assert_eq!(registration_outcome(1), Ok(HookMode::ObserveOnly));
+        assert_eq!(registration_outcome(2), Ok(HookMode::NotCallable));
+        assert_eq!(registration_outcome(-1), Err(RegisterError::NotInInit));
+        assert_eq!(registration_outcome(-2), Err(RegisterError::TooMany));
+        assert_eq!(registration_outcome(-3), Err(RegisterError::ReservedId));
+        assert_eq!(registration_outcome(7), Err(RegisterError::Unknown(7)));
+    }
+
+    #[test]
     fn statuses_map_to_handle_errors() {
         assert_eq!(Error::from_status(status::HANDLE_BASE - 1), Error::Handle(1));
         assert!(Error::from_status(status::HANDLE_BASE - 1).is_stale());
         assert_eq!(Error::from_status(status::HANDLE_BASE - 5), Error::Handle(5));
+        assert_eq!(Error::from_status(status::HANDLE_BASE - 7), Error::Handle(7));
         assert_eq!(Error::from_status(status::READ_ONLY), Error::Status(-4));
         assert_eq!(Error::from_status(-99), Error::Status(-99));
     }

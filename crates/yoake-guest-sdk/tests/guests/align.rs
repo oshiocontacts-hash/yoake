@@ -14,7 +14,7 @@ struct A256(#[allow(dead_code)] u32);
 struct A4k(#[allow(dead_code)] [u8; 100]);
 
 fn init(r: &mut Registrar) {
-    r.hook(1, 0);
+    r.hook(1, 0).unwrap();
 }
 
 fn hook(_id: u32, _h: Handle) -> i64 {

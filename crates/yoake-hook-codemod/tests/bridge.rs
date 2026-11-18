@@ -238,23 +238,59 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
         "{entities_src}"
     );
     assert!(
+        entities_src.contains("let mut last: Option<i32> = None;"),
+        "{entities_src}"
+    );
+    assert!(
         entities_src.contains(
-            "yoake_slice::runtime::dispatch_id(1, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__Thing"
+            "yoake_slice::runtime::dispatch_id(1, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__Thing, &mut |p0| { let r = original(p0, &mut *p1, p2); last = Some(r); yoake_slice::bridge::encode::int(r) })"
         ),
         "{entities_src}"
     );
     assert!(
-        entities_src.contains("Thing::__yoake_register_bump(__bridge_1, order).is_ok()"),
+        entities_src.contains("match yoake_slice::bridge::decode::int::<i32>(value)"),
         "{entities_src}"
     );
-    assert!(entities_src.contains("fn __bridge_2("), "{entities_src}");
     assert!(
-        entities_src.contains("f32::from_bits(yoake_slice::runtime::dispatch_id(2,"),
+        entities_src.contains("yoake_slice::bridge::note_out_of_range(1, value);"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("match last { Some(r) => r, None => original(p0, &mut *p1, p2) }"),
         "{entities_src}"
     );
     assert!(
         entities_src.contains(
-            "Thing::__yoake_register___yoake_trait_rules_poke(__bridge_2, order).is_ok()"
+            "yoake_slice::bridge::install_once(id, || Thing::__yoake_register_bump(__bridge_1, order))"
+        ),
+        "{entities_src}"
+    );
+    assert!(entities_src.contains("fn __bridge_2("), "{entities_src}");
+    assert!(
+        entities_src.contains("let mut last: Option<f32> = None;"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains(
+            "yoake_slice::runtime::dispatch_id(2, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__Thing, &mut |p0| { let r = original(p0); last = Some(r); yoake_slice::bridge::encode::f32(r) })"
+        ),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("match yoake_slice::bridge::decode::f32(value)"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("yoake_slice::bridge::note_out_of_range(2, value);"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("match last { Some(r) => r, None => original(p0) }"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains(
+            "yoake_slice::bridge::install_once(id, || Thing::__yoake_register___yoake_trait_rules_poke(__bridge_2, order))"
         ),
         "{entities_src}"
     );
@@ -264,7 +300,7 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
         "{entities_src}"
     );
     assert!(
-        entities_src.contains("super::__yoake_register_reset_thing(cb, order).is_ok()"),
+        entities_src.contains("super::__yoake_register_reset_thing(cb, order)\n"),
         "{entities_src}"
     );
     assert!(entities_src.contains("fn __bridge_7("), "{entities_src}");
@@ -273,11 +309,59 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
         "{entities_src}"
     );
     assert!(
-        entities_src.contains("super::__yoake_register___yoake_cs_7(cb, order).is_ok()"),
+        entities_src.contains("super::__yoake_register___yoake_cs_7(cb, order)\n"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("pub const BRIDGED: &[u32] = &[\n        1,\n        2,\n        4,\n        5,\n        7,\n        9,\n        10,\n    ];"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("pub fn mode(id: u32) -> Option<yoake_slice::bridge::Mode>"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("Some(yoake_slice::bridge::Mode::ObserveOnly)"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("Some(yoake_slice::bridge::Mode::Full)"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("pub fn install(registered: &[(u32, i32)]) -> yoake_slice::bridge::InstallReport"),
         "{entities_src}"
     );
     assert!(
         entities_src.contains("if id >= yoake_slice::runtime::SYNTHETIC_HOOK_BASE"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("Some(Ok(())) => report.installed.push(id),"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("Some(Err(err)) => report.failed.push((id, err)),"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("report.not_bridgeable.push(entry);"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("report.not_mine.push(id);"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("/// - `BRIDGED`:"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("/// - `install`:"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("/// - `mode`:"),
         "{entities_src}"
     );
     assert!(
@@ -313,7 +397,9 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
         "{entities_src}"
     );
     assert!(
-        entities_src.contains("Thing::__yoake_register_take_pair(__bridge_9, order).is_ok()"),
+        entities_src.contains(
+            "yoake_slice::bridge::install_once(id, || Thing::__yoake_register_take_pair(__bridge_9, order))"
+        ),
         "{entities_src}"
     );
     assert!(entities_src.contains("fn __bridge_10("), "{entities_src}");
@@ -322,7 +408,7 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
         "{entities_src}"
     );
     assert!(
-        entities_src.contains("super::__yoake_register___yoake_cs_10(cb, order).is_ok()"),
+        entities_src.contains("super::__yoake_register___yoake_cs_10(cb, order)\n"),
         "{entities_src}"
     );
     assert!(
@@ -345,13 +431,37 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
     let game_src = fs::read_to_string(&game_bridge).unwrap();
     assert!(game_src.contains("fn __bridge_8("), "{game_src}");
     assert!(
+        game_src.contains("let mut last: Option<bool> = None;"),
+        "{game_src}"
+    );
+    assert!(
         game_src.contains(
-            "yoake_slice::runtime::dispatch_root_id(8, p0, &mut |p0| i64::from(original(p0))) != 0"
+            "yoake_slice::runtime::dispatch_root_id(8, p0, &mut |p0| { let r = original(p0); last = Some(r); yoake_slice::bridge::encode::bool(r) })"
         ),
         "{game_src}"
     );
     assert!(
-        game_src.contains("Game::__yoake_register_tick_item(__bridge_8, order).is_ok()"),
+        game_src.contains("match yoake_slice::bridge::decode::bool(value)"),
+        "{game_src}"
+    );
+    assert!(
+        game_src.contains("yoake_slice::bridge::note_out_of_range(8, value);"),
+        "{game_src}"
+    );
+    assert!(
+        game_src.contains("match last { Some(r) => r, None => original(p0) }"),
+        "{game_src}"
+    );
+    assert!(
+        game_src.contains(
+            "pub const BRIDGED: &[u32] = &[\n        8,\n    ];"
+        ),
+        "{game_src}"
+    );
+    assert!(
+        game_src.contains(
+            "yoake_slice::bridge::install_once(id, || Game::__yoake_register_tick_item(__bridge_8, order))"
+        ),
         "{game_src}"
     );
     assert!(
@@ -421,8 +531,183 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
         "{entities_excl}"
     );
     assert!(
+        entities_excl.contains("pub const BRIDGED: &[u32] = &[\n        1,\n        2,\n        7,\n        9,\n        10,\n    ];"),
+        "{entities_excl}"
+    );
+    assert!(
         entities_excl.contains("pub const OBSERVE_ONLY: &[u32] = &[\n        9,\n        10,\n    ];"),
         "{entities_excl}"
+    );
+}
+
+#[test]
+fn bridge_scalar_result_kinds() {
+    let dir = TestDir::new("scalars");
+    fs::create_dir_all(dir.path().join("src/yoake_glue")).unwrap();
+    fs::create_dir_all(dir.path().join("ledger")).unwrap();
+    fs::write(
+        dir.path().join("Cargo.toml"),
+        "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .unwrap();
+    fs::write(dir.path().join("src/lib.rs"), "pub mod scalars;\n").unwrap();
+    fs::write(
+        dir.path().join("src/yoake_glue/scalars.rs"),
+        r#"pub mod yoake_glue {
+    use yoake_slice::activation::FieldTable;
+    pub static FIELDS_crate__scalars__Counter: FieldTable<crate::scalars::Counter> = FieldTable {
+        get: |_, _| None,
+        set: |_, _, _| false,
+    };
+}
+"#,
+    )
+    .unwrap();
+    fs::write(
+        dir.path().join("src/scalars.rs"),
+        r#"pub struct Counter {
+    pub v: i64,
+}
+
+#[yoake_hook_macro::yoake_hook(id = 1, key = "demo::scalars::ret_i64")]
+pub fn ret_i64(c: &mut Counter) -> i64 {
+    c.v
+}
+
+#[yoake_hook_macro::yoake_hook(id = 2, key = "demo::scalars::ret_u64")]
+pub fn ret_u64(c: &mut Counter) -> u64 {
+    c.v as u64
+}
+
+#[yoake_hook_macro::yoake_hook(id = 3, key = "demo::scalars::ret_usize")]
+pub fn ret_usize(c: &mut Counter) -> usize {
+    c.v as usize
+}
+
+#[yoake_hook_macro::yoake_hook(id = 4, key = "demo::scalars::ret_isize")]
+pub fn ret_isize(c: &mut Counter) -> isize {
+    c.v as isize
+}
+
+#[yoake_hook_macro::yoake_hook(id = 5, key = "demo::scalars::ret_u8")]
+pub fn ret_u8(c: &mut Counter) -> u8 {
+    c.v as u8
+}
+
+#[yoake_hook_macro::yoake_hook(id = 6, key = "demo::scalars::ret_f64")]
+pub fn ret_f64(c: &mut Counter) -> f64 {
+    c.v as f64
+}
+
+include!("yoake_glue/scalars.rs");
+"#,
+    )
+    .unwrap();
+    fs::write(
+        dir.path().join("ledger/meta.json"),
+        "{\n  \"version\": 2,\n  \"next_id\": 10\n}\n",
+    )
+    .unwrap();
+    fs::write(
+        dir.path().join("ledger/demo.json"),
+        r#"{
+  "crate": "demo",
+  "entries": [
+    { "id": 1, "key": "demo::scalars::ret_i64", "sig": "0000000000000001", "status": "live", "kind": "fn" },
+    { "id": 2, "key": "demo::scalars::ret_u64", "sig": "0000000000000002", "status": "live", "kind": "fn" },
+    { "id": 3, "key": "demo::scalars::ret_usize", "sig": "0000000000000003", "status": "live", "kind": "fn" },
+    { "id": 4, "key": "demo::scalars::ret_isize", "sig": "0000000000000004", "status": "live", "kind": "fn" },
+    { "id": 5, "key": "demo::scalars::ret_u8", "sig": "0000000000000005", "status": "live", "kind": "fn" },
+    { "id": 6, "key": "demo::scalars::ret_f64", "sig": "0000000000000006", "status": "live", "kind": "fn" }
+  ],
+  "excluded": []
+}
+"#,
+    )
+    .unwrap();
+
+    let out = Command::new(codemod_bin())
+        .args(["bridge", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "scalars", "--glue"])
+        .arg(dir.path().join("src/yoake_glue/scalars.rs"))
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let src = fs::read_to_string(dir.path().join("src/yoake_glue/hook_bridge_scalars.rs")).unwrap();
+    assert!(
+        src.contains("pub const BRIDGED: &[u32] = &[\n        1,\n        2,\n        3,\n        4,\n        5,\n        6,\n    ];"),
+        "{src}"
+    );
+    // i64: identity, no last
+    assert!(
+        src.contains(
+            "yoake_slice::runtime::dispatch_id(1, p0, &crate::scalars::yoake_glue::FIELDS_crate__scalars__Counter, &mut |p0| original(p0))"
+        ),
+        "{src}"
+    );
+    // u64: bit pattern, never out of range, no last
+    assert!(
+        src.contains(
+            "yoake_slice::bridge::decode::u64(yoake_slice::runtime::dispatch_id(2, p0, &crate::scalars::yoake_glue::FIELDS_crate__scalars__Counter, &mut |p0| yoake_slice::bridge::encode::u64(original(p0))))"
+        ),
+        "{src}"
+    );
+    // usize: range-checked with encode::usize / decode::int::<usize>
+    assert!(src.contains("let mut last: Option<usize> = None;"), "{src}");
+    assert!(src.contains("yoake_slice::bridge::encode::usize(r)"), "{src}");
+    assert!(
+        src.contains("match yoake_slice::bridge::decode::int::<usize>(value)"),
+        "{src}"
+    );
+    assert!(
+        src.contains("yoake_slice::bridge::note_out_of_range(3, value);"),
+        "{src}"
+    );
+    // isize: range-checked with `r as i64` / decode::int::<isize>
+    assert!(src.contains("let mut last: Option<isize> = None;"), "{src}");
+    assert!(src.contains("last = Some(r); r as i64"), "{src}");
+    assert!(
+        src.contains("match yoake_slice::bridge::decode::int::<isize>(value)"),
+        "{src}"
+    );
+    assert!(
+        src.contains("yoake_slice::bridge::note_out_of_range(4, value);"),
+        "{src}"
+    );
+    // u8: range-checked with encode::int / decode::int::<u8>
+    assert!(src.contains("let mut last: Option<u8> = None;"), "{src}");
+    assert!(src.contains("yoake_slice::bridge::encode::int(r)"), "{src}");
+    assert!(
+        src.contains("match yoake_slice::bridge::decode::int::<u8>(value)"),
+        "{src}"
+    );
+    assert!(
+        src.contains("yoake_slice::bridge::note_out_of_range(5, value);"),
+        "{src}"
+    );
+    // f64: bit pattern, never out of range, no last
+    assert!(
+        src.contains(
+            "yoake_slice::bridge::decode::f64(yoake_slice::runtime::dispatch_id(6, p0, &crate::scalars::yoake_glue::FIELDS_crate__scalars__Counter, &mut |p0| yoake_slice::bridge::encode::f64(original(p0))))"
+        ),
+        "{src}"
+    );
+    // Only usize (3), isize (4), u8 (5) emit `last` and `note_out_of_range`.
+    assert_eq!(src.matches("let mut last:").count(), 3, "{src}");
+    assert_eq!(src.matches("note_out_of_range(").count(), 3, "{src}");
+    assert_eq!(
+        src.matches("match last { Some(r) => r, None => original(p0) }")
+            .count(),
+        3,
+        "{src}"
     );
 }
 

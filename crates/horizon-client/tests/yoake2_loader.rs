@@ -601,8 +601,10 @@ fn an_old_style_approval_does_not_load_and_the_report_says_so() {
     assert!(names().is_empty());
 }
 
-/// A guest for ledger hook 71 (`ArmorStand::tick_settle`, bridged) and ledger hook 1 (arg0 is not `&mut T`, so not
-/// bridgeable): every entry reports `(hook id, 1)` and runs `original`.
+/// A guest for ledger hooks 71 (`ArmorStand::tick_settle`, entities, bridged), 1 (entities, arg0 is not `&mut T`, so
+/// not bridgeable), 103 (a `game::item_use` hook: the other bridge module) and 215 (an observe-only call site). In
+/// `yoake_init` it reports what `hook_register` returned for each (slots 501..504); every hook entry reports
+/// `(hook id, 1)` and runs `original`.
 fn bridge_module() -> String {
     r#"(module
   (import "env" "original" (func $orig (param i64 i32) (result i32)))
@@ -610,8 +612,10 @@ fn bridge_module() -> String {
   (import "env" "report" (func $report (param i32 i64)))
   (memory (export "memory") 1)
   (func (export "yoake_init")
-    (drop (call $register (i32.const 71) (i32.const 0)))
-    (drop (call $register (i32.const 1) (i32.const 0))))
+    (call $report (i32.const 501) (i64.extend_i32_s (call $register (i32.const 71) (i32.const 0))))
+    (call $report (i32.const 502) (i64.extend_i32_s (call $register (i32.const 1) (i32.const 0))))
+    (call $report (i32.const 503) (i64.extend_i32_s (call $register (i32.const 103) (i32.const 0))))
+    (call $report (i32.const 504) (i64.extend_i32_s (call $register (i32.const 215) (i32.const 0)))))
   (func (export "yoake_hook") (param $id i32) (param $h i64) (result i64)
     (call $report (local.get $id) (i64.const 1))
     (drop (call $orig (local.get $h) (i32.const 64)))
@@ -642,9 +646,14 @@ fn a_loaded_mod_that_registers_a_bridged_hook_id_is_called_by_the_engine() {
     for round in 0..2 {
         let report = load_world_mods(&mods, Some(&list));
         assert_eq!(report.loaded.iter().map(|l| l.id.as_str()).collect::<Vec<_>>(), ["demo_bridge"], "{:?} {:?}", report.skipped, report.problems);
-        assert_eq!(report.unbridged, vec![("demo_bridge".to_string(), vec![1])], "hook 1 has no bridge, 71 has");
-        assert!(report.messages().iter().any(|l| l.contains("'demo_bridge'") && l.contains("[1]")), "{:?}", report.messages());
-        runtime::take_reports().unwrap();
+        assert_eq!(
+            report.unbridged,
+            vec![("demo_bridge".to_string(), vec![(1, "arg0 is not &mut T".to_string())])],
+            "71 and 215 (entities) and 103 (game::item_use) are bridged, 1 is not"
+        );
+        assert!(report.messages().iter().any(|l| l.contains("'demo_bridge'") && l.contains("1 (arg0 is not &mut T)")), "{:?}", report.messages());
+        // what hook_register told the guest (S4): Full = 0, not callable = 2, Full = 0, observe-only = 1
+        assert_eq!(runtime::take_reports().unwrap(), [(501, 0), (502, 2), (503, 0), (504, 1)], "round {round}");
 
         let mut hooked = stand();
         hooked.tick_settle(StandMedium::Air, step);

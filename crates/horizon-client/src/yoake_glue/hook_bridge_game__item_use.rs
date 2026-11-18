@@ -2,8 +2,19 @@
 
 /// Generated S2 -> `yoake-slice` bridge dispatchers and installer.
 ///
+/// - `BRIDGED`: sorted list of every hook id this module can install.
+/// - `install`: installs dispatchers for `(id, priority)` pairs at most once per
+///   process (`yoake_slice::bridge::install_once`) and returns a
+///   `yoake_slice::bridge::InstallReport` separating `installed`, `failed`,
+///   `not_bridgeable` (`UNBRIDGED`), and `not_mine` (ids of other modules,
+///   unknown ids, or `>= yoake_slice::runtime::SYNTHETIC_HOOK_BASE`).
+/// - `mode`: returns `Some(Mode::Full)` or `Some(Mode::ObserveOnly)` for ids in
+///   `BRIDGED`, and `None` otherwise.
+///
 /// Hooks returning `()`, `bool`, primitive integers, `f32`, or `f64` round-trip their
-/// result through `i64`.
+/// result through `i64`. When a guest returns an out-of-range value for `bool`, an
+/// integer other than `i64`/`u64`, or `f32`, `yoake_slice::bridge::note_out_of_range`
+/// records it and the original's result is used (running `original` if needed).
 ///
 /// Hooks listed in `OBSERVE_ONLY` have a result type `R` that does not fit an `i64`:
 /// the guest sees the hook and its `arg0` handle and may call `original` zero or more
@@ -28,7 +39,16 @@ pub mod hook_bridge {
         original: &mut dyn FnMut(&mut Game<'_>) -> bool,
         p0: &mut Game<'_>,
     ) -> bool {
-        yoake_slice::runtime::dispatch_root_id(103, p0, &mut |p0| i64::from(original(p0))) != 0
+        let mut last: Option<bool> = None;
+        let value = yoake_slice::runtime::dispatch_root_id(103, p0, &mut |p0| { let r = original(p0); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        match yoake_slice::bridge::decode::bool(value) {
+            Some(r) => r,
+            None => {
+                yoake_slice::bridge::note_out_of_range(103, value);
+                // the last original result if the original ran, else run it now
+                match last { Some(r) => r, None => original(p0) }
+            }
+        }
     }
 
     fn __bridge_106(
@@ -36,7 +56,16 @@ pub mod hook_bridge {
         p0: &mut Game<'_>,
         p1: &ItemStack,
     ) -> bool {
-        yoake_slice::runtime::dispatch_root_id(106, p0, &mut |p0| i64::from(original(p0, p1))) != 0
+        let mut last: Option<bool> = None;
+        let value = yoake_slice::runtime::dispatch_root_id(106, p0, &mut |p0| { let r = original(p0, p1); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        match yoake_slice::bridge::decode::bool(value) {
+            Some(r) => r,
+            None => {
+                yoake_slice::bridge::note_out_of_range(106, value);
+                // the last original result if the original ran, else run it now
+                match last { Some(r) => r, None => original(p0, p1) }
+            }
+        }
     }
 
     fn __bridge_107(
@@ -73,7 +102,16 @@ pub mod hook_bridge {
         p1: &ItemStack,
         p2: u32,
     ) -> bool {
-        yoake_slice::runtime::dispatch_root_id(110, p0, &mut |p0| i64::from(original(p0, p1, p2))) != 0
+        let mut last: Option<bool> = None;
+        let value = yoake_slice::runtime::dispatch_root_id(110, p0, &mut |p0| { let r = original(p0, p1, p2); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        match yoake_slice::bridge::decode::bool(value) {
+            Some(r) => r,
+            None => {
+                yoake_slice::bridge::note_out_of_range(110, value);
+                // the last original result if the original ran, else run it now
+                match last { Some(r) => r, None => original(p0, p1, p2) }
+            }
+        }
     }
 
     fn __bridge_111(
@@ -91,7 +129,16 @@ pub mod hook_bridge {
         p1: &ItemStack,
         p2: u32,
     ) -> bool {
-        yoake_slice::runtime::dispatch_root_id(113, p0, &mut |p0| i64::from(original(p0, p1, p2))) != 0
+        let mut last: Option<bool> = None;
+        let value = yoake_slice::runtime::dispatch_root_id(113, p0, &mut |p0| { let r = original(p0, p1, p2); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        match yoake_slice::bridge::decode::bool(value) {
+            Some(r) => r,
+            None => {
+                yoake_slice::bridge::note_out_of_range(113, value);
+                // the last original result if the original ran, else run it now
+                match last { Some(r) => r, None => original(p0, p1, p2) }
+            }
+        }
     }
 
     fn __bridge_114(
@@ -119,7 +166,16 @@ pub mod hook_bridge {
         original: &mut dyn FnMut(&mut crate::game::Game<'_>) -> bool,
         p0: &mut crate::game::Game<'_>,
     ) -> bool {
-        yoake_slice::runtime::dispatch_root_id(149, p0, &mut |p0| i64::from(original(p0))) != 0
+        let mut last: Option<bool> = None;
+        let value = yoake_slice::runtime::dispatch_root_id(149, p0, &mut |p0| { let r = original(p0); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        match yoake_slice::bridge::decode::bool(value) {
+            Some(r) => r,
+            None => {
+                yoake_slice::bridge::note_out_of_range(149, value);
+                // the last original result if the original ran, else run it now
+                match last { Some(r) => r, None => original(p0) }
+            }
+        }
     }
 
     fn __bridge_150(
@@ -147,7 +203,16 @@ pub mod hook_bridge {
         p1: usize,
         p2: &horizon_client_lib::items::ItemStack,
     ) -> bool {
-        yoake_slice::runtime::dispatch_root_id(155, p0, &mut |p0| i64::from(original(p0, p1, p2))) != 0
+        let mut last: Option<bool> = None;
+        let value = yoake_slice::runtime::dispatch_root_id(155, p0, &mut |p0| { let r = original(p0, p1, p2); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        match yoake_slice::bridge::decode::bool(value) {
+            Some(r) => r,
+            None => {
+                yoake_slice::bridge::note_out_of_range(155, value);
+                // the last original result if the original ran, else run it now
+                match last { Some(r) => r, None => original(p0, p1, p2) }
+            }
+        }
     }
 
     fn __bridge_156(
@@ -288,114 +353,165 @@ pub mod hook_bridge {
         let _ = yoake_slice::runtime::dispatch_root_id(177, p0, &mut |p0| { original(p0, p1); 0 });
     }
 
-    pub fn install(registered: &[(u32, i32)]) -> Vec<u32> {
-        let mut unbridged = Vec::new();
+    pub const BRIDGED: &[u32] = &[
+        103,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        113,
+        114,
+        130,
+        149,
+        150,
+        154,
+        155,
+        156,
+        157,
+        158,
+        159,
+        160,
+        161,
+        162,
+        163,
+        167,
+        168,
+        172,
+        173,
+        175,
+        176,
+        177,
+    ];
+
+    pub fn mode(id: u32) -> Option<yoake_slice::bridge::Mode> {
+        if BRIDGED.binary_search(&id).is_err() {
+            return None;
+        }
+        if OBSERVE_ONLY.binary_search(&id).is_ok() {
+            Some(yoake_slice::bridge::Mode::ObserveOnly)
+        } else {
+            Some(yoake_slice::bridge::Mode::Full)
+        }
+    }
+
+    pub fn install(registered: &[(u32, i32)]) -> yoake_slice::bridge::InstallReport {
+        let mut report = yoake_slice::bridge::InstallReport::default();
         for &(id, priority) in registered {
             if id >= yoake_slice::runtime::SYNTHETIC_HOOK_BASE {
-                unbridged.push(id);
+                report.not_mine.push(id);
                 continue;
             }
             let order = yoake_hook_rt::Order {
                 priority,
                 mod_load_order: 0,
             };
-            let ok = match id {
-                103 => Game::__yoake_register_start_using_item(__bridge_103, order).is_ok(),
-                106 => Game::__yoake_register_start_mod_use(__bridge_106, order).is_ok(),
-                107 => Game::__yoake_register_tick_mod_use(__bridge_107, order).is_ok(),
-                108 => Game::__yoake_register_complete_using_item(__bridge_108, order).is_ok(),
-                109 => Game::__yoake_register_use_item_finished(__bridge_109, order).is_ok(),
-                110 => Game::__yoake_register_use_item_ticked(__bridge_110, order).is_ok(),
-                111 => Game::__yoake_register_item_on_use_tick(__bridge_111, order).is_ok(),
-                113 => Game::__yoake_register_use_item_stopped(__bridge_113, order).is_ok(),
-                114 => Game::__yoake_register_mod_release_using(__bridge_114, order).is_ok(),
-                130 => {
+            let outcome: Option<Result<(), &'static str>> = match id {
+                103 => Some(yoake_slice::bridge::install_once(id, || Game::__yoake_register_start_using_item(__bridge_103, order))),
+                106 => Some(yoake_slice::bridge::install_once(id, || Game::__yoake_register_start_mod_use(__bridge_106, order))),
+                107 => Some(yoake_slice::bridge::install_once(id, || Game::__yoake_register_tick_mod_use(__bridge_107, order))),
+                108 => Some(yoake_slice::bridge::install_once(id, || Game::__yoake_register_complete_using_item(__bridge_108, order))),
+                109 => Some(yoake_slice::bridge::install_once(id, || Game::__yoake_register_use_item_finished(__bridge_109, order))),
+                110 => Some(yoake_slice::bridge::install_once(id, || Game::__yoake_register_use_item_ticked(__bridge_110, order))),
+                111 => Some(yoake_slice::bridge::install_once(id, || Game::__yoake_register_item_on_use_tick(__bridge_111, order))),
+                113 => Some(yoake_slice::bridge::install_once(id, || Game::__yoake_register_use_item_stopped(__bridge_113, order))),
+                114 => Some(yoake_slice::bridge::install_once(id, || Game::__yoake_register_mod_release_using(__bridge_114, order))),
+                130 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_130 = __bridge_130;
-                    super::__yoake_register___yoake_cs_130(cb, order).is_ok()
-                }
-                149 => {
+                    super::__yoake_register___yoake_cs_130(cb, order)
+                })),
+                149 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_149 = __bridge_149;
-                    super::__yoake_register___yoake_cs_149(cb, order).is_ok()
-                }
-                150 => {
+                    super::__yoake_register___yoake_cs_149(cb, order)
+                })),
+                150 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_150 = __bridge_150;
-                    super::__yoake_register___yoake_cs_150(cb, order).is_ok()
-                }
-                154 => {
+                    super::__yoake_register___yoake_cs_150(cb, order)
+                })),
+                154 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_154 = __bridge_154;
-                    super::__yoake_register___yoake_cs_154(cb, order).is_ok()
-                }
-                155 => {
+                    super::__yoake_register___yoake_cs_154(cb, order)
+                })),
+                155 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_155 = __bridge_155;
-                    super::__yoake_register___yoake_cs_155(cb, order).is_ok()
-                }
-                156 => {
+                    super::__yoake_register___yoake_cs_155(cb, order)
+                })),
+                156 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_156 = __bridge_156;
-                    super::__yoake_register___yoake_cs_156(cb, order).is_ok()
-                }
-                157 => {
+                    super::__yoake_register___yoake_cs_156(cb, order)
+                })),
+                157 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_157 = __bridge_157;
-                    super::__yoake_register___yoake_cs_157(cb, order).is_ok()
-                }
-                158 => {
+                    super::__yoake_register___yoake_cs_157(cb, order)
+                })),
+                158 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_158 = __bridge_158;
-                    super::__yoake_register___yoake_cs_158(cb, order).is_ok()
-                }
-                159 => {
+                    super::__yoake_register___yoake_cs_158(cb, order)
+                })),
+                159 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_159 = __bridge_159;
-                    super::__yoake_register___yoake_cs_159(cb, order).is_ok()
-                }
-                160 => {
+                    super::__yoake_register___yoake_cs_159(cb, order)
+                })),
+                160 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_160 = __bridge_160;
-                    super::__yoake_register___yoake_cs_160(cb, order).is_ok()
-                }
-                161 => {
+                    super::__yoake_register___yoake_cs_160(cb, order)
+                })),
+                161 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_161 = __bridge_161;
-                    super::__yoake_register___yoake_cs_161(cb, order).is_ok()
-                }
-                162 => {
+                    super::__yoake_register___yoake_cs_161(cb, order)
+                })),
+                162 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_162 = __bridge_162;
-                    super::__yoake_register___yoake_cs_162(cb, order).is_ok()
-                }
-                163 => {
+                    super::__yoake_register___yoake_cs_162(cb, order)
+                })),
+                163 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_163 = __bridge_163;
-                    super::__yoake_register___yoake_cs_163(cb, order).is_ok()
-                }
-                167 => {
+                    super::__yoake_register___yoake_cs_163(cb, order)
+                })),
+                167 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_167 = __bridge_167;
-                    super::__yoake_register___yoake_cs_167(cb, order).is_ok()
-                }
-                168 => {
+                    super::__yoake_register___yoake_cs_167(cb, order)
+                })),
+                168 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_168 = __bridge_168;
-                    super::__yoake_register___yoake_cs_168(cb, order).is_ok()
-                }
-                172 => {
+                    super::__yoake_register___yoake_cs_168(cb, order)
+                })),
+                172 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_172 = __bridge_172;
-                    super::__yoake_register___yoake_cs_172(cb, order).is_ok()
-                }
-                173 => {
+                    super::__yoake_register___yoake_cs_172(cb, order)
+                })),
+                173 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_173 = __bridge_173;
-                    super::__yoake_register___yoake_cs_173(cb, order).is_ok()
-                }
-                175 => {
+                    super::__yoake_register___yoake_cs_173(cb, order)
+                })),
+                175 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_175 = __bridge_175;
-                    super::__yoake_register___yoake_cs_175(cb, order).is_ok()
-                }
-                176 => {
+                    super::__yoake_register___yoake_cs_175(cb, order)
+                })),
+                176 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_176 = __bridge_176;
-                    super::__yoake_register___yoake_cs_176(cb, order).is_ok()
-                }
-                177 => {
+                    super::__yoake_register___yoake_cs_176(cb, order)
+                })),
+                177 => Some(yoake_slice::bridge::install_once(id, || {
                     let cb: super::__YoakeHook___yoake_cs_177 = __bridge_177;
-                    super::__yoake_register___yoake_cs_177(cb, order).is_ok()
-                }
-                _ => false,
+                    super::__yoake_register___yoake_cs_177(cb, order)
+                })),
+                _ => None,
             };
-            if !ok {
-                unbridged.push(id);
+            match outcome {
+                Some(Ok(())) => report.installed.push(id),
+                Some(Err(err)) => report.failed.push((id, err)),
+                None => {
+                    if let Some(&entry) = UNBRIDGED.iter().find(|&&(u_id, _)| u_id == id) {
+                        report.not_bridgeable.push(entry);
+                    } else {
+                        report.not_mine.push(id);
+                    }
+                }
             }
         }
-        unbridged
+        report
     }
 
     pub const OBSERVE_ONLY: &[u32] = &[

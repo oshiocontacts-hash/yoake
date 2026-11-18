@@ -170,7 +170,7 @@ pub struct LoadReport {
     pub legacy_notes: Vec<String>,
     /// Per loaded mod (manifest id), the hook ids it registered that no generated bridge could install
     /// ([`install_bridges`]): the runtime keeps those registrations, but the engine never enters them.
-    pub unbridged: Vec<(String, Vec<u32>)>,
+    pub unbridged: Vec<(String, Vec<(u32, String)>)>,
 }
 
 impl LoadReport {
@@ -186,7 +186,8 @@ impl LoadReport {
             lines.push(format!("full-access.toml names '{id}' without a package hash (an old entry): it approves nothing; approve the package again"));
         }
         for (id, hooks) in &self.unbridged {
-            lines.push(format!("full-access mod '{id}' registered hook ids {hooks:?} that this engine build cannot call (no bridge): they will never run"));
+            let list: Vec<String> = hooks.iter().map(|(hook, why)| format!("{hook} ({why})")).collect();
+            lines.push(format!("full-access mod '{id}' registered hooks this engine build cannot call, they will never run: {}", list.join(", ")));
         }
         lines
     }
@@ -309,6 +310,8 @@ pub fn load_world_mods(mods_dir: &Path, approved: Option<&ApprovedList>) -> Load
     }
     let (allow, origins) = approved.map(ApprovedList::to_files).unwrap_or_default();
     let trusted = horizon_mods::yak::trusted_keys();
+    // before any `yoake_init` runs, so `hook_register` can tell each guest the mode of the ids it asks for
+    yoake_slice::bridge::set_mode_resolver(Some(hook_mode));
     let mut report = load_dir(mods_dir, &origins, &allow, &trusted, &ModConfig::full_access());
     // the "no list" note is only worth a line when there is a full-access package that it affects
     if approved.is_none() && report.skipped.iter().any(|(_, r)| !matches!(r, Refusal::Sandboxed)) {
@@ -320,49 +323,46 @@ pub fn load_world_mods(mods_dir: &Path, approved: Option<&ApprovedList>) -> Load
     report
 }
 
-/// Process-wide: ledger hook id -> whether its generated dispatcher is installed. Dispatchers go into the engine's
-/// global hook slots and registering one appends to the slot's chain, so each id is tried **once per process**
-/// (a second world, or a second mod with the same id, must not add a second dispatcher: the guests would run
-/// twice). An installed dispatcher whose id no loaded mod registers (the mod was unloaded, or it runs on another
-/// thread) only looks up the empty chain and runs the original.
-static BRIDGES: std::sync::Mutex<BTreeMap<u32, bool>> = std::sync::Mutex::new(BTreeMap::new());
-
-/// After the mods' `yoake_init` registered their hook ids: installs the generated bridge dispatcher
-/// (`hook_bridge::install`, docs/yoake2/HOOK-SLICE-BRIDGE.md) of every id any of `loaded` registered, the union
-/// over the mods, each id once per process. Which mods run, and in what order, is the runtime's chain for that id;
-/// the dispatcher's own slot order uses the priority of the first mod that registered it. Returns, per mod, the
-/// ids no bridge could install (not in a bridged module, arg0 not bridgeable, see each bridge's `UNBRIDGED`).
-/// `load_world_mods` calls this; on its own it is for tests that load with [`load_dir`]. Must run on the thread
-/// the mods were loaded on.
-pub fn install_bridges(loaded: &[Loaded]) -> Vec<(String, Vec<u32>)> {
-    // id 0 is a legacy single-export guest (no `hook_register`): not a ledger id
-    let per_mod: Vec<(String, Vec<(u32, i32)>)> = loaded
-        .iter()
-        .map(|l| {
-            let registered = runtime::stats_of(l.module).map(|s| s.registered).unwrap_or_default();
-            (l.id.clone(), registered.into_iter().filter(|(id, _)| *id != 0).collect())
-        })
-        .collect();
-    let mut bridges = BRIDGES.lock().unwrap_or_else(|e| e.into_inner());
-    for (_, registered) in &per_mod {
-        for &(id, priority) in registered {
-            if !bridges.contains_key(&id) {
-                bridges.insert(id, install_bridge(id, priority));
-            }
-        }
-    }
-    per_mod
-        .into_iter()
-        .filter_map(|(mod_id, registered)| {
-            let missing: Vec<u32> = registered.iter().map(|(id, _)| *id).filter(|id| !bridges[id]).collect();
-            (!missing.is_empty()).then_some((mod_id, missing))
-        })
-        .collect()
+/// The mode of ledger hook `id` in this engine build: the generated bridges' `mode` (ledger ids are unique across
+/// crates, so at most one bridge knows `id`). `None`: no bridge can call it. Installed as the process-wide
+/// [`yoake_slice::bridge::ModeResolver`], so `hook_register` tells the guest (ENGINE_CALL_ABI.md, "Hook modes").
+pub fn hook_mode(id: u32) -> Option<yoake_slice::bridge::Mode> {
+    crate::entities::hook_bridge::mode(id).or_else(|| crate::game::item_use_hook_bridge::mode(id))
 }
 
-/// Tries the generated bridges in turn (ledger ids are unique across crates, so at most one knows `id`).
-fn install_bridge(id: u32, priority: i32) -> bool {
-    crate::entities::hook_bridge::install(&[(id, priority)]).is_empty() || crate::game::item_use_hook_bridge::install(&[(id, priority)]).is_empty()
+/// After the mods' `yoake_init` registered their hook ids: installs the generated bridge dispatcher
+/// (`hook_bridge::install`, docs/yoake2/HOOK-SLICE-BRIDGE.md) of every id any of `loaded` registered. Each id is
+/// installed at most once per process (`yoake_slice::bridge::install_once`): a second world, or a second mod on the
+/// same id, reuses the dispatcher. Which mods run, and in what order, is the runtime's chain for that id; the
+/// dispatcher's own slot order uses the priority of the first mod that registered it. Returns, per mod, the ids no
+/// bridge installed, with the reason (not bridgeable, the registration failed, or no bridge has the id).
+/// `load_world_mods` calls this; on its own it is for tests that load with [`load_dir`]. Must run on the thread the
+/// mods were loaded on.
+pub fn install_bridges(loaded: &[Loaded]) -> Vec<(String, Vec<(u32, String)>)> {
+    let mut out = Vec::new();
+    for l in loaded {
+        // id 0 is a legacy single-export guest (no `hook_register`): not a ledger id
+        let registered: Vec<(u32, i32)> =
+            runtime::stats_of(l.module).map(|s| s.registered).unwrap_or_default().into_iter().filter(|(id, _)| *id != 0).collect();
+        let reports = [crate::entities::hook_bridge::install(&registered), crate::game::item_use_hook_bridge::install(&registered)];
+        let missing: Vec<(u32, String)> = registered
+            .iter()
+            .filter_map(|&(id, _)| {
+                if reports.iter().any(|r| r.installed.contains(&id)) {
+                    return None;
+                }
+                let reason = reports
+                    .iter()
+                    .find_map(|r| r.not_bridgeable.iter().chain(&r.failed).find(|(i, _)| *i == id).map(|(_, why)| (*why).to_string()))
+                    .unwrap_or_else(|| "no hook with this id in this engine build".to_string());
+                Some((id, reason))
+            })
+            .collect();
+        if !missing.is_empty() {
+            out.push((l.id.clone(), missing));
+        }
+    }
+    out
 }
 
 fn announce(report: &LoadReport) {

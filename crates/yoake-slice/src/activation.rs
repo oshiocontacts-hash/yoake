@@ -1,15 +1,15 @@
 //! Hook activations: the per-activation arena of handles.
 //!
 //! An *activation* is one run of a hook shim: the engine called a hooked function, the shim
-//! registered the function's `&mut` arguments and its `original` callable here, and a guest may
+//! registered the function's `&mut` or `&` arguments and its `original` callable here, and a guest may
 //! now reach them through 64-bit handles until the activation ends.
 //!
-//! * The only public way to open one is [`scope`] / [`scope2`]: the activation lives exactly as long
+//! * The only public way to open one is [`scope`] / [`scope_ref`] / [`scope2`]: the activation lives exactly as long
 //!   as the closure you pass, the guard is private, and the arguments stay borrowed by the call.
 //!   There is no guard value to `mem::forget`, so a handle can never outlive the borrows behind it
 //!   (a handle used after the scope is `Status::Stale`).
 //! * `Root::HookArg { activation, arg }` is the handle root for a hook argument. The caller of the
-//!   hooked function holds an outer `&mut` to it, so it can never be re-borrowed from the `Game`
+//!   hooked function holds an outer `&mut` or `&` to it, so it can never be re-borrowed from the `Game`
 //!   root; the activation stores the pointer the shim was handed and re-derives the reference on
 //!   every access. The handle of argument `i` is the handle of argument 0 plus `i`.
 //! * Handles are never reused: `activation` is a process-wide 56-bit serial.
@@ -17,26 +17,29 @@
 //!   activation is *lent* and a guest access through it returns `Status::Locked`; no second `&mut`
 //!   is ever made. The arena (`RefCell`) is never borrowed while `original` or an accessor runs, so
 //!   both may open nested activations (re-entrancy, accessors that call hooked engine functions).
-//! * `original` re-receives all the lent arguments (`FnMut(&mut A)` / `FnMut(&mut A, &mut B)`), so
-//!   shims and generated code hold no raw pointers.
+//! * `original` re-receives all the lent arguments (`FnMut(&mut A)` / `FnMut(&mut A, &mut B)` or
+//!   `FnMut(&A)` for a shared activation), so shims and generated code hold no raw pointers.
+//! * A shared activation never creates `&mut A`: `get` reads through `&A`, while `set` and typed
+//!   mutable receiver access return `Status::ReadOnly`.
 //!
 //! # Unsafe surface
 //!
-//! Exactly these functions contain `unsafe` (each block marked `SAFETY`): `get_impl`, `set_impl`,
-//! `run_cell`, `run_cell2`, `with_arg` (MX3G1: typed receiver for generated glue, `TypeId`-checked), `resolve_impl`, `open_path` and `with_path` (MX3R1: path handles; each calls a root's resolver while the activation is locked)
+//! Exactly these functions contain `unsafe` (each block marked `SAFETY`): `get_impl`, `get_ref_impl`, `set_impl`,
+//! `run_cell`, `run_cell_ref`, `run_cell2`, `with_arg` (MX3G1: typed receiver for generated glue, `TypeId`-checked), `resolve_impl`, `open_path` and `with_path` (MX3R1: path handles; each calls a root's resolver while the activation is locked)
 //! and the three call sites that invoke them through the stored function pointers ([`get`], [`set`],
 //! [`run_original`]).
 //!
-//! Invariants: the pointers come from `&mut` borrows that [`scope`] holds for its whole call; the
-//! record is removed from the thread-local stack by the private guard's `Drop` before `scope`
+//! Invariants: the pointers come from `&mut` or `&` borrows that the scope holds for its whole call; the
+//! record is removed from the thread-local stack by the private guard's `Drop` before the scope
 //! returns or unwinds; an argument is dereferenced only while its activation is locked, on the
-//! thread that opened it. No lifetime transmute, no heap allocation in the activation itself.
+//! thread that opened it. No lifetime transmute, no heap allocation in the activation itself, and no
+//! shared pointer is ever cast to a mutable pointer.
 //!
 //! The guard is not public, so the old hazard (`mem::forget` of a guard, then a handle read of a
 //! dead stack) cannot be written:
 //!
 //! ```compile_fail
-//! // `Activation` and `Activation::open` no longer exist; the only entry points are `scope`/`scope2`.
+//! // `Activation` and `Activation::open` no longer exist; scopes are the only entry points.
 //! use yoake_slice::activation::Activation;
 //! ```
 
@@ -65,6 +68,8 @@ pub enum Status {
     WrongType = 5,
     /// A path handle could not be made: this activation already holds [`MAX_PATHS_PER_ACTIVATION`].
     LimitReached = 6,
+    /// The argument was registered through a shared reference.
+    ReadOnly = 7,
 }
 
 /// A handle root (MX3C1 "paths from a root"). Only the hook-argument root exists in the slice.
@@ -114,14 +119,26 @@ pub struct FieldTable<T> {
     pub set: fn(&mut T, u32, i64) -> bool,
 }
 
-/// One registered argument, type-erased: the pointer, its table and two monomorphized accessors.
+/// Read-only scalar field access for shared hook arguments.
+pub struct RefFieldTable<T> {
+    pub get: fn(&T, u32) -> Option<i64>,
+}
+
+#[derive(Clone, Copy)]
+enum ArgPtr {
+    Mut(*mut ()),
+    Shared(*const ()),
+}
+
+/// One registered argument, type-erased: the pointer, its table and monomorphized accessors.
 #[derive(Clone, Copy)]
 struct ArgSlot {
     /// `TypeId` of `T`, so [`with_arg`] can refuse a handle that points at another type.
     type_id: TypeId,
-    ptr: *mut (),
+    ptr: ArgPtr,
     table: *const (),
     get: unsafe fn(*mut (), *const (), u32) -> Option<i64>,
+    get_ref: Option<unsafe fn(*const (), *const (), u32) -> Option<i64>>,
     set: unsafe fn(*mut (), *const (), u32, i64) -> bool,
     /// Present for a path root (`scope_root`).
     resolve: Option<ResolveFn>,
@@ -131,10 +148,24 @@ impl ArgSlot {
     fn new<T: 'static>(ptr: *mut T, table: &'static FieldTable<T>) -> Self {
         Self {
             type_id: TypeId::of::<T>(),
-            ptr: ptr.cast(),
+            ptr: ArgPtr::Mut(ptr.cast()),
             table: (table as *const FieldTable<T>).cast(),
             get: get_impl::<T>,
+            get_ref: None,
             set: set_impl::<T>,
+            resolve: None,
+        }
+    }
+
+    fn new_shared<T: 'static>(ptr: *const T, table: &'static RefFieldTable<T>) -> Self {
+        Self {
+            type_id: TypeId::of::<T>(),
+            ptr: ArgPtr::Shared(ptr.cast()),
+            table: (table as *const RefFieldTable<T>).cast(),
+            get: |_, _, _| None,
+            get_ref: Some(get_ref_impl::<T>),
+            // never called (`set` refuses a shared slot first); not `set_impl`: `table` is a `RefFieldTable`
+            set: |_, _, _, _| false,
             resolve: None,
         }
     }
@@ -144,9 +175,10 @@ impl ArgSlot {
     fn new_root<G: PathRoot>(ptr: *mut G) -> Self {
         Self {
             type_id: TypeId::of::<RootMarker>(),
-            ptr: ptr.cast(),
+            ptr: ArgPtr::Mut(ptr.cast()),
             table: std::ptr::null(),
             get: |_, _, _| None,
+            get_ref: None,
             set: |_, _, _, _| false,
             resolve: Some(resolve_impl::<G>),
         }
@@ -166,6 +198,14 @@ unsafe fn resolve_impl<G: PathRoot>(ptr: *mut (), path: &[Accessor], f: &mut dyn
 unsafe fn get_impl<T>(ptr: *mut (), table: *const (), field: u32) -> Option<i64> {
     // SAFETY: caller contract; the activation is locked for the call, so nothing else uses `*ptr`.
     let (table, value) = unsafe { (&*(table as *const FieldTable<T>), &mut *(ptr as *mut T)) };
+    (table.get)(value, field)
+}
+
+/// # Safety
+/// `ptr` is a live `*const T`, `table` is a `&'static RefFieldTable<T>`, and the activation is locked.
+unsafe fn get_ref_impl<T>(ptr: *const (), table: *const (), field: u32) -> Option<i64> {
+    // SAFETY: caller contract; the shared borrow is held by `scope_ref` for the whole call.
+    let (table, value) = unsafe { (&*(table as *const RefFieldTable<T>), &*(ptr as *const T)) };
     (table.get)(value, field)
 }
 
@@ -353,6 +393,11 @@ struct Cell1<'b, A> {
     original: &'b mut dyn FnMut(&mut A) -> i64,
 }
 
+struct CellRef<'b, A> {
+    a: *const A,
+    original: &'b mut dyn FnMut(&A) -> i64,
+}
+
 struct Cell2<'b, A, B> {
     a: *mut A,
     b: *mut B,
@@ -366,6 +411,15 @@ unsafe fn run_cell<A>(cell: *mut ()) -> i64 {
     let cell = unsafe { &mut *(cell as *mut Cell1<'_, A>) };
     // SAFETY: `a` came from a `&mut A` that `scope` holds borrowed; the lock excludes other users.
     (cell.original)(unsafe { &mut *cell.a })
+}
+
+/// # Safety
+/// `cell` is a live `*mut CellRef<A>` and no reference to `*a` is in use (lending lock held).
+unsafe fn run_cell_ref<A>(cell: *mut ()) -> i64 {
+    // SAFETY: caller contract.
+    let cell = unsafe { &mut *(cell as *mut CellRef<'_, A>) };
+    // SAFETY: `a` came from a `&A` that `scope_ref` holds borrowed; the lock excludes other users.
+    (cell.original)(unsafe { &*cell.a })
 }
 
 /// # Safety
@@ -392,6 +446,22 @@ pub fn scope<A: 'static, R>(
     args[0] = Some(ArgSlot::new(a, table));
     // Declared after `cell`, so dropped (record removed) before the cell goes away.
     let mut guard = Guard::open(args, 1, (&mut cell as *mut Cell1<'_, A>).cast(), run_cell::<A>);
+    let result = body(guard.handle());
+    (result, guard.close())
+}
+
+/// [`scope`] with a shared argument. Reads work, writes and typed mutable access are `ReadOnly`.
+pub fn scope_ref<A: 'static, R>(
+    arg: &A,
+    table: &'static RefFieldTable<A>,
+    original: &mut dyn FnMut(&A) -> i64,
+    body: impl FnOnce(u64) -> R,
+) -> (R, Finished) {
+    let a: *const A = arg;
+    let mut cell = CellRef { a, original };
+    let mut args: [Option<ArgSlot>; MAX_ARGS] = [None; MAX_ARGS];
+    args[0] = Some(ArgSlot::new_shared(a, table));
+    let mut guard = Guard::open(args, 1, (&mut cell as *mut CellRef<'_, A>).cast(), run_cell_ref::<A>);
     let result = body(guard.handle());
     (result, guard.close())
 }
@@ -485,16 +555,26 @@ fn lend_arg(handle: u64) -> Result<(ArgSlot, Unlend), Status> {
 /// the activation locked, so it may call hooked engine functions.
 pub fn get(handle: u64, field: u32) -> Result<i64, Status> {
     let (slot, _unlend) = lend_arg(handle)?;
-    // SAFETY: `slot` was registered by an open `scope` (its borrows are held for the whole call and
-    // `locate` just found the record) and the activation stays locked until `_unlend` drops.
-    unsafe { (slot.get)(slot.ptr, slot.table, field) }.ok_or(Status::BadField)
+    let value = match slot.ptr {
+        ArgPtr::Mut(ptr) => {
+            // SAFETY: the mutable scope holds its borrow, and the activation stays locked until `_unlend` drops.
+            unsafe { (slot.get)(ptr, slot.table, field) }
+        }
+        ArgPtr::Shared(ptr) => {
+            let get = slot.get_ref.ok_or(Status::ReadOnly)?;
+            // SAFETY: the shared scope holds its borrow, and the activation stays locked until `_unlend` drops.
+            unsafe { get(ptr, slot.table, field) }
+        }
+    };
+    value.ok_or(Status::BadField)
 }
 
 /// Writes `value` to `field` of the argument behind `handle` (same rules as [`get`]).
 pub fn set(handle: u64, field: u32, value: i64) -> Result<(), Status> {
     let (slot, _unlend) = lend_arg(handle)?;
-    // SAFETY: as in `get`.
-    if unsafe { (slot.set)(slot.ptr, slot.table, field, value) } {
+    let ArgPtr::Mut(ptr) = slot.ptr else { return Err(Status::ReadOnly) };
+    // SAFETY: as in `get`; a mutable pointer comes only from a mutable scope.
+    if unsafe { (slot.set)(ptr, slot.table, field, value) } {
         Ok(())
     } else {
         Err(Status::BadField)
@@ -505,7 +585,7 @@ pub fn set(handle: u64, field: u32, value: i64) -> Result<(), Status> {
 /// glue for `&self` / `&mut self` methods). Same rules as [`get`]: the activation is locked while `f`
 /// runs (so `f` may open nested activations but a second access through any handle of this
 /// activation is `Locked`), and the lock is released when `f` returns or unwinds. A handle to
-/// another type is `Status::WrongType` and `f` does not run.
+/// another type is `Status::WrongType`, a shared argument is `Status::ReadOnly`, and `f` does not run.
 pub fn with_arg<T: 'static, R>(handle: u64, f: impl FnOnce(&mut T) -> R) -> Result<R, Status> {
     if handle & PATH_BIT != 0 {
         return with_path(handle, f);
@@ -514,11 +594,12 @@ pub fn with_arg<T: 'static, R>(handle: u64, f: impl FnOnce(&mut T) -> R) -> Resu
     if slot.type_id != TypeId::of::<T>() {
         return Err(Status::WrongType);
     }
-    // SAFETY: `slot.ptr` was registered by an open `scope` as a `*mut T` (the `TypeId` just
+    let ArgPtr::Mut(ptr) = slot.ptr else { return Err(Status::ReadOnly) };
+    // SAFETY: `ptr` was registered by an open mutable `scope` as a `*mut T` (the `TypeId` just
     // checked says `T` is that type), its borrow is held for the whole `scope` call and `lend_arg`
     // just found the record; the activation stays locked until `_unlend` drops, so no other
     // reference to `*ptr` is in use.
-    Ok(f(unsafe { &mut *slot.ptr.cast::<T>() }))
+    Ok(f(unsafe { &mut *ptr.cast::<T>() }))
 }
 
 /// Makes a path handle: `path` from the root behind `root_handle` (the handle [`scope_root`] gave the
@@ -532,11 +613,12 @@ pub fn open_path(root_handle: u64, path: Vec<Accessor>) -> Result<u64, Status> {
     let Root::HookArg { activation, .. } = Root::from_handle(root_handle);
     {
         let (slot, _unlend) = lend_arg(root_handle)?;
+        let ArgPtr::Mut(ptr) = slot.ptr else { return Err(Status::ReadOnly) };
         let resolve = slot.resolve.ok_or(Status::WrongType)?;
         let mut found = false;
         // SAFETY: `slot` was registered by an open `scope_root` whose borrow is held for the whole
         // call, `lend_arg` just found its record and locked the activation until `_unlend` drops.
-        unsafe { resolve(slot.ptr, &path, &mut |_| found = true) }?;
+        unsafe { resolve(ptr, &path, &mut |_| found = true) }?;
         if !found {
             return Err(Status::Stale);
         }
@@ -571,6 +653,7 @@ fn with_path<T: 'static, R>(handle: u64, f: impl FnOnce(&mut T) -> R) -> Result<
     let (activation, path) = PATHS.with(|p| p.borrow().lookup(handle)).ok_or(Status::Stale)?;
     let root_handle = Root::HookArg { activation, arg: 0 }.to_handle();
     let (slot, _unlend) = lend_arg(root_handle)?;
+    let ArgPtr::Mut(ptr) = slot.ptr else { return Err(Status::ReadOnly) };
     let resolve = slot.resolve.ok_or(Status::WrongType)?;
     let mut f = Some(f);
     let mut result: Option<R> = None;
@@ -578,7 +661,7 @@ fn with_path<T: 'static, R>(handle: u64, f: impl FnOnce(&mut T) -> R) -> Result<
     // until `_unlend` drops, so the root is not otherwise in use. The resolver lends its object to the
     // closure only for the closure's duration.
     unsafe {
-        resolve(slot.ptr, &path, &mut |any| {
+        resolve(ptr, &path, &mut |any| {
             if let (Some(t), Some(f)) = (any.downcast_mut::<T>(), f.take()) {
                 result = Some(f(t));
             }
@@ -642,6 +725,13 @@ mod tests {
             _ => false,
         },
     };
+    static THING_REF: RefFieldTable<Thing> = RefFieldTable {
+        get: |t, f| match f {
+            0 => Some(i64::from(t.count)),
+            1 => Some(t.x.to_bits() as i64),
+            _ => None,
+        },
+    };
 
     fn nop(_: &mut Thing) -> i64 {
         0
@@ -680,6 +770,22 @@ mod tests {
             assert_eq!(set(h, 7, 0), Err(Status::BadField));
         });
         assert_eq!(thing, Thing { count: 41, x: 2.5 });
+    }
+
+    #[test]
+    fn shared_scope_reads_and_runs_original_but_refuses_mutation() {
+        let thing = Thing { count: 3, x: 1.5 };
+        let mut original = |t: &Thing| i64::from(t.count) + 4;
+        let ((), finished) = scope_ref(&thing, &THING_REF, &mut original, |h| {
+            assert_eq!(get(h, 0), Ok(3));
+            assert_eq!(set(h, 0, 9), Err(Status::ReadOnly));
+            assert_eq!(with_arg::<Thing, _>(h, |_| ()), Err(Status::ReadOnly));
+            assert_eq!(open_path(h, vec![]), Err(Status::ReadOnly));
+            assert_eq!(run_original(h), Ok(7));
+            assert_eq!(get(h, 0), Ok(3));
+        });
+        assert_eq!(finished, Finished { original_calls: 1, last_result: 7 });
+        assert_eq!(thing, Thing { count: 3, x: 1.5 });
     }
 
     #[test]

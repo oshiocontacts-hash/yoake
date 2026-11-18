@@ -1156,8 +1156,19 @@ fn render_bridge_module(
     out.push_str(
         "/// Generated S2 -> `yoake-slice` bridge dispatchers and installer.\n\
          ///\n\
+         /// - `BRIDGED`: sorted list of every hook id this module can install.\n\
+         /// - `install`: installs dispatchers for `(id, priority)` pairs at most once per\n\
+         ///   process (`yoake_slice::bridge::install_once`) and returns a\n\
+         ///   `yoake_slice::bridge::InstallReport` separating `installed`, `failed`,\n\
+         ///   `not_bridgeable` (`UNBRIDGED`), and `not_mine` (ids of other modules,\n\
+         ///   unknown ids, or `>= yoake_slice::runtime::SYNTHETIC_HOOK_BASE`).\n\
+         /// - `mode`: returns `Some(Mode::Full)` or `Some(Mode::ObserveOnly)` for ids in\n\
+         ///   `BRIDGED`, and `None` otherwise.\n\
+         ///\n\
          /// Hooks returning `()`, `bool`, primitive integers, `f32`, or `f64` round-trip their\n\
-         /// result through `i64`.\n\
+         /// result through `i64`. When a guest returns an out-of-range value for `bool`, an\n\
+         /// integer other than `i64`/`u64`, or `f32`, `yoake_slice::bridge::note_out_of_range`\n\
+         /// records it and the original's result is used (running `original` if needed).\n\
          ///\n\
          /// Hooks listed in `OBSERVE_ONLY` have a result type `R` that does not fit an `i64`:\n\
          /// the guest sees the hook and its `arg0` handle and may call `original` zero or more\n\
@@ -1186,28 +1197,57 @@ fn render_bridge_module(
         out.push_str(&render_bridged_fn(bh));
     }
 
-    out.push_str("\n    pub fn install(registered: &[(u32, i32)]) -> Vec<u32> {\n");
-    out.push_str("        let mut unbridged = Vec::new();\n");
+    out.push_str("\n    pub const BRIDGED: &[u32] = &[\n");
+    for bh in &bridged {
+        out.push_str(&format!("        {},\n", bh.id));
+    }
+    out.push_str("    ];\n\n");
+
+    out.push_str("    pub fn mode(id: u32) -> Option<yoake_slice::bridge::Mode> {\n");
+    out.push_str("        if BRIDGED.binary_search(&id).is_err() {\n");
+    out.push_str("            return None;\n");
+    out.push_str("        }\n");
+    out.push_str("        if OBSERVE_ONLY.binary_search(&id).is_ok() {\n");
+    out.push_str("            Some(yoake_slice::bridge::Mode::ObserveOnly)\n");
+    out.push_str("        } else {\n");
+    out.push_str("            Some(yoake_slice::bridge::Mode::Full)\n");
+    out.push_str("        }\n");
+    out.push_str("    }\n\n");
+
+    out.push_str(
+        "    pub fn install(registered: &[(u32, i32)]) -> yoake_slice::bridge::InstallReport {\n",
+    );
+    out.push_str("        let mut report = yoake_slice::bridge::InstallReport::default();\n");
     out.push_str("        for &(id, priority) in registered {\n");
     out.push_str("            if id >= yoake_slice::runtime::SYNTHETIC_HOOK_BASE {\n");
-    out.push_str("                unbridged.push(id);\n");
+    out.push_str("                report.not_mine.push(id);\n");
     out.push_str("                continue;\n");
     out.push_str("            }\n");
     out.push_str("            let order = yoake_hook_rt::Order {\n");
     out.push_str("                priority,\n");
     out.push_str("                mod_load_order: 0,\n");
     out.push_str("            };\n");
-    out.push_str("            let ok = match id {\n");
+    out.push_str("            let outcome: Option<Result<(), &'static str>> = match id {\n");
     for bh in &bridged {
         out.push_str(&render_install_arm(bh)?);
     }
-    out.push_str("                _ => false,\n");
+    out.push_str("                _ => None,\n");
     out.push_str("            };\n");
-    out.push_str("            if !ok {\n");
-    out.push_str("                unbridged.push(id);\n");
+    out.push_str("            match outcome {\n");
+    out.push_str("                Some(Ok(())) => report.installed.push(id),\n");
+    out.push_str("                Some(Err(err)) => report.failed.push((id, err)),\n");
+    out.push_str("                None => {\n");
+    out.push_str(
+        "                    if let Some(&entry) = UNBRIDGED.iter().find(|&&(u_id, _)| u_id == id) {\n",
+    );
+    out.push_str("                        report.not_bridgeable.push(entry);\n");
+    out.push_str("                    } else {\n");
+    out.push_str("                        report.not_mine.push(id);\n");
+    out.push_str("                    }\n");
+    out.push_str("                }\n");
     out.push_str("            }\n");
     out.push_str("        }\n");
-    out.push_str("        unbridged\n");
+    out.push_str("        report\n");
     out.push_str("    }\n\n");
 
     let observe_only_ids: Vec<u32> = bridged
@@ -1288,14 +1328,47 @@ fn render_bridged_fn(bh: &BridgedHook) -> String {
         }
     }
     let orig_call = format!("original({})", call_args.join(", "));
-    let closure_body = match &bh.ret_kind {
-        RetKind::Unit => format!("{{ {orig_call}; 0 }}"),
-        RetKind::Bool => format!("i64::from({orig_call})"),
-        RetKind::Int(name) if name == "i64" => orig_call.clone(),
-        RetKind::Int(_) => format!("({orig_call}) as i64"),
-        RetKind::F32 => format!("i64::from({orig_call}.to_bits())"),
-        RetKind::F64 => format!("{orig_call}.to_bits() as i64"),
-        RetKind::ObserveOnly => format!("{{ result = Some({orig_call}); 0 }}"),
+    let range_checked: Option<(&str, &str, String)> = match &bh.ret_kind {
+        RetKind::Bool => Some((
+            "bool",
+            "yoake_slice::bridge::encode::bool(r)",
+            "yoake_slice::bridge::decode::bool(value)".to_string(),
+        )),
+        RetKind::Int(name) if name == "usize" => Some((
+            "usize",
+            "yoake_slice::bridge::encode::usize(r)",
+            "yoake_slice::bridge::decode::int::<usize>(value)".to_string(),
+        )),
+        RetKind::Int(name) if name == "isize" => Some((
+            "isize",
+            "r as i64",
+            "yoake_slice::bridge::decode::int::<isize>(value)".to_string(),
+        )),
+        RetKind::Int(name) if name != "i64" && name != "u64" => Some((
+            name.as_str(),
+            "yoake_slice::bridge::encode::int(r)",
+            format!("yoake_slice::bridge::decode::int::<{name}>(value)"),
+        )),
+        RetKind::F32 => Some((
+            "f32",
+            "yoake_slice::bridge::encode::f32(r)",
+            "yoake_slice::bridge::decode::f32(value)".to_string(),
+        )),
+        _ => None,
+    };
+    let closure_body = if let Some((_, encode_expr, _)) = &range_checked {
+        format!("{{ let r = {orig_call}; last = Some(r); {encode_expr} }}")
+    } else {
+        match &bh.ret_kind {
+            RetKind::Unit => format!("{{ {orig_call}; 0 }}"),
+            RetKind::Int(name) if name == "i64" => orig_call.clone(),
+            RetKind::Int(name) if name == "u64" => {
+                format!("yoake_slice::bridge::encode::u64({orig_call})")
+            }
+            RetKind::F64 => format!("yoake_slice::bridge::encode::f64({orig_call})"),
+            RetKind::ObserveOnly => format!("{{ result = Some({orig_call}); 0 }}"),
+            _ => unreachable!("range-checked kinds handled above"),
+        }
     };
     let dispatch_call = match &bh.dispatch {
         DispatchTarget::FieldTable(ft_path) => format!(
@@ -1307,32 +1380,57 @@ fn render_bridged_fn(bh: &BridgedHook) -> String {
             bh.id
         ),
     };
-    match &bh.ret_kind {
-        RetKind::Unit => out.push_str(&format!("        let _ = {dispatch_call};\n")),
-        RetKind::Bool => out.push_str(&format!("        {dispatch_call} != 0\n")),
-        RetKind::Int(name) if name == "i64" => out.push_str(&format!("        {dispatch_call}\n")),
-        RetKind::Int(name) => out.push_str(&format!("        {dispatch_call} as {name}\n")),
-        RetKind::F32 => {
-            out.push_str(&format!("        f32::from_bits({dispatch_call} as u32)\n"))
-        }
-        RetKind::F64 => {
-            out.push_str(&format!("        f64::from_bits({dispatch_call} as u64)\n"))
-        }
-        RetKind::ObserveOnly => {
-            let ret_ty = bh
-                .ret_type
-                .as_ref()
-                .map(format_type_tokens)
-                .unwrap_or_else(|| "()".to_string());
-            out.push_str(&format!("        let mut result: Option<{ret_ty}> = None;\n"));
-            out.push_str(&format!("        let _ = {dispatch_call};\n"));
-            out.push_str("        match result {\n");
-            out.push_str("            Some(value) => value,\n");
-            out.push_str(
-                "            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.\n",
-            );
-            out.push_str(&format!("            None => {orig_call},\n"));
-            out.push_str("        }\n");
+    if let Some((ret_ty_str, _, decode_expr)) = range_checked {
+        out.push_str(&format!("        let mut last: Option<{ret_ty_str}> = None;\n"));
+        out.push_str(&format!("        let value = {dispatch_call};\n"));
+        out.push_str(&format!("        match {decode_expr} {{\n"));
+        out.push_str("            Some(r) => r,\n");
+        out.push_str("            None => {\n");
+        out.push_str(&format!(
+            "                yoake_slice::bridge::note_out_of_range({}, value);\n",
+            bh.id
+        ));
+        out.push_str(
+            "                // the last original result if the original ran, else run it now\n",
+        );
+        out.push_str(&format!(
+            "                match last {{ Some(r) => r, None => {orig_call} }}\n"
+        ));
+        out.push_str("            }\n");
+        out.push_str("        }\n");
+    } else {
+        match &bh.ret_kind {
+            RetKind::Unit => out.push_str(&format!("        let _ = {dispatch_call};\n")),
+            RetKind::Int(name) if name == "i64" => {
+                out.push_str(&format!("        {dispatch_call}\n"))
+            }
+            RetKind::Int(name) if name == "u64" => {
+                out.push_str(&format!(
+                    "        yoake_slice::bridge::decode::u64({dispatch_call})\n"
+                ));
+            }
+            RetKind::F64 => {
+                out.push_str(&format!(
+                    "        yoake_slice::bridge::decode::f64({dispatch_call})\n"
+                ));
+            }
+            RetKind::ObserveOnly => {
+                let ret_ty = bh
+                    .ret_type
+                    .as_ref()
+                    .map(format_type_tokens)
+                    .unwrap_or_else(|| "()".to_string());
+                out.push_str(&format!("        let mut result: Option<{ret_ty}> = None;\n"));
+                out.push_str(&format!("        let _ = {dispatch_call};\n"));
+                out.push_str("        match result {\n");
+                out.push_str("            Some(value) => value,\n");
+                out.push_str(
+                    "            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.\n",
+                );
+                out.push_str(&format!("            None => {orig_call},\n"));
+                out.push_str("        }\n");
+            }
+            _ => unreachable!("range-checked kinds handled above"),
         }
     }
     out.push_str("    }\n");
@@ -1352,7 +1450,7 @@ fn render_install_arm(bh: &BridgedHook) -> Result<String, String> {
                 .ok_or_else(|| format!("missing self_ty for method hook {}", bh.id))?;
             let reg_path = format_method_register_path(self_ty, &bh.fn_ident);
             out.push_str(&format!(
-                "                {} => {reg_path}(__bridge_{}, order).is_ok(),\n",
+                "                {} => Some(yoake_slice::bridge::install_once(id, || {reg_path}(__bridge_{}, order))),\n",
                 bh.id, bh.id
             ));
         }
@@ -1364,13 +1462,16 @@ fn render_install_arm(bh: &BridgedHook) -> Result<String, String> {
             };
             let alias = format!("{mod_prefix}::__YoakeHook_{}", bh.fn_ident);
             let reg_fn = format!("{mod_prefix}::__yoake_register_{}", bh.fn_ident);
-            out.push_str(&format!("                {} => {{\n", bh.id));
+            out.push_str(&format!(
+                "                {} => Some(yoake_slice::bridge::install_once(id, || {{\n",
+                bh.id
+            ));
             out.push_str(&format!(
                 "                    let cb: {alias} = __bridge_{};\n",
                 bh.id
             ));
-            out.push_str(&format!("                    {reg_fn}(cb, order).is_ok()\n"));
-            out.push_str("                }\n");
+            out.push_str(&format!("                    {reg_fn}(cb, order)\n"));
+            out.push_str("                })),\n");
         }
     }
     Ok(out)

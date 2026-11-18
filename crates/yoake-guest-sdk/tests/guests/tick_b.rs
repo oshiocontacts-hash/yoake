@@ -11,7 +11,7 @@ const ITEM: u32 = 4242;
 const BASE: i32 = 11;
 
 fn init(r: &mut Registrar) {
-    r.hook(hooks::SERVER_TICK, 20);
+    r.hook(hooks::SERVER_TICK, 20).unwrap();
 }
 
 fn hook(_id: u32, root: Handle) -> i64 {

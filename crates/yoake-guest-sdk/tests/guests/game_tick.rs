@@ -10,7 +10,7 @@ use yoake_guest_sdk::{Handle, Registrar, export_guest, hooks, report};
 const ITEM: u32 = 4242;
 
 fn init(r: &mut Registrar) {
-    r.hook(hooks::SERVER_TICK, 0);
+    r.hook(hooks::SERVER_TICK, 0).unwrap();
 }
 
 fn hook(id: u32, root: Handle) -> i64 {

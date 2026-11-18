@@ -5,7 +5,7 @@ extern crate alloc;
 use yoake_guest_sdk::{Handle, Registrar, export_guest, original, report};
 
 fn init(r: &mut Registrar) {
-    r.hook(1, 0);
+    r.hook(1, 0).unwrap();
 }
 
 fn hook(id: u32, h: Handle) -> i64 {
