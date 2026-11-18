@@ -215,11 +215,24 @@ impl Default for Registrar {
     }
 }
 
-/// Exports the two entry points of a multiplexed guest: `yoake_init` calls `init(&mut Registrar)`,
-/// `yoake_hook` calls `hook(hook_id, handle)` and returns its `i64`.
+/// The guest ABI major version emitted by [`export_guest!`].
+pub const ABI_MAJOR: u16 = 1;
+/// The guest ABI minor version emitted by [`export_guest!`].
+pub const ABI_MINOR: u16 = 0;
+
+/// Exports the ABI version and the two entry points of a multiplexed guest: `yoake_init` calls
+/// `init(&mut Registrar)`, and `yoake_hook` calls `hook(hook_id, handle)` and returns its `i64`.
 #[macro_export]
 macro_rules! export_guest {
     ($init:path, $hook:path) => {
+        #[used]
+        #[unsafe(link_section = "yoake_abi")]
+        static YOAKE_ABI: [u8; 4] = [
+            $crate::ABI_MAJOR as u8,
+            ($crate::ABI_MAJOR >> 8) as u8,
+            $crate::ABI_MINOR as u8,
+            ($crate::ABI_MINOR >> 8) as u8,
+        ];
         #[unsafe(no_mangle)]
         pub extern "C" fn yoake_init() {
             $init(&mut $crate::Registrar::new());
@@ -249,6 +262,11 @@ pub fn decode<T: Decode>(bytes: &[u8]) -> Result<T, CallError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn guest_abi_version_is_1_0() {
+        assert_eq!((ABI_MAJOR, ABI_MINOR), (1, 0));
+    }
 
     #[test]
     fn registration_statuses_map_to_modes_and_errors() {

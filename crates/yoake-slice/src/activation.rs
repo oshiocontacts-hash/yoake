@@ -127,7 +127,9 @@ pub struct RefFieldTable<T> {
 #[derive(Clone, Copy)]
 enum ArgPtr {
     Mut(*mut ()),
-    Shared(*const ()),
+    /// A shared argument carries its own read-only getter (`get_ref_impl::<T>`), so it can never reach a `&mut`
+    /// accessor.
+    Shared(*const (), unsafe fn(*const (), *const (), u32) -> Option<i64>),
 }
 
 /// One registered argument, type-erased: the pointer, its table and monomorphized accessors.
@@ -138,7 +140,6 @@ struct ArgSlot {
     ptr: ArgPtr,
     table: *const (),
     get: unsafe fn(*mut (), *const (), u32) -> Option<i64>,
-    get_ref: Option<unsafe fn(*const (), *const (), u32) -> Option<i64>>,
     set: unsafe fn(*mut (), *const (), u32, i64) -> bool,
     /// Present for a path root (`scope_root`).
     resolve: Option<ResolveFn>,
@@ -151,7 +152,6 @@ impl ArgSlot {
             ptr: ArgPtr::Mut(ptr.cast()),
             table: (table as *const FieldTable<T>).cast(),
             get: get_impl::<T>,
-            get_ref: None,
             set: set_impl::<T>,
             resolve: None,
         }
@@ -160,10 +160,9 @@ impl ArgSlot {
     fn new_shared<T: 'static>(ptr: *const T, table: &'static RefFieldTable<T>) -> Self {
         Self {
             type_id: TypeId::of::<T>(),
-            ptr: ArgPtr::Shared(ptr.cast()),
+            ptr: ArgPtr::Shared(ptr.cast(), get_ref_impl::<T>),
             table: (table as *const RefFieldTable<T>).cast(),
             get: |_, _, _| None,
-            get_ref: Some(get_ref_impl::<T>),
             // never called (`set` refuses a shared slot first); not `set_impl`: `table` is a `RefFieldTable`
             set: |_, _, _, _| false,
             resolve: None,
@@ -178,7 +177,6 @@ impl ArgSlot {
             ptr: ArgPtr::Mut(ptr.cast()),
             table: std::ptr::null(),
             get: |_, _, _| None,
-            get_ref: None,
             set: |_, _, _, _| false,
             resolve: Some(resolve_impl::<G>),
         }
@@ -414,11 +412,13 @@ unsafe fn run_cell<A>(cell: *mut ()) -> i64 {
 }
 
 /// # Safety
-/// `cell` is a live `*mut CellRef<A>` and no reference to `*a` is in use (lending lock held).
+/// `cell` is a live `*mut CellRef<A>` (the cell itself is the scope's own local, hence `&mut` to it) and `a`
+/// points at the `&A` that `scope_ref` holds borrowed; the lending lock is held.
 unsafe fn run_cell_ref<A>(cell: *mut ()) -> i64 {
-    // SAFETY: caller contract.
+    // SAFETY: caller contract: the cell is `scope_ref`'s local and nothing else uses it while this runs.
     let cell = unsafe { &mut *(cell as *mut CellRef<'_, A>) };
-    // SAFETY: `a` came from a `&A` that `scope_ref` holds borrowed; the lock excludes other users.
+    // SAFETY: `a` came from the `&A` that `scope_ref` holds borrowed for its whole call. Only a shared
+    // reference is made: the argument itself is never reached through `&mut`.
     (cell.original)(unsafe { &*cell.a })
 }
 
@@ -560,8 +560,7 @@ pub fn get(handle: u64, field: u32) -> Result<i64, Status> {
             // SAFETY: the mutable scope holds its borrow, and the activation stays locked until `_unlend` drops.
             unsafe { (slot.get)(ptr, slot.table, field) }
         }
-        ArgPtr::Shared(ptr) => {
-            let get = slot.get_ref.ok_or(Status::ReadOnly)?;
+        ArgPtr::Shared(ptr, get) => {
             // SAFETY: the shared scope holds its borrow, and the activation stays locked until `_unlend` drops.
             unsafe { get(ptr, slot.table, field) }
         }
@@ -786,6 +785,27 @@ mod tests {
         });
         assert_eq!(finished, Finished { original_calls: 1, last_result: 7 });
         assert_eq!(thing, Thing { count: 3, x: 1.5 });
+    }
+
+    #[test]
+    fn a_shared_handle_is_locked_while_original_runs_and_stale_after_the_scope() {
+        let thing = Thing { count: 3, x: 1.5 };
+        let handle = std::cell::Cell::new(0u64);
+        let during = std::cell::Cell::new(None);
+        let mut original = |t: &Thing| {
+            during.set(Some(get(handle.get(), 0)));
+            i64::from(t.count)
+        };
+        let (h, _) = scope_ref(&thing, &THING_REF, &mut original, |h| {
+            handle.set(h);
+            assert_eq!(run_original(h), Ok(3));
+            assert_eq!(get(h, 0), Ok(3), "unlocked again after original");
+            h
+        });
+        assert_eq!(during.get(), Some(Err(Status::Locked)), "the argument is lent to original");
+        assert_eq!(get(h, 0), Err(Status::Stale));
+        assert_eq!(set(h, 0, 1), Err(Status::Stale), "stale before read-only");
+        assert_eq!(live_activations(), 0);
     }
 
     #[test]

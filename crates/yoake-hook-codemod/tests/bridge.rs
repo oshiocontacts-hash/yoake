@@ -369,7 +369,17 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
         "{entities_src}"
     );
     assert!(
-        entities_src.contains("cannot be cancelled in this mode"),
+        entities_src.contains("be cancelled in this mode"),
+        "{entities_src}"
+    );
+    // observe-only: the real original runs at most once per call (review S-b)
+    assert!(
+        entities_src.contains("if result.is_none() { result = Some(original("),
+        "{entities_src}"
+    );
+    // range-checked kinds: a value passed through unchanged is not out of range (review nit)
+    assert!(
+        entities_src.contains("Some(r) if yoake_slice::bridge::encode::"),
         "{entities_src}"
     );
     // Observe-only non-i64 return types: id 5 (free fn), id 9 (method returning Option<Self>), id 10 (callsite).
@@ -379,7 +389,7 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
         "{entities_src}"
     );
     assert!(
-        entities_src.contains("result = Some(original(p0)); 0"),
+        entities_src.contains("result = Some(original(p0)); } 0"),
         "{entities_src}"
     );
     assert!(entities_src.contains("None => original(p0),"), "{entities_src}");
@@ -389,7 +399,7 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
         "{entities_src}"
     );
     assert!(
-        entities_src.contains("result = Some(original(p0, &mut *p1)); 0"),
+        entities_src.contains("result = Some(original(p0, &mut *p1)); } 0"),
         "{entities_src}"
     );
     assert!(

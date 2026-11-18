@@ -10,10 +10,11 @@ publish = false
 [features]
 default = []
 # The wasmtime runtime. Without it the crate is the pure activation arena (no dependencies).
-wasm = ["dep:wasmtime"]
+wasm = ["dep:wasmtime", "dep:wat"]
 
 [dependencies]
 wasmtime = { version = "=48.0.7", optional = true, default-features = false, features = ["runtime", "cranelift", "std", "wat"] }
+wat = { version = "=1.263.0", optional = true }
 
 [lints]
 workspace = true
@@ -40,4 +41,8 @@ required-features = ["wasm"]
 
 [[test]]
 name = "readonly"
+required-features = ["wasm"]
+
+[[test]]
+name = "abi"
 required-features = ["wasm"]

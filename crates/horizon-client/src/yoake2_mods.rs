@@ -65,6 +65,9 @@ pub enum Refusal {
     Package(String),
     /// `yoake_init` failed or the module did not instantiate.
     Init(String),
+    /// The module's ABI version (`yoake_abi` custom section, ENGINE_CALL_ABI.md "ABI version") is missing, malformed
+    /// or of another major version than this engine's. Checked before any guest code runs.
+    Abi(String),
 }
 
 impl fmt::Display for Refusal {
@@ -93,6 +96,7 @@ impl fmt::Display for Refusal {
             Refusal::BadSignature(e) => write!(f, "signature does not verify: {e}"),
             Refusal::Package(e) => write!(f, "malformed package: {e}"),
             Refusal::Init(e) => write!(f, "could not start: {e}"),
+            Refusal::Abi(e) => write!(f, "incompatible ABI: {e}"),
         }
     }
 }
@@ -121,6 +125,8 @@ pub struct Loaded {
     pub module: ModId,
     /// The package's SHA-256.
     pub sha256: String,
+    /// The ABI version the module was built for (same major as this engine's).
+    pub abi: runtime::AbiVersion,
 }
 
 /// Loads one package from `bytes` if it is a full-access mod and the policy lets it run. `origin` is what was
@@ -155,8 +161,23 @@ pub fn load_package(bytes: Vec<u8>, origin: Option<Origin>, allow: &AllowFile, t
         });
     }
     let module = archive.full_access_module().map_err(Refusal::Package)?.ok_or_else(|| Refusal::Package("no full-access module".into()))?;
+    // the ABI version is read from the module bytes: no guest code has run yet
+    let abi = match runtime::module_abi_version(&module) {
+        Err(e) => return Err(Refusal::Abi(e.to_string())),
+        Ok(None) => {
+            return Err(Refusal::Abi(format!(
+                "the module has no `yoake_abi` section (built without the SDK's export_guest!, or for an older engine); this engine speaks {}.{}",
+                runtime::ABI_VERSION.major,
+                runtime::ABI_VERSION.minor
+            )));
+        }
+        Ok(Some(version)) => version,
+    };
+    if let runtime::AbiCheck::Refuse(why) = runtime::check_abi(abi) {
+        return Err(Refusal::Abi(why));
+    }
     let module = runtime::load(&module, cfg, &id).map_err(|e| Refusal::Init(format!("{e:#}")))?;
-    Ok(Loaded { id, module, sha256 })
+    Ok(Loaded { id, module, sha256, abi })
 }
 
 /// What a folder scan did.
@@ -184,6 +205,18 @@ impl LoadReport {
         }
         for id in &self.legacy_notes {
             lines.push(format!("full-access.toml names '{id}' without a package hash (an old entry): it approves nothing; approve the package again"));
+        }
+        for loaded in &self.loaded {
+            if loaded.abi.minor > runtime::ABI_VERSION.minor {
+                lines.push(format!(
+                    "full-access mod '{}' was built for ABI {}.{}, this engine speaks {}.{}: engine calls it makes that this engine does not know are refused",
+                    loaded.id,
+                    loaded.abi.major,
+                    loaded.abi.minor,
+                    runtime::ABI_VERSION.major,
+                    runtime::ABI_VERSION.minor
+                ));
+            }
         }
         for (id, hooks) in &self.unbridged {
             let list: Vec<String> = hooks.iter().map(|(hook, why)| format!("{hook} ({why})")).collect();
@@ -327,8 +360,16 @@ pub fn load_world_mods(mods_dir: &Path, approved: Option<&ApprovedList>) -> Load
 /// crates, so at most one bridge knows `id`). `None`: no bridge can call it. Installed as the process-wide
 /// [`yoake_slice::bridge::ModeResolver`], so `hook_register` tells the guest (ENGINE_CALL_ABI.md, "Hook modes").
 pub fn hook_mode(id: u32) -> Option<yoake_slice::bridge::Mode> {
+    if ENGINE_DISPATCHED.contains(&id) {
+        return Some(yoake_slice::bridge::Mode::Full);
+    }
     crate::entities::hook_bridge::mode(id).or_else(|| crate::game::item_use_hook_bridge::mode(id))
 }
+
+/// Synthetic hook ids (at and above `SYNTHETIC_HOOK_BASE`) the engine dispatches itself, with no bridge: their call
+/// site is written by hand (`runtime::HOOK_SERVER_TICK`: `Game::yoake2_server_tick`, every server tick, result
+/// ignored). Always callable, Full mode, never in a bridge report.
+pub const ENGINE_DISPATCHED: &[u32] = &[runtime::HOOK_SERVER_TICK];
 
 /// After the mods' `yoake_init` registered their hook ids: installs the generated bridge dispatcher
 /// (`hook_bridge::install`, docs/yoake2/HOOK-SLICE-BRIDGE.md) of every id any of `loaded` registered. Each id is
@@ -341,9 +382,14 @@ pub fn hook_mode(id: u32) -> Option<yoake_slice::bridge::Mode> {
 pub fn install_bridges(loaded: &[Loaded]) -> Vec<(String, Vec<(u32, String)>)> {
     let mut out = Vec::new();
     for l in loaded {
-        // id 0 is a legacy single-export guest (no `hook_register`): not a ledger id
-        let registered: Vec<(u32, i32)> =
-            runtime::stats_of(l.module).map(|s| s.registered).unwrap_or_default().into_iter().filter(|(id, _)| *id != 0).collect();
+        // id 0 is a legacy single-export guest (no `hook_register`): not a ledger id; engine-dispatched synthetic ids
+        // need no bridge
+        let registered: Vec<(u32, i32)> = runtime::stats_of(l.module)
+            .map(|s| s.registered)
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|(id, _)| *id != 0 && !ENGINE_DISPATCHED.contains(id))
+            .collect();
         let reports = [crate::entities::hook_bridge::install(&registered), crate::game::item_use_hook_bridge::install(&registered)];
         let missing: Vec<(u32, String)> = registered
             .iter()
@@ -369,5 +415,22 @@ fn announce(report: &LoadReport) {
     for line in report.messages() {
         log::warn!("yoake: {line}");
         eprintln!("yoake: {line}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// `yoake_slice::bridge::install_once` keys by hook id alone: two bridge modules must never claim one id (the
+    /// ledger makes ids unique across crates; this checks the generated bridges agree), and no bridge may claim an
+    /// engine-dispatched id.
+    #[test]
+    fn bridge_modules_claim_disjoint_ids() {
+        let entities = crate::entities::hook_bridge::BRIDGED;
+        let item_use = crate::game::item_use_hook_bridge::BRIDGED;
+        assert!(entities.iter().all(|id| item_use.binary_search(id).is_err()), "an id in both bridges");
+        for id in super::ENGINE_DISPATCHED {
+            assert!(entities.binary_search(id).is_err() && item_use.binary_search(id).is_err());
+            assert_eq!(super::hook_mode(*id), Some(yoake_slice::bridge::Mode::Full));
+        }
     }
 }

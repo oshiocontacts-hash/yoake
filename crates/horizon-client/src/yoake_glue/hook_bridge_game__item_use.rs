@@ -17,10 +17,11 @@
 /// records it and the original's result is used (running `original` if needed).
 ///
 /// Hooks listed in `OBSERVE_ONLY` have a result type `R` that does not fit an `i64`:
-/// the guest sees the hook and its `arg0` handle and may call `original` zero or more
-/// times, but cannot replace the result; the last `original` result is returned; if
-/// the guest never calls `original`, the original runs once after the guest returns, so
-/// the hooked fn cannot be cancelled in this mode.
+/// the guest sees the hook and its `arg0` handle and may call `original`, but cannot
+/// replace the result. The real original runs **exactly once** per call: the first
+/// `original` that reaches it runs it, later ones do not run it again; if no guest's
+/// `original` reaches it, it runs once after the guests return, so the hooked fn cannot
+/// be cancelled in this mode.
 ///
 /// Hooks whose shape cannot be bridged are listed in `UNBRIDGED`.
 #[allow(
@@ -43,11 +44,15 @@ pub mod hook_bridge {
         let value = yoake_slice::runtime::dispatch_root_id(103, p0, &mut |p0| { let r = original(p0); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
-            None => {
-                yoake_slice::bridge::note_out_of_range(103, value);
-                // the last original result if the original ran, else run it now
-                match last { Some(r) => r, None => original(p0) }
-            }
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(103, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0) }
+                }
+            },
         }
     }
 
@@ -60,11 +65,15 @@ pub mod hook_bridge {
         let value = yoake_slice::runtime::dispatch_root_id(106, p0, &mut |p0| { let r = original(p0, p1); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
-            None => {
-                yoake_slice::bridge::note_out_of_range(106, value);
-                // the last original result if the original ran, else run it now
-                match last { Some(r) => r, None => original(p0, p1) }
-            }
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(106, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0, p1) }
+                }
+            },
         }
     }
 
@@ -106,11 +115,15 @@ pub mod hook_bridge {
         let value = yoake_slice::runtime::dispatch_root_id(110, p0, &mut |p0| { let r = original(p0, p1, p2); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
-            None => {
-                yoake_slice::bridge::note_out_of_range(110, value);
-                // the last original result if the original ran, else run it now
-                match last { Some(r) => r, None => original(p0, p1, p2) }
-            }
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(110, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0, p1, p2) }
+                }
+            },
         }
     }
 
@@ -133,11 +146,15 @@ pub mod hook_bridge {
         let value = yoake_slice::runtime::dispatch_root_id(113, p0, &mut |p0| { let r = original(p0, p1, p2); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
-            None => {
-                yoake_slice::bridge::note_out_of_range(113, value);
-                // the last original result if the original ran, else run it now
-                match last { Some(r) => r, None => original(p0, p1, p2) }
-            }
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(113, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0, p1, p2) }
+                }
+            },
         }
     }
 
@@ -170,11 +187,15 @@ pub mod hook_bridge {
         let value = yoake_slice::runtime::dispatch_root_id(149, p0, &mut |p0| { let r = original(p0); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
-            None => {
-                yoake_slice::bridge::note_out_of_range(149, value);
-                // the last original result if the original ran, else run it now
-                match last { Some(r) => r, None => original(p0) }
-            }
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(149, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0) }
+                }
+            },
         }
     }
 
@@ -207,11 +228,15 @@ pub mod hook_bridge {
         let value = yoake_slice::runtime::dispatch_root_id(155, p0, &mut |p0| { let r = original(p0, p1, p2); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
-            None => {
-                yoake_slice::bridge::note_out_of_range(155, value);
-                // the last original result if the original ran, else run it now
-                match last { Some(r) => r, None => original(p0, p1, p2) }
-            }
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(155, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0, p1, p2) }
+                }
+            },
         }
     }
 

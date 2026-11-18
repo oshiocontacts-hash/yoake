@@ -1171,10 +1171,11 @@ fn render_bridge_module(
          /// records it and the original's result is used (running `original` if needed).\n\
          ///\n\
          /// Hooks listed in `OBSERVE_ONLY` have a result type `R` that does not fit an `i64`:\n\
-         /// the guest sees the hook and its `arg0` handle and may call `original` zero or more\n\
-         /// times, but cannot replace the result; the last `original` result is returned; if\n\
-         /// the guest never calls `original`, the original runs once after the guest returns, so\n\
-         /// the hooked fn cannot be cancelled in this mode.\n\
+         /// the guest sees the hook and its `arg0` handle and may call `original`, but cannot\n\
+         /// replace the result. The real original runs **exactly once** per call: the first\n\
+         /// `original` that reaches it runs it, later ones do not run it again; if no guest's\n\
+         /// `original` reaches it, it runs once after the guests return, so the hooked fn cannot\n\
+         /// be cancelled in this mode.\n\
          ///\n\
          /// Hooks whose shape cannot be bridged are listed in `UNBRIDGED`.\n",
     );
@@ -1366,7 +1367,11 @@ fn render_bridged_fn(bh: &BridgedHook) -> String {
                 format!("yoake_slice::bridge::encode::u64({orig_call})")
             }
             RetKind::F64 => format!("yoake_slice::bridge::encode::f64({orig_call})"),
-            RetKind::ObserveOnly => format!("{{ result = Some({orig_call}); 0 }}"),
+            // observe-only: the real original runs at most once per call; a second `original` from the guest
+            // gets nothing new (the result is kept for the engine, the guest cannot see it anyway)
+            RetKind::ObserveOnly => {
+                format!("{{ if result.is_none() {{ result = Some({orig_call}); }} 0 }}")
+            }
             _ => unreachable!("range-checked kinds handled above"),
         }
     };
@@ -1380,23 +1385,29 @@ fn render_bridged_fn(bh: &BridgedHook) -> String {
             bh.id
         ),
     };
-    if let Some((ret_ty_str, _, decode_expr)) = range_checked {
+    if let Some((ret_ty_str, encode_expr, decode_expr)) = range_checked {
         out.push_str(&format!("        let mut last: Option<{ret_ty_str}> = None;\n"));
         out.push_str(&format!("        let value = {dispatch_call};\n"));
         out.push_str(&format!("        match {decode_expr} {{\n"));
         out.push_str("            Some(r) => r,\n");
-        out.push_str("            None => {\n");
+        out.push_str("            None => match last {\n");
+        out.push_str(
+            "                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range\n",
+        );
+        out.push_str(&format!("                Some(r) if {encode_expr} == value => r,\n"));
+        out.push_str("                _ => {\n");
         out.push_str(&format!(
-            "                yoake_slice::bridge::note_out_of_range({}, value);\n",
+            "                    yoake_slice::bridge::note_out_of_range({}, value);\n",
             bh.id
         ));
         out.push_str(
-            "                // the last original result if the original ran, else run it now\n",
+            "                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)\n",
         );
         out.push_str(&format!(
-            "                match last {{ Some(r) => r, None => {orig_call} }}\n"
+            "                    match last {{ Some(r) => r, None => {orig_call} }}\n"
         ));
-        out.push_str("            }\n");
+        out.push_str("                }\n");
+        out.push_str("            },\n");
         out.push_str("        }\n");
     } else {
         match &bh.ret_kind {

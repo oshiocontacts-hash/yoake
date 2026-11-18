@@ -168,7 +168,11 @@ closure. If `decode` returns `None`:
 1. The dispatcher calls `yoake_slice::bridge::note_out_of_range(id, value)` (which increments `out_of_range_count()`
    and prints once per hook id to stderr).
 2. If `original` ran during the guest's activation, the last `original` result (`last`) is returned; otherwise
-   `original` runs now and its result is returned.
+   `original` runs now and its result is returned. That direct run skips the rest of the chain: guests after the
+   one that returned the bad value do not run for this call.
+
+A value the guest passes through unchanged (`encode(last) == value`, e.g. a `usize` above `i64::MAX` that the
+original returned) is not out of range: `last` is returned and nothing is counted.
 
 Types that can never be out of range (`()`, `i64`, `u64`, `f64`) do not track `last`.
 
@@ -181,7 +185,9 @@ on the host side:
 fn __bridge_N(original: &mut dyn FnMut(&mut T, A) -> R, p0: &mut T, p1: A) -> R {
     let mut result: Option<R> = None;
     let _ = yoake_slice::runtime::dispatch_id(N, p0, &TABLE, &mut |p0| {
-        result = Some(original(p0, p1));
+        if result.is_none() {
+            result = Some(original(p0, p1));
+        }
         0
     });
     match result {
@@ -193,11 +199,13 @@ fn __bridge_N(original: &mut dyn FnMut(&mut T, A) -> R, p0: &mut T, p1: A) -> R 
 ```
 
 Semantics:
-- the guest sees the hook and its `arg0` handle and may call `original` zero or more times, but cannot
-  replace the result (its `i64` return value is ignored);
-- the **last** `original` result is returned;
-- if the guest never calls `original`, `original` runs once after the guest returns, so the hooked fn
-  cannot be cancelled in this mode.
+- the guest sees the hook and its `arg0` handle and may call `original`, but cannot replace the result (its `i64`
+  return value is ignored);
+- the real original runs **exactly once** per call: the first `original` that reaches it (through the chain) runs it
+  and its result is kept; a later `original` that reaches it again returns `0` without running it (no duplicate side
+  effects, e.g. call site 215 hurts the item once);
+- if no `original` reaches it, it runs once after the guests return, so the hooked fn cannot be cancelled in this
+  mode.
 
 ## Changes needed at merge time
 

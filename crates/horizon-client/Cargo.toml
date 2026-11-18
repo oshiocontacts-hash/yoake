@@ -190,3 +190,9 @@ naga = { version = "30.0.1", features = ["wgsl-in", "hlsl-out", "msl-out", "spv-
 name = "yoake2_loader"
 path = "tests/yoake2_loader.rs"
 required-features = ["yoake2-slice", "yoake-hook-bench"]
+
+# MX3EX1: the SDK example mods through the full-access loader (no game resources).
+[[test]]
+name = "yoake2_examples"
+path = "tests/yoake2_examples.rs"
+required-features = ["yoake2-slice"]

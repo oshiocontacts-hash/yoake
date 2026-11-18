@@ -6,6 +6,9 @@ license.workspace = true
 rust-version.workspace = true
 description = "Yoake 2.0 Rust guest SDK (MX3K1): safe wrappers over the engine_call imports and generated typed stubs, for full-access mods compiled to a wasm32 core module. no_std."
 publish = false
+# Examples are `#![no_std]` full-access wasm32 core modules built by tests via `tests/support/build.rs`,
+# not host binaries built by `cargo build --examples`.
+autoexamples = false
 
 [dependencies]
 

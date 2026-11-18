@@ -144,3 +144,41 @@ guest was installed, so they went through the hook too); fixed by computing them
   for 12 hours were removed (the owner's rule); the launcher was built on D:. Further large builds here go to D:.
 - `yoake-guest-sdk` tests build their guests in one temp folder; on Windows a parallel run once failed with "failed to
   remove ...rcgu.o: access denied" and passed on the re-run (a file lock, not the code).
+
+## 9. Fable's review of 3828f998b: fixes
+
+**M1 (must-fix): the server tick was reported NOT_CALLABLE.** `yoake2_mods::ENGINE_DISPATCHED` lists the synthetic
+ids the engine dispatches itself (`runtime::HOOK_SERVER_TICK`); `hook_mode` returns `Full` for them and
+`install_bridges` leaves them out (no "will never run" line). Test `yoake2_loader::
+a_loaded_mod_on_the_server_tick_is_told_full_is_not_unbridged_and_runs_on_tick`: a launcher-installed, approved mod
+gets `0` from `hook_register(HOOK_SERVER_TICK)`, the report is empty, and it is entered on each tick (driven as
+`Game::yoake2_server_tick` does, `dispatch_root_id(HOOK_SERVER_TICK, ..)`, on a stand-in root: a real `Game` needs the
+game resources).
+
+**S-a.** `observe_only_runs_the_original_exactly_once_whatever_the_guest_does`: call site 215 through original not
+called, called twice, trap before, trap after, and a returned value (ignored): the item is hurt exactly once each
+time. `two_mods_on_one_bridged_id_share_one_dispatcher_and_both_run_once`: two mods on 71 (priorities 10 and 20),
+installed per mod (the second install reuses the dispatcher), each entered once, the original once; and with the outer
+mod not calling `original`, the inner mod and the engine do not run.
+
+**S-b.** Observe-only now runs the real original at most once per call: a later `original` that reaches it returns
+`0` without running it (generated `if result.is_none() { result = Some(original(..)); }`). ENGINE_CALL_ABI.md and
+HOOK-SLICE-BRIDGE.md say so.
+
+**S-c.** Documented: an out-of-range fallback that runs the original directly skips the rest of the chain.
+
+**S-d.** Documented: a shared argument cannot be used with `engine_call` (every binding takes `&mut` through
+`with_arg`); a future `with_arg_ref` must hand out only `&T`, only to `&self` bindings. Test
+`readonly::engine_call_on_a_shared_argument_is_refused_read_only_and_the_binding_does_not_run` (`-23`, the value
+unchanged, not a trap).
+
+**Nits.**
+- Disjoint ids: `yoake2_mods::tests::bridge_modules_claim_disjoint_ids` checks that the two bridges' `BRIDGED` never
+  overlap and that no bridge claims an engine-dispatched id (`install_once` keys by id alone).
+- Full but the install failed: the guest was told `0`; the loader reports the id with the slot's error in
+  `LoadReport::unbridged` and a message line.
+- Pass-through: a value equal to the encoding of the original's own result is accepted and not counted (a `usize`
+  above `i64::MAX`), generated `Some(r) if encode(r) == value => r`.
+- activation.rs: the shared slot's getter now lives in `ArgPtr::Shared(ptr, get)`, so there is no unreachable
+  `ok_or`; the `run_cell_ref` SAFETY comment says that only `&A` is made. New unit test: a shared handle is `Locked`
+  while `original` runs and `Stale` after the scope.

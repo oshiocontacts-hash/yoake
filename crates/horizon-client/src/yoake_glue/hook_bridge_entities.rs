@@ -17,10 +17,11 @@
 /// records it and the original's result is used (running `original` if needed).
 ///
 /// Hooks listed in `OBSERVE_ONLY` have a result type `R` that does not fit an `i64`:
-/// the guest sees the hook and its `arg0` handle and may call `original` zero or more
-/// times, but cannot replace the result; the last `original` result is returned; if
-/// the guest never calls `original`, the original runs once after the guest returns, so
-/// the hooked fn cannot be cancelled in this mode.
+/// the guest sees the hook and its `arg0` handle and may call `original`, but cannot
+/// replace the result. The real original runs **exactly once** per call: the first
+/// `original` that reaches it runs it, later ones do not run it again; if no guest's
+/// `original` reaches it, it runs once after the guests return, so the hooked fn cannot
+/// be cancelled in this mode.
 ///
 /// Hooks whose shape cannot be bridged are listed in `UNBRIDGED`.
 #[allow(
@@ -44,7 +45,7 @@ pub mod hook_bridge {
         p4: &crate::items::Items,
     ) -> ItemEnvironmentTick {
         let mut result: Option<ItemEnvironmentTick> = None;
-        let _ = yoake_slice::runtime::dispatch_id(9, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ItemEntity, &mut |p0| { result = Some(original(p0, p1, p2, p3, p4)); 0 });
+        let _ = yoake_slice::runtime::dispatch_id(9, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ItemEntity, &mut |p0| { if result.is_none() { result = Some(original(p0, p1, p2, p3, p4)); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
@@ -58,7 +59,7 @@ pub mod hook_bridge {
         p1: i32,
     ) -> Option<Vec<ItemStack>> {
         let mut result: Option<Option<Vec<ItemStack>>> = None;
-        let _ = yoake_slice::runtime::dispatch_id(10, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ItemEntity, &mut |p0| { result = Some(original(p0, p1)); 0 });
+        let _ = yoake_slice::runtime::dispatch_id(10, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ItemEntity, &mut |p0| { if result.is_none() { result = Some(original(p0, p1)); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
@@ -88,11 +89,15 @@ pub mod hook_bridge {
         let value = yoake_slice::runtime::dispatch_id(13, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ItemEntity, &mut |p0| { let r = original(p0, p1, p2, p3, p4); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
-            None => {
-                yoake_slice::bridge::note_out_of_range(13, value);
-                // the last original result if the original ran, else run it now
-                match last { Some(r) => r, None => original(p0, p1, p2, p3, p4) }
-            }
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(13, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0, p1, p2, p3, p4) }
+                }
+            },
         }
     }
 
@@ -139,11 +144,15 @@ pub mod hook_bridge {
         let value = yoake_slice::runtime::dispatch_id(31, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ExperienceOrb, &mut |p0| { let r = original(p0, p1); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
-            None => {
-                yoake_slice::bridge::note_out_of_range(31, value);
-                // the last original result if the original ran, else run it now
-                match last { Some(r) => r, None => original(p0, p1) }
-            }
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(31, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0, p1) }
+                }
+            },
         }
     }
 
@@ -163,11 +172,15 @@ pub mod hook_bridge {
         let value = yoake_slice::runtime::dispatch_id(37, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ExperienceOrb, &mut |p0| { let r = original(p0, p1, p2, p3, p4, p5, &mut *p6, p7, p8); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
-            None => {
-                yoake_slice::bridge::note_out_of_range(37, value);
-                // the last original result if the original ran, else run it now
-                match last { Some(r) => r, None => original(p0, p1, p2, p3, p4, p5, &mut *p6, p7, p8) }
-            }
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(37, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0, p1, p2, p3, p4, p5, &mut *p6, p7, p8) }
+                }
+            },
         }
     }
 
@@ -195,7 +208,7 @@ pub mod hook_bridge {
         p1: i32,
     ) -> Option<i32> {
         let mut result: Option<Option<i32>> = None;
-        let _ = yoake_slice::runtime::dispatch_id(43, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__Experience, &mut |p0| { result = Some(original(p0, p1)); 0 });
+        let _ = yoake_slice::runtime::dispatch_id(43, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__Experience, &mut |p0| { if result.is_none() { result = Some(original(p0, p1)); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
@@ -212,11 +225,15 @@ pub mod hook_bridge {
         let value = yoake_slice::runtime::dispatch_id(58, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ArmorStand, &mut |p0| { let r = original(p0, p1); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
-            None => {
-                yoake_slice::bridge::note_out_of_range(58, value);
-                // the last original result if the original ran, else run it now
-                match last { Some(r) => r, None => original(p0, p1) }
-            }
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(58, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0, p1) }
+                }
+            },
         }
     }
 
@@ -248,11 +265,15 @@ pub mod hook_bridge {
         let value = yoake_slice::runtime::dispatch_id(67, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ArmorStand, &mut |p0| { let r = original(p0, p1, p2, p3); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
-            None => {
-                yoake_slice::bridge::note_out_of_range(67, value);
-                // the last original result if the original ran, else run it now
-                match last { Some(r) => r, None => original(p0, p1, p2, p3) }
-            }
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(67, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0, p1, p2, p3) }
+                }
+            },
         }
     }
 
@@ -266,7 +287,7 @@ pub mod hook_bridge {
         p5: Option<&BorderGeometry>,
     ) -> Option<StandStep> {
         let mut result: Option<Option<StandStep>> = None;
-        let _ = yoake_slice::runtime::dispatch_id(70, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ArmorStand, &mut |p0| { result = Some(original(p0, &mut *p1, p2, p3, p4, p5)); 0 });
+        let _ = yoake_slice::runtime::dispatch_id(70, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ArmorStand, &mut |p0| { if result.is_none() { result = Some(original(p0, &mut *p1, p2, p3, p4, p5)); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
@@ -290,7 +311,7 @@ pub mod hook_bridge {
         p2: &crate::motion::FluidResources,
     ) -> (f64, f64) {
         let mut result: Option<(f64, f64)> = None;
-        let _ = yoake_slice::runtime::dispatch_id(81, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ExperienceOrb, &mut |p0| { result = Some(original(p0, p1, p2)); 0 });
+        let _ = yoake_slice::runtime::dispatch_id(81, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ExperienceOrb, &mut |p0| { if result.is_none() { result = Some(original(p0, p1, p2)); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
@@ -304,7 +325,7 @@ pub mod hook_bridge {
         p1: i32,
     ) -> std::option::Option<std::vec::Vec<horizon_client_render::items::ItemStack>> {
         let mut result: Option<std::option::Option<std::vec::Vec<horizon_client_render::items::ItemStack>>> = None;
-        let _ = yoake_slice::runtime::dispatch_id(215, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ItemEntity, &mut |p0| { result = Some(original(p0, p1)); 0 });
+        let _ = yoake_slice::runtime::dispatch_id(215, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ItemEntity, &mut |p0| { if result.is_none() { result = Some(original(p0, p1)); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
@@ -318,7 +339,7 @@ pub mod hook_bridge {
         p1: i32,
     ) -> std::option::Option<std::vec::Vec<horizon_client_render::items::ItemStack>> {
         let mut result: Option<std::option::Option<std::vec::Vec<horizon_client_render::items::ItemStack>>> = None;
-        let _ = yoake_slice::runtime::dispatch_id(220, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ItemEntity, &mut |p0| { result = Some(original(p0, p1)); 0 });
+        let _ = yoake_slice::runtime::dispatch_id(220, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ItemEntity, &mut |p0| { if result.is_none() { result = Some(original(p0, p1)); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
@@ -332,7 +353,7 @@ pub mod hook_bridge {
         p1: i32,
     ) -> std::option::Option<std::vec::Vec<horizon_client_render::items::ItemStack>> {
         let mut result: Option<std::option::Option<std::vec::Vec<horizon_client_render::items::ItemStack>>> = None;
-        let _ = yoake_slice::runtime::dispatch_id(226, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ItemEntity, &mut |p0| { result = Some(original(p0, p1)); 0 });
+        let _ = yoake_slice::runtime::dispatch_id(226, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ItemEntity, &mut |p0| { if result.is_none() { result = Some(original(p0, p1)); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
@@ -346,7 +367,7 @@ pub mod hook_bridge {
         p1: i32,
     ) -> std::option::Option<std::vec::Vec<horizon_client_render::items::ItemStack>> {
         let mut result: Option<std::option::Option<std::vec::Vec<horizon_client_render::items::ItemStack>>> = None;
-        let _ = yoake_slice::runtime::dispatch_id(231, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ItemEntity, &mut |p0| { result = Some(original(p0, p1)); 0 });
+        let _ = yoake_slice::runtime::dispatch_id(231, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ItemEntity, &mut |p0| { if result.is_none() { result = Some(original(p0, p1)); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.

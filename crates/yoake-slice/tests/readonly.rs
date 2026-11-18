@@ -195,3 +195,32 @@ fn shared_trap_after_original_does_not_run_it_twice() {
     assert!(runtime::stats().disabled);
     runtime::uninstall().unwrap();
 }
+
+/// What a generated binding with a `&mut self` receiver does: `with_arg` (refused on a shared argument).
+fn mutating_binding(handle: u64, _id: u32, _args: &[u8], _out: &mut Vec<u8>) -> Result<(), yoake_slice::codec::CallError> {
+    yoake_slice::activation::with_arg::<Thing, _>(handle, |t| t.count += 1).map_err(yoake_slice::codec::CallError::from)
+}
+
+#[test]
+fn engine_call_on_a_shared_argument_is_refused_read_only_and_the_binding_does_not_run() {
+    const CALLER: &str = r#"(module
+  (import "env" "engine_call" (func $call (param i64 i32 i32 i32 i32 i32) (result i32)))
+  (import "env" "report" (func $report (param i32 i64)))
+  (import "env" "hook_register" (func $register (param i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (func (export "yoake_init") (drop (call $register (i32.const 9) (i32.const 0))))
+  (func (export "yoake_hook") (param $id i32) (param $h i64) (result i64)
+    (call $report (i32.const 90)
+      (i64.extend_i32_s (call $call (local.get $h) (i32.const 1) (i32.const 0) (i32.const 0) (i32.const 64) (i32.const 64))))
+    (i64.const 5)))"#;
+    runtime::install(CALLER.as_bytes(), ModConfig::new("")).unwrap();
+    runtime::set_engine_dispatch(Some(mutating_binding));
+    let thing = Thing { count: 5 };
+    let mut runs = 0;
+    assert_eq!(engine(9, &thing, &mut runs), 5, "the guest's value; it did not call original");
+    assert_eq!(slot(&reports(), 90), -23, "engine_call status HANDLE_BASE - 7 (ReadOnly)");
+    assert_eq!(thing.count, 5, "the binding never got a &mut");
+    assert!(!runtime::stats().disabled, "a refused call is a status, not a trap");
+    runtime::set_engine_dispatch(None);
+    runtime::uninstall().unwrap();
+}
