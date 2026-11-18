@@ -1,0 +1,596 @@
+[
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 23,
+  "col": 32,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_start_using_item",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::held"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 23,
+  "col": 39,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_start_using_item",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<&'{erased} horizon_client_lib::items::ItemStack>::cloned"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 23,
+  "col": 48,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_start_using_item",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<horizon_client_lib::items::ItemStack>::filter"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 26,
+  "col": 24,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_start_using_item",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::use_duration"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 29,
+  "col": 14,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_start_using_item",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::native_living_entity_use_item_start"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 33,
+  "col": 33,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_start_using_item",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::held_slot"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 23,
+  "col": 70,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_start_using_item::{closure#0}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<(usize, u32)>::is_none"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 46,
+  "col": 25,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_duration",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::items"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 46,
+  "col": 33,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_duration",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_lib::items::Items::get"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 51,
+  "col": 23,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_duration",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<&'{erased} horizon_client_lib::items::ItemInfo>::is_some_and"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 52,
+  "col": 41,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_duration",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Resources::items"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 52,
+  "col": 49,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_duration",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_lib::items::Items::instrument"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 52,
+  "col": 72,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_duration",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_lib::items::Instrument::use_ticks"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 54,
+  "col": 61,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_duration",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_world::consumable::Consumable<std::string::String, horizon_client_lib::items::ConsumeEffect>::ticks"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 55,
+  "col": 45,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_duration",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<horizon_client_lib::items::BlocksAttacks>::is_some"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 56,
+  "col": 47,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_duration",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<horizon_client_lib::spear::Kinetic>::is_some"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 61,
+  "col": 14,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_duration",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::native_use_duration"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 69,
+  "col": 21,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_mod_use",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "str::starts_with"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 71,
+  "col": 18,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_mod_use",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::items"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 72,
+  "col": 18,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_mod_use",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_lib::items::Items::get"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 73,
+  "col": 18,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_mod_use",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<&'{erased} horizon_client_lib::items::ItemInfo>::is_some_and"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 74,
+  "col": 41,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_mod_use",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<horizon_client_lib::spear::Kinetic>::is_none"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 75,
+  "col": 21,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_mod_use",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::use_duration"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 73,
+  "col": 47,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_mod_use::{closure#0}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<horizon_world::consumable::Consumable<std::string::String, horizon_client_lib::items::ConsumeEffect>>::is_none"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 73,
+  "col": 77,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_mod_use::{closure#0}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<horizon_client_lib::items::BlocksAttacks>::is_none"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 80,
+  "col": 18,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_start_mod_use",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::mod_use"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 83,
+  "col": 14,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_start_mod_use",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::start_using_item"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 90,
+  "col": 14,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_tick_mod_use",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::item_on_use_tick"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 95,
+  "col": 31,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_tick_mod_use",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::items"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 95,
+  "col": 39,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_tick_mod_use",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_lib::items::Items::get"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 95,
+  "col": 56,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_tick_mod_use",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<&'{erased} horizon_client_lib::items::ItemInfo>::cloned"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 99,
+  "col": 14,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_tick_mod_use",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::complete_using_item"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 108,
+  "col": 17,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_complete_using_item",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::finish_drinking"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 109,
+  "col": 18,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_complete_using_item",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::use_item_finished"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 110,
+  "col": 18,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_complete_using_item",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::use_vibration"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 114,
+  "col": 14,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_complete_using_item",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::send_use_item_complete"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 115,
+  "col": 14,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_complete_using_item",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::apply_use_cooldown"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 117,
+  "col": 18,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_complete_using_item",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::finish_consuming"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 119,
+  "col": 18,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_complete_using_item",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::stop_spyglass"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 121,
+  "col": 14,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_complete_using_item",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::use_item_finished"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 123,
+  "col": 14,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_complete_using_item",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::use_vibration"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 129,
+  "col": 31,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_item_finished",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::held"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 129,
+  "col": 38,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_item_finished",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<&'{erased} horizon_client_lib::items::ItemStack>::cloned"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 130,
+  "col": 29,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_item_finished",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::option::Option<horizon_client_lib::items::ItemStack> as core::clone::Clone>::clone"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 132,
+  "col": 14,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_item_finished",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::item_behavior_finish"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 133,
+  "col": 14,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_item_finished",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::native_living_entity_use_item_finish"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 135,
+  "col": 19,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_item_finished",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::held_mut"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 135,
+  "col": 39,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_item_finished",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<horizon_client_lib::items::ItemStack>::filter"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 146,
+  "col": 25,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_item_ticked",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::used_hand"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 146,
+  "col": 37,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_item_ticked",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<horizon_client_lib::first_person::Hand>::unwrap_or"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 147,
+  "col": 14,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_item_ticked",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::native_living_entity_use_item_tick"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 158,
+  "col": 18,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_item_on_use_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::native_on_use_tick"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 168,
+  "col": 18,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_ticks_held",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::use_duration"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 179,
+  "col": 14,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_use_item_stopped",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::native_living_entity_use_item_stop"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 188,
+  "col": 14,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_mod_release_using",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::native_release_using"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 190,
+  "col": 18,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_mod_release_using",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::apply_use_cooldown"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 201,
+  "col": 18,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_can_eat",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<horizon_client_lib::motion::PlayerMotion>::as_ref"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 202,
+  "col": 18,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_can_eat",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<&'{erased} horizon_client_lib::motion::PlayerMotion>::is_some_and"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 203,
+  "col": 14,
+  "caller_body": "horizon_client::game::item_use::{impl#0}::__yoake_orig_can_eat",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "game::Game<'{erased}>::native_can_eat"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 233,
+  "col": 43,
+  "caller_body": "horizon_client::game::item_use::__yoake_orig_bow_release_power",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f32::min"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 234,
+  "col": 20,
+  "caller_body": "horizon_client::game::item_use::__yoake_orig_bow_release_power",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "bool::then_some"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 240,
+  "col": 14,
+  "caller_body": "horizon_client::game::item_use::__yoake_orig_ticks_left",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "i32::saturating_sub_unsigned"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 247,
+  "col": 58,
+  "caller_body": "horizon_client::game::item_use::__yoake_orig_held",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::result::Result<u32, std::num::TryFromIntError>::unwrap_or"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 254,
+  "col": 15,
+  "caller_body": "horizon_client::game::item_use::__yoake_orig_duration_leaving",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "i32::saturating_add_unsigned"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 264,
+  "col": 34,
+  "caller_body": "horizon_client::game::item_use::__yoake_orig_start_of",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "bool::then_some"
+ },
+ {
+  "file": "crates/horizon-client/src/game/item_use.rs",
+  "line": 281,
+  "col": 51,
+  "caller_body": "horizon_client::game::item_use::__yoake_orig_count_down",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "bool::then_some"
+ }
+]

@@ -1,0 +1,2846 @@
+[
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 67,
+  "col": 26,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_move_applies",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Vec3::length_squared"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 68,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_move_applies",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Vec3::length_squared"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 78,
+  "col": 34,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_slime_step_on_scale",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::abs"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 79,
+  "col": 25,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_slime_step_on_scale",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "bool::then_some"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 98,
+  "col": 24,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_item_support_is_slime",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 99,
+  "col": 24,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_item_support_is_slime",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 100,
+  "col": 47,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_item_support_is_slime",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 101,
+  "col": 53,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_item_support_is_slime",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 111,
+  "col": 35,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_slime_at",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 111,
+  "col": 25,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_slime_at",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::blocks::BlockFacts::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 114,
+  "col": 10,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_slime_at",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "[([i32; 3_usize], horizon_world::piston_shape::MovingPistonState)]::iter"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 115,
+  "col": 10,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_slime_at",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::slice::Iter<'{erased}, ([i32; 3_usize], horizon_world::piston_shape::MovingPistonState)> as core::iter::traits::iterator::Iterator>::find"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 116,
+  "col": 10,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_slime_at",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<&'{erased} ([i32; 3_usize], horizon_world::piston_shape::MovingPistonState)>::map"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 116,
+  "col": 36,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_slime_at::{closure#1}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::blocks::BlockFacts::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 55,
+  "col": 20,
+  "caller_body": "horizon_client_lib::entities::fluids::__yoake_orig_update_entity_fluids",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_world::entity_fluid::EntityFluidInteraction::update"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 55,
+  "col": 52,
+  "caller_body": "horizon_client_lib::entities::fluids::__yoake_orig_update_entity_fluids",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::result::Result<bool, horizon_world::entity_fluid::FluidInteractionError<!>>::is_err"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 58,
+  "col": 36,
+  "caller_body": "horizon_client_lib::entities::fluids::__yoake_orig_update_entity_fluids",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_world::entity_fluid::EntityFluidInteraction::fluid_height"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 59,
+  "col": 35,
+  "caller_body": "horizon_client_lib::entities::fluids::__yoake_orig_update_entity_fluids",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_world::entity_fluid::EntityFluidInteraction::fluid_height"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 60,
+  "col": 25,
+  "caller_body": "horizon_client_lib::entities::fluids::__yoake_orig_update_entity_fluids",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_world::entity_fluid::EntityFluidInteraction::apply_current"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 61,
+  "col": 25,
+  "caller_body": "horizon_client_lib::entities::fluids::__yoake_orig_update_entity_fluids",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_world::entity_fluid::EntityFluidInteraction::apply_current"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 100,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#1}::__yoake_orig_update_fluids",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ExperienceOrb::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 148,
+  "col": 19,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#4}::__yoake_trait_fluid_membership_fluid_in_tag",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<motion::fluids::FluidTags as horizon_world::entity_fluid::FluidMembership>::fluid_in_tag"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 179,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#6}::__yoake_trait_current_target_add_delta_movement",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Vec3::is_finite"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 179,
+  "col": 37,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#6}::__yoake_trait_current_target_add_delta_movement",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Vec3::is_finite"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 195,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#7}::chunk_sections",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::layout"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 197,
+  "col": 39,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#7}::chunk_sections",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::chunk::ColumnLayout::min_y"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 231,
+  "col": 29,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#8}::__yoake_trait_fluid_interaction_world_interaction_box",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::deflate"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 239,
+  "col": 30,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#8}::__yoake_trait_fluid_interaction_world_loaded_chunk",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::collections::HashMap<(i32, i32), std::sync::Arc<horizon_client_render::chunk::Chunk, std::alloc::Global>, std::hash::BuildHasherDefault<horizon_core::fast_hash::FxHasher>, std::alloc::Global>::contains_key"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 239,
+  "col": 52,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#8}::__yoake_trait_fluid_interaction_world_loaded_chunk",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "bool::then_some"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 247,
+  "col": 25,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#8}::__yoake_trait_fluid_interaction_world_block_x",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 255,
+  "col": 25,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#8}::__yoake_trait_fluid_interaction_world_block_z",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 262,
+  "col": 41,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#8}::__yoake_trait_fluid_interaction_world_fluid_state",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 262,
+  "col": 24,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#8}::__yoake_trait_fluid_interaction_world_fluid_state",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "motion::fluids::FluidResources::fluid"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 270,
+  "col": 11,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#8}::__yoake_trait_fluid_interaction_world_fluid_height",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_world::fluid::FluidState::height_at"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 278,
+  "col": 11,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#8}::__yoake_trait_fluid_interaction_world_camera_height",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_world::fluid::FluidState::camera_height_at"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 301,
+  "col": 41,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#10}::__yoake_trait_fluid_height_world_fluid",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 301,
+  "col": 24,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#10}::__yoake_trait_fluid_height_world_fluid",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "motion::fluids::FluidResources::fluid"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 305,
+  "col": 32,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#10}::__yoake_trait_fluid_height_world_sturdy_down",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 306,
+  "col": 24,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#10}::__yoake_trait_fluid_height_world_sturdy_down",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "motion::fluids::FluidResources::sturdy"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 330,
+  "col": 24,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#11}::is_face_sturdy",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "motion::fluids::FluidResources::sturdy"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 336,
+  "col": 41,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#12}::__yoake_trait_fluid_flow_world_fluid",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 336,
+  "col": 24,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#12}::__yoake_trait_fluid_flow_world_fluid",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "motion::fluids::FluidResources::fluid"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 340,
+  "col": 23,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#12}::__yoake_trait_fluid_flow_world_block",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 344,
+  "col": 21,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#12}::__yoake_trait_fluid_flow_world_blocks_fluid_flow",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "motion::fluids::FluidResources::blocks_flow"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities/fluids.rs",
+  "line": 348,
+  "col": 21,
+  "caller_body": "horizon_client_lib::entities::fluids::{impl#12}::__yoake_trait_fluid_flow_world_is_ice_class",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "motion::fluids::FluidResources::ice"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 183,
+  "col": 48,
+  "caller_body": "horizon_client_lib::entities::{impl#0}::__yoake_orig_should_play_lava_hurt_sound",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "u32::is_multiple_of"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 390,
+  "col": 29,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 391,
+  "col": 37,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 392,
+  "col": 29,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 389,
+  "col": 24,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 394,
+  "col": 27,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::blocks::BlockFacts::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 395,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::items::Items::resists_fire"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 403,
+  "col": 27,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::items::Items::resists_fire"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 405,
+  "col": 37,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::hurt"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 405,
+  "col": 45,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<std::vec::Vec<horizon_client_render::items::ItemStack, std::alloc::Global>>::unwrap_or_default"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 405,
+  "col": 25,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::vec::Vec<horizon_client_render::items::ItemStack, std::alloc::Global> as core::iter::traits::collect::Extend>::extend"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 411,
+  "col": 47,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<i32 as core::cmp::Ord>::max"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 412,
+  "col": 23,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::items::Items::resists_fire"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 413,
+  "col": 37,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::hurt"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 413,
+  "col": 45,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<std::vec::Vec<horizon_client_render::items::ItemStack, std::alloc::Global>>::unwrap_or_default"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 413,
+  "col": 25,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::vec::Vec<horizon_client_render::items::ItemStack, std::alloc::Global> as core::iter::traits::collect::Extend>::extend"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 417,
+  "col": 90,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 419,
+  "col": 47,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<i32 as core::cmp::Ord>::max"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 420,
+  "col": 23,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::items::Items::resists_fire"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 421,
+  "col": 37,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::hurt"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 421,
+  "col": 62,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<std::vec::Vec<horizon_client_render::items::ItemStack, std::alloc::Global>>::unwrap_or_default"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 421,
+  "col": 25,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::vec::Vec<horizon_client_render::items::ItemStack, std::alloc::Global> as core::iter::traits::collect::Extend>::extend"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 428,
+  "col": 77,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 429,
+  "col": 23,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::items::Items::resists_cactus"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 431,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::hurt"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 431,
+  "col": 41,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<std::vec::Vec<horizon_client_render::items::ItemStack, std::alloc::Global>>::unwrap_or_default"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 431,
+  "col": 21,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_environment_tick",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::vec::Vec<horizon_client_render::items::ItemStack, std::alloc::Global> as core::iter::traits::collect::Extend>::extend"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 461,
+  "col": 17,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_hurt",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::vec::Vec<horizon_client_render::items::ItemStack, std::alloc::Global> as core::iter::traits::collect::Extend>::extend"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 481,
+  "col": 26,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_inside_block",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 481,
+  "col": 35,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_inside_block",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::deflate"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 499,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_move_towards_closest_space",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 523,
+  "col": 43,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::has_infinite_pickup_delay"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 542,
+  "col": 37,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::tick_move",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<entities::ItemEntity as horizon_client_lib::entity_rules::EntityRules>::get_gravity"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 551,
+  "col": 27,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "u32::wrapping_add"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 551,
+  "col": 49,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "u32::is_multiple_of"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 561,
+  "col": 27,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Vec3::length_squared"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 562,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Vec3::multiply"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 576,
+  "col": 36,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<&'{erased} horizon_core::geometry::border::BorderGeometry>::map"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 578,
+  "col": 31,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 578,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::collisions::EntityCollisions<'{erased}, horizon_client_render::collisions::SceneCollisions<'{erased}, '{erased}>>::resolve"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 579,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::tick_move",
+  "kind": "inherent",
+  "resolution": "dyn (dispatched at run time)",
+  "callee_key": "std::result::Result<horizon_core::geometry::Vec3, std::boxed::Box<dyn [Binder { value: Trait(std::error::Error), bound_vars: [] }] + '{erased}, std::alloc::Global>>::unwrap_or"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 619,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::apply_honey_slide"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 620,
+  "col": 31,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::stuck_multiplier"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 620,
+  "col": 62,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<horizon_core::geometry::Vec3>::unwrap_or"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 628,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::slime_step_on"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 596,
+  "col": 52,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::tick_move::{closure#1}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::abs"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 658,
+  "col": 22,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_tick_settle",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::slime_step_on"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 663,
+  "col": 37,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_tick_settle",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 664,
+  "col": 51,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_tick_settle",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 665,
+  "col": 37,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_tick_settle",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 662,
+  "col": 35,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_tick_settle",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 667,
+  "col": 44,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_tick_settle",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::blocks::BlockFacts::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 681,
+  "col": 60,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_tick_settle",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Vec3::add_vector"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 686,
+  "col": 35,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_tick_settle",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 691,
+  "col": 39,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_tick_settle",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::blocks::BlockFacts::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 702,
+  "col": 22,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_tick_settle",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 709,
+  "col": 26,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_tick_settle",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Vec3::subtract"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 709,
+  "col": 54,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_tick_settle",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Vec3::length_squared"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 704,
+  "col": 39,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_tick_settle::{closure#0}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 705,
+  "col": 36,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_tick_settle::{closure#0}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::blocks::BlockFacts::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 731,
+  "col": 22,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_stuck_multiplier",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 731,
+  "col": 31,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_stuck_multiplier",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::deflate"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 732,
+  "col": 27,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_stuck_multiplier",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::min_position"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 732,
+  "col": 45,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_stuck_multiplier",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::max_position"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 734,
+  "col": 23,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_stuck_multiplier",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 734,
+  "col": 45,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_stuck_multiplier",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 735,
+  "col": 27,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_stuck_multiplier",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 735,
+  "col": 49,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_stuck_multiplier",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 736,
+  "col": 31,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_stuck_multiplier",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 736,
+  "col": 53,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_stuck_multiplier",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 737,
+  "col": 45,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_stuck_multiplier",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 737,
+  "col": 35,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_stuck_multiplier",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::blocks::BlockFacts::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 765,
+  "col": 52,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_slime_step_on",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Vec3::add_vector"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 770,
+  "col": 30,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_slime_step_on",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 770,
+  "col": 20,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_slime_step_on",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::blocks::BlockFacts::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 809,
+  "col": 22,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_apply_honey_slide",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 809,
+  "col": 31,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_apply_honey_slide",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::deflate"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 810,
+  "col": 27,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_apply_honey_slide",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::min_position"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 810,
+  "col": 45,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_apply_honey_slide",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::max_position"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 811,
+  "col": 23,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_apply_honey_slide",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 811,
+  "col": 45,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_apply_honey_slide",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 812,
+  "col": 27,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_apply_honey_slide",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 812,
+  "col": 49,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_apply_honey_slide",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 813,
+  "col": 31,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_apply_honey_slide",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 813,
+  "col": 53,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_apply_honey_slide",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 814,
+  "col": 42,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_apply_honey_slide",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 814,
+  "col": 32,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_apply_honey_slide",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::blocks::BlockFacts::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 815,
+  "col": 30,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_apply_honey_slide",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::honey_block_inside"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 835,
+  "col": 29,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_honey_block_inside",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "[i32; 3_usize]::map"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 842,
+  "col": 46,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_honey_block_inside",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::abs"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 843,
+  "col": 46,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_honey_block_inside",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::abs"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 879,
+  "col": 15,
+  "caller_body": "horizon_client_lib::entities::{impl#7}::__yoake_orig_mergeable",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::has_infinite_pickup_delay"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 905,
+  "col": 29,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_new",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "[horizon_core::geometry::Aabb]::iter"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 905,
+  "col": 36,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_new",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::slice::Iter<'{erased}, horizon_core::geometry::Aabb> as core::iter::traits::iterator::Iterator>::enumerate"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 910,
+  "col": 31,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_new",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::collections::HashMap<(i32, i32, i32), std::vec::Vec<u32, std::alloc::Global>, std::hash::BuildHasherDefault<horizon_core::fast_hash::FxHasher>, std::alloc::Global>::entry"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 910,
+  "col": 48,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_new",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::collections::hash_map::Entry<'{erased}, (i32, i32, i32), std::vec::Vec<u32, std::alloc::Global>, std::alloc::Global>::or_default"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 910,
+  "col": 61,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_new",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::vec::Vec<u32, std::alloc::Global>::push"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 933,
+  "col": 17,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_span",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::min_position"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 933,
+  "col": 41,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_span",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::max_position"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 928,
+  "col": 36,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_span::{closure#0}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 929,
+  "col": 36,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_span::{closure#0}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 930,
+  "col": 36,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_span::{closure#0}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 944,
+  "col": 20,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_is_empty",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::vec::Vec<horizon_core::geometry::Aabb, std::alloc::Global>::is_empty"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 956,
+  "col": 13,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_near",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::vec::Vec<horizon_core::geometry::Aabb, std::alloc::Global>::clear"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 957,
+  "col": 23,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_near",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::vec::Vec<horizon_core::geometry::Aabb, std::alloc::Global>::is_empty"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 965,
+  "col": 52,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_near",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::collections::HashMap<(i32, i32, i32), std::vec::Vec<u32, std::alloc::Global>, std::hash::BuildHasherDefault<horizon_core::fast_hash::FxHasher>, std::alloc::Global>::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 966,
+  "col": 31,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_near",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::vec::Vec<u32, std::alloc::Global> as core::iter::traits::collect::Extend>::extend"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 971,
+  "col": 15,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_near",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "[u32]::sort_unstable"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 972,
+  "col": 15,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_near",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::vec::Vec<u32, std::alloc::Global>::dedup"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 975,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_near",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::vec::Vec<u32, std::alloc::Global> as core::iter::traits::collect::IntoIterator>::into_iter"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 976,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_near",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::vec::IntoIter<u32, std::alloc::Global> as core::iter::traits::iterator::Iterator>::map"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 977,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_near",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::iter::Map<std::vec::IntoIter<u32, std::alloc::Global>, Closure(DefId(0:28715 ~ horizon_client_lib::entities::{impl#8}::__yoake_orig_near::{closure#0}), [i16, Binder { value: extern \"RustCall\" fn((u32,)) -> horizon_core::geometry::Aabb, bound_vars: [] }, (&'{erased} entities::ObstacleGrid,)]) as core::iter::traits::iterator::Iterator>::filter"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 973,
+  "col": 13,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_near",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::vec::Vec<horizon_core::geometry::Aabb, std::alloc::Global> as core::iter::traits::collect::Extend>::extend"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 977,
+  "col": 31,
+  "caller_body": "horizon_client_lib::entities::{impl#8}::__yoake_orig_near::{closure#1}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::intersects"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 995,
+  "col": 32,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_new",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "[entities::ItemEntity]::iter"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 995,
+  "col": 39,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_new",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::slice::Iter<'{erased}, entities::ItemEntity> as core::iter::traits::iterator::Iterator>::enumerate"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 996,
+  "col": 19,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_new",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemCells::add"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1005,
+  "col": 14,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_cell",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1005,
+  "col": 34,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_cell",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1005,
+  "col": 54,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_cell",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1012,
+  "col": 20,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_add",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::collections::HashMap<(i32, i32, i32), std::vec::Vec<u32, std::alloc::Global>, std::hash::BuildHasherDefault<horizon_core::fast_hash::FxHasher>, std::alloc::Global>::entry"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1012,
+  "col": 42,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_add",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::collections::hash_map::Entry<'{erased}, (i32, i32, i32), std::vec::Vec<u32, std::alloc::Global>, std::alloc::Global>::or_default"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1012,
+  "col": 55,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_add",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::vec::Vec<u32, std::alloc::Global>::push"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1023,
+  "col": 40,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_remove",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::collections::HashMap<(i32, i32, i32), std::vec::Vec<u32, std::alloc::Global>, std::hash::BuildHasherDefault<horizon_core::fast_hash::FxHasher>, std::alloc::Global>::get_mut"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1024,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_remove",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::vec::Vec<u32, std::alloc::Global>::retain"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1037,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_moved",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemCells::remove"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1038,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_moved",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemCells::add"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1049,
+  "col": 13,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_near",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::vec::Vec<u32, std::alloc::Global>::clear"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1051,
+  "col": 32,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_near",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::min_position"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1051,
+  "col": 53,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_near",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::max_position"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1059,
+  "col": 52,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_near",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::collections::HashMap<(i32, i32, i32), std::vec::Vec<u32, std::alloc::Global>, std::hash::BuildHasherDefault<horizon_core::fast_hash::FxHasher>, std::alloc::Global>::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1060,
+  "col": 29,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_near",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::vec::Vec<u32, std::alloc::Global>::extend_from_slice"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1065,
+  "col": 13,
+  "caller_body": "horizon_client_lib::entities::{impl#9}::__yoake_orig_near",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "[u32]::sort_unstable"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1088,
+  "col": 32,
+  "caller_body": "horizon_client_lib::entities::merge_with_neighbours",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::mergeable"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1091,
+  "col": 25,
+  "caller_body": "horizon_client_lib::entities::merge_with_neighbours",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1091,
+  "col": 34,
+  "caller_body": "horizon_client_lib::entities::merge_with_neighbours",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::inflate"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1093,
+  "col": 11,
+  "caller_body": "horizon_client_lib::entities::merge_with_neighbours",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemCells::near"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1098,
+  "col": 26,
+  "caller_body": "horizon_client_lib::entities::merge_with_neighbours",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1098,
+  "col": 35,
+  "caller_body": "horizon_client_lib::entities::merge_with_neighbours",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::intersects"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1099,
+  "col": 26,
+  "caller_body": "horizon_client_lib::entities::merge_with_neighbours",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemEntity::mergeable"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1107,
+  "col": 22,
+  "caller_body": "horizon_client_lib::entities::merge_with_neighbours",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::items::ItemStack::same_item_same_components"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1117,
+  "col": 48,
+  "caller_body": "horizon_client_lib::entities::merge_with_neighbours",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<u32 as core::cmp::Ord>::min"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1118,
+  "col": 26,
+  "caller_body": "horizon_client_lib::entities::merge_with_neighbours",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<u32 as core::cmp::Ord>::min"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1124,
+  "col": 53,
+  "caller_body": "horizon_client_lib::entities::merge_with_neighbours",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<i64 as core::cmp::Ord>::max"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1126,
+  "col": 30,
+  "caller_body": "horizon_client_lib::entities::merge_with_neighbours",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<i32 as core::cmp::Ord>::min"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1129,
+  "col": 19,
+  "caller_body": "horizon_client_lib::entities::merge_with_neighbours",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemCells::remove"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1213,
+  "col": 27,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::unstuck",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::average_size"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1214,
+  "col": 25,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::unstuck",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::min_position"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1222,
+  "col": 26,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::unstuck",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<horizon_core::geometry::VoxelShape>::is_some_and"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1235,
+  "col": 44,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::unstuck",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::center"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1236,
+  "col": 44,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::unstuck",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::center"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1236,
+  "col": 61,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::unstuck",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::size"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1237,
+  "col": 14,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::unstuck",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<horizon_core::geometry::Vec3>::map"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1215,
+  "col": 43,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::unstuck::{closure#0}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1215,
+  "col": 77,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::unstuck::{closure#0}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1222,
+  "col": 44,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::unstuck::{closure#1}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::VoxelShape::boxes"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1222,
+  "col": 52,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::unstuck::{closure#1}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "[horizon_core::geometry::Aabb]::iter"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1222,
+  "col": 59,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::unstuck::{closure#1}",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::slice::Iter<'{erased}, horizon_core::geometry::Aabb> as core::iter::traits::iterator::Iterator>::any"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1222,
+  "col": 69,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::unstuck::{closure#1}::{closure#0}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::intersects"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1237,
+  "col": 55,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::unstuck::{closure#2}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::size"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1237,
+  "col": 24,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::unstuck::{closure#2}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Vec3::subtract"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1250,
+  "col": 49,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_can_merge",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "i32::wrapping_sub"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1263,
+  "col": 14,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_split",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<[u32; 11_usize] as core::iter::traits::collect::IntoIterator>::into_iter"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1264,
+  "col": 14,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_split",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::array::IntoIter<u32, 11_usize> as core::iter::traits::iterator::Iterator>::find"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1265,
+  "col": 14,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_split",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<u32>::unwrap_or"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1312,
+  "col": 14,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ExperienceOrb::update_fluids"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1314,
+  "col": 29,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1315,
+  "col": 29,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1316,
+  "col": 29,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1313,
+  "col": 27,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1318,
+  "col": 27,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ExperienceOrb::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1327,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::blocks::BlockFacts::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1330,
+  "col": 44,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::min"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1334,
+  "col": 37,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<entities::ExperienceOrb as horizon_client_lib::entity_rules::EntityRules>::get_gravity"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1336,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::blocks::BlockFacts::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1350,
+  "col": 68,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::sqrt"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1361,
+  "col": 19,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<[f64; 3_usize]>::is_none"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1366,
+  "col": 74,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::move_by"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1368,
+  "col": 22,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ExperienceOrb::move_towards_closest_space"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1375,
+  "col": 29,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<&'{erased} horizon_core::geometry::border::BorderGeometry>::map"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1377,
+  "col": 14,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::collisions::SceneCollisions<'{erased}, '{erased}>::resolve_in_border"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1378,
+  "col": 14,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "dyn (dispatched at run time)",
+  "callee_key": "std::result::Result<horizon_core::geometry::Vec3, std::boxed::Box<dyn [Binder { value: Trait(std::error::Error), bound_vars: [] }] + '{erased}, std::alloc::Global>>::unwrap_or"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1388,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::abs"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1391,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::abs"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1402,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1403,
+  "col": 47,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1404,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1401,
+  "col": 31,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1406,
+  "col": 31,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::blocks::BlockFacts::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1440,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#10}::__yoake_orig_move_towards_closest_space",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ExperienceOrb::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1467,
+  "col": 17,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_towards_closest_space",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::min_position"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1467,
+  "col": 43,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_towards_closest_space",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::max_position"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1471,
+  "col": 14,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_towards_closest_space",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1472,
+  "col": 14,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_towards_closest_space",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1473,
+  "col": 14,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_towards_closest_space",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1486,
+  "col": 29,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_towards_closest_space",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1486,
+  "col": 19,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_towards_closest_space",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::blocks::BlockFacts::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1499,
+  "col": 22,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_towards_closest_space",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Vec3::scale"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1531,
+  "col": 24,
+  "caller_body": "horizon_client_lib::entities::{impl#11}::__yoake_orig_death_reward",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "i32::wrapping_mul"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1531,
+  "col": 40,
+  "caller_body": "horizon_client_lib::entities::{impl#11}::__yoake_orig_death_reward",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<i32 as core::cmp::Ord>::clamp"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1578,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::{impl#11}::__yoake_orig_give",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "i32::saturating_add"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1578,
+  "col": 56,
+  "caller_body": "horizon_client_lib::entities::{impl#11}::__yoake_orig_give",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<i32 as core::cmp::Ord>::max"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1583,
+  "col": 29,
+  "caller_body": "horizon_client_lib::entities::{impl#11}::__yoake_orig_give",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<i32>::get_or_insert"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1630,
+  "col": 22,
+  "caller_body": "horizon_client_lib::entities::{impl#12}::__yoake_orig_bounds",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::Painting::step"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1630,
+  "col": 29,
+  "caller_body": "horizon_client_lib::entities::{impl#12}::__yoake_orig_bounds",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "[i32; 3_usize]::map"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1631,
+  "col": 22,
+  "caller_body": "horizon_client_lib::entities::{impl#12}::__yoake_orig_bounds",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::Painting::left"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1631,
+  "col": 29,
+  "caller_body": "horizon_client_lib::entities::{impl#12}::__yoake_orig_bounds",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "[i32; 3_usize]::map"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1667,
+  "col": 10,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_dye_index",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "[&'{erased} str]::iter"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1668,
+  "col": 10,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_dye_index",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<std::slice::Iter<'{erased}, &'{erased} str> as core::iter::traits::iterator::Iterator>::position"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1669,
+  "col": 10,
+  "caller_body": "horizon_client_lib::entities::__yoake_orig_dye_index",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<usize>::unwrap_or"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1710,
+  "col": 63,
+  "caller_body": "horizon_client_lib::entities::{impl#13}::__yoake_orig_color_name",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<u8 as core::cmp::Ord>::min"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1718,
+  "col": 46,
+  "caller_body": "horizon_client_lib::entities::{impl#13}::__yoake_orig_item",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::Cushion::color_name"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1771,
+  "col": 35,
+  "caller_body": "horizon_client_lib::entities::{impl#14}::__yoake_orig_step",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<u8 as core::cmp::Ord>::min"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1794,
+  "col": 22,
+  "caller_body": "horizon_client_lib::entities::{impl#14}::__yoake_orig_bounds",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ItemFrame::step"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1794,
+  "col": 29,
+  "caller_body": "horizon_client_lib::entities::{impl#14}::__yoake_orig_bounds",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "[i32; 3_usize]::map"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1907,
+  "col": 14,
+  "caller_body": "horizon_client_lib::entities::{impl#16}::in_block_state",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<entities::StandClimbing<'{erased}> as horizon_world::climbing::ClimbingWorld>::block_state"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1913,
+  "col": 23,
+  "caller_body": "horizon_client_lib::entities::{impl#16}::block_state",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1974,
+  "col": 32,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_name_with_tag",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::items::ItemStack::data"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1974,
+  "col": 39,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_name_with_tag",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<&'{erased} horizon_client_render::item_data::StackData>::and_then"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 1974,
+  "col": 72,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_name_with_tag::{closure#0}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<horizon_world::nbt::Tag>::as_ref"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2006,
+  "col": 23,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_render_position",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Vec3::lerp"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2099,
+  "col": 56,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::on_pos_legacy",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2104,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::on_pos_legacy",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2106,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::on_pos_legacy",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2147,
+  "col": 46,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_swap_locked",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<horizon_client_render::items::ItemStack>::is_some"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2168,
+  "col": 30,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ArmorStand::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2168,
+  "col": 39,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::min_position"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2168,
+  "col": 60,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ArmorStand::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2168,
+  "col": 69,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_core::geometry::Aabb::max_position"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2171,
+  "col": 23,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2171,
+  "col": 45,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2172,
+  "col": 27,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2172,
+  "col": 48,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::ceil"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2173,
+  "col": 31,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2173,
+  "col": 53,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2174,
+  "col": 43,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2174,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::blocks::BlockFacts::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2197,
+  "col": 47,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_environment_tick",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<i32 as core::cmp::Ord>::max"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2199,
+  "col": 83,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_environment_tick",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ArmorStand::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2240,
+  "col": 14,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_feet_are_leather_boots",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<horizon_client_render::items::ItemStack>::as_ref"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2241,
+  "col": 14,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_feet_are_leather_boots",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<&'{erased} horizon_client_render::items::ItemStack>::is_some_and"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2278,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ArmorStand::feet_are_leather_boots"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2279,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "bool::then_some"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2285,
+  "col": 20,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::abs"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2286,
+  "col": 20,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::abs"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2287,
+  "col": 20,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::abs"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2291,
+  "col": 17,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<entities::ArmorStand as horizon_client_lib::entity_rules::EntityRules>::is_no_gravity"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2299,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2300,
+  "col": 47,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2301,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::floor"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2298,
+  "col": 37,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::world::World::block"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2303,
+  "col": 19,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::blocks::BlockFacts::get"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2321,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::clamp"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2322,
+  "col": 33,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::clamp"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2323,
+  "col": 26,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::is_nan"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2324,
+  "col": 37,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::max"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2336,
+  "col": 18,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ArmorStand::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2340,
+  "col": 20,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::option::Option<&'{erased} horizon_core::geometry::border::BorderGeometry>::map"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2335,
+  "col": 10,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_client_render::collisions::SceneCollisions<'{erased}, '{erased}>::resolve_in_border"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2362,
+  "col": 57,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "entities::ArmorStand::bounds"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2362,
+  "col": 22,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "horizon_world::ground_support::GroundState::check_support"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2367,
+  "col": 37,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::abs"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2374,
+  "col": 37,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::abs"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2315,
+  "col": 14,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_move::{closure#0}",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "std::result::Result<bool, horizon_world::climbing::ClimbingError<!>>::unwrap_or"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2401,
+  "col": 28,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_settle",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<entities::ArmorStand as horizon_client_lib::entity_rules::EntityRules>::get_gravity"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2409,
+  "col": 58,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_settle",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::abs"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2409,
+  "col": 87,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_settle",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::abs"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2426,
+  "col": 29,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_settle",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<entities::ArmorStand as horizon_client_lib::entity_rules::EntityRules>::get_gravity"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2427,
+  "col": 54,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_settle",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::abs"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2427,
+  "col": 83,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_settle",
+  "kind": "inherent",
+  "resolution": "concrete",
+  "callee_key": "f64::abs"
+ },
+ {
+  "file": "crates/horizon-client-lib/../horizon-client/src/entities.rs",
+  "line": 2437,
+  "col": 36,
+  "caller_body": "horizon_client_lib::entities::{impl#17}::__yoake_orig_tick_settle",
+  "kind": "trait",
+  "resolution": "concrete",
+  "callee_key": "<entities::ArmorStand as horizon_client_lib::entity_rules::EntityRules>::get_gravity"
+ }
+]
