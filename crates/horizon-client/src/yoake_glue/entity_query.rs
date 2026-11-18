@@ -6,7 +6,7 @@
 pub mod yoake_glue {
     // The compiler, not a grep, guarantees the glue has no unsafe code.
     #![forbid(unsafe_code)]
-    use yoake_slice::activation::{self, FieldTable};
+    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, Status};
     use yoake_slice::codec::{self, CallError, Decode, Decoder, Encode};
 
     fn enc_crate__game__execution_role__ExecutionRole(v: &crate::game::execution_role::ExecutionRole, out: &mut Vec<u8>) {

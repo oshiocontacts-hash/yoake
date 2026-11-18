@@ -37,6 +37,12 @@ pub enum BoundKind<'a> {
     Setter(&'a FieldReport, &'a Shape),
     /// A setter that exists only as a reserved id: the call returns `CallError::ReadOnly`.
     ReadOnlySetter(&'a FieldReport),
+    /// `Game.<name>#handle`: makes a path handle (index into the target's `game_paths`).
+    PathHandle(&'a crate::GamePathCfg, usize),
+}
+
+pub fn path_key(label: &str, path: &crate::GamePathCfg) -> String {
+    format!("{label}::Game.{}#handle", path.name)
 }
 
 pub fn getter_key(field: &FieldReport) -> String {
@@ -48,8 +54,15 @@ pub fn setter_key(field: &FieldReport) -> String {
 }
 
 /// The lock keys and signatures of everything this module binds.
-pub fn wanted(scan: &ModuleScan) -> BTreeMap<String, (String, &'static str)> {
+pub fn wanted(scan: &ModuleScan, label: &str, game_paths: &[crate::GamePathCfg]) -> BTreeMap<String, (String, &'static str)> {
     let mut out = BTreeMap::new();
+    for path in game_paths {
+        let sig = match &path.by_id {
+            Some(by_id) => format!("handle {} by {}: {}", path.ty, by_id.field, by_id.ty),
+            None => format!("handle {}", path.ty),
+        };
+        out.insert(path_key(label, path), (format!("{sig} at Game.{}", path.path.join(".")), "bound"));
+    }
     for report in scan.fns.iter().filter(|r| matches!(r.cat, Cat::BoundA | Cat::BoundMech)) {
         out.insert(report.path.clone(), (report.sig.clone(), "bound"));
     }
@@ -61,8 +74,19 @@ pub fn wanted(scan: &ModuleScan) -> BTreeMap<String, (String, &'static str)> {
     out
 }
 
-pub fn render(an: &Analyzer<'_>, module_label: &str, crate_name: &str, scan: &ModuleScan, ids: &BTreeMap<String, u32>) -> String {
+pub fn render(
+    an: &Analyzer<'_>,
+    module_label: &str,
+    crate_name: &str,
+    scan: &ModuleScan,
+    ids: &BTreeMap<String, u32>,
+    game_paths: &[crate::GamePathCfg],
+    root_name: Option<&str>,
+) -> String {
     let mut bound: Vec<Bound<'_>> = Vec::new();
+    for (index, path) in game_paths.iter().enumerate() {
+        bound.push(Bound { id: ids[&path_key(module_label, path)], path: path_key(module_label, path), what: BoundKind::PathHandle(path, index) });
+    }
     for report in scan.fns.iter().filter(|r| matches!(r.cat, Cat::BoundA | Cat::BoundMech)) {
         let plan = report.plan.as_ref().expect("a bound function has a plan");
         bound.push(Bound { id: ids[&report.path], path: report.path.clone(), what: BoundKind::Fn(report, plan) });
@@ -92,7 +116,7 @@ pub fn render(an: &Analyzer<'_>, module_label: &str, crate_name: &str, scan: &Mo
                 }
             }
             BoundKind::Getter(_, s) | BoundKind::Setter(_, s) => roots.push(s),
-            BoundKind::ReadOnlySetter(_) => {}
+            BoundKind::ReadOnlySetter(_) | BoundKind::PathHandle(..) => {}
         }
     }
     let defs = reachable_defs(an, &roots);
@@ -106,7 +130,7 @@ pub fn render(an: &Analyzer<'_>, module_label: &str, crate_name: &str, scan: &Mo
     let _ = writeln!(out, "pub mod yoake_glue {{");
     let _ = writeln!(out, "    // The compiler, not a grep, guarantees the glue has no unsafe code.");
     let _ = writeln!(out, "    #![forbid(unsafe_code)]");
-    let _ = writeln!(out, "    use yoake_slice::activation::{{self, FieldTable}};");
+    let _ = writeln!(out, "    use yoake_slice::activation::{{self, Accessor, FieldTable, PathRoot, Status}};");
     let _ = writeln!(out, "    use yoake_slice::codec::{{self, CallError, Decode, Decoder, Encode}};");
     let _ = writeln!(out);
 
@@ -117,6 +141,9 @@ pub fn render(an: &Analyzer<'_>, module_label: &str, crate_name: &str, scan: &Mo
         render_binding(b, &an.defs, &mut out);
     }
     render_tables(an, scan, &mut out);
+    if let (false, Some(root)) = (game_paths.is_empty(), root_name) {
+        render_path_root(an, root, game_paths, &mut out);
+    }
     render_dispatch(&bound, &mut out);
     out.push_str("}\n");
     out
@@ -365,6 +392,20 @@ fn render_binding(b: &Bound<'_>, defs: &[NamedDef], out: &mut String) {
         BoundKind::ReadOnlySetter(_) => {
             let _ = writeln!(out, "    // read-only: the id is reserved, the dispatcher refuses the call\n");
         }
+        BoundKind::PathHandle(path, index) => {
+            let _ = writeln!(out, "    fn call_{id}(root: u64, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {{");
+            let _ = writeln!(out, "        let mut dec = Decoder::new(args);\n        let d = &mut dec;");
+            let steps = match &path.by_id {
+                Some(by_id) => {
+                    let _ = writeln!(out, "        let key = <{} as Decode>::decode(d)?;", by_id.ty);
+                    format!("vec![Accessor::Field({index}), Accessor::Id(u64::from(key))]")
+                }
+                None => format!("vec![Accessor::Field({index})]"),
+            };
+            let _ = writeln!(out, "        d.finish()?;");
+            let _ = writeln!(out, "        let handle = activation::open_path(root, {steps}).map_err(CallError::from)?;");
+            let _ = writeln!(out, "        Encode::encode(&handle, out);\n        Ok(())\n    }}\n");
+        }
         BoundKind::Setter(field, shape) => {
             let _ = writeln!(out, "    fn call_{id}(recv: &mut {}, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {{", field.owner_path);
             let _ = writeln!(out, "        let mut dec = Decoder::new(args);
@@ -513,6 +554,9 @@ fn render_dispatch(bound: &[Bound<'_>], out: &mut String) {
             BoundKind::ReadOnlySetter(_) => {
                 let _ = writeln!(out, "            {id} => Err(CallError::ReadOnly(id)),");
             }
+            BoundKind::PathHandle(..) => {
+                let _ = writeln!(out, "            {id} => call_{id}(handle, args, out),");
+            }
             BoundKind::Getter(field, _) | BoundKind::Setter(field, _) => {
                 let _ = writeln!(out, "            {id} => activation::with_arg::<{}, _>(handle, |recv| call_{id}(recv, args, out)).map_err(CallError::from).and_then(|r| r),", field.owner_path);
             }
@@ -536,4 +580,49 @@ fn render_dispatch(bound: &[Bound<'_>], out: &mut String) {
         let _ = writeln!(out, "        }};");
         let _ = writeln!(out, "        if result.is_err() {{\n            out.truncate(start);\n        }}\n        result\n    }}");
     }
+}
+
+/// `impl PathRoot for Game`: one `match` arm per configured path. The glue sits inside a module below
+/// `game`, so the private fields of `Game` are reachable.
+fn render_path_root(an: &Analyzer<'_>, root_name: &str, game_paths: &[crate::GamePathCfg], out: &mut String) {
+    let root = root_path(an, root_name);
+    let _ = writeln!(out, "    /// Paths a guest may reach from the `Game` root (see `game_paths` in bindgen.json).");
+    let _ = writeln!(out, "    impl PathRoot for {root}<'_> {{");
+    let _ = writeln!(out, "        fn resolve(&mut self, path: &[Accessor], f: &mut dyn FnMut(&mut dyn std::any::Any)) -> Result<(), Status> {{");
+    let _ = writeln!(out, "            match path {{");
+    for (index, path) in game_paths.iter().enumerate() {
+        let place = format!("self.{}", path.path.iter().map(|p| ident(p)).collect::<Vec<_>>().join("."));
+        match &path.by_id {
+            Some(by_id) => {
+                let _ = writeln!(out, "                [Accessor::Field({index}), Accessor::Id(id)] => match {place}.iter_mut().find(|e| u64::from(e.{}) == *id) {{", ident(&by_id.field));
+                let _ = writeln!(out, "                    Some(e) => {{\n                        f(e);\n                        Ok(())\n                    }}");
+                let _ = writeln!(out, "                    None => Err(Status::Stale),\n                }},");
+            }
+            None => {
+                let _ = writeln!(out, "                [Accessor::Field({index})] => {{\n                    f(&mut {place});\n                    Ok(())\n                }}");
+            }
+        }
+    }
+    let _ = writeln!(out, "                _ => Err(Status::BadField),\n            }}\n        }}\n    }}\n");
+}
+
+/// The path of the root struct (`crate::game::Game`) in the target crate.
+fn root_path(an: &Analyzer<'_>, name: &str) -> String {
+    for (doc_index, doc) in an.uni.docs.iter().enumerate() {
+        if doc.name != an.target.crate_name {
+            continue;
+        }
+        if let Some(index) = doc.v.get("index").and_then(serde_json::Value::as_object) {
+            let mut found: Vec<u64> = index
+                .iter()
+                .filter(|(_, item)| item.get("name").and_then(serde_json::Value::as_str) == Some(name) && item.pointer("/inner/struct").is_some())
+                .filter_map(|(id, _)| id.parse().ok())
+                .collect();
+            found.sort_unstable();
+            if let Some(id) = found.first() {
+                return an.rust_path(crate::doc::ItemRef { doc: doc_index, id: *id });
+            }
+        }
+    }
+    format!("crate::{name}")
 }

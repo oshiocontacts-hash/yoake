@@ -5,6 +5,7 @@ name: yoake-bindgen
 # longer generated, and the engine must compile with the glue.
 
 on:
+  # Rustdoc inputs of the generator are the four crates below the glue's own (no YAML anchors in Actions).
   pull_request:
     paths:
       - 'crates/yoake-bindgen/**'
@@ -12,6 +13,26 @@ on:
       - 'crates/horizon-items/**'
       - 'crates/horizon-client/**'
       - 'crates/horizon-client-lib/**'
+      - 'crates/horizon-core/**'
+      - 'crates/horizon-world/**'
+      - 'crates/horizon-client-core/**'
+      - 'Cargo.lock'
+      - '.github/workflows/yoake-bindgen.yml'
+  push:
+    branches:
+      - main
+      - 'yoake/**'
+      - 'yoake2/**'
+    paths:
+      - 'crates/yoake-bindgen/**'
+      - 'crates/yoake-slice/**'
+      - 'crates/horizon-items/**'
+      - 'crates/horizon-client/**'
+      - 'crates/horizon-client-lib/**'
+      - 'crates/horizon-core/**'
+      - 'crates/horizon-world/**'
+      - 'crates/horizon-client-core/**'
+      - 'Cargo.lock'
       - '.github/workflows/yoake-bindgen.yml'
   workflow_dispatch:
 

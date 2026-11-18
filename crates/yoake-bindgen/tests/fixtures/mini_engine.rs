@@ -109,6 +109,8 @@ pub struct Thing {
     locked: Locked,
     table: HashMap<String, i64>,
     cell: Opaque,
+    /// What the Game root finds a `Thing` by.
+    pub serial: u32,
 }
 
 impl Thing {
@@ -127,6 +129,7 @@ impl Thing {
             locked: Locked { secret: 9, label: None },
             table: HashMap::new(),
             cell: Opaque(std::cell::Cell::new(4)),
+            serial: n as u32,
         }
     }
 
@@ -277,6 +280,7 @@ pub struct Game<'a> {
     value: u32,
     names: &'a [&'a str],
     pub things: Vec<Thing>,
+    pub lone: Thing,
 }
 
 impl Game<'_> {
@@ -314,6 +318,11 @@ impl Game<'_> {
 include!("glue/glue.rs");
 
 #[cfg(glue)]
+thread_local! {
+    static KEPT_PATH: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(glue)]
 fn main() {
     use yoake_slice::codec::{CallError, Decoder};
 
@@ -335,7 +344,7 @@ fn main() {
 
     // the Game root
     let names = ["a", "b"];
-    let mut game = Game { value: 3, names: &names, things: vec![Thing::new(1)] };
+    let mut game = Game { value: 3, names: &names, things: vec![Thing::new(1)], lone: Thing::new(5) };
     let mut out = Vec::new();
     yoake_glue::call_game(&mut game, id("mini::Game::value"), &[], &mut out).unwrap();
     assert_eq!(decode::<u32>(&out), 3);
@@ -377,6 +386,72 @@ fn main() {
     assert_eq!(yoake_glue::call_game(&mut game, 99_999, &[], &mut out), Err(CallError::UnknownBinding(99_999)));
     assert!(out.is_empty());
 
+    // Game-root path handles: objects reached from the root by id, re-borrowed on every call
+    let mut world = Game { value: 3, names: &names, things: vec![Thing::new(1), Thing::new(2)], lone: Thing::new(5) };
+    let removed = std::cell::Cell::new(0u64);
+    let mut during_original = Vec::new();
+    let (_, finished) = activation::scope_root(
+        &mut world,
+        &mut |g: &mut Game| {
+            // inside `original` the whole activation is lent: a path handle is Locked
+            let mut o = Vec::new();
+            during_original.push(yoake_glue::call(removed.get(), id("mini::Thing::bump"), &bytes(|b| 1i32.encode(b)), &mut o));
+            g.things.retain(|t| t.serial != 1);
+            0
+        },
+        |root| {
+            let mut o = Vec::new();
+            let mut get = |serial: u32| -> Result<u64, CallError> {
+                o.clear();
+                yoake_glue::call(root, id("mini::Game.thing#handle"), &bytes(|b| serial.encode(b)), &mut o)?;
+                Ok(decode::<u64>(&o))
+            };
+            let h1 = get(1).unwrap();
+            let h2 = get(2).unwrap();
+            assert_eq!(get(77), Err(CallError::Handle(yoake_slice::activation::Status::Stale)), "no such object");
+            removed.set(h1);
+            let mut out = Vec::new();
+            yoake_glue::call(h2, id("mini::Thing::bump"), &bytes(|b| 5i32.encode(b)), &mut out).unwrap();
+            assert_eq!(decode::<i32>(&out), 7, "Thing 2 plus 5");
+            out.clear();
+            // fields through the path, read and written (pos is writable)
+            let pos = bytes(|b| {
+                1.5f64.encode(b);
+                2.5f64.encode(b);
+                3.5f64.encode(b);
+            });
+            yoake_glue::call(h2, id("mini::Thing.pos#set"), &pos, &mut out).unwrap();
+            yoake_glue::call(h2, id("mini::Thing.pos#get"), &[], &mut out).unwrap();
+            assert_eq!(out, pos);
+            out.clear();
+            // a field with no path argument (`Game.lone`)
+            yoake_glue::call(root, id("mini::Game.lone#handle"), &[], &mut out).unwrap();
+            let lone = decode::<u64>(&out);
+            out.clear();
+            yoake_glue::call(lone, id("mini::Thing.name#get"), &[], &mut out).unwrap();
+            assert_eq!(decode::<String>(&out), "thing");
+            out.clear();
+            // the root handle is not a Thing
+            assert_eq!(yoake_glue::call(root, id("mini::Thing::bump"), &bytes(|b| 1i32.encode(b)), &mut out), Err(CallError::Handle(yoake_slice::activation::Status::WrongType)));
+            // `original` removes Thing 1: its handle is Stale afterwards, the others are not
+            activation::run_original(root).unwrap();
+            assert_eq!(yoake_glue::call(h1, id("mini::Thing::bump"), &bytes(|b| 1i32.encode(b)), &mut out), Err(CallError::Handle(yoake_slice::activation::Status::Stale)));
+            yoake_glue::call(h2, id("mini::Thing::bump"), &bytes(|b| 1i32.encode(b)), &mut out).unwrap();
+            assert_eq!(decode::<i32>(&out), 8);
+            KEPT_PATH.with(|k| k.set(h2));
+        },
+    );
+    assert_eq!(finished.original_calls, 1);
+    assert_eq!(during_original, vec![Err(CallError::Handle(yoake_slice::activation::Status::Locked))]);
+    assert_eq!(world.things.len(), 1);
+    assert_eq!(world.things[0].count, 8);
+    // the activation is over: its path handles are Stale
+    let mut out = Vec::new();
+    assert_eq!(
+        yoake_glue::call(KEPT_PATH.with(|k| k.get()), id("mini::Thing::bump"), &bytes(|b| 1i32.encode(b)), &mut out),
+        Err(CallError::Handle(yoake_slice::activation::Status::Stale))
+    );
+    assert_eq!(activation::live_path_handles(), 0);
     // free functions and associated functions
     let args = bytes(|b| [[0.0f64, 2.0, 4.0], [4.0, 8.0, 12.0]].encode(b));
     yoake_glue::call(0, id("mini::midpoint"), &args, &mut out).unwrap();

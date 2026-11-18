@@ -2713,6 +2713,48 @@
       "path": "items::Items::mining_speed",
       "sig": "fn mining_speed(&Self, Option<&ItemStack>, &str) -> f32",
       "status": "bound"
+    },
+    {
+      "id": 453,
+      "path": "game_items::Game.armor_stand#handle",
+      "sig": "handle horizon_client_lib::entities::ArmorStand by id: u32 at Game.armor_stands",
+      "status": "bound"
+    },
+    {
+      "id": 454,
+      "path": "game_items::Game.cushion#handle",
+      "sig": "handle horizon_client_lib::entities::Cushion by id: u32 at Game.cushions",
+      "status": "bound"
+    },
+    {
+      "id": 455,
+      "path": "game_items::Game.experience#handle",
+      "sig": "handle horizon_client_lib::entities::Experience at Game.experience",
+      "status": "bound"
+    },
+    {
+      "id": 456,
+      "path": "game_items::Game.experience_orb#handle",
+      "sig": "handle horizon_client_lib::entities::ExperienceOrb by id: u32 at Game.orbs",
+      "status": "bound"
+    },
+    {
+      "id": 457,
+      "path": "game_items::Game.item_entity#handle",
+      "sig": "handle horizon_client_lib::entities::ItemEntity by id: u32 at Game.dropped",
+      "status": "bound"
+    },
+    {
+      "id": 458,
+      "path": "game_items::Game.item_frame#handle",
+      "sig": "handle horizon_client_lib::entities::ItemFrame by id: u32 at Game.item_frames",
+      "status": "bound"
+    },
+    {
+      "id": 459,
+      "path": "game_items::Game.painting#handle",
+      "sig": "handle horizon_client_lib::entities::Painting by id: u32 at Game.paintings",
+      "status": "bound"
     }
   ]
 }

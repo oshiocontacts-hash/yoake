@@ -23,7 +23,7 @@
 //! # Unsafe surface
 //!
 //! Exactly these functions contain `unsafe` (each block marked `SAFETY`): `get_impl`, `set_impl`,
-//! `run_cell`, `run_cell2`, `with_arg` (MX3G1: typed receiver for generated glue, `TypeId`-checked)
+//! `run_cell`, `run_cell2`, `with_arg` (MX3G1: typed receiver for generated glue, `TypeId`-checked), `resolve_impl`, `open_path` and `with_path` (MX3R1: path handles; each calls a root's resolver while the activation is locked)
 //! and the three call sites that invoke them through the stored function pointers ([`get`], [`set`],
 //! [`run_original`]).
 //!
@@ -40,7 +40,7 @@
 //! use yoake_slice::activation::Activation;
 //! ```
 
-use std::any::TypeId;
+use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -63,6 +63,8 @@ pub enum Status {
     NoSuchArg = 4,
     /// [`with_arg`]: the argument behind the handle is not a `T` (MX3G1).
     WrongType = 5,
+    /// A path handle could not be made: this activation already holds [`MAX_PATHS_PER_ACTIVATION`].
+    LimitReached = 6,
 }
 
 /// A handle root (MX3C1 "paths from a root"). Only the hook-argument root exists in the slice.
@@ -83,6 +85,29 @@ impl Root {
     }
 }
 
+/// One step of an accessor path from a root (MX3R1, design 4b: "handles are paths from a root").
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Accessor {
+    /// A field of the current object, by the generator's index (`Game.dropped` is `Field(n)`).
+    Field(u32),
+    /// The element of a list whose id field equals this (an entity by id).
+    Id(u64),
+    /// The element at this position of a list.
+    Index(u32),
+}
+
+/// The engine side of a root (`Game`): finds the object at a path and lends it to `f` as `&mut dyn Any`.
+/// Generated code implements it with a `match` over the paths it knows; an object that is gone is
+/// `Err(Status::Stale)`, a path it does not know `Err(Status::BadField)`. `f` runs at most once.
+pub trait PathRoot {
+    fn resolve(&mut self, path: &[Accessor], f: &mut dyn FnMut(&mut dyn Any)) -> Result<(), Status>;
+}
+
+type ResolveFn = unsafe fn(*mut (), &[Accessor], &mut dyn FnMut(&mut dyn Any)) -> Result<(), Status>;
+
+/// Marks the argument slot of a path root; no user type can be this.
+struct RootMarker;
+
 /// Typed field access for one argument type; the engine-specific part a generator would emit.
 /// Both take `&mut T`: an accessor may call hooked engine functions on its receiver.
 pub struct FieldTable<T> {
@@ -99,6 +124,8 @@ struct ArgSlot {
     table: *const (),
     get: unsafe fn(*mut (), *const (), u32) -> Option<i64>,
     set: unsafe fn(*mut (), *const (), u32, i64) -> bool,
+    /// Present for a path root (`scope_root`).
+    resolve: Option<ResolveFn>,
 }
 
 impl ArgSlot {
@@ -109,8 +136,30 @@ impl ArgSlot {
             table: (table as *const FieldTable<T>).cast(),
             get: get_impl::<T>,
             set: set_impl::<T>,
+            resolve: None,
         }
     }
+
+    /// A path root: no scalar fields, only path resolution. `G` may carry a lifetime (`Game<'a>`): the
+    /// type is erased to a pointer and a function pointer whose signature has no lifetime in it.
+    fn new_root<G: PathRoot>(ptr: *mut G) -> Self {
+        Self {
+            type_id: TypeId::of::<RootMarker>(),
+            ptr: ptr.cast(),
+            table: std::ptr::null(),
+            get: |_, _, _| None,
+            set: |_, _, _, _| false,
+            resolve: Some(resolve_impl::<G>),
+        }
+    }
+}
+
+/// # Safety
+/// `ptr` is a live `*mut G` with no other reference in use (the activation is locked for the call).
+unsafe fn resolve_impl<G: PathRoot>(ptr: *mut (), path: &[Accessor], f: &mut dyn FnMut(&mut dyn Any)) -> Result<(), Status> {
+    // SAFETY: caller contract.
+    let root = unsafe { &mut *(ptr as *mut G) };
+    root.resolve(path, f)
 }
 
 /// # Safety
@@ -151,6 +200,65 @@ impl Acts {
     fn find(&mut self, serial: u64) -> Option<&mut Record> {
         self.stack.iter_mut().rev().find(|record| record.serial == serial)
     }
+}
+
+/// Most path handles one activation may hold.
+pub const MAX_PATHS_PER_ACTIVATION: usize = 256;
+
+/// Path handles have this bit set (hook-argument handles never do: their activation serial is 56 bits).
+const PATH_BIT: u64 = 1 << 63;
+
+struct LivePath {
+    activation: u64,
+    path: Vec<Accessor>,
+}
+
+#[derive(Default)]
+struct PathEntry {
+    generation: u32,
+    live: Option<LivePath>,
+}
+
+#[derive(Default)]
+struct PathTable {
+    entries: Vec<PathEntry>,
+    free: Vec<usize>,
+}
+
+impl PathTable {
+    fn bits(slot: usize, generation: u32) -> u64 {
+        PATH_BIT | (u64::from(generation & 0x7fff_ffff) << 32) | slot as u64
+    }
+
+    fn lookup(&self, handle: u64) -> Option<(u64, Vec<Accessor>)> {
+        let slot = (handle & 0xffff_ffff) as usize;
+        let generation = ((handle >> 32) & 0x7fff_ffff) as u32;
+        let entry = self.entries.get(slot)?;
+        if entry.generation & 0x7fff_ffff != generation {
+            return None;
+        }
+        entry.live.as_ref().map(|l| (l.activation, l.path.clone()))
+    }
+
+    /// Frees every handle of an activation; the slots' generations move on, so old handles are `Stale`.
+    fn release_activation(&mut self, activation: u64) {
+        for (slot, entry) in self.entries.iter_mut().enumerate() {
+            if entry.live.as_ref().is_some_and(|l| l.activation == activation) {
+                entry.live = None;
+                entry.generation = entry.generation.wrapping_add(1);
+                self.free.push(slot);
+            }
+        }
+    }
+}
+
+thread_local! {
+    static PATHS: RefCell<PathTable> = RefCell::new(PathTable::default());
+}
+
+/// How many path handles are alive on this thread (tests: "freed at the end").
+pub fn live_path_handles() -> usize {
+    PATHS.with(|p| p.borrow().entries.iter().filter(|e| e.live.is_some()).count())
 }
 
 static NEXT_SERIAL: AtomicU64 = AtomicU64::new(1);
@@ -216,6 +324,11 @@ impl Guard<'_> {
             match acts.stack.iter().rposition(|record| record.serial == self.serial) {
                 Some(index) => {
                     let record = acts.stack.remove(index);
+                    PATHS.with(|p| {
+                        if let Ok(mut paths) = p.try_borrow_mut() {
+                            paths.release_activation(self.serial);
+                        }
+                    });
                     Finished { original_calls: record.original_calls, last_result: record.last_result }
                 }
                 None => Finished { original_calls: 0, last_result: 0 },
@@ -298,6 +411,19 @@ pub fn scope2<A: 'static, B: 'static, R>(
     (result, guard.close())
 }
 
+/// [`scope`] for a root that guests reach objects through (`Game`): argument 0 is the root, its handle is
+/// the root handle, and [`open_path`] makes path handles that live exactly as long as this call. The
+/// root is borrowed for the whole call; a path handle re-borrows from it on every use.
+pub fn scope_root<G: PathRoot, R>(root: &mut G, original: &mut dyn FnMut(&mut G) -> i64, body: impl FnOnce(u64) -> R) -> (R, Finished) {
+    let a: *mut G = root;
+    let mut cell = Cell1 { a, original };
+    let mut args: [Option<ArgSlot>; MAX_ARGS] = [None; MAX_ARGS];
+    args[0] = Some(ArgSlot::new_root(a));
+    let mut guard = Guard::open(args, 1, (&mut cell as *mut Cell1<'_, G>).cast(), run_cell::<G>);
+    let result = body(guard.handle());
+    (result, guard.close())
+}
+
 fn locate<R>(handle: u64, f: impl FnOnce(&mut Record, usize) -> Result<R, Status>) -> Result<R, Status> {
     let Root::HookArg { activation, arg } = Root::from_handle(handle);
     ACTS.with(|acts| {
@@ -335,6 +461,9 @@ impl Drop for Unlend {
 
 /// Locks the activation and returns the argument's slot, so it can be used with the arena unborrowed.
 fn lend_arg(handle: u64) -> Result<(ArgSlot, Unlend), Status> {
+    if handle & PATH_BIT != 0 {
+        return Err(Status::WrongType);
+    }
     let Root::HookArg { activation, .. } = Root::from_handle(handle);
     let slot = locate(handle, |record, arg| {
         if record.lent {
@@ -373,6 +502,9 @@ pub fn set(handle: u64, field: u32, value: i64) -> Result<(), Status> {
 /// activation is `Locked`), and the lock is released when `f` returns or unwinds. A handle to
 /// another type is `Status::WrongType` and `f` does not run.
 pub fn with_arg<T: 'static, R>(handle: u64, f: impl FnOnce(&mut T) -> R) -> Result<R, Status> {
+    if handle & PATH_BIT != 0 {
+        return with_path(handle, f);
+    }
     let (slot, _unlend) = lend_arg(handle)?;
     if slot.type_id != TypeId::of::<T>() {
         return Err(Status::WrongType);
@@ -384,10 +516,75 @@ pub fn with_arg<T: 'static, R>(handle: u64, f: impl FnOnce(&mut T) -> R) -> Resu
     Ok(f(unsafe { &mut *slot.ptr.cast::<T>() }))
 }
 
+/// Makes a path handle: `path` from the root behind `root_handle` (the handle [`scope_root`] gave the
+/// body). The object must exist now (else `Stale`/`BadField`, from the root's resolver). The handle is
+/// valid only inside this activation and is `Stale` after it, and it re-borrows from the root on every
+/// use, so it never keeps a reference alive. `Locked` while `original` or another call runs.
+pub fn open_path(root_handle: u64, path: Vec<Accessor>) -> Result<u64, Status> {
+    if root_handle & PATH_BIT != 0 {
+        return Err(Status::WrongType);
+    }
+    let Root::HookArg { activation, .. } = Root::from_handle(root_handle);
+    {
+        let (slot, _unlend) = lend_arg(root_handle)?;
+        let resolve = slot.resolve.ok_or(Status::WrongType)?;
+        let mut found = false;
+        // SAFETY: `slot` was registered by an open `scope_root` whose borrow is held for the whole
+        // call, `lend_arg` just found its record and locked the activation until `_unlend` drops.
+        unsafe { resolve(slot.ptr, &path, &mut |_| found = true) }?;
+        if !found {
+            return Err(Status::Stale);
+        }
+    }
+    PATHS.with(|paths| {
+        let mut paths = paths.borrow_mut();
+        let held = paths.entries.iter().filter(|e| e.live.as_ref().is_some_and(|l| l.activation == activation)).count();
+        if held >= MAX_PATHS_PER_ACTIVATION {
+            return Err(Status::LimitReached);
+        }
+        let live = LivePath { activation, path };
+        let slot = match paths.free.pop() {
+            Some(slot) => slot,
+            None => {
+                paths.entries.push(PathEntry::default());
+                paths.entries.len() - 1
+            }
+        };
+        paths.entries[slot].live = Some(live);
+        Ok(PathTable::bits(slot, paths.entries[slot].generation))
+    })
+}
+
+/// Runs `f` on the object a path handle names, re-resolved from the root now. `Stale`: the handle's
+/// activation ended, or the object is gone (removed since the handle was made). `WrongType`: it is not
+/// a `T`. `Locked`: `original` or another call on this activation is running.
+fn with_path<T: 'static, R>(handle: u64, f: impl FnOnce(&mut T) -> R) -> Result<R, Status> {
+    let (activation, path) = PATHS.with(|p| p.borrow().lookup(handle)).ok_or(Status::Stale)?;
+    let root_handle = Root::HookArg { activation, arg: 0 }.to_handle();
+    let (slot, _unlend) = lend_arg(root_handle)?;
+    let resolve = slot.resolve.ok_or(Status::WrongType)?;
+    let mut f = Some(f);
+    let mut result: Option<R> = None;
+    // SAFETY: as in `open_path`: the root is borrowed by the open `scope_root`, the activation is locked
+    // until `_unlend` drops, so the root is not otherwise in use. The resolver lends its object to the
+    // closure only for the closure's duration.
+    unsafe {
+        resolve(slot.ptr, &path, &mut |any| {
+            if let (Some(t), Some(f)) = (any.downcast_mut::<T>(), f.take()) {
+                result = Some(f(t));
+            }
+        })
+    }?;
+    result.ok_or(Status::WrongType)
+}
+
 /// Runs the activation's `original`, with its handles lent for the duration. Returns the result
 /// the engine body returned. The arena is not borrowed while `original` runs, so it may open and
 /// close nested activations (re-entrancy).
 pub fn run_original(handle: u64) -> Result<i64, Status> {
+    if handle & PATH_BIT != 0 {
+        return Err(Status::WrongType);
+    }
     let Root::HookArg { activation, .. } = Root::from_handle(handle);
     let (cell, run) = locate(handle, |record, _| {
         if record.lent {
@@ -706,5 +903,117 @@ mod tests {
             .join()
             .unwrap();
         });
+    }
+
+    // ---- MX3R1: path roots and path handles ----
+
+    struct World {
+        things: Vec<Thing>,
+    }
+
+    impl PathRoot for World {
+        fn resolve(&mut self, path: &[Accessor], f: &mut dyn FnMut(&mut dyn Any)) -> Result<(), Status> {
+            match path {
+                [Accessor::Field(0), Accessor::Id(id)] => match self.things.iter_mut().find(|t| t.count as u64 == *id) {
+                    Some(thing) => {
+                        f(thing);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                _ => Err(Status::BadField),
+            }
+        }
+    }
+
+    fn thing_path(id: u64) -> Vec<Accessor> {
+        vec![Accessor::Field(0), Accessor::Id(id)]
+    }
+
+    #[test]
+    fn a_path_handle_reaches_an_object_from_the_root_and_dies_with_the_activation() {
+        let mut world = World { things: vec![Thing { count: 7, x: 1.0 }, Thing { count: 8, x: 2.0 }] };
+        let mut kept = 0;
+        scope_root(&mut world, &mut |w: &mut World| i64::from(w.things.len() as i32), |root| {
+            assert_eq!(open_path(root, thing_path(99)), Err(Status::Stale), "no such object");
+            assert_eq!(open_path(root, vec![Accessor::Field(5)]), Err(Status::BadField));
+            let a = open_path(root, thing_path(7)).unwrap();
+            let b = open_path(root, thing_path(8)).unwrap();
+            kept = a;
+            assert_eq!(live_path_handles(), 2);
+            assert_eq!(with_arg::<Thing, _>(a, |t| { t.x += 10.0; t.x }), Ok(11.0));
+            assert_eq!(with_arg::<Thing, _>(b, |t| t.x), Ok(2.0));
+            assert_eq!(with_arg::<String, _>(a, |_| ()), Err(Status::WrongType));
+            // re-borrowed on every use: two handles to the same object are fine one after the other
+            let a2 = open_path(root, thing_path(7)).unwrap();
+            assert_eq!(with_arg::<Thing, _>(a2, |t| t.x), Ok(11.0));
+            // FieldTable access and `original` are not for path handles
+            assert_eq!(get(a, 0), Err(Status::WrongType));
+            assert_eq!(run_original(a), Err(Status::WrongType));
+            // a path handle cannot be a root
+            assert_eq!(open_path(a, thing_path(7)), Err(Status::WrongType));
+        });
+        assert_eq!(world.things[0].x, 11.0);
+        assert_eq!(live_path_handles(), 0, "freed with the activation");
+        assert_eq!(with_arg::<Thing, _>(kept, |_| ()), Err(Status::Stale));
+    }
+
+    #[test]
+    fn a_removed_object_makes_its_handle_stale_and_the_lock_rejects_overlap() {
+        let mut world = World { things: vec![Thing { count: 7, x: 1.0 }, Thing { count: 8, x: 2.0 }] };
+        let mut seen = Vec::new();
+        scope_root(
+            &mut world,
+            &mut |w: &mut World| {
+                // runs inside `original`: the activation is lent, so every handle of it is Locked
+                seen.push(format!("{:?}", with_arg::<Thing, _>(KEPT.with(|k| k.get()), |_| ())));
+                w.things.retain(|t| t.count != 7);
+                0
+            },
+            |root| {
+                let a = open_path(root, thing_path(7)).unwrap();
+                let b = open_path(root, thing_path(8)).unwrap();
+                KEPT.with(|k| k.set(a));
+                assert_eq!(with_arg::<Thing, _>(a, |t| t.count), Ok(7));
+                run_original(root).unwrap();
+                assert_eq!(with_arg::<Thing, _>(a, |_| ()), Err(Status::Stale), "the entity was removed");
+                assert_eq!(with_arg::<Thing, _>(b, |t| t.count), Ok(8), "the other one is unaffected");
+                // an access from inside an access is an overlap: Locked, nothing runs twice
+                let nested = with_arg::<Thing, _>(b, |_| with_arg::<Thing, _>(b, |_| ()));
+                assert_eq!(nested, Ok(Err(Status::Locked)));
+            },
+        );
+        assert_eq!(seen, ["Err(Locked)"]);
+        assert_eq!(world.things.len(), 1);
+    }
+
+    thread_local! {
+        static KEPT: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    }
+
+    #[test]
+    fn an_activation_holds_a_bounded_number_of_path_handles() {
+        let mut world = World { things: vec![Thing { count: 7, x: 1.0 }] };
+        scope_root(&mut world, &mut |_: &mut World| 0, |root| {
+            for _ in 0..MAX_PATHS_PER_ACTIVATION {
+                open_path(root, thing_path(7)).unwrap();
+            }
+            assert_eq!(open_path(root, thing_path(7)), Err(Status::LimitReached));
+        });
+        assert_eq!(live_path_handles(), 0);
+    }
+
+    #[test]
+    fn a_panic_in_the_resolver_frees_the_path_handles() {
+        let mut world = World { things: vec![Thing { count: 7, x: 1.0 }] };
+        let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            scope_root(&mut world, &mut |_: &mut World| 0, |root| {
+                let a = open_path(root, thing_path(7)).unwrap();
+                let _ = with_arg::<Thing, _>(a, |_| panic!("engine bug"));
+            });
+        }));
+        assert!(caught.is_err());
+        assert_eq!(live_path_handles(), 0);
+        assert_eq!(live_activations(), 0);
     }
 }

@@ -56,6 +56,15 @@ fn config(dir: &Path, json: &Path) -> Config {
             roots: vec!["Game".into()],
             writable: [("Thing".to_string(), writable(&["pos", "name", "scores", "locked", "opt", "big", "table", "ratio", "flag"]))].into_iter().collect(),
             frozen_types: vec!["Sealed".into()],
+            game_paths: vec![
+                yoake_bindgen::GamePathCfg {
+                    name: "thing".into(),
+                    ty: "Thing".into(),
+                    path: vec!["things".into()],
+                    by_id: Some(yoake_bindgen::ByIdCfg { field: "serial".into(), ty: "u32".into() }),
+                },
+                yoake_bindgen::GamePathCfg { name: "lone".into(), ty: "Thing".into(), path: vec!["lone".into()], by_id: None },
+            ],
         }],
     }
 }

@@ -264,3 +264,17 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 - `yoake_state::Value`
 - `yoake_value::Value`
 
+## Reachable from a Game-root hook (MX3R1)
+
+A guest in a hook whose argument 0 is the `Game` root gets the root handle, calls a generated `Game.<name>#handle` binding and receives a path handle; every bound method and field accessor of the type then works on it.
+
+- `Game.dropped` by `id` -> `horizon_client_lib::entities::ItemEntity`: 6 methods + 36 field accessors
+- `Game.armor_stands` by `id` -> `horizon_client_lib::entities::ArmorStand`: 11 methods + 46 field accessors
+- `Game.orbs` by `id` -> `horizon_client_lib::entities::ExperienceOrb`: 5 methods + 22 field accessors
+- `Game.paintings` by `id` -> `horizon_client_lib::entities::Painting`: 4 methods + 14 field accessors
+- `Game.item_frames` by `id` -> `horizon_client_lib::entities::ItemFrame`: 3 methods + 18 field accessors
+- `Game.cushions` by `id` -> `horizon_client_lib::entities::Cushion`: 6 methods + 12 field accessors
+- `Game.experience` -> `horizon_client_lib::entities::Experience`: 7 methods + 6 field accessors
+
+196 bindings (methods plus getter/setter ids) are reachable this way across 7 types; before, they were reachable only inside a hook on the type itself.
+

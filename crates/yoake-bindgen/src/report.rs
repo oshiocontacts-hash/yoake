@@ -181,7 +181,7 @@ pub fn coverage_md(modules: &[ModuleReport<'_>], unresolved: &[String], delta_no
         let _ = writeln!(out);
     }
     if !delta_note.is_empty() {
-        let _ = writeln!(out, "## Lock changes in this run\n\n{delta_note}");
+        let _ = writeln!(out, "{delta_note}");
     }
     out
 }

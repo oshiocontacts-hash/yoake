@@ -8,6 +8,8 @@
 //! * `original(handle: i64, out: i32) -> i32`: runs the original, writes its `i64` result at `out`;
 //! * `get(handle: i64, field: i32, out: i32) -> i32`: writes the field's `i64` bits at `out`;
 //! * `set(handle: i64, field: i32, bits: i64) -> i32`;
+//! * `engine_take(ticket: i32, out_ptr: i32, out_cap: i32) -> i32`: the kept result of an `engine_call`
+//!   whose buffer was too small; the call is never repeated (see [`call_status`]);
 //! * `report(slot: i32, value: i64)`: test aid, appended to [`take_reports`];
 //! * `engine_call(handle: i64, id: i32, ptr: i32, len: i32, out_ptr: i32, out_cap: i32) -> i32`: runs a
 //!   generated binding (MX3E1, see [`call_status`]): the argument bytes are copied out of guest memory
@@ -88,6 +90,17 @@ struct Host {
     entries: u64,
     max_fuel_used: u64,
     depth: u32,
+    /// The open activations of this instance, innermost last (their entry numbers).
+    acts: Vec<u64>,
+    /// Results that did not fit the guest's buffer, kept for `engine_take` (never re-run).
+    tickets: Vec<Ticket>,
+    next_ticket: u32,
+}
+
+struct Ticket {
+    id: u32,
+    act: u64,
+    bytes: Vec<u8>,
 }
 
 struct Ticker {
@@ -190,6 +203,9 @@ pub fn install(wasm_or_wat: &[u8], cfg: ModConfig) -> R<()> {
         entries: 0,
         max_fuel_used: 0,
         depth: 0,
+        acts: Vec::new(),
+        tickets: Vec::new(),
+        next_ticket: 0,
     };
     let mut store = Store::new(&engine, host);
     if store.data().cfg.fuel.is_some() {
@@ -350,6 +366,10 @@ pub fn set_engine_dispatch(dispatch: Option<EngineDispatch>) {
     *DISPATCH.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = dispatch;
 }
 
+/// Results one activation may keep for `engine_take`, and their total size.
+pub const MAX_TICKETS: usize = 8;
+pub const MAX_TICKET_BYTES: usize = 16 << 20;
+
 /// The most argument bytes one `engine_call` copies out of guest memory.
 pub const MAX_CALL_ARG_BYTES: usize = 1 << 20;
 
@@ -361,6 +381,20 @@ pub mod call_status {
     /// The result needs more than `out_cap` bytes; its length is written as a little-endian `u32` at
     /// `out_ptr` when `out_cap >= 4`. Nothing else was written. Call again with a bigger buffer.
     pub const OUT_TOO_SMALL: i32 = -2;
+    /// `engine_call` result when the buffer was too small: the call HAS run and its result is kept under
+    /// a ticket; the return value is `-(OUT_TOO_SMALL_BASE + ticket)` (so `<= -257`). Fetch it with
+    /// `engine_take(ticket, out_ptr, out_cap)`; never call again to retry.
+    pub const OUT_TOO_SMALL_BASE: i32 = 256;
+    /// `engine_take`: no such ticket (never issued, already taken, or another activation's).
+    pub const NO_SUCH_TICKET: i32 = -7;
+    /// The result did not fit and this activation already holds [`super::MAX_TICKETS`] results or
+    /// [`super::MAX_TICKET_BYTES`] bytes: the call ran, its result is lost. Size the buffer first.
+    pub const TICKET_LIMIT: i32 = -8;
+
+    /// The ticket inside an `engine_call` return value, if it is one.
+    pub fn ticket_of(status: i32) -> Option<u32> {
+        (status <= -(OUT_TOO_SMALL_BASE + 1)).then(|| (-status - OUT_TOO_SMALL_BASE) as u32)
+    }
     pub const BAD_ARGS: i32 = -3;
     pub const READ_ONLY: i32 = -4;
     pub const UNKNOWN_BINDING: i32 = -5;
@@ -416,18 +450,51 @@ fn copy_args(caller: &mut Caller<'_, Host>, ptr: i32, len: i32) -> R<Result<Vec<
     Ok(Ok(bytes))
 }
 
-/// Writes `bytes` at `out_ptr` if they fit `out_cap`; otherwise the needed length (as a `u32`, when
-/// there is room for it) and `OUT_TOO_SMALL`.
-fn write_result(caller: &mut Caller<'_, Host>, out_ptr: i32, out_cap: i32, bytes: &[u8]) -> R<i32> {
+/// Writes `bytes` at `out_ptr` if they fit `out_cap`. Otherwise the call has already run, so the
+/// result is kept under a ticket for [`engine_take`](take_ticket) (and its size is written as a `u32`
+/// at `out_ptr` when there is room): the return value carries the ticket, nothing is ever run twice.
+fn write_result(caller: &mut Caller<'_, Host>, out_ptr: i32, out_cap: i32, bytes: Vec<u8>) -> R<i32> {
     let memory = caller.data().memory.ok_or_else(|| Error::msg("guest has no memory"))?;
-    if out_cap < 0 || bytes.len() > out_cap as usize {
+    if out_cap >= 0 && bytes.len() <= out_cap as usize {
+        memory.write(&mut *caller, out_ptr as u32 as usize, &bytes)?;
+        return Ok(bytes.len() as i32);
+    }
+    if out_cap >= 4 {
+        memory.write(&mut *caller, out_ptr as u32 as usize, &(bytes.len() as u32).to_le_bytes())?;
+    }
+    let host = caller.data_mut();
+    let Some(&act) = host.acts.last() else { return Ok(call_status::TICKET_LIMIT) };
+    let (count, held) = host.tickets.iter().filter(|t| t.act == act).fold((0, 0), |(n, b), t| (n + 1, b + t.bytes.len()));
+    if count >= MAX_TICKETS || held + bytes.len() > MAX_TICKET_BYTES {
+        return Ok(call_status::TICKET_LIMIT);
+    }
+    host.next_ticket += 1;
+    let id = host.next_ticket;
+    host.tickets.push(Ticket { id, act, bytes });
+    Ok(-(call_status::OUT_TOO_SMALL_BASE + id as i32))
+}
+
+/// `engine_take(ticket, out_ptr, out_cap)`: copies the kept result of an earlier `engine_call` of this
+/// same activation. Returns the byte count (the ticket is then spent), or `OUT_TOO_SMALL` (size written
+/// at `out_ptr` when `out_cap >= 4`, ticket kept) or `NO_SUCH_TICKET`. Runs no engine code.
+fn take_ticket(caller: &mut Caller<'_, Host>, ticket: i32, out_ptr: i32, out_cap: i32) -> R<i32> {
+    let memory = caller.data().memory.ok_or_else(|| Error::msg("guest has no memory"))?;
+    let host = caller.data();
+    let Some(act) = host.acts.last().copied() else { return Ok(call_status::NO_SUCH_TICKET) };
+    let Some(index) = host.tickets.iter().position(|t| t.act == act && i64::from(t.id) == i64::from(ticket)) else {
+        return Ok(call_status::NO_SUCH_TICKET);
+    };
+    let len = host.tickets[index].bytes.len();
+    if out_cap < 0 || len > out_cap as usize {
         if out_cap >= 4 {
-            memory.write(&mut *caller, out_ptr as u32 as usize, &(bytes.len() as u32).to_le_bytes())?;
+            memory.write(&mut *caller, out_ptr as u32 as usize, &(len as u32).to_le_bytes())?;
         }
         return Ok(call_status::OUT_TOO_SMALL);
     }
-    memory.write(&mut *caller, out_ptr as u32 as usize, bytes)?;
-    Ok(bytes.len() as i32)
+    let bytes = std::mem::take(&mut caller.data_mut().tickets[index].bytes);
+    memory.write(&mut *caller, out_ptr as u32 as usize, &bytes)?;
+    caller.data_mut().tickets.remove(index);
+    Ok(len as i32)
 }
 
 fn status_code(status: Status) -> i32 {
@@ -466,9 +533,16 @@ fn build_linker(engine: &Engine) -> R<Linker<Host>> {
         engine: run_engine_call(handle as u64, id as u32, args),
         finish: |c, outcome| match outcome {
             CallOutcome::Status(status) => Ok(status),
-            CallOutcome::Panic(message) => Err(Error::msg(format!("engine panic inside engine_call {id}: {message}"))),
-            CallOutcome::Done(bytes) => write_result(c, out_ptr, out_cap, &bytes),
+            CallOutcome::Panic(message) => {
+                eprintln!("yoake: engine state may be inconsistent: binding {id} panicked on guest-supplied arguments ({message}); the mod is disabled");
+                Err(Error::msg(format!("engine panic inside engine_call {id}: {message}; engine state may be inconsistent")))
+            }
+            CallOutcome::Done(bytes) => write_result(c, out_ptr, out_cap, bytes),
         })?;
+    // engine_take(ticket, out_ptr, out_cap) -> i32: fetches a result that did not fit, without re-running.
+    linker.func_wrap("env", "engine_take", |mut c: Caller<'_, Host>, ticket: i32, out_ptr: i32, out_cap: i32| -> R<i32> {
+        take_ticket(&mut c, ticket, out_ptr, out_cap)
+    })?;
     // not engine imports: they only touch the host state
     linker.func_wrap("env", "report", |mut c: Caller<'_, Host>, slot: i32, value: i64| {
         c.data_mut().reports.push((slot, value));
@@ -482,6 +556,8 @@ fn build_linker(engine: &Engine) -> R<Linker<Host>> {
 fn enter(ctx: &mut StoreContextMut<'static, Host>) -> Option<u64> {
     ctx.data_mut().depth += 1;
     ctx.data_mut().entries += 1;
+    let entry = ctx.data().entries;
+    ctx.data_mut().acts.push(entry);
     let saved = match ctx.data().cfg.fuel {
         Some(budget) => {
             let saved = ctx.get_fuel().ok();
@@ -500,6 +576,10 @@ fn enter(ctx: &mut StoreContextMut<'static, Host>) -> Option<u64> {
 
 fn leave(ctx: &mut StoreContextMut<'static, Host>, saved_fuel: Option<u64>) {
     ctx.data_mut().depth -= 1;
+    // tickets die with their activation
+    if let Some(act) = ctx.data_mut().acts.pop() {
+        ctx.data_mut().tickets.retain(|t| t.act != act);
+    }
     if let Some(saved) = saved_fuel {
         if let (Some(budget), Ok(left)) = (ctx.data().cfg.fuel, ctx.get_fuel()) {
             let used = budget.saturating_sub(left);
@@ -545,6 +625,21 @@ pub fn dispatch<T: 'static>(
         Outcome::Fallthrough => orig(arg),
         Outcome::Trapped(done) => {
             if done.original_calls == 0 { orig(arg) } else { done.last_result }
+        }
+    }
+}
+
+/// [`dispatch`] for a hook whose argument 0 is a path root (`Game`): the guest gets the root handle, and
+/// through it path handles to the objects the root can reach (`activation::open_path`, generated
+/// "get handle" bindings). Only a function that really receives the root may use this: inside any other
+/// hook the caller holds an outer `&mut` and there is no root to re-borrow from (design 4b).
+pub fn dispatch_root<G: activation::PathRoot>(root: &mut G, orig: &mut dyn FnMut(&mut G) -> i64) -> i64 {
+    let outcome = dispatch_with(|body| activation::scope_root(&mut *root, &mut *orig, |h| body(h)));
+    match outcome {
+        Outcome::Value(value) => value,
+        Outcome::Fallthrough => orig(root),
+        Outcome::Trapped(done) => {
+            if done.original_calls == 0 { orig(root) } else { done.last_result }
         }
     }
 }

@@ -71,6 +71,81 @@
       "glue": "crates/horizon-client/src/yoake_glue/game_items.rs",
       "roots": [
         "Game"
+      ],
+      "game_paths": [
+        {
+          "name": "item_entity",
+          "ty": "horizon_client_lib::entities::ItemEntity",
+          "path": [
+            "dropped"
+          ],
+          "by_id": {
+            "field": "id",
+            "ty": "u32"
+          }
+        },
+        {
+          "name": "armor_stand",
+          "ty": "horizon_client_lib::entities::ArmorStand",
+          "path": [
+            "armor_stands"
+          ],
+          "by_id": {
+            "field": "id",
+            "ty": "u32"
+          }
+        },
+        {
+          "name": "experience_orb",
+          "ty": "horizon_client_lib::entities::ExperienceOrb",
+          "path": [
+            "orbs"
+          ],
+          "by_id": {
+            "field": "id",
+            "ty": "u32"
+          }
+        },
+        {
+          "name": "painting",
+          "ty": "horizon_client_lib::entities::Painting",
+          "path": [
+            "paintings"
+          ],
+          "by_id": {
+            "field": "id",
+            "ty": "u32"
+          }
+        },
+        {
+          "name": "item_frame",
+          "ty": "horizon_client_lib::entities::ItemFrame",
+          "path": [
+            "item_frames"
+          ],
+          "by_id": {
+            "field": "id",
+            "ty": "u32"
+          }
+        },
+        {
+          "name": "cushion",
+          "ty": "horizon_client_lib::entities::Cushion",
+          "path": [
+            "cushions"
+          ],
+          "by_id": {
+            "field": "id",
+            "ty": "u32"
+          }
+        },
+        {
+          "name": "experience",
+          "ty": "horizon_client_lib::entities::Experience",
+          "path": [
+            "experience"
+          ]
+        }
       ]
     },
     {

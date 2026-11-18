@@ -76,6 +76,9 @@ fn checked_in_glue_is_current_and_compiles_in_the_engine() {
   {}", violations.join("
   "));
     }
+    // 2b'. the unsafe policy: forbid/deny in the engine crates, the allowed modules are frozen
+    let violations = yoake_bindgen::policy::check_unsafe_policy(&root, &config.frozen_files);
+    assert!(violations.is_empty(), "unsafe policy: {violations:#?}");
     // 2c. glue files of modules that are no longer targeted
     let stale = yoake_bindgen::stale_glue_files(&config, &root);
     assert!(stale.is_empty(), "stale glue files (no configured target): {stale:?}");

@@ -14,6 +14,7 @@ pub mod analyze;
 pub mod display;
 pub mod doc;
 pub mod lock;
+pub mod policy;
 pub mod reach;
 pub mod render;
 pub mod report;
@@ -65,6 +66,31 @@ pub struct TargetCfg {
     /// Types that get no accessors and no bound methods at all.
     #[serde(default)]
     pub frozen_types: Vec<String>,
+    /// Objects a guest may reach from the `Game` root (needs `roots`): each becomes a path resolver in
+    /// `impl PathRoot for Game` and a generated "get handle" binding.
+    #[serde(default)]
+    pub game_paths: Vec<GamePathCfg>,
+}
+
+/// One accessor path from the `Game` root.
+#[derive(Deserialize, Debug, Clone)]
+pub struct GamePathCfg {
+    /// The binding is `<target>::Game.<name>#handle`.
+    pub name: String,
+    /// The engine type at the end of the path (documentation and the coverage report).
+    pub ty: String,
+    /// Fields of `Game` to walk, outermost first (`["dropped"]`).
+    pub path: Vec<String>,
+    /// The last field is a list; pick the element whose `field` equals the id the guest passes.
+    #[serde(default)]
+    pub by_id: Option<ByIdCfg>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct ByIdCfg {
+    pub field: String,
+    /// `u8`, `u16`, `u32` or `u64`.
+    pub ty: String,
 }
 
 /// Field names a guest may never be allowed to write: identities, lengths, indices, sequence numbers.
@@ -106,6 +132,16 @@ pub fn generate(config: &Config, root: &Path, uni: &Universe) -> R<Generated> {
     let mut prepared: Vec<Prepared<'_>> = Vec::new();
     for target in &config.targets {
         let doc = uni.doc_index(&target.crate_name).ok_or_else(|| format!("no rustdoc JSON loaded for crate `{}`", target.crate_name))?;
+        for path in &target.game_paths {
+            if target.roots.is_empty() {
+                return Err(format!("`{}` lists game_paths but no root type", target.name).into());
+            }
+            if let Some(by_id) = &path.by_id {
+                if !matches!(by_id.ty.as_str(), "u8" | "u16" | "u32" | "u64") {
+                    return Err(format!("game path `{}`: id type `{}` must be an unsigned integer", path.name, by_id.ty).into());
+                }
+            }
+        }
         for (type_name, fields) in &target.writable {
             for field in fields {
                 if forbidden_writable(field) {
@@ -141,7 +177,7 @@ pub fn generate(config: &Config, root: &Path, uni: &Universe) -> R<Generated> {
     let mut lock = Lock::load(&lock_path)?;
     let mut wanted = BTreeMap::new();
     for p in &prepared {
-        wanted.extend(render::wanted(&p.scan));
+        wanted.extend(render::wanted(&p.scan, &p.target.name, &p.target.game_paths));
     }
     let (ids, delta) = lock.assign(&wanted);
 
@@ -149,7 +185,7 @@ pub fn generate(config: &Config, root: &Path, uni: &Universe) -> R<Generated> {
     files.insert(PathBuf::from(&config.lock), lock.to_text()?);
     let mut unresolved = std::collections::BTreeSet::new();
     for p in &prepared {
-        let text = render::render(&p.an, &p.target.name, &p.target.crate_name, &p.scan, &ids);
+        let text = render::render(&p.an, &p.target.name, &p.target.crate_name, &p.scan, &ids, &p.target.game_paths, p.target.roots.first().map(String::as_str));
         files.insert(PathBuf::from(&p.target.glue), text);
         unresolved.extend(p.an.unresolved.iter().cloned());
     }
@@ -189,7 +225,45 @@ pub fn generate(config: &Config, root: &Path, uni: &Universe) -> R<Generated> {
         .map(|p| report::ModuleReport { label: &p.target.name, source: &p.target.source, scan: &p.scan, game_paths: &game_paths })
         .collect();
     let report_dir = PathBuf::from(&config.report_dir);
-    files.insert(report_dir.join("coverage.md"), report::coverage_md(&reports, &unresolved, ""));
+    // what the Game-root paths add: every bound binding of a type a guest can now get a handle to
+    let mut reach_text = String::new();
+    let mut counted: std::collections::BTreeSet<(String, usize)> = std::collections::BTreeSet::new();
+    let (mut total_methods, mut total_fields) = (0usize, 0usize);
+    for p in &prepared {
+        for path in &p.target.game_paths {
+            let leaf = path.ty.rsplit("::").next().unwrap_or(&path.ty).to_string();
+            let mut line = format!("- `Game.{}`{} -> `{}`", path.path.join("."), path.by_id.as_ref().map(|b| format!(" by `{}`", b.field)).unwrap_or_default(), path.ty);
+            let mut found = false;
+            for (mi, q) in prepared.iter().enumerate() {
+                for (item, type_path) in &q.scan.handle_refs {
+                    if type_path.rsplit("::").next() != Some(leaf.as_str()) {
+                        continue;
+                    }
+                    let methods = q.scan.fns.iter().filter(|f| f.recv_ref == Some(*item) && matches!(f.cat, analyze::Cat::BoundA | analyze::Cat::BoundMech)).count();
+                    let fields = q.scan.fields.iter().filter(|f| f.owner_ref == *item && f.shape.is_some()).count() * 2;
+                    line.push_str(&format!(": {methods} methods + {fields} field accessors"));
+                    if counted.insert((type_path.clone(), mi)) {
+                        total_methods += methods;
+                        total_fields += fields;
+                    }
+                    found = true;
+                }
+            }
+            if !found {
+                line.push_str(": (no bound bindings found for this type)");
+            }
+            reach_text.push_str(&line);
+            reach_text.push('\n');
+        }
+    }
+    if !reach_text.is_empty() {
+        reach_text = format!(
+            "## Reachable from a Game-root hook (MX3R1)\n\nA guest in a hook whose argument 0 is the `Game` root gets the root handle, calls a generated `Game.<name>#handle` binding and receives a path handle; every bound method and field accessor of the type then works on it.\n\n{reach_text}\n{} bindings (methods plus getter/setter ids) are reachable this way across {} types; before, they were reachable only inside a hook on the type itself.\n",
+            total_methods + total_fields,
+            counted.len()
+        );
+    }
+    files.insert(report_dir.join("coverage.md"), report::coverage_md(&reports, &unresolved, &reach_text));
     files.insert(report_dir.join("summary.json"), report::summary_json(&reports));
     for m in &reports {
         files.insert(report_dir.join(format!("functions-{}.md", m.label)), report::functions_md(m));

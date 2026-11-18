@@ -6,7 +6,7 @@
 pub mod yoake_glue {
     // The compiler, not a grep, guarantees the glue has no unsafe code.
     #![forbid(unsafe_code)]
-    use yoake_slice::activation::{self, FieldTable};
+    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, Status};
     use yoake_slice::codec::{self, CallError, Decode, Decoder, Encode};
 
     /// `game_items::Game::native_client_item_in_tag`
@@ -42,11 +42,149 @@ pub mod yoake_glue {
         Ok(())
     }
 
+    /// `game_items::Game.armor_stand#handle`
+    fn call_453(root: u64, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        let key = <u32 as Decode>::decode(d)?;
+        d.finish()?;
+        let handle = activation::open_path(root, vec![Accessor::Field(1), Accessor::Id(u64::from(key))]).map_err(CallError::from)?;
+        Encode::encode(&handle, out);
+        Ok(())
+    }
+
+    /// `game_items::Game.cushion#handle`
+    fn call_454(root: u64, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        let key = <u32 as Decode>::decode(d)?;
+        d.finish()?;
+        let handle = activation::open_path(root, vec![Accessor::Field(5), Accessor::Id(u64::from(key))]).map_err(CallError::from)?;
+        Encode::encode(&handle, out);
+        Ok(())
+    }
+
+    /// `game_items::Game.experience#handle`
+    fn call_455(root: u64, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        d.finish()?;
+        let handle = activation::open_path(root, vec![Accessor::Field(6)]).map_err(CallError::from)?;
+        Encode::encode(&handle, out);
+        Ok(())
+    }
+
+    /// `game_items::Game.experience_orb#handle`
+    fn call_456(root: u64, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        let key = <u32 as Decode>::decode(d)?;
+        d.finish()?;
+        let handle = activation::open_path(root, vec![Accessor::Field(2), Accessor::Id(u64::from(key))]).map_err(CallError::from)?;
+        Encode::encode(&handle, out);
+        Ok(())
+    }
+
+    /// `game_items::Game.item_entity#handle`
+    fn call_457(root: u64, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        let key = <u32 as Decode>::decode(d)?;
+        d.finish()?;
+        let handle = activation::open_path(root, vec![Accessor::Field(0), Accessor::Id(u64::from(key))]).map_err(CallError::from)?;
+        Encode::encode(&handle, out);
+        Ok(())
+    }
+
+    /// `game_items::Game.item_frame#handle`
+    fn call_458(root: u64, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        let key = <u32 as Decode>::decode(d)?;
+        d.finish()?;
+        let handle = activation::open_path(root, vec![Accessor::Field(4), Accessor::Id(u64::from(key))]).map_err(CallError::from)?;
+        Encode::encode(&handle, out);
+        Ok(())
+    }
+
+    /// `game_items::Game.painting#handle`
+    fn call_459(root: u64, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        let key = <u32 as Decode>::decode(d)?;
+        d.finish()?;
+        let handle = activation::open_path(root, vec![Accessor::Field(3), Accessor::Id(u64::from(key))]).map_err(CallError::from)?;
+        Encode::encode(&handle, out);
+        Ok(())
+    }
+
+    /// Paths a guest may reach from the `Game` root (see `game_paths` in bindgen.json).
+    impl PathRoot for crate::game::Game<'_> {
+        fn resolve(&mut self, path: &[Accessor], f: &mut dyn FnMut(&mut dyn std::any::Any)) -> Result<(), Status> {
+            match path {
+                [Accessor::Field(0), Accessor::Id(id)] => match self.dropped.iter_mut().find(|e| u64::from(e.id) == *id) {
+                    Some(e) => {
+                        f(e);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                [Accessor::Field(1), Accessor::Id(id)] => match self.armor_stands.iter_mut().find(|e| u64::from(e.id) == *id) {
+                    Some(e) => {
+                        f(e);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                [Accessor::Field(2), Accessor::Id(id)] => match self.orbs.iter_mut().find(|e| u64::from(e.id) == *id) {
+                    Some(e) => {
+                        f(e);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                [Accessor::Field(3), Accessor::Id(id)] => match self.paintings.iter_mut().find(|e| u64::from(e.id) == *id) {
+                    Some(e) => {
+                        f(e);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                [Accessor::Field(4), Accessor::Id(id)] => match self.item_frames.iter_mut().find(|e| u64::from(e.id) == *id) {
+                    Some(e) => {
+                        f(e);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                [Accessor::Field(5), Accessor::Id(id)] => match self.cushions.iter_mut().find(|e| u64::from(e.id) == *id) {
+                    Some(e) => {
+                        f(e);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                [Accessor::Field(6)] => {
+                    f(&mut self.experience);
+                    Ok(())
+                }
+                _ => Err(Status::BadField),
+            }
+        }
+    }
+
     /// Every binding of this module: id and lock key.
     pub const BINDINGS: &[(u32, &str)] = &[
         (447, "game_items::Game::native_client_item_in_tag"),
         (448, "game_items::Game::native_client_item_tags_ready"),
         (449, "game_items::Game::native_item_is_block"),
+        (453, "game_items::Game.armor_stand#handle"),
+        (454, "game_items::Game.cushion#handle"),
+        (455, "game_items::Game.experience#handle"),
+        (456, "game_items::Game.experience_orb#handle"),
+        (457, "game_items::Game.item_entity#handle"),
+        (458, "game_items::Game.item_frame#handle"),
+        (459, "game_items::Game.painting#handle"),
     ];
 
     /// Runs binding `id`. `handle` is the hook-argument handle for a method (its receiver is checked to be
@@ -54,6 +192,13 @@ pub mod yoake_glue {
     pub fn call(handle: u64, id: u32, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let start = out.len();
         let result = match id {
+            453 => call_453(handle, args, out),
+            454 => call_454(handle, args, out),
+            455 => call_455(handle, args, out),
+            456 => call_456(handle, args, out),
+            457 => call_457(handle, args, out),
+            458 => call_458(handle, args, out),
+            459 => call_459(handle, args, out),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {
