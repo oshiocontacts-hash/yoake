@@ -1,4 +1,8 @@
 use std::collections::HashMap;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Weak};
 use std::thread::{self, JoinHandle};

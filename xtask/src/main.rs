@@ -19,6 +19,10 @@
 
 mod mod_api;
 
+#[cfg(test)]
+#[path = "../../tests/support/temp_dir.rs"]
+mod test_support;
+
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, ExitCode};
@@ -510,7 +514,7 @@ mod tests {
             assert_eq!(mode(&long) & 0o100, 0o100);
             assert_eq!(mode("tools") & 0o100, 0o100);
         }
-        fs::remove_dir_all(&out).unwrap();
+        crate::test_support::remove_dir_all(&out);
     }
 
     #[test]

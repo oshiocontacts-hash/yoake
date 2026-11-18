@@ -6,6 +6,10 @@
 //! jars they downloaded and what is carried over from them stay there and
 //! are never uploaded or committed.
 pub mod carry;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 pub mod check;
 pub mod classes;
 pub mod classify;

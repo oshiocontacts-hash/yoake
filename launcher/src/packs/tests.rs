@@ -84,7 +84,7 @@ fn lists_what_the_game_reads_and_which_are_on() {
     let names: Vec<&str> = sp.iter().map(|p| p.title.as_str()).collect();
     assert_eq!(names, ["Classic.zip", "Warm Light"]);
     assert!(list(&home.join("none"), Kind::Shader).is_empty());
-    fs::remove_dir_all(&home).unwrap();
+    crate::test_support::remove_dir_all(&home);
 }
 
 #[test]
@@ -142,8 +142,8 @@ fn turning_packs_on_and_off_writes_the_games_own_lines() {
         fs::read_to_string(fresh.join("options.txt")).unwrap(),
         "resourcePacks:[\"vanilla\",\"file/Zed.zip\"]\n"
     );
-    fs::remove_dir_all(&home).unwrap();
-    fs::remove_dir_all(&fresh).unwrap();
+    crate::test_support::remove_dir_all(&home);
+    crate::test_support::remove_dir_all(&fresh);
 }
 
 #[test]
@@ -169,6 +169,6 @@ fn a_dropped_file_goes_to_its_folder_under_a_free_name() {
     assert_eq!(kind_of(&drops.join("glow.hshader")).unwrap(), Kind::Shader);
     assert!(add(&home, &drops.join("random.zip")).is_err());
     assert!(add(&home, &drops.join("picture.png")).is_err());
-    fs::remove_dir_all(&home).unwrap();
-    fs::remove_dir_all(&drops).unwrap();
+    crate::test_support::remove_dir_all(&home);
+    crate::test_support::remove_dir_all(&drops);
 }

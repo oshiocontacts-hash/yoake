@@ -1879,7 +1879,7 @@ mod tests {
             near(px[0], 51) && near(px[1], 102) && near(px[2], 153),
             "{px:?}"
         );
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -1896,7 +1896,7 @@ mod tests {
         let names = ["minecraft:unknown".to_owned()];
         assert!(!run(&device, &queue, &mut effects, &root, &names).0);
         assert!(effects.failed.contains("minecraft:unknown"));
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     /// The chains the prepared vanilla resources hold all load (skipped without
@@ -2006,7 +2006,7 @@ mod tests {
         );
         assert_eq!(top, [255, 0, 0, 255]);
         assert_eq!(bottom, [0, 255, 0, 255]);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     /// A chain with its own GLSL, a target read twice, a depth input and a
@@ -2047,7 +2047,7 @@ mod tests {
         // Green stays below it: 0.5 * 1 * 1.
         assert!(bottom[0] == 0 && near(bottom[1], 128), "{bottom:?}");
         assert!(effects.failed.is_empty());
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     /// `core/quad.vsh`, `post/mine.fsh` and the `tint` image of `a_chain_runs_its_own_glsl`.
@@ -2136,7 +2136,7 @@ mod tests {
         let near = |a: u8, b: u8| a.abs_diff(b) <= 3;
         assert!(near(top[0], 32) && top[1] == 0 && top[3] == 255, "{top:?}");
         assert!(bottom[0] == 0 && near(bottom[1], 128), "{bottom:?}");
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     /// Vanilla's own chains run on the GPU without a validation error (skipped

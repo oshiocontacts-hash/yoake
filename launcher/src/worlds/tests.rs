@@ -57,7 +57,7 @@ fn active_worlds_cannot_be_backed_up_copied_or_deleted() {
     drop(game);
     assert!(backup(&home, &w).unwrap().is_file());
     assert!(copy(&w).unwrap().path.is_dir());
-    fs::remove_dir_all(home).unwrap();
+    crate::test_support::remove_dir_all(home);
 }
 
 #[test]
@@ -115,7 +115,7 @@ fn lists_what_each_world_is() {
     assert_eq!(all[2].mode, "Creative");
     assert_eq!(find(&home, "my SURVIVAL").unwrap().folder, "Survival");
     assert!(find(&home, "nope").is_err());
-    fs::remove_dir_all(&home).unwrap();
+    crate::test_support::remove_dir_all(&home);
 }
 
 #[test]
@@ -147,7 +147,7 @@ fn a_backup_is_named_and_laid_out_as_vanillas() {
         .read_to_end(&mut region)
         .unwrap();
     assert_eq!(region, [7u8; 1000]);
-    fs::remove_dir_all(&home).unwrap();
+    crate::test_support::remove_dir_all(&home);
 }
 
 #[test]
@@ -180,5 +180,5 @@ fn a_copy_gets_the_next_free_name_in_its_folder_and_level_dat() {
         (named.folder.as_str(), named.name.as_str()),
         ("Named (1)", "Named (1)")
     );
-    fs::remove_dir_all(&home).unwrap();
+    crate::test_support::remove_dir_all(&home);
 }

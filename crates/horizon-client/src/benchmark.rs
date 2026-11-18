@@ -611,6 +611,6 @@ mod tests {
         replace_world(&dir).unwrap();
         assert!(!world.exists());
         replace_world(&dir).unwrap();
-        std::fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 }

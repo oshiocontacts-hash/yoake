@@ -592,7 +592,7 @@ mod tests {
         drop(saves);
         assert!(load(&mut loaded, &dir));
         assert_eq!(first_item(&loaded), Some(("minecraft:iron_ingot", 11)));
-        std::fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -624,7 +624,7 @@ mod tests {
         loaded.uuid = 1;
         assert!(load(&mut loaded, &dir));
         assert_eq!(first_item(&loaded), Some(("minecraft:diamond", 5)));
-        std::fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -653,7 +653,7 @@ mod tests {
         assert_eq!(saves.completed(true).len(), 1);
         assert!(saves.writes_finished().unwrap());
         for dir in [bad, good, reference] {
-            std::fs::remove_dir_all(dir).unwrap();
+            crate::test_support::remove_dir_all(dir);
         }
     }
 
@@ -678,7 +678,7 @@ mod tests {
         assert!(saves.writer.is_some());
         assert_eq!(saves.completed(true).len(), 1);
         assert!(saves.writes_finished().unwrap());
-        std::fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     fn first_item(g: &Guest) -> Option<(&str, u32)> {

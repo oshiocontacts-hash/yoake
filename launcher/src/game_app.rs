@@ -146,7 +146,7 @@ mod tests {
             fs::read_to_string(ensure(&version).unwrap()).unwrap(),
             "game 2"
         );
-        fs::remove_dir_all(&version).unwrap();
+        crate::test_support::remove_dir_all(&version);
     }
 
     #[test]
@@ -160,7 +160,7 @@ mod tests {
         assert!(!version
             .join("Horizon.app/Contents/MacOS/horizon-ctl")
             .exists());
-        fs::remove_dir_all(&version).unwrap();
+        crate::test_support::remove_dir_all(&version);
     }
 
     #[test]
@@ -170,7 +170,7 @@ mod tests {
         let _ = fs::remove_dir_all(&version);
         fs::create_dir_all(&version).unwrap();
         assert!(ensure(&version).is_err());
-        fs::remove_dir_all(&version).unwrap();
+        crate::test_support::remove_dir_all(&version);
     }
 
     #[test]

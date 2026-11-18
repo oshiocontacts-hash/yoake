@@ -267,7 +267,7 @@ mod tests {
             ]
         );
         assert!(scan(&d.join("missing")).is_empty());
-        std::fs::remove_dir_all(d).unwrap();
+        crate::test_support::remove_dir_all(d);
     }
 
     fn option(id: &str, kind: OptionKind) -> PackOption {
@@ -322,6 +322,6 @@ mod tests {
         save_values(&pack, &options, &[1.0, 0.0]).unwrap();
         assert!(!values_path(&pack).exists());
         assert_eq!(load_values(&pack, &options), [1.0, 0.0]);
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

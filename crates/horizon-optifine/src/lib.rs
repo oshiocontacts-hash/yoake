@@ -14,6 +14,10 @@
 //! layout templates (THIRD_PARTY_NOTICES.md). No OptiFine or Fusion code was read.
 
 pub mod blink;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 pub mod cem;
 pub mod cit;
 pub mod ctm;

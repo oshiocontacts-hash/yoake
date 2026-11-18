@@ -221,6 +221,6 @@ mod tests {
         assert!(!available(&root));
         fs::remove_file(&class).unwrap();
         assert!(!available(&root));
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 }

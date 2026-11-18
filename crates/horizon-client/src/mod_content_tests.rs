@@ -174,7 +174,7 @@ fn block_items_patch_their_template_item() {
         e.to_string(),
         "ruby:ruby_block: minecraft:fod is not a known component type"
     );
-    fs::remove_dir_all(scratch).unwrap();
+    crate::test_support::remove_dir_all(scratch);
 }
 
 #[test]
@@ -383,7 +383,7 @@ fn allocated_ids_follow_mod_and_entry_order_after_vanilla() {
         );
         mods.reverse();
     }
-    fs::remove_dir_all(scratch).unwrap();
+    crate::test_support::remove_dir_all(scratch);
 }
 
 fn prepared() -> Option<PathBuf> {
@@ -679,7 +679,7 @@ fn content_root_loads_with_every_table() {
             .unwrap()
             .is_file()
     );
-    fs::remove_dir_all(&scratch).unwrap();
+    crate::test_support::remove_dir_all(&scratch);
 }
 
 #[test]
@@ -706,7 +706,7 @@ fn refuses_unknown_templates_and_vanilla_ids() {
             .contains(r#"crafting_remainder "minecraft:bowll" is not an item"#),
         "{e}"
     );
-    fs::remove_dir_all(&scratch).unwrap();
+    crate::test_support::remove_dir_all(&scratch);
 }
 
 #[test]
@@ -732,7 +732,7 @@ fn refuses_more_states_than_a_world_holds() {
         "{e}"
     );
     assert!(e.to_string().contains("the mods: ruby "), "{e}");
-    fs::remove_dir_all(&scratch).unwrap();
+    crate::test_support::remove_dir_all(&scratch);
 }
 
 #[test]
@@ -752,7 +752,7 @@ fn builds_past_sixteen_bit_states() {
         m.content.blocks.push(b);
     }
     build(&base, std::slice::from_ref(&m), &scratch.join("out")).unwrap();
-    fs::remove_dir_all(&scratch).unwrap();
+    crate::test_support::remove_dir_all(&scratch);
 }
 
 #[test]
@@ -947,7 +947,7 @@ fn independent_reloads_read_changed_behaviour_json_and_report_invalid_files() {
             .len(),
         registry.len()
     );
-    fs::remove_dir_all(&scratch).unwrap();
+    crate::test_support::remove_dir_all(&scratch);
 }
 
 /// A built root is kept for later starts, and built again when a mod's
@@ -1373,7 +1373,7 @@ fn content_root_registers_a_mod_mob_effect() {
         assert!(ids.contains(&"glow:radiance".into()) && ids.contains(&"minecraft:speed".into()));
     }
     assert!(root.join(crate::content_identity::MARKER).exists());
-    fs::remove_dir_all(&scratch).unwrap();
+    crate::test_support::remove_dir_all(&scratch);
 }
 
 /// A mod that adds only an item still moves the item network ids, so a game
@@ -1404,7 +1404,7 @@ fn content_root_with_only_an_item_checks_its_identity() {
         crate::content_identity::identity(&root).unwrap(),
         crate::content_identity::identity(&base).unwrap()
     );
-    fs::remove_dir_all(&scratch).unwrap();
+    crate::test_support::remove_dir_all(&scratch);
 }
 
 /// a mod's thrown entity type gets the network id after vanilla's last, the
@@ -1467,7 +1467,7 @@ fn content_root_registers_a_mod_entity_type() {
     assert!(root.join(crate::content_identity::MARKER).exists());
     let identity = crate::content_identity::identity;
     assert_ne!(identity(&root).unwrap(), identity(&base).unwrap());
-    fs::remove_dir_all(&scratch).unwrap();
+    crate::test_support::remove_dir_all(&scratch);
 }
 
 /// a mod's mob type gets a network id after vanilla's, its template's row, a
@@ -1519,7 +1519,7 @@ fn content_root_registers_a_mod_mob_type() {
     );
     let biomes = fs::read_to_string(root.join("worldgen/biomes.json")).unwrap();
     assert!(biomes.contains("example:gem_cow"));
-    fs::remove_dir_all(&scratch).unwrap();
+    crate::test_support::remove_dir_all(&scratch);
 }
 
 /// a mod's menu type gets the menu network id after vanilla's last, and it
@@ -1555,7 +1555,7 @@ fn content_root_registers_a_mod_menu_type() {
     assert!(root.join(crate::content_identity::MARKER).exists());
     let identity = crate::content_identity::identity;
     assert_ne!(identity(&root).unwrap(), identity(&base).unwrap());
-    fs::remove_dir_all(&scratch).unwrap();
+    crate::test_support::remove_dir_all(&scratch);
 }
 
 /// A content mod folder from `(path, text)` pairs, read as the game reads it.
@@ -1992,7 +1992,7 @@ fn content_shapes_drive_outline_and_collision() {
         collision.cached_shape(plain).unwrap().unwrap().boxes(),
         collision.cached_shape(oak).unwrap().unwrap().boxes()
     );
-    fs::remove_dir_all(scratch).unwrap();
+    crate::test_support::remove_dir_all(scratch);
 }
 
 #[test]
@@ -2071,7 +2071,7 @@ fn content_block_default_state_is_validated_and_overlaid() {
         Ok(_) => panic!("duplicate states accepted"),
     };
     assert!(error.contains("matches 2 states"), "{error}");
-    fs::remove_dir_all(scratch).unwrap();
+    crate::test_support::remove_dir_all(scratch);
 }
 
 #[test]
@@ -2099,7 +2099,7 @@ fn shapes_reject_unknown_or_missing_template_values() {
         };
         assert!(e.contains("shapetest:rod"), "{e}");
     }
-    fs::remove_dir_all(scratch).unwrap();
+    crate::test_support::remove_dir_all(scratch);
 }
 
 /// A connecting block (template `minecraft:chorus_plant`, `connects_to` a
@@ -2244,7 +2244,7 @@ fn connecting_blocks_join_themselves_and_their_tag() {
     let chorus = registry.default_state("minecraft:chorus_plant").unwrap();
     let chorus = b.update_from_neighbour_shapes(&mut level, &mut ticks, at(4, 64, 0), chorus);
     assert!(sides(chorus).is_empty());
-    fs::remove_dir_all(&scratch).unwrap();
+    crate::test_support::remove_dir_all(&scratch);
 }
 
 /// An old chunk's saved jigsaw start comes back with its pieces (`StructureStart.loadStaticStart`):
@@ -2485,7 +2485,7 @@ fn mod_recipe_results_are_an_item_stack_or_a_bare_item_id() {
             .unwrap_or_else(|| panic!("{name}: no recipe"));
         assert_eq!((&*made.item, made.count), (item, count), "{name}");
     }
-    fs::remove_dir_all(&scratch).unwrap();
+    crate::test_support::remove_dir_all(&scratch);
 }
 
 /// A mod's creative tab comes after vanilla's, on page 1 in the first top
@@ -2582,7 +2582,7 @@ fn creative_tabs_come_on_their_own_page() {
     // Selecting a vanilla tab goes back to its page.
     creative.select(0);
     assert_eq!(creative.page, 0);
-    fs::remove_dir_all(&scratch).unwrap();
+    crate::test_support::remove_dir_all(&scratch);
 }
 
 /// A block that gives each of its template's states a run moves a template
@@ -2719,7 +2719,7 @@ fn tuple_shapes_follow_final_state_order_and_separate_collision() {
     for (index, shape) in collisions.iter().enumerate() {
         assert_eq!(entries[mapping[2 + index] as usize], encode_shape(shape));
     }
-    fs::remove_dir_all(base.parent().unwrap()).unwrap();
+    crate::test_support::remove_dir_all(base.parent().unwrap());
 }
 
 #[test]
@@ -2745,7 +2745,7 @@ fn collision_only_preserves_outline_and_shape_typos_are_errors() {
     assert_eq!(rows[0].get("outline"), rows[2].get("outline"));
     assert_eq!(rows[1].get("outline"), rows[3].get("outline"));
     assert_eq!(rows[2].get("full_collision"), Some(&J::Bool(false)));
-    fs::remove_dir_all(base.parent().unwrap()).unwrap();
+    crate::test_support::remove_dir_all(base.parent().unwrap());
     for (index, table) in [
         r#"{"properties":["axis","typo"],"default":[]}"#,
         r#"{"properties":["axis"],"values":{"bad":[]},"default":[]}"#,
@@ -2757,7 +2757,7 @@ fn collision_only_preserves_outline_and_shape_typos_are_errors() {
         let declaration = format!(r#"{{"template":"minecraft:test","collision_shapes":{table}}}"#);
         let (base, mods) = block_base(&format!("collision-typo-{index}"), &[&declaration]);
         assert!(Plan::new(&base, &mods).is_err(), "{table}");
-        fs::remove_dir_all(base.parent().unwrap()).unwrap();
+        crate::test_support::remove_dir_all(base.parent().unwrap());
     }
 }
 
@@ -2822,7 +2822,7 @@ fn content_block_state_properties_fan_out_its_states() {
     // states by their name and properties, so a repeat would be a collision.
     let states: BTreeSet<BTreeMap<String, String>> = (2..14).map(properties).collect();
     assert_eq!(states.len(), 12);
-    fs::remove_dir_all(&base).unwrap();
+    crate::test_support::remove_dir_all(&base);
     fs::remove_dir_all(base.parent().unwrap().join("mod0")).ok();
 }
 
@@ -2877,7 +2877,7 @@ fn content_block_state_properties_follow_vanilla_name_order() {
         doc.get("defaults").unwrap().get("testmod:test"),
         Some(&J::Num(2.into()))
     );
-    fs::remove_dir_all(&base).unwrap();
+    crate::test_support::remove_dir_all(&base);
     fs::remove_dir_all(base.parent().unwrap().join("mod0")).ok();
 }
 
@@ -2965,7 +2965,7 @@ fn content_block_state_properties_put_the_declared_default_first() {
         (facing(3), facing(4)),
         ("east".to_owned(), "north".to_owned())
     );
-    fs::remove_dir_all(&base).unwrap();
+    crate::test_support::remove_dir_all(&base);
     fs::remove_dir_all(base.parent().unwrap().join("mod0")).ok();
 }
 
@@ -2984,7 +2984,7 @@ fn content_block_state_properties_are_validated() {
         Ok(_) => panic!("a shadowed template property was accepted"),
     };
     assert!(error.contains("axis is already on"), "{error}");
-    fs::remove_dir_all(&base).unwrap();
+    crate::test_support::remove_dir_all(&base);
     fs::remove_dir_all(base.parent().unwrap().join("mod0")).ok();
 
     // A default is one of the values the block declared.
@@ -2998,7 +2998,7 @@ fn content_block_state_properties_are_validated() {
         Ok(_) => panic!("a default outside a property's values was accepted"),
     };
     assert!(error.contains("is not one of its values"), "{error}");
-    fs::remove_dir_all(&base).unwrap();
+    crate::test_support::remove_dir_all(&base);
     fs::remove_dir_all(base.parent().unwrap().join("mod0")).ok();
 
     // Twenty-one booleans are more combinations than a world can hold, and
@@ -3019,7 +3019,7 @@ fn content_block_state_properties_are_validated() {
         error.contains("more than the") && error.contains("world can hold"),
         "{error}"
     );
-    fs::remove_dir_all(&base).unwrap();
+    crate::test_support::remove_dir_all(&base);
     fs::remove_dir_all(base.parent().unwrap().join("mod0")).ok();
 }
 
@@ -3067,7 +3067,7 @@ fn a_declared_property_defaults_on_a_template_with_none() {
         doc.get("defaults").unwrap().get("testmod:test"),
         Some(&J::Num(1.into()))
     );
-    fs::remove_dir_all(&base).unwrap();
+    crate::test_support::remove_dir_all(&base);
     fs::remove_dir_all(base.parent().unwrap().join("mod0")).ok();
 }
 
@@ -3126,7 +3126,7 @@ fn named_definitions_follow_the_block_state_fanout() {
         plan.json(file, &mut doc).unwrap();
         assert_eq!(doc.get("testmod:test"), doc.get("minecraft:test"), "{file}");
     }
-    fs::remove_dir_all(base.parent().unwrap()).unwrap();
+    crate::test_support::remove_dir_all(base.parent().unwrap());
 }
 
 /// An NBT state row for the two-state `minecraft:test` template, the shape
@@ -3214,7 +3214,7 @@ fn the_nbt_tables_fan_out_with_the_states() {
         };
         assert_eq!(id.to_string_lossy(), "testmod:test");
     }
-    fs::remove_dir_all(&base).unwrap();
+    crate::test_support::remove_dir_all(&base);
     fs::remove_dir_all(base.parent().unwrap().join("mod0")).ok();
 }
 
@@ -3272,7 +3272,7 @@ fn a_shape_and_the_state_count_cover_every_combination() {
     }
     // The declared total agrees with the lists, which is what a loader checks.
     assert_eq!(doc.get("states"), Some(&J::Num(6.into())));
-    fs::remove_dir_all(&base).unwrap();
+    crate::test_support::remove_dir_all(&base);
     fs::remove_dir_all(base.parent().unwrap().join("mod0")).ok();
 }
 

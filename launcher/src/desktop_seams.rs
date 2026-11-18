@@ -94,7 +94,7 @@ mod tests {
         assert_eq!(std::fs::read(bin.join("shot.png")).unwrap(), b"1");
         assert_eq!(std::fs::read(bin.join("shot.png 2")).unwrap(), b"2");
         assert!(std::fs::read_dir(&home).unwrap().next().is_none());
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 
     #[test]

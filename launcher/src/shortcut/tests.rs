@@ -205,7 +205,7 @@ fn shortcuts_are_made_found_renamed_and_removed() {
         let gone = remove_in(&desktop, Some(&menu), "hardcore", t).unwrap();
         assert_eq!(gone.len(), made.len());
         assert!(find_in(&desktop, Some(&menu), "hardcore").is_empty());
-        fs::remove_dir_all(&trash).unwrap();
+        crate::test_support::remove_dir_all(&trash);
     }
     #[cfg(unix)]
     {
@@ -221,5 +221,5 @@ fn shortcuts_are_made_found_renamed_and_removed() {
     fs::write(desktop.join("Mine (Horizon).desktop"), "not ours").unwrap();
     let err = make_in(System::Linux, &desktop, None, exe, "mine", "Mine", t).unwrap_err();
     assert!(err.contains("isn't this instance's shortcut"), "{err}");
-    fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }

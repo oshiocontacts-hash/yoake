@@ -571,7 +571,7 @@ mod tests {
         crate::STORAGE_TIME.with(|time| time.set(previous_storage));
         drop(context);
         drop(services);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -650,7 +650,7 @@ mod tests {
                 .is_err()
         );
         drop(services);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 }
 

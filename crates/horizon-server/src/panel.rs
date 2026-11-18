@@ -316,6 +316,6 @@ mod tests {
             assert!(get("/login?code=nope", "").0.starts_with("HTTP/1.1 403"));
         }
         assert!(get("/login?code=nope", "").0.starts_with("HTTP/1.1 429"));
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

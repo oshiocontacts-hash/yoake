@@ -81,5 +81,5 @@ fn selected_jdk_reaches_external_preparers() {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    fs::remove_dir_all(root).unwrap();
+    crate::test_support::remove_dir_all(root);
 }

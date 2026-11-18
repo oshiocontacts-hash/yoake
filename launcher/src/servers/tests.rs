@@ -136,7 +136,7 @@ fn programs_are_laid_out_as_install_sh_does() {
         "{\"new\":1}"
     );
     assert!(!game_files(&rt, "26.3").with_extension("old").exists());
-    fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }
 
 #[test]
@@ -163,7 +163,7 @@ fn problems_say_what_to_do() {
     assert_eq!(reports.fix, Some(Fix::Prepare));
     let other = Problem::explain_with("horizon-server: a server is already running in x", "", &dir);
     assert_eq!(other, Problem::plain("A server is already running in x"));
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]
@@ -176,7 +176,7 @@ fn lists_and_status_read_as_vanilla_and_the_supervisor_write_them() {
     .unwrap();
     assert_eq!(names(&dir, "whitelist.json"), ["Alex", "Steve"]);
     assert!(names(&dir, "ops.json").is_empty());
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 
     let s = Status::parse(&json!({
         "phase": "running", "engine_uptime_seconds": 61, "crashes": 1, "last_crash": "signal: 9",
@@ -270,7 +270,7 @@ fn the_api_sends_the_token() {
             .all(|h| h.to_ascii_lowercase().contains("authorization: bearer t0k"))
     );
     assert!(seen[1].starts_with("POST /api/v1/command"));
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
     // Nothing answers: stopped.
     assert_eq!(status(Path::new("/nonexistent")).phase, "stopped");
 }
@@ -295,7 +295,7 @@ fn deleting_a_stopped_server_moves_its_world_and_backups_to_trash() {
         fs::read(trash.join("server/backups/backup.zip")).unwrap(),
         b"backup"
     );
-    fs::remove_dir_all(root).unwrap();
+    crate::test_support::remove_dir_all(root);
 }
 
 #[test]
@@ -309,7 +309,7 @@ fn deleting_refuses_a_live_supervisor_even_when_its_api_is_unavailable() {
     assert!(result.unwrap_err().contains("Stop the server"));
     assert!(root.join("server.toml").exists());
     drop(lock);
-    fs::remove_dir_all(root).unwrap();
+    crate::test_support::remove_dir_all(root);
 }
 
 #[test]
@@ -323,5 +323,5 @@ fn deleting_refuses_an_unrecognized_folder_and_keeps_files_on_trash_failure() {
             .contains("trash unavailable")
     );
     assert!(root.join("server.toml").exists());
-    fs::remove_dir_all(root).unwrap();
+    crate::test_support::remove_dir_all(root);
 }

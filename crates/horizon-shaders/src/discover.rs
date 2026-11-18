@@ -77,6 +77,6 @@ mod tests {
             Some("no shaders folder at the root of the pack")
         );
         assert!(discover(&dir.join("missing")).is_empty());
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

@@ -380,7 +380,7 @@ mod tests {
         );
         std::fs::write(dir.join(FILE), "garbage").unwrap();
         assert_eq!(remembered(&dir, t0), Remembered::Stale(None));
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -438,7 +438,7 @@ mod tests {
                 maps: vec![("minecraft:the_nether".into(), "n".into())]
             })
         );
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]

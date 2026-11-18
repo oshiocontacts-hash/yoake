@@ -133,7 +133,7 @@ fn says_what_a_dropped_file_is() {
     for (file, want) in cases {
         assert_eq!(what(&file).map_err(|_| ()), want, "{}", file.display());
     }
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]
@@ -205,5 +205,5 @@ fn an_export_comes_back_as_an_instance_and_nothing_escapes_its_folder() {
         )],
     );
     assert!(import_into(&java, NONE, &maker(&made)).is_err());
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }

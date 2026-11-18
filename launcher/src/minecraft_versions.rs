@@ -168,6 +168,6 @@ mod tests {
         };
         assert_eq!(load_with(&cache, &online).unwrap().latest_release, "1.21.4");
         assert_eq!(load_with(&cache, &offline).unwrap().all.len(), 3);
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

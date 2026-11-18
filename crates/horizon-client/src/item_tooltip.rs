@@ -1506,7 +1506,7 @@ mod tests {
         )
         .unwrap();
         let enchantments = crate::enchant::Enchantments::load(&root);
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         let translate = |key: &str| enchantments.translate(key).map(str::to_owned);
         let mut rocket = ItemStack::new("minecraft:firework_rocket", 1);
         assert_eq!(firework_lines(&rocket, &translate), ["Flight Duration: 1"]);
@@ -1588,7 +1588,7 @@ mod tests {
         )
         .unwrap();
         let enchantments = crate::enchant::Enchantments::load(&root);
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         let lang = |key: &str| enchantments.translate(key).map(str::to_owned);
         let green = rgba(0, 170, 0, 255);
         let gray = rgba(170, 170, 170, 255);

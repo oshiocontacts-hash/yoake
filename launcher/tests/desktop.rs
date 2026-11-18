@@ -2,6 +2,10 @@
 #![cfg(target_os = "linux")]
 
 use std::path::Path;
+
+#[cfg(test)]
+#[path = "../../tests/support/temp_dir.rs"]
+mod test_support;
 use std::process::Command;
 
 fn desktop_entry(home: &Path, wrapper: Option<&str>, args: &[&str]) {
@@ -51,5 +55,5 @@ fn menu_registration_preserves_the_package_wrapper() {
     // An unset or empty override keeps standalone installations working.
     desktop_entry(&home, Some(""), &[]);
     assert_eq!(std::fs::read_to_string(&entry).unwrap(), original);
-    std::fs::remove_dir_all(&home).unwrap();
+    crate::test_support::remove_dir_all(&home);
 }

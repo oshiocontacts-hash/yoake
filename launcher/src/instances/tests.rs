@@ -160,7 +160,7 @@ fn existing_worlds_stay_where_they_are_and_every_folder_becomes_an_instance() {
     let port = find_in(&all, "port:small-pack").unwrap();
     assert_eq!(port.group.as_deref(), Some("Modded"));
     assert_eq!(port.home, home.join("ports/small-pack/home"));
-    fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }
 
 #[test]
@@ -196,7 +196,7 @@ fn names_stay_unique_and_packs_are_not_copied() {
     assert!(edit_in(&home, &data, "survival-2", |m| m.name =
         Some("survival".into()))
     .is_err());
-    fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }
 
 #[test]
@@ -225,7 +225,7 @@ fn an_instance_follows_the_players_answers() {
     horizon_core::no_ai::set(&main, false).unwrap();
     follow_player(&main, &own);
     assert!(!horizon_core::no_ai::is_on(&own));
-    fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }
 
 #[test]
@@ -246,7 +246,7 @@ fn icons_are_a_texture_name_or_a_colour() {
     let diamond = Icon::Texture("diamond".into()).texture(&root).unwrap();
     assert!(diamond.ends_with("item/diamond.png"));
     assert_eq!(Icon::Texture("stone".into()).texture(&root), None);
-    fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }
 
 #[test]
@@ -269,7 +269,7 @@ fn an_instance_keeps_its_own_version_until_it_follows_updates_again() {
         .all(|i| i.version.is_none()));
     let follows = edit_in(&home, &data, "Older", |m| m.version = None).unwrap();
     assert_eq!(follows.version, None);
-    fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }
 
 #[test]
@@ -294,7 +294,7 @@ fn play_time_adds_up_per_instance_and_survives_a_rename() {
     // Never played: nothing written for it.
     let text = fs::read_to_string(data.join(FILE)).unwrap();
     assert!(!text.contains("horizon"), "{text}");
-    fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }
 
 #[test]
@@ -340,7 +340,7 @@ fn a_java_instance_plays_one_minecraft_version_in_its_own_folder() {
     .unwrap();
     let edited = find_in(&list_in(&home, &data), &java.id).unwrap();
     assert_eq!(edited.java.unwrap().memory_mb, Some(6144));
-    fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }
 
 /// Delete moves an instance's folder to the Trash and forgets it; one deleted outside the
@@ -379,7 +379,7 @@ fn deleted_instances_go_to_the_trash_and_are_forgotten() {
     assert!(!Store::load(&data).instances.contains_key("skyblock"));
     let again = create_in(&home, &data, "Skyblock", None, None).unwrap();
     assert_eq!(again.group, None);
-    fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }
 
 #[test]
@@ -429,5 +429,5 @@ fn a_picture_is_kept_small_and_goes_to_the_trash() {
     // Nothing to remove is fine.
     set_picture(&home, None, &to_trash).unwrap();
     assert!(picture(b"not an image".to_vec()).is_err());
-    fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }

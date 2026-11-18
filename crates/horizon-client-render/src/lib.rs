@@ -2,6 +2,10 @@
 //! the HUD, menus and settings. Gameplay (horizon-client) builds on it; nothing here reaches gameplay.
 #![forbid(unsafe_code)]
 pub mod assets;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 pub mod atlas_sources;
 pub mod audio;
 pub mod auth;

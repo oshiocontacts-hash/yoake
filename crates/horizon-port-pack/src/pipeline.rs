@@ -382,7 +382,7 @@ mod tests {
                 .any(|l| l.contains("without the game's tables")),
             "{logged:?}"
         );
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 
     #[test]
@@ -425,6 +425,6 @@ mod tests {
         assert_eq!(on, [mods[0].clone(), mods[2].clone()]);
         assert_eq!(off.len(), 1);
         assert!(off[0].starts_with("betterfortresses not loaded"), "{off:?}");
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 }

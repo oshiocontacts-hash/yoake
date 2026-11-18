@@ -211,7 +211,7 @@ fn mutes_survive_a_restart_and_unmute_lifts_them() {
         (None, Some("Op"), Some("spam"))
     );
     assert_eq!(reloaded.mutes(now + MIN).len(), 1);
-    std::fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]

@@ -105,7 +105,7 @@ fn a_background_is_a_picture_kept_once() {
         dir.join(&second).exists(),
         "a refused file keeps the old one"
     );
-    std::fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }
 
 #[test]

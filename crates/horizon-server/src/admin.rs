@@ -441,6 +441,6 @@ mod tests {
         ] {
             assert!(text.contains(line), "{line} in {text}");
         }
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

@@ -175,6 +175,6 @@ mod tests {
         assert_eq!(fs::read_dir(&dir).unwrap().count(), 3);
         drop(staged);
         assert_eq!(fs::read_dir(&dir).unwrap().count(), 2);
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 }

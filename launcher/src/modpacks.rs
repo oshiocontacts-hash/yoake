@@ -368,7 +368,7 @@ mod tests {
             .jars()
             .unwrap()
             .contains("CurseForge downloads coming soon"));
-        fs::remove_dir_all(&work).unwrap();
+        crate::test_support::remove_dir_all(&work);
     }
 
     #[test]
@@ -409,7 +409,7 @@ mod tests {
         );
         assert_eq!(cmd.get_current_dir(), Some(profile_home(&work).as_path()));
         assert!(profile_home(&work).is_dir());
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
     #[test]
     fn resource_only_profile_can_play_without_enabling_or_overwriting_packs() {
@@ -452,7 +452,7 @@ mod tests {
             .any(|l| l.contains("Conflict") && l.contains("look.zip")));
         assert!(outcome(&pack).contains("2 resource packs available"));
         apply_profile(&mut Command::new("true"), &work).unwrap();
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -475,6 +475,6 @@ mod tests {
         assert!(!p.can_play());
         assert_eq!(p.portable, 0);
         assert_eq!(p.indexed_resources, 1);
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 }

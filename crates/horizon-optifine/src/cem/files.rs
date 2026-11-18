@@ -111,7 +111,7 @@ mod tests {
             fs::write(path, "{}").unwrap();
         }
         let files = jem_files(&root);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         let paths = |paths: &[&str]| {
             paths
                 .iter()

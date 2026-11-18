@@ -461,7 +461,7 @@ mod tests {
                 parent.join("jdk-21.0.5.11-hotspot"),
             ]
         );
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -489,6 +489,6 @@ mod tests {
         make(dir.join("jre-legacy/linux/jre-legacy"), false);
         assert_eq!(minecraft_runtimes(&dir), [epsilon, gamma]);
         assert!(minecraft_runtimes(&dir.join("missing")).is_empty());
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

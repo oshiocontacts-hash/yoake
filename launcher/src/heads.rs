@@ -229,7 +229,7 @@ mod tests {
             )
             .unwrap();
         assert!(profile_pixels(&oversized).is_none());
-        std::fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -259,6 +259,6 @@ mod tests {
             ))
             .is_some()
         );
-        std::fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 }

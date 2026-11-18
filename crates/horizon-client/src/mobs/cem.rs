@@ -860,7 +860,7 @@ mod tests {
         .into_iter()
         .collect();
         let (models, _) = CemModels::from_files(&root, &jem_files(&root), &vanilla);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
 
         let adult = models.layer("zombie#main").unwrap();
         assert_eq!(adult.texture.as_deref(), Some("entity/zombie/green"));
@@ -908,7 +908,7 @@ mod tests {
             .map(|k| (*k, (&tree, "minecraft:test")))
             .collect();
         let (models, _) = CemModels::from_files(&root, &jem_files(&root), &vanilla);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         models
     }
 

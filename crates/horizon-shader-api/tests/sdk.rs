@@ -1,6 +1,10 @@
 //! The SDK: every template and the example pack pass the check, and the
 //! `horizon-shader` tool makes, checks and packages a pack.
 use horizon_shader_api::{Pack, check};
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 use std::{path::Path, process::Command};
 
 const TOOL: &str = env!("CARGO_BIN_EXE_horizon-shader");
@@ -56,7 +60,7 @@ fn every_template_makes_a_pack_that_passes() {
         "water",
     ]);
     assert!(!ok && text.contains("no template \"water\""), "{text}");
-    std::fs::remove_dir_all(root).unwrap();
+    crate::test_support::remove_dir_all(root);
 }
 
 #[test]
@@ -96,5 +100,5 @@ fn packs_and_checks_the_package() {
     assert_eq!(report[0]["problems"][0]["line"], 1);
     let (ok, text) = run(&["pack", dir_s]);
     assert!(!ok && text.contains("failed the check"), "{text}");
-    std::fs::remove_dir_all(root).unwrap();
+    crate::test_support::remove_dir_all(root);
 }

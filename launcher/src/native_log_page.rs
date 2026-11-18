@@ -363,7 +363,7 @@ mod tests {
         );
         std::fs::remove_file(&path).unwrap();
         assert!(matches!(Log::read(&path), Err(Missing::None)));
-        std::fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]

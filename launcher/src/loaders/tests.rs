@@ -133,7 +133,7 @@ fn a_profile_comes_with_its_libraries_checked() {
     assert!(install_with(&served, "1.21.4")
         .unwrap_err()
         .contains("asm-9.7.jar is not the one"));
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 /// The real services and repositories (network): `cargo test loaders -- --ignored`.
@@ -157,6 +157,6 @@ fn the_real_loaders_install() {
             let path = library["downloads"]["artifact"]["path"].as_str().unwrap();
             assert!(dir.join("libraries").join(path).is_file(), "{path}");
         }
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

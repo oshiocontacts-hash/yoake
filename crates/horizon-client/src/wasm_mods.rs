@@ -1967,7 +1967,7 @@ mod tests {
         assert_eq!(sources[0].bytes, b"raw wasm dev fixture");
         assert_eq!(sources[0].watch.as_deref(), Some(module.as_path()));
 
-        std::fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -1985,7 +1985,7 @@ mod tests {
         let reserved = HashSet::from(["dev-hello".to_owned()]);
         let sources = dev_sources_with(true, || Some(dir.clone().into_os_string()), &reserved);
         assert!(sources.is_empty());
-        std::fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -2013,7 +2013,7 @@ mod tests {
             assert!(Watch::stat(&link).is_none());
         }
 
-        std::fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]

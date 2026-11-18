@@ -355,7 +355,7 @@ mod tests {
                 "[mod]\nid = 'example'\nversion = '1'\n[api]\npath = {path:?}\n"
             ));
             assert_eq!(super::super::bundle(&dir, None).is_ok(), valid, "{path}");
-            fs::remove_dir_all(dir).unwrap();
+            crate::test_support::remove_dir_all(dir);
         }
     }
 
@@ -367,7 +367,7 @@ mod tests {
         assert!(super::super::bundle(&dir, None)
             .unwrap_err()
             .contains("accepts only path"));
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -383,7 +383,7 @@ mod tests {
         assert!(!value.contains_key("dependencies"));
         assert!(value["mod"].get("side").is_none());
         assert!(value.contains_key("injection"));
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -452,7 +452,7 @@ mod tests {
             assert!(text.contains(&format!("entry::NativeSide::{side},")));
         }
         assert!(text.contains(r#"name_mods(&["example"]);"#));
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -491,7 +491,7 @@ mod tests {
                 .iter()
                 .any(|member| member.as_str() == Some(GAME))
         );
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -572,7 +572,7 @@ mod tests {
             game["build-dependencies"]["horizon-mod-api-gen"]["path"].as_str(),
             Some("../horizon-mod-api-gen")
         );
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -580,6 +580,6 @@ mod tests {
         let dir = fixture("[mod]\nid = 'example'\nversion = '1'\n[api]\npath = 'engine'\n");
         let bundle = super::super::bundle(&dir, None).unwrap();
         assert!(!bundle.mixins_content);
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 }

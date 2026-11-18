@@ -300,7 +300,7 @@ sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
         assert_eq!(options, "renderDistance:8\n");
         let corner = home.join(format!("horizon-mods/{STORAGE_DIR}/coords_hud/corner.txt"));
         assert!(corner.is_file());
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -324,6 +324,6 @@ sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
         assert!(Manifest::parse(&newer).unwrap_err().contains("format 2"));
         let short = PACK.replace("0000000000000000", "00");
         assert!(Manifest::parse(&short).is_err());
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

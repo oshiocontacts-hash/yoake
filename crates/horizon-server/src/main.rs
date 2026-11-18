@@ -2,6 +2,10 @@
 //! runs the game headless as the engine, and manages the vanilla files around it.
 
 mod admin;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 mod api;
 mod backup;
 mod cli;

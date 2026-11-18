@@ -2289,7 +2289,7 @@ mod tests {
                 assert_log_lines(std::str::from_utf8(&output.stdout).unwrap());
             }
             assert_log_lines(&fs::read_to_string(home.join("logs/latest.log")).unwrap());
-            fs::remove_dir_all(home).unwrap();
+            crate::test_support::remove_dir_all(home);
         }
     }
 }

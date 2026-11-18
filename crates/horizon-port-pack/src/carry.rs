@@ -1914,7 +1914,7 @@ mod tests {
         assert_eq!(blocks, ["gem:gem_block", "gem:gem_door"]);
         assert_eq!(content.items.len(), 1);
         assert_eq!(content.items[0].id, "gem:gem");
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     /// A mod shipping its files under other names than its id: the
@@ -2003,7 +2003,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(tag, json!({"values": ["minecraft:plains"]}));
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     /// Overrides make looks of the mod's own models only, and never of an item it registers.
@@ -2085,7 +2085,7 @@ mod tests {
         assert!(!defined(&out, "look"));
         assert!(!defined(&out, "shard"));
         assert!(defined(&out, "left") && defined(&out, "right"));
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     /// A jar entry whose name escapes through a Windows separator writes
@@ -2120,6 +2120,6 @@ mod tests {
         assert_eq!(report.copied, 0);
         assert!(report.outside.is_empty());
         assert!(!dir.join("evil.json").exists());
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

@@ -3,6 +3,10 @@
 #![forbid(unsafe_code)]
 extern crate horizon_client_lib as horizon_client;
 mod commands;
+
+#[cfg(test)]
+#[path = "../../../../../tests/support/temp_dir.rs"]
+mod test_support;
 mod launch;
 mod mcp;
 
@@ -742,7 +746,7 @@ mod tests {
         assert_eq!(f.reply["kind"], "connection");
         let f = s.run(&["sleep".to_owned(), "x".to_owned()]).unwrap_err();
         assert_eq!(f.status, USAGE);
-        std::fs::remove_dir_all(home).unwrap();
+        crate::test_support::remove_dir_all(home);
     }
 
     #[test]

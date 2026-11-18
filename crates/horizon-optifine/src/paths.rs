@@ -219,7 +219,7 @@ mod tests {
                 "assets/mymod/optifine/ctm/x/y.properties",
             ]
         );
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 
     #[cfg(unix)]
@@ -236,6 +236,6 @@ mod tests {
             properties_files(&root, "ctm"),
             ["assets/minecraft/optifine/ctm/a.properties"]
         );
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 }

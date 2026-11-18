@@ -550,6 +550,6 @@ mod tests {
         assert_eq!(through_current(&exe), root.join("current/horizon-server"));
         let other = root.join("bin/horizon-server");
         assert_eq!(through_current(&other), other);
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 }

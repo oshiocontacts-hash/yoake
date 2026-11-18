@@ -174,7 +174,7 @@ mod tests {
             nbt::read_named(&std::fs::read(&path).unwrap(), nbt::Limits::default()).unwrap();
         assert_eq!(root.name, JavaString::from(""));
         assert!(matches!(root.tag.get("servers"), Some(Tag::List(l)) if l.len() == 2));
-        std::fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -209,7 +209,7 @@ mod tests {
         std::fs::write(&path, b"not nbt").unwrap();
         assert!(prepend(&path, &ServerEntry::new("Top", "c.example")).is_err());
         assert_eq!(std::fs::read(&path).unwrap(), b"not nbt");
-        std::fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]

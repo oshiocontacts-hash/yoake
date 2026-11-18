@@ -387,7 +387,7 @@ mod tests {
                     .unwrap()
                     .starts_with("yoake-w2bf-budget-")
             );
-            fs::remove_dir_all(&self.0).unwrap();
+            crate::test_support::remove_dir_all(&self.0);
         }
     }
 

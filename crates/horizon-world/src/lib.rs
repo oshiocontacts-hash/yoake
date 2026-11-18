@@ -2,6 +2,10 @@
 #![forbid(unsafe_code)]
 
 pub mod active_effect_tick;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 pub mod active_effects;
 pub mod attachments;
 pub mod attribute_health;

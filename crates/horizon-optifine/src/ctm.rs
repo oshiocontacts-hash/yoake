@@ -873,6 +873,6 @@ mod tests {
             ["z.properties", "block_stone.properties", "c.properties"]
         );
         assert!(rules[2].applies_at(faces::UP, 0, "plains", Some("Épée")));
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 }

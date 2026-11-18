@@ -1,5 +1,9 @@
 //! Each scenario runs in its own process so Java discovery sees a controlled environment.
 use horizon_prepare::java;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 use std::{env, fs, path::Path, process::Command};
 
 const TEST: &str = "selects_a_compatible_compiler_and_runtime";
@@ -141,5 +145,5 @@ fn selects_a_compatible_compiler_and_runtime() {
             String::from_utf8_lossy(&output.stderr)
         );
     }
-    fs::remove_dir_all(root).unwrap();
+    crate::test_support::remove_dir_all(root);
 }

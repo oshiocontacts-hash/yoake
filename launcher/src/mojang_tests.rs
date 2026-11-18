@@ -176,7 +176,7 @@ fn an_owner_gets_the_official_layout_with_this_systems_libraries() {
     )
     .unwrap();
     assert_eq!(server.asked(), Vec::<String>::new());
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]
@@ -201,7 +201,7 @@ fn macos_skips_what_its_rules_disallow() {
     assert!(libraries.join("common/1/common-1.jar").is_file());
     assert!(!libraries.join("linux").exists());
     assert!(!libraries.join("not-osx").exists());
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]
@@ -234,7 +234,7 @@ fn a_file_that_is_not_the_pinned_one_stops_the_download() {
         "{error}"
     );
     assert!(!dir.join("versions/26.3/26.3.jar").exists());
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]
@@ -265,7 +265,7 @@ fn missing_sounds_are_a_line_in_the_log_not_an_error() {
             && last.ends_with("answered 404"),
         "{last}"
     );
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]
@@ -376,7 +376,7 @@ fn java_runtime_lays_out_mojangs_runtime_with_its_executables_and_links() {
         &|_| {}
     )
     .is_err());
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]
@@ -410,7 +410,7 @@ fn a_file_of_another_size_than_mojang_lists_is_refused() {
         "{error}"
     );
     assert!(!dir.join("versions/26.3/26.3.jar").exists());
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]
@@ -458,7 +458,7 @@ fn a_cancelled_download_goes_on_where_it_stopped() {
         "{asked:#?}"
     );
     assert_eq!(asked.len(), 6, "{asked:#?}");
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 /// A version Horizon doesn't pin, as Mojang's list names it (its version file's sha1): the
@@ -549,7 +549,7 @@ fn any_listed_version_comes_with_its_natives() {
     assert!(!linux.join("libraries").exists());
     assert!(linux.join("assets/log_configs/client-1.12.xml").is_file());
     for dir in [mac, windows, linux] {
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     // A client that isn't the one its checked version file names is refused.
@@ -603,5 +603,5 @@ fn a_download_goes_on_past_an_asset_that_keeps_failing() {
     assert_eq!(sound, 3, "tried three times");
     let last = logged.lock().unwrap().last().cloned().unwrap();
     assert!(last.contains("1 of 2 files failed"), "{last}");
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }

@@ -3523,7 +3523,7 @@ mod tests {
         assert_eq!(texel_at(&atlas, rect, 0, 0), [0, 0, 200, 255]);
         let rect = atlas.sprites["gems:item/ruby"];
         assert_eq!(texel_at(&atlas, rect, 0, 0), [0, 200, 0, 255]);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
     #[test]
     fn item_textures_without_content_namespace_are_not_implicitly_packed() {
@@ -3536,7 +3536,7 @@ mod tests {
 
         let atlas = HudAtlas::build(&root).unwrap();
         assert!(!atlas.sprites.contains_key("gems:item/ruby"));
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
     #[test]
     fn content_mod_item_fallback_preserves_declared_sprite_precedence() {
@@ -3565,7 +3565,7 @@ mod tests {
         let atlas = HudAtlas::build(&root).unwrap();
         let rect = atlas.sprites["gems:item/ruby"];
         assert_eq!(texel_at(&atlas, rect, 0, 0), [200, 0, 0, 255]);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
     #[test]
     fn content_mod_nested_item_texture_keeps_its_animation() {
@@ -3597,7 +3597,7 @@ mod tests {
             .find(|(sprite, _)| sprite.u0 == rect.u0 && sprite.v0 == rect.v0)
             .unwrap();
         assert_eq!(animation.frame_count(), 2);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
     /// OptiFine random entity variants outside `textures/` pack under the names
     /// `RandomTextures` gives them; one beside its texture packs once, under its own.
@@ -3620,7 +3620,7 @@ mod tests {
         let rect = atlas.sprites["entity/cat/cat2"];
         assert_eq!(texel_at(&atlas, rect, 0, 0), [0, 0, 200, 255]);
         assert!(atlas.random_textures.get("entity/pig/pig").is_some());
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
     /// A random variant's emissive overlay packs beside the variant, under its name.
     #[test]
@@ -3670,7 +3670,7 @@ mod tests {
                 .overlay("minecraft:optifine/random/entity/zombie/zombie3"),
             Some("minecraft:optifine/random/entity/zombie/zombie3_e")
         );
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
     /// Variants past the budget, in name order, stay out of the atlas.
     #[test]
@@ -3697,7 +3697,7 @@ mod tests {
         let all = [&files[0], &overlay, &files[1]];
         let kept = budgeted(all.into_iter(), &overlays, 600);
         assert_eq!(kept, [files[0].clone(), files[1].clone()].into());
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
     #[test]
     fn content_mod_effect_icons_pack_under_their_namespace() {
@@ -3748,7 +3748,7 @@ mod tests {
                 .iter()
                 .any(|v| v.uv == [missing.u0, missing.v0])
         );
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
     #[test]
     fn animated_block_sprites_register_and_pack_their_first_mcmeta_frame() {
@@ -4362,7 +4362,7 @@ texture=wide",
         assert_eq!(batch.vertices[0].color, rgba(63, 63, 63, 255));
         assert_eq!(batch.vertices[12].pos, [10.0, 9.0]);
         assert_eq!(batch.vertices[12].color, u32::MAX);
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -4383,7 +4383,7 @@ texture=wide",
         assert_eq!(batch.vertices.len(), 12); // glyph and one sprite
         let sprite = atlas.sprites["item/porkchop"];
         assert_eq!(batch.vertices[6].uv, [sprite.u0, sprite.v0]);
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -4511,7 +4511,7 @@ texture=wide",
             (batch.vertices[1].uv[0] - background.u0 - (background.u1 - background.u0) / 8.0).abs()
                 < 1e-6
         );
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]

@@ -1298,7 +1298,7 @@ mod tests {
         let manifest = import_manifest(&lock, &game_files(Some(&minecraft), "9.9")).unwrap();
         assert!(manifest.get("patches").is_none());
         assert_eq!(digest(&destination, "sha1").unwrap(), pinned);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 
     /// scanfee's Prism Launcher 26.3 install on a Mac (#1487): Prism keeps natives under its own

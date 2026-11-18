@@ -49,7 +49,7 @@ impl Project {
 
 impl Drop for Project {
     fn drop(&mut self) {
-        fs::remove_dir_all(&self.root).unwrap();
+        crate::test_support::remove_dir_all(&self.root);
     }
 }
 

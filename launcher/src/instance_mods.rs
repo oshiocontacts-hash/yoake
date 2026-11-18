@@ -675,7 +675,7 @@ mod tests {
             read(&home, true).is_empty(),
             "native mods stay out of Java instances"
         );
-        std::fs::remove_dir_all(home).unwrap();
+        crate::test_support::remove_dir_all(home);
     }
 
     #[test]

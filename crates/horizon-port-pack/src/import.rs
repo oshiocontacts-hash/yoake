@@ -479,6 +479,6 @@ mod tests {
         assert_eq!(pack.files.len(), 1);
         assert_eq!(pack.files[0].path, "mods/mcw-doors-1.1.2.jar");
         assert_eq!(pack.overrides["config"], 1);
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

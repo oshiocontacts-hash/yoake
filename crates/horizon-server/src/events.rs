@@ -281,6 +281,6 @@ mod tests {
         let polled: Value = serde_json::from_str(&polled.body).unwrap();
         assert_eq!(polled["next"], 3);
         assert_eq!(polled["events"][0]["line"], "not a join");
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

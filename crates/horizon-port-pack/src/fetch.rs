@@ -489,6 +489,6 @@ mod tests {
         let again = fetch(&work, &records, None, &|_| true, &|_| {}).unwrap();
         assert_eq!(again.count(How::Present), 2);
         assert_eq!(Fetched::load(&work).count(How::Present), 2);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 }

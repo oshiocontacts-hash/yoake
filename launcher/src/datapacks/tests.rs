@@ -99,7 +99,7 @@ fn lists_adds_and_removes_as_the_game_reads_them() {
         .unwrap()
         .contains("folder pack"));
     assert_eq!(find(&world, "Trades").unwrap().file, "Trades.zip");
-    fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }
 
 #[test]
@@ -134,5 +134,5 @@ fn coverage_says_what_runs() {
         many.not_read(),
         "8 kind8s, 7 kind7s, 6 kind6s, 5 kind5s, 4 kind4s, 3 kind3s and 2 other kinds"
     );
-    fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }

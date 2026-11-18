@@ -325,6 +325,6 @@ pub(crate) mod tests {
         assert_eq!(pack.read_text("lang/en_us.lang").unwrap(), "option.A=Alpha");
         assert_eq!(pack.list("lang"), ["en_us.lang"]);
         assert!(pack.read("../secret.txt").is_none());
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

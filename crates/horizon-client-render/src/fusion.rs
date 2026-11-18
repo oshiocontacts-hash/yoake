@@ -638,7 +638,7 @@ mod tests {
         .unwrap();
         let arm = connecting_model(&root, "demo:block/arm");
         let plain = connecting_model(&root, "demo:block/plain");
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         // `edge` has the model's predicate; `pane` none, so the texture's own.
         assert_eq!(
             arm,
@@ -673,7 +673,7 @@ mod tests {
         )
         .unwrap();
         let faces = connecting_model(&root, "demo:block/tiles");
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         let joins = |side| faces.iter().find(|f| f.1 == side).and_then(|f| f.2.clone());
         assert!(matches!(joins(Face::Up), Some(Connection::Neighbour(_))));
         assert_eq!(joins(Face::North), Some(Connection::SameBlock));

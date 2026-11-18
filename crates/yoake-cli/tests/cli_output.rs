@@ -1,4 +1,8 @@
 use serde_json::Value;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{self, Command};
@@ -17,7 +21,7 @@ impl Project {
 
 impl Drop for Project {
     fn drop(&mut self) {
-        fs::remove_dir_all(&self.0).unwrap();
+        crate::test_support::remove_dir_all(&self.0);
     }
 }
 

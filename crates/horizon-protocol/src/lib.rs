@@ -4,6 +4,10 @@
 // `deny`, not `forbid`: crypto/blocks.rs allows the ARMv8 AES intrinsics, nothing else.
 #![deny(unsafe_code)]
 pub mod adapter;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 pub mod attachment_sync;
 pub mod buf;
 pub mod chunk;

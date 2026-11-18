@@ -610,7 +610,7 @@ mod tests {
         assert!(is_inside(Path::new("data/x/worldgen/biome/b.json")));
         assert!(!is_inside(Path::new("data/../x.json")));
         assert!(!is_inside(Path::new("")));
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]

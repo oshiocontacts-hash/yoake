@@ -162,5 +162,5 @@ fn the_validation_error_still_fails_the_load_first() {
         .unwrap();
         assert_eq!(error.to_string(), expected, "parallel: {parallel}");
     }
-    std::fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }

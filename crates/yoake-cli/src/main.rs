@@ -1,4 +1,8 @@
 mod engine_test;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 mod scaffold;
 #[cfg(test)]
 mod tests;

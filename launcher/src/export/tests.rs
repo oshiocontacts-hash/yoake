@@ -164,8 +164,8 @@ fn a_zip_has_the_instance_and_the_picked_world_and_nothing_private() {
         "New has nothing to share yet: no settings, packs, mods or worlds."
     );
     assert!(!empty.join("New.zip").exists());
-    fs::remove_dir_all(&empty).unwrap();
-    fs::remove_dir_all(&home).unwrap();
+    crate::test_support::remove_dir_all(&empty);
+    crate::test_support::remove_dir_all(&home);
 }
 
 #[test]
@@ -210,5 +210,5 @@ fn an_mrpack_lists_what_modrinth_serves_and_carries_the_rest() {
     // A pack changed since its install is carried, not linked.
     put(&home.join("resourcepacks/Glass.zip"), b"edited");
     assert!(linkable(&home, &served).is_empty());
-    fs::remove_dir_all(&home).unwrap();
+    crate::test_support::remove_dir_all(&home);
 }

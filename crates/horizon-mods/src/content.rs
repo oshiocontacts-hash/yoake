@@ -1783,7 +1783,7 @@ capabilities = ["registries"]
         std::fs::write(&path, Package::write_files(manifest, None, files)?).unwrap();
         let package = Package::read(&path);
         let content = package.and_then(|p| Content::read(&path, &p.manifest));
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
         content
     }
 
@@ -1970,7 +1970,7 @@ capabilities = ["registries"]
             .unwrap();
             let package = Package::read(&path).unwrap();
             let content = Content::read_declaring(&path, &package.manifest, declared);
-            std::fs::remove_dir_all(&dir).unwrap();
+            crate::test_support::remove_dir_all(&dir);
             content
         };
         assert!(read(&[]).is_err(), "a remainder nobody declares is refused");
@@ -2452,7 +2452,7 @@ capabilities = ["registries"]
         let content = Content::read(&dir, &package.manifest).unwrap();
         assert_eq!(content.files, ["data/ruby/horizon/block/ruby_block.json"]);
         assert_eq!(content.file(&content.files[0]).unwrap(), BLOCK);
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     /// A connecting block names a block tag and copies a `PipeBlock`.
@@ -2882,7 +2882,7 @@ capabilities = ["registries"]
         let package = Package::read(&path).unwrap();
         let e = Content::read(&path, &package.manifest).err().unwrap();
         assert!(e.contains("not capability registries"), "{e}");
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]

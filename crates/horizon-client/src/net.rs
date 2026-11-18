@@ -2269,10 +2269,9 @@ mod tests {
             cfg::Serverbound::FinishConfiguration(Empty)
         );
         assert!(thread.join().unwrap().is_ok());
-        std::fs::remove_dir_all(
+        crate::test_support::remove_dir_all(
             std::env::temp_dir().join(format!("horizon-content-identity-{}", std::process::id())),
-        )
-        .unwrap();
+        );
     }
 
     #[test]

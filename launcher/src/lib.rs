@@ -1,4 +1,8 @@
 //! The launcher's core, shared by the GUI, the CLI and the MCP server.
+#[cfg(test)]
+#[path = "../../tests/support/temp_dir.rs"]
+mod test_support;
+
 pub mod account;
 #[cfg(test)]
 #[path = "../../packaging/yoake_icon.rs"]

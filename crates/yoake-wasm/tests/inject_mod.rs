@@ -1,4 +1,8 @@
 use std::collections::BTreeMap;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 use std::sync::{Arc, Mutex};
 
 use horizon_mods::yak::ConfigRuntimeSide;
@@ -142,7 +146,7 @@ fn inject_config_is_scoped_gated_and_notifies_cached_handlers() {
     assert_eq!(timer(), Value::Unsigned(2));
     drop(isolated);
     drop(services);
-    std::fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }
 
 fn read_leb(bytes: &[u8], position: &mut usize) -> u32 {
@@ -727,7 +731,7 @@ fn remove_temporary_root(root: &std::path::Path) {
     let root = root.canonicalize().unwrap();
     let temporary = std::env::temp_dir().canonicalize().unwrap();
     assert!(root.starts_with(&temporary) && root != temporary);
-    std::fs::remove_dir_all(root).unwrap();
+    crate::test_support::remove_dir_all(root);
 }
 
 #[test]

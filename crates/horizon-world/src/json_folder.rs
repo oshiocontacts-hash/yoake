@@ -170,7 +170,7 @@ mod tests {
         drop((first, second));
         // Let go: the next reader reads the folder again.
         assert_eq!(read(&dir).unwrap().files[1].bytes().unwrap(), b"{\"a\":2}");
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     /// Under a prepared root with a `horizon-data.bin`, the folder is read
@@ -202,7 +202,7 @@ mod tests {
         assert_eq!(folder.files[2].bytes().unwrap(), b"{\"a\":1}");
         assert_eq!(folder.files[2].path, recipes.join("stick.json"));
         drop(folder);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 
     #[test]

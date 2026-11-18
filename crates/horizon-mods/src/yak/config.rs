@@ -864,7 +864,7 @@ default = false
         assert!(!saved.contains_key("removed"));
         assert!(!saved.contains_key("client_setting"));
         drop((client, server));
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -904,7 +904,7 @@ default = false
             Some(&Value::Boolean(true))
         );
         drop((first, second, reloaded));
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -953,7 +953,7 @@ default = false
         drop(lock);
         child(false);
         drop((directory, base));
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -981,7 +981,7 @@ default = false
         assert!(other_mod.exists());
         assert_eq!(config.state().get("shared"), Some(&Value::Integer(5)));
         drop(config);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -1012,7 +1012,7 @@ default = false
         );
         assert!(!root.join("config/sample-mod.lock").exists());
         drop(config);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -1040,7 +1040,7 @@ default = false
                 .unwrap();
         assert_eq!(saved["shared"], Value::Integer(5));
         drop((config, directory, base));
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -1070,7 +1070,7 @@ default = false
         assert_eq!(config.state().get("shared"), Some(&Value::Integer(4)));
         assert_eq!(std::fs::read(path).unwrap(), saved);
         drop(config);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -1147,7 +1147,7 @@ default = false
             ConfigFile::load(&root, "con", &manifest.config, ConfigRuntimeSide::Client).is_err()
         );
         drop((client, server, reloaded_client, reloaded_server));
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]

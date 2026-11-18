@@ -5,6 +5,10 @@
 //! It holds summaries and fixed-edge histogram counts, never raw frame streams.
 
 use std::collections::BTreeMap;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -458,6 +462,6 @@ mod tests {
             Report::parse(&std::fs::read_to_string(&path).unwrap()).unwrap(),
             r
         );
-        std::fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 }

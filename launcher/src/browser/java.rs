@@ -328,7 +328,7 @@ mod tests {
             fs::read_to_string(home.join(MODS_LIST)).unwrap(),
             "mod.coords_hud:true\n"
         );
-        fs::remove_dir_all(&home).unwrap();
+        crate::test_support::remove_dir_all(&home);
     }
 
     #[test]

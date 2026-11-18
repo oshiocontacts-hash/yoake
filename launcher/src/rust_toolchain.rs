@@ -751,7 +751,7 @@ mod tests {
             assert_eq!(mode & 0o111, 0o111, "cargo stays executable");
         }
         assert!(!prefix.join("install.sh").exists() && !prefix.join("manifest.in").exists());
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -851,7 +851,7 @@ mod tests {
             "gcc"
         );
         assert!(!prefix.join("mingw64/share").exists() && !prefix.join("licenses").exists());
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -868,7 +868,7 @@ mod tests {
             .unwrap();
         let first: Vec<PathBuf> = std::env::split_paths(path).take(2).collect();
         assert_eq!(first, [dir.join("bin"), toolchain.mingw_bin()]);
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]

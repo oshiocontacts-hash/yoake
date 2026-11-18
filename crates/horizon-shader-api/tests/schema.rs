@@ -1,5 +1,9 @@
 //! Schema 1 of `horizon-shaders.toml` and the `.hshader` package.
 use horizon_shader_api::{MANIFEST, Manifest, OptionKind, Pack, PageItem};
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 use std::{collections::BTreeMap, path::Path};
 
 fn sample_dir() -> &'static Path {
@@ -406,7 +410,7 @@ fn reads_the_sample_folder_and_its_package_alike() {
     let path = dir.join("sample_pack.hshader");
     std::fs::write(&path, &bytes).unwrap();
     let packaged = Pack::read(&path).unwrap();
-    std::fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
     assert_eq!(packaged.files, folder.files);
     assert_eq!(packaged.manifest, folder.manifest);
 }
@@ -605,7 +609,7 @@ fn a_pack_texture_is_declared_for_every_stage_and_decoded() {
     std::fs::write(dir.join("noise.png"), b"nope").unwrap();
     let pack = Pack::read(&dir).unwrap();
     assert!(horizon_shader_api::check(&pack).is_err());
-    std::fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 
     let refused = |rest: &str, needle: &str| {
         let e = Manifest::parse(&format!("{head}{rest}"))

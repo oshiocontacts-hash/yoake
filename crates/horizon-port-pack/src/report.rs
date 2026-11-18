@@ -442,7 +442,7 @@ mod tests {
             md.contains("| **all** | **1** | **1** | **3** | **1** | **6** |"),
             "{md}"
         );
-        std::fs::remove_dir_all(&work).unwrap();
+        crate::test_support::remove_dir_all(&work);
     }
 
     #[test]

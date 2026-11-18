@@ -908,7 +908,7 @@ mod tests {
                 .unwrap(),
             None
         );
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -948,7 +948,7 @@ mod tests {
         );
         assert_eq!(store.get("large").unwrap(), Some(value));
         drop(store);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -1003,7 +1003,7 @@ mod tests {
         assert_eq!(store.get("settings.json").unwrap(), None);
         assert_eq!(store.get("from-store").unwrap(), None);
         drop(store);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -1030,7 +1030,7 @@ mod tests {
         assert_eq!(store.get("valid").unwrap(), Some(b"imported".to_vec()));
         assert_eq!(store.get("later").unwrap(), None);
         drop(store);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -1056,7 +1056,7 @@ mod tests {
         assert_eq!(store.get("oversized").unwrap(), None);
         assert!(directory.join("migration-v2.done").exists());
         drop(store);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -1074,7 +1074,7 @@ mod tests {
         assert_eq!(store.get("recovered").unwrap(), Some(b"recovered".to_vec()));
         assert!(directory.join("migration-v2.done").exists());
         drop(store);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -1105,7 +1105,7 @@ mod tests {
             );
             drop(store);
         }
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -1123,7 +1123,7 @@ mod tests {
         assert_eq!(store.get("key").unwrap(), None);
         assert_eq!(store.get("replacement").unwrap(), Some(b"value".to_vec()));
         drop(store);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -1137,7 +1137,7 @@ mod tests {
         assert!(!temporary.exists());
         assert_eq!(store.get("missing").unwrap(), None);
         drop(store);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -1175,7 +1175,7 @@ mod tests {
         child(true);
         drop(store);
         child(false);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -1209,7 +1209,7 @@ mod tests {
         std::fs::remove_dir(&linked).unwrap();
         #[cfg(unix)]
         std::fs::remove_file(&linked).unwrap();
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -1250,7 +1250,7 @@ mod tests {
         assert!(folder.join("migration-v2.done").is_file());
         assert_eq!(std::fs::read(folder.join("store.bin")).unwrap(), b"broken");
         drop(store);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[cfg(windows)]
@@ -1276,7 +1276,7 @@ mod tests {
         assert!(std::fs::rename(&junction, data.join("moved")).is_err());
         store.put("key", b"confined").unwrap();
         drop(store);
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 
     #[cfg(unix)]
@@ -1291,7 +1291,7 @@ mod tests {
         symlink(&outside, root.join("yoake-data").join("example")).unwrap();
         assert!(DiskStorage::open(&root, "example").is_err());
         assert!(std::fs::read_dir(&outside).unwrap().next().is_none());
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]

@@ -207,7 +207,7 @@ fn an_old_version_gets_its_natives_and_assets_by_name() {
     // Natives are not on the classpath; the client jar is.
     let cp = &a[at("-cp") + 1];
     assert!(cp.ends_with("1.8.9.jar") && !cp.contains("natives"), "{cp}");
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]
@@ -299,7 +299,7 @@ fn a_loader_profile_plays_on_its_game_version() {
         a[a.iter().position(|x| x == "--username").unwrap() + 1],
         "Notch"
     );
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]

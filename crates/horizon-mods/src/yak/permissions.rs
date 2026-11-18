@@ -271,6 +271,6 @@ mod tests {
         std::fs::write(&path, malformed).unwrap();
         assert!(PermissionOverrides::load_world(&root).is_err());
         assert_eq!(std::fs::read_to_string(&path).unwrap(), malformed);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 }

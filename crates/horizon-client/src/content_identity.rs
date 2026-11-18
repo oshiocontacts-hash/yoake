@@ -199,7 +199,7 @@ mod tests {
             );
             std::fs::write(root.join("registries.json"), report).unwrap();
             let hash = identity(&root).unwrap();
-            std::fs::remove_dir_all(&root).unwrap();
+            crate::test_support::remove_dir_all(&root);
             hash
         };
         let vanilla = root("vanilla", "");
@@ -224,7 +224,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(identity(&root).unwrap(), hash_facts(facts).unwrap());
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 
     #[test]

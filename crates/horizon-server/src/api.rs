@@ -986,7 +986,7 @@ mod tests {
         }
         drop(_endpoint);
         assert!(!dir.join(ENDPOINT).exists());
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -1023,7 +1023,7 @@ mod tests {
         };
         assert_eq!((get(token), get("a-token-for-the-discord-bo")), (200, 401));
         drop(_endpoint);
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -1137,6 +1137,6 @@ mod tests {
             200
         );
         assert!(backup::list(&dir).is_empty());
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

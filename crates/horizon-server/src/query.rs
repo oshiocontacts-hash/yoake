@@ -737,6 +737,6 @@ mod tests {
             setup(&dir),
             Ok(Setup::On { ref host, port: 25570 }) if host == "0.0.0.0"
         ));
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

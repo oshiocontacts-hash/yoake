@@ -448,7 +448,7 @@ mod tests {
             download_file(&dir, &cached, &[], MAX_SIZE, &channel().0).unwrap(),
             path
         );
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -487,7 +487,7 @@ mod tests {
         };
         assert!(download_file(&dir, &missing, &[], MAX_SIZE, &channel().0).is_err());
         server.join().unwrap();
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -519,7 +519,7 @@ mod tests {
         assert!(started.elapsed() < std::time::Duration::from_secs(10));
         drop(release);
         server.join().unwrap();
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -563,7 +563,7 @@ mod tests {
         let entry: serde_json::Value = serde_json::from_str(log.trim()).unwrap();
         assert_eq!(entry["id"], "5b2c7a4e-1f3d-4c8b-9a6e-2d4f8b1c3e5a");
         assert_eq!(entry["file"]["size"], 3);
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -591,6 +591,6 @@ mod tests {
         assert!(dir.join("a/3").exists() && dir.join("b/1").exists());
         assert!(!dir.join("a/1").exists() && !dir.join("a/2").exists());
         assert!(dir.join("log.json").exists());
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 }

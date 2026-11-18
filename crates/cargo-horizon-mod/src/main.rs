@@ -13,6 +13,10 @@
 //! - `pack [folder] [--bin <target>=<path>]`: an unsigned Yoake `.yak`.
 //! - `yak verify <file> [--key <public key>]`: validate a Yoake package.
 use horizon_mods::{Capability, Content, Manifest, Package, manifest::MANIFEST};
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 mod check;
 mod registry;
 mod yak;
@@ -357,7 +361,7 @@ mod tests {
             ])
             .is_err()
         );
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -421,6 +425,6 @@ mod tests {
         .unwrap();
         let mixin = std::fs::read_to_string(free.join("horizon-mixin.toml")).unwrap();
         assert!(!mixin.contains("\nhorizon_revision"), "{mixin}");
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

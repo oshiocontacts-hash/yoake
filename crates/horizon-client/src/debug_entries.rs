@@ -456,7 +456,7 @@ mod tests {
         // A broken file is reset to the default profile.
         std::fs::write(dir.join("debug-profile.json"), "{\"profile\":\"nope\"}").unwrap();
         assert!(DebugEntries::load(&dir).is_using_profile(Profile::Default));
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]

@@ -1880,7 +1880,7 @@ mod tests {
         map.set_center(40 * 16 + 100, 40 * 16);
         assert!(queued((1, 30, 20)));
         assert!(map.take_changed().is_empty());
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     /// Real chunks the server sent come first; BlueMap fills the rest.
@@ -1939,7 +1939,7 @@ mod tests {
         assert_eq!(details[0].1, columns);
         assert_eq!(details[1].1[0].surface.map(|s| s.height), Some(71));
         assert_eq!(details[2].1[0], Column::default());
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     /// The finest level on its way: a chunk-sized cell is drawn from a
@@ -2011,7 +2011,7 @@ mod tests {
         // Nowhere near any level: nothing to stand in, and not waited for.
         assert_eq!(sampler.reduced_column(-4000, 0, 1), Column::default());
         assert!(!sampler.waited());
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -2081,7 +2081,7 @@ mod tests {
             "by the map's edge"
         );
         assert_eq!(right[16 + 8], Column::default());
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -2104,6 +2104,6 @@ mod tests {
         assert_eq!(prune(&dir, 150), 100);
         assert!(dir.join("a/1/new.png").exists() && !dir.join("a/1/mid.png").exists());
         assert!(dir.join("settings.json").exists(), "only tiles are pruned");
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

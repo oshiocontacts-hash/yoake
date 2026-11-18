@@ -1004,7 +1004,7 @@ abi = {abi}
         );
         assert!(Arc::ptr_eq(&mods, &production_result));
         assert!(std::ptr::eq(identities, production_ids));
-        fs::remove_dir_all(folder).unwrap();
+        crate::test_support::remove_dir_all(folder);
     }
 
     #[test]

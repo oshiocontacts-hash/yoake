@@ -311,7 +311,7 @@ mod tests {
         );
         // A second init refuses to overwrite the configuration.
         assert!(run(&dir, Answers::default()).is_err());
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -325,6 +325,6 @@ mod tests {
         assert!(run(&dir, answers).unwrap_err().contains("EULA"));
         assert!(!dir.join(config::FILE).exists());
         assert!(!eula::agreed(&dir.join("eula.txt")).unwrap());
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

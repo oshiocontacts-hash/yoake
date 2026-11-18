@@ -603,6 +603,6 @@ namespaces = ['{alias}']
         assert_eq!(rows[0].id, "veinminer");
         // No folder: no rows.
         assert!(not_built(&dir.join("missing"), "", &[]).is_empty());
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

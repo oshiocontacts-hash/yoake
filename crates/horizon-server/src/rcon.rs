@@ -602,7 +602,7 @@ mod tests {
             };
             assert_eq!(why, warning);
         }
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     /// The game's control endpoint, as far as `rcon` goes: it answers `say hi` and fails on `fail`.
@@ -656,7 +656,7 @@ mod tests {
             run_on_game(&shared, "nonsense"),
             Err("unknown request".into())
         );
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -696,6 +696,6 @@ enable-rcon = true
         let (_, lines) = shared.log.lock().unwrap().since(0);
         let said = format!("RCON running on 127.0.0.1:{port}");
         assert!(lines.iter().any(|l| l.contains(&said)), "{lines:?}");
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

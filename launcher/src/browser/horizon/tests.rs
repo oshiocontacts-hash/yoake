@@ -193,7 +193,7 @@ fn installs_checked_turns_on_and_removes() {
     installed::remove(&home, "coords_hud").unwrap();
     assert!(!home.join("horizon-mods/coords_hud.hmod").exists());
     assert!(installed::Installed::load(&home).entries.is_empty());
-    fs::remove_dir_all(&home).unwrap();
+    crate::test_support::remove_dir_all(&home);
 }
 
 #[test]
@@ -213,7 +213,7 @@ fn a_mod_that_turned_native_keeps_its_hmod_until_removed() {
     installed::remove(&home, "coords_hud").unwrap();
     assert!(!home.join("horizon-native-mods/coords_hud.hnmod").exists());
     assert!(!home.join("horizon-mods/coords_hud.hmod").exists());
-    fs::remove_dir_all(&home).unwrap();
+    crate::test_support::remove_dir_all(&home);
 }
 
 #[test]
@@ -248,7 +248,7 @@ fn installs_a_shader_pack_into_shaderpacks() {
         e,
         "shaderpacks/glow-1.0.0.hshader is already there: move it away first."
     );
-    fs::remove_dir_all(&home).unwrap();
+    crate::test_support::remove_dir_all(&home);
 }
 
 #[test]
@@ -279,7 +279,7 @@ fn refuses_a_changed_file_a_taken_id_and_local_files_from_the_real_registry() {
     });
     let e = put(&taken_down, true, &home).unwrap_err();
     assert_eq!(e, "Coordinates HUD was taken down: Test.");
-    fs::remove_dir_all(&home).unwrap();
+    crate::test_support::remove_dir_all(&home);
 }
 
 #[test]

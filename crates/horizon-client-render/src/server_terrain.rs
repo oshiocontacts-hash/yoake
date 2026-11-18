@@ -794,7 +794,7 @@ mod tests {
         assert_eq!(sampler.column(0, 0), Column::default());
         // One chunk doesn't stand for a far cell of 64 × 64.
         assert_eq!(sampler.reduced_column(-64 * 16, 0, 1024), Column::default());
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -816,7 +816,7 @@ mod tests {
             sampler.reduced_column(0, 0, 64),
             Column::reduced(&columns, 0, 0, 16)
         );
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     /// Far terrain samples a cell before the server sent its chunk, then
@@ -839,7 +839,7 @@ mod tests {
             other.reduced_column(-16, 32, 16),
             Column::reduced(&columns, 0, 0, 16)
         );
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -912,7 +912,7 @@ mod tests {
             bobby_level_dir(&root.join("none"), "127.0.0.1", 0, overworld),
             None
         );
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 
     /// A Bobby-shaped region of chunk records, written with `version`.
@@ -992,6 +992,6 @@ mod tests {
         let old =
             ServerTerrain::with_bobby(dir.join("own-old"), None, Some(bobby(&theirs.join("old"))));
         assert_eq!(old.chunk(-3, 5), None);
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

@@ -1084,7 +1084,7 @@ mod tests {
                 .contains("no horizon-server")
         );
         assert_eq!(install.current().as_deref(), Some("v1"));
-        std::fs::remove_dir_all(&install.root).unwrap();
+        crate::test_support::remove_dir_all(&install.root);
     }
 
     #[cfg(unix)]
@@ -1137,7 +1137,7 @@ mod tests {
         std::fs::remove_file(install.root.join("current")).unwrap();
         assert_eq!(install.prune(0), (Vec::new(), Vec::new()));
         assert!(install.release("v2026.10.19").is_dir());
-        std::fs::remove_dir_all(&install.root).unwrap();
+        crate::test_support::remove_dir_all(&install.root);
     }
 
     #[cfg(unix)]
@@ -1196,7 +1196,7 @@ mod tests {
                 .contains("holds no horizon-server")
         );
         assert!(!install.release("v3").exists());
-        std::fs::remove_dir_all(&install.root).unwrap();
-        std::fs::remove_dir_all(&source).unwrap();
+        crate::test_support::remove_dir_all(&install.root);
+        crate::test_support::remove_dir_all(&source);
     }
 }

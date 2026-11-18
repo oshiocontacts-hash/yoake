@@ -452,7 +452,7 @@ mod tests {
         assert!(store(&home, url, ICON, b"not an image").is_err());
         prune(&dir(&home), 0);
         assert!(cached(&home, url, ICON).is_none());
-        fs::remove_dir_all(&home).unwrap();
+        crate::test_support::remove_dir_all(&home);
     }
 
     #[test]

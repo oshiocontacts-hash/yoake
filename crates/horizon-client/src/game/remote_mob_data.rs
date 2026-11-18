@@ -659,7 +659,7 @@ mod tests {
         )
         .unwrap();
         let mut types = MobTypes::load(&root).unwrap();
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
         for kind in ["minecraft:happy_ghast", "minecraft:nautilus"] {
             let t = Arc::new(types.types.remove(kind).unwrap());
             let mut m = Mob::new(1, t, horizon_core::geometry::Vec3::ZERO, 0.0);
@@ -710,7 +710,7 @@ mod tests {
         )
         .unwrap();
         let mut types = MobTypes::load(&root).unwrap();
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
         let position = Vec3::new(1.0, 2.25, 3.0);
         let velocity = Vec3::new(0.2, 0.3, 0.4);
         let mut m = Mob::new(

@@ -373,7 +373,7 @@ mod tests {
         // What `horizon-prepare` writes on every run; no asset index without `horizon-prepare sounds`.
         std::fs::write(prepared.join("horizon-resources.json"), "{}").unwrap();
         assert_eq!(resources(&config, &server, Some(&program)), Ok(prepared));
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 
     /// A folder as `horizon-prepare` leaves it, as far as `check_prepared` looks.
@@ -400,7 +400,7 @@ mod tests {
     fn a_complete_prepared_folder_passes() {
         let root = prepared_folder("complete");
         assert_eq!(check_prepared(&root), Ok(()));
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 
     #[test]
@@ -415,7 +415,7 @@ mod tests {
             "{text}"
         );
         assert!(!text.contains("commands.json"), "{text}");
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 
     #[test]
@@ -427,7 +427,7 @@ mod tests {
             text.contains("assets/minecraft/textures is missing or empty"),
             "{text}"
         );
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 
     #[test]
@@ -440,7 +440,7 @@ mod tests {
             "{text}"
         );
         assert!(!text.contains("block-tags.json"), "{text}");
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 
     #[test]
@@ -452,7 +452,7 @@ mod tests {
             text.contains("horizon-resources.json is not valid JSON"),
             "{text}"
         );
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 
     #[test]
@@ -520,7 +520,7 @@ mod tests {
                 child => break child.unwrap().wait(),
             }
         };
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         let status = status.unwrap();
         assert!(status.success(), "{status}");
     }
@@ -563,6 +563,6 @@ mod tests {
                 fails.display()
             ))
         );
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 }

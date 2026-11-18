@@ -296,6 +296,6 @@ mod tests {
         ] {
             assert_eq!(assets.read_text(escape), None, "{escape}");
         }
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 }

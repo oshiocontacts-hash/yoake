@@ -4,6 +4,10 @@
 extern crate self as horizon_client;
 #[cfg(test)]
 mod inject_test_support;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 pub mod advancements;
 pub mod ambience;
 pub mod animate_tick;

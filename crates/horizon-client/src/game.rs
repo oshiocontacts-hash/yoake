@@ -22341,7 +22341,7 @@ mod startup_cpu_tests {
         std::fs::create_dir_all(&root).unwrap();
         std::fs::write(root.join("horizon-resources.json"), "{}").unwrap();
         assert_eq!(missing_resources(&root), None);
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 
     #[test]
@@ -22375,7 +22375,7 @@ mod startup_cpu_tests {
         .join()
         .unwrap()
         .unwrap();
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         assert!(prepared.crystal_model.is_some());
         assert!(prepared.cushion_model.is_some());
         let models = &prepared.entity_models;

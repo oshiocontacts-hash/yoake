@@ -1,5 +1,9 @@
 //! The release steps as release.yml runs them: `sums`, tools/ci/sign_release.sh (OpenSSL), `verify`.
 use horizon_release_sign::{SIGNATURE, SUMS, SigningKey, trusted_keys};
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -90,7 +94,7 @@ fn a_signature_made_like_openssls_checks_and_tampering_fails() {
     let out = verify(&dir, &["--key", &key.public_base64()]);
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("doesn't match its signed checksum"));
-    std::fs::remove_dir_all(dir).unwrap();
+    crate::test_support::remove_dir_all(dir);
 }
 
 #[test]
@@ -128,7 +132,7 @@ fn yoake_signatures_verify_and_cannot_be_overwritten() {
     let signature = std::fs::read(dir.join(SIGNATURE)).unwrap();
     assert!(!tool(&args, &[&key_path, &dir]).status.success());
     assert_eq!(std::fs::read(dir.join(SIGNATURE)).unwrap(), signature);
-    std::fs::remove_dir_all(dir).unwrap();
+    crate::test_support::remove_dir_all(dir);
 }
 
 #[test]
@@ -139,7 +143,7 @@ fn unsigned_releases_go_out_only_until_a_key_is_listed() {
         trusted_keys().is_empty()
     );
     assert!(!verify(&dir, &[]).status.success());
-    std::fs::remove_dir_all(dir).unwrap();
+    crate::test_support::remove_dir_all(dir);
 }
 
 #[test]
@@ -161,7 +165,7 @@ fn the_openssl_script_signs_what_the_launcher_checks() {
     );
     let key = std::fs::read_to_string(dir.join("ephemeral.pub")).unwrap();
     assert!(verify(&dir, &["--key", key.trim()]).status.success());
-    std::fs::remove_dir_all(dir).unwrap();
+    crate::test_support::remove_dir_all(dir);
 
     // A release: both secrets (rotating), as keygen makes them; each signature line checks alone.
     let dir = folder("secret");
@@ -204,7 +208,7 @@ fn the_openssl_script_signs_what_the_launcher_checks() {
             .status
             .success()
     );
-    std::fs::remove_dir_all(dir).unwrap();
+    crate::test_support::remove_dir_all(dir);
 }
 
 #[test]
@@ -218,5 +222,5 @@ fn keygen_writes_the_secret_to_a_pipe_and_the_public_key_to_a_file() {
         std::fs::read_to_string(&public).unwrap().trim(),
         key.public_base64()
     );
-    std::fs::remove_dir_all(dir).unwrap();
+    crate::test_support::remove_dir_all(dir);
 }

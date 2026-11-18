@@ -803,7 +803,7 @@ mod tests {
             std::fs::read_to_string(Path::new(kept).join("level.dat")).unwrap(),
             "after"
         );
-        std::fs::remove_dir_all(&install.root).unwrap();
+        crate::test_support::remove_dir_all(&install.root);
     }
 
     #[cfg(unix)]
@@ -826,7 +826,7 @@ mod tests {
             Some("Now on v3 (was v1): the game is up. Deleted old releases: v2")
         );
         drop(update);
-        std::fs::remove_dir_all(&install.root).unwrap();
+        crate::test_support::remove_dir_all(&install.root);
     }
 
     #[cfg(unix)]
@@ -854,7 +854,7 @@ mod tests {
                 .unwrap()
                 .starts_with("Stayed on v1: the game (")
         );
-        std::fs::remove_dir_all(&install.root).unwrap();
+        crate::test_support::remove_dir_all(&install.root);
     }
 
     #[test]
@@ -894,6 +894,6 @@ mod tests {
         assert!(lock(&dir).unwrap_err().contains("already running"));
         drop(first);
         retried(|| lock(&dir)).unwrap();
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

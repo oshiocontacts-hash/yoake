@@ -170,7 +170,7 @@ fn installs_with_dependencies_then_updates_and_removes() {
     assert!(!home.join("resourcepacks/addon-2.zip").exists());
     assert!(remove(&home, "addon").is_err());
     assert_eq!(Installed::load(&home).entries.len(), 1);
-    fs::remove_dir_all(&home).unwrap();
+    crate::test_support::remove_dir_all(&home);
 }
 
 #[test]
@@ -217,7 +217,7 @@ fn nothing_is_installed_when_a_check_fails() {
     assert!(plan(&fake, &pack, false)
         .unwrap_err()
         .contains("imported, not installed"));
-    fs::remove_dir_all(&home).unwrap();
+    crate::test_support::remove_dir_all(&home);
 }
 
 #[test]
@@ -232,7 +232,7 @@ fn modpacks_download_checked() {
     fake.release("atm", "2", &[], b"mrpack 2", true);
     assert!(fetch_modpack(&fake, &fake.project("atm").unwrap(), &downloads, &|_| {}).is_err());
     assert!(!downloads.join("atm-2.zip").exists());
-    fs::remove_dir_all(&home).unwrap();
+    crate::test_support::remove_dir_all(&home);
 }
 
 /// A NeoForge jar with `files` beside its `neoforge.mods.toml` for mod `id`.
@@ -314,7 +314,7 @@ fn java_mods_are_ported_turned_on_refused_on_clashes_and_removed() {
         fs::read_to_string(home.join("horizon-mods.txt")).unwrap(),
         ""
     );
-    fs::remove_dir_all(&home).unwrap();
+    crate::test_support::remove_dir_all(&home);
 }
 
 #[test]
@@ -338,7 +338,7 @@ fn shader_packs_older_launchers_installed_are_left_alone() {
     assert_eq!(installed.entries[0].kind, Kind::ResourcePack);
     installed.save(&home).unwrap();
     assert!(home.join("shaderpacks/old-pack.zip").is_file());
-    fs::remove_dir_all(&home).unwrap();
+    crate::test_support::remove_dir_all(&home);
 }
 
 /// A data pack zip with these files.
@@ -429,5 +429,5 @@ fn data_packs_go_into_a_world_when_something_in_them_runs() {
         .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
         .collect();
     assert_eq!(names.len(), 2, "{names:?}");
-    fs::remove_dir_all(world.parent().unwrap().parent().unwrap()).unwrap();
+    crate::test_support::remove_dir_all(world.parent().unwrap().parent().unwrap());
 }

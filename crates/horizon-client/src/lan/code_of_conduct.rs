@@ -150,7 +150,7 @@ mod tests {
         std::fs::write(dir.join("EN_US.txt"), "\u{a7}lBe nice\nplease\n").unwrap();
         std::fs::write(dir.join("notes.md"), "ignored").unwrap();
         let read = read(&dir).unwrap();
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
         assert_eq!(
             read,
             vec![("en_us".to_string(), "Be nice\nplease".to_string())]

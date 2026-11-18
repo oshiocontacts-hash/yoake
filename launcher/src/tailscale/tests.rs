@@ -80,7 +80,7 @@ fn status_asks_the_cli_read_only() {
     )
     .unwrap();
     assert!(matches!(status_of(Some(fake)), State::Off(why) if why.contains("tailscaled")));
-    std::fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 fn default_acls() -> Value {

@@ -377,7 +377,7 @@ fn a_download_is_kept_only_when_its_checksum_matches() {
     let long = download::save(&file, &b"a resource pack and more"[..], &dir, &|_| {}).unwrap_err();
     assert!(long.contains("larger"), "{long}");
     assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
-    std::fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]
@@ -439,7 +439,7 @@ fn live_modrinth_search_pick_and_download() {
     let dir = scratch("live");
     let path = download::fetch(chosen.file().unwrap(), &dir, &|_| {}).unwrap();
     assert!(path.is_file());
-    std::fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
     assert_eq!(source.project(&p.id).unwrap().slug, p.slug);
 }
 

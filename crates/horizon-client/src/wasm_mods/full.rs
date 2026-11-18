@@ -1436,7 +1436,7 @@ mod tests {
             });
         });
         assert!(host.root.starts_with(std::env::temp_dir()));
-        std::fs::remove_dir_all(&host.root).unwrap();
+        crate::test_support::remove_dir_all(&host.root);
     }
 
     #[test]

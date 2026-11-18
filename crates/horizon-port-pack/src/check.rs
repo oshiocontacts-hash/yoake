@@ -341,7 +341,7 @@ displayName = "Ruby"
             "{:?}",
             c.skipped
         );
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -377,7 +377,7 @@ displayName = "Ruby"
             dir.join("out/carry/data/ruby/recipe/ruby_block.json")
                 .exists()
         );
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -410,6 +410,6 @@ displayName = "Ruby"
         .unwrap();
         assert_eq!(c.verdict, Verdict::No);
         assert!(c.summary.contains("1.20 or older"));
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

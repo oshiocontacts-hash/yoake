@@ -1,5 +1,9 @@
 //! Generate the typed mod interface from native hook signatures and catalog contracts.
 use heck::ToSnakeCase;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 use quote::ToTokens;
 use std::{
     collections::{BTreeMap, HashSet},
@@ -1374,7 +1378,7 @@ mod tests {
         );
         std::fs::remove_file(fragments.join("duplicate.json")).unwrap();
         assert_eq!(super::catalog_hooks(&dir, &catalog).unwrap().len(), 1);
-        std::fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -1608,7 +1612,7 @@ mod tests {
         let mut calls = Calls::default();
         syn::visit::Visit::visit_file(&mut calls, &implementation);
         assert_eq!(calls.0, ["native_block_entity_ref"]);
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -1802,7 +1806,7 @@ mod tests {
                 .hooks,
         );
         super::sources(&root, super::FillMode::Require).unwrap();
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]

@@ -285,7 +285,7 @@ mod tests {
             .unwrap_err()
             .contains("not a modpack"));
         assert!(install_in(&index, true, "nope", &packs, &|_, _| {}).is_err());
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -300,6 +300,6 @@ mod tests {
         let e = install_in(&index, true, "cozy", &packs, &|_, _| {}).unwrap_err();
         assert!(e.contains("taken down: Test."), "{e}");
         assert!(!packs.join("cozy").exists(), "nothing left behind");
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

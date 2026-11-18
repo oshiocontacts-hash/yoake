@@ -519,6 +519,6 @@ mod tests {
                 .0,
             -32602
         );
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

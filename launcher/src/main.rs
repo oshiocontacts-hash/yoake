@@ -4,6 +4,10 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 mod agents_page;
+
+#[cfg(test)]
+#[path = "../../tests/support/temp_dir.rs"]
+mod test_support;
 mod art;
 mod blocks;
 mod cli;

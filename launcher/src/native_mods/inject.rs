@@ -318,7 +318,7 @@ mod tests {
             );
             compile_and_run(&root, &program);
         }
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -374,7 +374,7 @@ mod tests {
             );
             compile_and_run(&root, &program);
         }
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -409,7 +409,7 @@ mod tests {
                 assert_eq!(fs::read_to_string(stage_dir.join(INPUT)).unwrap(), "[]");
             }
         }
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -429,7 +429,7 @@ mod tests {
         assert_eq!(before, key());
         fs::write(root.join("other.rs"), "// mixin input").unwrap();
         assert_ne!(before, key());
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -447,7 +447,7 @@ mod tests {
         let before = key();
         fs::write(root.join("engine/src/lib.rs"), "fn changed() {}\n").unwrap();
         assert_ne!(before, key());
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -465,7 +465,7 @@ mod tests {
         let before = key();
         fs::write(root.join("engine/src/lib.rs"), "// changed\n").unwrap();
         assert_ne!(before, key());
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -490,7 +490,7 @@ mod tests {
         )
         .unwrap();
         assert_ne!(a, b);
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -498,7 +498,7 @@ mod tests {
         let (root, bundle) = fixture("other-crate", "[[injection]]\nid = 'hook'\ntarget = 'horizon_world::loot::load'\nkind = 'HEAD'\ntrait_method = 'load'\n");
         let error = prepare(&[bundle], &root).err().unwrap();
         assert!(error.contains("horizon_world::loot::load") && error.contains("horizon_world"));
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
 
         let (root, bundle) = fixture("other-catalog", "[[injection]]\nid = 'hook'\nhook = 'loot_table_load'\nkind = 'HEAD'\ntrait_method = 'load'\n");
         fs::write(
@@ -508,7 +508,7 @@ mod tests {
         .unwrap();
         let error = prepare(&[bundle], &root).err().unwrap();
         assert!(error.contains("horizon_world::loot::load") && error.contains("horizon_world"));
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
@@ -536,7 +536,7 @@ mod tests {
             );
             let error = prepare(&[bundle], &root).err().unwrap();
             assert!(error.contains(expected), "{kind}: {error}");
-            fs::remove_dir_all(root).unwrap();
+            crate::test_support::remove_dir_all(root);
         }
     }
 }

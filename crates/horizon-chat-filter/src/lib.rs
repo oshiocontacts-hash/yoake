@@ -5,6 +5,10 @@
 //! player's text and carries out what it decides.
 
 use serde::{Deserialize, Serialize};
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 

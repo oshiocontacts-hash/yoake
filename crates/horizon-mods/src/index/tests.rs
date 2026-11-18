@@ -100,7 +100,7 @@ fn a_changed_file_key_or_manifest_is_refused() {
     });
     let e = check(&revoked, "coords_hud", &hmod).unwrap_err();
     assert!(e.contains("taken down: Test."), "{e}");
-    std::fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]
@@ -179,7 +179,7 @@ fn resource_packs_need_a_pack_mcmeta() {
     assert!(e.contains("\"pack\""), "{e}");
     let e = check_resource_pack(&pack(&[("pack.mcmeta", meta), ("../x", "")])).unwrap_err();
     assert!(e.contains("plain path"), "{e}");
-    std::fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]
@@ -239,7 +239,7 @@ fn shader_packs_pass_the_game_s_own_check() {
     let facts = inspect(&Kind::Shader, &good);
     let refused = inspect(&Kind::Shader, &bad).unwrap_err();
     let not_a_pack = inspect(&Kind::Shader, &fixtures().join("cozy-1.0.0.hpack")).unwrap_err();
-    std::fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
     let facts = facts.unwrap();
     assert_eq!(
         (

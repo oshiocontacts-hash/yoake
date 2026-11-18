@@ -2751,7 +2751,7 @@ mod tests {
             |id: &str| fs::read_to_string(stage.join("native-data").join(id).join("table.txt"));
         assert_eq!(read("plain").unwrap(), "plain");
         assert!(read("ordinary").is_err(), "horizon-mixins stages it");
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     const A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -2809,7 +2809,7 @@ mod tests {
         manifest["side"] = "unknown".into();
         fs::write(&path, manifest.to_string()).unwrap();
         assert!(bundle_in(&directory).is_err());
-        fs::remove_dir_all(directory).unwrap();
+        crate::test_support::remove_dir_all(directory);
     }
 
     #[test]
@@ -2843,7 +2843,7 @@ mod tests {
         manifest.as_object_mut().unwrap().remove("version");
         fs::write(&path, manifest.to_string()).unwrap();
         assert!(bundle_in(&directory).unwrap_err().contains("has no version"));
-        fs::remove_dir_all(directory).unwrap();
+        crate::test_support::remove_dir_all(directory);
     }
 
     #[test]
@@ -2878,7 +2878,7 @@ mod tests {
             .unwrap();
             assert!(bundle(&directory, None).is_err());
         }
-        fs::remove_dir_all(directory).unwrap();
+        crate::test_support::remove_dir_all(directory);
     }
 
     #[test]
@@ -3394,7 +3394,7 @@ mod tests {
         fs::remove_file(fresh.join(inject::INPUT)).unwrap();
         sync(&fresh, &stage).unwrap();
         assert_eq!(env(&stage), Some(None));
-        fs::remove_dir_all(d).unwrap();
+        crate::test_support::remove_dir_all(d);
     }
 
     /// The server build (docs/server.md): compiled headless off the same source, with its own

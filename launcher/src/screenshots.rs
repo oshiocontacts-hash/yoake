@@ -98,6 +98,6 @@ mod tests {
         assert_eq!(find(&home, "Edited.JPG").unwrap().name, "Edited.JPG");
         assert!(find(&home, "notes.txt").is_err());
         assert!(list(&home.join("none")).is_empty());
-        fs::remove_dir_all(&home).unwrap();
+        crate::test_support::remove_dir_all(&home);
     }
 }

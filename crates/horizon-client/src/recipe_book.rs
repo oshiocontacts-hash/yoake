@@ -1118,7 +1118,7 @@ mod tests {
         assert!(mod_categories(Vec::new(), &recipes, &items).is_empty());
         let vanilla = Recipes::from_sources(&root, &items, &PackOverlay::NONE, Vec::new()).unwrap();
         assert!(mod_categories(vec![crusher], &vanilla, &items).is_empty());
-        std::fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     fn ing(items: &[&str]) -> Ingredient {
@@ -1154,7 +1154,7 @@ mod tests {
             std::fs::write(dir.join(format!("{name}.json")), json).unwrap();
         }
         let index = RecipeIndex::load(&root, &PackOverlay::NONE);
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         let toast = |id: &str| (index.toast_station(id), index.result(id));
         assert_eq!(
             toast("minecraft:stick"),
@@ -1295,7 +1295,7 @@ mod tests {
             .unwrap();
         }
         let index = RecipeIndex::load(&root, &PackOverlay::NONE);
-        std::fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         let book = |recipes: &[&str], count: u32| {
             let ids = recipes.iter().map(|id| Tag::String((*id).into())).collect();
             let mut stack = ItemStack::new("minecraft:knowledge_book", count);

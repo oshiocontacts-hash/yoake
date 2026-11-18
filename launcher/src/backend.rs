@@ -3809,7 +3809,7 @@ mod tests {
         remove_in(&dir).unwrap();
         assert!(installed_in(&versions).is_empty());
         assert!(!dir.exists());
-        fs::remove_dir_all(versions).unwrap();
+        crate::test_support::remove_dir_all(versions);
     }
 
     /// A canonical path loses Windows' verbatim prefix on a drive (horizon-mixins' output
@@ -3906,7 +3906,7 @@ mod tests {
         assert_eq!(program_mod_api_level(&marked), 7);
         assert_eq!(program_mod_api_level(&old), 0);
         assert_eq!(program_mod_api_level(&dir.join("missing")), 0);
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     /// The launcher downloads Mojang's game files (client jar, libraries, assets) only for an
@@ -4091,7 +4091,7 @@ pub fn {f}("
         let resolved = sources::resolve(&empty, &pins, &[], &linked, &fetch, &log);
         assert_eq!(assets_folder(resolved, &empty, "26.3", &log), empty);
         assert!(lines.borrow().last().unwrap().contains("will be silent"));
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]
@@ -4103,7 +4103,7 @@ pub fn {f}("
         assert!(!sounds_in(&dir));
         fs::write(dir.join("assets/minecraft/sounds.json"), "{}").unwrap();
         assert!(sounds_in(&dir));
-        fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
 
         assert_eq!(
             resources_summary(true, true, "26.3"),

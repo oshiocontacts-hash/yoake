@@ -17,6 +17,10 @@
 //! - [`Macros`] and [`eval_condition`]: the macros packs test, and the `#if` arithmetic (1.5).
 
 mod biomes;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 mod block_ids;
 mod condition;
 mod config;

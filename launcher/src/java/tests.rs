@@ -67,7 +67,7 @@ fn the_release_file_gives_the_version_java_8_included() {
         assert_eq!(release_version(&home), Some((version.to_string(), major)));
     }
     assert_eq!(release_version(&dir.join("none")), None);
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]
@@ -89,7 +89,7 @@ fn mojangs_runtimes_are_found_in_their_layout() {
     let homes: Vec<_> = found.iter().map(|r| (r.home.clone(), r.major)).collect();
     assert_eq!(homes, [(delta, 21), (legacy, 8)]);
     assert!(found.iter().all(|r| r.source == Source::Mojang));
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]
@@ -110,7 +110,7 @@ fn the_pick_is_the_exact_major_mojangs_first_never_a_newer_one() {
     // Java 8 is needed and only newer ones are here: Mojang's is to be downloaded.
     assert_eq!(picked(8), None);
     assert_eq!(pick(&need(8), None, &[], &[]).unwrap(), None);
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]
@@ -122,7 +122,7 @@ fn an_instances_own_java_wins_and_a_wrong_folder_says_so() {
     assert!(pick(&need(21), Some(&dir.join("nothing")), &[], &[])
         .unwrap_err()
         .contains("is not a Java home"));
-    fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]

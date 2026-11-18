@@ -100,7 +100,7 @@ mod tests {
             "a:some": {"minecraft:max_stack_size": 16}, "a:unset": {}}"#;
         fs::write(root.join("items.json"), items).unwrap();
         let items = super::read(&root).unwrap();
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         let size = |id: &str| items[id].get("minecraft:max_stack_size").cloned();
         assert_eq!(
             ["a:none", "a:less", "a:many", "a:some", "a:unset"].map(size),
@@ -150,7 +150,7 @@ mod tests {
             "a:removed": {"minecraft:max_stack_size": 64}}"#;
         fs::write(root.join("items.json"), items).unwrap();
         let items = super::read(&root).unwrap();
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         let size = |id: &str| items[id].get("minecraft:max_stack_size").cloned();
         assert_eq!(
             ["a:raised", "a:zero", "a:huge", "a:string", "a:removed"].map(size),

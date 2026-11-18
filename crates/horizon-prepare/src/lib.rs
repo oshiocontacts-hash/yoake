@@ -11,6 +11,10 @@
 //! run, keyed by the sha256 of their inputs and outputs recorded in the manifest, as before.
 
 pub mod artifacts;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 mod check;
 pub mod exporters;
 mod files;
@@ -1704,7 +1708,7 @@ mod tests {
             assert!(datagen_reports_missing(&root), "{name}");
             install_datagen_reports(&root, &reports).unwrap();
         }
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -1814,7 +1818,7 @@ mod tests {
         )
         .unwrap();
         assert!(!stamp_matches(&stamp, &inputs, &outputs), "no outputs");
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -1874,7 +1878,7 @@ mod tests {
         );
         check();
         assert_eq!(fs::metadata(&kept).unwrap().modified().unwrap(), before);
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -1913,7 +1917,7 @@ mod tests {
         drop(entry);
         assert_eq!(zip_bytes(&mut first, "1.bin").unwrap(), members[1].1);
         assert_eq!(zip_names(&second).unwrap(), ["0.bin", "1.bin", "2.bin"]);
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]

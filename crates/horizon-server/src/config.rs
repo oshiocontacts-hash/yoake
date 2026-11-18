@@ -836,6 +836,6 @@ mod tests {
         let back = Config::parse(&text).unwrap();
         assert!(!back.server.whitelist);
         assert_eq!(back.properties["spawn-protection"], toml::Value::Integer(4));
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

@@ -5257,7 +5257,7 @@ mod tests {
         map.set(&key, 7).unwrap();
         save.save_attachments(&map).unwrap();
         assert_eq!(save.load_attachments().get(&key), Ok(7));
-        std::fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -5778,7 +5778,7 @@ mod tests {
             }
         }
         drop((save, sampler, nether));
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -7204,7 +7204,7 @@ mod tests {
             b"not nbt"
         );
         assert!(!file.exists());
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 
     #[test]
@@ -7264,7 +7264,7 @@ mod tests {
                 Some(&Tag::List(vec![other]))
             );
         }
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 
     /// The Debug preset (`worldgen/world_preset/debug_all_block_states.json`): its id names it,

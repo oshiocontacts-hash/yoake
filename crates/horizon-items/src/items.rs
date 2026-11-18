@@ -2816,7 +2816,7 @@ mod tests {
             Some("minecraft:bucket")
         );
         assert_eq!(remainder(&modded, "minecraft:bowl"), None);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
 }
 

@@ -874,7 +874,7 @@ mod tests {
                 .is_err()
         );
         assert_eq!(sprites.count(), 1);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
     #[test]
     fn tile_sheets_cut_into_a_layer_per_tile() {
@@ -943,7 +943,7 @@ mod tests {
         // Not a grid of square tiles.
         assert!(sprites.insert_tiles(&root, name, (4, 1), false).is_err());
         assert!(sprites.insert_tiles(&root, name, (3, 3), false).is_err());
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
     #[test]
     fn custom_item_texture_ids_load_with_their_animation() {
@@ -964,7 +964,7 @@ mod tests {
         sprites
             .insert(&root, "horizon_cit:minecraft/optifine/cit/a")
             .unwrap();
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         // The missing texture would not animate: this one is the file, in three frames.
         assert_eq!(sprites.animations.len(), 1);
         assert_eq!(sprites.animations[0].frame_count(), 3);
@@ -1000,7 +1000,7 @@ mod tests {
         write(&file, 20);
         let mut second = Sprites::with_disk_cache(&root);
         let layer = second.insert(&root, id).unwrap();
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         assert_eq!(red(&second, layer), 20);
     }
     #[test]
@@ -1032,7 +1032,7 @@ mod tests {
         let cit = sprites
             .insert(&root, "horizon_cit:minecraft/optifine/cit/x")
             .unwrap();
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         // The same pixels share a layer only with the same mipmap settings: the CIT texture's
         // are the item's.
         assert_ne!(block, item);
@@ -1109,7 +1109,7 @@ mod tests {
         assert_eq!(load(true), alone);
         // The textures alike and the broken one's missing texture: fewer layers than names.
         assert!(alone.1.values().max().unwrap() + 1 < names.len() as u32);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
     }
     #[test]
     fn identical_still_textures_share_a_layer() {
@@ -1144,7 +1144,7 @@ mod tests {
         )
         .unwrap();
         let item = sprites.insert(&root, "a:item/one").unwrap();
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         assert_eq!((one, copy, other, item), (0, 0, 1, 2));
         assert_eq!((sprites.count(), sprites.layers.len()), (3, 4));
         assert_eq!((sprites.opaque.len(), sprites.mips.len()), (3, 3));
@@ -1260,7 +1260,7 @@ mod tests {
         let size = sprites.size;
         let initial = sprites.pixels.clone();
         let animation = sprites.animations[0].clone();
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
         assert_eq!(
             size, 32,
             "half a flowing-water frame must retain 16 texels, not 8"

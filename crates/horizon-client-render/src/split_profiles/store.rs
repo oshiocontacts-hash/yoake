@@ -85,6 +85,6 @@ mod tests {
         assert_eq!(fs::read_to_string(options).unwrap(), "guiScale:2\n");
         assert_eq!(names(&a).unwrap(), ["jordank"]);
         assert!(hide(&a, "../bad").is_err());
-        fs::remove_dir_all(root).unwrap();
+        crate::test_support::remove_dir_all(root);
     }
 }

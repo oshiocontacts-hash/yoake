@@ -359,6 +359,6 @@ mod tests {
         assert!(set(&dir, &["world.difficulty=impossible"]).is_err());
         assert!(set(&dir, &["world.name=a/b", "server.port=1"]).is_err());
         assert_eq!(config::Config::load(&dir).unwrap(), cfg);
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

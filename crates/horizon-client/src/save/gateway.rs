@@ -212,7 +212,7 @@ mod tests {
         };
         assert_eq!(list.len(), 1);
         drop(save);
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 
     #[test]
@@ -229,6 +229,6 @@ mod tests {
         assert!(save.migrate_end_gateway_exits().is_err());
         assert_eq!(fs::read(&path).unwrap(), bytes);
         drop(save);
-        fs::remove_dir_all(dir).unwrap();
+        crate::test_support::remove_dir_all(dir);
     }
 }

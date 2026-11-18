@@ -3,6 +3,10 @@
 //! without a crash report, and an error exits 1 with the report's path as the last stderr line,
 //! with `--home` and `--game-dir` taken relative to where the game was started.
 use std::path::{Path, PathBuf};
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 use std::process::{Command, Output, Stdio};
 
 /// A scratch folder of its own, with a space in its name as launchers' instance folders have.
@@ -55,7 +59,7 @@ fn launch_api_prints_json_and_runs_nothing_else() {
         assert!(names.contains(&name), "{name} not in {names:?}");
     }
     assert!(!dir.join("env home").exists(), "--launch-api opened a log");
-    std::fs::remove_dir_all(dir).unwrap();
+    crate::test_support::remove_dir_all(dir);
 }
 
 #[test]
@@ -75,7 +79,7 @@ fn a_refused_command_line_exits_2_without_a_crash_report() {
         assert!(!dir.join("home/crash-reports").exists(), "{args:?}");
     }
     assert!(!dir.join("saves").exists());
-    std::fs::remove_dir_all(dir).unwrap();
+    crate::test_support::remove_dir_all(dir);
 }
 
 #[test]
@@ -109,5 +113,5 @@ fn an_error_exits_1_and_names_the_crash_report_under_home() {
     );
     assert!(dir.join("my game").is_dir(), "--game-dir was not created");
     assert!(!start.join("saves").exists() && !start.join("options.txt").exists());
-    std::fs::remove_dir_all(dir).unwrap();
+    crate::test_support::remove_dir_all(dir);
 }

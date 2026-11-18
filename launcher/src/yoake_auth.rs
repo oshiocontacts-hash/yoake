@@ -567,6 +567,6 @@ mod tests {
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
         std::fs::write(&path, b"invalid token").unwrap();
         assert_eq!(auth.authorization(), Err(AuthError::InvalidToken));
-        std::fs::remove_dir_all(&directory).unwrap();
+        crate::test_support::remove_dir_all(&directory);
     }
 }

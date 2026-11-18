@@ -524,7 +524,7 @@ capabilities = ["game-read", "hud"]
         let p = Package::read(&path).unwrap();
         assert_eq!(p.manifest.id, "coords_hud");
         assert_eq!(p.wasm.as_deref(), Some(&b"\0asm"[..]));
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 
     #[test]

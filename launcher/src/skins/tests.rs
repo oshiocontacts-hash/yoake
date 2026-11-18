@@ -100,7 +100,7 @@ fn a_kept_look_reaches_the_game_only_with_its_files() {
         serde_json::to_string(&Look::default()).unwrap(),
         r#"{"model":"classic"}"#
     );
-    std::fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }
 
 #[test]
@@ -120,5 +120,5 @@ fn forgetting_a_name_drops_its_files() {
     assert!(!skin.exists() && !cape.exists());
     // A name that never had files is forgotten all the same.
     forget(&dir, "Alex");
-    std::fs::remove_dir_all(&root).unwrap();
+    crate::test_support::remove_dir_all(&root);
 }

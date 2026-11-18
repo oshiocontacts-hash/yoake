@@ -324,7 +324,7 @@ mod tests {
             "broken",
             "unreadable files can still be removed"
         );
-        fs::remove_dir_all(home).unwrap();
+        crate::test_support::remove_dir_all(home);
     }
 
     #[test]

@@ -487,7 +487,7 @@ pub(crate) mod tests {
             })
             .collect();
         let result = reshape_all(&root, &vanilla);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         let ((models, _), unused) = result.unwrap();
         for (file, part, key, vanilla) in cases {
             assert!(
@@ -522,7 +522,7 @@ pub(crate) mod tests {
         );
         let vanilla: HashMap<_, _> = [("chest", chest()), ("double_chest_left", chest())].into();
         let result = reshape_all(&root, &vanilla);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         let ((models, textures), unused) = result.unwrap();
         let chest = &models["chest"];
         // Replaced: the lid's own face goes and the custom box (6 faces) joins it.
@@ -574,7 +574,7 @@ pub(crate) mod tests {
         ]
         .into();
         let result = reshape_all(&root, &vanilla);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         let ((models, textures), unused) = result.unwrap();
         assert!(replaced(&models["standing_banner"], "pole"));
         assert!(replaced(&models["standing_banner"], "bar"));
@@ -594,7 +594,7 @@ pub(crate) mod tests {
         let root = pack("book", &[("optifine/cem/book.jem", jem(&["cover_left"]))]);
         let vanilla: HashMap<_, _> = [("book", plane(vec![("left_lid", plane(vec![]))]))].into();
         let result = reshape(&root, &vanilla);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         let (models, _) = result.unwrap();
         assert!(replaced(&models["book"], "left_lid"));
         assert!(replaced(&models["lectern_book"], "left_lid"));
@@ -620,7 +620,7 @@ pub(crate) mod tests {
         })
         .into();
         let result = reshape(&root, &vanilla);
-        fs::remove_dir_all(&root).unwrap();
+        crate::test_support::remove_dir_all(&root);
         let (models, textures) = result.unwrap();
         assert!(replaced(&models["conduit_eye"], "eye"));
         let painted: BTreeSet<_> = textures.keys().copied().collect();

@@ -204,7 +204,7 @@ fn the_wrapped_game_runs_after_its_pre_launch_command_in_its_folder() {
     assert_eq!(out.status.code(), Some(3));
     assert!(String::from_utf8_lossy(&out.stderr).contains("pre-launch command failed (exit 3)"));
     assert!(!dir.join("started.txt").exists());
-    std::fs::remove_dir_all(&dir).unwrap();
+    crate::test_support::remove_dir_all(&dir);
 }
 
 #[test]

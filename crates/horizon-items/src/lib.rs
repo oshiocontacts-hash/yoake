@@ -5,6 +5,10 @@
 //! (`horizon_client::items`, ...).
 #![forbid(unsafe_code)]
 pub mod banner_layer;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 pub mod blocks;
 pub mod bundle;
 pub mod content_namespaces;

@@ -72,7 +72,7 @@ impl FixtureRoot {
 }
 impl Drop for FixtureRoot {
     fn drop(&mut self) {
-        fs::remove_dir_all(&self.0).unwrap();
+        crate::test_support::remove_dir_all(&self.0);
     }
 }
 

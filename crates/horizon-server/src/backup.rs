@@ -327,6 +327,6 @@ mod tests {
         );
         assert_eq!(find(&dir, "auto").unwrap(), left[0]);
         assert!(find(&dir, "nothing").is_err());
-        std::fs::remove_dir_all(&dir).unwrap();
+        crate::test_support::remove_dir_all(&dir);
     }
 }

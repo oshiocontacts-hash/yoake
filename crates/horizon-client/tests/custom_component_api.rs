@@ -9,6 +9,10 @@ use horizon_protocol::{
     item::custom::{self, InstallError},
 };
 use horizon_world::nbt::Tag;
+
+#[cfg(test)]
+#[path = "../../../tests/support/temp_dir.rs"]
+mod test_support;
 use std::fs;
 
 #[test]
@@ -146,6 +150,6 @@ fn registration_limits_and_defaults_are_bound_to_the_connection() {
         catalog.get("good:thing").unwrap().custom_components["sample:a"],
         Tag::compound([("value", Tag::Int(5))])
     );
-    fs::remove_dir_all(scratch).unwrap();
-    std::fs::remove_dir_all(dir).unwrap();
+    crate::test_support::remove_dir_all(scratch);
+    crate::test_support::remove_dir_all(dir);
 }
