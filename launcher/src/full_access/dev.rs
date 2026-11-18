@@ -20,8 +20,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::mpsc;
 use std::time::{Duration, Instant, SystemTime};
 
-/// The game's command-line flag for a launch with an active developer folder.
-pub const DEV_ARG: &str = "--full-access-dev";
+pub use horizon_mods::yak::control::DEV_ARG;
 /// How often the folder is looked at.
 const POLL: Duration = Duration::from_secs(1);
 /// A file must look the same for this long before it is taken (it may still be being written).
@@ -156,6 +155,8 @@ pub struct DevSync {
     acted: HashMap<String, Sig>,
     /// Names of the dev copies in `mods/` (from the start, and the ones this run installed).
     installed: BTreeSet<String>,
+    /// When the run list was last rewritten: the game checks mtime and size once a second, so rewrites are 1 s apart.
+    last_rewrite: Option<Instant>,
 }
 
 fn plain_yak(name: &str) -> bool {
@@ -173,6 +174,7 @@ impl DevSync {
             obs: HashMap::new(),
             acted: HashMap::new(),
             installed: BTreeSet::new(),
+            last_rewrite: None,
         };
         let generation = ApprovedList::read(approved).map(|l| l.generation()).unwrap_or(0);
         sync.installed = sync.dev_copies();
@@ -250,11 +252,19 @@ impl DevSync {
     /// Applies one stable change. `Ok((event, retry))` / `Err((problem, retry))`: `retry` when the file could not be
     /// read (it is tried again on the next look even if it does not change).
     fn apply(&mut self, name: &str, present: bool) -> Result<(Option<String>, bool), (String, bool)> {
+        // The game checks the list's mtime and size once a second: rewrites are at least 1.1 s apart (waited before
+        // the lock is taken, so nothing else is held up).
+        if let Some(last) = self.last_rewrite {
+            if let Some(wait) = Duration::from_millis(1100).checked_sub(last.elapsed()) {
+                std::thread::sleep(wait);
+            }
+        }
         let _lock = lock();
         let result = if present { self.install(name) } else { self.remove(name) };
         let outcome = result?;
         if outcome.changed {
             self.rewrite().map_err(|e| (format!("the approved list could not be rewritten: {e}"), true))?;
+            self.last_rewrite = Some(Instant::now());
         }
         let generation = ApprovedList::read(&self.approved).map(|l| l.generation()).unwrap_or(0);
         with_state(&self.instance, |s| s.generation = generation);

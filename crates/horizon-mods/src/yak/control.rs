@@ -47,6 +47,8 @@ use super::Archive;
 
 /// Command-line option that gives the game this launch's approved list: `--full-access-approved <path>`.
 pub const APPROVED_ARG: &str = "--full-access-approved";
+/// MX3HR1: with this flag (dev mode only) the game re-reads the approved list and reloads when its `generation` grows.
+pub const DEV_ARG: &str = "--full-access-dev";
 /// Environment variable with the same meaning (the option wins).
 pub const APPROVED_ENV: &str = "YOAKE_FULL_ACCESS_APPROVED";
 /// The subfolder of the launcher's data folder.
@@ -670,6 +672,9 @@ pub struct ApprovedEntry {
 /// origin = "local"          # or "catalog"; anything else makes the whole file invalid
 /// ```
 ///
+/// An optional top-level `generation = <integer>` (absent = 0) is raised by the launcher on every rewrite in dev mode
+/// (MX3HR1); a game started with `--full-access-dev` reloads its full-access mods when it grows. Written only when non-zero.
+///
 /// **How to pass it.** Write it with [`ApprovedList::write_for_launch`] into a fresh, launch-specific file *outside the
 /// game folder* (for example `<launcher data>/run/<launch id>/approved.toml`), and pass its absolute path on the game's
 /// command line as `--full-access-approved <path>` (or `--full-access-approved=<path>`); the environment variable
@@ -689,8 +694,8 @@ pub struct ApprovedEntry {
 pub struct ApprovedList {
     entries: Vec<ApprovedEntry>,
     protected: Vec<PathBuf>,
-    /// Bumped by the launcher each time it rewrites the file while the game runs (dev-folder hot reload). Optional
-    /// top-level integer in the file; absent means 0.
+    /// MX3HR1: dev-mode hot reload. The launcher raises it on every rewrite of the file; absent = 0. Only a game started
+    /// with `--full-access-dev` looks at it (it reloads when it grows); otherwise it is ignored.
     generation: u64,
 }
 
@@ -717,6 +722,7 @@ impl ApprovedList {
         Self { entries, protected, generation: 0 }
     }
 
+    /// The rewrite counter (0 when the file has none). See the `generation` field.
     pub fn generation(&self) -> u64 {
         self.generation
     }
@@ -742,7 +748,7 @@ impl ApprovedList {
         let mut text = format!("# This launch's approved full-access packages (written by the launcher; the game reads it once).\nformat = {}\n", Self::FORMAT);
         let paths: Vec<String> = self.protected.iter().map(|p| format!("{:?}", p.to_string_lossy())).collect();
         text.push_str(&format!("protected = [{}]\n", paths.join(", ")));
-        if self.generation > 0 {
+        if self.generation != 0 {
             text.push_str(&format!("generation = {}\n", self.generation));
         }
         for e in &self.entries {
@@ -1042,6 +1048,12 @@ mod tests {
             assert!(ApprovedList::parse(&text).is_err(), "{bad_origin}");
         }
         assert!(ApprovedList::parse("format = 2\n").is_err());
+        assert_eq!(ApprovedList::parse(&list.to_text()).unwrap().generation(), 0, "old files have no generation");
+        let g = list.clone().with_generation(7);
+        assert!(g.to_text().contains("generation = 7"));
+        assert_eq!(ApprovedList::parse(&g.to_text()).unwrap(), g);
+        assert!(ApprovedList::parse("format = 1\ngeneration = -1\n").is_err());
+        assert!(ApprovedList::parse("format = 1\ngeneration = \"x\"\n").is_err());
         assert!(ApprovedList::parse("").is_err(), "no format line");
         assert!(ApprovedList::parse("format = 1\n[[package]]\nid = \"x\"\nversion = \"1\"\nsha256 = \"short\"\norigin = \"local\"\n").is_err());
         // one list per launch, never overwritten

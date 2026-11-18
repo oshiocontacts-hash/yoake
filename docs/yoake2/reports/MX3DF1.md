@@ -95,3 +95,9 @@ Results: `cd launcher && cargo test -j 4` (lib 604 passed, bin 170 passed, integ
 8. **Replace is remove-then-install.** If the install fails after the old dev copy was removed (disk full), the old copy stays gone; the next change retries. A temp-name install would need a new `install_package` mode.
 9. **A dev file whose id equals a hand-dropped, record-less file** in `mods/` is refused as "unknown origin" like any other non-dev origin.
 10. Only top-level files of the dev folder are watched; a build tool that writes to a subfolder is not picked up. Easy to widen if wanted.
+
+## Update: merged vps/yoake2/hot-reload (MX3HR1)
+
+- Took the game side's `ApprovedList.generation` (identical API, 3 trivial conflicts in control.rs resolved to theirs) and its `control::DEV_ARG`; the launcher re-exports it (`full_access::DEV_ARG`). 要確認 1 is resolved.
+- Rewrites of the run list are at least 1.1 s apart (the game checks mtime+size once a second); the watcher waits before taking the lock.
+- After the merge: launcher `cargo test -j 4` lib 604, bin 170, integration ok; horizon-mods --features yak 74+41 ok; `cargo check -p horizon-client` clean.

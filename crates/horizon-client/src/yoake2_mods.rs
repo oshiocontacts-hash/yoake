@@ -34,7 +34,7 @@ use std::path::{Path, PathBuf};
 
 use horizon_mods::yak::{Archive, PublicKey, Wasm};
 pub use horizon_mods::yak::control::{
-    APPROVED_ARG, APPROVED_ENV, AllowEntry, AllowFile, ApprovedEntry, ApprovedList, Control, ListDiff, Origin, OriginFile, OriginRecord,
+    APPROVED_ARG, APPROVED_ENV, DEV_ARG, AllowEntry, AllowFile, ApprovedEntry, ApprovedList, Control, ListDiff, Origin, OriginFile, OriginRecord,
     control_dir_in, guard, install_package, remove_package, sha256_hex,
 };
 use yoake_slice::runtime::{self, ModConfig, ModId};
@@ -399,6 +399,18 @@ pub fn process_approved_list() -> Option<&'static ApprovedList> {
     .as_ref()
 }
 
+/// The list a world or session start loads with: [`process_approved_list`], except that with `--full-access-dev` a newer
+/// list read by the dev reload ([`dev_reload_check`]) replaces it (a world started after a reload must not fall back to
+/// the launch-time list). A clone: the list is small.
+pub fn launch_approved_list() -> Option<ApprovedList> {
+    if dev_mode() {
+        if let Some(latest) = DEV_LATEST.lock().unwrap_or_else(|e| e.into_inner()).clone() {
+            return Some(latest);
+        }
+    }
+    process_approved_list().cloned()
+}
+
 /// World start: replaces this thread's full-access mods with those of `<game root>/mods` that this launch's `approved`
 /// list names (a package loads only when its bytes hash to an entry and the entry's origin is `local` or `catalog`).
 /// **Without a list no mod is full-access.** The compiled-in trust list checks catalog signatures and
@@ -417,6 +429,7 @@ pub fn load_client_mods(mods_dir: &Path, approved: Option<&ApprovedList>) -> Loa
 
 /// MX3CL1: the client's session end: unloads this thread's client-side mods. Returns what could not be unloaded.
 pub fn unload_client_mods() -> Vec<String> {
+    DEV_SIDES.with(|sides| sides.borrow_mut()[ThreadSide::Client.index()].in_session = false);
     let errors = unload_previous(ThreadSide::Client);
     for line in &errors {
         log::warn!("yoake: {line}");
@@ -437,6 +450,12 @@ fn load_mods_on(side: ThreadSide, mods_dir: &Path, approved: Option<&ApprovedLis
         announce(&report);
         return report;
     }
+    // MX3HR1: remember which list generation this side runs (the dev reload only acts on a higher one)
+    DEV_SIDES.with(|sides| {
+        let mut sides = sides.borrow_mut();
+        sides[side.index()].in_session = true;
+        sides[side.index()].loaded_generation = approved.map_or(0, ApprovedList::generation);
+    });
     let (allow, origins) = approved.map(ApprovedList::to_files).unwrap_or_default();
     let trusted = horizon_mods::yak::trusted_keys();
     // before any `yoake_init` runs, so `hook_register` can tell each guest the mode of the ids it asks for
@@ -450,6 +469,126 @@ fn load_mods_on(side: ThreadSide, mods_dir: &Path, approved: Option<&ApprovedLis
     report.unbridged = install_bridges(&report.loaded);
     announce(&report);
     report
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// MX3HR1: dev-mode hot reload (docs/yoake2/ENGINE_CALL_ABI.md, "Dev reload")
+// ---------------------------------------------------------------------------------------------------------------
+
+/// Whether this process was started with `--full-access-dev` (read once). Without it the game never re-reads the list.
+pub fn dev_mode() -> bool {
+    static DEV: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *DEV.get_or_init(|| std::env::args().skip(1).any(|a| a == DEV_ARG))
+}
+
+/// The newest list the dev reload accepted (any thread), so a world started later loads with it.
+static DEV_LATEST: std::sync::Mutex<Option<ApprovedList>> = std::sync::Mutex::new(None);
+
+/// At most one look at the list file per this long, per thread.
+pub const DEV_CHECK_INTERVAL: std::time::Duration = std::time::Duration::from_secs(1);
+
+/// What the dev reload knows about one side of this thread.
+struct DevSide {
+    /// A loader ran for this side and it was not ended (the client's `unload_client_mods` ends it).
+    in_session: bool,
+    /// The generation of the list the side's mods were loaded with.
+    loaded_generation: u64,
+    next_check: Option<std::time::Instant>,
+    /// (mtime, size) of the list file when it was last read.
+    stamp: Option<(Option<std::time::SystemTime>, u64)>,
+}
+
+impl DevSide {
+    const fn new() -> Self {
+        Self { in_session: false, loaded_generation: 0, next_check: None, stamp: None }
+    }
+}
+
+thread_local! {
+    static DEV_SIDES: std::cell::RefCell<[DevSide; 2]> = const { std::cell::RefCell::new([DevSide::new(), DevSide::new()]) };
+}
+
+/// One dev reload that happened.
+#[derive(Debug)]
+pub struct DevReload {
+    pub generation: u64,
+    pub report: LoadReport,
+}
+
+/// The call the tick paths make: [`dev_reload_check`] for this process (`--full-access-dev`, the list path of this
+/// launch, `<game root>/mods`). With no dev flag it is one `OnceLock` read.
+pub fn dev_reload_tick(side: ThreadSide) -> Option<DevReload> {
+    if !dev_mode() {
+        return None;
+    }
+    let path = ApprovedList::path_from_process()?;
+    let root = crate::yak_mods::game_root()?;
+    dev_reload_check(true, side, &path, &root.join("mods"), std::time::Instant::now())
+}
+
+/// **Dev reload** for `side` of the calling thread. `enabled` is `--full-access-dev` (false: nothing happens, the file is
+/// not even looked at). At most once per [`DEV_CHECK_INTERVAL`] it compares the list file's mtime and size with the last
+/// read; a changed file is read and parsed, and when its `generation` is higher than the one this side runs with, and no
+/// guest is running ([`runtime::guest_running`]: never mid-activation; it is tried again at the next check), the side's
+/// runtime is dropped and loaded again with the new list through the normal loader (same trust rules), `yoake_init`
+/// included. A file that cannot be read or parsed is logged and changes nothing. Call it between ticks, outside any hook.
+pub fn dev_reload_check(enabled: bool, side: ThreadSide, list_path: &Path, mods_dir: &Path, now: std::time::Instant) -> Option<DevReload> {
+    if !enabled {
+        return None;
+    }
+    let (last_stamp, loaded_generation) = DEV_SIDES.with(|sides| {
+        let mut sides = sides.borrow_mut();
+        let state = &mut sides[side.index()];
+        if !state.in_session || state.next_check.is_some_and(|next| now < next) {
+            return None;
+        }
+        state.next_check = Some(now + DEV_CHECK_INTERVAL);
+        Some((state.stamp, state.loaded_generation))
+    })?;
+    let meta = std::fs::metadata(list_path).ok()?;
+    let stamp = Some((meta.modified().ok(), meta.len()));
+    if stamp == last_stamp {
+        return None;
+    }
+    if runtime::guest_running() {
+        // the stamp stays: the change is looked at again at the next check
+        let line = format!("yoake: dev reload ({side:?}) postponed: a guest is running (never reload mid-activation)");
+        log::warn!("{line}");
+        eprintln!("{line}");
+        return None;
+    }
+    let set_stamp = || DEV_SIDES.with(|sides| sides.borrow_mut()[side.index()].stamp = stamp);
+    let list = match ApprovedList::read(list_path) {
+        Ok(list) => list,
+        Err(e) => {
+            set_stamp();
+            let line = format!("yoake: dev reload ({side:?}): {e}; keeping the loaded mods");
+            log::warn!("{line}");
+            eprintln!("{line}");
+            return None;
+        }
+    };
+    set_stamp();
+    if list.generation() <= loaded_generation {
+        return None;
+    }
+    for protected in list.protected() {
+        horizon_mods::yak::control::protect(protected);
+    }
+    {
+        let mut latest = DEV_LATEST.lock().unwrap_or_else(|e| e.into_inner());
+        if latest.as_ref().is_none_or(|l| l.generation() < list.generation()) {
+            *latest = Some(list.clone());
+        }
+    }
+    debug_assert!(!runtime::guest_running());
+    let report = load_mods_on(side, mods_dir, Some(&list));
+    let refused = report.skipped.iter().filter(|(_, r)| !matches!(r, Refusal::Sandboxed | Refusal::OtherSide)).count();
+    let ids: Vec<&str> = report.loaded.iter().map(|l| l.id.as_str()).collect();
+    let line = format!("yoake: dev reload ({side:?}) generation {}: {} mod(s) loaded [{}], {refused} refused", list.generation(), ids.len(), ids.join(", "));
+    log::info!("{line}");
+    eprintln!("{line}");
+    Some(DevReload { generation: list.generation(), report })
 }
 
 /// Engine-synthetic hooks (ids at and above `SYNTHETIC_HOOK_BASE`) that the engine itself dispatches, with their mode.
