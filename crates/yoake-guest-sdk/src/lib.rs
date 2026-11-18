@@ -49,6 +49,10 @@ pub mod hooks {
     pub const SYNTHETIC_BASE: u32 = 0x8000_0000;
     /// `Game::yoake2_server_tick`: argument 0 is the `Game` root.
     pub const SERVER_TICK: u32 = SYNTHETIC_BASE + 1;
+    /// MX3CL1: once per client tick, on the window's thread; argument 0 is the `Game` root of the client.
+    pub const CLIENT_TICK: u32 = SYNTHETIC_BASE + 2;
+    /// MX3CL1: once per frame after the vanilla HUD, on the client thread. Observe-only; no handle arguments yet.
+    pub const HUD_RENDER: u32 = SYNTHETIC_BASE + 3;
 }
 
 /// A handle the engine gave this activation: a hook argument, the `Game` root, or a path handle.

@@ -396,6 +396,10 @@ pub const INIT_EXPORT: &str = "yoake_init";
 pub const SYNTHETIC_HOOK_BASE: u32 = 0x8000_0000;
 /// `Game::yoake2_server_tick`, the one hook whose argument 0 is the `Game` root.
 pub const HOOK_SERVER_TICK: u32 = SYNTHETIC_HOOK_BASE + 1;
+/// MX3CL1: once per client tick on the window's thread; argument 0 is the `Game` root.
+pub const HOOK_CLIENT_TICK: u32 = SYNTHETIC_HOOK_BASE + 2;
+/// MX3CL1: once per frame on the window's thread, after the vanilla HUD was built. Observe-only; no handle yet.
+pub const HOOK_HUD_RENDER: u32 = SYNTHETIC_HOOK_BASE + 3;
 
 /// The unmetered store's starting fuel; every top-level activation must leave it unchanged.
 pub const INITIAL_FUEL: u64 = u64::MAX / 4;
