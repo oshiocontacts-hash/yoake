@@ -4,6 +4,7 @@ mod fixtures;
 mod lifecycle;
 mod local;
 mod full_access;
+mod full_access_dev;
 
 use fixtures::Fixture;
 

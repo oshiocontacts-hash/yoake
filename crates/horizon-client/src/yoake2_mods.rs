@@ -157,9 +157,10 @@ pub fn decide(origin: Origin, approved: bool, signed_by_trusted: bool) -> Result
     match origin {
         Origin::Server => Err(Refusal::FromServer),
         Origin::Friend => Err(Refusal::FromFriend),
-        Origin::Local if approved => Ok(()),
+        // `Dev`: the launcher copied it from the player's own developer folder and approved exactly those bytes
+        Origin::Local | Origin::Dev if approved => Ok(()),
         Origin::Catalog if approved || signed_by_trusted => Ok(()),
-        Origin::Local | Origin::Catalog => Err(Refusal::NotAllowed),
+        Origin::Local | Origin::Catalog | Origin::Dev => Err(Refusal::NotAllowed),
     }
 }
 
