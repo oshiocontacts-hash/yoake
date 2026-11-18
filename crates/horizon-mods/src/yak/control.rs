@@ -47,6 +47,8 @@ use super::Archive;
 
 /// Command-line option that gives the game this launch's approved list: `--full-access-approved <path>`.
 pub const APPROVED_ARG: &str = "--full-access-approved";
+/// MX3HR1: with this flag (dev mode only) the game re-reads the approved list and reloads when its `generation` grows.
+pub const DEV_ARG: &str = "--full-access-dev";
 /// Environment variable with the same meaning (the option wins).
 pub const APPROVED_ENV: &str = "YOAKE_FULL_ACCESS_APPROVED";
 /// The subfolder of the launcher's data folder.
@@ -622,7 +624,7 @@ impl Control {
             Err(e) => return Err(format!("{}: {e}", mods_dir.display())),
         };
         files.sort();
-        let mut list = ApprovedList { entries: Vec::new(), protected: vec![self.dir.clone(), self.checksum_path()] };
+        let mut list = ApprovedList { entries: Vec::new(), protected: vec![self.dir.clone(), self.checksum_path()], generation: 0 };
         for path in files {
             let Ok(bytes) = std::fs::read(&path) else { continue };
             let sha256 = sha256_hex(&bytes);
@@ -665,6 +667,9 @@ pub struct ApprovedEntry {
 /// origin = "local"          # or "catalog"; anything else makes the whole file invalid
 /// ```
 ///
+/// An optional top-level `generation = <integer>` (absent = 0) is raised by the launcher on every rewrite in dev mode
+/// (MX3HR1); a game started with `--full-access-dev` reloads its full-access mods when it grows. Written only when non-zero.
+///
 /// **How to pass it.** Write it with [`ApprovedList::write_for_launch`] into a fresh, launch-specific file *outside the
 /// game folder* (for example `<launcher data>/run/<launch id>/approved.toml`), and pass its absolute path on the game's
 /// command line as `--full-access-approved <path>` (or `--full-access-approved=<path>`); the environment variable
@@ -684,6 +689,9 @@ pub struct ApprovedEntry {
 pub struct ApprovedList {
     entries: Vec<ApprovedEntry>,
     protected: Vec<PathBuf>,
+    /// MX3HR1: dev-mode hot reload. The launcher raises it on every rewrite of the file; absent = 0. Only a game started
+    /// with `--full-access-dev` looks at it (it reloads when it grows); otherwise it is ignored.
+    generation: u64,
 }
 
 /// What changed between two lists (the launcher shows it to the player before approving a new launch).
@@ -706,7 +714,17 @@ impl ApprovedList {
     pub const MAX_BYTES: u64 = 1 << 20;
 
     pub fn new(entries: Vec<ApprovedEntry>, protected: Vec<PathBuf>) -> Self {
-        Self { entries, protected }
+        Self { entries, protected, generation: 0 }
+    }
+
+    /// The rewrite counter (0 when the file has none). See the `generation` field.
+    pub fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    pub fn with_generation(mut self, generation: u64) -> Self {
+        self.generation = generation;
+        self
     }
 
     pub fn entries(&self) -> &[ApprovedEntry] {
@@ -737,6 +755,9 @@ impl ApprovedList {
             return Err(format!("approved list: format must be {}", Self::FORMAT));
         }
         let mut list = Self::default();
+        if let Some(generation) = table.get("generation") {
+            list.generation = generation.as_integer().and_then(|g| u64::try_from(g).ok()).ok_or("approved list: generation must be a non-negative integer")?;
+        }
         if let Some(protected) = table.get("protected") {
             for item in protected.as_array().ok_or("approved list: protected must be an array of paths")? {
                 list.protected.push(PathBuf::from(item.as_str().ok_or("approved list: protected holds strings")?));
