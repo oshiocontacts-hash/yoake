@@ -21,7 +21,7 @@ impl Game<'_> {
         }
         if let Some(root) = crate::yak_mods::game_root() {
             super::native_client_items::yoake2_install_dispatch();
-            crate::yoake2_mods::load_client_mods(&root.join("mods"), crate::yoake2_mods::process_approved_list());
+            crate::yoake2_mods::load_client_mods(&root.join("mods"), crate::yoake2_mods::launch_approved_list().as_ref());
         }
     }
 
@@ -33,7 +33,19 @@ impl Game<'_> {
 
     pub(super) fn yoake2_client_tick_hook(&mut self) {
         if self.options.execution_role.is_client() {
+            crate::yoake2_mods::dev_reload_tick(crate::yoake2_mods::ThreadSide::Client);
             crate::yoake2_mods::dispatch_client_tick(self);
+        }
+    }
+
+    /// MX3HR1: the server thread's dev-reload point, called at `ServerTickStart` just before `yoake2_tick_hook` (that
+    /// method is itself a hookable function, so a reload inside it would run inside a guest's `original`). Does nothing
+    /// without `--full-access-dev`.
+    pub(super) fn yoake2_dev_reload_hook(&mut self) {
+        use super::execution_role::ExecutionRole;
+        let serves = self.options.dedicated.is_some() || matches!(self.options.execution_role, ExecutionRole::IntegratedServer);
+        if serves {
+            crate::yoake2_mods::dev_reload_tick(crate::yoake2_mods::ThreadSide::Server);
         }
     }
 
@@ -52,6 +64,8 @@ impl Game<'_> {
     pub(super) fn yoake2_client_session_end_hook(&mut self) {}
     #[inline(always)]
     pub(super) fn yoake2_client_tick_hook(&mut self) {}
+    #[inline(always)]
+    pub(super) fn yoake2_dev_reload_hook(&mut self) {}
     #[inline(always)]
     pub(super) fn yoake2_hud_render_hook(&self) {}
 }

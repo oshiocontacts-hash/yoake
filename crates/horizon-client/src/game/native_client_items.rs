@@ -72,7 +72,7 @@ impl Game<'_> {
         }
         if let Some(root) = crate::yak_mods::game_root() {
             yoake2_install_dispatch();
-            crate::yoake2_mods::load_world_mods(&root.join("mods"), crate::yoake2_mods::process_approved_list());
+            crate::yoake2_mods::load_world_mods(&root.join("mods"), crate::yoake2_mods::launch_approved_list().as_ref());
         }
     }
 }

@@ -559,6 +559,16 @@ pub fn unload(id: ModId) -> R<()> {
     })
 }
 
+/// MX3HR1: whether a guest of this thread is running right now (some hook activation is on the stack, so engine code
+/// reached from here is inside a mod's `original`, or the mod list is borrowed). A runtime must not be dropped and
+/// loaded again then ([`unload`] and [`uninstall`] fail for the same reason); the dev reload checks this first.
+pub fn guest_running() -> bool {
+    RT.with(|rt| match rt.mods.try_borrow() {
+        Err(_) => true,
+        Ok(mods) => mods.iter().any(|m| m.inst.try_borrow_mut().is_err()),
+    })
+}
+
 /// Installs a single mod on the calling thread, replacing every earlier one (the convenience of the
 /// slice's tests). Fails when any guest is running.
 pub fn install(wasm_or_wat: &[u8], cfg: ModConfig) -> R<()> {

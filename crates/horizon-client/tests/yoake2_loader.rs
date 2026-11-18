@@ -105,6 +105,7 @@ interface = "1.0"
         std::fs::write(src.join("bin/wasm/client.wasm"), module_text).unwrap();
     }
     let out = dir.join(file_name);
+    let _ = std::fs::remove_file(&out); // a package is packed again with other content (the dev reload tests)
     pack_directory(&src, &out, &BTreeMap::new()).unwrap();
     out
 }
@@ -1062,4 +1063,393 @@ fn the_hud_render_argument_is_a_dead_handle() {
     })
     .join()
     .unwrap();
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// MX3HR1: dev-mode hot reload
+// ---------------------------------------------------------------------------------------------------------------
+
+use horizon_client::yoake2_mods::dev_reload_check;
+use std::time::{Duration, Instant};
+
+/// A guest that registers `ids` and reports `(tag, id - SYNTHETIC_HOOK_BASE or id)` on each entry: which build of the
+/// guest ran. With `trap_in_init` its `yoake_init` executes `unreachable`.
+fn tagged_guest(tag: i32, ids: &[u32], trap_in_init: bool) -> String {
+    let register: String = ids.iter().map(|id| format!("(drop (call $register (i32.const {}) (i32.const 0)))\n", *id as i32)).collect();
+    let trap = if trap_in_init { "unreachable" } else { "" };
+    format!(
+        r#"(module
+  (@custom "yoake_abi" "\01\00\00\00")
+  (import "env" "original" (func $orig (param i64 i32) (result i32)))
+  (import "env" "hook_register" (func $register (param i32 i32) (result i32)))
+  (import "env" "report" (func $report (param i32 i64)))
+  (memory (export "memory") 1)
+  (func (export "yoake_init") {register} {trap})
+  (func (export "yoake_hook") (param $id i32) (param $h i64) (result i64)
+    (call $report (i32.const {tag}) (i64.extend_i32_u (i32.and (local.get $id) (i32.const 0x7fffffff))))
+    (drop (call $orig (local.get $h) (i32.const 64)))
+    (i64.const 0)))"#
+    )
+}
+
+const SERVER_TICK: u32 = runtime::HOOK_SERVER_TICK;
+const CLIENT_TICK: u32 = runtime::HOOK_CLIENT_TICK;
+
+/// A launch the way the launcher keeps it in dev mode: a control folder, the mods folder and the one approved-list file
+/// that is rewritten (temp file + rename) with a rising generation.
+struct DevLaunch {
+    control: Control,
+    mods: PathBuf,
+    list: PathBuf,
+    src: PathBuf,
+    t0: Instant,
+}
+
+impl DevLaunch {
+    fn new(name: &str) -> Self {
+        let (control, mods) = world(name);
+        let run = scratch(&format!("{name}_run"));
+        Self { control, mods, list: run.join("approved.toml"), src: scratch(&format!("{name}_src")), t0: Instant::now() }
+    }
+
+    /// Installs (replacing any earlier file of that id) and approves one package: `side` is "server" | "client" | "both".
+    fn publish(&self, id: &str, side: &str, text: &str) {
+        let declared = match side {
+            "client" => "client = \"bin/wasm/mod.wasm\"",
+            "both" => "server = \"bin/wasm/mod.wasm\"\nclient = \"bin/wasm/client.wasm\"",
+            _ => "server = \"bin/wasm/mod.wasm\"",
+        };
+        let packed = pack(&self.src, id, &format!("{declared}\nworld = \"full-access\""), text);
+        let bytes = std::fs::read(&packed).unwrap();
+        let _ = std::fs::remove_file(self.mods.join(format!("{id}.yak")));
+        install_package(&self.control, &self.mods, &format!("{id}.yak"), &bytes, Origin::Local, None).unwrap();
+        self.control.approve(&bytes).unwrap();
+    }
+
+    /// The launcher's rewrite: the list of what is in the mods folder now, `generation`, a temp file renamed over the list.
+    fn rewrite(&self, generation: u64) {
+        let list = self.control.approved_list(&self.mods).unwrap().with_generation(generation);
+        std::fs::create_dir_all(self.list.parent().unwrap()).unwrap();
+        let tmp = self.list.with_extension("tmp");
+        std::fs::write(&tmp, list.to_text()).unwrap();
+        std::fs::rename(&tmp, &self.list).unwrap();
+        // a file system's mtime is coarse: two rewrites must not share one stamp (the launcher's are seconds apart)
+        std::thread::sleep(Duration::from_millis(40));
+    }
+
+    fn read(&self) -> ApprovedList {
+        ApprovedList::read(&self.list).unwrap()
+    }
+
+    fn at(&self, secs: u64) -> Instant {
+        self.t0 + Duration::from_secs(secs)
+    }
+
+    fn check(&self, enabled: bool, side: ThreadSide, secs: u64) -> Option<horizon_client::yoake2_mods::DevReload> {
+        dev_reload_check(enabled, side, &self.list, &self.mods, self.at(secs))
+    }
+}
+
+fn server_tick() -> Vec<(i32, i64)> {
+    runtime::dispatch_root_id(SERVER_TICK, &mut TickRoot, &mut |_| 0);
+    runtime::take_reports().unwrap()
+}
+
+const TICK: i64 = 1;
+
+#[test]
+fn the_generation_round_trips_and_a_file_without_one_is_generation_zero() {
+    let (control, mods) = world("hr_generation");
+    let bytes = std::fs::read(full_access(&scratch("hr_generation_src"), "demo_gen", 0, 1)).unwrap();
+    install_package(&control, &mods, "demo_gen.yak", &bytes, Origin::Local, None).unwrap();
+    control.approve(&bytes).unwrap();
+    let list = control.approved_list(&mods).unwrap();
+    assert_eq!(list.generation(), 0);
+    let old_style = list.write_for_launch(&scratch("hr_generation_run")).unwrap();
+    assert!(!std::fs::read_to_string(&old_style).unwrap().contains("generation ="), "generation 0 is not written: old readers and files stay as they were");
+    assert_eq!(ApprovedList::read(&old_style).unwrap().generation(), 0);
+    let raised = list.with_generation(41);
+    let text = raised.to_text();
+    assert!(text.contains("generation = 41"));
+    assert_eq!(ApprovedList::parse(&text).unwrap().generation(), 41);
+    assert_eq!(ApprovedList::parse(&text).unwrap(), raised);
+}
+
+#[test]
+fn without_the_dev_flag_a_changed_list_is_never_looked_at() {
+    runtime::uninstall().unwrap();
+    let dev = DevLaunch::new("hr_no_flag");
+    dev.publish("demo_hr", "server", &tagged_guest(10, &[SERVER_TICK], false));
+    dev.rewrite(1);
+    assert_eq!(loaded_ids(&load_world_mods(&dev.mods, Some(&dev.read()))), ["demo_hr"]);
+    runtime::take_reports().unwrap();
+
+    dev.publish("demo_hr", "server", &tagged_guest(20, &[SERVER_TICK], false));
+    dev.rewrite(2);
+    for secs in [2, 4, 6] {
+        assert!(dev.check(false, ThreadSide::Server, secs).is_none(), "dev flag off");
+    }
+    assert_eq!(server_tick(), [(10, TICK)], "still the old guest");
+    // the flag on: the same file now reloads
+    assert!(dev.check(true, ThreadSide::Server, 8).is_some());
+    assert_eq!(server_tick(), [(20, TICK)]);
+    runtime::uninstall().unwrap();
+}
+
+#[test]
+fn a_higher_generation_reloads_the_changed_guest_and_the_old_one_no_longer_runs() {
+    runtime::uninstall().unwrap();
+    let dev = DevLaunch::new("hr_reload");
+    dev.publish("demo_hr", "server", &tagged_guest(10, &[SERVER_TICK], false));
+    dev.rewrite(1);
+    load_world_mods(&dev.mods, Some(&dev.read()));
+    runtime::take_reports().unwrap();
+    assert_eq!(server_tick(), [(10, TICK)]);
+    let before = runtime::all_stats();
+
+    dev.publish("demo_hr", "server", &tagged_guest(20, &[SERVER_TICK], false));
+    dev.rewrite(2);
+    let reload = dev.check(true, ThreadSide::Server, 10).expect("generation 2 > 1");
+    assert_eq!(reload.generation, 2);
+    assert_eq!(reload.report.loaded.len(), 1, "{:?} {:?}", reload.report.skipped, reload.report.problems);
+    assert!(reload.report.messages().is_empty(), "{:?}", reload.report.messages());
+    runtime::take_reports().unwrap();
+    assert_eq!(server_tick(), [(20, TICK)], "the chain points at the new instance; the old guest is gone");
+    assert_eq!(runtime::all_stats().len(), before.len(), "one mod, not two");
+    runtime::uninstall().unwrap();
+}
+
+#[test]
+fn the_same_generation_does_not_reload_even_when_the_file_changed() {
+    runtime::uninstall().unwrap();
+    let dev = DevLaunch::new("hr_same_generation");
+    dev.publish("demo_hr", "server", &tagged_guest(10, &[SERVER_TICK], false));
+    dev.rewrite(5);
+    load_world_mods(&dev.mods, Some(&dev.read()));
+    runtime::take_reports().unwrap();
+    dev.publish("demo_hr", "server", &tagged_guest(20, &[SERVER_TICK], false));
+    dev.rewrite(5);
+    assert!(dev.check(true, ThreadSide::Server, 2).is_none(), "5 is not above 5");
+    dev.rewrite(4);
+    assert!(dev.check(true, ThreadSide::Server, 4).is_none(), "a lower generation is ignored too");
+    assert_eq!(server_tick(), [(10, TICK)]);
+    dev.rewrite(6);
+    assert!(dev.check(true, ThreadSide::Server, 6).is_some());
+    assert_eq!(server_tick(), [(20, TICK)]);
+    runtime::uninstall().unwrap();
+}
+
+#[test]
+fn the_file_is_looked_at_once_per_second_and_only_when_it_changed() {
+    runtime::uninstall().unwrap();
+    let dev = DevLaunch::new("hr_throttle");
+    dev.publish("demo_hr", "server", &tagged_guest(10, &[SERVER_TICK], false));
+    dev.rewrite(1);
+    load_world_mods(&dev.mods, Some(&dev.read()));
+    assert!(dev.check(true, ThreadSide::Server, 10).is_none(), "generation 1 is what is loaded");
+    dev.publish("demo_hr", "server", &tagged_guest(20, &[SERVER_TICK], false));
+    dev.rewrite(2);
+    // 10.0 s was the last look; the file changes, but 10.5 s is too soon
+    let soon = dev_reload_check(true, ThreadSide::Server, &dev.list, &dev.mods, dev.at(10) + Duration::from_millis(500));
+    assert!(soon.is_none(), "at most once per second");
+    assert!(dev.check(true, ThreadSide::Server, 11).is_some());
+    assert!(dev.check(true, ThreadSide::Server, 13).is_none(), "unchanged file: nothing to do");
+    runtime::uninstall().unwrap();
+}
+
+#[test]
+fn a_broken_list_keeps_the_old_mods_and_a_later_good_one_still_reloads() {
+    runtime::uninstall().unwrap();
+    let dev = DevLaunch::new("hr_broken");
+    dev.publish("demo_hr", "server", &tagged_guest(10, &[SERVER_TICK], false));
+    dev.rewrite(1);
+    load_world_mods(&dev.mods, Some(&dev.read()));
+    runtime::take_reports().unwrap();
+
+    for (n, broken) in ["format = 1\ngeneration = 9\n[[package]\n", "", "format = 7\ngeneration = 9\n", "format = 1\ngeneration = \"nine\"\n"].into_iter().enumerate() {
+        std::fs::write(&dev.list, broken).unwrap();
+        std::thread::sleep(Duration::from_millis(40));
+        assert!(dev.check(true, ThreadSide::Server, 2 + 2 * n as u64).is_none(), "{broken:?}");
+        assert_eq!(server_tick(), [(10, TICK)], "the old mods keep running after {broken:?}");
+    }
+    dev.publish("demo_hr", "server", &tagged_guest(20, &[SERVER_TICK], false));
+    dev.rewrite(2);
+    assert!(dev.check(true, ThreadSide::Server, 20).is_some());
+    assert_eq!(server_tick(), [(20, TICK)]);
+    runtime::uninstall().unwrap();
+}
+
+#[test]
+fn a_mod_that_traps_in_init_or_is_not_approved_is_reported_and_the_others_still_load() {
+    runtime::uninstall().unwrap();
+    let dev = DevLaunch::new("hr_partial");
+    dev.publish("demo_a", "server", &tagged_guest(10, &[SERVER_TICK], false));
+    dev.publish("demo_b", "server", &tagged_guest(11, &[SERVER_TICK], false));
+    dev.publish("demo_c", "server", &tagged_guest(12, &[SERVER_TICK], false));
+    dev.rewrite(1);
+    load_world_mods(&dev.mods, Some(&dev.read()));
+    runtime::take_reports().unwrap();
+    assert_eq!(server_tick().len(), 3);
+
+    dev.publish("demo_a", "server", &tagged_guest(30, &[SERVER_TICK], false));
+    dev.publish("demo_b", "server", &tagged_guest(31, &[SERVER_TICK], true)); // traps in yoake_init
+    // demo_c is replaced by a file nobody approved: the rewrite leaves it out of the list
+    let unapproved = std::fs::read(pack(&dev.src, "demo_c", "server = \"bin/wasm/mod.wasm\"\nworld = \"full-access\"", &tagged_guest(32, &[SERVER_TICK], false))).unwrap();
+    std::fs::remove_file(dev.mods.join("demo_c.yak")).unwrap();
+    install_package(&dev.control, &dev.mods, "demo_c.yak", &unapproved, Origin::Local, None).unwrap();
+    dev.rewrite(2);
+
+    let reload = dev.check(true, ThreadSide::Server, 5).expect("reloaded");
+    assert_eq!(loaded_ids(&reload.report), ["demo_a"]);
+    let messages = reload.report.messages().join("\n");
+    assert!(messages.contains("demo_b.yak") && messages.contains("could not start"), "{messages}");
+    assert!(messages.contains("demo_c.yak"), "{messages}");
+    runtime::take_reports().unwrap();
+    assert_eq!(server_tick(), [(30, TICK)], "only the mod that loaded runs");
+    runtime::uninstall().unwrap();
+}
+
+#[test]
+fn a_reload_is_refused_while_a_guest_is_running_and_happens_at_the_next_check() {
+    runtime::uninstall().unwrap();
+    assert!(!runtime::guest_running());
+    let dev = DevLaunch::new("hr_mid_activation");
+    dev.publish("demo_hr", "server", &module(0, 1));
+    dev.rewrite(1);
+    load_world_mods(&dev.mods, Some(&dev.read()));
+    dev.publish("demo_hr", "server", &module(0, 5));
+    dev.rewrite(2);
+
+    let mut thing = Thing { count: 0 };
+    let mut inside = None;
+    let mut running = false;
+    runtime::dispatch_id(1, &mut thing, &TABLE, &mut |t| {
+        // this is `original`: the guest's frame is on the stack
+        running = runtime::guest_running();
+        inside = Some(dev.check(true, ThreadSide::Server, 3).is_some());
+        t.count += 300;
+        0
+    });
+    assert!(running, "the activation is visible");
+    assert_eq!(inside, Some(false), "refused mid-activation");
+    assert_eq!(thing.count, 1 + 300, "the first guest finished its activation undisturbed");
+    assert!(!runtime::guest_running());
+    // between ticks the same change is still pending
+    assert!(dev.check(true, ThreadSide::Server, 5).is_some());
+    let mut thing = Thing { count: 0 };
+    engine(&mut thing);
+    assert_eq!(thing.count, 5 + 300, "the new guest");
+    runtime::uninstall().unwrap();
+}
+
+#[test]
+fn an_id_registered_for_the_first_time_after_a_reload_is_bridged_once() {
+    use horizon_client::entities::{ArmorStand, StandMedium, StandStep};
+    use horizon_core::geometry::Vec3;
+
+    runtime::uninstall().unwrap();
+    let dev = DevLaunch::new("hr_bridge");
+    dev.publish("demo_hr", "server", &tagged_guest(10, &[SERVER_TICK], false));
+    dev.rewrite(1);
+    let first = load_world_mods(&dev.mods, Some(&dev.read()));
+    assert!(first.unbridged.is_empty());
+
+    let step = StandStep::for_hook_bench(true, 0.6);
+    let stand = || ArmorStand::new(1, Vec3::new(3.0, 64.0, 5.0), 30.0);
+    let mut baseline = stand();
+    baseline.tick_settle(StandMedium::Air, step);
+    runtime::take_reports().unwrap();
+
+    // generation 2 registers hook 71 (an armor stand's tick), which no mod of this thread had before
+    dev.publish("demo_hr", "server", &tagged_guest(20, &[SERVER_TICK, 71], false));
+    dev.rewrite(2);
+    let reload = dev.check(true, ThreadSide::Server, 3).expect("reloaded");
+    assert!(reload.report.unbridged.is_empty(), "{:?}", reload.report.unbridged);
+    assert!(yoake_slice::bridge::is_installed(71), "bridged by the reload (or earlier by another test: install_once)");
+    for round in 0..2 {
+        let mut hooked = stand();
+        hooked.tick_settle(StandMedium::Air, step);
+        assert_eq!(hooked.velocity, baseline.velocity, "round {round}: the original ran once");
+        assert_eq!(runtime::take_reports().unwrap(), [(20, 71)], "round {round}: the new guest, entered once");
+    }
+    // generation 3: the id is already bridged; no second dispatcher, so still one entry per call
+    dev.publish("demo_hr", "server", &tagged_guest(30, &[SERVER_TICK, 71], false));
+    dev.rewrite(3);
+    assert!(dev.check(true, ThreadSide::Server, 6).is_some());
+    let mut hooked = stand();
+    hooked.tick_settle(StandMedium::Air, step);
+    assert_eq!(runtime::take_reports().unwrap(), [(30, 71)], "a reload never installs a dispatcher twice");
+    runtime::uninstall().unwrap();
+}
+
+#[test]
+fn the_client_and_the_server_runtimes_reload_independently() {
+    use std::sync::mpsc::channel;
+    enum Cmd {
+        Tick,
+        Check(u64),
+    }
+    let dev = std::sync::Arc::new(DevLaunch::new("hr_two_sides"));
+    dev.publish("demo_both", "both", &tagged_guest(10, &[SERVER_TICK, CLIENT_TICK], false));
+    dev.rewrite(1);
+
+    // each side on its own thread: load, then answer commands: Tick (what runs) or Check (did it reload)
+    let spawn_side = |side: ThreadSide| {
+        let (ready_tx, ready_rx) = channel::<()>();
+        let (cmd_tx, cmd_rx) = channel::<Cmd>();
+        let (out_tx, out_rx) = channel::<(bool, Vec<(i32, i64)>)>();
+        let dev = dev.clone();
+        let handle = std::thread::spawn(move || {
+            let list = dev.read();
+            let report = match side {
+                ThreadSide::Server => load_world_mods(&dev.mods, Some(&list)),
+                ThreadSide::Client => load_client_mods(&dev.mods, Some(&list)),
+            };
+            assert_eq!(loaded_ids(&report), ["demo_both"]);
+            runtime::take_reports().unwrap();
+            ready_tx.send(()).unwrap();
+            while let Ok(cmd) = cmd_rx.recv() {
+                let answer = match cmd {
+                    Cmd::Check(secs) => (dev.check(true, side, secs).is_some(), Vec::new()),
+                    Cmd::Tick => {
+                        match side {
+                            ThreadSide::Server => drop(runtime::dispatch_root_id(SERVER_TICK, &mut TickRoot, &mut |_| 0)),
+                            ThreadSide::Client => dispatch_client_tick(&mut TickRoot),
+                        };
+                        (false, runtime::take_reports().unwrap())
+                    }
+                };
+                out_tx.send(answer).unwrap();
+            }
+            match side {
+                ThreadSide::Server => runtime::uninstall().unwrap(),
+                ThreadSide::Client => assert!(unload_client_mods().is_empty()),
+            }
+        });
+        ready_rx.recv().unwrap();
+        let ask = move |cmd: Cmd| {
+            cmd_tx.send(cmd).unwrap();
+            out_rx.recv().unwrap()
+        };
+        (ask, handle)
+    };
+    let (server, server_thread) = spawn_side(ThreadSide::Server);
+    let (client, client_thread) = spawn_side(ThreadSide::Client);
+
+    dev.publish("demo_both", "both", &tagged_guest(20, &[SERVER_TICK, CLIENT_TICK], false));
+    dev.rewrite(2);
+
+    // only the server looks: it reloads, and the client still runs its old instance
+    assert!(server(Cmd::Check(5)).0);
+    assert_eq!(server(Cmd::Tick).1, [(20, 1)]);
+    assert_eq!(client(Cmd::Tick).1, [(10, 2)], "the client runtime was not touched by the server's reload");
+    // now the client looks (its own throttle and stamp): it reloads on its own
+    assert!(client(Cmd::Check(5)).0);
+    assert_eq!(client(Cmd::Tick).1, [(20, 2)]);
+    // a second look changes nothing on either side
+    assert!(!server(Cmd::Check(8)).0);
+    assert!(!client(Cmd::Check(8)).0);
+    drop((server, client));
+    server_thread.join().unwrap();
+    client_thread.join().unwrap();
 }
