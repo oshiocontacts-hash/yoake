@@ -140,6 +140,11 @@ impl Bag {
 }
 "#;
     write_fixture_crate(dir.path(), bag_rs, ledger_json, 10);
+    fs::write(
+        dir.path().join("ledger/callsite-allow.txt"),
+        "core::slice::first\nstd::option::Option::is_some\n",
+    )
+    .unwrap();
 
     let first_call_span = span_of(bag_rs, "self.items.first()");
     let assert_ok_span = span_of(bag_rs, "self.ok()");
@@ -266,10 +271,11 @@ impl Bag {
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(out.status.success(), "apply failed:\nstdout:\n{stdout}\nstderr:\n{stderr}");
     assert!(
-        stdout.contains("callsites: joined=6 eligible=5 rewritten=5 excluded=2"),
+        stdout.contains("callsites: joined=6 eligible=4 rewritten=4 excluded=3"),
         "unexpected summary:\n{stdout}"
     );
     assert!(stdout.contains("inside macro invocation=1"), "{stdout}");
+    assert!(stdout.contains("non-engine callee=1"), "{stdout}");
     assert!(stdout.contains("unwritable arg type=1"), "{stdout}");
     // A borrowed return on a borrowed receiver now uses the method elision rule (named `'r`).
     assert!(!stdout.contains("borrowed return with several borrowed inputs"), "{stdout}");
@@ -279,8 +285,12 @@ impl Bag {
     assert!(rewritten.contains("__yoake_cs_11(&*self, other)"), "{rewritten}");
     assert!(rewritten.contains("__yoake_cs_12(&*self)"), "{rewritten}");
     assert!(rewritten.contains("__yoake_cs_13(&self.items)"), "{rewritten}");
-    assert!(rewritten.contains("__yoake_cs_14(&self.items)"), "{rewritten}");
+    assert!(!rewritten.contains("__yoake_cs_14"), "{rewritten}");
+    assert!(rewritten.contains("!self.items.is_empty()"), "{rewritten}");
     assert!(rewritten.contains("fn __yoake_cs_11<'r>(recv: &'r crate::bag::Bag, a0: &crate::bag::Bag) -> &'r u32"), "{rewritten}");
+    assert!(rewritten.contains("<[u32]>::first(recv)"), "{rewritten}");
+    assert!(rewritten.contains("crate::bag::Bag::pick(recv, a0)"), "{rewritten}");
+    assert!(rewritten.contains("crate::bag::Bag::ok(recv)"), "{rewritten}");
     assert!(rewritten.contains("assert!(self.ok());"), "{rewritten}");
     assert!(rewritten.contains("self.ignore(opaque);"), "{rewritten}");
     assert_eq!(
@@ -306,6 +316,7 @@ impl Bag {
     let ledger_after = fs::read_to_string(dir.path().join("ledger/demo.json")).unwrap();
     assert!(ledger_after.contains("\"site\": {"), "{ledger_after}");
     assert!(ledger_after.contains("\"shim\": \"__yoake_cs_11\""), "{ledger_after}");
+    assert!(ledger_after.contains("\"orig\": \"self.pick(other)\""), "{ledger_after}");
 
     let chk = Command::new(codemod_bin())
         .args(["check", "--callsites", "--crate-root"])
@@ -389,23 +400,24 @@ impl Bag {
             },
             {
                 "file": "src/bag.rs",
-                "span": span_of(&rewritten, "__yoake_cs_14(&self.items)"),
+                "span": span_of(&rewritten, "self.items.is_empty()"),
                 "ctxt": 0,
-                "kind": "path",
-                "callee": "demo::bag::__yoake_cs_14",
+                "kind": "method",
+                "callee": "alloc::vec::Vec::is_empty",
+                "callee_def": "alloc::vec::Vec::is_empty",
                 "ret_ty": "bool",
                 "args": [ { "ty": "&'_ std::vec::Vec<u32>" } ],
+                "recv_adjust": { "borrow": "shared", "derefs": 0 },
                 "resolution": "concrete"
             },
             {
                 "file": "src/bag.rs",
-                "span": span_of(&rewritten, "recv.first()"),
+                "span": span_of(&rewritten, "<[u32]>::first(recv)"),
                 "ctxt": 0,
-                "kind": "method",
+                "kind": "path",
                 "callee": "core::slice::first",
                 "ret_ty": "std::option::Option<&'_ u32>",
                 "args": [ { "ty": "&'_ [u32]" } ],
-                "recv_adjust": { "borrow": "none", "derefs": 0 },
                 "resolution": "concrete"
             }
         ]),
@@ -482,6 +494,11 @@ fn __yoake_cs_10(recv: &[u32]) -> std::option::Option<&u32> {
 }
 "#;
     write_fixture_crate(dir.path(), bag_rs, ledger_json, 11);
+    fs::write(
+        dir.path().join("ledger/callsite-allow.txt"),
+        "core::slice::first\nstd::option::Option::is_some\n",
+    )
+    .unwrap();
 
     let calls_json = thir_with_file(
         bag_rs,
@@ -549,8 +566,11 @@ fn __yoake_cs_10(recv: &[u32]) -> std::option::Option<&u32> {
     assert!(rewritten.contains("__yoake_cs_11(&__yoake_cs_10(&self.items))"), "{rewritten}");
     assert!(rewritten.contains("__yoake_cs_12(self)"), "{rewritten}");
     assert!(rewritten.contains("fn __yoake_cs_10("), "{rewritten}");
+    assert!(rewritten.contains("<[u32]>::first(recv)"), "{rewritten}");
     assert!(rewritten.contains("fn __yoake_cs_11("), "{rewritten}");
+    assert!(rewritten.contains("<std::option::Option<&u32>>::is_some(recv)"), "{rewritten}");
     assert!(rewritten.contains("fn __yoake_cs_12("), "{rewritten}");
+    assert!(rewritten.contains("crate::bag::Bag::ok(recv)"), "{rewritten}");
 }
 
 #[test]
@@ -576,6 +596,11 @@ impl Bag {
 }
 "#;
     write_fixture_crate(dir.path(), bag_rs, ledger_json, 10);
+    fs::write(
+        dir.path().join("ledger/callsite-allow.txt"),
+        "core::slice::first\nstd::option::Option::is_some\n",
+    )
+    .unwrap();
 
     let calls_json = thir_with_file(
         bag_rs,
@@ -839,6 +864,11 @@ impl Bag {
 }
 "#;
     write_fixture_crate(dir.path(), bag_rs, ledger_json, 11);
+    fs::write(
+        dir.path().join("ledger/callsite-allow.txt"),
+        "core::slice::first\nstd::option::Option::is_some\n",
+    )
+    .unwrap();
 
     let calls_json = thir_with_file(
         bag_rs,
@@ -886,7 +916,7 @@ impl Bag {
     let rewritten = fs::read_to_string(dir.path().join("src/bag.rs")).unwrap();
     assert!(rewritten.contains("__yoake_cs_10(self)"), "{rewritten}");
     assert!(rewritten.contains("key = \"fn:1@call:fn:3\""), "{rewritten}");
-    assert!(rewritten.contains("recv.pong()"), "{rewritten}");
+    assert!(rewritten.contains("crate::bag::Bag::pong(recv)"), "{rewritten}");
 
     let ledger_after: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(dir.path().join("ledger/demo.json")).unwrap()).unwrap();
@@ -938,13 +968,12 @@ impl Bag {
             },
             {
                 "file": "src/bag.rs",
-                "span": span_of(&exec_rs, "recv.pong()"),
+                "span": span_of(&exec_rs, "crate::bag::Bag::pong(recv)"),
                 "ctxt": 0,
-                "kind": "method",
+                "kind": "path",
                 "callee": "demo::bag::Bag::pong",
                 "ret_ty": "()",
                 "args": [ { "ty": "&'_ crate::bag::Bag" } ],
-                "recv_adjust": { "borrow": "none", "derefs": 0 },
                 "resolution": "concrete"
             }
         ]),
@@ -1225,4 +1254,816 @@ impl Bag {
     let missing_err = String::from_utf8_lossy(&missing_out.stderr);
     assert!(missing_err.contains("THIR is stale"), "{missing_err}");
     assert!(!missing_err.contains("callsite lost"), "{missing_err}");
+}
+
+#[test]
+fn s3_pin_callee_verifies_and_upgrades_old_shims_in_place() {
+    let dir = TestDir::new("s3_pin");
+    let bag_rs = "\
+pub struct Bag {
+    pub maybe: Option<u32>,
+}
+
+impl Clone for Bag {
+    fn clone(&self) -> Self {
+        Self { maybe: self.maybe }
+    }
+}
+
+impl Bag {
+    pub fn run(&self) -> bool {
+        let _ = __yoake_cs_10(self);
+        let _ = self.maybe.is_none();
+        let _ = self.clone();
+        true
+    }
+
+    pub fn ok(&self) -> bool {
+        true
+    }
+}
+
+// Generated by yoake-hook-codemod: call-site shims (hook-ledger). Do not edit by hand.
+#[yoake_hook_macro::yoake_hook(id = 10, key = \"fn:1@call:fn:2\", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_10(recv: &crate::bag::Bag) -> bool {
+    recv.ok()
+}
+";
+    let ledger_json = r#"{
+  "crate": "demo",
+  "entries": [
+    { "id": 1, "key": "demo::bag::Bag::run", "sig": "0000000000000001", "status": "live", "kind": "fn" },
+    { "id": 2, "key": "demo::bag::Bag::ok", "sig": "0000000000000002", "status": "live", "kind": "fn" },
+    {
+      "id": 10,
+      "key": "fn:1@call:fn:2",
+      "sig": "0000000000000010",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 1,
+        "callee_fn": 2,
+        "callee_path": "demo::bag::Bag::ok",
+        "anchor": "1111111111111111",
+        "stmt_path": ["2222222222222222"],
+        "context": ["0000000000000000", "3333333333333333"],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_10"
+      }
+    }
+  ],
+  "excluded": []
+}
+"#;
+    write_fixture_crate(dir.path(), bag_rs, ledger_json, 11);
+    fs::write(
+        dir.path().join("ledger/callsite-allow.txt"),
+        "std::option::Option::is_none\n<Self as core::clone::Clone>::clone\n",
+    )
+    .unwrap();
+
+    let syn_chk = Command::new(codemod_bin())
+        .args(["check", "--callsites", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "bag"])
+        .output()
+        .unwrap();
+    assert!(!syn_chk.status.success());
+    let syn_out = String::from_utf8_lossy(&syn_chk.stdout);
+    assert!(syn_out.contains("shim body not fully qualified"), "{syn_out}");
+
+    let calls_json = thir_with_file(
+        bag_rs,
+        serde_json::json!([
+            {
+                "file": "src/bag.rs",
+                "span": span_of(bag_rs, "__yoake_cs_10(self)"),
+                "ctxt": 0,
+                "kind": "path",
+                "callee": "demo::bag::__yoake_cs_10",
+                "ret_ty": "bool",
+                "args": [ { "ty": "&'_ crate::bag::Bag" } ],
+                "resolution": "concrete"
+            },
+            {
+                "file": "src/bag.rs",
+                "span": span_of(bag_rs, "self.maybe.is_none()"),
+                "ctxt": 0,
+                "kind": "method",
+                "callee": "std::option::Option::is_none",
+                "ret_ty": "bool",
+                "args": [ { "ty": "&'_ std::option::Option<u32>" } ],
+                "recv_adjust": { "borrow": "shared", "derefs": 0 },
+                "resolution": "concrete"
+            },
+            {
+                "file": "src/bag.rs",
+                "span": span_of(bag_rs, "self.clone()"),
+                "ctxt": 0,
+                "kind": "method",
+                "callee": "<Self as core::clone::Clone>::clone",
+                "ret_ty": "crate::bag::Bag",
+                "args": [ { "ty": "&'_ crate::bag::Bag" } ],
+                "recv_adjust": { "borrow": "none", "derefs": 0 },
+                "resolution": "concrete"
+            },
+            {
+                "file": "src/bag.rs",
+                "span": span_of(bag_rs, "recv.ok()"),
+                "ctxt": 0,
+                "kind": "method",
+                "callee": "demo::bag::Bag::ok",
+                "ret_ty": "bool",
+                "args": [ { "ty": "&'_ crate::bag::Bag" } ],
+                "recv_adjust": { "borrow": "none", "derefs": 0 },
+                "resolution": "concrete"
+            }
+        ]),
+    );
+    let thir_path = dir.path().join("calls.json");
+    fs::write(&thir_path, serde_json::to_string_pretty(&calls_json).unwrap()).unwrap();
+
+    let thir_chk = Command::new(codemod_bin())
+        .args(["check", "--callsites", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "bag", "--thir"])
+        .arg(&thir_path)
+        .output()
+        .unwrap();
+    assert!(!thir_chk.status.success());
+    let thir_out = String::from_utf8_lossy(&thir_chk.stdout);
+    assert!(thir_out.contains("shim body not fully qualified"), "{thir_out}");
+
+    let apply = Command::new(codemod_bin())
+        .args(["apply", "--callsites", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "bag", "--thir"])
+        .arg(&thir_path)
+        .output()
+        .unwrap();
+    assert!(apply.status.success(), "{}", String::from_utf8_lossy(&apply.stderr));
+
+    let rewritten = fs::read_to_string(dir.path().join("src/bag.rs")).unwrap();
+    assert!(rewritten.contains("crate::bag::Bag::ok(recv)"), "{rewritten}");
+    assert!(rewritten.contains("<std::option::Option<u32>>::is_none(recv)"), "{rewritten}");
+    assert!(rewritten.contains("<crate::bag::Bag as core::clone::Clone>::clone(recv)"), "{rewritten}");
+    assert!(!rewritten.contains("recv.ok()"), "{rewritten}");
+
+    let clean_chk = Command::new(codemod_bin())
+        .args(["check", "--callsites", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "bag"])
+        .output()
+        .unwrap();
+    assert!(clean_chk.status.success(), "{}", String::from_utf8_lossy(&clean_chk.stdout));
+}
+
+#[test]
+fn s5_narrow_default_allowlist_and_retire_ineligible() {
+    let dir = TestDir::new("s5_retire");
+    let bag_rs = "\
+pub struct Bag {
+    pub maybe: Option<u32>,
+}
+
+impl Bag {
+    pub fn run(&self) -> bool {
+        let a = self.maybe.is_none();
+        let b = __yoake_cs_10(&*self);
+        let c = __yoake_cs_11(&__yoake_cs_12(&self.maybe));
+        a && b && c
+    }
+
+    pub fn ok(&self) -> bool {
+        true
+    }
+}
+
+// Generated by yoake-hook-codemod: call-site shims (hook-ledger). Do not edit by hand.
+#[yoake_hook_macro::yoake_hook(id = 10, key = \"fn:1@call:horizon_world::Item::check\", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_10(recv: &crate::bag::Bag) -> bool {
+    horizon_world::Item::check(recv)
+}
+#[yoake_hook_macro::yoake_hook(id = 11, key = \"fn:1@call:std::option::Option::is_some\", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_11(recv: &std::option::Option<u32>) -> bool {
+    <std::option::Option<u32>>::is_some(recv)
+}
+#[yoake_hook_macro::yoake_hook(id = 12, key = \"fn:1@call:std::option::Option::as_ref\", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_12(recv: &std::option::Option<u32>) -> std::option::Option<&u32> {
+    <std::option::Option<u32>>::as_ref(recv)
+}
+";
+    let ledger_json = r#"{
+  "crate": "demo",
+  "entries": [
+    { "id": 1, "key": "demo::bag::Bag::run", "sig": "0000000000000001", "status": "live", "kind": "fn" },
+    {
+      "id": 10,
+      "key": "fn:1@call:horizon_world::Item::check",
+      "sig": "0000000000000010",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 1,
+        "callee_fn": null,
+        "callee_path": "horizon_world::Item::check",
+        "anchor": "1111111111111111",
+        "stmt_path": ["2222222222222222"],
+        "context": ["0000000000000000", "3333333333333333"],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_10",
+        "orig": "self.ok()"
+      }
+    },
+    {
+      "id": 11,
+      "key": "fn:1@call:std::option::Option::is_some",
+      "sig": "0000000000000011",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 1,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::is_some",
+        "anchor": "4444444444444444",
+        "stmt_path": ["5555555555555555"],
+        "context": ["0000000000000000", "6666666666666666"],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_11"
+      }
+    },
+    {
+      "id": 12,
+      "key": "fn:1@call:std::option::Option::as_ref",
+      "sig": "0000000000000012",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 1,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::as_ref",
+        "anchor": "7777777777777777",
+        "stmt_path": ["5555555555555555"],
+        "context": ["0000000000000000", "6666666666666666"],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_12"
+      }
+    }
+  ],
+  "excluded": []
+}
+"#;
+    write_fixture_crate(dir.path(), bag_rs, ledger_json, 13);
+
+    let calls_json = thir_with_file(
+        bag_rs,
+        serde_json::json!([
+            {
+                "file": "src/bag.rs",
+                "span": span_of(bag_rs, "self.maybe.is_none()"),
+                "ctxt": 0,
+                "kind": "method",
+                "callee": "std::option::Option::is_none",
+                "ret_ty": "bool",
+                "args": [ { "ty": "&'_ std::option::Option<u32>" } ],
+                "recv_adjust": { "borrow": "shared", "derefs": 0 },
+                "resolution": "concrete"
+            },
+            {
+                "file": "src/bag.rs",
+                "span": span_of(bag_rs, "__yoake_cs_10(&*self)"),
+                "ctxt": 0,
+                "kind": "path",
+                "callee": "demo::bag::__yoake_cs_10",
+                "ret_ty": "bool",
+                "args": [ { "ty": "&'_ crate::bag::Bag" } ],
+                "resolution": "concrete"
+            },
+            {
+                "file": "src/bag.rs",
+                "span": span_of(bag_rs, "__yoake_cs_11(&__yoake_cs_12(&self.maybe))"),
+                "ctxt": 0,
+                "kind": "path",
+                "callee": "demo::bag::__yoake_cs_11",
+                "ret_ty": "bool",
+                "args": [ { "ty": "&'_ std::option::Option<&'_ u32>" } ],
+                "resolution": "concrete"
+            },
+            {
+                "file": "src/bag.rs",
+                "span": span_of(bag_rs, "__yoake_cs_12(&self.maybe)"),
+                "ctxt": 0,
+                "kind": "path",
+                "callee": "demo::bag::__yoake_cs_12",
+                "ret_ty": "std::option::Option<&'_ u32>",
+                "args": [ { "ty": "&'_ std::option::Option<u32>" } ],
+                "resolution": "concrete"
+            }
+        ]),
+    );
+    let thir_path = dir.path().join("calls.json");
+    fs::write(&thir_path, serde_json::to_string_pretty(&calls_json).unwrap()).unwrap();
+
+    // Without --retire-ineligible: __yoake_cs_11 and __yoake_cs_12 are non-engine callees -> error.
+    let fail = Command::new(codemod_bin())
+        .args(["apply", "--callsites", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "bag", "--thir"])
+        .arg(&thir_path)
+        .output()
+        .unwrap();
+    assert!(!fail.status.success());
+    let fail_err = String::from_utf8_lossy(&fail.stderr);
+    assert!(fail_err.contains("__yoake_cs_11") && fail_err.contains("non-engine callee"), "{fail_err}");
+    assert!(fail_err.contains("__yoake_cs_12"), "{fail_err}");
+
+    // With --engine-crates demo (excludes horizon_world!) and --retire-ineligible: retires 10, 11, 12.
+    let retire = Command::new(codemod_bin())
+        .args(["apply", "--callsites", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "bag", "--thir"])
+        .arg(&thir_path)
+        .args(["--engine-crates", "demo", "--retire-ineligible"])
+        .output()
+        .unwrap();
+    assert!(retire.status.success(), "{}", String::from_utf8_lossy(&retire.stderr));
+    let retire_out = String::from_utf8_lossy(&retire.stdout);
+    assert!(retire_out.contains("non-engine callee=4"), "{retire_out}");
+
+    let unrewritten = fs::read_to_string(dir.path().join("src/bag.rs")).unwrap();
+    assert!(unrewritten.contains("let b = self.ok();"), "{unrewritten}");
+    assert!(unrewritten.contains("let c = self.maybe.as_ref().is_some();"), "{unrewritten}");
+    assert!(!unrewritten.contains("__yoake_cs_"), "{unrewritten}");
+
+    let ledger_after: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(dir.path().join("ledger/demo.json")).unwrap()).unwrap();
+    for id in [10, 11, 12] {
+        let entry = ledger_after["entries"].as_array().unwrap().iter().find(|e| e["id"] == id).unwrap();
+        assert_eq!(entry["status"], "tombstone", "{entry}");
+    }
+
+    // Allowlisting Option::is_none via <owner>::method with a comment makes self.maybe.is_none() eligible.
+    fs::write(
+        dir.path().join("ledger/callsite-allow.txt"),
+        "# allow Option::is_none\nOption::is_none\n",
+    )
+    .unwrap();
+    let calls2 = thir_with_file(
+        &unrewritten,
+        serde_json::json!([
+            {
+                "file": "src/bag.rs",
+                "span": span_of(&unrewritten, "self.maybe.is_none()"),
+                "ctxt": 0,
+                "kind": "method",
+                "callee": "std::option::Option::is_none",
+                "ret_ty": "bool",
+                "args": [ { "ty": "&'_ std::option::Option<u32>" } ],
+                "recv_adjust": { "borrow": "shared", "derefs": 0 },
+                "resolution": "concrete"
+            }
+        ]),
+    );
+    fs::write(&thir_path, serde_json::to_string_pretty(&calls2).unwrap()).unwrap();
+    let allow_ok = Command::new(codemod_bin())
+        .args(["apply", "--callsites", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "bag", "--thir"])
+        .arg(&thir_path)
+        .output()
+        .unwrap();
+    assert!(allow_ok.status.success(), "{}", String::from_utf8_lossy(&allow_ok.stderr));
+    let final_rs = fs::read_to_string(dir.path().join("src/bag.rs")).unwrap();
+    assert!(final_rs.contains("__yoake_cs_13(&self.maybe)"), "{final_rs}");
+}
+
+#[test]
+fn s1_track_caller_excludes_std_leaves_and_workspace_scan() {
+    let dir = TestDir::new("s1_tc");
+    let ws = dir.path();
+    fs::create_dir_all(ws.join("crates/horizon_b/src")).unwrap();
+    fs::create_dir_all(ws.join("crates/horizon_a/src")).unwrap();
+    fs::create_dir_all(ws.join("crates/excluded_pkg/src")).unwrap();
+    fs::create_dir_all(ws.join("ledger")).unwrap();
+
+    fs::write(
+        ws.join("Cargo.toml"),
+        "[workspace]\nexclude = [\"crates/excluded_pkg\"]\nmembers = [\n  \"crates/*\",\n]\n",
+    )
+    .unwrap();
+    fs::write(
+        ws.join("crates/horizon_b/Cargo.toml"),
+        "[package]\nname = \"horizon-b\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .unwrap();
+    fs::write(
+        ws.join("crates/horizon_b/src/lib.rs"),
+        "\
+pub mod inner;
+use inner::Widget;
+
+pub trait Tracked {
+    #[track_caller]
+    fn fail_trait(&self);
+}
+
+#[track_caller]
+pub fn free_tc() {}
+
+impl Widget {
+    #[track_caller]
+    pub fn check_tc(&self) {}
+
+    pub fn ok(&self) {}
+}
+
+#[cfg(test)]
+#[track_caller]
+fn test_only_tc() {}
+",
+    )
+    .unwrap();
+    fs::write(
+        ws.join("crates/horizon_b/src/inner.rs"),
+        "pub struct Widget;\n",
+    )
+    .unwrap();
+
+    fs::write(
+        ws.join("crates/excluded_pkg/Cargo.toml"),
+        "[package]\nname = \"excluded-pkg\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .unwrap();
+    fs::write(
+        ws.join("crates/excluded_pkg/src/lib.rs"),
+        "#[track_caller]\npub fn excluded_tc() {}\n",
+    )
+    .unwrap();
+
+    fs::write(
+        ws.join("crates/horizon_a/Cargo.toml"),
+        "[package]\nname = \"horizon-a\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .unwrap();
+    fs::write(ws.join("crates/horizon_a/src/lib.rs"), "pub mod caller;\n").unwrap();
+    let caller_rs = "\
+pub struct Holder;
+impl Holder {
+    pub fn run(&self, opt: Option<u32>, rc: &std::cell::RefCell<u32>, v: &mut Vec<u32>, w: &horizon_b::inner::Widget) {
+        let _ = opt.unwrap();
+        let _ = rc.borrow();
+        let _ = v.remove(0);
+        w.check_tc();
+        w.ok();
+    }
+}
+";
+    fs::write(ws.join("crates/horizon_a/src/caller.rs"), caller_rs).unwrap();
+
+    let tc_out = ws.join("ledger/track-caller.txt");
+    let scan = Command::new(codemod_bin())
+        .args(["track-caller-scan", "--workspace"])
+        .arg(ws)
+        .args(["--out"])
+        .arg(&tc_out)
+        .output()
+        .unwrap();
+    assert!(scan.status.success(), "{}", String::from_utf8_lossy(&scan.stderr));
+    let tc_text = fs::read_to_string(&tc_out).unwrap();
+    assert!(tc_text.contains("horizon_b::free_tc\n"), "{tc_text}");
+    assert!(tc_text.contains("horizon_b::inner::Widget::check_tc\n"), "{tc_text}");
+    assert!(tc_text.contains("<Self as horizon_b::Tracked>::fail_trait\n"), "{tc_text}");
+    assert!(!tc_text.contains("excluded_tc"), "{tc_text}");
+    assert!(!tc_text.contains("test_only_tc"), "{tc_text}");
+    assert!(!tc_text.contains("ok"), "{tc_text}");
+    fs::write(ws.join("ledger/meta.json"), "{\n  \"version\": 2,\n  \"next_id\": 10\n}\n").unwrap();
+    fs::write(
+        ws.join("ledger/horizon_a.json"),
+        r#"{
+  "crate": "horizon_a",
+  "entries": [
+    { "id": 1, "key": "horizon_a::caller::Holder::run", "sig": "0000000000000001", "status": "live", "kind": "fn" }
+  ],
+  "excluded": []
+}"#,
+    )
+    .unwrap();
+    // Even if std leaves are listed in callsite-allow.txt, #[track_caller] still excludes them.
+    fs::write(
+        ws.join("ledger/callsite-allow.txt"),
+        "Option::unwrap\nRefCell::borrow\nVec::remove\n",
+    )
+    .unwrap();
+
+    let thir_json = serde_json::json!({
+        "crate": "horizon_a",
+        "files": {
+            "src/caller.rs": {
+                "written_calls": 5,
+                "sha": fnv1a_hex(caller_rs.as_bytes()),
+                "len": caller_rs.len()
+            }
+        },
+        "calls": [
+            {
+                "file": "src/caller.rs",
+                "span": span_of(caller_rs, "opt.unwrap()"),
+                "ctxt": 0, "kind": "method", "callee": "std::option::Option::unwrap",
+                "ret_ty": "u32", "args": [ { "ty": "std::option::Option<u32>" } ],
+                "recv_adjust": { "borrow": "none", "derefs": 0 }, "resolution": "concrete"
+            },
+            {
+                "file": "src/caller.rs",
+                "span": span_of(caller_rs, "rc.borrow()"),
+                "ctxt": 0, "kind": "method", "callee": "core::cell::RefCell::borrow",
+                "ret_ty": "std::cell::Ref<'_, u32>", "args": [ { "ty": "&'_ std::cell::RefCell<u32>" } ],
+                "recv_adjust": { "borrow": "none", "derefs": 0 }, "resolution": "concrete"
+            },
+            {
+                "file": "src/caller.rs",
+                "span": span_of(caller_rs, "v.remove(0)"),
+                "ctxt": 0, "kind": "method", "callee": "alloc::vec::Vec::remove",
+                "ret_ty": "u32", "args": [ { "ty": "&'_ mut std::vec::Vec<u32>" }, { "ty": "usize" } ],
+                "recv_adjust": { "borrow": "none", "derefs": 0 }, "resolution": "concrete"
+            },
+            {
+                "file": "src/caller.rs",
+                "span": span_of(caller_rs, "w.check_tc()"),
+                "ctxt": 0, "kind": "method", "callee": "horizon_b::inner::Widget::check_tc",
+                "ret_ty": "()", "args": [ { "ty": "&'_ horizon_b::inner::Widget" } ],
+                "recv_adjust": { "borrow": "none", "derefs": 0 }, "resolution": "concrete"
+            },
+            {
+                "file": "src/caller.rs",
+                "span": span_of(caller_rs, "w.ok()"),
+                "ctxt": 0, "kind": "method", "callee": "horizon_b::inner::Widget::ok",
+                "ret_ty": "()", "args": [ { "ty": "&'_ horizon_b::inner::Widget" } ],
+                "recv_adjust": { "borrow": "none", "derefs": 0 }, "resolution": "concrete"
+            }
+        ]
+    });
+    let thir_path = ws.join("calls.json");
+    fs::write(&thir_path, serde_json::to_string_pretty(&thir_json).unwrap()).unwrap();
+
+    let apply = Command::new(codemod_bin())
+        .args(["apply", "--callsites", "--crate-root"])
+        .arg(ws.join("crates/horizon_a"))
+        .args(["--crate-name", "horizon_a", "--ledger"])
+        .arg(ws.join("ledger"))
+        .args(["--module", "caller", "--thir"])
+        .arg(&thir_path)
+        .output()
+        .unwrap();
+    assert!(apply.status.success(), "{}", String::from_utf8_lossy(&apply.stderr));
+    let out = String::from_utf8_lossy(&apply.stdout);
+    assert!(out.contains("track-caller=4"), "{out}");
+    assert!(out.contains("eligible=1 rewritten=1"), "{out}");
+
+    let rewritten = fs::read_to_string(ws.join("crates/horizon_a/src/caller.rs")).unwrap();
+    assert!(rewritten.contains("__yoake_cs_10(w)"), "{rewritten}");
+    assert!(rewritten.contains("opt.unwrap()"), "{rewritten}");
+    assert!(rewritten.contains("w.check_tc()"), "{rewritten}");
+}
+
+#[test]
+fn s2_one_call_per_shim_errors_on_zero_or_multiple_refs() {
+    let dir = TestDir::new("s2_one_call");
+    let zero_rs = "\
+pub struct Bag;
+impl Bag {
+    pub fn run(&self) {}
+    pub fn ok(&self) -> bool { true }
+}
+// Generated by yoake-hook-codemod: call-site shims (hook-ledger). Do not edit by hand.
+#[yoake_hook_macro::yoake_hook(id = 10, key = \"fn:1@call:fn:2\", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_10(recv: &crate::bag::Bag) -> bool {
+    crate::bag::Bag::ok(recv)
+}
+";
+    let ledger_json = r#"{
+  "crate": "demo",
+  "entries": [
+    { "id": 1, "key": "demo::bag::Bag::run", "sig": "0000000000000001", "status": "live", "kind": "fn" },
+    { "id": 2, "key": "demo::bag::Bag::ok", "sig": "0000000000000002", "status": "live", "kind": "fn" },
+    {
+      "id": 10,
+      "key": "fn:1@call:fn:2",
+      "sig": "0000000000000010",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 1,
+        "callee_fn": 2,
+        "callee_path": "demo::bag::Bag::ok",
+        "anchor": "1111111111111111",
+        "stmt_path": ["2222222222222222"],
+        "context": ["0000000000000000", "3333333333333333"],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_10"
+      }
+    }
+  ],
+  "excluded": []
+}
+"#;
+    write_fixture_crate(dir.path(), zero_rs, ledger_json, 11);
+
+    let zero_chk = Command::new(codemod_bin())
+        .args(["check", "--callsites", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "bag"])
+        .output()
+        .unwrap();
+    assert!(!zero_chk.status.success());
+    let zero_err = String::from_utf8_lossy(&zero_chk.stderr);
+    assert!(zero_err.contains("0 references") && zero_err.contains("src/bag.rs:9:"), "{zero_err}");
+
+    let dup_rs = "\
+pub struct Bag;
+impl Bag {
+    pub fn run(&self) -> bool {
+        let a = __yoake_cs_10(self);
+        let b = __yoake_cs_10(self);
+        a && b
+    }
+    pub fn ok(&self) -> bool { true }
+}
+// Generated by yoake-hook-codemod: call-site shims (hook-ledger). Do not edit by hand.
+#[yoake_hook_macro::yoake_hook(id = 10, key = \"fn:1@call:fn:2\", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_10(recv: &crate::bag::Bag) -> bool {
+    crate::bag::Bag::ok(recv)
+}
+";
+    fs::write(dir.path().join("src/bag.rs"), dup_rs).unwrap();
+    let dup_chk = Command::new(codemod_bin())
+        .args(["check", "--callsites", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "bag"])
+        .output()
+        .unwrap();
+    assert!(!dup_chk.status.success());
+    let dup_err = String::from_utf8_lossy(&dup_chk.stderr);
+    assert!(dup_err.contains("referenced 2 times"), "{dup_err}");
+    assert!(dup_err.contains("src/bag.rs:4:") && dup_err.contains("src/bag.rs:5:"), "{dup_err}");
+
+    let thir_json = thir_with_file(dup_rs, serde_json::json!([]));
+    let thir_path = dir.path().join("calls.json");
+    fs::write(&thir_path, serde_json::to_string_pretty(&thir_json).unwrap()).unwrap();
+    let dup_apply = Command::new(codemod_bin())
+        .args(["apply", "--callsites", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "bag", "--thir"])
+        .arg(&thir_path)
+        .output()
+        .unwrap();
+    assert!(!dup_apply.status.success());
+    let dup_apply_err = String::from_utf8_lossy(&dup_apply.stderr);
+    assert!(dup_apply_err.contains("referenced 2 times"), "{dup_apply_err}");
+}
+
+#[test]
+fn verify_callsites_reports_verified_or_mismatches_and_missing() {
+    let dir = TestDir::new("verify_cs");
+    let ledger_json = r#"{
+  "crate": "demo",
+  "entries": [
+    { "id": 1, "key": "demo::bag::Bag::run", "sig": "0000000000000001", "status": "live", "kind": "fn" },
+    { "id": 2, "key": "demo::bag::Bag::ok", "sig": "0000000000000002", "status": "live", "kind": "fn" },
+    {
+      "id": 10,
+      "key": "fn:1@call:fn:2",
+      "sig": "0000000000000010",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 1,
+        "callee_fn": 2,
+        "callee_path": "demo::bag::Bag::ok",
+        "anchor": "1111111111111111",
+        "stmt_path": ["2222222222222222"],
+        "context": ["0000000000000000", "3333333333333333"],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_10"
+      }
+    },
+    {
+      "id": 11,
+      "key": "fn:1@call:std::option::Option::is_some",
+      "sig": "0000000000000011",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 1,
+        "callee_fn": null,
+        "callee_path": "std::option::Option::is_some",
+        "anchor": "4444444444444444",
+        "stmt_path": ["5555555555555555"],
+        "context": ["0000000000000000", "6666666666666666"],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_11"
+      }
+    }
+  ],
+  "excluded": []
+}
+"#;
+    write_fixture_crate(dir.path(), "", ledger_json, 12);
+
+    let ok_thir = serde_json::json!({
+        "crate": "demo",
+        "files": {},
+        "calls": [
+            {
+                "file": "src/bag.rs",
+                "span": [10, 5, 10, 29],
+                "ctxt": 0,
+                "kind": "path",
+                "caller_def": "demo::bag::__yoake_cs_10",
+                "callee": "demo::bag::Bag::ok",
+                "ret_ty": "bool",
+                "args": [],
+                "resolution": "concrete"
+            },
+            {
+                "file": "src/bag.rs",
+                "span": [15, 5, 15, 45],
+                "ctxt": 0,
+                "kind": "path",
+                "caller_def": "demo::bag::__yoake_cs_11",
+                "callee": "std::option::Option::is_some",
+                "ret_ty": "bool",
+                "args": [],
+                "resolution": "concrete"
+            }
+        ]
+    });
+    let thir_path = dir.path().join("calls.json");
+    fs::write(&thir_path, serde_json::to_string_pretty(&ok_thir).unwrap()).unwrap();
+
+    let ok_out = Command::new(codemod_bin())
+        .args(["verify-callsites", "--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--thir"])
+        .arg(&thir_path)
+        .output()
+        .unwrap();
+    assert!(ok_out.status.success(), "{}", String::from_utf8_lossy(&ok_out.stderr));
+    let stdout = String::from_utf8_lossy(&ok_out.stdout);
+    assert!(stdout.contains("verified 2 of 2"), "{stdout}");
+
+    let bad_thir = serde_json::json!({
+        "crate": "demo",
+        "files": {},
+        "calls": [
+            {
+                "file": "src/bag.rs",
+                "span": [10, 5, 10, 29],
+                "ctxt": 0,
+                "kind": "path",
+                "caller_def": "demo::bag::__yoake_cs_10",
+                "callee": "demo::bag::Bag::wrong",
+                "ret_ty": "bool",
+                "args": [],
+                "resolution": "concrete"
+            }
+        ]
+    });
+    fs::write(&thir_path, serde_json::to_string_pretty(&bad_thir).unwrap()).unwrap();
+    let bad_out = Command::new(codemod_bin())
+        .args(["verify-callsites", "--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--thir"])
+        .arg(&thir_path)
+        .output()
+        .unwrap();
+    assert!(!bad_out.status.success());
+    let stderr = String::from_utf8_lossy(&bad_out.stderr);
+    assert!(stderr.contains("mismatch: id=10"), "{stderr}");
+    assert!(stderr.contains("missing: id=11"), "{stderr}");
 }

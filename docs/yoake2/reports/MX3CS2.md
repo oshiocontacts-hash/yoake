@@ -131,6 +131,51 @@ The compile-then-exclude round found five systematic problems, all fixed in the 
 Tooling note: horizon-client-lib's sources appear in THIR as `crates/horizon-client-lib/../horizon-client/src/...`,
 so `--file` must be given in that form; the parser does not yet normalise `..`.
 
+## Phase 1c: Fable's should-fixes (2026-11-19)
+
+| item | change | result on the two modules |
+| --- | --- | --- |
+| **S3** pin the callee | Shim bodies are fully qualified: `crate::game::Game::held(recv)`, `<T as path::Trait>::m(recv, ..)`, generic owners as `<OwnerWithArgs>::m(..)`. `check` reports old method-syntax bodies and `apply` rewrites them in place (same id and key). New `yoake-hook-codemod verify-callsites`; new workflow `.github/workflows/yoake-callsite-verify.yml` (workflow_dispatch, and pushes/PRs touching hook-ledger/, the call-site modules or the hook crates) dumps THIR per `callsites=true` crate and runs it. | All shims rewritten to the qualified form. **verify-callsites after a fresh THIR dump: entities 103 of 103, item_use 41 of 41.** |
+| **S5** narrow the default | Only engine callees (first path segment `crate`, `horizon_*`, `yoake_*`, or `--engine-crates`) are eligible; anything else is `non-engine callee` unless listed in `hook-ledger/callsite-allow.txt` (committed empty). `--retire-ineligible` un-rewrites such sites, deletes their shims and tombstones their ids. | **141 sites retired** (entities 121, item_use 20); ids stay reserved as tombstones. Rewritten now: entities 103, item_use 41 (144). |
+| **S1** `#[track_caller]` | Excluded with reason `track-caller`: a built-in list of 92 std/core/alloc entries (not exhaustive), plus `hook-ledger/track-caller.txt` from `yoake-hook-codemod track-caller-scan --workspace .`. | The scan found **no `#[track_caller]` fn in any of the 57 workspace members** (the 7 occurrences are in tool tests). **None of the 285 Phase 1/1b sites had a track_caller callee** (their unwrap family was `unwrap_or`, `unwrap_or_default`, `get_or_insert`). |
+| **S2** one call per shim | `check`/`apply` fail unless every `__yoake_cs_<id>` is referenced exactly once outside its definition. | `check --callsites` clean for both modules. |
+| **S4** compile scaling | `assert_ledger_key` is a const binary search over the id-sorted KEYS table (the build asserts the order), then a const string compare; tests with a 10,000-entry table. | See the measurements below. |
+| nits | THIR dumps record `rustc` and `cargo_lock_sha`; CALLSITE-PLAN section 3 says `#n` is only an id-allocation number (no ordinal meaning; mods target sites by id). | |
+
+Two tool fixes found while verifying: the macro moves a shim's body into `__yoake_orig___yoake_cs_<id>`, so
+verify looks there; a fully qualified call to an inherent method is a THIR path call naming `{impl#k}`, so path
+callees with `{impl#k}` take their owner from the first argument (right for shims; Phase 2 path call sites must
+take it from the written path), and a trait path call (`Trait::m`) is accepted as the same item as the ledger's
+`<Self as Trait>::m`.
+
+Behaviour with empty slots: `horizon-client-lib --lib` 1619 passed, `horizon-client --lib` 1193 passed
+(unchanged). Hook crates: 113 tests passed.
+
+### Compile time and size (debug, horizon-client-lib crate rebuilt after touching entities.rs)
+
+| build | crate rebuild | rlib |
+| --- | --- | --- |
+| yoake2/ids (fn hooks only, no call sites; own target dir) | 40 s | 181.7 MB |
+| call sites before Phase 1c (285 sites, linear key lookup) | 36 s | 184.5 MB |
+| after Phase 1c (144 sites, binary search) | 35 s | 183.1 MB |
+
+The key lookup was not measurable at this size: run-to-run noise (several seconds) is larger than any
+difference. The rlib grows by about 1.4 MB for 144 call sites.
+
+### A/B bench, empty slots (release `yoake_hook_bench`, separate target dirs, three runs each)
+
+| | `tick_settle` per call | 1024-entity slice, per entity | `move_applies` leaf |
+| --- | --- | --- | --- |
+| yoake2/ids (no call sites) | 6.72 / 8.07 / 6.72 ns | 15.21 / 16.06 / 15.29 ns | 7.59 / 7.77 / 7.17 ns |
+| yoake2/callsite after Phase 1c | 8.92 / 8.39 / 7.54 ns | 19.17 / 19.14 / 17.10 ns | 7.52 / 8.56 / 7.33 ns |
+
+The entity hot path pays for its empty call-site slots: `tick_settle` has 11 rewritten call sites,
+`render_position` 1 and `move_applies` 2, and the slice (settle + interpolate + render_position per entity) is
+about 2-4 ns (12-25 %) slower, roughly 0.1-0.3 ns per empty site. A tight per-entity loop is the worst case.
+Recommendation: before more modules, mark hot-leaf callers such as `tick_settle`, `render_position` and
+`move_applies` `no_hook` for call sites (or exclude call sites inside fns that are themselves hot leaves),
+and add this slice to the CI benchmark gate of MX3S2.
+
 ## Open problems
 
 - (fixed in Phase 1b) `check --callsites --thir <stale file>` used to report every rewritten site as `lost`.

@@ -11,7 +11,8 @@ fn parse_sample() -> yoake_hook_thir::Dump {
             files: vec!["lib.rs".into()],
             externs: BTreeSet::new(),
             crate_name: Some("thir_fixture".into()),
-            toolchain: "fixture".into(),
+            rustc: "fixture".into(),
+            cargo_lock_sha: String::new(),
             workspace: None,
             file_digests: Default::default(),
         },
@@ -110,6 +111,7 @@ fn computes_file_sha_len_and_source_snapshot_for_listed_file() {
     std::fs::create_dir_all(dir.join("src")).unwrap();
     let source = b"pub fn alpha() {}\npub fn beta() { alpha(); }\n";
     std::fs::write(dir.join("src/mini.rs"), source).unwrap();
+    std::fs::write(dir.join("Cargo.lock"), b"").unwrap();
 
     let tiny_thir = "\
 DefId(0:1 ~ mini[abcd]::beta):
@@ -138,7 +140,8 @@ body:
             files: vec!["src/mini.rs".into()],
             externs: BTreeSet::new(),
             crate_name: Some("mini".into()),
-            toolchain: "fixture".into(),
+            rustc: "fixture".into(),
+            cargo_lock_sha: yoake_hook_thir::cargo_lock_sha(&dir).unwrap(),
             workspace: Some(dir.clone()),
             ..ParseOptions::default()
         },
@@ -152,6 +155,7 @@ body:
         yoake_hook_thir::format_hash(yoake_hook_thir::fnv1a_64(source))
     );
     assert_eq!(summary.sha.len(), 16);
+    assert_eq!(dump.cargo_lock_sha, "cbf29ce484222325");
     assert_eq!(
         dump.source_snapshot,
         yoake_hook_thir::compute_source_snapshot(&dump.files)
@@ -159,6 +163,9 @@ body:
     assert_eq!(dump.source_snapshot.len(), 16);
 
     let json = serde_json::to_value(&dump).unwrap();
+    assert_eq!(json["rustc"], "fixture");
+    assert!(json.get("toolchain").is_none());
+    assert_eq!(json["cargo_lock_sha"], dump.cargo_lock_sha);
     assert_eq!(json["files"]["src/mini.rs"]["sha"], summary.sha);
     assert_eq!(json["files"]["src/mini.rs"]["len"], source.len() as u64);
     assert_eq!(json["source_snapshot"], dump.source_snapshot);

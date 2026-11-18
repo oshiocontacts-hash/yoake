@@ -4,7 +4,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Dump {
-    pub toolchain: String,
+    #[serde(alias = "toolchain")]
+    pub rustc: String,
+    #[serde(default)]
+    pub cargo_lock_sha: String,
     #[serde(rename = "crate")]
     pub crate_name: String,
     #[serde(default)]

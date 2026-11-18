@@ -30,9 +30,13 @@ pub fn normalize_callee(
 ) -> String {
     let raw = strip_defid_hashes(raw);
     let method = raw.rsplit("::").next().unwrap_or(&raw);
-    if kind == CallKind::Path {
+    if kind == CallKind::Path && !raw.contains("{impl#") {
         return canonical_path(&raw, local_crate, externs);
     }
+    // A path call to an inherent method (`Type::m(recv, ..)`, the fully qualified shim body) names
+    // `{impl#k}`; its owner is taken from the first argument's type, as for method calls. This is
+    // wrong for associated fns without a receiver (`Vec3::new(..)`): Phase 2 (path call sites)
+    // must take the owner from the written path instead.
     if raw.contains("{impl#") {
         let owner = strip_owner_generics(strip_references(receiver_ty.unwrap_or("Self")));
         format!("{}::{method}", canonical_path(&owner, local_crate, externs))

@@ -672,7 +672,7 @@ fn __yoake_cs_408(
     a0: &crate::entities::fluids::EntityFluidWorld<'_>,
     a1: horizon_world::entity_fluid::FluidTagId,
 ) -> f64 {
-    recv.fluid_height(a0, a1)
+    horizon_world::entity_fluid::EntityFluidInteraction::fluid_height(recv, a0, a1)
 }
 #[yoake_hook_macro::yoake_hook(id = 409, key = "fn:79@call:horizon_world::entity_fluid::EntityFluidInteraction::fluid_height#1", kind = callsite)]
 #[inline(always)]
@@ -681,10 +681,10 @@ fn __yoake_cs_409(
     a0: &crate::entities::fluids::EntityFluidWorld<'_>,
     a1: horizon_world::entity_fluid::FluidTagId,
 ) -> f64 {
-    recv.fluid_height(a0, a1)
+    horizon_world::entity_fluid::EntityFluidInteraction::fluid_height(recv, a0, a1)
 }
 #[yoake_hook_macro::yoake_hook(id = 410, key = "fn:81@call:fn:33", kind = callsite)]
 #[inline(always)]
 fn __yoake_cs_410(recv: &crate::entities::ExperienceOrb) -> horizon_core::geometry::Aabb {
-    recv.bounds()
+    crate::entities::ExperienceOrb::bounds(recv)
 }

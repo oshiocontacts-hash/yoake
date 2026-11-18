@@ -1,0 +1,2 @@
+# Non-engine callees (std, core, alloc, external crates) whose call sites may still be rewritten.
+# One canonical callee path (or <owner>::method) per line. Empty by default: only engine callees.

@@ -37,6 +37,7 @@ struct UseBinding {
 struct ModuleInfo {
     chain_visible: bool,
     types: BTreeMap<String, Vec<TypeDecl>>,
+    traits: BTreeSet<String>,
     uses: Vec<UseBinding>,
     children: BTreeSet<String>,
 }
@@ -81,6 +82,7 @@ impl CrateIndex {
             let entry = index.modules.entry(mod_path.to_vec()).or_insert_with(|| ModuleInfo {
                 chain_visible: parent_chain_visible,
                 types: BTreeMap::new(),
+                traits: BTreeSet::new(),
                 uses: Vec::new(),
                 children: BTreeSet::new(),
             });
@@ -131,6 +133,9 @@ impl CrateIndex {
                                 vis_crate_visible: is_vis_visible_from_crate(&t.vis, mod_path),
                                 alias_target: Some((*t.ty).clone()),
                             });
+                    }
+                    Item::Trait(t) => {
+                        entry.traits.insert(t.ident.to_string());
                     }
                     Item::Use(u) => {
                         let vis_ok = is_vis_visible_from_crate(&u.vis, mod_path);
@@ -463,6 +468,164 @@ impl CrateIndex {
             segs.to_vec()
         };
         self.modules.contains_key(&cand).then_some(cand)
+    }
+
+    pub fn resolve_local_type_canon(&self, from_mod: &[String], ty: &Type) -> Option<String> {
+        self.resolve_local_type_canon_depth(from_mod, ty, 0)
+    }
+
+    fn resolve_local_type_canon_depth(
+        &self,
+        from_mod: &[String],
+        mut ty: &Type,
+        depth: usize,
+    ) -> Option<String> {
+        if depth > 8 {
+            return None;
+        }
+        loop {
+            match ty {
+                Type::Group(g) => ty = &g.elem,
+                Type::Paren(p) => ty = &p.elem,
+                _ => break,
+            }
+        }
+        let Type::Path(tp) = ty else {
+            return None;
+        };
+        if tp.qself.is_some() {
+            return None;
+        }
+        let segs: Vec<String> = tp.path.segments.iter().map(|s| s.ident.to_string()).collect();
+        let last = segs.last()?.clone();
+        if tp.path.leading_colon.is_none() && segs.len() == 1 && is_primitive_type(&last) {
+            return Some(last);
+        }
+        if let Some(resolved) = self.resolve_type_path(from_mod, tp.path.leading_colon.is_some(), &segs, depth) {
+            if let Some(alias) = resolved.decls.iter().find(|d| d.kind == TypeDeclKind::TypeAlias)
+                && !resolved.decls.iter().any(|d| d.kind == TypeDeclKind::StructEnumUnion)
+                && let Some(target) = &alias.alias_target
+                && let Some(canon) = self.resolve_local_type_canon_depth(&resolved.decl_mod, target, depth + 1)
+            {
+                return Some(canon);
+            }
+            let item_name = if segs.len() == 1
+                && let Some(info) = self.modules.get(from_mod)
+                && let Some(ub) = info.uses.iter().find(|u| u.local_name.as_deref() == Some(last.as_str()))
+                && let Some(orig) = ub.segments.last()
+            {
+                orig.clone()
+            } else {
+                last
+            };
+            let prefix = crate::key::module_prefix(&self.crate_ident, &resolved.decl_mod);
+            return Some(format!("{prefix}::{item_name}"));
+        }
+        Some(self.resolve_external_or_path(from_mod, tp.path.leading_colon.is_some(), &segs))
+    }
+
+    pub fn resolve_trait_canon(&self, from_mod: &[String], trait_path: &syn::Path) -> Option<String> {
+        let segs: Vec<String> = trait_path.segments.iter().map(|s| s.ident.to_string()).collect();
+        if segs.is_empty() {
+            return None;
+        }
+        if trait_path.leading_colon.is_none() && segs.len() == 1 {
+            let name = &segs[0];
+            if let Some(info) = self.modules.get(from_mod) {
+                if info.traits.contains(name) {
+                    return Some(format!(
+                        "{}::{name}",
+                        crate::key::module_prefix(&self.crate_ident, from_mod)
+                    ));
+                }
+                for ub in &info.uses {
+                    if ub.local_name.as_deref() == Some(name.as_str()) {
+                        return Some(self.resolve_external_or_path(from_mod, ub.leading_colon, &ub.segments));
+                    }
+                }
+                for ub in &info.uses {
+                    if ub.local_name.is_none()
+                        && let Some(target_mod) = self.resolve_module_path(from_mod, ub.leading_colon, &ub.segments, 0)
+                        && self.modules.get(&target_mod).is_some_and(|ti| ti.traits.contains(name))
+                    {
+                        return Some(format!(
+                            "{}::{name}",
+                            crate::key::module_prefix(&self.crate_ident, &target_mod)
+                        ));
+                    }
+                }
+            }
+            for end in (0..from_mod.len()).rev() {
+                let anc = &from_mod[..end];
+                if self.modules.get(anc).is_some_and(|info| info.traits.contains(name)) {
+                    return Some(format!(
+                        "{}::{name}",
+                        crate::key::module_prefix(&self.crate_ident, anc)
+                    ));
+                }
+            }
+        }
+        Some(self.resolve_external_or_path(from_mod, trait_path.leading_colon.is_some(), &segs))
+    }
+
+    fn resolve_external_or_path(&self, from_mod: &[String], leading_colon: bool, segs: &[String]) -> String {
+        if segs.is_empty() {
+            return String::new();
+        }
+        if leading_colon {
+            return segs.join("::");
+        }
+        let first = &segs[0];
+        if first == "crate" {
+            if segs.len() == 1 {
+                return self.crate_ident.clone();
+            }
+            return format!("{}::{}", self.crate_ident, segs[1..].join("::"));
+        }
+        if first == &self.crate_ident {
+            return segs.join("::");
+        }
+        if first == "self" {
+            let mut m = from_mod.to_vec();
+            m.extend_from_slice(&segs[1..]);
+            return crate::key::module_prefix(&self.crate_ident, &m);
+        }
+        if first == "super" {
+            let supers = segs.iter().take_while(|s| s.as_str() == "super").count();
+            if supers <= from_mod.len() {
+                let mut m = from_mod[..from_mod.len() - supers].to_vec();
+                m.extend_from_slice(&segs[supers..]);
+                return crate::key::module_prefix(&self.crate_ident, &m);
+            }
+        }
+        if segs.len() > 1 {
+            let mut child_mod = from_mod.to_vec();
+            child_mod.push(first.clone());
+            if self.modules.contains_key(&child_mod) {
+                return format!(
+                    "{}::{}",
+                    crate::key::module_prefix(&self.crate_ident, from_mod),
+                    segs.join("::")
+                );
+            }
+            if let Some(info) = self.modules.get(from_mod) {
+                for ub in &info.uses {
+                    if ub.local_name.as_deref() == Some(first.as_str()) {
+                        let base = self.resolve_external_or_path(from_mod, ub.leading_colon, &ub.segments);
+                        return format!("{base}::{}", segs[1..].join("::"));
+                    }
+                }
+            }
+            let root_mod: &[String] = &[];
+            if self.modules.get(root_mod).is_some_and(|root| {
+                root.children.contains(first)
+                    || root.types.contains_key(first)
+                    || root.traits.contains(first)
+            }) {
+                return format!("{}::{}", self.crate_ident, segs.join("::"));
+            }
+        }
+        segs.join("::")
     }
 }
 

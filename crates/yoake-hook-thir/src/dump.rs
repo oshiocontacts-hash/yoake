@@ -31,7 +31,7 @@ pub enum TargetDirDecision {
 pub fn dump(options: &DumpOptions) -> Result<()> {
     check_target_dir_guard(&options.workspace, options.allow_shared_target)?;
     let file_digests = collect_file_digests(&options.workspace, &options.files)?;
-    let toolchain = rustc_version()?;
+    let rustc = rustc_version()?;
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -88,7 +88,7 @@ pub fn dump(options: &DumpOptions) -> Result<()> {
         options,
         &thir_path,
         &externs,
-        toolchain,
+        rustc,
         &file_digests,
     );
     // YOAKE_THIR_KEEP=1 keeps the dump so `parse` can be re-run without rustc (debugging only).
@@ -121,7 +121,7 @@ fn run_and_parse(
     options: &DumpOptions,
     thir_path: &Path,
     externs: &std::collections::BTreeSet<String>,
-    toolchain: String,
+    rustc: String,
     file_digests: &BTreeMap<String, FileDigest>,
 ) -> Result<()> {
     let mut child = command.spawn()?;
@@ -135,7 +135,8 @@ fn run_and_parse(
             files: options.files.clone(),
             externs: externs.clone(),
             crate_name: Some(options.crate_name.clone()),
-            toolchain,
+            rustc,
+            cargo_lock_sha: crate::cargo_lock_sha(&options.workspace)?,
             workspace: Some(options.workspace.clone()),
             file_digests: file_digests.clone(),
         },

@@ -188,7 +188,7 @@
       "id": 127,
       "key": "fn:103@call:std::option::Option::cloned",
       "sig": "36a9c1690be57279",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 103,
@@ -210,7 +210,7 @@
       "id": 128,
       "key": "fn:103@call:std::option::Option::is_none",
       "sig": "088c18cfff3ca863",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 103,
@@ -430,7 +430,7 @@
       "id": 138,
       "key": "fn:104@call:std::option::Option::is_some",
       "sig": "5f7f2d554144842c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 104,
@@ -452,7 +452,7 @@
       "id": 139,
       "key": "fn:104@call:std::option::Option::is_some#1",
       "sig": "31526ba1e46f4d23",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 104,
@@ -496,7 +496,7 @@
       "id": 141,
       "key": "fn:105@call:str::starts_with",
       "sig": "097afe5846d85ed3",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 105,
@@ -562,7 +562,7 @@
       "id": 144,
       "key": "fn:105@call:std::option::Option::is_none",
       "sig": "e1e3457961cb00c5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 105,
@@ -584,7 +584,7 @@
       "id": 145,
       "key": "fn:105@call:std::option::Option::is_none#1",
       "sig": "5f7f2d554144842c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 105,
@@ -606,7 +606,7 @@
       "id": 146,
       "key": "fn:105@call:std::option::Option::is_none#2",
       "sig": "31526ba1e46f4d23",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 105,
@@ -760,7 +760,7 @@
       "id": 153,
       "key": "fn:107@call:std::option::Option::cloned",
       "sig": "d91a5ac8b63ce3df",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 107,
@@ -1028,7 +1028,7 @@
       "id": 165,
       "key": "fn:109@call:std::option::Option::cloned",
       "sig": "36a9c1690be57279",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 109,
@@ -1050,7 +1050,7 @@
       "id": 166,
       "key": "fn:109@call:<Self as core::clone::Clone>::clone",
       "sig": "9879a1f79ff1ad8f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 109,
@@ -1161,7 +1161,7 @@
       "id": 171,
       "key": "fn:110@call:std::option::Option::unwrap_or",
       "sig": "0fd910f52b589aa0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 110,
@@ -1317,7 +1317,7 @@
       "id": 178,
       "key": "fn:115@call:std::option::Option::as_ref",
       "sig": "dc36448d6c44e973",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 115,
@@ -1361,7 +1361,7 @@
       "id": 180,
       "key": "fn:118@call:f32::min",
       "sig": "2cbe3ed7f04570b4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 118,
@@ -1383,7 +1383,7 @@
       "id": 181,
       "key": "fn:118@call:bool::then_some",
       "sig": "015e53522cacbb34",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 118,
@@ -1405,7 +1405,7 @@
       "id": 182,
       "key": "fn:119@call:i32::saturating_sub_unsigned",
       "sig": "f0055b38dffed28b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 119,
@@ -1427,7 +1427,7 @@
       "id": 183,
       "key": "fn:120@call:std::result::Result::unwrap_or",
       "sig": "069c7a7c1b3633ff",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 120,
@@ -1449,7 +1449,7 @@
       "id": 184,
       "key": "fn:121@call:i32::saturating_add_unsigned",
       "sig": "f0055b38dffed28b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 121,
@@ -1471,7 +1471,7 @@
       "id": 185,
       "key": "fn:122@call:bool::then_some",
       "sig": "9e6b3085624f017a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 122,
@@ -1493,7 +1493,7 @@
       "id": 186,
       "key": "fn:124@call:bool::then_some",
       "sig": "ef03a93edf0188c8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 124,
@@ -1519,8 +1519,18 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:103@call:std::option::Option::cloned",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:103@call:std::option::Option::filter",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:103@call:std::option::Option::is_none",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -1534,8 +1544,18 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:104@call:std::option::Option::is_some",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:104@call:std::option::Option::is_some#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:104@call:std::option::Option::is_some_and",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -1544,8 +1564,28 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:105@call:std::option::Option::is_none",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:105@call:std::option::Option::is_none#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:105@call:std::option::Option::is_none#2",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:105@call:std::option::Option::is_some_and",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:105@call:str::starts_with",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -1554,8 +1594,23 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:107@call:std::option::Option::cloned",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:109@call:<Self as core::clone::Clone>::clone",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:109@call:std::option::Option::cloned",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:109@call:std::option::Option::filter",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -1571,6 +1626,11 @@
     {
       "key": "fn:110@call:fn:121",
       "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:110@call:std::option::Option::unwrap_or",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -1599,8 +1659,28 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:115@call:std::option::Option::as_ref",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:115@call:std::option::Option::is_some_and",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:118@call:bool::then_some",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:118@call:f32::min",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:119@call:i32::saturating_sub_unsigned",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -1616,6 +1696,26 @@
     {
       "key": "fn:120@call:core::convert::TryFrom::try_from",
       "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:120@call:std::result::Result::unwrap_or",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:121@call:i32::saturating_add_unsigned",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:122@call:bool::then_some",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:124@call:bool::then_some",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {

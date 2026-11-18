@@ -73,6 +73,13 @@ pub fn hash_file_bytes(bytes: &[u8]) -> FileDigest {
     }
 }
 
+pub fn cargo_lock_sha(workspace: &Path) -> Result<String> {
+    let path = workspace.join("Cargo.lock");
+    let bytes = std::fs::read(&path)
+        .map_err(|error| Error::new(format!("failed to read {}: {error}", path.display())))?;
+    Ok(format_hash(fnv1a_64(&bytes)))
+}
+
 pub fn collect_file_digests(workspace: &Path, files: &[String]) -> Result<BTreeMap<String, FileDigest>> {
     let mut digests = BTreeMap::new();
     for file in files {
@@ -110,7 +117,8 @@ pub struct ParseOptions {
     pub files: Vec<String>,
     pub externs: BTreeSet<String>,
     pub crate_name: Option<String>,
-    pub toolchain: String,
+    pub rustc: String,
+    pub cargo_lock_sha: String,
     pub workspace: Option<PathBuf>,
     pub file_digests: BTreeMap<String, FileDigest>,
 }

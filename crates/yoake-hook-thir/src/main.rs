@@ -53,7 +53,7 @@ fn run() -> Result<()> {
             let mut out = None;
             let mut workspace = None;
             let mut options = ParseOptions {
-                toolchain: "unknown (parse subcommand)".into(),
+                rustc: "unknown (parse subcommand)".into(),
                 ..ParseOptions::default()
             };
             while let Some(name) = arguments.next() {
@@ -71,6 +71,9 @@ fn run() -> Result<()> {
             }
             if options.files.is_empty() {
                 return Err(Error::new(usage()));
+            }
+            if let Some(root) = workspace.as_deref() {
+                options.cargo_lock_sha = yoake_hook_thir::cargo_lock_sha(root)?;
             }
             options.workspace = Some(workspace.unwrap_or_else(|| PathBuf::from(".")));
             let thir = thir.ok_or_else(|| Error::new("parse requires --thir"))?;

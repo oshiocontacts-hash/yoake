@@ -310,6 +310,12 @@ pub fn signature_hash(sig: &Signature) -> String {
     Ledger::sig_hash(&canonical_signature_tokens(sig))
 }
 
+pub(crate) fn canonical_expr_path_tokens(ep: &syn::ExprPath) -> String {
+    let mut clean = ep.clone();
+    CanonicalSigCleanup.visit_expr_path_mut(&mut clean);
+    quote!(#clean).to_string()
+}
+
 pub fn callsite_key(caller_key: &str, callee_path: &str, ordinal: usize) -> String {
     format!("{caller_key}@call:{callee_path}#{ordinal}")
 }

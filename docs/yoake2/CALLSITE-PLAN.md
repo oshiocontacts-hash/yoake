@@ -71,6 +71,8 @@ Per crate listed with `callsites = true` in `hook-ledger/modules.txt`:
   "dup_rank": 0, "shim": "__yoake_cs_131", "sig": "..." }
 ```
 
+- The `#n` suffix in a callsite key is only an id-allocation number that keeps keys unique; it never means
+  "the n-th call". Mods target call sites by id, not by this suffix.
 - The caller is the fn-ledger id of the enclosing fn. The callee is a fn-ledger id when it is an engine fn,
   otherwise its normalised canonical path (lifetimes erased, local crate prefixed, impl type arguments kept
   as data, not in the key). Renaming a fn then does not make all its sites `lost`.

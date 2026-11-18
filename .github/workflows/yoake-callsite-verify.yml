@@ -1,0 +1,81 @@
+name: yoake-callsite-verify
+
+# CALLSITE-PLAN section 6: re-run THIR on every crate with `callsites=true` modules and check that the call
+# inside each `__yoake_cs_<id>` shim still resolves to the callee recorded in the ledger. It needs one THIR
+# dump per crate (about 70 s and 4 GB for horizon_client_lib, 130 s and 6.5 GB for horizon_client), so it
+# runs by hand and when the ledger, a call-site module or the hook tools change, not on every push.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["yoake/**", "yoake2/**"]
+    paths:
+      - "hook-ledger/**"
+      - "crates/horizon-client/src/entities.rs"
+      - "crates/horizon-client/src/entities/**"
+      - "crates/horizon-client/src/game/item_use.rs"
+      - "crates/yoake-hook-*/**"
+      - ".github/workflows/yoake-callsite-verify.yml"
+  pull_request:
+    paths:
+      - "hook-ledger/**"
+      - "crates/horizon-client/src/entities.rs"
+      - "crates/horizon-client/src/entities/**"
+      - "crates/horizon-client/src/game/item_use.rs"
+      - "crates/yoake-hook-*/**"
+
+permissions:
+  contents: read
+
+jobs:
+  thir-verify:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate Windows SDK shader compiler
+        shell: pwsh
+        # Same as yoake-windows.yml.
+        run: |
+          if (-not (Get-Command fxc.exe -ErrorAction SilentlyContinue)) {
+            $sdkBin = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
+            $fxc = Get-ChildItem -Path $sdkBin -Filter fxc.exe -File -Recurse |
+              Where-Object { $_.Directory.Name -eq 'x64' } |
+              Sort-Object FullName -Descending |
+              Select-Object -First 1
+            if (-not $fxc) {
+              throw 'fxc.exe was not found in the Windows SDK.'
+            }
+            $fxc.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
+
+      - name: Build the hook tools
+        run: cargo build --locked -p yoake-hook-thir -p yoake-hook-codemod
+
+      - name: THIR dump and shim verification per call-site module
+        shell: bash
+        run: |
+          set -euo pipefail
+          thir=target/debug/yoake-hook-thir
+          codemod=target/debug/yoake-hook-codemod
+          mkdir -p "$RUNNER_TEMP/thir"
+          grep -v '^[[:space:]]*\(#\|$\)' hook-ledger/modules.txt | tr -d '\r' |
+          while read -r root name module flags; do
+            case " $flags " in *" callsites=true "*) ;; *) continue ;; esac
+            pkg=$(sed -n 's/^name = "\(.*\)"/\1/p' "$root/Cargo.toml" | head -1)
+            # The crate root as cargo passes it to rustc: `[lib] path` if set (THIR spans use that form,
+            # e.g. crates/horizon-client-lib/../horizon-client/src/...), else src/lib.rs.
+            lib=$(awk '/^\[lib\]/{f=1;next} /^\[/{f=0} f && /^path *=/{gsub(/.*= *"|".*/,""); print}' "$root/Cargo.toml")
+            [ -n "$lib" ] || lib="src/lib.rs"
+            src_dir="$root/$(dirname "$lib")"
+            mod_path="${module//:://}"
+            files=()
+            [ -f "$src_dir/$mod_path.rs" ] && files+=(--file "$src_dir/$mod_path.rs")
+            if [ -d "$src_dir/$mod_path" ]; then
+              while IFS= read -r f; do files+=(--file "$f"); done < <(find "$src_dir/$mod_path" -name '*.rs' | sort)
+            fi
+            echo "== $pkg ($name) $module: ${#files[@]} file args"
+            out="$RUNNER_TEMP/thir/$name.json"
+            "$thir" dump --crate-pkg "$pkg" --crate-name "$name" --workspace . --out "$out" "${files[@]}"
+            "$codemod" verify-callsites --crate-name "$name" --ledger hook-ledger --thir "$out"
+          done

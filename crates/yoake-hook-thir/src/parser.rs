@@ -185,7 +185,8 @@ pub fn parse_reader<R: BufRead>(reader: R, options: &ParseOptions) -> Result<Dum
     });
     let source_snapshot = crate::compute_source_snapshot(&files);
     Ok(Dump {
-        toolchain: options.toolchain.clone(),
+        rustc: options.rustc.clone(),
+        cargo_lock_sha: options.cargo_lock_sha.clone(),
         crate_name,
         source_snapshot,
         files,

@@ -10,3 +10,5 @@ launcher/tests/fixtures/yoake-presentation/** -text
 hook-ledger/*.json text eol=lf
 hook-ledger/modules.txt text eol=lf
 crates/yoake-hook-thir/tests/fixtures/*.txt text eol=lf
+hook-ledger/callsite-allow.txt text eol=lf
+hook-ledger/track-caller.txt text eol=lf

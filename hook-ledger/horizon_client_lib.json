@@ -766,7 +766,7 @@
       "id": 189,
       "key": "fn:3@call:f64::abs",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 3,
@@ -788,7 +788,7 @@
       "id": 190,
       "key": "fn:3@call:bool::then_some",
       "sig": "e60978b9c91a6958",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 3,
@@ -810,7 +810,7 @@
       "id": 191,
       "key": "fn:5@call:f64::floor",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 5,
@@ -832,7 +832,7 @@
       "id": 192,
       "key": "fn:5@call:f64::floor#1",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 5,
@@ -854,7 +854,7 @@
       "id": 193,
       "key": "fn:5@call:f64::floor#2",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 5,
@@ -876,7 +876,7 @@
       "id": 194,
       "key": "fn:5@call:f64::floor#3",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 5,
@@ -942,7 +942,7 @@
       "id": 197,
       "key": "fn:6@call:[([i32; 3_usize], horizon_world::piston_shape::MovingPistonState)]::iter",
       "sig": "dba8a0de975e1160",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 6,
@@ -986,7 +986,7 @@
       "id": 199,
       "key": "fn:7@call:u32::is_multiple_of",
       "sig": "0a5401a6c4dd3307",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 7,
@@ -1184,7 +1184,7 @@
       "id": 208,
       "key": "fn:9@call:f64::floor",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 9,
@@ -1206,7 +1206,7 @@
       "id": 209,
       "key": "fn:9@call:f64::floor#1",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 9,
@@ -1228,7 +1228,7 @@
       "id": 210,
       "key": "fn:9@call:f64::floor#2",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 9,
@@ -1317,7 +1317,7 @@
       "id": 214,
       "key": "fn:9@call:<Self as core::iter::traits::collect::Extend>::extend",
       "sig": "2b9c7b57107203c6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 9,
@@ -1365,7 +1365,7 @@
       "id": 216,
       "key": "fn:9@call:std::option::Option::unwrap_or_default",
       "sig": "722b5c0057b95434",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 9,
@@ -1389,7 +1389,7 @@
       "id": 217,
       "key": "fn:9@call:<Self as core::cmp::Ord>::max",
       "sig": "48dabd9959e2c29f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 9,
@@ -1435,7 +1435,7 @@
       "id": 219,
       "key": "fn:9@call:<Self as core::iter::traits::collect::Extend>::extend#1",
       "sig": "2b9c7b57107203c6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 9,
@@ -1483,7 +1483,7 @@
       "id": 221,
       "key": "fn:9@call:std::option::Option::unwrap_or_default#1",
       "sig": "722b5c0057b95434",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 9,
@@ -1529,7 +1529,7 @@
       "id": 223,
       "key": "fn:9@call:<Self as core::cmp::Ord>::max#1",
       "sig": "48dabd9959e2c29f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 9,
@@ -1575,7 +1575,7 @@
       "id": 225,
       "key": "fn:9@call:<Self as core::iter::traits::collect::Extend>::extend#2",
       "sig": "2b9c7b57107203c6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 9,
@@ -1623,7 +1623,7 @@
       "id": 227,
       "key": "fn:9@call:std::option::Option::unwrap_or_default#2",
       "sig": "722b5c0057b95434",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 9,
@@ -1691,7 +1691,7 @@
       "id": 230,
       "key": "fn:9@call:<Self as core::iter::traits::collect::Extend>::extend#3",
       "sig": "2b9c7b57107203c6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 9,
@@ -1737,7 +1737,7 @@
       "id": 232,
       "key": "fn:9@call:std::option::Option::unwrap_or_default#3",
       "sig": "722b5c0057b95434",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 9,
@@ -1760,7 +1760,7 @@
       "id": 233,
       "key": "fn:10@call:<Self as core::iter::traits::collect::Extend>::extend",
       "sig": "2b9c7b57107203c6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 10,
@@ -1896,7 +1896,7 @@
       "id": 239,
       "key": "fn:13@call:f64::floor",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 13,
@@ -1920,7 +1920,7 @@
       "id": 240,
       "key": "fn:13@call:f64::floor#1",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 13,
@@ -1944,7 +1944,7 @@
       "id": 241,
       "key": "fn:13@call:f64::floor#2",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 13,
@@ -2267,7 +2267,7 @@
       "id": 255,
       "key": "fn:14@call:f64::floor",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 14,
@@ -2289,7 +2289,7 @@
       "id": 256,
       "key": "fn:14@call:f64::floor#1",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 14,
@@ -2311,7 +2311,7 @@
       "id": 257,
       "key": "fn:14@call:f64::floor#2",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 14,
@@ -2334,7 +2334,7 @@
       "id": 258,
       "key": "fn:14@call:f64::floor#3",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 14,
@@ -2357,7 +2357,7 @@
       "id": 259,
       "key": "fn:14@call:f64::floor#4",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 14,
@@ -2381,7 +2381,7 @@
       "id": 260,
       "key": "fn:14@call:f64::floor#5",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 14,
@@ -2609,7 +2609,7 @@
       "id": 270,
       "key": "fn:17@call:f64::floor",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 17,
@@ -2631,7 +2631,7 @@
       "id": 271,
       "key": "fn:17@call:f64::floor#1",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 17,
@@ -2653,7 +2653,7 @@
       "id": 272,
       "key": "fn:17@call:f64::floor#2",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 17,
@@ -2676,7 +2676,7 @@
       "id": 273,
       "key": "fn:17@call:f64::floor#3",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 17,
@@ -2699,7 +2699,7 @@
       "id": 274,
       "key": "fn:17@call:f64::floor#4",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 17,
@@ -2723,7 +2723,7 @@
       "id": 275,
       "key": "fn:17@call:f64::floor#5",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 17,
@@ -2823,7 +2823,7 @@
       "id": 279,
       "key": "fn:18@call:f64::abs",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 18,
@@ -2845,7 +2845,7 @@
       "id": 280,
       "key": "fn:18@call:f64::abs#1",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 18,
@@ -2889,7 +2889,7 @@
       "id": 282,
       "key": "fn:21@call:[horizon_core::geometry::Aabb]::iter",
       "sig": "817bca4c6e1a36d4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 21,
@@ -2911,7 +2911,7 @@
       "id": 283,
       "key": "fn:21@call:<Self as core::iter::traits::iterator::Iterator>::enumerate",
       "sig": "bcbad0ff3f178616",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 21,
@@ -2933,7 +2933,7 @@
       "id": 284,
       "key": "fn:21@call:std::collections::HashMap::entry",
       "sig": "c2c7d3811a596b2f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 21,
@@ -2959,7 +2959,7 @@
       "id": 285,
       "key": "fn:21@call:std::collections::hash_map::Entry::or_default",
       "sig": "819ba4c820644b55",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 21,
@@ -2985,7 +2985,7 @@
       "id": 286,
       "key": "fn:21@call:std::vec::Vec::push",
       "sig": "302cd3484316cfd5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 21,
@@ -3011,7 +3011,7 @@
       "id": 287,
       "key": "fn:22@call:f64::floor",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 22,
@@ -3034,7 +3034,7 @@
       "id": 288,
       "key": "fn:22@call:f64::floor#1",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 22,
@@ -3057,7 +3057,7 @@
       "id": 289,
       "key": "fn:22@call:f64::floor#2",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 22,
@@ -3124,7 +3124,7 @@
       "id": 292,
       "key": "fn:23@call:std::vec::Vec::is_empty",
       "sig": "d95b7a5834fc205d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 23,
@@ -3146,7 +3146,7 @@
       "id": 293,
       "key": "fn:24@call:std::vec::Vec::clear",
       "sig": "f8ff216e4796824c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 24,
@@ -3168,7 +3168,7 @@
       "id": 294,
       "key": "fn:24@call:std::vec::Vec::is_empty",
       "sig": "d95b7a5834fc205d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 24,
@@ -3190,7 +3190,7 @@
       "id": 295,
       "key": "fn:24@call:std::collections::HashMap::get",
       "sig": "1db86cdcd1af2cc2",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 24,
@@ -3215,7 +3215,7 @@
       "id": 296,
       "key": "fn:24@call:<Self as core::iter::traits::collect::Extend>::extend",
       "sig": "edb1dd344ffb590c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 24,
@@ -3241,7 +3241,7 @@
       "id": 297,
       "key": "fn:24@call:[u32]::sort_unstable",
       "sig": "f5f62c2697abff38",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 24,
@@ -3263,7 +3263,7 @@
       "id": 298,
       "key": "fn:24@call:std::vec::Vec::dedup",
       "sig": "46b7f0ae60959b03",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 24,
@@ -3285,7 +3285,7 @@
       "id": 299,
       "key": "fn:24@call:<Self as core::iter::traits::collect::IntoIterator>::into_iter",
       "sig": "642d1a64ea07697d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 24,
@@ -3329,7 +3329,7 @@
       "id": 301,
       "key": "fn:25@call:[entities::ItemEntity]::iter",
       "sig": "34ed84145c1b1120",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 25,
@@ -3351,7 +3351,7 @@
       "id": 302,
       "key": "fn:25@call:<Self as core::iter::traits::iterator::Iterator>::enumerate",
       "sig": "336540e809a2a690",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 25,
@@ -3396,7 +3396,7 @@
       "id": 304,
       "key": "fn:26@call:f64::floor",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 26,
@@ -3418,7 +3418,7 @@
       "id": 305,
       "key": "fn:26@call:f64::floor#1",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 26,
@@ -3440,7 +3440,7 @@
       "id": 306,
       "key": "fn:26@call:f64::floor#2",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 26,
@@ -3462,7 +3462,7 @@
       "id": 307,
       "key": "fn:27@call:std::collections::HashMap::entry",
       "sig": "c2c7d3811a596b2f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 27,
@@ -3484,7 +3484,7 @@
       "id": 308,
       "key": "fn:27@call:std::collections::hash_map::Entry::or_default",
       "sig": "819ba4c820644b55",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 27,
@@ -3506,7 +3506,7 @@
       "id": 309,
       "key": "fn:27@call:std::vec::Vec::push",
       "sig": "302cd3484316cfd5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 27,
@@ -3528,7 +3528,7 @@
       "id": 310,
       "key": "fn:28@call:std::collections::HashMap::get_mut",
       "sig": "59dfc7029e08dc16",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 28,
@@ -3596,7 +3596,7 @@
       "id": 313,
       "key": "fn:30@call:std::vec::Vec::clear",
       "sig": "46b7f0ae60959b03",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 30,
@@ -3662,7 +3662,7 @@
       "id": 316,
       "key": "fn:30@call:std::collections::HashMap::get",
       "sig": "1db86cdcd1af2cc2",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 30,
@@ -3687,7 +3687,7 @@
       "id": 317,
       "key": "fn:30@call:std::vec::Vec::extend_from_slice",
       "sig": "59ea766309c17161",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 30,
@@ -3713,7 +3713,7 @@
       "id": 318,
       "key": "fn:30@call:[u32]::sort_unstable",
       "sig": "f5f62c2697abff38",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 30,
@@ -3735,7 +3735,7 @@
       "id": 319,
       "key": "fn:34@call:i32::wrapping_sub",
       "sig": "48dabd9959e2c29f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 34,
@@ -3757,7 +3757,7 @@
       "id": 320,
       "key": "fn:35@call:<Self as core::iter::traits::collect::IntoIterator>::into_iter",
       "sig": "daf10ce0d12100d8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 35,
@@ -3779,7 +3779,7 @@
       "id": 321,
       "key": "fn:35@call:std::option::Option::unwrap_or",
       "sig": "c76683fdb254771a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 35,
@@ -3823,7 +3823,7 @@
       "id": 323,
       "key": "fn:37@call:f64::floor",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 37,
@@ -3845,7 +3845,7 @@
       "id": 324,
       "key": "fn:37@call:f64::floor#1",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 37,
@@ -3867,7 +3867,7 @@
       "id": 325,
       "key": "fn:37@call:f64::floor#2",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 37,
@@ -3933,7 +3933,7 @@
       "id": 328,
       "key": "fn:37@call:f64::min",
       "sig": "5a589f4650a6d8c5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 37,
@@ -4001,7 +4001,7 @@
       "id": 331,
       "key": "fn:37@call:f64::sqrt",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 37,
@@ -4024,7 +4024,7 @@
       "id": 332,
       "key": "fn:37@call:std::option::Option::is_none",
       "sig": "e8ebc6b14a125a57",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 37,
@@ -4093,7 +4093,7 @@
       "id": 335,
       "key": "fn:37@call:f64::abs",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 37,
@@ -4115,7 +4115,7 @@
       "id": 336,
       "key": "fn:37@call:f64::abs#1",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 37,
@@ -4160,7 +4160,7 @@
       "id": 338,
       "key": "fn:37@call:f64::floor#3",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 37,
@@ -4183,7 +4183,7 @@
       "id": 339,
       "key": "fn:37@call:f64::floor#4",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 37,
@@ -4206,7 +4206,7 @@
       "id": 340,
       "key": "fn:37@call:f64::floor#5",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 37,
@@ -4318,7 +4318,7 @@
       "id": 345,
       "key": "fn:39@call:f64::floor",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 39,
@@ -4340,7 +4340,7 @@
       "id": 346,
       "key": "fn:39@call:f64::floor#1",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 39,
@@ -4362,7 +4362,7 @@
       "id": 347,
       "key": "fn:39@call:f64::floor#2",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 39,
@@ -4452,7 +4452,7 @@
       "id": 351,
       "key": "fn:40@call:i32::wrapping_mul",
       "sig": "48dabd9959e2c29f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 40,
@@ -4475,7 +4475,7 @@
       "id": 352,
       "key": "fn:40@call:<Self as core::cmp::Ord>::clamp",
       "sig": "17925ac456d8ed87",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 40,
@@ -4498,7 +4498,7 @@
       "id": 353,
       "key": "fn:43@call:i32::saturating_add",
       "sig": "48dabd9959e2c29f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 43,
@@ -4520,7 +4520,7 @@
       "id": 354,
       "key": "fn:43@call:<Self as core::cmp::Ord>::max",
       "sig": "48dabd9959e2c29f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 43,
@@ -4542,7 +4542,7 @@
       "id": 355,
       "key": "fn:43@call:std::option::Option::get_or_insert",
       "sig": "6456362a6e181922",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 43,
@@ -4610,7 +4610,7 @@
       "id": 358,
       "key": "fn:47@call:[&'{erased} str]::iter",
       "sig": "4a98af66e992cbd5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 47,
@@ -4632,7 +4632,7 @@
       "id": 359,
       "key": "fn:47@call:std::option::Option::unwrap_or",
       "sig": "afbbdfd4b4e7bd86",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 47,
@@ -4654,7 +4654,7 @@
       "id": 360,
       "key": "fn:49@call:<Self as core::cmp::Ord>::min",
       "sig": "6b5420a8bc6e1b7e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 49,
@@ -4676,7 +4676,7 @@
       "id": 361,
       "key": "fn:53@call:<Self as core::cmp::Ord>::min",
       "sig": "6b5420a8bc6e1b7e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 53,
@@ -4742,7 +4742,7 @@
       "id": 364,
       "key": "fn:58@call:std::option::Option::as_ref",
       "sig": "7cb54b1837a3eae3",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 58,
@@ -4786,7 +4786,7 @@
       "id": 366,
       "key": "fn:66@call:std::option::Option::is_some",
       "sig": "1037b3aa4b060925",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 66,
@@ -4896,7 +4896,7 @@
       "id": 371,
       "key": "fn:67@call:f64::floor",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 67,
@@ -4918,7 +4918,7 @@
       "id": 372,
       "key": "fn:67@call:f64::floor#1",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 67,
@@ -4940,7 +4940,7 @@
       "id": 373,
       "key": "fn:67@call:f64::floor#2",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 67,
@@ -4963,7 +4963,7 @@
       "id": 374,
       "key": "fn:67@call:f64::ceil",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 67,
@@ -4986,7 +4986,7 @@
       "id": 375,
       "key": "fn:67@call:f64::floor#3",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 67,
@@ -5010,7 +5010,7 @@
       "id": 376,
       "key": "fn:67@call:f64::floor#4",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 67,
@@ -5084,7 +5084,7 @@
       "id": 379,
       "key": "fn:67@call:<Self as core::cmp::Ord>::max",
       "sig": "48dabd9959e2c29f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 67,
@@ -5129,7 +5129,7 @@
       "id": 381,
       "key": "fn:69@call:std::option::Option::as_ref",
       "sig": "6f83a7f29ab48e0d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 69,
@@ -5173,7 +5173,7 @@
       "id": 383,
       "key": "fn:70@call:bool::then_some",
       "sig": "e0d3d2f5831ad44c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 70,
@@ -5195,7 +5195,7 @@
       "id": 384,
       "key": "fn:70@call:f64::abs",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 70,
@@ -5217,7 +5217,7 @@
       "id": 385,
       "key": "fn:70@call:f64::abs#1",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 70,
@@ -5239,7 +5239,7 @@
       "id": 386,
       "key": "fn:70@call:f64::abs#2",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 70,
@@ -5306,7 +5306,7 @@
       "id": 389,
       "key": "fn:70@call:f64::floor",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 70,
@@ -5329,7 +5329,7 @@
       "id": 390,
       "key": "fn:70@call:f64::floor#1",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 70,
@@ -5352,7 +5352,7 @@
       "id": 391,
       "key": "fn:70@call:f64::floor#2",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 70,
@@ -5398,7 +5398,7 @@
       "id": 393,
       "key": "fn:70@call:f64::clamp",
       "sig": "788d675a93388487",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 70,
@@ -5421,7 +5421,7 @@
       "id": 394,
       "key": "fn:70@call:f64::clamp#1",
       "sig": "788d675a93388487",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 70,
@@ -5444,7 +5444,7 @@
       "id": 395,
       "key": "fn:70@call:f64::is_nan",
       "sig": "deaf6e15f366afe9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 70,
@@ -5467,7 +5467,7 @@
       "id": 396,
       "key": "fn:70@call:f64::max",
       "sig": "5a589f4650a6d8c5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 70,
@@ -5536,7 +5536,7 @@
       "id": 399,
       "key": "fn:70@call:f64::abs#3",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 70,
@@ -5559,7 +5559,7 @@
       "id": 400,
       "key": "fn:70@call:f64::abs#4",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 70,
@@ -5604,7 +5604,7 @@
       "id": 402,
       "key": "fn:71@call:f64::abs",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 71,
@@ -5628,7 +5628,7 @@
       "id": 403,
       "key": "fn:71@call:f64::abs#1",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 71,
@@ -5675,7 +5675,7 @@
       "id": 405,
       "key": "fn:71@call:f64::abs#2",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 71,
@@ -5698,7 +5698,7 @@
       "id": 406,
       "key": "fn:71@call:f64::abs#3",
       "sig": "650bc5531a88862f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 71,
@@ -5809,6 +5809,11 @@
   ],
   "excluded": [
     {
+      "key": "fn:10@call:<Self as core::iter::traits::collect::Extend>::extend",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:10@call:horizon_items::bundle::destroyed",
       "reason": "path call",
       "kind": "callsite"
@@ -5841,6 +5846,21 @@
     {
       "key": "fn:13@call:core::convert::From::from#1",
       "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:13@call:f64::floor",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:13@call:f64::floor#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:13@call:f64::floor#2",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -5884,6 +5904,36 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:14@call:f64::floor",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:14@call:f64::floor#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:14@call:f64::floor#2",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:14@call:f64::floor#3",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:14@call:f64::floor#4",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:14@call:f64::floor#5",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:14@call:horizon_core::geometry::{impl#4}::new",
       "reason": "path call",
       "kind": "callsite"
@@ -5924,13 +5974,43 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:17@call:f64::floor",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:17@call:f64::floor#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:17@call:f64::floor#2",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:17@call:f64::floor#3",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:17@call:f64::floor#4",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:17@call:f64::floor#5",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:17@call:horizon_core::geometry::{impl#4}::new",
       "reason": "path call",
       "kind": "callsite"
     },
     {
       "key": "fn:18@call:[i32; 3_usize]::map",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -5964,6 +6044,16 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:18@call:f64::abs",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:18@call:f64::abs#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:18@call:horizon_core::geometry::{impl#4}::new",
       "reason": "path call",
       "kind": "callsite"
@@ -5994,6 +6084,16 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:21@call:<Self as core::iter::traits::iterator::Iterator>::enumerate",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:21@call:[horizon_core::geometry::Aabb]::iter",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:21@call:core::default::Default::default",
       "reason": "path call",
       "kind": "callsite"
@@ -6001,6 +6101,21 @@
     {
       "key": "fn:21@call:horizon_client_lib::entities::{impl#8}::span",
       "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:21@call:std::collections::HashMap::entry",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:21@call:std::collections::hash_map::Entry::or_default",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:21@call:std::vec::Vec::push",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6014,18 +6129,53 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:22@call:f64::floor",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:22@call:f64::floor#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:22@call:f64::floor#2",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:23@call:std::vec::Vec::is_empty",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:24@call:<Self as core::iter::traits::collect::Extend>::extend",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:24@call:<Self as core::iter::traits::collect::Extend>::extend#1",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:24@call:<Self as core::iter::traits::collect::IntoIterator>::into_iter",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
       "key": "fn:24@call:<Self as core::iter::traits::iterator::Iterator>::filter",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
       "key": "fn:24@call:<Self as core::iter::traits::iterator::Iterator>::map",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:24@call:[u32]::sort_unstable",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6039,8 +6189,53 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:24@call:std::collections::HashMap::get",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:24@call:std::vec::Vec::clear",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:24@call:std::vec::Vec::dedup",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:24@call:std::vec::Vec::is_empty",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:25@call:<Self as core::iter::traits::iterator::Iterator>::enumerate",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:25@call:[entities::ItemEntity]::iter",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:25@call:core::default::Default::default",
       "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:26@call:f64::floor",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:26@call:f64::floor#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:26@call:f64::floor#2",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6049,13 +6244,33 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:27@call:std::collections::HashMap::entry",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:27@call:std::collections::hash_map::Entry::or_default",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:27@call:std::vec::Vec::push",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:28@call:horizon_client_lib::entities::{impl#9}::cell",
       "reason": "path call",
       "kind": "callsite"
     },
     {
+      "key": "fn:28@call:std::collections::HashMap::get_mut",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:28@call:std::vec::Vec::retain",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6066,6 +6281,11 @@
     {
       "key": "fn:29@call:horizon_client_lib::entities::{impl#9}::cell#1",
       "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:30@call:[u32]::sort_unstable",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6089,6 +6309,21 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:30@call:std::collections::HashMap::get",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:30@call:std::vec::Vec::clear",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:30@call:std::vec::Vec::extend_from_slice",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:32@call:horizon_core::geometry::{impl#4}::new",
       "reason": "path call",
       "kind": "callsite"
@@ -6109,8 +6344,23 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:34@call:i32::wrapping_sub",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:35@call:<Self as core::iter::traits::collect::IntoIterator>::into_iter",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:35@call:<Self as core::iter::traits::iterator::Iterator>::find",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:35@call:std::option::Option::unwrap_or",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6156,6 +6406,56 @@
     {
       "key": "fn:37@call:core::ops::function::FnMut::call_mut#4",
       "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:f64::abs",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:f64::abs#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:f64::floor",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:f64::floor#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:f64::floor#2",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:f64::floor#3",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:f64::floor#4",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:f64::floor#5",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:f64::min",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:f64::sqrt",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6205,13 +6505,18 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:37@call:std::option::Option::is_none",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:37@call:std::option::Option::map",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
       "key": "fn:37@call:std::result::Result::unwrap_or",
-      "reason": "dyn receiver",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6240,6 +6545,21 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:39@call:f64::floor",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:39@call:f64::floor#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:39@call:f64::floor#2",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:39@call:horizon_core::geometry::{impl#4}::new",
       "reason": "path call",
       "kind": "callsite"
@@ -6260,8 +6580,33 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:3@call:bool::then_some",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:3@call:f64::abs",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:40@call:<Self as core::cmp::Ord>::clamp",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:40@call:i32::wrapping_mul",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:41@call:core::default::Default::default",
       "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:43@call:<Self as core::cmp::Ord>::max",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6280,6 +6625,16 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:43@call:i32::saturating_add",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:43@call:std::option::Option::get_or_insert",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:44@call:core::convert::From::from",
       "reason": "path call",
       "kind": "callsite"
@@ -6291,12 +6646,12 @@
     },
     {
       "key": "fn:46@call:[i32; 3_usize]::map",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
       "key": "fn:46@call:[i32; 3_usize]::map#1",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6351,7 +6706,22 @@
     },
     {
       "key": "fn:47@call:<Self as core::iter::traits::iterator::Iterator>::position",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:47@call:[&'{erased} str]::iter",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:47@call:std::option::Option::unwrap_or",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:49@call:<Self as core::cmp::Ord>::min",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6375,13 +6745,18 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:53@call:<Self as core::cmp::Ord>::min",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:53@call:core::convert::From::from",
       "reason": "path call",
       "kind": "callsite"
     },
     {
       "key": "fn:55@call:[i32; 3_usize]::map",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6416,12 +6791,37 @@
     },
     {
       "key": "fn:58@call:std::option::Option::and_then",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:58@call:std::option::Option::as_ref",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
       "key": "fn:5@call:core::convert::From::from",
       "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:5@call:f64::floor",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:5@call:f64::floor#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:5@call:f64::floor#2",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:5@call:f64::floor#3",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6475,6 +6875,46 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:66@call:std::option::Option::is_some",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:67@call:<Self as core::cmp::Ord>::max",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:67@call:f64::ceil",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:67@call:f64::floor",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:67@call:f64::floor#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:67@call:f64::floor#2",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:67@call:f64::floor#3",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:67@call:f64::floor#4",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:67@call:horizon_client_lib::motion::environment::fire_contact",
       "reason": "path call",
       "kind": "callsite"
@@ -6495,13 +6935,23 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:69@call:std::option::Option::as_ref",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:69@call:std::option::Option::is_some_and",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
       "key": "fn:6@call:<Self as core::iter::traits::iterator::Iterator>::find",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:6@call:[([i32; 3_usize], horizon_world::piston_shape::MovingPistonState)]::iter",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6511,7 +6961,12 @@
     },
     {
       "key": "fn:6@call:std::option::Option::map",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:bool::then_some",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6547,6 +7002,66 @@
     {
       "key": "fn:70@call:core::ops::function::Fn::call#1",
       "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:f64::abs",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:f64::abs#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:f64::abs#2",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:f64::abs#3",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:f64::abs#4",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:f64::clamp",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:f64::clamp#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:f64::floor",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:f64::floor#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:f64::floor#2",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:f64::is_nan",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:f64::max",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6591,12 +7106,12 @@
     },
     {
       "key": "fn:70@call:std::option::Option::map",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
       "key": "fn:70@call:std::result::Result::unwrap_or",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6617,6 +7132,26 @@
     {
       "key": "fn:71@call:core::convert::From::from#3",
       "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:71@call:f64::abs",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:71@call:f64::abs#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:71@call:f64::abs#2",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:71@call:f64::abs#3",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6656,7 +7191,12 @@
     },
     {
       "key": "fn:79@call:std::result::Result::is_err",
-      "reason": "unwritable arg type",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:7@call:u32::is_multiple_of",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6700,8 +7240,53 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:9@call:<Self as core::cmp::Ord>::max",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:9@call:<Self as core::cmp::Ord>::max#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:9@call:<Self as core::iter::traits::collect::Extend>::extend",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:9@call:<Self as core::iter::traits::collect::Extend>::extend#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:9@call:<Self as core::iter::traits::collect::Extend>::extend#2",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:9@call:<Self as core::iter::traits::collect::Extend>::extend#3",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:9@call:alloc::vec::{impl#0}::new",
       "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:9@call:f64::floor",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:9@call:f64::floor#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:9@call:f64::floor#2",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
@@ -6712,6 +7297,26 @@
     {
       "key": "fn:9@call:horizon_client_lib::motion::environment::fire_contact",
       "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:9@call:std::option::Option::unwrap_or_default",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:9@call:std::option::Option::unwrap_or_default#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:9@call:std::option::Option::unwrap_or_default#2",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:9@call:std::option::Option::unwrap_or_default#3",
+      "reason": "non-engine callee",
       "kind": "callsite"
     },
     {

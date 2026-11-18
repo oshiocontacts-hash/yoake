@@ -6,6 +6,7 @@ mod key;
 mod ledger_io;
 mod modules;
 mod run;
+mod track_caller;
 mod types;
 
 use std::path::PathBuf;
@@ -38,6 +39,8 @@ pub struct Config {
     pub accept_sites: Vec<AcceptSite>,
     pub rename_sites: Vec<(String, String)>,
     pub tombstone_sites: Vec<String>,
+    pub engine_crates: Option<Vec<String>>,
+    pub retire_ineligible: bool,
     pub rustfmt: bool,
 }
 
@@ -46,17 +49,33 @@ pub struct HistoryConfig {
     pub current: PathBuf,
 }
 
+pub struct TrackCallerScanConfig {
+    pub workspace: PathBuf,
+    pub out: PathBuf,
+}
+
+pub struct VerifyCallsitesConfig {
+    pub crate_name: String,
+    pub ledger: PathBuf,
+    pub thir: PathBuf,
+}
+
 enum Command {
     Run(Config),
     CheckHistory(HistoryConfig),
+    TrackCallerScan(TrackCallerScanConfig),
+    VerifyCallsites(VerifyCallsitesConfig),
 }
 
 fn usage() -> &'static str {
     "usage:\n  \
      yoake-hook-codemod <apply|check> --crate-root <dir> --crate-name <name> \
      --ledger <dir> --module <mod> [--module <mod>...] [--rename OLD=NEW]... [--tombstone KEY]... \
-     [--callsites] [--thir <calls.json>] [--accept-site KEY@FILE:LINE:COL]... [--rename-site OLD=NEW]... [--tombstone-site KEY]... [--rustfmt]\n  \
-     yoake-hook-codemod check-history --base <dir> --current <dir>"
+     [--callsites] [--thir <calls.json>] [--accept-site KEY@FILE:LINE:COL]... [--rename-site OLD=NEW]... [--tombstone-site KEY]... \
+     [--engine-crates LIST]... [--retire-ineligible] [--rustfmt]\n  \
+     yoake-hook-codemod check-history --base <dir> --current <dir>\n  \
+     yoake-hook-codemod track-caller-scan --workspace <dir> --out <file>\n  \
+     yoake-hook-codemod verify-callsites --crate-name <name> --ledger <dir> --thir <calls.json>"
 }
 
 fn parse_accept_site(raw: &str) -> Result<AcceptSite, String> {
@@ -96,13 +115,19 @@ fn parse_args() -> Result<Option<Command>, String> {
     if first == "check-history" {
         return parse_check_history_args(&mut args);
     }
+    if first == "track-caller-scan" {
+        return parse_track_caller_scan_args(&mut args);
+    }
+    if first == "verify-callsites" {
+        return parse_verify_callsites_args(&mut args);
+    }
 
     let mode = match first.as_str() {
         "apply" => Mode::Apply,
         "check" => Mode::Check,
         other => {
             return Err(format!(
-                "expected 'apply', 'check', or 'check-history', got '{other}'\n{}",
+                "expected 'apply', 'check', 'check-history', 'track-caller-scan', or 'verify-callsites', got '{other}'\n{}",
                 usage()
             ));
         }
@@ -119,6 +144,8 @@ fn parse_args() -> Result<Option<Command>, String> {
     let mut accept_sites = Vec::new();
     let mut rename_sites = Vec::new();
     let mut tombstone_sites = Vec::new();
+    let mut engine_crates: Option<Vec<String>> = None;
+    let mut retire_ineligible = false;
     let mut rustfmt = false;
 
     while let Some(arg) = args.next() {
@@ -171,6 +198,20 @@ fn parse_args() -> Result<Option<Command>, String> {
                 }
                 tombstone_sites.push(key);
             }
+            "--engine-crates" => {
+                let raw = next_arg(&mut args, "--engine-crates")?;
+                let list = engine_crates.get_or_insert_with(Vec::new);
+                for part in raw.split(',') {
+                    let trimmed = part.trim();
+                    if !trimmed.is_empty() {
+                        list.push(key::normalize_crate_name(trimmed));
+                    }
+                }
+                if list.is_empty() {
+                    return Err("--engine-crates requires at least one crate name".to_string());
+                }
+            }
+            "--retire-ineligible" => retire_ineligible = true,
             "--rustfmt" => rustfmt = true,
             other => return Err(format!("unknown argument '{other}'\n{}", usage())),
         }
@@ -185,13 +226,24 @@ fn parse_args() -> Result<Option<Command>, String> {
     if thir.is_some() && !callsites {
         return Err("--thir requires --callsites".to_string());
     }
-    if (!accept_sites.is_empty() || !rename_sites.is_empty() || !tombstone_sites.is_empty())
+    if (!accept_sites.is_empty()
+        || !rename_sites.is_empty()
+        || !tombstone_sites.is_empty()
+        || engine_crates.is_some()
+        || retire_ineligible)
         && !callsites
     {
-        return Err("--accept-site, --rename-site, and --tombstone-site require --callsites".to_string());
+        return Err(
+            "--accept-site, --rename-site, --tombstone-site, --engine-crates, and --retire-ineligible require --callsites"
+                .to_string(),
+        );
     }
-    if (!accept_sites.is_empty() || !rename_sites.is_empty()) && thir.is_none() {
-        return Err("--accept-site and --rename-site require --thir <calls.json>".to_string());
+    if (!accept_sites.is_empty() || !rename_sites.is_empty() || retire_ineligible) && thir.is_none()
+    {
+        return Err(
+            "--accept-site, --rename-site, and --retire-ineligible require --thir <calls.json>"
+                .to_string(),
+        );
     }
     if callsites && mode == Mode::Apply && thir.is_none() {
         return Err("apply --callsites requires --thir <calls.json>".to_string());
@@ -210,6 +262,8 @@ fn parse_args() -> Result<Option<Command>, String> {
         accept_sites,
         rename_sites,
         tombstone_sites,
+        engine_crates,
+        retire_ineligible,
         rustfmt,
     })))
 }
@@ -233,6 +287,51 @@ fn parse_check_history_args(args: &mut std::env::Args) -> Result<Option<Command>
     Ok(Some(Command::CheckHistory(HistoryConfig { base, current })))
 }
 
+fn parse_track_caller_scan_args(args: &mut std::env::Args) -> Result<Option<Command>, String> {
+    let mut workspace = None;
+    let mut out = None;
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "-h" | "--help" => {
+                println!("{}", usage());
+                return Ok(None);
+            }
+            "--workspace" => workspace = Some(PathBuf::from(next_arg(args, "--workspace")?)),
+            "--out" => out = Some(PathBuf::from(next_arg(args, "--out")?)),
+            other => return Err(format!("unknown argument '{other}'\n{}", usage())),
+        }
+    }
+    let workspace = workspace.ok_or_else(|| format!("missing --workspace\n{}", usage()))?;
+    let out = out.ok_or_else(|| format!("missing --out\n{}", usage()))?;
+    Ok(Some(Command::TrackCallerScan(TrackCallerScanConfig { workspace, out })))
+}
+
+fn parse_verify_callsites_args(args: &mut std::env::Args) -> Result<Option<Command>, String> {
+    let mut crate_name = None;
+    let mut ledger = None;
+    let mut thir = None;
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "-h" | "--help" => {
+                println!("{}", usage());
+                return Ok(None);
+            }
+            "--crate-name" => crate_name = Some(next_arg(args, "--crate-name")?),
+            "--ledger" => ledger = Some(PathBuf::from(next_arg(args, "--ledger")?)),
+            "--thir" => thir = Some(PathBuf::from(next_arg(args, "--thir")?)),
+            other => return Err(format!("unknown argument '{other}'\n{}", usage())),
+        }
+    }
+    let crate_name = crate_name.ok_or_else(|| format!("missing --crate-name\n{}", usage()))?;
+    let ledger = ledger.ok_or_else(|| format!("missing --ledger\n{}", usage()))?;
+    let thir = thir.ok_or_else(|| format!("missing --thir\n{}", usage()))?;
+    Ok(Some(Command::VerifyCallsites(VerifyCallsitesConfig {
+        crate_name,
+        ledger,
+        thir,
+    })))
+}
+
 fn main() -> ExitCode {
     let command = match parse_args() {
         Ok(Some(cmd)) => cmd,
@@ -246,6 +345,10 @@ fn main() -> ExitCode {
     let result = match command {
         Command::Run(config) => run::execute(&config),
         Command::CheckHistory(history) => ledger_io::run_check_history(&history.base, &history.current),
+        Command::TrackCallerScan(scan) => track_caller::run_scan(&scan.workspace, &scan.out),
+        Command::VerifyCallsites(verify) => {
+            callsite::verify_callsites(&verify.crate_name, &verify.ledger, &verify.thir)
+        }
     };
 
     match result {

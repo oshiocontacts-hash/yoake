@@ -75,19 +75,25 @@ const fn regions_equal(
 }
 
 pub const fn assert_ledger_key(keys: &[(usize, &str)], id: usize, key: &str) {
-    let mut index = 0;
-    while index < keys.len() {
-        if keys[index].0 == id {
-            let expected = keys[index].1.as_bytes();
-            let actual = key.as_bytes();
-            if expected.len() != actual.len()
-                || !regions_equal(expected, 0, actual, 0, expected.len())
-            {
-                panic!("hook id/key pair does not match the crate ledger");
-            }
-            return;
+    let mut low = 0;
+    let mut high = keys.len();
+    while low < high {
+        let middle = low + (high - low) / 2;
+        if keys[middle].0 < id {
+            low = middle + 1;
+        } else {
+            high = middle;
         }
-        index += 1;
+    }
+    if low < keys.len() && keys[low].0 == id {
+        let expected = keys[low].1.as_bytes();
+        let actual = key.as_bytes();
+        if expected.len() != actual.len()
+            || !regions_equal(expected, 0, actual, 0, expected.len())
+        {
+            panic!("hook id/key pair does not match the crate ledger");
+        }
+        return;
     }
     panic!("hook id/key pair is absent from the crate ledger");
 }

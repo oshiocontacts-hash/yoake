@@ -17,6 +17,8 @@ pub struct SiteMeta {
     pub context: [String; 2],
     pub dup_rank: u32,
     pub shim: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub orig: Option<String>,
 }
 
 static TEMP_SEQ: AtomicU64 = AtomicU64::new(0);
