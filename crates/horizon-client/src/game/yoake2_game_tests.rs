@@ -126,7 +126,7 @@ fn a_rust_guest_in_the_server_tick_hook_edits_a_dropped_item_of_a_real_game() {
 }
 
 /// Packs a full-access package around a compiled guest.
-fn pack_mod(dir: &Path, id: &str, wasm: &[u8]) -> PathBuf {
+fn pack_mod(control: &crate::yoake2_mods::Control, dir: &Path, id: &str, wasm: &[u8]) -> PathBuf {
     let src = dir.join(format!("src_{id}"));
     std::fs::create_dir_all(src.join("bin/wasm")).unwrap();
     std::fs::write(
@@ -142,14 +142,14 @@ fn pack_mod(dir: &Path, id: &str, wasm: &[u8]) -> PathBuf {
     // arrives like a player's own install: the file lands in the folder and its origin is recorded
     let bytes = std::fs::read(&built).unwrap();
     std::fs::remove_file(&built).unwrap();
-    crate::yoake2_mods::install_package(dir, &format!("{id}.yak"), &bytes, crate::yoake2_mods::Origin::Local, None).unwrap();
+    crate::yoake2_mods::install_package(control, dir, &format!("{id}.yak"), &bytes, crate::yoake2_mods::Origin::Local, None).unwrap();
     dir.join(format!("{id}.yak"))
 }
 
 #[test]
 #[ignore = "needs HORIZON_TEST_RESOURCES (the game resources)"]
 fn two_rust_mods_compose_in_the_server_tick_of_a_real_game_and_a_trap_leaves_the_others_working() {
-    use crate::yoake2_mods::{AllowFile, OriginFile, Refusal, load_dir};
+    use crate::yoake2_mods::{Control, Refusal, load_dir};
 
     let sdk = Path::new(env!("CARGO_MANIFEST_DIR")).join("../yoake-guest-sdk");
     let scratch = std::env::temp_dir().join("yoake2_two_mods");
@@ -157,27 +157,34 @@ fn two_rust_mods_compose_in_the_server_tick_of_a_real_game_and_a_trap_leaves_the
     let rlib = guest_build::build_sdk(&sdk, &scratch);
     let build = |name: &str| guest_build::build_guest(&rlib, &sdk.join(format!("tests/guests/{name}.rs")), &scratch, name);
     let (a, b, trap) = (build("tick_a"), build("tick_b"), build("tick_trap"));
-    let mods = scratch.join("mods");
+    let mods = scratch.join("game").join("mods");
     std::fs::create_dir_all(&mods).unwrap();
+    // the control files live in a launcher-owned folder outside the game root
+    let control = Control::create(&scratch.join("launcher").join("yoake-full-access"), &scratch.join("game")).unwrap();
     // load order is file order: a_outer, b_inner, c_trap; d_denied is a full-access package nobody switched on
-    pack_mod(&mods, "a_outer", &a);
-    pack_mod(&mods, "b_inner", &b);
-    pack_mod(&mods, "c_trap", &trap);
-    pack_mod(&mods, "d_denied", &a);
-    let mut allow = AllowFile::default();
+    pack_mod(&control, &mods, "a_outer", &a);
+    pack_mod(&control, &mods, "b_inner", &b);
+    pack_mod(&control, &mods, "c_trap", &trap);
+    pack_mod(&control, &mods, "d_denied", &a);
     for id in ["a_outer", "b_inner", "c_trap"] {
-        allow.allow_package(&std::fs::read(mods.join(format!("{id}.yak"))).unwrap()).unwrap();
+        control.approve(&std::fs::read(mods.join(format!("{id}.yak"))).unwrap()).unwrap();
     }
-    allow.save(&mods).unwrap();
 
     server_game(|game| {
         super::native_client_items::yoake2_install_dispatch();
         game.dropped.push(item(ITEM, 12.5));
         let _ = runtime::uninstall();
-        let report = load_dir(&mods, &OriginFile::load(&mods).unwrap(), &AllowFile::load(&mods).unwrap(), &[], &ModConfig::new(""));
+        let report = {
+            // the launcher verifies the control files and hands the game this launch's approved list (as a file)
+            let run = scratch.join("run");
+            let file = control.approved_list(&mods).unwrap().write_for_launch(&run).unwrap();
+            let list = crate::yoake2_mods::ApprovedList::read(&file).unwrap();
+            let (allow, origins) = list.to_files();
+            load_dir(&mods, &origins, &allow, &[], &ModConfig::new(""))
+        };
         assert_eq!(report.loaded.iter().map(|l| l.id.as_str()).collect::<Vec<_>>(), ["a_outer", "b_inner", "c_trap"]);
         assert_eq!(report.skipped.len(), 1);
-        assert_eq!(report.skipped[0].1, Refusal::NotAllowed, "d_denied was not switched on, so it never loaded");
+        assert!(matches!(report.skipped[0].1, Refusal::UnknownOrigin { .. }), "d_denied is not on the approved list, so it never loaded: {:?}", report.skipped[0].1);
         let (ma, mb, mc) = (report.loaded[0].module, report.loaded[1].module, report.loaded[2].module);
         assert_eq!(runtime::all_stats().len(), 3);
 

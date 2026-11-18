@@ -109,13 +109,13 @@ It builds to a **core module** with the installed `wasm32-wasip2` target and no 
 
 **Permission is bound to content; the origin is metadata recorded on arrival.**
 
-- The player's approval is an entry of `<mods folder>/full-access.toml`:
+- The player's approval is an entry of `full-access.toml` (in the control folder, MX3L3 below):
   `[[allow]] id = "..." version = "..." sha256 = "<64 hex of the .yak file>"`. The loader hashes the package file; a
   package whose bytes differ from the approved ones (an update, a replaced file) is **not loaded** and reported as
   `ContentChanged` ("changed since it was approved ... approve it again"). Approving again replaces the old entry. The
   MX3L1 form (`[allow] id = true`) names no content: it is read, listed in the report and approves nothing.
 - The origin of a package is **not** inferred from the folder. It is the record written when the package arrived,
-  `<mods folder>/yak-origins.toml`: `[[package]] sha256 = ... id = ... version = ... origin = "local" | "catalog" |
+  `yak-origins.toml` (control folder): `[[package]] sha256 = ... id = ... version = ... origin = "local" | "catalog" |
   "server" | "friend"` (+ `signer` for the catalog). `yoake2_mods::install_package` stores a file and records its origin;
   the player's own installs use `local`, catalog downloads `catalog` (with the signer), deliveries from a server or a
   friend `server` / `friend`. Nothing in this tree delivers full-access packages yet (the launcher extracts sandboxed
@@ -158,3 +158,63 @@ chain the total nesting can be deeper than 16 (each level still costs native sta
 **Chains are cached per hook id** (`chain_for`): built on first use, dropped whenever a mod is loaded, unloaded or dies
 (a generation counter), so the hot path is one hash lookup and an `Rc` clone. A mod's registrations change only
 inside its `yoake_init`, before it is in the list.
+
+## The launcher is the authority (MX3L3, MX3L4)
+
+**The game never reads the control files.** `full-access.toml` (approvals: id + version + SHA-256 of the `.yak`) and
+`yak-origins.toml` (arrival records) belong to the launcher and live in `<launcher data dir>/yoake-full-access/`
+(`horizon_mods::yak::control::control_dir_in(backend::data_dir())`), outside the game root. At each launch the launcher
+reads and checks them (`Control::approved_list(mods_dir)`) and hands the game **this launch's approved list**. A full-access
+mod that rewrites the control files therefore changes nothing in the running game; the change appears at the next
+launch, where the launcher compares the new list with the last one the player accepted (`ApprovedList::diff`) and shows
+the difference before approving anything.
+
+### What the launcher must pass to the game
+
+| | |
+|---|---|
+| **What** | the approved list for this launch: one `[[package]]` per `.yak` in `<game root>/mods` whose SHA-256 is approved under its id **and** whose origin record is `local` or `catalog`. `Control::approved_list` builds it; `ApprovedList::write_for_launch(run_dir)` writes it |
+| **Format** | TOML, UTF-8, at most 1 MiB: `format = 1`; `protected = ["<absolute path>", ...]` (the control folder and its `.checksum` file); `[[package]]` with `id`, `version`, `sha256` (64 lowercase hex of the `.yak` file), `origin` (`"local"` or `"catalog"`; any other value invalidates the whole file) |
+| **Path** | a fresh file of this launch, outside the game folder, e.g. `<launcher data>/run/<launch id>/approved.toml` (`write_for_launch` creates the folder and refuses to overwrite). Passed on the game's command line as `--full-access-approved <absolute path>` (or `--full-access-approved=<path>`); the environment variable `YOAKE_FULL_ACCESS_APPROVED` is the same and the option wins. A command-line path is the simplest robust way on Windows: no inherited handle to keep alive across `CreateProcess`, and the launcher already builds the game command line |
+| **Lifetime** | one launch. The file must exist and stay unchanged from process start until the game's first world start (the game reads it once there, keeps it in memory, and never reads it again). The launcher deletes the file and its folder when the game process exits and writes a new one next time |
+| **No list** | no option, no variable, an unreadable or invalid file: nothing is full-access (a line is logged only when a full-access package is present) |
+| **Game side** | loads a package only if the SHA-256 of its bytes equals an entry's `sha256` and its manifest id equals the entry's `id`, with the entry's origin; catalog signatures are still verified; duplicate ids still refuse both. The game registers the list file and every `protected` path with `control::protect` |
+
+There is no `--full-access-dir` any more. `control.rs` is the launcher's library: `AllowFile`, `OriginFile`,
+`Control::{create, open, approve, install_local, approved_list, accept_current_files}`, `install_package`, `ApprovedList`.
+
+### The checksum file is a corruption check, not tamper protection
+
+Each save of a control file is atomic (temp file, fsync best effort, rename) and then recorded in
+`<control folder>.checksum` (the SHA-256 of both files; this was the "seal"). The launcher refuses a file that does not
+match, has no recorded checksum, or is missing although one was recorded, and builds no list from it. Anything that can
+write the control files can write the checksum too: it catches damage, half-written files and hand edits, not an
+attacker. What protects the approvals is that the game never reads the folder and cannot reach it
+(`control::guard`, below). `Control::accept_current_files()` (formerly `reseal`) records whatever is on disk; **the launcher
+calls it only after the player confirmed a diff it showed** (for example the files changed behind its back), never to
+make an error go away.
+
+### Protected paths (`control::guard`)
+
+`Control::open` and the game's list reader register the control folder, its checksum file and the list file as protected.
+`guard(path)` refuses a path that is **inside** a protected path, **an ancestor** of one (a storage root that contains the
+folder would reach it), or has a **`..` component** (refused outright, never resolved; verbatim `\?\` paths, where `..`
+is an ordinary name, too). `yoake-wasm`'s `DiskStorage` canonicalizes its trusted base (the OS resolves links and `..`
+there), checks the resolved base, the storage directory, the legacy import directories and every file it writes. The current
+generated bindings take no paths; **the first binding that opens a file must call `guard` on the path it opens.**
+
+### Remote packages
+
+`install_package` puts `Origin::Server` / `Friend` packages into `<mods>/remote/<origin>/<sha256>.yak`, **named by their
+hash** (the sender's name is not used, so a file pre-placed under it cannot block a delivery; the same package delivered
+twice is fine; a file of that name with other bytes is refused). The folder is never scanned by the loader, so these take no
+part in duplicate-id detection, and the control files are not touched. Local and catalog installs never overwrite an
+existing file (an update removes the old one with `remove_package` first).
+
+### Launcher entry points
+
+`Control::install_local(mods_dir, source)` for "install a local .yak" (copies, records origin `local`),
+`Control::approve(bytes)` for the player's approval, `install_package(.., Origin::Catalog, signer)` for catalog downloads.
+A `.yak` dropped into the mods folder by hand has no record and stays not-full-access.
+
+`chain_for` returns at once when no mod is loaded (no lookup, no allocation).

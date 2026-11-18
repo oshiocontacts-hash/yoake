@@ -337,6 +337,8 @@ struct DiskEntry {
 
 pub struct DiskStorage {
     directory: Dir,
+    /// The directory `directory` is open on (for the protected-path check of every file opened in it).
+    path: std::path::PathBuf,
     _lock: File,
     entries: BTreeMap<String, DiskEntry>,
     storage: Storage,
@@ -372,7 +374,17 @@ impl DiskStorage {
         {
             return Err("invalid storage mod ID".into());
         }
+        // The base is the engine's own trusted path (it may hold links and `..`): the OS resolves it, then the *resolved*
+        // path is checked. MX3L3/MX3L4: never a root that is inside, or an ancestor of, the full-access control folder
+        // (launcher-owned, see `horizon_mods::yak::control`); every path derived below is checked too, and a `..` in a
+        // derived path is refused outright.
         let base = base.canonicalize().map_err(|error| error.to_string())?;
+        horizon_mods::yak::control::guard(&base)?;
+        let mut directory_path = base.join("yoake-data").join(mod_id);
+        if let Some(scope) = scope {
+            directory_path = directory_path.join(scope);
+        }
+        horizon_mods::yak::control::guard(&directory_path)?;
         let base_dir = Dir::open(&base, false).map_err(|error| error.to_string())?;
         let mut directory = base_dir
             .child(OsStr::new("yoake-data"), true)
@@ -394,6 +406,7 @@ impl DiskStorage {
             })?;
         let mut result = Self {
             directory,
+            path: directory_path,
             _lock: lock,
             entries: BTreeMap::new(),
             storage: Storage::new(quota).map_err(str::to_owned)?,
@@ -472,6 +485,11 @@ impl DiskStorage {
                         return Err(message);
                     }
                 }
+                let legacy_path = match scope {
+                    Some("global") => base.join("config").join("yoake-wasm").join(mod_id),
+                    _ => base.join("yoake-wasm").join(mod_id),
+                };
+                horizon_mods::yak::control::guard(&legacy_path)?;
                 let legacy = match scope {
                     Some("global") => base_dir
                         .child(OsStr::new("config"), false)
@@ -787,6 +805,7 @@ impl DiskStorage {
         target: &str,
         write: impl FnOnce(&mut File) -> Result<(), String>,
     ) -> Result<(), String> {
+        horizon_mods::yak::control::guard(&self.path.join(target))?;
         let sequence = NEXT_TEMP_FILE.fetch_add(1, Ordering::Relaxed);
         let name = format!(".store-{}-{sequence}.tmp", std::process::id());
         let mut file = self
@@ -857,6 +876,35 @@ mod tests {
             .join(format!("yoake-storage-{}-{time}-{sequence}", std::process::id()));
         std::fs::create_dir(&root).unwrap();
         root
+    }
+
+    #[test]
+    fn a_storage_root_inside_or_above_the_protected_control_folder_is_refused() {
+        let root = temporary_root();
+        let control = root.join("launcher").join("yoake-full-access");
+        std::fs::create_dir_all(control.join("sub")).unwrap();
+        std::fs::create_dir_all(root.join("game")).unwrap();
+        horizon_mods::yak::control::protect(&control);
+        // the folder itself, a child of it, a `..` route into it (resolved by the OS, then checked), and the ANCESTORS:
+        // its parent and the temp root that contains everything
+        for base in [
+            control.clone(),
+            control.join("sub"),
+            root.join("game").join("..").join("launcher").join("yoake-full-access"),
+            root.join("launcher"),
+            root.clone(),
+        ] {
+            let error = DiskStorage::open(&base, "example").err().expect("refused");
+            assert!(error.contains("protected folder"), "{base:?}: {error}");
+        }
+        assert!(!control.join("yoake-data").exists() && !root.join("launcher").join("yoake-data").exists() && !root.join("yoake-data").exists(), "nothing was created");
+        // a `..` in a path the storage derives is refused outright
+        assert!(horizon_mods::yak::control::guard(&root.join("game").join("yoake-data").join("..").join("..")).is_err());
+        // an ordinary root still works
+        let ordinary = root.join("ordinary");
+        std::fs::create_dir(&ordinary).unwrap();
+        assert!(DiskStorage::open(&ordinary, "example").is_ok());
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]
