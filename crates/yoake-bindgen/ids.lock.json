@@ -173,25 +173,25 @@
     {
       "id": 29,
       "path": "entities::ArmorStand.position#get",
-      "sig": "get position: horizon_core::geometry::Vec3",
+      "sig": "get position: horizon_core::Vec3",
       "status": "bound"
     },
     {
       "id": 30,
       "path": "entities::ArmorStand.position#set",
-      "sig": "set position: horizon_core::geometry::Vec3",
+      "sig": "set position: horizon_core::Vec3",
       "status": "bound"
     },
     {
       "id": 31,
       "path": "entities::ArmorStand.previous#get",
-      "sig": "get previous: horizon_core::geometry::Vec3",
+      "sig": "get previous: horizon_core::Vec3",
       "status": "bound"
     },
     {
       "id": 32,
       "path": "entities::ArmorStand.previous#set",
-      "sig": "set previous: horizon_core::geometry::Vec3",
+      "sig": "set previous: horizon_core::Vec3",
       "status": "bound"
     },
     {
@@ -257,13 +257,13 @@
     {
       "id": 43,
       "path": "entities::ArmorStand.velocity#get",
-      "sig": "get velocity: horizon_core::geometry::Vec3",
+      "sig": "get velocity: horizon_core::Vec3",
       "status": "bound"
     },
     {
       "id": 44,
       "path": "entities::ArmorStand.velocity#set",
-      "sig": "set velocity: horizon_core::geometry::Vec3",
+      "sig": "set velocity: horizon_core::Vec3",
       "status": "bound"
     },
     {
@@ -329,13 +329,13 @@
     {
       "id": 55,
       "path": "entities::Cushion.position#get",
-      "sig": "get position: horizon_core::geometry::Vec3",
+      "sig": "get position: horizon_core::Vec3",
       "status": "bound"
     },
     {
       "id": 56,
       "path": "entities::Cushion.position#set",
-      "sig": "set position: horizon_core::geometry::Vec3",
+      "sig": "set position: horizon_core::Vec3",
       "status": "ReadOnly"
     },
     {
@@ -461,25 +461,25 @@
     {
       "id": 77,
       "path": "entities::ExperienceOrb.position#get",
-      "sig": "get position: horizon_core::geometry::Vec3",
+      "sig": "get position: horizon_core::Vec3",
       "status": "bound"
     },
     {
       "id": 78,
       "path": "entities::ExperienceOrb.position#set",
-      "sig": "set position: horizon_core::geometry::Vec3",
+      "sig": "set position: horizon_core::Vec3",
       "status": "ReadOnly"
     },
     {
       "id": 79,
       "path": "entities::ExperienceOrb.previous#get",
-      "sig": "get previous: horizon_core::geometry::Vec3",
+      "sig": "get previous: horizon_core::Vec3",
       "status": "bound"
     },
     {
       "id": 80,
       "path": "entities::ExperienceOrb.previous#set",
-      "sig": "set previous: horizon_core::geometry::Vec3",
+      "sig": "set previous: horizon_core::Vec3",
       "status": "ReadOnly"
     },
     {
@@ -509,13 +509,13 @@
     {
       "id": 85,
       "path": "entities::ExperienceOrb.velocity#get",
-      "sig": "get velocity: horizon_core::geometry::Vec3",
+      "sig": "get velocity: horizon_core::Vec3",
       "status": "bound"
     },
     {
       "id": 86,
       "path": "entities::ExperienceOrb.velocity#set",
-      "sig": "set velocity: horizon_core::geometry::Vec3",
+      "sig": "set velocity: horizon_core::Vec3",
       "status": "ReadOnly"
     },
     {
@@ -641,37 +641,37 @@
     {
       "id": 107,
       "path": "entities::ItemEntity.position#get",
-      "sig": "get position: horizon_core::geometry::Vec3",
+      "sig": "get position: horizon_core::Vec3",
       "status": "bound"
     },
     {
       "id": 108,
       "path": "entities::ItemEntity.position#set",
-      "sig": "set position: horizon_core::geometry::Vec3",
+      "sig": "set position: horizon_core::Vec3",
       "status": "bound"
     },
     {
       "id": 109,
       "path": "entities::ItemEntity.previous#get",
-      "sig": "get previous: horizon_core::geometry::Vec3",
+      "sig": "get previous: horizon_core::Vec3",
       "status": "bound"
     },
     {
       "id": 110,
       "path": "entities::ItemEntity.previous#set",
-      "sig": "set previous: horizon_core::geometry::Vec3",
+      "sig": "set previous: horizon_core::Vec3",
       "status": "bound"
     },
     {
       "id": 111,
       "path": "entities::ItemEntity.stuck#get",
-      "sig": "get stuck: horizon_core::geometry::Vec3",
+      "sig": "get stuck: horizon_core::Vec3",
       "status": "bound"
     },
     {
       "id": 112,
       "path": "entities::ItemEntity.stuck#set",
-      "sig": "set stuck: horizon_core::geometry::Vec3",
+      "sig": "set stuck: horizon_core::Vec3",
       "status": "bound"
     },
     {
@@ -713,13 +713,13 @@
     {
       "id": 119,
       "path": "entities::ItemEntity.velocity#get",
-      "sig": "get velocity: horizon_core::geometry::Vec3",
+      "sig": "get velocity: horizon_core::Vec3",
       "status": "bound"
     },
     {
       "id": 120,
       "path": "entities::ItemEntity.velocity#set",
-      "sig": "set velocity: horizon_core::geometry::Vec3",
+      "sig": "set velocity: horizon_core::Vec3",
       "status": "bound"
     },
     {
@@ -881,13 +881,13 @@
     {
       "id": 147,
       "path": "entities::ItemStep.old_velocity#get",
-      "sig": "get old_velocity: horizon_core::geometry::Vec3",
+      "sig": "get old_velocity: horizon_core::Vec3",
       "status": "bound"
     },
     {
       "id": 148,
       "path": "entities::ItemStep.old_velocity#set",
-      "sig": "set old_velocity: horizon_core::geometry::Vec3",
+      "sig": "set old_velocity: horizon_core::Vec3",
       "status": "ReadOnly"
     },
     {
@@ -995,7 +995,7 @@
     {
       "id": 166,
       "path": "entities::move_applies",
-      "sig": "fn move_applies(horizon_core::geometry::Vec3, horizon_core::geometry::Vec3) -> bool",
+      "sig": "fn move_applies(horizon_core::Vec3, horizon_core::Vec3) -> bool",
       "status": "bound"
     },
     {
@@ -1799,19 +1799,19 @@
     {
       "id": 300,
       "path": "entities::<Cushion as Clone>::clone",
-      "sig": "fn clone(&Self) -> Cushion",
+      "sig": "fn clone(&Self) -> Self",
       "status": "bound"
     },
     {
       "id": 301,
       "path": "entities::<Experience as Clone>::clone",
-      "sig": "fn clone(&Self) -> Experience",
+      "sig": "fn clone(&Self) -> Self",
       "status": "bound"
     },
     {
       "id": 302,
       "path": "entities::<Experience as Default>::default",
-      "sig": "fn default() -> Experience",
+      "sig": "fn default() -> Self",
       "status": "bound"
     },
     {
@@ -1847,25 +1847,25 @@
     {
       "id": 308,
       "path": "entities::<ItemStep as Clone>::clone",
-      "sig": "fn clone(&Self) -> ItemStep",
+      "sig": "fn clone(&Self) -> Self",
       "status": "bound"
     },
     {
       "id": 309,
       "path": "entities::<StandMedium as Clone>::clone",
-      "sig": "fn clone(&Self) -> StandMedium",
+      "sig": "fn clone(&Self) -> Self",
       "status": "bound"
     },
     {
       "id": 310,
       "path": "entities::<StandMedium as PartialEq>::eq",
-      "sig": "fn eq(&Self, &StandMedium) -> bool",
+      "sig": "fn eq(&Self, &Self) -> bool",
       "status": "bound"
     },
     {
       "id": 311,
       "path": "entities::<StandStep as Clone>::clone",
-      "sig": "fn clone(&Self) -> StandStep",
+      "sig": "fn clone(&Self) -> Self",
       "status": "bound"
     },
     {
@@ -2123,37 +2123,37 @@
     {
       "id": 354,
       "path": "items::<BlockReduction as Clone>::clone",
-      "sig": "fn clone(&Self) -> BlockReduction",
+      "sig": "fn clone(&Self) -> Self",
       "status": "bound"
     },
     {
       "id": 355,
       "path": "items::<BlocksAttacks as Clone>::clone",
-      "sig": "fn clone(&Self) -> BlocksAttacks",
+      "sig": "fn clone(&Self) -> Self",
       "status": "bound"
     },
     {
       "id": 356,
       "path": "items::<ConsumeEffectSpec as Clone>::clone",
-      "sig": "fn clone(&Self) -> ConsumeEffectSpec",
+      "sig": "fn clone(&Self) -> Self",
       "status": "bound"
     },
     {
       "id": 357,
       "path": "items::<ConsumeEffectSpec as PartialEq>::eq",
-      "sig": "fn eq(&Self, &ConsumeEffectSpec) -> bool",
+      "sig": "fn eq(&Self, &Self) -> bool",
       "status": "bound"
     },
     {
       "id": 358,
       "path": "items::<Instrument as Clone>::clone",
-      "sig": "fn clone(&Self) -> Instrument",
+      "sig": "fn clone(&Self) -> Self",
       "status": "bound"
     },
     {
       "id": 359,
       "path": "items::<ToolRule as Clone>::clone",
-      "sig": "fn clone(&Self) -> ToolRule",
+      "sig": "fn clone(&Self) -> Self",
       "status": "bound"
     },
     {
@@ -2201,7 +2201,7 @@
     {
       "id": 367,
       "path": "entities::<Painting as Clone>::clone",
-      "sig": "fn clone(&Self) -> Painting",
+      "sig": "fn clone(&Self) -> Self",
       "status": "bound"
     },
     {
@@ -2219,13 +2219,13 @@
     {
       "id": 370,
       "path": "items::<ItemStack as Clone>::clone",
-      "sig": "fn clone(&Self) -> ItemStack",
+      "sig": "fn clone(&Self) -> Self",
       "status": "bound"
     },
     {
       "id": 371,
       "path": "items::<ItemStack as PartialEq>::eq",
-      "sig": "fn eq(&Self, &ItemStack) -> bool",
+      "sig": "fn eq(&Self, &Self) -> bool",
       "status": "bound"
     },
     {
@@ -2243,13 +2243,13 @@
     {
       "id": 374,
       "path": "items::ItemInfo.equip_allowed#get",
-      "sig": "get equip_allowed: Option<std::collections::HashSet<String>>",
+      "sig": "get equip_allowed: Option<std::HashSet<String>>",
       "status": "bound"
     },
     {
       "id": 375,
       "path": "items::ItemInfo.equip_allowed#set",
-      "sig": "set equip_allowed: Option<std::collections::HashSet<String>>",
+      "sig": "set equip_allowed: Option<std::HashSet<String>>",
       "status": "ReadOnly"
     },
     {
@@ -2291,49 +2291,49 @@
     {
       "id": 382,
       "path": "items::Items.block_tags#get",
-      "sig": "get block_tags: std::collections::HashMap<String, std::collections::HashSet<String>>",
+      "sig": "get block_tags: std::HashMap<String, std::HashSet<String>>",
       "status": "bound"
     },
     {
       "id": 383,
       "path": "items::Items.block_tags#set",
-      "sig": "set block_tags: std::collections::HashMap<String, std::collections::HashSet<String>>",
+      "sig": "set block_tags: std::HashMap<String, std::HashSet<String>>",
       "status": "ReadOnly"
     },
     {
       "id": 384,
       "path": "items::Items.instruments#get",
-      "sig": "get instruments: std::collections::HashMap<String, Instrument>",
+      "sig": "get instruments: std::HashMap<String, Instrument>",
       "status": "bound"
     },
     {
       "id": 385,
       "path": "items::Items.instruments#set",
-      "sig": "set instruments: std::collections::HashMap<String, Instrument>",
+      "sig": "set instruments: std::HashMap<String, Instrument>",
       "status": "ReadOnly"
     },
     {
       "id": 386,
       "path": "items::Items.item_tag_order#get",
-      "sig": "get item_tag_order: std::collections::HashMap<String, Vec<String>>",
+      "sig": "get item_tag_order: std::HashMap<String, Vec<String>>",
       "status": "bound"
     },
     {
       "id": 387,
       "path": "items::Items.item_tag_order#set",
-      "sig": "set item_tag_order: std::collections::HashMap<String, Vec<String>>",
+      "sig": "set item_tag_order: std::HashMap<String, Vec<String>>",
       "status": "ReadOnly"
     },
     {
       "id": 388,
       "path": "items::Items.item_tags#get",
-      "sig": "get item_tags: std::collections::HashMap<String, std::collections::HashSet<String>>",
+      "sig": "get item_tags: std::HashMap<String, std::HashSet<String>>",
       "status": "bound"
     },
     {
       "id": 389,
       "path": "items::Items.item_tags#set",
-      "sig": "set item_tags: std::collections::HashMap<String, std::collections::HashSet<String>>",
+      "sig": "set item_tags: std::HashMap<String, std::HashSet<String>>",
       "status": "ReadOnly"
     },
     {
@@ -2381,7 +2381,7 @@
     {
       "id": 397,
       "path": "items::entity_spec",
-      "sig": "fn entity_spec(&std::collections::HashMap<String, std::collections::HashSet<String>>, &str) -> std::collections::HashSet<String>",
+      "sig": "fn entity_spec(&std::HashMap<String, std::HashSet<String>>, &str) -> std::HashSet<String>",
       "status": "bound"
     },
     {
@@ -2399,7 +2399,7 @@
     {
       "id": 400,
       "path": "entities::<ItemCells as Default>::default",
-      "sig": "fn default() -> ItemCells",
+      "sig": "fn default() -> Self",
       "status": "bound"
     },
     {
@@ -2435,37 +2435,37 @@
     {
       "id": 406,
       "path": "entity_query::<NativeEntityInfo as Clone>::clone",
-      "sig": "fn clone(&Self) -> NativeEntityInfo",
+      "sig": "fn clone(&Self) -> Self",
       "status": "bound"
     },
     {
       "id": 407,
       "path": "entity_query::<NativeEntityInfo as PartialEq>::eq",
-      "sig": "fn eq(&Self, &NativeEntityInfo) -> bool",
+      "sig": "fn eq(&Self, &Self) -> bool",
       "status": "bound"
     },
     {
       "id": 408,
       "path": "entity_query::<QueryUsage as Clone>::clone",
-      "sig": "fn clone(&Self) -> QueryUsage",
+      "sig": "fn clone(&Self) -> Self",
       "status": "bound"
     },
     {
       "id": 409,
       "path": "entity_query::<QueryUsage as Default>::default",
-      "sig": "fn default() -> QueryUsage",
+      "sig": "fn default() -> Self",
       "status": "bound"
     },
     {
       "id": 410,
       "path": "entity_query::<QueryUsage as PartialEq>::eq",
-      "sig": "fn eq(&Self, &QueryUsage) -> bool",
+      "sig": "fn eq(&Self, &Self) -> bool",
       "status": "bound"
     },
     {
       "id": 411,
       "path": "entity_query::<Sphere as Clone>::clone",
-      "sig": "fn clone(&Self) -> Sphere",
+      "sig": "fn clone(&Self) -> Self",
       "status": "bound"
     },
     {

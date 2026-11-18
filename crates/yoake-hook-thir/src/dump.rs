@@ -31,7 +31,9 @@ pub enum TargetDirDecision {
 pub fn dump(options: &DumpOptions) -> Result<()> {
     check_target_dir_guard(&options.workspace, options.allow_shared_target)?;
     let file_digests = collect_file_digests(&options.workspace, &options.files)?;
-    let rustc = rustc_version()?;
+    let rustc = rustc_version(&options.workspace)?;
+    // THIR output is toolchain-specific: only the pinned compiler (rust-toolchain.toml) may produce a dump
+    check_pinned_rustc(&options.workspace, &rustc)?;
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -144,8 +146,9 @@ fn run_and_parse(
     write_json(&parsed, &options.out)
 }
 
-fn rustc_version() -> Result<String> {
-    let output = Command::new("rustc").arg("-vV").output()?;
+fn rustc_version(workspace: &Path) -> Result<String> {
+    // run in the workspace, so rustup picks the toolchain the way cargo will
+    let output = Command::new("rustc").arg("-vV").current_dir(workspace).output()?;
     if !output.status.success() {
         return Err(Error::new("rustc -vV failed"));
     }
@@ -481,5 +484,52 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&marker_path).unwrap(), written);
 
         let _ = std::fs::remove_dir_all(&base);
+    }
+}
+
+/// The `channel = "..."` of a `rust-toolchain.toml`.
+pub fn parse_toolchain_channel(text: &str) -> Option<String> {
+    text.lines().find_map(|line| {
+        let rest = line.trim().strip_prefix("channel")?.trim_start().strip_prefix('=')?.trim();
+        Some(rest.trim_matches('"').to_string())
+    })
+}
+
+/// Stops unless `rustc_version` (the first line of `rustc -V`) is the exact version `<workspace>/rust-toolchain.toml`
+/// pins.
+pub fn check_pinned_rustc(workspace: &Path, rustc_version: &str) -> Result<()> {
+    let path = workspace.join("rust-toolchain.toml");
+    let text = std::fs::read_to_string(&path).map_err(|e| Error::new(format!("cannot read {}: {e}", path.display())))?;
+    let channel = parse_toolchain_channel(&text).ok_or_else(|| Error::new(format!("{} has no channel line", path.display())))?;
+    if !channel.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+        return Err(Error::new(format!("rust-toolchain.toml pins `{channel}`: THIR needs an exact version")));
+    }
+    let line = rustc_version.trim();
+    if line == format!("rustc {channel}") || line.starts_with(&format!("rustc {channel} ")) {
+        Ok(())
+    } else {
+        Err(Error::new(format!("the workspace pins rustc {channel} (rust-toolchain.toml), but rustc is `{line}`; THIR output is toolchain-specific")))
+    }
+}
+
+#[cfg(test)]
+mod toolchain_tests {
+    use super::*;
+
+    #[test]
+    fn a_dump_needs_the_pinned_rustc() {
+        let dir = std::env::temp_dir().join(format!("yoake_thir_pin_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("rust-toolchain.toml"), "[toolchain]
+channel = \"1.100.0\"
+").unwrap();
+        assert!(check_pinned_rustc(&dir, "rustc 1.100.0 (0ef1bc386 2026-11-09)").is_ok());
+        assert!(check_pinned_rustc(&dir, "rustc 1.99.1 (x)").is_err());
+        assert!(check_pinned_rustc(&dir, "rustc 1.100.01 (x)").is_err());
+        std::fs::write(dir.join("rust-toolchain.toml"), "[toolchain]
+channel = \"stable\"
+").unwrap();
+        assert!(check_pinned_rustc(&dir, "rustc 1.100.0 (x)").is_err());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

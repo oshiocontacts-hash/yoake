@@ -20,6 +20,7 @@ pub mod reach;
 pub mod render;
 pub mod report;
 pub mod shape;
+pub mod toolchain;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -117,10 +118,22 @@ pub struct Generated {
     pub unresolved: Vec<String>,
 }
 
+/// Where a configured rustdoc JSON path is: `target/...` follows `CARGO_TARGET_DIR` when it is set (cargo writes the
+/// JSON there), everything else is relative to `root`.
+pub fn doc_path(root: &Path, path: &str) -> PathBuf {
+    match (path.strip_prefix("target/"), std::env::var_os("CARGO_TARGET_DIR")) {
+        (Some(rest), Some(target)) if !target.is_empty() => {
+            let target = PathBuf::from(target);
+            if target.is_absolute() { target.join(rest) } else { root.join(target).join(rest) }
+        }
+        _ => root.join(path),
+    }
+}
+
 pub fn load_universe(config: &Config, root: &Path) -> R<Universe> {
     let mut docs = Vec::new();
     for path in &config.docs {
-        let full = root.join(path);
+        let full = doc_path(root, path);
         let text = std::fs::read_to_string(&full).map_err(|e| format!("{}: {e}", full.display()))?;
         docs.push(Doc::parse(&text)?);
     }
@@ -322,7 +335,10 @@ pub fn stale_glue_files(config: &Config, root: &Path) -> Vec<PathBuf> {
         let Ok(entries) = std::fs::read_dir(&dir) else { continue };
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().is_some_and(|e| e == "rs") && !wanted.contains(&path) {
+            // `hook_bridge_<module>.rs` sit in the same folder but belong to `yoake-hook-codemod bridge` (it has its
+            // own staleness check, `bridge --check`)
+            let codemod_owned = path.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("hook_bridge_"));
+            if path.extension().is_some_and(|e| e == "rs") && !wanted.contains(&path) && !codemod_owned {
                 stale.push(path);
             }
         }

@@ -35,11 +35,10 @@ fn cargo(root: &Path, args: &[&str]) -> std::process::Output {
 fn checked_in_glue_is_current_and_compiles_in_the_engine() {
     let root = workspace();
 
-    // 0. the toolchain the rustdoc JSON comes from is pinned: another rustc may print another JSON
-    let pinned = std::fs::read_to_string(root.join("crates/yoake-bindgen/toolchain.txt")).unwrap().trim().to_string();
-    let rustc = Command::new("rustc").arg("-V").output().expect("run rustc -V");
-    let version = String::from_utf8_lossy(&rustc.stdout).to_string();
-    assert!(version.starts_with(&format!("rustc {pinned}")), "the gate needs rustc {pinned} (crates/yoake-bindgen/toolchain.txt), found {version}");
+    // 0. the toolchain the rustdoc JSON comes from is pinned (rust-toolchain.toml): another rustc may print another JSON
+    if let Err(e) = yoake_bindgen::toolchain::check_rustc(&root) {
+        panic!("the gate needs the pinned toolchain: {e}");
+    }
 
     // 1. rustdoc JSON with the feature off (the glue must not see itself)
     for krate in ["horizon-client-lib", "horizon-client", "horizon-items", "horizon-core", "horizon-world", "horizon-client-core"] {

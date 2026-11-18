@@ -39,6 +39,8 @@ fn run() -> Result<ExitCode, Box<dyn std::error::Error>> {
         }
     }
     let config_path = config_path.ok_or("usage: yoake-bindgen --config bindgen.json [--root DIR] [--check] [--survey CRATE]")?;
+    // the rustdoc JSON was made by the pinned compiler; another rustc may print another JSON (rust-toolchain.toml)
+    yoake_bindgen::toolchain::check_rustc(&root)?;
     let config: Config = serde_json::from_str(&std::fs::read_to_string(&config_path)?)?;
     let uni = load_universe(&config, &root)?;
     if let Some(krate) = survey_crate {

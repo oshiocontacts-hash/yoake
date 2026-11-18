@@ -1,0 +1,10 @@
+# The one pinned toolchain of the workspace (Yoake 2.0; owner decision 2026-11-19). The bindgen glue (rustdoc JSON)
+# and the call-site THIR tooling depend on the exact compiler: `yoake-bindgen` and `yoake-hook-thir dump` read
+# `channel` below and stop when `rustc -V` is another version. Change it in one commit with the regenerated glue
+# (crates/yoake-bindgen/regen.sh) and a THIR verify run (docs/yoake2/BUILDING-WORKTREES.md).
+[toolchain]
+channel = "1.100.0"
+components = ["rustfmt", "clippy", "rust-src"]
+# wasm32-unknown-unknown: guests built by hand; wasm32-wasip2: the SDK guests the tests build (tests/support/build.rs)
+targets = ["wasm32-unknown-unknown", "wasm32-wasip2"]
+profile = "minimal"

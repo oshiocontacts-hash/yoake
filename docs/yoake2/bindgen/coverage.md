@@ -5,7 +5,7 @@ Functions counted: free functions, inherent methods, and non-derived trait-impl 
 | module | functions | a (basic) | b (mechanical) | **bound now** | handle-required | excluded | derived (bound / total) | fields bound / total | handle types |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | `items` | 69 | 7 | 13 | **20 (29.0%)** | 15 (21.7%) | 34 (49.3%) | 8 / 21 | 73 / 90 | 9 |
-| `entities` | 101 | 30 | 25 | **55 (54.5%)** | 32 (31.7%) | 14 (13.9%) | 9 / 23 | 85 / 97 | 13 |
+| `entities` | 163 | 30 | 25 | **55 (33.7%)** | 32 (19.6%) | 76 (46.6%) | 9 / 23 | 85 / 97 | 13 |
 | `game_items` | 5 | 5 | 0 | **5 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 0 / 0 | 0 / 0 | 0 |
 | `entity_query` | 20 | 1 | 6 | **7 (35.0%)** | 4 (20.0%) | 9 (45.0%) | 6 / 10 | 14 / 43 | 4 |
 
@@ -88,9 +88,9 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 ## `entities` (horizon-client/src/entities.rs)
 
-- bound now: **55 of 101** (54.5%): 30 basic + 25 mechanical
-- handle-required, not yet bound: 32 (31.7%)
-- excluded: 14 (13.9%)
+- bound now: **55 of 163** (33.7%): 30 basic + 25 mechanical
+- handle-required, not yet bound: 32 (19.6%)
+- excluded: 76 (46.6%)
 - field accessors (get + set pairs): 85 of 97 fields
 - handle types (receivers of bound methods or owners of bound fields): 13
 
@@ -135,20 +135,26 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 | reason | occurrences |
 |---|---:|
+| hook machinery (`__yoake_*`): not an engine function | 62 |
+| field `0` of `JoinSeq` is private to another module [&argument] | 15 |
+| field `min` of `Aabb` is private to another module [return value] | 13 |
+| external type `horizon_client_render::world::World` (crate not loaded) [&argument] | 12 |
+| field `min` of `Aabb` is private to another module | 9 |
+| field `0` of `Wire` is private to another module [&argument] | 7 |
+| field `0` of `JoinSeq` is private to another module [&mut argument] | 6 |
+| generic type `horizon_world::consumable::Consumable` requires a listed instantiation | 6 |
 | receiver type carries a lifetime: it cannot be a hook-argument handle | 6 |
 | associated-type projection requires a listed instantiation | 5 |
-| external type `horizon_client_render::world::World` (crate not loaded) [&argument] | 4 |
+| field `0` of `Wire` is private to another module [return value] | 5 |
 | field `center` of `BorderGeometry` is private to another module [Option<&> argument] | 3 |
 | lifetime-carrying type `BlockCollisionRegistry` | 3 |
 | `dyn Trait` values cannot cross the data ABI | 2 |
 | `impl Trait` requires a listed instantiation | 2 |
 | closure argument (`impl Fn*`): guest callback handles are not built | 2 |
+| a reference nested inside another type needs a handle [return value] | 1 |
 | field `0` of `JoinSeq` is private to another module | 1 |
-| field `0` of `Wire` is private to another module [return value] | 1 |
-| field `min` of `Aabb` is private to another module | 1 |
 | field `states` of `BlockRegistry` is private to another module [&argument] | 1 |
 | field `states` of `FluidResources` is private to another module [&argument] | 1 |
-| generic type `horizon_world::consumable::Consumable` requires a listed instantiation | 1 |
 | lifetime-carrying type `crate::collisions::SceneCollisions` | 1 |
 | lifetime-carrying type `horizon_world::climbing::ClimbingRegistry` | 1 |
 

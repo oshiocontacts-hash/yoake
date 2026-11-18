@@ -338,6 +338,12 @@ fn analyze_fn(an: &mut Analyzer<'_>, doc: usize, id: u64, impl_id: Option<u64>, 
     let imp = impl_id.and_then(|i| d.item(i)).and_then(|i| i.pointer("/inner/impl"));
     let mut fails: Vec<Fail> = Vec::new();
 
+    // the hook machinery (yoake-hook-macro registrations and originals, codemod call-site shims, trait-method hook
+    // wrappers) is never a binding: a guest calling it would bypass or re-enter the hooks
+    if name.starts_with("__yoake_") {
+        fails.push(hard("hook machinery (`__yoake_*`): not an engine function"));
+    }
+
     // header
     let header = function.get("header");
     if header.and_then(|h| h.get("is_unsafe")).and_then(Value::as_bool) == Some(true) {

@@ -23,3 +23,18 @@ If worktree A compiles a newer artifact into a shared `CARGO_TARGET_DIR`, worktr
 - different root: refuses with an error explaining the stale-artifact hazard.
 
 Pass `--allow-shared-target` only when intentionally sharing a target directory after ensuring freshness.
+
+## The pinned toolchain
+
+`rust-toolchain.toml` at the workspace root pins rustc **1.100.0** (with rustfmt, clippy, rust-src and the
+`wasm32-unknown-unknown` / `wasm32-wasip2` targets). rustup picks it up for every cargo and rustc call in the
+workspace; CI installs it with `rustup toolchain install` (no argument: it reads the file). `yoake-bindgen` (the CLI
+and the regeneration gate) and `yoake-hook-thir dump` run `rustc -V` in the workspace and stop when it is not the
+pinned version, because the rustdoc JSON and the THIR text they read change with the compiler.
+
+To move to another compiler: change `channel` in one commit together with the regenerated glue
+(`crates/yoake-bindgen/regen.sh`), the bindgen gate passing, and a THIR verify run (`verify-callsites`) on it.
+
+A machine that already has that exact version installed under another name (for example as `stable`) can use it
+without a download through a rustup directory override (`rustup override set stable` in the worktree) or
+`RUSTUP_TOOLCHAIN`: both take precedence over the file, and the version check still guards the result.

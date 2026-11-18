@@ -14,11 +14,11 @@
   },
   {
     "label": "entities",
-    "total": 101,
+    "total": 163,
     "bound_a": 30,
     "bound_mech": 25,
     "handle_required": 32,
-    "excluded": 14,
+    "excluded": 76,
     "derived": 23,
     "derived_bound": 9,
     "fields_total": 97,
