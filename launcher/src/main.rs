@@ -872,6 +872,8 @@ impl Launcher {
             self.long_list = cull::Cull::default();
             if page == Page::Mods {
                 self.mods.reset_lists();
+                // Full-access mods: files put in by hand, the last launch's problem.
+                self.reload_full_access();
             }
         }
         self.picker_open = false;
@@ -1414,6 +1416,7 @@ impl Launcher {
                             let prepared = horizon_launcher::full_access::prepare(&instance_home);
                             prepared.apply(&mut cmd);
                             self.client_full_access = prepared.run;
+                            self.reload_full_access();
                         }
                         let mut cmd = horizon_launcher::launch::wrap(cmd, &launch);
                         if yoake {
@@ -1607,6 +1610,7 @@ impl Launcher {
                         Job::Client => {
                             self.client = None;
                             self.client_full_access = None;
+                            self.reload_full_access();
                             self.friends_game_ended();
                             self.come_back(cx);
                             // The game saved: last played, sizes and pictures changed.
