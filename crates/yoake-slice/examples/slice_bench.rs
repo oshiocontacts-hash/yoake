@@ -50,7 +50,7 @@ fn measure(label: &str, n: u32) -> f64 {
 fn main() {
     tls_floor();
     raw_floor();
-    runtime::uninstall();
+    runtime::uninstall().unwrap();
     measure("no mod (dispatch miss + original)", 2_000_000);
     for (name, fuel, epoch) in [
         ("hook_nop", Some(1_000_000), None),

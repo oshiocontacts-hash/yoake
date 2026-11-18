@@ -154,3 +154,65 @@ Not covered by Rust's checks: a hook shim that registers an argument pointer for
 10. **Epoch ticker** is a thread per instance, detached on drop (joining from a thread-local destructor aborted the process at exit, found by `slice_bench`). A shared ticker per engine would be better; the doc says epoch is only a log-only watchdog for full-access mods, and the pause is implemented only so that a budget can be used at all.
 11. **Real Rust guests not tried** (no `wasm32-unknown-unknown`); the WAT guest keeps no shadow-stack state, so the C0 `sp` question is not exercised.
 12. **Hot reload**: the install replaces the instance, but S2's chain still leaks and has no unregister; unchanged from S2's open problem 3.
+
+
+## Round 2 (Fable review of e734913eb)
+
+All changes are in `crates/yoake-slice` (plus the test updates in `crates/horizon-client/tests/yoake2_slice.rs`). Feature-off builds are untouched: no Cargo manifest changed in this round.
+
+### B1: use-after-free from safe code (fixed)
+
+`Activation::open` / `add_arg` / `OrigCell` are gone from the public API. The only entry points are closure-scoped:
+
+```rust
+activation::scope (arg, &TABLE, &mut original, |handle| ...) -> (R, Finished)
+activation::scope2(a, &TA, b, &TB, &mut original, |handle| ...) -> (R, Finished)
+```
+
+The guard is a private struct created inside `scope`, declared after the stack cell that holds the `&mut` pointers and `original`, so its `Drop` removes the record before the cell or the borrows go away (also on unwind). The caller never holds a guard, so there is nothing to `mem::forget`; what the body can forget (the `u64` handle) is just a number, and after `scope` returns it is `Stale`. Evidence: `forgetting_cannot_keep_an_activation_alive` (forgets a boxed handle inside the body; arena is empty, handle Stale), plus a `compile_fail` doctest showing `Activation` no longer exists.
+
+### S1: ACTIVE discipline (fixed)
+
+- `ACTIVE` is set to **null while the guest runs** (an `ActiveGuard` around `hook.call`). Only the `native()` wrapper publishes `caller.as_context_mut()`, and `original`, `get` and `set` all go through it. An import that forgets the wrapper finds no context: a nested `dispatch` then sees the instance borrowed and falls through (the hook just does not fire), so no `&mut StoreContextMut` can overlap a live `Caller`.
+- `get`/`set` no longer hold the `ACTS` borrow while the accessor runs. They look the argument up, lock the activation (`lent = true`, the same lock `original` uses), release the arena, run the accessor, and unlock in a `Drop` (`Unlend`, also on unwind). Accessors take `&mut T` now (`FieldTable::get` changed from `&T`), so an accessor can call a hooked engine function on its receiver; that opens a nested activation on the same object, derived from the accessor's own `&mut`.
+- Tests: `an_accessor_that_calls_a_hooked_engine_function_does_not_overlap_contexts` (WASM, field 2's accessor ticks the object; no `BorrowMutError`, guest entered twice, depth 0); in `activation`: `an_accessor_may_open_a_nested_activation` and `accessor_locks_the_activation_while_it_runs` (the same handle used from inside its own accessor is `Locked`).
+
+### S2: RAII for the per-activation state (fixed)
+
+`hook.call` runs under `catch_unwind`; `leave` (fuel restore, epoch pop, depth) runs on both paths and the payload is re-thrown with `resume_unwind`, after which the `scope` guard and the `ActiveGuard` drop during the unwind. The mod is **not** disabled by an engine panic (wasmtime unwinds the guest frames cleanly and the instance stays usable). Test `engine_panic_inside_original_restores_fuel_epoch_and_depth` (fuel 200,000 and epoch on, `hook_burn`; the engine body panics inside `original`; `catch_unwind` at the top): afterwards `depth == 0`, `epoch_depth == 0`, `fuel_left == INITIAL_FUEL`, arena empty, mod enabled; a following call completes with `entries == 2`, fuel back at `INITIAL_FUEL`, `max_fuel_used` within budget.
+
+### S3: no panics from runtime calls inside `original` (fixed)
+
+`install`, `uninstall`, `take_reports` use `try_borrow_mut` and return `Err` ("guest is running") instead of panicking; `stats()` returns `Stats { busy: true, .. }`. Signatures changed: `uninstall() -> Result<()>`, `take_reports() -> Result<Vec<..>>`. Test `runtime_calls_from_inside_original_report_busy_instead_of_panicking` (all four called from the engine body inside `original`; the instance is intact afterwards). `Stats` also gained `depth`, `epoch_depth`, `fuel_left`.
+
+### S4: more than one `&mut` argument (decided and built)
+
+Shape: **`original` re-receives all the lent arguments**, `FnMut(&mut A, &mut B) -> i64`, with no raw pointers in shim or generated code (the cell with the raw pointers is private to the activation module). `scope2`/`dispatch2` do two arguments; the handle of argument `i` is the handle of argument 0 plus `i`; both are locked while `original` runs. More arities are the same pattern (a macro or a generated `scope3`); `MAX_ARGS` is 4. Tests (test-only hooked fn `pair_tick(&mut Thing, &mut Other)`, hand-hooked through `dispatch2`): `two_mut_arguments_original_receives_both`, `two_mut_arguments_trap_runs_the_original_once_with_both`; in `activation`: `two_arguments_have_two_handles_and_original_receives_both`, `both_arguments_are_locked_while_original_runs`. It is not hooked through the S2 macro (no real engine function with two `&mut` arguments is used).
+
+### Tests added from the review
+
+| Test | Result |
+|---|---|
+| `original` called twice from WASM (`original_called_twice_from_wasm_runs_the_body_twice`) | body runs twice, status Ok |
+| `out` pointer out of bounds, for `get` and for `original` | trap "out of bounds", mod disabled; `get`: original runs once as the fallback; `original`: body had run, result returned, not run again |
+| fuel exhaustion in a nested activation | nested traps ("fuel"), falls back to the original once, outer hook finishes, caller fuel restored |
+| nested hook on the same object (`nested_hook_on_the_same_object`) | outer handle Locked while the nested one runs; both bodies ran on the one object |
+
+### Test counts (after Round 2)
+
+| Suite | Round 1 | Round 2 |
+|---|---:|---:|
+| `yoake-slice` activation unit tests | 9 | 13 |
+| `yoake-slice` doctests (compile_fail) | 0 | 1 |
+| `yoake-slice` `tests/slice.rs` (runtime) | 10 | 19 |
+| `horizon-client-lib --features yoake2-slice --test yoake2_slice` (real ArmorStand) | 7 (+1 ignored bench) | 7 (+1 ignored bench), re-run green on the new API |
+| `cargo test -p horizon-client --lib`, feature OFF | 1193 | 1193 passed, 40 ignored (unchanged) |
+
+Total with the feature: 40 passing tests (13 + 1 + 19 + 7).
+
+### Still open (unchanged or new)
+
+- Miri still not available; `activation` stays dependency-free (its 13 unit tests and the doctest need no wasmtime) so `cargo +nightly miri test -p yoake-slice` can run later. Not run.
+- The accessors and shims are still hand-written; generating them for category (b) types is not done. Only 1 and 2 `&mut` arguments are built.
+- A forgotten `native()` wrap is made harmless (hook does not fire), but nothing checks at compile time that every import that can reach engine code uses it.
+- MSVC timings are still not measured (Round 1 numbers stand; `scope` has the same number of thread-local accesses as before, `catch_unwind` adds none on the happy path).

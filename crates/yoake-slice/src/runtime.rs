@@ -14,6 +14,15 @@
 //! result) and a `memory`. `out` points into a scratch buffer the guest owns, so there is no
 //! alloc/free per call.
 //!
+//! # Context discipline (ACTIVE)
+//!
+//! `ACTIVE` points at the innermost store context that engine code may use. It is published only by
+//! [`native`] (every import that runs engine code: `original`, `get`, `set` go through it) and by
+//! the top-level entry. It is **null while the guest runs**, so engine code reached from guest code
+//! outside such an import (or from an import someone forgot to wrap) finds no context and the hook
+//! simply does not fire. [`install`], [`uninstall`], [`take_reports`] and [`stats`] use
+//! `try_borrow` and report "busy" instead of panicking when called from inside `original`.
+//!
 //! # Unsafe surface
 //!
 //! One function: [`context`] dereferences the thread's `ACTIVE` pointer to the innermost live
@@ -21,8 +30,9 @@
 //! calls native engine code). The invariant is C0's: native code below an import never touches the
 //! outer `Caller` until it returns, so the innermost published context is the only live borrow.
 
-use crate::activation::{self, Activation, FieldTable, OrigCell, Status};
+use crate::activation::{self, FieldTable, Finished, Status};
 use std::cell::{Cell, RefCell};
+use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::thread::JoinHandle;
@@ -139,7 +149,11 @@ unsafe fn context<'x>(pointer: *mut StoreContextMut<'static, Host>) -> &'x mut S
     unsafe { &mut *pointer }
 }
 
+/// The unmetered store's starting fuel; every top-level activation must leave it unchanged.
+pub const INITIAL_FUEL: u64 = u64::MAX / 4;
+
 /// Installs a mod (WAT text or a wasm binary) on the calling thread, replacing any earlier one.
+/// Fails (instead of panicking) when called while this thread's guest is running.
 pub fn install(wasm_or_wat: &[u8], cfg: ModConfig) -> R<()> {
     let mut config = Config::new();
     config.consume_fuel(cfg.fuel.is_some()).epoch_interruption(cfg.epoch_ticks.is_some());
@@ -175,7 +189,7 @@ pub fn install(wasm_or_wat: &[u8], cfg: ModConfig) -> R<()> {
     };
     let mut store = Store::new(&engine, host);
     if store.data().cfg.fuel.is_some() {
-        store.set_fuel(u64::MAX / 4)?;
+        store.set_fuel(INITIAL_FUEL)?;
     }
     if store.data().cfg.epoch_ticks.is_some() {
         store.set_epoch_deadline(u64::MAX / 4);
@@ -185,42 +199,87 @@ pub fn install(wasm_or_wat: &[u8], cfg: ModConfig) -> R<()> {
     let memory = instance.get_memory(&mut store, "memory");
     store.data_mut().hook = Some(hook);
     store.data_mut().memory = memory;
-    RT.with(|rt| *rt.inst.borrow_mut() = Some(ModInst { store, _ticker: ticker }));
-    Ok(())
+    RT.with(|rt| match rt.inst.try_borrow_mut() {
+        Ok(mut slot) => {
+            *slot = Some(ModInst { store, _ticker: ticker });
+            Ok(())
+        }
+        Err(_) => Err(Error::msg("install: this thread's guest is running (called from inside a hook)")),
+    })
 }
 
-/// Drops the calling thread's mod instance.
-pub fn uninstall() {
-    RT.with(|rt| *rt.inst.borrow_mut() = None);
+/// Drops the calling thread's mod instance. Fails when called from inside a hook.
+pub fn uninstall() -> R<()> {
+    RT.with(|rt| match rt.inst.try_borrow_mut() {
+        Ok(mut slot) => {
+            *slot = None;
+            Ok(())
+        }
+        Err(_) => Err(Error::msg("uninstall: this thread's guest is running (called from inside a hook)")),
+    })
 }
 
 /// What the calling thread's mod did so far.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Stats {
     pub installed: bool,
+    /// The guest is running (the call came from inside a hook); the other fields are then empty.
+    pub busy: bool,
     pub disabled: bool,
     pub trap: Option<String>,
     /// Guest hook activations entered.
     pub entries: u64,
     /// The most fuel one activation used (0 when unmetered).
     pub max_fuel_used: u64,
+    /// Open guest activations (0 outside a hook, also after a panic).
+    pub depth: u32,
+    /// Open epoch records (0 outside a hook, also after a panic).
+    pub epoch_depth: usize,
+    /// The store's fuel right now (`INITIAL_FUEL` outside a hook).
+    pub fuel_left: Option<u64>,
 }
 
 pub fn stats() -> Stats {
-    RT.with(|rt| match rt.inst.borrow().as_ref() {
-        Some(inst) => {
-            let host = inst.store.data();
-            Stats { installed: true, disabled: host.disabled, trap: host.trap.clone(), entries: host.entries, max_fuel_used: host.max_fuel_used }
-        }
-        None => Stats::default(),
+    RT.with(|rt| match rt.inst.try_borrow() {
+        Ok(slot) => match slot.as_ref() {
+            Some(inst) => {
+                let host = inst.store.data();
+                Stats {
+                    installed: true,
+                    busy: false,
+                    disabled: host.disabled,
+                    trap: host.trap.clone(),
+                    entries: host.entries,
+                    max_fuel_used: host.max_fuel_used,
+                    depth: host.depth,
+                    epoch_depth: host.epoch.len(),
+                    fuel_left: inst.store.get_fuel().ok(),
+                }
+            }
+            None => Stats::default(),
+        },
+        Err(_) => Stats { installed: true, busy: true, ..Stats::default() },
     })
 }
 
-/// The `report(slot, value)` calls the guest made since the last call.
-pub fn take_reports() -> Vec<(i32, i64)> {
-    RT.with(|rt| match rt.inst.borrow_mut().as_mut() {
-        Some(inst) => std::mem::take(&mut inst.store.data_mut().reports),
-        None => Vec::new(),
+/// The `report(slot, value)` calls the guest made since the last call. Fails from inside a hook.
+pub fn take_reports() -> R<Vec<(i32, i64)>> {
+    RT.with(|rt| match rt.inst.try_borrow_mut() {
+        Ok(mut slot) => Ok(match slot.as_mut() {
+            Some(inst) => std::mem::take(&mut inst.store.data_mut().reports),
+            None => Vec::new(),
+        }),
+        Err(_) => Err(Error::msg("take_reports: this thread's guest is running (called from inside a hook)")),
+    })
+}
+
+/// Runs engine code on behalf of an import: republishes this call's own context as the innermost
+/// one, so a nested hook (from `original`, or from a field accessor) uses it. Every import that can
+/// reach engine code must go through here.
+fn native<T>(caller: &mut Caller<'_, Host>, f: impl FnOnce() -> T) -> T {
+    RT.with(|rt| {
+        let mut ctx = caller.as_context_mut();
+        with_active(rt, &mut ctx, |_| f())
     })
 }
 
@@ -237,7 +296,7 @@ fn status_code(status: Status) -> i32 {
 fn build_linker(engine: &Engine) -> R<Linker<Host>> {
     let mut linker = Linker::new(engine);
     linker.func_wrap("env", "get", |mut c: Caller<'_, Host>, handle: i64, field: i32, out: i32| -> R<i32> {
-        match activation::get(handle as u64, field as u32) {
+        match native(&mut c, || activation::get(handle as u64, field as u32)) {
             Ok(value) => {
                 write_i64(&mut c, out, value)?;
                 Ok(status_code(Status::Ok))
@@ -245,8 +304,8 @@ fn build_linker(engine: &Engine) -> R<Linker<Host>> {
             Err(status) => Ok(status_code(status)),
         }
     })?;
-    linker.func_wrap("env", "set", |_c: Caller<'_, Host>, handle: i64, field: i32, bits: i64| -> i32 {
-        match activation::set(handle as u64, field as u32, bits) {
+    linker.func_wrap("env", "set", |mut c: Caller<'_, Host>, handle: i64, field: i32, bits: i64| -> i32 {
+        match native(&mut c, || activation::set(handle as u64, field as u32, bits)) {
             Ok(()) => status_code(Status::Ok),
             Err(status) => status_code(status),
         }
@@ -264,10 +323,7 @@ fn build_linker(engine: &Engine) -> R<Linker<Host>> {
             }
         }
         // Re-publish this call's own context: the engine body may hit another hook slot.
-        let result = RT.with(|rt| {
-            let mut ctx = c.as_context_mut();
-            with_active(rt, &mut ctx, |_| activation::run_original(handle as u64))
-        });
+        let result = native(&mut c, || activation::run_original(handle as u64));
         if epoch_on {
             let now = c.data().ticks.load(Ordering::Relaxed);
             let budget = c.data().cfg.epoch_ticks.unwrap_or(1);
@@ -323,6 +379,17 @@ fn leave(ctx: &mut StoreContextMut<'static, Host>, saved_fuel: Option<u64>) {
     }
 }
 
+enum Outcome {
+    /// The guest's return value.
+    Value(i64),
+    /// No hook ran (no instance on this thread, disabled, or the guest is already running here).
+    Fallthrough,
+    /// The guest trapped; the mod is now disabled.
+    Trapped(Finished),
+}
+
+type ScopeFn<'s> = &'s mut dyn FnMut(u64) -> R<i64>;
+
 /// The hook entry a shim calls. `orig` runs the engine's original body for the hooked function and
 /// returns its result as an `i64` (0 for `()`); the return value is what the hooked function
 /// should return (for the original's own result when the mod did not override it).
@@ -331,60 +398,91 @@ pub fn dispatch<T: 'static>(
     table: &'static FieldTable<T>,
     orig: &mut dyn FnMut(&mut T) -> i64,
 ) -> i64 {
-    let ran = RT.with(|rt| {
-        let pointer = rt.active.get();
-        if !pointer.is_null() {
-            // Nested: inside an `original` import (or the guest), the innermost context is published.
-            // SAFETY: just read from `active`.
-            return Some(run_hook(unsafe { context(pointer) }, &mut *arg, table, &mut *orig));
+    let outcome = dispatch_with(|body| activation::scope(&mut *arg, table, &mut *orig, |h| body(h)));
+    match outcome {
+        Outcome::Value(value) => value,
+        Outcome::Fallthrough => orig(arg),
+        Outcome::Trapped(done) => {
+            if done.original_calls == 0 { orig(arg) } else { done.last_result }
         }
-        // Top level: this thread's instance publishes its store for the whole guest run.
-        let Ok(mut guard) = rt.inst.try_borrow_mut() else { return None };
-        let inst = guard.as_mut()?;
-        if inst.store.data().disabled {
-            return None;
-        }
-        let mut ctx = inst.store.as_context_mut();
-        Some(with_active(rt, &mut ctx, |pointer| {
-            // SAFETY: just published by `with_active`; `ctx` is not used again.
-            run_hook(unsafe { context(pointer) }, &mut *arg, table, &mut *orig)
-        }))
-    });
-    match ran {
-        Some(value) => value,
-        None => orig(arg),
     }
 }
 
-fn run_hook<T: 'static>(
-    ctx: &mut StoreContextMut<'static, Host>,
-    arg: &mut T,
-    table: &'static FieldTable<T>,
-    orig: &mut dyn FnMut(&mut T) -> i64,
+/// [`dispatch`] for a function with two `&mut` arguments: `original` re-receives both.
+pub fn dispatch2<A: 'static, B: 'static>(
+    a: &mut A,
+    table_a: &'static FieldTable<A>,
+    b: &mut B,
+    table_b: &'static FieldTable<B>,
+    orig: &mut dyn FnMut(&mut A, &mut B) -> i64,
 ) -> i64 {
-    let Some(hook) = (if ctx.data().disabled { None } else { ctx.data().hook.clone() }) else {
-        return orig(arg);
-    };
-    let mut cell = OrigCell::new(&mut *arg, &mut *orig);
-    let act = Activation::open(&mut cell, table);
-    let handle = act.handle(0);
-    let saved = enter(ctx);
-    let result = hook.call(&mut *ctx, handle as i64);
-    leave(ctx, saved);
-    match result {
-        Ok(value) => {
-            act.finish();
-            value
+    let outcome = dispatch_with(|body| {
+        activation::scope2(&mut *a, table_a, &mut *b, table_b, &mut *orig, |h| body(h))
+    });
+    match outcome {
+        Outcome::Value(value) => value,
+        Outcome::Fallthrough => orig(a, b),
+        Outcome::Trapped(done) => {
+            if done.original_calls == 0 { orig(a, b) } else { done.last_result }
         }
+    }
+}
+
+fn dispatch_with(scope: impl FnOnce(ScopeFn<'_>) -> (R<i64>, Finished)) -> Outcome {
+    RT.with(|rt| {
+        let pointer = rt.active.get();
+        if !pointer.is_null() {
+            // Inside an import that published its context (`native`): a nested hook.
+            // SAFETY: just read from `active`.
+            return run_hook(rt, unsafe { context(pointer) }, scope);
+        }
+        // Top level: this thread's instance publishes its store for the whole guest run. If the
+        // guest is already running here (ACTIVE is null while it runs, so this is engine code
+        // reached from guest code outside a `native` import), the instance is borrowed: no hook.
+        let Ok(mut guard) = rt.inst.try_borrow_mut() else { return Outcome::Fallthrough };
+        let Some(inst) = guard.as_mut() else { return Outcome::Fallthrough };
+        if inst.store.data().disabled {
+            return Outcome::Fallthrough;
+        }
+        let mut ctx = inst.store.as_context_mut();
+        with_active(rt, &mut ctx, |pointer| {
+            // SAFETY: just published by `with_active`; `ctx` is not used again.
+            run_hook(rt, unsafe { context(pointer) }, scope)
+        })
+    })
+}
+
+fn run_hook(
+    rt: &Rt,
+    ctx: &mut StoreContextMut<'static, Host>,
+    scope: impl FnOnce(ScopeFn<'_>) -> (R<i64>, Finished),
+) -> Outcome {
+    let Some(hook) = (if ctx.data().disabled { None } else { ctx.data().hook.clone() }) else {
+        return Outcome::Fallthrough;
+    };
+    let (result, finished) = scope(&mut |handle| {
+        let saved = enter(ctx);
+        // The guest runs with no published context: only `native` imports may reach engine code.
+        let hidden = ActiveGuard { cell: &rt.active, previous: rt.active.replace(std::ptr::null_mut()) };
+        // A panic from the engine body inside `original` unwinds through wasmtime to here: restore
+        // the per-activation state (fuel, epoch stack, depth) before letting it continue.
+        let called = catch_unwind(AssertUnwindSafe(|| hook.call(&mut *ctx, handle as i64)));
+        drop(hidden);
+        leave(ctx, saved);
+        match called {
+            Ok(result) => result,
+            Err(payload) => resume_unwind(payload),
+        }
+    });
+    match result {
+        Ok(value) => Outcome::Value(value),
         Err(error) => {
-            // The trap rule (MX3C0 section 5): disable the mod, run the original only if it has not
-            // run in this activation, otherwise return what it returned; never call the guest again.
-            let message = format!("{error:#}");
-            let finished = act.finish();
+            // The trap rule (MX3C0 section 5): disable the mod; the caller runs the original only
+            // if it has not run in this activation, otherwise returns what it returned.
             let host = ctx.data_mut();
             host.disabled = true;
-            host.trap.get_or_insert(message);
-            if finished.original_calls == 0 { orig(arg) } else { finished.last_result }
+            host.trap.get_or_insert(format!("{error:#}"));
+            Outcome::Trapped(finished)
         }
     }
 }

@@ -4,30 +4,40 @@
 //! registered the function's `&mut` arguments and its `original` callable here, and a guest may
 //! now reach them through 64-bit handles until the activation ends.
 //!
+//! * The only public way to open one is [`scope`] / [`scope2`]: the activation lives exactly as long
+//!   as the closure you pass, the guard is private, and the arguments stay borrowed by the call.
+//!   There is no guard value to `mem::forget`, so a handle can never outlive the borrows behind it
+//!   (a handle used after the scope is `Status::Stale`).
 //! * `Root::HookArg { activation, arg }` is the handle root for a hook argument. The caller of the
 //!   hooked function holds an outer `&mut` to it, so it can never be re-borrowed from the `Game`
 //!   root; the activation stores the pointer the shim was handed and re-derives the reference on
-//!   every access.
-//! * Handles are never reused: `activation` is a process-wide 56-bit serial. A handle of an ended
-//!   activation is `Status::Stale`, whatever the guest kept.
-//! * The lending lock: while `original` runs, every handle of that activation is *lent* to it.
-//!   A guest access through a lent handle returns `Status::Locked`; no second `&mut` is ever made.
-//! * The arena lives in a thread-local stack and is freed when the [`Activation`] guard drops
-//!   (normal end, trap, or panic).
+//!   every access. The handle of argument `i` is the handle of argument 0 plus `i`.
+//! * Handles are never reused: `activation` is a process-wide 56-bit serial.
+//! * The lending lock: while `original` runs, or while a field accessor runs, every handle of that
+//!   activation is *lent* and a guest access through it returns `Status::Locked`; no second `&mut`
+//!   is ever made. The arena (`RefCell`) is never borrowed while `original` or an accessor runs, so
+//!   both may open nested activations (re-entrancy, accessors that call hooked engine functions).
+//! * `original` re-receives all the lent arguments (`FnMut(&mut A)` / `FnMut(&mut A, &mut B)`), so
+//!   shims and generated code hold no raw pointers.
 //!
 //! # Unsafe surface
 //!
-//! Exactly three functions contain `unsafe` (each block marked `SAFETY`):
-//! 1. [`get_impl`] / [`set_impl`]: deref of the registered argument pointer and the table pointer;
-//! 2. [`run_cell`]: re-derives `&mut T` and runs `original` through the cell pointer;
-//! 3. the three call sites that invoke them through the stored function pointers
-//!    ([`get`], [`set`], [`run_original`]).
+//! Exactly these functions contain `unsafe` (each block marked `SAFETY`): `get_impl`, `set_impl`,
+//! `run_cell`, `run_cell2`, and the three call sites that invoke them through the stored function
+//! pointers ([`get`], [`set`], [`run_original`]).
 //!
-//! The invariants they rely on: the pointers come from `&'a mut` borrows that the [`Activation`]
-//! guard keeps borrowed until it drops, a record is removed from the thread-local stack before
-//! that borrow ends (drop, finish, unwind), and an argument is dereferenced only while `original`
-//! is not running (the lending lock), on the thread that opened the activation. There is no
-//! lifetime transmute and no heap allocation: the original lives in a caller-stack [`OrigCell`].
+//! Invariants: the pointers come from `&mut` borrows that [`scope`] holds for its whole call; the
+//! record is removed from the thread-local stack by the private guard's `Drop` before `scope`
+//! returns or unwinds; an argument is dereferenced only while its activation is locked, on the
+//! thread that opened it. No lifetime transmute, no heap allocation in the activation itself.
+//!
+//! The guard is not public, so the old hazard (`mem::forget` of a guard, then a handle read of a
+//! dead stack) cannot be written:
+//!
+//! ```compile_fail
+//! // `Activation` and `Activation::open` no longer exist; the only entry points are `scope`/`scope2`.
+//! use yoake_slice::activation::Activation;
+//! ```
 
 use std::cell::RefCell;
 use std::marker::PhantomData;
@@ -43,7 +53,7 @@ pub enum Status {
     Ok = 0,
     /// The activation has ended (or never existed on this thread).
     Stale = 1,
-    /// `original` is running and the handle is lent to it.
+    /// `original` or an accessor is running and the handle is lent.
     Locked = 2,
     /// The type has no such field, or the value does not fit.
     BadField = 3,
@@ -70,12 +80,14 @@ impl Root {
 }
 
 /// Typed field access for one argument type; the engine-specific part a generator would emit.
+/// Both take `&mut T`: an accessor may call hooked engine functions on its receiver.
 pub struct FieldTable<T> {
-    pub get: fn(&T, u32) -> Option<i64>,
+    pub get: fn(&mut T, u32) -> Option<i64>,
     pub set: fn(&mut T, u32, i64) -> bool,
 }
 
 /// One registered argument, type-erased: the pointer, its table and two monomorphized accessors.
+#[derive(Clone, Copy)]
 struct ArgSlot {
     ptr: *mut (),
     table: *const (),
@@ -83,18 +95,29 @@ struct ArgSlot {
     set: unsafe fn(*mut (), *const (), u32, i64) -> bool,
 }
 
+impl ArgSlot {
+    fn new<T: 'static>(ptr: *mut T, table: &'static FieldTable<T>) -> Self {
+        Self {
+            ptr: ptr.cast(),
+            table: (table as *const FieldTable<T>).cast(),
+            get: get_impl::<T>,
+            set: set_impl::<T>,
+        }
+    }
+}
+
 /// # Safety
-/// `ptr` is a live `*mut T` with no `&mut T` in use, `table` is a `&'static FieldTable<T>`.
+/// `ptr` is a live `*mut T` with no other reference in use, `table` is a `&'static FieldTable<T>`.
 unsafe fn get_impl<T>(ptr: *mut (), table: *const (), field: u32) -> Option<i64> {
-    // SAFETY: caller contract; the lending lock guarantees no `&mut T` is live.
-    let (table, value) = unsafe { (&*(table as *const FieldTable<T>), &*(ptr as *const T)) };
+    // SAFETY: caller contract; the activation is locked for the call, so nothing else uses `*ptr`.
+    let (table, value) = unsafe { (&*(table as *const FieldTable<T>), &mut *(ptr as *mut T)) };
     (table.get)(value, field)
 }
 
 /// # Safety
-/// As [`get_impl`], and no other reference to `*ptr` is live.
+/// As [`get_impl`].
 unsafe fn set_impl<T>(ptr: *mut (), table: *const (), field: u32, v: i64) -> bool {
-    // SAFETY: caller contract; the lending lock guarantees exclusivity.
+    // SAFETY: caller contract.
     let (table, value) = unsafe { (&*(table as *const FieldTable<T>), &mut *(ptr as *mut T)) };
     (table.set)(value, field, v)
 }
@@ -103,10 +126,10 @@ struct Record {
     serial: u64,
     args: [Option<ArgSlot>; MAX_ARGS],
     n_args: u8,
-    /// The caller's [`OrigCell`] and the monomorphized function that runs it.
+    /// The caller's cell (arguments + `original`) and the monomorphized function that runs it.
     cell: *mut (),
     run: unsafe fn(*mut ()) -> i64,
-    /// The lending lock: true from the start of `original` to its end.
+    /// The lending lock: true while `original` or an accessor runs.
     lent: bool,
     original_calls: u32,
     last_result: i64,
@@ -141,96 +164,39 @@ pub struct Finished {
     pub last_result: i64,
 }
 
-/// The guard of one open activation. Dropping it frees the arena.
-pub struct Activation<'a> {
+/// The private guard of one open activation. Dropping it frees the arena. Never handed out.
+struct Guard<'a> {
     serial: u64,
     open: bool,
-    /// Keeps the registered `&'a mut` borrows alive, and keeps the guard on its thread.
+    /// Keeps the borrows of `scope` alive, and keeps the guard on its thread.
     _borrow: PhantomData<(&'a mut (), *mut ())>,
 }
 
-/// The caller-stack home of one activation's `self` and `original`. The guard borrows it, so it
-/// cannot move or be used while the activation is open.
-pub struct OrigCell<'b, T> {
-    arg: *mut T,
-    original: &'b mut dyn FnMut(&mut T) -> i64,
-}
-
-impl<'b, T> OrigCell<'b, T> {
-    /// `arg` is argument 0 (`self` in the slice); `original` returns the function's result as an
-    /// `i64` (0 for `()`).
-    pub fn new(arg: &'b mut T, original: &'b mut dyn FnMut(&mut T) -> i64) -> Self {
-        Self { arg, original }
-    }
-}
-
-/// # Safety
-/// `cell` is a live `*mut OrigCell<T>` and no reference to `*arg` is in use (lending lock held).
-unsafe fn run_cell<T>(cell: *mut ()) -> i64 {
-    // SAFETY: caller contract.
-    let cell = unsafe { &mut *(cell as *mut OrigCell<'_, T>) };
-    // SAFETY: `arg` came from a `&mut T` the cell owns the borrow of; the lock excludes other users.
-    (cell.original)(unsafe { &mut *cell.arg })
-}
-
-impl<'a> Activation<'a> {
-    /// Opens an activation with the cell's argument as argument 0 and its `original` as the
-    /// callable the guest may run (any number of times).
-    pub fn open<'b: 'a, T: 'static>(
-        cell: &'a mut OrigCell<'b, T>,
-        table: &'static FieldTable<T>,
+impl Guard<'_> {
+    fn open(
+        args: [Option<ArgSlot>; MAX_ARGS],
+        n_args: u8,
+        cell: *mut (),
+        run: unsafe fn(*mut ()) -> i64,
     ) -> Self {
         let serial = NEXT_SERIAL.fetch_add(1, Ordering::Relaxed);
-        let mut args: [Option<ArgSlot>; MAX_ARGS] = [const { None }; MAX_ARGS];
-        args[0] = Some(ArgSlot {
-            ptr: cell.arg.cast(),
-            table: (table as *const FieldTable<T>).cast(),
-            get: get_impl::<T>,
-            set: set_impl::<T>,
-        });
-        let cell_ptr: *mut OrigCell<'b, T> = cell;
         ACTS.with(|acts| {
             acts.borrow_mut().stack.push(Record {
                 serial,
                 args,
-                n_args: 1,
-                cell: cell_ptr.cast(),
-                run: run_cell::<T>,
+                n_args,
+                cell,
+                run,
                 lent: false,
                 original_calls: 0,
                 last_result: 0,
             });
         });
-        Self { serial, open: true, _borrow: PhantomData }
+        Guard { serial, open: true, _borrow: PhantomData }
     }
 
-    /// Registers one more argument; returns its index. Panics past [`MAX_ARGS`].
-    pub fn add_arg<T: 'static>(&mut self, arg: &'a mut T, table: &'static FieldTable<T>) -> u8 {
-        let ptr: *mut T = arg;
-        ACTS.with(|acts| {
-            let mut acts = acts.borrow_mut();
-            let record = acts.find(self.serial).expect("open activation");
-            let index = record.n_args as usize;
-            assert!(index < MAX_ARGS, "too many hook arguments");
-            record.args[index] = Some(ArgSlot {
-                ptr: ptr.cast(),
-                table: (table as *const FieldTable<T>).cast(),
-                get: get_impl::<T>,
-                set: set_impl::<T>,
-            });
-            record.n_args += 1;
-            index as u8
-        })
-    }
-
-    /// The handle of argument `arg` (0 is `self` in the slice).
-    pub fn handle(&self, arg: u8) -> u64 {
-        Root::HookArg { activation: self.serial, arg }.to_handle()
-    }
-
-    /// Ends the activation (frees the arena) and reports what it did to `original`.
-    pub fn finish(mut self) -> Finished {
-        self.close()
+    fn handle(&self) -> u64 {
+        Root::HookArg { activation: self.serial, arg: 0 }.to_handle()
     }
 
     fn close(&mut self) -> Finished {
@@ -240,8 +206,7 @@ impl<'a> Activation<'a> {
         self.open = false;
         ACTS.with(|acts| {
             let mut acts = acts.borrow_mut();
-            let index = acts.stack.iter().rposition(|record| record.serial == self.serial);
-            match index {
+            match acts.stack.iter().rposition(|record| record.serial == self.serial) {
                 Some(index) => {
                     let record = acts.stack.remove(index);
                     Finished { original_calls: record.original_calls, last_result: record.last_result }
@@ -252,10 +217,78 @@ impl<'a> Activation<'a> {
     }
 }
 
-impl Drop for Activation<'_> {
+impl Drop for Guard<'_> {
     fn drop(&mut self) {
         self.close();
     }
+}
+
+struct Cell1<'b, A> {
+    a: *mut A,
+    original: &'b mut dyn FnMut(&mut A) -> i64,
+}
+
+struct Cell2<'b, A, B> {
+    a: *mut A,
+    b: *mut B,
+    original: &'b mut dyn FnMut(&mut A, &mut B) -> i64,
+}
+
+/// # Safety
+/// `cell` is a live `*mut Cell1<A>` and no reference to `*a` is in use (lending lock held).
+unsafe fn run_cell<A>(cell: *mut ()) -> i64 {
+    // SAFETY: caller contract.
+    let cell = unsafe { &mut *(cell as *mut Cell1<'_, A>) };
+    // SAFETY: `a` came from a `&mut A` that `scope` holds borrowed; the lock excludes other users.
+    (cell.original)(unsafe { &mut *cell.a })
+}
+
+/// # Safety
+/// As [`run_cell`], for both arguments.
+unsafe fn run_cell2<A, B>(cell: *mut ()) -> i64 {
+    // SAFETY: caller contract.
+    let cell = unsafe { &mut *(cell as *mut Cell2<'_, A, B>) };
+    // SAFETY: as in `run_cell`; `a` and `b` are distinct borrows held by `scope2`.
+    (cell.original)(unsafe { &mut *cell.a }, unsafe { &mut *cell.b })
+}
+
+/// Runs `body` inside one activation whose argument 0 is `arg` and whose `original` is the
+/// callable the guest may run (any number of times). `body` gets the handle of argument 0. When
+/// `body` returns (or unwinds) the arena is freed and every handle is `Stale`.
+pub fn scope<A: 'static, R>(
+    arg: &mut A,
+    table: &'static FieldTable<A>,
+    original: &mut dyn FnMut(&mut A) -> i64,
+    body: impl FnOnce(u64) -> R,
+) -> (R, Finished) {
+    let a: *mut A = arg;
+    let mut cell = Cell1 { a, original };
+    let mut args: [Option<ArgSlot>; MAX_ARGS] = [None; MAX_ARGS];
+    args[0] = Some(ArgSlot::new(a, table));
+    // Declared after `cell`, so dropped (record removed) before the cell goes away.
+    let mut guard = Guard::open(args, 1, (&mut cell as *mut Cell1<'_, A>).cast(), run_cell::<A>);
+    let result = body(guard.handle());
+    (result, guard.close())
+}
+
+/// [`scope`] with two `&mut` arguments. `body` gets the handle of argument 0; argument 1 is that
+/// handle + 1. `original` re-receives both.
+pub fn scope2<A: 'static, B: 'static, R>(
+    a: &mut A,
+    table_a: &'static FieldTable<A>,
+    b: &mut B,
+    table_b: &'static FieldTable<B>,
+    original: &mut dyn FnMut(&mut A, &mut B) -> i64,
+    body: impl FnOnce(u64) -> R,
+) -> (R, Finished) {
+    let (pa, pb): (*mut A, *mut B) = (a, b);
+    let mut cell = Cell2 { a: pa, b: pb, original };
+    let mut args: [Option<ArgSlot>; MAX_ARGS] = [None; MAX_ARGS];
+    args[0] = Some(ArgSlot::new(pa, table_a));
+    args[1] = Some(ArgSlot::new(pb, table_b));
+    let mut guard = Guard::open(args, 2, (&mut cell as *mut Cell2<'_, A, B>).cast(), run_cell2::<A, B>);
+    let result = body(guard.handle());
+    (result, guard.close())
 }
 
 fn locate<R>(handle: u64, f: impl FnOnce(&mut Record, usize) -> Result<R, Status>) -> Result<R, Status> {
@@ -270,33 +303,61 @@ fn locate<R>(handle: u64, f: impl FnOnce(&mut Record, usize) -> Result<R, Status
     })
 }
 
-/// Reads `field` of the argument behind `handle`.
-pub fn get(handle: u64, field: u32) -> Result<i64, Status> {
-    locate(handle, |record, arg| {
-        if record.lent {
-            return Err(Status::Locked);
-        }
-        let slot = record.args[arg].as_ref().ok_or(Status::NoSuchArg)?;
-        // SAFETY: `slot` was registered by an open activation (its `&'a mut` is still borrowed),
-        // and `original` is not running (`lent` is false), so no `&mut` to the value is live.
-        unsafe { (slot.get)(slot.ptr, slot.table, field) }.ok_or(Status::BadField)
-    })
+/// Clears the lock when an accessor or `original` ends, also when it unwinds.
+struct Unlend {
+    serial: u64,
+    count_original: Option<i64>,
 }
 
-/// Writes `value` to `field` of the argument behind `handle`.
-pub fn set(handle: u64, field: u32, value: i64) -> Result<(), Status> {
-    locate(handle, |record, arg| {
+impl Drop for Unlend {
+    fn drop(&mut self) {
+        // `try_borrow_mut`: never panic in a destructor.
+        ACTS.with(|acts| {
+            if let Ok(mut acts) = acts.try_borrow_mut() {
+                if let Some(record) = acts.find(self.serial) {
+                    record.lent = false;
+                    if let Some(result) = self.count_original {
+                        record.original_calls += 1;
+                        record.last_result = result;
+                    }
+                }
+            }
+        });
+    }
+}
+
+/// Locks the activation and returns the argument's slot, so it can be used with the arena unborrowed.
+fn lend_arg(handle: u64) -> Result<(ArgSlot, Unlend), Status> {
+    let Root::HookArg { activation, .. } = Root::from_handle(handle);
+    let slot = locate(handle, |record, arg| {
         if record.lent {
             return Err(Status::Locked);
         }
-        let slot = record.args[arg].as_ref().ok_or(Status::NoSuchArg)?;
-        // SAFETY: as in `get`; the arena borrow (`RefCell`) also excludes a concurrent accessor.
-        if unsafe { (slot.set)(slot.ptr, slot.table, field, value) } {
-            Ok(())
-        } else {
-            Err(Status::BadField)
-        }
-    })
+        let slot = record.args[arg].ok_or(Status::NoSuchArg)?;
+        record.lent = true;
+        Ok(slot)
+    })?;
+    Ok((slot, Unlend { serial: activation, count_original: None }))
+}
+
+/// Reads `field` of the argument behind `handle`. The accessor runs with the arena unborrowed and
+/// the activation locked, so it may call hooked engine functions.
+pub fn get(handle: u64, field: u32) -> Result<i64, Status> {
+    let (slot, _unlend) = lend_arg(handle)?;
+    // SAFETY: `slot` was registered by an open `scope` (its borrows are held for the whole call and
+    // `locate` just found the record) and the activation stays locked until `_unlend` drops.
+    unsafe { (slot.get)(slot.ptr, slot.table, field) }.ok_or(Status::BadField)
+}
+
+/// Writes `value` to `field` of the argument behind `handle` (same rules as [`get`]).
+pub fn set(handle: u64, field: u32, value: i64) -> Result<(), Status> {
+    let (slot, _unlend) = lend_arg(handle)?;
+    // SAFETY: as in `get`.
+    if unsafe { (slot.set)(slot.ptr, slot.table, field, value) } {
+        Ok(())
+    } else {
+        Err(Status::BadField)
+    }
 }
 
 /// Runs the activation's `original`, with its handles lent for the duration. Returns the result
@@ -311,24 +372,20 @@ pub fn run_original(handle: u64) -> Result<i64, Status> {
         record.lent = true;
         Ok((record.cell, record.run))
     })?;
-    // SAFETY: `cell`/`run` were registered together by `open` and the guard keeps the cell borrowed
-    // and alive until the record is removed; the lock is held (`lent`), so nothing else uses the
-    // argument, and the arena is not borrowed here so nested activations may open and close.
-    // If `original` unwinds, `lent` stays set until the guard drops and removes the record.
+    let mut unlend = Unlend { serial: activation, count_original: None };
+    // SAFETY: `cell`/`run` were registered together by `scope`, whose stack frame (owning the cell
+    // and the argument borrows) is below us; the lock is held, so nothing else uses the arguments,
+    // and the arena is not borrowed so nested activations may open and close. If `original`
+    // unwinds, `unlend` clears the lock and the guard of `scope` removes the record.
     let result = unsafe { run(cell) };
-    ACTS.with(|acts| {
-        if let Some(record) = acts.borrow_mut().find(activation) {
-            record.lent = false;
-            record.original_calls += 1;
-            record.last_result = result;
-        }
-    });
+    unlend.count_original = Some(result);
     Ok(result)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::{Cell, RefCell};
 
     #[derive(Debug, Default, PartialEq)]
     struct Thing {
@@ -354,6 +411,10 @@ mod tests {
         },
     };
 
+    fn nop(_: &mut Thing) -> i64 {
+        0
+    }
+
     #[test]
     fn handle_roundtrip() {
         let root = Root::HookArg { activation: 123_456_789, arg: 3 };
@@ -363,66 +424,66 @@ mod tests {
     #[test]
     fn get_set_through_the_handle_and_the_owner_sees_it() {
         let mut thing = Thing::default();
-        let mut orig = |_: &mut Thing| 0;
-        let mut cell = OrigCell::new(&mut thing, &mut orig);
-        let act = Activation::open(&mut cell, &THING);
-        let h = act.handle(0);
-        assert_eq!(set(h, 0, 41), Ok(()));
-        assert_eq!(set(h, 1, 2.5f64.to_bits() as i64), Ok(()));
-        assert_eq!(get(h, 0), Ok(41));
-        assert_eq!(get(h, 7), Err(Status::BadField));
-        assert_eq!(set(h, 7, 0), Err(Status::BadField));
-        drop(act);
+        scope(&mut thing, &THING, &mut nop, |h| {
+            assert_eq!(set(h, 0, 41), Ok(()));
+            assert_eq!(set(h, 1, 2.5f64.to_bits() as i64), Ok(()));
+            assert_eq!(get(h, 0), Ok(41));
+            assert_eq!(get(h, 7), Err(Status::BadField));
+            assert_eq!(set(h, 7, 0), Err(Status::BadField));
+        });
         assert_eq!(thing, Thing { count: 41, x: 2.5 });
     }
 
     #[test]
     fn handles_go_stale_and_are_never_reused() {
         let mut thing = Thing::default();
-        let mut orig = |_: &mut Thing| 0;
-        let first = {
-            let mut cell = OrigCell::new(&mut thing, &mut orig);
-            let act = Activation::open(&mut cell, &THING);
-            let h = act.handle(0);
+        let (first, _) = scope(&mut thing, &THING, &mut nop, |h| {
             assert_eq!(live_activations(), 1);
-            act.finish();
             h
-        };
+        });
         assert_eq!(live_activations(), 0);
         assert_eq!(get(first, 0), Err(Status::Stale));
         assert_eq!(set(first, 0, 1), Err(Status::Stale));
-        let mut cell = OrigCell::new(&mut thing, &mut orig);
-        let act = Activation::open(&mut cell, &THING);
-        assert_ne!(act.handle(0), first);
-        assert_eq!(get(first, 0), Err(Status::Stale));
-        assert_eq!(get(act.handle(0) | 1, 0), Err(Status::NoSuchArg));
+        scope(&mut thing, &THING, &mut nop, |h| {
+            assert_ne!(h, first);
+            assert_eq!(get(first, 0), Err(Status::Stale));
+            assert_eq!(get(h | 1, 0), Err(Status::NoSuchArg));
+        });
+    }
+
+    /// The old hazard: forgetting the guard and then using the handle. There is no guard to forget;
+    /// forgetting what the body does have (the handle) changes nothing, and the arena is freed.
+    #[test]
+    fn forgetting_cannot_keep_an_activation_alive() {
+        let mut thing = Thing::default();
+        let (h, _) = scope(&mut thing, &THING, &mut nop, |h| {
+            std::mem::forget(Box::new(h));
+            h
+        });
+        assert_eq!(live_activations(), 0);
+        assert_eq!(get(h, 0), Err(Status::Stale));
     }
 
     #[test]
     fn lending_lock_rejects_while_original_runs_and_unlocks_after() {
         let mut thing = Thing::default();
-        let seen = std::cell::RefCell::new(Vec::new());
-        let handle = std::cell::Cell::new(0u64);
+        let seen = RefCell::new(Vec::new());
+        let handle = Cell::new(0u64);
         let mut orig = |t: &mut Thing| {
-            // The guest-side attempt: the handle is lent to `original`.
             seen.borrow_mut().push(get(handle.get(), 0));
             seen.borrow_mut().push(set(handle.get(), 0, 99).map(|()| 0));
-            // A second run of the same original from inside it is refused too.
             seen.borrow_mut().push(run_original(handle.get()));
             t.count += 1;
             7
         };
-        let mut cell = OrigCell::new(&mut thing, &mut orig);
-        let act = Activation::open(&mut cell, &THING);
-        handle.set(act.handle(0));
-        assert_eq!(run_original(handle.get()), Ok(7));
-        assert_eq!(*seen.borrow(), vec![Err(Status::Locked); 3]);
-        // After original the handle works again, and sees the engine's change, not the rejected write.
-        assert_eq!(get(handle.get(), 0), Ok(1));
-        assert_eq!(set(handle.get(), 0, 10), Ok(()));
-        // original may run again; the record counts both runs and the last result.
-        assert_eq!(run_original(handle.get()), Ok(7));
-        let fin = act.finish();
+        let (_, fin) = scope(&mut thing, &THING, &mut orig, |h| {
+            handle.set(h);
+            assert_eq!(run_original(h), Ok(7));
+            assert_eq!(*seen.borrow(), vec![Err(Status::Locked); 3]);
+            assert_eq!(get(h, 0), Ok(1));
+            assert_eq!(set(h, 0, 10), Ok(()));
+            assert_eq!(run_original(h), Ok(7));
+        });
         assert_eq!(fin, Finished { original_calls: 2, last_result: 7 });
         assert_eq!(thing.count, 11);
     }
@@ -431,93 +492,164 @@ mod tests {
     fn nested_activation_cannot_use_the_lent_outer_handle() {
         let mut outer = Thing::default();
         let mut inner = Thing::default();
-        let outer_handle = std::cell::Cell::new(0u64);
-        let seen = std::cell::RefCell::new(Vec::new());
+        let outer_handle = Cell::new(0u64);
+        let seen = RefCell::new(Vec::new());
         let mut orig_outer = |_: &mut Thing| {
-            let mut inner_orig = |_: &mut Thing| 0;
-            let mut cell = OrigCell::new(&mut inner, &mut inner_orig);
-            let act = Activation::open(&mut cell, &THING);
-            let h = act.handle(0);
-            seen.borrow_mut().push(get(outer_handle.get(), 0)); // outer is lent: Locked
-            seen.borrow_mut().push(get(h, 0)); // own handle: fine
-            assert_eq!(live_activations(), 2);
+            scope(&mut inner, &THING, &mut nop, |h| {
+                seen.borrow_mut().push(get(outer_handle.get(), 0));
+                seen.borrow_mut().push(get(h, 0));
+                assert_eq!(live_activations(), 2);
+            });
             0
         };
-        let mut cell = OrigCell::new(&mut outer, &mut orig_outer);
-        let act = Activation::open(&mut cell, &THING);
-        outer_handle.set(act.handle(0));
-        run_original(outer_handle.get()).unwrap();
+        scope(&mut outer, &THING, &mut orig_outer, |h| {
+            outer_handle.set(h);
+            run_original(h).unwrap();
+        });
         assert_eq!(*seen.borrow(), vec![Err(Status::Locked), Ok(0)]);
-        drop(act);
         assert_eq!(live_activations(), 0);
     }
 
     #[test]
     fn arena_is_freed_on_panic() {
         let mut thing = Thing::default();
-        let mut orig = |_: &mut Thing| 0;
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let mut cell = OrigCell::new(&mut thing, &mut orig);
-            let _act = Activation::open(&mut cell, &THING);
-            assert_eq!(live_activations(), 1);
-            panic!("shim bug");
+            scope(&mut thing, &THING, &mut nop, |_| {
+                assert_eq!(live_activations(), 1);
+                panic!("shim bug");
+            });
         }));
         assert!(result.is_err());
         assert_eq!(live_activations(), 0);
     }
 
     #[test]
-    fn panic_inside_original_still_frees_the_arena() {
+    fn panic_inside_original_frees_the_arena_and_the_lock() {
         let mut thing = Thing::default();
         let mut orig = |_: &mut Thing| -> i64 { panic!("engine body panics") };
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let mut cell = OrigCell::new(&mut thing, &mut orig);
-            let act = Activation::open(&mut cell, &THING);
-            let _ = run_original(act.handle(0));
+            scope(&mut thing, &THING, &mut orig, |h| {
+                let _ = run_original(h);
+            });
         }));
         assert!(result.is_err());
         assert_eq!(live_activations(), 0);
     }
 
+    #[derive(Default, Debug, PartialEq)]
+    struct Other(i32);
+    static OTHER: FieldTable<Other> = FieldTable {
+        get: |o, f| (f == 0).then(|| i64::from(o.0)),
+        set: |o, f, v| {
+            if f == 0 {
+                o.0 = v as i32;
+            }
+            f == 0
+        },
+    };
+
     #[test]
-    fn two_arguments_have_two_handles() {
-        #[derive(Default)]
-        struct Other(i32);
-        static OTHER: FieldTable<Other> = FieldTable {
-            get: |o, f| (f == 0).then(|| i64::from(o.0)),
-            set: |o, f, v| {
-                if f == 0 {
-                    o.0 = v as i32;
-                }
-                f == 0
-            },
-        };
+    fn two_arguments_have_two_handles_and_original_receives_both() {
         let mut a = Thing::default();
         let mut b = Other::default();
-        let mut orig = |_: &mut Thing| 0;
-        let mut cell = OrigCell::new(&mut a, &mut orig);
-        let mut act = Activation::open(&mut cell, &THING);
-        let index = act.add_arg(&mut b, &OTHER);
-        assert_eq!(index, 1);
-        assert_eq!(set(act.handle(0), 0, 3), Ok(()));
-        assert_eq!(set(act.handle(1), 0, 4), Ok(()));
-        assert_eq!(get(act.handle(2), 0), Err(Status::NoSuchArg));
-        drop(act);
-        assert_eq!((a.count, b.0), (3, 4));
+        let mut orig = |a: &mut Thing, b: &mut Other| {
+            a.count += 1;
+            b.0 += 10;
+            5
+        };
+        let (_, fin) = scope2(&mut a, &THING, &mut b, &OTHER, &mut orig, |h| {
+            assert_eq!(set(h, 0, 3), Ok(()));
+            assert_eq!(set(h + 1, 0, 4), Ok(()));
+            assert_eq!(get(h + 2, 0), Err(Status::NoSuchArg));
+            assert_eq!(run_original(h), Ok(5));
+            // original lent both: either handle is locked while it ran, free again after
+            assert_eq!(get(h, 0), Ok(4));
+            assert_eq!(get(h + 1, 0), Ok(14));
+        });
+        assert_eq!(fin.original_calls, 1);
+        assert_eq!((a.count, b.0), (4, 14));
+    }
+
+    #[test]
+    fn both_arguments_are_locked_while_original_runs() {
+        let mut a = Thing::default();
+        let mut b = Other::default();
+        let h0 = Cell::new(0u64);
+        let seen = RefCell::new(Vec::new());
+        let mut orig = |_: &mut Thing, _: &mut Other| {
+            seen.borrow_mut().push(get(h0.get(), 0));
+            seen.borrow_mut().push(get(h0.get() + 1, 0));
+            0
+        };
+        scope2(&mut a, &THING, &mut b, &OTHER, &mut orig, |h| {
+            h0.set(h);
+            run_original(h).unwrap();
+        });
+        assert_eq!(*seen.borrow(), vec![Err(Status::Locked); 2]);
+    }
+
+    /// A field accessor that calls a function with its own hook (a nested scope on the same object)
+    /// must neither panic on the arena `RefCell` nor see the activation unlocked.
+    #[test]
+    fn an_accessor_may_open_a_nested_activation() {
+        static HOOKING: FieldTable<Thing> = FieldTable {
+            get: |t, f| {
+                if f == 9 {
+                    // "a hooked engine fn called by the accessor": opens its own activation on `t`
+                    let (r, _) = scope(t, &THING, &mut nop, |h2| {
+                        assert_eq!(get(h2, 0), Ok(0));
+                        live_activations() as i64
+                    });
+                    return Some(r);
+                }
+                None
+            },
+            set: |_, _, _| false,
+        };
+        let mut thing = Thing::default();
+        let outer_h = Cell::new(0u64);
+        scope(&mut thing, &HOOKING, &mut nop, |h| {
+            outer_h.set(h);
+            assert_eq!(get(h, 9), Ok(2), "outer and nested are both open");
+            // and the outer one is unlocked again afterwards
+            assert_eq!(get(h, 9), Ok(2));
+        });
+        assert_eq!(live_activations(), 0);
+    }
+
+    #[test]
+    fn accessor_locks_the_activation_while_it_runs() {
+        static PROBE: FieldTable<Thing> = FieldTable {
+            get: |_, f| {
+                if f == 5 {
+                    let h = PROBE_HANDLE.with(Cell::get);
+                    return Some(match get(h, 0) {
+                        Err(Status::Locked) => 1,
+                        _ => 0,
+                    });
+                }
+                None
+            },
+            set: |_, _, _| false,
+        };
+        thread_local! { static PROBE_HANDLE: Cell<u64> = const { Cell::new(0) }; }
+        let mut thing = Thing::default();
+        scope(&mut thing, &PROBE, &mut nop, |h| {
+            PROBE_HANDLE.set(h);
+            assert_eq!(get(h, 5), Ok(1), "re-entering the same handle from the accessor is Locked");
+        });
     }
 
     #[test]
     fn other_thread_sees_nothing() {
         let mut thing = Thing::default();
-        let mut orig = |_: &mut Thing| 0;
-        let mut cell = OrigCell::new(&mut thing, &mut orig);
-        let act = Activation::open(&mut cell, &THING);
-        let h = act.handle(0);
-        std::thread::spawn(move || {
-            assert_eq!(get(h, 0), Err(Status::Stale));
-            assert_eq!(live_activations(), 0);
-        })
-        .join()
-        .unwrap();
+        scope(&mut thing, &THING, &mut nop, |h| {
+            std::thread::spawn(move || {
+                assert_eq!(get(h, 0), Err(Status::Stale));
+                assert_eq!(live_activations(), 0);
+            })
+            .join()
+            .unwrap();
+        });
     }
 }

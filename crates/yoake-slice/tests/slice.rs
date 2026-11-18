@@ -17,6 +17,11 @@ static TABLE: FieldTable<Thing> = FieldTable {
     get: |t, f| match f {
         0 => Some(i64::from(t.counter)),
         1 => Some(t.x.to_bits() as i64),
+        // an accessor that calls a hooked engine function on its receiver
+        2 => {
+            tick(t);
+            Some(0)
+        }
         _ => None,
     },
     set: |t, f, v| match f {
@@ -38,6 +43,36 @@ thread_local! {
     static NEST: Cell<bool> = const { Cell::new(false) };
     static OTHER: RefCell<Thing> = RefCell::new(Thing::default());
     static SLEEP_MS: Cell<u64> = const { Cell::new(0) };
+    /// While set, the engine body ticks the same object again (a nested hook on the same object).
+    static NEST_SAME: Cell<bool> = const { Cell::new(false) };
+    static PANIC: Cell<bool> = const { Cell::new(false) };
+    static INSPECT: Cell<bool> = const { Cell::new(false) };
+    static INSPECTED: Cell<Option<(bool, bool, bool, bool)>> = const { Cell::new(None) };
+}
+
+#[derive(Default)]
+struct Other {
+    n: i32,
+}
+
+static OTHER_TABLE: FieldTable<Other> = FieldTable {
+    get: |o, f| (f == 0).then(|| i64::from(o.n)),
+    set: |o, f, v| {
+        if f == 0 {
+            o.n = v as i32;
+        }
+        f == 0
+    },
+};
+
+/// A hooked engine function with two `&mut` arguments (test only).
+fn pair_tick(a: &mut Thing, b: &mut Other) -> i64 {
+    runtime::dispatch2(a, &TABLE, b, &OTHER_TABLE, &mut |a, b| {
+        ORIGINAL_RUNS.set(ORIGINAL_RUNS.get() + 1);
+        a.velocity += 1;
+        b.n += 5;
+        9
+    })
 }
 
 /// The hooked engine function: `Thing::tick`, with a slot (here: `dispatch` directly).
@@ -52,14 +87,28 @@ fn real_tick(thing: &mut Thing) -> i64 {
     if ms > 0 {
         std::thread::sleep(std::time::Duration::from_millis(ms));
     }
+    if PANIC.replace(false) {
+        panic!("engine body panics inside original");
+    }
+    if INSPECT.replace(false) {
+        // from inside `original`: the instance is borrowed by the running guest
+        let busy = runtime::stats().busy;
+        let reports = runtime::take_reports().is_err();
+        let install = runtime::install(GUEST_WAT.as_bytes(), ModConfig::new("hook_basic")).is_err();
+        let uninstall = runtime::uninstall().is_err();
+        INSPECTED.set(Some((busy, reports, install, uninstall)));
+    }
     if NEST.replace(false) {
         OTHER.with(|other| tick(&mut other.borrow_mut()));
+    }
+    if NEST_SAME.replace(false) {
+        tick(thing);
     }
     42
 }
 
 fn reports() -> Vec<(i32, i64)> {
-    runtime::take_reports()
+    runtime::take_reports().unwrap()
 }
 fn find(reports: &[(i32, i64)], slot: i32) -> Vec<i64> {
     reports.iter().filter(|(s, _)| *s == slot).map(|(_, v)| *v).collect()
@@ -254,8 +303,162 @@ fn hooks_do_not_fire_on_other_threads() {
 
 #[test]
 fn no_mod_installed_is_a_plain_call() {
-    runtime::uninstall();
+    runtime::uninstall().unwrap();
     let mut thing = Thing::default();
     assert_eq!(tick(&mut thing), 42);
     assert_eq!((thing.counter, thing.velocity), (0, 1));
+}
+
+// ---------------------------------------------------------------- round 2 (Fable review)
+
+#[test]
+fn original_called_twice_from_wasm_runs_the_body_twice() {
+    install("hook_twice");
+    let mut thing = Thing::default();
+    tick(&mut thing);
+    assert_eq!(ORIGINAL_RUNS.get(), 2);
+    assert_eq!(thing.velocity, 2);
+    assert_eq!(find(&reports(), 80), [0]);
+    assert!(!runtime::stats().disabled);
+    assert_eq!(live_activations(), 0);
+}
+
+#[test]
+fn out_pointer_out_of_bounds_traps_the_guest_not_the_host() {
+    // `get` with `out` past the end: the original never ran, so it runs once as the fallback
+    install("hook_oob_get");
+    let mut thing = Thing::default();
+    assert_eq!(tick(&mut thing), 42);
+    let stats = runtime::stats();
+    assert!(stats.disabled, "{stats:?}");
+    assert!(stats.trap.unwrap().contains("out of bounds"));
+    assert_eq!(ORIGINAL_RUNS.get(), 1);
+    assert_eq!(thing.velocity, 1);
+    // `original` with `out` past the end: the body ran, then the write failed: no second run
+    ORIGINAL_RUNS.set(0);
+    install("hook_oob_original");
+    let mut thing = Thing::default();
+    assert_eq!(tick(&mut thing), 42, "the recorded result");
+    assert!(runtime::stats().disabled);
+    assert_eq!(ORIGINAL_RUNS.get(), 1, "never twice");
+    assert_eq!(thing.velocity, 1);
+    assert_eq!(live_activations(), 0);
+}
+
+#[test]
+fn fuel_exhaustion_in_a_nested_activation_leaves_the_outer_one_running() {
+    let mut cfg = ModConfig::new("hook_nested_spin");
+    cfg.fuel = Some(50_000);
+    runtime::install(GUEST_WAT.as_bytes(), cfg).unwrap();
+    NEST.set(true);
+    let mut outer = Thing::default();
+    tick(&mut outer);
+    let stats = runtime::stats();
+    assert!(stats.disabled);
+    assert!(stats.trap.unwrap().contains("fuel"));
+    assert_eq!(stats.entries, 2);
+    assert_eq!(stats.depth, 0);
+    assert_eq!(stats.fuel_left, Some(runtime::INITIAL_FUEL), "the outer caller's fuel is back");
+    assert_eq!(outer.counter, 31, "the outer activation finished its hook");
+    let inner = OTHER.with(|o| o.borrow().velocity);
+    assert_eq!((outer.velocity, inner), (1, 1));
+    assert_eq!(ORIGINAL_RUNS.get(), 2, "outer original + nested fallback");
+}
+
+#[test]
+fn nested_hook_on_the_same_object() {
+    install("hook_reenter");
+    NEST_SAME.set(true);
+    let mut thing = Thing::default();
+    tick(&mut thing);
+    let r = reports();
+    assert_eq!(find(&r, 40), [1, 2]);
+    assert_eq!(find(&r, 20), [2], "the outer handle of the same object is lent");
+    assert_eq!(find(&r, 21), [2]);
+    assert_eq!(thing.velocity, 2, "both original runs touched the one object");
+    assert_eq!(thing.counter, 101, "the nested write 102 came first, the outer 101 last");
+    assert_eq!(ORIGINAL_RUNS.get(), 2);
+    assert_eq!(live_activations(), 0);
+}
+
+#[test]
+fn an_accessor_that_calls_a_hooked_engine_function_does_not_overlap_contexts() {
+    install("hook_accessor");
+    let mut thing = Thing::default();
+    tick(&mut thing);
+    let r = reports();
+    assert_eq!(find(&r, 60), [0], "get(field 2) ran the accessor, which ticked the object");
+    assert_eq!(find(&r, 61), [0, 0]);
+    assert_eq!(runtime::stats().entries, 2, "the accessor tick entered the guest (nested)");
+    assert_eq!(ORIGINAL_RUNS.get(), 2);
+    assert_eq!(thing.velocity, 2);
+    assert!(!runtime::stats().disabled);
+    assert_eq!(runtime::stats().depth, 0);
+    assert_eq!(live_activations(), 0);
+}
+
+#[test]
+fn runtime_calls_from_inside_original_report_busy_instead_of_panicking() {
+    install("hook_min");
+    INSPECT.set(true);
+    let mut thing = Thing::default();
+    tick(&mut thing);
+    assert_eq!(INSPECTED.get(), Some((true, true, true, true)));
+    // and the instance is intact afterwards
+    assert!(!runtime::stats().busy);
+    assert!(runtime::stats().installed);
+    tick(&mut thing);
+    assert_eq!(runtime::stats().entries, 2);
+}
+
+#[test]
+fn engine_panic_inside_original_restores_fuel_epoch_and_depth() {
+    let mut cfg = ModConfig::new("hook_burn");
+    cfg.fuel = Some(200_000);
+    cfg.epoch_ticks = Some(5_000);
+    runtime::install(GUEST_WAT.as_bytes(), cfg).unwrap();
+    PANIC.set(true);
+    let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        tick(&mut Thing::default());
+    }));
+    assert!(caught.is_err(), "the panic reaches the top");
+    let stats = runtime::stats();
+    assert_eq!(stats.depth, 0);
+    assert_eq!(stats.epoch_depth, 0);
+    assert_eq!(stats.fuel_left, Some(runtime::INITIAL_FUEL), "the caller's fuel was put back");
+    assert!(!stats.disabled, "{stats:?}");
+    assert_eq!(live_activations(), 0);
+    // later calls are metered correctly: a full activation, fuel back at the start value again
+    let mut thing = Thing::default();
+    tick(&mut thing);
+    let after = runtime::stats();
+    assert_eq!((after.depth, after.epoch_depth, after.entries), (0, 0, 2));
+    assert_eq!(after.fuel_left, Some(runtime::INITIAL_FUEL));
+    assert!(after.max_fuel_used > 1000 && after.max_fuel_used < 200_000, "{after:?}");
+    assert!(!after.disabled);
+    assert_eq!(thing.velocity, 1);
+}
+
+#[test]
+fn two_mut_arguments_original_receives_both() {
+    install("hook_pair");
+    let (mut a, mut b) = (Thing::default(), Other::default());
+    pair_tick(&mut a, &mut b);
+    let r = reports();
+    assert_eq!(find(&r, 70), [0]);
+    assert_eq!(find(&r, 72), [11], "argument 0 written through h");
+    assert_eq!(find(&r, 74), [27], "argument 1 written through h+1 (22), then the body added 5");
+    assert_eq!((a.velocity, b.n, a.counter), (1, 27, 11));
+    assert_eq!(ORIGINAL_RUNS.get(), 1);
+    assert_eq!(live_activations(), 0);
+}
+
+#[test]
+fn two_mut_arguments_trap_runs_the_original_once_with_both() {
+    install("hook_trap_before");
+    let (mut a, mut b) = (Thing::default(), Other::default());
+    assert_eq!(pair_tick(&mut a, &mut b), 9);
+    assert_eq!((a.velocity, b.n, a.counter), (1, 5, 31));
+    assert_eq!(ORIGINAL_RUNS.get(), 1);
+    assert!(runtime::stats().disabled);
 }

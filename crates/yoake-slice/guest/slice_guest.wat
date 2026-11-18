@@ -95,6 +95,45 @@
     (drop (call $orig (local.get $h) (i32.const 72)))
     (i64.const 0))
 
+  ;; original twice from WASM; the second call must run the body again
+  (func (export "hook_twice") (param $h i64) (result i64)
+    (call $report (i32.const 80) (i64.extend_i32_s (call $orig (local.get $h) (i32.const 72))))
+    (call $report (i32.const 81) (i64.extend_i32_s (call $orig (local.get $h) (i32.const 72))))
+    (i64.const 0))
+  ;; `out` past the end of the 1-page memory: the import must trap the guest, not corrupt anything
+  (func (export "hook_oob_get") (param $h i64) (result i64)
+    (drop (call $get (local.get $h) (i32.const 0) (i32.const 65530)))
+    (i64.const 0))
+  (func (export "hook_oob_original") (param $h i64) (result i64)
+    (drop (call $orig (local.get $h) (i32.const 65530)))
+    (i64.const 0))
+  ;; a nested activation spins until its own fuel is gone; the outer one must survive
+  (func (export "hook_nested_spin") (param $h i64) (result i64)
+    (if (i64.ne (global.get $outer) (i64.const 0)) (then (loop $l (br $l))))
+    (global.set $outer (local.get $h))
+    (drop (call $orig (local.get $h) (i32.const 72)))
+    (global.set $outer (i64.const 0))
+    (drop (call $set (local.get $h) (i32.const 0) (i64.const 31)))
+    (i64.const 0))
+  ;; field 2's accessor calls a hooked engine function (nested activation on the same object)
+  (func (export "hook_accessor") (param $h i64) (result i64)
+    (global.set $depth (i32.add (global.get $depth) (i32.const 1)))
+    (if (i32.eq (global.get $depth) (i32.const 1)) (then
+      (call $report (i32.const 60) (i64.extend_i32_s (call $get (local.get $h) (i32.const 2) (i32.const 64))))))
+    (call $report (i32.const 61) (i64.extend_i32_s (call $orig (local.get $h) (i32.const 72))))
+    (global.set $depth (i32.sub (global.get $depth) (i32.const 1)))
+    (i64.const 0))
+  ;; two &mut arguments: handle h is argument 0, h+1 argument 1
+  (func (export "hook_pair") (param $h i64) (result i64)
+    (drop (call $set (local.get $h) (i32.const 0) (i64.const 11)))
+    (drop (call $set (i64.add (local.get $h) (i64.const 1)) (i32.const 0) (i64.const 22)))
+    (call $report (i32.const 70) (i64.extend_i32_s (call $orig (local.get $h) (i32.const 72))))
+    (call $report (i32.const 71) (i64.extend_i32_s (call $get (local.get $h) (i32.const 0) (i32.const 64))))
+    (call $report (i32.const 72) (i64.load (i32.const 64)))
+    (call $report (i32.const 73) (i64.extend_i32_s (call $get (i64.add (local.get $h) (i64.const 1)) (i32.const 0) (i32.const 64))))
+    (call $report (i32.const 74) (i64.load (i32.const 64)))
+    (i64.const 0))
+
   ;; benchmark hooks
   (func (export "hook_nop") (param $h i64) (result i64) (i64.const 0))
   (func (export "hook_min") (param $h i64) (result i64)

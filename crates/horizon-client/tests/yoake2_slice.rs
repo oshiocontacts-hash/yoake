@@ -127,7 +127,7 @@ fn find(reports: &[(i32, i64)], slot: i32) -> Vec<i64> {
 
 /// What the unhooked engine does to a fresh stand in this medium.
 fn control_velocity(medium: StandMedium) -> Vec3 {
-    runtime::uninstall();
+    runtime::uninstall().unwrap();
     let mut control = stand();
     control.tick_settle(medium, step());
     control.velocity
@@ -145,7 +145,7 @@ fn guest_changes_self_state_and_the_game_sees_it() {
     assert_eq!(s.position.x, 12.5, "position.x written through the handle");
     assert_eq!(s.velocity, expected, "the engine body ran with the same effect as unhooked");
     assert_eq!(ORIGINAL_RUNS.get(), 1);
-    let r = runtime::take_reports();
+    let r = runtime::take_reports().unwrap();
     assert_eq!(find(&r, 10), [0]);
     assert_eq!(find(&r, 12), [5]);
     assert_eq!(live_activations(), 0);
@@ -161,7 +161,7 @@ fn reentrancy_and_the_lending_lock() {
     let mut outer = stand();
     outer.tick_settle(StandMedium::Air, step());
     let inner_ticks = OTHER.with(|o| o.borrow().fire_ticks);
-    let r = runtime::take_reports();
+    let r = runtime::take_reports().unwrap();
     assert_eq!(find(&r, 40), [1, 2], "the guest was re-entered on the same store");
     assert_eq!(find(&r, 20), [2], "get through the lent outer handle: Locked");
     assert_eq!(find(&r, 21), [2], "set through the lent outer handle: Locked");
@@ -234,7 +234,7 @@ fn stale_and_forged_handles_are_errors() {
     let mut s = stand();
     s.tick_settle(StandMedium::Air, step());
     s.tick_settle(StandMedium::Air, step());
-    let r = runtime::take_reports();
+    let r = runtime::take_reports().unwrap();
     assert_eq!(find(&r, 50), [1]);
     assert_eq!(find(&r, 51), [4]);
     assert_eq!(find(&r, 52), [3]);
