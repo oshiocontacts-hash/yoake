@@ -3,6 +3,7 @@
 mod catalog;
 mod compatibility;
 mod config;
+pub mod control;
 mod fs;
 mod http_policy;
 mod installed;

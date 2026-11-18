@@ -109,13 +109,13 @@ It builds to a **core module** with the installed `wasm32-wasip2` target and no 
 
 **Permission is bound to content; the origin is metadata recorded on arrival.**
 
-- The player's approval is an entry of `<mods folder>/full-access.toml`:
+- The player's approval is an entry of `full-access.toml` (in the control folder, MX3L3 below):
   `[[allow]] id = "..." version = "..." sha256 = "<64 hex of the .yak file>"`. The loader hashes the package file; a
   package whose bytes differ from the approved ones (an update, a replaced file) is **not loaded** and reported as
   `ContentChanged` ("changed since it was approved ... approve it again"). Approving again replaces the old entry. The
   MX3L1 form (`[allow] id = true`) names no content: it is read, listed in the report and approves nothing.
 - The origin of a package is **not** inferred from the folder. It is the record written when the package arrived,
-  `<mods folder>/yak-origins.toml`: `[[package]] sha256 = ... id = ... version = ... origin = "local" | "catalog" |
+  `yak-origins.toml` (control folder): `[[package]] sha256 = ... id = ... version = ... origin = "local" | "catalog" |
   "server" | "friend"` (+ `signer` for the catalog). `yoake2_mods::install_package` stores a file and records its origin;
   the player's own installs use `local`, catalog downloads `catalog` (with the signer), deliveries from a server or a
   friend `server` / `friend`. Nothing in this tree delivers full-access packages yet (the launcher extracts sandboxed
@@ -158,3 +158,35 @@ chain the total nesting can be deeper than 16 (each level still costs native sta
 **Chains are cached per hook id** (`chain_for`): built on first use, dropped whenever a mod is loaded, unloaded or dies
 (a generation counter), so the hot path is one hash lookup and an `Rc` clone. A mod's registrations change only
 inside its `yoake_init`, before it is in the list.
+
+## Control files and remote packages (MX3L3)
+
+- **The control files are outside the game root.** `full-access.toml` and `yak-origins.toml` are no longer in
+  `<game root>/mods`. They live in the launcher-owned `yoake-full-access/` folder of the launcher's data folder
+  (`backend::data_dir()`, e.g. `%APPDATA%\horizon-launcher\yoake-full-access`; `horizon_mods::yak::control::control_dir_in`),
+  and the launcher gives the game the path explicitly: `--full-access-dir <path>` or `YOAKE_FULL_ACCESS_DIR` (the option
+  wins). **No path, a relative path, or a path inside the game folder (either way round) means nothing is full-access**
+  (`Control::open`). The launcher side is not wired yet (see "Open" in the MX3L3 report): until the launcher sets
+  the option, the full-access loader runs nothing.
+- **Seal (tamper detection).** Every save is atomic (temp file, then rename) and is followed by the file's SHA-256 in
+  `<control folder>.seal` (a sibling in the launcher's data folder). The game refuses a file that differs from its seal,
+  an existing file without a seal, or a sealed file that is missing, and then nothing runs as full-access. This is a
+  hash, not a MAC: it stops edits by anything that does not also rewrite the seal. **Next step: an HMAC keyed by a
+  secret in the OS credential store** (the launcher's `account.rs` keychain), which the launcher would hand to the game
+  per launch.
+- **Protected paths.** `Control::open` registers the control folder and the seal as protected for the process
+  (`control::protect`). Every storage root and every file-taking binding must call `control::guard(path)` first: it
+  resolves `.` / `..` and symlinks (through the longest existing prefix, so a not-yet-existing child counts) and refuses
+  anything inside. `yoake-wasm`'s `DiskStorage` does. The current generated bindings (ids.lock.json) are getters,
+  setters and methods on entities, items and the `Game` root and take no paths; the first binding that opens a file
+  must call `guard`.
+- **Remote packages.** `install_package` puts `Origin::Server` / `Origin::Friend` packages into
+  `<mods>/remote/<origin>/`, which the loader never scans: they do not take part in duplicate-id detection and the
+  control files are not touched, so they cannot add, change or demote a record of a local or catalog package (the same
+  bytes arriving from a server leave the `local` record alone). `install_package` **never overwrites** an existing
+  file (an update removes the old file with `remove_package` first).
+- **Launcher entry points** (`horizon_mods::yak::control`, which the launcher already depends on): `Control::install_local(mods_dir, source)`
+  for "install a local .yak" (copies, records origin `local`), `Control::approve(bytes)` for the player's approval,
+  `install_package(.., Origin::Catalog, signer)` for catalog downloads. A `.yak` dropped into the mods folder by hand has
+  no record and stays not-full-access.
+- `chain_for` returns at once when no mod is loaded (no lookup, no allocation).

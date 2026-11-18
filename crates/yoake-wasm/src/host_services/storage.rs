@@ -372,6 +372,8 @@ impl DiskStorage {
         {
             return Err("invalid storage mod ID".into());
         }
+        // MX3L3: never a root inside the full-access control folder (launcher-owned, see `horizon_mods::yak::control`)
+        horizon_mods::yak::control::guard(base)?;
         let base = base.canonicalize().map_err(|error| error.to_string())?;
         let base_dir = Dir::open(&base, false).map_err(|error| error.to_string())?;
         let mut directory = base_dir
@@ -857,6 +859,25 @@ mod tests {
             .join(format!("yoake-storage-{}-{time}-{sequence}", std::process::id()));
         std::fs::create_dir(&root).unwrap();
         root
+    }
+
+    #[test]
+    fn a_storage_root_inside_the_protected_control_folder_is_refused() {
+        let root = temporary_root();
+        let control = root.join("launcher").join("yoake-full-access");
+        std::fs::create_dir_all(&control).unwrap();
+        horizon_mods::yak::control::protect(&control);
+        // the folder itself, a child of it, a child that does not exist yet, and a `..` route into it
+        for base in [control.clone(), control.join("sub"), root.join("game").join("..").join("launcher").join("yoake-full-access")] {
+            let error = DiskStorage::open(&base, "example").err().expect("refused");
+            assert!(error.contains("protected folder"), "{base:?}: {error}");
+        }
+        assert!(!control.join("yoake-data").exists(), "nothing was created inside it");
+        // an ordinary root still works
+        let ordinary = root.join("ordinary");
+        std::fs::create_dir(&ordinary).unwrap();
+        assert!(DiskStorage::open(&ordinary, "example").is_ok());
+        crate::test_support::remove_dir_all(root);
     }
 
     #[test]

@@ -928,14 +928,18 @@ type ScopeFn<'s> = &'s mut dyn FnMut(u64) -> R<i64>;
 /// Chains are cached per hook id (hot path: every hooked engine call asks): the cache is dropped when a mod is
 /// loaded or unloaded or dies (`invalidate_chains`). A mod's registrations only change inside its `yoake_init`,
 /// before it is in the list, so they cannot make a cached chain stale.
-fn chain_for(hook_id: u32) -> Chain {
+fn chain_for(hook_id: u32) -> Option<Chain> {
     RT.with(|rt| {
+        // no mod loaded (the common case): nothing to look up, nothing to allocate
+        if rt.mods.borrow().is_empty() {
+            return None;
+        }
         if rt.chains_generation.get() != rt.generation.get() {
             *rt.chains.borrow_mut() = None;
             rt.chains_generation.set(rt.generation.get());
         }
         if let Some(chain) = rt.chains.borrow().as_ref().and_then(|cache| cache.get(&hook_id)) {
-            return chain.clone();
+            return Some(chain.clone());
         }
         let mods = rt.mods.borrow();
         let mut found: Vec<(i32, u64, Rc<ModSlot>)> = mods
@@ -946,7 +950,7 @@ fn chain_for(hook_id: u32) -> Chain {
         found.sort_by_key(|(priority, order, _)| (*priority, *order));
         let chain: Chain = Rc::new(found.into_iter().map(|(_, _, slot)| slot).collect());
         rt.chains.borrow_mut().get_or_insert_with(Default::default).insert(hook_id, chain.clone());
-        chain
+        Some(chain)
     })
 }
 
@@ -965,10 +969,7 @@ pub fn dispatch<T: 'static>(arg: &mut T, table: &'static FieldTable<T>, orig: &m
 
 /// [`dispatch`] for hook `hook_id`: a multiplexed guest is entered only if it registered that id.
 pub fn dispatch_id<T: 'static>(hook_id: u32, arg: &mut T, table: &'static FieldTable<T>, orig: &mut dyn FnMut(&mut T) -> i64) -> i64 {
-    let chain = chain_for(hook_id);
-    if chain.is_empty() {
-        return orig(arg);
-    }
+    let Some(chain) = chain_for(hook_id).filter(|c| !c.is_empty()) else { return orig(arg) };
     chain_step(&chain, 0, hook_id, arg, table, orig)
 }
 
@@ -996,10 +997,7 @@ pub fn dispatch_root<G: activation::PathRoot>(root: &mut G, orig: &mut dyn FnMut
 
 /// [`dispatch_root`] for hook `hook_id` (the server tick is [`HOOK_SERVER_TICK`]).
 pub fn dispatch_root_id<G: activation::PathRoot>(hook_id: u32, root: &mut G, orig: &mut dyn FnMut(&mut G) -> i64) -> i64 {
-    let chain = chain_for(hook_id);
-    if chain.is_empty() {
-        return orig(root);
-    }
+    let Some(chain) = chain_for(hook_id).filter(|c| !c.is_empty()) else { return orig(root) };
     chain_step_root(&chain, 0, hook_id, root, orig)
 }
 
@@ -1024,10 +1022,7 @@ pub fn dispatch2<A: 'static, B: 'static>(
     table_b: &'static FieldTable<B>,
     orig: &mut dyn FnMut(&mut A, &mut B) -> i64,
 ) -> i64 {
-    let chain = chain_for(0);
-    if chain.is_empty() {
-        return orig(a, b);
-    }
+    let Some(chain) = chain_for(0).filter(|c| !c.is_empty()) else { return orig(a, b) };
     chain_step2(&chain, 0, a, table_a, b, table_b, orig)
 }
 

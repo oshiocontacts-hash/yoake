@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use horizon_client::yoake2_mods::{AllowFile, Origin, OriginFile, OriginRecord, Refusal, decide, install_package, load_dir, load_package, sha256_hex};
+use horizon_client::yoake2_mods::{AllowFile, Control, Origin, OriginFile, OriginRecord, Refusal, decide, install_package, load_dir, load_package, load_world_mods, remove_package, sha256_hex};
 use horizon_mods::yak::pack_directory;
 use horizon_release_sign::SigningKey;
 use yoake_slice::activation::FieldTable;
@@ -130,6 +130,16 @@ fn arrived(paths: &[&Path], origin: Origin) -> OriginFile {
     file
 }
 
+/// A launcher-owned control folder outside the game root, and the game's mods folder: `<scratch>/launcher/yoake-full-access`
+/// and `<scratch>/game/mods`.
+fn world(name: &str) -> (Control, PathBuf) {
+    let base = scratch(name);
+    let mods = base.join("game").join("mods");
+    std::fs::create_dir_all(&mods).unwrap();
+    let control = Control::create(&base.join("launcher").join("yoake-full-access"), &base.join("game")).unwrap();
+    (control, mods)
+}
+
 fn cfg() -> ModConfig {
     ModConfig::new("")
 }
@@ -240,25 +250,28 @@ fn a_package_with_no_recorded_origin_is_never_full_access() {
 #[test]
 fn an_allowed_package_whose_content_changes_is_not_loaded_until_approved_again() {
     runtime::uninstall().unwrap();
-    let dir = scratch("changed");
+    let (control, mods) = world("changed");
     let v1 = std::fs::read(full_access(&scratch("changed_v1"), "demo_update", 10, 7)).unwrap();
-    // the player installs it and approves it: both go on record
-    install_package(&dir, "demo_update.yak", &v1, Origin::Local, None).unwrap();
-    let mut approved = AllowFile::default();
-    let entry = approved.allow_package(&v1).unwrap();
+    // the player installs it (origin local) and approves it, through the launcher's entry points
+    install_package(&control, &mods, "demo_update.yak", &v1, Origin::Local, None).unwrap();
+    let entry = control.approve(&v1).unwrap();
     assert_eq!((entry.id.as_str(), entry.version.as_str(), entry.sha256.as_str()), ("demo_update", "1.0.0", sha256_hex(&v1).as_str()));
-    approved.save(&dir).unwrap();
 
-    let load = |approved: &AllowFile| load_dir(&dir, &OriginFile::load(&dir).unwrap(), approved, &[], &cfg());
-    let report = load(&AllowFile::load(&dir).unwrap());
+    let load = |allow: &AllowFile| load_dir(&mods, &control.origins().unwrap(), allow, &[], &cfg());
+    let report = load(&control.allow().unwrap());
     assert_eq!(report.loaded.len(), 1, "the approved content loads: {:?}", report.skipped);
     runtime::uninstall().unwrap();
 
-    // an update (or a replaced file) with the same id arrives locally: other bytes
+    // installing over an existing file is refused: the approved file cannot be replaced by an install
     let v2 = std::fs::read(full_access(&scratch("changed_v2"), "demo_update", 10, 9)).unwrap();
     assert_ne!(v1, v2);
-    install_package(&dir, "demo_update.yak", &v2, Origin::Local, None).unwrap();
-    let report = load(&AllowFile::load(&dir).unwrap());
+    let error = install_package(&control, &mods, "demo_update.yak", &v2, Origin::Local, None).unwrap_err();
+    assert!(error.contains("never overwritten"), "{error}");
+    assert_eq!(std::fs::read(mods.join("demo_update.yak")).unwrap(), v1, "the file is untouched");
+    // an update: the old file is removed first, then the new one arrives
+    remove_package(&mods, "demo_update.yak").unwrap();
+    install_package(&control, &mods, "demo_update.yak", &v2, Origin::Local, None).unwrap();
+    let report = load(&control.allow().unwrap());
     assert!(report.loaded.is_empty(), "not loaded: the old approval does not match the new content");
     assert!(names().is_empty());
     match &report.skipped[0].1 {
@@ -276,10 +289,9 @@ fn an_allowed_package_whose_content_changes_is_not_loaded_until_approved_again()
     assert_eq!(t.count, 300, "no mod ran");
 
     // approving the new content loads it (and the old content stops matching)
-    let mut reapproved = AllowFile::load(&dir).unwrap();
-    reapproved.allow_package(&v2).unwrap();
-    assert!(!reapproved.is_allowed("demo_update", &sha256_hex(&v1)));
-    let report = load(&reapproved);
+    control.approve(&v2).unwrap();
+    assert!(!control.allow().unwrap().is_allowed("demo_update", &sha256_hex(&v1)));
+    let report = load(&control.allow().unwrap());
     assert_eq!(report.loaded.len(), 1, "{:?}", report.skipped);
     let mut t = Thing { count: 0 };
     engine(&mut t);
@@ -321,42 +333,135 @@ fn a_second_package_with_the_same_id_disables_both() {
 }
 
 #[test]
-fn delivered_packages_are_recorded_with_their_origin_and_distrust_is_sticky() {
+fn server_and_friend_packages_live_apart_and_cannot_disturb_an_approved_mod() {
     runtime::uninstall().unwrap();
-    let dir = scratch("install");
-    let bytes = std::fs::read(full_access(&scratch("install_src"), "demo_gift", 10, 7)).unwrap();
-    let sha = install_package(&dir, "demo_gift.yak", &bytes, Origin::Friend, None).unwrap();
-    assert_eq!(sha, sha256_hex(&bytes));
-    assert!(dir.join("demo_gift.yak").is_file());
-    let origins = OriginFile::load(&dir).unwrap();
-    assert_eq!(origins.origin_of(&sha), Some(Origin::Friend));
-    assert_eq!(origins.get(&sha).unwrap().id, "demo_gift");
-    // the player approves it (the allow list is a separate file): a friend's package still never runs
-    let mut approved = AllowFile::default();
-    approved.allow_package(&bytes).unwrap();
-    let report = load_dir(&dir, &origins, &approved, &[], &cfg());
-    assert!(report.loaded.is_empty());
-    assert_eq!(report.skipped[0].1, Refusal::FromFriend);
-    // the same bytes installed "locally" afterwards do not lift the record
-    install_package(&dir, "demo_gift_again.yak", &bytes, Origin::Local, None).unwrap();
-    assert_eq!(OriginFile::load(&dir).unwrap().origin_of(&sha), Some(Origin::Friend));
-    // the other way round: local bytes that a server sends too become server
-    let local = std::fs::read(full_access(&scratch("install_src2"), "demo_mine", 10, 7)).unwrap();
-    let sha = install_package(&dir, "demo_mine.yak", &local, Origin::Local, None).unwrap();
-    assert_eq!(OriginFile::load(&dir).unwrap().origin_of(&sha), Some(Origin::Local));
-    install_package(&dir, "demo_mine_from_server.yak", &local, Origin::Server, None).unwrap();
-    assert_eq!(OriginFile::load(&dir).unwrap().origin_of(&sha), Some(Origin::Server));
-    // catalog records keep the signer, and the file round-trips
-    let signed = std::fs::read(full_access(&scratch("install_src3"), "demo_cat", 10, 7)).unwrap();
-    let sha = install_package(&dir, "demo_cat.yak", &signed, Origin::Catalog, Some("yoake-release-1")).unwrap();
-    let back = OriginFile::load(&dir).unwrap();
+    let (control, mods) = world("remote");
+    let local = std::fs::read(full_access(&scratch("remote_src_a"), "demo_mine", 10, 7)).unwrap();
+    install_package(&control, &mods, "demo_mine.yak", &local, Origin::Local, None).unwrap();
+    control.approve(&local).unwrap();
+    let origins_before = std::fs::read(control.dir().join("yak-origins.toml")).unwrap();
+    let allow_before = std::fs::read(control.dir().join("full-access.toml")).unwrap();
+
+    // a server sends a package with the SAME id (other bytes) and a friend sends the SAME bytes
+    let other_bytes = std::fs::read(full_access(&scratch("remote_src_b"), "demo_mine", 10, 99)).unwrap();
+    let a = install_package(&control, &mods, "demo_mine.yak", &other_bytes, Origin::Server, None).unwrap();
+    let b = install_package(&control, &mods, "demo_mine.yak", &local, Origin::Friend, None).unwrap();
+    assert_eq!((a, b), (sha256_hex(&other_bytes), sha256_hex(&local)));
+    // they are stored apart, under their own origin, and never in the mods folder proper
+    assert_eq!(std::fs::read(mods.join("remote").join("server").join("demo_mine.yak")).unwrap(), other_bytes);
+    assert_eq!(std::fs::read(mods.join("remote").join("friend").join("demo_mine.yak")).unwrap(), local);
+    assert_eq!(std::fs::read(mods.join("demo_mine.yak")).unwrap(), local, "the approved file is untouched (the same file name too)");
+    // the control files did not change at all: no record was added, none changed, the same bytes were not demoted
+    assert_eq!(std::fs::read(control.dir().join("yak-origins.toml")).unwrap(), origins_before);
+    assert_eq!(std::fs::read(control.dir().join("full-access.toml")).unwrap(), allow_before);
+    assert_eq!(control.origins().unwrap().origin_of(&sha256_hex(&local)), Some(Origin::Local));
+
+    // the approved local mod still loads: no duplicate id, no disabling
+    let report = load_dir(&mods, &control.origins().unwrap(), &control.allow().unwrap(), &[], &cfg());
+    assert_eq!(report.loaded.iter().map(|l| l.id.as_str()).collect::<Vec<_>>(), ["demo_mine"], "{:?}", report.skipped);
+    assert!(report.skipped.is_empty());
+    let mut t = Thing { count: 0 };
+    engine(&mut t);
+    assert_eq!(t.count, 307);
+    runtime::uninstall().unwrap();
+
+    // overwriting an existing remote file is refused too, and a name that could leave the folder is refused
+    let error = install_package(&control, &mods, "demo_mine.yak", &other_bytes, Origin::Server, None).unwrap_err();
+    assert!(error.contains("never overwritten"), "{error}");
+    assert_eq!(std::fs::read(mods.join("remote").join("server").join("demo_mine.yak")).unwrap(), other_bytes);
+    for bad in ["../x.yak", "sub/x.yak", ".hidden.yak", "x.zip", "", "C:x.yak"] {
+        assert!(install_package(&control, &mods, bad, &local, Origin::Local, None).is_err(), "{bad:?}");
+        assert!(install_package(&control, &mods, bad, &local, Origin::Server, None).is_err(), "{bad:?}");
+    }
+    // catalog installs keep the signer, in the sealed record
+    let signed = std::fs::read(full_access(&scratch("remote_src_c"), "demo_cat", 10, 7)).unwrap();
+    let sha = install_package(&control, &mods, "demo_cat.yak", &signed, Origin::Catalog, Some("yoake-release-1")).unwrap();
+    let back = control.origins().unwrap();
     assert_eq!(back.get(&sha).unwrap().signer.as_deref(), Some("yoake-release-1"));
     assert_eq!(OriginFile::parse(&back.to_text()).unwrap(), back);
-    // names that could leave the folder or hide are refused
-    for bad in ["../x.yak", "sub/x.yak", ".hidden.yak", "x.zip", ""] {
-        assert!(install_package(&dir, bad, &bytes, Origin::Local, None).is_err(), "{bad:?}");
-    }
     assert!(names().is_empty());
+}
+
+#[test]
+fn the_launcher_entry_point_installs_a_local_package_and_a_hand_dropped_one_stays_unknown() {
+    runtime::uninstall().unwrap();
+    let (control, mods) = world("entry");
+    let source_dir = scratch("entry_src");
+    let chosen = full_access(&source_dir, "demo_chosen", 10, 7);
+    let sha = control.install_local(&mods, &chosen).unwrap();
+    assert_eq!(sha, sha256_hex(&std::fs::read(&chosen).unwrap()));
+    assert!(mods.join("demo_chosen.yak").is_file());
+    assert_eq!(control.origins().unwrap().origin_of(&sha), Some(Origin::Local));
+    assert!(control.install_local(&mods, &chosen).unwrap_err().contains("never overwritten"));
+    control.approve(&std::fs::read(&chosen).unwrap()).unwrap();
+    // a file the player drops into the folder by hand, even approved by hash: no record, so not full-access
+    let dropped = full_access(&mods, "demo_dropped", 10, 7);
+    control.approve(&std::fs::read(&dropped).unwrap()).unwrap();
+    let report = load_dir(&mods, &control.origins().unwrap(), &control.allow().unwrap(), &[], &cfg());
+    assert_eq!(report.loaded.iter().map(|l| l.id.as_str()).collect::<Vec<_>>(), ["demo_chosen"]);
+    assert!(report.skipped.iter().any(|(p, r)| p.ends_with("demo_dropped.yak") && matches!(r, Refusal::UnknownOrigin { .. })), "{:?}", report.skipped);
+    runtime::uninstall().unwrap();
+}
+
+#[test]
+fn world_start_needs_a_sealed_launcher_owned_control_folder() {
+    runtime::uninstall().unwrap();
+    let (control, mods) = world("worldstart");
+    let bytes = std::fs::read(full_access(&scratch("worldstart_src"), "demo_world", 10, 7)).unwrap();
+    install_package(&control, &mods, "demo_world.yak", &bytes, Origin::Local, None).unwrap();
+    control.approve(&bytes).unwrap();
+    let game_root = mods.parent().unwrap().to_path_buf();
+
+    // no control folder given: nothing is full-access, and the report says why
+    let report = load_world_mods(&mods, None);
+    assert!(report.loaded.is_empty());
+    assert!(report.messages().iter().any(|l| l.contains("--full-access-dir")), "{:?}", report.messages());
+    assert!(names().is_empty());
+
+    // a control folder inside the game folder is refused
+    let inside = game_root.join("mods").join("yoake-full-access");
+    let report = load_world_mods(&mods, Some(&inside));
+    assert!(report.loaded.is_empty());
+    assert!(report.messages().iter().any(|l| l.contains("inside the game folder")), "{:?}", report.messages());
+
+    // the real folder works, and loading again replaces (not duplicates) the mods
+    for _ in 0..2 {
+        let report = load_world_mods(&mods, Some(control.dir()));
+        assert_eq!(report.loaded.len(), 1, "{:?} {:?}", report.skipped, report.problems);
+        assert_eq!(names(), ["demo_world"]);
+    }
+
+    // somebody edits the allow file by hand (approves something else): refused, nothing runs
+    let path = control.dir().join("full-access.toml");
+    let mut text = std::fs::read_to_string(&path).unwrap();
+    text.push_str(&format!("\n[[allow]]\nid = \"evil\"\nversion = \"1\"\nsha256 = \"{}\"\n", "c".repeat(64)));
+    std::fs::write(&path, text).unwrap();
+    let report = load_world_mods(&mods, Some(control.dir()));
+    assert!(report.loaded.is_empty());
+    assert!(report.messages().iter().any(|l| l.contains("changed since the launcher last wrote it")), "{:?}", report.messages());
+    assert!(names().is_empty(), "the previous world's mod was unloaded and nothing took its place");
+
+    // the origin file edited by hand is refused the same way
+    control.reseal().unwrap();
+    assert_eq!(load_world_mods(&mods, Some(control.dir())).loaded.len(), 1, "the launcher accepted the file");
+    let path = control.dir().join("yak-origins.toml");
+    let mut text = std::fs::read_to_string(&path).unwrap();
+    text.push_str("\n# edited\n");
+    std::fs::write(&path, text).unwrap();
+    assert!(load_world_mods(&mods, Some(control.dir())).loaded.is_empty());
+    runtime::uninstall().unwrap();
+}
+
+#[test]
+fn nothing_inside_the_control_folder_can_be_reached_by_a_guarded_path() {
+    let (control, mods) = world("guarded");
+    // the control files sit outside the game root
+    assert!(!control.dir().starts_with(mods.parent().unwrap()));
+    // what a storage root or a file binding is about to touch: refused inside the folder and at its seal
+    for path in [control.dir().to_path_buf(), control.dir().join("full-access.toml"), control.dir().join("yak-origins.toml"), control.seal_path(), mods.join("..").join("..").join("launcher").join("yoake-full-access").join("full-access.toml")] {
+        assert!(horizon_client::yoake2_mods::guard(&path).is_err(), "{path:?}");
+    }
+    assert!(horizon_client::yoake2_mods::guard(&mods.join("anything.yak")).is_ok());
 }
 
 #[test]
@@ -400,15 +505,15 @@ fn several_mods_of_a_folder_load_in_file_order_and_compose_by_priority() {
 
 #[test]
 fn the_allow_file_round_trips_and_old_entries_approve_nothing() {
-    let dir = scratch("allowfile");
-    assert!(AllowFile::load(&dir).unwrap().entries().is_empty());
+    let (control, _) = world("allowfile");
+    assert!(control.allow().unwrap().entries().is_empty());
     let hash_one = "a".repeat(64);
     let hash_two = "b".repeat(64);
     let mut file = AllowFile::default();
     file.allow("one", "1.0.0", &hash_one);
     file.allow("two", "2.0.0", &hash_two);
-    file.save(&dir).unwrap();
-    let back = AllowFile::load(&dir).unwrap();
+    control.save_allow(&file).unwrap();
+    let back = control.allow().unwrap();
     assert!(back.is_allowed("one", &hash_one) && back.is_allowed("two", &hash_two));
     assert!(!back.is_allowed("one", &hash_two), "an approval names its content");
     assert!(!back.is_allowed("three", &hash_one));
