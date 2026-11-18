@@ -140,6 +140,24 @@ Spike order: **C0** re-entrancy (core module; check that a component traps; paus
   - with 64 B of arguments, about 320–390 ns using alloc and free per call, about 130–150 ns expected with a scratch buffer.
 - **Trap rule:** disable the mod. For the activation that trapped, run the original only if it never ran; otherwise return the recorded result. Keep a per-activation record of (calls, last_result) so side effects never run twice. Never call the disabled instance again.
 
+## 4d. Owner goal (2026-11-18): close the remaining gaps with Java Mixin inside 2.0
+
+**Call-site hooks** (`@Redirect` / `@Inject` at an INVOKE). The codemod also rewrites call expressions inside hookable function bodies into call-site slots, using the same ledger, id kind `callsite`, keyed by `caller path + callee path + ordinal`. A mod can wrap, replace or cancel one call inside one function, before or after it. Variables:
+- field writes (`self.x = …`) get optional `store` sites;
+- arguments and returns of calls are already covered by call-site hooks.
+
+Locals in general are not exposed; that covers most `@ModifyVariable` use. Empty sites cost the same as function slots.
+
+**Unbindable functions**, about 20–35 % today:
+- generics: bind the concrete instantiations the engine actually uses, collected at build time;
+- closures and `dyn Fn` arguments: a guest-callback handle (re-entry proven in C0);
+- reference returns: child handles that lock their parent;
+- `impl Trait` and iterators: an iterator handle (`next`) or collect-to-list adapters;
+- private fields: generated getters and setters;
+- hot tiny functions: no slot of their own, reached through their callers' call-site hooks.
+
+The ledger and codemod being built now (yoake2/ids) must support the `callsite` and `store` id kinds from the start. Estimated extra: +2–4 weeks inside the 2.0 schedule.
+
 ## 5. Open questions (要確認)
 
 - The first author list besides the owner (for example rumda500).

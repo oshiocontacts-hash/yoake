@@ -1741,6 +1741,7 @@ dependencies = [
  "yoake-hook-rt",
  "yoake-inject-macro",
  "yoake-inject-rt",
+ "yoake-slice",
  "yoake-state",
  "zip",
 ]
@@ -4869,6 +4870,7 @@ checksum = "4f5fa0a054ae153606df820eb0a84213e28cda41bbe04ba2628e71b6ba100fcb"
 dependencies = [
  "bitflags 2.13.2",
  "indexmap",
+ "semver",
 ]
 
 [[package]]
@@ -4920,6 +4922,7 @@ dependencies = [
  "wasmtime-internal-jit-icache-coherence",
  "wasmtime-internal-unwinder",
  "wasmtime-internal-versioned-export-macros",
+ "wat",
  "windows-sys 0.61.2",
 ]
 
@@ -6190,6 +6193,13 @@ dependencies = [
  "sha2",
  "syn 2.0.119",
  "yoake-value",
+]
+
+[[package]]
+name = "yoake-slice"
+version = "0.0.0"
+dependencies = [
+ "wasmtime",
 ]
 
 [[package]]
