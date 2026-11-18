@@ -216,3 +216,30 @@ Total with the feature: 40 passing tests (13 + 1 + 19 + 7).
 - The accessors and shims are still hand-written; generating them for category (b) types is not done. Only 1 and 2 `&mut` arguments are built.
 - A forgotten `native()` wrap is made harmless (hook does not fire), but nothing checks at compile time that every import that can reach engine code uses it.
 - MSVC timings are still not measured (Round 1 numbers stand; `scope` has the same number of thread-local accesses as before, `catch_unwind` adds none on the happy path).
+
+
+## Round 3 (decisions after the Fable re-check of 0b4316682)
+
+Same rules: all in `crates/yoake-slice`, behind the feature, no manifest changes, feature-off unchanged.
+
+1. **Depth cap.** `runtime::MAX_DEPTH = 16`. In `run_hook`, a hooked call at `depth >= MAX_DEPTH` returns `Fallthrough`: the original body runs and the guest is not entered. I tried 64 first: in a debug build wasmtime's single stack budget ran out at depth 58 ("call stack exhausted", a clean trap that disabled the mod), so the cap must come first; 16 leaves plenty of room. Test `guest_recursion_through_an_accessor_hits_the_depth_cap_and_the_game_goes_on`: a guest that recurses forever through field 2's accessor is entered exactly 16 times, the original runs once at the cap, the mod stays enabled, depth is 0, and a second call works (32 entries in total).
+2. **An engine panic disables the mod.** In the panic path of `run_hook`, after `leave`, the mod is marked `disabled` with the trap text "engine panic inside a hook: <message>", then the panic is re-thrown. Test `engine_panic_inside_original_restores_state_and_disables_the_mod` (replaces the round 2 test): state restored (depth 0, epoch 0, fuel back at `INITIAL_FUEL`, arena empty), mod disabled, and two later calls run the original without entering the guest (`entries` unchanged).
+3. **Epoch pause/restore lives in `native()`.** Every host re-entry now charges the guest's time so far, runs the engine part, then restores the outer deadline to `budget - guest_used`. The `original` import no longer has its own copy. A new `ticks` import (host tick counter, not an engine import) lets a guest wait on wall time. Test `a_nested_hook_under_get_cannot_extend_the_outer_deadline`: budget 30 ticks, the guest spins 25 ticks, calls `get` on field 2 (whose accessor runs a nested hook with its own fresh 30-tick deadline), then spins to tick 60. The second spin is interrupted at about tick 30 ("interrupt"); with the nested deadline left in place the guest would have reached tick 55. Ran 3 times, stable (fuel off in that test so only the epoch can stop it).
+4. **Nits.**
+   - `uninstall()` has `#[must_use]`.
+   - `engine_import!` is the one macro that registers an import reaching engine code: the `engine:` expression always runs inside `native()`, `finish:` receives the caller and the result (for example to write guest memory). `get`, `set` and `original` are now registered only through it; a generator emits only this form, so the wrapper cannot be forgotten. `report` and `ticks` only touch host state and use plain `func_wrap`.
+   - `original_calls` is counted before the body runs (`run_original`), so a panicking `original` still counts. Unit test `a_panicking_original_still_counts_as_run` (also shows the lock is released by the unwind).
+
+### Test counts (after Round 3)
+
+| Suite | Round 2 | Round 3 |
+|---|---:|---:|
+| `yoake-slice` activation unit tests | 13 | 14 |
+| `yoake-slice` doctests (compile_fail) | 1 | 1 |
+| `yoake-slice` `tests/slice.rs` (runtime) | 19 | 21 |
+| `horizon-client-lib --features yoake2-slice --test yoake2_slice` (real ArmorStand) | 7 (+1 ignored bench) | 7 (+1 ignored bench), green |
+| `cargo test -p horizon-client --lib`, feature OFF | 1193 passed, 40 ignored | 1193 passed, 40 ignored (unchanged) |
+
+Total with the feature: 43 passing (14 + 1 + 21 + 7).
+
+Still open: Miri (no nightly; `activation` stays dependency-free), generated shims and accessors for category (b), arities above two, MSVC timings.

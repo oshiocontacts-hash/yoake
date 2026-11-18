@@ -209,6 +209,7 @@ pub fn install(wasm_or_wat: &[u8], cfg: ModConfig) -> R<()> {
 }
 
 /// Drops the calling thread's mod instance. Fails when called from inside a hook.
+#[must_use = "uninstall fails when called from inside a hook"]
 pub fn uninstall() -> R<()> {
     RT.with(|rt| match rt.inst.try_borrow_mut() {
         Ok(mut slot) => {
@@ -274,13 +275,48 @@ pub fn take_reports() -> R<Vec<(i32, i64)>> {
 }
 
 /// Runs engine code on behalf of an import: republishes this call's own context as the innermost
-/// one, so a nested hook (from `original`, or from a field accessor) uses it. Every import that can
-/// reach engine code must go through here.
+/// one, so a nested hook (from `original`, or from a field accessor) uses it, and pauses the
+/// outer activation's epoch budget for the duration, restoring the outer deadline afterwards (a
+/// nested hook sets its own deadline and must not leave it behind). Every import that can reach
+/// engine code goes through here; use [`engine_import!`] to register one so it cannot be forgotten.
 fn native<T>(caller: &mut Caller<'_, Host>, f: impl FnOnce() -> T) -> T {
-    RT.with(|rt| {
+    let epoch_on = caller.data().cfg.epoch_ticks.is_some() && caller.data().cfg.pause_epoch_in_original;
+    if epoch_on {
+        // the guest's time so far in this activation is charged, the engine's is not
+        let now = caller.data().ticks.load(Ordering::Relaxed);
+        if let Some(top) = caller.data_mut().epoch.last_mut() {
+            top.guest_used += now.saturating_sub(top.resumed_at);
+        }
+    }
+    let out = RT.with(|rt| {
         let mut ctx = caller.as_context_mut();
         with_active(rt, &mut ctx, |_| f())
-    })
+    });
+    if epoch_on {
+        let now = caller.data().ticks.load(Ordering::Relaxed);
+        let budget = caller.data().cfg.epoch_ticks.unwrap_or(1);
+        let mut remaining = budget;
+        if let Some(top) = caller.data_mut().epoch.last_mut() {
+            top.resumed_at = now;
+            remaining = budget.saturating_sub(top.guest_used).max(1);
+        }
+        caller.as_context_mut().set_epoch_deadline(remaining);
+    }
+    out
+}
+
+/// Registers an import that reaches engine code. The `engine:` expression is the only part that
+/// runs engine code and it always runs inside [`native`]; `finish:` gets the caller and the engine
+/// result (for example to write the result into guest memory). A generator emits only this form.
+macro_rules! engine_import {
+    ($linker:expr, $name:literal, |$($arg:ident : $ty:ty),*| -> $ret:ty,
+     engine: $engine:expr, finish: |$c:ident, $e:ident| $finish:expr) => {
+        $linker.func_wrap("env", $name, move |mut caller: Caller<'_, Host>, $($arg: $ty),*| -> $ret {
+            let $e = native(&mut caller, || $engine);
+            let $c = &mut caller;
+            $finish
+        })
+    };
 }
 
 fn write_i64(caller: &mut Caller<'_, Host>, out: i32, value: i64) -> R<()> {
@@ -295,52 +331,36 @@ fn status_code(status: Status) -> i32 {
 
 fn build_linker(engine: &Engine) -> R<Linker<Host>> {
     let mut linker = Linker::new(engine);
-    linker.func_wrap("env", "get", |mut c: Caller<'_, Host>, handle: i64, field: i32, out: i32| -> R<i32> {
-        match native(&mut c, || activation::get(handle as u64, field as u32)) {
+    engine_import!(linker, "get", |handle: i64, field: i32, out: i32| -> R<i32>,
+        engine: activation::get(handle as u64, field as u32),
+        finish: |c, result| match result {
             Ok(value) => {
-                write_i64(&mut c, out, value)?;
+                write_i64(c, out, value)?;
                 Ok(status_code(Status::Ok))
             }
             Err(status) => Ok(status_code(status)),
-        }
-    })?;
-    linker.func_wrap("env", "set", |mut c: Caller<'_, Host>, handle: i64, field: i32, bits: i64| -> i32 {
-        match native(&mut c, || activation::set(handle as u64, field as u32, bits)) {
+        })?;
+    engine_import!(linker, "set", |handle: i64, field: i32, bits: i64| -> i32,
+        engine: activation::set(handle as u64, field as u32, bits),
+        finish: |_c, result| match result {
             Ok(()) => status_code(Status::Ok),
             Err(status) => status_code(status),
-        }
-    })?;
+        })?;
+    engine_import!(linker, "original", |handle: i64, out: i32| -> R<i32>,
+        engine: activation::run_original(handle as u64),
+        finish: |c, result| match result {
+            Ok(value) => {
+                write_i64(c, out, value)?;
+                Ok(status_code(Status::Ok))
+            }
+            Err(status) => Ok(status_code(status)),
+        })?;
+    // not engine imports: they only touch the host state
     linker.func_wrap("env", "report", |mut c: Caller<'_, Host>, slot: i32, value: i64| {
         c.data_mut().reports.push((slot, value));
     })?;
-    linker.func_wrap("env", "original", |mut c: Caller<'_, Host>, handle: i64, out: i32| -> R<i32> {
-        // Epoch: the guest's time so far in this activation is charged, `original`'s is not.
-        let epoch_on = c.data().cfg.epoch_ticks.is_some() && c.data().cfg.pause_epoch_in_original;
-        if epoch_on {
-            let now = c.data().ticks.load(Ordering::Relaxed);
-            if let Some(top) = c.data_mut().epoch.last_mut() {
-                top.guest_used += now.saturating_sub(top.resumed_at);
-            }
-        }
-        // Re-publish this call's own context: the engine body may hit another hook slot.
-        let result = native(&mut c, || activation::run_original(handle as u64));
-        if epoch_on {
-            let now = c.data().ticks.load(Ordering::Relaxed);
-            let budget = c.data().cfg.epoch_ticks.unwrap_or(1);
-            let mut remaining = budget;
-            if let Some(top) = c.data_mut().epoch.last_mut() {
-                top.resumed_at = now;
-                remaining = budget.saturating_sub(top.guest_used).max(1);
-            }
-            c.as_context_mut().set_epoch_deadline(remaining);
-        }
-        match result {
-            Ok(value) => {
-                write_i64(&mut c, out, value)?;
-                Ok(status_code(Status::Ok))
-            }
-            Err(status) => Ok(status_code(status)),
-        }
+    linker.func_wrap("env", "ticks", |c: Caller<'_, Host>| -> i64 {
+        c.data().ticks.load(Ordering::Relaxed) as i64
     })?;
     Ok(linker)
 }
@@ -387,6 +407,13 @@ enum Outcome {
     /// The guest trapped; the mod is now disabled.
     Trapped(Finished),
 }
+
+/// Deepest guest nesting (hook -> import -> engine -> hook ...). Past it a hooked call falls
+/// through to the original body and the guest is not entered, so guest-driven recursion (for
+/// example through a field accessor) cannot exhaust the native stack. 16, not more: every level is a
+/// wasm entry plus host frames under wasmtime's one stack budget, which ran out at depth 58 in a debug
+/// build (a clean "call stack exhausted" trap, but the cap should come first).
+pub const MAX_DEPTH: u32 = 16;
 
 type ScopeFn<'s> = &'s mut dyn FnMut(u64) -> R<i64>;
 
@@ -460,6 +487,9 @@ fn run_hook(
     let Some(hook) = (if ctx.data().disabled { None } else { ctx.data().hook.clone() }) else {
         return Outcome::Fallthrough;
     };
+    if ctx.data().depth >= MAX_DEPTH {
+        return Outcome::Fallthrough;
+    }
     let (result, finished) = scope(&mut |handle| {
         let saved = enter(ctx);
         // The guest runs with no published context: only `native` imports may reach engine code.
@@ -471,7 +501,14 @@ fn run_hook(
         leave(ctx, saved);
         match called {
             Ok(result) => result,
-            Err(payload) => resume_unwind(payload),
+            Err(payload) => {
+                // The guest's frames were abandoned mid-run (its shadow stack and allocator may be
+                // corrupt): same rule as a trap, never enter this instance again. Then re-throw.
+                let host = ctx.data_mut();
+                host.disabled = true;
+                host.trap.get_or_insert(format!("engine panic inside a hook: {}", panic_message(&payload)));
+                resume_unwind(payload)
+            }
         }
     });
     match result {
@@ -484,5 +521,15 @@ fn run_hook(
             host.trap.get_or_insert(format!("{error:#}"));
             Outcome::Trapped(finished)
         }
+    }
+}
+
+fn panic_message(payload: &Box<dyn std::any::Any + Send>) -> String {
+    if let Some(text) = payload.downcast_ref::<&str>() {
+        (*text).to_owned()
+    } else if let Some(text) = payload.downcast_ref::<String>() {
+        text.clone()
+    } else {
+        "non-string payload".to_owned()
     }
 }

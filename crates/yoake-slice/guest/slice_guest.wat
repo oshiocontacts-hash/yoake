@@ -6,6 +6,7 @@
   (import "env" "get" (func $get (param i64 i32 i32) (result i32)))
   (import "env" "set" (func $set (param i64 i32 i64) (result i32)))
   (import "env" "report" (func $report (param i32 i64)))
+  (import "env" "ticks" (func $ticks (result i64)))
   (memory (export "memory") 1)
   (global $outer (mut i64) (i64.const 0))
   (global $saved (mut i64) (i64.const 0))
@@ -132,6 +133,24 @@
     (call $report (i32.const 72) (i64.load (i32.const 64)))
     (call $report (i32.const 73) (i64.extend_i32_s (call $get (i64.add (local.get $h) (i64.const 1)) (i32.const 0) (i32.const 64))))
     (call $report (i32.const 74) (i64.load (i32.const 64)))
+    (i64.const 0))
+
+  ;; recurses forever through field 2's accessor (which ticks the object, hooking this guest again)
+  (func (export "hook_recurse") (param $h i64) (result i64)
+    (drop (call $get (local.get $h) (i32.const 2) (i32.const 64)))
+    (i64.const 0))
+  ;; epoch: spin ~25 ticks, run a nested hook under `get` (field 2), then spin to tick 60 or until trapped.
+  ;; A nested hook must not extend the outer deadline: with a 30-tick budget the second spin traps.
+  (func (export "hook_deadline") (param $h i64) (result i64)
+    (local $t0 i64)
+    (global.set $depth (i32.add (global.get $depth) (i32.const 1)))
+    (if (i32.eq (global.get $depth) (i32.const 1)) (then
+      (local.set $t0 (call $ticks))
+      (loop $a (br_if $a (i64.lt_u (call $ticks) (i64.add (local.get $t0) (i64.const 25)))))
+      (drop (call $get (local.get $h) (i32.const 2) (i32.const 64)))
+      (loop $b (br_if $b (i64.lt_u (call $ticks) (i64.add (local.get $t0) (i64.const 60)))))
+      (call $report (i32.const 90) (i64.const 1))))
+    (global.set $depth (i32.sub (global.get $depth) (i32.const 1)))
     (i64.const 0))
 
   ;; benchmark hooks

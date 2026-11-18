@@ -306,7 +306,8 @@ fn locate<R>(handle: u64, f: impl FnOnce(&mut Record, usize) -> Result<R, Status
 /// Clears the lock when an accessor or `original` ends, also when it unwinds.
 struct Unlend {
     serial: u64,
-    count_original: Option<i64>,
+    /// Set after `original` returns; the call itself is counted before the body runs.
+    result: Option<i64>,
 }
 
 impl Drop for Unlend {
@@ -316,8 +317,7 @@ impl Drop for Unlend {
             if let Ok(mut acts) = acts.try_borrow_mut() {
                 if let Some(record) = acts.find(self.serial) {
                     record.lent = false;
-                    if let Some(result) = self.count_original {
-                        record.original_calls += 1;
+                    if let Some(result) = self.result {
                         record.last_result = result;
                     }
                 }
@@ -337,7 +337,7 @@ fn lend_arg(handle: u64) -> Result<(ArgSlot, Unlend), Status> {
         record.lent = true;
         Ok(slot)
     })?;
-    Ok((slot, Unlend { serial: activation, count_original: None }))
+    Ok((slot, Unlend { serial: activation, result: None }))
 }
 
 /// Reads `field` of the argument behind `handle`. The accessor runs with the arena unborrowed and
@@ -370,15 +370,17 @@ pub fn run_original(handle: u64) -> Result<i64, Status> {
             return Err(Status::Locked);
         }
         record.lent = true;
+        // Counted before the body runs: an `original` that panics still counts as having run.
+        record.original_calls += 1;
         Ok((record.cell, record.run))
     })?;
-    let mut unlend = Unlend { serial: activation, count_original: None };
+    let mut unlend = Unlend { serial: activation, result: None };
     // SAFETY: `cell`/`run` were registered together by `scope`, whose stack frame (owning the cell
     // and the argument borrows) is below us; the lock is held, so nothing else uses the arguments,
     // and the arena is not borrowed so nested activations may open and close. If `original`
     // unwinds, `unlend` clears the lock and the guard of `scope` removes the record.
     let result = unsafe { run(cell) };
-    unlend.count_original = Some(result);
+    unlend.result = Some(result);
     Ok(result)
 }
 
@@ -547,6 +549,19 @@ mod tests {
             f == 0
         },
     };
+
+    #[test]
+    fn a_panicking_original_still_counts_as_run() {
+        let mut thing = Thing::default();
+        let mut orig = |_: &mut Thing| -> i64 { panic!("engine body panics") };
+        let (_, fin) = scope(&mut thing, &THING, &mut orig, |h| {
+            let caught = std::panic::catch_unwind(|| run_original(h));
+            assert!(caught.is_err());
+            // the lock was released by the unwind, so the handle works again
+            assert_eq!(get(h, 0), Ok(0));
+        });
+        assert_eq!(fin.original_calls, 1);
+    }
 
     #[test]
     fn two_arguments_have_two_handles_and_original_receives_both() {

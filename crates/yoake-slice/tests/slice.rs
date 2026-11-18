@@ -412,7 +412,7 @@ fn runtime_calls_from_inside_original_report_busy_instead_of_panicking() {
 }
 
 #[test]
-fn engine_panic_inside_original_restores_fuel_epoch_and_depth() {
+fn engine_panic_inside_original_restores_state_and_disables_the_mod() {
     let mut cfg = ModConfig::new("hook_burn");
     cfg.fuel = Some(200_000);
     cfg.epoch_ticks = Some(5_000);
@@ -426,17 +426,52 @@ fn engine_panic_inside_original_restores_fuel_epoch_and_depth() {
     assert_eq!(stats.depth, 0);
     assert_eq!(stats.epoch_depth, 0);
     assert_eq!(stats.fuel_left, Some(runtime::INITIAL_FUEL), "the caller's fuel was put back");
-    assert!(!stats.disabled, "{stats:?}");
+    assert!(stats.disabled, "the abandoned guest frames disable the mod: {stats:?}");
+    assert!(stats.trap.unwrap().contains("engine panic"));
     assert_eq!(live_activations(), 0);
-    // later calls are metered correctly: a full activation, fuel back at the start value again
+    // the game goes on and the guest is never entered again
     let mut thing = Thing::default();
+    ORIGINAL_RUNS.set(0);
+    tick(&mut thing);
     tick(&mut thing);
     let after = runtime::stats();
-    assert_eq!((after.depth, after.epoch_depth, after.entries), (0, 0, 2));
-    assert_eq!(after.fuel_left, Some(runtime::INITIAL_FUEL));
-    assert!(after.max_fuel_used > 1000 && after.max_fuel_used < 200_000, "{after:?}");
-    assert!(!after.disabled);
+    assert_eq!(after.entries, 1, "no new guest entry");
+    assert_eq!((after.depth, after.epoch_depth), (0, 0));
+    assert_eq!(ORIGINAL_RUNS.get(), 2);
+    assert_eq!(thing.velocity, 2);
+}
+
+#[test]
+fn guest_recursion_through_an_accessor_hits_the_depth_cap_and_the_game_goes_on() {
+    install("hook_recurse");
+    let mut thing = Thing::default();
+    tick(&mut thing);
+    let stats = runtime::stats();
+    assert_eq!(stats.entries, u64::from(runtime::MAX_DEPTH), "the guest was entered up to the cap: {stats:?}");
+    assert_eq!(stats.depth, 0);
+    assert!(!stats.disabled, "{stats:?}");
+    assert_eq!(ORIGINAL_RUNS.get(), 1, "the original ran once, at the cap");
     assert_eq!(thing.velocity, 1);
+    assert_eq!(live_activations(), 0);
+    // still fully usable
+    tick(&mut thing);
+    assert_eq!(runtime::stats().entries, 2 * u64::from(runtime::MAX_DEPTH));
+}
+
+#[test]
+fn a_nested_hook_under_get_cannot_extend_the_outer_deadline() {
+    let mut cfg = ModConfig::new("hook_deadline");
+    cfg.epoch_ticks = Some(30);
+    cfg.fuel = None;
+    runtime::install(GUEST_WAT.as_bytes(), cfg).unwrap();
+    let mut thing = Thing::default();
+    tick(&mut thing);
+    let stats = runtime::stats();
+    assert!(stats.disabled, "the outer budget (30 ticks) ran out in the second spin: {stats:?}");
+    assert!(stats.trap.unwrap().contains("interrupt"));
+    assert!(find(&reports(), 90).is_empty(), "the guest did not reach the end of its second spin");
+    assert_eq!(stats.entries, 2, "the nested hook did run under get");
+    assert_eq!(stats.epoch_depth, 0);
 }
 
 #[test]
