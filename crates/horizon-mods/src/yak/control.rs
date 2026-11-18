@@ -1,36 +1,42 @@
-//! MX3L3: the control files of full-access mods, kept where no mod can reach them.
+//! MX3L3/MX3L4: the launcher is the authority over full-access mods; the game only receives approved hashes.
 //!
-//! Two files decide what may run with the engine's own powers:
+//! Two files decide what may run with the engine's own powers, and both belong to the **launcher**:
 //!
 //! * `full-access.toml` ([`AllowFile`]): the player's approvals (id + version + SHA-256 of the `.yak` file);
 //! * `yak-origins.toml` ([`OriginFile`]): where each package came from, recorded when it arrived.
 //!
-//! A running full-access mod has engine-level power, so these files must not live in the game folder where a
-//! file-writing binding could reach them. They live in a **launcher-owned folder outside the game root**
-//! (`<launcher data dir>/yoake-full-access/`, see [`control_dir_in`]) that the launcher passes to the game as an
-//! explicit path ([`CONTROL_ARG`] or [`CONTROL_ENV`]). Without that path nothing is full-access. [`Control::open`]
-//! refuses a folder inside the game root and registers the folder (and its seal file) as **protected**
-//! ([`protect`], [`guard`]): every storage root or file binding must call [`guard`] on the paths it is about to
-//! touch and refuse when it fails (`yoake-wasm`'s disk storage does).
+//! They live in the launcher-owned `yoake-full-access/` folder of the launcher's data folder ([`control_dir_in`]),
+//! outside the game root. **The game never opens that folder.** At each launch the launcher reads and checks the files
+//! ([`Control::approved_list`]), builds the list of packages approved for *this launch* as
+//! `(id, version, sha256, origin)` entries ([`ApprovedList`]), writes it to a fresh file ([`ApprovedList::write_for_launch`])
+//! and hands the game its path with [`APPROVED_ARG`] (or [`APPROVED_ENV`]). The game loads only a package whose bytes hash
+//! to an entry of that list with origin `local` or `catalog` (catalog signatures are still verified). Without the list
+//! nothing is full-access. A full-access mod that rewrites the control files therefore changes nothing in the running
+//! game; it shows up at the *next* launch, where the launcher compares the new list with the last one the player accepted
+//! ([`ApprovedList::diff`]) and shows the difference before anything is approved.
 //!
-//! **Tamper detection.** Each save is atomic (temp file, then rename) and then recorded in a *seal*,
-//! `<control folder>.seal` next to the folder (`yoake-full-access.seal`), holding the SHA-256 of both files. A game
-//! that reads a file whose hash differs from the seal (hand-edited, replaced, half-written, or a seal that is
-//! missing for an existing file) refuses it: [`Control::allow`] / [`Control::origins`] return an error and the
-//! loader runs nothing as full-access. Only the launcher side ([`Control::save_allow`], [`Control::save_origins`],
-//! [`Control::reseal`]) writes seals. **This is a hash, not a MAC**: it catches edits by anything that does not also
-//! rewrite the seal. The next step is an HMAC keyed by a secret the launcher keeps in the OS credential store
-//! (`launcher/src/account.rs` has the keychain and an encrypted-file fallback) so that even a process that can write
-//! both files cannot forge a seal; the game would need that key handed to it, which is why it is not done yet.
+//! **What the launcher must pass** (format, path, lifetime) is documented on [`ApprovedList`].
+//!
+//! **The checksum file is a corruption check, not tamper protection.** Each save is atomic (temp file, fsync, rename) and
+//! then recorded in `<control folder>.checksum` (a sibling of the folder), holding the SHA-256 of both files. The
+//! launcher refuses a file that does not match (half-written, damaged, edited by hand, or a checksum missing for an
+//! existing file) and builds no list from it. Anything that can write the control files can rewrite the checksum too, so
+//! this does not stop an attacker; what stops a running mod is that the game never reads the folder and that the folder is
+//! unreachable by storage roots and file bindings ([`guard`]). [`Control::accept_current_files`] (the old `reseal`) rewrites
+//! the checksum from whatever is on disk: **the launcher calls it only after the player confirmed a diff it showed**.
+//! A keyed MAC is not a next step worth taking while the game cannot read the folder.
 //!
 //! **Packages from servers and friends** never enter the folder of approved mods: [`install_package`] puts them in
-//! `<mods>/remote/<origin>/` (not scanned by the loader, so they take no part in duplicate-id detection), refuses to
-//! overwrite an existing file, and never touches the control files.
+//! `<mods>/remote/<origin>/<sha256>.yak` (named by their hash; not scanned by the loader, so they take no part in
+//! duplicate-id detection), never overwrites a file with other content, and never touches the control files.
 //!
-//! **The launcher's entry point** is [`Control::install_local`] (a `.yak` the player chose: copy it into the mods
-//! folder and record origin `local`) plus [`Control::approve`] (the player's approval of that exact file). A `.yak` a
-//! player drops into the mods folder by hand has no origin record and stays not-full-access until the launcher records
-//! it.
+//! **The launcher's entry points** are [`Control::install_local`] (a `.yak` the player chose: copy it into the mods
+//! folder and record origin `local`) and [`Control::approve`] (the player's approval of that exact file). A `.yak` a
+//! player drops into the mods folder by hand has no origin record and stays not-full-access until the launcher records it.
+//!
+//! **Protected paths.** [`protect`] / [`guard`] keep every storage root and file binding of the game away from the
+//! control folder and the approved-list file ([`guard`] refuses a path inside a protected path, an ancestor of one, and
+//! any path with a `..` component).
 
 use std::collections::BTreeMap;
 use std::io::Cursor;
@@ -39,10 +45,10 @@ use std::sync::Mutex;
 
 use super::Archive;
 
-/// Command-line option that gives the game the control folder: `--full-access-dir <path>`.
-pub const CONTROL_ARG: &str = "--full-access-dir";
+/// Command-line option that gives the game this launch's approved list: `--full-access-approved <path>`.
+pub const APPROVED_ARG: &str = "--full-access-approved";
 /// Environment variable with the same meaning (the option wins).
-pub const CONTROL_ENV: &str = "YOAKE_FULL_ACCESS_DIR";
+pub const APPROVED_ENV: &str = "YOAKE_FULL_ACCESS_APPROVED";
 /// The subfolder of the launcher's data folder.
 pub const CONTROL_SUBDIR: &str = "yoake-full-access";
 
@@ -105,8 +111,16 @@ impl Origin {
 
 static PROTECTED: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
 
-/// A path with `.` and `..` resolved and symlinks followed as far as the path exists: the deepest existing
-/// ancestor is canonicalized and the rest (which may not exist yet) is appended with `..` applied.
+/// Whether `path` has a `..` component.
+pub fn has_parent_dir(path: &Path) -> bool {
+    // a verbatim path (`\?\C:\...`, what `canonicalize` gives on Windows) does not parse `..` as a parent component
+    // but as an ordinary name, so look at the names too
+    path.components().any(|c| matches!(c, Component::ParentDir) || matches!(c, Component::Normal(name) if name == ".."))
+}
+
+/// A path with `.` resolved and symlinks followed as far as the path exists: the deepest existing ancestor is
+/// canonicalized and the rest (which may not exist yet) is appended. **Callers refuse `..` before calling this**
+/// ([`guard`], [`Control::open`]): a `..` is only resolved lexically here, which is wrong when a link comes before it.
 pub fn canonical_lenient(path: &Path) -> PathBuf {
     let mut absolute = if path.is_absolute() { path.to_path_buf() } else { std::env::current_dir().unwrap_or_default().join(path) };
     // apply `..` and `.` lexically first, so that a missing directory cannot hide a traversal
@@ -163,37 +177,46 @@ pub fn protect(path: &Path) {
     }
 }
 
-/// Whether `path` is, or is inside, a protected path (symlinks and `..` resolved).
+/// Whether `path` is, is inside, or is an **ancestor of** a protected path (symlinks resolved), or has a `..` component.
 pub fn is_protected(path: &Path) -> bool {
+    if has_parent_dir(path) {
+        return true;
+    }
     let canonical = canonical_lenient(path);
-    PROTECTED.lock().unwrap_or_else(|e| e.into_inner()).iter().any(|p| is_inside(&canonical, p))
+    PROTECTED.lock().unwrap_or_else(|e| e.into_inner()).iter().any(|p| is_inside(&canonical, p) || is_inside(p, &canonical))
 }
 
-/// `Err` when `path` is inside a protected path. **Every storage root and file-taking binding calls this before it
-/// touches a path.**
+/// `Err` when `path` is inside a protected path, **an ancestor of one** (a storage root that contains the control
+/// folder would reach it), or contains a `..` component (refused outright, never resolved). **Every storage root and
+/// every file a binding is about to open calls this** (`yoake-wasm`'s `DiskStorage` does, for its root and each path it
+/// opens).
 pub fn guard(path: &Path) -> Result<(), String> {
+    if has_parent_dir(path) {
+        return Err(format!("{} has a `..` component: refused", path.display()));
+    }
     if is_protected(path) {
-        Err(format!("{} is inside a protected folder (the full-access control files)", path.display()))
+        Err(format!("{} is, is inside, or contains a protected folder (the full-access control files)", path.display()))
     } else {
         Ok(())
     }
-}
-
-#[cfg(test)]
-pub(crate) fn unprotect_all_for_test() {
-    PROTECTED.lock().unwrap_or_else(|e| e.into_inner()).clear();
 }
 
 // ---------------------------------------------------------------------------------------------------------------
 // Atomic writes
 // ---------------------------------------------------------------------------------------------------------------
 
-/// Writes `bytes` to a temporary file next to `path`, then renames it over `path`: a reader sees the old file or the
-/// new one, never half of it.
+/// Writes `bytes` to a temporary file next to `path`, fsyncs it (best effort), then renames it over `path`: a reader sees
+/// the old file or the new one, never half of it.
 pub fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let name = path.file_name().ok_or("no file name")?.to_string_lossy().into_owned();
     let temp = path.with_file_name(format!(".{name}.tmp-{}", std::process::id()));
-    std::fs::write(&temp, bytes).map_err(|e| format!("{}: {e}", temp.display()))?;
+    {
+        use std::io::Write;
+        let mut file = std::fs::File::create(&temp).map_err(|e| format!("{}: {e}", temp.display()))?;
+        file.write_all(bytes).map_err(|e| format!("{}: {e}", temp.display()))?;
+        // best effort: the data is on disk before the rename makes it the file
+        let _ = file.sync_all();
+    }
     std::fs::rename(&temp, path).map_err(|e| {
         let _ = std::fs::remove_file(&temp);
         format!("{}: {e}", path.display())
@@ -432,25 +455,30 @@ impl OriginFile {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// The control folder
+// The control folder (launcher side)
 // ---------------------------------------------------------------------------------------------------------------
 
-/// The launcher-owned folder holding the two control files and their seal.
+/// The launcher-owned folder holding the two control files and their checksum file. **Launcher code only**: the game
+/// never opens it.
 #[derive(Clone, Debug)]
 pub struct Control {
     dir: PathBuf,
 }
 
 impl Control {
-    pub const SEAL_KEY_ALLOW: &'static str = "allow";
-    pub const SEAL_KEY_ORIGINS: &'static str = "origins";
+    pub const CHECK_KEY_ALLOW: &'static str = "allow";
+    pub const CHECK_KEY_ORIGINS: &'static str = "origins";
 
-    /// Opens the control folder `dir` for a game whose root is `game_root`. Refuses a relative path, a folder inside
-    /// the game root (or the game root inside it) and registers the folder and its seal as protected. The folder is
-    /// not created (see [`Control::create`]).
+    /// Opens the control folder `dir` for a game whose root is `game_root`. Refuses a relative path, any path with a `..`
+    /// component, a folder inside the game root (or one that contains it). The folder is not created (see
+    /// [`Control::create`]). Registers the folder and its checksum file as protected in this process (a launcher
+    /// process does not run mods; this is for tests and for tools that embed both).
     pub fn open(dir: &Path, game_root: &Path) -> Result<Self, String> {
         if !dir.is_absolute() {
             return Err(format!("the full-access control folder must be an absolute path, got {}", dir.display()));
+        }
+        if has_parent_dir(dir) || has_parent_dir(game_root) {
+            return Err(format!("the full-access control folder and the game folder must not contain `..` ({}, {})", dir.display(), game_root.display()));
         }
         let (real_dir, real_root) = (canonical_lenient(dir), canonical_lenient(game_root));
         if is_inside(&real_dir, &real_root) || is_inside(&real_root, &real_dir) {
@@ -462,54 +490,35 @@ impl Control {
         }
         let control = Self { dir: real_dir };
         protect(&control.dir);
-        protect(&control.seal_path());
+        protect(&control.checksum_path());
         Ok(control)
     }
 
-    /// [`Control::open`], creating the folder (launcher side).
+    /// [`Control::open`], creating the folder.
     pub fn create(dir: &Path, game_root: &Path) -> Result<Self, String> {
         let control = Self::open(dir, game_root)?;
         std::fs::create_dir_all(&control.dir).map_err(|e| format!("{}: {e}", control.dir.display()))?;
         Ok(control)
     }
 
-    /// The control folder given to this process: `--full-access-dir <path>` (or `--full-access-dir=<path>`), else
-    /// [`CONTROL_ENV`]. `None`: nothing is full-access.
-    pub fn path_from_process() -> Option<PathBuf> {
-        Self::path_from(std::env::args().skip(1), std::env::var_os(CONTROL_ENV))
-    }
-
-    pub fn path_from(args: impl IntoIterator<Item = String>, env: Option<std::ffi::OsString>) -> Option<PathBuf> {
-        let args: Vec<String> = args.into_iter().collect();
-        for (i, arg) in args.iter().enumerate() {
-            if arg == CONTROL_ARG {
-                return args.get(i + 1).filter(|v| !v.is_empty()).map(PathBuf::from);
-            }
-            if let Some(value) = arg.strip_prefix(&format!("{CONTROL_ARG}=")) {
-                return (!value.is_empty()).then(|| PathBuf::from(value));
-            }
-        }
-        env.filter(|v| !v.is_empty()).map(PathBuf::from)
-    }
-
     pub fn dir(&self) -> &Path {
         &self.dir
     }
 
-    /// `<control folder>.seal`: next to the folder, in the launcher's data folder.
-    pub fn seal_path(&self) -> PathBuf {
+    /// `<control folder>.checksum`: next to the folder, in the launcher's data folder.
+    pub fn checksum_path(&self) -> PathBuf {
         let mut name = self.dir.file_name().map(|n| n.to_os_string()).unwrap_or_default();
-        name.push(".seal");
+        name.push(".checksum");
         self.dir.with_file_name(name)
     }
 
-    fn seal(&self) -> Result<BTreeMap<String, String>, String> {
-        let text = match std::fs::read_to_string(self.seal_path()) {
+    fn checksums(&self) -> Result<BTreeMap<String, String>, String> {
+        let text = match std::fs::read_to_string(self.checksum_path()) {
             Ok(text) => text,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeMap::new()),
-            Err(e) => return Err(format!("{}: {e}", self.seal_path().display())),
+            Err(e) => return Err(format!("{}: {e}", self.checksum_path().display())),
         };
-        let table: toml::Table = text.parse().map_err(|e| format!("seal: {e}"))?;
+        let table: toml::Table = text.parse().map_err(|e| format!("checksum file: {e}"))?;
         Ok(table.iter().filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_owned()))).collect())
     }
 
@@ -519,19 +528,19 @@ impl Control {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
             Err(e) => return Err(format!("{file_name}: {e}")),
         };
-        let sealed = self.seal()?.get(key).cloned();
-        match (bytes, sealed) {
+        let recorded = self.checksums()?.get(key).cloned();
+        match (bytes, recorded) {
             (None, None) => Ok(None),
             (Some(bytes), Some(hash)) if sha256_hex(&bytes) == hash => String::from_utf8(bytes).map(Some).map_err(|e| format!("{file_name}: {e}")),
-            (Some(_), Some(_)) => Err(format!("{file_name} changed since the launcher last wrote it (it does not match its seal): refused")),
-            (Some(_), None) => Err(format!("{file_name} has no seal (the launcher did not write it): refused")),
-            (None, Some(_)) => Err(format!("{file_name} is missing although the launcher sealed it: refused")),
+            (Some(_), Some(_)) => Err(format!("{file_name} does not match the checksum the launcher recorded (damaged or changed): refused until the player accepts it")),
+            (Some(_), None) => Err(format!("{file_name} has no recorded checksum (the launcher did not write it): refused until the player accepts it")),
+            (None, Some(_)) => Err(format!("{file_name} is missing although the launcher recorded it: refused")),
         }
     }
 
-    /// The approvals; an empty file when none was ever saved. `Err` when the file does not match its seal or does not parse.
+    /// The approvals; an empty file when none was ever saved. `Err` when the file fails the corruption check or does not parse.
     pub fn allow(&self) -> Result<AllowFile, String> {
-        match self.read_checked(AllowFile::FILE_NAME, Self::SEAL_KEY_ALLOW)? {
+        match self.read_checked(AllowFile::FILE_NAME, Self::CHECK_KEY_ALLOW)? {
             Some(text) => AllowFile::parse(&text),
             None => Ok(AllowFile::default()),
         }
@@ -539,43 +548,45 @@ impl Control {
 
     /// The arrival records; see [`Control::allow`].
     pub fn origins(&self) -> Result<OriginFile, String> {
-        match self.read_checked(OriginFile::FILE_NAME, Self::SEAL_KEY_ORIGINS)? {
+        match self.read_checked(OriginFile::FILE_NAME, Self::CHECK_KEY_ORIGINS)? {
             Some(text) => OriginFile::parse(&text),
             None => Ok(OriginFile::default()),
         }
     }
 
-    fn write_seal(&self, key: &str, hash: &str) -> Result<(), String> {
-        let mut seal = self.seal().unwrap_or_default();
-        seal.insert(key.to_owned(), hash.to_owned());
-        let mut text = String::from("# SHA-256 of the full-access control files as the launcher last wrote them. Do not edit.\n");
-        for (k, v) in &seal {
+    fn write_checksum(&self, key: &str, hash: &str) -> Result<(), String> {
+        let mut sums = self.checksums().unwrap_or_default();
+        sums.insert(key.to_owned(), hash.to_owned());
+        let mut text = String::from("# SHA-256 of the full-access control files as the launcher last wrote them (a corruption check, not tamper protection). Do not edit.\n");
+        for (k, v) in &sums {
             text.push_str(&format!("{k} = {v:?}\n"));
         }
-        write_atomic(&self.seal_path(), text.as_bytes())
+        write_atomic(&self.checksum_path(), text.as_bytes())
     }
 
     fn save_text(&self, file_name: &str, key: &str, text: &str) -> Result<(), String> {
         std::fs::create_dir_all(&self.dir).map_err(|e| e.to_string())?;
         write_atomic(&self.dir.join(file_name), text.as_bytes())?;
-        self.write_seal(key, &sha256_hex(text.as_bytes()))
+        self.write_checksum(key, &sha256_hex(text.as_bytes()))
     }
 
-    /// Saves the approvals (launcher side): atomic, then sealed.
+    /// Saves the approvals: atomic, then recorded in the checksum file.
     pub fn save_allow(&self, allow: &AllowFile) -> Result<(), String> {
-        self.save_text(AllowFile::FILE_NAME, Self::SEAL_KEY_ALLOW, &allow.to_text())
+        self.save_text(AllowFile::FILE_NAME, Self::CHECK_KEY_ALLOW, &allow.to_text())
     }
 
-    /// Saves the arrival records (launcher side): atomic, then sealed.
+    /// Saves the arrival records: atomic, then recorded in the checksum file.
     pub fn save_origins(&self, origins: &OriginFile) -> Result<(), String> {
-        self.save_text(OriginFile::FILE_NAME, Self::SEAL_KEY_ORIGINS, &origins.to_text())
+        self.save_text(OriginFile::FILE_NAME, Self::CHECK_KEY_ORIGINS, &origins.to_text())
     }
 
-    /// Seals the files as they are now (launcher side, after the player confirmed a repair of a refused file).
-    pub fn reseal(&self) -> Result<(), String> {
-        for (name, key) in [(AllowFile::FILE_NAME, Self::SEAL_KEY_ALLOW), (OriginFile::FILE_NAME, Self::SEAL_KEY_ORIGINS)] {
+    /// Records the checksums of the files **as they are on disk now**. Only for the launcher, **after the player confirmed
+    /// a diff it showed** (the files changed behind the launcher's back, for example by a mod of the last session, and
+    /// the player looked at what changed and accepted it). Never call it to make an error go away.
+    pub fn accept_current_files(&self) -> Result<(), String> {
+        for (name, key) in [(AllowFile::FILE_NAME, Self::CHECK_KEY_ALLOW), (OriginFile::FILE_NAME, Self::CHECK_KEY_ORIGINS)] {
             if let Ok(bytes) = std::fs::read(self.dir.join(name)) {
-                self.write_seal(key, &sha256_hex(&bytes))?;
+                self.write_checksum(key, &sha256_hex(&bytes))?;
             }
         }
         Ok(())
@@ -590,12 +601,230 @@ impl Control {
         install_package(self, mods_dir, name, &bytes, Origin::Local, None)
     }
 
-    /// Records the player's approval of exactly this package file (launcher side).
+    /// Records the player's approval of exactly this package file.
     pub fn approve(&self, bytes: &[u8]) -> Result<AllowEntry, String> {
         let mut allow = self.allow()?;
         let entry = allow.allow_package(bytes)?;
         self.save_allow(&allow)?;
         Ok(entry)
+    }
+
+    /// **Builds this launch's approved list** from the verified control files and the packages in `mods_dir`: every
+    /// top-level `*.yak` whose SHA-256 is approved under its id **and** has an origin record `local` or `catalog`.
+    /// `Err` when a control file fails the corruption check or does not parse (the launcher then shows the problem and
+    /// passes no list, so nothing is full-access). The list also names the folders the game must keep its storage and
+    /// bindings away from (the control folder and its checksum file).
+    pub fn approved_list(&self, mods_dir: &Path) -> Result<ApprovedList, String> {
+        let (allow, origins) = (self.allow()?, self.origins()?);
+        let mut files: Vec<PathBuf> = match std::fs::read_dir(mods_dir) {
+            Ok(entries) => entries.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "yak") && p.is_file()).collect(),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+            Err(e) => return Err(format!("{}: {e}", mods_dir.display())),
+        };
+        files.sort();
+        let mut list = ApprovedList { entries: Vec::new(), protected: vec![self.dir.clone(), self.checksum_path()] };
+        for path in files {
+            let Ok(bytes) = std::fs::read(&path) else { continue };
+            let sha256 = sha256_hex(&bytes);
+            let Some(origin) = origins.origin_of(&sha256).filter(|o| o.can_be_full_access()) else { continue };
+            let Some(entry) = allow.entries().iter().find(|e| e.sha256 == sha256) else { continue };
+            list.entries.push(ApprovedEntry { id: entry.id.clone(), version: entry.version.clone(), sha256, origin });
+        }
+        Ok(list)
+    }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// The approved list: what the launcher hands the game, for one launch
+// ---------------------------------------------------------------------------------------------------------------
+
+/// One package approved for this launch.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ApprovedEntry {
+    pub id: String,
+    pub version: String,
+    /// Lowercase hex SHA-256 of the `.yak` file.
+    pub sha256: String,
+    /// `Local` or `Catalog` (a catalog package still has its signature verified by the game).
+    pub origin: Origin,
+}
+
+/// **The one input the game takes about full-access mods.** The launcher builds it ([`Control::approved_list`]) and the
+/// game reads it once, at its first world start, then never again (a mod that rewrites the file changes nothing).
+///
+/// **Format** (TOML, UTF-8, at most 1 MiB):
+///
+/// ```toml
+/// format = 1
+/// protected = ["C:\\Users\\me\\AppData\\Roaming\\horizon-launcher\\yoake-full-access", "...\\yoake-full-access.checksum"]
+///
+/// [[package]]
+/// id = "my_mod"
+/// version = "1.0.0"
+/// sha256 = "<64 lowercase hex digits of the .yak file>"
+/// origin = "local"          # or "catalog"; anything else makes the whole file invalid
+/// ```
+///
+/// **How to pass it.** Write it with [`ApprovedList::write_for_launch`] into a fresh, launch-specific file *outside the
+/// game folder* (for example `<launcher data>/run/<launch id>/approved.toml`), and pass its absolute path on the game's
+/// command line as `--full-access-approved <path>` (or `--full-access-approved=<path>`); the environment variable
+/// `YOAKE_FULL_ACCESS_APPROVED` means the same and the option wins. A command-line path is the simplest robust way on
+/// Windows: no inherited handle to keep alive across `CreateProcess`, and the launcher already builds the game's
+/// command line. **No option and no variable, an unreadable or invalid file: nothing is full-access.**
+///
+/// **Lifetime.** One launch. The file must exist and stay unchanged from the game's start until its first world start
+/// (the game reads it once and keeps it in memory); the launcher deletes it (and its fresh folder) when the game process
+/// exits, and writes a new one for the next launch. The game registers the file and every `protected` path as protected
+/// from its storage roots and file bindings, and never opens the control folder itself.
+///
+/// **What the game does with it.** It loads a package only if the SHA-256 of the file's bytes equals an entry's `sha256`
+/// (and the manifest id equals the entry's `id`), with the entry's origin. Everything else (changed bytes, a second file
+/// with the same id, a server or friend package, a hand-dropped file) is not full-access.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ApprovedList {
+    entries: Vec<ApprovedEntry>,
+    protected: Vec<PathBuf>,
+}
+
+/// What changed between two lists (the launcher shows it to the player before approving a new launch).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ListDiff {
+    pub added: Vec<ApprovedEntry>,
+    pub removed: Vec<ApprovedEntry>,
+    /// Same id, other version or bytes: `(before, after)`.
+    pub changed: Vec<(ApprovedEntry, ApprovedEntry)>,
+}
+
+impl ListDiff {
+    pub fn is_empty(&self) -> bool {
+        self.added.is_empty() && self.removed.is_empty() && self.changed.is_empty()
+    }
+}
+
+impl ApprovedList {
+    pub const FORMAT: i64 = 1;
+    pub const MAX_BYTES: u64 = 1 << 20;
+
+    pub fn new(entries: Vec<ApprovedEntry>, protected: Vec<PathBuf>) -> Self {
+        Self { entries, protected }
+    }
+
+    pub fn entries(&self) -> &[ApprovedEntry] {
+        &self.entries
+    }
+
+    pub fn protected(&self) -> &[PathBuf] {
+        &self.protected
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    pub fn to_text(&self) -> String {
+        let mut text = format!("# This launch's approved full-access packages (written by the launcher; the game reads it once).\nformat = {}\n", Self::FORMAT);
+        let paths: Vec<String> = self.protected.iter().map(|p| format!("{:?}", p.to_string_lossy())).collect();
+        text.push_str(&format!("protected = [{}]\n", paths.join(", ")));
+        for e in &self.entries {
+            text.push_str(&format!("\n[[package]]\nid = {:?}\nversion = {:?}\nsha256 = {:?}\norigin = {:?}\n", e.id, e.version, e.sha256, e.origin.as_str()));
+        }
+        text
+    }
+
+    pub fn parse(text: &str) -> Result<Self, String> {
+        let table: toml::Table = text.parse().map_err(|e| format!("approved list: {e}"))?;
+        if table.get("format").and_then(|v| v.as_integer()) != Some(Self::FORMAT) {
+            return Err(format!("approved list: format must be {}", Self::FORMAT));
+        }
+        let mut list = Self::default();
+        if let Some(protected) = table.get("protected") {
+            for item in protected.as_array().ok_or("approved list: protected must be an array of paths")? {
+                list.protected.push(PathBuf::from(item.as_str().ok_or("approved list: protected holds strings")?));
+            }
+        }
+        if let Some(packages) = table.get("package") {
+            for (n, item) in packages.as_array().ok_or("approved list: package must be an array of tables")?.iter().enumerate() {
+                let item = item.as_table().ok_or_else(|| format!("approved list: package[{n}] must be a table"))?;
+                let get = |key: &str| item.get(key).and_then(|v| v.as_str()).ok_or_else(|| format!("approved list: package[{n}].{key} is missing"));
+                let sha256 = get("sha256")?.to_ascii_lowercase();
+                if !is_sha256_hex(&sha256) {
+                    return Err(format!("approved list: package[{n}].sha256 must be 64 hex digits"));
+                }
+                let origin = Origin::parse(get("origin")?).filter(|o| o.can_be_full_access()).ok_or_else(|| format!("approved list: package[{n}].origin must be local or catalog"))?;
+                list.entries.push(ApprovedEntry { id: get("id")?.to_owned(), version: get("version")?.to_owned(), sha256, origin });
+            }
+        }
+        Ok(list)
+    }
+
+    /// Reads a list from `path` (at most [`Self::MAX_BYTES`]).
+    pub fn read(path: &Path) -> Result<Self, String> {
+        use std::io::Read;
+        let file = std::fs::File::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
+        let mut text = String::new();
+        file.take(Self::MAX_BYTES + 1).read_to_string(&mut text).map_err(|e| format!("{}: {e}", path.display()))?;
+        if text.len() as u64 > Self::MAX_BYTES {
+            return Err("approved list: larger than 1 MiB".into());
+        }
+        Self::parse(&text)
+    }
+
+    /// The path the game was given: `--full-access-approved <path>` (or `=<path>`), else [`APPROVED_ENV`].
+    pub fn path_from_process() -> Option<PathBuf> {
+        Self::path_from(std::env::args().skip(1), std::env::var_os(APPROVED_ENV))
+    }
+
+    pub fn path_from(args: impl IntoIterator<Item = String>, env: Option<std::ffi::OsString>) -> Option<PathBuf> {
+        let args: Vec<String> = args.into_iter().collect();
+        for (i, arg) in args.iter().enumerate() {
+            if arg == APPROVED_ARG {
+                return args.get(i + 1).filter(|v| !v.is_empty()).map(PathBuf::from);
+            }
+            if let Some(value) = arg.strip_prefix(&format!("{APPROVED_ARG}=")) {
+                return (!value.is_empty()).then(|| PathBuf::from(value));
+            }
+        }
+        env.filter(|v| !v.is_empty()).map(PathBuf::from)
+    }
+
+    /// Launcher side: writes the list into `run_dir` (a fresh folder for this launch, outside the game folder, created
+    /// if needed) as `approved.toml` and returns its absolute path. Refuses to overwrite: a launch gets a new folder.
+    pub fn write_for_launch(&self, run_dir: &Path) -> Result<PathBuf, String> {
+        use std::io::Write;
+        std::fs::create_dir_all(run_dir).map_err(|e| format!("{}: {e}", run_dir.display()))?;
+        let path = run_dir.join("approved.toml");
+        let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+        file.write_all(self.to_text().as_bytes()).map_err(|e| e.to_string())?;
+        let _ = file.sync_all();
+        Ok(path)
+    }
+
+    /// The two files the loader (`load_dir`) works with: approvals by hash, and the origin of each hash. Game side.
+    pub fn to_files(&self) -> (AllowFile, OriginFile) {
+        let (mut allow, mut origins) = (AllowFile::default(), OriginFile::default());
+        for e in &self.entries {
+            allow.allow(&e.id, &e.version, &e.sha256);
+            origins.record(&e.sha256, OriginRecord { origin: e.origin, id: e.id.clone(), version: e.version.clone(), signer: None });
+        }
+        (allow, origins)
+    }
+
+    /// What `newer` changes compared with `self`: added, removed, and changed (same id, other version or bytes).
+    pub fn diff(&self, newer: &ApprovedList) -> ListDiff {
+        let mut diff = ListDiff::default();
+        for e in &newer.entries {
+            match self.entries.iter().find(|o| o.id == e.id) {
+                None => diff.added.push(e.clone()),
+                Some(old) if old != e => diff.changed.push((old.clone(), e.clone())),
+                Some(_) => {}
+            }
+        }
+        for old in &self.entries {
+            if !newer.entries.iter().any(|e| e.id == old.id) {
+                diff.removed.push(old.clone());
+            }
+        }
+        diff
     }
 }
 
@@ -609,13 +838,14 @@ fn plain_yak_name(file_name: &str) -> bool {
 }
 
 /// Stores a `.yak` and, for the player's own installs and catalog downloads, records where it came from. **Never
-/// overwrites an existing file.**
+/// overwrites a file with other content.**
 ///
-/// * `Local` and `Catalog`: the file goes into `mods_dir` and the origin is recorded (in `control`'s origin file,
-///   sealed). Returns the SHA-256.
-/// * `Server` and `Friend`: the file goes into `<mods_dir>/remote/<origin>/`, which the full-access loader never
-///   scans, so it cannot take part in duplicate-id detection or disturb an approved mod; the control files are not
-///   touched at all.
+/// * `Local` and `Catalog`: the file goes into `mods_dir` under `file_name` (refused if that name exists) and the origin
+///   is recorded in `control`'s origin file. Returns the SHA-256.
+/// * `Server` and `Friend`: the file goes into `<mods_dir>/remote/<origin>/<sha256>.yak` (named by its hash, so another
+///   file already sitting under the sender's name cannot block it; `file_name` is only checked, not used), which the
+///   full-access loader never scans. If a file of that name already exists its bytes must hash to the name (the same
+///   package delivered twice is fine); anything else is refused. The control files are not touched at all.
 pub fn install_package(control: &Control, mods_dir: &Path, file_name: &str, bytes: &[u8], origin: Origin, signer: Option<&str>) -> Result<String, String> {
     if !plain_yak_name(file_name) {
         return Err(format!("not a plain .yak file name: {file_name:?}"));
@@ -625,19 +855,29 @@ pub fn install_package(control: &Control, mods_dir: &Path, file_name: &str, byte
     let sha256 = sha256_hex(bytes);
     let target_dir = remote_dir(mods_dir, origin).unwrap_or_else(|| mods_dir.to_path_buf());
     std::fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
-    let target = target_dir.join(file_name);
+    let remote = !origin.can_be_full_access();
+    let target = target_dir.join(if remote { format!("{sha256}.yak") } else { file_name.to_owned() });
     // `create_new`: refuse when it exists (also when two installs race)
-    {
+    let created = {
         use std::io::Write;
-        let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(&target).map_err(|e| {
-            if e.kind() == std::io::ErrorKind::AlreadyExists {
-                format!("{} already exists: an installed package is never overwritten", target.display())
-            } else {
-                format!("{}: {e}", target.display())
+        match std::fs::OpenOptions::new().write(true).create_new(true).open(&target) {
+            Ok(mut file) => {
+                file.write_all(bytes).map_err(|e| format!("{}: {e}", target.display()))?;
+                let _ = file.sync_all();
+                true
             }
-        })?;
-        file.write_all(bytes).map_err(|e| format!("{}: {e}", target.display()))?;
-    }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                // the same package delivered twice is fine; any other content under that name is not
+                let same = remote && std::fs::read(&target).map(|existing| sha256_hex(&existing) == sha256).unwrap_or(false);
+                if same {
+                    false
+                } else {
+                    return Err(format!("{} already exists: an installed package is never overwritten", target.display()));
+                }
+            }
+            Err(e) => return Err(format!("{}: {e}", target.display())),
+        }
+    };
     if origin.can_be_full_access() {
         let recorded = (|| {
             let mut origins = control.origins()?;
@@ -646,7 +886,9 @@ pub fn install_package(control: &Control, mods_dir: &Path, file_name: &str, byte
         })();
         if let Err(e) = recorded {
             // no record, no package: a file without a record is never full-access anyway, but do not leave it behind
-            let _ = std::fs::remove_file(&target);
+            if created {
+                let _ = std::fs::remove_file(&target);
+            }
             return Err(e);
         }
     }
@@ -661,6 +903,7 @@ pub fn remove_package(mods_dir: &Path, file_name: &str) -> Result<(), String> {
     std::fs::remove_file(mods_dir.join(file_name)).map_err(|e| e.to_string())
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -673,41 +916,52 @@ mod tests {
     }
 
     #[test]
-    fn the_control_folder_must_be_outside_the_game_root() {
+    fn the_control_folder_must_be_outside_the_game_root_and_have_no_dotdot() {
         let base = scratch("outside");
         let root = base.join("game");
         std::fs::create_dir_all(root.join("mods")).unwrap();
         let outside = base.join("launcher").join(CONTROL_SUBDIR);
         assert!(Control::open(&outside, &root).is_ok());
-        for inside in [root.join("mods"), root.join("mods").join(CONTROL_SUBDIR), root.join("a").join("..").join("mods"), root.clone()] {
+        for inside in [root.join("mods"), root.join("mods").join(CONTROL_SUBDIR), root.clone()] {
             let error = Control::open(&inside, &root).unwrap_err();
             assert!(error.contains("inside the game folder"), "{inside:?}: {error}");
         }
-        // a folder that contains the game root is refused too (the game would sit inside the launcher's secrets)
+        // a `..` is refused outright, whatever it resolves to
+        let dotdot = with_dotdot(&root, "a/../mods");
+        assert!(Control::open(&dotdot, &root).unwrap_err().contains("`..`"));
+        assert!(Control::open(&with_dotdot(&base, "x/../launcher/c"), &root).unwrap_err().contains("`..`"));
+        // a folder that contains the game root is refused too
         assert!(Control::open(&base, &root).is_err());
         assert!(Control::open(Path::new("relative/dir"), &root).unwrap_err().contains("absolute"));
         assert_eq!(control_dir_in(&base.join("launcher")), outside);
     }
 
     #[test]
-    fn protected_paths_refuse_traversal_and_missing_children() {
+    fn guard_refuses_inside_ancestor_and_dotdot() {
         let base = scratch("protect");
         let control = base.join("launcher").join(CONTROL_SUBDIR);
         std::fs::create_dir_all(&control).unwrap();
         protect(&control);
+        // inside
         assert!(guard(&control).is_err());
         assert!(guard(&control.join("full-access.toml")).is_err());
         assert!(guard(&control.join("not").join("there").join("yet")).is_err(), "a path that does not exist yet");
-        let sneaky = base.join("game").join("mods").join("..").join("..").join("launcher").join(CONTROL_SUBDIR).join("x");
-        assert!(guard(&sneaky).is_err(), "a `..` traversal from a folder that does not exist");
+        // an ancestor of the protected folder: a storage root that contains it
+        assert!(guard(&base.join("launcher")).is_err(), "the parent");
+        assert!(guard(&base).is_err(), "a grandparent");
+        // `..` anywhere is refused, even when it would resolve to a harmless place
+        assert!(guard(&with_dotdot(&base, "game/../elsewhere")).is_err());
+        assert!(guard(&with_dotdot(&base, &format!("game/mods/../../launcher/{CONTROL_SUBDIR}/x"))).is_err());
+        // unrelated paths and a sibling with the same prefix are fine
         assert!(guard(&base.join("game")).is_ok());
         assert!(guard(&base.join("launcher").join("other")).is_ok());
-        assert!(guard(&base.join("launcher").join(format!("{CONTROL_SUBDIR}-sibling"))).is_ok(), "a sibling with the same prefix is not inside");
+        assert!(guard(&base.join("launcher").join(format!("{CONTROL_SUBDIR}-sibling"))).is_ok());
+        assert!(guard(&base.join("gamer")).is_ok());
     }
 
     #[test]
-    fn a_tampered_or_unsealed_file_is_refused() {
-        let base = scratch("seal");
+    fn a_damaged_or_unrecorded_file_fails_the_corruption_check() {
+        let base = scratch("checksum");
         let root = base.join("game");
         let control = Control::create(&base.join("launcher").join(CONTROL_SUBDIR), &root).unwrap();
         assert_eq!(control.allow().unwrap(), AllowFile::default(), "nothing saved yet: empty, fine");
@@ -715,23 +969,24 @@ mod tests {
         allow.allow("one", "1.0.0", &"a".repeat(64));
         control.save_allow(&allow).unwrap();
         assert_eq!(control.allow().unwrap(), allow);
-        // someone edits the file (adds an approval) without the launcher: refused
+        assert!(control.checksum_path().ends_with("yoake-full-access.checksum"));
+        // the file is edited behind the launcher's back: the launcher refuses it
         let path = control.dir().join(AllowFile::FILE_NAME);
         let mut text = std::fs::read_to_string(&path).unwrap();
         text.push_str(&format!("\n[[allow]]\nid = \"evil\"\nversion = \"1\"\nsha256 = \"{}\"\n", "b".repeat(64)));
         std::fs::write(&path, &text).unwrap();
-        assert!(control.allow().unwrap_err().contains("changed since the launcher last wrote it"));
-        // the launcher repairs it on purpose
-        control.reseal().unwrap();
+        assert!(control.allow().unwrap_err().contains("does not match the checksum"));
+        // after the player confirmed the diff, the launcher records the current files
+        control.accept_current_files().unwrap();
         assert!(control.allow().unwrap().is_allowed("evil", &"b".repeat(64)));
-        // a file with no seal at all, a deleted file and a deleted seal are refused
+        // a file with no recorded checksum, a deleted file and a deleted checksum file are refused
         std::fs::write(control.dir().join(OriginFile::FILE_NAME), "").unwrap();
-        assert!(control.origins().unwrap_err().contains("no seal"));
+        assert!(control.origins().unwrap_err().contains("no recorded checksum"));
         std::fs::remove_file(&path).unwrap();
         assert!(control.allow().unwrap_err().contains("missing"));
         control.save_allow(&allow).unwrap();
-        std::fs::remove_file(control.seal_path()).unwrap();
-        assert!(control.allow().unwrap_err().contains("no seal"));
+        std::fs::remove_file(control.checksum_path()).unwrap();
+        assert!(control.allow().unwrap_err().contains("no recorded checksum"));
     }
 
     #[test]
@@ -745,14 +1000,57 @@ mod tests {
         assert_eq!(names, ["x.toml"], "no temp file is left");
     }
 
+    /// `base` joined with `rest` as plain text: `PathBuf::join` would resolve a `..` on a verbatim (`\?\`) path.
+    fn with_dotdot(base: &Path, rest: &str) -> PathBuf {
+        let base = base.to_string_lossy();
+        PathBuf::from(format!("{}/{rest}", base.trim_start_matches(r"\\?\")))
+    }
+
+    fn entry(id: &str, hash_char: char, origin: Origin) -> ApprovedEntry {
+        ApprovedEntry { id: id.into(), version: "1.0.0".into(), sha256: hash_char.to_string().repeat(64), origin }
+    }
+
     #[test]
-    fn the_path_comes_from_the_option_or_the_environment() {
+    fn the_approved_list_round_trips_and_only_local_and_catalog_are_valid() {
+        let list = ApprovedList::new(vec![entry("one", 'a', Origin::Local), entry("two", 'b', Origin::Catalog)], vec![PathBuf::from(r"C:\Users\me\AppData\Roaming\horizon-launcher\yoake-full-access")]);
+        assert_eq!(ApprovedList::parse(&list.to_text()).unwrap(), list, "paths with backslashes survive");
+        for bad_origin in ["server", "friend", "usb"] {
+            let text = format!("format = 1\n[[package]]\nid = \"x\"\nversion = \"1\"\nsha256 = \"{}\"\norigin = \"{bad_origin}\"\n", "a".repeat(64));
+            assert!(ApprovedList::parse(&text).is_err(), "{bad_origin}");
+        }
+        assert!(ApprovedList::parse("format = 2\n").is_err());
+        assert!(ApprovedList::parse("").is_err(), "no format line");
+        assert!(ApprovedList::parse("format = 1\n[[package]]\nid = \"x\"\nversion = \"1\"\nsha256 = \"short\"\norigin = \"local\"\n").is_err());
+        // one list per launch, never overwritten
+        let dir = scratch("listfile").join("run-1");
+        let path = list.write_for_launch(&dir).unwrap();
+        assert_eq!(ApprovedList::read(&path).unwrap(), list);
+        assert!(list.write_for_launch(&dir).is_err());
+        // the allow/origin pair the loader works with
+        let (allow, origins) = list.to_files();
+        assert!(allow.is_allowed("one", &"a".repeat(64)) && !allow.is_allowed("one", &"b".repeat(64)));
+        assert_eq!(origins.origin_of(&"b".repeat(64)), Some(Origin::Catalog));
+    }
+
+    #[test]
+    fn the_diff_shows_added_removed_and_changed() {
+        let old = ApprovedList::new(vec![entry("keep", 'a', Origin::Local), entry("gone", 'b', Origin::Local), entry("upd", 'c', Origin::Local)], vec![]);
+        let new = ApprovedList::new(vec![entry("keep", 'a', Origin::Local), entry("upd", 'd', Origin::Local), entry("fresh", 'e', Origin::Catalog)], vec![]);
+        let diff = old.diff(&new);
+        assert_eq!(diff.added, [entry("fresh", 'e', Origin::Catalog)]);
+        assert_eq!(diff.removed, [entry("gone", 'b', Origin::Local)]);
+        assert_eq!(diff.changed, [(entry("upd", 'c', Origin::Local), entry("upd", 'd', Origin::Local))]);
+        assert!(old.diff(&old).is_empty());
+    }
+
+    #[test]
+    fn the_list_path_comes_from_the_option_or_the_environment() {
         let args = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        assert_eq!(Control::path_from(args(&["--x", "--full-access-dir", "/a/b"]), None), Some(PathBuf::from("/a/b")));
-        assert_eq!(Control::path_from(args(&["--full-access-dir=/c"]), Some("/env".into())), Some(PathBuf::from("/c")), "the option wins");
-        assert_eq!(Control::path_from(args(&[]), Some("/env".into())), Some(PathBuf::from("/env")));
-        assert_eq!(Control::path_from(args(&["--full-access-dir"]), None), None);
-        assert_eq!(Control::path_from(args(&[]), None), None, "no path: nothing is full-access");
-        assert_eq!(Control::path_from(args(&[]), Some("".into())), None);
+        assert_eq!(ApprovedList::path_from(args(&["--x", "--full-access-approved", "/a/b"]), None), Some(PathBuf::from("/a/b")));
+        assert_eq!(ApprovedList::path_from(args(&["--full-access-approved=/c"]), Some("/env".into())), Some(PathBuf::from("/c")), "the option wins");
+        assert_eq!(ApprovedList::path_from(args(&[]), Some("/env".into())), Some(PathBuf::from("/env")));
+        assert_eq!(ApprovedList::path_from(args(&["--full-access-approved"]), None), None);
+        assert_eq!(ApprovedList::path_from(args(&[]), None), None, "no list: nothing is full-access");
+        assert_eq!(ApprovedList::path_from(args(&[]), Some("".into())), None);
     }
 }

@@ -174,10 +174,17 @@ fn two_rust_mods_compose_in_the_server_tick_of_a_real_game_and_a_trap_leaves_the
         super::native_client_items::yoake2_install_dispatch();
         game.dropped.push(item(ITEM, 12.5));
         let _ = runtime::uninstall();
-        let report = load_dir(&mods, &control.origins().unwrap(), &control.allow().unwrap(), &[], &ModConfig::new(""));
+        let report = {
+            // the launcher verifies the control files and hands the game this launch's approved list (as a file)
+            let run = scratch.join("run");
+            let file = control.approved_list(&mods).unwrap().write_for_launch(&run).unwrap();
+            let list = crate::yoake2_mods::ApprovedList::read(&file).unwrap();
+            let (allow, origins) = list.to_files();
+            load_dir(&mods, &origins, &allow, &[], &ModConfig::new(""))
+        };
         assert_eq!(report.loaded.iter().map(|l| l.id.as_str()).collect::<Vec<_>>(), ["a_outer", "b_inner", "c_trap"]);
         assert_eq!(report.skipped.len(), 1);
-        assert_eq!(report.skipped[0].1, Refusal::NotAllowed, "d_denied was not switched on, so it never loaded");
+        assert!(matches!(report.skipped[0].1, Refusal::UnknownOrigin { .. }), "d_denied is not on the approved list, so it never loaded: {:?}", report.skipped[0].1);
         let (ma, mb, mc) = (report.loaded[0].module, report.loaded[1].module, report.loaded[2].module);
         assert_eq!(runtime::all_stats().len(), 3);
 

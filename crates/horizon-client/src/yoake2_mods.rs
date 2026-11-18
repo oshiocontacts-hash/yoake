@@ -4,18 +4,19 @@
 //! is a core WebAssembly module (not a component) speaking the `engine_call` ABI (docs/yoake2/ENGINE_CALL_ABI.md).
 //! It has the powers of the engine itself, so permission is bound to **content** and the origin is **metadata**:
 //!
-//! * The player's approval is an entry in `full-access.toml` holding the mod id, its version and the
-//!   **SHA-256 of the package file**. A package whose bytes changed (an update, a replaced file) no longer matches,
-//!   is not loaded and is reported as needing re-approval ([`Refusal::ContentChanged`]).
-//! * Where a package came from is recorded **when it arrives** in `yak-origins.toml` ([`OriginFile`], keyed by the
-//!   package hash; written by [`install_package`]), never guessed from the folder it sits in. A package with no
-//!   record (or an unreadable one) has an unknown origin and is **never** full-access ([`Refusal::UnknownOrigin`]).
-//!   A package that came from a **server or a friend** is never full-access either, even if its hash is on the allow
-//!   list (design 2.5); such packages are stored apart, in `<mods>/remote/<origin>/`, which this loader never scans.
-//!   Only `local` (installed by the player) and `catalog` (with a signer on the trust list, or approved) packages can run.
-//! * Both files live in a **launcher-owned folder outside the game root** (MX3L3, `horizon_mods::yak::control`),
-//!   passed to the game as `--full-access-dir`; they are sealed (SHA-256 recorded by the launcher) and the folder is
-//!   protected from storage roots and file bindings ([`guard`]). A file that does not match its seal is refused.
+//! * The player's approval is an entry (id, version and the **SHA-256 of the package file**) in the launcher's
+//!   `full-access.toml`. A package whose bytes changed (an update, a replaced file) no longer matches, is not loaded
+//!   and is reported ([`Refusal::ContentChanged`] / [`Refusal::UnknownOrigin`]).
+//! * Where a package came from is recorded **when it arrives** in the launcher's `yak-origins.toml` (keyed by the package
+//!   hash; written by [`install_package`]), never guessed from the folder it sits in. A package with no record has an
+//!   unknown origin and is **never** full-access ([`Refusal::UnknownOrigin`]). A package that came from a **server or a
+//!   friend** is never full-access, even if its hash is approved (design 2.5); such packages are stored apart, in
+//!   `<mods>/remote/<origin>/`, which this loader never scans. Only `local` and `catalog` packages can run.
+//! * **The game does not read those files** (MX3L4). The launcher verifies them and passes this launch's approved list
+//!   ([`ApprovedList`]: `(id, version, sha256, origin)` entries) in a file named by `--full-access-approved <path>`
+//!   (or `YOAKE_FULL_ACCESS_APPROVED`); the loader turns it into the same allow/origin pair and loads only packages whose
+//!   bytes hash to an entry. No list: nothing is full-access. A mod that rewrites the control files changes nothing
+//!   in this launch. The format, the path and the lifetime are documented on [`ApprovedList`].
 //! * Two packages with the same id in the mods folder make both refuse ([`Refusal::DuplicateId`]): nobody can slip a
 //!   second file in under an approved id.
 //!
@@ -33,8 +34,8 @@ use std::path::{Path, PathBuf};
 
 use horizon_mods::yak::{Archive, PublicKey};
 pub use horizon_mods::yak::control::{
-    AllowEntry, AllowFile, CONTROL_ARG, CONTROL_ENV, Control, Origin, OriginFile, OriginRecord, control_dir_in, guard, install_package,
-    remove_package, sha256_hex,
+    APPROVED_ARG, APPROVED_ENV, AllowEntry, AllowFile, ApprovedEntry, ApprovedList, Control, ListDiff, Origin, OriginFile, OriginRecord,
+    control_dir_in, guard, install_package, remove_package, sha256_hex,
 };
 use yoake_slice::runtime::{self, ModConfig, ModId};
 
@@ -263,40 +264,49 @@ fn unload_previous() -> Vec<String> {
     })
 }
 
-/// World start: replaces this thread's full-access mods with those of `<game root>/mods`. `control_dir` is the
-/// launcher-owned folder with `full-access.toml` and `yak-origins.toml` (`Control::path_from_process`: the
-/// `--full-access-dir` option or `YOAKE_FULL_ACCESS_DIR`); **without it, or when it is inside the game folder, does
-/// not match its seal, or does not parse, no mod is full-access**. The compiled-in trust list checks signatures and
+/// The list of this launch (`--full-access-approved` / `YOAKE_FULL_ACCESS_APPROVED`), read **once**, at the first call,
+/// before any mod can run, and kept in memory. The list file and every path it names as protected are registered with
+/// [`guard`]. `None`: no list was given or it could not be read, so nothing is full-access (the reason is printed).
+pub fn process_approved_list() -> Option<&'static ApprovedList> {
+    static LIST: std::sync::OnceLock<Option<ApprovedList>> = std::sync::OnceLock::new();
+    LIST.get_or_init(|| {
+        let path = ApprovedList::path_from_process()?;
+        horizon_mods::yak::control::protect(&path);
+        match ApprovedList::read(&path) {
+            Ok(list) => {
+                for protected in list.protected() {
+                    horizon_mods::yak::control::protect(protected);
+                }
+                Some(list)
+            }
+            Err(e) => {
+                log::warn!("yoake: {e}; no full-access mod will run");
+                eprintln!("yoake: {e}; no full-access mod will run");
+                None
+            }
+        }
+    })
+    .as_ref()
+}
+
+/// World start: replaces this thread's full-access mods with those of `<game root>/mods` that this launch's `approved`
+/// list names (a package loads only when its bytes hash to an entry and the entry's origin is `local` or `catalog`).
+/// **Without a list no mod is full-access.** The compiled-in trust list checks catalog signatures and
 /// [`ModConfig::full_access`] gives the limits. Mods of a previous world are unloaded first; when one cannot be
 /// unloaded nothing new is loaded (two generations of mods on one hook would be worse) and the report says why.
-pub fn load_world_mods(mods_dir: &Path, control_dir: Option<&Path>) -> LoadReport {
+pub fn load_world_mods(mods_dir: &Path, approved: Option<&ApprovedList>) -> LoadReport {
     let errors = unload_previous();
     if !errors.is_empty() {
         let report = LoadReport { problems: errors, ..LoadReport::default() };
         announce(&report);
         return report;
     }
-    let mut problems = Vec::new();
-    let game_root = mods_dir.parent().unwrap_or(mods_dir);
-    let (allow, origins) = match control_dir {
-        None => {
-            problems.push(format!("no full-access control folder was given ({CONTROL_ARG} or {CONTROL_ENV}): no full-access mod will run"));
-            (AllowFile::default(), OriginFile::default())
-        }
-        Some(dir) => match Control::open(dir, game_root).and_then(|c| Ok((c.allow()?, c.origins()?))) {
-            Ok(files) => files,
-            Err(e) => {
-                problems.push(format!("{e}; no full-access mod will run"));
-                (AllowFile::default(), OriginFile::default())
-            }
-        },
-    };
+    let (allow, origins) = approved.map(ApprovedList::to_files).unwrap_or_default();
     let trusted = horizon_mods::yak::trusted_keys();
     let mut report = load_dir(mods_dir, &origins, &allow, &trusted, &ModConfig::full_access());
-    // the "no folder" note is only worth a line when there is a full-access package that it affects
-    let affected = report.skipped.iter().any(|(_, r)| !matches!(r, Refusal::Sandboxed));
-    if affected || control_dir.is_some() {
-        report.problems.extend(problems);
+    // the "no list" note is only worth a line when there is a full-access package that it affects
+    if approved.is_none() && report.skipped.iter().any(|(_, r)| !matches!(r, Refusal::Sandboxed)) {
+        report.problems.push(format!("the launcher gave no approved list ({APPROVED_ARG} or {APPROVED_ENV}): no full-access mod will run"));
     }
     LOADED.with(|loaded| loaded.borrow_mut().extend(report.loaded.iter().map(|l| l.module)));
     announce(&report);
