@@ -1,0 +1,16 @@
+[package]
+name = "yoake-guest-sdk"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Yoake 2.0 Rust guest SDK (MX3K1): safe wrappers over the engine_call imports and generated typed stubs, for full-access mods compiled to a wasm32 core module. no_std."
+publish = false
+
+[dependencies]
+
+[dev-dependencies]
+yoake-slice = { path = "../yoake-slice", features = ["wasm"] }
+
+[lints]
+workspace = true

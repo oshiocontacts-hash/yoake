@@ -16,11 +16,33 @@ const KEYWORDS: &[&str] = &[
     "become", "box", "do", "final", "macro", "override", "priv", "typeof", "unsized", "virtual", "yield", "try", "gen",
 ];
 
+thread_local! {
+    /// Set while the guest stubs are written: the same codec text, over the guest's types (`Box` for the
+    /// shared pointers, `Vec` for maps and sets, `types::X` for the data types).
+    static GUEST: std::cell::RefCell<Option<Vec<String>>> = const { std::cell::RefCell::new(None) };
+}
+
+pub(crate) fn set_guest_names(names: Option<Vec<String>>) {
+    GUEST.with(|g| *g.borrow_mut() = names);
+}
+
+fn guest_on() -> bool {
+    GUEST.with(|g| g.borrow().is_some())
+}
+
+/// How generated code names the type of definition `index`.
+fn def_path(index: usize, def: &NamedDef) -> String {
+    GUEST.with(|g| match g.borrow().as_ref() {
+        Some(names) => format!("types::{}", names[index]),
+        None => def.rust_path.clone(),
+    })
+}
+
 pub fn ident(name: &str) -> String {
     if KEYWORDS.contains(&name) { format!("r#{name}") } else { name.to_string() }
 }
 
-fn field_access(name: &str, tuple: bool) -> String {
+pub(crate) fn field_access(name: &str, tuple: bool) -> String {
     if tuple { name.to_string() } else { ident(name) }
 }
 
@@ -156,7 +178,7 @@ fn indent(text: &str, spaces: usize) -> String {
 
 // ---- codec expressions ----
 
-fn enc(shape: &Shape, place: &str, depth: usize, defs: &[NamedDef]) -> String {
+pub(crate) fn enc(shape: &Shape, place: &str, depth: usize, defs: &[NamedDef]) -> String {
     match shape {
         Shape::Unit => format!("let _ = {place};"),
         Shape::Prim(_) | Shape::Pointer(_) | Shape::Char | Shape::Str => format!("Encode::encode({place}, out);"),
@@ -224,7 +246,17 @@ fn enc(shape: &Shape, place: &str, depth: usize, defs: &[NamedDef]) -> String {
     }
 }
 
-fn dec(shape: &Shape, depth: usize, defs: &[NamedDef]) -> String {
+pub(crate) fn dec(shape: &Shape, depth: usize, defs: &[NamedDef]) -> String {
+    if guest_on() {
+        // the guest has no Arc, maps or sets: the same bytes decode into Box and Vec
+        match shape {
+            Shape::Shared(_, inner) => return format!("Box::new({})", dec(inner, depth + 1, defs)),
+            Shape::SharedStr(_) => return "<String as Decode>::decode(d)?".to_string(),
+            Shape::SharedSlice(_, inner) | Shape::VecDeque(inner) | Shape::Set(_, inner) => return dec(&Shape::Vec(inner.clone()), depth, defs),
+            Shape::Map(_, key, value) => return dec(&Shape::Vec(Box::new(Shape::Tuple(vec![(**key).clone(), (**value).clone()]))), depth, defs),
+            _ => {}
+        }
+    }
     match shape {
         Shape::Unit => "()".to_string(),
         Shape::Prim(p) | Shape::Pointer(p) => format!("<{p} as Decode>::decode(d)?"),
@@ -292,8 +324,9 @@ fn dec(shape: &Shape, depth: usize, defs: &[NamedDef]) -> String {
     }
 }
 
-fn render_def(def: &NamedDef, defs: &[NamedDef], out: &mut String) {
-    let path = &def.rust_path;
+pub(crate) fn render_def(def: &NamedDef, defs: &[NamedDef], out: &mut String) {
+    let index = defs.iter().position(|d| d.mangle == def.mangle).unwrap_or(0);
+    let path = &def_path(index, def);
     let m = &def.mangle;
     let _ = writeln!(out, "    fn enc_{m}(v: &{path}, out: &mut Vec<u8>) {{");
     match &def.body {

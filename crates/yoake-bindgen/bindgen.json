@@ -20,7 +20,8 @@
           "count",
           "damage"
         ]
-      }
+      },
+      "guest_stubs": "crates/yoake-guest-sdk/src/stubs/items.rs"
     },
     {
       "name": "entities",
@@ -62,7 +63,8 @@
           "stuck",
           "ticks"
         ]
-      }
+      },
+      "guest_stubs": "crates/yoake-guest-sdk/src/stubs/entities.rs"
     },
     {
       "name": "game_items",
@@ -146,7 +148,8 @@
             "experience"
           ]
         }
-      ]
+      ],
+      "guest_stubs": "crates/yoake-guest-sdk/src/stubs/game_items.rs"
     },
     {
       "name": "entity_query",

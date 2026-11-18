@@ -271,6 +271,8 @@ impl Game<'_> {
 
     pub(super) fn native_lifecycle_server_tick_start(&mut self, world_running: bool) {
         if let Some((context, phase)) = self.native_lifecycle.server_tick_start(world_running) {
+            // MX3K1: the one call site of the Game-root hook; the method is empty unless the yoake2 feature is on
+            self.yoake2_tick_hook();
             self.native_lifecycle.read_scope = true;
             self.native_server_tick(&context, phase);
             self.native_lifecycle.read_scope = false;

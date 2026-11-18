@@ -90,10 +90,9 @@ impl Root {
 pub enum Accessor {
     /// A field of the current object, by the generator's index (`Game.dropped` is `Field(n)`).
     Field(u32),
-    /// The element of a list whose id field equals this (an entity by id).
+    /// The element of a list whose id field equals this (an entity by id). The only way into a list:
+    /// a position (`Index`) would silently name another element after a removal, so there is none.
     Id(u64),
-    /// The element at this position of a list.
-    Index(u32),
 }
 
 /// The engine side of a root (`Game`): finds the object at a path and lends it to `f` as `&mut dyn Any`.
@@ -189,6 +188,8 @@ struct Record {
     lent: bool,
     original_calls: u32,
     last_result: i64,
+    /// Path handles this activation opened: the bound, and the reason `close` can skip the table scan.
+    paths_opened: u32,
 }
 
 #[derive(Default)]
@@ -305,6 +306,7 @@ impl Guard<'_> {
                 lent: false,
                 original_calls: 0,
                 last_result: 0,
+                paths_opened: 0,
             });
         });
         Guard { serial, open: true, _borrow: PhantomData }
@@ -324,11 +326,14 @@ impl Guard<'_> {
             match acts.stack.iter().rposition(|record| record.serial == self.serial) {
                 Some(index) => {
                     let record = acts.stack.remove(index);
-                    PATHS.with(|p| {
-                        if let Ok(mut paths) = p.try_borrow_mut() {
-                            paths.release_activation(self.serial);
-                        }
-                    });
+                    // the common activation opened no path handle: no table scan on the hot path
+                    if record.paths_opened > 0 {
+                        PATHS.with(|p| {
+                            if let Ok(mut paths) = p.try_borrow_mut() {
+                                paths.release_activation(self.serial);
+                            }
+                        });
+                    }
                     Finished { original_calls: record.original_calls, last_result: record.last_result }
                 }
                 None => Finished { original_calls: 0, last_result: 0 },
@@ -536,12 +541,16 @@ pub fn open_path(root_handle: u64, path: Vec<Accessor>) -> Result<u64, Status> {
             return Err(Status::Stale);
         }
     }
-    PATHS.with(|paths| {
-        let mut paths = paths.borrow_mut();
-        let held = paths.entries.iter().filter(|e| e.live.as_ref().is_some_and(|l| l.activation == activation)).count();
-        if held >= MAX_PATHS_PER_ACTIVATION {
+    // counted on the activation's record (no scan of the table), and before the entry exists
+    locate(root_handle, |record, _| {
+        if record.paths_opened as usize >= MAX_PATHS_PER_ACTIVATION {
             return Err(Status::LimitReached);
         }
+        record.paths_opened += 1;
+        Ok(())
+    })?;
+    PATHS.with(|paths| {
+        let mut paths = paths.borrow_mut();
         let live = LivePath { activation, path };
         let slot = match paths.free.pop() {
             Some(slot) => slot,
@@ -1015,5 +1024,19 @@ mod tests {
         assert!(caught.is_err());
         assert_eq!(live_path_handles(), 0);
         assert_eq!(live_activations(), 0);
+    }
+
+    #[test]
+    fn an_activation_without_paths_does_not_free_the_handles_of_another() {
+        let mut world = World { things: vec![Thing { count: 7, x: 1.0 }] };
+        scope_root(&mut world, &mut |_: &mut World| 0, |root| {
+            let a = open_path(root, thing_path(7)).unwrap();
+            // a nested activation that opens no path ends without touching the outer one's handles
+            let mut inner = Thing::default();
+            scope(&mut inner, &THING, &mut nop, |_| ());
+            assert_eq!(with_arg::<Thing, _>(a, |t| t.count), Ok(7));
+            assert_eq!(live_path_handles(), 1);
+        });
+        assert_eq!(live_path_handles(), 0);
     }
 }

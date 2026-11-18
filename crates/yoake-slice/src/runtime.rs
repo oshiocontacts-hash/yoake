@@ -80,6 +80,11 @@ struct EpochAct {
 
 struct Host {
     hook: Option<TypedFunc<i64, i64>>,
+    /// Multiplexed guests: one export `yoake_hook(hook_id: i32, handle: i64) -> i64`, called only for
+    /// the ids the guest registered with `hook_register` in `yoake_init`.
+    multi: Option<TypedFunc<(i32, i64), i64>>,
+    /// hook id -> priority, as registered.
+    registered: std::collections::HashMap<u32, i32>,
     memory: Option<Memory>,
     cfg: ModConfig,
     disabled: bool,
@@ -166,6 +171,16 @@ unsafe fn context<'x>(pointer: *mut StoreContextMut<'static, Host>) -> &'x mut S
     unsafe { &mut *pointer }
 }
 
+/// The export of a multiplexed guest: `(hook_id: i32, handle: i64) -> i64`.
+pub const HOOK_EXPORT: &str = "yoake_hook";
+/// The optional init export of a multiplexed guest: `() -> ()`, calls `hook_register`.
+pub const INIT_EXPORT: &str = "yoake_init";
+
+/// Hook ids at or above this are engine-synthetic hooks (not S2 slots): see `docs/yoake2/ENGINE_CALL_ABI.md`.
+pub const SYNTHETIC_HOOK_BASE: u32 = 0x8000_0000;
+/// `Game::yoake2_server_tick`, the one hook whose argument 0 is the `Game` root.
+pub const HOOK_SERVER_TICK: u32 = SYNTHETIC_HOOK_BASE + 1;
+
 /// The unmetered store's starting fuel; every top-level activation must leave it unchanged.
 pub const INITIAL_FUEL: u64 = u64::MAX / 4;
 
@@ -193,6 +208,8 @@ pub fn install(wasm_or_wat: &[u8], cfg: ModConfig) -> R<()> {
     let export = cfg.hook_export.clone();
     let host = Host {
         hook: None,
+        multi: None,
+        registered: std::collections::HashMap::new(),
         memory: None,
         cfg,
         disabled: false,
@@ -215,10 +232,22 @@ pub fn install(wasm_or_wat: &[u8], cfg: ModConfig) -> R<()> {
         store.set_epoch_deadline(u64::MAX / 4);
     }
     let instance = linker.instantiate(&mut store, &module)?;
-    let hook = instance.get_typed_func::<i64, i64>(&mut store, &export)?;
     let memory = instance.get_memory(&mut store, "memory");
-    store.data_mut().hook = Some(hook);
     store.data_mut().memory = memory;
+    // A multiplexed guest exports `yoake_hook`; its optional `yoake_init` registers the hook ids it wants.
+    // Anything else is the one-export guest of the slice (`ModConfig::hook_export`), which is hook id 0.
+    match instance.get_typed_func::<(i32, i64), i64>(&mut store, HOOK_EXPORT) {
+        Ok(multi) => {
+            store.data_mut().multi = Some(multi);
+            if let Ok(init) = instance.get_typed_func::<(), ()>(&mut store, INIT_EXPORT) {
+                init.call(&mut store, ())?;
+            }
+        }
+        Err(_) => {
+            let hook = instance.get_typed_func::<i64, i64>(&mut store, &export)?;
+            store.data_mut().hook = Some(hook);
+        }
+    }
     RT.with(|rt| match rt.inst.try_borrow_mut() {
         Ok(mut slot) => {
             *slot = Some(ModInst { store, _ticker: ticker });
@@ -258,6 +287,8 @@ pub struct Stats {
     pub epoch_depth: usize,
     /// The store's fuel right now (`INITIAL_FUEL` outside a hook).
     pub fuel_left: Option<u64>,
+    /// `(hook id, priority)` the guest registered, sorted by id.
+    pub registered: Vec<(u32, i32)>,
 }
 
 pub fn stats() -> Stats {
@@ -275,6 +306,11 @@ pub fn stats() -> Stats {
                     depth: host.depth,
                     epoch_depth: host.epoch.len(),
                     fuel_left: inst.store.get_fuel().ok(),
+                    registered: {
+                        let mut list: Vec<(u32, i32)> = host.registered.iter().map(|(k, v)| (*k, *v)).collect();
+                        list.sort_unstable();
+                        list
+                    },
                 }
             }
             None => Stats::default(),
@@ -368,6 +404,8 @@ pub fn set_engine_dispatch(dispatch: Option<EngineDispatch>) {
 
 /// Results one activation may keep for `engine_take`, and their total size.
 pub const MAX_TICKETS: usize = 8;
+/// The largest ticket id: `-(OUT_TOO_SMALL_BASE + id)` must fit an `i32`.
+pub const MAX_TICKET_ID: u32 = (i32::MAX - call_status::OUT_TOO_SMALL_BASE) as u32;
 pub const MAX_TICKET_BYTES: usize = 16 << 20;
 
 /// The most argument bytes one `engine_call` copies out of guest memory.
@@ -468,6 +506,10 @@ fn write_result(caller: &mut Caller<'_, Host>, out_ptr: i32, out_cap: i32, bytes
     if count >= MAX_TICKETS || held + bytes.len() > MAX_TICKET_BYTES {
         return Ok(call_status::TICKET_LIMIT);
     }
+    // the status is `-(256 + id)` in an i32: stop issuing ids before it would overflow (never wrap)
+    if host.next_ticket >= MAX_TICKET_ID {
+        return Ok(call_status::TICKET_LIMIT);
+    }
     host.next_ticket += 1;
     let id = host.next_ticket;
     host.tickets.push(Ticket { id, act, bytes });
@@ -543,6 +585,11 @@ fn build_linker(engine: &Engine) -> R<Linker<Host>> {
     linker.func_wrap("env", "engine_take", |mut c: Caller<'_, Host>, ticket: i32, out_ptr: i32, out_cap: i32| -> R<i32> {
         take_ticket(&mut c, ticket, out_ptr, out_cap)
     })?;
+    // hook_register(id, priority) -> i32: a multiplexed guest says which hooks it wants (host state only).
+    linker.func_wrap("env", "hook_register", |mut c: Caller<'_, Host>, id: i32, priority: i32| -> i32 {
+        c.data_mut().registered.insert(id as u32, priority);
+        0
+    })?;
     // not engine imports: they only touch the host state
     linker.func_wrap("env", "report", |mut c: Caller<'_, Host>, slot: i32, value: i64| {
         c.data_mut().reports.push((slot, value));
@@ -593,6 +640,11 @@ fn leave(ctx: &mut StoreContextMut<'static, Host>, saved_fuel: Option<u64>) {
     }
 }
 
+enum Entry {
+    Single(TypedFunc<i64, i64>),
+    Multi(TypedFunc<(i32, i64), i64>),
+}
+
 enum Outcome {
     /// The guest's return value.
     Value(i64),
@@ -614,12 +666,13 @@ type ScopeFn<'s> = &'s mut dyn FnMut(u64) -> R<i64>;
 /// The hook entry a shim calls. `orig` runs the engine's original body for the hooked function and
 /// returns its result as an `i64` (0 for `()`); the return value is what the hooked function
 /// should return (for the original's own result when the mod did not override it).
-pub fn dispatch<T: 'static>(
-    arg: &mut T,
-    table: &'static FieldTable<T>,
-    orig: &mut dyn FnMut(&mut T) -> i64,
-) -> i64 {
-    let outcome = dispatch_with(|body| activation::scope(&mut *arg, table, &mut *orig, |h| body(h)));
+pub fn dispatch<T: 'static>(arg: &mut T, table: &'static FieldTable<T>, orig: &mut dyn FnMut(&mut T) -> i64) -> i64 {
+    dispatch_id(0, arg, table, orig)
+}
+
+/// [`dispatch`] for hook `hook_id`: a multiplexed guest is entered only if it registered that id.
+pub fn dispatch_id<T: 'static>(hook_id: u32, arg: &mut T, table: &'static FieldTable<T>, orig: &mut dyn FnMut(&mut T) -> i64) -> i64 {
+    let outcome = dispatch_with(hook_id, |body| activation::scope(&mut *arg, table, &mut *orig, |h| body(h)));
     match outcome {
         Outcome::Value(value) => value,
         Outcome::Fallthrough => orig(arg),
@@ -634,7 +687,12 @@ pub fn dispatch<T: 'static>(
 /// "get handle" bindings). Only a function that really receives the root may use this: inside any other
 /// hook the caller holds an outer `&mut` and there is no root to re-borrow from (design 4b).
 pub fn dispatch_root<G: activation::PathRoot>(root: &mut G, orig: &mut dyn FnMut(&mut G) -> i64) -> i64 {
-    let outcome = dispatch_with(|body| activation::scope_root(&mut *root, &mut *orig, |h| body(h)));
+    dispatch_root_id(0, root, orig)
+}
+
+/// [`dispatch_root`] for hook `hook_id` (the server tick is [`HOOK_SERVER_TICK`]).
+pub fn dispatch_root_id<G: activation::PathRoot>(hook_id: u32, root: &mut G, orig: &mut dyn FnMut(&mut G) -> i64) -> i64 {
+    let outcome = dispatch_with(hook_id, |body| activation::scope_root(&mut *root, &mut *orig, |h| body(h)));
     match outcome {
         Outcome::Value(value) => value,
         Outcome::Fallthrough => orig(root),
@@ -652,7 +710,7 @@ pub fn dispatch2<A: 'static, B: 'static>(
     table_b: &'static FieldTable<B>,
     orig: &mut dyn FnMut(&mut A, &mut B) -> i64,
 ) -> i64 {
-    let outcome = dispatch_with(|body| {
+    let outcome = dispatch_with(0, |body| {
         activation::scope2(&mut *a, table_a, &mut *b, table_b, &mut *orig, |h| body(h))
     });
     match outcome {
@@ -664,26 +722,28 @@ pub fn dispatch2<A: 'static, B: 'static>(
     }
 }
 
-fn dispatch_with(scope: impl FnOnce(ScopeFn<'_>) -> (R<i64>, Finished)) -> Outcome {
+fn dispatch_with(hook_id: u32, scope: impl FnOnce(ScopeFn<'_>) -> (R<i64>, Finished)) -> Outcome {
     RT.with(|rt| {
         let pointer = rt.active.get();
         if !pointer.is_null() {
             // Inside an import that published its context (`native`): a nested hook.
             // SAFETY: just read from `active`.
-            return run_hook(rt, unsafe { context(pointer) }, scope);
+            return run_hook(rt, unsafe { context(pointer) }, hook_id, scope);
         }
         // Top level: this thread's instance publishes its store for the whole guest run. If the
         // guest is already running here (ACTIVE is null while it runs, so this is engine code
         // reached from guest code outside a `native` import), the instance is borrowed: no hook.
         let Ok(mut guard) = rt.inst.try_borrow_mut() else { return Outcome::Fallthrough };
         let Some(inst) = guard.as_mut() else { return Outcome::Fallthrough };
-        if inst.store.data().disabled {
+        let host = inst.store.data();
+        // a hook the guest did not register costs one hash lookup: no context, no activation, no guest entry
+        if host.disabled || (host.multi.is_some() && !host.registered.contains_key(&hook_id)) {
             return Outcome::Fallthrough;
         }
         let mut ctx = inst.store.as_context_mut();
         with_active(rt, &mut ctx, |pointer| {
             // SAFETY: just published by `with_active`; `ctx` is not used again.
-            run_hook(rt, unsafe { context(pointer) }, scope)
+            run_hook(rt, unsafe { context(pointer) }, hook_id, scope)
         })
     })
 }
@@ -691,10 +751,17 @@ fn dispatch_with(scope: impl FnOnce(ScopeFn<'_>) -> (R<i64>, Finished)) -> Outco
 fn run_hook(
     rt: &Rt,
     ctx: &mut StoreContextMut<'static, Host>,
+    hook_id: u32,
     scope: impl FnOnce(ScopeFn<'_>) -> (R<i64>, Finished),
 ) -> Outcome {
-    let Some(hook) = (if ctx.data().disabled { None } else { ctx.data().hook.clone() }) else {
+    if ctx.data().disabled {
         return Outcome::Fallthrough;
+    }
+    let entry = match (ctx.data().multi.clone(), ctx.data().hook.clone()) {
+        (Some(multi), _) if ctx.data().registered.contains_key(&hook_id) => Entry::Multi(multi),
+        (Some(_), _) => return Outcome::Fallthrough,
+        (None, Some(hook)) => Entry::Single(hook),
+        (None, None) => return Outcome::Fallthrough,
     };
     if ctx.data().depth >= MAX_DEPTH {
         return Outcome::Fallthrough;
@@ -705,7 +772,10 @@ fn run_hook(
         let hidden = ActiveGuard { cell: &rt.active, previous: rt.active.replace(std::ptr::null_mut()) };
         // A panic from the engine body inside `original` unwinds through wasmtime to here: restore
         // the per-activation state (fuel, epoch stack, depth) before letting it continue.
-        let called = catch_unwind(AssertUnwindSafe(|| hook.call(&mut *ctx, handle as i64)));
+        let called = catch_unwind(AssertUnwindSafe(|| match &entry {
+            Entry::Single(hook) => hook.call(&mut *ctx, handle as i64),
+            Entry::Multi(multi) => multi.call(&mut *ctx, (hook_id as i32, handle as i64)),
+        }));
         drop(hidden);
         leave(ctx, saved);
         match called {
@@ -740,5 +810,19 @@ fn panic_message(payload: &Box<dyn std::any::Any + Send>) -> String {
         text.clone()
     } else {
         "non-string payload".to_owned()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_ticket_status_always_fits_an_i32() {
+        assert!(i64::from(MAX_TICKET_ID) + i64::from(call_status::OUT_TOO_SMALL_BASE) <= i64::from(i32::MAX));
+        let status = -(call_status::OUT_TOO_SMALL_BASE + MAX_TICKET_ID as i32);
+        assert_eq!(call_status::ticket_of(status), Some(MAX_TICKET_ID));
+        assert_eq!(call_status::ticket_of(-2), None);
+        assert_eq!(call_status::ticket_of(0), None);
     }
 }

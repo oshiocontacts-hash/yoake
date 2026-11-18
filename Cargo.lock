@@ -6162,6 +6162,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "yoake-guest-sdk"
+version = "0.0.0"
+dependencies = [
+ "yoake-slice",
+]
+
+[[package]]
 name = "yoake-hook-macro"
 version = "0.1.0"
 dependencies = [

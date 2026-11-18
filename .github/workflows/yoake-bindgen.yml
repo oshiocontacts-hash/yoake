@@ -10,6 +10,7 @@ on:
     paths:
       - 'crates/yoake-bindgen/**'
       - 'crates/yoake-slice/**'
+      - 'crates/yoake-guest-sdk/**'
       - 'crates/horizon-items/**'
       - 'crates/horizon-client/**'
       - 'crates/horizon-client-lib/**'
@@ -26,6 +27,7 @@ on:
     paths:
       - 'crates/yoake-bindgen/**'
       - 'crates/yoake-slice/**'
+      - 'crates/yoake-guest-sdk/**'
       - 'crates/horizon-items/**'
       - 'crates/horizon-client/**'
       - 'crates/horizon-client-lib/**'
@@ -58,6 +60,9 @@ jobs:
         run: |
           cargo test --locked -j 4 -p yoake-bindgen --test mini_engine
           cargo test --locked -j 4 -p yoake-slice --features wasm
+      - name: Rust guest SDK (wasm32 core modules, re-entry, tickets)
+        shell: bash
+        run: cargo test --locked -j 4 -p yoake-guest-sdk
       - name: Regeneration gate (append-only ids, stale files, engine compiles with the feature)
         shell: bash
         env:

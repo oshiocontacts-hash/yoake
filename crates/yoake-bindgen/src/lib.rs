@@ -12,6 +12,7 @@
 
 pub mod analyze;
 pub mod display;
+pub mod guest;
 pub mod doc;
 pub mod lock;
 pub mod policy;
@@ -70,6 +71,9 @@ pub struct TargetCfg {
     /// `impl PathRoot for Game` and a generated "get handle" binding.
     #[serde(default)]
     pub game_paths: Vec<GamePathCfg>,
+    /// Where to write the typed guest stubs of this module (MX3K1), relative to the root. Optional.
+    #[serde(default)]
+    pub guest_stubs: Option<String>,
 }
 
 /// One accessor path from the `Game` root.
@@ -187,6 +191,9 @@ pub fn generate(config: &Config, root: &Path, uni: &Universe) -> R<Generated> {
     for p in &prepared {
         let text = render::render(&p.an, &p.target.name, &p.target.crate_name, &p.scan, &ids, &p.target.game_paths, p.target.roots.first().map(String::as_str));
         files.insert(PathBuf::from(&p.target.glue), text);
+        if let Some(stubs) = &p.target.guest_stubs {
+            files.insert(PathBuf::from(stubs), guest::render_guest(&p.an, &p.target.name, &p.scan, &ids, &p.target.game_paths));
+        }
         unresolved.extend(p.an.unresolved.iter().cloned());
     }
     let unresolved: Vec<String> = unresolved.into_iter().collect();
