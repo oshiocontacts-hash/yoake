@@ -4,6 +4,9 @@ use yoake_hook_macro::yoake_hook;
 use yoake_hook_rt::{__register_typed, Order, SLOTS, SLOT_CAPACITY, TEST_ID_BASE};
 
 const _: () = yoake_hook_rt::assert_hook_name("crate::m::W<u32>::get", "get");
+const _: () = yoake_hook_rt::assert_hook_name("crate::m::W<[u8;4]>::get", "get");
+const _: () = yoake_hook_rt::assert_hook_name("crate::m::W<[u8;4]>::get[cfg(unix)]", "get");
+const _: () = yoake_hook_rt::assert_hook_name("crate::m::<W<[u8;4]> as Tr>::f", "f");
 const _: () = yoake_hook_rt::assert_hook_name("crate::m::open[cfg(unix)]", "open");
 const _: () = yoake_hook_rt::assert_hook_name(
     "crate::m::open[cfg(feature=\"a::b\")]",

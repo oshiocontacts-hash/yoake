@@ -21,6 +21,9 @@ where `K < 64`, without a key assertion. Each hook has a crate-visible typed
 `__yoake_register_<function>(callback, order)` function; free functions also expose
 `__YoakeHook_<function>` when its generic parameters can be represented in a public alias.
 
+Changing a `cfg` expression on a hooked function, its impl, or an enclosing module changes its key.
+Run the codemod with `--rename OLD=NEW` to keep the existing ID.
+
 Callbacks are **around** hooks. On entry, the wrapper performs one `Acquire` load of
 `SLOTS[N]`. If null, it runs the original body via an `#[inline(always)]` helper with no
 exit check. If non-null, it dispatches through the cold out-of-line chain: the callback

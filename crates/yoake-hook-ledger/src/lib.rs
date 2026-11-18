@@ -1,3 +1,8 @@
+//! Hook ID persistence and per-crate key tables.
+//!
+//! Changing a `cfg` expression on a hooked function, its impl, or an enclosing module changes its
+//! key. Run the codemod with `--rename OLD=NEW` to keep the existing ID.
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::Path;

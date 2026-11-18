@@ -179,8 +179,14 @@ pub fn check_append_only(base: &LedgerSet, current: &LedgerSet) -> Result<(), Ve
             base.meta.next_id, current.meta.next_id
         ));
     }
+    let base_entries = entries_by_id(base);
     let current_entries = entries_by_id(current);
-    for (id, (base_crate, base_entry)) in entries_by_id(base) {
+    for (id, _) in &current_entries {
+        if !base_entries.contains_key(id) && *id < base.meta.next_id {
+            errors.push(format!("new id {id} reuses a gap below base next_id"));
+        }
+    }
+    for (id, (base_crate, base_entry)) in base_entries {
         let Some((current_crate, current_entry)) = current_entries.get(&id).copied() else {
             errors.push(format!("id {id} from {base_crate} was removed"));
             continue;
@@ -193,8 +199,30 @@ pub fn check_append_only(base: &LedgerSet, current: &LedgerSet) -> Result<(), Ve
         {
             errors.push(format!("id {id} changed key without renamed_from"));
         }
+        if !current_entry
+            .renamed_from
+            .starts_with(&base_entry.renamed_from)
+        {
+            errors.push(format!("id {id} lost renamed_from history"));
+        }
+        if current_entry.kind != base_entry.kind {
+            errors.push(format!("id {id} changed kind"));
+        }
         if base_entry.status == Status::Tombstone && current_entry.status != Status::Tombstone {
             errors.push(format!("tombstone id {id} is no longer a tombstone"));
+        }
+    }
+    for base_shard in base.shards.values() {
+        for base_excluded in &base_shard.excluded {
+            if let Some(current_excluded) = current
+                .shards
+                .values()
+                .flat_map(|shard| shard.excluded.iter())
+                .find(|excluded| excluded.key == base_excluded.key)
+                && current_excluded.kind != base_excluded.kind
+            {
+                errors.push(format!("excluded key {:?} changed kind", base_excluded.key));
+            }
         }
     }
     if errors.is_empty() { Ok(()) } else { Err(errors) }

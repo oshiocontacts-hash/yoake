@@ -92,26 +92,69 @@ pub const fn assert_ledger_key(keys: &[(usize, &str)], id: usize, key: &str) {
     panic!("hook id/key pair is absent from the crate ledger");
 }
 
+const fn trailing_cfg_start(key: &[u8], end: usize) -> usize {
+    if end == 0 || key[end - 1] != b']' {
+        return end;
+    }
+    let mut depth = 0;
+    let mut index = end;
+    while index > 0 {
+        index -= 1;
+        if key[index] == b']' {
+            depth += 1;
+        } else if key[index] == b'[' {
+            if depth == 0 {
+                return end;
+            }
+            depth -= 1;
+            if depth == 0 {
+                if index + 5 <= end
+                    && key[index + 1] == b'c'
+                    && key[index + 2] == b'f'
+                    && key[index + 3] == b'g'
+                    && key[index + 4] == b'('
+                {
+                    return index;
+                }
+                return end;
+            }
+        }
+    }
+    end
+}
+
 pub const fn assert_hook_name(key: &str, fn_name: &str) {
     let key = key.as_bytes();
     let mut key_end = key.len();
-    let mut index = 0;
-    while index < key.len() {
-        if key[index] == b'[' {
-            key_end = index;
+    loop {
+        let cfg_start = trailing_cfg_start(key, key_end);
+        if cfg_start == key_end {
             break;
         }
-        index += 1;
+        key_end = cfg_start;
     }
     let mut key_start = 0;
-    index = 0;
-    while index + 1 < key_end {
-        if key[index] == b':' && key[index + 1] == b':' {
-            key_start = index + 2;
-            index += 2;
-        } else {
-            index += 1;
+    let mut angle_depth: usize = 0;
+    let mut square_depth: usize = 0;
+    let mut paren_depth: usize = 0;
+    let mut index = 0;
+    while index < key_end {
+        match key[index] {
+            b'<' => angle_depth += 1,
+            b'>' => angle_depth = angle_depth.saturating_sub(1),
+            b'[' => square_depth += 1,
+            b']' => square_depth = square_depth.saturating_sub(1),
+            b'(' => paren_depth += 1,
+            b')' => paren_depth = paren_depth.saturating_sub(1),
+            b':' if index + 1 < key_end && key[index + 1] == b':' => {
+                if angle_depth == 0 && square_depth == 0 && paren_depth == 0 {
+                    key_start = index + 2;
+                }
+                index += 1;
+            }
+            _ => {}
         }
+        index += 1;
     }
     let key_length = key_end - key_start;
     let name = fn_name.as_bytes();
@@ -140,8 +183,7 @@ pub const fn assert_hook_name(key: &str, fn_name: &str) {
 
 static REGISTER_LOCK: Mutex<()> = Mutex::new(());
 
-static SLOT_TYPES: [Mutex<Option<std::any::TypeId>>; SLOT_CAPACITY] =
-    [const { Mutex::new(None) }; SLOT_CAPACITY];
+static SLOT_TYPES: Mutex<Vec<(usize, std::any::TypeId)>> = Mutex::new(Vec::new());
 
 #[derive(Clone, Copy)]
 pub struct Snapshot(&'static [Entry]);
@@ -237,11 +279,14 @@ pub fn __register_typed<Callback: Copy + Send + Sync + 'static>(
     }
     let _guard = REGISTER_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     {
-        let mut recorded = SLOT_TYPES[id].lock().unwrap_or_else(|error| error.into_inner());
-        if recorded.is_some_and(|existing| existing != expected_type) {
-            return Err("hook slot already has a different callback type");
+        let mut recorded = SLOT_TYPES.lock().unwrap_or_else(|error| error.into_inner());
+        if let Some((_, existing)) = recorded.iter().find(|(slot, _)| *slot == id) {
+            if *existing != expected_type {
+                return Err("hook slot already has a different callback type");
+            }
+        } else {
+            recorded.push((id, expected_type));
         }
-        *recorded = Some(expected_type);
     }
     let slot = &SLOTS[id];
     let mut entries = slot.load().map(|snapshot| snapshot.0.to_vec()).unwrap_or_default();

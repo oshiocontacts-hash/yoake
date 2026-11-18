@@ -1,14 +1,17 @@
 name: yoake-hooks
 
 # The hook-ID ledger (hook-ledger/) and the #[yoake_hook] attributes it backs.
-# Make this job a required status check on the integration branches (repository settings).
+# Make both jobs required status checks on the integration branches (repository settings).
 on:
   push:
     branches: ["yoake/**", "yoake2/**"]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  hooks:
+  ledger:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,27 +21,77 @@ jobs:
       - name: Test the hook crates
         run: cargo test --locked -p yoake-hook-ledger -p yoake-hook-macro -p yoake-hook-rt -p yoake-hook-codemod
 
-      - name: Codemod check (attributes and ledger match the sources; apply would change nothing)
+      - name: Codemod check for every instrumented module (hook-ledger/modules.txt)
         shell: bash
         run: |
           set -euo pipefail
           cargo build --locked -p yoake-hook-codemod
           codemod=target/debug/yoake-hook-codemod
-          "$codemod" check --crate-root crates/horizon-client-lib --crate-name horizon_client_lib \
-            --ledger hook-ledger --module entities
-          "$codemod" check --crate-root crates/horizon-client --crate-name horizon_client \
-            --ledger hook-ledger --module game::item_use
+          grep -v '^[[:space:]]*\(#\|$\)' hook-ledger/modules.txt | tr -d '\r' |
+          while read -r root name module; do
+            echo "== $name $module"
+            "$codemod" check --crate-root "$root" --crate-name "$name" --ledger hook-ledger --module "$module"
+          done
 
-      - name: Ledger history check (append-only against the base)
+      - name: Ledger history check, commit by commit (append-only)
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          if [ -n "${GITHUB_BASE_REF:-}" ]; then base="origin/${GITHUB_BASE_REF}"; else base="HEAD~1"; fi
-          mkdir -p "$RUNNER_TEMP/base-ledger"
-          files=$(git ls-tree --name-only "$base" hook-ledger/ 2>/dev/null || true)
-          if [ -z "$files" ]; then
-            echo "base $base has no hook-ledger/; nothing to compare"
-            exit 0
+          codemod=target/debug/yoake-hook-codemod
+          head=$(git rev-parse HEAD)
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            range="$PR_BASE..$head"
+          elif [ -n "${PUSH_BEFORE:-}" ] && [ "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            range="$PUSH_BEFORE..$head"
+          else
+            # A new branch: every commit that no other remote branch has.
+            others=$(git for-each-ref --format='%(objectname)' refs/remotes/origin | grep -v "^$head\$" || true)
+            range="$head --not $others"
           fi
-          for f in $files; do git show "$base:$f" > "$RUNNER_TEMP/base-ledger/$(basename "$f")"; done
-          target/debug/yoake-hook-codemod check-history --base "$RUNNER_TEMP/base-ledger" --current hook-ledger
+          dump() { # <commit> <dir>: hook-ledger/ of that commit, or nothing when it has none
+            rm -rf "$2"; mkdir -p "$2"
+            for f in $(git ls-tree --name-only "$1" hook-ledger/ 2>/dev/null || true); do
+              git show "$1:$f" > "$2/$(basename "$f")"
+            done
+          }
+          checked=0
+          for commit in $(git rev-list --reverse $range); do
+            parent=$(git rev-parse "$commit^" 2>/dev/null || true)
+            [ -n "$parent" ] || continue
+            dump "$parent" "$RUNNER_TEMP/base"; dump "$commit" "$RUNNER_TEMP/current"
+            if [ ! -f "$RUNNER_TEMP/base/meta.json" ] || [ ! -f "$RUNNER_TEMP/current/meta.json" ]; then
+              continue
+            fi
+            echo "== $parent -> $commit"
+            "$codemod" check-history --base "$RUNNER_TEMP/base" --current "$RUNNER_TEMP/current"
+            checked=$((checked + 1))
+          done
+          echo "checked $checked commit(s)"
+
+  build-hooked-crates:
+    # Builds the instrumented crates, so the compile-time key checks (assert_ledger_key,
+    # assert_hook_name) and the per-id link-time claims run here too.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Locate Windows SDK shader compiler
+        shell: pwsh
+        # Same as yoake-windows.yml.
+        run: |
+          if (-not (Get-Command fxc.exe -ErrorAction SilentlyContinue)) {
+            $sdkBin = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
+            $fxc = Get-ChildItem -Path $sdkBin -Filter fxc.exe -File -Recurse |
+              Where-Object { $_.Directory.Name -eq 'x64' } |
+              Sort-Object FullName -Descending |
+              Select-Object -First 1
+            if (-not $fxc) {
+              throw 'fxc.exe was not found in the Windows SDK.'
+            }
+            $fxc.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
+      - name: Build the hooked crates
+        run: cargo build --locked -p horizon-client-lib -p horizon-client --lib

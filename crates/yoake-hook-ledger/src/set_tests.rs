@@ -109,6 +109,48 @@ fn append_only_accepts_a_recorded_rename() {
 }
 
 #[test]
+fn append_only_rejects_reusing_a_gap_id() {
+    let mut base = LedgerSet::new();
+    base.assign("a", Kind::Fn, "a::first", "one");
+    base.assign("a", Kind::Fn, "a::gap", "two");
+    base.shard_mut("a").entries.retain(|entry| entry.id != 2);
+    let mut current = base.clone();
+    let mut gap = current.shard("a").unwrap().entries[0].clone();
+    gap.id = 2;
+    gap.key = "a::new_gap_user".into();
+    current.shard_mut("a").entries.push(gap);
+    assert!(history_errors(&base, &current).contains("reuses a gap"));
+}
+
+#[test]
+fn append_only_rejects_losing_rename_history() {
+    let mut base = LedgerSet::new();
+    base.assign("a", Kind::Fn, "a::old", "one");
+    base.shard_mut("a").rename("a::old", "a::middle").unwrap();
+    base.shard_mut("a").rename("a::middle", "a::new").unwrap();
+    let mut current = base.clone();
+    current.shard_mut("a").entries[0].renamed_from.pop();
+    assert!(history_errors(&base, &current).contains("lost renamed_from"));
+}
+
+#[test]
+fn append_only_rejects_changing_entry_kind() {
+    let base = history_base();
+    let mut current = base.clone();
+    current.shard_mut("a").entries[0].kind = Kind::Store;
+    assert!(history_errors(&base, &current).contains("changed kind"));
+}
+
+#[test]
+fn append_only_rejects_changing_excluded_kind() {
+    let mut base = LedgerSet::new();
+    base.shard_mut("a").exclude("a::f", "manual").unwrap();
+    let mut current = base.clone();
+    current.shard_mut("a").excluded[0].kind = Kind::Store;
+    assert!(history_errors(&base, &current).contains("excluded key"));
+}
+
+#[test]
 fn automatic_exclusion_does_not_overwrite_manual_reason() {
     let mut set = LedgerSet::new();
     let shard = set.shard_mut("a");

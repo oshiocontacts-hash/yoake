@@ -1,0 +1,4 @@
+# Instrumented modules, one per line: <crate root dir> <crate name> <module path>
+# CI runs `yoake-hook-codemod check` for each line (.github/workflows/yoake-hooks.yml).
+crates/horizon-client-lib horizon_client_lib entities
+crates/horizon-client horizon_client game::item_use

@@ -8,3 +8,4 @@ launcher/tests/fixtures/yoake-schema2/** -text
 crates/yoake-wasm/wit/inject-sites.json text eol=lf
 launcher/tests/fixtures/yoake-presentation/** -text
 hook-ledger/*.json text eol=lf
+hook-ledger/modules.txt text eol=lf
