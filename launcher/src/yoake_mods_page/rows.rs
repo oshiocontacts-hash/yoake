@@ -59,6 +59,9 @@ impl Launcher {
         if self.yak_mods.preview.is_some() {
             content = content.child(self.yak_preview(cx));
         }
+        if let Some(section) = self.full_access_section(cx) {
+            content = content.child(section);
+        }
         if self.yak_mods.rows.is_empty() && !busy {
             content = content.child(
                 shell::text(night::UI, c(night_theme.muted)).child(tr("No .yak mods installed.")),

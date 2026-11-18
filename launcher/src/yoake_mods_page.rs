@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver};
 use std::time::{Duration, Instant};
 
+mod full_access_rows;
 mod rows;
 
 enum Outcome {
@@ -29,6 +30,8 @@ pub(super) struct State {
     login_required: bool,
     epoch: u64,
     last_refresh: Option<Instant>,
+    /// Full-access mods of the selected instance (Yoake 2.0), read on a worker thread.
+    full_access: full_access_rows::FullAccess,
 }
 
 impl State {
@@ -88,7 +91,8 @@ impl Launcher {
             })();
             let _ = sender.send(result);
         });
-        self.yak_mods.rows_task = Some((selected, receiver));
+        self.yak_mods.rows_task = Some((selected.clone(), receiver));
+        self.load_full_access(selected);
     }
 
     pub(super) fn drain_yak_mods(&mut self) -> bool {
@@ -106,6 +110,7 @@ impl Launcher {
             self.yak_mods.environment = None;
             self.yak_mods.preview = None;
             self.yak_mods.error = None;
+            self.yak_mods.full_access = Default::default();
             if let Some(home) = home {
                 self.load_yak_rows(home);
             }
@@ -184,6 +189,7 @@ impl Launcher {
                 }
             }
         }
+        changed |= self.drain_full_access();
         if let Some((home, receiver)) = self.yak_mods.operation.take() {
             match receiver.try_recv() {
                 Ok(result) => {
