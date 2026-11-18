@@ -166,10 +166,6 @@ pub struct Wasm {
     /// hooks target `server-full`; hook worlds use interface 1.0 and injections use 1.1.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub world: Option<String>,
-    /// MX3CL1: where a full-access mod runs (`server`, the default, `client` or `both`); only valid with
-    /// `world = "full-access"`. The one module (`wasm.server`) is loaded once per side that is named.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub side: Option<FullAccessSide>,
     /// Powers beyond the safe set that the package asks for; an installer shows them.
     /// `service.commands` permits command services and sensitive injections;
     /// `service.chat` additionally permits client chat/command injections.
@@ -196,34 +192,8 @@ pub const CLIENT_WASM_WORLDS: [&str; 3] = ["client-mod", "client-full", "inject-
 /// has the powers of the engine itself, so it only runs when the player allowed it or its signer is trusted.
 pub const FULL_ACCESS_WORLD: &str = "full-access";
 
-/// `[wasm] side` of a full-access mod (MX3CL1): the thread(s) its module runs on. The server side is the
-/// simulation thread (integrated or dedicated server), the client side the window's thread.
-#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum FullAccessSide {
-    #[default]
-    Server,
-    Client,
-    Both,
-}
-
-impl FullAccessSide {
-    pub fn includes_server(self) -> bool {
-        matches!(self, Self::Server | Self::Both)
-    }
-
-    pub fn includes_client(self) -> bool {
-        matches!(self, Self::Client | Self::Both)
-    }
-}
-
 /// Whether `[wasm] world` selects the full-catalog client world.
 impl Wasm {
-    /// Where a full-access mod runs (`server` when `[wasm] side` is absent).
-    pub fn full_access_side(&self) -> FullAccessSide {
-        self.side.unwrap_or_default()
-    }
-
     /// Whether this is a full-access mod (see [`FULL_ACCESS_WORLD`]).
     pub fn full_access(&self) -> bool {
         self.world.as_deref() == Some(FULL_ACCESS_WORLD)
@@ -286,12 +256,11 @@ impl Wasm {
         if minor >= 1 && self.world.as_deref() != Some("inject-mod") {
             return Err("wasm interfaces 1.1/1.2 require wasm.world = \"inject-mod\"; ordinary hook worlds use 1.0".into());
         }
-        if self.side.is_some() && !self.full_access() {
-            return Err("wasm.side applies to full-access mods only (wasm.world = \"full-access\")".into());
-        }
         if self.full_access() {
-            if self.server.is_none() || self.client.is_some() {
-                return Err("wasm.world full-access is a server module: declare wasm.server and no wasm.client".into());
+            // MX3CL1: `wasm.server` runs on the server thread, `wasm.client` on the client thread; both may be declared
+            // (two separate instances, each a core module)
+            if self.server.is_none() && self.client.is_none() {
+                return Err("wasm.world full-access needs wasm.server (runs on the server thread) and/or wasm.client (runs on the client thread)".into());
             }
             if !self.permissions.is_empty() {
                 return Err("a full-access mod has no [wasm] permissions: it is all-or-nothing and needs the player's allow".into());
@@ -582,12 +551,12 @@ impl Manifest {
             }
         }
         if let Some(wasm) = self.wasm.as_ref().filter(|wasm| wasm.full_access()) {
-            let runs = wasm.full_access_side();
-            if runs.includes_server() && !self.side.server {
-                return Err("a full-access mod runs where the world is simulated: side.server must be true (or wasm.side = \"client\")".into());
+            // MX3CL1: [side] and the declared modules must agree
+            if self.side.server != wasm.server.is_some() {
+                return Err("a full-access mod: side.server must be true exactly when wasm.server is declared".into());
             }
-            if runs.includes_client() && !self.side.client {
-                return Err("wasm.side includes the client: side.client must be true".into());
+            if self.side.client != wasm.client.is_some() {
+                return Err("a full-access mod: side.client must be true exactly when wasm.client is declared".into());
             }
         }
         if let Some(wasm) = &self.wasm {

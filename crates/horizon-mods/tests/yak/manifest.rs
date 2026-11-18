@@ -448,38 +448,30 @@ client = "bin/wasm/a.wasm"
     }
 }
 
-/// MX3CL1: `[wasm] side` of a full-access mod.
+/// MX3CL1: a full-access mod's modules say where it runs: `wasm.server` on the server thread, `wasm.client` on the
+/// client thread, and [side] must agree.
 #[test]
-fn full_access_side_defaults_to_server_and_accepts_client_and_both() {
-    use horizon_mods::yak::FullAccessSide;
-    let parse = |side_table: &str, wasm_side: &str| {
+fn full_access_modules_decide_the_threads_and_side_must_agree() {
+    let parse = |side_table: &str, wasm_modules: &str| {
         let data = DATA.replace("[side]\nclient = true\nserver = true", side_table);
-        Manifest::parse(&format!(
-            "{data}\n[wasm]\ninterface = \"1.0\"\nserver = \"bin/wasm/m.wasm\"\nworld = \"full-access\"\n{wasm_side}\n"
-        ))
+        Manifest::parse(&format!("{data}\n[wasm]\ninterface = \"1.0\"\n{wasm_modules}\nworld = \"full-access\"\n"))
     };
-    let both = "[side]\nclient = true\nserver = true";
-    let side_of = |m: Manifest| m.wasm.unwrap().full_access_side();
-    assert_eq!(side_of(parse(both, "").unwrap()), FullAccessSide::Server, "no side: server, as before");
-    assert_eq!(side_of(parse(both, "side = \"server\"").unwrap()), FullAccessSide::Server);
-    assert_eq!(side_of(parse(both, "side = \"client\"").unwrap()), FullAccessSide::Client);
-    assert_eq!(side_of(parse(both, "side = \"both\"").unwrap()), FullAccessSide::Both);
-    assert!(FullAccessSide::Both.includes_client() && FullAccessSide::Both.includes_server());
-    assert!(FullAccessSide::Client.includes_client() && !FullAccessSide::Client.includes_server());
-    assert!(!FullAccessSide::Server.includes_client() && FullAccessSide::Server.includes_server());
-    for bad in ["side = \"Client\"", "side = \"world\"", "side = \"\"", "side = 1"] {
-        assert!(parse(both, bad).is_err(), "{bad}");
-    }
-    // the [side] table must agree with where the module runs
-    let client_only = "[side]\nclient = true\nserver = false";
-    let server_only = "[side]\nclient = false\nserver = true";
-    assert!(parse(client_only, "side = \"client\"").is_ok());
-    assert!(parse(client_only, "").unwrap_err().contains("side.server"));
-    assert!(parse(client_only, "side = \"both\"").unwrap_err().contains("side.server"));
-    assert!(parse(server_only, "side = \"client\"").unwrap_err().contains("side.client"));
-    assert!(parse(server_only, "side = \"both\"").unwrap_err().contains("side.client"));
-    assert!(parse(server_only, "").is_ok());
-    // wasm.side belongs to full-access only
-    let sandboxed = Manifest::parse(&with_wasm("\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/a.wasm\"\nside = \"client\"\n"));
-    assert!(sandboxed.unwrap_err().contains("full-access"));
+    let (server, client) = ("server = \"bin/wasm/s.wasm\"", "client = \"bin/wasm/c.wasm\"");
+    let both_modules = format!("{server}\n{client}");
+    let (s_only, c_only, both) = ("[side]\nclient = false\nserver = true", "[side]\nclient = true\nserver = false", "[side]\nclient = true\nserver = true");
+    assert!(parse(s_only, server).is_ok(), "the old server-only shape still parses");
+    assert!(parse(c_only, client).is_ok());
+    let m = parse(both, &both_modules).unwrap();
+    let wasm = m.wasm.unwrap();
+    assert!(wasm.server.is_some() && wasm.client.is_some(), "a mod may declare both: two instances");
+    assert!(parse(both, "").unwrap_err().contains("wasm.server"), "needs at least one module");
+    // [side] against the modules, both directions
+    assert!(parse(both, server).unwrap_err().contains("side.client"));
+    assert!(parse(both, client).unwrap_err().contains("side.server"));
+    assert!(parse(s_only, &both_modules).unwrap_err().contains("side.client"));
+    assert!(parse(c_only, &both_modules).unwrap_err().contains("side.server"));
+    assert!(parse(c_only, server).is_err());
+    assert!(parse(s_only, client).is_err());
+    // the old `side` key of the first MX3CL1 draft is gone
+    assert!(parse(both, &format!("{both_modules}\nside = \"both\"")).is_err());
 }

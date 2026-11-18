@@ -31,7 +31,7 @@ pub use installed::{
     check_installed_tree, check_plain_path, hash_installed_file, trusted_keys, verify_installed,
 };
 pub use manifest::{
-    Bin, FULL_ACCESS_WORLD, FullAccessSide, Http, MAX_WASM_SIZE, Manifest, Mixin, OptionValue, SUPPORTED_WASM_INTERFACE, Service, Shader,
+    Bin, FULL_ACCESS_WORLD, Http, MAX_WASM_SIZE, Manifest, Mixin, OptionValue, SUPPORTED_WASM_INTERFACE, Service, Shader,
     ShaderOption, Side, Target, Wasm, Yoake,
 };
 pub use pack::pack_directory;
@@ -142,13 +142,13 @@ impl<Reader: Read + Seek> Archive<Reader> {
 
     /// The bytes of a full-access mod's core module (`[wasm] world = "full-access"`), or `None` for any other
     /// package. Reading is bounded by [`MAX_WASM_SIZE`]; nothing is run or verified here.
-    pub fn full_access_module(&mut self) -> Result<Option<Vec<u8>>, String> {
+    pub fn full_access_module(&mut self, client: bool) -> Result<Option<Vec<u8>>, String> {
         let Some(path) = self
             .manifest
             .wasm
             .as_ref()
             .filter(|wasm| wasm.full_access())
-            .and_then(|wasm| wasm.server.clone())
+            .and_then(|wasm| if client { wasm.client.clone() } else { wasm.server.clone() })
         else {
             return Ok(None);
         };

@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use horizon_client::yoake2_mods::{dispatch_client_tick, dispatch_hud_render, load_client_mods, unload_client_mods, AllowFile, ApprovedList, Control, Origin, OriginFile, OriginRecord, Refusal, decide, install_package, load_dir, load_package, load_world_mods, remove_package, sha256_hex};
+use horizon_client::yoake2_mods::{ThreadSide, dispatch_client_tick, dispatch_hud_render, load_client_mods, unload_client_mods, AllowFile, ApprovedList, Control, Origin, OriginFile, OriginRecord, Refusal, decide, install_package, load_dir, load_package, load_world_mods, remove_package, sha256_hex};
 use horizon_mods::yak::pack_directory;
 use horizon_release_sign::SigningKey;
 use yoake_slice::activation::FieldTable;
@@ -86,18 +86,24 @@ description = "a test mod"
 version = ">=0.0.0"
 
 [side]
-client = true
-server = true
+client = {client}
+server = {server}
 required_on_join = false
 
 [wasm]
 interface = "1.0"
 {wasm}
-"#
+"#,
+            // MX3CL1: [side] follows the declared modules (`client = ...` is the client thread, `server = ...` the server)
+            client = wasm.contains("client = "),
+            server = wasm.contains("server = ") || !wasm.contains("client = "),
         ),
     )
     .unwrap();
     std::fs::write(src.join("bin/wasm/mod.wasm"), module_text).unwrap();
+    if wasm.contains("bin/wasm/client.wasm") {
+        std::fs::write(src.join("bin/wasm/client.wasm"), module_text).unwrap();
+    }
     let out = dir.join(file_name);
     pack_directory(&src, &out, &BTreeMap::new()).unwrap();
     out
@@ -787,13 +793,19 @@ fn counting_guest(ids: &[u32], trap_on: Option<u32>) -> String {
 
 const ALL_THREE: [u32; 3] = [runtime::HOOK_SERVER_TICK, runtime::HOOK_CLIENT_TICK, runtime::HOOK_HUD_RENDER];
 
-/// Installs and approves packages `(id, [wasm] side line, module text)` the way the launcher does; returns the mods folder
+/// Installs and approves packages `(id, "server" | "client" | "both" (the modules it declares), module text)` the way the launcher does; returns the mods folder
 /// and the approved list file (each thread of a test reads its own copy: the list is the launch's, not the thread's).
 fn approved_world(name: &str, packs: &[(&str, &str, String)]) -> (PathBuf, PathBuf) {
     let (control, mods) = world(name);
     let src = scratch(&format!("{name}_src"));
     for (id, side, text) in packs {
-        let fa = format!("server = \"bin/wasm/mod.wasm\"\nworld = \"full-access\"\n{side}");
+        // which modules the package declares decides where it runs: `server` = wasm.server, `client` = wasm.client, `both` = both
+        let declared = match *side {
+            "client" => "client = \"bin/wasm/mod.wasm\"",
+            "both" => "server = \"bin/wasm/mod.wasm\"\nclient = \"bin/wasm/client.wasm\"",
+            _ => "server = \"bin/wasm/mod.wasm\"",
+        };
+        let fa = format!("{declared}\nworld = \"full-access\"");
         let bytes = std::fs::read(pack(&src, id, &fa, text)).unwrap();
         install_package(&control, &mods, &format!("{id}.yak"), &bytes, Origin::Local, None).unwrap();
         control.approve(&bytes).unwrap();
@@ -815,7 +827,7 @@ fn side_decides_which_thread_loads_a_full_access_package_and_the_other_side_is_n
     let guest = counting_guest(&ALL_THREE, None);
     let (mods, file) = approved_world(
         "sides",
-        &[("demo_srv", "", guest.clone()), ("demo_cli", "side = \"client\"", guest.clone()), ("demo_both", "side = \"both\"", guest.clone()), ("demo_exp", "side = \"server\"", guest)],
+        &[("demo_srv", "server", guest.clone()), ("demo_cli", "client", guest.clone()), ("demo_both", "both", guest.clone()), ("demo_exp", "server", guest)],
     );
     // each side on its own thread: the runtime is per thread
     let (m, f) = (mods.clone(), file.clone());
@@ -834,7 +846,7 @@ fn side_decides_which_thread_loads_a_full_access_package_and_the_other_side_is_n
         out
     });
     let (loaded, messages, other) = server.join().unwrap();
-    assert_eq!(loaded, ["demo_both", "demo_exp", "demo_srv"], "server and both (no side = server)");
+    assert_eq!(loaded, ["demo_both", "demo_exp", "demo_srv"], "packages with wasm.server");
     assert!(messages.is_empty(), "{messages:?}");
     assert_eq!(other, 1);
     let (loaded, messages, other) = client.join().unwrap();
@@ -845,7 +857,7 @@ fn side_decides_which_thread_loads_a_full_access_package_and_the_other_side_is_n
 
 #[test]
 fn a_client_mod_gets_client_tick_and_hud_render_and_never_the_server_tick() {
-    let (mods, file) = approved_world("client_ticks", &[("demo_cli", "side = \"client\"", counting_guest(&ALL_THREE, None))]);
+    let (mods, file) = approved_world("client_ticks", &[("demo_cli", "client", counting_guest(&ALL_THREE, None))]);
     std::thread::spawn(move || {
         let report = load_client_mods(&mods, Some(&ApprovedList::read(&file).unwrap()));
         assert_eq!(loaded_ids(&report), ["demo_cli"], "{:?} {:?}", report.skipped, report.problems);
@@ -871,7 +883,7 @@ fn a_client_mod_gets_client_tick_and_hud_render_and_never_the_server_tick() {
 
 #[test]
 fn a_server_only_mod_is_not_loaded_on_the_client_and_its_hooks_never_run_there() {
-    let (mods, file) = approved_world("server_only", &[("demo_srv", "", counting_guest(&ALL_THREE, None))]);
+    let (mods, file) = approved_world("server_only", &[("demo_srv", "server", counting_guest(&ALL_THREE, None))]);
     std::thread::spawn(move || {
         let report = load_client_mods(&mods, Some(&ApprovedList::read(&file).unwrap()));
         assert!(report.loaded.is_empty());
@@ -889,7 +901,7 @@ fn a_server_only_mod_is_not_loaded_on_the_client_and_its_hooks_never_run_there()
 
 #[test]
 fn a_both_mod_has_one_instance_per_thread_and_they_share_no_state() {
-    let (mods, file) = approved_world("both", &[("demo_both", "side = \"both\"", counting_guest(&ALL_THREE, None))]);
+    let (mods, file) = approved_world("both", &[("demo_both", "both", counting_guest(&ALL_THREE, None))]);
     let (m, f) = (mods.clone(), file.clone());
     let server = std::thread::spawn(move || {
         let report = load_world_mods(&m, Some(&ApprovedList::read(&f).unwrap()));
@@ -918,7 +930,7 @@ fn a_both_mod_has_one_instance_per_thread_and_they_share_no_state() {
 #[test]
 fn a_trap_on_the_client_thread_disables_the_mod_there_and_the_original_still_runs() {
     let guest = counting_guest(&ALL_THREE, Some(runtime::HOOK_CLIENT_TICK));
-    let (mods, file) = approved_world("client_trap", &[("demo_both", "side = \"both\"", guest)]);
+    let (mods, file) = approved_world("client_trap", &[("demo_both", "both", guest)]);
     let (m, f) = (mods.clone(), file.clone());
     let client = std::thread::spawn(move || {
         let report = load_client_mods(&m, Some(&ApprovedList::read(&f).unwrap()));
@@ -975,6 +987,78 @@ fn with_no_client_mod_the_client_hooks_are_no_ops_and_the_original_runs() {
         let (_, mods) = world("client_empty");
         assert!(load_client_mods(&mods, None).loaded.is_empty());
         assert!(runtime::all_stats().is_empty());
+    })
+    .join()
+    .unwrap();
+}
+
+#[test]
+fn a_client_runtime_is_refused_on_a_thread_that_holds_a_server_runtime_and_the_reverse() {
+    let (mods, file) = approved_world("shared_thread", &[("demo_both", "both", counting_guest(&ALL_THREE, None))]);
+    let (mods2, file2) = (mods.clone(), file.clone());
+    std::thread::spawn(move || {
+        let list = ApprovedList::read(&file2).unwrap();
+        let mods = mods2;
+        // server first: the client load on the same thread is refused, and nothing of it is loaded
+        let report = load_world_mods(&mods, Some(&list));
+        assert_eq!(loaded_ids(&report), ["demo_both"]);
+        let refused = load_client_mods(&mods, Some(&list));
+        assert!(refused.loaded.is_empty());
+        assert!(
+            matches!(&refused.skipped[..], [(_, Refusal::SharedThread { loading: ThreadSide::Client, holds: ThreadSide::Server })]),
+            "{:?}",
+            refused.skipped
+        );
+        assert!(refused.messages().iter().any(|l| l.contains("share its runtime")), "{:?}", refused.messages());
+        assert_eq!(names().len(), 1, "the server instance is untouched");
+        assert!(!horizon_client::yoake2_mods::client_mods_loaded());
+        runtime::uninstall().unwrap();
+    })
+    .join()
+    .unwrap();
+    // and the reverse, on a fresh thread: the server load on a thread holding the client runtime
+    std::thread::spawn(move || {
+        let list = ApprovedList::read(&file).unwrap();
+        let report = load_client_mods(&mods, Some(&list));
+        assert_eq!(loaded_ids(&report), ["demo_both"]);
+        let refused = load_world_mods(&mods, Some(&list));
+        assert!(refused.loaded.is_empty());
+        assert!(matches!(&refused.skipped[..], [(_, Refusal::SharedThread { loading: ThreadSide::Server, holds: ThreadSide::Client })]), "{:?}", refused.skipped);
+        assert_eq!(names().len(), 1);
+        unload_client_mods();
+        // once the client mods are gone the server may load again
+        assert_eq!(loaded_ids(&load_world_mods(&mods, Some(&list))), ["demo_both"]);
+        runtime::uninstall().unwrap();
+    })
+    .join()
+    .unwrap();
+}
+
+#[test]
+fn the_hud_render_argument_is_a_dead_handle() {
+    let hud = runtime::HOOK_HUD_RENDER as i32;
+    let wat = format!(
+        r#"(module
+  (@custom "yoake_abi" "\01\00\00\00")
+  (import "env" "hook_register" (func $register (param i32 i32) (result i32)))
+  (import "env" "get" (func $get (param i64 i32 i32) (result i32)))
+  (import "env" "set" (func $set (param i64 i32 i64) (result i32)))
+  (import "env" "report" (func $report (param i32 i64)))
+  (memory (export "memory") 1)
+  (func (export "yoake_init") (drop (call $register (i32.const {hud}) (i32.const 0))))
+  (func (export "yoake_hook") (param $id i32) (param $h i64) (result i64)
+    (call $report (i32.const 1) (i64.extend_i32_s (call $get (local.get $h) (i32.const 0) (i32.const 64))))
+    (call $report (i32.const 2) (i64.extend_i32_s (call $set (local.get $h) (i32.const 0) (i64.const 1))))
+    (i64.const 0)))"#
+    );
+    let (mods, file) = approved_world("hud_dead", &[("demo_hud", "client", wat)]);
+    std::thread::spawn(move || {
+        let report = load_client_mods(&mods, Some(&ApprovedList::read(&file).unwrap()));
+        assert_eq!(loaded_ids(&report), ["demo_hud"], "{:?}", report.skipped);
+        dispatch_hud_render();
+        let r = runtime::take_reports().unwrap();
+        assert_eq!(r, [(1, 3), (2, 3)], "get and set on the HUD handle fail with status 3 (BadField): there is nothing behind it");
+        unload_client_mods();
     })
     .join()
     .unwrap();

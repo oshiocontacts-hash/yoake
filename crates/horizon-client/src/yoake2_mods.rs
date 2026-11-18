@@ -32,7 +32,7 @@ use std::fmt;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-use horizon_mods::yak::{Archive, FullAccessSide, PublicKey};
+use horizon_mods::yak::{Archive, PublicKey, Wasm};
 pub use horizon_mods::yak::control::{
     APPROVED_ARG, APPROVED_ENV, AllowEntry, AllowFile, ApprovedEntry, ApprovedList, Control, ListDiff, Origin, OriginFile, OriginRecord,
     control_dir_in, guard, install_package, remove_package, sha256_hex,
@@ -61,11 +61,19 @@ impl ThreadSide {
         }
     }
 
-    /// Whether a mod whose manifest says `side` runs on this thread.
-    pub fn runs(self, side: FullAccessSide) -> bool {
+    /// Whether a mod declares a module for this thread: `wasm.server` runs on the server thread, `wasm.client` on the
+    /// client thread (a mod may declare both: two separate instances).
+    pub fn runs(self, wasm: &Wasm) -> bool {
         match self {
-            ThreadSide::Server => side.includes_server(),
-            ThreadSide::Client => side.includes_client(),
+            ThreadSide::Server => wasm.server.is_some(),
+            ThreadSide::Client => wasm.client.is_some(),
+        }
+    }
+
+    fn other(self) -> ThreadSide {
+        match self {
+            ThreadSide::Server => ThreadSide::Client,
+            ThreadSide::Client => ThreadSide::Server,
         }
     }
 }
@@ -75,8 +83,12 @@ impl ThreadSide {
 pub enum Refusal {
     /// Not a full-access package: leave it to the sandboxed WebAssembly path.
     Sandboxed,
-    /// A full-access package for the other thread (`[wasm] side`): not an error, the other loader takes it.
+    /// A full-access package that declares no module for this thread (`wasm.server` / `wasm.client`): not an
+    /// error, the other loader takes it.
     OtherSide,
+    /// This thread already holds the other side\x27s mods (a server runtime and a client runtime would share one
+    /// thread-local runtime, and their hooks would mix): nothing is loaded.
+    SharedThread { loading: ThreadSide, holds: ThreadSide },
     /// A full-access package nobody allowed.
     NotAllowed,
     /// The id was allowed, but for other content: the package changed since the player approved it (an update, a
@@ -104,6 +116,10 @@ impl fmt::Display for Refusal {
         match self {
             Refusal::Sandboxed => write!(f, "not a full-access package (left to the sandboxed path)"),
             Refusal::OtherSide => write!(f, "a full-access mod for the other side (left to the other loader)"),
+            Refusal::SharedThread { loading, holds } => write!(
+                f,
+                "this thread already runs {holds:?}-side full-access mods: {loading:?}-side mods would share its runtime (server and client mods need separate threads), not loaded"
+            ),
             Refusal::NotAllowed => write!(f, "full-access mod nobody approved (add it to {})", AllowFile::FILE_NAME),
             Refusal::ContentChanged { id, allowed, actual } => write!(
                 f,
@@ -175,8 +191,15 @@ pub fn load_package_on(side: ThreadSide, bytes: Vec<u8>, origin: Option<Origin>,
     let id = archive.manifest().id.clone();
     match archive.manifest().wasm.as_ref().filter(|wasm| wasm.full_access()) {
         None => return Err(Refusal::Sandboxed),
-        Some(wasm) if !side.runs(wasm.full_access_side()) => return Err(Refusal::OtherSide),
+        Some(wasm) if !side.runs(wasm) => return Err(Refusal::OtherSide),
         Some(_) => {}
+    }
+    // one runtime per thread: a client runtime and a server runtime must never be filled on the same thread
+    if LOADED.with(|loaded| !loaded.borrow()[side.other().index()].is_empty()) {
+        let refusal = Refusal::SharedThread { loading: side, holds: side.other() };
+        log::warn!("yoake: full-access mod \x27{id}\x27 {refusal}");
+        eprintln!("yoake: full-access mod \x27{id}\x27 {refusal}");
+        return Err(refusal);
     }
     // an unknown origin, a server's or a friend's package is refused before anything else looks at it
     let origin = match origin {
@@ -199,7 +222,7 @@ pub fn load_package_on(side: ThreadSide, bytes: Vec<u8>, origin: Option<Origin>,
             other => other,
         });
     }
-    let module = archive.full_access_module().map_err(Refusal::Package)?.ok_or_else(|| Refusal::Package("no full-access module".into()))?;
+    let module = archive.full_access_module(side == ThreadSide::Client).map_err(Refusal::Package)?.ok_or_else(|| Refusal::Package("no full-access module".into()))?;
     // the ABI version is read from the module bytes: no guest code has run yet
     let abi = match runtime::module_abi_version(&module) {
         Err(e) => return Err(Refusal::Abi(e.to_string())),
@@ -310,7 +333,7 @@ pub fn load_dir_on(side: ThreadSide, dir: &Path, origins: &OriginFile, allow: &A
                 // a duplicate id: every full-access package of the group refuses (a sandboxed one is not our business)
                 let wasm = Archive::new(Cursor::new(pack.bytes.clone())).ok().and_then(|a| a.manifest().wasm.clone()).filter(|w| w.full_access());
                 let full_access = wasm.is_some();
-                let other_side = wasm.as_ref().is_some_and(|w| !side.runs(w.full_access_side()));
+                let other_side = wasm.as_ref().is_some_and(|w| !side.runs(w));
                 let me = pack.path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
                 let others = names.iter().filter(|n| **n != me).cloned().collect();
                 report.skipped.push((pack.path, if other_side { Refusal::OtherSide } else if full_access { Refusal::DuplicateId { id: id.clone(), others } } else { Refusal::Sandboxed }));
