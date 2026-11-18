@@ -219,6 +219,8 @@ impl Game<'_> {
 
     pub(super) fn native_lifecycle_world_ready(&mut self) {
         if let Some(context) = self.native_lifecycle.world_open_ready() {
+            // MX3L1: full-access mods of the world's mods folder load here (empty without the yoake2 feature)
+            self.yoake2_world_start_hook();
             self.native_world_lifecycle(&context, WorldPhase::WorldOpenReady, "");
         }
     }

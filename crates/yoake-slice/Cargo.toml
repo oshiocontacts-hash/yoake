@@ -25,3 +25,7 @@ required-features = ["wasm"]
 [[example]]
 name = "slice_bench"
 required-features = ["wasm"]
+
+[[test]]
+name = "multi"
+required-features = ["wasm"]

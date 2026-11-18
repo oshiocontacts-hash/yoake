@@ -124,3 +124,82 @@ fn a_rust_guest_in_the_server_tick_hook_edits_a_dropped_item_of_a_real_game() {
         let _ = runtime::uninstall();
     });
 }
+
+/// Packs a full-access package around a compiled guest.
+fn pack_mod(dir: &Path, id: &str, wasm: &[u8]) -> PathBuf {
+    let src = dir.join(format!("src_{id}"));
+    std::fs::create_dir_all(src.join("bin/wasm")).unwrap();
+    std::fs::write(
+        src.join("yak.toml"),
+        format!(
+            "format = 1\nid = \"{id}\"\nversion = \"1.0.0\"\nname = \"{id}\"\nauthors = [\"test\"]\ndescription = \"a test mod\"\n\n[yoake]\nversion = \">=0.0.0\"\n\n[side]\nclient = false\nserver = true\nrequired_on_join = false\n\n[wasm]\ninterface = \"1.0\"\nserver = \"bin/wasm/mod.wasm\"\nworld = \"full-access\"\n"
+        ),
+    )
+    .unwrap();
+    std::fs::write(src.join("bin/wasm/mod.wasm"), wasm).unwrap();
+    let out = dir.join(format!("{id}.yak"));
+    horizon_mods::yak::pack_directory(&src, &out, &std::collections::BTreeMap::new()).unwrap();
+    out
+}
+
+#[test]
+#[ignore = "needs HORIZON_TEST_RESOURCES (the game resources)"]
+fn two_rust_mods_compose_in_the_server_tick_of_a_real_game_and_a_trap_leaves_the_others_working() {
+    use crate::yoake2_mods::{AllowFile, Origin, Refusal, load_dir};
+
+    let sdk = Path::new(env!("CARGO_MANIFEST_DIR")).join("../yoake-guest-sdk");
+    let scratch = std::env::temp_dir().join("yoake2_two_mods");
+    let _ = std::fs::remove_dir_all(&scratch);
+    let rlib = guest_build::build_sdk(&sdk, &scratch);
+    let build = |name: &str| guest_build::build_guest(&rlib, &sdk.join(format!("tests/guests/{name}.rs")), &scratch, name);
+    let (a, b, trap) = (build("tick_a"), build("tick_b"), build("tick_trap"));
+    let mods = scratch.join("mods");
+    std::fs::create_dir_all(&mods).unwrap();
+    // load order is file order: a_outer, b_inner, c_trap; d_denied is a full-access package nobody switched on
+    pack_mod(&mods, "a_outer", &a);
+    pack_mod(&mods, "b_inner", &b);
+    pack_mod(&mods, "c_trap", &trap);
+    pack_mod(&mods, "d_denied", &a);
+    let mut allow = AllowFile::default();
+    for id in ["a_outer", "b_inner", "c_trap"] {
+        allow.set(id, true);
+    }
+    allow.save(&mods).unwrap();
+
+    server_game(|game| {
+        super::native_client_items::yoake2_install_dispatch();
+        game.dropped.push(item(ITEM, 12.5));
+        let _ = runtime::uninstall();
+        let report = load_dir(&mods, Origin::LocalFolder, &AllowFile::load(&mods).unwrap(), &[], &ModConfig::new(""));
+        assert_eq!(report.loaded.iter().map(|l| l.id.as_str()).collect::<Vec<_>>(), ["a_outer", "b_inner", "c_trap"]);
+        assert_eq!(report.skipped.len(), 1);
+        assert_eq!(report.skipped[0].1, Refusal::NotAllowed, "d_denied was not switched on, so it never loaded");
+        let (ma, mb, mc) = (report.loaded[0].module, report.loaded[1].module, report.loaded[2].module);
+        assert_eq!(runtime::all_stats().len(), 3);
+
+        // tick 1: a (priority 10) wraps the trapping mod (15), which wraps b (20), which wraps the engine
+        game.native_lifecycle_server_tick_start(true);
+        let (ra, rb, rc) = (runtime::take_reports_of(ma).unwrap(), runtime::take_reports_of(mb).unwrap(), runtime::take_reports_of(mc).unwrap());
+        assert_eq!(slot(&ra, 1), [0], "the outermost mod sees the item before anyone");
+        assert_eq!(slot(&rb, 11), [1], "b sees a's change although the mod between them trapped");
+        assert_eq!(slot(&ra, 2), [21], "a sees b's effect after `original`");
+        assert_eq!(slot(&rb, 12), [21]);
+        assert!(rc.is_empty());
+        assert_eq!(game.dropped.iter().find(|d| d.id == ITEM).unwrap().fire_ticks, 21, "both mods' writes are in the Game: 0 + 1 + 20");
+        assert!(runtime::stats_of(mc).unwrap().disabled, "the trapping mod is out");
+        assert!(!runtime::stats_of(ma).unwrap().disabled);
+        assert!(!runtime::stats_of(mb).unwrap().disabled);
+
+        // tick 2: the trapped mod is not entered, the other two go on from what the first tick left
+        game.native_lifecycle_server_tick_start(true);
+        let (ra, rb) = (runtime::take_reports_of(ma).unwrap(), runtime::take_reports_of(mb).unwrap());
+        assert_eq!(slot(&ra, 1), [21]);
+        assert_eq!(slot(&rb, 11), [22]);
+        assert_eq!(game.dropped.iter().find(|d| d.id == ITEM).unwrap().fire_ticks, 42);
+        assert_eq!(runtime::stats_of(mc).unwrap().entries, 1, "never entered again");
+        assert_eq!(runtime::stats_of(ma).unwrap().entries, 2);
+        assert_eq!(yoake_slice::activation::live_activations(), 0);
+        assert_eq!(yoake_slice::activation::live_path_handles(), 0);
+        let _ = runtime::uninstall();
+    });
+}

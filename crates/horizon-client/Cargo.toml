@@ -178,3 +178,8 @@ horizon-items = { path = "../horizon-items", features = ["test-support"] }
 yoake-wasm = { path = "../yoake-wasm", features = ["test-guests"] }
 # Every WGSL shader translated as wgpu's DirectX 12 backend does (gfx.rs tests).
 naga = { version = "30.0.1", features = ["wgsl-in", "hlsl-out", "msl-out", "spv-out"] }
+
+[[test]]
+name = "yoake2_loader"
+path = "tests/yoake2_loader.rs"
+required-features = ["yoake2-slice"]

@@ -16,6 +16,15 @@
 //! ```
 //!
 //! See `docs/yoake2/ENGINE_CALL_ABI.md` for the ABI, including "never call again to retry".
+//!
+//! # Re-entry: never hold a borrow across `original`
+//!
+//! `original` runs the engine (and the next mod), and the engine may call a hook that enters **this same guest**
+//! again (a nested activation on the same instance). Anything the outer hook keeps borrowed across that call is
+//! borrowed when the nested hook runs: a `RefCell` borrow, a `static mut` reference, a lock-like flag. The
+//! nested hook then panics (a `RefCell` already borrowed) and a panic is a trap: the mod is disabled. So: take
+//! borrows of guest statics only around code that does not call `original` or any engine binding that can run
+//! hooks, copy what you need out before calling, and do not keep a `RefCell` guard alive over the call.
 
 #![no_std]
 // the SDK is where guest-side `unsafe` lives (imports, allocator); the generated stubs contain none

@@ -39,10 +39,16 @@ mod imp {
 
     unsafe impl GlobalAlloc for GuestAlloc {
         unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+            // Every block of a size class is aligned to `min(size, PAGE)`: a class is at least as big as the
+            // requested alignment, and a block popped from a free list keeps the alignment it was carved with.
+            if layout.align() > PAGE {
+                return core::ptr::null_mut();
+            }
             let (size, class) = class_of(&layout);
             if class >= CLASSES {
                 return core::ptr::null_mut();
             }
+            let block_align = size.min(PAGE);
             // SAFETY: single-threaded, see the `Sync` impl; no other reference to the state is live.
             let state = unsafe { &mut *self.0.get() };
             let head = state.free[class];
@@ -51,21 +57,31 @@ mod imp {
                 state.free[class] = unsafe { *(head as *const usize) };
                 return head as *mut u8;
             }
-            let start = (state.cur + layout.align() - 1) & !(layout.align() - 1);
-            if state.cur == 0 || start + size > state.end {
-                let pages = size.div_ceil(PAGE).max(16);
-                let old = core::arch::wasm32::memory_grow(0, pages);
-                if old == usize::MAX {
-                    return core::ptr::null_mut();
-                }
-                state.cur = old * PAGE;
-                state.end = state.cur + pages * PAGE;
-                let start = (state.cur + layout.align() - 1) & !(layout.align() - 1);
-                state.cur = start + size;
+            // checked arithmetic: a request near `usize::MAX` is a failure, not a wrapped pointer
+            let fits = if state.cur == 0 {
+                None
+            } else {
+                state
+                    .cur
+                    .checked_add(block_align - 1)
+                    .map(|c| c & !(block_align - 1))
+                    .and_then(|start| start.checked_add(size).map(|end| (start, end)))
+                    .filter(|(_, end)| *end <= state.end)
+            };
+            if let Some((start, end)) = fits {
+                state.cur = end;
                 return start as *mut u8;
             }
-            state.cur = start + size;
-            start as *mut u8
+            let pages = size.div_ceil(PAGE).max(16);
+            let old = core::arch::wasm32::memory_grow(0, pages);
+            if old == usize::MAX {
+                return core::ptr::null_mut();
+            }
+            // pages are PAGE-aligned, so the chunk base satisfies every block alignment
+            let base = old * PAGE;
+            state.cur = base + size;
+            state.end = base + pages * PAGE;
+            base as *mut u8
         }
 
         unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {

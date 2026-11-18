@@ -6,7 +6,7 @@ Functions counted: free functions, inherent methods, and non-derived trait-impl 
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | `items` | 69 | 7 | 13 | **20 (29.0%)** | 15 (21.7%) | 34 (49.3%) | 8 / 21 | 73 / 90 | 9 |
 | `entities` | 101 | 30 | 25 | **55 (54.5%)** | 32 (31.7%) | 14 (13.9%) | 9 / 23 | 85 / 97 | 13 |
-| `game_items` | 3 | 3 | 0 | **3 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 0 / 0 | 0 / 0 | 0 |
+| `game_items` | 5 | 5 | 0 | **5 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 0 / 0 | 0 / 0 | 0 |
 | `entity_query` | 20 | 1 | 6 | **7 (35.0%)** | 4 (20.0%) | 9 (45.0%) | 6 / 10 | 14 / 43 | 4 |
 
 ## `items` (horizon-items/src/items.rs)
@@ -171,7 +171,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 ## `game_items` (horizon-client/src/game/native_client_items.rs)
 
-- bound now: **3 of 3** (100.0%): 3 basic + 0 mechanical
+- bound now: **5 of 5** (100.0%): 5 basic + 0 mechanical
 - handle-required, not yet bound: 0 (0.0%)
 - excluded: 0 (0.0%)
 - field accessors (get + set pairs): 0 of 0 fields

@@ -11,6 +11,9 @@ mod test_support;
 pub mod game;
 pub mod mod_api;
 pub mod mod_guard;
+/// MX3L1: the full-access mod loader.
+#[cfg(feature = "yoake2-slice")]
+pub mod yoake2_mods;
 #[cfg(test)]
 mod inject_test_support;
 mod yak_mods;

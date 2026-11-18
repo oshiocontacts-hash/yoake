@@ -2755,6 +2755,18 @@
       "path": "game_items::Game.painting#handle",
       "sig": "handle horizon_client_lib::entities::Painting by id: u32 at Game.paintings",
       "status": "bound"
+    },
+    {
+      "id": 460,
+      "path": "game_items::Game::yoake2_tick_hook",
+      "sig": "fn yoake2_tick_hook(&mut Self) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 461,
+      "path": "game_items::Game::yoake2_world_start_hook",
+      "sig": "fn yoake2_world_start_hook(&mut Self) -> ()",
+      "status": "bound"
     }
   ]
 }

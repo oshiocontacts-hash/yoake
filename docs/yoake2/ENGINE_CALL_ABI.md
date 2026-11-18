@@ -84,3 +84,24 @@ It builds to a **core module** with the installed `wasm32-wasip2` target and no 
 `rustc --target wasm32-wasip2 --crate-type cdylib -C panic=abort -C linker=rust-lld -C linker-flavor=wasm-ld
 -C link-arg=--no-entry -C link-arg=--export-memory -C link-arg=--export=yoake_hook -C link-arg=--export=yoake_init`
 (see `crates/yoake-guest-sdk/tests/support/build.rs`). The module has no WASI imports.
+
+## Registration rules, several mods, the loader (MX3L1)
+
+- **`hook_register` works only while `yoake_init` runs.** Anywhere else it returns `-1`. A mod may register at most 4096
+  ids (`-2` past that), and **hook id 0 is reserved** for the legacy single-export guest (`-3`): S2 slot ids start at 1,
+  hook ids at and above `0x8000_0000` are engine-synthetic. `yoake_init` runs with a finite budget (50 million fuel,
+  2000 epoch ticks when epoch is on); a guest that spins there fails to load and nothing is left loaded.
+- **Several mods per thread.** Each full-access mod is its own store. For one hook id the registered mods run in order
+  of `(priority, load order)`, lowest first, and each wraps the next: the first is outermost, its `original` runs the next
+  mod, the last mod's `original` runs the engine. A mod that traps is disabled and drops out of every chain; the mods
+  around it and the engine still run, once. `runtime::stats_of(id)` / `all_stats()` give per-mod stats,
+  `take_reports_of(id)` per-mod reports.
+- **Handles of one mod are its own.** A path handle or hook-argument handle belongs to the activation of one mod; another
+  mod's activation of the same hook has its own handles.
+- **Full-access packages** are `.yak` files with `[wasm] interface = "1.0"`, `server = "bin/wasm/<name>.wasm"` and
+  `world = "full-access"` (a core module, no `client`, no `[wasm] permissions`, `side.server = true`). They run only when
+  the player switched them on in `<mods folder>/full-access.toml` (`[allow]` `<id> = true`) or, for a catalog package, a
+  key of the trust list signed them. A package delivered by a server or a friend is never full-access. A manifest without
+  that world is the sandboxed WebAssembly path, untouched.
+- **Never hold a guest borrow across `original`** (a `RefCell` guard, a `static mut` reference): the engine may call a hook
+  that enters this guest again, the nested hook finds the borrow taken, panics, and a panic is a trap.

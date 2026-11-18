@@ -176,3 +176,45 @@ fn the_sdk_fetches_a_result_that_did_not_fit_through_a_ticket_without_a_retry() 
     assert_eq!(RUNS.load(Ordering::SeqCst), 1, "the binding ran once although its result did not fit the first buffer");
     assert!(!runtime::stats().disabled);
 }
+
+#[test]
+fn the_guest_allocator_honours_alignments_above_16() {
+    install(&build_guest("align"));
+    let mut thing = Thing { count: 0 };
+    runtime::dispatch_id(1, &mut thing, &TABLE, &mut |_| 0);
+    let r = runtime::take_reports().unwrap();
+    assert_eq!(slot(&r, 1), [0], "no allocation of align 64, 256 or 4096 was misaligned (also after frees and Vec growth)");
+    assert_eq!(slot(&r, 2), [150]);
+    assert!(!runtime::stats().disabled, "{:?}", runtime::stats().trap);
+}
+
+#[test]
+fn memory_grows_while_an_outer_hook_waits_in_original_and_its_blocks_survive() {
+    // filling 3 MiB byte by byte is a lot of instructions: a bigger fuel budget than the default
+    runtime::install(&build_guest("grow_nesting"), ModConfig { fuel: Some(500_000_000), ..ModConfig::new("") }).unwrap();
+    let mut thing = Thing { count: 0 };
+    f(&mut thing);
+    let r = runtime::take_reports().unwrap();
+    assert_eq!(slot(&r, 10), [7 + 7 + 3], "the nested hook allocated and touched 3 MiB: {:?}", runtime::stats().trap);
+    assert_eq!(slot(&r, 1), [1], "the outer hook's vector is intact");
+    assert!(slot(&r, 2)[0] >= 48, "the guest memory grew by at least 3 MiB during the nesting: {:?}", slot(&r, 2));
+    assert_eq!(slot(&r, 3), [100_005], "and it can allocate again afterwards");
+    assert!(!runtime::stats().disabled, "{:?}", runtime::stats().trap);
+}
+
+#[test]
+fn the_outer_hook_continues_after_a_nested_trap() {
+    install(&build_guest("trap_nested"));
+    let mut thing = Thing { count: 0 };
+    f(&mut thing);
+    let r = runtime::take_reports().unwrap();
+    assert_eq!(slot(&r, 10), [1], "the nested hook ran and trapped");
+    assert_eq!(slot(&r, 2), [1], "the outer hook continued after `original` and its data is intact");
+    let stats = runtime::stats();
+    assert!(stats.disabled, "a trap disables the mod");
+    assert_eq!(thing.count, 101, "f's body +1 and g's fallback +100: each engine body exactly once");
+    // never entered again
+    let before = runtime::stats().entries;
+    f(&mut thing);
+    assert_eq!(runtime::stats().entries, before);
+}

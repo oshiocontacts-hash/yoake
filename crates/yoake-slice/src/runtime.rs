@@ -39,6 +39,7 @@
 use crate::activation::{self, FieldTable, Finished, Status};
 use std::cell::{Cell, RefCell};
 use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::thread::JoinHandle;
@@ -83,8 +84,14 @@ struct Host {
     /// Multiplexed guests: one export `yoake_hook(hook_id: i32, handle: i64) -> i64`, called only for
     /// the ids the guest registered with `hook_register` in `yoake_init`.
     multi: Option<TypedFunc<(i32, i64), i64>>,
-    /// hook id -> priority, as registered.
-    registered: std::collections::HashMap<u32, i32>,
+    /// hook id -> priority, as registered (shared with the slot, so chains can be built while the guest runs).
+    registered: Rc<RefCell<std::collections::HashMap<u32, i32>>>,
+    /// `hook_register` is accepted only while `yoake_init` runs.
+    in_init: bool,
+    /// This store's own innermost published context (null while its guest runs and outside imports).
+    active: Rc<Cell<*mut StoreContextMut<'static, Host>>>,
+    /// Mirror of `disabled` the slot can read while the instance is borrowed.
+    dead: Rc<Cell<bool>>,
     memory: Option<Memory>,
     cfg: ModConfig,
     disabled: bool,
@@ -100,6 +107,14 @@ struct Host {
     /// Results that did not fit the guest's buffer, kept for `engine_take` (never re-run).
     tickets: Vec<Ticket>,
     next_ticket: u32,
+}
+
+impl Host {
+    /// The trap rule's last step: never enter this mod again, and drop it from every chain.
+    fn disable(&mut self) {
+        self.disabled = true;
+        self.dead.set(true);
+    }
 }
 
 struct Ticket {
@@ -126,16 +141,33 @@ struct ModInst {
     _ticker: Option<Ticker>,
 }
 
+/// Identifies a loaded mod on its thread.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ModId(pub u64);
+
+/// One loaded full-access mod: its own store, its own published-context cell, and the few facts a chain
+/// needs while the instance is borrowed (registered hooks, whether it is dead).
+struct ModSlot {
+    id: ModId,
+    name: String,
+    /// Load order: the tie-break between mods of equal priority.
+    load_order: u64,
+    inst: RefCell<ModInst>,
+    active: Rc<Cell<*mut StoreContextMut<'static, Host>>>,
+    dead: Rc<Cell<bool>>,
+    registered: Rc<RefCell<std::collections::HashMap<u32, i32>>>,
+}
+
 /// All per-thread runtime state behind one thread-local, so a hook entry reads thread-local storage
 /// once (on the windows-gnu toolchain one access costs about 15 ns).
 struct Rt {
-    /// The innermost live store context (C0's ACTIVE pointer); null outside guest runs.
-    active: Cell<*mut StoreContextMut<'static, Host>>,
-    inst: RefCell<Option<ModInst>>,
+    /// Every mod loaded on this thread, in load order.
+    mods: RefCell<Vec<Rc<ModSlot>>>,
+    next_load: Cell<u64>,
 }
 
 thread_local! {
-    static RT: Rt = const { Rt { active: Cell::new(std::ptr::null_mut()), inst: RefCell::new(None) } };
+    static RT: Rt = const { Rt { mods: RefCell::new(Vec::new()), next_load: Cell::new(1) } };
 }
 
 /// Restores the previous `active` pointer, also when a panic unwinds through.
@@ -150,21 +182,21 @@ impl Drop for ActiveGuard<'_> {
     }
 }
 
-/// Publishes `ctx` as the innermost context while `f` runs. Returns the pointer `f` is given: all
-/// use of the context from here on goes through it (not through `ctx`), as in C0.
+/// Publishes `ctx` as this store's innermost context while `f` runs. Returns the pointer `f` is given:
+/// all use of the context from here on goes through it (not through `ctx`), as in C0.
 fn with_active<T>(
-    rt: &Rt,
+    cell: &Cell<*mut StoreContextMut<'static, Host>>,
     ctx: &mut StoreContextMut<'_, Host>,
     f: impl FnOnce(*mut StoreContextMut<'static, Host>) -> T,
 ) -> T {
     let pointer = (ctx as *mut StoreContextMut<'_, Host>).cast::<StoreContextMut<'static, Host>>();
-    let _restore = ActiveGuard { cell: &rt.active, previous: rt.active.replace(pointer) };
+    let _restore = ActiveGuard { cell, previous: cell.replace(pointer) };
     f(pointer)
 }
 
 /// # Safety
 /// `pointer` is the innermost context published by [`with_active`] (the contract of every caller:
-/// it was just read from `Rt::active` or just published), and no other reference to it is live.
+/// it was just read from the slot's `active` or just published), and no other reference to it is live.
 unsafe fn context<'x>(pointer: *mut StoreContextMut<'static, Host>) -> &'x mut StoreContextMut<'static, Host> {
     // SAFETY: caller contract. The native code between the publishing frame and this call does not
     // use the `Caller` it came from (module docs).
@@ -184,11 +216,31 @@ pub const HOOK_SERVER_TICK: u32 = SYNTHETIC_HOOK_BASE + 1;
 /// The unmetered store's starting fuel; every top-level activation must leave it unchanged.
 pub const INITIAL_FUEL: u64 = u64::MAX / 4;
 
-/// Installs a mod (WAT text or a wasm binary) on the calling thread, replacing any earlier one.
-/// Fails (instead of panicking) when called while this thread's guest is running.
-pub fn install(wasm_or_wat: &[u8], cfg: ModConfig) -> R<()> {
+/// Most hook ids one mod may register.
+pub const MAX_REGISTRATIONS: usize = 4096;
+/// Fuel `yoake_init` may burn, and its epoch budget in 1 ms ticks (a finite budget for the one call that
+/// is not inside an activation).
+pub const INIT_FUEL: u64 = 50_000_000;
+pub const INIT_EPOCH_TICKS: u64 = 2000;
+
+/// `hook_register` results (negative = refused).
+pub mod register_status {
+    pub const OK: i32 = 0;
+    /// Called outside `yoake_init`.
+    pub const NOT_IN_INIT: i32 = -1;
+    /// This mod already registered [`super::MAX_REGISTRATIONS`] ids.
+    pub const TOO_MANY: i32 = -2;
+    /// Hook id 0 belongs to the legacy single-export API.
+    pub const RESERVED_ID: i32 = -3;
+}
+
+/// Loads a mod (WAT text or a wasm binary) next to the ones already on this thread. It runs after them in
+/// every chain of equal priority. `name` is for `stats`. Fails (instead of panicking) when `yoake_init`
+/// traps or runs out of its budget; nothing is left loaded then.
+pub fn load(wasm_or_wat: &[u8], cfg: ModConfig, name: &str) -> R<ModId> {
     let mut config = Config::new();
-    config.consume_fuel(cfg.fuel.is_some()).epoch_interruption(cfg.epoch_ticks.is_some());
+    // fuel is always on: `yoake_init` needs a finite budget even for an unmetered mod
+    config.consume_fuel(true).epoch_interruption(cfg.epoch_ticks.is_some());
     let engine = Engine::new(&config)?;
     let module = Module::new(&engine, wasm_or_wat)?;
     let ticks = Arc::new(AtomicU64::new(0));
@@ -206,10 +258,16 @@ pub fn install(wasm_or_wat: &[u8], cfg: ModConfig) -> R<()> {
     });
     let linker = build_linker(&engine)?;
     let export = cfg.hook_export.clone();
+    let registered = Rc::new(RefCell::new(std::collections::HashMap::new()));
+    let active = Rc::new(Cell::new(std::ptr::null_mut()));
+    let dead = Rc::new(Cell::new(false));
     let host = Host {
         hook: None,
         multi: None,
-        registered: std::collections::HashMap::new(),
+        registered: registered.clone(),
+        in_init: false,
+        active: active.clone(),
+        dead: dead.clone(),
         memory: None,
         cfg,
         disabled: false,
@@ -225,9 +283,7 @@ pub fn install(wasm_or_wat: &[u8], cfg: ModConfig) -> R<()> {
         next_ticket: 0,
     };
     let mut store = Store::new(&engine, host);
-    if store.data().cfg.fuel.is_some() {
-        store.set_fuel(INITIAL_FUEL)?;
-    }
+    store.set_fuel(INITIAL_FUEL)?;
     if store.data().cfg.epoch_ticks.is_some() {
         store.set_epoch_deadline(u64::MAX / 4);
     }
@@ -235,41 +291,90 @@ pub fn install(wasm_or_wat: &[u8], cfg: ModConfig) -> R<()> {
     let memory = instance.get_memory(&mut store, "memory");
     store.data_mut().memory = memory;
     // A multiplexed guest exports `yoake_hook`; its optional `yoake_init` registers the hook ids it wants.
-    // Anything else is the one-export guest of the slice (`ModConfig::hook_export`), which is hook id 0.
+    // Anything else is the one-export guest of the slice (`ModConfig::hook_export`): hook id 0, which is
+    // reserved for it (a multiplexed guest cannot register 0).
     match instance.get_typed_func::<(i32, i64), i64>(&mut store, HOOK_EXPORT) {
         Ok(multi) => {
             store.data_mut().multi = Some(multi);
             if let Ok(init) = instance.get_typed_func::<(), ()>(&mut store, INIT_EXPORT) {
-                init.call(&mut store, ())?;
+                // a finite budget for the one guest call that is not inside an activation
+                store.set_fuel(INIT_FUEL)?;
+                if store.data().cfg.epoch_ticks.is_some() {
+                    store.set_epoch_deadline(INIT_EPOCH_TICKS);
+                }
+                store.data_mut().in_init = true;
+                let result = init.call(&mut store, ());
+                store.data_mut().in_init = false;
+                result.map_err(|e| Error::msg(format!("yoake_init failed: {e:#}")))?;
+                store.set_fuel(INITIAL_FUEL)?;
+                if store.data().cfg.epoch_ticks.is_some() {
+                    store.set_epoch_deadline(u64::MAX / 4);
+                }
             }
         }
         Err(_) => {
             let hook = instance.get_typed_func::<i64, i64>(&mut store, &export)?;
             store.data_mut().hook = Some(hook);
+            registered.borrow_mut().insert(0, 0);
         }
     }
-    RT.with(|rt| match rt.inst.try_borrow_mut() {
-        Ok(mut slot) => {
-            *slot = Some(ModInst { store, _ticker: ticker });
-            Ok(())
+    RT.with(|rt| {
+        let load_order = rt.next_load.get();
+        rt.next_load.set(load_order + 1);
+        let id = ModId(load_order);
+        let slot = Rc::new(ModSlot {
+            id,
+            name: name.to_owned(),
+            load_order,
+            inst: RefCell::new(ModInst { store, _ticker: ticker }),
+            active,
+            dead,
+            registered,
+        });
+        match rt.mods.try_borrow_mut() {
+            Ok(mut mods) => {
+                mods.push(slot);
+                Ok(id)
+            }
+            Err(_) => Err(Error::msg("load: the mod list is in use")),
         }
-        Err(_) => Err(Error::msg("install: this thread's guest is running (called from inside a hook)")),
     })
 }
 
-/// Drops the calling thread's mod instance. Fails when called from inside a hook.
+/// Unloads one mod. Fails when its guest is running (called from inside one of its hooks).
+pub fn unload(id: ModId) -> R<()> {
+    RT.with(|rt| {
+        let mut mods = rt.mods.try_borrow_mut().map_err(|_| Error::msg("unload: the mod list is in use"))?;
+        let Some(index) = mods.iter().position(|m| m.id == id) else { return Ok(()) };
+        if mods[index].inst.try_borrow_mut().is_err() {
+            return Err(Error::msg("unload: this mod's guest is running (called from inside its hook)"));
+        }
+        mods.remove(index);
+        Ok(())
+    })
+}
+
+/// Installs a single mod on the calling thread, replacing every earlier one (the convenience of the
+/// slice's tests). Fails when any guest is running.
+pub fn install(wasm_or_wat: &[u8], cfg: ModConfig) -> R<()> {
+    uninstall()?;
+    load(wasm_or_wat, cfg, "mod").map(|_| ())
+}
+
+/// Drops every mod of the calling thread. Fails when one of their guests is running.
 #[must_use = "uninstall fails when called from inside a hook"]
 pub fn uninstall() -> R<()> {
-    RT.with(|rt| match rt.inst.try_borrow_mut() {
-        Ok(mut slot) => {
-            *slot = None;
-            Ok(())
+    RT.with(|rt| {
+        let mut mods = rt.mods.try_borrow_mut().map_err(|_| Error::msg("uninstall: the mod list is in use"))?;
+        if mods.iter().any(|m| m.inst.try_borrow_mut().is_err()) {
+            return Err(Error::msg("uninstall: this thread's guest is running (called from inside a hook)"));
         }
-        Err(_) => Err(Error::msg("uninstall: this thread's guest is running (called from inside a hook)")),
+        mods.clear();
+        Ok(())
     })
 }
 
-/// What the calling thread's mod did so far.
+/// What a mod did so far.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Stats {
     pub installed: bool,
@@ -291,42 +396,68 @@ pub struct Stats {
     pub registered: Vec<(u32, i32)>,
 }
 
-pub fn stats() -> Stats {
-    RT.with(|rt| match rt.inst.try_borrow() {
-        Ok(slot) => match slot.as_ref() {
-            Some(inst) => {
-                let host = inst.store.data();
-                Stats {
-                    installed: true,
-                    busy: false,
-                    disabled: host.disabled,
-                    trap: host.trap.clone(),
-                    entries: host.entries,
-                    max_fuel_used: host.max_fuel_used,
-                    depth: host.depth,
-                    epoch_depth: host.epoch.len(),
-                    fuel_left: inst.store.get_fuel().ok(),
-                    registered: {
-                        let mut list: Vec<(u32, i32)> = host.registered.iter().map(|(k, v)| (*k, *v)).collect();
-                        list.sort_unstable();
-                        list
-                    },
-                }
+fn slot_stats(slot: &ModSlot) -> Stats {
+    let mut registered: Vec<(u32, i32)> = slot.registered.borrow().iter().map(|(k, v)| (*k, *v)).collect();
+    registered.sort_unstable();
+    match slot.inst.try_borrow() {
+        Ok(inst) => {
+            let host = inst.store.data();
+            Stats {
+                installed: true,
+                busy: false,
+                disabled: host.disabled,
+                trap: host.trap.clone(),
+                entries: host.entries,
+                max_fuel_used: host.max_fuel_used,
+                depth: host.depth,
+                epoch_depth: host.epoch.len(),
+                fuel_left: inst.store.get_fuel().ok(),
+                registered,
             }
-            None => Stats::default(),
-        },
-        Err(_) => Stats { installed: true, busy: true, ..Stats::default() },
+        }
+        Err(_) => Stats { installed: true, busy: true, disabled: slot.dead.get(), registered, ..Stats::default() },
+    }
+}
+
+/// The first loaded mod's stats (the slice's single-mod view); `Stats::default()` when none is loaded.
+pub fn stats() -> Stats {
+    RT.with(|rt| rt.mods.borrow().first().map(|slot| slot_stats(slot)).unwrap_or_default())
+}
+
+/// The stats of one mod.
+pub fn stats_of(id: ModId) -> Option<Stats> {
+    RT.with(|rt| rt.mods.borrow().iter().find(|m| m.id == id).map(|slot| slot_stats(slot)))
+}
+
+/// `(id, name, load order, stats)` of every mod on this thread, in load order.
+pub fn all_stats() -> Vec<(ModId, String, Stats)> {
+    RT.with(|rt| rt.mods.borrow().iter().map(|slot| (slot.id, slot.name.clone(), slot_stats(slot))).collect())
+}
+
+fn take_slot_reports(slot: &ModSlot) -> R<Vec<(i32, i64)>> {
+    match slot.inst.try_borrow_mut() {
+        Ok(mut inst) => Ok(std::mem::take(&mut inst.store.data_mut().reports)),
+        Err(_) => Err(Error::msg("take_reports: this mod's guest is running (called from inside a hook)")),
+    }
+}
+
+/// The `report(slot, value)` calls of every mod since the last call, in load order. Fails from inside a hook.
+pub fn take_reports() -> R<Vec<(i32, i64)>> {
+    RT.with(|rt| {
+        let mods = rt.mods.borrow();
+        let mut all = Vec::new();
+        for slot in mods.iter() {
+            all.extend(take_slot_reports(slot)?);
+        }
+        Ok(all)
     })
 }
 
-/// The `report(slot, value)` calls the guest made since the last call. Fails from inside a hook.
-pub fn take_reports() -> R<Vec<(i32, i64)>> {
-    RT.with(|rt| match rt.inst.try_borrow_mut() {
-        Ok(mut slot) => Ok(match slot.as_mut() {
-            Some(inst) => std::mem::take(&mut inst.store.data_mut().reports),
-            None => Vec::new(),
-        }),
-        Err(_) => Err(Error::msg("take_reports: this thread's guest is running (called from inside a hook)")),
+/// The reports of one mod.
+pub fn take_reports_of(id: ModId) -> R<Vec<(i32, i64)>> {
+    RT.with(|rt| match rt.mods.borrow().iter().find(|m| m.id == id) {
+        Some(slot) => take_slot_reports(slot),
+        None => Ok(Vec::new()),
     })
 }
 
@@ -344,10 +475,11 @@ fn native<T>(caller: &mut Caller<'_, Host>, f: impl FnOnce() -> T) -> T {
             top.guest_used += now.saturating_sub(top.resumed_at);
         }
     }
-    let out = RT.with(|rt| {
+    let out = {
+        let active = caller.data().active.clone();
         let mut ctx = caller.as_context_mut();
-        with_active(rt, &mut ctx, |_| f())
-    });
+        with_active(&active, &mut ctx, |_| f())
+    };
     if epoch_on {
         let now = caller.data().ticks.load(Ordering::Relaxed);
         let budget = caller.data().cfg.epoch_ticks.unwrap_or(1);
@@ -586,9 +718,20 @@ fn build_linker(engine: &Engine) -> R<Linker<Host>> {
         take_ticket(&mut c, ticket, out_ptr, out_cap)
     })?;
     // hook_register(id, priority) -> i32: a multiplexed guest says which hooks it wants (host state only).
-    linker.func_wrap("env", "hook_register", |mut c: Caller<'_, Host>, id: i32, priority: i32| -> i32 {
-        c.data_mut().registered.insert(id as u32, priority);
-        0
+    linker.func_wrap("env", "hook_register", |c: Caller<'_, Host>, id: i32, priority: i32| -> i32 {
+        let host = c.data();
+        if !host.in_init {
+            return register_status::NOT_IN_INIT;
+        }
+        if id == 0 {
+            return register_status::RESERVED_ID;
+        }
+        let mut registered = host.registered.borrow_mut();
+        if registered.len() >= MAX_REGISTRATIONS && !registered.contains_key(&(id as u32)) {
+            return register_status::TOO_MANY;
+        }
+        registered.insert(id as u32, priority);
+        register_status::OK
     })?;
     // not engine imports: they only touch the host state
     linker.func_wrap("env", "report", |mut c: Caller<'_, Host>, slot: i32, value: i64| {
@@ -663,21 +806,56 @@ pub const MAX_DEPTH: u32 = 16;
 
 type ScopeFn<'s> = &'s mut dyn FnMut(u64) -> R<i64>;
 
+/// The mods registered for `hook_id`, in chain order: `(priority, load order)`, lowest first. The first is
+/// the outermost wrapper (its `original` runs the next mod); a dead mod is not in the chain.
+fn chain_for(hook_id: u32) -> Vec<Rc<ModSlot>> {
+    RT.with(|rt| {
+        let mods = rt.mods.borrow();
+        if mods.is_empty() {
+            return Vec::new();
+        }
+        let mut found: Vec<(i32, u64, Rc<ModSlot>)> = mods
+            .iter()
+            .filter(|m| !m.dead.get())
+            .filter_map(|m| m.registered.borrow().get(&hook_id).map(|priority| (*priority, m.load_order, m.clone())))
+            .collect();
+        found.sort_by_key(|(priority, order, _)| (*priority, *order));
+        found.into_iter().map(|(_, _, slot)| slot).collect()
+    })
+}
+
+/// The first live mod of `chain` at or after `from`.
+fn next_live(chain: &[Rc<ModSlot>], from: usize) -> Option<usize> {
+    (from..chain.len()).find(|i| !chain[*i].dead.get())
+}
+
 /// The hook entry a shim calls. `orig` runs the engine's original body for the hooked function and
 /// returns its result as an `i64` (0 for `()`); the return value is what the hooked function
-/// should return (for the original's own result when the mod did not override it).
+/// should return (for the original's own result when the mod did not override it). With several mods the
+/// chain is composed: each mod's `original` runs the next one, the last runs `orig`.
 pub fn dispatch<T: 'static>(arg: &mut T, table: &'static FieldTable<T>, orig: &mut dyn FnMut(&mut T) -> i64) -> i64 {
     dispatch_id(0, arg, table, orig)
 }
 
 /// [`dispatch`] for hook `hook_id`: a multiplexed guest is entered only if it registered that id.
 pub fn dispatch_id<T: 'static>(hook_id: u32, arg: &mut T, table: &'static FieldTable<T>, orig: &mut dyn FnMut(&mut T) -> i64) -> i64 {
-    let outcome = dispatch_with(hook_id, |body| activation::scope(&mut *arg, table, &mut *orig, |h| body(h)));
+    let chain = chain_for(hook_id);
+    if chain.is_empty() {
+        return orig(arg);
+    }
+    chain_step(&chain, 0, hook_id, arg, table, orig)
+}
+
+fn chain_step<T: 'static>(chain: &[Rc<ModSlot>], from: usize, hook_id: u32, arg: &mut T, table: &'static FieldTable<T>, orig: &mut dyn FnMut(&mut T) -> i64) -> i64 {
+    let Some(i) = next_live(chain, from) else { return orig(arg) };
+    let mut next = |a: &mut T| chain_step(chain, i + 1, hook_id, a, table, &mut *orig);
+    let outcome = dispatch_with(&chain[i], hook_id, |body| activation::scope(&mut *arg, table, &mut next, |h| body(h)));
     match outcome {
         Outcome::Value(value) => value,
-        Outcome::Fallthrough => orig(arg),
+        Outcome::Fallthrough => next(arg),
         Outcome::Trapped(done) => {
-            if done.original_calls == 0 { orig(arg) } else { done.last_result }
+            // the trapped mod is out of every chain now; the rest of the chain (and the engine) still run
+            if done.original_calls == 0 { next(arg) } else { done.last_result }
         }
     }
 }
@@ -692,12 +870,22 @@ pub fn dispatch_root<G: activation::PathRoot>(root: &mut G, orig: &mut dyn FnMut
 
 /// [`dispatch_root`] for hook `hook_id` (the server tick is [`HOOK_SERVER_TICK`]).
 pub fn dispatch_root_id<G: activation::PathRoot>(hook_id: u32, root: &mut G, orig: &mut dyn FnMut(&mut G) -> i64) -> i64 {
-    let outcome = dispatch_with(hook_id, |body| activation::scope_root(&mut *root, &mut *orig, |h| body(h)));
+    let chain = chain_for(hook_id);
+    if chain.is_empty() {
+        return orig(root);
+    }
+    chain_step_root(&chain, 0, hook_id, root, orig)
+}
+
+fn chain_step_root<G: activation::PathRoot>(chain: &[Rc<ModSlot>], from: usize, hook_id: u32, root: &mut G, orig: &mut dyn FnMut(&mut G) -> i64) -> i64 {
+    let Some(i) = next_live(chain, from) else { return orig(root) };
+    let mut next = |g: &mut G| chain_step_root(chain, i + 1, hook_id, g, &mut *orig);
+    let outcome = dispatch_with(&chain[i], hook_id, |body| activation::scope_root(&mut *root, &mut next, |h| body(h)));
     match outcome {
         Outcome::Value(value) => value,
-        Outcome::Fallthrough => orig(root),
+        Outcome::Fallthrough => next(root),
         Outcome::Trapped(done) => {
-            if done.original_calls == 0 { orig(root) } else { done.last_result }
+            if done.original_calls == 0 { next(root) } else { done.last_result }
         }
     }
 }
@@ -710,55 +898,62 @@ pub fn dispatch2<A: 'static, B: 'static>(
     table_b: &'static FieldTable<B>,
     orig: &mut dyn FnMut(&mut A, &mut B) -> i64,
 ) -> i64 {
-    let outcome = dispatch_with(0, |body| {
-        activation::scope2(&mut *a, table_a, &mut *b, table_b, &mut *orig, |h| body(h))
-    });
+    let chain = chain_for(0);
+    if chain.is_empty() {
+        return orig(a, b);
+    }
+    chain_step2(&chain, 0, a, table_a, b, table_b, orig)
+}
+
+fn chain_step2<A: 'static, B: 'static>(
+    chain: &[Rc<ModSlot>],
+    from: usize,
+    a: &mut A,
+    table_a: &'static FieldTable<A>,
+    b: &mut B,
+    table_b: &'static FieldTable<B>,
+    orig: &mut dyn FnMut(&mut A, &mut B) -> i64,
+) -> i64 {
+    let Some(i) = next_live(chain, from) else { return orig(a, b) };
+    let mut next = |x: &mut A, y: &mut B| chain_step2(chain, i + 1, x, table_a, y, table_b, &mut *orig);
+    let outcome = dispatch_with(&chain[i], 0, |body| activation::scope2(&mut *a, table_a, &mut *b, table_b, &mut next, |h| body(h)));
     match outcome {
         Outcome::Value(value) => value,
-        Outcome::Fallthrough => orig(a, b),
+        Outcome::Fallthrough => next(a, b),
         Outcome::Trapped(done) => {
-            if done.original_calls == 0 { orig(a, b) } else { done.last_result }
+            if done.original_calls == 0 { next(a, b) } else { done.last_result }
         }
     }
 }
 
-fn dispatch_with(hook_id: u32, scope: impl FnOnce(ScopeFn<'_>) -> (R<i64>, Finished)) -> Outcome {
-    RT.with(|rt| {
-        let pointer = rt.active.get();
-        if !pointer.is_null() {
-            // Inside an import that published its context (`native`): a nested hook.
-            // SAFETY: just read from `active`.
-            return run_hook(rt, unsafe { context(pointer) }, hook_id, scope);
-        }
-        // Top level: this thread's instance publishes its store for the whole guest run. If the
-        // guest is already running here (ACTIVE is null while it runs, so this is engine code
-        // reached from guest code outside a `native` import), the instance is borrowed: no hook.
-        let Ok(mut guard) = rt.inst.try_borrow_mut() else { return Outcome::Fallthrough };
-        let Some(inst) = guard.as_mut() else { return Outcome::Fallthrough };
-        let host = inst.store.data();
-        // a hook the guest did not register costs one hash lookup: no context, no activation, no guest entry
-        if host.disabled || (host.multi.is_some() && !host.registered.contains_key(&hook_id)) {
-            return Outcome::Fallthrough;
-        }
-        let mut ctx = inst.store.as_context_mut();
-        with_active(rt, &mut ctx, |pointer| {
-            // SAFETY: just published by `with_active`; `ctx` is not used again.
-            run_hook(rt, unsafe { context(pointer) }, hook_id, scope)
-        })
+/// Enters one mod's guest for one hook, on this mod's own store.
+fn dispatch_with(slot: &ModSlot, hook_id: u32, scope: impl FnOnce(ScopeFn<'_>) -> (R<i64>, Finished)) -> Outcome {
+    let pointer = slot.active.get();
+    if !pointer.is_null() {
+        // Inside an import of this very store that published its context (`native`): a nested hook.
+        // SAFETY: just read from this store's `active`.
+        return run_hook(unsafe { context(pointer) }, hook_id, scope);
+    }
+    // Top level for this store: it publishes its context for the whole guest run. If its guest is already
+    // running (its `active` is null while it runs, so this is engine code reached from guest code outside
+    // a `native` import), the instance is borrowed: no hook.
+    let Ok(mut inst) = slot.inst.try_borrow_mut() else { return Outcome::Fallthrough };
+    if slot.dead.get() {
+        return Outcome::Fallthrough;
+    }
+    let mut ctx = inst.store.as_context_mut();
+    with_active(&slot.active, &mut ctx, |pointer| {
+        // SAFETY: just published by `with_active`; `ctx` is not used again.
+        run_hook(unsafe { context(pointer) }, hook_id, scope)
     })
 }
 
-fn run_hook(
-    rt: &Rt,
-    ctx: &mut StoreContextMut<'static, Host>,
-    hook_id: u32,
-    scope: impl FnOnce(ScopeFn<'_>) -> (R<i64>, Finished),
-) -> Outcome {
+fn run_hook(ctx: &mut StoreContextMut<'static, Host>, hook_id: u32, scope: impl FnOnce(ScopeFn<'_>) -> (R<i64>, Finished)) -> Outcome {
     if ctx.data().disabled {
         return Outcome::Fallthrough;
     }
     let entry = match (ctx.data().multi.clone(), ctx.data().hook.clone()) {
-        (Some(multi), _) if ctx.data().registered.contains_key(&hook_id) => Entry::Multi(multi),
+        (Some(multi), _) if ctx.data().registered.borrow().contains_key(&hook_id) => Entry::Multi(multi),
         (Some(_), _) => return Outcome::Fallthrough,
         (None, Some(hook)) => Entry::Single(hook),
         (None, None) => return Outcome::Fallthrough,
@@ -766,10 +961,11 @@ fn run_hook(
     if ctx.data().depth >= MAX_DEPTH {
         return Outcome::Fallthrough;
     }
+    let active = ctx.data().active.clone();
     let (result, finished) = scope(&mut |handle| {
         let saved = enter(ctx);
         // The guest runs with no published context: only `native` imports may reach engine code.
-        let hidden = ActiveGuard { cell: &rt.active, previous: rt.active.replace(std::ptr::null_mut()) };
+        let hidden = ActiveGuard { cell: &active, previous: active.replace(std::ptr::null_mut()) };
         // A panic from the engine body inside `original` unwinds through wasmtime to here: restore
         // the per-activation state (fuel, epoch stack, depth) before letting it continue.
         let called = catch_unwind(AssertUnwindSafe(|| match &entry {
@@ -784,7 +980,7 @@ fn run_hook(
                 // The guest's frames were abandoned mid-run (its shadow stack and allocator may be
                 // corrupt): same rule as a trap, never enter this instance again. Then re-throw.
                 let host = ctx.data_mut();
-                host.disabled = true;
+                host.disable();
                 host.trap.get_or_insert(format!("engine panic inside a hook: {}", panic_message(&payload)));
                 resume_unwind(payload)
             }
@@ -796,7 +992,7 @@ fn run_hook(
             // The trap rule (MX3C0 section 5): disable the mod; the caller runs the original only
             // if it has not run in this activation, otherwise returns what it returned.
             let host = ctx.data_mut();
-            host.disabled = true;
+            host.disable();
             host.trap.get_or_insert(format!("{error:#}"));
             Outcome::Trapped(finished)
         }

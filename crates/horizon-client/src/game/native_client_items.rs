@@ -59,6 +59,30 @@ impl Game<'_> {
     pub(super) fn yoake2_tick_hook(&mut self) {}
 }
 
+/// World start (`native_lifecycle.rs` may not contain a `cfg`, so its call site is this method): with the
+/// feature, an integrated-server or dedicated world loads the allowed full-access mods of `<game root>/mods`
+/// and installs the `engine_call` table; without it, nothing.
+#[cfg(feature = "yoake2-slice")]
+impl Game<'_> {
+    pub(super) fn yoake2_world_start_hook(&mut self) {
+        use super::execution_role::ExecutionRole;
+        let serves = self.options.dedicated.is_some() || matches!(self.options.execution_role, ExecutionRole::IntegratedServer);
+        if !serves {
+            return;
+        }
+        if let Some(root) = crate::yak_mods::game_root() {
+            yoake2_install_dispatch();
+            crate::yoake2_mods::load_world_mods(&root.join("mods"));
+        }
+    }
+}
+
+#[cfg(not(feature = "yoake2-slice"))]
+impl Game<'_> {
+    #[inline(always)]
+    pub(super) fn yoake2_world_start_hook(&mut self) {}
+}
+
 /// What `engine_call` dispatches through: the `Game` path-handle bindings, then the entities and items
 /// modules (ids are disjoint through the one lock file).
 #[cfg(feature = "yoake2-slice")]

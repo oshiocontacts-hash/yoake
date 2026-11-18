@@ -118,6 +118,24 @@ pub mod yoake_glue {
         Ok(())
     }
 
+    /// `game_items::Game::yoake2_tick_hook`
+    fn call_460(game: &mut crate::game::Game<'_>, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        d.finish()?;
+        <crate::game::Game<'_>>::yoake2_tick_hook(game);
+        Ok(())
+    }
+
+    /// `game_items::Game::yoake2_world_start_hook`
+    fn call_461(game: &mut crate::game::Game<'_>, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        d.finish()?;
+        <crate::game::Game<'_>>::yoake2_world_start_hook(game);
+        Ok(())
+    }
+
     /// Paths a guest may reach from the `Game` root (see `game_paths` in bindgen.json).
     impl PathRoot for crate::game::Game<'_> {
         fn resolve(&mut self, path: &[Accessor], f: &mut dyn FnMut(&mut dyn std::any::Any)) -> Result<(), Status> {
@@ -185,6 +203,8 @@ pub mod yoake_glue {
         (457, "game_items::Game.item_entity#handle"),
         (458, "game_items::Game.item_frame#handle"),
         (459, "game_items::Game.painting#handle"),
+        (460, "game_items::Game::yoake2_tick_hook"),
+        (461, "game_items::Game::yoake2_world_start_hook"),
     ];
 
     /// Runs binding `id`. `handle` is the hook-argument handle for a method (its receiver is checked to be
@@ -214,6 +234,8 @@ pub mod yoake_glue {
             447 => call_447(game, args, out),
             448 => call_448(game, args, out),
             449 => call_449(game, args, out),
+            460 => call_460(game, args, out),
+            461 => call_461(game, args, out),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {

@@ -27,8 +27,8 @@
   },
   {
     "label": "game_items",
-    "total": 3,
-    "bound_a": 3,
+    "total": 5,
+    "bound_a": 5,
     "bound_mech": 0,
     "handle_required": 0,
     "excluded": 0,

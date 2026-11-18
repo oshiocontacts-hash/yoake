@@ -187,8 +187,18 @@ pub const WASM_PERMISSIONS: [&str; 7] = [
 /// The WIT worlds a client module may target.
 pub const CLIENT_WASM_WORLDS: [&str; 3] = ["client-mod", "client-full", "inject-mod"];
 
+/// `[wasm] world` of a full-access mod (MX3L1): the server module is a core WebAssembly module (not a
+/// component) that calls the engine through the generated bindings (docs/yoake2/ENGINE_CALL_ABI.md). It
+/// has the powers of the engine itself, so it only runs when the player allowed it or its signer is trusted.
+pub const FULL_ACCESS_WORLD: &str = "full-access";
+
 /// Whether `[wasm] world` selects the full-catalog client world.
 impl Wasm {
+    /// Whether this is a full-access mod (see [`FULL_ACCESS_WORLD`]).
+    pub fn full_access(&self) -> bool {
+        self.world.as_deref() == Some(FULL_ACCESS_WORLD)
+    }
+
     pub fn client_full(&self) -> bool {
         self.world.as_deref() == Some("client-full")
     }
@@ -246,7 +256,14 @@ impl Wasm {
         if minor >= 1 && self.world.as_deref() != Some("inject-mod") {
             return Err("wasm interfaces 1.1/1.2 require wasm.world = \"inject-mod\"; ordinary hook worlds use 1.0".into());
         }
-        if let Some(world) = &self.world {
+        if self.full_access() {
+            if self.server.is_none() || self.client.is_some() {
+                return Err("wasm.world full-access is a server module: declare wasm.server and no wasm.client".into());
+            }
+            if !self.permissions.is_empty() {
+                return Err("a full-access mod has no [wasm] permissions: it is all-or-nothing and needs the player's allow".into());
+            }
+        } else if let Some(world) = &self.world {
             if !CLIENT_WASM_WORLDS.contains(&world.as_str()) {
                 return Err(format!(
                     "unknown wasm.world {world:?} (known: {})",
@@ -530,6 +547,9 @@ impl Manifest {
                         .into(),
                 );
             }
+        }
+        if self.wasm.as_ref().is_some_and(Wasm::full_access) && !self.side.server {
+            return Err("a full-access mod runs where the world is simulated: side.server must be true".into());
         }
         if let Some(wasm) = &self.wasm {
             if self.bin.is_some() {
