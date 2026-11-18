@@ -113,6 +113,8 @@ wgpu = { version = "30.0.1", default-features = false, features = ["gles"] }
 
 [features]
 yoake-hook-baseline = []
+# Turns only the call-site hooks off (fn hooks stay): the baseline of the call-site bench gate.
+yoake-callsite-baseline = []
 yoake-hook-bench = []
 dev-capture = ["horizon-client-render/dev-capture", "horizon-protocol/dev-capture"]
 default = ["audio", "controllers"]

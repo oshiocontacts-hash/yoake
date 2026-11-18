@@ -295,6 +295,26 @@ pub fn matches_expected(found: &FoundHookAttr, expected: &ExpectedHookAttr<'_>) 
         && p.self_ty.as_deref() == expected.self_ty_norm
 }
 
+pub fn callsite_wrapper_cfg(style: &FileStyle) -> &'static str {
+    if style.uses_baseline_cfg_attr {
+        "not(any(feature = \"yoake-hook-baseline\", feature = \"yoake-callsite-baseline\"))"
+    } else {
+        "not(feature = \"yoake-callsite-baseline\")"
+    }
+}
+
+fn normalize_cfg_str(s: &str) -> String {
+    let compact: String = s.chars().filter(|c| !c.is_whitespace()).collect();
+    compact.replace(",)", ")")
+}
+
+pub fn callsite_wrapper_matches(wrapper_cfg: Option<&str>, style: &FileStyle) -> bool {
+    let Some(actual) = wrapper_cfg else {
+        return false;
+    };
+    normalize_cfg_str(actual) == normalize_cfg_str(callsite_wrapper_cfg(style))
+}
+
 pub fn format_hook_attr(
     expected: &ExpectedHookAttr<'_>,
     wrapper_cfg: Option<&str>,
@@ -326,6 +346,8 @@ pub fn format_hook_attr(
 
     if let Some(cfg) = wrapper_cfg {
         format!("#[cfg_attr({cfg}, {inner})]")
+    } else if expected.kind == Some("callsite") {
+        format!("#[cfg_attr({}, {inner})]", callsite_wrapper_cfg(style))
     } else if attr_path.is_none() && style.uses_baseline_cfg_attr {
         format!("#[cfg_attr(not(feature = \"yoake-hook-baseline\"), {inner})]")
     } else {

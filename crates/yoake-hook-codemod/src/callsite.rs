@@ -255,6 +255,8 @@ struct ExistingShim {
     ident_id: Option<u32>,
     attr_id: Option<u32>,
     attr_key: Option<String>,
+    attr_wrapper_cfg: Option<String>,
+    attr_path: Option<String>,
     attr_byte_span: Option<(usize, usize)>,
     kind_is_callsite: bool,
     has_inline_always: bool,
@@ -431,6 +433,8 @@ fn parse_existing_shim(item_fn: &ItemFn, source: &str, idx: &LineIndex) -> Exist
     let first_hook = hook_attrs.first();
     let attr_id = first_hook.and_then(|a| a.parsed.id);
     let attr_key = first_hook.and_then(|a| a.parsed.key.clone());
+    let attr_wrapper_cfg = first_hook.and_then(|a| a.wrapper_cfg.clone());
+    let attr_path = first_hook.map(|a| a.attr_path.clone());
     let attr_byte_span = first_hook.map(|a| idx.span_range(source, item_fn.attrs[a.attr_index].span()));
     let kind_is_callsite = first_hook.is_some_and(|a| a.parsed.kind.as_deref() == Some("callsite"));
     let has_inline_always = item_fn.attrs.iter().any(|a| {
@@ -530,6 +534,8 @@ fn parse_existing_shim(item_fn: &ItemFn, source: &str, idx: &LineIndex) -> Exist
         ident_id,
         attr_id,
         attr_key,
+        attr_wrapper_cfg,
+        attr_path,
         attr_byte_span,
         kind_is_callsite,
         has_inline_always,
@@ -1202,9 +1208,9 @@ impl DesiredShim {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum ShimShapeStatus {
-    Qualified,
-    OldMethodForm,
+struct ShimShapeStatus {
+    body_old_method_form: bool,
+    attr_needs_update: bool,
 }
 
 fn verify_shim_shape(
@@ -1213,6 +1219,7 @@ fn verify_shim_shape(
     expected_key: &str,
     crate_ident: &str,
     expected_callee_path: Option<&str>,
+    style: &FileStyle,
     file_path: &Path,
 ) -> Result<ShimShapeStatus, String> {
     if shim.attr_id != Some(id)
@@ -1241,12 +1248,16 @@ fn verify_shim_shape(
     let expected_call_args: Vec<String> = std::iter::once("recv".to_string())
         .chain(expected_method_args.iter().cloned())
         .collect();
+    let attr_needs_update = !attr::callsite_wrapper_matches(shim.attr_wrapper_cfg.as_deref(), style);
 
     match &shim.body {
         ShimBody::Method { method, args } => {
             let expected_method = expected_callee_path.and_then(|cp| cp.rsplit("::").next());
             if args == &expected_method_args && expected_method.is_none_or(|em| em == method) {
-                Ok(ShimShapeStatus::OldMethodForm)
+                Ok(ShimShapeStatus {
+                    body_old_method_form: true,
+                    attr_needs_update,
+                })
             } else {
                 Err(format!(
                     "{}: shim __yoake_cs_{id} signature or body does not match expected form",
@@ -1289,7 +1300,10 @@ fn verify_shim_shape(
                     ));
                 }
             }
-            Ok(ShimShapeStatus::Qualified)
+            Ok(ShimShapeStatus {
+                body_old_method_form: false,
+                attr_needs_update,
+            })
         }
         ShimBody::Other => Err(format!(
             "{}: shim __yoake_cs_{id} signature or body does not match expected form",
@@ -1539,6 +1553,53 @@ impl CallsiteAllowlist {
         let comp: String = candidate.chars().filter(|c| !c.is_whitespace()).collect();
         self.compact.contains(&comp)
     }
+}
+
+fn split_hot_caller_line(trimmed: &str) -> Option<(&str, &str)> {
+    let mut angle_depth = 0usize;
+    let mut prev = None;
+    for (idx, ch) in trimmed.char_indices() {
+        match ch {
+            '<' => angle_depth += 1,
+            '>' if prev != Some('-') => angle_depth = angle_depth.saturating_sub(1),
+            _ if ch.is_whitespace() && angle_depth == 0 => {
+                let key = &trimmed[..idx];
+                let reason = trimmed[idx..].trim();
+                if key.is_empty() || reason.is_empty() {
+                    return None;
+                }
+                return Some((key, reason));
+            }
+            _ => {}
+        }
+        prev = Some(ch);
+    }
+    None
+}
+
+fn load_hot_callers_file(ledger_dir: &Path) -> Result<BTreeMap<String, String>, String> {
+    let path = ledger_dir.join("callsite-hot-callers.txt");
+    if !path.is_file() {
+        return Ok(BTreeMap::new());
+    }
+    let text = std::fs::read_to_string(&path)
+        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
+    let mut out = BTreeMap::new();
+    for (line_idx, raw_line) in text.lines().enumerate() {
+        let trimmed = raw_line.split('#').next().unwrap_or("").trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let Some((caller_key, reason)) = split_hot_caller_line(trimmed) else {
+            return Err(format!(
+                "{}:{}: expected '<caller fn key> <reason>', got '{trimmed}'",
+                path.display(),
+                line_idx + 1
+            ));
+        };
+        out.insert(caller_key.to_string(), reason.to_string());
+    }
+    Ok(out)
 }
 
 fn callee_first_segment(callee_path: &str) -> Option<&str> {
@@ -1851,14 +1912,22 @@ fn execute_syn_only_check(
             &entry.key,
             crate_ident,
             expected_callee,
+            &files[fi].style,
             &files[fi].path,
         ) {
-            Ok(ShimShapeStatus::Qualified) => {}
-            Ok(ShimShapeStatus::OldMethodForm) => {
-                check_failures.push(format!(
-                    "{}: shim __yoake_cs_{id}: shim body not fully qualified",
-                    files[fi].path.display()
-                ));
+            Ok(status) => {
+                if status.body_old_method_form {
+                    check_failures.push(format!(
+                        "{}: shim __yoake_cs_{id}: shim body not fully qualified",
+                        files[fi].path.display()
+                    ));
+                }
+                if status.attr_needs_update {
+                    check_failures.push(format!(
+                        "{}: shim __yoake_cs_{id}: shim attribute missing yoake-callsite-baseline wrapper",
+                        files[fi].path.display()
+                    ));
+                }
             }
             Err(msg) => check_failures.push(msg),
         }
@@ -1910,12 +1979,15 @@ struct CandidateCall {
 struct ExcludedCall {
     base_key: String,
     reason: String,
+    manual: bool,
+    from_hot_caller: bool,
 }
 
 struct RewrittenCallRef {
     file_idx: usize,
     shim_id: u32,
     caller_fn_id: Option<u32>,
+    caller_fn_key: String,
     recv_ty: Option<String>,
     thir_args_valid: bool,
     thir_ret_valid: bool,
@@ -1935,6 +2007,7 @@ fn execute_with_thir(
 ) -> Result<bool, String> {
     let allowlist = CallsiteAllowlist::load(&config.ledger)?;
     let track_caller_set = track_caller::load_track_caller_file(&config.ledger)?;
+    let hot_callers = load_hot_callers_file(&config.ledger)?;
 
     let scanned_paths: Vec<String> = files
         .iter()
@@ -2002,6 +2075,7 @@ fn execute_with_thir(
                             file_idx: fi,
                             shim_id,
                             caller_fn_id: caller.fn_id,
+                            caller_fn_key: caller.fn_key.clone(),
                             recv_ty: thir_call.args.first().and_then(|a| a.ty.clone()),
                             thir_args_valid: thir_call.args.iter().all(|a| a.ty.is_some()),
                             thir_ret_valid: thir_call.ret_ty.is_some(),
@@ -2019,10 +2093,21 @@ fn execute_with_thir(
                         .unwrap_or_else(|| thir_call.callee.clone());
                     let base_key = format!("{caller_prefix}@call:{callee_part}");
 
+                    if let Some(reason) = hot_callers.get(&caller.fn_key) {
+                        excluded_calls.push(ExcludedCall {
+                            base_key,
+                            reason: reason.clone(),
+                            manual: true,
+                            from_hot_caller: true,
+                        });
+                        continue;
+                    }
                     if thir_call.kind != "method" {
                         excluded_calls.push(ExcludedCall {
                             base_key,
                             reason: "path call".to_string(),
+                            manual: false,
+                            from_hot_caller: false,
                         });
                         continue;
                     }
@@ -2030,13 +2115,20 @@ fn execute_with_thir(
                         excluded_calls.push(ExcludedCall {
                             base_key,
                             reason: "caller not in fn ledger".to_string(),
+                            manual: false,
+                            from_hot_caller: false,
                         });
                         continue;
                     };
                     // A human-written (manual) exclusion always wins (SF3), e.g. a site whose
                     // argument type is only nameable through a private module.
                     if let Some(reason) = manual_keys.get(&base_key) {
-                        excluded_calls.push(ExcludedCall { base_key, reason: reason.clone() });
+                        excluded_calls.push(ExcludedCall {
+                            base_key,
+                            reason: reason.clone(),
+                            manual: true,
+                            from_hot_caller: false,
+                        });
                         continue;
                     }
                     let recv_ty_opt = thir_call.args.first().and_then(|a| a.ty.as_deref());
@@ -2051,6 +2143,8 @@ fn execute_with_thir(
                         excluded_calls.push(ExcludedCall {
                             base_key,
                             reason: reason.to_string(),
+                            manual: false,
+                            from_hot_caller: false,
                         });
                         continue;
                     }
@@ -2060,7 +2154,12 @@ fn execute_with_thir(
                             "generic" => "generic receiver".to_string(),
                             other => format!("non-concrete resolution ({other})"),
                         };
-                        excluded_calls.push(ExcludedCall { base_key, reason });
+                        excluded_calls.push(ExcludedCall {
+                            base_key,
+                            reason,
+                            manual: false,
+                            from_hot_caller: false,
+                        });
                         continue;
                     }
                     let shim_sig = match validate_and_format_shim_sig(thir_call) {
@@ -2069,6 +2168,8 @@ fn execute_with_thir(
                             excluded_calls.push(ExcludedCall {
                                 base_key,
                                 reason: reason.to_string(),
+                                manual: false,
+                                from_hot_caller: false,
                             });
                             continue;
                         }
@@ -2106,9 +2207,17 @@ fn execute_with_thir(
                     let callee_part = callee_fn
                         .map(|id| format!("fn:{id}"))
                         .unwrap_or_else(|| thir_call.callee.clone());
+                    let (reason, manual, from_hot_caller) =
+                        if let Some(reason) = hot_callers.get(&caller.fn_key) {
+                            (reason.clone(), true, true)
+                        } else {
+                            ("inside macro invocation".to_string(), false, false)
+                        };
                     excluded_calls.push(ExcludedCall {
                         base_key: format!("{caller_prefix}@call:{callee_part}"),
-                        reason: "inside macro invocation".to_string(),
+                        reason,
+                        manual,
+                        from_hot_caller,
                     });
                 } else if file
                     .top_macro_spans
@@ -2143,6 +2252,14 @@ fn execute_with_thir(
         }
     }
 
+    for hot_key in hot_callers.keys() {
+        if !scanned_fn_keys.contains(hot_key) {
+            eprintln!(
+                "warning: callsite-hot-callers.txt key '{hot_key}' matched no fn in scanned modules"
+            );
+        }
+    }
+
     let mut candidate_sites: Vec<Site> = candidates.iter().map(|c| c.site.clone()).collect();
     assign_dup_ranks(&mut candidate_sites);
     for (cand, site) in candidates.iter_mut().zip(candidate_sites) {
@@ -2154,6 +2271,7 @@ fn execute_with_thir(
         crate_ident,
         ledger_set,
         manual_keys,
+        &hot_callers,
         existing_sites,
         &allowlist,
         &track_caller_set,
@@ -2574,6 +2692,8 @@ struct RetiredSite<'a> {
     key: String,
     base_key: String,
     reason: String,
+    manual: bool,
+    from_hot_caller: bool,
     call_ref: &'a RewrittenCallRef,
     orig: Option<String>,
     method_name: String,
@@ -2586,6 +2706,7 @@ fn reconcile_and_plan(
     crate_ident: &str,
     ledger_set: &mut LedgerSet,
     manual_keys: &BTreeMap<String, String>,
+    hot_callers: &BTreeMap<String, String>,
     existing_sites: &BTreeMap<u32, SiteMeta>,
     allowlist: &CallsiteAllowlist,
     track_caller_set: &BTreeSet<String>,
@@ -2617,6 +2738,7 @@ fn reconcile_and_plan(
     verify_s2_refs(&config.crate_root, files, &shims_by_id)?;
 
     let mut upgrade_shim_ids: BTreeSet<u32> = BTreeSet::new();
+    let mut upgrade_attr_shim_ids: BTreeSet<u32> = BTreeSet::new();
     let mut retired_sites: Vec<RetiredSite<'_>> = Vec::new();
     let mut retired_ids: BTreeSet<u32> = BTreeSet::new();
 
@@ -2646,18 +2768,20 @@ fn reconcile_and_plan(
         }
         let site_meta = existing_sites.get(&id);
         let expected_callee = site_meta.map(|s| s.callee_path.as_str());
-        match verify_shim_shape(
+        let shape_status = verify_shim_shape(
             shim,
             id,
             &entry.key,
             crate_ident,
             expected_callee,
+            &files[shim_fi].style,
             &files[shim_fi].path,
-        )? {
-            ShimShapeStatus::Qualified => {}
-            ShimShapeStatus::OldMethodForm => {
-                upgrade_shim_ids.insert(id);
-            }
+        )?;
+        if shape_status.body_old_method_form {
+            upgrade_shim_ids.insert(id);
+        }
+        if shape_status.attr_needs_update {
+            upgrade_attr_shim_ids.insert(id);
         }
 
         let r = refs[0];
@@ -2670,47 +2794,51 @@ fn reconcile_and_plan(
             .and_then(|a| a.ty.as_deref())
             .or(r.recv_ty.as_deref());
 
-        let inelig_reason: Option<String> = if r.caller_fn_id.is_none() {
-            Some("caller not in fn ledger".to_string())
-        } else if let Some(reason) = manual_keys
-            .get(&entry.key)
-            .or_else(|| manual_keys.get(strip_dup_suffix(&entry.key)))
-        {
-            Some(reason.clone())
-        } else if let Some(cp) = callee_path.as_deref()
-            && let Err(reason) = check_callee_policy(
-                cp,
-                recv_ty_opt,
-                crate_ident,
-                config.engine_crates.as_deref(),
-                allowlist,
-                track_caller_set,
-            )
-        {
-            Some(reason.to_string())
-        } else if let Some(tc) = inside_shim_thir.get(&id)
-            && tc.resolution != "concrete"
-        {
-            Some(match tc.resolution.as_str() {
-                "dyn" => "dyn receiver".to_string(),
-                "generic" => "generic receiver".to_string(),
-                other => format!("non-concrete resolution ({other})"),
-            })
-        } else if !r.thir_args_valid
-            || inside_shim_thir
-                .get(&id)
-                .is_some_and(|tc| tc.args.iter().any(|a| a.ty.is_none()))
-        {
-            Some("unwritable arg type".to_string())
-        } else if !r.thir_ret_valid
-            || inside_shim_thir
-                .get(&id)
-                .is_some_and(|tc| tc.ret_ty.is_none())
-        {
-            Some("unwritable return type".to_string())
-        } else {
-            None
-        };
+        let (inelig_reason, inelig_manual, from_hot_caller) =
+            if let Some(reason) = hot_callers.get(&r.caller_fn_key) {
+                (Some(reason.clone()), true, true)
+            } else if r.caller_fn_id.is_none() {
+                (Some("caller not in fn ledger".to_string()), false, false)
+            } else if let Some(reason) = manual_keys
+                .get(&entry.key)
+                .or_else(|| manual_keys.get(strip_dup_suffix(&entry.key)))
+            {
+                (Some(reason.clone()), true, false)
+            } else if let Some(cp) = callee_path.as_deref()
+                && let Err(reason) = check_callee_policy(
+                    cp,
+                    recv_ty_opt,
+                    crate_ident,
+                    config.engine_crates.as_deref(),
+                    allowlist,
+                    track_caller_set,
+                )
+            {
+                (Some(reason.to_string()), false, false)
+            } else if let Some(tc) = inside_shim_thir.get(&id)
+                && tc.resolution != "concrete"
+            {
+                let reason = match tc.resolution.as_str() {
+                    "dyn" => "dyn receiver".to_string(),
+                    "generic" => "generic receiver".to_string(),
+                    other => format!("non-concrete resolution ({other})"),
+                };
+                (Some(reason), false, false)
+            } else if !r.thir_args_valid
+                || inside_shim_thir
+                    .get(&id)
+                    .is_some_and(|tc| tc.args.iter().any(|a| a.ty.is_none()))
+            {
+                (Some("unwritable arg type".to_string()), false, false)
+            } else if !r.thir_ret_valid
+                || inside_shim_thir
+                    .get(&id)
+                    .is_some_and(|tc| tc.ret_ty.is_none())
+            {
+                (Some("unwritable return type".to_string()), false, false)
+            } else {
+                (None, false, false)
+            };
 
         if let Some(reason) = inelig_reason {
             let method_name = callee_path
@@ -2731,6 +2859,8 @@ fn reconcile_and_plan(
                 key: entry.key.clone(),
                 base_key: strip_dup_suffix(&entry.key).to_string(),
                 reason,
+                manual: inelig_manual,
+                from_hot_caller,
                 call_ref: r,
                 orig: site_meta.and_then(|s| s.orig.clone()),
                 method_name,
@@ -2752,6 +2882,7 @@ fn reconcile_and_plan(
 
     for id in &retired_ids {
         upgrade_shim_ids.remove(id);
+        upgrade_attr_shim_ids.remove(id);
     }
 
     let rewritten_file_map: BTreeMap<u32, Vec<usize>> = rewritten_by_id
@@ -2829,6 +2960,8 @@ fn reconcile_and_plan(
         all_excluded.push(ExcludedCall {
             base_key: rs.base_key.clone(),
             reason: rs.reason.clone(),
+            manual: rs.manual,
+            from_hot_caller: rs.from_hot_caller,
         });
     }
 
@@ -2911,21 +3044,30 @@ fn reconcile_and_plan(
     }
 
     let mut emitted_excluded_keys = BTreeSet::new();
+    let mut emitted_manual_keys = BTreeSet::new();
     let mut excl_used_keys: BTreeSet<String> = BTreeSet::new();
     for entry in ledger_set.shard_mut(crate_ident).live() {
         excl_used_keys.insert(entry.key.clone());
     }
     for ex in &all_excluded {
-        let ex_key = if manual_keys.contains_key(&ex.base_key) {
+        let ex_key = if !ex.from_hot_caller && manual_keys.contains_key(&ex.base_key) {
             ex.base_key.clone()
         } else {
             allocate_unique_key(&ex.base_key, &mut excl_used_keys)
         };
         emitted_excluded_keys.insert(ex_key.clone());
-        ledger_set
-            .shard_mut(crate_ident)
-            .exclude_kind(Kind::Callsite, &ex_key, &ex.reason)
-            .map_err(|e| format!("failed to exclude callsite '{ex_key}': {e}"))?;
+        if ex.manual {
+            ledger_set
+                .shard_mut(crate_ident)
+                .exclude_manual(Kind::Callsite, &ex_key, &ex.reason)
+                .map_err(|e| format!("failed to exclude callsite '{ex_key}': {e}"))?;
+            emitted_manual_keys.insert(ex_key);
+        } else {
+            ledger_set
+                .shard_mut(crate_ident)
+                .exclude_kind(Kind::Callsite, &ex_key, &ex.reason)
+                .map_err(|e| format!("failed to exclude callsite '{ex_key}': {e}"))?;
+        }
         summary.exclude(&ex.reason);
     }
 
@@ -3075,10 +3217,14 @@ fn reconcile_and_plan(
         let has_upgraded_kept = kept_existing
             .iter()
             .any(|ex| ex.ident_id.is_some_and(|id| upgrade_shim_ids.contains(&id)));
+        let has_attr_upgraded_kept = kept_existing
+            .iter()
+            .any(|ex| ex.ident_id.is_some_and(|id| upgrade_attr_shim_ids.contains(&id)));
         let need_shim_edit = if new_shims.is_empty()
             && kept_existing.len() == file.existing_shims.len()
             && !has_renamed_kept
             && !has_upgraded_kept
+            && !has_attr_upgraded_kept
         {
             !kept_existing.is_empty() && file.shim_header_byte_start.is_none()
         } else {
@@ -3118,8 +3264,10 @@ fn reconcile_and_plan(
                         &format!("{qualified_fn}({})", call_args.join(", ")),
                     );
                 }
-                if let Some(new_key) = renamed_rewritten.get(&id)
+                let new_key = renamed_rewritten.get(&id).map(String::as_str);
+                if (new_key.is_some() || upgrade_attr_shim_ids.contains(&id))
                     && let Some((as_, ae)) = ex.attr_byte_span
+                    && let Some(key_to_use) = new_key.or(ex.attr_key.as_deref())
                 {
                     let rel_s = as_ - ex.byte_span.0;
                     let rel_e = ae - ex.byte_span.0;
@@ -3129,11 +3277,11 @@ fn reconcile_and_plan(
                             self_ty_src: None,
                             self_ty_norm: None,
                             id,
-                            key: new_key,
+                            key: key_to_use,
                             kind: Some("callsite"),
                         },
                         None,
-                        None,
+                        ex.attr_path.as_deref(),
                         &file.style,
                     );
                     shim_src.replace_range(rel_s..rel_e, &new_attr);
@@ -3190,7 +3338,8 @@ fn reconcile_and_plan(
         Mode::Check => kept_rewritten_ids.len(),
     };
 
-    let manual_set: BTreeSet<String> = manual_keys.keys().cloned().collect();
+    let mut manual_set: BTreeSet<String> = manual_keys.keys().cloned().collect();
+    manual_set.extend(emitted_manual_keys);
     let staging =
         ledger_io::stage_ledger_set_with_sites(ledger_set, crate_ident, &manual_set, &updated_sites)?;
     let ledger_changed = ledger_io::diff_ledger_dirs(staging.path(), &config.ledger)?;
@@ -3208,6 +3357,14 @@ fn reconcile_and_plan(
                     if let Some(&(fi, _)) = shims_by_id.get(&id) {
                         println!(
                             "  {}: shim __yoake_cs_{id}: shim body not fully qualified",
+                            files[fi].path.display()
+                        );
+                    }
+                }
+                for &id in &upgrade_attr_shim_ids {
+                    if let Some(&(fi, _)) = shims_by_id.get(&id) {
+                        println!(
+                            "  {}: shim __yoake_cs_{id}: shim attribute missing yoake-callsite-baseline wrapper",
                             files[fi].path.display()
                         );
                     }

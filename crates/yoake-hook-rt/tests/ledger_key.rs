@@ -25,8 +25,17 @@ fn finds_both_ends_and_the_middle_of_a_large_sorted_table() {
 }
 
 #[test]
+fn rejects_the_reserved_legacy_id() {
+    let message = panic_message(|| assert_ledger_key(&KEYS, 0, KEY));
+    assert_eq!(
+        message,
+        "hook id 0 is reserved for the legacy single-export guest API"
+    );
+}
+
+#[test]
 fn rejects_ids_outside_the_table() {
-    for id in [0, 10_001, usize::MAX] {
+    for id in [10_001, usize::MAX] {
         let message = panic_message(|| assert_ledger_key(&KEYS, id, KEY));
         assert_eq!(message, "hook id/key pair is absent from the crate ledger");
     }

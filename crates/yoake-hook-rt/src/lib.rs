@@ -7,6 +7,10 @@ pub const SLOT_CAPACITY: usize = 1 << 20;
 pub const TEST_SLOTS: usize = 64;
 pub const TEST_ID_BASE: usize = SLOT_CAPACITY - TEST_SLOTS;
 
+// Keep runtime slots below the engine-synthetic ids defined by
+// docs/yoake2/ENGINE_CALL_ABI.md on yoake2/slice.
+const _: () = assert!(SLOT_CAPACITY as u64 <= 0x8000_0000);
+
 const MAX_ENTRIES_PER_SLOT: usize = 64;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -75,6 +79,10 @@ const fn regions_equal(
 }
 
 pub const fn assert_ledger_key(keys: &[(usize, &str)], id: usize, key: &str) {
+    assert!(
+        id != 0,
+        "hook id 0 is reserved for the legacy single-export guest API"
+    );
     let mut low = 0;
     let mut high = keys.len();
     while low < high {

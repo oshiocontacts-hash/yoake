@@ -1539,11 +1539,6 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:104@call:horizon_client_lib::spear::{impl#1}::of",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
       "key": "fn:104@call:std::option::Option::is_some",
       "reason": "non-engine callee",
       "kind": "callsite"
@@ -1559,7 +1554,7 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:105@call:horizon_client_lib::spear::{impl#1}::of",
+      "key": "fn:104@call:str::of",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -1581,6 +1576,11 @@
     {
       "key": "fn:105@call:std::option::Option::is_some_and",
       "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:105@call:str::of",
+      "reason": "path call",
       "kind": "callsite"
     },
     {

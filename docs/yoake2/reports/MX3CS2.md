@@ -176,6 +176,53 @@ Recommendation: before more modules, mark hot-leaf callers such as `tick_settle`
 `move_applies` `no_hook` for call sites (or exclude call sites inside fns that are themselves hot leaves),
 and add this slice to the CI benchmark gate of MX3S2.
 
+## Phase 1d: hot-path policy, bench gate, id ranges, slice bridge design (2026-11-19)
+
+**Hot-path policy.** `hook-ledger/callsite-hot-callers.txt` lists 19 small per-entity-per-tick callers (the two
+`tick_settle`, `render_position`, `move_applies`, `stuck_multiplier`, `slime_at`, `slime_step_on`, `inside_block`,
+`ObstacleGrid::span`/`near`, `ItemCells::moved`/`near` and the seven one-line `EntityRules` methods). Every call site
+in them is a manual exclusion with reason `hot-path`, and `--retire-ineligible` un-rewrote the ones already done.
+Bigger callers that take decisions (`environment_tick`, `ExperienceOrb::tick`, `apply_honey_slide`, `tick_move`,
+...) keep their call sites. Rewritten now: **entities 58** (was 103), **item_use 41**.
+
+**Call-site-only baseline.** Every shim's hook attribute is wrapped in
+`cfg_attr(not(feature = "yoake-callsite-baseline"), ..)` (entities: `not(any(yoake-hook-baseline, yoake-callsite-baseline))`),
+a new feature of horizon-client-lib and horizon-client. With it, fn hooks stay and call-site hooks are off: the
+baseline of the gate.
+
+**Bench gate** (`tools/yoake-hook-bench-gate.py`, job `callsite-bench-gate` in
+`.github/workflows/yoake-callsite-verify.yml`): builds the release bench twice (with and without
+`yoake-callsite-baseline`), runs them alternately five times, and fails if the median per-entity slice or
+`tick_settle` is more than 5 % slower than the baseline. On LENOVO after this phase:
+
+| | baseline (call-site hooks off) | instrumented | overhead |
+| --- | --- | --- | --- |
+| `tick_settle` per call | 6.550 ns | 6.315 ns | -3.6 % |
+| settle + interpolate + render_position per entity | 14.697 ns | 14.628 ns | -0.5 % |
+
+Both within noise: the hot path has no call-site slot left. The slice went from 17.1-19.2 ns (Phase 1c) to
+14.6 ns, back to the yoake2/ids level (15.2-16.1 ns in the Phase 1c A/B).
+
+**Checks after the phase:** verify-callsites after fresh THIR dumps 58 of 58 and 41 of 41; `check --callsites` clean;
+horizon-client-lib --lib 1619 passed, horizon-client --lib 1193 passed (unchanged); hook crates all green.
+
+**Hook id ranges** (for yoake-slice's multiplexed dispatch): the ledger rejects id 0 (reserved for the legacy
+single-export guest) and ids at or above `0x8000_0000` (`SYNTHETIC_HOOK_BASE`); `next_id` must be in 1..=0x8000_0000;
+`assign` refuses to hand such an id out; `emit_crate_table` asserts it; the runtime asserts
+`SLOT_CAPACITY <= 0x8000_0000` and `assert_ledger_key` rejects id 0 at compile time. So a guest registering N gets
+exactly the fn or call site with ledger id N.
+
+**Bridge to yoake-slice:** designed, not implemented here (it needs yoake-slice and the MX3G1 field tables, which are
+on yoake2/slice): docs/yoake2/HOOK-SLICE-BRIDGE.md. A generated, `yoake2-slice`-gated module per crate maps each
+bridgeable ledger id to a dispatcher calling `runtime::dispatch_id(N, arg0, &FieldTable, orig)` and installs it
+through the crate-private typed registration, only for ids the guest registered. The note lists the merge-time
+changes: yoake2/slice's tests and bench call the old public `yoake_hook_rt::register`, which yoake2/ids round 2 made
+hidden (SF6), so they must register through the bridge or a feature-gated in-crate helper; the textual conflicts
+(entities.rs tail, workspace and crate Cargo.toml, Cargo.lock, game.rs) are additive.
+
+Known noise: `callsite-hot-callers.txt` keys of one crate are reported as "matched no fn" while scanning another
+crate's module (warnings only); they should be filtered by the key's crate prefix.
+
 ## Open problems
 
 - (fixed in Phase 1b) `check --callsites --thir <stale file>` used to report every rewritten site as `lost`.

@@ -1,0 +1,22 @@
+# Callers whose call sites are never rewritten (manual exclusion, reason in the second column).
+# Small fns that run per entity per tick: an empty call-site slot costs 0.1-0.3 ns each there (MX3CS2 Phase 1c).
+# <caller fn key> <reason>
+horizon_client_lib::entities::ArmorStand::tick_settle hot-path
+horizon_client_lib::entities::ItemEntity::tick_settle hot-path
+horizon_client_lib::entities::ArmorStand::render_position hot-path
+horizon_client_lib::entities::move_applies hot-path
+horizon_client_lib::entities::ItemEntity::stuck_multiplier hot-path
+horizon_client_lib::entities::slime_at hot-path
+horizon_client_lib::entities::ItemEntity::slime_step_on hot-path
+horizon_client_lib::entities::ItemEntity::inside_block hot-path
+horizon_client_lib::entities::ObstacleGrid::span hot-path
+horizon_client_lib::entities::ObstacleGrid::near hot-path
+horizon_client_lib::entities::ItemCells::moved hot-path
+horizon_client_lib::entities::ItemCells::near hot-path
+horizon_client_lib::entities::<ItemEntity as EntityRules>::is_no_gravity hot-path
+horizon_client_lib::entities::<ItemEntity as EntityRules>::get_default_gravity hot-path
+horizon_client_lib::entities::<ExperienceOrb as EntityRules>::is_no_gravity hot-path
+horizon_client_lib::entities::<ExperienceOrb as EntityRules>::get_default_gravity hot-path
+horizon_client_lib::entities::<ArmorStand as EntityRules>::is_no_gravity hot-path
+horizon_client_lib::entities::<ArmorStand as EntityRules>::get_default_gravity hot-path
+horizon_client_lib::entities::<ArmorStand as EntityRules>::is_pushed_by_fluid hot-path

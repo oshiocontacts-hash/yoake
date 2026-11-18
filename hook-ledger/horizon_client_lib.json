@@ -722,7 +722,7 @@
       "id": 187,
       "key": "fn:2@call:horizon_core::geometry::Vec3::length_squared",
       "sig": "494eed9dcbe47e51",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 2,
@@ -744,7 +744,7 @@
       "id": 188,
       "key": "fn:2@call:horizon_core::geometry::Vec3::length_squared#1",
       "sig": "494eed9dcbe47e51",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 2,
@@ -898,7 +898,7 @@
       "id": 195,
       "key": "fn:6@call:horizon_client_render::blocks::BlockFacts::get",
       "sig": "e31b1183c1a36317",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 6,
@@ -920,7 +920,7 @@
       "id": 196,
       "key": "fn:6@call:horizon_client_render::world::World::block",
       "sig": "b9858fbdc8e21a03",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 6,
@@ -964,7 +964,7 @@
       "id": 198,
       "key": "fn:6@call:horizon_client_render::blocks::BlockFacts::get#1",
       "sig": "e31b1183c1a36317",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 6,
@@ -1008,7 +1008,7 @@
       "id": 200,
       "key": "fn:72@call:horizon_client_lib::entities::ItemEntity::__yoake_trait_entity_rules_is_no_gravity",
       "sig": "39fe8095e2be1619",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 72,
@@ -1030,7 +1030,7 @@
       "id": 201,
       "key": "fn:73@call:horizon_client_lib::entities::ItemEntity::__yoake_trait_entity_rules_get_default_gravity",
       "sig": "abb0f63ff9c4613f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 73,
@@ -1052,7 +1052,7 @@
       "id": 202,
       "key": "fn:74@call:horizon_client_lib::entities::ExperienceOrb::__yoake_trait_entity_rules_is_no_gravity",
       "sig": "479727db217ad56c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 74,
@@ -1074,7 +1074,7 @@
       "id": 203,
       "key": "fn:75@call:horizon_client_lib::entities::ExperienceOrb::__yoake_trait_entity_rules_get_default_gravity",
       "sig": "0c371d676893af5c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 75,
@@ -1096,7 +1096,7 @@
       "id": 204,
       "key": "fn:76@call:horizon_client_lib::entities::ArmorStand::__yoake_trait_entity_rules_is_no_gravity",
       "sig": "ff1f0050330fd846",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 76,
@@ -1118,7 +1118,7 @@
       "id": 205,
       "key": "fn:77@call:horizon_client_lib::entities::ArmorStand::__yoake_trait_entity_rules_get_default_gravity",
       "sig": "3e94671c83fd8266",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 77,
@@ -1140,7 +1140,7 @@
       "id": 206,
       "key": "fn:78@call:horizon_client_lib::entities::ArmorStand::__yoake_trait_entity_rules_is_pushed_by_fluid",
       "sig": "ff1f0050330fd846",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 78,
@@ -1782,7 +1782,7 @@
       "id": 234,
       "key": "fn:11@call:fn:8",
       "sig": "bfb7d56fd4d264b0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 11,
@@ -1804,7 +1804,7 @@
       "id": 235,
       "key": "fn:11@call:horizon_core::geometry::Aabb::deflate",
       "sig": "a5e1553a04013f41",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 11,
@@ -1848,7 +1848,7 @@
       "id": 237,
       "key": "fn:13@call:fn:15",
       "sig": "fcfb373ad95201fe",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 13,
@@ -1872,7 +1872,7 @@
       "id": 238,
       "key": "fn:13@call:horizon_client_render::world::World::block",
       "sig": "b9858fbdc8e21a03",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 13,
@@ -1968,7 +1968,7 @@
       "id": 242,
       "key": "fn:13@call:horizon_client_render::blocks::BlockFacts::get",
       "sig": "e31b1183c1a36317",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 13,
@@ -1992,7 +1992,7 @@
       "id": 243,
       "key": "fn:13@call:horizon_core::geometry::Vec3::add_vector",
       "sig": "df14f565c8f0dd8b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 13,
@@ -2016,7 +2016,7 @@
       "id": 244,
       "key": "fn:13@call:horizon_client_render::world::World::block#1",
       "sig": "b9858fbdc8e21a03",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 13,
@@ -2040,7 +2040,7 @@
       "id": 245,
       "key": "fn:13@call:horizon_client_render::blocks::BlockFacts::get#1",
       "sig": "e31b1183c1a36317",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 13,
@@ -2064,7 +2064,7 @@
       "id": 246,
       "key": "fn:13@call:fn:8",
       "sig": "bfb7d56fd4d264b0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 13,
@@ -2087,7 +2087,7 @@
       "id": 247,
       "key": "fn:13@call:horizon_client_render::world::World::block#2",
       "sig": "b9858fbdc8e21a03",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 13,
@@ -2111,7 +2111,7 @@
       "id": 248,
       "key": "fn:13@call:horizon_client_render::blocks::BlockFacts::get#2",
       "sig": "e31b1183c1a36317",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 13,
@@ -2135,7 +2135,7 @@
       "id": 249,
       "key": "fn:13@call:horizon_core::geometry::Vec3::subtract",
       "sig": "df14f565c8f0dd8b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 13,
@@ -2157,7 +2157,7 @@
       "id": 250,
       "key": "fn:13@call:horizon_core::geometry::Vec3::length_squared",
       "sig": "494eed9dcbe47e51",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 13,
@@ -2179,7 +2179,7 @@
       "id": 251,
       "key": "fn:14@call:fn:8",
       "sig": "bfb7d56fd4d264b0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 14,
@@ -2201,7 +2201,7 @@
       "id": 252,
       "key": "fn:14@call:horizon_core::geometry::Aabb::deflate",
       "sig": "a5e1553a04013f41",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 14,
@@ -2223,7 +2223,7 @@
       "id": 253,
       "key": "fn:14@call:horizon_core::geometry::Aabb::min_position",
       "sig": "c9c87865d6efc8b4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 14,
@@ -2245,7 +2245,7 @@
       "id": 254,
       "key": "fn:14@call:horizon_core::geometry::Aabb::max_position",
       "sig": "c9c87865d6efc8b4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 14,
@@ -2405,7 +2405,7 @@
       "id": 261,
       "key": "fn:14@call:horizon_client_render::blocks::BlockFacts::get",
       "sig": "e31b1183c1a36317",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 14,
@@ -2430,7 +2430,7 @@
       "id": 262,
       "key": "fn:14@call:horizon_client_render::world::World::block",
       "sig": "b9858fbdc8e21a03",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 14,
@@ -2455,7 +2455,7 @@
       "id": 263,
       "key": "fn:15@call:horizon_core::geometry::Vec3::add_vector",
       "sig": "df14f565c8f0dd8b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 15,
@@ -2477,7 +2477,7 @@
       "id": 264,
       "key": "fn:15@call:horizon_client_render::blocks::BlockFacts::get",
       "sig": "e31b1183c1a36317",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 15,
@@ -2499,7 +2499,7 @@
       "id": 265,
       "key": "fn:15@call:horizon_client_render::world::World::block",
       "sig": "b9858fbdc8e21a03",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 15,
@@ -3080,7 +3080,7 @@
       "id": 290,
       "key": "fn:22@call:horizon_core::geometry::Aabb::min_position",
       "sig": "c9c87865d6efc8b4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 22,
@@ -3102,7 +3102,7 @@
       "id": 291,
       "key": "fn:22@call:horizon_core::geometry::Aabb::max_position",
       "sig": "c9c87865d6efc8b4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 22,
@@ -3307,7 +3307,7 @@
       "id": 300,
       "key": "fn:24@call:horizon_core::geometry::Aabb::intersects",
       "sig": "819936ee9e7b0ccb",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 24,
@@ -3550,7 +3550,7 @@
       "id": 311,
       "key": "fn:29@call:fn:28",
       "sig": "803301f782b61ffe",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 29,
@@ -3573,7 +3573,7 @@
       "id": 312,
       "key": "fn:29@call:fn:27",
       "sig": "803301f782b61ffe",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 29,
@@ -3618,7 +3618,7 @@
       "id": 314,
       "key": "fn:30@call:horizon_core::geometry::Aabb::min_position",
       "sig": "c9c87865d6efc8b4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 30,
@@ -3640,7 +3640,7 @@
       "id": 315,
       "key": "fn:30@call:horizon_core::geometry::Aabb::max_position",
       "sig": "c9c87865d6efc8b4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 30,
@@ -4764,7 +4764,7 @@
       "id": 365,
       "key": "fn:59@call:horizon_core::geometry::Vec3::lerp",
       "sig": "d3ed072698f75e6d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 59,
@@ -5582,7 +5582,7 @@
       "id": 401,
       "key": "fn:71@call:<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity",
       "sig": "3e94671c83fd8266",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 71,
@@ -5652,7 +5652,7 @@
       "id": 404,
       "key": "fn:71@call:<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity#1",
       "sig": "3e94671c83fd8266",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 71,
@@ -5721,7 +5721,7 @@
       "id": 407,
       "key": "fn:71@call:<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity#2",
       "sig": "3e94671c83fd8266",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 71,
@@ -5824,14 +5824,28 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:11@call:horizon_client_render::collisions::no_collision_empty",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:11@call:f64::new",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:11@call:horizon_core::geometry::{impl#4}::new",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:11@call:fn:8",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:11@call:horizon_client_render::collisions::no_collision_empty",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:11@call:horizon_core::geometry::Aabb::deflate",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:12@call:fn:39",
@@ -5840,133 +5854,279 @@
     },
     {
       "key": "fn:13@call:core::convert::From::from",
-      "reason": "path call",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:13@call:core::convert::From::from#1",
-      "reason": "path call",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:13@call:f64::floor",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:13@call:f64::floor#1",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:13@call:f64::floor#2",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:13@call:f64::new",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:13@call:f64::new#1",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:13@call:fn:15",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:13@call:fn:8",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:13@call:horizon_client_lib::block_contact::emit",
-      "reason": "path call",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:13@call:horizon_client_lib::block_contact::swept_inside",
-      "reason": "path call",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:13@call:horizon_core::geometry::{impl#4}::new",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:13@call:horizon_client_render::blocks::BlockFacts::get",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:13@call:horizon_core::geometry::{impl#4}::new#1",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:13@call:horizon_client_render::blocks::BlockFacts::get#1",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:13@call:horizon_core::position::iter::{impl#6}::containing",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:13@call:horizon_client_render::blocks::BlockFacts::get#2",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:13@call:horizon_client_render::world::World::block",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:13@call:horizon_client_render::world::World::block#1",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:13@call:horizon_client_render::world::World::block#2",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:13@call:horizon_core::geometry::Vec3::add_vector",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:13@call:horizon_core::geometry::Vec3::containing",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:13@call:horizon_core::geometry::Vec3::length_squared",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:13@call:horizon_core::geometry::Vec3::subtract",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:14@call:core::convert::From::from",
-      "reason": "path call",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:14@call:core::convert::From::from#1",
-      "reason": "path call",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:14@call:core::convert::From::from#2",
-      "reason": "path call",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:14@call:f64::floor",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:14@call:f64::floor#1",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:14@call:f64::floor#2",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:14@call:f64::floor#3",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:14@call:f64::floor#4",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:14@call:f64::floor#5",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:14@call:horizon_core::geometry::{impl#4}::new",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:14@call:f64::new",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:14@call:horizon_core::geometry::{impl#4}::new#1",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:14@call:f64::new#1",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:14@call:horizon_core::geometry::{impl#4}::new#2",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:14@call:f64::new#2",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:14@call:fn:8",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:14@call:horizon_client_render::blocks::BlockFacts::get",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:14@call:horizon_client_render::world::World::block",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:14@call:horizon_core::geometry::Aabb::deflate",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:14@call:horizon_core::geometry::Aabb::max_position",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:14@call:horizon_core::geometry::Aabb::min_position",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:15@call:core::convert::From::from",
-      "reason": "path call",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:15@call:f64::new",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:15@call:fn:3",
-      "reason": "path call",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:15@call:horizon_core::geometry::{impl#4}::new",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:15@call:horizon_client_render::blocks::BlockFacts::get",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:15@call:horizon_core::position::iter::{impl#6}::containing",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:15@call:horizon_client_render::world::World::block",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:15@call:horizon_core::geometry::Vec3::add_vector",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:15@call:horizon_core::geometry::Vec3::containing",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:16@call:horizon_world::piston_push::bounce_velocity",
@@ -6004,7 +6164,7 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:17@call:horizon_core::geometry::{impl#4}::new",
+      "key": "fn:17@call:f64::new",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -6054,12 +6214,12 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:18@call:horizon_core::geometry::{impl#4}::new",
+      "key": "fn:18@call:f64::new",
       "reason": "path call",
       "kind": "callsite"
     },
     {
-      "key": "fn:18@call:horizon_core::geometry::{impl#4}::new#1",
+      "key": "fn:18@call:f64::new#1",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -6099,7 +6259,7 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:21@call:horizon_client_lib::entities::{impl#8}::span",
+      "key": "fn:21@call:horizon_core::geometry::Aabb::span",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -6120,28 +6280,45 @@
     },
     {
       "key": "fn:22@call:core::ops::function::Fn::call",
-      "reason": "path call",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:22@call:core::ops::function::Fn::call#1",
-      "reason": "path call",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:22@call:f64::floor",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:22@call:f64::floor#1",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:22@call:f64::floor#2",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:22@call:horizon_core::geometry::Aabb::max_position",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:22@call:horizon_core::geometry::Aabb::min_position",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:23@call:std::vec::Vec::is_empty",
@@ -6150,63 +6327,81 @@
     },
     {
       "key": "fn:24@call:<Self as core::iter::traits::collect::Extend>::extend",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:24@call:<Self as core::iter::traits::collect::Extend>::extend#1",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:24@call:<Self as core::iter::traits::collect::IntoIterator>::into_iter",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:24@call:<Self as core::iter::traits::iterator::Iterator>::filter",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:24@call:<Self as core::iter::traits::iterator::Iterator>::map",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:24@call:Self::new",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:24@call:[u32]::sort_unstable",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:24@call:alloc::vec::{impl#0}::new",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:24@call:horizon_core::geometry::Aabb::intersects",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:24@call:horizon_client_lib::entities::{impl#8}::span",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:24@call:horizon_core::geometry::Aabb::span",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:24@call:std::collections::HashMap::get",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:24@call:std::vec::Vec::clear",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:24@call:std::vec::Vec::dedup",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:24@call:std::vec::Vec::is_empty",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:25@call:<Self as core::iter::traits::iterator::Iterator>::enumerate",
@@ -6239,7 +6434,7 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:27@call:horizon_client_lib::entities::{impl#9}::cell",
+      "key": "fn:27@call:horizon_core::geometry::Vec3::cell",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -6259,7 +6454,7 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:28@call:horizon_client_lib::entities::{impl#9}::cell",
+      "key": "fn:28@call:horizon_core::geometry::Vec3::cell",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -6274,72 +6469,118 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:29@call:horizon_client_lib::entities::{impl#9}::cell",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:29@call:fn:27",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:29@call:horizon_client_lib::entities::{impl#9}::cell#1",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:29@call:fn:28",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:29@call:horizon_core::geometry::Vec3::cell",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:29@call:horizon_core::geometry::Vec3::cell#1",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:2@call:horizon_core::geometry::Vec3::length_squared",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:2@call:horizon_core::geometry::Vec3::length_squared#1",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:30@call:[u32]::sort_unstable",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:30@call:horizon_client_lib::entities::{impl#9}::cell",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:30@call:f64::new",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:30@call:horizon_client_lib::entities::{impl#9}::cell#1",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:30@call:f64::new#1",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:30@call:horizon_core::geometry::{impl#4}::new",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:30@call:horizon_core::geometry::Aabb::max_position",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:30@call:horizon_core::geometry::{impl#4}::new#1",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:30@call:horizon_core::geometry::Aabb::min_position",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:30@call:horizon_core::geometry::Vec3::cell",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:30@call:horizon_core::geometry::Vec3::cell#1",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:30@call:std::collections::HashMap::get",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:30@call:std::vec::Vec::clear",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:30@call:std::vec::Vec::extend_from_slice",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:32@call:horizon_core::geometry::{impl#4}::new",
+      "key": "fn:32@call:f64::new",
       "reason": "path call",
       "kind": "callsite"
     },
     {
-      "key": "fn:32@call:horizon_core::geometry::{impl#4}::new#1",
+      "key": "fn:32@call:f64::new#1",
       "reason": "path call",
       "kind": "callsite"
     },
     {
-      "key": "fn:32@call:horizon_core::geometry::{impl#5}::new",
+      "key": "fn:32@call:horizon_core::geometry::Vec3::new",
       "reason": "path call",
       "kind": "callsite"
     },
     {
-      "key": "fn:33@call:horizon_client_lib::entities::{impl#10}::box_at",
+      "key": "fn:33@call:horizon_core::geometry::Vec3::box_at",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -6454,6 +6695,31 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:37@call:f64::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:f64::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:f64::new#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:f64::new#3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:37@call:f64::new#4",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:37@call:f64::sqrt",
       "reason": "non-engine callee",
       "kind": "callsite"
@@ -6476,31 +6742,6 @@
     },
     {
       "key": "fn:37@call:horizon_client_render::collisions::no_collision_empty#1",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:37@call:horizon_core::geometry::{impl#4}::new",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:37@call:horizon_core::geometry::{impl#4}::new#1",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:37@call:horizon_core::geometry::{impl#4}::new#2",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:37@call:horizon_core::geometry::{impl#4}::new#3",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:37@call:horizon_core::geometry::{impl#4}::new#4",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -6560,22 +6801,22 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:39@call:horizon_core::geometry::{impl#4}::new",
+      "key": "fn:39@call:f64::new",
       "reason": "path call",
       "kind": "callsite"
     },
     {
-      "key": "fn:39@call:horizon_core::geometry::{impl#4}::new#1",
+      "key": "fn:39@call:f64::new#1",
       "reason": "path call",
       "kind": "callsite"
     },
     {
-      "key": "fn:39@call:horizon_core::geometry::{impl#4}::new#2",
+      "key": "fn:39@call:f64::new#2",
       "reason": "path call",
       "kind": "callsite"
     },
     {
-      "key": "fn:39@call:horizon_core::geometry::{impl#4}::new#3",
+      "key": "fn:39@call:f64::new#3",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -6610,17 +6851,17 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:43@call:horizon_client_lib::entities::{impl#11}::needed",
+      "key": "fn:43@call:i32::needed",
       "reason": "path call",
       "kind": "callsite"
     },
     {
-      "key": "fn:43@call:horizon_client_lib::entities::{impl#11}::needed#1",
+      "key": "fn:43@call:i32::needed#1",
       "reason": "path call",
       "kind": "callsite"
     },
     {
-      "key": "fn:43@call:horizon_client_lib::entities::{impl#11}::needed#2",
+      "key": "fn:43@call:i32::needed#2",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -6735,12 +6976,12 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:51@call:horizon_core::geometry::{impl#4}::new",
+      "key": "fn:51@call:f64::new",
       "reason": "path call",
       "kind": "callsite"
     },
     {
-      "key": "fn:52@call:horizon_core::geometry::{impl#4}::new",
+      "key": "fn:52@call:f64::new",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -6798,6 +7039,12 @@
       "key": "fn:58@call:std::option::Option::as_ref",
       "reason": "non-engine callee",
       "kind": "callsite"
+    },
+    {
+      "key": "fn:59@call:horizon_core::geometry::Vec3::lerp",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:5@call:core::convert::From::from",
@@ -6865,18 +7112,18 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:65@call:horizon_client_lib::entities::{impl#17}::filter_flag",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:66@call:horizon_client_lib::entities::{impl#17}::filter_flag",
+      "key": "fn:65@call:usize::filter_flag",
       "reason": "path call",
       "kind": "callsite"
     },
     {
       "key": "fn:66@call:std::option::Option::is_some",
       "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:66@call:usize::filter_flag",
+      "reason": "path call",
       "kind": "callsite"
     },
     {
@@ -6920,17 +7167,17 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:68@call:horizon_core::geometry::{impl#4}::new",
+      "key": "fn:68@call:f64::new",
       "reason": "path call",
       "kind": "callsite"
     },
     {
-      "key": "fn:68@call:horizon_core::geometry::{impl#4}::new#1",
+      "key": "fn:68@call:f64::new#1",
       "reason": "path call",
       "kind": "callsite"
     },
     {
-      "key": "fn:68@call:horizon_core::geometry::{impl#5}::new",
+      "key": "fn:68@call:horizon_core::geometry::Vec3::new",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -6946,23 +7193,45 @@
     },
     {
       "key": "fn:6@call:<Self as core::iter::traits::iterator::Iterator>::find",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:6@call:[([i32; 3_usize], horizon_world::piston_shape::MovingPistonState)]::iter",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:6@call:fn:4",
-      "reason": "path call",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:6@call:horizon_client_render::blocks::BlockFacts::get",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:6@call:horizon_client_render::blocks::BlockFacts::get#1",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:6@call:horizon_client_render::world::World::block",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:6@call:std::option::Option::map",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:70@call:bool::then_some",
@@ -7065,22 +7334,22 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:70@call:f64::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:70@call:f64::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:70@call:horizon_client_render::collisions::SceneCollisions::resolve_in_border",
       "reason": "unparseable return type",
       "kind": "callsite"
     },
     {
-      "key": "fn:70@call:horizon_core::geometry::{impl#4}::new",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:70@call:horizon_core::geometry::{impl#4}::new#1",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:70@call:horizon_core::position::iter::{impl#6}::containing",
+      "key": "fn:70@call:horizon_core::geometry::Vec3::containing",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -7090,7 +7359,7 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:70@call:horizon_world::collision_context::{impl#1}::for_entity",
+      "key": "fn:70@call:horizon_world::collision_context::CollisionEntity::for_entity",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -7115,57 +7384,133 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:71@call:<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:71@call:<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity#1",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:71@call:<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity#2",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
       "key": "fn:71@call:core::convert::From::from",
-      "reason": "path call",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:71@call:core::convert::From::from#1",
-      "reason": "path call",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:71@call:core::convert::From::from#2",
-      "reason": "path call",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:71@call:core::convert::From::from#3",
-      "reason": "path call",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:71@call:f64::abs",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:71@call:f64::abs#1",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:71@call:f64::abs#2",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
       "key": "fn:71@call:f64::abs#3",
-      "reason": "non-engine callee",
-      "kind": "callsite"
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:71@call:horizon_core::geometry::{impl#4}::new",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:71@call:f64::new",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:71@call:horizon_core::geometry::{impl#4}::new#1",
-      "reason": "path call",
-      "kind": "callsite"
+      "key": "fn:71@call:f64::new#1",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
     },
     {
-      "key": "fn:71@call:horizon_core::geometry::{impl#4}::new#2",
+      "key": "fn:71@call:f64::new#2",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:72@call:horizon_client_lib::entities::ItemEntity::__yoake_trait_entity_rules_is_no_gravity",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:73@call:horizon_client_lib::entities::ItemEntity::__yoake_trait_entity_rules_get_default_gravity",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:74@call:horizon_client_lib::entities::ExperienceOrb::__yoake_trait_entity_rules_is_no_gravity",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:75@call:horizon_client_lib::entities::ExperienceOrb::__yoake_trait_entity_rules_get_default_gravity",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:76@call:horizon_client_lib::entities::ArmorStand::__yoake_trait_entity_rules_is_no_gravity",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:77@call:horizon_client_lib::entities::ArmorStand::__yoake_trait_entity_rules_get_default_gravity",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:78@call:horizon_client_lib::entities::ArmorStand::__yoake_trait_entity_rules_is_pushed_by_fluid",
+      "reason": "hot-path",
+      "kind": "callsite",
+      "manual": true
+    },
+    {
+      "key": "fn:79@call:[horizon_world::entity_fluid::FluidTagId; 2_usize]::new",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -7182,11 +7527,6 @@
     {
       "key": "fn:79@call:horizon_world::entity_fluid::EntityFluidInteraction::update",
       "reason": "unwritable return type",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:79@call:horizon_world::entity_fluid::{impl#4}::new",
-      "reason": "path call",
       "kind": "callsite"
     },
     {
@@ -7225,17 +7565,17 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:8@call:horizon_core::geometry::{impl#4}::new",
+      "key": "fn:8@call:f64::new",
       "reason": "path call",
       "kind": "callsite"
     },
     {
-      "key": "fn:8@call:horizon_core::geometry::{impl#4}::new#1",
+      "key": "fn:8@call:f64::new#1",
       "reason": "path call",
       "kind": "callsite"
     },
     {
-      "key": "fn:8@call:horizon_core::geometry::{impl#5}::new",
+      "key": "fn:8@call:horizon_core::geometry::Vec3::new",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -7270,7 +7610,7 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:9@call:alloc::vec::{impl#0}::new",
+      "key": "fn:9@call:Self::new",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -7390,12 +7730,12 @@
       "kind": "callsite"
     },
     {
-      "key": "horizon_client_lib::entities::ArmorStand::on_pos_legacy@call:horizon_core::position::{impl#1}::new",
+      "key": "horizon_client_lib::entities::ArmorStand::on_pos_legacy@call:i32::new",
       "reason": "path call",
       "kind": "callsite"
     },
     {
-      "key": "horizon_client_lib::entities::ArmorStand::on_pos_legacy@call:horizon_core::position::{impl#1}::new#1",
+      "key": "horizon_client_lib::entities::ArmorStand::on_pos_legacy@call:i32::new#1",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -7445,7 +7785,12 @@
       "kind": "callsite"
     },
     {
-      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_client_lib::entities::{impl#10}::box_at",
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:f64::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:f64::new#1",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -7485,6 +7830,16 @@
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::Vec3::box_at",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::Vec3::of_size",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::Vec3::subtract",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
@@ -7495,27 +7850,12 @@
       "kind": "callsite"
     },
     {
-      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::{impl#4}::new",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::{impl#4}::new#1",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::geometry::{impl#5}::of_size",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_core::position::{impl#1}::new",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
       "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:horizon_world::level::portal_travel::find_free_position",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck@call:i32::new",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -7562,6 +7902,21 @@
     {
       "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:f64::abs",
       "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:f64::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:f64::new#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:f64::new#2",
+      "reason": "path call",
       "kind": "callsite"
     },
     {
@@ -7620,21 +7975,6 @@
       "kind": "callsite"
     },
     {
-      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:horizon_core::geometry::{impl#4}::new",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:horizon_core::geometry::{impl#4}::new#1",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:horizon_core::geometry::{impl#4}::new#2",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
       "key": "horizon_client_lib::entities::ItemEntity::tick_move@call:std::option::Option::map",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
@@ -7665,6 +8005,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::add_delta_movement@call:f64::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::add_delta_movement@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_current_target_add_delta_movement",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
@@ -7677,11 +8022,6 @@
     {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::add_delta_movement@call:horizon_core::geometry::Vec3::is_finite#1",
       "reason": "caller not in fn ledger",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::add_delta_movement@call:horizon_core::geometry::{impl#4}::new",
-      "reason": "path call",
       "kind": "callsite"
     },
     {
@@ -7960,6 +8300,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::interaction_box@call:f64::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::interaction_box@call:horizon_client_lib::entities::fluids::EntityFluidWorld::__yoake_trait_fluid_interaction_world_interaction_box",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
@@ -7967,11 +8312,6 @@
     {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::interaction_box@call:horizon_core::geometry::Aabb::deflate",
       "reason": "caller not in fn ledger",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::interaction_box@call:horizon_core::geometry::{impl#4}::new",
-      "reason": "path call",
       "kind": "callsite"
     },
     {
@@ -8047,7 +8387,7 @@
       "kind": "callsite"
     },
     {
-      "key": "horizon_client_lib::entities::merge_with_neighbours@call:alloc::vec::{impl#0}::new",
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:Self::new",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -8097,6 +8437,11 @@
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::entities::merge_with_neighbours@call:f64::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::entities::merge_with_neighbours@call:fn:20",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
@@ -8139,11 +8484,6 @@
     {
       "key": "horizon_client_lib::entities::merge_with_neighbours@call:horizon_core::geometry::Aabb::intersects",
       "reason": "caller not in fn ledger",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::entities::merge_with_neighbours@call:horizon_core::geometry::{impl#4}::new",
-      "reason": "path call",
       "kind": "callsite"
     }
   ]

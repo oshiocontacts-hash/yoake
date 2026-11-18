@@ -121,6 +121,8 @@ winresource = "0.1"
 
 [features]
 yoake-hook-baseline = ["horizon-client-lib/yoake-hook-baseline"]
+# Call-site hooks off, fn hooks on (bench gate baseline).
+yoake-callsite-baseline = ["horizon-client-lib/yoake-callsite-baseline"]
 default = ["audio", "controllers"]
 test-support = []
 dev-capture = ["horizon-client-lib/dev-capture", "horizon-client-render/dev-capture", "horizon-protocol/dev-capture"]

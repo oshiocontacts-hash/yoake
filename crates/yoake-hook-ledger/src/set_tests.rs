@@ -159,3 +159,54 @@ fn automatic_exclusion_does_not_overwrite_manual_reason() {
     assert_eq!(shard.excluded()[0].reason, "keep this");
     assert!(shard.excluded()[0].manual);
 }
+
+#[test]
+fn set_validation_enforces_next_id_boundaries() {
+    let mut set = LedgerSet::new();
+    for next_id in [0, super::SYNTHETIC_HOOK_BASE + 1, u32::MAX] {
+        set.meta.next_id = next_id;
+        let error = set.validate().unwrap_err().to_string();
+        assert!(error.contains("next_id"), "{error}");
+        assert!(error.contains("outside 1..="), "{error}");
+    }
+    set.meta.next_id = super::SYNTHETIC_HOOK_BASE;
+    set.validate().unwrap();
+}
+
+#[test]
+fn set_validation_rejects_reserved_and_synthetic_entry_ids() {
+    for (id, expected) in [
+        (super::RESERVED_HOOK_ID, "reserved"),
+        (super::SYNTHETIC_HOOK_BASE, "SYNTHETIC_HOOK_BASE"),
+        (u32::MAX, "SYNTHETIC_HOOK_BASE"),
+    ] {
+        let mut set = LedgerSet::new();
+        set.shard_mut("a").entries.push(super::Entry {
+            id,
+            key: "a::f".into(),
+            sig: "signature".into(),
+            status: super::Status::Live,
+            kind: Kind::Fn,
+            site: None,
+            renamed_from: Vec::new(),
+        });
+        let error = set.validate().unwrap_err().to_string();
+        assert!(error.contains(expected), "{error}");
+    }
+}
+
+#[test]
+#[should_panic(expected = "hook id 0 is reserved")]
+fn set_assign_rejects_reserved_zero() {
+    let mut set = LedgerSet::new();
+    set.meta.next_id = super::RESERVED_HOOK_ID;
+    set.assign("a", Kind::Fn, "a::f", "signature");
+}
+
+#[test]
+#[should_panic(expected = "engine-synthetic range")]
+fn set_assign_rejects_synthetic_range() {
+    let mut set = LedgerSet::new();
+    set.meta.next_id = super::SYNTHETIC_HOOK_BASE;
+    set.assign("a", Kind::Fn, "a::f", "signature");
+}

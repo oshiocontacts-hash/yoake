@@ -93,7 +93,7 @@ fn validation_rejects_bad_ids_and_duplicate_live_keys() {
     );
     invalid(
         r#"{"version":1,"next_id":2,"entries":[{"id":0,"key":"a","sig":"","status":"live"}],"excluded":[]}"#,
-        "outside",
+        "reserved",
     );
     invalid(
         r#"{"version":1,"next_id":2,"entries":[{"id":2,"key":"a","sig":"","status":"live"}],"excluded":[]}"#,
@@ -200,4 +200,55 @@ fn signature_hash_collapses_whitespace() {
     let expected = Ledger::sig_hash("fn example ( value : u32 )");
     assert_eq!(Ledger::sig_hash("fn  example ( value : u32 )"), expected);
     assert_eq!(Ledger::sig_hash("\n fn\texample (\n value : u32 ) \t"), expected);
+}
+
+#[test]
+fn validation_enforces_next_id_boundaries() {
+    let mut ledger = Ledger::new();
+    for next_id in [0, super::SYNTHETIC_HOOK_BASE + 1, u32::MAX] {
+        ledger.next_id = next_id;
+        let error = ledger.validate().unwrap_err().to_string();
+        assert!(error.contains("next_id"), "{error}");
+        assert!(error.contains("outside 1..="), "{error}");
+    }
+    ledger.next_id = super::SYNTHETIC_HOOK_BASE;
+    ledger.validate().unwrap();
+}
+
+#[test]
+fn validation_rejects_reserved_and_synthetic_entry_ids() {
+    for (id, expected) in [
+        (super::RESERVED_HOOK_ID, "reserved"),
+        (super::SYNTHETIC_HOOK_BASE, "SYNTHETIC_HOOK_BASE"),
+        (u32::MAX, "SYNTHETIC_HOOK_BASE"),
+    ] {
+        let mut ledger = Ledger::new();
+        ledger.entries.push(super::Entry {
+            id,
+            key: "demo::f".into(),
+            sig: "signature".into(),
+            status: Status::Live,
+            kind: Kind::Fn,
+            site: None,
+            renamed_from: Vec::new(),
+        });
+        let error = ledger.validate().unwrap_err().to_string();
+        assert!(error.contains(expected), "{error}");
+    }
+}
+
+#[test]
+#[should_panic(expected = "hook id 0 is reserved")]
+fn assign_rejects_reserved_zero() {
+    let mut ledger = Ledger::new();
+    ledger.next_id = super::RESERVED_HOOK_ID;
+    ledger.assign(Kind::Fn, "demo::f", "signature");
+}
+
+#[test]
+#[should_panic(expected = "engine-synthetic range")]
+fn assign_rejects_synthetic_range() {
+    let mut ledger = Ledger::new();
+    ledger.next_id = super::SYNTHETIC_HOOK_BASE;
+    ledger.assign(Kind::Fn, "demo::f", "signature");
 }

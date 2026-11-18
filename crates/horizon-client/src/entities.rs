@@ -64,8 +64,8 @@ pub fn vertical_collision_velocity(
     yoake_hook(id = 2, key = "horizon_client_lib::entities::move_applies")
 )]
 pub fn move_applies(wanted: Vec3, moved: Vec3) -> bool {
-    let moved_sq = __yoake_cs_187(moved);
-    moved_sq > 1.0e-7 || __yoake_cs_188(wanted) - moved_sq < 1.0e-7
+    let moved_sq = moved.length_squared();
+    moved_sq > 1.0e-7 || wanted.length_squared() - moved_sq < 1.0e-7
 }
 
 /// `SlimeBlock.stepOn`: a slow walk or slide on slime drags the horizontal
@@ -108,12 +108,12 @@ fn item_support_is_slime(world: &World, facts: &BlockFacts, position: Vec3) -> b
     yoake_hook(id = 6, key = "horizon_client_lib::entities::slime_at")
 )]
 fn slime_at(world: &World, facts: &BlockFacts, x: i32, y: i32, z: i32) -> bool {
-    let block = &*__yoake_cs_195(&*facts, __yoake_cs_196(&*world, x, y, z)).name;
+    let block = &*facts.get(world.block(x, y, z)).name;
     let moving_moved = world
         .moving_pistons
         .iter()
         .find(|(pos, _)| *pos == [x, y, z])
-        .map(|(_, piston)| &*__yoake_cs_198(&*facts, piston.moved_state).name);
+        .map(|(_, piston)| &*facts.get(piston.moved_state).name);
     slime_support_name(block, moving_moved)
 }
 
@@ -185,11 +185,11 @@ impl ItemEnvironmentTick {
 }
 impl crate::entity_rules::EntityRules for ItemEntity {
     fn is_no_gravity(&self) -> bool {
-        __yoake_cs_200(&*self)
+        self.__yoake_trait_entity_rules_is_no_gravity()
     }
     /// `ItemEntity.getDefaultGravity`.
     fn get_default_gravity(&self) -> f64 {
-        __yoake_cs_201(&*self)
+        self.__yoake_trait_entity_rules_get_default_gravity()
     }
 }
 impl ItemEntity {
@@ -220,11 +220,11 @@ impl ItemEntity {
 }
 impl crate::entity_rules::EntityRules for ExperienceOrb {
     fn is_no_gravity(&self) -> bool {
-        __yoake_cs_202(&*self)
+        self.__yoake_trait_entity_rules_is_no_gravity()
     }
     /// `ExperienceOrb.getDefaultGravity`.
     fn get_default_gravity(&self) -> f64 {
-        __yoake_cs_203(&*self)
+        self.__yoake_trait_entity_rules_get_default_gravity()
     }
 }
 impl ExperienceOrb {
@@ -255,16 +255,16 @@ impl ExperienceOrb {
 }
 impl crate::entity_rules::EntityRules for ArmorStand {
     fn is_no_gravity(&self) -> bool {
-        __yoake_cs_204(&*self)
+        self.__yoake_trait_entity_rules_is_no_gravity()
     }
     /// `LivingEntity.getDefaultGravity`.
     fn get_default_gravity(&self) -> f64 {
-        __yoake_cs_205(&*self)
+        self.__yoake_trait_entity_rules_get_default_gravity()
     }
     /// The code's reading of `Entity.isPushedByFluid` for a marker stand: it
     /// takes no fluid push and is never in water.
     fn is_pushed_by_fluid(&self) -> bool {
-        __yoake_cs_206(&*self)
+        self.__yoake_trait_entity_rules_is_pushed_by_fluid()
     }
 }
 impl ArmorStand {
@@ -480,7 +480,7 @@ impl ItemEntity {
             binding: collision,
             subject: None,
         };
-        let inner = __yoake_cs_235(__yoake_cs_234(&*self), Vec3::new(1.0e-7, 1.0e-7, 1.0e-7));
+        let inner = self.bounds().deflate(Vec3::new(1.0e-7, 1.0e-7, 1.0e-7));
         !crate::collisions::no_collision_empty(&mut scene, inner)
     }
     /// `Entity.moveTowardsClosestSpace` from the middle of the item's box:
@@ -657,17 +657,16 @@ impl ItemEntity {
             // Entity.applyEffectsFromBlocks -> SlimeBlock.stepOn, with the
             // vertical speed the bounce just left (before the air drag).
             if !no_physics {
-                __yoake_cs_237(&mut *self, world, facts);
+                self.slime_step_on(world, facts);
             }
             let mut friction = 0.98;
             if self.on_ground {
-                let below = __yoake_cs_238(
-                    &*world,
+                let below = world.block(
                     self.position.x.floor() as i32,
                     (self.position.y - 0.999_999).floor() as i32,
                     self.position.z.floor() as i32,
                 );
-                friction = f64::from(__yoake_cs_242(&*facts, below).friction) * 0.98;
+                friction = f64::from(facts.get(below).friction) * 0.98;
             }
             self.velocity = Vec3::new(
                 self.velocity.x * friction,
@@ -681,16 +680,17 @@ impl ItemEntity {
         if !no_physics {
             // Entity.applyEffectsFromBlocks: stepOn, then checkInsideBlocks.
             if self.on_ground {
-                let p = BlockPos::containing(__yoake_cs_243(
-                    self.position,
-                    Vec3::new(0.0, -f64::from(0.2_f32), 0.0),
-                ));
-                let state = __yoake_cs_244(&*world, p.x, p.y, p.z);
+                let p = BlockPos::containing(self.position.add_vector(Vec3::new(
+                    0.0,
+                    -f64::from(0.2_f32),
+                    0.0,
+                )));
+                let state = world.block(p.x, p.y, p.z);
                 crate::block_contact::emit(crate::block_contact::Event::StepOn(
                     crate::block_contact::Contact {
                         entity: self.id as i32,
                         kind: "minecraft:item",
-                        block: &__yoake_cs_245(&*facts, state).name,
+                        block: &facts.get(state).name,
                         state,
                         position: p,
                     },
@@ -701,14 +701,14 @@ impl ItemEntity {
                 "minecraft:item",
                 self.previous,
                 self.position,
-                __yoake_cs_246(&*self),
+                self.bounds(),
                 |p| {
-                    let state = __yoake_cs_247(&*world, p.x, p.y, p.z);
-                    (state, &__yoake_cs_248(&*facts, state).name)
+                    let state = world.block(p.x, p.y, p.z);
+                    (state, &facts.get(state).name)
                 },
             );
         }
-        if __yoake_cs_250(__yoake_cs_249(self.velocity, step.old_velocity)) > 0.01 {
+        if self.velocity.subtract(step.old_velocity).length_squared() > 0.01 {
             self.needs_sync = true;
         }
         if self.age != i16::MIN as i32 {
@@ -730,13 +730,13 @@ impl ItemEntity {
         )
     )]
     fn stuck_multiplier(&self, world: &World, facts: &BlockFacts) -> Option<Vec3> {
-        let b = __yoake_cs_252(__yoake_cs_251(&*self), Vec3::new(1e-5, 1e-5, 1e-5));
-        let (lo, hi) = (__yoake_cs_253(b), __yoake_cs_254(b));
+        let b = self.bounds().deflate(Vec3::new(1e-5, 1e-5, 1e-5));
+        let (lo, hi) = (b.min_position(), b.max_position());
         let mut stuck = None;
         for x in lo.x.floor() as i32..=hi.x.floor() as i32 {
             for y in lo.y.floor() as i32..=hi.y.floor() as i32 {
                 for z in lo.z.floor() as i32..=hi.z.floor() as i32 {
-                    match &*__yoake_cs_261(&*facts, __yoake_cs_262(&*world, x, y, z)).name {
+                    match &*facts.get(world.block(x, y, z)).name {
                         "minecraft:cobweb" => {
                             stuck = Some(Vec3::new(0.25, f64::from(0.05_f32), 0.25));
                         }
@@ -764,13 +764,12 @@ impl ItemEntity {
         if !self.on_ground {
             return;
         }
-        let p = BlockPos::containing(__yoake_cs_263(
-            self.position,
-            Vec3::new(0.0, -f64::from(0.2_f32), 0.0),
-        ));
-        if &*__yoake_cs_264(&*facts, __yoake_cs_265(&*world, p.x, p.y, p.z)).name
-            != "minecraft:slime_block"
-        {
+        let p = BlockPos::containing(self.position.add_vector(Vec3::new(
+            0.0,
+            -f64::from(0.2_f32),
+            0.0,
+        )));
+        if &*facts.get(world.block(p.x, p.y, p.z)).name != "minecraft:slime_block" {
             return;
         }
         if let Some(scale) = slime_step_on_scale(self.velocity.y) {
@@ -935,7 +934,7 @@ impl ObstacleGrid {
                 (v.z / Self::CELL).floor() as i32,
             )
         };
-        (cell(__yoake_cs_290(b)), cell(__yoake_cs_291(b)))
+        (cell(b.min_position()), cell(b.max_position()))
     }
     #[cfg_attr(
         not(feature = "yoake-hook-baseline"),
@@ -979,7 +978,7 @@ impl ObstacleGrid {
             found
                 .into_iter()
                 .map(|i| self.boxes[i as usize])
-                .filter(|b| __yoake_cs_300(*b, area)),
+                .filter(|b| b.intersects(area)),
         );
     }
 }
@@ -1039,8 +1038,8 @@ impl ItemCells {
     )]
     pub fn moved(&mut self, i: usize, from: Vec3, to: Vec3) {
         if Self::cell(from) != Self::cell(to) {
-            __yoake_cs_311(&mut *self, i, from);
-            __yoake_cs_312(&mut *self, i, to);
+            self.remove(i, from);
+            self.add(i, to);
         }
     }
     /// The items whose cells could hold a box meeting `area`, in the order
@@ -1053,7 +1052,7 @@ impl ItemCells {
     fn near(&self, area: Aabb, out: &mut Vec<u32>) {
         out.clear();
         // An item's box reaches 0.125 sideways and 0.25 up from its position.
-        let (min, max) = (__yoake_cs_314(area), __yoake_cs_315(area));
+        let (min, max) = (area.min_position(), area.max_position());
         let (lo, hi) = (
             Self::cell(Vec3::new(min.x - 0.125, min.y - 0.25, min.z - 0.125)),
             Self::cell(Vec3::new(max.x + 0.125, max.y, max.z + 0.125)),
@@ -2013,7 +2012,7 @@ impl ArmorStand {
         )
     )]
     pub fn render_position(&self, alpha: f64) -> Vec3 {
-        __yoake_cs_365(self.previous, self.position, alpha)
+        self.previous.lerp(self.position, alpha)
     }
     /// The body's yaw `alpha` of the way through the tick
     /// (`LivingEntityRenderer.solveBodyRot`: `Mth.rotLerp(partialTick,
@@ -2414,7 +2413,7 @@ impl ArmorStand {
         use crate::entity_rules::EntityRules;
         let StandStep { falling, friction } = step;
         let velocity = self.velocity;
-        let gravity = __yoake_cs_401(&*self);
+        let gravity = self.get_gravity();
         self.velocity = if let StandMedium::Lava { shallow } = medium {
             // travelInLava: halve it (a shallow lava also slows the fall by
             // 0.8 with `getFluidFallingAdjustedMovement`), then sink by
@@ -2439,7 +2438,7 @@ impl ArmorStand {
             // already nearly stopped).
             let slow = f64::from(0.8f32);
             let y = velocity.y * slow;
-            let sink = __yoake_cs_404(&*self) / 16.0;
+            let sink = self.get_gravity() / 16.0;
             let adjusted = if falling && (y - 0.005).abs() >= 0.003 && (y - sink).abs() < 0.003 {
                 -0.003
             } else {
@@ -2450,7 +2449,7 @@ impl ArmorStand {
             let drag = f64::from(friction * 0.91f32);
             Vec3::new(
                 velocity.x * drag,
-                (velocity.y - __yoake_cs_407(&*self)) * f64::from(0.98f32),
+                (velocity.y - self.get_gravity()) * f64::from(0.98f32),
                 velocity.z * drag,
             )
         };
@@ -4139,78 +4138,7 @@ pub mod hook_bench {
 }
 
 // Generated by yoake-hook-codemod: call-site shims (hook-ledger). Do not edit by hand.
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 187, key = "fn:2@call:horizon_core::geometry::Vec3::length_squared", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_187(recv: horizon_core::geometry::Vec3) -> f64 {
-    horizon_core::geometry::Vec3::length_squared(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 188, key = "fn:2@call:horizon_core::geometry::Vec3::length_squared#1", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_188(recv: horizon_core::geometry::Vec3) -> f64 {
-    horizon_core::geometry::Vec3::length_squared(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 195, key = "fn:6@call:horizon_client_render::blocks::BlockFacts::get", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_195<'r>(
-    recv: &'r horizon_client_render::blocks::BlockFacts,
-    a0: horizon_world::registry::BlockStateId,
-) -> &'r horizon_client_render::blocks::StateFacts {
-    horizon_client_render::blocks::BlockFacts::get(recv, a0)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 196, key = "fn:6@call:horizon_client_render::world::World::block", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_196(
-    recv: &horizon_client_render::world::World,
-    a0: i32,
-    a1: i32,
-    a2: i32,
-) -> horizon_world::registry::BlockStateId {
-    horizon_client_render::world::World::block(recv, a0, a1, a2)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 198, key = "fn:6@call:horizon_client_render::blocks::BlockFacts::get#1", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_198<'r>(
-    recv: &'r horizon_client_render::blocks::BlockFacts,
-    a0: horizon_world::registry::BlockStateId,
-) -> &'r horizon_client_render::blocks::StateFacts {
-    horizon_client_render::blocks::BlockFacts::get(recv, a0)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 200, key = "fn:72@call:horizon_client_lib::entities::ItemEntity::__yoake_trait_entity_rules_is_no_gravity", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_200(recv: &crate::entities::ItemEntity) -> bool {
-    crate::entities::ItemEntity::__yoake_trait_entity_rules_is_no_gravity(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 201, key = "fn:73@call:horizon_client_lib::entities::ItemEntity::__yoake_trait_entity_rules_get_default_gravity", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_201(recv: &crate::entities::ItemEntity) -> f64 {
-    crate::entities::ItemEntity::__yoake_trait_entity_rules_get_default_gravity(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 202, key = "fn:74@call:horizon_client_lib::entities::ExperienceOrb::__yoake_trait_entity_rules_is_no_gravity", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_202(recv: &crate::entities::ExperienceOrb) -> bool {
-    crate::entities::ExperienceOrb::__yoake_trait_entity_rules_is_no_gravity(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 203, key = "fn:75@call:horizon_client_lib::entities::ExperienceOrb::__yoake_trait_entity_rules_get_default_gravity", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_203(recv: &crate::entities::ExperienceOrb) -> f64 {
-    crate::entities::ExperienceOrb::__yoake_trait_entity_rules_get_default_gravity(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 204, key = "fn:76@call:horizon_client_lib::entities::ArmorStand::__yoake_trait_entity_rules_is_no_gravity", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_204(recv: &crate::entities::ArmorStand) -> bool {
-    crate::entities::ArmorStand::__yoake_trait_entity_rules_is_no_gravity(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 205, key = "fn:77@call:horizon_client_lib::entities::ArmorStand::__yoake_trait_entity_rules_get_default_gravity", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_205(recv: &crate::entities::ArmorStand) -> f64 {
-    crate::entities::ArmorStand::__yoake_trait_entity_rules_get_default_gravity(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 206, key = "fn:78@call:horizon_client_lib::entities::ArmorStand::__yoake_trait_entity_rules_is_pushed_by_fluid", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_206(recv: &crate::entities::ArmorStand) -> bool {
-    crate::entities::ArmorStand::__yoake_trait_entity_rules_is_pushed_by_fluid(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 207, key = "fn:9@call:horizon_client_render::world::World::block", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 207, key = "fn:9@call:horizon_client_render::world::World::block", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_207(
     recv: &horizon_client_render::world::World,
@@ -4220,7 +4148,7 @@ fn __yoake_cs_207(
 ) -> horizon_world::registry::BlockStateId {
     horizon_client_render::world::World::block(recv, a0, a1, a2)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 211, key = "fn:9@call:horizon_client_render::blocks::BlockFacts::get", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 211, key = "fn:9@call:horizon_client_render::blocks::BlockFacts::get", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_211<'r>(
     recv: &'r horizon_client_render::blocks::BlockFacts,
@@ -4228,7 +4156,7 @@ fn __yoake_cs_211<'r>(
 ) -> &'r horizon_client_render::blocks::StateFacts {
     horizon_client_render::blocks::BlockFacts::get(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 212, key = "fn:9@call:horizon_client_render::items::Items::resists_fire", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 212, key = "fn:9@call:horizon_client_render::items::Items::resists_fire", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_212(
     recv: &horizon_client_render::items::Items,
@@ -4237,7 +4165,7 @@ fn __yoake_cs_212(
 ) -> bool {
     horizon_client_render::items::Items::resists_fire(recv, a0, a1)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 213, key = "fn:9@call:horizon_client_render::items::Items::resists_fire#1", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 213, key = "fn:9@call:horizon_client_render::items::Items::resists_fire#1", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_213(
     recv: &horizon_client_render::items::Items,
@@ -4246,7 +4174,7 @@ fn __yoake_cs_213(
 ) -> bool {
     horizon_client_render::items::Items::resists_fire(recv, a0, a1)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 215, key = "fn:9@call:fn:10", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 215, key = "fn:9@call:fn:10", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_215(
     recv: &mut crate::entities::ItemEntity,
@@ -4254,7 +4182,7 @@ fn __yoake_cs_215(
 ) -> std::option::Option<std::vec::Vec<horizon_client_render::items::ItemStack>> {
     crate::entities::ItemEntity::hurt(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 218, key = "fn:9@call:horizon_client_render::items::Items::resists_fire#2", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 218, key = "fn:9@call:horizon_client_render::items::Items::resists_fire#2", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_218(
     recv: &horizon_client_render::items::Items,
@@ -4263,7 +4191,7 @@ fn __yoake_cs_218(
 ) -> bool {
     horizon_client_render::items::Items::resists_fire(recv, a0, a1)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 220, key = "fn:9@call:fn:10#1", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 220, key = "fn:9@call:fn:10#1", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_220(
     recv: &mut crate::entities::ItemEntity,
@@ -4271,12 +4199,12 @@ fn __yoake_cs_220(
 ) -> std::option::Option<std::vec::Vec<horizon_client_render::items::ItemStack>> {
     crate::entities::ItemEntity::hurt(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 222, key = "fn:9@call:fn:8", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 222, key = "fn:9@call:fn:8", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_222(recv: &crate::entities::ItemEntity) -> horizon_core::geometry::Aabb {
     crate::entities::ItemEntity::bounds(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 224, key = "fn:9@call:horizon_client_render::items::Items::resists_fire#3", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 224, key = "fn:9@call:horizon_client_render::items::Items::resists_fire#3", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_224(
     recv: &horizon_client_render::items::Items,
@@ -4285,7 +4213,7 @@ fn __yoake_cs_224(
 ) -> bool {
     horizon_client_render::items::Items::resists_fire(recv, a0, a1)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 226, key = "fn:9@call:fn:10#2", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 226, key = "fn:9@call:fn:10#2", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_226(
     recv: &mut crate::entities::ItemEntity,
@@ -4293,12 +4221,12 @@ fn __yoake_cs_226(
 ) -> std::option::Option<std::vec::Vec<horizon_client_render::items::ItemStack>> {
     crate::entities::ItemEntity::hurt(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 228, key = "fn:9@call:fn:8#1", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 228, key = "fn:9@call:fn:8#1", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_228(recv: &crate::entities::ItemEntity) -> horizon_core::geometry::Aabb {
     crate::entities::ItemEntity::bounds(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 229, key = "fn:9@call:horizon_client_render::items::Items::resists_cactus", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 229, key = "fn:9@call:horizon_client_render::items::Items::resists_cactus", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_229(
     recv: &horizon_client_render::items::Items,
@@ -4306,7 +4234,7 @@ fn __yoake_cs_229(
 ) -> bool {
     horizon_client_render::items::Items::resists_cactus(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 231, key = "fn:9@call:fn:10#3", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 231, key = "fn:9@call:fn:10#3", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_231(
     recv: &mut crate::entities::ItemEntity,
@@ -4314,186 +4242,17 @@ fn __yoake_cs_231(
 ) -> std::option::Option<std::vec::Vec<horizon_client_render::items::ItemStack>> {
     crate::entities::ItemEntity::hurt(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 234, key = "fn:11@call:fn:8", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_234(recv: &crate::entities::ItemEntity) -> horizon_core::geometry::Aabb {
-    crate::entities::ItemEntity::bounds(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 235, key = "fn:11@call:horizon_core::geometry::Aabb::deflate", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_235(
-    recv: horizon_core::geometry::Aabb,
-    a0: horizon_core::geometry::Vec3,
-) -> horizon_core::geometry::Aabb {
-    horizon_core::geometry::Aabb::deflate(recv, a0)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 236, key = "fn:12@call:fn:8", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 236, key = "fn:12@call:fn:8", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_236(recv: &crate::entities::ItemEntity) -> horizon_core::geometry::Aabb {
     crate::entities::ItemEntity::bounds(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 237, key = "fn:13@call:fn:15", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_237(
-    recv: &mut crate::entities::ItemEntity,
-    a0: &horizon_client_render::world::World,
-    a1: &horizon_client_render::blocks::BlockFacts,
-) {
-    crate::entities::ItemEntity::slime_step_on(recv, a0, a1)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 238, key = "fn:13@call:horizon_client_render::world::World::block", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_238(
-    recv: &horizon_client_render::world::World,
-    a0: i32,
-    a1: i32,
-    a2: i32,
-) -> horizon_world::registry::BlockStateId {
-    horizon_client_render::world::World::block(recv, a0, a1, a2)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 242, key = "fn:13@call:horizon_client_render::blocks::BlockFacts::get", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_242<'r>(
-    recv: &'r horizon_client_render::blocks::BlockFacts,
-    a0: horizon_world::registry::BlockStateId,
-) -> &'r horizon_client_render::blocks::StateFacts {
-    horizon_client_render::blocks::BlockFacts::get(recv, a0)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 243, key = "fn:13@call:horizon_core::geometry::Vec3::add_vector", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_243(
-    recv: horizon_core::geometry::Vec3,
-    a0: horizon_core::geometry::Vec3,
-) -> horizon_core::geometry::Vec3 {
-    horizon_core::geometry::Vec3::add_vector(recv, a0)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 244, key = "fn:13@call:horizon_client_render::world::World::block#1", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_244(
-    recv: &horizon_client_render::world::World,
-    a0: i32,
-    a1: i32,
-    a2: i32,
-) -> horizon_world::registry::BlockStateId {
-    horizon_client_render::world::World::block(recv, a0, a1, a2)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 245, key = "fn:13@call:horizon_client_render::blocks::BlockFacts::get#1", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_245<'r>(
-    recv: &'r horizon_client_render::blocks::BlockFacts,
-    a0: horizon_world::registry::BlockStateId,
-) -> &'r horizon_client_render::blocks::StateFacts {
-    horizon_client_render::blocks::BlockFacts::get(recv, a0)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 246, key = "fn:13@call:fn:8", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_246(recv: &crate::entities::ItemEntity) -> horizon_core::geometry::Aabb {
-    crate::entities::ItemEntity::bounds(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 247, key = "fn:13@call:horizon_client_render::world::World::block#2", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_247(
-    recv: &horizon_client_render::world::World,
-    a0: i32,
-    a1: i32,
-    a2: i32,
-) -> horizon_world::registry::BlockStateId {
-    horizon_client_render::world::World::block(recv, a0, a1, a2)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 248, key = "fn:13@call:horizon_client_render::blocks::BlockFacts::get#2", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_248<'r>(
-    recv: &'r horizon_client_render::blocks::BlockFacts,
-    a0: horizon_world::registry::BlockStateId,
-) -> &'r horizon_client_render::blocks::StateFacts {
-    horizon_client_render::blocks::BlockFacts::get(recv, a0)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 249, key = "fn:13@call:horizon_core::geometry::Vec3::subtract", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_249(
-    recv: horizon_core::geometry::Vec3,
-    a0: horizon_core::geometry::Vec3,
-) -> horizon_core::geometry::Vec3 {
-    horizon_core::geometry::Vec3::subtract(recv, a0)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 250, key = "fn:13@call:horizon_core::geometry::Vec3::length_squared", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_250(recv: horizon_core::geometry::Vec3) -> f64 {
-    horizon_core::geometry::Vec3::length_squared(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 251, key = "fn:14@call:fn:8", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_251(recv: &crate::entities::ItemEntity) -> horizon_core::geometry::Aabb {
-    crate::entities::ItemEntity::bounds(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 252, key = "fn:14@call:horizon_core::geometry::Aabb::deflate", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_252(
-    recv: horizon_core::geometry::Aabb,
-    a0: horizon_core::geometry::Vec3,
-) -> horizon_core::geometry::Aabb {
-    horizon_core::geometry::Aabb::deflate(recv, a0)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 253, key = "fn:14@call:horizon_core::geometry::Aabb::min_position", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_253(recv: horizon_core::geometry::Aabb) -> horizon_core::geometry::Vec3 {
-    horizon_core::geometry::Aabb::min_position(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 254, key = "fn:14@call:horizon_core::geometry::Aabb::max_position", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_254(recv: horizon_core::geometry::Aabb) -> horizon_core::geometry::Vec3 {
-    horizon_core::geometry::Aabb::max_position(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 261, key = "fn:14@call:horizon_client_render::blocks::BlockFacts::get", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_261<'r>(
-    recv: &'r horizon_client_render::blocks::BlockFacts,
-    a0: horizon_world::registry::BlockStateId,
-) -> &'r horizon_client_render::blocks::StateFacts {
-    horizon_client_render::blocks::BlockFacts::get(recv, a0)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 262, key = "fn:14@call:horizon_client_render::world::World::block", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_262(
-    recv: &horizon_client_render::world::World,
-    a0: i32,
-    a1: i32,
-    a2: i32,
-) -> horizon_world::registry::BlockStateId {
-    horizon_client_render::world::World::block(recv, a0, a1, a2)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 263, key = "fn:15@call:horizon_core::geometry::Vec3::add_vector", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_263(
-    recv: horizon_core::geometry::Vec3,
-    a0: horizon_core::geometry::Vec3,
-) -> horizon_core::geometry::Vec3 {
-    horizon_core::geometry::Vec3::add_vector(recv, a0)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 264, key = "fn:15@call:horizon_client_render::blocks::BlockFacts::get", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_264<'r>(
-    recv: &'r horizon_client_render::blocks::BlockFacts,
-    a0: horizon_world::registry::BlockStateId,
-) -> &'r horizon_client_render::blocks::StateFacts {
-    horizon_client_render::blocks::BlockFacts::get(recv, a0)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 265, key = "fn:15@call:horizon_client_render::world::World::block", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_265(
-    recv: &horizon_client_render::world::World,
-    a0: i32,
-    a1: i32,
-    a2: i32,
-) -> horizon_world::registry::BlockStateId {
-    horizon_client_render::world::World::block(recv, a0, a1, a2)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 266, key = "fn:17@call:fn:8", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 266, key = "fn:17@call:fn:8", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_266(recv: &crate::entities::ItemEntity) -> horizon_core::geometry::Aabb {
     crate::entities::ItemEntity::bounds(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 267, key = "fn:17@call:horizon_core::geometry::Aabb::deflate", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 267, key = "fn:17@call:horizon_core::geometry::Aabb::deflate", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_267(
     recv: horizon_core::geometry::Aabb,
@@ -4501,17 +4260,17 @@ fn __yoake_cs_267(
 ) -> horizon_core::geometry::Aabb {
     horizon_core::geometry::Aabb::deflate(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 268, key = "fn:17@call:horizon_core::geometry::Aabb::min_position", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 268, key = "fn:17@call:horizon_core::geometry::Aabb::min_position", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_268(recv: horizon_core::geometry::Aabb) -> horizon_core::geometry::Vec3 {
     horizon_core::geometry::Aabb::min_position(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 269, key = "fn:17@call:horizon_core::geometry::Aabb::max_position", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 269, key = "fn:17@call:horizon_core::geometry::Aabb::max_position", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_269(recv: horizon_core::geometry::Aabb) -> horizon_core::geometry::Vec3 {
     horizon_core::geometry::Aabb::max_position(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 276, key = "fn:17@call:horizon_client_render::blocks::BlockFacts::get", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 276, key = "fn:17@call:horizon_client_render::blocks::BlockFacts::get", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_276<'r>(
     recv: &'r horizon_client_render::blocks::BlockFacts,
@@ -4519,7 +4278,7 @@ fn __yoake_cs_276<'r>(
 ) -> &'r horizon_client_render::blocks::StateFacts {
     horizon_client_render::blocks::BlockFacts::get(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 277, key = "fn:17@call:horizon_client_render::world::World::block", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 277, key = "fn:17@call:horizon_client_render::world::World::block", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_277(
     recv: &horizon_client_render::world::World,
@@ -4529,32 +4288,17 @@ fn __yoake_cs_277(
 ) -> horizon_world::registry::BlockStateId {
     horizon_client_render::world::World::block(recv, a0, a1, a2)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 278, key = "fn:17@call:fn:18", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 278, key = "fn:17@call:fn:18", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_278(recv: &mut crate::entities::ItemEntity, a0: [i32; 3_usize]) {
     crate::entities::ItemEntity::honey_block_inside(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 281, key = "fn:20@call:fn:19", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 281, key = "fn:20@call:fn:19", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_281(recv: &crate::entities::ItemEntity) -> bool {
     crate::entities::ItemEntity::has_infinite_pickup_delay(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 290, key = "fn:22@call:horizon_core::geometry::Aabb::min_position", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_290(recv: horizon_core::geometry::Aabb) -> horizon_core::geometry::Vec3 {
-    horizon_core::geometry::Aabb::min_position(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 291, key = "fn:22@call:horizon_core::geometry::Aabb::max_position", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_291(recv: horizon_core::geometry::Aabb) -> horizon_core::geometry::Vec3 {
-    horizon_core::geometry::Aabb::max_position(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 300, key = "fn:24@call:horizon_core::geometry::Aabb::intersects", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_300(recv: horizon_core::geometry::Aabb, a0: horizon_core::geometry::Aabb) -> bool {
-    horizon_core::geometry::Aabb::intersects(recv, a0)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 303, key = "fn:25@call:fn:27", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 303, key = "fn:25@call:fn:27", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_303(
     recv: &mut crate::entities::ItemCells,
@@ -4563,35 +4307,7 @@ fn __yoake_cs_303(
 ) {
     crate::entities::ItemCells::add(recv, a0, a1)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 311, key = "fn:29@call:fn:28", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_311(
-    recv: &mut crate::entities::ItemCells,
-    a0: usize,
-    a1: horizon_core::geometry::Vec3,
-) {
-    crate::entities::ItemCells::remove(recv, a0, a1)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 312, key = "fn:29@call:fn:27", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_312(
-    recv: &mut crate::entities::ItemCells,
-    a0: usize,
-    a1: horizon_core::geometry::Vec3,
-) {
-    crate::entities::ItemCells::add(recv, a0, a1)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 314, key = "fn:30@call:horizon_core::geometry::Aabb::min_position", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_314(recv: horizon_core::geometry::Aabb) -> horizon_core::geometry::Vec3 {
-    horizon_core::geometry::Aabb::min_position(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 315, key = "fn:30@call:horizon_core::geometry::Aabb::max_position", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_315(recv: horizon_core::geometry::Aabb) -> horizon_core::geometry::Vec3 {
-    horizon_core::geometry::Aabb::max_position(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 322, key = "fn:37@call:horizon_client_render::world::World::block", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 322, key = "fn:37@call:horizon_client_render::world::World::block", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_322(
     recv: &horizon_client_render::world::World,
@@ -4601,12 +4317,12 @@ fn __yoake_cs_322(
 ) -> horizon_world::registry::BlockStateId {
     horizon_client_render::world::World::block(recv, a0, a1, a2)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 326, key = "fn:37@call:fn:33", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 326, key = "fn:37@call:fn:33", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_326(recv: &crate::entities::ExperienceOrb) -> horizon_core::geometry::Aabb {
     crate::entities::ExperienceOrb::bounds(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 327, key = "fn:37@call:horizon_client_render::blocks::BlockFacts::get", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 327, key = "fn:37@call:horizon_client_render::blocks::BlockFacts::get", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_327<'r>(
     recv: &'r horizon_client_render::blocks::BlockFacts,
@@ -4614,12 +4330,12 @@ fn __yoake_cs_327<'r>(
 ) -> &'r horizon_client_render::blocks::StateFacts {
     horizon_client_render::blocks::BlockFacts::get(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 329, key = "fn:37@call:<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 329, key = "fn:37@call:<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_329(recv: &crate::entities::ExperienceOrb) -> f64 {
     <crate::entities::ExperienceOrb as crate::entity_rules::EntityRules>::get_gravity(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 330, key = "fn:37@call:horizon_client_render::blocks::BlockFacts::get#1", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 330, key = "fn:37@call:horizon_client_render::blocks::BlockFacts::get#1", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_330<'r>(
     recv: &'r horizon_client_render::blocks::BlockFacts,
@@ -4627,7 +4343,7 @@ fn __yoake_cs_330<'r>(
 ) -> &'r horizon_client_render::blocks::StateFacts {
     horizon_client_render::blocks::BlockFacts::get(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 333, key = "fn:37@call:horizon_core::geometry::Aabb::move_by", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 333, key = "fn:37@call:horizon_core::geometry::Aabb::move_by", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_333(
     recv: horizon_core::geometry::Aabb,
@@ -4635,7 +4351,7 @@ fn __yoake_cs_333(
 ) -> horizon_core::geometry::Aabb {
     horizon_core::geometry::Aabb::move_by(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 334, key = "fn:37@call:fn:38", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 334, key = "fn:37@call:fn:38", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_334(
     recv: &mut crate::entities::ExperienceOrb,
@@ -4645,7 +4361,7 @@ fn __yoake_cs_334(
 ) {
     crate::entities::ExperienceOrb::move_towards_closest_space(recv, a0, a1, a2)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 337, key = "fn:37@call:horizon_client_render::world::World::block#1", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 337, key = "fn:37@call:horizon_client_render::world::World::block#1", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_337(
     recv: &horizon_client_render::world::World,
@@ -4655,7 +4371,7 @@ fn __yoake_cs_337(
 ) -> horizon_world::registry::BlockStateId {
     horizon_client_render::world::World::block(recv, a0, a1, a2)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 341, key = "fn:37@call:horizon_client_render::blocks::BlockFacts::get#2", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 341, key = "fn:37@call:horizon_client_render::blocks::BlockFacts::get#2", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_341<'r>(
     recv: &'r horizon_client_render::blocks::BlockFacts,
@@ -4663,22 +4379,22 @@ fn __yoake_cs_341<'r>(
 ) -> &'r horizon_client_render::blocks::StateFacts {
     horizon_client_render::blocks::BlockFacts::get(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 342, key = "fn:38@call:fn:33", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 342, key = "fn:38@call:fn:33", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_342(recv: &crate::entities::ExperienceOrb) -> horizon_core::geometry::Aabb {
     crate::entities::ExperienceOrb::bounds(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 343, key = "fn:39@call:horizon_core::geometry::Aabb::min_position", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 343, key = "fn:39@call:horizon_core::geometry::Aabb::min_position", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_343(recv: horizon_core::geometry::Aabb) -> horizon_core::geometry::Vec3 {
     horizon_core::geometry::Aabb::min_position(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 344, key = "fn:39@call:horizon_core::geometry::Aabb::max_position", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 344, key = "fn:39@call:horizon_core::geometry::Aabb::max_position", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_344(recv: horizon_core::geometry::Aabb) -> horizon_core::geometry::Vec3 {
     horizon_core::geometry::Aabb::max_position(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 348, key = "fn:39@call:horizon_client_render::blocks::BlockFacts::get", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 348, key = "fn:39@call:horizon_client_render::blocks::BlockFacts::get", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_348<'r>(
     recv: &'r horizon_client_render::blocks::BlockFacts,
@@ -4686,7 +4402,7 @@ fn __yoake_cs_348<'r>(
 ) -> &'r horizon_client_render::blocks::StateFacts {
     horizon_client_render::blocks::BlockFacts::get(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 349, key = "fn:39@call:horizon_client_render::world::World::block", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 349, key = "fn:39@call:horizon_client_render::world::World::block", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_349(
     recv: &horizon_client_render::world::World,
@@ -4696,63 +4412,54 @@ fn __yoake_cs_349(
 ) -> horizon_world::registry::BlockStateId {
     horizon_client_render::world::World::block(recv, a0, a1, a2)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 350, key = "fn:39@call:horizon_core::geometry::Vec3::scale", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 350, key = "fn:39@call:horizon_core::geometry::Vec3::scale", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_350(recv: horizon_core::geometry::Vec3, a0: f64) -> horizon_core::geometry::Vec3 {
     horizon_core::geometry::Vec3::scale(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 356, key = "fn:46@call:fn:44", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 356, key = "fn:46@call:fn:44", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_356(recv: &crate::entities::Painting) -> [i32; 3_usize] {
     crate::entities::Painting::step(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 357, key = "fn:46@call:fn:45", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 357, key = "fn:46@call:fn:45", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_357(recv: &crate::entities::Painting) -> [i32; 3_usize] {
     crate::entities::Painting::left(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 362, key = "fn:55@call:fn:53", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 362, key = "fn:55@call:fn:53", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_362(recv: &crate::entities::ItemFrame) -> [i32; 3_usize] {
     crate::entities::ItemFrame::step(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 363, key = "fn:58@call:horizon_client_render::items::ItemStack::data", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 363, key = "fn:58@call:horizon_client_render::items::ItemStack::data", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_363<'r>(
     recv: &'r horizon_client_render::items::ItemStack,
 ) -> std::option::Option<&'r horizon_client_render::item_data::StackData> {
     horizon_client_render::items::ItemStack::data(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 365, key = "fn:59@call:horizon_core::geometry::Vec3::lerp", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_365(
-    recv: horizon_core::geometry::Vec3,
-    a0: horizon_core::geometry::Vec3,
-    a1: f64,
-) -> horizon_core::geometry::Vec3 {
-    horizon_core::geometry::Vec3::lerp(recv, a0, a1)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 367, key = "fn:67@call:fn:68", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 367, key = "fn:67@call:fn:68", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_367(recv: &crate::entities::ArmorStand) -> horizon_core::geometry::Aabb {
     crate::entities::ArmorStand::bounds(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 368, key = "fn:67@call:horizon_core::geometry::Aabb::min_position", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 368, key = "fn:67@call:horizon_core::geometry::Aabb::min_position", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_368(recv: horizon_core::geometry::Aabb) -> horizon_core::geometry::Vec3 {
     horizon_core::geometry::Aabb::min_position(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 369, key = "fn:67@call:fn:68#1", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 369, key = "fn:67@call:fn:68#1", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_369(recv: &crate::entities::ArmorStand) -> horizon_core::geometry::Aabb {
     crate::entities::ArmorStand::bounds(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 370, key = "fn:67@call:horizon_core::geometry::Aabb::max_position", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 370, key = "fn:67@call:horizon_core::geometry::Aabb::max_position", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_370(recv: horizon_core::geometry::Aabb) -> horizon_core::geometry::Vec3 {
     horizon_core::geometry::Aabb::max_position(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 377, key = "fn:67@call:horizon_client_render::blocks::BlockFacts::get", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 377, key = "fn:67@call:horizon_client_render::blocks::BlockFacts::get", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_377<'r>(
     recv: &'r horizon_client_render::blocks::BlockFacts,
@@ -4760,7 +4467,7 @@ fn __yoake_cs_377<'r>(
 ) -> &'r horizon_client_render::blocks::StateFacts {
     horizon_client_render::blocks::BlockFacts::get(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 378, key = "fn:67@call:horizon_client_render::world::World::block", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 378, key = "fn:67@call:horizon_client_render::world::World::block", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_378(
     recv: &horizon_client_render::world::World,
@@ -4770,22 +4477,22 @@ fn __yoake_cs_378(
 ) -> horizon_world::registry::BlockStateId {
     horizon_client_render::world::World::block(recv, a0, a1, a2)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 380, key = "fn:67@call:fn:68#2", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 380, key = "fn:67@call:fn:68#2", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_380(recv: &crate::entities::ArmorStand) -> horizon_core::geometry::Aabb {
     crate::entities::ArmorStand::bounds(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 382, key = "fn:70@call:fn:69", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 382, key = "fn:70@call:fn:69", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_382(recv: &crate::entities::ArmorStand) -> bool {
     crate::entities::ArmorStand::feet_are_leather_boots(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 387, key = "fn:70@call:<Self as horizon_client_lib::entity_rules::EntityRules>::is_no_gravity", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 387, key = "fn:70@call:<Self as horizon_client_lib::entity_rules::EntityRules>::is_no_gravity", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_387(recv: &crate::entities::ArmorStand) -> bool {
     <crate::entities::ArmorStand as crate::entity_rules::EntityRules>::is_no_gravity(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 388, key = "fn:70@call:horizon_client_render::world::World::block", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 388, key = "fn:70@call:horizon_client_render::world::World::block", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_388(
     recv: &horizon_client_render::world::World,
@@ -4795,7 +4502,7 @@ fn __yoake_cs_388(
 ) -> horizon_world::registry::BlockStateId {
     horizon_client_render::world::World::block(recv, a0, a1, a2)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 392, key = "fn:70@call:horizon_client_render::blocks::BlockFacts::get", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 392, key = "fn:70@call:horizon_client_render::blocks::BlockFacts::get", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_392<'r>(
     recv: &'r horizon_client_render::blocks::BlockFacts,
@@ -4803,28 +4510,13 @@ fn __yoake_cs_392<'r>(
 ) -> &'r horizon_client_render::blocks::StateFacts {
     horizon_client_render::blocks::BlockFacts::get(recv, a0)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 397, key = "fn:70@call:fn:68", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 397, key = "fn:70@call:fn:68", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_397(recv: &crate::entities::ArmorStand) -> horizon_core::geometry::Aabb {
     crate::entities::ArmorStand::bounds(recv)
 }
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 398, key = "fn:70@call:fn:68#1", kind = callsite))]
+#[cfg_attr(not(any(feature = "yoake-hook-baseline", feature = "yoake-callsite-baseline")), yoake_hook(id = 398, key = "fn:70@call:fn:68#1", kind = callsite))]
 #[inline(always)]
 fn __yoake_cs_398(recv: &crate::entities::ArmorStand) -> horizon_core::geometry::Aabb {
     crate::entities::ArmorStand::bounds(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 401, key = "fn:71@call:<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_401(recv: &crate::entities::ArmorStand) -> f64 {
-    <crate::entities::ArmorStand as crate::entity_rules::EntityRules>::get_gravity(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 404, key = "fn:71@call:<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity#1", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_404(recv: &crate::entities::ArmorStand) -> f64 {
-    <crate::entities::ArmorStand as crate::entity_rules::EntityRules>::get_gravity(recv)
-}
-#[cfg_attr(not(feature = "yoake-hook-baseline"), yoake_hook(id = 407, key = "fn:71@call:<Self as horizon_client_lib::entity_rules::EntityRules>::get_gravity#2", kind = callsite))]
-#[inline(always)]
-fn __yoake_cs_407(recv: &crate::entities::ArmorStand) -> f64 {
-    <crate::entities::ArmorStand as crate::entity_rules::EntityRules>::get_gravity(recv)
 }

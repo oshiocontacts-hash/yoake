@@ -25,6 +25,7 @@ pub fn emit_crate_table(crate_name: &str) {
     live.sort_by_key(|entry| entry.id);
     assert!(live.windows(2).all(|pair| pair[0].id < pair[1].id));
     for entry in live {
+        crate::assert_hook_id(entry.id);
         writeln!(generated, "    ({}, {:?}),", entry.id, entry.key).unwrap();
     }
     generated.push_str("];\n");

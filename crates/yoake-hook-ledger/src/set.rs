@@ -80,10 +80,13 @@ impl LedgerSet {
                 self.meta.version
             )));
         }
-        if self.meta.next_id == 0 || self.meta.next_id > TEST_ID_BASE {
+        if self.meta.next_id == crate::RESERVED_HOOK_ID
+            || self.meta.next_id > crate::SYNTHETIC_HOOK_BASE
+        {
             return Err(LedgerError::Invalid(format!(
-                "next_id {} is outside 1..={TEST_ID_BASE}",
-                self.meta.next_id
+                "next_id {} is outside 1..={}",
+                self.meta.next_id,
+                crate::SYNTHETIC_HOOK_BASE
             )));
         }
         let mut ids = BTreeMap::new();
@@ -96,7 +99,19 @@ impl LedgerSet {
                 )));
             }
             for entry in &shard.entries {
-                if entry.id == 0 || entry.id >= self.meta.next_id {
+                if entry.id == crate::RESERVED_HOOK_ID {
+                    return Err(LedgerError::Invalid(
+                        "entry id 0 is reserved for the legacy single-export guest API".into(),
+                    ));
+                }
+                if entry.id >= crate::SYNTHETIC_HOOK_BASE {
+                    return Err(LedgerError::Invalid(format!(
+                        "entry id {} is at or above SYNTHETIC_HOOK_BASE ({})",
+                        entry.id,
+                        crate::SYNTHETIC_HOOK_BASE
+                    )));
+                }
+                if entry.id >= self.meta.next_id {
                     return Err(LedgerError::Invalid(format!(
                         "entry id {} is outside 1..{}",
                         entry.id, self.meta.next_id
@@ -149,6 +164,7 @@ impl LedgerSet {
             assert_eq!(owner, crate_name, "live hook key cannot move between crates: {key}");
             return self.shards.get_mut(&owner).unwrap().assign(kind, key, sig);
         }
+        crate::assert_hook_id(self.meta.next_id);
         assert!(self.meta.next_id < TEST_ID_BASE, "hook id space exhausted");
         let next_id = self.meta.next_id;
         let assigned = {

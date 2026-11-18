@@ -9,7 +9,20 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+pub const RESERVED_HOOK_ID: u32 = 0;
+pub const SYNTHETIC_HOOK_BASE: u32 = 0x8000_0000;
 pub const TEST_ID_BASE: u32 = (1 << 20) - 64;
+
+pub(crate) fn assert_hook_id(id: u32) {
+    assert!(
+        id != RESERVED_HOOK_ID,
+        "hook id 0 is reserved for the legacy single-export guest API"
+    );
+    assert!(
+        id < SYNTHETIC_HOOK_BASE,
+        "hook id {id} is in the engine-synthetic range"
+    );
+}
 
 pub mod build;
 mod set;
@@ -233,13 +246,27 @@ impl Ledger {
                 self.version
             )));
         }
-        if self.next_id == 0 {
-            return Err(LedgerError::Invalid("next_id must be at least 1".into()));
+        if self.next_id == RESERVED_HOOK_ID || self.next_id > SYNTHETIC_HOOK_BASE {
+            return Err(LedgerError::Invalid(format!(
+                "next_id {} is outside 1..={SYNTHETIC_HOOK_BASE}",
+                self.next_id
+            )));
         }
         let mut ids = BTreeSet::new();
         let mut live_keys = BTreeMap::new();
         for entry in &self.entries {
-            if entry.id == 0 || entry.id >= self.next_id {
+            if entry.id == RESERVED_HOOK_ID {
+                return Err(LedgerError::Invalid(
+                    "entry id 0 is reserved for the legacy single-export guest API".into(),
+                ));
+            }
+            if entry.id >= SYNTHETIC_HOOK_BASE {
+                return Err(LedgerError::Invalid(format!(
+                    "entry id {} is at or above SYNTHETIC_HOOK_BASE ({SYNTHETIC_HOOK_BASE})",
+                    entry.id
+                )));
+            }
+            if entry.id >= self.next_id {
                 return Err(LedgerError::Invalid(format!(
                     "entry id {} is outside 1..{}",
                     entry.id, self.next_id
@@ -274,6 +301,7 @@ impl Ledger {
             .iter_mut()
             .find(|entry| entry.status == Status::Live && entry.key == key)
         {
+            assert_hook_id(entry.id);
             assert_eq!(entry.kind, kind, "live hook key already has another kind: {key}");
             let sig_changed = entry.sig != sig;
             entry.sig = sig.to_owned();
@@ -287,6 +315,7 @@ impl Ledger {
             !self.excluded.iter().any(|entry| entry.key == key && entry.manual),
             "manual exclusion cannot be overwritten: {key}"
         );
+        assert_hook_id(self.next_id);
         assert!(self.next_id < TEST_ID_BASE, "hook id space exhausted");
         let id = self.next_id;
         self.next_id = self.next_id.checked_add(1).expect("hook id space exhausted");
