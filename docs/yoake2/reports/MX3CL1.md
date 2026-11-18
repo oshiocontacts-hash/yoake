@@ -4,7 +4,7 @@ Branch `yoake2/client-hooks` (based on 3828f998b, merged with `vps/yoake2/merge`
 
 ## Checklist
 
-- [x] 1. Manifest: `[wasm] side = "server" | "client" | "both"` (full-access only, default `server`), validated against `[side]`; tests in `crates/horizon-mods/tests/yak/manifest.rs`
+- [x] 1. Manifest: the side comes from the declared modules (`wasm.server` = server thread, `wasm.client` = client thread, both allowed), validated against `[side]` (revised: the first draft had a `[wasm] side` key, now removed); tests in `crates/horizon-mods/tests/yak/manifest.rs`
 - [x] 2. Client runtime: `load_client_mods` / `unload_client_mods` (per-thread runtime, same approved list and trust rules), called from `native_session_ready` / `native_session_left` for client games
 - [x] 3. Synthetic hooks `HOOK_CLIENT_TICK = 0x8000_0002` (`tick_remote`), `HOOK_HUD_RENDER = 0x8000_0003` (`Game::hud`); SDK `hooks::CLIENT_TICK` / `hooks::HUD_RENDER`; rows in `ENGINE_DISPATCHED` (Full, Full, ObserveOnly)
 - [x] 4. Tests (`crates/horizon-client/tests/yoake2_loader.rs`, no game resources)
@@ -15,8 +15,8 @@ Branch `yoake2/client-hooks` (based on 3828f998b, merged with `vps/yoake2/merge`
 
 ## Design choices
 
-- **Manifest.** `Wasm.side: Option<FullAccessSide>` (`server` default, `client`, `both`); an error when set without `world = "full-access"`. The old rule "a full-access mod needs `[side] server = true`" became per side: a mod that runs on the server needs `side.server`, one that runs on the client needs `side.client`. Existing packages (no `wasm.side`) behave exactly as before.
-- **Loader.** `ThreadSide { Server, Client }`; `load_package_on`, `load_dir_on`, `load_client_mods`, `unload_client_mods`, `client_mods_loaded`. The old `load_package` / `load_dir` / `load_world_mods` are the server variants unchanged. A package of the other side gives `Refusal::OtherSide`, which is silent (no message, no "no list" note) and checked before the origin/approval policy, so each side judges and reports only its own packages. The thread-local `LOADED` list is kept per side.
+- **Manifest.** No `side` key. A full-access mod declares `wasm.server` and/or `wasm.client`; `[side]` must agree exactly (`side.server` iff `wasm.server`, `side.client` iff `wasm.client`). Existing server-only packages are unchanged. A mod with both modules gets two separate instances (one per thread).
+- **Loader.** `ThreadSide { Server, Client }`; `load_package_on`, `load_dir_on`, `load_client_mods`, `unload_client_mods`, `client_mods_loaded`. The old `load_package` / `load_dir` / `load_world_mods` are the server variants unchanged. A package that declares no module for the thread gives `Refusal::OtherSide`, which is silent (no message, no "no list" note) and checked before the origin/approval policy, so each side judges and reports only its own packages. The thread-local `LOADED` list is kept per side.
 - **Where the client loads.** `native_session_ready` (once per session after login; `native_session.ready()` fires once) for games whose `execution_role` is `Client`; unload in `native_session_left`. This is the window's thread in both single player (it is a remote client of the integrated server) and multiplayer. The server-side load (`yoake2_world_start_hook`) is untouched.
 - **Hooks.** `CLIENT_TICK` at `tick_remote` right after the client mods' own tick (the client's per-tick path, also while waiting for chunks), `HUD_RENDER` at the end of `Game::hud` (after the layers, dialogs, debug overlay). Both dispatch through `yoake2_mods::dispatch_client_tick` / `dispatch_hud_render`, which are plain functions (testable without a `Game`). `HUD_RENDER` is dispatched with an empty `FieldTable<()>`: argument 0 exists but nothing can be read from it.
 - **Cost with no mod.** Same gate as `SERVER_TICK`: the call sites are empty `#[inline(always)]` methods without `yoake2-slice`; with it, one `execution_role` compare plus the runtime's thread-local read (no mod on the thread: no allocation, `orig` runs).
@@ -24,27 +24,28 @@ Branch `yoake2/client-hooks` (based on 3828f998b, merged with `vps/yoake2/merge`
 - **ENGINE_DISPATCHED.** Became `&[(u32, Mode)]` (the other lane had `&[u32]`, Full only) because `HUD_RENDER` is observe-only; `hook_mode` consults it first and `install_bridges` filters it out; their disjoint-bridges test now also checks the mode.
 - **Threads.** The runtime keeps everything in thread-locals (`RT`, `ACTS`, `PATHS`); the process-wide parts (`DISPATCH` mutex, mode resolver, `install_once`) are read-only after setup or idempotent, so nothing assumed one thread. `yoake2_install_dispatch()` is called again at the client session start (idempotent).
 
+## Revision 2 (coordinator decisions)
+
+- `[wasm] side` removed (parser, `FullAccessSide`, tests, ABI doc). `Archive::full_access_module(client: bool)` reads `wasm.client` or `wasm.server`.
+- Guard: loading a client runtime on a thread that holds server-side mods (or the reverse) gives `Refusal::SharedThread { loading, holds }`, printed and logged. It is checked on the per-thread loaded list that `load_world_mods` / `load_client_mods` keep. Test `a_client_runtime_is_refused_on_a_thread_that_holds_a_server_runtime_and_the_reverse`. Note: a runtime filled directly through `runtime::load` / `load_dir` (not the two entry points) is not tracked by the guard.
+- HUD_RENDER argument 0 documented as a dead handle. **Difference from the decision text:** `get`/`set` on it return status 3 (`BadField`), not `Stale` (the activation is live, there is just nothing behind the handle); verified by test `the_hud_render_argument_is_a_dead_handle`. Making it literally `Stale` would need a runtime entry without arguments.
+- CLIENT_TICK during level loading, reconfiguration and replays: documented, behaviour unchanged.
+- Examples/test manifests: the example manifests are server-only and still valid; the loader test helper now writes `[side]` from the declared modules.
+
 ## Test results
 
-Toolchain `cargo +1.100.0 ... -j 4`, features `yoake2-slice,yoake-hook-bench` where needed. Run after merging `vps/yoake2/merge` (18c35c022).
+Run with `cargo +1.100.0 ... -j 4`, features `yoake2-slice,yoake-hook-bench`.
 
 | suite | result |
 |---|---|
-| `horizon-mods --features yak` (all) | 41 passed (incl. new `full_access_side_defaults_to_server_and_accepts_client_and_both`) |
-| `yoake-slice` | 28 + 1 + 73 passed |
-| `horizon-client --test yoake2_loader` | 25 passed (19 existing + 6 new: side loading, client ticks, server-only not on client, both = separate instances, client trap, no-mod no-op) |
-| `horizon-client --lib yoake2` | 1 passed (`bridge_modules_claim_disjoint_ids`, now also checks the mode of every `ENGINE_DISPATCHED` row), 4 ignored (need game resources) |
-| `cargo check -p horizon-client` (no `yoake2-slice`) | ok: the new call sites are empty functions |
-| `horizon-client --test yoake2_examples` | **not green in this environment**: both tests compile guests with the SDK and fail with `can't find crate for core` (the harness wants a wasm target this toolchain lacks: installed targets are `wasm32-unknown-unknown` and the host). The failure is in the SDK build step, before any of my code runs; not investigated further (要確認 below). |
-| `yoake2_bridge` (a `horizon-client-lib` test) | not run: my change touches nothing it covers |
-| game-resource tests (`yoake2_game_tests`) | not run (no resources; no game launch allowed) |
+| `horizon-mods --features yak` | 41 passed (new: `full_access_modules_decide_the_threads_and_side_must_agree`) |
+| `yoake-slice` | 28 + 1 doc test passed (73 more in its other target earlier) |
+| `horizon-client --test yoake2_loader` | 27 passed (new: side loading, client ticks, server-only not on client, both = two instances, client trap, no-mod no-op, shared-thread guard, dead HUD handle) |
+| `horizon-client --test yoake2_examples` | 2 passed |
+| `cargo check -p horizon-client` without `yoake2-slice` | ok |
 
-## 要確認 (not guessed)
+## 要確認
 
-1. **Module field for client mods.** A `side = "client"` mod still declares its module as `wasm.server` (the manifest rule "full-access = `wasm.server`, no `wasm.client`" is unchanged). Should a client-only mod use `wasm.client` instead?
-2. **`[side]` table vs `[wasm] side`.** Two similar keys now exist. I made them agree by validation instead of deriving one from the other. Alternative: derive the thread from `[side]` and drop `wasm.side`.
-3. **One thread, two sides.** If a build ever ran the client `Game` and the integrated server on the same thread, both sides would share one runtime (hooks would mix). The loader keeps separate unload lists per side, but cannot separate the runtime. Real builds use two threads; not verified with a real game here (no GUI/launch allowed).
-4. **`HUD_RENDER` argument.** Argument 0 is a handle to nothing rather than "no handle". Changing that needs a runtime entry without arguments.
-5. **`CLIENT_TICK` and the replay / paused-reconfiguration states.** It runs from `tick_remote`, so it also runs while the level is loading and during reconfiguration; replays use the same path. Whether mods want it suppressed there is open.
-6. **Real-game check.** The client hooks' call sites compile but were not exercised in a running client (the game-resource tests in `game/yoake2_game_tests.rs` need resources and a `Game`; not run).
-7. **yoake2_examples** fails here with `can't find crate for core` while compiling the SDK for the guest harness (missing wasm target for the toolchain in use); it needs a toolchain with the harness's wasm target before the example guests can be re-run.
+1. `HUD_RENDER` argument 0 gives `BadField`, not `Stale` (see above); is that acceptable, or should it be made `Stale`?
+2. The shared-thread guard relies on the two loader entry points; direct `runtime::load` use on a thread is not seen.
+3. Not exercised in a running client (no game launch): the call sites in `tick_remote`, `Game::hud`, `native_session_ready/left`.
