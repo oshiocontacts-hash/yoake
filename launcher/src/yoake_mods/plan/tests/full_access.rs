@@ -301,3 +301,42 @@ fn a_sandboxed_yak_still_goes_through_the_old_path() {
     assert_eq!(fixture.list(), "plain-one\t1.0.0\n");
     assert_eq!(fixture.client.installed(&fixture.home).unwrap().len(), 1);
 }
+
+#[test]
+fn removing_one_file_of_a_duplicate_keeps_the_other_and_its_record() {
+    let fixture = Fixture::new();
+    let (package, sha) = install_local(&fixture, "fa-two-copies", "1.0.0");
+    let original = package.path.file_name().unwrap().to_string_lossy().into_owned();
+    std::fs::copy(mods(&fixture).join(&original), mods(&fixture).join("copy.yak")).unwrap();
+    assert!(fa::remove_file_in(&data(&fixture), &fixture.home, "missing.yak").is_err());
+    fa::remove_file_in(&data(&fixture), &fixture.home, "copy.yak").unwrap();
+    assert!(!mods(&fixture).join("copy.yak").exists());
+    assert!(mods(&fixture).join(&original).exists(), "the other copy stays");
+    // same bytes: the install record is still there, so it can be approved and launched
+    let rows = fa::list_in(&data(&fixture), &fixture.home);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].state, fa::RowState::NotApproved);
+    fa::approve_in(&data(&fixture), &fixture.home, "fa-two-copies", &sha).unwrap();
+    assert_eq!(listed(&fa::prepare_in(&data(&fixture), &fixture.home)), ["fa-two-copies"]);
+    // removing the last file withdraws the approval and the launch entry
+    fa::remove_file_in(&data(&fixture), &fixture.home, &original).unwrap();
+    assert!(fa::list_in(&data(&fixture), &fixture.home).is_empty());
+    assert!(control_of(&fixture).allow().unwrap().entries().is_empty());
+    assert!(listed(&fa::prepare_in(&data(&fixture), &fixture.home)).is_empty());
+}
+
+#[test]
+fn a_lost_checksum_with_no_mod_changes_can_be_accepted_from_an_empty_diff() {
+    let fixture = Fixture::new();
+    let (_, sha) = install_local(&fixture, "fa-seal", "1.0.0");
+    fa::approve_in(&data(&fixture), &fixture.home, "fa-seal", &sha).unwrap();
+    let ctl = control_of(&fixture);
+    std::fs::remove_file(ctl.checksum_path()).unwrap();
+    assert!(fa::control_problem_in(&data(&fixture), &fixture.home).is_some());
+    // nothing changed in the list itself: the page shows an empty diff and the accept button
+    let shown = fa::pending_changes_in(&data(&fixture), &fixture.home).unwrap_or_default();
+    assert!(shown.is_empty());
+    fa::accept_changes_in(&data(&fixture), &fixture.home, Some(&shown)).unwrap();
+    assert!(fa::control_problem_in(&data(&fixture), &fixture.home).is_none());
+    assert_eq!(listed(&fa::prepare_in(&data(&fixture), &fixture.home)), ["fa-seal"]);
+}

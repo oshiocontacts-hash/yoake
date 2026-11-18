@@ -62,7 +62,7 @@ impl Launcher {
         if let Some(section) = self.full_access_section(cx) {
             content = content.child(section);
         }
-        if self.yak_mods.rows.is_empty() && !busy {
+        if self.yak_mods.rows.is_empty() && !busy && self.full_access_ids().next().is_none() {
             content = content.child(
                 shell::text(night::UI, c(night_theme.muted)).child(tr("No .yak mods installed.")),
             );
@@ -330,7 +330,8 @@ impl Launcher {
             .yak_mods
             .rows
             .iter()
-            .any(|row| row.manifest.id == manifest.id);
+            .any(|row| row.manifest.id == manifest.id)
+            || self.full_access_ids().any(|id| id == manifest.id);
         let enabled = compatible && !installed && !self.yak_busy();
         let mut details = div()
             .flex_1()

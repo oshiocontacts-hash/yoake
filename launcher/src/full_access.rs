@@ -94,6 +94,15 @@ pub fn mods_dir(instance: &Path) -> PathBuf {
     instance.join("mods")
 }
 
+/// Every public function that reads or writes the control files holds this, so the launcher never runs two of them at
+/// once (an install and an approval both rewrite the checksum file: interleaved, the check would fail and stop every
+/// full-access mod). Other processes are not covered.
+static CONTROL_LOCK: Mutex<()> = Mutex::new(());
+
+fn lock() -> std::sync::MutexGuard<'static, ()> {
+    CONTROL_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 fn open_control(data: &Path, instance: &Path) -> Result<Control, String> {
     Control::create(&control::control_dir_in(data), instance)
 }
@@ -221,6 +230,7 @@ pub fn list(instance: &Path) -> Vec<FullAccessRow> {
 }
 
 pub fn list_in(data: &Path, instance: &Path) -> Vec<FullAccessRow> {
+    let _lock = lock();
     let mods = mods_dir(instance);
     let found = scan(&mods);
     if found.is_empty() {
@@ -292,6 +302,7 @@ pub fn approve(instance: &Path, id: &str, sha256: &str) -> Result<(), String> {
 }
 
 pub fn approve_in(data: &Path, instance: &Path, id: &str, sha256: &str) -> Result<(), String> {
+    let _lock = lock();
     let prefix = sha256.trim().to_ascii_lowercase();
     if prefix.len() < 8 || !prefix.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err("give the package's SHA-256 (at least 8 hex digits)".into());
@@ -328,6 +339,7 @@ pub fn revoke(instance: &Path, id: &str) -> Result<(), String> {
 }
 
 pub fn revoke_in(data: &Path, instance: &Path, id: &str) -> Result<(), String> {
+    let _lock = lock();
     let control = open_control(data, instance)?;
     let mut allow = control.allow()?;
     allow.revoke(id);
@@ -341,6 +353,7 @@ pub fn remove(instance: &Path, id: &str) -> Result<(), String> {
 }
 
 pub fn remove_in(data: &Path, instance: &Path, id: &str) -> Result<(), String> {
+    let _lock = lock();
     let control = open_control(data, instance)?;
     let found = scan(&mods_dir(instance));
     let targets: Vec<&Found> = found.iter().filter(|f| f.id() == id).collect();
@@ -361,6 +374,42 @@ pub fn remove_in(data: &Path, instance: &Path, id: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Deletes the single full-access package `file` (its name in `mods/`) and forgets where it came from. Its id stays
+/// approved only when another file with the same id is still there (the player removed the extra copy of a
+/// duplicate); otherwise the approval of the id is withdrawn as in [`remove`].
+pub fn remove_file(instance: &Path, file: &str) -> Result<(), String> {
+    remove_file_in(&crate::backend::data_dir(), instance, file)
+}
+
+pub fn remove_file_in(data: &Path, instance: &Path, file: &str) -> Result<(), String> {
+    let _lock = lock();
+    let control = open_control(data, instance)?;
+    let found = scan(&mods_dir(instance));
+    let item = found
+        .iter()
+        .find(|f| f.file == file)
+        .ok_or_else(|| format!("no full-access package {file} in {}", mods_dir(instance).display()))?;
+    let id = item.id();
+    let others = found.iter().any(|f| f.file != file && f.id() == id);
+    // A copy with the same bytes keeps the install record (it is keyed by SHA-256).
+    let same_bytes = found.iter().any(|f| f.file != file && f.sha256 == item.sha256);
+    let (mut allow, mut origins) = (control.allow()?, control.origins()?);
+    if !same_bytes {
+        origins.forget(&item.sha256);
+    }
+    if !others {
+        allow.revoke(&id);
+    }
+    control.save_allow(&allow)?;
+    control.save_origins(&origins)?;
+    if !same_bytes {
+        let last = load_last(&control, instance);
+        let entries = last.entries().iter().filter(|e| e.sha256 != item.sha256).cloned().collect();
+        save_last(&control, instance, &ApprovedList::new(entries, last.protected().to_vec()))?;
+    }
+    std::fs::remove_file(&item.path).map_err(|e| format!("{}: {e}", item.path.display()))
+}
+
 /// What the next launch would pass that the player has not accepted yet, compared with the last accepted list:
 /// `added`, `removed` (also a file that vanished or whose bytes changed) and `changed`. `None` when there is nothing
 /// to show. When a control file fails its check but can still be read, the diff is built from what is on disk (the
@@ -370,6 +419,11 @@ pub fn pending_changes(instance: &Path) -> Option<ListDiff> {
 }
 
 pub fn pending_changes_in(data: &Path, instance: &Path) -> Option<ListDiff> {
+    let _lock = lock();
+    pending_unlocked(data, instance)
+}
+
+fn pending_unlocked(data: &Path, instance: &Path) -> Option<ListDiff> {
     let control = open_control(data, instance).ok()?;
     let mods = mods_dir(instance);
     let current = current_list(&control, &mods).or_else(|_| unchecked_list(&control, &mods)).ok()?;
@@ -383,6 +437,7 @@ pub fn control_problem(instance: &Path) -> Option<String> {
 }
 
 pub fn control_problem_in(data: &Path, instance: &Path) -> Option<String> {
+    let _lock = lock();
     let control = match open_control(data, instance) {
         Ok(control) => control,
         Err(e) => return Some(e),
@@ -403,20 +458,22 @@ pub fn accept_changes_shown(instance: &Path, shown: &ListDiff) -> Result<(), Str
 }
 
 pub fn accept_changes_in(data: &Path, instance: &Path, shown: Option<&ListDiff>) -> Result<(), String> {
+    let _lock = lock();
     let control = open_control(data, instance)?;
     let mods = mods_dir(instance);
-    if current_list(&control, &mods).is_err() {
-        unchecked_list(&control, &mods)?;
-    }
+    // The list the diff is built from (unchecked when a control file failed its check: accepting re-seals it).
+    let compared = current_list(&control, &mods).or_else(|_| unchecked_list(&control, &mods))?;
     if let Some(shown) = shown {
-        let now = pending_changes_in(data, instance).unwrap_or_default();
+        let now = load_last(&control, instance).diff(&compared);
         if &now != shown {
             return Err("the pending changes are not what you were shown; look at them again".into());
         }
     }
     control.accept_current_files()?;
-    let current = current_list(&control, &mods)?;
-    save_last(&control, instance, &current)
+    let after = current_list(&control, &mods)?;
+    // Saved: the entries that were compared (and shown), not a list read again afterwards. A launch passes only
+    // entries that are in both, so anything that changed in between stays held back until shown.
+    save_last(&control, instance, &ApprovedList::new(compared.entries().to_vec(), after.protected().to_vec()))
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -449,6 +506,7 @@ pub fn install_local(instance: &Path, source: &Path) -> Result<String, String> {
 
 /// `expected`: the SHA-256 the caller planned (a different file is removed again and refused).
 pub fn install_local_in(data: &Path, instance: &Path, source: &Path, expected: Option<&str>) -> Result<String, String> {
+    let _lock = lock();
     let control = open_control(data, instance)?;
     let mods = mods_dir(instance);
     let bytes = std::fs::read(source).map_err(|e| format!("{}: {e}", source.display()))?;
@@ -464,6 +522,7 @@ pub fn install_local_in(data: &Path, instance: &Path, source: &Path, expected: O
 /// Installs a full-access `.yak` downloaded from the catalog (`bytes` already checked against the signed catalog)
 /// with origin `catalog`, recording the signer. **Not approved.** Returns the file's SHA-256.
 pub fn install_catalog_in(data: &Path, instance: &Path, file_name: &str, bytes: &[u8], signer: Option<&str>) -> Result<String, String> {
+    let _lock = lock();
     let control = open_control(data, instance)?;
     let mods = mods_dir(instance);
     check_new(&scan(&mods), bytes)?;
@@ -581,6 +640,7 @@ pub fn prepare(instance: &Path) -> Prepared {
 }
 
 pub fn prepare_in(data: &Path, instance: &Path) -> Prepared {
+    let _lock = lock();
     let result = (|| {
         let control = open_control(data, instance)?;
         let mods = mods_dir(instance);
@@ -593,7 +653,7 @@ pub fn prepare_in(data: &Path, instance: &Path) -> Prepared {
     })();
     let prepared = result.unwrap_or_else(|problem| Prepared {
         problem: Some(problem),
-        pending: pending_changes_in(data, instance),
+        pending: pending_unlocked(data, instance),
         ..Prepared::default()
     });
     note_problem(instance, prepared.problem.as_deref());
