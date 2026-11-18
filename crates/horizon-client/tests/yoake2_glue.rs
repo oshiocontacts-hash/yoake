@@ -186,15 +186,17 @@ fn an_item_entity_through_its_handle() {
         assert!(!mergeable(100, 64), "an infinite pickup delay blocks merging");
         // `Option<[i32; 4]>` fields
         let thrower = bytes(|b| Some([1i32, 2, 3, 4]).encode(b));
-        call(h, "entities::ItemEntity.thrower#set", &thrower).unwrap();
-        assert_eq!(call(h, "entities::ItemEntity.thrower#get", &[]).unwrap(), thrower);
+        // `thrower` is an entity reference: readable, never writable (its setter id is reserved)
+        let set = id_of("entities::ItemEntity.thrower#set");
+        assert_eq!(call(h, "entities::ItemEntity.thrower#set", &thrower), Err(CallError::ReadOnly(set)));
+        assert_eq!(decode::<Option<[i32; 4]>>(&call(h, "entities::ItemEntity.thrower#get", &[]).unwrap()), None);
         // a method that changes `self`
         call(h, "entities::ItemEntity::honey_block_inside", &bytes(|b| [0i32, 0, 0].encode(b))).unwrap();
         // the trait method
         assert!(!decode::<bool>(&call(h, "entities::<ItemEntity as EntityRules>::is_no_gravity", &[]).unwrap()));
         assert_eq!(decode::<f64>(&call(h, "entities::<ItemEntity as EntityRules>::get_default_gravity", &[]).unwrap()), 0.04);
     });
-    assert_eq!(item.thrower, Some([1, 2, 3, 4]));
+    assert_eq!(item.thrower, None);
     assert_eq!(item.pickup_delay, i64::from(i16::MAX));
 }
 
@@ -218,12 +220,14 @@ fn free_functions_and_the_items_module() {
     activation::scope(&mut stack, &items::yoake_glue::FIELDS_crate__items__ItemStack, &mut |_| 0, |h| {
         assert_eq!(decode::<u32>(&call(h, "items::ItemStack.count#get", &[]).unwrap()), 3);
         call(h, "items::ItemStack.count#set", &bytes(|b| 9u32.encode(b))).unwrap();
-        call(h, "items::ItemStack.item#set", &bytes(|b| "minecraft:dirt".encode(b))).unwrap();
-        assert_eq!(decode::<String>(&call(h, "items::ItemStack.item#get", &[]).unwrap()), "minecraft:dirt");
+        // the item id is frozen: refused, unchanged
+        let set = id_of("items::ItemStack.item#set");
+        assert_eq!(call(h, "items::ItemStack.item#set", &bytes(|b| "minecraft:dirt".encode(b))), Err(CallError::ReadOnly(set)));
+        assert_eq!(decode::<String>(&call(h, "items::ItemStack.item#get", &[]).unwrap()), "minecraft:stone");
         assert_eq!(activation::get(h, 1), Ok(9), "count through the scalar FieldTable");
     });
     assert_eq!(stack.count, 9);
-    assert_eq!(&*stack.item, "minecraft:dirt");
+    assert_eq!(&*stack.item, "minecraft:stone");
 }
 
 #[test]

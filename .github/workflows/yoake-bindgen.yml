@@ -1,0 +1,47 @@
+name: yoake-bindgen
+
+# The binding generator's gate (MX3G1/MX3E1): the checked-in glue must equal what the generator writes from
+# the engine's rustdoc JSON, the id lock may only grow, no glue file may belong to a module that is no
+# longer generated, and the engine must compile with the glue.
+
+on:
+  pull_request:
+    paths:
+      - 'crates/yoake-bindgen/**'
+      - 'crates/yoake-slice/**'
+      - 'crates/horizon-items/**'
+      - 'crates/horizon-client/**'
+      - 'crates/horizon-client-lib/**'
+      - '.github/workflows/yoake-bindgen.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # The same compiler as crates/yoake-bindgen/toolchain.txt: the gate refuses any other one.
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - name: Base branch id lock
+        shell: bash
+        run: |
+          git show "origin/${{ github.base_ref || 'main' }}:crates/yoake-bindgen/ids.lock.json" > "$RUNNER_TEMP/base.lock" 2>/dev/null \
+            || echo '{"format":1,"rustdoc_format_version":61,"bindings":[]}' > "$RUNNER_TEMP/base.lock"
+      - name: Generator and fixture tests
+        shell: bash
+        run: |
+          cargo test --locked -j 4 -p yoake-bindgen --test mini_engine
+          cargo test --locked -j 4 -p yoake-slice --features wasm
+      - name: Regeneration gate (append-only ids, stale files, engine compiles with the feature)
+        shell: bash
+        env:
+          YOAKE_BINDGEN_BASE_LOCK: ${{ runner.temp }}/base.lock
+        run: cargo test --locked -j 4 -p yoake-bindgen --test engine -- --ignored --nocapture
+      - name: Engine tests with the glue
+        shell: bash
+        run: cargo test --locked -j 4 -p horizon-client-lib --features yoake2-slice --test yoake2_glue --test yoake2_engine_call --test yoake2_slice

@@ -8,7 +8,11 @@
 //! * `original(handle: i64, out: i32) -> i32`: runs the original, writes its `i64` result at `out`;
 //! * `get(handle: i64, field: i32, out: i32) -> i32`: writes the field's `i64` bits at `out`;
 //! * `set(handle: i64, field: i32, bits: i64) -> i32`;
-//! * `report(slot: i32, value: i64)`: test aid, appended to [`take_reports`].
+//! * `report(slot: i32, value: i64)`: test aid, appended to [`take_reports`];
+//! * `engine_call(handle: i64, id: i32, ptr: i32, len: i32, out_ptr: i32, out_cap: i32) -> i32`: runs a
+//!   generated binding (MX3E1, see [`call_status`]): the argument bytes are copied out of guest memory
+//!   (cap [`MAX_CALL_ARG_BYTES`]) before engine code runs, the engine call is wrapped in `catch_unwind`
+//!   (a panic traps the guest, so the trap rule disables the mod), the result is written afterwards.
 //!
 //! The guest exports `<name>(handle: i64) -> i64` (the hook; its result is the hooked function's
 //! result) and a `memory`. `out` points into a scratch buffer the guest owns, so there is no
@@ -309,6 +313,22 @@ fn native<T>(caller: &mut Caller<'_, Host>, f: impl FnOnce() -> T) -> T {
 /// runs engine code and it always runs inside [`native`]; `finish:` gets the caller and the engine
 /// result (for example to write the result into guest memory). A generator emits only this form.
 macro_rules! engine_import {
+    // With a `prepare:` step: it runs BEFORE `native()` with the caller (to copy argument bytes out
+    // of guest memory); its value `$p` is borrowed by `engine:` (which still runs only inside
+    // `native`). `?` in `prepare` traps the guest (a pointer outside its memory).
+    ($linker:expr, $name:literal, |$($arg:ident : $ty:ty),*| -> $ret:ty,
+     prepare: |$pc:ident| $prep:expr => $p:ident,
+     engine: $engine:expr, finish: |$c:ident, $e:ident| $finish:expr) => {
+        $linker.func_wrap("env", $name, move |mut caller: Caller<'_, Host>, $($arg: $ty),*| -> $ret {
+            let $p = {
+                let $pc = &mut caller;
+                $prep
+            };
+            let $e = native(&mut caller, || $engine);
+            let $c = &mut caller;
+            $finish
+        })
+    };
     ($linker:expr, $name:literal, |$($arg:ident : $ty:ty),*| -> $ret:ty,
      engine: $engine:expr, finish: |$c:ident, $e:ident| $finish:expr) => {
         $linker.func_wrap("env", $name, move |mut caller: Caller<'_, Host>, $($arg: $ty),*| -> $ret {
@@ -319,10 +339,95 @@ macro_rules! engine_import {
     };
 }
 
+/// What generated glue looks like to the runtime: `(handle, binding id, argument bytes, out)`.
+/// The engine registers one function that tries each module's generated `call` in turn.
+pub type EngineDispatch = fn(u64, u32, &[u8], &mut Vec<u8>) -> Result<(), crate::codec::CallError>;
+
+static DISPATCH: std::sync::Mutex<Option<EngineDispatch>> = std::sync::Mutex::new(None);
+
+/// Registers (or with `None` removes) the table `engine_call` dispatches through. Process-wide.
+pub fn set_engine_dispatch(dispatch: Option<EngineDispatch>) {
+    *DISPATCH.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = dispatch;
+}
+
+/// The most argument bytes one `engine_call` copies out of guest memory.
+pub const MAX_CALL_ARG_BYTES: usize = 1 << 20;
+
+/// `engine_call` results: `>= 0` is the number of result bytes written at `out_ptr`; negative is one
+/// of these (handle statuses are `HANDLE_BASE - status`: Stale = -17, Locked = -18, BadField = -19,
+/// NoSuchArg = -20, WrongType = -21). An engine panic is not a status: it traps the guest.
+pub mod call_status {
+    pub const ARGS_TOO_LARGE: i32 = -1;
+    /// The result needs more than `out_cap` bytes; its length is written as a little-endian `u32` at
+    /// `out_ptr` when `out_cap >= 4`. Nothing else was written. Call again with a bigger buffer.
+    pub const OUT_TOO_SMALL: i32 = -2;
+    pub const BAD_ARGS: i32 = -3;
+    pub const READ_ONLY: i32 = -4;
+    pub const UNKNOWN_BINDING: i32 = -5;
+    pub const NO_DISPATCHER: i32 = -6;
+    pub const HANDLE_BASE: i32 = -16;
+}
+
+enum CallOutcome {
+    Done(Vec<u8>),
+    Status(i32),
+    Panic(String),
+}
+
+/// Runs the registered dispatcher on `args`. Always called inside `native()`. An engine panic caused
+/// by guest-supplied arguments is caught here and reported to the import, which traps the guest.
+fn run_engine_call(handle: u64, id: u32, args: Result<Vec<u8>, i32>) -> CallOutcome {
+    use crate::codec::CallError;
+    let args = match args {
+        Ok(args) => args,
+        Err(status) => return CallOutcome::Status(status),
+    };
+    let Some(dispatch) = *DISPATCH.lock().unwrap_or_else(std::sync::PoisonError::into_inner) else {
+        return CallOutcome::Status(call_status::NO_DISPATCHER);
+    };
+    let mut out = Vec::new();
+    match catch_unwind(AssertUnwindSafe(|| dispatch(handle, id, &args, &mut out))) {
+        Ok(Ok(())) => CallOutcome::Done(out),
+        Ok(Err(error)) => CallOutcome::Status(match error {
+            CallError::Handle(status) => call_status::HANDLE_BASE - status as i32,
+            CallError::ReadOnly(_) => call_status::READ_ONLY,
+            CallError::UnknownBinding(_) => call_status::UNKNOWN_BINDING,
+            _ => call_status::BAD_ARGS,
+        }),
+        Err(payload) => CallOutcome::Panic(panic_message(&payload)),
+    }
+}
+
 fn write_i64(caller: &mut Caller<'_, Host>, out: i32, value: i64) -> R<()> {
     let memory = caller.data().memory.ok_or_else(|| Error::msg("guest has no memory"))?;
     memory.write(&mut *caller, out as u32 as usize, &value.to_le_bytes())?;
     Ok(())
+}
+
+/// Copies `len` bytes at `ptr` out of guest memory, or the status when `len` is over the cap
+/// (nothing is read then). A range outside the guest memory is an error (a trap).
+fn copy_args(caller: &mut Caller<'_, Host>, ptr: i32, len: i32) -> R<Result<Vec<u8>, i32>> {
+    if len < 0 || len as usize > MAX_CALL_ARG_BYTES {
+        return Ok(Err(call_status::ARGS_TOO_LARGE));
+    }
+    let memory = caller.data().memory.ok_or_else(|| Error::msg("guest has no memory"))?;
+    let mut bytes = vec![0u8; len as usize];
+    memory.read(&*caller, ptr as u32 as usize, &mut bytes)?;
+    Ok(Ok(bytes))
+}
+
+/// Writes `bytes` at `out_ptr` if they fit `out_cap`; otherwise the needed length (as a `u32`, when
+/// there is room for it) and `OUT_TOO_SMALL`.
+fn write_result(caller: &mut Caller<'_, Host>, out_ptr: i32, out_cap: i32, bytes: &[u8]) -> R<i32> {
+    let memory = caller.data().memory.ok_or_else(|| Error::msg("guest has no memory"))?;
+    if out_cap < 0 || bytes.len() > out_cap as usize {
+        if out_cap >= 4 {
+            memory.write(&mut *caller, out_ptr as u32 as usize, &(bytes.len() as u32).to_le_bytes())?;
+        }
+        return Ok(call_status::OUT_TOO_SMALL);
+    }
+    memory.write(&mut *caller, out_ptr as u32 as usize, bytes)?;
+    Ok(bytes.len() as i32)
 }
 
 fn status_code(status: Status) -> i32 {
@@ -354,6 +459,15 @@ fn build_linker(engine: &Engine) -> R<Linker<Host>> {
                 Ok(status_code(Status::Ok))
             }
             Err(status) => Ok(status_code(status)),
+        })?;
+    // engine_call(handle, id, ptr, len, out_ptr, out_cap) -> i32: runs a generated binding.
+    engine_import!(linker, "engine_call", |handle: i64, id: i32, ptr: i32, len: i32, out_ptr: i32, out_cap: i32| -> R<i32>,
+        prepare: |c| copy_args(c, ptr, len)? => args,
+        engine: run_engine_call(handle as u64, id as u32, args),
+        finish: |c, outcome| match outcome {
+            CallOutcome::Status(status) => Ok(status),
+            CallOutcome::Panic(message) => Err(Error::msg(format!("engine panic inside engine_call {id}: {message}"))),
+            CallOutcome::Done(bytes) => write_result(c, out_ptr, out_cap, &bytes),
         })?;
     // not engine imports: they only touch the host state
     linker.func_wrap("env", "report", |mut c: Caller<'_, Host>, slot: i32, value: i64| {

@@ -24,7 +24,7 @@
       "id": 4,
       "path": "entities::ArmorStand.enchantment_block#set",
       "sig": "set enchantment_block: Option<horizon_core::position::BlockPos>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 5,
@@ -36,7 +36,7 @@
       "id": 6,
       "path": "entities::ArmorStand.enchantment_fall_distance#set",
       "sig": "set enchantment_fall_distance: f64",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 7,
@@ -72,7 +72,7 @@
       "id": 12,
       "path": "entities::ArmorStand.id#set",
       "sig": "set id: u32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 13,
@@ -108,7 +108,7 @@
       "id": 18,
       "path": "entities::ArmorStand.marker#set",
       "sig": "set marker: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 19,
@@ -240,7 +240,7 @@
       "id": 40,
       "path": "entities::ArmorStand.support#set",
       "sig": "set support: horizon_world::ground_support::GroundState",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 41,
@@ -252,7 +252,7 @@
       "id": 42,
       "path": "entities::ArmorStand.vehicle#set",
       "sig": "set vehicle: Option<u32>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 43,
@@ -288,7 +288,7 @@
       "id": 48,
       "path": "entities::Cushion.check_interval#set",
       "sig": "set check_interval: u32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 49,
@@ -300,7 +300,7 @@
       "id": 50,
       "path": "entities::Cushion.color#set",
       "sig": "set color: u8",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 51,
@@ -312,7 +312,7 @@
       "id": 52,
       "path": "entities::Cushion.id#set",
       "sig": "set id: u32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 53,
@@ -324,7 +324,7 @@
       "id": 54,
       "path": "entities::Cushion.pos#set",
       "sig": "set pos: [i32; 3]",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 55,
@@ -336,7 +336,7 @@
       "id": 56,
       "path": "entities::Cushion.position#set",
       "sig": "set position: horizon_core::geometry::Vec3",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 57,
@@ -348,7 +348,7 @@
       "id": 58,
       "path": "entities::Cushion.yaw#set",
       "sig": "set yaw: f32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 59,
@@ -360,7 +360,7 @@
       "id": 60,
       "path": "entities::Experience.level#set",
       "sig": "set level: i32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 61,
@@ -372,7 +372,7 @@
       "id": 62,
       "path": "entities::Experience.progress#set",
       "sig": "set progress: f32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 63,
@@ -384,7 +384,7 @@
       "id": 64,
       "path": "entities::Experience.total#set",
       "sig": "set total: i32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 65,
@@ -396,7 +396,7 @@
       "id": 66,
       "path": "entities::ExperienceOrb.age#set",
       "sig": "set age: u32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 67,
@@ -408,7 +408,7 @@
       "id": 68,
       "path": "entities::ExperienceOrb.count#set",
       "sig": "set count: u32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 69,
@@ -420,7 +420,7 @@
       "id": 70,
       "path": "entities::ExperienceOrb.health#set",
       "sig": "set health: i32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 71,
@@ -432,7 +432,7 @@
       "id": 72,
       "path": "entities::ExperienceOrb.id#set",
       "sig": "set id: u32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 73,
@@ -444,7 +444,7 @@
       "id": 74,
       "path": "entities::ExperienceOrb.no_gravity#set",
       "sig": "set no_gravity: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 75,
@@ -456,7 +456,7 @@
       "id": 76,
       "path": "entities::ExperienceOrb.on_ground#set",
       "sig": "set on_ground: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 77,
@@ -468,7 +468,7 @@
       "id": 78,
       "path": "entities::ExperienceOrb.position#set",
       "sig": "set position: horizon_core::geometry::Vec3",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 79,
@@ -480,7 +480,7 @@
       "id": 80,
       "path": "entities::ExperienceOrb.previous#set",
       "sig": "set previous: horizon_core::geometry::Vec3",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 81,
@@ -492,7 +492,7 @@
       "id": 82,
       "path": "entities::ExperienceOrb.ticks#set",
       "sig": "set ticks: u32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 83,
@@ -504,7 +504,7 @@
       "id": 84,
       "path": "entities::ExperienceOrb.value#set",
       "sig": "set value: u32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 85,
@@ -516,7 +516,7 @@
       "id": 86,
       "path": "entities::ExperienceOrb.velocity#set",
       "sig": "set velocity: horizon_core::geometry::Vec3",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 87,
@@ -576,7 +576,7 @@
       "id": 96,
       "path": "entities::ItemEntity.horizontal_collision#set",
       "sig": "set horizontal_collision: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 97,
@@ -588,7 +588,7 @@
       "id": 98,
       "path": "entities::ItemEntity.id#set",
       "sig": "set id: u32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 99,
@@ -684,7 +684,7 @@
       "id": 114,
       "path": "entities::ItemEntity.target#set",
       "sig": "set target: Option<[i32; 4]>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 115,
@@ -696,7 +696,7 @@
       "id": 116,
       "path": "entities::ItemEntity.thrower#set",
       "sig": "set thrower: Option<[i32; 4]>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 117,
@@ -732,7 +732,7 @@
       "id": 122,
       "path": "entities::ItemEntity.vertical_collision#set",
       "sig": "set vertical_collision: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 123,
@@ -744,7 +744,7 @@
       "id": 124,
       "path": "entities::ItemEnvironmentTick.alive#set",
       "sig": "set alive: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 125,
@@ -756,7 +756,7 @@
       "id": 126,
       "path": "entities::ItemEnvironmentTick.lava_hurt#set",
       "sig": "set lava_hurt: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 127,
@@ -768,7 +768,7 @@
       "id": 128,
       "path": "entities::ItemFrame.check_interval#set",
       "sig": "set check_interval: u32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 129,
@@ -780,7 +780,7 @@
       "id": 130,
       "path": "entities::ItemFrame.drop_chance#set",
       "sig": "set drop_chance: f32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 131,
@@ -792,7 +792,7 @@
       "id": 132,
       "path": "entities::ItemFrame.facing#set",
       "sig": "set facing: u8",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 133,
@@ -804,7 +804,7 @@
       "id": 134,
       "path": "entities::ItemFrame.fixed#set",
       "sig": "set fixed: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 135,
@@ -816,7 +816,7 @@
       "id": 136,
       "path": "entities::ItemFrame.glow#set",
       "sig": "set glow: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 137,
@@ -828,7 +828,7 @@
       "id": 138,
       "path": "entities::ItemFrame.id#set",
       "sig": "set id: u32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 139,
@@ -840,7 +840,7 @@
       "id": 140,
       "path": "entities::ItemFrame.invisible#set",
       "sig": "set invisible: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 141,
@@ -852,7 +852,7 @@
       "id": 142,
       "path": "entities::ItemFrame.pos#set",
       "sig": "set pos: [i32; 3]",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 143,
@@ -864,7 +864,7 @@
       "id": 144,
       "path": "entities::ItemFrame.rotation#set",
       "sig": "set rotation: u8",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 145,
@@ -876,7 +876,7 @@
       "id": 146,
       "path": "entities::ItemStep.moved#set",
       "sig": "set moved: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 147,
@@ -888,7 +888,7 @@
       "id": 148,
       "path": "entities::ItemStep.old_velocity#set",
       "sig": "set old_velocity: horizon_core::geometry::Vec3",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 149,
@@ -900,7 +900,7 @@
       "id": 150,
       "path": "entities::Painting.check_interval#set",
       "sig": "set check_interval: u32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 151,
@@ -912,7 +912,7 @@
       "id": 152,
       "path": "entities::Painting.facing#set",
       "sig": "set facing: u8",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 153,
@@ -924,7 +924,7 @@
       "id": 154,
       "path": "entities::Painting.height#set",
       "sig": "set height: i32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 155,
@@ -936,7 +936,7 @@
       "id": 156,
       "path": "entities::Painting.id#set",
       "sig": "set id: u32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 157,
@@ -948,7 +948,7 @@
       "id": 158,
       "path": "entities::Painting.pos#set",
       "sig": "set pos: [i32; 3]",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 159,
@@ -960,7 +960,7 @@
       "id": 160,
       "path": "entities::Painting.width#set",
       "sig": "set width: i32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 161,
@@ -972,7 +972,7 @@
       "id": 162,
       "path": "entities::StandStep.falling#set",
       "sig": "set falling: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 163,
@@ -984,7 +984,7 @@
       "id": 164,
       "path": "entities::StandStep.friction#set",
       "sig": "set friction: f32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 165,
@@ -1020,7 +1020,7 @@
       "id": 170,
       "path": "items::BlockReduction.base#set",
       "sig": "set base: f32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 171,
@@ -1032,7 +1032,7 @@
       "id": 172,
       "path": "items::BlockReduction.factor#set",
       "sig": "set factor: f32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 173,
@@ -1044,7 +1044,7 @@
       "id": 174,
       "path": "items::BlockReduction.horizontal_angle#set",
       "sig": "set horizontal_angle: f32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 175,
@@ -1056,7 +1056,7 @@
       "id": 176,
       "path": "items::BlockReduction.types#set",
       "sig": "set types: Option<Vec<String>>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 177,
@@ -1068,7 +1068,7 @@
       "id": 178,
       "path": "items::BlocksAttacks.block_sound#set",
       "sig": "set block_sound: Option<String>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 179,
@@ -1080,7 +1080,7 @@
       "id": 180,
       "path": "items::BlocksAttacks.bypassed_by#set",
       "sig": "set bypassed_by: Option<String>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 181,
@@ -1092,7 +1092,7 @@
       "id": 182,
       "path": "items::BlocksAttacks.delay_seconds#set",
       "sig": "set delay_seconds: f32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 183,
@@ -1104,7 +1104,7 @@
       "id": 184,
       "path": "items::BlocksAttacks.disable_scale#set",
       "sig": "set disable_scale: f32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 185,
@@ -1116,7 +1116,7 @@
       "id": 186,
       "path": "items::BlocksAttacks.disabled_sound#set",
       "sig": "set disabled_sound: Option<String>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 187,
@@ -1128,7 +1128,7 @@
       "id": 188,
       "path": "items::BlocksAttacks.item_damage#set",
       "sig": "set item_damage: (f32, f32, f32)",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 189,
@@ -1140,7 +1140,7 @@
       "id": 190,
       "path": "items::BlocksAttacks.reductions#set",
       "sig": "set reductions: Vec<BlockReduction>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 191,
@@ -1152,7 +1152,7 @@
       "id": 192,
       "path": "items::ConsumeEffectSpec.amplifier#set",
       "sig": "set amplifier: i32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 193,
@@ -1164,7 +1164,7 @@
       "id": 194,
       "path": "items::ConsumeEffectSpec.duration#set",
       "sig": "set duration: i32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 195,
@@ -1176,7 +1176,7 @@
       "id": 196,
       "path": "items::ConsumeEffectSpec.id#set",
       "sig": "set id: String",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 197,
@@ -1188,7 +1188,7 @@
       "id": 198,
       "path": "items::Instrument.range#set",
       "sig": "set range: f32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 199,
@@ -1200,7 +1200,7 @@
       "id": 200,
       "path": "items::Instrument.sound#set",
       "sig": "set sound: String",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 201,
@@ -1212,7 +1212,7 @@
       "id": 202,
       "path": "items::Instrument.use_duration#set",
       "sig": "set use_duration: f32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 203,
@@ -1224,7 +1224,7 @@
       "id": 204,
       "path": "items::ItemInfo.attack_damage#set",
       "sig": "set attack_damage: f32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 205,
@@ -1236,7 +1236,7 @@
       "id": 206,
       "path": "items::ItemInfo.attack_speed#set",
       "sig": "set attack_speed: f32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 207,
@@ -1248,7 +1248,7 @@
       "id": 208,
       "path": "items::ItemInfo.block#set",
       "sig": "set block: Option<horizon_world::registry::BlockStateId>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 209,
@@ -1260,7 +1260,7 @@
       "id": 210,
       "path": "items::ItemInfo.block_transformer#set",
       "sig": "set block_transformer: Option<String>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 211,
@@ -1272,7 +1272,7 @@
       "id": 212,
       "path": "items::ItemInfo.blocks_attacks#set",
       "sig": "set blocks_attacks: Option<BlocksAttacks>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 213,
@@ -1284,7 +1284,7 @@
       "id": 214,
       "path": "items::ItemInfo.bundle#set",
       "sig": "set bundle: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 215,
@@ -1296,7 +1296,7 @@
       "id": 216,
       "path": "items::ItemInfo.can_always_eat#set",
       "sig": "set can_always_eat: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 217,
@@ -1308,7 +1308,7 @@
       "id": 218,
       "path": "items::ItemInfo.can_destroy_blocks_in_creative#set",
       "sig": "set can_destroy_blocks_in_creative: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 219,
@@ -1320,7 +1320,7 @@
       "id": 220,
       "path": "items::ItemInfo.can_sprint#set",
       "sig": "set can_sprint: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 221,
@@ -1332,7 +1332,7 @@
       "id": 222,
       "path": "items::ItemInfo.components#set",
       "sig": "set components: Vec<String>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 223,
@@ -1344,7 +1344,7 @@
       "id": 224,
       "path": "items::ItemInfo.crafting_remainder#set",
       "sig": "set crafting_remainder: Option<String>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 225,
@@ -1356,7 +1356,7 @@
       "id": 226,
       "path": "items::ItemInfo.cushion_color#set",
       "sig": "set cushion_color: Option<String>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 227,
@@ -1368,7 +1368,7 @@
       "id": 228,
       "path": "items::ItemInfo.disable_blocking_seconds#set",
       "sig": "set disable_blocking_seconds: f32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 229,
@@ -1380,7 +1380,7 @@
       "id": 230,
       "path": "items::ItemInfo.dye#set",
       "sig": "set dye: Option<String>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 231,
@@ -1392,7 +1392,7 @@
       "id": 232,
       "path": "items::ItemInfo.equip_asset#set",
       "sig": "set equip_asset: Option<String>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 233,
@@ -1404,7 +1404,7 @@
       "id": 234,
       "path": "items::ItemInfo.equip_damage_on_hurt#set",
       "sig": "set equip_damage_on_hurt: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 235,
@@ -1416,7 +1416,7 @@
       "id": 236,
       "path": "items::ItemInfo.equip_dispensable#set",
       "sig": "set equip_dispensable: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 237,
@@ -1428,7 +1428,7 @@
       "id": 238,
       "path": "items::ItemInfo.equip_slot#set",
       "sig": "set equip_slot: Option<String>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 239,
@@ -1440,7 +1440,7 @@
       "id": 240,
       "path": "items::ItemInfo.equip_sound#set",
       "sig": "set equip_sound: Option<String>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 241,
@@ -1452,7 +1452,7 @@
       "id": 242,
       "path": "items::ItemInfo.fire_resistant#set",
       "sig": "set fire_resistant: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 243,
@@ -1464,7 +1464,7 @@
       "id": 244,
       "path": "items::ItemInfo.food#set",
       "sig": "set food: Option<(u32, f32)>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 245,
@@ -1476,7 +1476,7 @@
       "id": 246,
       "path": "items::ItemInfo.glider#set",
       "sig": "set glider: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 247,
@@ -1488,7 +1488,7 @@
       "id": 248,
       "path": "items::ItemInfo.interact_vibrations#set",
       "sig": "set interact_vibrations: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 249,
@@ -1500,7 +1500,7 @@
       "id": 250,
       "path": "items::ItemInfo.jukebox_song#set",
       "sig": "set jukebox_song: Option<String>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 251,
@@ -1512,7 +1512,7 @@
       "id": 252,
       "path": "items::ItemInfo.max_damage#set",
       "sig": "set max_damage: u32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 253,
@@ -1524,7 +1524,7 @@
       "id": 254,
       "path": "items::ItemInfo.max_stack#set",
       "sig": "set max_stack: u32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 255,
@@ -1536,7 +1536,7 @@
       "id": 256,
       "path": "items::ItemInfo.model#set",
       "sig": "set model: String",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 257,
@@ -1548,7 +1548,7 @@
       "id": 258,
       "path": "items::ItemInfo.modifiers#set",
       "sig": "set modifiers: Vec<(String, String, f64, String, String)>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 259,
@@ -1560,7 +1560,7 @@
       "id": 260,
       "path": "items::ItemInfo.remainder#set",
       "sig": "set remainder: Option<String>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 261,
@@ -1572,7 +1572,7 @@
       "id": 262,
       "path": "items::ItemInfo.swappable#set",
       "sig": "set swappable: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 263,
@@ -1584,7 +1584,7 @@
       "id": 264,
       "path": "items::ItemInfo.tool#set",
       "sig": "set tool: Vec<ToolRule>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 265,
@@ -1596,7 +1596,7 @@
       "id": 266,
       "path": "items::ItemInfo.tool_damage_per_block#set",
       "sig": "set tool_damage_per_block: Option<u32>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 267,
@@ -1608,7 +1608,7 @@
       "id": 268,
       "path": "items::ItemInfo.tool_default_speed#set",
       "sig": "set tool_default_speed: f32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 269,
@@ -1620,7 +1620,7 @@
       "id": 270,
       "path": "items::ItemInfo.use_remainder#set",
       "sig": "set use_remainder: Option<String>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 271,
@@ -1632,7 +1632,7 @@
       "id": 272,
       "path": "items::ItemInfo.use_speed#set",
       "sig": "set use_speed: f32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 273,
@@ -1644,7 +1644,7 @@
       "id": 274,
       "path": "items::ItemInfo.villager_food#set",
       "sig": "set villager_food: Option<i32>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 275,
@@ -1656,7 +1656,7 @@
       "id": 276,
       "path": "items::ItemInfo.weapon_damage#set",
       "sig": "set weapon_damage: Option<u32>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 277,
@@ -1692,7 +1692,7 @@
       "id": 282,
       "path": "items::Song.comparator#set",
       "sig": "set comparator: i32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 283,
@@ -1704,7 +1704,7 @@
       "id": 284,
       "path": "items::Song.length_ticks#set",
       "sig": "set length_ticks: i64",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 285,
@@ -1716,7 +1716,7 @@
       "id": 286,
       "path": "items::Song.sound#set",
       "sig": "set sound: String",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 287,
@@ -1728,7 +1728,7 @@
       "id": 288,
       "path": "items::ToolRule.blocks#set",
       "sig": "set blocks: Vec<String>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 289,
@@ -1740,7 +1740,7 @@
       "id": 290,
       "path": "items::ToolRule.correct#set",
       "sig": "set correct: Option<bool>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 291,
@@ -1752,7 +1752,7 @@
       "id": 292,
       "path": "items::ToolRule.speed#set",
       "sig": "set speed: Option<f32>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 293,
@@ -2214,7 +2214,7 @@
       "id": 369,
       "path": "entities::Painting.variant#set",
       "sig": "set variant: std::sync::Arc<str>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 370,
@@ -2238,7 +2238,7 @@
       "id": 373,
       "path": "items::ItemInfo.custom_components#set",
       "sig": "set custom_components: std::collections::BTreeMap<String, horizon_world::nbt::Tag>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 374,
@@ -2250,7 +2250,7 @@
       "id": 375,
       "path": "items::ItemInfo.equip_allowed#set",
       "sig": "set equip_allowed: Option<std::collections::HashSet<String>>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 376,
@@ -2262,7 +2262,7 @@
       "id": 377,
       "path": "items::ItemInfo.id#set",
       "sig": "set id: std::sync::Arc<str>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 378,
@@ -2274,7 +2274,7 @@
       "id": 379,
       "path": "items::ItemInfo.use_cooldown#set",
       "sig": "set use_cooldown: Option<crate::cooldowns::UseCooldown>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 380,
@@ -2286,7 +2286,7 @@
       "id": 381,
       "path": "items::ItemStack.item#set",
       "sig": "set item: std::sync::Arc<str>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 382,
@@ -2298,7 +2298,7 @@
       "id": 383,
       "path": "items::Items.block_tags#set",
       "sig": "set block_tags: std::collections::HashMap<String, std::collections::HashSet<String>>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 384,
@@ -2310,7 +2310,7 @@
       "id": 385,
       "path": "items::Items.instruments#set",
       "sig": "set instruments: std::collections::HashMap<String, Instrument>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 386,
@@ -2322,7 +2322,7 @@
       "id": 387,
       "path": "items::Items.item_tag_order#set",
       "sig": "set item_tag_order: std::collections::HashMap<String, Vec<String>>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 388,
@@ -2334,7 +2334,7 @@
       "id": 389,
       "path": "items::Items.item_tags#set",
       "sig": "set item_tags: std::collections::HashMap<String, std::collections::HashSet<String>>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 390,
@@ -2346,7 +2346,7 @@
       "id": 391,
       "path": "items::Items.order#set",
       "sig": "set order: Vec<std::sync::Arc<str>>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 392,
@@ -2358,7 +2358,7 @@
       "id": 393,
       "path": "items::Items.registry_order#set",
       "sig": "set registry_order: Vec<std::sync::Arc<str>>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 394,
@@ -2412,7 +2412,7 @@
       "id": 402,
       "path": "entities::ItemCells.cells#set",
       "sig": "set cells: crate::fast_hash::FxHashMap<(i32, i32, i32), Vec<u32>>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 403,
@@ -2424,7 +2424,7 @@
       "id": 404,
       "path": "entities::ObstacleGrid.cells#set",
       "sig": "set cells: crate::fast_hash::FxHashMap<(i32, i32, i32), Vec<u32>>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 405,
@@ -2484,7 +2484,7 @@
       "id": 414,
       "path": "entity_query::NativeEntityInfo.alive#set",
       "sig": "set alive: bool",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 415,
@@ -2496,7 +2496,7 @@
       "id": 416,
       "path": "entity_query::NativeEntityInfo.bounding_box#set",
       "sig": "set bounding_box: [[f64; 3]; 2]",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 417,
@@ -2508,7 +2508,7 @@
       "id": 418,
       "path": "entity_query::NativeEntityInfo.dimension#set",
       "sig": "set dimension: String",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 419,
@@ -2520,7 +2520,7 @@
       "id": 420,
       "path": "entity_query::NativeEntityInfo.id#set",
       "sig": "set id: u32",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 421,
@@ -2532,7 +2532,7 @@
       "id": 422,
       "path": "entity_query::NativeEntityInfo.kind#set",
       "sig": "set kind: String",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 423,
@@ -2544,7 +2544,7 @@
       "id": 424,
       "path": "entity_query::NativeEntityInfo.player_uuid#set",
       "sig": "set player_uuid: Option<u128>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 425,
@@ -2556,7 +2556,7 @@
       "id": 426,
       "path": "entity_query::NativeEntityInfo.position#set",
       "sig": "set position: [f64; 3]",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 427,
@@ -2568,7 +2568,7 @@
       "id": 428,
       "path": "entity_query::QueryBudgets.mods#set",
       "sig": "set mods: Vec<QueryUsage>",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 429,
@@ -2580,7 +2580,7 @@
       "id": 430,
       "path": "entity_query::QueryUsage.candidates#set",
       "sig": "set candidates: usize",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 431,
@@ -2592,7 +2592,7 @@
       "id": 432,
       "path": "entity_query::QueryUsage.mod_index#set",
       "sig": "set mod_index: usize",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 433,
@@ -2604,7 +2604,7 @@
       "id": 434,
       "path": "entity_query::QueryUsage.queries#set",
       "sig": "set queries: usize",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 435,
@@ -2616,7 +2616,7 @@
       "id": 436,
       "path": "entity_query::QueryUsage.results#set",
       "sig": "set results: usize",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 437,
@@ -2628,7 +2628,7 @@
       "id": 438,
       "path": "entity_query::Sphere.center#set",
       "sig": "set center: [f64; 3]",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 439,
@@ -2640,7 +2640,7 @@
       "id": 440,
       "path": "entity_query::Sphere.radius#set",
       "sig": "set radius: f64",
-      "status": "bound"
+      "status": "ReadOnly"
     },
     {
       "id": 441,

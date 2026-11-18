@@ -70,6 +70,12 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | field `salt` of `RandomSequences` is private to another module [&mut argument] | 1 |
 | lifetime-carrying type `std::borrow::Cow` | 1 |
 
+### Writable fields (setters are opt-in; every other data field is read-only and its setter id is reserved as `ReadOnly`)
+
+- `items::ItemStack`: `count`, `damage`
+
+71 read-only field accessors (getter only).
+
 ### Fields without accessors
 
 | reason | fields |
@@ -146,6 +152,13 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | lifetime-carrying type `crate::collisions::SceneCollisions` | 1 |
 | lifetime-carrying type `horizon_world::climbing::ClimbingRegistry` | 1 |
 
+### Writable fields (setters are opt-in; every other data field is read-only and its setter id is reserved as `ReadOnly`)
+
+- `entities::ArmorStand`: `fire_ticks`, `health`, `position`, `previous`, `velocity`, `on_ground`, `yaw`, `previous_yaw`, `small`, `show_arms`, `no_base_plate`, `invisible`, `no_gravity`, `name_visible`, `last_hit`, `pose`, `disabled_slots`
+- `entities::ItemEntity`: `health`, `fire_ticks`, `position`, `previous`, `velocity`, `on_ground`, `age`, `pickup_delay`, `bob_offset`, `ticks`, `needs_sync`, `stuck`, `no_gravity`
+
+55 read-only field accessors (getter only).
+
 ### Fields without accessors
 
 | reason | fields |
@@ -178,6 +191,10 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 ### Excluded: reasons
 
 (none)
+
+### Writable fields (setters are opt-in; every other data field is read-only and its setter id is reserved as `ReadOnly`)
+
+(none writable; 0 read-only field accessors)
 
 ### Fields without accessors
 
@@ -226,6 +243,10 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | field `0` of `NativeWorldEpoch` is private to another module [&mut argument] | 1 |
 | lifetime-carrying type `QuerySources` [by-value self] | 1 |
 | std type `core::net::socket_addr::SocketAddr` has no codec yet [&argument] | 1 |
+
+### Writable fields (setters are opt-in; every other data field is read-only and its setter id is reserved as `ReadOnly`)
+
+(none writable; 14 read-only field accessors)
 
 ### Fields without accessors
 

@@ -55,6 +55,33 @@ impl Opaque {
     }
 }
 
+/// Frozen by config: no accessors, no bound methods.
+pub struct Sealed {
+    pub value: u32,
+}
+
+impl Sealed {
+    pub fn peek(&self) -> u32 {
+        self.value
+    }
+}
+
+/// A recursive data type: the decoder must stop a deep chain.
+pub struct Node {
+    pub value: u8,
+    pub next: Option<Box<Node>>,
+}
+
+pub fn node_sum(n: Node) -> u32 {
+    let mut total = 0u32;
+    let mut cur = Some(Box::new(n));
+    while let Some(node) = cur {
+        total += u32::from(node.value);
+        cur = node.next;
+    }
+    total
+}
+
 /// A type that carries a lifetime: never a handle.
 pub struct Borrowing<'a> {
     text: &'a str,
@@ -284,7 +311,7 @@ impl Game<'_> {
 // ---- the program that exercises the glue ----
 
 #[cfg(glue)]
-include!("glue.rs");
+include!("glue/glue.rs");
 
 #[cfg(glue)]
 fn main() {
@@ -381,6 +408,25 @@ fn main() {
     yoake_glue::call(0, id("mini::fast"), &args, &mut out).unwrap();
     assert_eq!(decode::<usize>(&out), 9);
     out.clear();
+    // a recursive type: ten levels decode, a thousand are refused (depth cap), not overflowed
+    let chain = |n: usize| bytes(|b| {
+        for i in 0..n {
+            (i as u8).encode(b);
+            1u8.encode(b);
+        }
+        7u8.encode(b);
+        0u8.encode(b);
+    });
+    yoake_glue::call(0, id("mini::node_sum"), &chain(10), &mut out).unwrap();
+    assert_eq!(decode::<u32>(&out), (0..10u32).sum::<u32>() + 7);
+    out.clear();
+    assert_eq!(yoake_glue::call(0, id("mini::node_sum"), &chain(1000), &mut out), Err(CallError::TooDeep));
+    assert!(out.is_empty());
+    // a huge claimed vector length is refused without reserving it
+    let args = bytes(|b| {
+        0x3b9a_ca00u32.encode(b);
+    });
+    assert_eq!(yoake_glue::call(0, id("mini::fast"), &args, &mut out), Err(CallError::UnexpectedEnd));
     // a unit struct (no bytes) and a tuple struct (one f64)
     let args = bytes(|b| 1.25f64.encode(b));
     yoake_glue::call(0, id("mini::pass_marker"), &args, &mut out).unwrap();
@@ -425,6 +471,8 @@ fn main() {
         "mini::plain_cell",         // a std type with no codec
         "mini::Borrowing::len",     // the receiver type carries a lifetime
         "mini::Thing.cell#get",     // a field of a non-data type
+        "mini::Sealed::peek",       // frozen type
+        "mini::Sealed.value#get",   // frozen type: no accessors at all
     ] {
         absent(path);
     }
@@ -528,6 +576,18 @@ fn main() {
         yoake_glue::call(h, id("mini::Thing::lookup"), &bytes(|b| "k".encode(b)), &mut out).unwrap();
         assert_eq!(decode::<Result<i64, String>>(&out), Ok(5));
         out.clear();
+        // frozen field: the setter id is reserved and refused, the FieldTable refuses it too
+        let count_set = id("mini::Thing.count#set");
+        assert_eq!(yoake_glue::call(h, count_set, &bytes(|b| 1i32.encode(b)), &mut out), Err(CallError::ReadOnly(count_set)));
+        assert_eq!(activation::set(h, 0, 1), Err(yoake_slice::activation::Status::BadField));
+        let tags_set = id("mini::Thing.tags#set");
+        assert_eq!(yoake_glue::call(h, tags_set, &bytes(|b| Vec::<String>::new().encode(b)), &mut out), Err(CallError::ReadOnly(tags_set)));
+        assert_eq!(decode::<i32>(&{
+            yoake_glue::call(h, id("mini::Thing.count#get"), &[], &mut out).unwrap();
+            let v = out.clone();
+            out.clear();
+            v
+        }), 15, "a read-only field can still be read");
         // the scalar FieldTable of the same fields
         assert_eq!(activation::get(h, 0), Ok(15));
         assert_eq!(activation::get(h, 9), Ok(40));

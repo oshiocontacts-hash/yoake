@@ -14,13 +14,55 @@
       "name": "items",
       "crate_name": "horizon_items",
       "source": "horizon-items/src/items.rs",
-      "glue": "crates/horizon-items/src/yoake_glue/items.rs"
+      "glue": "crates/horizon-items/src/yoake_glue/items.rs",
+      "writable": {
+        "ItemStack": [
+          "count",
+          "damage"
+        ]
+      }
     },
     {
       "name": "entities",
       "crate_name": "horizon_client_lib",
       "source": "horizon-client/src/entities.rs",
-      "glue": "crates/horizon-client/src/yoake_glue/entities.rs"
+      "glue": "crates/horizon-client/src/yoake_glue/entities.rs",
+      "writable": {
+        "ArmorStand": [
+          "fire_ticks",
+          "health",
+          "position",
+          "previous",
+          "velocity",
+          "on_ground",
+          "yaw",
+          "previous_yaw",
+          "no_gravity",
+          "invisible",
+          "small",
+          "show_arms",
+          "no_base_plate",
+          "name_visible",
+          "pose",
+          "last_hit",
+          "disabled_slots"
+        ],
+        "ItemEntity": [
+          "health",
+          "fire_ticks",
+          "position",
+          "previous",
+          "velocity",
+          "on_ground",
+          "age",
+          "pickup_delay",
+          "no_gravity",
+          "bob_offset",
+          "needs_sync",
+          "stuck",
+          "ticks"
+        ]
+      }
     },
     {
       "name": "game_items",
@@ -40,5 +82,9 @@
         "Game"
       ]
     }
+  ],
+  "frozen_files": [
+    "horizon-client/src/dll_mods.rs",
+    "horizon-client/src/wasm_mods.rs"
   ]
 }

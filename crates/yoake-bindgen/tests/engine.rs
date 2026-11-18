@@ -22,6 +22,8 @@ fn cargo(root: &Path, args: &[&str]) -> std::process::Output {
     Command::new(env!("CARGO"))
         .current_dir(root)
         .env("RUSTC_BOOTSTRAP", "1")
+        // the cfg of the JSON is pinned: default features, no extra `--cfg`, and never the glue's own feature
+        .env("RUSTDOCFLAGS", "")
         .env("CARGO_INCREMENTAL", "0")
         .args(args)
         .output()
@@ -32,6 +34,12 @@ fn cargo(root: &Path, args: &[&str]) -> std::process::Output {
 #[ignore = "slow: rustdoc JSON of six engine crates plus a cargo check of the engine with the feature on"]
 fn checked_in_glue_is_current_and_compiles_in_the_engine() {
     let root = workspace();
+
+    // 0. the toolchain the rustdoc JSON comes from is pinned: another rustc may print another JSON
+    let pinned = std::fs::read_to_string(root.join("crates/yoake-bindgen/toolchain.txt")).unwrap().trim().to_string();
+    let rustc = Command::new("rustc").arg("-V").output().expect("run rustc -V");
+    let version = String::from_utf8_lossy(&rustc.stdout).to_string();
+    assert!(version.starts_with(&format!("rustc {pinned}")), "the gate needs rustc {pinned} (crates/yoake-bindgen/toolchain.txt), found {version}");
 
     // 1. rustdoc JSON with the feature off (the glue must not see itself)
     for krate in ["horizon-client-lib", "horizon-client", "horizon-items", "horizon-core", "horizon-world", "horizon-client-core"] {
@@ -58,6 +66,19 @@ fn checked_in_glue_is_current_and_compiles_in_the_engine() {
         "the checked-in glue is out of date; run crates/yoake-bindgen/regen.sh and commit:\n  {}",
         stale.join("\n  ")
     );
+
+    // 2b. append-only ids against the base branch's lock (CI sets the variable from `git show`)
+    if let Ok(base) = std::env::var("YOAKE_BINDGEN_BASE_LOCK") {
+        let base = yoake_bindgen::lock::Lock::load(Path::new(&base)).unwrap();
+        let now: yoake_bindgen::lock::Lock = serde_json::from_str(&generated.files[&PathBuf::from(&config.lock)]).unwrap();
+        let violations = now.append_only_violations(&base);
+        assert!(violations.is_empty(), "ids.lock.json is append-only:
+  {}", violations.join("
+  "));
+    }
+    // 2c. glue files of modules that are no longer targeted
+    let stale = yoake_bindgen::stale_glue_files(&config, &root);
+    assert!(stale.is_empty(), "stale glue files (no configured target): {stale:?}");
 
     // 3. the generated glue compiles inside the real engine
     let out = cargo(&root, &["check", "--offline", "-j", "4", "-p", "horizon-client", "--features", "yoake2-slice"]);

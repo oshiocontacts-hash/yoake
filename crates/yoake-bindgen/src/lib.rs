@@ -40,6 +40,9 @@ pub struct Config {
     pub lock: String,
     /// Where `coverage.md`, `summary.json` and the per-module function lists go.
     pub report_dir: String,
+    /// Source files that contain `unsafe`: every type defined in one is frozen (no accessors, no methods).
+    #[serde(default)]
+    pub frozen_files: Vec<String>,
     pub targets: Vec<TargetCfg>,
 }
 
@@ -56,6 +59,18 @@ pub struct TargetCfg {
     /// Struct names that are the `Game` root.
     #[serde(default)]
     pub roots: Vec<String>,
+    /// Setters are opt-in: type name -> the fields a guest may write. Getters exist for every data field.
+    #[serde(default)]
+    pub writable: BTreeMap<String, Vec<String>>,
+    /// Types that get no accessors and no bound methods at all.
+    #[serde(default)]
+    pub frozen_types: Vec<String>,
+}
+
+/// Field names a guest may never be allowed to write: identities, lengths, indices, sequence numbers.
+pub fn forbidden_writable(name: &str) -> bool {
+    let n = name.to_ascii_lowercase();
+    n == "id" || n.ends_with("_id") || n.contains("uuid") || n.contains("len") || n.contains("index") || n.contains("idx") || n.contains("seq") || n == "join" || n == "0"
 }
 
 pub struct ModuleResult {
@@ -91,13 +106,34 @@ pub fn generate(config: &Config, root: &Path, uni: &Universe) -> R<Generated> {
     let mut prepared: Vec<Prepared<'_>> = Vec::new();
     for target in &config.targets {
         let doc = uni.doc_index(&target.crate_name).ok_or_else(|| format!("no rustdoc JSON loaded for crate `{}`", target.crate_name))?;
+        for (type_name, fields) in &target.writable {
+            for field in fields {
+                if forbidden_writable(field) {
+                    return Err(format!("`{}.{type_name}.{field}` cannot be writable: identities, uuids, lengths, indices and sequence numbers are never opened", target.name).into());
+                }
+            }
+        }
         let mut an = Analyzer::new(
             uni,
-            TargetInfo { crate_name: target.crate_name.clone(), module: Vec::new(), roots: target.roots.clone() },
+            TargetInfo {
+                crate_name: target.crate_name.clone(),
+                module: Vec::new(),
+                roots: target.roots.clone(),
+                writable: target.writable.clone(),
+                frozen_types: target.frozen_types.clone(),
+                frozen_files: config.frozen_files.clone(),
+            },
         );
         let module = find_module(&an, doc, &target.source).ok_or_else(|| format!("no module for `{}` in crate `{}`", target.source, target.crate_name))?;
         an.target.module = uni.docs[doc].module_path(module);
         let scan = scan_module(&mut an, doc, module, &target.name);
+        for (type_name, fields) in &target.writable {
+            for field in fields {
+                if !scan.fields.iter().any(|f| f.owner_label == format!("{}::{type_name}", target.name) && &f.field == field && f.shape.is_some()) {
+                    return Err(format!("`{}.{type_name}.{field}` is listed writable but is not a data field of a struct in the module", target.name).into());
+                }
+            }
+        }
         prepared.push(Prepared { an, scan, target: target.clone() });
     }
 
@@ -185,10 +221,31 @@ pub fn survey(uni: &Universe, crate_name: &str, roots: &[String]) -> R<Vec<(Stri
         let path = uni.docs[doc].module_path(module);
         let label = path[1..].join("::");
         let label = if label.is_empty() { "(crate root)".to_string() } else { label };
-        let mut an = Analyzer::new(uni, TargetInfo { crate_name: crate_name.to_string(), module: path, roots: roots.to_vec() });
+        let mut an = Analyzer::new(uni, TargetInfo::plain(crate_name, path, roots.to_vec()));
         let scan = scan_module(&mut an, doc, module, &label);
         let counts = report::count(&scan);
         out.push((label, counts, scan.fns));
     }
     Ok(out)
+}
+
+/// Glue files that sit next to the configured ones but belong to no target (a module that is no longer
+/// generated): stale, and a CI failure. Looks at `*.rs` files in the directories of the glue files.
+pub fn stale_glue_files(config: &Config, root: &Path) -> Vec<PathBuf> {
+    let wanted: std::collections::BTreeSet<PathBuf> = config.targets.iter().map(|t| root.join(&t.glue)).collect();
+    let mut dirs: Vec<PathBuf> = wanted.iter().filter_map(|p| p.parent().map(Path::to_path_buf)).collect();
+    dirs.sort();
+    dirs.dedup();
+    let mut stale = Vec::new();
+    for dir in dirs {
+        let Ok(entries) = std::fs::read_dir(&dir) else { continue };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().is_some_and(|e| e == "rs") && !wanted.contains(&path) {
+                stale.push(path);
+            }
+        }
+    }
+    stale.sort();
+    stale
 }

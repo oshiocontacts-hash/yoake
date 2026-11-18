@@ -22,6 +22,10 @@ pub enum CallError {
     Handle(Status),
     /// The id is not in this module's table.
     UnknownBinding(u32),
+    /// The binding is a setter of a frozen field: its id is reserved, the call is refused.
+    ReadOnly(u32),
+    /// A value nests deeper than [`MAX_DECODE_DEPTH`].
+    TooDeep,
 }
 
 impl fmt::Display for CallError {
@@ -36,6 +40,8 @@ impl fmt::Display for CallError {
             Self::LengthOverflow => write!(f, "length does not fit this host"),
             Self::Handle(status) => write!(f, "handle not usable: {status:?}"),
             Self::UnknownBinding(id) => write!(f, "no binding {id}"),
+            Self::ReadOnly(id) => write!(f, "binding {id} is a frozen (read-only) field"),
+            Self::TooDeep => write!(f, "value nests too deeply"),
         }
     }
 }
@@ -56,15 +62,23 @@ pub trait Decode: Sized {
     fn decode(input: &mut Decoder<'_>) -> Result<Self, CallError>;
 }
 
+/// How deep decoded values may nest (`Box<Self>` chains, recursive structs and enums).
+pub const MAX_DECODE_DEPTH: u32 = 64;
+
+/// The most elements a decoder reserves up front; longer vectors grow as elements really arrive, so
+/// a forged length (up to the argument cap) cannot make the host reserve hundreds of megabytes.
+pub const MAX_PREALLOC: usize = 4096;
+
 /// A checked reader over the argument bytes.
 pub struct Decoder<'a> {
     bytes: &'a [u8],
     position: usize,
+    depth: u32,
 }
 
 impl<'a> Decoder<'a> {
     pub fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes, position: 0 }
+        Self { bytes, position: 0, depth: 0 }
     }
 
     /// Fails unless every byte was read (a call with extra bytes is a malformed call).
@@ -92,6 +106,25 @@ impl<'a> Decoder<'a> {
     pub fn bytes(&mut self) -> Result<&'a [u8], CallError> {
         let len = self.len()?;
         self.take(len)
+    }
+
+    /// Enters one nesting level (generated decoders of named types and `Box` call this); pair with
+    /// [`Decoder::leave`]. Fails past [`MAX_DECODE_DEPTH`].
+    pub fn enter(&mut self) -> Result<(), CallError> {
+        if self.depth >= MAX_DECODE_DEPTH {
+            return Err(CallError::TooDeep);
+        }
+        self.depth += 1;
+        Ok(())
+    }
+
+    pub fn leave(&mut self) {
+        self.depth = self.depth.saturating_sub(1);
+    }
+
+    /// `Vec::with_capacity` for `len` elements, capped at [`MAX_PREALLOC`].
+    pub fn vec_with<T>(len: usize) -> Vec<T> {
+        Vec::with_capacity(len.min(MAX_PREALLOC))
     }
 
     /// A one-byte tag.
@@ -234,7 +267,7 @@ impl<T: Encode, const N: usize> Encode for [T; N] {
 
 impl<T: Decode, const N: usize> Decode for [T; N] {
     fn decode(input: &mut Decoder<'_>) -> Result<Self, CallError> {
-        let mut items = Vec::with_capacity(N.min(input.remaining()));
+        let mut items = Decoder::vec_with(N.min(input.remaining()));
         for _ in 0..N {
             items.push(T::decode(input)?);
         }
@@ -260,7 +293,7 @@ impl<T: Encode> Encode for Vec<T> {
 impl<T: Decode> Decode for Vec<T> {
     fn decode(input: &mut Decoder<'_>) -> Result<Self, CallError> {
         let len = input.vec_len()?;
-        let mut items = Vec::with_capacity(len);
+        let mut items = Decoder::vec_with(len);
         for _ in 0..len {
             items.push(T::decode(input)?);
         }
@@ -323,7 +356,10 @@ impl<T: Encode + ?Sized> Encode for Box<T> {
 
 impl<T: Decode> Decode for Box<T> {
     fn decode(input: &mut Decoder<'_>) -> Result<Self, CallError> {
-        Ok(Box::new(T::decode(input)?))
+        input.enter()?;
+        let value = T::decode(input);
+        input.leave();
+        Ok(Box::new(value?))
     }
 }
 
@@ -374,6 +410,39 @@ mod tests {
         round((1u8, "x".to_string(), Err::<u8, _>(4u16)));
         round(Box::new(3u32));
         round(());
+    }
+
+    #[test]
+    fn a_huge_length_does_not_reserve() {
+        // 1 MiB of argument bytes claiming a billion u64 elements: rejected (not enough bytes), and a
+        // vector that is allowed never reserves more than MAX_PREALLOC elements up front.
+        let mut d = Decoder::new(&[0x00, 0xca, 0x9a, 0x3b]);
+        assert_eq!(Vec::<u64>::decode(&mut d), Err(CallError::UnexpectedEnd));
+        let v: Vec<u64> = Decoder::vec_with(1 << 30);
+        assert!(v.capacity() <= MAX_PREALLOC);
+        let mut bytes = Vec::new();
+        enc_len(100_000, &mut bytes);
+        bytes.extend(std::iter::repeat_n(0u8, 100_000));
+        let mut d = Decoder::new(&bytes);
+        let decoded = Vec::<u8>::decode(&mut d).unwrap();
+        assert_eq!(decoded.len(), 100_000);
+    }
+
+    #[test]
+    fn deep_nesting_is_rejected() {
+        struct Chain(Option<Box<Chain>>);
+        impl Decode for Chain {
+            fn decode(input: &mut Decoder<'_>) -> Result<Self, CallError> {
+                match input.tag()? {
+                    0 => Ok(Chain(None)),
+                    _ => Ok(Chain(Some(Box::<Chain>::decode(input)?))),
+                }
+            }
+        }
+        let shallow = vec![1u8; 10].into_iter().chain([0]).collect::<Vec<_>>();
+        assert!(Chain::decode(&mut Decoder::new(&shallow)).is_ok());
+        let deep = vec![1u8; 100_000].into_iter().chain([0]).collect::<Vec<_>>();
+        assert!(matches!(Chain::decode(&mut Decoder::new(&deep)), Err(CallError::TooDeep)));
     }
 
     #[test]

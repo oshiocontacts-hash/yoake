@@ -129,6 +129,18 @@ pub struct TargetInfo {
     pub module: Vec<String>,
     /// Struct names that are the `Game` root (`&self` / `&mut self` on them take the root).
     pub roots: Vec<String>,
+    /// Setters are opt-in: type name -> the fields a guest may write. Everything else is read-only.
+    pub writable: std::collections::BTreeMap<String, Vec<String>>,
+    /// Types with no field accessors and no bound methods at all.
+    pub frozen_types: Vec<String>,
+    /// Source files that contain `unsafe`: every type defined in one is frozen.
+    pub frozen_files: Vec<String>,
+}
+
+impl TargetInfo {
+    pub fn plain(crate_name: &str, module: Vec<String>, roots: Vec<String>) -> Self {
+        Self { crate_name: crate_name.to_string(), module, roots, writable: Default::default(), frozen_types: Vec::new(), frozen_files: Vec::new() }
+    }
 }
 
 #[derive(Clone, Copy)]

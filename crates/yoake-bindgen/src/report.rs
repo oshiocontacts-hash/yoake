@@ -141,6 +141,20 @@ pub fn coverage_md(modules: &[ModuleReport<'_>], unresolved: &[String], delta_no
             }
             let _ = writeln!(out);
         }
+        let _ = writeln!(out, "### Writable fields (setters are opt-in; every other data field is read-only and its setter id is reserved as `ReadOnly`)\n");
+        let mut writable: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+        for field in m.scan.fields.iter().filter(|f| f.shape.is_some() && f.writable) {
+            writable.entry(field.owner_label.as_str()).or_default().push(field.field.as_str());
+        }
+        let read_only = m.scan.fields.iter().filter(|f| f.shape.is_some() && !f.writable).count();
+        if writable.is_empty() {
+            let _ = writeln!(out, "(none writable; {read_only} read-only field accessors)\n");
+        } else {
+            for (owner, fields) in &writable {
+                let _ = writeln!(out, "- `{}`: {}", owner, fields.iter().map(|f| format!("`{f}`")).collect::<Vec<_>>().join(", "));
+            }
+            let _ = writeln!(out, "\n{} read-only field accessors (getter only).\n", read_only);
+        }
         let excluded_fields: Vec<&FieldReport> = m.scan.fields.iter().filter(|f| f.shape.is_none()).collect();
         let _ = writeln!(out, "### Fields without accessors\n");
         if excluded_fields.is_empty() {

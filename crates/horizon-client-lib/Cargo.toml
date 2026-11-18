@@ -259,3 +259,8 @@ required-features = ["yoake2-slice"]
 name = "yoake2_glue"
 path = "../horizon-client/tests/yoake2_glue.rs"
 required-features = ["yoake2-slice"]
+
+[[test]]
+name = "yoake2_engine_call"
+path = "../horizon-client/tests/yoake2_engine_call.rs"
+required-features = ["yoake2-slice"]

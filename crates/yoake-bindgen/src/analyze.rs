@@ -93,6 +93,8 @@ pub struct FieldReport {
     pub shape: Option<Shape>,
     pub reason: Option<String>,
     pub owner_ref: ItemRef,
+    /// A guest may write it (listed `writable`); otherwise the setter id is reserved as `ReadOnly`.
+    pub writable: bool,
     /// The field's type as written in the source (stable text for the lock).
     pub ty_text: String,
 }
@@ -273,9 +275,13 @@ fn scan_fields(an: &mut Analyzer<'_>, doc: usize, id: u64, label: &str, out: &mu
             shape: None,
             reason: None,
             owner_ref: ItemRef { doc, id },
+            writable: false,
             ty_text: String::new(),
         };
-        if !params.is_empty() {
+        report.writable = an.target.writable.get(&name).is_some_and(|list| list.contains(&report.field));
+        if is_frozen(an, doc, id, &name) {
+            report.reason = Some(format!("`{name}` is frozen (no accessors, no bound methods)"));
+        } else if !params.is_empty() {
             let lifetime = params.iter().any(|p| p.pointer("/kind/lifetime").is_some());
             report.reason = Some(if lifetime { format!("`{name}` carries a lifetime (cannot be a handle type)") } else { format!("`{name}` is generic") });
         } else if let Some(field) = field_id.and_then(|f| d.item(f)) {
@@ -294,6 +300,15 @@ fn scan_fields(an: &mut Analyzer<'_>, doc: usize, id: u64, label: &str, out: &mu
         }
         out.push(report);
     }
+}
+
+/// A type is frozen when it is listed or is defined in a file that contains `unsafe`.
+fn is_frozen(an: &Analyzer<'_>, doc: usize, id: u64, name: &str) -> bool {
+    if an.target.frozen_types.iter().any(|t| t == name) {
+        return true;
+    }
+    let file = an.uni.docs[doc].item(id).and_then(|i| i.pointer("/span/filename")).and_then(Value::as_str).unwrap_or("").replace('\\', "/");
+    an.target.frozen_files.iter().any(|f| file.ends_with(&f.replace('\\', "/")))
 }
 
 fn has_attr(item: &Value, wanted: &str) -> bool {
@@ -369,6 +384,9 @@ fn analyze_fn(an: &mut Analyzer<'_>, doc: usize, id: u64, impl_id: Option<u64>, 
         match for_ty.pointer("/resolved_path/id").and_then(Value::as_u64).map(|i| uni.resolve(doc, i)) {
             Some(Res::Local(r)) if matches!(uni.doc(r).kind(r.id), Some("struct" | "enum")) => {
                 self_def = Some(r);
+                if is_frozen(an, r.doc, r.id, uni.doc(r).item_name(r.id).unwrap_or("")) {
+                    fails.push(hard("receiver type is frozen (listed, or defined in a file that contains unsafe)"));
+                }
                 let local_name = uni.doc(r).item_name(r.id).unwrap_or("");
                 is_root = uni.doc(r).name == an.target.crate_name && an.target.roots.iter().any(|root| root == local_name);
             }

@@ -26,12 +26,14 @@ fn run() -> Result<ExitCode, Box<dyn std::error::Error>> {
     let mut root = PathBuf::from(".");
     let mut check = false;
     let mut survey_crate: Option<String> = None;
+    let mut lock_base: Option<PathBuf> = None;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--config" => config_path = args.next(),
             "--root" => root = PathBuf::from(args.next().ok_or("--root needs a directory")?),
             "--check" => check = true,
+            "--lock-base" => lock_base = Some(PathBuf::from(args.next().ok_or("--lock-base needs a file")?)),
             "--survey" => survey_crate = Some(args.next().ok_or("--survey needs a crate name")?),
             other => return Err(format!("unknown argument `{other}`").into()),
         }
@@ -43,6 +45,26 @@ fn run() -> Result<ExitCode, Box<dyn std::error::Error>> {
         return survey(&config, &uni, &krate, &root);
     }
     let generated = generate(&config, &root, &uni)?;
+    if let Some(base_path) = lock_base {
+        // The append-only gate: the lock on this branch against the lock on the base branch.
+        let base = yoake_bindgen::lock::Lock::load(&base_path)?;
+        let now: yoake_bindgen::lock::Lock = serde_json::from_str(&generated.files[&PathBuf::from(&config.lock)])?;
+        let violations = now.append_only_violations(&base);
+        for v in &violations {
+            eprintln!("LOCK: {v}");
+        }
+        if !violations.is_empty() {
+            return Ok(ExitCode::from(1));
+        }
+        println!("ids.lock.json is append-only against {} ({} base ids)", base_path.display(), base.bindings.len());
+    }
+    let stale = yoake_bindgen::stale_glue_files(&config, &root);
+    for path in &stale {
+        eprintln!("STALE: {} belongs to no configured target", path.display());
+    }
+    if check && !stale.is_empty() {
+        return Ok(ExitCode::from(1));
+    }
 
     for module in &generated.modules {
         let c = yoake_bindgen::report::count(&module.scan);

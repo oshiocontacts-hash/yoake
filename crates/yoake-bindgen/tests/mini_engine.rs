@@ -17,6 +17,7 @@ fn tmp(name: &str) -> PathBuf {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(name);
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("reports")).unwrap();
+    std::fs::create_dir_all(dir.join("glue")).unwrap();
     dir
 }
 
@@ -41,7 +42,9 @@ fn rustdoc_json(dir: &Path) -> PathBuf {
 }
 
 fn config(dir: &Path, json: &Path) -> Config {
+    let writable = |list: &[&str]| list.iter().map(|s| (*s).to_string()).collect::<Vec<_>>();
     Config {
+        frozen_files: Vec::new(),
         docs: vec![json.to_string_lossy().into_owned()],
         lock: dir.join("ids.lock.json").to_string_lossy().into_owned(),
         report_dir: dir.join("reports").to_string_lossy().into_owned(),
@@ -49,8 +52,10 @@ fn config(dir: &Path, json: &Path) -> Config {
             name: "mini".into(),
             crate_name: "mini_engine".into(),
             source: "mini_engine.rs".into(),
-            glue: dir.join("glue.rs").to_string_lossy().into_owned(),
+            glue: dir.join("glue").join("glue.rs").to_string_lossy().into_owned(),
             roots: vec!["Game".into()],
+            writable: [("Thing".to_string(), writable(&["pos", "name", "scores", "locked", "opt", "big", "table", "ratio", "flag"]))].into_iter().collect(),
+            frozen_types: vec!["Sealed".into()],
         }],
     }
 }
@@ -116,15 +121,96 @@ fn generated_glue_compiles_and_every_binding_works() {
     assert!(String::from_utf8_lossy(&run.stdout).contains("all glue checks passed"));
 }
 
+fn compile_glue(dir: &Path, glue: &str) -> std::process::Output {
+    std::fs::write(dir.join("glue").join("glue.rs"), glue).unwrap();
+    let (deps, rlib) = yoake_slice_rlib();
+    Command::new("rustc")
+        .args(["--edition", "2021", "--cfg", "glue", "--crate-name", "mini_prog", "--crate-type", "bin"])
+        .arg("-L")
+        .arg(format!("dependency={}", deps.display()))
+        .arg("--extern")
+        .arg(format!("yoake_slice={}", rlib.display()))
+        .arg("-o")
+        .arg(dir.join("forbid_probe.exe"))
+        .arg(dir.join("mini_engine.rs"))
+        .output()
+        .expect("run rustc")
+}
+
+/// The compiler, not a text search, keeps the glue free of `unsafe`: the module carries
+/// `#![forbid(unsafe_code)]`, and a hand-inserted `unsafe` block fails to compile.
 #[test]
-fn glue_has_no_unsafe_and_no_raw_pointers() {
+fn glue_module_forbids_unsafe_code() {
     let dir = prepared("mini_b");
     let generated = run_generator(&dir);
-    let glue: String = generated.files[&dir.join("glue.rs")].lines().filter(|l| !l.trim_start().starts_with("//")).collect::<Vec<_>>().join("
-");
-    for banned in ["unsafe", "*mut", "*const", "transmute", "as_ptr", "from_raw"] {
-        assert!(!glue.contains(banned), "generated glue contains `{banned}`");
+    let glue = generated.files[&dir.join("glue").join("glue.rs")].clone();
+    assert!(glue.contains("#![forbid(unsafe_code)]"));
+    let ok = compile_glue(&dir, &glue);
+    assert!(ok.status.success(), "{}", String::from_utf8_lossy(&ok.stderr));
+    let probe = glue.replacen("    use yoake_slice::activation", "    fn smuggled() -> u8 {\n        unsafe { std::mem::zeroed() }\n    }\n    use yoake_slice::activation", 1);
+    assert_ne!(probe, glue);
+    let bad = compile_glue(&dir, &probe);
+    assert!(!bad.status.success(), "an unsafe block inside the glue module must not compile");
+    assert!(String::from_utf8_lossy(&bad.stderr).contains("unsafe"), "{}", String::from_utf8_lossy(&bad.stderr));
+}
+
+#[test]
+fn writable_is_opt_in_and_never_opens_identities() {
+    let dir = prepared("mini_f");
+    let json = rustdoc_json(&dir);
+    let uni_config = config(&dir, &json);
+    let uni = load_universe(&uni_config, Path::new(".")).unwrap();
+    for bad in ["id", "player_id", "uuid", "len", "index", "seq", "join", "0", "entry_index"] {
+        let mut cfg = uni_config.clone();
+        cfg.targets[0].writable.insert("Thing".into(), vec![bad.to_string()]);
+        let err = generate(&cfg, Path::new("."), &uni).err().unwrap_or_else(|| panic!("{bad} must be refused")).to_string();
+        assert!(err.contains("cannot be writable"), "{bad}: {err}");
     }
+    let mut cfg = uni_config.clone();
+    cfg.targets[0].writable.insert("Thing".into(), vec!["no_such_field".into()]);
+    assert!(generate(&cfg, Path::new("."), &uni).err().unwrap().to_string().contains("not a data field"));
+    // the lock reserves the frozen setters
+    let generated = generate(&uni_config, Path::new("."), &uni).unwrap();
+    let lock: yoake_bindgen::lock::Lock = serde_json::from_str(&generated.files[&PathBuf::from(&uni_config.lock)]).unwrap();
+    let status = |path: &str| lock.bindings.iter().find(|e| e.path == path).unwrap_or_else(|| panic!("{path}")).status.clone();
+    assert_eq!(status("mini::Thing.count#set"), "ReadOnly");
+    assert_eq!(status("mini::Thing.count#get"), "bound");
+    assert_eq!(status("mini::Thing.name#set"), "bound");
+    // and the report lists the writable fields
+    let coverage = &generated.files[&PathBuf::from(&uni_config.report_dir).join("coverage.md")];
+    assert!(coverage.contains("Writable fields") && coverage.contains("`mini::Thing`: `pos`, `name`"));
+}
+
+#[test]
+fn lock_is_append_only_against_a_base() {
+    use yoake_bindgen::lock::{Lock, LockEntry};
+    let entry = |id: u32, path: &str| LockEntry { id, path: path.into(), sig: "s".into(), status: "bound".into() };
+    let base = Lock { format: 1, rustdoc_format_version: 61, bindings: vec![entry(1, "a"), entry(2, "b")] };
+    let mut now = base.clone();
+    now.bindings.push(entry(3, "c"));
+    now.bindings[1].status = "unbound".into();
+    assert!(now.append_only_violations(&base).is_empty(), "adding and unbinding are fine");
+    let mut removed = base.clone();
+    removed.bindings.remove(0);
+    assert!(!removed.append_only_violations(&base).is_empty());
+    let mut renumbered = base.clone();
+    renumbered.bindings[1].id = 9;
+    assert!(renumbered.append_only_violations(&base).iter().any(|v| v.contains("removed") || v.contains("renumbered")));
+    let mut swapped = base.clone();
+    swapped.bindings[0].path = "x".into();
+    assert!(swapped.append_only_violations(&base).iter().any(|v| v.contains("renumbered")));
+}
+
+#[test]
+fn glue_files_of_targets_that_are_gone_are_stale() {
+    let dir = prepared("mini_g");
+    let generated = run_generator(&dir);
+    let json = dir.join("doc").join("mini_engine.json");
+    let cfg = config(&dir, &json);
+    assert!(yoake_bindgen::stale_glue_files(&cfg, Path::new(".")).is_empty(), "{:?}", generated.files.keys().collect::<Vec<_>>());
+    std::fs::write(dir.join("glue").join("old_module.rs"), "// glue of a module nobody generates any more\n").unwrap();
+    let stale = yoake_bindgen::stale_glue_files(&cfg, Path::new("."));
+    assert_eq!(stale, vec![dir.join("glue").join("old_module.rs")]);
 }
 
 #[test]
@@ -157,6 +243,7 @@ fn classifier_decisions() {
         "mini::takes_char",
         "mini::private_free",
         "mini::pass_marker",
+        "mini::node_sum",
         "mini::opt_args",
         "mini::fast",
         "mini::Thing::translate",
