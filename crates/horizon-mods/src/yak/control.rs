@@ -743,6 +743,9 @@ impl ApprovedList {
         let mut text = format!("# This launch's approved full-access packages (written by the launcher; the game reads it once).\nformat = {}\n", Self::FORMAT);
         let paths: Vec<String> = self.protected.iter().map(|p| format!("{:?}", p.to_string_lossy())).collect();
         text.push_str(&format!("protected = [{}]\n", paths.join(", ")));
+        if self.generation != 0 {
+            text.push_str(&format!("generation = {}\n", self.generation));
+        }
         for e in &self.entries {
             text.push_str(&format!("\n[[package]]\nid = {:?}\nversion = {:?}\nsha256 = {:?}\norigin = {:?}\n", e.id, e.version, e.sha256, e.origin.as_str()));
         }
@@ -1040,6 +1043,12 @@ mod tests {
             assert!(ApprovedList::parse(&text).is_err(), "{bad_origin}");
         }
         assert!(ApprovedList::parse("format = 2\n").is_err());
+        assert_eq!(ApprovedList::parse(&list.to_text()).unwrap().generation(), 0, "old files have no generation");
+        let g = list.clone().with_generation(7);
+        assert!(g.to_text().contains("generation = 7"));
+        assert_eq!(ApprovedList::parse(&g.to_text()).unwrap(), g);
+        assert!(ApprovedList::parse("format = 1\ngeneration = -1\n").is_err());
+        assert!(ApprovedList::parse("format = 1\ngeneration = \"x\"\n").is_err());
         assert!(ApprovedList::parse("").is_err(), "no format line");
         assert!(ApprovedList::parse("format = 1\n[[package]]\nid = \"x\"\nversion = \"1\"\nsha256 = \"short\"\norigin = \"local\"\n").is_err());
         // one list per launch, never overwritten
