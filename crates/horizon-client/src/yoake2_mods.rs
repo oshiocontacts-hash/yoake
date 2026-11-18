@@ -168,6 +168,9 @@ pub struct LoadReport {
     pub problems: Vec<String>,
     /// Ids of old-style approvals (no package hash) found in the switch file; they approve nothing.
     pub legacy_notes: Vec<String>,
+    /// Per loaded mod (manifest id), the hook ids it registered that no generated bridge could install
+    /// ([`install_bridges`]): the runtime keeps those registrations, but the engine never enters them.
+    pub unbridged: Vec<(String, Vec<u32>)>,
 }
 
 impl LoadReport {
@@ -181,6 +184,9 @@ impl LoadReport {
         }
         for id in &self.legacy_notes {
             lines.push(format!("full-access.toml names '{id}' without a package hash (an old entry): it approves nothing; approve the package again"));
+        }
+        for (id, hooks) in &self.unbridged {
+            lines.push(format!("full-access mod '{id}' registered hook ids {hooks:?} that this engine build cannot call (no bridge): they will never run"));
         }
         lines
     }
@@ -309,8 +315,54 @@ pub fn load_world_mods(mods_dir: &Path, approved: Option<&ApprovedList>) -> Load
         report.problems.push(format!("the launcher gave no approved list ({APPROVED_ARG} or {APPROVED_ENV}): no full-access mod will run"));
     }
     LOADED.with(|loaded| loaded.borrow_mut().extend(report.loaded.iter().map(|l| l.module)));
+    report.unbridged = install_bridges(&report.loaded);
     announce(&report);
     report
+}
+
+/// Process-wide: ledger hook id -> whether its generated dispatcher is installed. Dispatchers go into the engine's
+/// global hook slots and registering one appends to the slot's chain, so each id is tried **once per process**
+/// (a second world, or a second mod with the same id, must not add a second dispatcher: the guests would run
+/// twice). An installed dispatcher whose id no loaded mod registers (the mod was unloaded, or it runs on another
+/// thread) only looks up the empty chain and runs the original.
+static BRIDGES: std::sync::Mutex<BTreeMap<u32, bool>> = std::sync::Mutex::new(BTreeMap::new());
+
+/// After the mods' `yoake_init` registered their hook ids: installs the generated bridge dispatcher
+/// (`hook_bridge::install`, docs/yoake2/HOOK-SLICE-BRIDGE.md) of every id any of `loaded` registered, the union
+/// over the mods, each id once per process. Which mods run, and in what order, is the runtime's chain for that id;
+/// the dispatcher's own slot order uses the priority of the first mod that registered it. Returns, per mod, the
+/// ids no bridge could install (not in a bridged module, arg0 not bridgeable, see each bridge's `UNBRIDGED`).
+/// `load_world_mods` calls this; on its own it is for tests that load with [`load_dir`]. Must run on the thread
+/// the mods were loaded on.
+pub fn install_bridges(loaded: &[Loaded]) -> Vec<(String, Vec<u32>)> {
+    // id 0 is a legacy single-export guest (no `hook_register`): not a ledger id
+    let per_mod: Vec<(String, Vec<(u32, i32)>)> = loaded
+        .iter()
+        .map(|l| {
+            let registered = runtime::stats_of(l.module).map(|s| s.registered).unwrap_or_default();
+            (l.id.clone(), registered.into_iter().filter(|(id, _)| *id != 0).collect())
+        })
+        .collect();
+    let mut bridges = BRIDGES.lock().unwrap_or_else(|e| e.into_inner());
+    for (_, registered) in &per_mod {
+        for &(id, priority) in registered {
+            if !bridges.contains_key(&id) {
+                bridges.insert(id, install_bridge(id, priority));
+            }
+        }
+    }
+    per_mod
+        .into_iter()
+        .filter_map(|(mod_id, registered)| {
+            let missing: Vec<u32> = registered.iter().map(|(id, _)| *id).filter(|id| !bridges[id]).collect();
+            (!missing.is_empty()).then_some((mod_id, missing))
+        })
+        .collect()
+}
+
+/// Tries the generated bridges in turn (ledger ids are unique across crates, so at most one knows `id`).
+fn install_bridge(id: u32, priority: i32) -> bool {
+    crate::entities::hook_bridge::install(&[(id, priority)]).is_empty() || crate::game::item_use_hook_bridge::install(&[(id, priority)]).is_empty()
 }
 
 fn announce(report: &LoadReport) {

@@ -66,10 +66,21 @@ pub fn install(registered: &[(u32, i32)]) -> Vec<u32> {      // returns ids it c
 }
 ```
 
-The loader calls `install(&runtime::stats().registered)` after `runtime::install` (only ids below
-`SYNTHETIC_HOOK_BASE`), so only the slots a guest asked for get a callback; every other slot stays empty and costs one
-load. Re-installing a mod needs the S2 hot-reload generation (MX3S2 open problem 3); until then a slot keeps the
-first bridge.
+The production loader does this in `yoake2_mods::install_bridges`, called by `load_world_mods` once the world's
+mods have run `yoake_init`: it takes the union of the ids every loaded mod registered (`runtime::stats_of`, id 0 =
+legacy guest left out), tries each bridge's `install` in turn (entities, then `game::item_use`; ledger ids are unique
+across crates) and reports, per mod, the ids no bridge took (`LoadReport::unbridged`, one line each in
+`LoadReport::messages`). Only the slots a guest asked for get a callback; every other slot stays empty and costs one
+load.
+
+Registering appends to a slot's chain and nothing removes an entry (S2 hot-reload generation, MX3S2 open problem 3),
+so `install_bridges` installs each id **at most once per process** (a process-wide map id -> installed): a second
+world, or a second mod on the same id, reuses the dispatcher instead of adding another one (the guests would run
+twice). An installed dispatcher whose id no loaded mod registers any more (the mod was unloaded with its world, or the
+call comes from a thread without mods) looks up an empty chain and runs the original. Which guests run, and in what
+order, is the runtime's chain for that id (priority, then load order); the dispatcher's own slot order is the
+priority of the first mod that registered the id. Test: `yoake2_loader`
+`a_loaded_mod_that_registers_a_bridged_hook_id_is_called_by_the_engine` (approved list, two world starts).
 
 ### Which hooks are bridgeable
 
@@ -140,7 +151,6 @@ Semantics:
 
 ## Open questions
 
-- Several mods on one hook: the bridge installs one callback per registered id; ordering several guests by priority
-  is the loader's job (ENGINE_CALL_ABI says so). With one guest per thread today this is moot.
+- Several mods on one hook: answered. One dispatcher per id; the runtime's chain orders the guests (see above).
 - Arguments 1.. as guest-visible handles need `dispatch2` (exists for two args) or an n-ary dispatch; the generator
   can pick `dispatch2` when the second parameter also has a field table.

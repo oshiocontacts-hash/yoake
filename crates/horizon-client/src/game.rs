@@ -155,6 +155,9 @@ mod interactions;
 mod item_draw;
 mod item_particles;
 mod item_use;
+/// The item-use hook bridge, for the full-access loader (`yoake2_mods::install_bridges`).
+#[cfg(feature = "yoake2-slice")]
+pub(crate) use item_use::hook_bridge as item_use_hook_bridge;
 mod jigsaw_blocks;
 mod jigsaw_edit;
 mod jukebox;

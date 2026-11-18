@@ -2,10 +2,15 @@ name: yoake-callsite-verify
 
 # CALLSITE-PLAN section 6: re-run THIR on every crate with `callsites=true` modules and check that the call
 # inside each `__yoake_cs_<id>` shim still resolves to the callee recorded in the ledger. It needs one THIR
-# dump per crate (about 70 s and 4 GB for horizon_client_lib, 130 s and 6.5 GB for horizon_client), so it
-# runs by hand and when the ledger, a call-site module or the hook tools change, not on every push.
+# dump per crate (about 70 s and 4 GB for horizon_client_lib, 130 s and 6.5 GB for horizon_client at MX3CS;
+# more with every hooked fn: rustc writes the whole crate's thir-tree in one piece, there is no filter at the
+# source), so it runs by hand, weekly, and when the ledger, a call-site module or the hook tools change.
+# On a push or pull request only the call-site modules whose files or ledger shard changed are verified
+# (everything when the hook tools or the shared ledger files change); by hand and weekly, all of them.
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
   push:
     branches: ["yoake/**", "yoake2/**"]
     paths:
@@ -32,6 +37,31 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+        with:
+          # the per-module filter diffs against the push's or the pull request's base
+          fetch-depth: 0
+
+      - name: Free-space precheck (THIR scratch drive)
+        shell: pwsh
+        # yoake-hook-thir refuses to start below 10 GiB and kills rustc below 5 GiB free on the drive of --out;
+        # a dump is now several GiB. Pick the candidate with the most free space and fail early, with the
+        # numbers, when none has enough.
+        run: |
+          $need = 16GB
+          $best = $null; $bestFree = 0
+          foreach ($c in @($env:RUNNER_TEMP, 'D:\', 'C:\')) {
+            if (-not $c -or -not (Test-Path $c)) { continue }
+            $free = (Get-PSDrive (Get-Item $c).PSDrive.Name).Free
+            Write-Host ("{0}: {1:N1} GiB free" -f $c, ($free / 1GB))
+            if ($free -gt $bestFree) { $best = $c; $bestFree = $free }
+          }
+          if ($bestFree -lt $need) {
+            throw ("no drive has {0} GiB free for the THIR dump (best: {1}, {2:N1} GiB)" -f ($need / 1GB), $best, ($bestFree / 1GB))
+          }
+          $dir = Join-Path $best 'yoake-thir'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          Write-Host "THIR dumps go to $dir"
+          "YOAKE_THIR_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Locate Windows SDK shader compiler
         shell: pwsh
@@ -54,11 +84,34 @@ jobs:
 
       - name: THIR dump and shim verification per call-site module
         shell: bash
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
           thir=target/debug/yoake-hook-thir
           codemod=target/debug/yoake-hook-codemod
-          mkdir -p "$RUNNER_TEMP/thir"
+          out_dir="${YOAKE_THIR_DIR:-$RUNNER_TEMP/thir}"
+          mkdir -p "$out_dir"
+          # Per-module filter. A module is verified when one of its files or its crate's ledger shard changed;
+          # every module when the hook tools, the shared ledger files, the lock file or this workflow changed,
+          # when there is no usable base (a new branch), by hand and weekly. (A change elsewhere in a crate can
+          # in principle change what a shim's call resolves to; the weekly run covers that.)
+          base=""
+          case "$GITHUB_EVENT_NAME" in
+            pull_request) base="$PR_BASE" ;;
+            push) base="$PUSH_BEFORE" ;;
+          esac
+          all=1
+          changed=""
+          if [ -n "$base" ] && [ "${base//0/}" != "" ] && git cat-file -e "$base^{commit}" 2>/dev/null; then
+            changed=$(git diff --name-only "$base" HEAD)
+            all=0
+            if grep -qE '^(crates/yoake-hook-[^/]+/|hook-ledger/(meta\.json|modules\.txt|callsite-allow\.txt|callsite-hot-callers\.txt|track-caller\.txt)$|\.github/workflows/yoake-callsite-verify\.yml$|Cargo\.lock$|rust-toolchain)' <<<"$changed"; then
+              all=1
+            fi
+          fi
+          echo "verify all modules: $all"
           grep -v '^[[:space:]]*\(#\|$\)' hook-ledger/modules.txt | tr -d '\r' |
           while read -r root name module flags; do
             case " $flags " in *" callsites=true "*) ;; *) continue ;; esac
@@ -74,8 +127,20 @@ jobs:
             if [ -d "$src_dir/$mod_path" ]; then
               while IFS= read -r f; do files+=(--file "$f"); done < <(find "$src_dir/$mod_path" -name '*.rs' | sort)
             fi
+            if [ "$all" = 0 ]; then
+              hit=0
+              grep -qxF "hook-ledger/$name.json" <<<"$changed" && hit=1
+              for ((i = 1; i < ${#files[@]}; i += 2)); do
+                # file args can go through `..` (crates/horizon-client-lib/../horizon-client/src/...); git does not
+                grep -qxF "$(realpath -m --relative-to=. "${files[$i]}")" <<<"$changed" && hit=1
+              done
+              if [ "$hit" = 0 ]; then
+                echo "== $pkg ($name) $module: no file or ledger change, skipped"
+                continue
+              fi
+            fi
             echo "== $pkg ($name) $module: ${#files[@]} file args"
-            out="$RUNNER_TEMP/thir/$name.json"
+            out="$out_dir/$name.json"
             "$thir" dump --crate-pkg "$pkg" --crate-name "$name" --workspace . --out "$out" "${files[@]}"
             "$codemod" verify-callsites --crate-name "$name" --ledger hook-ledger --thir "$out"
           done

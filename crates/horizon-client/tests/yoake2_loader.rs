@@ -600,3 +600,56 @@ fn an_old_style_approval_does_not_load_and_the_report_says_so() {
     assert!(report.messages().iter().any(|l| l.contains("demo_old") && l.contains("without a package hash")), "{:?}", report.messages());
     assert!(names().is_empty());
 }
+
+/// A guest for ledger hook 71 (`ArmorStand::tick_settle`, bridged) and ledger hook 1 (arg0 is not `&mut T`, so not
+/// bridgeable): every entry reports `(hook id, 1)` and runs `original`.
+fn bridge_module() -> String {
+    r#"(module
+  (import "env" "original" (func $orig (param i64 i32) (result i32)))
+  (import "env" "hook_register" (func $register (param i32 i32) (result i32)))
+  (import "env" "report" (func $report (param i32 i64)))
+  (memory (export "memory") 1)
+  (func (export "yoake_init")
+    (drop (call $register (i32.const 71) (i32.const 0)))
+    (drop (call $register (i32.const 1) (i32.const 0))))
+  (func (export "yoake_hook") (param $id i32) (param $h i64) (result i64)
+    (call $report (local.get $id) (i64.const 1))
+    (drop (call $orig (local.get $h) (i32.const 64)))
+    (i64.const 0)))"#
+        .to_string()
+}
+
+#[test]
+fn a_loaded_mod_that_registers_a_bridged_hook_id_is_called_by_the_engine() {
+    use horizon_client::entities::{ArmorStand, StandMedium, StandStep};
+    use horizon_core::geometry::Vec3;
+
+    runtime::uninstall().unwrap();
+    let (control, mods) = world("bridge");
+    let fa = "server = \"bin/wasm/mod.wasm\"\nworld = \"full-access\"";
+    let bytes = std::fs::read(pack(&scratch("bridge_src"), "demo_bridge", fa, &bridge_module())).unwrap();
+    install_package(&control, &mods, "demo_bridge.yak", &bytes, Origin::Local, None).unwrap();
+    control.approve(&bytes).unwrap();
+    let file = control.approved_list(&mods).unwrap().write_for_launch(&scratch("bridge_run")).unwrap();
+    let list = ApprovedList::read(&file).unwrap();
+
+    let step = StandStep::for_hook_bench(true, 0.6);
+    let stand = || ArmorStand::new(1, Vec3::new(3.0, 64.0, 5.0), 30.0);
+    let mut baseline = stand();
+    baseline.tick_settle(StandMedium::Air, step);
+
+    // two world starts: the second unloads and reloads the mod, and must not add a second dispatcher
+    for round in 0..2 {
+        let report = load_world_mods(&mods, Some(&list));
+        assert_eq!(report.loaded.iter().map(|l| l.id.as_str()).collect::<Vec<_>>(), ["demo_bridge"], "{:?} {:?}", report.skipped, report.problems);
+        assert_eq!(report.unbridged, vec![("demo_bridge".to_string(), vec![1])], "hook 1 has no bridge, 71 has");
+        assert!(report.messages().iter().any(|l| l.contains("'demo_bridge'") && l.contains("[1]")), "{:?}", report.messages());
+        runtime::take_reports().unwrap();
+
+        let mut hooked = stand();
+        hooked.tick_settle(StandMedium::Air, step);
+        assert_eq!(hooked.velocity, baseline.velocity, "round {round}: the original ran once");
+        assert_eq!(runtime::take_reports().unwrap(), [(71, 1)], "round {round}: the guest was entered once, through the bridge");
+    }
+    runtime::uninstall().unwrap();
+}
