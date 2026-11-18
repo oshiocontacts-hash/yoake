@@ -32,6 +32,9 @@ mod yoake_test {
     }
 }
 
+#[path = "../../../../tests/support/temp_dir.rs"]
+mod test_support;
+
 #[path = "../../../horizon-client/src/dll_mods.rs"]
 mod dll_mods;
 
