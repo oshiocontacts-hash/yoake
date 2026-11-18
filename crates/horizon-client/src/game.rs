@@ -233,6 +233,8 @@ mod native_entity_moves;
 mod native_entity_data;
 mod native_entity_motion;
 pub mod native_entity_query;
+#[cfg(all(test, feature = "yoake2-slice"))]
+mod yoake2_game_tests;
 mod native_entity_refs;
 mod native_explosions;
 mod native_falling;

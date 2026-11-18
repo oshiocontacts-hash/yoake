@@ -1,0 +1,168 @@
+{
+  "docs": [
+    "target/doc/horizon_client_lib.json",
+    "target/doc/horizon_client.json",
+    "target/doc/horizon_items.json",
+    "target/doc/horizon_core.json",
+    "target/doc/horizon_world.json",
+    "target/doc/horizon_client_core.json"
+  ],
+  "lock": "crates/yoake-bindgen/ids.lock.json",
+  "report_dir": "docs/yoake2/bindgen",
+  "targets": [
+    {
+      "name": "items",
+      "crate_name": "horizon_items",
+      "source": "horizon-items/src/items.rs",
+      "glue": "crates/horizon-items/src/yoake_glue/items.rs",
+      "writable": {
+        "ItemStack": [
+          "count",
+          "damage"
+        ]
+      },
+      "guest_stubs": "crates/yoake-guest-sdk/src/stubs/items.rs"
+    },
+    {
+      "name": "entities",
+      "crate_name": "horizon_client_lib",
+      "source": "horizon-client/src/entities.rs",
+      "glue": "crates/horizon-client/src/yoake_glue/entities.rs",
+      "writable": {
+        "ArmorStand": [
+          "fire_ticks",
+          "health",
+          "position",
+          "previous",
+          "velocity",
+          "on_ground",
+          "yaw",
+          "previous_yaw",
+          "no_gravity",
+          "invisible",
+          "small",
+          "show_arms",
+          "no_base_plate",
+          "name_visible",
+          "pose",
+          "last_hit",
+          "disabled_slots"
+        ],
+        "ItemEntity": [
+          "health",
+          "fire_ticks",
+          "position",
+          "previous",
+          "velocity",
+          "on_ground",
+          "age",
+          "pickup_delay",
+          "no_gravity",
+          "bob_offset",
+          "needs_sync",
+          "stuck",
+          "ticks"
+        ]
+      },
+      "guest_stubs": "crates/yoake-guest-sdk/src/stubs/entities.rs"
+    },
+    {
+      "name": "game_items",
+      "crate_name": "horizon_client",
+      "source": "horizon-client/src/game/native_client_items.rs",
+      "glue": "crates/horizon-client/src/yoake_glue/game_items.rs",
+      "roots": [
+        "Game"
+      ],
+      "game_paths": [
+        {
+          "name": "item_entity",
+          "ty": "horizon_client_lib::entities::ItemEntity",
+          "path": [
+            "dropped"
+          ],
+          "by_id": {
+            "field": "id",
+            "ty": "u32"
+          }
+        },
+        {
+          "name": "armor_stand",
+          "ty": "horizon_client_lib::entities::ArmorStand",
+          "path": [
+            "armor_stands"
+          ],
+          "by_id": {
+            "field": "id",
+            "ty": "u32"
+          }
+        },
+        {
+          "name": "experience_orb",
+          "ty": "horizon_client_lib::entities::ExperienceOrb",
+          "path": [
+            "orbs"
+          ],
+          "by_id": {
+            "field": "id",
+            "ty": "u32"
+          }
+        },
+        {
+          "name": "painting",
+          "ty": "horizon_client_lib::entities::Painting",
+          "path": [
+            "paintings"
+          ],
+          "by_id": {
+            "field": "id",
+            "ty": "u32"
+          }
+        },
+        {
+          "name": "item_frame",
+          "ty": "horizon_client_lib::entities::ItemFrame",
+          "path": [
+            "item_frames"
+          ],
+          "by_id": {
+            "field": "id",
+            "ty": "u32"
+          }
+        },
+        {
+          "name": "cushion",
+          "ty": "horizon_client_lib::entities::Cushion",
+          "path": [
+            "cushions"
+          ],
+          "by_id": {
+            "field": "id",
+            "ty": "u32"
+          }
+        },
+        {
+          "name": "experience",
+          "ty": "horizon_client_lib::entities::Experience",
+          "path": [
+            "experience"
+          ]
+        }
+      ],
+      "guest_stubs": "crates/yoake-guest-sdk/src/stubs/game_items.rs"
+    },
+    {
+      "name": "entity_query",
+      "crate_name": "horizon_client",
+      "source": "horizon-client/src/game/native_entity_query.rs",
+      "glue": "crates/horizon-client/src/yoake_glue/entity_query.rs",
+      "roots": [
+        "Game"
+      ]
+    }
+  ],
+  "frozen_files": [
+    "horizon-client/src/dll_mods.rs",
+    "horizon-client/src/wasm_mods.rs"
+  ]
+}

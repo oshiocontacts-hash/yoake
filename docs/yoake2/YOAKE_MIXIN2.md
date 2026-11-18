@@ -140,6 +140,34 @@ Spike order: **C0** re-entrancy (core module; check that a component traps; paus
   - with 64 B of arguments, about 320–390 ns using alloc and free per call, about 130–150 ns expected with a scratch buffer.
 - **Trap rule:** disable the mod. For the activation that trapped, run the original only if it never ran; otherwise return the recorded result. Keep a per-activation record of (calls, last_result) so side effects never run twice. Never call the disabled instance again.
 
+## 4d. Owner goal (2026-11-18): close the remaining gaps with Java Mixin inside 2.0
+
+**Call-site hooks** (`@Redirect` / `@Inject` at an INVOKE). The codemod also rewrites call expressions inside hookable function bodies into call-site slots, using the same ledger, id kind `callsite`, keyed by `caller path + callee path + ordinal`. A mod can wrap, replace or cancel one call inside one function, before or after it. Variables:
+- field writes (`self.x = …`) get optional `store` sites;
+- arguments and returns of calls are already covered by call-site hooks.
+
+Locals in general are not exposed; that covers most `@ModifyVariable` use. Empty sites cost the same as function slots.
+
+**Unbindable functions**, about 20–35 % today:
+- generics: bind the concrete instantiations the engine actually uses, collected at build time;
+- closures and `dyn Fn` arguments: a guest-callback handle (re-entry proven in C0);
+- reference returns: child handles that lock their parent;
+- `impl Trait` and iterators: an iterator handle (`next`) or collect-to-list adapters;
+- private fields: generated getters and setters;
+- hot tiny functions: no slot of their own, reached through their callers' call-site hooks.
+
+The ledger and codemod being built now (yoake2/ids) must support the `callsite` and `store` id kinds from the start. Estimated extra: +2–4 weeks inside the 2.0 schedule.
+
+## 4e. Generator inside the engine (MX3G1, 2026-11-18)
+
+The C1 generator now lives in `crates/yoake-bindgen` (a build-time tool). It reads rustdoc JSON (stable toolchain, `RUSTC_BOOTSTRAP=1`, `--document-private-items`) and writes one glue file per module, which the engine `include!`s inside that module under the `yoake2-slice` feature: private items stay reachable, default builds are unchanged. Two modules are bound in the real engine (`horizon_items::items`, `horizon_client_lib::entities`), plus the two `Game` modules `native_client_items` and `native_entity_query`.
+
+- **Classifier:** plain data is any non-generic struct or enum whose fields are visible from the module and are data (tuple, unit and data-carrying enums included), plus `Vec`/`Option`/`Result`/`Box`/`Arc`/`Rc`/maps/sets/tuples/arrays. A non-`Game` receiver is a handle, not an exclusion. Bound functions split into basic (a) and mechanical (b); handle-required and excluded functions are listed with reasons. Real numbers: `docs/yoake2/bindgen/coverage.md`.
+- **Receivers:** `&self`/`&mut self` on a handle type is reached through `yoake_slice::activation::with_arg` (a `TypeId`-checked, lent argument of the current activation); the `Game` root gets `call_game(&mut Game, id, ..)`. Generated code has no `unsafe` and no raw pointers. Accessor paths from `Game` are reported, not yet resolved.
+- **Fields:** getters and setters for every plain-data field of the structs in the module, private ones included, plus a scalar `FieldTable` per type.
+- **Ids:** `crates/yoake-bindgen/ids.lock.json`; ids are never reused or renumbered, removed bindings stay as `unbound`, signature changes are reported.
+- **CI:** `cargo test -p yoake-bindgen --test engine -- --ignored` regenerates from the real engine, fails on any diff and runs `cargo check` with the feature on. Report: `docs/yoake2/reports/MX3G1.md`.
+
 ## 5. Open questions (要確認)
 
 - The first author list besides the owner (for example rumda500).

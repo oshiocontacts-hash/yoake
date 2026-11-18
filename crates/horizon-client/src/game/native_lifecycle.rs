@@ -219,6 +219,8 @@ impl Game<'_> {
 
     pub(super) fn native_lifecycle_world_ready(&mut self) {
         if let Some(context) = self.native_lifecycle.world_open_ready() {
+            // MX3L1: full-access mods of the world's mods folder load here (empty without the yoake2 feature)
+            self.yoake2_world_start_hook();
             self.native_world_lifecycle(&context, WorldPhase::WorldOpenReady, "");
         }
     }
@@ -271,6 +273,8 @@ impl Game<'_> {
 
     pub(super) fn native_lifecycle_server_tick_start(&mut self, world_running: bool) {
         if let Some((context, phase)) = self.native_lifecycle.server_tick_start(world_running) {
+            // MX3K1: the one call site of the Game-root hook; the method is empty unless the yoake2 feature is on
+            self.yoake2_tick_hook();
             self.native_lifecycle.read_scope = true;
             self.native_server_tick(&context, phase);
             self.native_lifecycle.read_scope = false;

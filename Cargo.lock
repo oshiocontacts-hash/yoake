@@ -1661,6 +1661,7 @@ dependencies = [
  "yoake-hook-rt",
  "yoake-inject-macro",
  "yoake-inject-rt",
+ "yoake-slice",
  "yoake-test-runner",
  "yoake-wasm",
  "zip",
@@ -1745,6 +1746,7 @@ dependencies = [
  "yoake-hook-rt",
  "yoake-inject-macro",
  "yoake-inject-rt",
+ "yoake-slice",
  "yoake-state",
  "zip",
 ]
@@ -1884,6 +1886,7 @@ dependencies = [
  "serde_json",
  "yoake-inject-macro",
  "yoake-inject-rt",
+ "yoake-slice",
 ]
 
 [[package]]
@@ -4873,6 +4876,7 @@ checksum = "4f5fa0a054ae153606df820eb0a84213e28cda41bbe04ba2628e71b6ba100fcb"
 dependencies = [
  "bitflags 2.13.2",
  "indexmap",
+ "semver",
 ]
 
 [[package]]
@@ -4924,6 +4928,7 @@ dependencies = [
  "wasmtime-internal-jit-icache-coherence",
  "wasmtime-internal-unwinder",
  "wasmtime-internal-versioned-export-macros",
+ "wat",
  "windows-sys 0.61.2",
 ]
 
@@ -6138,6 +6143,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "yoake-bindgen"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "yoake-slice",
+]
+
+[[package]]
 name = "yoake-callsite-match"
 version = "0.1.0"
 dependencies = [
@@ -6158,6 +6172,13 @@ name = "yoake-dll-net-echo"
 version = "0.1.0"
 dependencies = [
  "horizon-mod-sdk",
+]
+
+[[package]]
+name = "yoake-guest-sdk"
+version = "0.0.0"
+dependencies = [
+ "yoake-slice",
 ]
 
 [[package]]
@@ -6232,6 +6253,13 @@ dependencies = [
  "sha2",
  "syn 2.0.119",
  "yoake-value",
+]
+
+[[package]]
+name = "yoake-slice"
+version = "0.0.0"
+dependencies = [
+ "wasmtime",
 ]
 
 [[package]]

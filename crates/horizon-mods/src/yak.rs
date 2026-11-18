@@ -30,7 +30,7 @@ pub use installed::{
     check_installed_tree, check_plain_path, hash_installed_file, trusted_keys, verify_installed,
 };
 pub use manifest::{
-    Bin, Http, MAX_WASM_SIZE, Manifest, Mixin, OptionValue, SUPPORTED_WASM_INTERFACE, Service, Shader,
+    Bin, FULL_ACCESS_WORLD, Http, MAX_WASM_SIZE, Manifest, Mixin, OptionValue, SUPPORTED_WASM_INTERFACE, Service, Shader,
     ShaderOption, Side, Target, Wasm, Yoake,
 };
 pub use pack::pack_directory;
@@ -137,6 +137,21 @@ impl<Reader: Read + Seek> Archive<Reader> {
 
     pub fn canonical_hash_list(&self) -> String {
         canonical_hashes(self.hashes())
+    }
+
+    /// The bytes of a full-access mod's core module (`[wasm] world = "full-access"`), or `None` for any other
+    /// package. Reading is bounded by [`MAX_WASM_SIZE`]; nothing is run or verified here.
+    pub fn full_access_module(&mut self) -> Result<Option<Vec<u8>>, String> {
+        let Some(path) = self
+            .manifest
+            .wasm
+            .as_ref()
+            .filter(|wasm| wasm.full_access())
+            .and_then(|wasm| wasm.server.clone())
+        else {
+            return Ok(None);
+        };
+        self.container.read_small(&path, MAX_WASM_SIZE).map(Some)
     }
 
     pub fn signature(&self) -> Option<&Signature> {

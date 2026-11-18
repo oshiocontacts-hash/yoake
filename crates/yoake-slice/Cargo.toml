@@ -1,0 +1,31 @@
+[package]
+name = "yoake-slice"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Yoake 2.0 vertical slice (MX3V1): hook activations with HookArg handles, plus a core-module WASM runtime. Used only behind the `yoake2-slice` feature of horizon-client-lib."
+publish = false
+
+[features]
+default = []
+# The wasmtime runtime. Without it the crate is the pure activation arena (no dependencies).
+wasm = ["dep:wasmtime"]
+
+[dependencies]
+wasmtime = { version = "=48.0.7", optional = true, default-features = false, features = ["runtime", "cranelift", "std", "wat"] }
+
+[lints]
+workspace = true
+
+[[test]]
+name = "slice"
+required-features = ["wasm"]
+
+[[example]]
+name = "slice_bench"
+required-features = ["wasm"]
+
+[[test]]
+name = "multi"
+required-features = ["wasm"]

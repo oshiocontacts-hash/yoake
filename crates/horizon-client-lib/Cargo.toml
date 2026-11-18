@@ -18,6 +18,7 @@ yoake-hook-ledger = { path = "../yoake-hook-ledger" }
 [dependencies]
 yoake-hook-macro = { path = "../yoake-hook-macro" }
 yoake-hook-rt = { path = "../yoake-hook-rt" }
+yoake-slice = { path = "../yoake-slice", optional = true, features = ["wasm"] }
 yoake-inject-macro = { path = "../yoake-inject-macro" }
 yoake-inject-rt = { path = "../yoake-inject-rt" }
 horizon-assets = { path = "../horizon-assets" }
@@ -116,6 +117,8 @@ yoake-hook-baseline = []
 # Turns only the call-site hooks off (fn hooks stay): the baseline of the call-site bench gate.
 yoake-callsite-baseline = []
 yoake-hook-bench = []
+# MX3V1 vertical slice: a WASM core module hooks ArmorStand::tick_settle (docs/yoake2/reports/MX3V1.md). Off by default.
+yoake2-slice = ["dep:yoake-slice", "yoake-hook-bench", "horizon-items/yoake2-slice"]
 dev-capture = ["horizon-client-render/dev-capture", "horizon-protocol/dev-capture"]
 default = ["audio", "controllers"]
 # Sound output. Without it (and `controllers`) the program links neither libasound nor libudev on
@@ -251,3 +254,18 @@ path = "../horizon-client/tests/wide_states.rs"
 [[example]]
 name = "chunk_encoding_bench"
 path = "../horizon-client/examples/chunk_encoding_bench.rs"
+
+[[test]]
+name = "yoake2_slice"
+path = "../horizon-client/tests/yoake2_slice.rs"
+required-features = ["yoake2-slice"]
+
+[[test]]
+name = "yoake2_glue"
+path = "../horizon-client/tests/yoake2_glue.rs"
+required-features = ["yoake2-slice"]
+
+[[test]]
+name = "yoake2_engine_call"
+path = "../horizon-client/tests/yoake2_engine_call.rs"
+required-features = ["yoake2-slice"]

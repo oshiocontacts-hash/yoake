@@ -1,0 +1,54 @@
+[
+  {
+    "label": "items",
+    "total": 69,
+    "bound_a": 7,
+    "bound_mech": 13,
+    "handle_required": 15,
+    "excluded": 34,
+    "derived": 21,
+    "derived_bound": 8,
+    "fields_total": 90,
+    "fields_bound": 73,
+    "handle_types": 9
+  },
+  {
+    "label": "entities",
+    "total": 101,
+    "bound_a": 30,
+    "bound_mech": 25,
+    "handle_required": 32,
+    "excluded": 14,
+    "derived": 23,
+    "derived_bound": 9,
+    "fields_total": 97,
+    "fields_bound": 85,
+    "handle_types": 13
+  },
+  {
+    "label": "game_items",
+    "total": 5,
+    "bound_a": 5,
+    "bound_mech": 0,
+    "handle_required": 0,
+    "excluded": 0,
+    "derived": 0,
+    "derived_bound": 0,
+    "fields_total": 0,
+    "fields_bound": 0,
+    "handle_types": 0
+  },
+  {
+    "label": "entity_query",
+    "total": 20,
+    "bound_a": 1,
+    "bound_mech": 6,
+    "handle_required": 4,
+    "excluded": 9,
+    "derived": 10,
+    "derived_bound": 6,
+    "fields_total": 43,
+    "fields_bound": 14,
+    "handle_types": 4
+  }
+]
