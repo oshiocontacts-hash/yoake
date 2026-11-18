@@ -20,6 +20,7 @@ pub mod ids;
 pub mod item;
 pub mod mod_list;
 pub mod mod_net;
+pub mod mod_transfer;
 pub mod packets;
 pub mod quiet;
 pub mod registry;
