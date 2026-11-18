@@ -41,6 +41,7 @@ fn engine(t: &mut Thing) {
 fn module(priority: i32, add: i32) -> String {
     format!(
         r#"(module
+  (@custom "yoake_abi" "\01\00\00\00")
   (import "env" "original" (func $orig (param i64 i32) (result i32)))
   (import "env" "get" (func $get (param i64 i32 i32) (result i32)))
   (import "env" "set" (func $set (param i64 i32 i64) (result i32)))
@@ -607,6 +608,7 @@ fn an_old_style_approval_does_not_load_and_the_report_says_so() {
 /// `(hook id, 1)` and runs `original`.
 fn bridge_module() -> String {
     r#"(module
+  (@custom "yoake_abi" "\01\00\00\00")
   (import "env" "original" (func $orig (param i64 i32) (result i32)))
   (import "env" "hook_register" (func $register (param i32 i32) (result i32)))
   (import "env" "report" (func $report (param i32 i64)))
@@ -659,6 +661,95 @@ fn a_loaded_mod_that_registers_a_bridged_hook_id_is_called_by_the_engine() {
         hooked.tick_settle(StandMedium::Air, step);
         assert_eq!(hooked.velocity, baseline.velocity, "round {round}: the original ran once");
         assert_eq!(runtime::take_reports().unwrap(), [(71, 1)], "round {round}: the guest was entered once, through the bridge");
+    }
+    runtime::uninstall().unwrap();
+}
+
+/// A stand-in for the `Game` root: the server tick dispatches `runtime::dispatch_root_id(HOOK_SERVER_TICK, game, ..)`
+/// (native_client_items.rs) and a real `Game` needs the game resources. No paths resolve.
+struct TickRoot;
+
+impl yoake_slice::activation::PathRoot for TickRoot {
+    fn resolve(
+        &mut self,
+        _: &[yoake_slice::activation::Accessor],
+        _: &mut dyn FnMut(&mut dyn std::any::Any),
+    ) -> Result<(), yoake_slice::activation::Status> {
+        Err(yoake_slice::activation::Status::Stale)
+    }
+}
+
+#[test]
+fn a_loaded_mod_on_the_server_tick_is_told_full_is_not_unbridged_and_runs_on_tick() {
+    runtime::uninstall().unwrap();
+    let (control, mods) = world("server_tick");
+    let tick = runtime::HOOK_SERVER_TICK as i32;
+    let wat = format!(
+        r#"(module
+  (@custom "yoake_abi" "\01\00\00\00")
+  (import "env" "hook_register" (func $register (param i32 i32) (result i32)))
+  (import "env" "report" (func $report (param i32 i64)))
+  (memory (export "memory") 1)
+  (func (export "yoake_init")
+    (call $report (i32.const 500) (i64.extend_i32_s (call $register (i32.const {tick}) (i32.const 0)))))
+  (func (export "yoake_hook") (param $id i32) (param $h i64) (result i64)
+    (call $report (i32.const 1) (i64.extend_i32_u (local.get $id)))
+    (i64.const 0)))"#
+    );
+    let fa = "server = \"bin/wasm/mod.wasm\"\nworld = \"full-access\"";
+    let bytes = std::fs::read(pack(&scratch("server_tick_src"), "demo_tick", fa, &wat)).unwrap();
+    install_package(&control, &mods, "demo_tick.yak", &bytes, Origin::Local, None).unwrap();
+    control.approve(&bytes).unwrap();
+    let file = control.approved_list(&mods).unwrap().write_for_launch(&scratch("server_tick_run")).unwrap();
+    let report = load_world_mods(&mods, Some(&ApprovedList::read(&file).unwrap()));
+    assert_eq!(report.loaded.len(), 1, "{:?} {:?}", report.skipped, report.problems);
+    assert!(report.unbridged.is_empty(), "the server tick needs no bridge: {:?}", report.unbridged);
+    assert!(report.messages().is_empty(), "{:?}", report.messages());
+    assert_eq!(runtime::take_reports().unwrap(), [(500, 0)], "hook_register said Full (0), not NOT_CALLABLE (2)");
+
+    // what Game::yoake2_server_tick does every tick
+    for _ in 0..2 {
+        runtime::dispatch_root_id(runtime::HOOK_SERVER_TICK, &mut TickRoot, &mut |_| 0);
+    }
+    assert_eq!(runtime::take_reports().unwrap(), [(1, i64::from(runtime::HOOK_SERVER_TICK)); 2], "entered on each tick");
+    runtime::uninstall().unwrap();
+}
+
+/// [`module`] with the `yoake_abi` section line replaced by `section` (empty: no section).
+fn module_with_abi(section: &str) -> String {
+    module(10, 1).replace(r#"(@custom "yoake_abi" "\01\00\00\00")"#, section)
+}
+
+#[test]
+fn the_loader_checks_the_abi_version_before_any_guest_code_runs() {
+    runtime::uninstall().unwrap();
+    let fa = "server = \"bin/wasm/mod.wasm\"\nworld = \"full-access\"";
+    let cases = [
+        // (name, section, loads)
+        ("abi_same", r#"(@custom "yoake_abi" "\01\00\00\00")"#, true),
+        ("abi_newer_minor", r#"(@custom "yoake_abi" "\01\00\05\00")"#, true),
+        ("abi_major_2", r#"(@custom "yoake_abi" "\02\00\00\00")"#, false),
+        ("abi_major_0", r#"(@custom "yoake_abi" "\00\00\09\00")"#, false),
+        ("abi_missing", "", false),
+        ("abi_short", r#"(@custom "yoake_abi" "\01\00\00")"#, false),
+    ];
+    for (name, section, loads) in cases {
+        let (control, mods) = world(name);
+        let bytes = std::fs::read(pack(&scratch(&format!("{name}_src")), name, fa, &module_with_abi(section))).unwrap();
+        install_package(&control, &mods, &format!("{name}.yak"), &bytes, Origin::Local, None).unwrap();
+        control.approve(&bytes).unwrap();
+        let file = control.approved_list(&mods).unwrap().write_for_launch(&scratch(&format!("{name}_run"))).unwrap();
+        let report = load_world_mods(&mods, Some(&ApprovedList::read(&file).unwrap()));
+        if loads {
+            assert_eq!(report.loaded.len(), 1, "{name}: {:?}", report.skipped);
+            let newer = report.messages().iter().any(|l| l.contains("was built for ABI 1.5"));
+            assert_eq!(newer, name == "abi_newer_minor", "{name}: {:?}", report.messages());
+        } else {
+            assert!(report.loaded.is_empty(), "{name}");
+            assert!(matches!(&report.skipped[..], [(_, Refusal::Abi(_))]), "{name}: {:?}", report.skipped);
+            assert!(names().is_empty(), "{name}: never instantiated");
+            assert!(report.messages().iter().any(|l| l.contains("incompatible ABI")), "{name}: {:?}", report.messages());
+        }
     }
     runtime::uninstall().unwrap();
 }

@@ -99,6 +99,13 @@ fn a_rust_guest_compiles_to_a_core_module_and_registers_its_hooks() {
 }
 
 #[test]
+fn rustc_and_wasm_ld_retain_the_sdk_abi_section() {
+    let wasm = build_guest("reentry");
+    assert_eq!(runtime::ABI_VERSION, runtime::AbiVersion { major: 1, minor: 0 });
+    assert_eq!(runtime::module_abi_version(&wasm).unwrap(), Some(runtime::ABI_VERSION));
+}
+
+#[test]
 fn shadow_stack_and_heap_survive_host_guest_original_nested_hook_same_guest() {
     install(&build_guest("reentry"));
     let mut thing = Thing { count: 0 };

@@ -191,15 +191,20 @@ fn sdk_guest_reaches_function_and_callsite_hooks_and_originals_run() {
 /// A guest on ledger hook `id` whose `yoake_hook` reports `(1, 1)` on entry and then runs `body` (which must leave
 /// the i64 result on the stack). `$orig` calls the original through the handle.
 fn wat_guest(id: u32, body: &str) -> String {
+    wat_guest_with(id, 0, 1, body)
+}
+
+/// [`wat_guest`] with the registration priority and the report slot chosen (for several mods on one id).
+fn wat_guest_with(id: u32, priority: i32, slot: i32, body: &str) -> String {
     format!(
         r#"(module
   (import "env" "original" (func $orig (param i64 i32) (result i32)))
   (import "env" "hook_register" (func $register (param i32 i32) (result i32)))
   (import "env" "report" (func $report (param i32 i64)))
   (memory (export "memory") 1)
-  (func (export "yoake_init") (drop (call $register (i32.const {id}) (i32.const 0))))
+  (func (export "yoake_init") (drop (call $register (i32.const {id}) (i32.const {priority}))))
   (func (export "yoake_hook") (param $id i32) (param $h i64) (result i64)
-    (call $report (i32.const 1) (i64.const 1))
+    (call $report (i32.const {slot}) (i64.const 1))
     {body}))"#
     )
 }
@@ -335,4 +340,67 @@ fn a_bool_result_is_replaced_by_the_guest_and_out_of_range_values_keep_the_origi
         assert!(!stand().name_with_tag(&stone()));
     });
     runtime::uninstall().unwrap();
+}
+
+// ---- Observe-only (call site 215: `ItemEntity::hurt(1)` inside `ItemEntity::environment_tick`; a burning item at
+// health 5 loses one point per tick). The real original runs exactly once per call whatever the guest does.
+
+/// One `environment_tick` of a burning item (health 5, fire 20): the item's health afterwards.
+fn burn_once() -> i32 {
+    let (world, facts, registry, items) = fixture();
+    let mut item = item();
+    let environment = item.environment_tick(&world, &facts, &registry, &items);
+    assert!(environment.alive);
+    i32::from(item.health)
+}
+
+#[test]
+fn observe_only_runs_the_original_exactly_once_whatever_the_guest_does() {
+    assert_eq!(burn_once(), 4, "without a guest: hurt once");
+    let cases = [
+        ("original not called: it runs after the guest", "(i64.const 0)".to_string(), false),
+        ("original called twice: the second call does not hurt again", format!("{CALL_ORIGINAL} {CALL_ORIGINAL} (i64.const 0)"), false),
+        ("a trap before original: the original still runs", "(unreachable)".to_string(), true),
+        ("a trap after original: not run again", format!("{CALL_ORIGINAL} (unreachable)"), true),
+        ("the guest's value is ignored", format!("{CALL_ORIGINAL} (i64.const 77)"), false),
+    ];
+    for (what, body, traps) in cases {
+        with_guest(215, &body, || {
+            assert_eq!(burn_once(), 4, "{what}");
+            assert_eq!(entries(), 1, "{what}");
+            assert_eq!(runtime::stats().disabled, traps, "{what}");
+        });
+    }
+    runtime::uninstall().unwrap();
+}
+
+#[test]
+fn two_mods_on_one_bridged_id_share_one_dispatcher_and_both_run_once() {
+    let one = settled(1).velocity;
+    runtime::uninstall().unwrap();
+    // two mods on hook 71: the outer one (priority 10) calls original, which runs the inner one (20), which calls the
+    // real original; each reports its own slot
+    runtime::load(wat_guest_with(71, 10, 10, &format!("{CALL_ORIGINAL} (i64.const 0)")).as_bytes(), ModConfig::new(""), "outer").unwrap();
+    runtime::load(wat_guest_with(71, 20, 20, &format!("{CALL_ORIGINAL} (i64.const 0)")).as_bytes(), ModConfig::new(""), "inner").unwrap();
+    // the loader installs per mod: the second install of 71 reuses the first dispatcher
+    for (_, _, stats) in runtime::all_stats() {
+        assert_eq!(hook_bridge::install(&stats.registered).installed, [71]);
+    }
+    assert_eq!(hooked_settle().velocity, one, "the real original ran once");
+    let all = runtime::take_reports().unwrap();
+    assert_eq!((reports(&all, 10).len(), reports(&all, 20).len()), (1, 1), "each mod entered once: {all:?}");
+
+    // the outer mod does not call original: the inner one and the engine do not run (a Full hook is cancelled)
+    runtime::uninstall().unwrap();
+    runtime::load(wat_guest_with(71, 10, 10, "(i64.const 0)").as_bytes(), ModConfig::new(""), "outer").unwrap();
+    runtime::load(wat_guest_with(71, 20, 20, &format!("{CALL_ORIGINAL} (i64.const 0)")).as_bytes(), ModConfig::new(""), "inner").unwrap();
+    assert_eq!(hooked_settle().velocity, settled_without_guest_zero(), "cancelled by the outer mod");
+    let all = runtime::take_reports().unwrap();
+    assert_eq!((reports(&all, 10).len(), reports(&all, 20).len()), (1, 0), "{all:?}");
+    runtime::uninstall().unwrap();
+}
+
+/// The velocity of a stand that did not settle (computed without running the hooked function).
+fn settled_without_guest_zero() -> Vec3 {
+    stand().velocity
 }

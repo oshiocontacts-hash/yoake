@@ -51,6 +51,126 @@ use wasmtime::{
 
 type R<T> = std::result::Result<T, Error>;
 
+/// The engine-call ABI version declared by a guest or supported by this engine.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AbiVersion {
+    pub major: u16,
+    pub minor: u16,
+}
+
+/// The ABI implemented by this engine.
+pub const ABI_VERSION: AbiVersion = AbiVersion { major: 1, minor: 0 };
+
+/// An invalid WASM module or malformed `yoake_abi` custom section.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AbiError {
+    message: String,
+}
+
+impl AbiError {
+    fn new(message: impl Into<String>) -> Self {
+        Self { message: message.into() }
+    }
+}
+
+impl std::fmt::Display for AbiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for AbiError {}
+
+/// The compatibility decision for a guest's declared ABI version.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum AbiCheck {
+    Ok,
+    OkNewerMinor,
+    OkOlderMinor,
+    Refuse(String),
+}
+
+/// Checks a guest version against [`ABI_VERSION`]. The caller handles a missing version section.
+pub fn check_abi(guest: AbiVersion) -> AbiCheck {
+    if guest.major != ABI_VERSION.major {
+        return AbiCheck::Refuse(format!(
+            "guest ABI {}.{} has major version {}, but engine ABI {}.{} requires major version {}",
+            guest.major, guest.minor, guest.major, ABI_VERSION.major, ABI_VERSION.minor, ABI_VERSION.major
+        ));
+    }
+    match guest.minor.cmp(&ABI_VERSION.minor) {
+        std::cmp::Ordering::Equal => AbiCheck::Ok,
+        std::cmp::Ordering::Greater => AbiCheck::OkNewerMinor,
+        std::cmp::Ordering::Less => AbiCheck::OkOlderMinor,
+    }
+}
+
+fn read_abi_leb_u32(bytes: &[u8], offset: &mut usize) -> Result<u32, AbiError> {
+    let mut value = 0u32;
+    for shift in [0, 7, 14, 21, 28] {
+        let byte = *bytes.get(*offset).ok_or_else(|| AbiError::new("truncated LEB128 u32"))?;
+        *offset += 1;
+        if shift == 28 && byte > 0x0f {
+            return Err(AbiError::new("LEB128 u32 overflows 32 bits"));
+        }
+        value |= u32::from(byte & 0x7f) << shift;
+        if byte & 0x80 == 0 {
+            return Ok(value);
+        }
+    }
+    Err(AbiError::new("invalid LEB128 u32"))
+}
+
+/// Reads the `yoake_abi` custom section without running guest code.
+///
+/// The payload is exactly four bytes: the major and minor versions as little-endian `u16`s.
+/// Returns `None` when the section is absent, and rejects malformed or duplicate version sections.
+pub fn module_abi_version(wasm_or_wat: &[u8]) -> Result<Option<AbiVersion>, AbiError> {
+    let parsed = wat::parse_bytes(wasm_or_wat).map_err(|error| AbiError::new(format!("invalid WASM or WAT: {error}")))?;
+    let wasm = parsed.as_ref();
+    const HEADER: &[u8; 8] = b"\0asm\x01\0\0\0";
+    if wasm.get(..8) != Some(HEADER.as_slice()) {
+        return Err(AbiError::new("invalid WASM magic or version"));
+    }
+
+    let mut offset = 8;
+    let mut version = None;
+    while offset < wasm.len() {
+        let id = wasm[offset];
+        offset += 1;
+        let size = read_abi_leb_u32(wasm, &mut offset)? as usize;
+        let end = offset
+            .checked_add(size)
+            .filter(|end| *end <= wasm.len())
+            .ok_or_else(|| AbiError::new("WASM section extends past the end of the module"))?;
+        if id == 0 {
+            let name_len = read_abi_leb_u32(wasm, &mut offset)? as usize;
+            let name_end = offset
+                .checked_add(name_len)
+                .filter(|name_end| *name_end <= end)
+                .ok_or_else(|| AbiError::new("custom-section name extends past the section"))?;
+            if &wasm[offset..name_end] == b"yoake_abi" {
+                if version.is_some() {
+                    return Err(AbiError::new("module contains more than one yoake_abi section"));
+                }
+                let payload = &wasm[name_end..end];
+                if payload.len() != 4 {
+                    return Err(AbiError::new(format!(
+                        "yoake_abi section has {} payload bytes; expected 4",
+                        payload.len()
+                    )));
+                }
+                version = Some(AbiVersion {
+                    major: u16::from_le_bytes([payload[0], payload[1]]),
+                    minor: u16::from_le_bytes([payload[2], payload[3]]),
+                });
+            }
+        }
+        offset = end;
+    }
+    Ok(version)
+}
+
 #[derive(Clone, Debug)]
 pub struct ModConfig {
     /// Name of the guest export `(i64) -> i64` that is the hook.

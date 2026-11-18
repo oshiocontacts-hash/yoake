@@ -3,6 +3,26 @@
 For guests (core WASM modules) that call generated engine bindings. Imports are in module `env`. Read this before
 writing a retry loop: **there is no retry**.
 
+## ABI version
+
+Every full-access guest declares its ABI in a WASM custom section named `yoake_abi`. Its payload is exactly four bytes:
+the major version as a little-endian `u16`, then the minor version as a little-endian `u16`. The current engine and Rust
+SDK version is **1.0**, encoded as `01 00 00 00`; this includes the hook modes and read-only arguments described below.
+A WAT guest writes `(@custom "yoake_abi" "\01\00\00\00")`, and the Rust SDK's `export_guest!` emits the section.
+
+The loader reads this section directly from the module bytes, without running guest code, and checks it before
+`yoake_init` runs:
+
+- No section, a payload of the wrong length, duplicate `yoake_abi` sections, or a malformed section: refuse the module.
+- A different major version: refuse it as incompatible.
+- The same major and minor version: load it.
+- The same major and a newer guest minor: load it, but log that the mod expects a newer engine. It may use calls that
+  this engine refuses with the unknown-binding status.
+- The same major and an older guest minor: load it; minor additions are backwards compatible. Log at most an info line.
+
+Adding a new import, binding, or status is a **minor** change. Changing or removing an existing import or binding,
+changing a status's meaning, or changing the wire format is a **major** change.
+
 ## `engine_call(handle: i64, id: i32, ptr: i32, len: i32, out_ptr: i32, out_cap: i32) -> i32`
 
 Runs binding `id` (ids come from `crates/yoake-bindgen/ids.lock.json`, append-only, never reused).
@@ -88,8 +108,10 @@ mean that it was not registered: `-1` outside `yoake_init`, `-2` over the regist
   An upstream guest's `original` runs the next guest, not necessarily the real original: the real original runs only
   when that call reaches the end of the live chain. If an upstream guest does not call `original`, downstream guests
   do not run during that activation. After the outermost guest returns, the bridge runs the real original directly if
-  no chain call reached it; this fallback does not run skipped downstream guests. If the real original ran more than
-  once through repeated `original` calls, its last result is used.
+  no chain call reached it; this fallback does not run skipped downstream guests. The real original runs **at most
+  once** per call: when a later `original` reaches it again (the same guest calling `original` twice, or two guests of
+  the chain), it is not run again and that call returns `0`; the first result is kept. A side effect of the original
+  (call site 215 hurts an item) happens once.
 - **NotCallable**: registration is harmless and is included in the loader's report, but this engine build has no
   callable bridge for the id, so its hook will not be entered.
 
@@ -100,6 +122,9 @@ numeric value and must fit the result type; `u64` uses its two's-complement 64-b
 its bits as a value in `0..=u32::MAX`; and `f64` uses its 64-bit pattern. A guest result outside the decodable range
 (for example `2` for `bool`, a negative `u8`, or a negative `f32` bit pattern) is rejected. The bridge then uses the
 original's result, running the original if it has not run, and counts the rejection in `bridge::out_of_range_count`.
+That direct run skips the rest of the chain: when the guest that returned the bad value did not call `original`, the
+guests after it do not run for this call. A guest that passes the original's own result through unchanged is never
+out of range (a `usize` above `i64::MAX` comes back as the same negative `i64`; it is accepted and not counted).
 
 ## Read-only hook arguments
 
@@ -111,6 +136,11 @@ argument. The direct `get` / `set` imports return `0` on success or the positive
 mutable receiver requested by `engine_call` on a shared argument is refused as `-23` (`HANDLE_BASE - 7`), and the
 binding does not run. This is distinct from `engine_call` status `-4`, which means a setter targets a field that is
 read-only in the binding schema. A shared activation never turns its `&T` into `&mut T`.
+
+So today a shared argument cannot be used with `engine_call` at all: every generated binding takes its receiver
+through `with_arg` (`&mut T`), and that is refused. This is deliberate. A later `with_arg_ref` for `&self` bindings
+must hand out only `&T` (never build a `&mut T` from the shared pointer), and only to bindings whose receiver is
+`&self`.
 
 ## The Rust guest SDK
 
