@@ -1737,6 +1737,8 @@ dependencies = [
  "ureq",
  "wgpu",
  "winit",
+ "yoake-hook-macro",
+ "yoake-hook-rt",
  "yoake-inject-macro",
  "yoake-inject-rt",
  "yoake-state",
@@ -6143,6 +6145,22 @@ name = "yoake-dll-net-echo"
 version = "0.1.0"
 dependencies = [
  "horizon-mod-sdk",
+]
+
+[[package]]
+name = "yoake-hook-macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "yoake-hook-rt"
+version = "0.1.0"
+dependencies = [
+ "yoake-hook-macro",
 ]
 
 [[package]]

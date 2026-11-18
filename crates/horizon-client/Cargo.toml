@@ -118,6 +118,7 @@ wgpu = { version = "30.0.1", default-features = false, features = ["gles"] }
 winresource = "0.1"
 
 [features]
+yoake-hook-baseline = ["horizon-client-lib/yoake-hook-baseline"]
 default = ["audio", "controllers"]
 test-support = []
 dev-capture = ["horizon-client-lib/dev-capture", "horizon-client-render/dev-capture", "horizon-protocol/dev-capture"]

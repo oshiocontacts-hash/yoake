@@ -13,6 +13,8 @@ description = "Reusable client systems, control tool and parity probes"
 path = "../horizon-client/src/client_lib.rs"
 
 [dependencies]
+yoake-hook-macro = { path = "../yoake-hook-macro" }
+yoake-hook-rt = { path = "../yoake-hook-rt" }
 yoake-inject-macro = { path = "../yoake-inject-macro" }
 yoake-inject-rt = { path = "../yoake-inject-rt" }
 horizon-assets = { path = "../horizon-assets" }
@@ -107,6 +109,8 @@ objc2-foundation = { version = "0.3", default-features = false, features = ["std
 wgpu = { version = "30.0.1", default-features = false, features = ["gles"] }
 
 [features]
+yoake-hook-baseline = []
+yoake-hook-bench = []
 dev-capture = ["horizon-client-render/dev-capture", "horizon-protocol/dev-capture"]
 default = ["audio", "controllers"]
 # Sound output. Without it (and `controllers`) the program links neither libasound nor libudev on
@@ -137,6 +141,11 @@ path = "../horizon-client/src/bin/horizon-ctl/main.rs"
 [[bin]]
 name = "yoake_state_catalog"
 path = "../horizon-client/src/bin/yoake_state_catalog.rs"
+
+[[example]]
+name = "yoake_hook_bench"
+path = "../horizon-client/examples/yoake_hook_bench.rs"
+required-features = ["yoake-hook-bench"]
 
 [[example]]
 name = "chunk_load_bench"

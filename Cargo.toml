@@ -40,6 +40,8 @@ members = [
     "crates/yoake-inject-macro",
     "crates/yoake-inject-rt",
     "crates/yoake-inject-spec",
+    "crates/yoake-hook-macro",
+    "crates/yoake-hook-rt",
     "crates/yoake-value",
     "crates/yoake-wasm",
     "crates/yoake-cli",
