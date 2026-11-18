@@ -1561,6 +1561,15 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             let vars = launch_instance.vars(cmd.get_program());
             cmd.envs(vars.iter().map(|(k, v)| (k, v)));
             horizon_launcher::launch::limit_memory(&mut cmd, &instance.launch);
+            // MX3U1: the approved full-access list for this launch, deleted when the game exits
+            let approved = yoake_program.is_some().then(|| {
+                let prepared = horizon_launcher::full_access::prepare(&instance.home);
+                if let Some(problem) = &prepared.problem {
+                    eprintln!("Full-access mods are off for this launch: {problem}");
+                }
+                prepared.apply(&mut cmd);
+                prepared
+            });
             let current_yoake =
                 crate::yoake_install::prepare_launch(&instance.home, &backend::data_dir())
                     .map_err(|error| format!("Cannot launch Yoake: {error}"))?;
@@ -1573,6 +1582,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             }
             horizon_launcher::telemetry::protect_command(&mut cmd);
             let played = attached(cmd);
+            drop(approved);
             if let Err(e) = instances::record_play(&instance.id, started.elapsed()) {
                 eprintln!("Play time not saved: {e}");
             }

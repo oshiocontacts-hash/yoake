@@ -17,12 +17,17 @@ pub struct Installed {
 
 pub struct InstallPlan {
     pub changes: Vec<Manifest>,
+    /// The part of `changes` that is full-access (MX3U1): copied into `<instance>/mods/` (origin `local` or
+    /// `catalog`), never extracted into the sandboxed store, and **not approved** by installing
+    /// (`full_access::approve` is a separate, explicit act).
+    pub full_access: Vec<Manifest>,
     pub unsigned: bool,
     pub unsigned_program: bool,
     home: PathBuf,
     environment: InstanceEnvironment,
     snapshot: String,
     chosen: Vec<Candidate>,
+    full_chosen: Vec<Candidate>,
 }
 
 #[derive(Clone)]
@@ -67,6 +72,76 @@ fn hash_file(path: &Path) -> Result<String, Error> {
 
 fn same_manifest(left: &Manifest, right: &Manifest) -> bool {
     serde_json::to_value(left).ok() == serde_json::to_value(right).ok()
+}
+
+fn full_access_check(environment: &InstanceEnvironment, manifest: &Manifest) -> Result<(), Error> {
+    // a full-access mod runs where the world is simulated, so `side.client` does not have to be set
+    let issues = yak::check_compatibility(
+        manifest,
+        &yak::Environment {
+            yoake: &environment.yoake,
+            engine: &environment.engine,
+            abi: environment.abi,
+            target: environment.target,
+        },
+    );
+    if issues.is_empty() {
+        Ok(())
+    } else {
+        Err(Error::Incompatible(format!("{}: {issues:?}", manifest.id)))
+    }
+}
+
+type Requested = Vec<(String, Option<Version>)>;
+
+/// Takes the full-access packages out of a request: the local candidate, and the requested ids whose catalog
+/// version is full-access. What is left goes through the sandboxed resolver as before.
+fn split_full_access(
+    catalog: Option<&VerifiedCatalog>,
+    requested: &[(String, Option<Version>)],
+    local: Option<Candidate>,
+    environment: &InstanceEnvironment,
+) -> Result<(Vec<Candidate>, Requested, Option<Candidate>), Error> {
+    let mut full = Vec::new();
+    let mut rest = Vec::new();
+    let mut local_rest = None;
+    let mut local_id = None;
+    if let Some(local) = local {
+        if crate::full_access::is_full_access(&local.manifest) {
+            full_access_check(environment, &local.manifest)?;
+            local_id = Some(local.manifest.id.clone());
+            full.push(local);
+        } else {
+            local_rest = Some(local);
+        }
+    }
+    for (id, version) in requested {
+        if local_id.as_ref() == Some(id) {
+            continue;
+        }
+        let picked = catalog.and_then(|catalog| {
+            catalog
+                .catalog
+                .entries
+                .iter()
+                .filter(|entry| &entry.id == id)
+                .flat_map(|entry| &entry.versions)
+                .filter(|candidate| version.as_ref().is_none_or(|want| want == &candidate.version))
+                .max_by(|left, right| left.version.cmp(&right.version))
+                .map(|candidate| (candidate, &catalog.proof))
+        });
+        match picked {
+            Some((candidate, proof)) if crate::full_access::is_full_access(&candidate.manifest) => {
+                full_access_check(environment, &candidate.manifest)?;
+                full.push(Candidate {
+                    manifest: candidate.manifest.clone(),
+                    source: Source::Catalog(candidate.clone(), proof.clone()),
+                });
+            }
+            _ => rest.push((id.clone(), version.clone())),
+        }
+    }
+    Ok((full, rest, local_rest))
 }
 
 impl Client {
@@ -293,11 +368,15 @@ impl Client {
             .map(|catalog| self.verify(catalog.proof.clone(), catalog.cached))
             .transpose()?;
         let (state, enabled, snapshot) = self.verified_state(home)?;
+        // Full-access packages are not sandboxed mods: they take no part in the resolver and are copied
+        // into `mods/` at apply time (MX3U1).
+        let (full_chosen, requested, local) =
+            split_full_access(catalog.as_ref(), requested, local, &environment)?;
         let chosen = resolver::choose(
             &state,
             &enabled,
             catalog.as_ref(),
-            requested,
+            &requested,
             replace,
             local,
             &environment,
@@ -305,23 +384,31 @@ impl Client {
         let changes = chosen
             .iter()
             .filter(|candidate| !matches!(candidate.source, Source::Installed(_)))
+            .chain(&full_chosen)
+            .map(|candidate| candidate.manifest.clone())
+            .collect();
+        let full_access = full_chosen
+            .iter()
             .map(|candidate| candidate.manifest.clone())
             .collect();
         let unsigned = chosen
             .iter()
+            .chain(&full_chosen)
             .any(|candidate| matches!(candidate.source, Source::Local { signed: false, .. }));
-        let unsigned_program = chosen.iter().any(|candidate| {
+        let unsigned_program = chosen.iter().chain(&full_chosen).any(|candidate| {
             matches!(candidate.source, Source::Local { signed: false, .. })
                 && candidate.manifest.bin.is_some()
         });
         Ok(InstallPlan {
             changes,
+            full_access,
             unsigned,
             unsigned_program,
             home: home.to_path_buf(),
             environment,
             snapshot,
             chosen,
+            full_chosen,
         })
     }
 }
