@@ -190,12 +190,24 @@ fn collect_glue_includes(
     Ok(includes)
 }
 
+#[derive(Default)]
+struct FieldTables {
+    mut_tables: BTreeMap<String, String>,
+    ref_tables: BTreeMap<String, String>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FieldTableKind {
+    Mut,
+    Ref,
+}
+
 fn load_field_tables(
     glues: &[PathBuf],
     crate_ident: &str,
     includes: &[(Vec<String>, String)],
-) -> Result<BTreeMap<String, String>, String> {
-    let mut tables = BTreeMap::new();
+) -> Result<FieldTables, String> {
+    let mut tables = FieldTables::default();
     for glue_path in glues {
         let source = std::fs::read_to_string(glue_path)
             .map_err(|e| format!("failed to read glue {}: {e}", glue_path.display()))?;
@@ -304,7 +316,7 @@ fn collect_glue_statics(
     include_mod: Option<&[String]>,
     glue_path: &Path,
     submod: &mut Vec<String>,
-    tables: &mut BTreeMap<String, String>,
+    tables: &mut FieldTables,
 ) {
     for item in items {
         match item {
@@ -325,7 +337,7 @@ fn collect_glue_statics(
                 }
             }
             Item::Static(item_static) => {
-                let Some(inner_ty) = extract_field_table_inner_ty(&item_static.ty) else {
+                let Some((kind, inner_ty)) = extract_field_table_inner_ty(&item_static.ty) else {
                     continue;
                 };
                 let Some((canon_ty, type_mod)) = resolve_glue_inner_ty(
@@ -357,14 +369,18 @@ fn collect_glue_statics(
                 parts.extend(host_mod);
                 parts.extend(submod.iter().cloned());
                 parts.push(item_static.ident.to_string());
-                tables.insert(canon_ty, parts.join("::"));
+                let target = match kind {
+                    FieldTableKind::Mut => &mut tables.mut_tables,
+                    FieldTableKind::Ref => &mut tables.ref_tables,
+                };
+                target.insert(canon_ty, parts.join("::"));
             }
             _ => {}
         }
     }
 }
 
-fn extract_field_table_inner_ty(ty: &Type) -> Option<&Type> {
+fn extract_field_table_inner_ty(ty: &Type) -> Option<(FieldTableKind, &Type)> {
     let mut cur = ty;
     loop {
         match cur {
@@ -377,9 +393,13 @@ fn extract_field_table_inner_ty(ty: &Type) -> Option<&Type> {
         return None;
     };
     let last = tp.path.segments.last()?;
-    if last.ident != "FieldTable" {
+    let kind = if last.ident == "FieldTable" {
+        FieldTableKind::Mut
+    } else if last.ident == "RefFieldTable" {
+        FieldTableKind::Ref
+    } else {
         return None;
-    }
+    };
     let PathArguments::AngleBracketed(ab) = &last.arguments else {
         return None;
     };
@@ -387,7 +407,7 @@ fn extract_field_table_inner_ty(ty: &Type) -> Option<&Type> {
         return None;
     }
     match ab.args.first()? {
-        GenericArgument::Type(inner) => Some(inner),
+        GenericArgument::Type(inner) => Some((kind, inner)),
         _ => None,
     }
 }
@@ -713,6 +733,7 @@ impl HookCollector<'_> {
 #[derive(Clone)]
 enum DispatchTarget {
     FieldTable(String),
+    RefFieldTable(String),
     Root,
 }
 
@@ -938,7 +959,7 @@ fn classify_hook(
     target_mod: &[String],
     hook: &CollectedHook,
     crate_index: &CrateIndex,
-    field_tables: &BTreeMap<String, String>,
+    field_tables: &FieldTables,
 ) -> Result<BridgedHook, String> {
     if hook.sig.generics.type_params().next().is_some()
         || hook.sig.generics.const_params().next().is_some()
@@ -959,46 +980,58 @@ fn classify_hook(
     };
 
     let mut raw_param_types = Vec::with_capacity(hook.sig.inputs.len());
-    let arg0_inner = match &hook.sig.inputs[0] {
+    let (arg0_inner, arg0_is_mut, arg0_is_receiver) = match &hook.sig.inputs[0] {
         FnArg::Receiver(r) => {
             if r.reference.is_none() {
                 return Err("by-value self".to_string());
             }
-            if r.mutability.is_none() {
-                return Err("arg0 is &self, needs &mut".to_string());
-            }
             let self_ty = effective_self_ty.ok_or_else(|| "missing impl self type".to_string())?;
             raw_param_types.push(replace_self(&r.ty));
-            self_ty.clone()
+            (self_ty.clone(), r.mutability.is_some(), true)
         }
         FnArg::Typed(pt) => {
             let replaced = replace_self(&pt.ty);
             let inner = unwrap_type_parens(&replaced);
             let Type::Reference(r) = inner else {
-                return Err("arg0 is not &mut T".to_string());
+                return Err("arg0 is not &T or &mut T".to_string());
             };
-            if r.mutability.is_none() {
-                return Err("arg0 is &T, needs &mut T".to_string());
-            }
             let elem = r.elem.as_ref().clone();
+            let mutable = r.mutability.is_some();
             raw_param_types.push(replaced);
-            elem
+            (elem, mutable, false)
         }
     };
 
     let canon = crate_index.resolve_bridge_type_canon(&hook.mod_path, &arg0_inner);
     let root_canon = format!("{crate_ident}::game::Game");
     let dispatch = if canon.as_deref() == Some(root_canon.as_str()) {
-        DispatchTarget::Root
+        if arg0_is_mut {
+            DispatchTarget::Root
+        } else {
+            return Err("arg0 is &Game: no read-only root dispatch".to_string());
+        }
     } else if eligible::type_has_non_static_lifetime(&arg0_inner) {
         return Err("arg0 type has non-static lifetime".to_string());
+    } else if arg0_is_mut {
+        if let Some(c) = &canon
+            && let Some(ft_path) = lookup_field_table(c, &field_tables.mut_tables)
+        {
+            DispatchTarget::FieldTable(ft_path)
+        } else {
+            let label = canon.unwrap_or_else(|| format_type_tokens(&arg0_inner));
+            return Err(format!("no FieldTable for `{label}`"));
+        }
     } else if let Some(c) = &canon
-        && let Some(ft_path) = lookup_field_table(c, field_tables)
+        && let Some(ft_path) = lookup_field_table(c, &field_tables.ref_tables)
     {
-        DispatchTarget::FieldTable(ft_path)
+        DispatchTarget::RefFieldTable(ft_path)
     } else {
         let label = canon.unwrap_or_else(|| format_type_tokens(&arg0_inner));
-        return Err(format!("no FieldTable for `{label}`"));
+        if arg0_is_receiver {
+            return Err(format!("arg0 is &self, no RefFieldTable for `{label}`"));
+        } else {
+            return Err(format!("arg0 is &T, no RefFieldTable for `{label}`"));
+        }
     };
 
     let (raw_ret_type, ret_kind) = classify_ret(&hook.sig.output);
@@ -1134,7 +1167,7 @@ fn render_bridge_module(
     target_mod: &[String],
     hooks: &[CollectedHook],
     crate_index: &CrateIndex,
-    field_tables: &BTreeMap<String, String>,
+    field_tables: &FieldTables,
     excludes: &BTreeMap<u32, String>,
 ) -> Result<(String, usize, usize), String> {
     let mut bridged = Vec::new();
@@ -1164,6 +1197,12 @@ fn render_bridge_module(
          ///   unknown ids, or `>= yoake_slice::runtime::SYNTHETIC_HOOK_BASE`).\n\
          /// - `mode`: returns `Some(Mode::Full)` or `Some(Mode::ObserveOnly)` for ids in\n\
          ///   `BRIDGED`, and `None` otherwise.\n\
+         ///\n\
+         /// Hooks whose `arg0` is `&T` or `&self` (when `T` has a `RefFieldTable`) use\n\
+         /// `yoake_slice::runtime::dispatch_id_ref` with `REF_FIELDS_*`. On that handle the\n\
+         /// guest can call `get` and `original`, while `set` and `engine_call` (which\n\
+         /// require `&mut T`) are refused with `ReadOnly` (see\n\
+         /// `docs/yoake2/ENGINE_CALL_ABI.md`, \"Read-only hook arguments\").\n\
          ///\n\
          /// Hooks returning `()`, `bool`, primitive integers, `f32`, or `f64` round-trip their\n\
          /// result through `i64`. When a guest returns an out-of-range value for `bool`, an\n\
@@ -1378,6 +1417,10 @@ fn render_bridged_fn(bh: &BridgedHook) -> String {
     let dispatch_call = match &bh.dispatch {
         DispatchTarget::FieldTable(ft_path) => format!(
             "yoake_slice::runtime::dispatch_id({}, p0, &{ft_path}, &mut |p0| {closure_body})",
+            bh.id
+        ),
+        DispatchTarget::RefFieldTable(ft_path) => format!(
+            "yoake_slice::runtime::dispatch_id_ref({}, p0, &{ft_path}, &mut |p0| {closure_body})",
             bh.id
         ),
         DispatchTarget::Root => format!(

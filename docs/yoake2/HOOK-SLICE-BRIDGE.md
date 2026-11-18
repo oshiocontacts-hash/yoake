@@ -131,8 +131,9 @@ two world starts).
 ### Which hooks are bridgeable
 
 The slice passes one argument to the guest, so a hook is bridgeable when:
-- its first parameter is `&mut T` where T has a generated `FieldTable` (the yoake-bindgen field tables of
-  MX3G1, for example ArmorStand, ItemEntity, ExperienceOrb; `Game` uses `dispatch_root_id` instead);
+- its first parameter is `&mut T` where `T` has a generated `FieldTable` (the yoake-bindgen field tables of
+  MX3G1, for example ArmorStand, ItemEntity, ExperienceOrb; `Game` uses `dispatch_root_id` instead), **or** `&T` /
+  `&self` where `T` has a generated `RefFieldTable` (`REF_FIELDS_*`; read-only dispatch below);
 - the other parameters are captured by the `orig` closure unchanged (the guest cannot see or replace them yet);
 - the result is:
   * `()`, an integer, `bool`, or `f32`/`f64` (round-tripped as `i64`; floats as bits): the guest may replace
@@ -140,8 +141,8 @@ The slice passes one argument to the guest, so a hook is bridgeable when:
   * any other non-borrowed result type `R` (no non-`'static` lifetimes, not `impl Trait` or `!`): bridged
     in **observe-only mode** and listed in `hook_bridge::OBSERVE_ONLY`.
 
-Anything else (non-`&mut` arg0, missing `FieldTable`, arg0 or return type with a non-`'static` lifetime,
-generic parameters, or `bridge-exclude.txt` entries) cannot be bridged and is listed in
+Anything else (non-reference `arg0`, `&Game` root, missing `FieldTable` / `RefFieldTable`, `arg0` or return type with
+a non-`'static` lifetime, generic parameters, or `bridge-exclude.txt` entries) cannot be bridged and is listed in
 `hook_bridge::UNBRIDGED`.
 
 Call-site shims are bridged the same way: their first parameter is the receiver.
@@ -206,6 +207,21 @@ Semantics:
   effects, e.g. call site 215 hurts the item once);
 - if no `original` reaches it, it runs once after the guests return, so the hooked fn cannot be cancelled in this
   mode.
+
+#### Read-only arguments
+
+Hooks whose `arg0` is `&T` (free fn or call-site shim) or `&self` (method) and whose `T` has a generated
+`RefFieldTable<T>` (`REF_FIELDS_*` emitted right after `FIELDS_*` in `yoake_glue`) dispatch through
+`yoake_slice::runtime::dispatch_id_ref(id, p0, &<path>::REF_FIELDS_..., &mut |p0| ...)` with `p0: &T`, passing `p0`
+unchanged to `original`.
+
+- On that handle, the guest can call `get` (reading scalar fields through `&T`) and `original` (which receives `&T`).
+- `set` and `engine_call` (whose generated receivers require `&mut T` via `with_arg`) are refused with `ReadOnly` (handle
+  status `7`, `engine_call` status `-23`; see [ENGINE_CALL_ABI.md](ENGINE_CALL_ABI.md) "Read-only hook arguments").
+- Return-value encoding/decoding, range checks, `ObserveOnly`, `install_once`, `BRIDGED`, and `mode` work the same as
+  for `&mut T`.
+- `&T` / `&self` hooks whose `T` has no `RefFieldTable`, as well as `&Game` roots (`"arg0 is &Game: no read-only
+  root dispatch"`), stay in `UNBRIDGED`.
 
 ## Changes needed at merge time
 

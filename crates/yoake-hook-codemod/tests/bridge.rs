@@ -49,10 +49,13 @@ fn setup_bridge_fixture(root: &Path) {
     fs::write(
         root.join("src/yoake_glue/entities.rs"),
         r#"pub mod yoake_glue {
-    use yoake_slice::activation::FieldTable;
+    use yoake_slice::activation::{FieldTable, RefFieldTable};
     pub static FIELDS_crate__entities__Thing: FieldTable<crate::entities::Thing> = FieldTable {
         get: |_, _| None,
         set: |_, _, _| false,
+    };
+    pub static REF_FIELDS_crate__entities__Thing: RefFieldTable<crate::entities::Thing> = RefFieldTable {
+        get: |_, _| None,
     };
 }
 "#,
@@ -117,10 +120,29 @@ pub fn bad_ret(t: &mut Thing) -> (i32, i32) {
 #[yoake_hook_macro::yoake_hook(id = 6, key = "demo::entities::no_table")]
 pub fn no_table(_o: &mut Other) {}
 
+#[yoake_hook_macro::yoake_hook(id = 12, key = "demo::entities::inspect_thing")]
+pub fn inspect_thing(t: &Thing) -> bool {
+    t.count > 0
+}
+
+#[yoake_hook_macro::yoake_hook(id = 14, key = "demo::entities::no_ref_table")]
+pub fn no_ref_table(_o: &Other) {}
+
+impl Other {
+    #[yoake_hook_macro::yoake_hook(method, id = 15, key = "demo::entities::Other::no_ref_self")]
+    pub fn no_ref_self(&self) {}
+}
+
 #[yoake_hook_macro::yoake_hook(id = 7, key = "fn:1@call:fn:4", kind = callsite)]
 #[inline(always)]
 fn __yoake_cs_7(recv: &mut crate::entities::Thing) {
     crate::entities::reset_thing(recv)
+}
+
+#[yoake_hook_macro::yoake_hook(id = 13, key = "fn:1@call:fn:12", kind = callsite)]
+#[inline(always)]
+fn __yoake_cs_13(recv: &crate::entities::Thing) {
+    let _ = crate::entities::inspect_thing(recv);
 }
 
 #[yoake_hook_macro::yoake_hook(id = 10, key = "fn:1@call:fn:5", kind = callsite)]
@@ -154,6 +176,11 @@ impl Game<'_> {
     pub fn tick_item(&mut self) -> bool {
         true
     }
+
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Game<'_>, id = 16, key = "demo::game::item_use::Game::peek_item")]
+    pub fn peek_item(&self) -> bool {
+        true
+    }
 }
 "#,
     )
@@ -179,7 +206,12 @@ impl Game<'_> {
     { "id": 8, "key": "demo::game::item_use::Game::tick_item", "sig": "0000000000000008", "status": "live", "kind": "fn" },
     { "id": 9, "key": "demo::entities::Thing::take_pair", "sig": "0000000000000009", "status": "live", "kind": "fn" },
     { "id": 10, "key": "fn:1@call:fn:5", "sig": "0000000000000010", "status": "live", "kind": "callsite" },
-    { "id": 11, "key": "fn:1@call:fn:3", "sig": "0000000000000011", "status": "live", "kind": "callsite" }
+    { "id": 11, "key": "fn:1@call:fn:3", "sig": "0000000000000011", "status": "live", "kind": "callsite" },
+    { "id": 12, "key": "demo::entities::inspect_thing", "sig": "0000000000000012", "status": "live", "kind": "fn" },
+    { "id": 13, "key": "fn:1@call:fn:12", "sig": "0000000000000013", "status": "live", "kind": "callsite" },
+    { "id": 14, "key": "demo::entities::no_ref_table", "sig": "0000000000000014", "status": "live", "kind": "fn" },
+    { "id": 15, "key": "demo::entities::Other::no_ref_self", "sig": "0000000000000015", "status": "live", "kind": "fn" },
+    { "id": 16, "key": "demo::game::item_use::Game::peek_item", "sig": "0000000000000016", "status": "live", "kind": "fn" }
   ],
   "excluded": []
 }
@@ -294,6 +326,62 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
         ),
         "{entities_src}"
     );
+    // &self method with REF_FIELDS_ (id 3), &T free fn with REF_FIELDS_ (id 12), &T callsite with REF_FIELDS_ (id 13).
+    assert!(entities_src.contains("fn __bridge_3("), "{entities_src}");
+    assert!(
+        entities_src.contains("original: &mut dyn FnMut(&Thing) -> i32,"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("let mut last: Option<i32> = None;"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains(
+            "yoake_slice::runtime::dispatch_id_ref(3, p0, &crate::entities::yoake_glue::REF_FIELDS_crate__entities__Thing, &mut |p0| { let r = original(p0); last = Some(r); yoake_slice::bridge::encode::int(r) })"
+        ),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("yoake_slice::bridge::note_out_of_range(3, value);"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains(
+            "yoake_slice::bridge::install_once(id, || Thing::__yoake_register_read_count(__bridge_3, order))"
+        ),
+        "{entities_src}"
+    );
+    assert!(entities_src.contains("fn __bridge_12("), "{entities_src}");
+    assert!(
+        entities_src.contains(
+            "yoake_slice::runtime::dispatch_id_ref(12, p0, &crate::entities::yoake_glue::REF_FIELDS_crate__entities__Thing, &mut |p0| { let r = original(p0); last = Some(r); yoake_slice::bridge::encode::bool(r) })"
+        ),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("let cb: super::__YoakeHook_inspect_thing = __bridge_12;"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("super::__yoake_register_inspect_thing(cb, order)\n"),
+        "{entities_src}"
+    );
+    assert!(entities_src.contains("fn __bridge_13("), "{entities_src}");
+    assert!(
+        entities_src.contains(
+            "yoake_slice::runtime::dispatch_id_ref(13, p0, &crate::entities::yoake_glue::REF_FIELDS_crate__entities__Thing, &mut |p0| { original(p0); 0 })"
+        ),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("let cb: super::__YoakeHook___yoake_cs_13 = __bridge_13;"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("super::__yoake_register___yoake_cs_13(cb, order)\n"),
+        "{entities_src}"
+    );
     assert!(entities_src.contains("fn __bridge_4("), "{entities_src}");
     assert!(
         entities_src.contains("let cb: super::__YoakeHook_reset_thing = __bridge_4;"),
@@ -313,7 +401,7 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
         "{entities_src}"
     );
     assert!(
-        entities_src.contains("pub const BRIDGED: &[u32] = &[\n        1,\n        2,\n        4,\n        5,\n        7,\n        9,\n        10,\n    ];"),
+        entities_src.contains("pub const BRIDGED: &[u32] = &[\n        1,\n        2,\n        3,\n        4,\n        5,\n        7,\n        9,\n        10,\n        12,\n        13,\n    ];"),
         "{entities_src}"
     );
     assert!(
@@ -362,6 +450,14 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
     );
     assert!(
         entities_src.contains("/// - `mode`:"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("/// Hooks whose `arg0` is `&T` or `&self`"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("refused with `ReadOnly`"),
         "{entities_src}"
     );
     assert!(
@@ -425,16 +521,25 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
         entities_src.contains("pub const OBSERVE_ONLY: &[u32] = &[\n        5,\n        9,\n        10,\n    ];"),
         "{entities_src}"
     );
-    assert!(!entities_src.contains("fn __bridge_3("), "{entities_src}");
     assert!(!entities_src.contains("fn __bridge_6("), "{entities_src}");
     assert!(!entities_src.contains("fn __bridge_11("), "{entities_src}");
-    assert!(entities_src.contains("(3, \""), "{entities_src}");
+    assert!(!entities_src.contains("fn __bridge_14("), "{entities_src}");
+    assert!(!entities_src.contains("fn __bridge_15("), "{entities_src}");
+    assert!(!entities_src.contains("(3, \""), "{entities_src}");
     assert!(!entities_src.contains("(5, \""), "{entities_src}");
     assert!(entities_src.contains("(6, \""), "{entities_src}");
     assert!(!entities_src.contains("(9, \""), "{entities_src}");
     assert!(!entities_src.contains("(10, \""), "{entities_src}");
     assert!(
         entities_src.contains("(11, \"return type `&'r mut i32` has non-static lifetime\")"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("(14, \"arg0 is &T, no RefFieldTable for `demo::entities::Other`\")"),
+        "{entities_src}"
+    );
+    assert!(
+        entities_src.contains("(15, \"arg0 is &self, no RefFieldTable for `demo::entities::Other`\")"),
         "{entities_src}"
     );
 
@@ -476,6 +581,11 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
     );
     assert!(
         game_src.contains("pub const OBSERVE_ONLY: &[u32] = &[\n    ];"),
+        "{game_src}"
+    );
+    assert!(!game_src.contains("fn __bridge_16("), "{game_src}");
+    assert!(
+        game_src.contains("(16, \"arg0 is &Game: no read-only root dispatch\")"),
         "{game_src}"
     );
 
@@ -541,7 +651,7 @@ fn bridge_generates_dispatchers_checks_staleness_and_applies_excludes() {
         "{entities_excl}"
     );
     assert!(
-        entities_excl.contains("pub const BRIDGED: &[u32] = &[\n        1,\n        2,\n        7,\n        9,\n        10,\n    ];"),
+        entities_excl.contains("pub const BRIDGED: &[u32] = &[\n        1,\n        2,\n        3,\n        7,\n        9,\n        10,\n        12,\n        13,\n    ];"),
         "{entities_excl}"
     );
     assert!(

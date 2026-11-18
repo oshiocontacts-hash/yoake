@@ -650,10 +650,10 @@ fn a_loaded_mod_that_registers_a_bridged_hook_id_is_called_by_the_engine() {
         assert_eq!(report.loaded.iter().map(|l| l.id.as_str()).collect::<Vec<_>>(), ["demo_bridge"], "{:?} {:?}", report.skipped, report.problems);
         assert_eq!(
             report.unbridged,
-            vec![("demo_bridge".to_string(), vec![(1, "arg0 is not &mut T".to_string())])],
+            vec![("demo_bridge".to_string(), vec![(1, "arg0 is not &T or &mut T".to_string())])],
             "71 and 215 (entities) and 103 (game::item_use) are bridged, 1 is not"
         );
-        assert!(report.messages().iter().any(|l| l.contains("'demo_bridge'") && l.contains("1 (arg0 is not &mut T)")), "{:?}", report.messages());
+        assert!(report.messages().iter().any(|l| l.contains("'demo_bridge'") && l.contains("1 (arg0 is not &T or &mut T)")), "{:?}", report.messages());
         // what hook_register told the guest (S4): Full = 0, not callable = 2, Full = 0, observe-only = 1
         assert_eq!(runtime::take_reports().unwrap(), [(501, 0), (502, 2), (503, 0), (504, 1)], "round {round}");
 

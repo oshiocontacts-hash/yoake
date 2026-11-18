@@ -152,7 +152,7 @@ pub fn render(
     let _ = writeln!(out, "pub mod yoake_glue {{");
     let _ = writeln!(out, "    // The compiler, not a grep, guarantees the glue has no unsafe code.");
     let _ = writeln!(out, "    #![forbid(unsafe_code)]");
-    let _ = writeln!(out, "    use yoake_slice::activation::{{self, Accessor, FieldTable, PathRoot, Status}};");
+    let _ = writeln!(out, "    use yoake_slice::activation::{{self, Accessor, FieldTable, PathRoot, RefFieldTable, Status}};");
     let _ = writeln!(out, "    use yoake_slice::codec::{{self, CallError, Decode, Decoder, Encode}};");
     let _ = writeln!(out);
 
@@ -556,6 +556,16 @@ fn render_tables(an: &Analyzer<'_>, scan: &ModuleScan, out: &mut String) {
             let _ = writeln!(out, "            {} => {{\n                {}\n                true\n            }}", field.index, set_stmt(p, &field_access(&field.field, field.tuple)));
         }
         let _ = writeln!(out, "            _ => false,\n        }},\n    }};\n");
+        // the same getters over `&T`, for hooks whose argument is shared (`runtime::dispatch_id_ref`): the getters
+        // only read fields, so they need no `&mut`
+        let _ = writeln!(out, "    /// The getters of `FIELDS_{mangle}` over a shared `&{owner}` (read-only hook arguments, `RefFieldTable`).");
+        let _ = writeln!(out, "    pub static REF_FIELDS_{mangle}: RefFieldTable<{owner}> = RefFieldTable {{");
+        let _ = writeln!(out, "        get: |t, f| match f {{");
+        for field in &fields {
+            let p = scalar_of(field.shape.as_ref().unwrap()).unwrap();
+            let _ = writeln!(out, "            {} => Some({}),", field.index, get_expr(p, &field_access(&field.field, field.tuple)));
+        }
+        let _ = writeln!(out, "            _ => None,\n        }},\n    }};\n");
     }
 }
 

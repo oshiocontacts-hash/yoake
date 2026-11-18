@@ -404,3 +404,34 @@ fn two_mods_on_one_bridged_id_share_one_dispatcher_and_both_run_once() {
 fn settled_without_guest_zero() -> Vec3 {
     stand().velocity
 }
+
+// ---- Read-only arguments (`&self` hooks through `dispatch_id_ref` and the generated `REF_FIELDS_` tables).
+
+#[test]
+fn a_read_only_hook_reads_fields_cannot_write_them_and_can_replace_the_result() {
+    use horizon_client_lib::entities::Experience;
+    // hook 40: Experience::death_reward(&self, keep: bool) -> u32 (Full: a u32 result)
+    let xp = Experience { level: 3, progress: 0.25, total: 50 };
+    let plain = xp.death_reward(false);
+    assert_eq!(hook_bridge::mode(40), Some(yoake_slice::bridge::Mode::Full));
+    // the guest reads field 2 (`total`) through the shared handle, tries to write it, and returns total * 2
+    let body = "(call $report (i32.const 2) (i64.extend_i32_s (call $get (local.get $h) (i32.const 2) (i32.const 32))))
+    (call $report (i32.const 3) (i64.extend_i32_s (call $set (local.get $h) (i32.const 2) (i64.const 0))))
+    (i64.mul (i64.load (i32.const 32)) (i64.const 2))";
+    let wat = wat_guest(40, body).replace(
+        r#"(import "env" "report""#,
+        r#"(import "env" "get" (func $get (param i64 i32 i32) (result i32)))
+  (import "env" "set" (func $set (param i64 i32 i64) (result i32)))
+  (import "env" "report""#,
+    );
+    runtime::uninstall().unwrap();
+    runtime::install(wat.as_bytes(), ModConfig::new("")).unwrap();
+    assert_eq!(hook_bridge::install(&runtime::stats().registered).installed, [40]);
+    assert_eq!(xp.death_reward(false), 100, "the guest's value replaced the result (the original gives {plain})");
+    let all = runtime::take_reports().unwrap();
+    assert_eq!(reports(&all, 2), [0], "get worked");
+    assert_eq!(reports(&all, 3), [7], "set was refused ReadOnly (7)");
+    assert_eq!((xp.total, xp.level), (50, 3), "the argument is unchanged");
+    assert!(!runtime::stats().disabled);
+    runtime::uninstall().unwrap();
+}

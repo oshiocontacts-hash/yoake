@@ -6,7 +6,7 @@
 pub mod yoake_glue {
     // The compiler, not a grep, guarantees the glue has no unsafe code.
     #![forbid(unsafe_code)]
-    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, Status};
+    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, RefFieldTable, Status};
     use yoake_slice::codec::{self, CallError, Decode, Decoder, Encode};
 
     fn enc_crate__game__execution_role__ExecutionRole(v: &crate::game::execution_role::ExecutionRole, out: &mut Vec<u8>) {
@@ -602,6 +602,15 @@ pub mod yoake_glue {
         },
     };
 
+    /// The getters of `FIELDS_crate__game__native_entity_query__NativeEntityInfo` over a shared `&crate::game::native_entity_query::NativeEntityInfo` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__game__native_entity_query__NativeEntityInfo: RefFieldTable<crate::game::native_entity_query::NativeEntityInfo> = RefFieldTable {
+        get: |t, f| match f {
+            0 => Some(i64::from(t.id)),
+            5 => Some(i64::from(t.alive)),
+            _ => None,
+        },
+    };
+
     /// Scalar fields of `crate::game::native_entity_query::QueryUsage` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__game__native_entity_query__QueryUsage: FieldTable<crate::game::native_entity_query::QueryUsage> = FieldTable {
         get: |t, f| match f {
@@ -616,6 +625,17 @@ pub mod yoake_glue {
         },
     };
 
+    /// The getters of `FIELDS_crate__game__native_entity_query__QueryUsage` over a shared `&crate::game::native_entity_query::QueryUsage` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__game__native_entity_query__QueryUsage: RefFieldTable<crate::game::native_entity_query::QueryUsage> = RefFieldTable {
+        get: |t, f| match f {
+            0 => Some(t.mod_index as i64),
+            1 => Some(t.queries as i64),
+            2 => Some(t.candidates as i64),
+            3 => Some(t.results as i64),
+            _ => None,
+        },
+    };
+
     /// Scalar fields of `crate::game::native_entity_query::Sphere` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__game__native_entity_query__Sphere: FieldTable<crate::game::native_entity_query::Sphere> = FieldTable {
         get: |t, f| match f {
@@ -624,6 +644,14 @@ pub mod yoake_glue {
         },
         set: |t, f, v| match f {
             _ => false,
+        },
+    };
+
+    /// The getters of `FIELDS_crate__game__native_entity_query__Sphere` over a shared `&crate::game::native_entity_query::Sphere` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__game__native_entity_query__Sphere: RefFieldTable<crate::game::native_entity_query::Sphere> = RefFieldTable {
+        get: |t, f| match f {
+            1 => Some(t.radius.to_bits() as i64),
+            _ => None,
         },
     };
 

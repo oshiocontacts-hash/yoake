@@ -11,6 +11,12 @@
 /// - `mode`: returns `Some(Mode::Full)` or `Some(Mode::ObserveOnly)` for ids in
 ///   `BRIDGED`, and `None` otherwise.
 ///
+/// Hooks whose `arg0` is `&T` or `&self` (when `T` has a `RefFieldTable`) use
+/// `yoake_slice::runtime::dispatch_id_ref` with `REF_FIELDS_*`. On that handle the
+/// guest can call `get` and `original`, while `set` and `engine_call` (which
+/// require `&mut T`) are refused with `ReadOnly` (see
+/// `docs/yoake2/ENGINE_CALL_ABI.md`, "Read-only hook arguments").
+///
 /// Hooks returning `()`, `bool`, primitive integers, `f32`, or `f64` round-trip their
 /// result through `i64`. When a guest returns an out-of-range value for `bool`, an
 /// integer other than `i64`/`u64`, or `f32`, `yoake_slice::bridge::note_out_of_range`
@@ -543,40 +549,40 @@ pub mod hook_bridge {
     ];
 
     pub const UNBRIDGED: &[(u32, &str)] = &[
-        (104, "arg0 is &self, needs &mut"),
-        (105, "arg0 is &self, needs &mut"),
-        (112, "arg0 is &self, needs &mut"),
-        (115, "arg0 is &self, needs &mut"),
-        (116, "arg0 is not &mut T"),
-        (117, "arg0 is not &mut T"),
-        (118, "arg0 is not &mut T"),
-        (119, "arg0 is not &mut T"),
-        (120, "arg0 is not &mut T"),
-        (121, "arg0 is not &mut T"),
-        (122, "arg0 is not &mut T"),
-        (123, "arg0 is not &mut T"),
-        (124, "arg0 is not &mut T"),
-        (125, "arg0 is not &mut T"),
-        (126, "arg0 is &T, needs &mut T"),
-        (129, "arg0 is &T, needs &mut T"),
-        (131, "arg0 is &T, needs &mut T"),
-        (132, "arg0 is &T, needs &mut T"),
-        (133, "arg0 is &T, needs &mut T"),
-        (134, "arg0 is &T, needs &mut T"),
-        (135, "arg0 is &T, needs &mut T"),
-        (136, "arg0 is &T, needs &mut T"),
-        (137, "arg0 is &T, needs &mut T"),
-        (140, "arg0 is &T, needs &mut T"),
-        (142, "arg0 is &T, needs &mut T"),
-        (143, "arg0 is &T, needs &mut T"),
-        (147, "arg0 is &T, needs &mut T"),
-        (148, "arg0 is &T, needs &mut T"),
-        (151, "arg0 is &T, needs &mut T"),
-        (152, "arg0 is &T, needs &mut T"),
-        (164, "arg0 is &T, needs &mut T"),
+        (104, "arg0 is &Game: no read-only root dispatch"),
+        (105, "arg0 is &Game: no read-only root dispatch"),
+        (112, "arg0 is &Game: no read-only root dispatch"),
+        (115, "arg0 is &Game: no read-only root dispatch"),
+        (116, "arg0 is not &T or &mut T"),
+        (117, "arg0 is not &T or &mut T"),
+        (118, "arg0 is not &T or &mut T"),
+        (119, "arg0 is not &T or &mut T"),
+        (120, "arg0 is not &T or &mut T"),
+        (121, "arg0 is not &T or &mut T"),
+        (122, "arg0 is not &T or &mut T"),
+        (123, "arg0 is not &T or &mut T"),
+        (124, "arg0 is not &T or &mut T"),
+        (125, "arg0 is not &T or &mut T"),
+        (126, "arg0 is &Game: no read-only root dispatch"),
+        (129, "arg0 is &Game: no read-only root dispatch"),
+        (131, "arg0 is &Game: no read-only root dispatch"),
+        (132, "arg0 is &Game: no read-only root dispatch"),
+        (133, "arg0 is &T, no RefFieldTable for `horizon_client_lib::items::Items`"),
+        (134, "arg0 is &T, no RefFieldTable for `horizon_client::game::Resources`"),
+        (135, "arg0 is &T, no RefFieldTable for `horizon_client_lib::items::Items`"),
+        (136, "arg0 is &T, no RefFieldTable for `horizon_client_lib::items::Instrument`"),
+        (137, "arg0 is &T, no RefFieldTable for `horizon_world::consumable::Consumable<std::string::String, horizon_client_lib::items::ConsumeEffect,>`"),
+        (140, "arg0 is &Game: no read-only root dispatch"),
+        (142, "arg0 is &Game: no read-only root dispatch"),
+        (143, "arg0 is &T, no RefFieldTable for `horizon_client_lib::items::Items`"),
+        (147, "arg0 is &Game: no read-only root dispatch"),
+        (148, "arg0 is &Game: no read-only root dispatch"),
+        (151, "arg0 is &Game: no read-only root dispatch"),
+        (152, "arg0 is &T, no RefFieldTable for `horizon_client_lib::items::Items`"),
+        (164, "arg0 is &Game: no read-only root dispatch"),
         (169, "return type `&'r mut std::option::Option<horizon_client_lib::items::ItemStack>` has non-static lifetime"),
-        (170, "arg0 is &T, needs &mut T"),
-        (174, "arg0 is &T, needs &mut T"),
-        (179, "arg0 is &T, needs &mut T"),
+        (170, "arg0 is &Game: no read-only root dispatch"),
+        (174, "arg0 is &Game: no read-only root dispatch"),
+        (179, "arg0 is &Game: no read-only root dispatch"),
     ];
 }

@@ -6,7 +6,7 @@
 pub mod yoake_glue {
     // The compiler, not a grep, guarantees the glue has no unsafe code.
     #![forbid(unsafe_code)]
-    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, Status};
+    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, RefFieldTable, Status};
     use yoake_slice::codec::{self, CallError, Decode, Decoder, Encode};
 
     fn enc_crate__cooldowns__UseCooldown(v: &crate::cooldowns::UseCooldown, out: &mut Vec<u8>) {
@@ -1895,6 +1895,16 @@ pub mod yoake_glue {
         },
     };
 
+    /// The getters of `FIELDS_crate__items__BlockReduction` over a shared `&crate::items::BlockReduction` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__items__BlockReduction: RefFieldTable<crate::items::BlockReduction> = RefFieldTable {
+        get: |t, f| match f {
+            0 => Some(i64::from(t.horizontal_angle.to_bits())),
+            2 => Some(i64::from(t.base.to_bits())),
+            3 => Some(i64::from(t.factor.to_bits())),
+            _ => None,
+        },
+    };
+
     /// Scalar fields of `crate::items::BlocksAttacks` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__items__BlocksAttacks: FieldTable<crate::items::BlocksAttacks> = FieldTable {
         get: |t, f| match f {
@@ -1904,6 +1914,15 @@ pub mod yoake_glue {
         },
         set: |t, f, v| match f {
             _ => false,
+        },
+    };
+
+    /// The getters of `FIELDS_crate__items__BlocksAttacks` over a shared `&crate::items::BlocksAttacks` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__items__BlocksAttacks: RefFieldTable<crate::items::BlocksAttacks> = RefFieldTable {
+        get: |t, f| match f {
+            0 => Some(i64::from(t.delay_seconds.to_bits())),
+            1 => Some(i64::from(t.disable_scale.to_bits())),
+            _ => None,
         },
     };
 
@@ -1919,6 +1938,15 @@ pub mod yoake_glue {
         },
     };
 
+    /// The getters of `FIELDS_crate__items__ConsumeEffectSpec` over a shared `&crate::items::ConsumeEffectSpec` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__items__ConsumeEffectSpec: RefFieldTable<crate::items::ConsumeEffectSpec> = RefFieldTable {
+        get: |t, f| match f {
+            1 => Some(i64::from(t.duration)),
+            2 => Some(i64::from(t.amplifier)),
+            _ => None,
+        },
+    };
+
     /// Scalar fields of `crate::items::Instrument` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__items__Instrument: FieldTable<crate::items::Instrument> = FieldTable {
         get: |t, f| match f {
@@ -1928,6 +1956,15 @@ pub mod yoake_glue {
         },
         set: |t, f, v| match f {
             _ => false,
+        },
+    };
+
+    /// The getters of `FIELDS_crate__items__Instrument` over a shared `&crate::items::Instrument` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__items__Instrument: RefFieldTable<crate::items::Instrument> = RefFieldTable {
+        get: |t, f| match f {
+            1 => Some(i64::from(t.use_duration.to_bits())),
+            2 => Some(i64::from(t.range.to_bits())),
+            _ => None,
         },
     };
 
@@ -1958,6 +1995,30 @@ pub mod yoake_glue {
         },
     };
 
+    /// The getters of `FIELDS_crate__items__ItemInfo` over a shared `&crate::items::ItemInfo` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__items__ItemInfo: RefFieldTable<crate::items::ItemInfo> = RefFieldTable {
+        get: |t, f| match f {
+            0 => Some(i64::from(t.fire_resistant)),
+            2 => Some(i64::from(t.max_stack)),
+            3 => Some(i64::from(t.max_damage)),
+            6 => Some(i64::from(t.tool_default_speed.to_bits())),
+            8 => Some(i64::from(t.can_destroy_blocks_in_creative)),
+            10 => Some(i64::from(t.can_always_eat)),
+            15 => Some(i64::from(t.attack_damage.to_bits())),
+            16 => Some(i64::from(t.attack_speed.to_bits())),
+            25 => Some(i64::from(t.disable_blocking_seconds.to_bits())),
+            28 => Some(i64::from(t.use_speed.to_bits())),
+            29 => Some(i64::from(t.can_sprint)),
+            30 => Some(i64::from(t.interact_vibrations)),
+            31 => Some(i64::from(t.glider)),
+            32 => Some(i64::from(t.swappable)),
+            33 => Some(i64::from(t.equip_dispensable)),
+            34 => Some(i64::from(t.equip_damage_on_hurt)),
+            42 => Some(i64::from(t.bundle)),
+            _ => None,
+        },
+    };
+
     /// Scalar fields of `crate::items::ItemStack` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__items__ItemStack: FieldTable<crate::items::ItemStack> = FieldTable {
         get: |t, f| match f {
@@ -1978,6 +2039,15 @@ pub mod yoake_glue {
         },
     };
 
+    /// The getters of `FIELDS_crate__items__ItemStack` over a shared `&crate::items::ItemStack` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__items__ItemStack: RefFieldTable<crate::items::ItemStack> = RefFieldTable {
+        get: |t, f| match f {
+            1 => Some(i64::from(t.count)),
+            2 => Some(i64::from(t.damage)),
+            _ => None,
+        },
+    };
+
     /// Scalar fields of `crate::items::Song` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__items__Song: FieldTable<crate::items::Song> = FieldTable {
         get: |t, f| match f {
@@ -1987,6 +2057,15 @@ pub mod yoake_glue {
         },
         set: |t, f, v| match f {
             _ => false,
+        },
+    };
+
+    /// The getters of `FIELDS_crate__items__Song` over a shared `&crate::items::Song` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__items__Song: RefFieldTable<crate::items::Song> = RefFieldTable {
+        get: |t, f| match f {
+            1 => Some(t.length_ticks),
+            2 => Some(i64::from(t.comparator)),
+            _ => None,
         },
     };
 
