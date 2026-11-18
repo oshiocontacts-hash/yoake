@@ -74,6 +74,8 @@ pub(super) struct Runtime {
     events: Option<Receiver<Event>>,
     sender: Option<mpsc::Sender<Event>>,
     guest: Option<Bridge>,
+    /// MX3JN1: the host the guest bridge goes to (set again when the bridge is connected).
+    guest_host: Option<horizon_client::join_mods::HostId>,
     pending: usize,
     active: bool,
     had_world: bool,
@@ -107,6 +109,8 @@ impl Runtime {
                 signature,
                 ..
             } => {
+                // MX3JN1: the host this guest joins, for join-time mod sync (the grant names the host's principal)
+                self.guest_host = horizon_client::join_mods::friend_host(&grant.host_principal);
                 self.workers.push(std::thread::spawn(move || {
                     let result = join(
                         startup.endpoint,
@@ -346,6 +350,7 @@ impl Runtime {
         if game.rest_loader.is_none()
             && let Some(bridge) = self.guest.take()
         {
+            horizon_client::join_mods::set_host(self.guest_host.clone());
             if game.connect_social(bridge).is_ok() {
                 self.had_world = true;
             } else {

@@ -885,6 +885,14 @@ impl Game<'_> {
         lan: bool,
     ) -> Result<()> {
         let single_player = local.is_some();
+        // MX3JN1: which host this connection goes to, for join-time mod sync (a social join set its own just before).
+        if social.is_none() {
+            horizon_client::join_mods::set_host(
+                (local.is_none() && !self.native_session.is_replay())
+                    .then(|| horizon_client::join_mods::server_host(address))
+                    .flatten(),
+            );
+        }
         let replay = self.native_session.is_replay();
         let mut capture_item_tags = false;
         self.native_client_item_tags_listened(&mut capture_item_tags);

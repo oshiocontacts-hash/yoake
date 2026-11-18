@@ -132,6 +132,11 @@ impl<Reader: Read + Seek> Archive<Reader> {
         self.container.entries()
     }
 
+    /// MX3JN1: copies one file of the package to `writer`, rechecking its digest while copying.
+    pub fn copy_file(&mut self, name: &str, writer: &mut impl std::io::Write) -> Result<(), String> {
+        self.container.copy_file(name, writer)
+    }
+
     pub fn hashes(&self) -> &BTreeMap<String, String> {
         self.container.hashes()
     }

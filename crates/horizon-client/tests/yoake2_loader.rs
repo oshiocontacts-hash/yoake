@@ -200,32 +200,183 @@ fn a_manifest_without_full_access_stays_sandboxed() {
     assert!(report.messages().is_empty(), "a sandboxed package is not worth a line");
 }
 
+
 #[test]
-fn a_package_from_a_server_or_a_friend_is_never_full_access() {
+fn a_package_from_a_server_or_a_friend_is_not_full_access_unless_approved_for_its_host() {
     runtime::uninstall().unwrap();
     let dir = scratch("delivered");
     let path = full_access(&dir, "demo_three", 10, 7);
     let bytes = std::fs::read(&path).unwrap();
-    let approved = allow(&[&path]);
-    assert!(approved.is_allowed("demo_three", &sha256_hex(&bytes)), "its hash is on the allow list");
+    // not approved (an empty allow list): refused, whatever the origin record says, and the same through the folder scan
     for (origin, expected) in [(Origin::Server, Refusal::FromServer), (Origin::Friend, Refusal::FromFriend)] {
-        let result = load_package(bytes.clone(), Some(origin), &approved, &[], cfg());
-        assert_eq!(result.unwrap_err(), expected, "{origin:?}, even with the hash allowed");
-        // and through the folder scan, with the origin read from the arrival record
-        let report = load_dir(&dir, &arrived(&[&path], origin), &approved, &[], &cfg());
+        let result = load_package(bytes.clone(), Some(origin), &AllowFile::default(), &[], cfg());
+        assert_eq!(result.unwrap_err(), expected, "{origin:?}, not approved");
+        let report = load_dir(&dir, &arrived(&[&path], origin), &AllowFile::default(), &[], &cfg());
         assert!(report.loaded.is_empty());
         assert_eq!(report.skipped[0].1, expected);
     }
     assert!(names().is_empty());
-    // the policy itself, for every combination
+    // MX3JN1: the policy itself, for every combination: a server's or friend's package needs the approval (a signature
+    // does not replace it), a local one too, a catalog one has the signature as an alternative
     for approved in [false, true] {
         for signed in [false, true] {
-            assert_eq!(decide(Origin::Server, approved, signed), Err(Refusal::FromServer));
-            assert_eq!(decide(Origin::Friend, approved, signed), Err(Refusal::FromFriend));
+            assert_eq!(decide(Origin::Server, approved, signed).is_ok(), approved);
+            assert_eq!(decide(Origin::Friend, approved, signed).is_ok(), approved);
+            if !approved {
+                assert_eq!(decide(Origin::Server, approved, signed), Err(Refusal::FromServer));
+                assert_eq!(decide(Origin::Friend, approved, signed), Err(Refusal::FromFriend));
+            }
             assert_eq!(decide(Origin::Local, approved, signed).is_ok(), approved, "a local mod needs its approval, a signature does not replace it");
             assert_eq!(decide(Origin::Catalog, approved, signed).is_ok(), approved || signed);
         }
     }
+}
+
+/// A game folder with the packages of one host in `mods/remote/<host dir>/` (stored the way the launcher does) and the
+/// approved list of a launch that joins it: entries with `origin`, list scoped to `list_host`. Returns the mods folder and
+/// the list file.
+fn remote_world(name: &str, folder_host: &str, list_host: &str, origin: Origin, packs: &[(&str, &str, String)]) -> (PathBuf, PathBuf) {
+    let base = scratch(name);
+    let mods = base.join("game").join("mods");
+    std::fs::create_dir_all(&mods).unwrap();
+    let src = scratch(&format!("{name}_src"));
+    let mut entries = Vec::new();
+    for (id, side, text) in packs {
+        let declared = match *side {
+            "client" => "client = \"bin/wasm/mod.wasm\"",
+            "both" => "server = \"bin/wasm/mod.wasm\"\nclient = \"bin/wasm/client.wasm\"",
+            _ => "server = \"bin/wasm/mod.wasm\"",
+        };
+        let bytes = std::fs::read(pack(&src, id, &format!("{declared}\nworld = \"full-access\""), text)).unwrap();
+        let hash = sha256_hex(&bytes);
+        horizon_mods::yak::control::install_remote_package(&mods, folder_host, &bytes, &hash).unwrap();
+        entries.push(horizon_mods::yak::control::ApprovedEntry { id: (*id).into(), version: "1.0.0".into(), sha256: hash, origin });
+    }
+    let list = ApprovedList::new(entries, vec![]).with_host(list_host);
+    let file = list.write_for_launch(&scratch(&format!("{name}_run"))).unwrap();
+    (mods, file)
+}
+
+fn client_loads(mods: &Path, file: &Path, key: Option<&str>) -> (Vec<String>, Vec<Refusal>, Vec<String>) {
+    let (mods, file, key) = (mods.to_path_buf(), file.to_path_buf(), key.map(str::to_owned));
+    std::thread::spawn(move || {
+        let report = horizon_client::yoake2_mods::load_client_mods_scoped(&mods, Some(&ApprovedList::read(&file).unwrap()), key.as_deref());
+        let out = (loaded_ids(&report), report.skipped.iter().map(|(_, refusal)| refusal.clone()).collect(), report.messages());
+        unload_client_mods();
+        out
+    })
+    .join()
+    .unwrap()
+}
+
+#[test]
+fn a_hosts_full_access_package_loads_only_for_the_launch_that_joins_that_host() {
+    for (origin, key, refusal) in [(Origin::Server, "server:play.example.com:25565", Refusal::FromServer), (Origin::Friend, "friend:user_7", Refusal::FromFriend)] {
+        let name = format!("remote_{}", origin.as_str());
+        let packs = [("demo_host", "client", counting_guest(&ALL_THREE, None))];
+        let (mods, file) = remote_world(&name, key, key, origin, &packs);
+        // the launch joins this host: it runs, on the client thread
+        let (loaded, skipped, messages) = client_loads(&mods, &file, Some(key));
+        assert_eq!(loaded, ["demo_host"], "{origin:?}: {skipped:?} {messages:?}");
+        // another host's launch (the list is scoped to the first host): nothing remote is loaded
+        let (loaded, _, _) = client_loads(&mods, &file, Some("server:other.example.com:25565"));
+        assert!(loaded.is_empty(), "another host's key does not read this host's folder");
+        // no key (single player, a plain launch): nothing remote is read
+        let (loaded, _, _) = client_loads(&mods, &file, None);
+        assert!(loaded.is_empty());
+        // a key that is not a host key is no key
+        let (loaded, _, _) = client_loads(&mods, &file, Some("../../x"));
+        assert!(loaded.is_empty());
+        // the server thread (single player, the host's own world) never loads a remote folder, whatever the key
+        let (m, f) = (mods.clone(), file.clone());
+        let server = std::thread::spawn(move || {
+            let report = load_world_mods(&m, Some(&ApprovedList::read(&f).unwrap()));
+            let ids = loaded_ids(&report);
+            runtime::uninstall().unwrap();
+            ids
+        })
+        .join()
+        .unwrap();
+        assert!(server.is_empty());
+        let _ = refusal;
+    }
+}
+
+#[test]
+fn a_remote_folder_of_another_host_is_not_loaded_even_with_a_list_for_this_one() {
+    // the list names host A, the launch joins host A, but the package sits in host B's folder
+    let a = "server:a.example.com:25565";
+    let b = "server:b.example.com:25565";
+    let packs = [("demo_host", "client", counting_guest(&ALL_THREE, None))];
+    let (mods, file) = remote_world("remote_wrong_folder", b, a, Origin::Server, &packs);
+    let (loaded, _, _) = client_loads(&mods, &file, Some(a));
+    assert!(loaded.is_empty(), "host A's folder is empty");
+    let (loaded, _, _) = client_loads(&mods, &file, Some(b));
+    assert!(loaded.is_empty(), "the list is for host A");
+}
+
+#[test]
+fn a_remote_package_that_the_list_does_not_name_or_that_changed_is_refused() {
+    let key = "server:play.example.com:25565";
+    let packs = [("demo_host", "client", counting_guest(&ALL_THREE, None))];
+    let (mods, file) = remote_world("remote_unlisted", key, key, Origin::Server, &packs);
+    // a second file dropped into the host's folder after the launcher approved: not in the list
+    let src = scratch("remote_unlisted_extra");
+    let extra = std::fs::read(pack(&src, "demo_extra", "client = \"bin/wasm/mod.wasm\"\nworld = \"full-access\"", &counting_guest(&ALL_THREE, None))).unwrap();
+    let folder = horizon_mods::yak::control::host_remote_dir(&mods, key).unwrap();
+    std::fs::write(folder.join(format!("{}.yak", sha256_hex(&extra))), &extra).unwrap();
+    let (loaded, skipped, messages) = client_loads(&mods, &file, Some(key));
+    assert_eq!(loaded, ["demo_host"], "only the approved one runs");
+    assert!(skipped.contains(&Refusal::UnknownOrigin { sha256: sha256_hex(&extra) }), "{skipped:?}");
+    assert!(messages.iter().any(|line| line.contains("demo_extra") || line.contains(&sha256_hex(&extra)[..12])), "{messages:?}");
+    // the approved file's bytes replaced under its own name: no entry matches any more
+    let approved = std::fs::read_dir(&folder).unwrap().flatten().map(|item| item.path()).find(|path| path.file_name().unwrap().to_string_lossy() != format!("{}.yak", sha256_hex(&extra))).unwrap();
+    std::fs::write(&approved, &extra[..extra.len() - 1]).unwrap();
+    let (loaded, _, _) = client_loads(&mods, &file, Some(key));
+    assert!(loaded.is_empty(), "changed bytes are not the approved package");
+}
+
+#[test]
+fn an_entry_of_a_host_scope_does_not_make_a_hand_dropped_file_in_the_plain_folder_run() {
+    let key = "server:play.example.com:25565";
+    let packs = [("demo_host", "client", counting_guest(&ALL_THREE, None))];
+    let (mods, file) = remote_world("remote_plain_folder", key, key, Origin::Server, &packs);
+    // the same approved bytes, copied by hand into the plain mods folder: the plain scan has no origin for them
+    let folder = horizon_mods::yak::control::host_remote_dir(&mods, key).unwrap();
+    let remote = std::fs::read_dir(&folder).unwrap().flatten().next().unwrap().path();
+    std::fs::copy(&remote, mods.join("hand_dropped.yak")).unwrap();
+    std::fs::remove_file(&remote).unwrap();
+    let (loaded, skipped, _) = client_loads(&mods, &file, Some(key));
+    assert!(loaded.is_empty(), "{skipped:?}");
+    assert!(matches!(skipped.as_slice(), [Refusal::UnknownOrigin { .. }]), "{skipped:?}");
+}
+
+#[test]
+fn a_remote_mod_with_the_id_of_a_local_one_does_not_replace_it() {
+    let key = "friend:user_7";
+    let guest = counting_guest(&ALL_THREE, None);
+    let (mods, file) = remote_world("remote_same_id", key, key, Origin::Friend, &[("demo_same", "client", guest.clone())]);
+    // the player has their own approved package of that id; the same list carries both entries
+    let src = scratch("remote_same_id_local");
+    let local = std::fs::read(pack(&src, "demo_same", "client = \"bin/wasm/mod.wasm\"\nworld = \"full-access\"", &counting_guest(&ALL_THREE, Some(900)))).unwrap();
+    std::fs::write(mods.join("demo_same.yak"), &local).unwrap();
+    let mut list = ApprovedList::read(&file).unwrap();
+    let mut entries = list.entries().to_vec();
+    entries.push(horizon_mods::yak::control::ApprovedEntry { id: "demo_same".into(), version: "1.0.0".into(), sha256: sha256_hex(&local), origin: Origin::Local });
+    list = ApprovedList::new(entries, vec![]).with_host(key);
+    let file = list.write_for_launch(&scratch("remote_same_id_run2")).unwrap();
+    let (mods2, file2) = (mods.clone(), file.clone());
+    let (loaded, problems) = std::thread::spawn(move || {
+        let report = horizon_client::yoake2_mods::load_client_mods_scoped(&mods2, Some(&ApprovedList::read(&file2).unwrap()), Some(key));
+        let out = (report.loaded.iter().map(|l| l.sha256.clone()).collect::<Vec<_>>(), report.problems.clone());
+        assert_eq!(names().len(), 1, "one mod of that id runs");
+        unload_client_mods();
+        out
+    })
+    .join()
+    .unwrap();
+    assert_eq!(loaded, [sha256_hex(&local)], "the player's own package wins");
+    assert!(problems.iter().any(|line| line.contains("has the id of one of your own mods")), "{problems:?}");
 }
 
 #[test]

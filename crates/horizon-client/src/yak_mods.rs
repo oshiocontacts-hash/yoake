@@ -152,7 +152,10 @@ impl Runtime {
         };
         let file = match File::open(game.join("yoake-mods.txt")) {
             Ok(file) => file,
-            Err(error) if error.kind() == ErrorKind::NotFound => return runtime,
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                runtime.add_remote(game, build, keys);
+                return runtime;
+            }
             Err(error) => {
                 runtime.reject(
                     "yoake-mods.txt",
@@ -242,8 +245,25 @@ impl Runtime {
                 ),
             }
         }
+        runtime.add_remote(game, build, keys);
         runtime.synced_config = runtime.entries.iter().any(Installed::has_synced_config);
         runtime
+    }
+
+    /// MX3JN1: the sandboxed packages fetched from the host this launch joins (`--remote-mods`), after the player's own
+    /// (an id the player has already stays theirs).
+    fn add_remote(&mut self, game: &Path, build: &Build, keys: &[PublicKey]) {
+        let Some(key) = horizon_client::join_mods::remote_key() else {
+            return;
+        };
+        for entry in remote_installed(game, &key, build, keys) {
+            if self.entries.iter().any(|other| other.manifest.id == entry.manifest.id) {
+                log::warn!("remote YAK {}: you have a package with this id, yours is used", entry.manifest.id);
+            } else {
+                self.entries.push(entry);
+            }
+        }
+        self.synced_config = self.entries.iter().any(Installed::has_synced_config);
     }
 }
 
@@ -293,6 +313,11 @@ fn installed_files(root: &Path) -> Result<Vec<String>, String> {
 }
 
 pub(crate) fn initialize() {
+    // MX3JN1: what the connection code (in the client library) offers joining players and counts as installed
+    horizon_client::join_mods::set_providers(
+        || entries().iter().map(|entry| (entry.manifest.id.clone(), entry.manifest.version.to_string())).collect(),
+        server_runs_package,
+    );
     if RUNTIME.get().is_some() {
         return;
     }
@@ -312,6 +337,7 @@ pub(crate) fn initialize() {
     let game = std::path::absolute(&game).unwrap_or(game);
     if std::fs::symlink_metadata(game.join("yoake-mods.txt"))
         .is_err_and(|error| error.kind() == ErrorKind::NotFound)
+        && horizon_client::join_mods::remote_key().is_none()
     {
         return;
     }
@@ -324,6 +350,19 @@ pub(crate) fn initialize() {
         }
     };
     let _ = RUNTIME.set(runtime);
+}
+
+/// Whether the server thread runs the full-access package with this SHA-256 (lowercase hex).
+fn server_runs_package(sha256: &str) -> bool {
+    #[cfg(feature = "yoake2-slice")]
+    {
+        crate::yoake2_mods::server_runs_package(sha256)
+    }
+    #[cfg(not(feature = "yoake2-slice"))]
+    {
+        let _ = sha256;
+        false
+    }
 }
 
 pub(crate) fn game_root() -> Option<&'static Path> {
@@ -633,6 +672,98 @@ fn wasm_preflight(
         return Err("wasm module changed while loading".into());
     }
     Ok((bytes, digest, signed))
+}
+
+
+// ---------------------------------------------------------------------------------------------------------------
+// MX3JN1: sandboxed packages fetched from the host this launch joins (`--remote-mods <host key>`)
+// ---------------------------------------------------------------------------------------------------------------
+
+/// The sandboxed `.yak` packages of `<game>/mods/remote/<host dir>/` as installed packages: only files named by their own
+/// SHA-256 (`<sha256>.yak`, hashing to the name, at most 64 MiB), not full-access (those run only through the launcher's
+/// approved list), with a client side, and compatible with this build. Each is unpacked once into
+/// `<game>/yoake-remote/<host dir>/<sha256>/`. Whether the code in them runs is decided later exactly as for any
+/// installed package: a trusted signature is required (`wasm_preflight`) unless the developer override is on.
+pub(crate) fn remote_installed(game: &Path, host_key: &str, build: &Build, keys: &[PublicKey]) -> Vec<Installed> {
+    use sha2::Digest;
+    let Some(dir) = yak::control::host_remote_dir(&game.join("mods"), host_key) else {
+        return Vec::new();
+    };
+    let Ok(read) = std::fs::read_dir(&dir) else {
+        return Vec::new();
+    };
+    let mut files: Vec<PathBuf> = read.flatten().map(|item| item.path()).filter(|path| path.extension().is_some_and(|extension| extension == "yak")).collect();
+    files.sort();
+    let mut out: Vec<Installed> = Vec::new();
+    for path in files {
+        let result = (|| -> Result<Installed, String> {
+            let stem = path.file_stem().and_then(|stem| stem.to_str()).ok_or("no file name")?.to_owned();
+            if stem.len() != 64 || !stem.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) {
+                return Err("a remote package is named by its SHA-256".into());
+            }
+            yak::check_plain_path(&path)?;
+            let meta = std::fs::metadata(&path).map_err(|error| error.to_string())?;
+            if !meta.is_file() || meta.len() > 64 * 1024 * 1024 {
+                return Err("not a regular file of at most 64 MiB".into());
+            }
+            let bytes = std::fs::read(&path).map_err(|error| error.to_string())?;
+            let hash: String = sha2::Sha256::digest(&bytes).iter().map(|byte| format!("{byte:02x}")).collect();
+            if hash != stem {
+                return Err("the file does not hash to its name".into());
+            }
+            let mut archive = yak::Archive::new(std::io::Cursor::new(bytes))?;
+            let manifest = archive.manifest().clone();
+            if manifest.wasm.as_ref().is_some_and(|wasm| wasm.full_access()) {
+                return Err("full-access package: only the launcher's approved list may run it".into());
+            }
+            if !manifest.side.client {
+                return Err("server-only YAK".into());
+            }
+            build.check(&manifest)?;
+            let root = game.join("yoake-remote").join(yak::control::host_dir_name(host_key)).join(&stem);
+            if !root.is_dir() {
+                let part = root.with_extension("part");
+                let _ = std::fs::remove_dir_all(&part);
+                let names: Vec<String> = archive.entries().iter().map(|entry| entry.name.clone()).collect();
+                for name in names {
+                    let target = part.join(&name);
+                    if let Some(parent) = target.parent() {
+                        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+                    }
+                    let mut file = File::create_new(&target).map_err(|error| error.to_string())?;
+                    archive.copy_file(&name, &mut file)?;
+                }
+                std::fs::rename(&part, &root).map_err(|error| error.to_string())?;
+            }
+            yak::check_installed_tree(&root)?;
+            let installed_manifest = Manifest::read(&root.join("yak.toml"))?;
+            if installed_manifest.id != manifest.id || installed_manifest.version != manifest.version {
+                return Err("unpacked identity differs".into());
+            }
+            let content = root.join("content");
+            let (content, content_wasm) = if content.is_dir() {
+                let package = Package::read(&content)?;
+                if package.manifest.id != manifest.id {
+                    return Err("content and YAK identity differ".into());
+                }
+                (Some(content), package.wasm.is_some())
+            } else {
+                (None, false)
+            };
+            let names = installed_files(&root)?;
+            let names: Vec<_> = names.iter().map(String::as_str).collect();
+            let signed = yak::verify_installed(&root, &names, keys).is_ok();
+            Ok(Installed { root, manifest: installed_manifest, content, content_wasm, signed })
+        })();
+        match result {
+            Ok(entry) if out.iter().any(|other| other.manifest.id == entry.manifest.id) => {
+                log::warn!("YAK {}: two remote packages with one id, only the first is used", entry.manifest.id);
+            }
+            Ok(entry) => out.push(entry),
+            Err(reason) => log::warn!("remote YAK {}: not loaded: {reason}", path.display()),
+        }
+    }
+    out
 }
 
 pub(crate) fn content_packages(

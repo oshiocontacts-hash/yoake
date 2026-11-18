@@ -661,3 +661,57 @@ fn the_sandboxed_path_skips_full_access_packages() {
     let found = wasm_mods_from(&both, WasmSide::Server, &[], true);
     assert_eq!(found.iter().map(|m| m.mod_id.as_str()).collect::<Vec<_>>(), ["plain_mod"]);
 }
+
+/// MX3JN1: a `.yak` as the launcher stores a host's package: `<mods>/remote/<host dir>/<sha256>.yak`.
+fn remote_package(fixture: &Fixture, key: &str, id: &str, extra: &str, name_it_right: bool) -> PathBuf {
+    let src = fixture.0.join(format!("src_{id}"));
+    let source = data(id).replace("server = true", "server = false") + extra;
+    fixture.write(&src.join("yak.toml"), &source);
+    fixture.write(&src.join("bin/wasm/sample.wasm"), b"\0asm\x01\0\0\0");
+    let out = fixture.0.join(format!("{id}.yak"));
+    horizon_mods::yak::pack_directory(&src, &out, &BTreeMap::new()).unwrap();
+    let bytes = fs::read(&out).unwrap();
+    let hash = yak::control::sha256_hex(&bytes);
+    let name = if name_it_right { hash.clone() } else { "f".repeat(64) };
+    let folder = yak::control::host_remote_dir(&fixture.0.join("mods"), key).unwrap();
+    fs::create_dir_all(&folder).unwrap();
+    fs::write(folder.join(format!("{name}.yak")), bytes).unwrap();
+    folder.join(format!("{name}.yak"))
+}
+
+#[test]
+fn a_hosts_sandboxed_packages_are_installed_for_that_host_only() {
+    let fixture = Fixture::new();
+    let key = "server:play.example.com:25565";
+    let wasm = "\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/sample.wasm\"\n";
+    let good = remote_package(&fixture, key, "host_mod", wasm, true);
+    let hash = good.file_stem().unwrap().to_str().unwrap().to_owned();
+    // refused: not named by its hash, full-access (only the approved list may run those), server-only
+    remote_package(&fixture, key, "misnamed_mod", wasm, false);
+    remote_package(&fixture, key, "full_mod", &format!("{wasm}world = \"full-access\"\n"), true);
+    let server_side = data("server_mod").replace("client = true", "client = false") + "\n[wasm]\ninterface = \"1.0\"\nserver = \"bin/wasm/sample.wasm\"\n";
+    let src = fixture.0.join("src_server_mod");
+    fixture.write(&src.join("yak.toml"), &server_side);
+    fixture.write(&src.join("bin/wasm/sample.wasm"), b"\0asm\x01\0\0\0");
+    let out = fixture.0.join("server_mod.yak");
+    horizon_mods::yak::pack_directory(&src, &out, &BTreeMap::new()).unwrap();
+    let bytes = fs::read(&out).unwrap();
+    fs::write(good.with_file_name(format!("{}.yak", yak::control::sha256_hex(&bytes))), bytes).unwrap();
+    // a file that hashes to other than its name
+    let liar = good.with_file_name(format!("{}.yak", "a".repeat(64)));
+    fs::copy(&good, &liar).unwrap();
+
+    let found = remote_installed(&fixture.0, key, &build(), &[]);
+    assert_eq!(found.iter().map(|entry| entry.manifest.id.as_str()).collect::<Vec<_>>(), ["host_mod"]);
+    assert_eq!(found[0].root, fixture.0.join("yoake-remote").join("server+play.example.com+25565").join(&hash));
+    assert!(found[0].root.join("yak.toml").is_file() && !found[0].signed);
+    // unpacked once: a second read reuses the folder
+    assert_eq!(remote_installed(&fixture.0, key, &build(), &[]).len(), 1);
+    // another host's key, a friend key, and a key that is no key see none of it
+    for other in ["server:other.example.com:25565", "friend:user_7", "server:../x"] {
+        assert!(remote_installed(&fixture.0, other, &build(), &[]).is_empty(), "{other}");
+    }
+    // the code is still judged like any package's: no trusted signature, no load
+    assert!(wasm_mods_from(&found, WasmSide::Client, &[], false).is_empty());
+    assert_eq!(wasm_mods_from(&found, WasmSide::Client, &[], true).len(), 1, "only the developer override loads an unsigned one");
+}
