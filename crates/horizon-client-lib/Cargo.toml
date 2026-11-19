@@ -158,6 +158,11 @@ path = "../horizon-client/examples/yoake_hook_bench.rs"
 required-features = ["yoake-hook-bench"]
 
 [[example]]
+name = "yoake_mob_hook_bench"
+path = "../horizon-client/examples/yoake_mob_hook_bench.rs"
+required-features = ["yoake-hook-bench"]
+
+[[example]]
 name = "chunk_load_bench"
 path = "../horizon-client/examples/chunk_load_bench.rs"
 

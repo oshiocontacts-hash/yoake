@@ -1,4 +1,7 @@
-# Instrumented modules, one per line: <crate root dir> <crate name> <module path>
+# Instrumented modules, one per line: <crate root dir> <crate name> <module path> [flags...]
+# Flags: `callsites=true` (pass `--callsites` / verify call sites), `shallow=true` (pass `--shallow`, only the module's own items without inline `mod` blocks or child modules).
 # CI runs `yoake-hook-codemod check` for each line (.github/workflows/yoake-hooks.yml).
 crates/horizon-client-lib horizon_client_lib entities callsites=true
 crates/horizon-client horizon_client game::item_use callsites=true
+crates/horizon-client-lib horizon_client_lib mobs shallow=true
+crates/horizon-client-lib horizon_client_lib motion shallow=true

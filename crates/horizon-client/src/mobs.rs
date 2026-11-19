@@ -125,6 +125,7 @@ pub struct Polygon {
     pub cull_back: bool,
 }
 impl Polygon {
+    #[yoake_hook_macro::yoake_hook(method, id = 411, key = "horizon_client_lib::mobs::Polygon::vertex_normal")]
     fn vertex_normal(&self, pose: ModelNormals) -> [i8; 4] {
         let n = pose.matrix * glam::Vec3::from_array(self.normal);
         let n = if pose.trusted {
@@ -237,6 +238,7 @@ pub struct Part {
 }
 impl Part {
     /// Marks every polygon as drawn by a back-face-culling render type.
+    #[yoake_hook_macro::yoake_hook(method, id = 412, key = "horizon_client_lib::mobs::Part::set_cull_back")]
     fn set_cull_back(&mut self) {
         for poly in &mut self.polygons {
             poly.cull_back = true;
@@ -245,6 +247,7 @@ impl Part {
             child.set_cull_back();
         }
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 413, key = "horizon_client_lib::mobs::Part::parse")]
     fn parse(name: &str, v: &Value) -> Self {
         let pose: Vec<f32> = v["pose"]
             .as_array()
@@ -414,6 +417,7 @@ impl MobType {
 }
 /// Each type's default attribute values, parsed exactly (serde_json's
 /// default float parsing can miss the nearest double by one ulp).
+#[yoake_hook_macro::yoake_hook(id = 414, key = "horizon_client_lib::mobs::exact_attributes")]
 pub(crate) fn exact_attributes(bytes: &[u8]) -> HashMap<String, HashMap<String, f64>> {
     use serde_json::value::RawValue;
     type Raw = HashMap<String, Box<RawValue>>;
@@ -435,6 +439,7 @@ pub(crate) fn exact_attributes(bytes: &[u8]) -> HashMap<String, HashMap<String, 
 }
 
 /// The models that draw with `RenderTypes::entityCutoutCull`.
+#[yoake_hook_macro::yoake_hook(id = 415, key = "horizon_client_lib::mobs::culls_back_faces")]
 fn culls_back_faces(key: &str) -> bool {
     matches!(key, "minecraft:bat#main" | "minecraft:turtle_baby#main")
 }
@@ -443,6 +448,7 @@ pub struct MobTypes {
     pub types: HashMap<String, MobType>,
 }
 impl MobTypes {
+    #[yoake_hook_macro::yoake_hook(method, id = 416, key = "horizon_client_lib::mobs::MobTypes::load")]
     pub fn load(root: &Path) -> crate::Result<Self> {
         Self::load_with_models(root, true)
     }
@@ -450,10 +456,12 @@ impl MobTypes {
     /// The dedicated server needs entity facts and AI, but never their render
     /// geometry. Keep one empty part for the fields shared with the client
     /// rather than parsing and retaining every entity-model layer.
+    #[yoake_hook_macro::yoake_hook(method, id = 417, key = "horizon_client_lib::mobs::MobTypes::load_for_server")]
     pub fn load_for_server(root: &Path) -> crate::Result<Self> {
         Self::load_with_models(root, false)
     }
 
+    #[yoake_hook_macro::yoake_hook(method, id = 418, key = "horizon_client_lib::mobs::MobTypes::load_with_models")]
     fn load_with_models(root: &Path, models_needed: bool) -> crate::Result<Self> {
         let bytes = fs::read(root.join("entity-types.json"))?;
         let types: Value = serde_json::from_slice(&bytes)?;
@@ -679,6 +687,7 @@ pub struct Damage {
     pub from: Option<[f64; 3]>,
 }
 impl Damage {
+    #[yoake_hook_macro::yoake_hook(method, id = 419, key = "horizon_client_lib::mobs::Damage::fall")]
     pub fn fall() -> Self {
         Self {
             kind: DamageKind::Fall,
@@ -686,6 +695,7 @@ impl Damage {
             from: None,
         }
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 420, key = "horizon_client_lib::mobs::Damage::of")]
     pub fn of(kind: DamageKind) -> Self {
         Self {
             kind,
@@ -693,6 +703,7 @@ impl Damage {
             from: None,
         }
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 421, key = "horizon_client_lib::mobs::Damage::player")]
     pub fn player(from: [f64; 3]) -> Self {
         Self {
             kind: DamageKind::PlayerAttack,
@@ -701,6 +712,7 @@ impl Damage {
         }
     }
     /// `DamageSources.mace`: a player's smash attack.
+    #[yoake_hook_macro::yoake_hook(method, id = 422, key = "horizon_client_lib::mobs::Damage::mace")]
     pub fn mace(from: [f64; 3]) -> Self {
         Self {
             kind: DamageKind::MaceSmash,
@@ -709,6 +721,7 @@ impl Damage {
         }
     }
     /// `DamageSources.spear`: a player's stab with a spear.
+    #[yoake_hook_macro::yoake_hook(method, id = 423, key = "horizon_client_lib::mobs::Damage::spear")]
     pub fn spear(from: [f64; 3]) -> Self {
         Self {
             kind: DamageKind::Spear,
@@ -719,6 +732,7 @@ impl Damage {
     /// `DamageSources.indirectMagic(potion, owner)`: `attacker` is the owner
     /// (none for a dispenser's potion), `from` the potion's position, which
     /// the knockback pushes away from.
+    #[yoake_hook_macro::yoake_hook(method, id = 424, key = "horizon_client_lib::mobs::Damage::indirect_magic")]
     pub fn indirect_magic(attacker: Option<Who>, from: [f64; 3]) -> Self {
         Self {
             kind: DamageKind::IndirectMagic,
@@ -729,6 +743,7 @@ impl Damage {
     /// `DamageSources.fireworks(rocket, owner)`: `attacker` is the owner
     /// (none for a rocket nobody fired), `from` the rocket's position, which
     /// the knockback pushes away from (`calculateHorizontalHurtKnockbackDirection`).
+    #[yoake_hook_macro::yoake_hook(method, id = 425, key = "horizon_client_lib::mobs::Damage::fireworks")]
     pub fn fireworks(attacker: Option<Who>, from: [f64; 3]) -> Self {
         Self {
             kind: DamageKind::Fireworks,
@@ -736,6 +751,7 @@ impl Damage {
             from: Some(from),
         }
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 426, key = "horizon_client_lib::mobs::Damage::mob")]
     pub fn mob(id: u32, from: [f64; 3]) -> Self {
         Self {
             kind: DamageKind::MobAttack,
@@ -744,6 +760,7 @@ impl Damage {
         }
     }
     /// DamageTypeTags.PANIC_CAUSES
+    #[yoake_hook_macro::yoake_hook(method, id = 427, key = "horizon_client_lib::mobs::Damage::causes_panic")]
     pub fn causes_panic(&self) -> bool {
         !matches!(
             self.kind,
@@ -766,6 +783,7 @@ impl Damage {
         )
     }
     /// DamageTypeTags.BYPASSES_ARMOR
+    #[yoake_hook_macro::yoake_hook(method, id = 428, key = "horizon_client_lib::mobs::Damage::bypasses_armor")]
     pub fn bypasses_armor(&self) -> bool {
         matches!(
             self.kind,
@@ -787,6 +805,7 @@ impl Damage {
                 | DamageKind::Wither
         )
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 429, key = "horizon_client_lib::mobs::Damage::is_fire")]
     pub fn is_fire(&self) -> bool {
         matches!(
             self.kind,
@@ -800,6 +819,7 @@ impl Damage {
         )
     }
     /// DamageTypeTags.NO_KNOCKBACK
+    #[yoake_hook_macro::yoake_hook(method, id = 430, key = "horizon_client_lib::mobs::Damage::no_knockback")]
     pub fn no_knockback(&self) -> bool {
         matches!(
             self.kind,
@@ -830,6 +850,7 @@ impl Damage {
                 | DamageKind::Spear
         )
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 431, key = "horizon_client_lib::mobs::Damage::is_projectile")]
     pub fn is_projectile(&self) -> bool {
         matches!(
             self.kind,
@@ -858,6 +879,7 @@ pub struct Attrs {
 pub const WOLF_ARMOR_DURABILITY: i32 = 64;
 /// `NeutralMob.readPersistentAngerSaveData`: the anger runs until its end
 /// time, so a mob that is loaded again is angry for what is left of it.
+#[yoake_hook_macro::yoake_hook(id = 432, key = "horizon_client_lib::mobs::anger_left")]
 pub fn anger_left(anger_end: i64, game_time: i64) -> i32 {
     if anger_end <= 0 {
         return 0;
@@ -1161,10 +1183,12 @@ pub struct Extra {
     pub equipment_heard: Option<Box<[Option<crate::items::ItemStack>; 8]>>,
 }
 impl Extra {
+    #[yoake_hook_macro::yoake_hook(method, id = 433, key = "horizon_client_lib::mobs::Extra::set_main_hand")]
     pub fn set_main_hand(&mut self, item: Option<Arc<str>>) {
         self.main_hand = item;
         self.main_hand_stack = None;
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 434, key = "horizon_client_lib::mobs::Extra::set_main_hand_stack")]
     pub fn set_main_hand_stack(&mut self, stack: Option<crate::items::ItemStack>) {
         self.main_hand = stack.as_ref().map(|s| s.item.clone());
         self.main_hand_stack = stack;
@@ -1174,6 +1198,7 @@ impl Extra {
             .as_ref()
             .filter(|s| self.main_hand.as_ref() == Some(&s.item))
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 435, key = "horizon_client_lib::mobs::Extra::take_main_hand")]
     pub fn take_main_hand(&mut self) -> Option<Arc<str>> {
         self.main_hand_stack = None;
         self.main_hand.take()
@@ -1320,6 +1345,13 @@ pub struct Mob {
 }
 impl crate::entity_rules::EntityRules for Mob {
     fn is_no_gravity(&self) -> bool {
+        self.__yoake_trait_entity_rules_is_no_gravity()
+    }
+}
+impl Mob {
+    #[yoake_hook_macro::yoake_hook(method, id = 436, key = "horizon_client_lib::mobs::<Mob as EntityRules>::is_no_gravity")]
+    #[inline(always)]
+    fn __yoake_trait_entity_rules_is_no_gravity(&self) -> bool {
         self.no_gravity
     }
 }
@@ -1334,6 +1366,7 @@ pub enum MannequinDescription {
 }
 impl MannequinDescription {
     /// `Mannequin.getDescription`: the component `DATA_DESCRIPTION` holds, none when hidden.
+    #[yoake_hook_macro::yoake_hook(method, id = 437, key = "horizon_client_lib::mobs::MannequinDescription::component")]
     pub fn component(&self) -> Option<horizon_world::nbt::Tag> {
         match self {
             Self::Default => Some(horizon_world::nbt::Tag::compound([(
@@ -1345,6 +1378,7 @@ impl MannequinDescription {
         }
     }
     /// `DATA_DESCRIPTION` as a client reads it.
+    #[yoake_hook_macro::yoake_hook(method, id = 438, key = "horizon_client_lib::mobs::MannequinDescription::from_component")]
     pub fn from_component(tag: Option<&horizon_world::nbt::Tag>) -> Self {
         match tag {
             None => Self::Hidden,
@@ -2176,12 +2210,14 @@ pub struct Seen {
 }
 impl Seen {
     /// `LivingEntity.hasEffect`, by id without namespace.
+    #[yoake_hook_macro::yoake_hook(method, id = 439, key = "horizon_client_lib::mobs::Seen::has_effect")]
     pub fn has_effect(&self, effect: &str) -> bool {
         self.effects.contains(&effect)
     }
 }
 impl Mob {
     /// The name used by command replies: CustomName takes precedence over the type.
+    #[yoake_hook_macro::yoake_hook(method, id = 440, key = "horizon_client_lib::mobs::Mob::command_name")]
     pub fn command_name(&self) -> crate::text::Text {
         if let Some(name) = &self.custom_name {
             return crate::text::Text::literal(name);
@@ -2202,6 +2238,7 @@ impl Mob {
     /// What the mob holds and wears, by `EquipmentSlot` ordinal: main hand,
     /// off hand, feet, legs, chest, head, body and saddle
     /// (`ClientboundSetEquipmentPacket`'s slots).
+    #[yoake_hook_macro::yoake_hook(method, id = 441, key = "horizon_client_lib::mobs::Mob::equipment_stacks")]
     pub fn equipment_stacks(&self) -> [Option<crate::items::ItemStack>; 8] {
         use crate::items::ItemStack;
         let e = &self.extra;
@@ -2250,6 +2287,7 @@ impl Mob {
         }
         out
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 442, key = "horizon_client_lib::mobs::Mob::burning_time")]
     pub fn burning_time(&self) -> f64 {
         let base = finalize::value(self, finalize::Attr::BurningTime);
         let protection: u32 = gear::ARMOR
@@ -2260,9 +2298,11 @@ impl Mob {
     }
     /// Entity.isOnFire: fire-immune mobs never count as burning, even on the
     /// tick a sun or fire check set their timer before `base_tick` clears it.
+    #[yoake_hook_macro::yoake_hook(method, id = 443, key = "horizon_client_lib::mobs::Mob::is_on_fire")]
     pub fn is_on_fire(&self) -> bool {
         !self.kind.flags.fire_immune && self.fire_ticks > 0
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 444, key = "horizon_client_lib::mobs::Mob::ignite_for_ticks")]
     pub fn ignite_for_ticks(&mut self, ticks: i32) {
         self.fire_ticks = self
             .fire_ticks
@@ -2273,6 +2313,7 @@ impl Mob {
     /// (`playEntityOnFireExtinguishedSound`: volume 0.7, pitch from two draws
     /// of its random, at its feet), then `clearFire` keeps only the
     /// fire-immune countdown.
+    #[yoake_hook_macro::yoake_hook(method, id = 445, key = "horizon_client_lib::mobs::Mob::extinguish_fire")]
     pub fn extinguish_fire(&mut self) {
         if self.is_on_fire() {
             let pitch = 1.6 + (self.random.next_float() - self.random.next_float()) * 0.4;
@@ -2287,12 +2328,14 @@ impl Mob {
         self.fire_ticks = self.fire_ticks.min(0);
     }
     /// `Entity.isFullyFrozen`.
+    #[yoake_hook_macro::yoake_hook(method, id = 446, key = "horizon_client_lib::mobs::Mob::is_fully_frozen")]
     pub fn is_fully_frozen(&self) -> bool {
         self.ticks_frozen >= crate::motion::PlayerMotion::TICKS_REQUIRED_TO_FREEZE
     }
 
     /// What other mobs see of this one this tick (`player`: the player's
     /// UUID, which villagers' reputation is keyed by).
+    #[yoake_hook_macro::yoake_hook(method, id = 447, key = "horizon_client_lib::mobs::Mob::seen")]
     pub fn seen(&self, player: Option<[i32; 4]>) -> Seen {
         let m = self;
         let villager = m.species() == Species::Villager;
@@ -2371,6 +2414,7 @@ impl Mob {
         }
     }
     /// `EntityType.getCategory`'s name.
+    #[yoake_hook_macro::yoake_hook(method, id = 448, key = "horizon_client_lib::mobs::Mob::category")]
     pub fn category(&self) -> &'static str {
         match self.kind.category.as_str() {
             "monster" => "monster",
@@ -2393,9 +2437,11 @@ impl Mob {
 /// it is not a boss that never travels, and — over `Monster.canUsePortal` —
 /// it is not a creaking bound to a heart (`Creaking.canUsePortal`). The
 /// rides and the players a side carries are the caller's half.
+#[yoake_hook_macro::yoake_hook(id = 449, key = "horizon_client_lib::mobs::mob_can_use_portal")]
 pub fn mob_can_use_portal(m: &Mob) -> bool {
     m.alive() && m.species() != Species::Wither && creaking::can_use_portal(m)
 }
+#[yoake_hook_macro::yoake_hook(id = 450, key = "horizon_client_lib::mobs::take_mob_pushes")]
 pub fn take_mob_pushes(events: &mut Vec<MobEvent>, from: usize, pending: &mut PendingPushes) {
     // One pass: a crowd's tick holds a push per neighbour, and removing each
     // in place would shift the rest every time.
@@ -2424,6 +2470,7 @@ pub struct PendingPushes {
 }
 impl PendingPushes {
     const LIST_MAX: usize = 64;
+    #[yoake_hook_macro::yoake_hook(method, id = 451, key = "horizon_client_lib::mobs::PendingPushes::push")]
     pub fn push(&mut self, id: u32, v: Vec3) {
         if self.by_mob.is_empty() && self.list.len() < Self::LIST_MAX {
             self.list.push((id, v));
@@ -2439,6 +2486,7 @@ impl PendingPushes {
 /// `ServerLevel.sendBlockUpdated`: for each write that changed a block's collision
 /// shape, a mob whose path runs near it re-paths (`PathNavigation.shouldRecomputePath`).
 /// The writes whose shape changed are found once per tick ([`collision_changes`]).
+#[yoake_hook_macro::yoake_hook(id = 452, key = "horizon_client_lib::mobs::blocks_changed")]
 pub fn blocks_changed(m: &mut Mob, changed: &[[i32; 3]]) {
     if m.ai.nav.is_done() {
         return;
@@ -2452,6 +2500,7 @@ pub fn blocks_changed(m: &mut Mob, changed: &[[i32; 3]]) {
 }
 /// The writes of `writes` that changed the block's collision shape, in order:
 /// `sendBlockUpdated` compares the two shapes once per write, not per mob.
+#[yoake_hook_macro::yoake_hook(id = 453, key = "horizon_client_lib::mobs::collision_changes")]
 pub fn collision_changes(w: &MobWorld, writes: &[((i32, i32, i32), u32, u32)]) -> Vec<[i32; 3]> {
     writes
         .iter()
@@ -2464,6 +2513,7 @@ pub fn collision_changes(w: &MobWorld, writes: &[((i32, i32, i32), u32, u32)]) -
         .collect()
 }
 /// Adds the pending pushes aimed at `m` to its velocity, in push order.
+#[yoake_hook_macro::yoake_hook(id = 454, key = "horizon_client_lib::mobs::apply_mob_pushes")]
 pub fn apply_mob_pushes(m: &mut Mob, pending: &mut PendingPushes) {
     // Entity.push(x, y, z) sets needsSync.
     let mut add = |v: Vec3| {
@@ -2488,6 +2538,7 @@ pub fn apply_mob_pushes(m: &mut Mob, pending: &mut PendingPushes) {
 /// Applies the brain memories a mob's tick set on other mobs (from event
 /// index `from` on), at once: vanilla sets them on the other entity during
 /// the tick, before the mobs after it tick.
+#[yoake_hook_macro::yoake_hook(id = 455, key = "horizon_client_lib::mobs::apply_brain_events")]
 pub fn apply_brain_events(mobs: &mut [Mob], events: &mut Vec<MobEvent>, from: usize) {
     let mut i = from;
     while i < events.len() {
@@ -2603,6 +2654,7 @@ pub struct Vehicle {
 }
 impl PlayerView {
     /// `LivingEntity.getVisibilityPercent` without the worn-skull scaling.
+    #[yoake_hook_macro::yoake_hook(method, id = 456, key = "horizon_client_lib::mobs::PlayerView::visibility_percent")]
     pub fn visibility_percent(&self) -> f64 {
         let mut visibility = 1.0;
         if self.sneaking {
@@ -2614,6 +2666,7 @@ impl PlayerView {
         visibility
     }
     /// `LivingEntity.hasEffect`, by id without namespace.
+    #[yoake_hook_macro::yoake_hook(method, id = 457, key = "horizon_client_lib::mobs::PlayerView::has_effect")]
     pub fn has_effect(&self, effect: &str) -> bool {
         self.effects.contains(&effect)
     }
@@ -2705,6 +2758,7 @@ impl<'a> Teams<'a> {
     }
 }
 impl Mob {
+    #[yoake_hook_macro::yoake_hook(method, id = 458, key = "horizon_client_lib::mobs::Mob::new")]
     pub fn new(id: u32, kind: Arc<MobType>, position: Vec3, yaw: f32) -> Self {
         let mut random = LegacyRandom::new(
             i64::from(id).wrapping_mul(0x5DEE_CE66D)
@@ -2827,6 +2881,7 @@ impl Mob {
     }
     /// `Mob.canPickUpLoot`, with the overrides: an allay that holds
     /// something off its pickup cooldown, a sulfur cube with no block.
+    #[yoake_hook_macro::yoake_hook(method, id = 459, key = "horizon_client_lib::mobs::Mob::can_pick_up_loot")]
     pub fn can_pick_up_loot(&self) -> bool {
         match self.species() {
             Species::Allay => self.extra.main_hand.is_some() && self.extra.ints[3] <= 0,
@@ -2834,10 +2889,12 @@ impl Mob {
             _ => self.extra.pick_up_loot,
         }
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 460, key = "horizon_client_lib::mobs::Mob::bounds")]
     pub fn bounds(&self) -> Aabb {
         self.bounds_at(self.position)
     }
     /// `Entity.makeBoundingBox(position)`.
+    #[yoake_hook_macro::yoake_hook(method, id = 461, key = "horizon_client_lib::mobs::Mob::bounds_at")]
     pub fn bounds_at(&self, position: Vec3) -> Aabb {
         let w = f64::from(self.width()) / 2.0;
         Aabb::new(
@@ -2851,6 +2908,7 @@ impl Mob {
     }
     /// `CombatTracker.recordDamage`: a hit that took `damage` health, with
     /// the fall it ends.
+    #[yoake_hook_macro::yoake_hook(method, id = 462, key = "horizon_client_lib::mobs::Mob::record_damage")]
     pub fn record_damage(&mut self, source: Damage, damage: f32) {
         let entry = combat::Entry {
             source,
@@ -2860,21 +2918,26 @@ impl Mob {
         };
         self.combat.record(entry, self.age);
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 463, key = "horizon_client_lib::mobs::Mob::alive")]
     pub fn alive(&self) -> bool {
         self.health > 0.0
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 464, key = "horizon_client_lib::mobs::Mob::hostile")]
     pub fn hostile(&self) -> bool {
         self.kind.category == "monster"
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 465, key = "horizon_client_lib::mobs::Mob::species")]
     pub fn species(&self) -> Species {
         self.kind.species
     }
     /// `Mob.getMainArm`: the left arm when the mob is left-handed, a player's
     /// `mainHand` option for a player mob.
+    #[yoake_hook_macro::yoake_hook(method, id = 466, key = "horizon_client_lib::mobs::Mob::main_arm_left")]
     pub fn main_arm_left(&self) -> bool {
         self.extra.main_hand_left || self.extra.left_handed
     }
     /// The player hit this mob (melee): LivingEntity.hurt with knockback.
+    #[yoake_hook_macro::yoake_hook(method, id = 467, key = "horizon_client_lib::mobs::Mob::hurt")]
     pub fn hurt(
         &mut self,
         amount: f32,
@@ -2890,6 +2953,7 @@ impl Mob {
     /// LivingEntity.hurtServer: invulnerability frames, armor, knockback and
     /// the last-hurt-by bookkeeping goals read.
     /// The `armor` and `armor_toughness` modifiers of worn humanoid armour.
+    #[yoake_hook_macro::yoake_hook(method, id = 468, key = "horizon_client_lib::mobs::Mob::worn_armor")]
     pub fn worn_armor(&self) -> (f32, f32) {
         // An equine keeps its horse armor in `extra.body`: the item's `armor`
         // and `armor_toughness` modifiers of the body slot.
@@ -2912,6 +2976,7 @@ impl Mob {
         .fold((0.0, 0.0), |(a, t), (x, y)| (a + x, t + y))
     }
     /// `damage` of a blow whose causing entity is `aim` (`SulfurCube.knockback` reads it).
+    #[yoake_hook_macro::yoake_hook(method, id = 469, key = "horizon_client_lib::mobs::Mob::damage_aimed")]
     pub fn damage_aimed(&mut self, amount: f32, source: Damage, aim: Option<Aim>) -> bool {
         self.attacker_aim = aim;
         let hurt = self.damage(amount, source);
@@ -2920,6 +2985,7 @@ impl Mob {
     }
     /// `damage` of a blow dealt by a projectile (`motion`: its horizontal movement) whose owner
     /// is `aim`.
+    #[yoake_hook_macro::yoake_hook(method, id = 470, key = "horizon_client_lib::mobs::Mob::damage_projectile")]
     pub fn damage_projectile(
         &mut self,
         amount: f32,
@@ -2932,11 +2998,13 @@ impl Mob {
         self.projectile_motion = None;
         hurt
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 471, key = "horizon_client_lib::mobs::Mob::damage")]
     pub fn damage(&mut self, amount: f32, source: Damage) -> bool {
         self.damage_with(amount, source, None)
     }
     /// `LivingEntity.isInvulnerableTo` and dead or removed: only #bypasses_invulnerability gets
     /// past the flag. The guard every damage hook runs after (`LivingIncomingDamageEvent`).
+    #[yoake_hook_macro::yoake_hook(method, id = 472, key = "horizon_client_lib::mobs::Mob::refuses_damage")]
     pub fn refuses_damage(&self, source: &Damage) -> bool {
         !self.alive()
             || self.removed
@@ -2945,6 +3013,7 @@ impl Mob {
     }
     /// `damage` by a source with a weapon: `armor_effectiveness` runs the
     /// weapon's armor-effectiveness enchantments (breach) over the armor fraction.
+    #[yoake_hook_macro::yoake_hook(method, id = 473, key = "horizon_client_lib::mobs::Mob::damage_with")]
     pub fn damage_with(
         &mut self,
         amount: f32,
@@ -3220,6 +3289,7 @@ impl Mob {
     }
     /// A splash or cloud's harming effect on this mob: the potion's
     /// `indirect_magic` is in `#witch_resistant_to`, so a witch takes 15%.
+    #[yoake_hook_macro::yoake_hook(method, id = 474, key = "horizon_client_lib::mobs::Mob::potion_harm")]
     pub fn potion_harm(&self, amount: f32) -> f32 {
         if self.species() == Species::Witch {
             amount * 0.15
@@ -3230,6 +3300,7 @@ impl Mob {
     /// `Wolf.canArmorAbsorb`: it wears wolf armor and the damage type is not
     /// in `#bypasses_wolf_armor` (drowning, magic, thorns, in a wall, out of
     /// the world and the untyped kills).
+    #[yoake_hook_macro::yoake_hook(method, id = 475, key = "horizon_client_lib::mobs::Mob::wolf_armor_absorbs")]
     fn wolf_armor_absorbs(&self, source: &Damage) -> bool {
         self.species() == Species::Wolf
             && self.extra.body.as_deref() == Some("minecraft:wolf_armor")
@@ -3251,6 +3322,7 @@ impl Mob {
     }
     /// `Wolf.actuallyHurt`: the armor loses `ceil(damage)` durability, cracks
     /// at `Crackiness.WOLF_ARMOR` steps and breaks at its maximum.
+    #[yoake_hook_macro::yoake_hook(method, id = 476, key = "horizon_client_lib::mobs::Mob::hurt_wolf_armor")]
     fn hurt_wolf_armor(&mut self, damage: f32) {
         let crack = |lost: i32| {
             let left = (WOLF_ARMOR_DURABILITY - lost) as f32 / WOLF_ARMOR_DURABILITY as f32;
@@ -3286,20 +3358,24 @@ impl Mob {
     /// shoved. The native knockback hook runs once the knockback resistance
     /// took its share, before the motion changes and the draws of a random
     /// direction.
+    #[yoake_hook_macro::yoake_hook(method, id = 477, key = "horizon_client_lib::mobs::Mob::knockback")]
     pub fn knockback(&mut self, power: f64, xd: f64, zd: f64, source: &Damage) {
         self.knockback_by(power, xd, zd, source, None);
     }
     /// `LivingEntity.knockback(power, xd, zd, source, damage, comesFromEffect = true)`: an extra
     /// push of a blow (sprint, the Knockback enchantment). A sulfur cube with a block turns it
     /// into its own launch (`SulfurCube.knockback`), scaled by `power * 0.25` and `sqrt(damage)`.
+    #[yoake_hook_macro::yoake_hook(method, id = 478, key = "horizon_client_lib::mobs::Mob::knockback_effect")]
     pub fn knockback_effect(&mut self, power: f64, xd: f64, zd: f64, source: &Damage, damage: f32) {
         self.knockback_by(power, xd, zd, source, Some(damage));
     }
     /// `getAttributeValue(KNOCKBACK_RESISTANCE)`: the mob's own, and what its gear adds.
+    #[yoake_hook_macro::yoake_hook(method, id = 479, key = "horizon_client_lib::mobs::Mob::knockback_resistance")]
     pub fn knockback_resistance(&self) -> f64 {
         self.gear_knockback_resistance
             .unwrap_or(self.attrs.knockback_resistance)
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 480, key = "horizon_client_lib::mobs::Mob::knockback_by")]
     fn knockback_by(&mut self, power: f64, xd: f64, zd: f64, source: &Damage, effect: Option<f32>) {
         if let Some(damage) = effect
             && self.species() == Species::SulfurCube
@@ -3350,6 +3426,7 @@ impl Mob {
         );
     }
     /// One game tick. Returns false once the mob should be removed.
+    #[yoake_hook_macro::yoake_hook(method, id = 481, key = "horizon_client_lib::mobs::Mob::tick")]
     pub fn tick(
         &mut self,
         w: &MobWorld,
@@ -3363,6 +3440,7 @@ impl Mob {
         ai::tick(self, w, level_random, events)
     }
     /// The section the mob is in, noted when it changes (`EntitySection` lists).
+    #[yoake_hook_macro::yoake_hook(method, id = 482, key = "horizon_client_lib::mobs::Mob::track_section")]
     fn track_section(&mut self) {
         static SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
         let section = [
@@ -3375,6 +3453,7 @@ impl Mob {
             self.extra.section_seq = SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 483, key = "horizon_client_lib::mobs::Mob::distance_to")]
     pub fn distance_to(&self, p: [f64; 3]) -> f64 {
         let d = [
             p[0] - self.position.x,
@@ -3383,6 +3462,7 @@ impl Mob {
         ];
         (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt()
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 484, key = "horizon_client_lib::mobs::Mob::distance_sqr")]
     pub fn distance_sqr(&self, p: Vec3) -> f64 {
         (p.x - self.position.x).powi(2)
             + (p.y - self.position.y).powi(2)
@@ -3390,6 +3470,7 @@ impl Mob {
     }
     /// Movement speed attribute bonus (baby zombies, sprinting modifiers).
     /// MOVEMENT_SPEED including effects (speed +20%/level, slowness -15%/level).
+    #[yoake_hook_macro::yoake_hook(method, id = 485, key = "horizon_client_lib::mobs::Mob::movement_speed")]
     pub fn movement_speed(&self) -> f64 {
         let mut v = strider::movement_speed(
             self,
@@ -3408,16 +3489,19 @@ impl Mob {
         }
         v
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 486, key = "horizon_client_lib::mobs::Mob::has_effect")]
     pub fn has_effect(&self, effect: &str) -> bool {
         self.extra.effects.iter().any(|e| e.0 == effect)
     }
     /// `LivingEntity.isCurrentlyGlowing`: the Glowing effect or the `Glowing` tag (on a
     /// server's client, `glowing` holds shared flag 6 instead).
+    #[yoake_hook_macro::yoake_hook(method, id = 487, key = "horizon_client_lib::mobs::Mob::is_currently_glowing")]
     pub fn is_currently_glowing(&self) -> bool {
         self.glowing || self.has_effect("minecraft:glowing")
     }
     /// `Entity.isInvisible`: the shared flag 0x20 a server sends (`invisible`),
     /// or the Invisibility effect on a mob this game ticks itself.
+    #[yoake_hook_macro::yoake_hook(method, id = 488, key = "horizon_client_lib::mobs::Mob::is_invisible")]
     pub fn is_invisible(&self) -> bool {
         self.invisible || self.has_effect("minecraft:invisibility")
     }
@@ -3425,6 +3509,7 @@ impl Mob {
     /// `add_effect` has it, and `MobEffectInstance.update`'s rules for the flags of one already
     /// there: it takes the new ambient flag when the new one is not ambient or the effect
     /// changed, and always the new visibility.
+    #[yoake_hook_macro::yoake_hook(method, id = 489, key = "horizon_client_lib::mobs::Mob::add_effect_with")]
     pub fn add_effect_with(
         &mut self,
         effect: &'static str,
@@ -3466,6 +3551,7 @@ impl Mob {
     }
     /// `LivingEntity.actuallyHurt`: the absorption amount takes the damage first;
     /// what is left reaches the health.
+    #[yoake_hook_macro::yoake_hook(method, id = 490, key = "horizon_client_lib::mobs::Mob::soak_absorption")]
     pub fn soak_absorption(&mut self, damage: f32) -> f32 {
         let through = (damage - self.absorption).max(0.0);
         self.absorption = (self.absorption - (damage - through)).max(0.0);
@@ -3474,6 +3560,7 @@ impl Mob {
     /// `LivingEntity.checkTotemDeathProtection`: the first hand with a
     /// `death_protection` item uses it up, the mob survives at 1 health with
     /// the totem's effects, and entity event 35 tells the clients.
+    #[yoake_hook_macro::yoake_hook(method, id = 491, key = "horizon_client_lib::mobs::Mob::use_death_protection")]
     fn use_death_protection(&mut self, source: &Damage) -> bool {
         // `DamageTypeTags.BYPASSES_INVULNERABILITY`: the void and /kill take it.
         if source.kind.bypasses_invulnerability() {
@@ -3510,6 +3597,7 @@ impl Mob {
         true
     }
     /// `LivingEntity.heal`, with the native heal hook.
+    #[yoake_hook_macro::yoake_hook(method, id = 492, key = "horizon_client_lib::mobs::Mob::heal")]
     pub fn heal(&mut self, mut amount: f32) {
         let mut cancel = false;
         crate::hunger::native_living_heal(self.id, &mut amount, &mut cancel);
@@ -3520,6 +3608,7 @@ impl Mob {
     /// `HealOrHarmMobEffect.applyInstantenousEffect`: a harming effect hurts a
     /// living mob (6 << amplifier, magic) and heals an undead one, a healing effect
     /// the reverse (4 << amplifier), both scaled by `scale`.
+    #[yoake_hook_macro::yoake_hook(method, id = 493, key = "horizon_client_lib::mobs::Mob::apply_heal_or_harm")]
     pub fn apply_heal_or_harm(&mut self, harm: bool, inverted: bool, amplifier: i32, scale: f64) {
         let amp = amplifier.clamp(0, 30);
         if harm != inverted {
@@ -3532,6 +3621,7 @@ impl Mob {
             self.heal(heal);
         }
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 494, key = "horizon_client_lib::mobs::Mob::add_effect")]
     pub fn add_effect(&mut self, effect: &'static str, ticks: i32, amplifier: i32) {
         let effect = horizon_client_core::potions::namespaced(effect);
         // AbsorptionMobEffect.addAttributeModifiers: at least 4 hearts-halves per level.
@@ -3559,9 +3649,11 @@ impl Mob {
             self.extra.effects.push((effect, ticks, amplifier));
         }
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 495, key = "horizon_client_lib::mobs::Mob::speed_bonus")]
     pub fn speed_bonus(&self) -> f64 {
         ai::speed_bonus(self)
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 496, key = "horizon_client_lib::mobs::Mob::center")]
     pub fn center(&self) -> [f64; 3] {
         [
             self.position.x,
@@ -3569,12 +3661,14 @@ impl Mob {
             self.position.z,
         ]
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 497, key = "horizon_client_lib::mobs::Mob::sound")]
     pub fn sound(&self, event: &'static str, events: &mut Vec<MobEvent>) {
         let at = [self.position.x, self.eye_y(), self.position.z];
         events.push(MobEvent::Sound(event, at, 1.0, 1.0));
     }
     /// `Mob.getAmbientSoundInterval`; `HappyGhast` waits six times as long
     /// while it carries a passenger.
+    #[yoake_hook_macro::yoake_hook(method, id = 498, key = "horizon_client_lib::mobs::Mob::ambient_interval")]
     pub fn ambient_interval(&self) -> i32 {
         let ridden = self.rider.is_some() || self.extra.rider.is_some();
         if self.species() == Species::HappyGhast && ridden {
@@ -3584,6 +3678,7 @@ impl Mob {
         }
     }
     /// LivingEntity.getVoicePitch.
+    #[yoake_hook_macro::yoake_hook(method, id = 499, key = "horizon_client_lib::mobs::Mob::voice_pitch")]
     pub fn voice_pitch(&mut self) -> f32 {
         // HappyGhast.getVoicePitch: always 1.0, babies and all.
         if self.species() == Species::HappyGhast {
@@ -3605,6 +3700,7 @@ impl Mob {
         }
     }
     /// Mob.playSound with LivingEntity.getVoicePitch.
+    #[yoake_hook_macro::yoake_hook(method, id = 500, key = "horizon_client_lib::mobs::Mob::voice")]
     pub fn voice(&mut self, event: &'static str, events: &mut Vec<MobEvent>) {
         let pitch = self.voice_pitch();
         // Entity.playSound: at the entity's feet.
@@ -3614,6 +3710,7 @@ impl Mob {
 }
 /// Model geometry for a mob, posed for its animation state, as camera-relative
 /// vertices textured from the shared atlas.
+#[yoake_hook_macro::yoake_hook(id = 501, key = "horizon_client_lib::mobs::render")]
 pub fn render(
     mob: &Mob,
     alpha: f32,
@@ -3629,12 +3726,14 @@ pub fn render(
 pub struct EntityModelDocument(Value);
 
 impl EntityModelDocument {
+    #[yoake_hook_macro::yoake_hook(method, id = 502, key = "horizon_client_lib::mobs::EntityModelDocument::load")]
     pub fn load(root: &Path) -> crate::Result<Self> {
         Ok(Self(serde_json::from_slice(&fs::read(
             root.join("entity-models.json"),
         )?)?))
     }
 
+    #[yoake_hook_macro::yoake_hook(method, id = 503, key = "horizon_client_lib::mobs::EntityModelDocument::model")]
     pub fn model(&self, key: &str) -> Option<Part> {
         self.0.get(key).map(|m| Part::parse("root", m))
     }
@@ -3649,6 +3748,7 @@ impl EntityModelDocument {
 
 /// Load one baked model layer from `entity-models.json` (e.g. `minecraft:chest#main`).
 /// Batch loaders should share an `EntityModelDocument` instead.
+#[yoake_hook_macro::yoake_hook(id = 504, key = "horizon_client_lib::mobs::load_model")]
 pub fn load_model(root: &Path, key: &str) -> Option<Part> {
     EntityModelDocument::load(root).ok()?.model(key)
 }
@@ -3724,6 +3824,7 @@ pub fn render_model(
 
 impl Mob {
     /// The saddle worn, with its components.
+    #[yoake_hook_macro::yoake_hook(method, id = 505, key = "horizon_client_lib::mobs::Mob::saddle_item")]
     pub fn saddle_item(&self) -> Option<crate::items::ItemStack> {
         self.extra.saddled.then(|| {
             self.extra
@@ -3733,6 +3834,7 @@ impl Mob {
         })
     }
     /// Wear (or take off) a saddle stack, keeping its components.
+    #[yoake_hook_macro::yoake_hook(method, id = 506, key = "horizon_client_lib::mobs::Mob::set_saddle")]
     pub fn set_saddle(&mut self, saddle: Option<crate::items::ItemStack>) {
         self.extra.saddled = saddle.is_some();
         // A plain saddle is implied by `saddled`; anything else (a copper
@@ -3869,6 +3971,7 @@ impl ElytraAnimation {
         0.0,
         -std::f32::consts::PI / 12.0,
     ];
+    #[yoake_hook_macro::yoake_hook(method, id = 507, key = "horizon_client_lib::mobs::ElytraAnimation::tick")]
     pub fn tick(&mut self, flying: bool, crouching: bool, velocity: horizon_core::geometry::Vec3) {
         use std::f32::consts::PI;
         self.old = self.angles;
@@ -3895,6 +3998,7 @@ impl ElytraAnimation {
             *angle += (target - *angle) * 0.3;
         }
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 508, key = "horizon_client_lib::mobs::ElytraAnimation::angles")]
     pub fn angles(&self, partial: f32) -> [f32; 3] {
         std::array::from_fn(|i| self.old[i] + (self.angles[i] - self.old[i]) * partial)
     }
@@ -3913,6 +4017,7 @@ pub struct SwimAnimation {
 }
 impl SwimAnimation {
     /// `LivingEntity.updateSwimAmount`.
+    #[yoake_hook_macro::yoake_hook(method, id = 509, key = "horizon_client_lib::mobs::SwimAnimation::tick")]
     pub fn tick(&mut self, visually: bool, in_water: bool) {
         self.old = self.amount;
         self.amount = if visually {
@@ -3924,6 +4029,7 @@ impl SwimAnimation {
         self.in_water = in_water;
     }
     /// `LivingEntity.getSwimAmount`.
+    #[yoake_hook_macro::yoake_hook(method, id = 510, key = "horizon_client_lib::mobs::SwimAnimation::amount")]
     pub fn amount(&self, partial: f32) -> f32 {
         self.old + partial * (self.amount - self.old)
     }
@@ -3933,6 +4039,7 @@ impl Mob {
     /// The part of `LivingEntity.tick` and `aiStep` that animates another
     /// player from its synched pose and flags: the glide count, the wings
     /// (`elytraAnimationState`) and the swim amount (`updateSwimAmount`).
+    #[yoake_hook_macro::yoake_hook(method, id = 511, key = "horizon_client_lib::mobs::Mob::tick_avatar_pose")]
     pub fn tick_avatar_pose(&mut self, in_water: bool) {
         let (p, v) = (self.previous, self.velocity);
         let on_ground_alive = self.on_ground && self.alive();
@@ -4929,6 +5036,9 @@ crate::impl_joined!(Mob);
 // so the default build is unchanged.
 #[cfg(feature = "yoake2-slice")]
 include!("yoake_glue/mobs.rs");
+// The ledger-id -> yoake-slice bridge (generated by yoake-hook-codemod bridge --shallow; docs/yoake2/HOOK-SLICE-BRIDGE.md).
+#[cfg(feature = "yoake2-slice")]
+include!("yoake_glue/hook_bridge_mobs.rs");
 
 #[cfg(all(test, feature = "yoake2-slice"))]
 mod yoake_glue_tests {
@@ -4962,5 +5072,430 @@ mod yoake_glue_tests {
         });
         assert_eq!(mob.health, 3.5);
         assert_eq!(mob.id, 7);
+    }
+}
+
+#[cfg(feature = "yoake-hook-bench")]
+pub mod mob_hook_bench {
+    use super::{Anim, Brain, Flags, Mob, MobData, MobType, MobWorld, Part, Species};
+    use crate::{
+        assets::{Assets, Properties},
+        blocks::{BlockFacts, Fluid, RenderShape, Sounds, StateFacts},
+        chunk::Chunk,
+        motion::FluidResources,
+        world::World,
+    };
+    use horizon_core::geometry::Vec3;
+    use horizon_world::{
+        block_collision::BlockCollisionRegistry,
+        block_landing::{BlockLandingRegistry, FallDefinition, LandingDefinition},
+        collision::CachedCollisionRegistry,
+        movement_properties::{BoundMovementProperties, MovementProperties, MovementTags},
+        nbt::Tag,
+        registry::{BlockRegistry, BlockStateId},
+    };
+    use std::{
+        collections::{HashMap, HashSet},
+        path::Path,
+        sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        },
+    };
+    use yoake_hook_macro::yoake_hook;
+
+    pub struct BenchWorld {
+        registry: &'static BlockRegistry,
+        facts: BlockFacts,
+        fluids: FluidResources,
+        movement: BoundMovementProperties,
+        collision: BlockCollisionRegistry<'static>,
+        data: MobData,
+        landing: BlockLandingRegistry,
+        biomes: crate::biome::Biomes,
+        world: World,
+        block_tags: HashMap<String, HashSet<String>>,
+        lid_openers: HashMap<(i32, i32, i32), i32>,
+    }
+
+    #[yoake_hook(skip = "benchmark helper")]
+    fn block_states() -> Vec<Tag> {
+        vec![
+            Tag::String("minecraft:air".into()),
+            Tag::String("minecraft:stone".into()),
+        ]
+    }
+
+    #[yoake_hook(skip = "benchmark helper")]
+    fn state_facts(name: &str, solid: bool) -> StateFacts {
+        StateFacts {
+            name: name.into(),
+            emission: 0,
+            dampening: 0,
+            skylight_down: true,
+            shape_occlusion: false,
+            can_occlude: false,
+            solid_render: solid,
+            hardness: 0.0,
+            requires_tool: false,
+            replaceable: !solid,
+            random_ticks: false,
+            block_entity: false,
+            render_shape: RenderShape::Model,
+            full_collision: solid,
+            friction: 0.6,
+            explosion_resistance: 0.0,
+            item: name.into(),
+            sounds: Sounds {
+                volume: 1.0,
+                pitch: 1.0,
+                break_sound: "".into(),
+                step: "".into(),
+                place: "".into(),
+                hit: "".into(),
+                fall: "".into(),
+            },
+            fluid: Fluid::None,
+            fluid_level: 0,
+            fluid_falling: false,
+            waterlogged: false,
+            random_offset: false,
+            outline_offset: false,
+            legacy_solid: solid,
+            sturdy_full: if solid { 0x3f } else { 0 },
+            classes: Arc::from([]),
+            outline: Arc::from([]),
+            outline_edges: Arc::from([]),
+            map_color: 0,
+        }
+    }
+
+    #[yoake_hook(skip = "benchmark helper")]
+    fn movement_tag(states: Vec<Tag>) -> Tag {
+        let definition = Tag::compound([
+            ("friction", Tag::Float(0.6f32.to_bits())),
+            ("speedFactor", Tag::Float(1.0f32.to_bits())),
+            ("jumpFactor", Tag::Float(1.0f32.to_bits())),
+            ("bounceRestitution", Tag::Float(0)),
+            ("fallDistanceReduction", Tag::Float(0)),
+            ("fenceGate", Tag::Byte(0)),
+        ]);
+        Tag::compound([
+            ("DataVersion", Tag::Int(horizon_world::DATA_VERSION)),
+            ("states", Tag::List(states)),
+            (
+                "blocks",
+                Tag::compound([
+                    ("minecraft:air", definition.clone()),
+                    ("minecraft:stone", definition),
+                ]),
+            ),
+        ])
+    }
+
+    #[yoake_hook(skip = "benchmark helper")]
+    fn collision_tag(states: Vec<Tag>) -> Tag {
+        let empty = Tag::compound([
+            ("x", Tag::LongArray(vec![0])),
+            ("y", Tag::LongArray(vec![0])),
+            ("z", Tag::LongArray(vec![0])),
+            ("occupied", Tag::ByteArray(vec![])),
+            ("cube", Tag::Byte(0)),
+            ("cube_axes", Tag::Byte(0)),
+            ("discrete_min", Tag::IntArray(vec![0; 3])),
+            ("discrete_max", Tag::IntArray(vec![0; 3])),
+        ]);
+        let coordinates = Tag::LongArray(vec![0, 1.0f64.to_bits() as i64]);
+        let full = Tag::compound([
+            ("x", coordinates.clone()),
+            ("y", coordinates.clone()),
+            ("z", coordinates),
+            ("occupied", Tag::ByteArray(vec![1])),
+            ("cube", Tag::Byte(1)),
+            ("cube_axes", Tag::Byte(7)),
+            ("discrete_min", Tag::IntArray(vec![0; 3])),
+            ("discrete_max", Tag::IntArray(vec![1; 3])),
+        ]);
+        Tag::compound([
+            ("DataVersion", Tag::Int(horizon_world::DATA_VERSION)),
+            ("states", Tag::List(states)),
+            ("shapes", Tag::List(vec![empty, full])),
+            ("cached_shapes", Tag::IntArray(vec![0, 1])),
+        ])
+    }
+
+    #[yoake_hook(skip = "benchmark helper")]
+    fn write_colormap(path: &Path) {
+        let file = std::fs::File::create(path).unwrap();
+        let mut encoder = png::Encoder::new(file, 1, 1);
+        encoder.set_color(png::ColorType::Rgb);
+        encoder.set_depth(png::BitDepth::Eight);
+        encoder
+            .write_header()
+            .unwrap()
+            .write_image_data(&[0; 3])
+            .unwrap();
+    }
+
+    #[yoake_hook(skip = "benchmark helper")]
+    fn biomes() -> crate::biome::Biomes {
+        static NEXT_ROOT: AtomicUsize = AtomicUsize::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "yoake-mob-hook-bench-{}-{}",
+            std::process::id(),
+            NEXT_ROOT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let colormaps = root.join("assets/minecraft/textures/colormap");
+        std::fs::create_dir_all(&colormaps).unwrap();
+        std::fs::create_dir_all(root.join("data/minecraft/worldgen/biome")).unwrap();
+        for name in ["grass", "foliage", "dry_foliage"] {
+            write_colormap(&colormaps.join(format!("{name}.png")));
+        }
+        let loaded = crate::biome::Biomes::load(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        let plains = serde_json::json!({});
+        loaded
+            .unwrap()
+            .with_packs([("minecraft:plains", &plains)])
+    }
+
+    impl BenchWorld {
+        #[yoake_hook(skip = "benchmark helper")]
+        pub fn new() -> Self {
+            let states = block_states();
+            let registry: &'static BlockRegistry = Box::leak(Box::new(
+                BlockRegistry::from_nbt(&Tag::compound([
+                    ("DataVersion", Tag::Int(horizon_world::DATA_VERSION)),
+                    ("states", Tag::List(states.clone())),
+                    (
+                        "defaults",
+                        Tag::compound([
+                            ("minecraft:air", Tag::Int(0)),
+                            ("minecraft:stone", Tag::Int(1)),
+                        ]),
+                    ),
+                ]))
+                .unwrap(),
+            ));
+            let facts = BlockFacts {
+                states: vec![
+                    state_facts("minecraft:air", false),
+                    state_facts("minecraft:stone", true),
+                ],
+                air: BlockStateId(0),
+                woods: HashMap::new(),
+            };
+            let assets = Assets {
+                registry,
+                properties: Properties::for_tests(&[
+                    (true, false, false, false),
+                    (false, false, true, true),
+                ]),
+                material_states: [BlockStateId(0); 6],
+                blocks_fluid_flow: Default::default(),
+            };
+            let fluids = FluidResources::new(&assets, &facts).unwrap();
+            let properties = MovementProperties::from_nbt(
+                &movement_tag(states.clone()),
+                registry,
+            )
+            .unwrap();
+            let landing_definitions = ["minecraft:air", "minecraft:stone"]
+                .into_iter()
+                .map(|name| {
+                    (
+                        name.to_owned(),
+                        LandingDefinition {
+                            fall: FallDefinition::Default,
+                            shelf_mushroom_bounce: false,
+                        },
+                    )
+                })
+                .collect();
+            let landing = BlockLandingRegistry::new(&properties, &landing_definitions).unwrap();
+            let movement = properties.bind(&MovementTags::default()).unwrap();
+            let collision = BlockCollisionRegistry::new(Arc::new(
+                CachedCollisionRegistry::from_nbt(&collision_tag(states), registry).unwrap(),
+            ))
+            .unwrap();
+            let data = MobData::fallback(&facts);
+            let biomes = biomes();
+            let mut world = World::new(BlockStateId(0), 0);
+            for x in -3..=2 {
+                for z in -3..=2 {
+                    world
+                        .chunks
+                        .insert((x, z), Arc::new(Chunk::empty(x, z)));
+                }
+            }
+            for x in -40..=40 {
+                for z in -40..=40 {
+                    world.set(x, 0, z, BlockStateId(1)).unwrap();
+                }
+            }
+            Self {
+                registry,
+                facts,
+                fluids,
+                movement,
+                collision,
+                data,
+                landing,
+                biomes,
+                world,
+                block_tags: HashMap::new(),
+                lid_openers: HashMap::new(),
+            }
+        }
+
+        #[yoake_hook(skip = "benchmark helper")]
+        pub fn world(&self) -> MobWorld<'_> {
+            MobWorld {
+                teams: Default::default(),
+                world: &self.world,
+                registry: self.registry,
+                facts: &self.facts,
+                fluid_tables: &self.fluids,
+                movement: &self.movement,
+                collision: &self.collision,
+                data: &self.data,
+                player: None,
+                nearest_player: None,
+                others: &[],
+                dragon: None,
+                leash_boats: &[],
+                others_grid: None,
+                others_index: None,
+                daylight: true,
+                monsters_burn: false,
+                game_time: 1000,
+                day_time: 1000,
+                raining: false,
+                thundering: false,
+                nether: false,
+                block_tags: &self.block_tags,
+                landing: &self.landing,
+                biomes: &self.biomes,
+                universal_anger: false,
+                mob_griefing: true,
+                mob_drops: true,
+                max_entity_cramming: 24,
+                difficulty: super::spawning::LocalDifficulty::new(2, 1000, 0, 0.0),
+                end: false,
+                world_seed: 0,
+                sea_level: 63,
+                items: None,
+                lid_openers: &self.lid_openers,
+                mod_effects: None,
+                border: None,
+            }
+        }
+    }
+
+    #[yoake_hook(skip = "benchmark helper")]
+    pub fn kind() -> Arc<MobType> {
+        Arc::new(MobType {
+            id: "minecraft:cow".into(),
+            species: Species::Cow,
+            width: 0.9,
+            height: 1.4,
+            eye_height: 1.3,
+            category: "creature".into(),
+            max_health: 10.0,
+            speed: 0.2,
+            flying_speed: 0.4,
+            attack_damage: 0.0,
+            attack_knockback: 0.0,
+            follow_range: 16.0,
+            step_height: 0.6,
+            armor: 0.0,
+            armor_toughness: 0.0,
+            knockback_resistance: 0.0,
+            jump_strength: 0.42,
+            attributes: Arc::default(),
+            gravity: 0.08,
+            safe_fall_distance: 3.0,
+            fall_damage_multiplier: 1.0,
+            water_efficiency: 0.0,
+            water_slowdown: 0.8,
+            air_speed: 0.02,
+            baby_scale: 0.5,
+            head_rot_speed: 10.0,
+            max_head_x_rot: 40.0,
+            max_head_y_rot: 75.0,
+            ambient_interval: 120,
+            flags: Flags {
+                animal: true,
+                ..Default::default()
+            },
+            model: Arc::new(Part::parse("root", &serde_json::json!({}))),
+            layers: Default::default(),
+            texture: String::new(),
+            brain: Brain::Passive,
+            anim: Anim::Rabbit,
+            sounds: [""; 3],
+            step_sound: None,
+            food: Arc::default(),
+            tempt: Arc::default(),
+        })
+    }
+
+    #[yoake_hook(skip = "benchmark helper")]
+    pub fn spawn(n: usize) -> Vec<Mob> {
+        let kind = kind();
+        let side = (n as f64).sqrt().ceil() as usize;
+        (0..n)
+            .map(|index| {
+                let x = (index % side) as f64 * 2.0 - (side - 1) as f64 + 0.5;
+                let z = (index / side) as f64 * 2.0 - (side - 1) as f64 + 0.5;
+                Mob::new(
+                    index as u32,
+                    kind.clone(),
+                    Vec3::new(x, 1.0, z),
+                    (index % 4) as f32 * 90.0,
+                )
+            })
+            .collect()
+    }
+}
+
+#[cfg(all(test, feature = "yoake2-slice"))]
+mod yoake_bridge_tests {
+    use super::*;
+    use horizon_core::geometry::Vec3;
+    use yoake_slice::runtime::{self, ModConfig};
+
+    /// A guest on two mob hooks through the generated bridge: 445 `Mob::extinguish_fire(&mut self)` (Full, the guest
+    /// does not call `original`: cancelled) and 446 `Mob::is_fully_frozen(&self) -> bool` (read-only argument, the
+    /// guest's `1` replaces the result).
+    #[test]
+    fn a_guest_hooks_mob_functions_through_the_generated_bridge() {
+        const GUEST: &str = r#"(module
+  (import "env" "hook_register" (func $register (param i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (func (export "yoake_init")
+    (drop (call $register (i32.const 445) (i32.const 0)))
+    (drop (call $register (i32.const 446) (i32.const 0))))
+  (func (export "yoake_hook") (param $id i32) (param $h i64) (result i64)
+    (if (result i64) (i32.eq (local.get $id) (i32.const 446)) (then (i64.const 1)) (else (i64.const 0)))))"#;
+        let burning = || {
+            let mut mob = Mob::new(3, sensor_scan_tests::kind(), Vec3::new(0.5, 64.0, 0.5), 0.0);
+            mob.fire_ticks = 40;
+            mob
+        };
+        let mut plain = burning();
+        assert!(!plain.is_fully_frozen());
+        plain.extinguish_fire();
+        assert_ne!(plain.fire_ticks, 40, "without a guest the fire goes out");
+
+        runtime::uninstall().unwrap();
+        runtime::install(GUEST.as_bytes(), ModConfig::new("")).unwrap();
+        assert_eq!(hook_bridge::install(&runtime::stats().registered).installed, [445, 446]);
+        let mut mob = burning();
+        assert!(mob.is_fully_frozen(), "the guest's 1 replaced the result");
+        mob.extinguish_fire();
+        assert_eq!(mob.fire_ticks, 40, "the guest did not call original: cancelled");
+        assert_eq!(runtime::stats().entries, 2);
+        runtime::uninstall().unwrap();
     }
 }

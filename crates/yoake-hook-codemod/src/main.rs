@@ -33,6 +33,7 @@ pub struct Config {
     pub crate_name: String,
     pub ledger: PathBuf,
     pub modules: Vec<String>,
+    pub shallow: bool,
     pub renames: Vec<(String, String)>,
     pub tombstones: Vec<String>,
     pub callsites: bool,
@@ -72,14 +73,15 @@ enum Command {
 fn usage() -> &'static str {
     "usage:\n  \
      yoake-hook-codemod <apply|check> --crate-root <dir> --crate-name <name> \
-     --ledger <dir> --module <mod> [--module <mod>...] [--rename OLD=NEW]... [--tombstone KEY]... \
+     --ledger <dir> --module <mod> [--module <mod>...] [--shallow] [--rename OLD=NEW]... [--tombstone KEY]... \
      [--callsites] [--thir <calls.json>] [--accept-site KEY@FILE:LINE:COL]... [--rename-site OLD=NEW]... [--tombstone-site KEY]... \
      [--engine-crates LIST]... [--retire-ineligible] [--rustfmt]\n  \
      yoake-hook-codemod bridge --crate-root <dir> --crate-name <name> \
-     --ledger <dir> --module <mod> [--module <mod>...] [--glue <file>...] [--exclude-file <file>] [--check]\n  \
+     --ledger <dir> --module <mod> [--module <mod>...] [--shallow] [--glue <file>...] [--exclude-file <file>] [--check]\n  \
      yoake-hook-codemod check-history --base <dir> --current <dir>\n  \
      yoake-hook-codemod track-caller-scan --workspace <dir> --out <file>\n  \
-     yoake-hook-codemod verify-callsites --crate-name <name> --ledger <dir> --thir <calls.json>"
+     yoake-hook-codemod verify-callsites --crate-name <name> --ledger <dir> --thir <calls.json>\n  \
+     --shallow: only include each --module's own items (exclude inline mod blocks and child modules)"
 }
 
 fn parse_accept_site(raw: &str) -> Result<AcceptSite, String> {
@@ -144,6 +146,7 @@ fn parse_args() -> Result<Option<Command>, String> {
     let mut crate_name = None;
     let mut ledger = None;
     let mut modules = Vec::new();
+    let mut shallow = false;
     let mut renames = Vec::new();
     let mut tombstones = Vec::new();
     let mut callsites = false;
@@ -165,6 +168,7 @@ fn parse_args() -> Result<Option<Command>, String> {
             "--crate-name" => crate_name = Some(next_arg(&mut args, "--crate-name")?),
             "--ledger" => ledger = Some(PathBuf::from(next_arg(&mut args, "--ledger")?)),
             "--module" => modules.push(next_arg(&mut args, "--module")?),
+            "--shallow" => shallow = true,
             "--rename" => {
                 let raw = next_arg(&mut args, "--rename")?;
                 let Some((old_key, new_key)) = raw.split_once('=') else {
@@ -262,6 +266,7 @@ fn parse_args() -> Result<Option<Command>, String> {
         crate_name,
         ledger,
         modules,
+        shallow,
         renames,
         tombstones,
         callsites,
@@ -346,6 +351,7 @@ fn parse_bridge_args(args: std::env::Args) -> Result<Option<Command>, String> {
     let mut crate_name = None;
     let mut ledger = None;
     let mut modules = Vec::new();
+    let mut shallow = false;
     let mut glues = Vec::new();
     let mut exclude_file = None;
 
@@ -380,6 +386,7 @@ fn parse_bridge_args(args: std::env::Args) -> Result<Option<Command>, String> {
                     .ok_or_else(|| "missing value for --module".to_string())?;
                 modules.push(val);
             }
+            "--shallow" => shallow = true,
             "--glue" => {
                 let first = args
                     .next()
@@ -411,6 +418,7 @@ fn parse_bridge_args(args: std::env::Args) -> Result<Option<Command>, String> {
         crate_name,
         ledger,
         modules,
+        shallow,
         glues,
         exclude_file,
     })))

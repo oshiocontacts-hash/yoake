@@ -160,6 +160,10 @@ impl CrateIndex {
         Ok(index)
     }
 
+    pub fn child_modules(&self, mod_path: &[String]) -> Option<&BTreeSet<String>> {
+        self.modules.get(mod_path).map(|m| &m.children)
+    }
+
     pub fn check_self_ty(&self, from_mod: &[String], self_ty: &Type) -> SelfTyStatus {
         self.check_self_ty_depth(from_mod, self_ty, 0)
     }

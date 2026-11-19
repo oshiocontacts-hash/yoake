@@ -64,6 +64,7 @@ struct CallerState {
 struct ScanCtx<'a> {
     crate_ident: &'a str,
     targets: &'a [Vec<String>],
+    shallow: bool,
     crate_index: &'a CrateIndex,
     colliding_short_keys: &'a BTreeSet<String>,
     tombstones: &'a mut BTreeSet<String>,
@@ -105,7 +106,8 @@ impl FileVisitor<'_, '_> {
 
 impl VisitMut for FileVisitor<'_, '_> {
     fn visit_file_mut(&mut self, file: &mut syn::File) {
-        self.in_target_mod = modules::is_target_or_descendant(&self.mod_path, self.ctx.targets);
+        self.in_target_mod =
+            modules::is_target_or_descendant(&self.mod_path, self.ctx.targets, self.ctx.shallow);
         if self.in_target_mod {
             let prefix = key::module_prefix(self.ctx.crate_ident, &self.mod_path);
             let (matched, pairs) = pair_converted_trait_helpers(
@@ -148,7 +150,8 @@ impl VisitMut for FileVisitor<'_, '_> {
         self.mod_path.push(node.ident.to_string());
         self.mod_cfg_tags.extend(key::extract_cfg_tags(&node.attrs));
         self.style = attr::merge_module_style(&prev_style, inner);
-        self.in_target_mod = modules::is_target_or_descendant(&self.mod_path, self.ctx.targets);
+        self.in_target_mod =
+            modules::is_target_or_descendant(&self.mod_path, self.ctx.targets, self.ctx.shallow);
         if self.in_target_mod {
             let prefix = key::module_prefix(self.ctx.crate_ident, &self.mod_path);
             let (matched, pairs) = pair_converted_trait_helpers(
@@ -731,8 +734,12 @@ pub fn execute(config: &Config) -> Result<bool, String> {
         .map(|m| modules::normalize_module_arg(m))
         .collect::<Result<Vec<_>, _>>()?;
 
-    let mut scanned_files =
-        modules::collect_module_files(&config.crate_root, &config.crate_name, &targets)?;
+    let mut scanned_files = modules::collect_module_files(
+        &config.crate_root,
+        &config.crate_name,
+        &targets,
+        config.shallow,
+    )?;
     let crate_index =
         CrateIndex::build(&config.crate_root, &config.crate_name, &crate_ident, &scanned_files)?;
 
@@ -758,8 +765,12 @@ pub fn execute(config: &Config) -> Result<bool, String> {
         .validate()
         .map_err(|e| format!("invalid ledger after renames: {e}"))?;
 
-    let colliding_short_keys =
-        collect_colliding_short_keys(&crate_ident, &targets, &scanned_files);
+    let colliding_short_keys = collect_colliding_short_keys(
+        &crate_ident,
+        &targets,
+        config.shallow,
+        &scanned_files,
+    );
 
     let mut tombstones: BTreeSet<String> = config.tombstones.iter().cloned().collect();
     let mut seen_locations = BTreeMap::new();
@@ -774,6 +785,7 @@ pub fn execute(config: &Config) -> Result<bool, String> {
         let mut ctx = ScanCtx {
             crate_ident: &crate_ident,
             targets: &targets,
+            shallow: config.shallow,
             crate_index: &crate_index,
             colliding_short_keys: &colliding_short_keys,
             tombstones: &mut tombstones,
@@ -818,6 +830,8 @@ pub fn execute(config: &Config) -> Result<bool, String> {
     reconcile_missing_keys(
         &crate_ident,
         &targets,
+        config.shallow,
+        &crate_index,
         &seen_keys,
         &mut tombstones,
         &mut ledger_set,
@@ -864,27 +878,43 @@ pub fn execute(config: &Config) -> Result<bool, String> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn reconcile_missing_keys(
     crate_ident: &str,
     targets: &[Vec<String>],
+    shallow: bool,
+    crate_index: &CrateIndex,
     seen_keys: &BTreeSet<String>,
     tombstones: &mut BTreeSet<String>,
     ledger_set: &mut LedgerSet,
     stats: &mut SummaryStats,
 ) -> Result<(), String> {
-    let prefixes: Vec<String> = targets
+    let target_scopes: Vec<(String, Vec<String>)> = targets
         .iter()
-        .map(|t| format!("{}::", key::module_prefix(crate_ident, t)))
+        .map(|t| {
+            let prefix = format!("{}::", key::module_prefix(crate_ident, t));
+            let child_prefixes = if shallow {
+                crate_index
+                    .child_modules(t)
+                    .map(|children| children.iter().map(|c| format!("{prefix}{c}::")).collect())
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            };
+            (prefix, child_prefixes)
+        })
         .collect();
+    let in_scan = |key_str: &str| -> bool {
+        target_scopes.iter().any(|(prefix, child_prefixes)| {
+            key_str.starts_with(prefix)
+                && !child_prefixes.iter().any(|cp| key_str.starts_with(cp))
+        })
+    };
 
     let shard = ledger_set.shard_mut(crate_ident);
     let missing_live: Vec<String> = shard
         .live()
-        .filter(|e| {
-            e.kind == Kind::Fn
-                && prefixes.iter().any(|p| e.key.starts_with(p))
-                && !seen_keys.contains(&e.key)
-        })
+        .filter(|e| e.kind == Kind::Fn && in_scan(&e.key) && !seen_keys.contains(&e.key))
         .map(|e| e.key.clone())
         .collect();
 
@@ -922,11 +952,7 @@ fn reconcile_missing_keys(
     let stale_excluded: Vec<String> = shard
         .excluded()
         .iter()
-        .filter(|ex| {
-            !ex.manual
-                && prefixes.iter().any(|p| ex.key.starts_with(p))
-                && !seen_keys.contains(&ex.key)
-        })
+        .filter(|ex| !ex.manual && in_scan(&ex.key) && !seen_keys.contains(&ex.key))
         .map(|ex| ex.key.clone())
         .collect();
     for stale_key in stale_excluded {
@@ -947,6 +973,7 @@ fn is_callsite_shim_fn(item_fn: &ItemFn, source: &str, idx: &LineIndex) -> bool 
 pub(crate) fn collect_colliding_short_keys(
     crate_ident: &str,
     targets: &[Vec<String>],
+    shallow: bool,
     scanned_files: &[modules::ScannedFile],
 ) -> BTreeSet<String> {
     let mut counts: BTreeMap<String, usize> = BTreeMap::new();
@@ -956,6 +983,7 @@ pub(crate) fn collect_colliding_short_keys(
         collect_short_keys_in_items(
             crate_ident,
             targets,
+            shallow,
             &file.source,
             &idx,
             &file.root_mod_path,
@@ -975,6 +1003,7 @@ pub(crate) fn collect_colliding_short_keys(
 fn collect_short_keys_in_items(
     crate_ident: &str,
     targets: &[Vec<String>],
+    shallow: bool,
     source: &str,
     idx: &LineIndex,
     mod_path: &[String],
@@ -983,7 +1012,7 @@ fn collect_short_keys_in_items(
     empty_colliding: &BTreeSet<String>,
     counts: &mut BTreeMap<String, usize>,
 ) {
-    let in_target = modules::is_target_or_descendant(mod_path, targets);
+    let in_target = modules::is_target_or_descendant(mod_path, targets, shallow);
     if in_target {
         let prefix = key::module_prefix(crate_ident, mod_path);
         let (matched_helpers, _) = pair_converted_trait_helpers(
@@ -1060,6 +1089,7 @@ fn collect_short_keys_in_items(
             collect_short_keys_in_items(
                 crate_ident,
                 targets,
+                shallow,
                 source,
                 idx,
                 &child_mod,
@@ -1393,7 +1423,7 @@ impl Stand {
 
         let targets = vec![vec!["entities".to_string()]];
         let mut scanned_files =
-            modules::collect_module_files(tmp.path(), "demo", &targets).unwrap();
+            modules::collect_module_files(tmp.path(), "demo", &targets, false).unwrap();
         let crate_index =
             CrateIndex::build(tmp.path(), "demo", "demo", &scanned_files).unwrap();
         let file = &mut scanned_files[0];
@@ -1411,6 +1441,7 @@ impl Stand {
         let mut ctx = ScanCtx {
             crate_ident: "demo",
             targets: &targets,
+            shallow: false,
             crate_index: &crate_index,
             colliding_short_keys: &colliding_short_keys,
             tombstones: &mut tombstones,

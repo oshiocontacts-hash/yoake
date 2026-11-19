@@ -182,7 +182,8 @@ pub mod hook_bridge {
         p4: &mut i32,
         p5: &mut bool,
     ) {
-        let _ = yoake_slice::runtime::dispatch_root_id(130, p0, &mut |p0| { original(p0, p1, p2, p3, &mut *p4, &mut *p5); 0 });
+        let mut p3 = ::core::option::Option::Some(p3);
+        let _ = yoake_slice::runtime::dispatch_root_id(130, p0, &mut |p0| { let ::core::option::Option::Some(p3_v) = p3.take() else { return 0; }; { original(p0, p1, p2, p3_v, &mut *p4, &mut *p5); 0 } });
     }
 
     fn __bridge_149(
@@ -328,7 +329,8 @@ pub mod hook_bridge {
         p4: i32,
         p5: &mut std::option::Option<horizon_client_lib::items::ItemStack>,
     ) {
-        let _ = yoake_slice::runtime::dispatch_root_id(168, p0, &mut |p0| { original(p0, p1, p2, p3, p4, &mut *p5); 0 });
+        let mut p3 = ::core::option::Option::Some(p3);
+        let _ = yoake_slice::runtime::dispatch_root_id(168, p0, &mut |p0| { let ::core::option::Option::Some(p3_v) = p3.take() else { return 0; }; { original(p0, p1, p2, p3_v, p4, &mut *p5); 0 } });
     }
 
     fn __bridge_172(
@@ -340,7 +342,8 @@ pub mod hook_bridge {
         p4: &mut i32,
         p5: &mut bool,
     ) {
-        let _ = yoake_slice::runtime::dispatch_root_id(172, p0, &mut |p0| { original(p0, p1, p2, p3, &mut *p4, &mut *p5); 0 });
+        let mut p3 = ::core::option::Option::Some(p3);
+        let _ = yoake_slice::runtime::dispatch_root_id(172, p0, &mut |p0| { let ::core::option::Option::Some(p3_v) = p3.take() else { return 0; }; { original(p0, p1, p2, p3_v, &mut *p4, &mut *p5); 0 } });
     }
 
     fn __bridge_173(
@@ -362,7 +365,8 @@ pub mod hook_bridge {
         p4: i32,
         p5: &mut bool,
     ) {
-        let _ = yoake_slice::runtime::dispatch_root_id(175, p0, &mut |p0| { original(p0, p1, p2, p3, p4, &mut *p5); 0 });
+        let mut p3 = ::core::option::Option::Some(p3);
+        let _ = yoake_slice::runtime::dispatch_root_id(175, p0, &mut |p0| { let ::core::option::Option::Some(p3_v) = p3.take() else { return 0; }; { original(p0, p1, p2, p3_v, p4, &mut *p5); 0 } });
     }
 
     fn __bridge_176(
@@ -438,7 +442,7 @@ pub mod hook_bridge {
                 priority,
                 mod_load_order: 0,
             };
-            let outcome: Option<Result<(), &'static str>> = match id {
+            let outcome: ::core::option::Option<::core::result::Result<(), &'static str>> = match id {
                 103 => Some(yoake_slice::bridge::install_once(id, || Game::__yoake_register_start_using_item(__bridge_103, order))),
                 106 => Some(yoake_slice::bridge::install_once(id, || Game::__yoake_register_start_mod_use(__bridge_106, order))),
                 107 => Some(yoake_slice::bridge::install_once(id, || Game::__yoake_register_tick_mod_use(__bridge_107, order))),

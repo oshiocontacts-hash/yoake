@@ -539,7 +539,7 @@ fn expand(
             pub(crate) fn #register_ident #register_impl_generics (
                 callback: #callback_type,
                 order: ::yoake_hook_rt::Order,
-            ) -> Result<(), &'static str> #register_where_clause {
+            ) -> ::core::result::Result<(), &'static str> #register_where_clause {
                 ::yoake_hook_rt::__register_typed(
                     Self::#id_const,
                     ::std::any::TypeId::of::<#callback_type>(),
@@ -580,7 +580,7 @@ fn expand(
             pub(crate) fn #register_ident #register_impl_generics (
                 callback: #callback_parameter,
                 order: ::yoake_hook_rt::Order,
-            ) -> Result<(), &'static str> #register_where_clause {
+            ) -> ::core::result::Result<(), &'static str> #register_where_clause {
                 ::yoake_hook_rt::__register_typed(
                     #id_const,
                     ::std::any::TypeId::of::<#callback_parameter>(),

@@ -124,9 +124,16 @@ jobs:
             mod_path="${module//:://}"
             files=()
             [ -f "$src_dir/$mod_path.rs" ] && files+=(--file "$src_dir/$mod_path.rs")
-            if [ -d "$src_dir/$mod_path" ]; then
-              while IFS= read -r f; do files+=(--file "$f"); done < <(find "$src_dir/$mod_path" -name '*.rs' | sort)
-            fi
+            case " $flags " in
+              *" shallow=true "*)
+                [ -f "$src_dir/$mod_path/mod.rs" ] && files+=(--file "$src_dir/$mod_path/mod.rs")
+                ;;
+              *)
+                if [ -d "$src_dir/$mod_path" ]; then
+                  while IFS= read -r f; do files+=(--file "$f"); done < <(find "$src_dir/$mod_path" -name '*.rs' | sort)
+                fi
+                ;;
+            esac
             if [ "$all" = 0 ]; then
               hit=0
               grep -qxF "hook-ledger/$name.json" <<<"$changed" && hit=1

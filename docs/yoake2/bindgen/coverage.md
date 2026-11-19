@@ -6,8 +6,8 @@ Functions counted: free functions, inherent methods, and non-derived trait-impl 
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | `items` | 69 | 7 | 13 | **20 (29.0%)** | 15 (21.7%) | 34 (49.3%) | 8 / 21 | 73 / 90 | 9 |
 | `entities` | 163 | 30 | 25 | **55 (33.7%)** | 32 (19.6%) | 76 (46.6%) | 9 / 23 | 85 / 97 | 13 |
-| `mobs` | 130 | 52 | 38 | **90 (69.2%)** | 27 (20.8%) | 13 (10.0%) | 22 / 54 | 359 / 441 | 21 |
-| `motion` | 241 | 35 | 6 | **41 (17.0%)** | 6 (2.5%) | 194 (80.5%) | 2 / 6 | 89 / 110 | 3 |
+| `mobs` | 131 | 52 | 38 | **90 (68.7%)** | 27 (20.6%) | 14 (10.7%) | 22 / 54 | 359 / 441 | 21 |
+| `motion` | 367 | 35 | 6 | **41 (11.2%)** | 6 (1.6%) | 320 (87.2%) | 2 / 6 | 89 / 110 | 3 |
 | `game_items` | 5 | 5 | 0 | **5 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 0 / 0 | 0 / 0 | 0 |
 | `entity_query` | 20 | 1 | 6 | **7 (35.0%)** | 4 (20.0%) | 9 (45.0%) | 6 / 10 | 14 / 43 | 4 |
 
@@ -179,9 +179,9 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 ## `mobs` (horizon-client/src/mobs.rs)
 
-- bound now: **90 of 130** (69.2%): 52 basic + 38 mechanical
-- handle-required, not yet bound: 27 (20.8%)
-- excluded: 13 (10.0%)
+- bound now: **90 of 131** (68.7%): 52 basic + 38 mechanical
+- handle-required, not yet bound: 27 (20.6%)
+- excluded: 14 (10.7%)
 - field accessors (get + set pairs): 359 of 441 fields
 - handle types (receivers of bound methods or owners of bound fields): 21
 
@@ -254,6 +254,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | external type `glam::f32::sse2::mat4::Mat4` (crate not loaded) | 1 |
 | external type `horizon_client_render::mesher::Vertex` (crate not loaded) [&mut argument] | 1 |
 | field `state` of `LegacyRandom` is private to another module [&mut argument] | 1 |
+| hook machinery (`__yoake_*`): not an engine function | 1 |
 | receiver type carries a lifetime: it cannot be a hook-argument handle | 1 |
 
 ### Writable fields (setters are opt-in; every other data field is read-only and its setter id is reserved as `ReadOnly`)
@@ -296,9 +297,9 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 ## `motion` (horizon-client/src/motion.rs)
 
-- bound now: **41 of 241** (17.0%): 35 basic + 6 mechanical
-- handle-required, not yet bound: 6 (2.5%)
-- excluded: 194 (80.5%)
+- bound now: **41 of 367** (11.2%): 35 basic + 6 mechanical
+- handle-required, not yet bound: 6 (1.6%)
+- excluded: 320 (87.2%)
 - field accessors (get + set pairs): 89 of 110 fields
 - handle types (receivers of bound methods or owners of bound fields): 3
 
@@ -326,13 +327,15 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 | reason | occurrences |
 |---|---:|
-| receiver type carries a lifetime: it cannot be a hook-argument handle | 178 |
-| generic type alias `Result` | 155 |
+| receiver type carries a lifetime: it cannot be a hook-argument handle | 304 |
+| generic type alias `Result` | 259 |
+| hook machinery (`__yoake_*`): not an engine function | 126 |
+| field `min` of `Aabb` is private to another module | 6 |
 | associated-type projection requires a listed instantiation | 5 |
-| field `min` of `Aabb` is private to another module | 4 |
 | `impl Trait` requires a listed instantiation | 2 |
 | external type `horizon_client_render::assets::Assets` (crate not loaded) [&argument] | 2 |
 | field `attributes` of `Catalog` is private to another module [&argument] | 2 |
+| std type `core::io::error::Result` has no codec yet [return value] | 2 |
 | std type `std::path::Path` has no codec yet [&argument] | 2 |
 | `dyn Trait` values cannot cross the data ABI | 1 |
 | `impl Trait` argument requires a listed instantiation | 1 |
@@ -343,7 +346,6 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | lifetime-carrying type `crate::collisions::EntityCollisions` | 1 |
 | returns `&mut`: needs a child handle that locks its parent | 1 |
 | std type `core::io::error::Error` has no codec yet [return value] | 1 |
-| std type `core::io::error::Result` has no codec yet [return value] | 1 |
 
 ### Writable fields (setters are opt-in; every other data field is read-only and its setter id is reserved as `ReadOnly`)
 

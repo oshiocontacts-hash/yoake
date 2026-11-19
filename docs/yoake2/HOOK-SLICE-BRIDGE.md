@@ -36,7 +36,8 @@ pub mod __yoake_slice_bridge {
 ```
 
 `yoake-hook-codemod bridge` writes `src/yoake_glue/hook_bridge_<module>.rs` for each scanned module (included
-into that module under `#[cfg(feature = "yoake2-slice")]`). For every live id N whose shape is bridgeable,
+into that module under `#[cfg(feature = "yoake2-slice")]`). With `--shallow`, only the target module's own
+items are included (inline `mod` blocks and child module files are excluded). For every live id N whose shape is bridgeable,
 `pub mod hook_bridge` contains a dispatcher, `BRIDGED`, `OBSERVE_ONLY`, `UNBRIDGED`, `mode`, and `install`:
 
 ```rust
@@ -207,6 +208,15 @@ Semantics:
   effects, e.g. call site 215 hurts the item once);
 - if no `original` reaches it, it runs once after the guests return, so the hooked fn cannot be cancelled in this
   mode.
+
+#### By-value arguments
+
+Arguments 1.. that are references are re-borrowed for every `original` call. A by-value argument that is known to be
+`Copy` (primitives, shared references, types the bridged module derives `Copy` for, tuples, arrays and `Option`s of
+those) is passed to every call as well. Any other by-value argument is moved into the **first** `original` call: the
+dispatcher holds it in an `Option` and takes it, so the real original runs at most once per call and a later
+`original` returns `0` without running it (the same rule as observe-only). If no guest calls `original`, the
+dispatcher's fallback run takes it.
 
 #### Read-only arguments
 

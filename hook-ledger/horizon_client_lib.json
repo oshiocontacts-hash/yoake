@@ -5805,6 +5805,2099 @@
         "dup_rank": 0,
         "shim": "__yoake_cs_410"
       }
+    },
+    {
+      "id": 411,
+      "key": "horizon_client_lib::mobs::Polygon::vertex_normal",
+      "sig": "97a0526363e6a163",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 412,
+      "key": "horizon_client_lib::mobs::Part::set_cull_back",
+      "sig": "dbd3960de3f80d05",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 413,
+      "key": "horizon_client_lib::mobs::Part::parse",
+      "sig": "d04785e4cd10ff39",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 414,
+      "key": "horizon_client_lib::mobs::exact_attributes",
+      "sig": "9de452aa93a7c63e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 415,
+      "key": "horizon_client_lib::mobs::culls_back_faces",
+      "sig": "2f0fe8461c110fe3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 416,
+      "key": "horizon_client_lib::mobs::MobTypes::load",
+      "sig": "65f4ac442e7ac41a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 417,
+      "key": "horizon_client_lib::mobs::MobTypes::load_for_server",
+      "sig": "ebb34c252dfa60c6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 418,
+      "key": "horizon_client_lib::mobs::MobTypes::load_with_models",
+      "sig": "b657c53ce1f6a65e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 419,
+      "key": "horizon_client_lib::mobs::Damage::fall",
+      "sig": "8b1fd96a2352b5d6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 420,
+      "key": "horizon_client_lib::mobs::Damage::of",
+      "sig": "17c4b43f6baeda7f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 421,
+      "key": "horizon_client_lib::mobs::Damage::player",
+      "sig": "d0e742ff6bfcf416",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 422,
+      "key": "horizon_client_lib::mobs::Damage::mace",
+      "sig": "cc8d37562fae86af",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 423,
+      "key": "horizon_client_lib::mobs::Damage::spear",
+      "sig": "2d28dd34842fccd0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 424,
+      "key": "horizon_client_lib::mobs::Damage::indirect_magic",
+      "sig": "9a4c82938502814d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 425,
+      "key": "horizon_client_lib::mobs::Damage::fireworks",
+      "sig": "7a2efac5069c5293",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 426,
+      "key": "horizon_client_lib::mobs::Damage::mob",
+      "sig": "f9e5b5697d82aee4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 427,
+      "key": "horizon_client_lib::mobs::Damage::causes_panic",
+      "sig": "80c83bedb307f411",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 428,
+      "key": "horizon_client_lib::mobs::Damage::bypasses_armor",
+      "sig": "e8dab89c6b1ed251",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 429,
+      "key": "horizon_client_lib::mobs::Damage::is_fire",
+      "sig": "388591a7080ced56",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 430,
+      "key": "horizon_client_lib::mobs::Damage::no_knockback",
+      "sig": "82b7175327cc9f12",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 431,
+      "key": "horizon_client_lib::mobs::Damage::is_projectile",
+      "sig": "553e006cac7441e9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 432,
+      "key": "horizon_client_lib::mobs::anger_left",
+      "sig": "d7e9a5a495395fbb",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 433,
+      "key": "horizon_client_lib::mobs::Extra::set_main_hand",
+      "sig": "3cade44cf216485d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 434,
+      "key": "horizon_client_lib::mobs::Extra::set_main_hand_stack",
+      "sig": "834a5986dac2ebfa",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 435,
+      "key": "horizon_client_lib::mobs::Extra::take_main_hand",
+      "sig": "ed7a9d60d81f5406",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 436,
+      "key": "horizon_client_lib::mobs::<Mob as EntityRules>::is_no_gravity",
+      "sig": "26e679431eef5c7c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 437,
+      "key": "horizon_client_lib::mobs::MannequinDescription::component",
+      "sig": "a6795275cd06dce7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 438,
+      "key": "horizon_client_lib::mobs::MannequinDescription::from_component",
+      "sig": "ba282f9fa69e1890",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 439,
+      "key": "horizon_client_lib::mobs::Seen::has_effect",
+      "sig": "baefd407bd50a603",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 440,
+      "key": "horizon_client_lib::mobs::Mob::command_name",
+      "sig": "661df5dc6ec8f5bb",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 441,
+      "key": "horizon_client_lib::mobs::Mob::equipment_stacks",
+      "sig": "a8dd9e04fc7c3951",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 442,
+      "key": "horizon_client_lib::mobs::Mob::burning_time",
+      "sig": "f60a4f1cced27928",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 443,
+      "key": "horizon_client_lib::mobs::Mob::is_on_fire",
+      "sig": "626743a6a7e4e574",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 444,
+      "key": "horizon_client_lib::mobs::Mob::ignite_for_ticks",
+      "sig": "f760ad779a662d9b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 445,
+      "key": "horizon_client_lib::mobs::Mob::extinguish_fire",
+      "sig": "5ca12d403b9ed939",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 446,
+      "key": "horizon_client_lib::mobs::Mob::is_fully_frozen",
+      "sig": "a1f37b5ff4b59a61",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 447,
+      "key": "horizon_client_lib::mobs::Mob::seen",
+      "sig": "ce00dc76d0cb40dc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 448,
+      "key": "horizon_client_lib::mobs::Mob::category",
+      "sig": "9e9092b0a6764e35",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 449,
+      "key": "horizon_client_lib::mobs::mob_can_use_portal",
+      "sig": "191d8b8e2182b58a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 450,
+      "key": "horizon_client_lib::mobs::take_mob_pushes",
+      "sig": "cb838afe0bc0158c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 451,
+      "key": "horizon_client_lib::mobs::PendingPushes::push",
+      "sig": "842f6014f3d12bb4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 452,
+      "key": "horizon_client_lib::mobs::blocks_changed",
+      "sig": "85a8bb90c4c26f1c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 453,
+      "key": "horizon_client_lib::mobs::collision_changes",
+      "sig": "9b8e9b4edffde594",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 454,
+      "key": "horizon_client_lib::mobs::apply_mob_pushes",
+      "sig": "9f5301a84ab06c59",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 455,
+      "key": "horizon_client_lib::mobs::apply_brain_events",
+      "sig": "0669cbe2fe69356b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 456,
+      "key": "horizon_client_lib::mobs::PlayerView::visibility_percent",
+      "sig": "e8571919b29cf9ad",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 457,
+      "key": "horizon_client_lib::mobs::PlayerView::has_effect",
+      "sig": "baefd407bd50a603",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 458,
+      "key": "horizon_client_lib::mobs::Mob::new",
+      "sig": "ad80babd9022d5ca",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 459,
+      "key": "horizon_client_lib::mobs::Mob::can_pick_up_loot",
+      "sig": "17128a493f74b5e8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 460,
+      "key": "horizon_client_lib::mobs::Mob::bounds",
+      "sig": "d5d4a18b3e019846",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 461,
+      "key": "horizon_client_lib::mobs::Mob::bounds_at",
+      "sig": "e2b26e22658f0b40",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 462,
+      "key": "horizon_client_lib::mobs::Mob::record_damage",
+      "sig": "db61a66a41b0200f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 463,
+      "key": "horizon_client_lib::mobs::Mob::alive",
+      "sig": "fd4ff51aa3fcdebe",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 464,
+      "key": "horizon_client_lib::mobs::Mob::hostile",
+      "sig": "08e9060076d31f99",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 465,
+      "key": "horizon_client_lib::mobs::Mob::species",
+      "sig": "75e835310de79b15",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 466,
+      "key": "horizon_client_lib::mobs::Mob::main_arm_left",
+      "sig": "98ae22c9b471c5f7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 467,
+      "key": "horizon_client_lib::mobs::Mob::hurt",
+      "sig": "a612667bb8e15474",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 468,
+      "key": "horizon_client_lib::mobs::Mob::worn_armor",
+      "sig": "64b119983e5cd0de",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 469,
+      "key": "horizon_client_lib::mobs::Mob::damage_aimed",
+      "sig": "5cbf155be2717979",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 470,
+      "key": "horizon_client_lib::mobs::Mob::damage_projectile",
+      "sig": "bd94d5d1facd2ee9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 471,
+      "key": "horizon_client_lib::mobs::Mob::damage",
+      "sig": "5f2cbedfe24dc51f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 472,
+      "key": "horizon_client_lib::mobs::Mob::refuses_damage",
+      "sig": "dc53fd8ceab21056",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 473,
+      "key": "horizon_client_lib::mobs::Mob::damage_with",
+      "sig": "9f5b3749bb9e0804",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 474,
+      "key": "horizon_client_lib::mobs::Mob::potion_harm",
+      "sig": "8aa2dbd7180058e3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 475,
+      "key": "horizon_client_lib::mobs::Mob::wolf_armor_absorbs",
+      "sig": "e2072a9ac53646e0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 476,
+      "key": "horizon_client_lib::mobs::Mob::hurt_wolf_armor",
+      "sig": "9b59849e629204b6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 477,
+      "key": "horizon_client_lib::mobs::Mob::knockback",
+      "sig": "dbf2656a962069e6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 478,
+      "key": "horizon_client_lib::mobs::Mob::knockback_effect",
+      "sig": "26c833fc83be7e22",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 479,
+      "key": "horizon_client_lib::mobs::Mob::knockback_resistance",
+      "sig": "145a2a4191ddb2b4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 480,
+      "key": "horizon_client_lib::mobs::Mob::knockback_by",
+      "sig": "202d60e05e64d2df",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 481,
+      "key": "horizon_client_lib::mobs::Mob::tick",
+      "sig": "fec00329bd94b4c6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 482,
+      "key": "horizon_client_lib::mobs::Mob::track_section",
+      "sig": "4a769706124a3dcb",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 483,
+      "key": "horizon_client_lib::mobs::Mob::distance_to",
+      "sig": "cbd8bb89a70cbf9e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 484,
+      "key": "horizon_client_lib::mobs::Mob::distance_sqr",
+      "sig": "08e7bcd20735fdd2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 485,
+      "key": "horizon_client_lib::mobs::Mob::movement_speed",
+      "sig": "e876afb2ec20d3e0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 486,
+      "key": "horizon_client_lib::mobs::Mob::has_effect",
+      "sig": "baefd407bd50a603",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 487,
+      "key": "horizon_client_lib::mobs::Mob::is_currently_glowing",
+      "sig": "0fad3f209cec7bb8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 488,
+      "key": "horizon_client_lib::mobs::Mob::is_invisible",
+      "sig": "ffcc9ac49d111b8d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 489,
+      "key": "horizon_client_lib::mobs::Mob::add_effect_with",
+      "sig": "9e6ba991789f1a9e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 490,
+      "key": "horizon_client_lib::mobs::Mob::soak_absorption",
+      "sig": "76e98266cf4e039a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 491,
+      "key": "horizon_client_lib::mobs::Mob::use_death_protection",
+      "sig": "63caf87a30750153",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 492,
+      "key": "horizon_client_lib::mobs::Mob::heal",
+      "sig": "8989b7af86cb166f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 493,
+      "key": "horizon_client_lib::mobs::Mob::apply_heal_or_harm",
+      "sig": "dfdffff64c776970",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 494,
+      "key": "horizon_client_lib::mobs::Mob::add_effect",
+      "sig": "f84fa9988e3257ef",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 495,
+      "key": "horizon_client_lib::mobs::Mob::speed_bonus",
+      "sig": "05fe70d8a85f6fbc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 496,
+      "key": "horizon_client_lib::mobs::Mob::center",
+      "sig": "b8506d4939bb02da",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 497,
+      "key": "horizon_client_lib::mobs::Mob::sound",
+      "sig": "8cf349163e29cc02",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 498,
+      "key": "horizon_client_lib::mobs::Mob::ambient_interval",
+      "sig": "2473e4d64087c18d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 499,
+      "key": "horizon_client_lib::mobs::Mob::voice_pitch",
+      "sig": "3c0007638c6ae411",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 500,
+      "key": "horizon_client_lib::mobs::Mob::voice",
+      "sig": "a9b76a7ab75bae75",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 501,
+      "key": "horizon_client_lib::mobs::render",
+      "sig": "6dddab41eed0ab71",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 502,
+      "key": "horizon_client_lib::mobs::EntityModelDocument::load",
+      "sig": "65f4ac442e7ac41a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 503,
+      "key": "horizon_client_lib::mobs::EntityModelDocument::model",
+      "sig": "4c1d926cfd6b9574",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 504,
+      "key": "horizon_client_lib::mobs::load_model",
+      "sig": "4cd141fdecf8c340",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 505,
+      "key": "horizon_client_lib::mobs::Mob::saddle_item",
+      "sig": "0d27a186b0f94301",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 506,
+      "key": "horizon_client_lib::mobs::Mob::set_saddle",
+      "sig": "2c86f7916abc41c0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 507,
+      "key": "horizon_client_lib::mobs::ElytraAnimation::tick",
+      "sig": "ad54061f526c31f1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 508,
+      "key": "horizon_client_lib::mobs::ElytraAnimation::angles",
+      "sig": "d30d83c46a794706",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 509,
+      "key": "horizon_client_lib::mobs::SwimAnimation::tick",
+      "sig": "523619d64aee8157",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 510,
+      "key": "horizon_client_lib::mobs::SwimAnimation::amount",
+      "sig": "dab74fa9a8f0e9fa",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 511,
+      "key": "horizon_client_lib::mobs::Mob::tick_avatar_pose",
+      "sig": "37794b4454556d40",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 512,
+      "key": "horizon_client_lib::motion::native_living_jump",
+      "sig": "15d7e8ba432e7fa8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 513,
+      "key": "horizon_client_lib::motion::MotionResources::load",
+      "sig": "33ebf733421cb61f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 514,
+      "key": "horizon_client_lib::motion::MotionResources::load_with_facts",
+      "sig": "e363a15bf728a09a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 515,
+      "key": "horizon_client_lib::motion::PlayerMotion::carry_client_movement",
+      "sig": "8ee149b8333835a9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 516,
+      "key": "horizon_client_lib::motion::PlayerMotion::is_sweep_attack",
+      "sig": "f099a689bd4a8ef7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 517,
+      "key": "horizon_client_lib::motion::PlayerMotion::load_saved_state_once",
+      "sig": "413bfbaca6d1423e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 518,
+      "key": "horizon_client_lib::motion::PlayerMotion::set_remaining_fire_ticks",
+      "sig": "d277333ca129ab2d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 519,
+      "key": "horizon_client_lib::motion::PlayerMotion::ignite_for_ticks",
+      "sig": "0cef0da8103289f8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 520,
+      "key": "horizon_client_lib::motion::PlayerMotion::new",
+      "sig": "a7e055f8ba1d3b9e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 521,
+      "key": "horizon_client_lib::motion::PlayerMotion::with_attribute_identities",
+      "sig": "bd6c770dab1f264e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 522,
+      "key": "horizon_client_lib::motion::PlayerMotion::drop_tiny_velocity",
+      "sig": "3c5c8d457a28a4f0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 523,
+      "key": "horizon_client_lib::motion::PlayerMotion::percent_frozen",
+      "sig": "93b3da0592c27124",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 524,
+      "key": "horizon_client_lib::motion::PlayerMotion::is_fully_frozen",
+      "sig": "a1f37b5ff4b59a61",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 525,
+      "key": "horizon_client_lib::motion::PlayerMotion::can_freeze",
+      "sig": "36cd5597f0493e3d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 526,
+      "key": "horizon_client_lib::motion::PlayerMotion::powder_snow_subject",
+      "sig": "4cf9dda900278e91",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 527,
+      "key": "horizon_client_lib::motion::PlayerMotion::try_add_frost",
+      "sig": "cfd6d35dc7312581",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 528,
+      "key": "horizon_client_lib::motion::PlayerMotion::bounds",
+      "sig": "d5d4a18b3e019846",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 529,
+      "key": "horizon_client_lib::motion::PlayerMotion::attribute",
+      "sig": "527b31cfe2fd0d02",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 530,
+      "key": "horizon_client_lib::motion::PlayerMotion::set_modifier",
+      "sig": "d3c9704e568fa9f7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 531,
+      "key": "horizon_client_lib::motion::PlayerMotion::saved_attributes",
+      "sig": "b75431d76563c088",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 532,
+      "key": "horizon_client_lib::motion::PlayerMotion::carried_attributes",
+      "sig": "ecdea35ab6e11563",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 533,
+      "key": "horizon_client_lib::motion::PlayerMotion::packed_attributes",
+      "sig": "7c2860d1ac104a37",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 534,
+      "key": "horizon_client_lib::motion::PlayerMotion::apply_saved_attributes",
+      "sig": "146bae9d2d0eaa8d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 535,
+      "key": "horizon_client_lib::motion::PlayerMotion::set_sprinting",
+      "sig": "a4dfc9df0bb592a2",
+      "status": "tombstone",
+      "kind": "fn"
+    },
+    {
+      "id": 536,
+      "key": "horizon_client_lib::motion::PlayerMotion::set_sprint_modifier",
+      "sig": "5e516b593cfbd7a2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 537,
+      "key": "horizon_client_lib::motion::PlayerMotion::has_sprint_modifier",
+      "sig": "e15edc6ca5886244",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 538,
+      "key": "horizon_client_lib::motion::PlayerMotion::sprint_input_tick",
+      "sig": "3cf81f8217e0e763",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 539,
+      "key": "horizon_client_lib::motion::PlayerMotion::sprint_input_tick_with_window",
+      "sig": "9cbd72826e0200b2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 540,
+      "key": "horizon_client_lib::motion::PlayerMotion::remove_frost",
+      "sig": "4f18f26a123c8130",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 541,
+      "key": "horizon_client_lib::motion::MotionWorld::context",
+      "sig": "20950119a70a98ce",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 542,
+      "key": "horizon_client_lib::motion::MotionWorld::no_player_collision",
+      "sig": "4f4a6e46576eafa5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 543,
+      "key": "horizon_client_lib::motion::MotionWorld::block",
+      "sig": "db0209fd614bf3f4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 544,
+      "key": "horizon_client_lib::motion::MotionWorld::support",
+      "sig": "e067d2bece22d9b2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 545,
+      "key": "horizon_client_lib::motion::MotionWorld::location",
+      "sig": "e518672b5421263c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 546,
+      "key": "horizon_client_lib::motion::MotionWorld::climbable",
+      "sig": "b1e9c88ab7748d99",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 547,
+      "key": "horizon_client_lib::motion::MotionWorld::travel_in_air",
+      "sig": "737d233ffd307b0b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 548,
+      "key": "horizon_client_lib::motion::MotionWorld::movement_tick",
+      "sig": "1d01ff18a4f0fa79",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 549,
+      "key": "horizon_client_lib::motion::MotionWorld::player_movement_tick",
+      "sig": "798f91337932875b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 550,
+      "key": "horizon_client_lib::motion::MotionWorld::player_movement_tick_with_fluids",
+      "sig": "b38f835e5061a110",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 551,
+      "key": "horizon_client_lib::motion::MotionWorld::simulation_tick",
+      "sig": "887ee44dc3ef4e99",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 552,
+      "key": "horizon_client_lib::motion::MotionWorld::simulation_tick_with_fluids",
+      "sig": "95d012f6604773f2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 553,
+      "key": "horizon_client_lib::motion::MotionWorld::controlled_simulation_tick",
+      "sig": "5d71e1030e014e10",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 554,
+      "key": "horizon_client_lib::motion::MotionWorld::controlled_simulation_tick_with_sprint_window",
+      "sig": "4e7e805a9c44c2c2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 555,
+      "key": "horizon_client_lib::motion::MotionWorld::replayed_tick",
+      "sig": "8562bd75c9e9d18e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 556,
+      "key": "horizon_client_lib::motion::MotionWorld::check_movement_statistics",
+      "sig": "0abd666a95d0c58a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 557,
+      "key": "horizon_client_lib::motion::MotionWorld::dry_tick",
+      "sig": "2b7e5caf9c57d2bf",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 558,
+      "key": "horizon_client_lib::motion::MotionWorld::update_soul_speed_block",
+      "sig": "0731a6819dc3e7d8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 559,
+      "key": "horizon_client_lib::motion::MotionWorld::on_soul_speed_block",
+      "sig": "a72f2f83a14fdae7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 560,
+      "key": "horizon_client_lib::motion::MotionWorld::player_travel",
+      "sig": "4efa2b7ae0165920",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 561,
+      "key": "horizon_client_lib::motion::MotionWorld::server_travel",
+      "sig": "89dbaae403a79669",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 562,
+      "key": "horizon_client_lib::motion::MotionWorld::check_auto_spin_attack",
+      "sig": "1b89e244690b771b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 563,
+      "key": "horizon_client_lib::motion::MotionWorld::freeze_damage",
+      "sig": "ac5a60a4c22f1922",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 564,
+      "key": "horizon_client_lib::motion::MotionWorld::apply_effects_from_blocks",
+      "sig": "b707a1b5775eaeee",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 565,
+      "key": "horizon_client_lib::motion::MotionWorld::server_block_damage",
+      "sig": "eb05082d38425531",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 566,
+      "key": "horizon_client_lib::motion::MotionWorld::effects_from_blocks",
+      "sig": "0b6b51d9122d4a93",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 567,
+      "key": "horizon_client_lib::motion::MotionWorld::check_inside_blocks",
+      "sig": "4d4490ec2caf6ff0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 568,
+      "key": "horizon_client_lib::motion::MotionWorld::honey_block_inside",
+      "sig": "c4236722335b8dde",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 569,
+      "key": "horizon_client_lib::motion::MotionWorld::make_stuck_in_block",
+      "sig": "95d379ace62b26ad",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 570,
+      "key": "horizon_client_lib::motion::MotionWorld::lava_cauldron_inside",
+      "sig": "2acd66d30dbeb36d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 571,
+      "key": "horizon_client_lib::motion::MotionWorld::layered_cauldron_inside",
+      "sig": "72bcc33662aaba59",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 572,
+      "key": "horizon_client_lib::motion::MotionWorld::web_inside",
+      "sig": "8c993d0dc61c84e5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 573,
+      "key": "horizon_client_lib::motion::MotionWorld::sweet_berry_bush_inside",
+      "sig": "8ede5a713e474794",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 574,
+      "key": "horizon_client_lib::motion::MotionWorld::sweet_berry_bush_damage",
+      "sig": "7b1240960d5c215d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 575,
+      "key": "horizon_client_lib::motion::MotionWorld::powder_snow_inside",
+      "sig": "2b8d64d4b021f820",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 576,
+      "key": "horizon_client_lib::motion::MotionWorld::powder_snow_snowflake",
+      "sig": "0a778f16d3c9e5d1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 577,
+      "key": "horizon_client_lib::motion::MotionWorld::jump_from_ground",
+      "sig": "a0fb1b597a520264",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 578,
+      "key": "horizon_client_lib::motion::MotionWorld::travel_fall_flying",
+      "sig": "b4ccaadd3b7cdb4d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 579,
+      "key": "horizon_client_lib::motion::MotionWorld::shulker_box_push",
+      "sig": "c507ae49e4cdd6ba",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 580,
+      "key": "horizon_client_lib::motion::MotionWorld::move_self",
+      "sig": "2c79d68bcf6c05f9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 581,
+      "key": "horizon_client_lib::motion::MotionWorld::update_auto_jump",
+      "sig": "e453042b16a4d7c3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 582,
+      "key": "horizon_client_lib::motion::<MotionWorld as ClimbingWorld>::set_last_climbable_position",
+      "sig": "790a9aa03eb267f7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 583,
+      "key": "horizon_client_lib::motion::<MotionWorld as AutoJumpWorld>::collision_shape",
+      "sig": "01dc98aa39eaad77",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 584,
+      "key": "horizon_client_lib::motion::<MotionWorld as AutoJumpWorld>::collision_boxes",
+      "sig": "fe0328f880102843",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 585,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::passenger",
+      "sig": "c21ffa04bfa30a26",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 586,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::swimming",
+      "sig": "07db2635d8042527",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 587,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::eyes_in_water",
+      "sig": "ac61a59d19ff17ca",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 588,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::in_water",
+      "sig": "9c974c623fdd031d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 589,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::on_climbable",
+      "sig": "d7acc76deacf8479",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 590,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::on_ground",
+      "sig": "a2c69606d6f67489",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 591,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::sprinting",
+      "sig": "cfb7bc4a790f78b6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 592,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::crouching",
+      "sig": "c06f4bc1263950b0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 593,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::fall_flying",
+      "sig": "71bcf507d55b3d91",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 594,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::award",
+      "sig": "44002313447f2f17",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 595,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::exhaust",
+      "sig": "a8a0054c0236fd18",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 596,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementBlockProvider>::movement_block_state",
+      "sig": "55f50da72f9e248f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 597,
+      "key": "horizon_client_lib::motion::<MotionWorld as EdgeBackoffWorld>::max_up_step",
+      "sig": "70d9b878b43f648c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 598,
+      "key": "horizon_client_lib::motion::<MotionWorld as EdgeBackoffWorld>::staying_on_ground_surface",
+      "sig": "67a41ee1bb90952d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 599,
+      "key": "horizon_client_lib::motion::<MotionWorld as EdgeBackoffWorld>::on_ground",
+      "sig": "a2c69606d6f67489",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 600,
+      "key": "horizon_client_lib::motion::<MotionWorld as EdgeBackoffWorld>::no_collision",
+      "sig": "dc77dcaceb08e92d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 601,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::no_physics",
+      "sig": "dc70215660959548",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 602,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::position",
+      "sig": "083072e35568fb2d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 603,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::set_position",
+      "sig": "f858f808a7778306",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 604,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::record_movement",
+      "sig": "7109018f8a886370",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 605,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::collision_flags",
+      "sig": "3ffe642e46d47d5c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 606,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::set_collision_flags",
+      "sig": "c6902303924e9f27",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 607,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::limit_piston_movement",
+      "sig": "d4014d5975bfc960",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 608,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::stuck_multiplier",
+      "sig": "00dfa30a3eb61f60",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 609,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::set_stuck_multiplier",
+      "sig": "99a5ea1f9649724d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 610,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::velocity",
+      "sig": "7f87b7d97dd9f70e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 611,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::set_velocity",
+      "sig": "a4ed2a4564d650c3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 612,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::back_off_edge",
+      "sig": "bae8ba11ecb35538",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 613,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::collide",
+      "sig": "1e9e335813911697",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 614,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::fall_distance",
+      "sig": "4b2ecfa15366505a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 615,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::fall_reset_clip",
+      "sig": "8353f6d030ff43f7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 616,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::reset_fall_distance",
+      "sig": "154b50b499bf9292",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 617,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::locally_authoritative",
+      "sig": "8ac1892336ef67be",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 618,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::set_on_ground_with_movement",
+      "sig": "25ee26006debdf57",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 619,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::minor_horizontal_collision",
+      "sig": "33361a33dc964dcb",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 620,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::legacy_on_position",
+      "sig": "d267959c7339e1be",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 621,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::block_state",
+      "sig": "3e02ffaa1e5d23b3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 622,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::on_ground",
+      "sig": "a2c69606d6f67489",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 623,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::check_fall_damage",
+      "sig": "a8d9e5fd0a41bfd0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 624,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::removed",
+      "sig": "0428573b2d717f76",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 625,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::can_simulate",
+      "sig": "789ade3247882073",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 626,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::restitute",
+      "sig": "29ec0c955481e551",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 627,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::client_side",
+      "sig": "8383bc68158e4493",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 628,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::movement_emission",
+      "sig": "488d64cc30d9dd4b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 629,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::passenger",
+      "sig": "c21ffa04bfa30a26",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 630,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::apply_movement_emission",
+      "sig": "ceccdd9b04a35cf7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 631,
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::block_speed_factor",
+      "sig": "87d43d7e5b979bfe",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 632,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::distances",
+      "sig": "95e257d4989df47a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 633,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::set_movement_distance",
+      "sig": "6ec48ef94b40be0c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 634,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::set_flight_distance",
+      "sig": "344bc8aba48f6e0d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 635,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::set_next_step",
+      "sig": "633f94b3c690c26d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 636,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::on_position",
+      "sig": "d941aed623d626a0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 637,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::block_state",
+      "sig": "3e02ffaa1e5d23b3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 638,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::is_air",
+      "sig": "6605b8e302eda571",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 639,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::climbable_tag",
+      "sig": "5282ad2f599f89ba",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 640,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::is_powder_snow",
+      "sig": "4d87db14cbdcc0dc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 641,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::on_ground",
+      "sig": "a2c69606d6f67489",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 642,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::crouching",
+      "sig": "c06f4bc1263950b0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 643,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::on_rails",
+      "sig": "029687cafe3b7b6d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 644,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::swimming",
+      "sig": "07db2635d8042527",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 645,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::in_water",
+      "sig": "9c974c623fdd031d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 646,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::walking_step_sound",
+      "sig": "8f1358322ac25e2b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 647,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::next_step",
+      "sig": "b713f1f596ad68d5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 648,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::water_swim_sound",
+      "sig": "8ecf461d54a5a117",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 649,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::flapping",
+      "sig": "9956dbc0b73acb8d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 650,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::on_flap",
+      "sig": "c605472d12a18e2e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 651,
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::movement_emission",
+      "sig": "488d64cc30d9dd4b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 652,
+      "key": "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::suppressing_bounce",
+      "sig": "173e5fe3a0926ba6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 653,
+      "key": "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::entity_bounciness",
+      "sig": "80a3357035531cad",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 654,
+      "key": "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::velocity",
+      "sig": "7f87b7d97dd9f70e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 655,
+      "key": "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::effective_gravity",
+      "sig": "70d29b48b425c166",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 656,
+      "key": "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::block_suppresses_bounce",
+      "sig": "9bb261834a8e34ce",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 657,
+      "key": "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::block_bounce_restitution",
+      "sig": "4c578e2fe7e9a70a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 658,
+      "key": "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::air_drag",
+      "sig": "eed560364190aad4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 659,
+      "key": "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::movement_support_position",
+      "sig": "8ddf126ce9edc544",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 660,
+      "key": "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::bounce_on",
+      "sig": "61bea1243d601326",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 661,
+      "key": "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::bounce_event",
+      "sig": "79dda1552f15c2aa",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 662,
+      "key": "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::mark_position_for_sync",
+      "sig": "b64a29ceb9057ebb",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 663,
+      "key": "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::set_velocity",
+      "sig": "a4ed2a4564d650c3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 664,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::movement_support_position",
+      "sig": "8ddf126ce9edc544",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 665,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::on_ground",
+      "sig": "a2c69606d6f67489",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 666,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::block_friction",
+      "sig": "59f4377cd8469e14",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 667,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::friction_modifier",
+      "sig": "ed6aba51556be014",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 668,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::speed",
+      "sig": "b769ec5086915fc2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 669,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::flying_speed",
+      "sig": "56b1d89875a27c3c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 670,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::yaw",
+      "sig": "8f05df5c3206be62",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 671,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::velocity",
+      "sig": "e25ca52953bc38d9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 672,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::set_velocity",
+      "sig": "d9f83f7ee939ab6c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 673,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::on_climbable",
+      "sig": "d7acc76deacf8479",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 674,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::reset_fall_distance",
+      "sig": "154b50b499bf9292",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 675,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::in_scaffolding",
+      "sig": "98caea1099518c76",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 676,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::suppressing_ladder_slide",
+      "sig": "daee781f8d14ff2c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 677,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::is_player_class",
+      "sig": "7a4cef07f54c3f0c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 678,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::move_self",
+      "sig": "d9a60000988dc6c4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 679,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::horizontal_collision",
+      "sig": "b4e7917e11830ca6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 680,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::jumping",
+      "sig": "ee02dafb410767cf",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 681,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::was_in_powder_snow",
+      "sig": "0d9f7ac81de2cb02",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 682,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::can_walk_powder_snow",
+      "sig": "d1a17c32fb67a144",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 683,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::levitation_amplifier",
+      "sig": "a01bbfa921e55f6c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 684,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::is_client_side",
+      "sig": "0e822c69c513ed7c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 685,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::has_chunk_at",
+      "sig": "d759c96866d7ec77",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 686,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::effective_gravity",
+      "sig": "70d29b48b425c166",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 687,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::y",
+      "sig": "5ae35eeb8f96a07c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 688,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::minimum_y",
+      "sig": "99f2c8b4f6dbe4a4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 689,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::discard_friction",
+      "sig": "019b41d522d16883",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 690,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::air_drag_modifier",
+      "sig": "2c973aef4a119ce7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 691,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::omnidirectional_air_mover",
+      "sig": "11e8d95050cb1170",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 692,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::velocity",
+      "sig": "e25ca52953bc38d9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 693,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::set_velocity",
+      "sig": "d9f83f7ee939ab6c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 694,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::jump_strength",
+      "sig": "16f4aac811230726",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 695,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::block_jump_factor",
+      "sig": "91d4e52f9a686d9d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 696,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::has_jump_boost",
+      "sig": "7398d19781dbd1f3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 697,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::jump_boost_amplifier",
+      "sig": "22e2273db533c9f6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 698,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::sprinting",
+      "sig": "cfb7bc4a790f78b6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 699,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::yaw",
+      "sig": "8f05df5c3206be62",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 700,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::mark_needs_sync",
+      "sig": "99780cac6fdd1b2f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 701,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::no_gravity",
+      "sig": "60493d66d392432a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 702,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::gravity_attribute",
+      "sig": "d8987b9c705af83b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 703,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::has_slow_falling",
+      "sig": "7e42aecd83d889b4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 704,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::controlling_passenger_is_player",
+      "sig": "c2dedb981011cff1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 705,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::speed",
+      "sig": "b769ec5086915fc2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 706,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::omnidirectional_air_mover",
+      "sig": "11e8d95050cb1170",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 707,
+      "key": "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::air_drag_modifier",
+      "sig": "2c973aef4a119ce7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 708,
+      "key": "horizon_client_lib::motion::horizontal_collision_minor",
+      "sig": "2aeea4e810ef1890",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 709,
+      "key": "horizon_client_lib::motion::fly_into_wall_damage",
+      "sig": "80941a0a05eb2f42",
+      "status": "live",
+      "kind": "fn"
     }
   ],
   "excluded": [
@@ -8485,6 +10578,126 @@
       "key": "horizon_client_lib::entities::merge_with_neighbours@call:horizon_core::geometry::Aabb::intersects",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::mobs::DamageKind::bypasses_effects",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::DamageKind::bypasses_invulnerability",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::DamageKind::bypasses_resistance",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::EntityModelDocument::keys",
+      "reason": "impl Trait return",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::Extra::main_hand_stack",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::MobType::layer",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::ModelNormals::new",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::ModelNormals::part",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::ModelNormals::rotation",
+      "reason": "self type has no crate-level path",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::Teams::of",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::render_model",
+      "reason": "nested callable borrow",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::motion::<MotionWorld as ClimbingWorld>::block_position",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::motion::<MotionWorld as ClimbingWorld>::block_state",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::motion::<MotionWorld as ClimbingWorld>::in_block_state",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::motion::<MotionWorld as ClimbingWorld>::is_fall_flying",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::motion::<MotionWorld as ClimbingWorld>::is_spectator",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::movement_history",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::entity_event",
+      "reason": "destructuring argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::step_event",
+      "reason": "destructuring argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::motion::MotionWorld::collisions",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::motion::MotionWorld::local_tick",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::motion::MotionWorld::movement_collisions",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::motion::PlayerMotion::set_sprinting",
+      "reason": "wrapped by yoake_inject",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::motion::attribute_error",
+      "reason": "impl Trait argument",
+      "kind": "fn"
     }
   ]
 }

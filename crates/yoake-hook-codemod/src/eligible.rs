@@ -35,6 +35,10 @@ pub fn check_fn(attrs: &[Attribute], sig: &Signature) -> Result<(), &'static str
     if attrs.iter().any(|attr| attr.path().is_ident("track_caller")) {
         return Err("track_caller");
     }
+    // the 1.x injection macro wraps the function itself; both macros on one fn emit its hook claim twice
+    if attrs.iter().any(|attr| attr.path().segments.last().is_some_and(|s| s.ident == "yoake_inject")) {
+        return Err("wrapped by yoake_inject");
+    }
     if let Some(clause) = &sig.generics.where_clause {
         let mut check = Unsupported::default();
         check.visit_where_clause(clause);
@@ -343,5 +347,21 @@ impl<'ast> Visit<'ast> for TraitDependencyScan<'ast> {
     fn visit_stmt_macro(&mut self, node: &'ast StmtMacro) {
         self.scan_tokens(node.mac.tokens.clone());
         visit::visit_stmt_macro(self, node);
+    }
+}
+
+#[cfg(test)]
+mod inject_tests {
+    use super::check_fn;
+
+    #[test]
+    fn a_function_wrapped_by_yoake_inject_is_not_hooked() {
+        let f: syn::ItemFn = syn::parse_quote! {
+            #[yoake_inject_macro::yoake_inject(id = "motion::set_sprinting", side = "both")]
+            pub fn set_sprinting(&mut self, sprinting: bool) {}
+        };
+        assert_eq!(check_fn(&f.attrs, &f.sig), Err("wrapped by yoake_inject"));
+        let g: syn::ItemFn = syn::parse_quote! { pub fn plain(&mut self, sprinting: bool) {} };
+        assert_eq!(check_fn(&g.attrs, &g.sig), Ok(()));
     }
 }

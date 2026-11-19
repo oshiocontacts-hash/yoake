@@ -20,6 +20,7 @@ pub struct ModuleSpec {
     pub crate_name: String,
     pub module: String,
     pub callsites: bool,
+    pub shallow: bool,
 }
 
 #[allow(dead_code)]
@@ -39,6 +40,7 @@ pub fn parse_modules_line(line: &str) -> Result<Option<ModuleSpec>, String> {
         .next()
         .ok_or_else(|| format!("missing module path in modules line: '{trimmed}'"))?;
     let mut callsites = false;
+    let mut shallow = false;
     for flag in parts {
         if let Some((key, val)) = flag.split_once('=') {
             if key == "callsites" {
@@ -51,6 +53,16 @@ pub fn parse_modules_line(line: &str) -> Result<Option<ModuleSpec>, String> {
                         ));
                     }
                 };
+            } else if key == "shallow" {
+                shallow = match val {
+                    "true" => true,
+                    "false" => false,
+                    other => {
+                        return Err(format!(
+                            "invalid shallow flag value '{other}' in modules line: '{trimmed}'"
+                        ));
+                    }
+                };
             }
         }
     }
@@ -59,6 +71,7 @@ pub fn parse_modules_line(line: &str) -> Result<Option<ModuleSpec>, String> {
         crate_name: crate_name.to_string(),
         module: module.to_string(),
         callsites,
+        shallow,
     }))
 }
 
@@ -86,8 +99,16 @@ pub fn normalize_module_arg(raw: &str) -> Result<Vec<String>, String> {
     Ok(segments)
 }
 
-pub fn is_target_or_descendant(mod_path: &[String], targets: &[Vec<String>]) -> bool {
-    targets.iter().any(|target| mod_path.starts_with(target))
+pub fn is_target_or_descendant(
+    mod_path: &[String],
+    targets: &[Vec<String>],
+    shallow: bool,
+) -> bool {
+    if shallow {
+        targets.iter().any(|target| mod_path == target.as_slice())
+    } else {
+        targets.iter().any(|target| mod_path.starts_with(target))
+    }
 }
 
 fn is_ancestor_of_target(mod_path: &[String], targets: &[Vec<String>]) -> bool {
@@ -282,6 +303,7 @@ pub fn collect_module_files(
     crate_root: &Path,
     crate_name: &str,
     targets: &[Vec<String>],
+    shallow: bool,
 ) -> Result<Vec<ScannedFile>, String> {
     let root_file = find_crate_root_file(crate_root, crate_name)?;
     let root_dir = root_file
@@ -299,6 +321,7 @@ pub fn collect_module_files(
         Vec::new(),
         Vec::new(),
         targets,
+        shallow,
         &mut files,
         &mut found_targets,
         &mut visited_files,
@@ -324,6 +347,7 @@ fn load_module_file(
     mod_path: Vec<String>,
     cfg_tags: Vec<String>,
     targets: &[Vec<String>],
+    shallow: bool,
     files: &mut Vec<ScannedFile>,
     found_targets: &mut BTreeSet<Vec<String>>,
     visited_files: &mut BTreeSet<(PathBuf, Vec<String>, Vec<String>)>,
@@ -351,12 +375,13 @@ fn load_module_file(
         &mod_path,
         &cfg_tags,
         targets,
+        shallow,
         found_targets,
         &mut child_files,
     )?;
 
-    let include_this_file = is_target_or_descendant(&mod_path, targets)
-        || has_inline_target(&parsed.items, &mod_path, targets);
+    let include_this_file = is_target_or_descendant(&mod_path, targets, shallow)
+        || has_inline_target(&parsed.items, &mod_path, targets, shallow);
     if include_this_file {
         files.push(ScannedFile {
             path: file_path.to_path_buf(),
@@ -374,6 +399,7 @@ fn load_module_file(
             child_mod,
             child_cfgs,
             targets,
+            shallow,
             files,
             found_targets,
             visited_files,
@@ -383,7 +409,12 @@ fn load_module_file(
     Ok(())
 }
 
-fn has_inline_target(items: &[Item], mod_path: &[String], targets: &[Vec<String>]) -> bool {
+fn has_inline_target(
+    items: &[Item],
+    mod_path: &[String],
+    targets: &[Vec<String>],
+    shallow: bool,
+) -> bool {
     for item in items {
         let Item::Mod(item_mod) = item else {
             continue;
@@ -396,9 +427,9 @@ fn has_inline_target(items: &[Item], mod_path: &[String], targets: &[Vec<String>
         };
         let mut child_path = mod_path.to_vec();
         child_path.push(item_mod.ident.to_string());
-        if is_target_or_descendant(&child_path, targets)
+        if is_target_or_descendant(&child_path, targets, shallow)
             || (is_ancestor_of_target(&child_path, targets)
-                && has_inline_target(inner, &child_path, targets))
+                && has_inline_target(inner, &child_path, targets, shallow))
         {
             return true;
         }
@@ -406,12 +437,14 @@ fn has_inline_target(items: &[Item], mod_path: &[String], targets: &[Vec<String>
     false
 }
 
+#[allow(clippy::too_many_arguments)]
 fn collect_child_mods(
     items: &[Item],
     dir_for_children: &Path,
     mod_path: &[String],
     cfg_tags: &[String],
     targets: &[Vec<String>],
+    shallow: bool,
     found_targets: &mut BTreeSet<Vec<String>>,
     out: &mut Vec<(PathBuf, PathBuf, Vec<String>, Vec<String>)>,
 ) -> Result<(), String> {
@@ -426,7 +459,9 @@ fn collect_child_mods(
         let mut child_mod = mod_path.to_vec();
         child_mod.push(name.clone());
 
-        if !is_target_or_descendant(&child_mod, targets) && !is_ancestor_of_target(&child_mod, targets) {
+        if !is_target_or_descendant(&child_mod, targets, shallow)
+            && !is_ancestor_of_target(&child_mod, targets)
+        {
             continue;
         }
 
@@ -447,6 +482,7 @@ fn collect_child_mods(
                 &child_mod,
                 &child_cfgs,
                 targets,
+                shallow,
                 found_targets,
                 out,
             )?;
@@ -647,12 +683,13 @@ mod tests {
     }
 
     #[test]
-    fn parse_modules_txt_supports_callsites_and_ignores_unknown_flags() {
+    fn parse_modules_txt_supports_callsites_shallow_and_ignores_unknown_flags() {
         let input = "\
 # comment
 crates/horizon-client-lib horizon_client_lib entities
 crates/horizon-client horizon_client game::item_use callsites=true foo=bar
-crates/demo demo mod_a callsites=false other=123
+crates/horizon-client-lib horizon_client_lib mobs shallow=true
+crates/demo demo mod_a callsites=false shallow=false other=123
 ";
         let specs = parse_modules_txt(input).unwrap();
         assert_eq!(
@@ -663,18 +700,28 @@ crates/demo demo mod_a callsites=false other=123
                     crate_name: "horizon_client_lib".to_string(),
                     module: "entities".to_string(),
                     callsites: false,
+                    shallow: false,
                 },
                 ModuleSpec {
                     crate_root: PathBuf::from("crates/horizon-client"),
                     crate_name: "horizon_client".to_string(),
                     module: "game::item_use".to_string(),
                     callsites: true,
+                    shallow: false,
+                },
+                ModuleSpec {
+                    crate_root: PathBuf::from("crates/horizon-client-lib"),
+                    crate_name: "horizon_client_lib".to_string(),
+                    module: "mobs".to_string(),
+                    callsites: false,
+                    shallow: true,
                 },
                 ModuleSpec {
                     crate_root: PathBuf::from("crates/demo"),
                     crate_name: "demo".to_string(),
                     module: "mod_a".to_string(),
                     callsites: false,
+                    shallow: false,
                 },
             ]
         );

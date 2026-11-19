@@ -552,12 +552,19 @@ fn parse_existing_shim(item_fn: &ItemFn, source: &str, idx: &LineIndex) -> Exist
 }
 
 struct ShimRefCollector<'a> {
+    targets: &'a [Vec<String>],
+    shallow: bool,
+    mod_path: Vec<String>,
+    in_target_mod: bool,
     shim_ident_spans: &'a BTreeSet<SpanRange>,
     refs: Vec<ShimIdentRef>,
 }
 
 impl ShimRefCollector<'_> {
     fn scan_tokens(&mut self, tokens: proc_macro2::TokenStream) {
+        if !self.in_target_mod {
+            return;
+        }
         for tt in tokens {
             match tt {
                 TokenTree::Group(g) => self.scan_tokens(g.stream()),
@@ -580,32 +587,50 @@ impl ShimRefCollector<'_> {
 }
 
 impl<'ast> Visit<'ast> for ShimRefCollector<'_> {
+    fn visit_file(&mut self, node: &'ast syn::File) {
+        self.in_target_mod =
+            modules::is_target_or_descendant(&self.mod_path, self.targets, self.shallow);
+        visit::visit_file(self, node);
+    }
+
     fn visit_item_mod(&mut self, node: &'ast syn::ItemMod) {
-        if !modules::has_cfg_test(&node.attrs) {
+        if modules::has_cfg_test(&node.attrs) {
+            return;
+        }
+        if node.content.is_some() {
+            let prev_path = self.mod_path.clone();
+            let prev_in = self.in_target_mod;
+            self.mod_path.push(node.ident.to_string());
+            self.in_target_mod =
+                modules::is_target_or_descendant(&self.mod_path, self.targets, self.shallow);
             visit::visit_item_mod(self, node);
+            self.mod_path = prev_path;
+            self.in_target_mod = prev_in;
         }
     }
 
     fn visit_item_fn(&mut self, node: &'ast ItemFn) {
-        if !modules::has_cfg_test(&node.attrs) {
+        if self.in_target_mod && !modules::has_cfg_test(&node.attrs) {
             visit::visit_item_fn(self, node);
         }
     }
 
     fn visit_item_impl(&mut self, node: &'ast syn::ItemImpl) {
-        if !modules::has_cfg_test(&node.attrs) {
+        if self.in_target_mod && !modules::has_cfg_test(&node.attrs) {
             visit::visit_item_impl(self, node);
         }
     }
 
     fn visit_impl_item_fn(&mut self, node: &'ast syn::ImplItemFn) {
-        if !modules::has_cfg_test(&node.attrs) {
+        if self.in_target_mod && !modules::has_cfg_test(&node.attrs) {
             visit::visit_impl_item_fn(self, node);
         }
     }
 
     fn visit_ident(&mut self, ident: &'ast proc_macro2::Ident) {
-        if let Some(id) = parse_shim_ident(&ident.to_string()) {
+        if self.in_target_mod
+            && let Some(id) = parse_shim_ident(&ident.to_string())
+        {
             let sp = to_span_range(ident.span());
             if !self.shim_ident_spans.contains(&sp) {
                 self.refs.push(ShimIdentRef {
@@ -648,6 +673,7 @@ struct AstCollector<'a> {
     idx: &'a LineIndex,
     crate_ident: &'a str,
     targets: &'a [Vec<String>],
+    shallow: bool,
     colliding_short_keys: &'a BTreeSet<String>,
     fn_ledger: &'a FnLedgerIndex,
     mod_path: Vec<String>,
@@ -714,7 +740,8 @@ impl<'a> AstCollector<'a> {
     }
 
     fn visit_items(&mut self, items: &[Item]) {
-        self.in_target_mod = modules::is_target_or_descendant(&self.mod_path, self.targets);
+        self.in_target_mod =
+            modules::is_target_or_descendant(&self.mod_path, self.targets, self.shallow);
         let prefix = key::module_prefix(self.crate_ident, &self.mod_path);
         let (matched_helpers, _) = if self.in_target_mod {
             run::pair_converted_trait_helpers(
@@ -856,6 +883,7 @@ fn collect_file_ast(
     file: &modules::ScannedFile,
     crate_ident: &str,
     targets: &[Vec<String>],
+    shallow: bool,
     colliding_short_keys: &BTreeSet<String>,
     fn_ledger: &FnLedgerIndex,
 ) -> CollectedFile {
@@ -867,6 +895,7 @@ fn collect_file_ast(
         idx: &idx,
         crate_ident,
         targets,
+        shallow,
         colliding_short_keys,
         fn_ledger,
         mod_path: file.root_mod_path.clone(),
@@ -885,6 +914,10 @@ fn collect_file_ast(
         .map(|s| s.sig_ident_span)
         .collect();
     let mut ref_collector = ShimRefCollector {
+        targets,
+        shallow,
+        mod_path: file.root_mod_path.clone(),
+        in_target_mod: false,
         shim_ident_spans: &shim_ident_spans,
         refs: Vec::new(),
     };
@@ -1430,8 +1463,12 @@ pub fn execute(config: &Config) -> Result<bool, String> {
         .map(|m| modules::normalize_module_arg(m))
         .collect::<Result<Vec<_>, _>>()?;
 
-    let scanned_files =
-        modules::collect_module_files(&config.crate_root, &config.crate_name, &targets)?;
+    let scanned_files = modules::collect_module_files(
+        &config.crate_root,
+        &config.crate_name,
+        &targets,
+        config.shallow,
+    )?;
     let thir_dump = match &config.thir {
         None => {
             if config.mode == Mode::Apply {
@@ -1456,8 +1493,12 @@ pub fn execute(config: &Config) -> Result<bool, String> {
             Some(thir_dump)
         }
     };
-    let colliding_short_keys =
-        run::collect_colliding_short_keys(&crate_ident, &targets, &scanned_files);
+    let colliding_short_keys = run::collect_colliding_short_keys(
+        &crate_ident,
+        &targets,
+        config.shallow,
+        &scanned_files,
+    );
 
     let mut ledger_set = ledger_io::load_ledger_set(&config.ledger)?;
     let mut manual_keys = ledger_io::read_manual_exclusions(&config.ledger, &crate_ident)?;
@@ -1476,7 +1517,16 @@ pub fn execute(config: &Config) -> Result<bool, String> {
 
     let collected_files: Vec<CollectedFile> = scanned_files
         .iter()
-        .map(|sf| collect_file_ast(sf, &crate_ident, &targets, &colliding_short_keys, &fn_ledger))
+        .map(|sf| {
+            collect_file_ast(
+                sf,
+                &crate_ident,
+                &targets,
+                config.shallow,
+                &colliding_short_keys,
+                &fn_ledger,
+            )
+        })
         .collect();
 
     match thir_dump.as_ref() {

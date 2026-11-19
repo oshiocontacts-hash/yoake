@@ -44,6 +44,7 @@ use std::{
 };
 
 /// A living entity jumped (`LivingEvent.LivingJumpEvent`). 359.
+#[yoake_hook_macro::yoake_hook(id = 512, key = "horizon_client_lib::motion::native_living_jump")]
 #[inline(never)]
 pub fn native_living_jump(entity: u32, kind: &str) {
     crate::native_client_hooks::living_jump(entity, kind);
@@ -77,6 +78,7 @@ pub struct MotionResources {
 }
 impl MotionResources {
     /// [`Self::load_with_facts`] with the block facts decoded here.
+    #[yoake_hook_macro::yoake_hook(method, id = 513, key = "horizon_client_lib::motion::MotionResources::load")]
     pub fn load(root: &Path, assets: &Assets) -> Result<Self> {
         Self::load_with_facts(
             root,
@@ -87,6 +89,7 @@ impl MotionResources {
     /// The motion tables, with the block facts the game already decoded
     /// (decoding `gameplay-facts.json` again costs a second or more and, with
     /// a big modpack, hundreds of megabytes while it runs).
+    #[yoake_hook_macro::yoake_hook(method, id = 514, key = "horizon_client_lib::motion::MotionResources::load_with_facts")]
     pub fn load_with_facts(
         root: &Path,
         assets: &Assets,
@@ -478,12 +481,14 @@ impl PlayerMotion {
     /// as the speed the glide had (`LivingEntity.handleFallFlyingCollisions`'s
     /// moveHorLength); a copy whose travels start from its own last velocity
     /// otherwise keeps a few hundredths there, and no hit reaches the damage.
+    #[yoake_hook_macro::yoake_hook(method, id = 515, key = "horizon_client_lib::motion::PlayerMotion::carry_client_movement")]
     pub fn carry_client_movement(&mut self, movement: Vec3) {
         if self.fall_flying {
             self.velocity = movement;
         }
     }
     /// `Player.isSweepAttack`, using the resident player's known horizontal velocity.
+    #[yoake_hook_macro::yoake_hook(method, id = 516, key = "horizon_client_lib::motion::PlayerMotion::is_sweep_attack")]
     pub fn is_sweep_attack(&self, strength: f32, critical: bool, sword: bool) -> bool {
         let movement = self.velocity;
         let limit = f64::from(self.speed) * 2.5;
@@ -495,6 +500,7 @@ impl PlayerMotion {
             && sword
     }
     /// Restore login state once; a later respawn starts with fresh health and food.
+    #[yoake_hook_macro::yoake_hook(method, id = 517, key = "horizon_client_lib::motion::PlayerMotion::load_saved_state_once")]
     pub fn load_saved_state_once(
         &mut self,
         pending: &mut bool,
@@ -521,6 +527,7 @@ impl PlayerMotion {
         }
         Ok(())
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 518, key = "horizon_client_lib::motion::PlayerMotion::set_remaining_fire_ticks")]
     pub fn set_remaining_fire_ticks(&mut self, ticks: i32) {
         self.fire_ticks = if self.invulnerable {
             ticks.min(1)
@@ -528,6 +535,7 @@ impl PlayerMotion {
             ticks
         };
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 519, key = "horizon_client_lib::motion::PlayerMotion::ignite_for_ticks")]
     pub fn ignite_for_ticks(&mut self, ticks: i32) -> Result<()> {
         let scaled = (f64::from(ticks) * self.attribute("minecraft:burning_time")?).ceil() as i32;
         self.set_remaining_fire_ticks(self.fire_ticks.max(scaled));
@@ -535,6 +543,7 @@ impl PlayerMotion {
         Ok(())
     }
 
+    #[yoake_hook_macro::yoake_hook(method, id = 520, key = "horizon_client_lib::motion::PlayerMotion::new")]
     pub fn new(resources: &MotionResources, position: Vec3) -> Result<Self> {
         // Process-owned identities determine native collection callback order.
         // Differential fixtures can replay a reference process's identities.
@@ -552,6 +561,7 @@ impl PlayerMotion {
         Self::with_attribute_identities(resources, position, &hashes, next)
     }
     /// Explicit identity allocation for deterministic reference replay.
+    #[yoake_hook_macro::yoake_hook(method, id = 521, key = "horizon_client_lib::motion::PlayerMotion::with_attribute_identities")]
     pub fn with_attribute_identities(
         resources: &MotionResources,
         position: Vec3,
@@ -659,6 +669,7 @@ impl PlayerMotion {
         })
     }
     /// LivingEntity.aiStep: speeds too small to matter stop.
+    #[yoake_hook_macro::yoake_hook(method, id = 522, key = "horizon_client_lib::motion::PlayerMotion::drop_tiny_velocity")]
     fn drop_tiny_velocity(&mut self) {
         let v = &mut self.velocity;
         if v.x * v.x + v.z * v.z < 9.0e-6 {
@@ -671,19 +682,23 @@ impl PlayerMotion {
     /// `Entity.getTicksRequiredToFreeze`.
     pub const TICKS_REQUIRED_TO_FREEZE: i32 = 140;
     /// `Entity.getPercentFrozen`.
+    #[yoake_hook_macro::yoake_hook(method, id = 523, key = "horizon_client_lib::motion::PlayerMotion::percent_frozen")]
     pub fn percent_frozen(&self) -> f32 {
         self.ticks_frozen.min(Self::TICKS_REQUIRED_TO_FREEZE) as f32
             / Self::TICKS_REQUIRED_TO_FREEZE as f32
     }
     /// `Entity.isFullyFrozen`.
+    #[yoake_hook_macro::yoake_hook(method, id = 524, key = "horizon_client_lib::motion::PlayerMotion::is_fully_frozen")]
     pub fn is_fully_frozen(&self) -> bool {
         self.ticks_frozen >= Self::TICKS_REQUIRED_TO_FREEZE
     }
     /// `LivingEntity.canFreeze`: not a spectator, no freeze-immune armor.
+    #[yoake_hook_macro::yoake_hook(method, id = 525, key = "horizon_client_lib::motion::PlayerMotion::can_freeze")]
     pub fn can_freeze(&self) -> bool {
         !self.spectator && !self.freeze_immune
     }
     /// What powder snow's contextual collision asks of the player.
+    #[yoake_hook_macro::yoake_hook(method, id = 526, key = "horizon_client_lib::motion::PlayerMotion::powder_snow_subject")]
     pub fn powder_snow_subject(&self) -> crate::collisions::PowderSnowSubject {
         crate::collisions::PowderSnowSubject {
             fall_distance: self.fall_distance,
@@ -694,6 +709,7 @@ impl PlayerMotion {
         }
     }
     /// `LivingEntity.tryAddFrost`: the frozen slowdown, on anything but air.
+    #[yoake_hook_macro::yoake_hook(method, id = 527, key = "horizon_client_lib::motion::PlayerMotion::try_add_frost")]
     fn try_add_frost(&mut self, on_air: bool) -> Result<()> {
         if on_air || self.ticks_frozen <= 0 {
             return Ok(());
@@ -721,9 +737,11 @@ impl PlayerMotion {
             .map_err(attribute_error)?;
         Ok(())
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 528, key = "horizon_client_lib::motion::PlayerMotion::bounds")]
     pub fn bounds(&self) -> Aabb {
         self.dimensions.bounds(self.position)
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 529, key = "horizon_client_lib::motion::PlayerMotion::attribute")]
     pub fn attribute(&mut self, name: &str) -> Result<f64> {
         let key = self
             .attributes
@@ -736,6 +754,7 @@ impl PlayerMotion {
     }
     /// Add (or remove) a transient attribute modifier, e.g. from equipment
     /// (`LivingEntity.collectEquipmentChanges` applying item modifiers).
+    #[yoake_hook_macro::yoake_hook(method, id = 530, key = "horizon_client_lib::motion::PlayerMotion::set_modifier")]
     pub fn set_modifier(
         &mut self,
         attribute: &str,
@@ -774,6 +793,7 @@ impl PlayerMotion {
     /// `AttributeMap.pack` in `AttributeInstance.Packed.LIST_CODEC`'s form: the
     /// player's `attributes` list (LivingEntity.addAdditionalSaveData), each
     /// instance's id, base and permanent modifiers.
+    #[yoake_hook_macro::yoake_hook(method, id = 531, key = "horizon_client_lib::motion::PlayerMotion::saved_attributes")]
     pub fn saved_attributes(&self) -> horizon_world::nbt::Tag {
         self.packed_attributes(true)
     }
@@ -783,9 +803,11 @@ impl PlayerMotion {
     /// level (`ServerPlayer.teleport`) is the same entity, with its permanent
     /// modifiers too (`restoreAll`, `assignPermanentModifiers`). A scale of
     /// 0.1 is still 0.1 after a respawn or a trip through a portal (#3684).
+    #[yoake_hook_macro::yoake_hook(method, id = 532, key = "horizon_client_lib::motion::PlayerMotion::carried_attributes")]
     pub fn carried_attributes(&self, restore_all: bool) -> horizon_world::nbt::Tag {
         self.packed_attributes(restore_all)
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 533, key = "horizon_client_lib::motion::PlayerMotion::packed_attributes")]
     fn packed_attributes(&self, modifiers: bool) -> horizon_world::nbt::Tag {
         use horizon_client_core::nbt_value::string;
         use horizon_world::nbt::Tag;
@@ -826,6 +848,7 @@ impl PlayerMotion {
     /// `AttributeMap.apply` of a saved `attributes` list
     /// (LivingEntity.readAdditionalSaveData): each known attribute takes its
     /// saved base and permanent modifiers; unknown ones are skipped.
+    #[yoake_hook_macro::yoake_hook(method, id = 534, key = "horizon_client_lib::motion::PlayerMotion::apply_saved_attributes")]
     pub fn apply_saved_attributes(
         &mut self,
         saved: Option<&horizon_world::nbt::Tag>,
@@ -879,6 +902,7 @@ impl PlayerMotion {
     /// The movement speed's `minecraft:sprinting` modifier alone, the flag left as it is:
     /// `ClientPacketListener.handleUpdateAttributes` takes the server's modifiers as sent, so a
     /// client can sprint without it.
+    #[yoake_hook_macro::yoake_hook(method, id = 536, key = "horizon_client_lib::motion::PlayerMotion::set_sprint_modifier")]
     pub fn set_sprint_modifier(&mut self, sprinting: bool) -> Result<()> {
         let key = self
             .attributes
@@ -906,6 +930,7 @@ impl PlayerMotion {
         Ok(())
     }
     /// Whether the movement speed has the `minecraft:sprinting` modifier.
+    #[yoake_hook_macro::yoake_hook(method, id = 537, key = "horizon_client_lib::motion::PlayerMotion::has_sprint_modifier")]
     pub fn has_sprint_modifier(&self) -> bool {
         let Some(key) = self.attributes.key("minecraft:movement_speed") else {
             return false;
@@ -922,10 +947,12 @@ impl PlayerMotion {
     /// Local input sprint phase (`LocalPlayer.aiStep`'s sprint decisions).
     /// Vehicle bindings remain separate; hunger, flight, water, collision, the
     /// item in use and blindness use this actor's actual state.
+    #[yoake_hook_macro::yoake_hook(method, id = 538, key = "horizon_client_lib::motion::PlayerMotion::sprint_input_tick")]
     pub fn sprint_input_tick(&mut self, keys: crate::sprint::Keys) -> Result<()> {
         self.sprint_input_tick_with_window(keys, 7)
     }
     /// The same phase with Java's `Options.sprintWindow` value.
+    #[yoake_hook_macro::yoake_hook(method, id = 539, key = "horizon_client_lib::motion::PlayerMotion::sprint_input_tick_with_window")]
     pub fn sprint_input_tick_with_window(
         &mut self,
         keys: crate::sprint::Keys,
@@ -959,6 +986,7 @@ impl PlayerMotion {
         self.sprint_input = state;
         result
     }
+    #[yoake_hook_macro::yoake_hook(method, id = 540, key = "horizon_client_lib::motion::PlayerMotion::remove_frost")]
     fn remove_frost(&mut self) -> Result<()> {
         let key = self
             .attributes
@@ -995,6 +1023,7 @@ enum TickInput {
     PreparedLocal { direction: [f32; 2], jumping: bool },
 }
 impl MotionWorld<'_, '_, '_> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 541, key = "horizon_client_lib::motion::MotionWorld::context")]
     fn context(&self) -> CollisionContext<'static> {
         CollisionContext::for_entity(
             CollisionEntity {
@@ -1024,6 +1053,7 @@ impl MotionWorld<'_, '_, '_> {
         }
     }
     /// `Level.noCollision(player, bounds)`: blocks and the host's entity boxes.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 542, key = "horizon_client_lib::motion::MotionWorld::no_player_collision")]
     pub fn no_player_collision(&mut self, bounds: Aabb) -> Result<bool> {
         let context = self.context();
         Ok(world_movement::no_world_collision(
@@ -1036,9 +1066,11 @@ impl MotionWorld<'_, '_, '_> {
             },
         )?)
     }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 543, key = "horizon_client_lib::motion::MotionWorld::block")]
     fn block(&self, p: BlockPos) -> BlockStateId {
         self.scene.block(p.x, p.y, p.z)
     }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 544, key = "horizon_client_lib::motion::MotionWorld::support")]
     fn support(&mut self, offset: f32) -> Result<BlockPos> {
         let position = self.player.position;
         let support = self.player.ground.supporting_block;
@@ -1052,6 +1084,7 @@ impl MotionWorld<'_, '_, '_> {
             offset,
         )?)
     }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 545, key = "horizon_client_lib::motion::MotionWorld::location")]
     fn location(&self) -> MovementLocation {
         MovementLocation {
             position: self.player.position,
@@ -1062,6 +1095,7 @@ impl MotionWorld<'_, '_, '_> {
     /// `Player.onClimbable` (never while flying) over `LivingEntity.onClimbable`
     /// at the player's feet: the climbable tag or an open trapdoor above a
     /// matching ladder. It remembers the block.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 546, key = "horizon_client_lib::motion::MotionWorld::climbable")]
     pub fn climbable(&mut self) -> Result<bool> {
         if self.player.flying {
             return Ok(false);
@@ -1069,6 +1103,7 @@ impl MotionWorld<'_, '_, '_> {
         let resources = self.resources;
         climbing::on_climbable(self, &resources.climbing).map_err(|e| e.to_string().into())
     }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 547, key = "horizon_client_lib::motion::MotionWorld::travel_in_air")]
     pub fn travel_in_air(&mut self, input: Vec3) -> Result<()> {
         living_air::travel_in_air(self, input)
     }
@@ -1077,16 +1112,19 @@ impl MotionWorld<'_, '_, '_> {
     /// modifier, freeze damage). Equipment, interpolation, effects and other
     /// world/entity effects remain unbound. Inputs are the native
     /// float xxa/yya/zza fields, before LivingEntity.applyInput damping.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 548, key = "horizon_client_lib::motion::MotionWorld::movement_tick")]
     pub fn movement_tick(&mut self, input: [f32; 3]) -> Result<()> {
         self.dry_tick(TickInput::Living(input))
     }
     /// Dry Player.aiStep movement with a prepared local input vector. The
     /// caller applies LocalPlayer input preparation once. Empty inventory,
     /// equipment and nearby-entity sets are the current scene domain.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 549, key = "horizon_client_lib::motion::MotionWorld::player_movement_tick")]
     pub fn player_movement_tick(&mut self, direction: [f32; 2], jumping: bool) -> Result<()> {
         self.fluid_base_tick()?;
         self.player_movement_tick_with_fluids(direction, jumping)
     }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 550, key = "horizon_client_lib::motion::MotionWorld::player_movement_tick_with_fluids")]
     fn player_movement_tick_with_fluids(
         &mut self,
         direction: [f32; 2],
@@ -1220,11 +1258,13 @@ impl MotionWorld<'_, '_, '_> {
     }
     /// Resident simulation phases in native order. Enclosing entity/world tick
     /// services are still incomplete; this composes clocks, movement and hunger.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 551, key = "horizon_client_lib::motion::MotionWorld::simulation_tick")]
     pub fn simulation_tick(&mut self, direction: [f32; 2], jumping: bool) -> Result<()> {
         self.player.health.advance_clock();
         self.fluid_base_tick()?;
         self.simulation_tick_with_fluids(direction, jumping)
     }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 552, key = "horizon_client_lib::motion::MotionWorld::simulation_tick_with_fluids")]
     fn simulation_tick_with_fluids(&mut self, direction: [f32; 2], jumping: bool) -> Result<()> {
         self.tick_environment_damage()?;
         let previous = self.player.position;
@@ -1238,10 +1278,12 @@ impl MotionWorld<'_, '_, '_> {
         self.player
             .food_tick(&self.resources.health, self.scene.health_rules)
     }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 553, key = "horizon_client_lib::motion::MotionWorld::controlled_simulation_tick")]
     pub fn controlled_simulation_tick(&mut self, keys: crate::sprint::Keys) -> Result<()> {
         self.controlled_simulation_tick_with_sprint_window(keys, 7)
     }
     /// Local simulation with the configured double-tap sprint window.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 554, key = "horizon_client_lib::motion::MotionWorld::controlled_simulation_tick_with_sprint_window")]
     pub fn controlled_simulation_tick_with_sprint_window(
         &mut self,
         keys: crate::sprint::Keys,
@@ -1254,6 +1296,7 @@ impl MotionWorld<'_, '_, '_> {
     /// A client's tick played again by the server's movement prediction: the
     /// client's own keys, and the sprinting it said it had (its
     /// ServerboundPlayerCommandPacket comes before the tick's move).
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 555, key = "horizon_client_lib::motion::MotionWorld::replayed_tick")]
     pub fn replayed_tick(&mut self, keys: crate::sprint::Keys, sprinting: bool) -> Result<()> {
         self.player.replaying = true;
         let result = self.local_tick(keys, |player, _| {
@@ -1300,9 +1343,11 @@ impl MotionWorld<'_, '_, '_> {
         self.player.applied_input = modified;
         self.simulation_tick_with_fluids(modified, keys.jump)
     }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 556, key = "horizon_client_lib::motion::MotionWorld::check_movement_statistics")]
     pub fn check_movement_statistics(&mut self, delta: Vec3) -> Result<()> {
         movement_statistics::check(self, delta)
     }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 557, key = "horizon_client_lib::motion::MotionWorld::dry_tick")]
     fn dry_tick(&mut self, input: TickInput) -> Result<()> {
         if self.player.no_jump_delay > 0 {
             self.player.no_jump_delay -= 1;
@@ -1359,11 +1404,13 @@ impl MotionWorld<'_, '_, '_> {
     /// Refresh whether the player stands on a soul speed block, for the
     /// `location_changed` enchantment effects (a server's player too, whose
     /// client does the walking).
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 558, key = "horizon_client_lib::motion::MotionWorld::update_soul_speed_block")]
     pub fn update_soul_speed_block(&mut self) -> Result<()> {
         self.player.location_effects.on_soul_speed_block = self.on_soul_speed_block()?;
         Ok(())
     }
     /// `MovementAffectedByPredicate` for `#minecraft:soul_speed_blocks`.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 559, key = "horizon_client_lib::motion::MotionWorld::on_soul_speed_block")]
     fn on_soul_speed_block(&mut self) -> Result<bool> {
         let on = self.support(movement_support::MOVEMENT_SUPPORT_OFFSET)?;
         Ok(self
@@ -1374,6 +1421,7 @@ impl MotionWorld<'_, '_, '_> {
     }
     /// Player.travel: swim steering, then LivingEntity.travel (fluids first,
     /// then gliding, then air), keeping 0.6 of the vertical speed while flying.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 560, key = "horizon_client_lib::motion::MotionWorld::player_travel")]
     fn player_travel(&mut self, input: Vec3) -> Result<()> {
         if self.player.swimming {
             let look_y =
@@ -1419,6 +1467,7 @@ impl MotionWorld<'_, '_, '_> {
     /// is what a hurt sends the player (`ServerEntity.sendChanges`), and
     /// what the next knockback starts from; the client's next move places
     /// the player.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 561, key = "horizon_client_lib::motion::MotionWorld::server_travel")]
     pub fn server_travel(&mut self) -> Result<()> {
         let p = &mut *self.player;
         let (position, ground, collision) = (p.position, p.ground, p.collision);
@@ -1444,6 +1493,7 @@ impl MotionWorld<'_, '_, '_> {
     /// `LivingEntity.checkAutoSpinAttack`: the first living entity in the
     /// box swept this tick takes the hit and ends the spin, bouncing the
     /// player back at a fifth of its speed; a wall ends it too.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 562, key = "horizon_client_lib::motion::MotionWorld::check_auto_spin_attack")]
     fn check_auto_spin_attack(&mut self, before: Aabb) {
         let swept = before.union_bounds(self.player.bounds());
         let p = &mut self.player;
@@ -1456,6 +1506,7 @@ impl MotionWorld<'_, '_, '_> {
         }
     }
     /// `hurtServer(damageSources().freeze(), 1)` for a fully frozen player.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 563, key = "horizon_client_lib::motion::MotionWorld::freeze_damage")]
     fn freeze_damage(&mut self) -> Result<()> {
         let id = self
             .resources
@@ -1476,6 +1527,7 @@ impl MotionWorld<'_, '_, '_> {
     /// cactus and lit campfires, and the magma and slime blocks it stands on
     /// (`stepOn`). Pressure plates, tripwires and rails are the world tick's
     /// scan.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 564, key = "horizon_client_lib::motion::MotionWorld::apply_effects_from_blocks")]
     pub fn apply_effects_from_blocks(&mut self) -> Result<()> {
         self.effects_from_blocks(false)
     }
@@ -1484,6 +1536,7 @@ impl MotionWorld<'_, '_, '_> {
     /// magma, cactus, lit campfires and grown sweet berry bushes, and powder
     /// snow's FREEZE, then `LivingEntity.aiStep`'s freezing and its damage.
     /// Its client moves it, so the slowing and the rest are the client's.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 565, key = "horizon_client_lib::motion::MotionWorld::server_block_damage")]
     pub fn server_block_damage(&mut self, from: Vec3) -> Result<()> {
         self.player.old_position = from;
         // Entity.baseTick
@@ -1502,6 +1555,7 @@ impl MotionWorld<'_, '_, '_> {
         }
         Ok(())
     }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 566, key = "horizon_client_lib::motion::MotionWorld::effects_from_blocks")]
     fn effects_from_blocks(&mut self, damage_only: bool) -> Result<()> {
         use horizon_world::entity_move::MovementRecord;
         let mut movements: Vec<MovementRecord> =
@@ -1655,6 +1709,7 @@ impl MotionWorld<'_, '_, '_> {
     }
     /// `Entity.checkInsideBlocks(from, to, ...)`: the blocks the box at `to`
     /// sweeps through from `from`; returns the iterations used plus one.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 567, key = "horizon_client_lib::motion::MotionWorld::check_inside_blocks")]
     fn check_inside_blocks(
         &mut self,
         from: Vec3,
@@ -1836,6 +1891,7 @@ impl MotionWorld<'_, '_, '_> {
     }
     /// `HoneyBlock.entityInside`: a falling player touching a side of the block
     /// slides down it (`isSlidingDown`, `doSlideMovement`, `maybeDoSlideEffects`).
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 568, key = "horizon_client_lib::motion::MotionWorld::honey_block_inside")]
     fn honey_block_inside(&mut self, pos: BlockPos) -> Result<()> {
         let old_delta_y = |dy: f64| dy / f64::from(0.98_f32) + 0.08;
         let new_delta_y = |dy: f64| (dy - 0.08) * f64::from(0.98_f32);
@@ -1884,6 +1940,7 @@ impl MotionWorld<'_, '_, '_> {
     /// `Player.makeStuckInBlock`: the next move is scaled by `multiplier`
     /// (and the fall forgotten) unless flying; the impulse context resets
     /// either way.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 569, key = "horizon_client_lib::motion::MotionWorld::make_stuck_in_block")]
     fn make_stuck_in_block(&mut self, multiplier: Vec3) {
         if !self.player.flying {
             self.player.fall_distance = 0.0;
@@ -1894,6 +1951,7 @@ impl MotionWorld<'_, '_, '_> {
     /// `LavaCauldronBlock.entityInside`: CLEAR_FREEZE, LAVA_IGNITE
     /// (`Entity.lavaIgnite`, 15 seconds) and then `Entity.lavaHurt` (lava,
     /// 4), as ordinary lava does to the player.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 570, key = "horizon_client_lib::motion::MotionWorld::lava_cauldron_inside")]
     fn lava_cauldron_inside(&mut self) -> Result<()> {
         self.player.ticks_frozen = 0;
         self.player.ignite_for_ticks(300)?;
@@ -1903,6 +1961,7 @@ impl MotionWorld<'_, '_, '_> {
     /// asks for the cauldron's `handleEntityOnFireInside` (runBefore
     /// EXTINGUISH, so while still burning), then EXTINGUISH
     /// (`Entity.clearFire`) puts the fire out.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 571, key = "horizon_client_lib::motion::MotionWorld::layered_cauldron_inside")]
     fn layered_cauldron_inside(&mut self, pos: BlockPos) {
         if self.player.fire_ticks > 0 && !self.player.spectator {
             self.player
@@ -1913,6 +1972,7 @@ impl MotionWorld<'_, '_, '_> {
     }
     /// `WebBlock.entityInside`: stuck at a quarter of the speed, half with
     /// the Weaving effect.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 572, key = "horizon_client_lib::motion::MotionWorld::web_inside")]
     fn web_inside(&mut self) {
         let multiplier = if self.player.status.weaving {
             Vec3::new(0.5, 0.25, 0.5)
@@ -1924,11 +1984,13 @@ impl MotionWorld<'_, '_, '_> {
     /// `SweetBerryBushBlock.entityInside` for the player: slowed, and pricked
     /// (`sweetBerryBush` damage, 1) by a grown bush while its known movement
     /// is at least 0.003 on X or Z.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 573, key = "horizon_client_lib::motion::MotionWorld::sweet_berry_bush_inside")]
     fn sweet_berry_bush_inside(&mut self, state: BlockStateId) -> Result<()> {
         self.make_stuck_in_block(Vec3::new(f64::from(0.8_f32), 0.75, f64::from(0.8_f32)));
         self.sweet_berry_bush_damage(state)
     }
     /// The server's half of `SweetBerryBushBlock.entityInside`: the prick.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 574, key = "horizon_client_lib::motion::MotionWorld::sweet_berry_bush_damage")]
     fn sweet_berry_bush_damage(&mut self, state: BlockStateId) -> Result<()> {
         let age = self
             .assets
@@ -1961,6 +2023,7 @@ impl MotionWorld<'_, '_, '_> {
     }
     /// `PowderSnowBlock.entityInside` for the player: stuck while the block
     /// at its feet is powder snow, with a snowflake now and then (server).
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 575, key = "horizon_client_lib::motion::MotionWorld::powder_snow_inside")]
     fn powder_snow_inside(&mut self, p: BlockPos) -> Result<()> {
         let feet = BlockPos::containing(self.player.position);
         let in_block = self
@@ -1980,6 +2043,7 @@ impl MotionWorld<'_, '_, '_> {
     }
     /// `PowderSnowBlock.entityInside`'s server particle: one snowflake at
     /// the top of `p` when the player moved horizontally this tick.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 576, key = "horizon_client_lib::motion::MotionWorld::powder_snow_snowflake")]
     fn powder_snow_snowflake(&mut self, p: BlockPos) {
         let feet = BlockPos::containing(self.player.position);
         if !self
@@ -2007,6 +2071,7 @@ impl MotionWorld<'_, '_, '_> {
             });
         }
     }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 577, key = "horizon_client_lib::motion::MotionWorld::jump_from_ground")]
     pub fn jump_from_ground(&mut self) -> Result<()> {
         living_motion::jump_from_ground(self)?;
         if !self.player.replaying {
@@ -2023,6 +2088,7 @@ impl MotionWorld<'_, '_, '_> {
         Ok(())
     }
     /// LivingEntity.travelFallFlying with updateFallFlyingMovement.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 578, key = "horizon_client_lib::motion::MotionWorld::travel_fall_flying")]
     fn travel_fall_flying(&mut self) -> Result<()> {
         let v = self.player.velocity;
         // getLookAngle and the lean use Mth's sine table and float degrees,
@@ -2111,11 +2177,13 @@ impl MotionWorld<'_, '_, '_> {
     /// (`Entity.setOnGroundWithMovement`): a lid lifting the body off the
     /// ground leaves it airborne, and the next tick's gravity lands it on the
     /// lid again instead of the client holding it on a stale ground.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 579, key = "horizon_client_lib::motion::MotionWorld::shulker_box_push")]
     pub fn shulker_box_push(&mut self, movement: Vec3) -> Result<()> {
         entity_move::move_entity(self, MoverType::ShulkerBox, movement)
     }
     /// `LocalPlayer.move`: the move, then `updateAutoJump` with the float
     /// horizontal displacement.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 580, key = "horizon_client_lib::motion::MotionWorld::move_self")]
     pub fn move_self(&mut self, movement: Vec3) -> Result<()> {
         let before = self.player.position;
         entity_move::move_entity(self, MoverType::SelfMovement, movement)?;
@@ -2124,6 +2192,7 @@ impl MotionWorld<'_, '_, '_> {
         self.update_auto_jump(dx, dz)
     }
     /// `LocalPlayer.updateAutoJump` behind `canAutoJump`.
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 581, key = "horizon_client_lib::motion::MotionWorld::update_auto_jump")]
     pub fn update_auto_jump(&mut self, xa: f32, za: f32) -> Result<()> {
         let p = &*self.player;
         // canAutoJump; MotionWorld drives an unmounted player (not a passenger).
@@ -2180,18 +2249,37 @@ impl ClimbingWorld for MotionWorld<'_, '_, '_> {
         Ok(self.block(position))
     }
     fn set_last_climbable_position(&mut self, position: BlockPos) {
+        self.__yoake_trait_climbing_world_set_last_climbable_position(position)
+    }
+}
+impl MotionWorld<'_, '_, '_> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 582, key = "horizon_client_lib::motion::<MotionWorld as ClimbingWorld>::set_last_climbable_position")]
+    #[inline(always)]
+    fn __yoake_trait_climbing_world_set_last_climbable_position(&mut self, position: BlockPos) {
         self.player.last_climbable = Some(position);
     }
 }
 impl crate::auto_jump::AutoJumpWorld for MotionWorld<'_, '_, '_> {
     type Error = Box<dyn std::error::Error>;
     fn collision_shape(&mut self, p: BlockPos) -> Result<horizon_core::geometry::VoxelShape> {
+        self.__yoake_trait_auto_jump_world_collision_shape(p)
+    }
+    fn collision_boxes(&mut self, bounds: Aabb) -> Result<Vec<Aabb>> {
+        self.__yoake_trait_auto_jump_world_collision_boxes(bounds)
+    }
+}
+impl MotionWorld<'_, '_, '_> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 583, key = "horizon_client_lib::motion::<MotionWorld as AutoJumpWorld>::collision_shape")]
+    #[inline(always)]
+    fn __yoake_trait_auto_jump_world_collision_shape(&mut self, p: BlockPos) -> Result<horizon_core::geometry::VoxelShape> {
         let context = self.context();
         let state = self.block(p);
         let binding = self.collision_binding;
         Ok(binding.collision_shape_with_context(&mut self.collisions(), state, p, &context)?)
     }
-    fn collision_boxes(&mut self, bounds: Aabb) -> Result<Vec<Aabb>> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 584, key = "horizon_client_lib::motion::<MotionWorld as AutoJumpWorld>::collision_boxes")]
+    #[inline(always)]
+    fn __yoake_trait_auto_jump_world_collision_boxes(&mut self, bounds: Aabb) -> Result<Vec<Aabb>> {
         let context = self.context();
         let mut scene = self.collisions();
         let mut boxes = Vec::new();
@@ -2209,33 +2297,88 @@ impl crate::auto_jump::AutoJumpWorld for MotionWorld<'_, '_, '_> {
 impl MovementStatisticsWorld for MotionWorld<'_, '_, '_> {
     type Error = Box<dyn std::error::Error>;
     fn passenger(&mut self) -> Result<bool> {
-        Ok(false)
+        self.__yoake_trait_movement_statistics_world_passenger()
     }
     fn swimming(&mut self) -> Result<bool> {
-        Ok(self.player.swimming)
+        self.__yoake_trait_movement_statistics_world_swimming()
     }
     fn eyes_in_water(&mut self) -> Result<bool> {
-        Ok(self.player.is_eye_in_fluid(WATER))
+        self.__yoake_trait_movement_statistics_world_eyes_in_water()
     }
     fn in_water(&mut self) -> Result<bool> {
-        Ok(self.player.fluids.was_touching_water)
+        self.__yoake_trait_movement_statistics_world_in_water()
     }
     fn on_climbable(&mut self) -> Result<bool> {
-        self.climbable()
+        self.__yoake_trait_movement_statistics_world_on_climbable()
     }
     fn on_ground(&mut self) -> Result<bool> {
-        Ok(self.player.ground.on_ground)
+        self.__yoake_trait_movement_statistics_world_on_ground()
     }
     fn sprinting(&mut self) -> Result<bool> {
-        Ok(self.player.sprinting)
+        self.__yoake_trait_movement_statistics_world_sprinting()
     }
     fn crouching(&mut self) -> Result<bool> {
-        Ok(self.player.pose == crate::pose::Pose::Crouching)
+        self.__yoake_trait_movement_statistics_world_crouching()
     }
     fn fall_flying(&mut self) -> Result<bool> {
-        Ok(false)
+        self.__yoake_trait_movement_statistics_world_fall_flying()
     }
     fn award(&mut self, stat: MovementStat, amount: i32) -> Result<()> {
+        self.__yoake_trait_movement_statistics_world_award(stat, amount)
+    }
+    fn exhaust(&mut self, amount: f32) -> Result<()> {
+        self.__yoake_trait_movement_statistics_world_exhaust(amount)
+    }
+}
+impl MotionWorld<'_, '_, '_> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 585, key = "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::passenger")]
+    #[inline(always)]
+    fn __yoake_trait_movement_statistics_world_passenger(&mut self) -> Result<bool> {
+        Ok(false)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 586, key = "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::swimming")]
+    #[inline(always)]
+    fn __yoake_trait_movement_statistics_world_swimming(&mut self) -> Result<bool> {
+        Ok(self.player.swimming)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 587, key = "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::eyes_in_water")]
+    #[inline(always)]
+    fn __yoake_trait_movement_statistics_world_eyes_in_water(&mut self) -> Result<bool> {
+        Ok(self.player.is_eye_in_fluid(WATER))
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 588, key = "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::in_water")]
+    #[inline(always)]
+    fn __yoake_trait_movement_statistics_world_in_water(&mut self) -> Result<bool> {
+        Ok(self.player.fluids.was_touching_water)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 589, key = "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::on_climbable")]
+    #[inline(always)]
+    fn __yoake_trait_movement_statistics_world_on_climbable(&mut self) -> Result<bool> {
+        self.climbable()
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 590, key = "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::on_ground")]
+    #[inline(always)]
+    fn __yoake_trait_movement_statistics_world_on_ground(&mut self) -> Result<bool> {
+        Ok(self.player.ground.on_ground)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 591, key = "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::sprinting")]
+    #[inline(always)]
+    fn __yoake_trait_movement_statistics_world_sprinting(&mut self) -> Result<bool> {
+        Ok(self.player.sprinting)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 592, key = "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::crouching")]
+    #[inline(always)]
+    fn __yoake_trait_movement_statistics_world_crouching(&mut self) -> Result<bool> {
+        Ok(self.player.pose == crate::pose::Pose::Crouching)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 593, key = "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::fall_flying")]
+    #[inline(always)]
+    fn __yoake_trait_movement_statistics_world_fall_flying(&mut self) -> Result<bool> {
+        Ok(false)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 594, key = "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::award")]
+    #[inline(always)]
+    fn __yoake_trait_movement_statistics_world_award(&mut self, stat: MovementStat, amount: i32) -> Result<()> {
         self.player
             .events
             .push(MotionEvent::Health(crate::health::HealthEvent::Statistic {
@@ -2244,7 +2387,9 @@ impl MovementStatisticsWorld for MotionWorld<'_, '_, '_> {
             }));
         Ok(())
     }
-    fn exhaust(&mut self, amount: f32) -> Result<()> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 595, key = "horizon_client_lib::motion::<MotionWorld as MovementStatisticsWorld>::exhaust")]
+    #[inline(always)]
+    fn __yoake_trait_movement_statistics_world_exhaust(&mut self, amount: f32) -> Result<()> {
         self.player.cause_food_exhaustion(amount);
         Ok(())
     }
@@ -2252,71 +2397,245 @@ impl MovementStatisticsWorld for MotionWorld<'_, '_, '_> {
 impl MovementBlockProvider for MotionWorld<'_, '_, '_> {
     type Error = io::Error;
     fn movement_block_state(&mut self, p: BlockPos) -> io::Result<BlockStateId> {
+        self.__yoake_trait_movement_block_provider_movement_block_state(p)
+    }
+}
+impl MotionWorld<'_, '_, '_> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 596, key = "horizon_client_lib::motion::<MotionWorld as MovementBlockProvider>::movement_block_state")]
+    #[inline(always)]
+    fn __yoake_trait_movement_block_provider_movement_block_state(&mut self, p: BlockPos) -> io::Result<BlockStateId> {
         Ok(self.block(p))
     }
 }
 impl EdgeBackoffWorld for MotionWorld<'_, '_, '_> {
     type Error = Box<dyn std::error::Error>;
     fn max_up_step(&mut self) -> Result<f32> {
-        Ok(self.player.attribute("minecraft:step_height")? as f32)
+        self.__yoake_trait_edge_backoff_world_max_up_step()
     }
     fn staying_on_ground_surface(&mut self) -> Result<bool> {
-        Ok(self.player.shift_key_down)
+        self.__yoake_trait_edge_backoff_world_staying_on_ground_surface()
     }
     fn on_ground(&mut self) -> Result<bool> {
-        Ok(self.player.ground.on_ground)
+        self.__yoake_trait_edge_backoff_world_on_ground()
     }
     fn no_collision(&mut self, bounds: Aabb) -> Result<bool> {
+        self.__yoake_trait_edge_backoff_world_no_collision(bounds)
+    }
+}
+impl MotionWorld<'_, '_, '_> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 597, key = "horizon_client_lib::motion::<MotionWorld as EdgeBackoffWorld>::max_up_step")]
+    #[inline(always)]
+    fn __yoake_trait_edge_backoff_world_max_up_step(&mut self) -> Result<f32> {
+        Ok(self.player.attribute("minecraft:step_height")? as f32)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 598, key = "horizon_client_lib::motion::<MotionWorld as EdgeBackoffWorld>::staying_on_ground_surface")]
+    #[inline(always)]
+    fn __yoake_trait_edge_backoff_world_staying_on_ground_surface(&mut self) -> Result<bool> {
+        Ok(self.player.shift_key_down)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 599, key = "horizon_client_lib::motion::<MotionWorld as EdgeBackoffWorld>::on_ground")]
+    #[inline(always)]
+    fn __yoake_trait_edge_backoff_world_on_ground(&mut self) -> Result<bool> {
+        Ok(self.player.ground.on_ground)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 600, key = "horizon_client_lib::motion::<MotionWorld as EdgeBackoffWorld>::no_collision")]
+    #[inline(always)]
+    fn __yoake_trait_edge_backoff_world_no_collision(&mut self, bounds: Aabb) -> Result<bool> {
         self.no_player_collision(bounds)
     }
 }
 impl EntityMoveWorld for MotionWorld<'_, '_, '_> {
     type Error = Box<dyn std::error::Error>;
     fn no_physics(&self) -> bool {
-        self.player.spectator
+        self.__yoake_trait_entity_move_world_no_physics()
     }
     fn position(&self) -> Vec3 {
-        self.player.position
+        self.__yoake_trait_entity_move_world_position()
     }
     fn set_position(&mut self, p: Vec3) -> Result<()> {
-        self.player.position = p;
-        Ok(())
+        self.__yoake_trait_entity_move_world_set_position(p)
     }
     fn record_movement(&mut self, mover: MoverType, movement: Vec3) -> Result<()> {
-        self.player
-            .events
-            .push(MotionEvent::Recorded { mover, movement });
-        Ok(())
+        self.__yoake_trait_entity_move_world_record_movement(mover, movement)
     }
     fn collision_flags(&self) -> CollisionFlags {
-        self.player.collision
+        self.__yoake_trait_entity_move_world_collision_flags()
     }
     fn set_collision_flags(&mut self, value: CollisionFlags) {
-        self.player.collision = value;
+        self.__yoake_trait_entity_move_world_set_collision_flags(value)
     }
     /// `Entity.limitPistonMovement`: the per-tick 0.51-block budget shared by
     /// every move on an axis. A failed game-time read leaves the accumulator
     /// as it was, as native does.
     fn limit_piston_movement(&mut self, movement: Vec3) -> Result<Vec3> {
+        self.__yoake_trait_entity_move_world_limit_piston_movement(movement)
+    }
+    fn stuck_multiplier(&self) -> Vec3 {
+        self.__yoake_trait_entity_move_world_stuck_multiplier()
+    }
+    fn set_stuck_multiplier(&mut self, value: Vec3) {
+        self.__yoake_trait_entity_move_world_set_stuck_multiplier(value)
+    }
+    fn velocity(&mut self) -> Result<Vec3> {
+        self.__yoake_trait_entity_move_world_velocity()
+    }
+    fn set_velocity(&mut self, value: Vec3) -> Result<()> {
+        self.__yoake_trait_entity_move_world_set_velocity(value)
+    }
+    fn back_off_edge(&mut self, movement: Vec3, mover: MoverType) -> Result<Vec3> {
+        self.__yoake_trait_entity_move_world_back_off_edge(movement, mover)
+    }
+    fn collide(&mut self, movement: Vec3) -> Result<Vec3> {
+        self.__yoake_trait_entity_move_world_collide(movement)
+    }
+    fn fall_distance(&self) -> f64 {
+        self.__yoake_trait_entity_move_world_fall_distance()
+    }
+    fn fall_reset_clip(&mut self, from: Vec3, to: Vec3) -> Result<bool> {
+        self.__yoake_trait_entity_move_world_fall_reset_clip(from, to)
+    }
+    fn reset_fall_distance(&mut self) -> Result<()> {
+        self.__yoake_trait_entity_move_world_reset_fall_distance()
+    }
+    fn movement_history(&mut self) -> &mut MovementHistory {
+        &mut self.player.history
+    }
+    fn locally_authoritative(&mut self) -> Result<bool> {
+        self.__yoake_trait_entity_move_world_locally_authoritative()
+    }
+    fn set_on_ground_with_movement(
+        &mut self,
+        below: bool,
+        horizontal: bool,
+        movement: Vec3,
+    ) -> Result<()> {
+        self.__yoake_trait_entity_move_world_set_on_ground_with_movement(below, horizontal, movement)
+    }
+    /// `LocalPlayer.isHorizontalCollisionMinor`: the move that hit a wall was
+    /// within 8 degrees of the direction the input asked for.
+    fn minor_horizontal_collision(&mut self, movement: Vec3) -> Result<bool> {
+        self.__yoake_trait_entity_move_world_minor_horizontal_collision(movement)
+    }
+    fn legacy_on_position(&mut self) -> Result<BlockPos> {
+        self.__yoake_trait_entity_move_world_legacy_on_position()
+    }
+    fn block_state(&mut self, p: BlockPos) -> Result<BlockStateId> {
+        self.__yoake_trait_entity_move_world_block_state(p)
+    }
+    fn on_ground(&mut self) -> Result<bool> {
+        self.__yoake_trait_entity_move_world_on_ground()
+    }
+    fn check_fall_damage(
+        &mut self,
+        dy: f64,
+        grounded: bool,
+        state: BlockStateId,
+        position: BlockPos,
+    ) -> Result<()> {
+        self.__yoake_trait_entity_move_world_check_fall_damage(dy, grounded, state, position)
+    }
+    fn removed(&mut self) -> Result<bool> {
+        self.__yoake_trait_entity_move_world_removed()
+    }
+    fn can_simulate(&mut self) -> Result<bool> {
+        self.__yoake_trait_entity_move_world_can_simulate()
+    }
+    fn restitute(&mut self, state: BlockStateId, x: bool, z: bool, resolved: Vec3) -> Result<()> {
+        self.__yoake_trait_entity_move_world_restitute(state, x, z, resolved)
+    }
+    fn client_side(&mut self) -> Result<bool> {
+        self.__yoake_trait_entity_move_world_client_side()
+    }
+    fn movement_emission(&mut self) -> Result<MovementEmission> {
+        self.__yoake_trait_entity_move_world_movement_emission()
+    }
+    fn passenger(&mut self) -> Result<bool> {
+        self.__yoake_trait_entity_move_world_passenger()
+    }
+    /// `Entity.applyMovementEmissionAndPlaySound`: a footstep (`Emission`)
+    /// only once the walked distance passes `nextStep`. Emitting on every
+    /// move played a step sound each tick, even standing still on the
+    /// ground (gravity moves the player every tick), as an endless loop.
+    fn apply_movement_emission(
+        &mut self,
+        kind: MovementEmission,
+        movement: Vec3,
+        position: BlockPos,
+        state: BlockStateId,
+    ) -> Result<()> {
+        self.__yoake_trait_entity_move_world_apply_movement_emission(kind, movement, position, state)
+    }
+    fn block_speed_factor(&mut self) -> Result<f32> {
+        self.__yoake_trait_entity_move_world_block_speed_factor()
+    }
+}
+impl MotionWorld<'_, '_, '_> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 601, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::no_physics")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_no_physics(&self) -> bool {
+        self.player.spectator
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 602, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::position")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_position(&self) -> Vec3 {
+        self.player.position
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 603, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::set_position")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_set_position(&mut self, p: Vec3) -> Result<()> {
+        self.player.position = p;
+        Ok(())
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 604, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::record_movement")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_record_movement(&mut self, mover: MoverType, movement: Vec3) -> Result<()> {
+        self.player
+            .events
+            .push(MotionEvent::Recorded { mover, movement });
+        Ok(())
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 605, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::collision_flags")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_collision_flags(&self) -> CollisionFlags {
+        self.player.collision
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 606, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::set_collision_flags")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_set_collision_flags(&mut self, value: CollisionFlags) {
+        self.player.collision = value;
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 607, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::limit_piston_movement")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_limit_piston_movement(&mut self, movement: Vec3) -> Result<Vec3> {
         let time = self.scene.game_time;
         self.player
             .piston
             .limit(movement, || Ok::<i64, Box<dyn std::error::Error>>(time))
     }
-    fn stuck_multiplier(&self) -> Vec3 {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 608, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::stuck_multiplier")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_stuck_multiplier(&self) -> Vec3 {
         self.player.stuck_multiplier
     }
-    fn set_stuck_multiplier(&mut self, value: Vec3) {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 609, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::set_stuck_multiplier")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_set_stuck_multiplier(&mut self, value: Vec3) {
         self.player.stuck_multiplier = value;
     }
-    fn velocity(&mut self) -> Result<Vec3> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 610, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::velocity")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_velocity(&mut self) -> Result<Vec3> {
         Ok(self.player.velocity)
     }
-    fn set_velocity(&mut self, value: Vec3) -> Result<()> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 611, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::set_velocity")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_set_velocity(&mut self, value: Vec3) -> Result<()> {
         self.player.velocity = value;
         Ok(())
     }
-    fn back_off_edge(&mut self, movement: Vec3, mover: MoverType) -> Result<Vec3> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 612, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::back_off_edge")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_back_off_edge(&mut self, movement: Vec3, mover: MoverType) -> Result<Vec3> {
         let input = EdgeBackoffInput {
             movement,
             bounds: self.player.bounds(),
@@ -2329,7 +2648,9 @@ impl EntityMoveWorld for MotionWorld<'_, '_, '_> {
         edge_backoff::back_off_from_edge(self, input)
             .map_err(|e| io::Error::other(e.to_string()).into())
     }
-    fn collide(&mut self, movement: Vec3) -> Result<Vec3> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 613, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::collide")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_collide(&mut self, movement: Vec3) -> Result<Vec3> {
         let max_step = self.player.attribute("minecraft:step_height")? as f32;
         Ok(world_movement::resolve_world_movement(
             &mut self.movement_collisions(),
@@ -2344,10 +2665,14 @@ impl EntityMoveWorld for MotionWorld<'_, '_, '_> {
             },
         )?)
     }
-    fn fall_distance(&self) -> f64 {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 614, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::fall_distance")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_fall_distance(&self) -> f64 {
         self.player.fall_distance
     }
-    fn fall_reset_clip(&mut self, from: Vec3, to: Vec3) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 615, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::fall_reset_clip")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_fall_reset_clip(&mut self, from: Vec3, to: Vec3) -> Result<bool> {
         // ClipContext.Block.FALLDAMAGE_RESETTING: tagged reset blocks are a full
         // block, not their collider; ClipContext.Fluid.WATER: the water's shape.
         // Both shapes are queried for every visited block (the water's first
@@ -2364,17 +2689,20 @@ impl EntityMoveWorld for MotionWorld<'_, '_, '_> {
         })?;
         hit.transpose().map(|h| h.is_some())
     }
-    fn reset_fall_distance(&mut self) -> Result<()> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 616, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::reset_fall_distance")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_reset_fall_distance(&mut self) -> Result<()> {
         self.player.fall_distance = 0.0;
         Ok(())
     }
-    fn movement_history(&mut self) -> &mut MovementHistory {
-        &mut self.player.history
-    }
-    fn locally_authoritative(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 617, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::locally_authoritative")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_locally_authoritative(&mut self) -> Result<bool> {
         Ok(!self.player.server_copy)
     }
-    fn set_on_ground_with_movement(
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 618, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::set_on_ground_with_movement")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_set_on_ground_with_movement(
         &mut self,
         below: bool,
         horizontal: bool,
@@ -2397,25 +2725,33 @@ impl EntityMoveWorld for MotionWorld<'_, '_, '_> {
         )?;
         Ok(())
     }
-    /// `LocalPlayer.isHorizontalCollisionMinor`: the move that hit a wall was
-    /// within 8 degrees of the direction the input asked for.
-    fn minor_horizontal_collision(&mut self, movement: Vec3) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 619, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::minor_horizontal_collision")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_minor_horizontal_collision(&mut self, movement: Vec3) -> Result<bool> {
         Ok(horizontal_collision_minor(
             self.player.yaw,
             self.player.applied_input,
             movement,
         ))
     }
-    fn legacy_on_position(&mut self) -> Result<BlockPos> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 620, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::legacy_on_position")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_legacy_on_position(&mut self) -> Result<BlockPos> {
         self.support(movement_support::LEGACY_SUPPORT_OFFSET)
     }
-    fn block_state(&mut self, p: BlockPos) -> Result<BlockStateId> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 621, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::block_state")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_block_state(&mut self, p: BlockPos) -> Result<BlockStateId> {
         Ok(self.block(p))
     }
-    fn on_ground(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 622, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::on_ground")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_on_ground(&mut self) -> Result<bool> {
         Ok(self.player.ground.on_ground)
     }
-    fn check_fall_damage(
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 623, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::check_fall_damage")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_check_fall_damage(
         &mut self,
         dy: f64,
         grounded: bool,
@@ -2448,13 +2784,19 @@ impl EntityMoveWorld for MotionWorld<'_, '_, '_> {
         });
         horizon_world::living_landing::check_living_fall_damage(self, dy, grounded, state, position)
     }
-    fn removed(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 624, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::removed")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_removed(&mut self) -> Result<bool> {
         Ok(false)
     }
-    fn can_simulate(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 625, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::can_simulate")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_can_simulate(&mut self) -> Result<bool> {
         Ok(true)
     }
-    fn restitute(&mut self, state: BlockStateId, x: bool, z: bool, resolved: Vec3) -> Result<()> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 626, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::restitute")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_restitute(&mut self, state: BlockStateId, x: bool, z: bool, resolved: Vec3) -> Result<()> {
         let input = RestitutionInput {
             block: state,
             collided_x: x,
@@ -2467,20 +2809,24 @@ impl EntityMoveWorld for MotionWorld<'_, '_, '_> {
         };
         movement_restitution::restitute_movement(self, input)
     }
-    fn client_side(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 627, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::client_side")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_client_side(&mut self) -> Result<bool> {
         Ok(false)
     }
-    fn movement_emission(&mut self) -> Result<MovementEmission> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 628, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::movement_emission")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_movement_emission(&mut self) -> Result<MovementEmission> {
         <Self as MovementEmissionWorld>::movement_emission(self)
     }
-    fn passenger(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 629, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::passenger")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_passenger(&mut self) -> Result<bool> {
         Ok(false)
     }
-    /// `Entity.applyMovementEmissionAndPlaySound`: a footstep (`Emission`)
-    /// only once the walked distance passes `nextStep`. Emitting on every
-    /// move played a step sound each tick, even standing still on the
-    /// ground (gravity moves the player every tick), as an endless loop.
-    fn apply_movement_emission(
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 630, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::apply_movement_emission")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_apply_movement_emission(
         &mut self,
         kind: MovementEmission,
         movement: Vec3,
@@ -2489,7 +2835,9 @@ impl EntityMoveWorld for MotionWorld<'_, '_, '_> {
     ) -> Result<()> {
         emission::apply_movement_emission(self, kind, movement, position, state)
     }
-    fn block_speed_factor(&mut self) -> Result<f32> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 631, key = "horizon_client_lib::motion::<MotionWorld as EntityMoveWorld>::block_speed_factor")]
+    #[inline(always)]
+    fn __yoake_trait_entity_move_world_block_speed_factor(&mut self) -> Result<f32> {
         let efficiency = self.player.attribute("minecraft:movement_efficiency")? as f32;
         let location = self.location();
         let block = movement_support::block_speed_factor(
@@ -2508,24 +2856,113 @@ impl MovementEmissionWorld for MotionWorld<'_, '_, '_> {
     type Error = Box<dyn std::error::Error>;
     type State = BlockStateId;
     fn distances(&self) -> MovementDistances {
-        self.player.steps
+        self.__yoake_trait_movement_emission_world_distances()
     }
     fn set_movement_distance(&mut self, value: f32) {
-        self.player.steps.movement = value;
+        self.__yoake_trait_movement_emission_world_set_movement_distance(value)
     }
     fn set_flight_distance(&mut self, value: f32) {
-        self.player.steps.flight = value;
+        self.__yoake_trait_movement_emission_world_set_flight_distance(value)
     }
     fn set_next_step(&mut self, value: f32) {
-        self.player.steps.next_step = value;
+        self.__yoake_trait_movement_emission_world_set_next_step(value)
     }
     fn on_position(&mut self) -> Result<BlockPos> {
-        self.support(movement_support::ON_SUPPORT_OFFSET)
+        self.__yoake_trait_movement_emission_world_on_position()
     }
     fn block_state(&mut self, p: BlockPos) -> Result<BlockStateId> {
-        Ok(self.block(p))
+        self.__yoake_trait_movement_emission_world_block_state(p)
     }
     fn is_air(&mut self, s: BlockStateId) -> Result<bool> {
+        self.__yoake_trait_movement_emission_world_is_air(s)
+    }
+    fn climbable_tag(&mut self, s: BlockStateId) -> Result<bool> {
+        self.__yoake_trait_movement_emission_world_climbable_tag(s)
+    }
+    fn is_powder_snow(&mut self, s: BlockStateId) -> Result<bool> {
+        self.__yoake_trait_movement_emission_world_is_powder_snow(s)
+    }
+    fn on_ground(&mut self) -> Result<bool> {
+        self.__yoake_trait_movement_emission_world_on_ground()
+    }
+    fn crouching(&mut self) -> Result<bool> {
+        self.__yoake_trait_movement_emission_world_crouching()
+    }
+    fn on_rails(&mut self) -> Result<bool> {
+        self.__yoake_trait_movement_emission_world_on_rails()
+    }
+    fn swimming(&mut self) -> Result<bool> {
+        self.__yoake_trait_movement_emission_world_swimming()
+    }
+    fn in_water(&mut self) -> Result<bool> {
+        self.__yoake_trait_movement_emission_world_in_water()
+    }
+    /// `Player.playStepSound`: in water a swim sound, then the step muffled;
+    /// on land the step of an inside-sound block above the floor, or of a
+    /// combination block above it with the floor's step muffled.
+    fn walking_step_sound(&mut self, position: BlockPos, state: BlockStateId) -> Result<()> {
+        self.__yoake_trait_movement_emission_world_walking_step_sound(position, state)
+    }
+    fn step_event(&mut self, _: BlockStateId) -> Result<()> {
+        Ok(())
+    }
+    fn next_step(&mut self) -> Result<f32> {
+        self.__yoake_trait_movement_emission_world_next_step()
+    }
+    /// `Entity.waterSwimSound` and `playSwimSound` (the level random stands
+    /// in for the entity's, as for the splash).
+    fn water_swim_sound(&mut self) -> Result<()> {
+        self.__yoake_trait_movement_emission_world_water_swim_sound()
+    }
+    fn entity_event(&mut self, _: MovementEvent) -> Result<()> {
+        Ok(())
+    }
+    fn flapping(&mut self) -> Result<bool> {
+        self.__yoake_trait_movement_emission_world_flapping()
+    }
+    fn on_flap(&mut self) -> Result<()> {
+        self.__yoake_trait_movement_emission_world_on_flap()
+    }
+    /// `Player.getMovementEmission`: nothing while flying or sneaking on
+    /// the ground.
+    fn movement_emission(&mut self) -> Result<MovementEmission> {
+        self.__yoake_trait_movement_emission_world_movement_emission()
+    }
+}
+impl MotionWorld<'_, '_, '_> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 632, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::distances")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_distances(&self) -> MovementDistances {
+        self.player.steps
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 633, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::set_movement_distance")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_set_movement_distance(&mut self, value: f32) {
+        self.player.steps.movement = value;
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 634, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::set_flight_distance")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_set_flight_distance(&mut self, value: f32) {
+        self.player.steps.flight = value;
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 635, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::set_next_step")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_set_next_step(&mut self, value: f32) {
+        self.player.steps.next_step = value;
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 636, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::on_position")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_on_position(&mut self) -> Result<BlockPos> {
+        self.support(movement_support::ON_SUPPORT_OFFSET)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 637, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::block_state")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_block_state(&mut self, p: BlockPos) -> Result<BlockStateId> {
+        Ok(self.block(p))
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 638, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::is_air")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_is_air(&mut self, s: BlockStateId) -> Result<bool> {
         let name = &self
             .assets
             .registry
@@ -2537,7 +2974,9 @@ impl MovementEmissionWorld for MotionWorld<'_, '_, '_> {
             "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air"
         ))
     }
-    fn climbable_tag(&mut self, s: BlockStateId) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 639, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::climbable_tag")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_climbable_tag(&mut self, s: BlockStateId) -> Result<bool> {
         let name = &self
             .assets
             .registry
@@ -2546,7 +2985,9 @@ impl MovementEmissionWorld for MotionWorld<'_, '_, '_> {
             .name;
         Ok(self.resources.climbable.contains(name))
     }
-    fn is_powder_snow(&mut self, s: BlockStateId) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 640, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::is_powder_snow")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_is_powder_snow(&mut self, s: BlockStateId) -> Result<bool> {
         let name = &self
             .assets
             .registry
@@ -2555,25 +2996,34 @@ impl MovementEmissionWorld for MotionWorld<'_, '_, '_> {
             .name;
         Ok(name == "minecraft:powder_snow")
     }
-    fn on_ground(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 641, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::on_ground")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_on_ground(&mut self) -> Result<bool> {
         Ok(self.player.ground.on_ground)
     }
-    fn crouching(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 642, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::crouching")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_crouching(&mut self) -> Result<bool> {
         Ok(self.player.pose == crate::pose::Pose::Crouching)
     }
-    fn on_rails(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 643, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::on_rails")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_on_rails(&mut self) -> Result<bool> {
         Ok(false)
     }
-    fn swimming(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 644, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::swimming")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_swimming(&mut self) -> Result<bool> {
         Ok(self.player.swimming)
     }
-    fn in_water(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 645, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::in_water")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_in_water(&mut self) -> Result<bool> {
         Ok(self.player.fluids.was_touching_water)
     }
-    /// `Player.playStepSound`: in water a swim sound, then the step muffled;
-    /// on land the step of an inside-sound block above the floor, or of a
-    /// combination block above it with the floor's step muffled.
-    fn walking_step_sound(&mut self, position: BlockPos, state: BlockStateId) -> Result<()> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 646, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::walking_step_sound")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_walking_step_sound(&mut self, position: BlockPos, state: BlockStateId) -> Result<()> {
         let muffled = self.player.fluids.was_touching_water;
         let mut stepped = false;
         if muffled {
@@ -2643,15 +3093,14 @@ impl MovementEmissionWorld for MotionWorld<'_, '_, '_> {
         }
         Ok(())
     }
-    fn step_event(&mut self, _: BlockStateId) -> Result<()> {
-        Ok(())
-    }
-    fn next_step(&mut self) -> Result<f32> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 647, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::next_step")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_next_step(&mut self) -> Result<f32> {
         Ok(self.player.steps.next_step())
     }
-    /// `Entity.waterSwimSound` and `playSwimSound` (the level random stands
-    /// in for the entity's, as for the splash).
-    fn water_swim_sound(&mut self) -> Result<()> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 648, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::water_swim_sound")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_water_swim_sound(&mut self) -> Result<()> {
         let v = self.player.velocity;
         let volume = 1.0_f32.min(
             (v.x * v.x * f64::from(0.2_f32) + v.y * v.y + v.z * v.z * f64::from(0.2_f32)).sqrt()
@@ -2663,18 +3112,19 @@ impl MovementEmissionWorld for MotionWorld<'_, '_, '_> {
         self.player.events.push(MotionEvent::Swim { volume, pitch });
         Ok(())
     }
-    fn entity_event(&mut self, _: MovementEvent) -> Result<()> {
-        Ok(())
-    }
-    fn flapping(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 649, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::flapping")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_flapping(&mut self) -> Result<bool> {
         Ok(false)
     }
-    fn on_flap(&mut self) -> Result<()> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 650, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::on_flap")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_on_flap(&mut self) -> Result<()> {
         Ok(())
     }
-    /// `Player.getMovementEmission`: nothing while flying or sneaking on
-    /// the ground.
-    fn movement_emission(&mut self) -> Result<MovementEmission> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 651, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::movement_emission")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_movement_emission(&mut self) -> Result<MovementEmission> {
         let discreet = self.player.ground.on_ground && self.player.shift_key_down;
         Ok(if self.player.flying || discreet {
             MovementEmission::None
@@ -2686,21 +3136,76 @@ impl MovementEmissionWorld for MotionWorld<'_, '_, '_> {
 impl RestitutionWorld for MotionWorld<'_, '_, '_> {
     type Error = Box<dyn std::error::Error>;
     fn suppressing_bounce(&mut self) -> Result<bool> {
-        Ok(self.player.shift_key_down)
+        self.__yoake_trait_restitution_world_suppressing_bounce()
     }
     fn entity_bounciness(&mut self) -> Result<f64> {
-        self.player.attribute("minecraft:bounciness")
+        self.__yoake_trait_restitution_world_entity_bounciness()
     }
     fn velocity(&mut self) -> Result<Vec3> {
-        Ok(self.player.velocity)
+        self.__yoake_trait_restitution_world_velocity()
     }
     fn effective_gravity(&mut self) -> Result<f64> {
-        living_motion::effective_gravity(self)
+        self.__yoake_trait_restitution_world_effective_gravity()
     }
     fn block_suppresses_bounce(&mut self, state: BlockStateId) -> Result<bool> {
-        Ok(self.resources.blocks.get(state)?.suppresses_bounce)
+        self.__yoake_trait_restitution_world_block_suppresses_bounce(state)
     }
     fn block_bounce_restitution(&mut self, state: BlockStateId) -> Result<f32> {
+        self.__yoake_trait_restitution_world_block_bounce_restitution(state)
+    }
+    fn air_drag(&mut self) -> Result<f32> {
+        self.__yoake_trait_restitution_world_air_drag()
+    }
+    fn movement_support_position(&mut self) -> Result<BlockPos> {
+        self.__yoake_trait_restitution_world_movement_support_position()
+    }
+    fn bounce_on(
+        &mut self,
+        state: BlockStateId,
+        position: BlockPos,
+        fall_distance: f64,
+    ) -> Result<()> {
+        self.__yoake_trait_restitution_world_bounce_on(state, position, fall_distance)
+    }
+    fn bounce_event(&mut self) -> Result<()> {
+        self.__yoake_trait_restitution_world_bounce_event()
+    }
+    fn mark_position_for_sync(&mut self) {
+        self.__yoake_trait_restitution_world_mark_position_for_sync()
+    }
+    fn set_velocity(&mut self, value: Vec3) -> Result<()> {
+        self.__yoake_trait_restitution_world_set_velocity(value)
+    }
+}
+impl MotionWorld<'_, '_, '_> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 652, key = "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::suppressing_bounce")]
+    #[inline(always)]
+    fn __yoake_trait_restitution_world_suppressing_bounce(&mut self) -> Result<bool> {
+        Ok(self.player.shift_key_down)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 653, key = "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::entity_bounciness")]
+    #[inline(always)]
+    fn __yoake_trait_restitution_world_entity_bounciness(&mut self) -> Result<f64> {
+        self.player.attribute("minecraft:bounciness")
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 654, key = "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::velocity")]
+    #[inline(always)]
+    fn __yoake_trait_restitution_world_velocity(&mut self) -> Result<Vec3> {
+        Ok(self.player.velocity)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 655, key = "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::effective_gravity")]
+    #[inline(always)]
+    fn __yoake_trait_restitution_world_effective_gravity(&mut self) -> Result<f64> {
+        living_motion::effective_gravity(self)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 656, key = "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::block_suppresses_bounce")]
+    #[inline(always)]
+    fn __yoake_trait_restitution_world_block_suppresses_bounce(&mut self, state: BlockStateId) -> Result<bool> {
+        Ok(self.resources.blocks.get(state)?.suppresses_bounce)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 657, key = "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::block_bounce_restitution")]
+    #[inline(always)]
+    fn __yoake_trait_restitution_world_block_bounce_restitution(&mut self, state: BlockStateId) -> Result<f32> {
         Ok(self
             .resources
             .blocks
@@ -2708,13 +3213,19 @@ impl RestitutionWorld for MotionWorld<'_, '_, '_> {
             .coefficients
             .bounce_restitution)
     }
-    fn air_drag(&mut self) -> Result<f32> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 658, key = "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::air_drag")]
+    #[inline(always)]
+    fn __yoake_trait_restitution_world_air_drag(&mut self) -> Result<f32> {
         living_motion::air_drag(self)
     }
-    fn movement_support_position(&mut self) -> Result<BlockPos> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 659, key = "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::movement_support_position")]
+    #[inline(always)]
+    fn __yoake_trait_restitution_world_movement_support_position(&mut self) -> Result<BlockPos> {
         self.support(movement_support::MOVEMENT_SUPPORT_OFFSET)
     }
-    fn bounce_on(
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 660, key = "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::bounce_on")]
+    #[inline(always)]
+    fn __yoake_trait_restitution_world_bounce_on(
         &mut self,
         state: BlockStateId,
         position: BlockPos,
@@ -2735,13 +3246,19 @@ impl RestitutionWorld for MotionWorld<'_, '_, '_> {
             )
             .map_err(|e| e.to_string().into())
     }
-    fn bounce_event(&mut self) -> Result<()> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 661, key = "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::bounce_event")]
+    #[inline(always)]
+    fn __yoake_trait_restitution_world_bounce_event(&mut self) -> Result<()> {
         Ok(())
     }
-    fn mark_position_for_sync(&mut self) {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 662, key = "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::mark_position_for_sync")]
+    #[inline(always)]
+    fn __yoake_trait_restitution_world_mark_position_for_sync(&mut self) {
         self.player.sync_position = true;
     }
-    fn set_velocity(&mut self, value: Vec3) -> Result<()> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 663, key = "horizon_client_lib::motion::<MotionWorld as RestitutionWorld>::set_velocity")]
+    #[inline(always)]
+    fn __yoake_trait_restitution_world_set_velocity(&mut self, value: Vec3) -> Result<()> {
         self.player.velocity = value;
         Ok(())
     }
@@ -2749,12 +3266,104 @@ impl RestitutionWorld for MotionWorld<'_, '_, '_> {
 impl LivingAirWorld for MotionWorld<'_, '_, '_> {
     type Error = Box<dyn std::error::Error>;
     fn movement_support_position(&mut self) -> Result<BlockPos> {
-        self.support(movement_support::MOVEMENT_SUPPORT_OFFSET)
+        self.__yoake_trait_living_air_world_movement_support_position()
     }
     fn on_ground(&mut self) -> Result<bool> {
-        Ok(self.player.ground.on_ground)
+        self.__yoake_trait_living_air_world_on_ground()
     }
     fn block_friction(&mut self, p: BlockPos) -> Result<f32> {
+        self.__yoake_trait_living_air_world_block_friction(p)
+    }
+    fn friction_modifier(&mut self) -> Result<f64> {
+        self.__yoake_trait_living_air_world_friction_modifier()
+    }
+    fn speed(&mut self) -> Result<f32> {
+        self.__yoake_trait_living_air_world_speed()
+    }
+    fn flying_speed(&mut self) -> Result<f32> {
+        self.__yoake_trait_living_air_world_flying_speed()
+    }
+    fn yaw(&mut self) -> Result<f32> {
+        self.__yoake_trait_living_air_world_yaw()
+    }
+    fn velocity(&self) -> Vec3 {
+        self.__yoake_trait_living_air_world_velocity()
+    }
+    fn set_velocity(&mut self, v: Vec3) -> Result<()> {
+        self.__yoake_trait_living_air_world_set_velocity(v)
+    }
+    fn on_climbable(&mut self) -> Result<bool> {
+        self.__yoake_trait_living_air_world_on_climbable()
+    }
+    fn reset_fall_distance(&mut self) -> Result<()> {
+        self.__yoake_trait_living_air_world_reset_fall_distance()
+    }
+    fn in_scaffolding(&mut self) -> Result<bool> {
+        self.__yoake_trait_living_air_world_in_scaffolding()
+    }
+    fn suppressing_ladder_slide(&mut self) -> Result<bool> {
+        self.__yoake_trait_living_air_world_suppressing_ladder_slide()
+    }
+    fn is_player_class(&self) -> bool {
+        self.__yoake_trait_living_air_world_is_player_class()
+    }
+    fn move_self(&mut self, v: Vec3) -> Result<()> {
+        self.__yoake_trait_living_air_world_move_self(v)
+    }
+    fn horizontal_collision(&self) -> bool {
+        self.__yoake_trait_living_air_world_horizontal_collision()
+    }
+    fn jumping(&self) -> bool {
+        self.__yoake_trait_living_air_world_jumping()
+    }
+    fn was_in_powder_snow(&self) -> bool {
+        self.__yoake_trait_living_air_world_was_in_powder_snow()
+    }
+    fn can_walk_powder_snow(&mut self) -> Result<bool> {
+        self.__yoake_trait_living_air_world_can_walk_powder_snow()
+    }
+    fn levitation_amplifier(&mut self) -> Result<Option<i32>> {
+        self.__yoake_trait_living_air_world_levitation_amplifier()
+    }
+    fn is_client_side(&mut self) -> Result<bool> {
+        self.__yoake_trait_living_air_world_is_client_side()
+    }
+    fn has_chunk_at(&mut self, p: BlockPos) -> Result<bool> {
+        self.__yoake_trait_living_air_world_has_chunk_at(p)
+    }
+    fn effective_gravity(&mut self) -> Result<f64> {
+        self.__yoake_trait_living_air_world_effective_gravity()
+    }
+    fn y(&self) -> f64 {
+        self.__yoake_trait_living_air_world_y()
+    }
+    fn minimum_y(&mut self) -> Result<i32> {
+        self.__yoake_trait_living_air_world_minimum_y()
+    }
+    fn discard_friction(&mut self) -> Result<bool> {
+        self.__yoake_trait_living_air_world_discard_friction()
+    }
+    fn air_drag_modifier(&mut self) -> Result<f64> {
+        self.__yoake_trait_living_air_world_air_drag_modifier()
+    }
+    fn omnidirectional_air_mover(&mut self) -> Result<bool> {
+        self.__yoake_trait_living_air_world_omnidirectional_air_mover()
+    }
+}
+impl MotionWorld<'_, '_, '_> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 664, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::movement_support_position")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_movement_support_position(&mut self) -> Result<BlockPos> {
+        self.support(movement_support::MOVEMENT_SUPPORT_OFFSET)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 665, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::on_ground")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_on_ground(&mut self) -> Result<bool> {
+        Ok(self.player.ground.on_ground)
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 666, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::block_friction")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_block_friction(&mut self, p: BlockPos) -> Result<f32> {
         Ok(self
             .resources
             .blocks
@@ -2762,13 +3371,19 @@ impl LivingAirWorld for MotionWorld<'_, '_, '_> {
             .coefficients
             .friction)
     }
-    fn friction_modifier(&mut self) -> Result<f64> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 667, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::friction_modifier")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_friction_modifier(&mut self) -> Result<f64> {
         self.player.attribute("minecraft:friction_modifier")
     }
-    fn speed(&mut self) -> Result<f32> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 668, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::speed")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_speed(&mut self) -> Result<f32> {
         Ok(self.player.attribute("minecraft:movement_speed")? as f32)
     }
-    fn flying_speed(&mut self) -> Result<f32> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 669, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::flying_speed")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_flying_speed(&mut self) -> Result<f32> {
         if self.player.flying {
             // Player.getFlyingSpeed: abilities speed, doubled when sprinting.
             return Ok(self.player.flying_speed * if self.player.sprinting { 2.0 } else { 1.0 });
@@ -2779,24 +3394,36 @@ impl LivingAirWorld for MotionWorld<'_, '_, '_> {
             0.02
         })
     }
-    fn yaw(&mut self) -> Result<f32> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 670, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::yaw")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_yaw(&mut self) -> Result<f32> {
         Ok(self.player.yaw)
     }
-    fn velocity(&self) -> Vec3 {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 671, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::velocity")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_velocity(&self) -> Vec3 {
         self.player.velocity
     }
-    fn set_velocity(&mut self, v: Vec3) -> Result<()> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 672, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::set_velocity")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_set_velocity(&mut self, v: Vec3) -> Result<()> {
         self.player.velocity = v;
         Ok(())
     }
-    fn on_climbable(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 673, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::on_climbable")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_on_climbable(&mut self) -> Result<bool> {
         self.climbable()
     }
-    fn reset_fall_distance(&mut self) -> Result<()> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 674, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::reset_fall_distance")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_reset_fall_distance(&mut self) -> Result<()> {
         self.player.fall_distance = 0.0;
         Ok(())
     }
-    fn in_scaffolding(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 675, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::in_scaffolding")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_in_scaffolding(&mut self) -> Result<bool> {
         Ok(self
             .assets
             .registry
@@ -2805,68 +3432,158 @@ impl LivingAirWorld for MotionWorld<'_, '_, '_> {
             .name
             == "minecraft:scaffolding")
     }
-    fn suppressing_ladder_slide(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 676, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::suppressing_ladder_slide")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_suppressing_ladder_slide(&mut self) -> Result<bool> {
         Ok(self.player.shift_key_down)
     }
-    fn is_player_class(&self) -> bool {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 677, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::is_player_class")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_is_player_class(&self) -> bool {
         true
     }
-    fn move_self(&mut self, v: Vec3) -> Result<()> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 678, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::move_self")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_move_self(&mut self, v: Vec3) -> Result<()> {
         MotionWorld::move_self(self, v)
     }
-    fn horizontal_collision(&self) -> bool {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 679, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::horizontal_collision")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_horizontal_collision(&self) -> bool {
         self.player.collision.horizontal
     }
-    fn jumping(&self) -> bool {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 680, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::jumping")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_jumping(&self) -> bool {
         self.player.jumping
     }
-    fn was_in_powder_snow(&self) -> bool {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 681, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::was_in_powder_snow")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_was_in_powder_snow(&self) -> bool {
         self.player.was_in_powder_snow
     }
-    fn can_walk_powder_snow(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 682, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::can_walk_powder_snow")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_can_walk_powder_snow(&mut self) -> Result<bool> {
         Ok(self.player.leather_boots)
     }
-    fn levitation_amplifier(&mut self) -> Result<Option<i32>> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 683, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::levitation_amplifier")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_levitation_amplifier(&mut self) -> Result<Option<i32>> {
         Ok(self.player.status.levitation)
     }
-    fn is_client_side(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 684, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::is_client_side")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_is_client_side(&mut self) -> Result<bool> {
         Ok(false)
     }
-    fn has_chunk_at(&mut self, p: BlockPos) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 685, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::has_chunk_at")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_has_chunk_at(&mut self, p: BlockPos) -> Result<bool> {
         Ok(self.scene.chunks.contains_key(&(p.x >> 4, p.z >> 4)))
     }
-    fn effective_gravity(&mut self) -> Result<f64> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 686, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::effective_gravity")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_effective_gravity(&mut self) -> Result<f64> {
         living_motion::effective_gravity(self)
     }
-    fn y(&self) -> f64 {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 687, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::y")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_y(&self) -> f64 {
         self.player.position.y
     }
-    fn minimum_y(&mut self) -> Result<i32> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 688, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::minimum_y")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_minimum_y(&mut self) -> Result<i32> {
         Ok(0)
     }
-    fn discard_friction(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 689, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::discard_friction")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_discard_friction(&mut self) -> Result<bool> {
         Ok(false)
     }
-    fn air_drag_modifier(&mut self) -> Result<f64> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 690, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::air_drag_modifier")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_air_drag_modifier(&mut self) -> Result<f64> {
         self.player.attribute("minecraft:air_drag_modifier")
     }
-    fn omnidirectional_air_mover(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 691, key = "horizon_client_lib::motion::<MotionWorld as LivingAirWorld>::omnidirectional_air_mover")]
+    #[inline(always)]
+    fn __yoake_trait_living_air_world_omnidirectional_air_mover(&mut self) -> Result<bool> {
         Ok(false)
     }
 }
 impl LivingMotionWorld for MotionWorld<'_, '_, '_> {
     type Error = Box<dyn std::error::Error>;
     fn velocity(&self) -> Vec3 {
-        self.player.velocity
+        self.__yoake_trait_living_motion_world_velocity()
     }
     fn set_velocity(&mut self, v: Vec3) -> Result<()> {
+        self.__yoake_trait_living_motion_world_set_velocity(v)
+    }
+    fn jump_strength(&mut self) -> Result<f64> {
+        self.__yoake_trait_living_motion_world_jump_strength()
+    }
+    fn block_jump_factor(&mut self) -> Result<f32> {
+        self.__yoake_trait_living_motion_world_block_jump_factor()
+    }
+    fn has_jump_boost(&mut self) -> Result<bool> {
+        self.__yoake_trait_living_motion_world_has_jump_boost()
+    }
+    fn jump_boost_amplifier(&mut self) -> Result<i32> {
+        self.__yoake_trait_living_motion_world_jump_boost_amplifier()
+    }
+    fn sprinting(&mut self) -> Result<bool> {
+        self.__yoake_trait_living_motion_world_sprinting()
+    }
+    fn yaw(&mut self) -> Result<f32> {
+        self.__yoake_trait_living_motion_world_yaw()
+    }
+    fn mark_needs_sync(&mut self) {
+        self.__yoake_trait_living_motion_world_mark_needs_sync()
+    }
+    fn no_gravity(&mut self) -> Result<bool> {
+        self.__yoake_trait_living_motion_world_no_gravity()
+    }
+    fn gravity_attribute(&mut self) -> Result<f64> {
+        self.__yoake_trait_living_motion_world_gravity_attribute()
+    }
+    fn has_slow_falling(&mut self) -> Result<bool> {
+        self.__yoake_trait_living_motion_world_has_slow_falling()
+    }
+    fn controlling_passenger_is_player(&mut self) -> Result<bool> {
+        self.__yoake_trait_living_motion_world_controlling_passenger_is_player()
+    }
+    fn speed(&mut self) -> Result<f32> {
+        self.__yoake_trait_living_motion_world_speed()
+    }
+    fn omnidirectional_air_mover(&mut self) -> Result<bool> {
+        self.__yoake_trait_living_motion_world_omnidirectional_air_mover()
+    }
+    fn air_drag_modifier(&mut self) -> Result<f64> {
+        self.__yoake_trait_living_motion_world_air_drag_modifier()
+    }
+}
+impl MotionWorld<'_, '_, '_> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 692, key = "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::velocity")]
+    #[inline(always)]
+    fn __yoake_trait_living_motion_world_velocity(&self) -> Vec3 {
+        self.player.velocity
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 693, key = "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::set_velocity")]
+    #[inline(always)]
+    fn __yoake_trait_living_motion_world_set_velocity(&mut self, v: Vec3) -> Result<()> {
         self.player.velocity = v;
         Ok(())
     }
-    fn jump_strength(&mut self) -> Result<f64> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 694, key = "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::jump_strength")]
+    #[inline(always)]
+    fn __yoake_trait_living_motion_world_jump_strength(&mut self) -> Result<f64> {
         self.player.attribute("minecraft:jump_strength")
     }
-    fn block_jump_factor(&mut self) -> Result<f32> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 695, key = "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::block_jump_factor")]
+    #[inline(always)]
+    fn __yoake_trait_living_motion_world_block_jump_factor(&mut self) -> Result<f32> {
         let location = self.location();
         Ok(movement_support::block_jump_factor(
             &mut RegistryMovementWorld {
@@ -2876,48 +3593,73 @@ impl LivingMotionWorld for MotionWorld<'_, '_, '_> {
             location,
         )?)
     }
-    fn has_jump_boost(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 696, key = "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::has_jump_boost")]
+    #[inline(always)]
+    fn __yoake_trait_living_motion_world_has_jump_boost(&mut self) -> Result<bool> {
         Ok(self.player.status.jump_boost.is_some())
     }
-    fn jump_boost_amplifier(&mut self) -> Result<i32> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 697, key = "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::jump_boost_amplifier")]
+    #[inline(always)]
+    fn __yoake_trait_living_motion_world_jump_boost_amplifier(&mut self) -> Result<i32> {
         self.player
             .status
             .jump_boost
             .ok_or_else(|| "absent jump boost".into())
     }
-    fn sprinting(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 698, key = "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::sprinting")]
+    #[inline(always)]
+    fn __yoake_trait_living_motion_world_sprinting(&mut self) -> Result<bool> {
         Ok(self.player.sprinting)
     }
-    fn yaw(&mut self) -> Result<f32> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 699, key = "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::yaw")]
+    #[inline(always)]
+    fn __yoake_trait_living_motion_world_yaw(&mut self) -> Result<f32> {
         Ok(self.player.yaw)
     }
-    fn mark_needs_sync(&mut self) {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 700, key = "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::mark_needs_sync")]
+    #[inline(always)]
+    fn __yoake_trait_living_motion_world_mark_needs_sync(&mut self) {
         self.player.needs_sync = true;
     }
-    fn no_gravity(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 701, key = "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::no_gravity")]
+    #[inline(always)]
+    fn __yoake_trait_living_motion_world_no_gravity(&mut self) -> Result<bool> {
         Ok(false)
     }
-    fn gravity_attribute(&mut self) -> Result<f64> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 702, key = "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::gravity_attribute")]
+    #[inline(always)]
+    fn __yoake_trait_living_motion_world_gravity_attribute(&mut self) -> Result<f64> {
         self.player.attribute("minecraft:gravity")
     }
-    fn has_slow_falling(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 703, key = "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::has_slow_falling")]
+    #[inline(always)]
+    fn __yoake_trait_living_motion_world_has_slow_falling(&mut self) -> Result<bool> {
         Ok(self.player.status.slow_falling)
     }
-    fn controlling_passenger_is_player(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 704, key = "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::controlling_passenger_is_player")]
+    #[inline(always)]
+    fn __yoake_trait_living_motion_world_controlling_passenger_is_player(&mut self) -> Result<bool> {
         Ok(false)
     }
-    fn speed(&mut self) -> Result<f32> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 705, key = "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::speed")]
+    #[inline(always)]
+    fn __yoake_trait_living_motion_world_speed(&mut self) -> Result<f32> {
         Ok(self.player.attribute("minecraft:movement_speed")? as f32)
     }
-    fn omnidirectional_air_mover(&mut self) -> Result<bool> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 706, key = "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::omnidirectional_air_mover")]
+    #[inline(always)]
+    fn __yoake_trait_living_motion_world_omnidirectional_air_mover(&mut self) -> Result<bool> {
         Ok(false)
     }
-    fn air_drag_modifier(&mut self) -> Result<f64> {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 707, key = "horizon_client_lib::motion::<MotionWorld as LivingMotionWorld>::air_drag_modifier")]
+    #[inline(always)]
+    fn __yoake_trait_living_motion_world_air_drag_modifier(&mut self) -> Result<f64> {
         self.player.attribute("minecraft:air_drag_modifier")
     }
 }
 
 /// `LocalPlayer.isHorizontalCollisionMinor` for the input `[xxa, zza]`.
+#[yoake_hook_macro::yoake_hook(id = 708, key = "horizon_client_lib::motion::horizontal_collision_minor")]
 fn horizontal_collision_minor(yaw: f32, input: [f32; 2], movement: Vec3) -> bool {
     let rad = yaw * (std::f32::consts::PI / 180.0);
     let sin = f64::from(horizon_core::geometry::trig::sin(f64::from(rad)));
@@ -2936,6 +3678,7 @@ fn horizontal_collision_minor(yaw: f32, input: [f32; 2], movement: Vec3) -> bool
 
 /// `LivingEntity.handleFallFlyingCollisions`: a glide a block stopped takes
 /// `(before - after) * 10 - 3`, and nothing when that is not positive.
+#[yoake_hook_macro::yoake_hook(id = 709, key = "horizon_client_lib::motion::fly_into_wall_damage")]
 fn fly_into_wall_damage(before: f64, after: f64) -> f32 {
     ((before - after) * 10.0 - 3.0) as f32
 }
@@ -5549,3 +6292,6 @@ mod tests {
 // so the default build is unchanged.
 #[cfg(feature = "yoake2-slice")]
 include!("yoake_glue/motion.rs");
+// The ledger-id -> yoake-slice bridge (generated by yoake-hook-codemod bridge --shallow; docs/yoake2/HOOK-SLICE-BRIDGE.md).
+#[cfg(feature = "yoake2-slice")]
+include!("yoake_glue/hook_bridge_motion.rs");

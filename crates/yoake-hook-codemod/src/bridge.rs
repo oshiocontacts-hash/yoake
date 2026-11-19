@@ -22,6 +22,7 @@ pub struct BridgeConfig {
     pub crate_name: String,
     pub ledger: PathBuf,
     pub modules: Vec<String>,
+    pub shallow: bool,
     pub glues: Vec<PathBuf>,
     pub exclude_file: Option<PathBuf>,
 }
@@ -63,19 +64,24 @@ pub fn execute(config: &BridgeConfig) -> Result<bool, String> {
             &config.crate_root,
             &config.crate_name,
             std::slice::from_ref(target_mod),
+            config.shallow,
         )?;
         let colliding_short_keys = run::collect_colliding_short_keys(
             &crate_ident,
             std::slice::from_ref(target_mod),
+            config.shallow,
             &scanned_files,
         );
         let hooks = collect_module_hooks(
             &crate_ident,
             target_mod,
+            config.shallow,
             &scanned_files,
             &colliding_short_keys,
             &ledger_set,
         )?;
+        let copy_types = collect_copy_types(&scanned_files);
+        COPY_TYPES.with(|c| *c.borrow_mut() = copy_types);
         let (content, bridged, unbridged) = render_bridge_module(
             &crate_ident,
             target_mod,
@@ -498,6 +504,7 @@ fn collect_cfg_attrs_from_slice(
 fn collect_module_hooks(
     crate_ident: &str,
     target_mod: &[String],
+    shallow: bool,
     scanned_files: &[modules::ScannedFile],
     colliding_short_keys: &BTreeSet<String>,
     ledger_set: &LedgerSet,
@@ -530,6 +537,7 @@ fn collect_module_hooks(
         let mut collector = HookCollector {
             crate_ident,
             target_mod,
+            shallow,
             source: &file.source,
             idx: &idx,
             colliding_short_keys,
@@ -550,6 +558,7 @@ fn collect_module_hooks(
 struct HookCollector<'a> {
     crate_ident: &'a str,
     target_mod: &'a [String],
+    shallow: bool,
     source: &'a str,
     idx: &'a LineIndex,
     colliding_short_keys: &'a BTreeSet<String>,
@@ -563,7 +572,11 @@ struct HookCollector<'a> {
 
 impl HookCollector<'_> {
     fn visit_items(&mut self, items: &[Item]) {
-        let in_target = self.mod_path.starts_with(self.target_mod);
+        let in_target = if self.shallow {
+            self.mod_path.as_slice() == self.target_mod
+        } else {
+            self.mod_path.starts_with(self.target_mod)
+        };
         let prefix = key::module_prefix(self.crate_ident, &self.mod_path);
         let (matched_helpers, _) = if in_target {
             run::pair_converted_trait_helpers(
@@ -750,8 +763,81 @@ enum RetKind {
 #[derive(Clone, Copy)]
 enum ParamPass {
     ReborrowMut,
+    /// Known to be `Copy` (primitives, shared references, types the bridged module derives `Copy` for, and tuples,
+    /// arrays and `Option`s of those): passed to every `original` call.
     Copy,
+    /// By value and not known to be `Copy`: moved into the first `original` call (the dispatcher keeps it in an
+    /// `Option` and takes it), so the real original runs at most once; a later `original` returns `0`.
     ByValue,
+}
+
+thread_local! {
+    /// The idents of the types with `#[derive(.., Copy, ..)]` in the module being bridged (set per target in `run`).
+    static COPY_TYPES: std::cell::RefCell<BTreeSet<String>> = const { std::cell::RefCell::new(BTreeSet::new()) };
+}
+
+/// The types the scanned files derive `Copy` for (structs and enums, inline modules included).
+fn collect_copy_types(files: &[modules::ScannedFile]) -> BTreeSet<String> {
+    fn visit(items: &[syn::Item], out: &mut BTreeSet<String>) {
+        for item in items {
+            let (attrs, ident) = match item {
+                syn::Item::Struct(s) => (&s.attrs, &s.ident),
+                syn::Item::Enum(e) => (&e.attrs, &e.ident),
+                syn::Item::Mod(m) => {
+                    if let Some((_, inner)) = &m.content {
+                        visit(inner, out);
+                    }
+                    continue;
+                }
+                _ => continue,
+            };
+            let derives_copy = attrs.iter().any(|a| {
+                a.path().is_ident("derive")
+                    && quote::ToTokens::to_token_stream(a)
+                        .to_string()
+                        .split(|c: char| !c.is_alphanumeric() && c != '_')
+                        .any(|word| word == "Copy")
+            });
+            if derives_copy {
+                out.insert(ident.to_string());
+            }
+        }
+    }
+    let mut out = BTreeSet::new();
+    for file in files {
+        visit(&file.parsed.items, &mut out);
+    }
+    out
+}
+
+/// Whether a by-value parameter type is certainly `Copy` (see [`ParamPass::Copy`]).
+fn is_known_copy(ty: &Type) -> bool {
+    const PRIMITIVES: &[&str] = &[
+        "bool", "char", "i8", "i16", "i32", "i64", "i128", "isize", "u8", "u16", "u32", "u64", "u128", "usize", "f32",
+        "f64",
+    ];
+    match ty {
+        Type::Paren(p) => is_known_copy(&p.elem),
+        Type::Group(g) => is_known_copy(&g.elem),
+        Type::Reference(r) => r.mutability.is_none(),
+        Type::Tuple(t) => t.elems.iter().all(is_known_copy),
+        Type::Array(a) => is_known_copy(&a.elem),
+        Type::Path(p) if p.qself.is_none() => {
+            let Some(last) = p.path.segments.last() else { return false };
+            let name = last.ident.to_string();
+            match &last.arguments {
+                syn::PathArguments::None => {
+                    PRIMITIVES.contains(&name.as_str()) || COPY_TYPES.with(|c| c.borrow().contains(&name))
+                }
+                syn::PathArguments::AngleBracketed(args) if name == "Option" => args
+                    .args
+                    .iter()
+                    .all(|a| matches!(a, syn::GenericArgument::Type(t) if is_known_copy(t))),
+                _ => false,
+            }
+        }
+        _ => false,
+    }
 }
 
 struct BridgedHook {
@@ -1057,6 +1143,7 @@ fn classify_hook(
         let pass = match unwrap_type_parens(&replaced) {
             Type::Reference(r) if r.mutability.is_some() => ParamPass::ReborrowMut,
             Type::Reference(_) => ParamPass::Copy,
+            other if is_known_copy(other) => ParamPass::Copy,
             _ => ParamPass::ByValue,
         };
         param_passes.push(pass);
@@ -1267,7 +1354,7 @@ fn render_bridge_module(
     out.push_str("                priority,\n");
     out.push_str("                mod_load_order: 0,\n");
     out.push_str("            };\n");
-    out.push_str("            let outcome: Option<Result<(), &'static str>> = match id {\n");
+    out.push_str("            let outcome: ::core::option::Option<::core::result::Result<(), &'static str>> = match id {\n");
     for bh in &bridged {
         out.push_str(&render_install_arm(bh)?);
     }
@@ -1360,14 +1447,34 @@ fn render_bridged_fn(bh: &BridgedHook) -> String {
     out.push_str(&format!("    ){ret_sig} {{\n"));
 
     let mut call_args = vec!["p0".to_string()];
+    let mut fallback_args = vec!["p0".to_string()];
+    let mut moved = Vec::new();
     for (idx, pass) in bh.param_passes.iter().enumerate() {
         let p = idx + 1;
         match pass {
-            ParamPass::ReborrowMut => call_args.push(format!("&mut *p{p}")),
-            ParamPass::Copy | ParamPass::ByValue => call_args.push(format!("p{p}")),
+            ParamPass::ReborrowMut => {
+                call_args.push(format!("&mut *p{p}"));
+                fallback_args.push(format!("&mut *p{p}"));
+            }
+            ParamPass::Copy => {
+                call_args.push(format!("p{p}"));
+                fallback_args.push(format!("p{p}"));
+            }
+            ParamPass::ByValue => {
+                call_args.push(format!("p{p}_v"));
+                fallback_args.push(format!("p{p}.take().expect(\"only an original call moves it, and none ran\")"));
+                moved.push(p);
+            }
         }
     }
     let orig_call = format!("original({})", call_args.join(", "));
+    // the direct run when no guest's `original` reached the real original (nothing was moved yet)
+    let fallback_call = format!("original({})", fallback_args.join(", "));
+    // a by-value argument that may not be `Copy` goes into the first `original` call; a later one returns 0
+    let takes: String = moved
+        .iter()
+        .map(|p| format!("let ::core::option::Option::Some(p{p}_v) = p{p}.take() else {{ return 0; }}; "))
+        .collect();
     let range_checked: Option<(&str, &str, String)> = match &bh.ret_kind {
         RetKind::Bool => Some((
             "bool",
@@ -1414,6 +1521,7 @@ fn render_bridged_fn(bh: &BridgedHook) -> String {
             _ => unreachable!("range-checked kinds handled above"),
         }
     };
+    let closure_body = if takes.is_empty() { closure_body } else { format!("{{ {takes}{closure_body} }}") };
     let dispatch_call = match &bh.dispatch {
         DispatchTarget::FieldTable(ft_path) => format!(
             "yoake_slice::runtime::dispatch_id({}, p0, &{ft_path}, &mut |p0| {closure_body})",
@@ -1428,6 +1536,9 @@ fn render_bridged_fn(bh: &BridgedHook) -> String {
             bh.id
         ),
     };
+    for p in &moved {
+        out.push_str(&format!("        let mut p{p} = ::core::option::Option::Some(p{p});\n"));
+    }
     if let Some((ret_ty_str, encode_expr, decode_expr)) = range_checked {
         out.push_str(&format!("        let mut last: Option<{ret_ty_str}> = None;\n"));
         out.push_str(&format!("        let value = {dispatch_call};\n"));
@@ -1447,7 +1558,7 @@ fn render_bridged_fn(bh: &BridgedHook) -> String {
             "                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)\n",
         );
         out.push_str(&format!(
-            "                    match last {{ Some(r) => r, None => {orig_call} }}\n"
+            "                    match last {{ Some(r) => r, None => {fallback_call} }}\n"
         ));
         out.push_str("                }\n");
         out.push_str("            },\n");
@@ -1481,7 +1592,7 @@ fn render_bridged_fn(bh: &BridgedHook) -> String {
                 out.push_str(
                     "            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.\n",
                 );
-                out.push_str(&format!("            None => {orig_call},\n"));
+                out.push_str(&format!("            None => {fallback_call},\n"));
                 out.push_str("        }\n");
             }
             _ => unreachable!("range-checked kinds handled above"),

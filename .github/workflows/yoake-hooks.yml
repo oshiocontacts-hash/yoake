@@ -32,6 +32,7 @@ jobs:
             echo "== $name $module $flags"
             extra=()
             case " $flags " in *" callsites=true "*) extra+=(--callsites) ;; esac
+            case " $flags " in *" shallow=true "*) extra+=(--shallow) ;; esac
             # Without --thir: rewritten call sites carry their identity and types in the source.
             "$codemod" check "${extra[@]}" --crate-root "$root" --crate-name "$name" --ledger hook-ledger --module "$module"
           done

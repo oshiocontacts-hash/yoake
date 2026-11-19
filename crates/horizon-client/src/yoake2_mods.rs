@@ -694,6 +694,43 @@ pub const ENGINE_DISPATCHED: &[(u32, yoake_slice::bridge::Mode)] = &[
     (runtime::HOOK_HUD_RENDER, yoake_slice::bridge::Mode::ObserveOnly),
 ];
 
+/// One generated hook bridge module (`hook_bridge`, yoake-hook-codemod bridge).
+pub struct BridgeModule {
+    pub name: &'static str,
+    /// Its bridgeable ids, sorted.
+    pub bridged: &'static [u32],
+    pub mode: fn(u32) -> Option<yoake_slice::bridge::Mode>,
+    pub install: fn(&[(u32, i32)]) -> yoake_slice::bridge::InstallReport,
+}
+
+/// Every bridge module of this engine build. Ledger ids are unique across crates, so at most one knows an id.
+pub const BRIDGE_MODULES: [BridgeModule; 4] = [
+    BridgeModule {
+        name: "entities",
+        bridged: crate::entities::hook_bridge::BRIDGED,
+        mode: crate::entities::hook_bridge::mode,
+        install: crate::entities::hook_bridge::install,
+    },
+    BridgeModule {
+        name: "game::item_use",
+        bridged: crate::game::item_use_hook_bridge::BRIDGED,
+        mode: crate::game::item_use_hook_bridge::mode,
+        install: crate::game::item_use_hook_bridge::install,
+    },
+    BridgeModule {
+        name: "mobs",
+        bridged: crate::mobs::hook_bridge::BRIDGED,
+        mode: crate::mobs::hook_bridge::mode,
+        install: crate::mobs::hook_bridge::install,
+    },
+    BridgeModule {
+        name: "motion",
+        bridged: crate::motion::hook_bridge::BRIDGED,
+        mode: crate::motion::hook_bridge::mode,
+        install: crate::motion::hook_bridge::install,
+    },
+];
+
 /// The mode of ledger hook `id` in this engine build: the generated bridges' `mode` (ledger ids are unique across
 /// crates, so at most one bridge knows `id`). `None`: no bridge can call it. Installed as the process-wide
 /// [`yoake_slice::bridge::ModeResolver`], so `hook_register` tells the guest (ENGINE_CALL_ABI.md, "Hook modes").
@@ -701,7 +738,7 @@ pub fn hook_mode(id: u32) -> Option<yoake_slice::bridge::Mode> {
     if let Some(&(_, mode)) = ENGINE_DISPATCHED.iter().find(|(hook, _)| *hook == id) {
         return Some(mode);
     }
-    crate::entities::hook_bridge::mode(id).or_else(|| crate::game::item_use_hook_bridge::mode(id))
+    BRIDGE_MODULES.iter().find_map(|module| (module.mode)(id))
 }
 
 /// After the mods' `yoake_init` registered their hook ids: installs the generated bridge dispatcher
@@ -723,7 +760,7 @@ pub fn install_bridges(loaded: &[Loaded]) -> Vec<(String, Vec<(u32, String)>)> {
             .into_iter()
             .filter(|(id, _)| *id != 0 && !ENGINE_DISPATCHED.iter().any(|(hook, _)| hook == id))
             .collect();
-        let reports = [crate::entities::hook_bridge::install(&registered), crate::game::item_use_hook_bridge::install(&registered)];
+        let reports: Vec<yoake_slice::bridge::InstallReport> = BRIDGE_MODULES.iter().map(|module| (module.install)(&registered)).collect();
         let missing: Vec<(u32, String)> = registered
             .iter()
             .filter_map(|&(id, _)| {
@@ -804,11 +841,14 @@ mod tests {
     /// engine-dispatched id.
     #[test]
     fn bridge_modules_claim_disjoint_ids() {
-        let entities = crate::entities::hook_bridge::BRIDGED;
-        let item_use = crate::game::item_use_hook_bridge::BRIDGED;
-        assert!(entities.iter().all(|id| item_use.binary_search(id).is_err()), "an id in both bridges");
+        let modules = &super::BRIDGE_MODULES;
+        for (i, a) in modules.iter().enumerate() {
+            for b in &modules[i + 1..] {
+                assert!(a.bridged.iter().all(|id| b.bridged.binary_search(id).is_err()), "an id in both {} and {}", a.name, b.name);
+            }
+        }
         for (id, mode) in super::ENGINE_DISPATCHED {
-            assert!(entities.binary_search(id).is_err() && item_use.binary_search(id).is_err());
+            assert!(modules.iter().all(|m| m.bridged.binary_search(id).is_err()));
             assert_eq!(super::hook_mode(*id), Some(*mode));
         }
     }

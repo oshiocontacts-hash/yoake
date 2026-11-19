@@ -192,7 +192,8 @@ pub mod hook_bridge {
         p0: &mut ItemEntity,
         p1: Direction,
     ) {
-        let _ = yoake_slice::runtime::dispatch_id(16, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ItemEntity, &mut |p0| { original(p0, p1); 0 });
+        let mut p1 = ::core::option::Option::Some(p1);
+        let _ = yoake_slice::runtime::dispatch_id(16, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ItemEntity, &mut |p0| { let ::core::option::Option::Some(p1_v) = p1.take() else { return 0; }; { original(p0, p1_v); 0 } });
     }
 
     fn __bridge_17(
@@ -615,7 +616,8 @@ pub mod hook_bridge {
         p0: &mut ArmorStand,
         p1: Option<(Vec3, f32)>,
     ) {
-        let _ = yoake_slice::runtime::dispatch_id(61, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ArmorStand, &mut |p0| { original(p0, p1); 0 });
+        let mut p1 = ::core::option::Option::Some(p1);
+        let _ = yoake_slice::runtime::dispatch_id(61, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ArmorStand, &mut |p0| { let ::core::option::Option::Some(p1_v) = p1.take() else { return 0; }; { original(p0, p1_v); 0 } });
     }
 
     fn __bridge_62(
@@ -624,7 +626,8 @@ pub mod hook_bridge {
         p1: Vec3,
         p2: f32,
     ) {
-        let _ = yoake_slice::runtime::dispatch_id(62, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ArmorStand, &mut |p0| { original(p0, p1, p2); 0 });
+        let mut p1 = ::core::option::Option::Some(p1);
+        let _ = yoake_slice::runtime::dispatch_id(62, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__ArmorStand, &mut |p0| { let ::core::option::Option::Some(p1_v) = p1.take() else { return 0; }; { original(p0, p1_v, p2); 0 } });
     }
 
     fn __bridge_65(
@@ -1324,7 +1327,7 @@ pub mod hook_bridge {
                 priority,
                 mod_load_order: 0,
             };
-            let outcome: Option<Result<(), &'static str>> = match id {
+            let outcome: ::core::option::Option<::core::result::Result<(), &'static str>> = match id {
                 7 => Some(yoake_slice::bridge::install_once(id, || ItemEnvironmentTick::__yoake_register_should_play_lava_hurt_sound(__bridge_7, order))),
                 8 => Some(yoake_slice::bridge::install_once(id, || ItemEntity::__yoake_register_bounds(__bridge_8, order))),
                 9 => Some(yoake_slice::bridge::install_once(id, || ItemEntity::__yoake_register_environment_tick(__bridge_9, order))),
