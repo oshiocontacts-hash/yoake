@@ -243,6 +243,10 @@ name = "generation_saves"
 path = "../horizon-client/tests/generation_saves.rs"
 
 [[test]]
+name = "f4m_parity"
+path = "../horizon-client/tests/f4m_parity.rs"
+
+[[test]]
 name = "lan_bot"
 path = "../horizon-client/tests/lan_bot.rs"
 
