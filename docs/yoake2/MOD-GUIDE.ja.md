@@ -78,7 +78,7 @@ Cargo のプロジェクトでも、同じフラグ（`crate-type = ["cdylib"]`�
 | `init(r: &mut Registrar)` | MOD の読み込み時に 1 回（`yoake_init`） | `r.hook(id, priority)` で欲しいフック ID を登録する |
 | `hook(id: u32, handle: Handle) -> i64` | 登録したフックが発火するたび（`yoake_hook`） | 実際の処理。`match id` で処理を選ぶ。戻り値がフック対象の関数の結果になる |
 
-フック ID のうち小さい数字は、エンジンの関数や呼び出し箇所の **台帳 ID** です。`0x8000_0000` 以上はエンジンが用意する合成フックで、このツリーでは `hooks::SERVER_TICK`（`0x8000_0001`）がそれです。台帳は `hook-ledger/`（`horizon_client.json`、`horizon_client_lib.json`）にあり、各エントリが `id`、`key`（関数の Rust パス）、`status`（`live` か `tombstone`）、`kind`（`fn` か `callsite`）を持ちます。登録してよいのは `live` の ID だけです。エンジンが実際に入れる ID は生成されたブリッジ（`crates/horizon-client/src/yoake_glue/hook_bridge_*.rs` の `BRIDGED`、`OBSERVE_ONLY`、`UNBRIDGED`）で決まります。このコミットでブリッジされているのは 55 個（関数フック 29、呼び出し箇所フック 26）です。読み込み時に `hook_register` が結果を返します（次のモードの表を参照）。
+フック ID のうち小さい数字は、エンジンの関数や呼び出し箇所の **台帳 ID** です。`0x8000_0000` 以上はエンジンが用意する合成フックで、このツリーでは `hooks::SERVER_TICK`（`0x8000_0001`）がそれです。台帳は `hook-ledger/`（`horizon_client.json`、`horizon_client_lib.json`）にあり、各エントリが `id`、`key`（関数の Rust パス）、`status`（`live` か `tombstone`）、`kind`（`fn` か `callsite`）を持ちます。登録してよいのは `live` の ID だけです。エンジンが実際に入れる ID は生成されたブリッジ（`crates/horizon-client/src/yoake_glue/hook_bridge_*.rs` の `BRIDGED`、`OBSERVE_ONLY`、`UNBRIDGED`）で決まります。このコミットでブリッジされているのは 201 個（関数フック 156、呼び出し箇所フック 45。うち 67 個は `ObserveOnly`）で、4 つのモジュールに分かれます（`entities` 81、`game::item_use` 29、`mobs` 68、`motion` 23）。読み込み時に `hook_register` が結果を返します（次のモードの表を参照）。
 
 ### `Registrar::hook` とモード
 
@@ -119,6 +119,7 @@ fn init(r: &mut Registrar) {
 - `original` を呼んで、その値をそのまま返す（素通し）か、自分の `i64` を返す（置き換え）。
 - `original` を呼ばずに返すと、呼び出しを **取り消し**、チェーンの残りも飛ばします。返した値が結果になります。
 - 値は結果の型に収まる必要があります。`()` は `0`、`bool` は `0` か `1`、64 ビットより狭い整数はその数値、`u64` は 2 の補数のビットパターン、`f32` は `0..=u32::MAX` の値としてのビット列、`f64` は 64 ビットのパターンです。範囲外の値（たとえば `bool` に `2`）は拒否され、エンジンは代わりに元の結果を使って `yoake: a mod returned N for hook ID, out of range for its result type; the original result is used` と出力します。
+- `original` を 2 回呼ぶと、ふつうはエンジンの関数も 2 回動きます。**例外** は、フック対象の関数が値渡しの引数を取り、ブリッジがその引数をムーブするしかないフックです（このビルドでは ID 16、61、62、130、168、172、175、433、434、473、484、501、506、515）。これらでは関数は最大 1 回しか動かず、2 回目の `original` は `0` を返します。モードでは見分けられません（どれも `Full` です）。関数名つきの一覧は [ENGINE_CALL_ABI.md の「Hooks whose original runs at most once」](ENGINE_CALL_ABI.md#hooks-whose-original-runs-at-most-once) にあります。結果を 2 回使いたいときは、`original` をもう一度呼ばずに最初の結果を取っておいてください。
 
 ```rust
 HOOK_START_USING_ITEM => {
@@ -435,5 +436,5 @@ MOD 自身の `yak.toml` の `version` は別物です。リリースのたび�
 5. **呼び出し箇所フック**（台帳の `kind = callsite`）: 台帳とブリッジでは関数フックと同じように並んでいて、`docs/yoake2/HOOK-SLICE-BRIDGE.md` には、ゲストから見えるのは引数 0 のハンドルで、ほかの引数は見えないとあります。このガイドのために呼び出し箇所フックを動かしてはいません。
 6. **フルアクセス MOD に `yoake` CLI を使わないこと**: `crates/yoake-cli/src/main.rs` を読んでの判断です（Cargo でコンポーネントをビルドし、サーバーモジュールをサンドボックス型のコンポーネントとして検査する）。フルアクセスのパッケージに対して実行はしていません。
 7. **`build.sh` は Windows の Git Bash でしか実行していません。** Linux と macOS は試していません。この Windows（GNU ツールチェーン）のマシンでは、パックツールのコンパイルに MinGW（`dlltool`、`as`）のフォルダを `PATH` に通す必要がありました。
-8. **フック ID は安定した公開一覧ではありません。** 台帳には `tombstone` のエントリやブリッジされていない ID があります。ブリッジ済みのフックが 55 個というのはこのコミット時点の数です。
+8. **フック ID は安定した公開一覧ではありません。** 台帳には `tombstone` のエントリやブリッジされていない ID があります。ブリッジ済みのフックが 201 個というのはこのコミット時点の数です。
 9. **フック 1 回あたり 110〜150 ns** は S2 スパイクのレポート（`MX3S2.md`）にある、1 台のマシンでの測定値です。桁の目安として読んでください。

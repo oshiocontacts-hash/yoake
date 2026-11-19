@@ -115,6 +115,43 @@ mean that it was not registered: `-1` outside `yoake_init`, `-2` over the regist
 - **NotCallable**: registration is harmless and is included in the loader's report, but this engine build has no
   callable bridge for the id, so its hook will not be entered.
 
+### Hooks whose original runs at most once
+
+A Full hook normally runs the real original again each time a call of `original` reaches it. The hooks below are the
+exception: the hooked function takes an argument **by value** whose type is not known to be `Copy`, so the bridge
+moves that argument into the first real call. In these hooks the real original runs **at most once** per call, even
+in Full mode. A later `original` that reaches it does not run it again and returns `0`. Everything else about Full
+mode stays the same: the guest's value replaces the result, and not calling `original` cancels the call.
+
+The mode does **not** tell these hooks apart: `hook_register` returns `0` (Full) for most of them. A guest knows them
+from this table, or from the generated bridge (`crates/horizon-client/src/yoake_glue/hook_bridge_*.rs`), where the
+dispatcher of such a hook takes the argument with `.take()`. A guest that needs the original's result more than
+once should keep the first result rather than call `original` again. The table is the list for this engine build;
+a hook added later with a by-value non-`Copy` argument behaves the same way.
+
+| id | hooked function | argument moved | mode |
+| --- | --- | --- | --- |
+| 16 | `entities::ItemEntity::piston_slime_bounce` | `Direction` | Full |
+| 61 | `entities::ArmorStand::interpolate` | `Option<(Vec3, ..)>` | Full |
+| 62 | `entities::ArmorStand::snap` | `Vec3` | Full |
+| 130 | call site in `Game::native_living_entity_use_item_start` | `first_person::Hand` | Full |
+| 168 | call site in `Game::native_living_entity_use_item_finish` | `first_person::Hand` | Full |
+| 172 | call site in `Game::native_living_entity_use_item_tick` | `first_person::Hand` | Full |
+| 175 | call site in `Game::native_living_entity_use_item_stop` | `first_person::Hand` | Full |
+| 433 | `mobs::Extra::set_main_hand` | `Option<Arc<str>>` | Full |
+| 434 | `mobs::Extra::set_main_hand_stack` | `Option<ItemStack>` | Full |
+| 461 | `mobs::Mob::bounds_at` | `Vec3` | ObserveOnly (at most once anyway) |
+| 473 | `mobs::Mob::damage_with` | `Option<&mut dyn FnMut ..>` | Full |
+| 484 | `mobs::Mob::distance_sqr` | `Vec3` | Full |
+| 501 | `mobs::render` | `DVec3` | Full |
+| 506 | `mobs::Mob::set_saddle` | `Option<ItemStack>` | Full |
+| 515 | `motion::PlayerMotion::carry_client_movement` | `Vec3` | Full |
+| 538 | `motion::PlayerMotion::sprint_input_tick` | `sprint::Keys` | ObserveOnly (at most once anyway) |
+| 539 | `motion::PlayerMotion::sprint_input_tick_with_window` | `sprint::Keys` | ObserveOnly (at most once anyway) |
+
+(Some of these types are `Copy` in their own crate. The generator only knows `Copy` for primitives, shared references,
+types the bridged module derives `Copy` for, and tuples, arrays and `Option`s of those.)
+
 For a Full hook, the original's result is encoded for `original`, and the guest's returned `i64` is decoded, as
 follows: `()` is `0`; `bool` is `0` or `1`; signed integers and unsigned integers narrower than 64 bits use their
 numeric value and must fit the result type; `u64` uses its two's-complement 64-bit pattern (every `i64` is a valid

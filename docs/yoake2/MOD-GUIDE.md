@@ -112,8 +112,9 @@ engine-synthetic. In this tree `hooks::SERVER_TICK` (`0x8000_0001`) is the synth
 `hook-ledger/` (`horizon_client.json`, `horizon_client_lib.json`): each entry has an `id`, the `key` (the Rust path of
 the function), a `status` (`live` or `tombstone`) and a `kind` (`fn` or `callsite`). Register `live` ids only.
 Which ids the engine can actually enter is decided by the generated bridges
-(`crates/horizon-client/src/yoake_glue/hook_bridge_*.rs`: `BRIDGED`, `OBSERVE_ONLY`, `UNBRIDGED`); at this commit 55
-ids are bridged (29 function hooks, 26 call-site hooks). `hook_register` tells you at load time (see modes below).
+(`crates/horizon-client/src/yoake_glue/hook_bridge_*.rs`: `BRIDGED`, `OBSERVE_ONLY`, `UNBRIDGED`); at this commit 201
+ids are bridged (156 function hooks, 45 call-site hooks; 67 of them are `ObserveOnly`), in four modules: `entities`
+81, `game::item_use` 29, `mobs` 68, `motion` 23. `hook_register` tells you at load time (see modes below).
 
 ### `Registrar::hook` and modes
 
@@ -161,7 +162,13 @@ In a **Full** hook:
   numeric value; `u64` uses its two's-complement pattern; `f32` its bits as a value in `0..=u32::MAX`; `f64` its
   64-bit pattern. A value out of range (for example `2` for a `bool`) is rejected: the engine uses the original's result
   instead and prints `yoake: a mod returned N for hook ID, out of range for its result type; the original result is
-  used`.
+  used`;
+- calling `original` twice normally runs the engine's function twice, **except** in the hooks whose function takes an
+  argument by value that the bridge has to move (ids 16, 61, 62, 130, 168, 172, 175, 433, 434, 473, 484, 501, 506,
+  515 in this build): there the function runs at most once and a second `original` returns `0`. The mode does not
+  show this (they are `Full`); the list with the function names is in
+  [ENGINE_CALL_ABI.md, "Hooks whose original runs at most once"](ENGINE_CALL_ABI.md#hooks-whose-original-runs-at-most-once).
+  If you need the result twice, keep the first one instead of calling `original` again.
 
 ```rust
 HOOK_START_USING_ITEM => {
@@ -543,6 +550,6 @@ A mod's own `version` in `yak.toml` is separate: bump it for each release, and e
 7. **`build.sh` was run in Git Bash on Windows only**; Linux and macOS were not tried. On this Windows (GNU toolchain)
    host the pack tool needed a MinGW (`dlltool`, `as`) directory on `PATH` to compile.
 8. **Hook ids are not a stable public list.** The ledger has `tombstone` entries and ids that are not bridged; the
-   count of bridged hooks (55) is true at this commit only.
+   count of bridged hooks (201) is true at this commit only.
 9. **The 110-150 ns hook cost** is from the S2 spike report (`MX3S2.md`), measured on one machine; treat it as an order
    of magnitude.
