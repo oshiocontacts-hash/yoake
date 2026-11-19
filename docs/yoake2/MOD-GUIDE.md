@@ -277,13 +277,8 @@ You normally never see this, because the SDK's `call` handles it. It is worth kn
 
 ## 6. Client vs server modules
 
-In **this tree** a full-access package declares **one** module: `[wasm] server`, a core module that runs on the
-simulation thread (the integrated or dedicated server) when a world starts. The manifest is rejected if it declares
-`wasm.client` with `world = "full-access"`, or if `[side] server` is not `true`. The only synthetic hook is
-`hooks::SERVER_TICK`, whose argument 0 is the server's `Game` root.
-
-A separate branch, `yoake2/client-hooks` (commit `c681140e0`, report `docs/yoake2/reports/MX3CL1.md`), is **not merged
-into this tree**. By its own documentation it changes this:
+A full-access package declares a `[wasm] server` module, a `[wasm] client` module, or both (MX3CL1, report
+`docs/yoake2/reports/MX3CL1.md`):
 
 | declared | runs on |
 |---|---|
@@ -292,11 +287,11 @@ into this tree**. By its own documentation it changes this:
 | both | both threads, as two separate instances (no shared memory or globals) |
 
 `[side]` must agree exactly with the declared modules (`side.server` iff `wasm.server`, `side.client` iff
-`wasm.client`), and the client side takes the same approved list and the same rules. It adds the hooks
-`hooks::CLIENT_TICK` (`0x8000_0002`, once per client tick, argument 0 the client's `Game`) and `hooks::HUD_RENDER`
-(`0x8000_0003`, once per frame after the HUD, observe-only, argument 0 a dead handle: it cannot draw into the HUD
-yet). Treat that as a preview: until the branch is merged, a package with `wasm.client` does not load, and the SDK has
-no `CLIENT_TICK` constant.
+`wasm.client`), and the client side takes the same approved list and the same rules. The synthetic hooks are
+`hooks::SERVER_TICK` (`0x8000_0001`, every server tick, argument 0 the server's `Game` root), `hooks::CLIENT_TICK`
+(`0x8000_0002`, once per client tick, argument 0 the client's `Game`) and `hooks::HUD_RENDER` (`0x8000_0003`, once per
+frame after the HUD, observe-only, argument 0 a dead handle: it cannot draw into the HUD yet). `hook_register`
+returns `0` (Full) for the two ticks and `1` (observe-only) for `HUD_RENDER`.
 
 ## 7. A complete small mod
 
@@ -530,9 +525,8 @@ A mod's own `version` in `yak.toml` is separate: bump it for each release, and e
 
 ## 要確認 (not verified)
 
-1. **Client modules and `CLIENT_TICK` / `HUD_RENDER`** exist only on the unmerged branch `yoake2/client-hooks`
-   (`c681140e0`). Section 6 is copied from that branch's `ENGINE_CALL_ABI.md` and `MX3CL1.md`; it was not built or run
-   here, and in this tree a `wasm.client` full-access manifest is rejected.
+1. **Client modules** are merged (MX3CL1) and tested through the loader, but not in a running game client: no client
+   module was run against a real window or HUD.
 2. **Where the player finds the `yoake:` lines.** They are written to stderr and to the `log` crate; this guide did not
    find where the launcher stores the game's stderr, so it does not say which file to open.
 3. **Running in the real game.** Nothing here launched the game. The template and the examples were run through the
