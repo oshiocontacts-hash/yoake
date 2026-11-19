@@ -1329,6 +1329,10 @@ impl Content {
                 ));
             }
         }
+        // The files go through the real model loaders (bones, cubes, animations, hitbox bones).
+        let mut reader = self.reader().map_err(|e| format!("{name}: {e}"))?;
+        file.load_model(&mut |path| reader.read(path))
+            .map_err(|e| format!("{name}: {e}"))?;
         if let Some(table) = &file.loot_table
             && !table
                 .split_once(':')
