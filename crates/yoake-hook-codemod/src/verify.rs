@@ -217,6 +217,9 @@ pub struct VerifyOptions {
     pub cargo_args: Vec<String>,
     pub dir: PathBuf,
     pub rounds: usize,
+    /// Stop when one round would withdraw more stamps than this: the cause is systematic (a missing dependency, a
+    /// broken macro), not individual functions.
+    pub max_withdraw_per_round: usize,
 }
 
 fn run_cargo(options: &VerifyOptions) -> Result<BuildOutcome, String> {
@@ -318,6 +321,18 @@ pub fn run_with(
                 println!("  cargo tail:\n{}", outcome.tail);
             }
             return Err("verify made no progress: the remaining errors are not in a stamped item of the scanned modules".into());
+        }
+        if new.len() > options.max_withdraw_per_round {
+            let mut by_code: BTreeMap<&str, usize> = BTreeMap::new();
+            for reason in new.values() {
+                *by_code.entry(reason.split(':').next().unwrap_or("")).or_default() += 1;
+            }
+            let sample = outcome.errors.first().map(|e| format!("{} {}", e.code, e.message)).unwrap_or_default();
+            return Err(format!(
+                "verify: round {round} would withdraw {} stamps (limit {}): {by_code:?}; first error: {sample}. Nothing was withdrawn this round; fix the cause or raise --verify-max-withdraw",
+                new.len(),
+                options.max_withdraw_per_round
+            ));
         }
         withdrawn_total += new.len();
         append_excludes(&config.ledger, &new)?;
@@ -466,8 +481,9 @@ pub fn bad(x: u32) -> u32 {
             verify_args: vec![],
             verify_dir: dir.clone(),
             verify_rounds: 4,
+            verify_max_withdraw: 300,
         };
-        let options = VerifyOptions { cargo_args: vec![], dir: dir.clone(), rounds: 4 };
+        let options = VerifyOptions { cargo_args: vec![], dir: dir.clone(), rounds: 4, max_withdraw_per_round: 300 };
         let alpha = dir.join("src/alpha.rs");
         let mut round = 0;
         let result = run_with(&config, &options, || {
@@ -530,6 +546,75 @@ pub fn bad(x: u32) -> u32 {
             verify_args: vec![],
             verify_dir: c.verify_dir.clone(),
             verify_rounds: 1,
+            verify_max_withdraw: 300,
+        }
+    }
+
+    #[test]
+    fn a_round_that_would_withdraw_too_many_stamps_aborts_without_withdrawing() {
+        let dir = std::env::temp_dir().join(format!("yoake-verify-cap-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(dir.join("Cargo.toml"), "[package]
+name = \"demo-crate\"
+version = \"0.1.0\"
+edition = \"2024\"
+").unwrap();
+        std::fs::write(dir.join("src/lib.rs"), "pub mod alpha;
+").unwrap();
+        std::fs::write(dir.join("src/alpha.rs"), "pub fn a(x: u32) -> u32 {
+    x + 1
+}
+
+pub fn b(x: u32) -> u32 {
+    x + 2
+}
+").unwrap();
+        let mut config = config_clone_for(&dir);
+        config.verify = true;
+        let options = VerifyOptions { cargo_args: vec![], dir: dir.clone(), rounds: 4, max_withdraw_per_round: 1 };
+        let alpha = dir.join("src/alpha.rs");
+        let result = run_with(&config, &options, || {
+            Ok(BuildOutcome {
+                success: false,
+                errors: vec![
+                    BuildError { code: "E0433".into(), locations: vec![(alpha.clone(), 2)], message: "no crate".into() },
+                    BuildError { code: "E0433".into(), locations: vec![(alpha.clone(), 6)], message: "no crate".into() },
+                ],
+                tail: String::new(),
+            })
+        });
+        let err = result.unwrap_err();
+        assert!(err.contains("would withdraw 2 stamps"), "{err}");
+        assert!(!dir.join("hook-ledger").join(EXCLUDE_FILE).exists(), "nothing written");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn config_clone_for(dir: &Path) -> Config {
+        Config {
+            mode: Mode::Apply,
+            crate_root: dir.to_path_buf(),
+            crate_name: "demo-crate".into(),
+            ledger: dir.join("hook-ledger"),
+            modules: vec!["alpha".into()],
+            shallow: false,
+            renames: vec![],
+            tombstones: vec![],
+            callsites: false,
+            thir: None,
+            accept_sites: vec![],
+            rename_sites: vec![],
+            tombstone_sites: vec![],
+            engine_crates: None,
+            retire_ineligible: false,
+            rustfmt: false,
+            exclude_modules: vec![],
+            min_stmts: 0,
+            verify: false,
+            verify_args: vec![],
+            verify_dir: dir.to_path_buf(),
+            verify_rounds: 4,
+            verify_max_withdraw: 300,
         }
     }
 }

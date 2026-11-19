@@ -53,6 +53,7 @@ pub struct Config {
     pub verify_args: Vec<String>,
     pub verify_dir: PathBuf,
     pub verify_rounds: usize,
+    pub verify_max_withdraw: usize,
 }
 
 pub struct HistoryConfig {
@@ -173,6 +174,7 @@ fn parse_args() -> Result<Option<Command>, String> {
     let mut verify_args: Vec<String> = Vec::new();
     let mut verify_dir = PathBuf::from(".");
     let mut verify_rounds: usize = 8;
+    let mut verify_max_withdraw: usize = 300;
     let mut stamp_config: Option<PathBuf> = None;
 
     while let Some(arg) = args.next() {
@@ -253,6 +255,10 @@ fn parse_args() -> Result<Option<Command>, String> {
                 let raw = next_arg(&mut args, "--verify-rounds")?;
                 verify_rounds = raw.parse().map_err(|_| format!("--verify-rounds expects a number, got '{raw}'"))?;
             }
+            "--verify-max-withdraw" => {
+                let raw = next_arg(&mut args, "--verify-max-withdraw")?;
+                verify_max_withdraw = raw.parse().map_err(|_| format!("--verify-max-withdraw expects a number, got '{raw}'"))?;
+            }
             "--stamp-config" => stamp_config = Some(PathBuf::from(next_arg(&mut args, "--stamp-config")?)),
             other => return Err(format!("unknown argument '{other}'\n{}", usage())),
         }
@@ -319,6 +325,7 @@ fn parse_args() -> Result<Option<Command>, String> {
         verify_args,
         verify_dir,
         verify_rounds,
+        verify_max_withdraw,
     })))
 }
 
@@ -520,6 +527,7 @@ fn main() -> ExitCode {
                 cargo_args: config.verify_args.clone(),
                 dir: config.verify_dir.clone(),
                 rounds: config.verify_rounds,
+                max_withdraw_per_round: config.verify_max_withdraw,
             };
             verify::run(&config, &options)
         }
