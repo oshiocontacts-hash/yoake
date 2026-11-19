@@ -80,3 +80,22 @@ All under `crates/horizon-mobmodel/tests/fixtures/cinder_fox/` unless noted.
    so both routes can match? Needs a real file.
 3. Same-time event order: make it deterministic (sort by kind) in the Bedrock loader?
 4. Ability for a layer to fade out a state into "nothing" (see notes), needed for a clean `sit` exit.
+
+## Fix round (reviewer decisions)
+
+1. The generated fixture and goldens stay. A real Blockbench export of the fox will be added later as a second fixture.
+2. **bbmodel easing is read** and the generator writes it, so the geo route and the bbmodel route now give equal pose tables on ALL
+   bones (`geo_route_and_bbmodel_route_give_the_same_pose_tables`: 2520 matrix comparisons, no skips; the old "documented difference"
+   test is replaced by `the_bbmodel_route_really_carries_the_easing`). The goldens did not change.
+3. **Same-time events** come out in one order in both loaders: time, then kind (timeline, sound, particle), then declaration order.
+   The tests compare without sorting.
+4. **Layer fade to "no state"**: a controller state with `"inactive": true`. Blending into it fades the layer weight 1 -> 0 over the
+   blend time (the old state keeps playing while it fades), then the layer is off; blending out of it fades the weight 0 -> 1. Blend 0
+   stays instant. The fox's `stand` is inactive with blend 0.2, so `sit` fades in and out; the cut on the way out is gone
+   (`sit_follows_the_synced_state_and_holds` checks no jump at the start, a mid value, and locomotion afterwards).
+5. `anim_time_update` is stateless by design: changing the ground speed while walking jumps the phase. Accepted behaviour; use the
+   controller `speed` expression for an integrated clock (the fox's `run` does).
+
+Library changes (minimal): `anim.rs` (`bb_easing`, `sort_events` used by both loaders), `controller.rs` (`State::inactive` and its
+parsing), `pose.rs` (`Rig::evaluate` layer fade). New tests in `tests/pose_rig.rs` (4: fade weights over time and inactive after,
+instant switch, bbmodel easing incl. nested form and start-key rule, event order in both formats). Totals: 119 pass, clippy clean.

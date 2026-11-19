@@ -14,8 +14,8 @@ Minecraft asset was used or copied.
 
 Animations are written once in Bedrock space (what animation.json holds). The bbmodel copy is derived by the inverse
 of the loader's conversion (position x, rotation x and y negated; expression results wrapped in -( ... )), so both
-routes should evaluate to the same pose. Known limits (see README.md and the F4M-FOX report): Blockbench's bbmodel
-keyframe has no easing / easingArgs, so the bbmodel copy drops them (the bbmodel pose differs on exactly those leaf bones).
+routes should evaluate to the same pose. Easing is written into bbmodel keyframes as `easing` / `easingArgs` (the
+GeckoLib-plugin fields as far as known; see the F4M-FOX report).
 """
 import base64, json, os, struct, zlib
 
@@ -465,7 +465,11 @@ def build_bb_animations():
                         for name, vec in k.bz.items():
                             # value handles live in the animated space too, so they flip with it; time handles do not
                             kf[name] = [flip_comp(vec[i], f[i]) for i in range(3)] if name.endswith("value") else list(vec)
-                    # Blockbench's bbmodel has no easing / easingArgs: dropped here (documented limit)
+                    # GeckoLib-plugin keyframe fields (shape the segment ending at this key, as in animation.json)
+                    if k.ease:
+                        kf["easing"] = k.ease
+                    if k.ease_args:
+                        kf["easingArgs"] = list(k.ease_args)
                     kfs.append(kf)
             animators["bone-%04d-%04d" % (ai, bi)] = {"name": bone, "type": "bone", "keyframes": kfs}
         effects = []
@@ -502,12 +506,13 @@ CONTROLLER = {"controllers": {
     }},
     # One-shot on top of the locomotion pose: added, so it leaves no pop when it ends (its last key is 0).
     "action": {"weight": 1, "mode": "add", "triggers": {"pounce": "pounce"}},
-    # sit while the synced enum `state` (idle=0, sit=1, pounce=2) is 1. Leaving is a cut (blend 0): see the report.
+    # sit while the synced enum `state` (idle=0, sit=1, pounce=2) is 1. `stand` is the inactive "no state": the layer fades
+    # in and out with the 0.2 s blends instead of lerping to the rest pose.
     "pose": {"initial": "stand", "states": {
-        "stand": {"animations": [],
+        "stand": {"animations": [], "inactive": True, "blend": 0.2,
                   "transitions": [{"to": "sit", "when": "q.synced('state') == 1"}]},
         "sit": {"animations": ["sit"], "blend": 0.2,
-                "transitions": [{"to": "stand", "when": "q.synced('state') != 1", "blend": 0}]},
+                "transitions": [{"to": "stand", "when": "q.synced('state') != 1"}]},
     }},
 }}
 
