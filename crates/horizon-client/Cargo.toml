@@ -196,3 +196,9 @@ required-features = ["yoake2-slice", "yoake-hook-bench"]
 name = "yoake2_examples"
 path = "tests/yoake2_examples.rs"
 required-features = ["yoake2-slice"]
+
+# The mod-author starter template (templates/full-access-mod) through the full-access loader (no game resources).
+[[test]]
+name = "yoake2_template"
+path = "tests/yoake2_template.rs"
+required-features = ["yoake2-slice"]
