@@ -1897,6 +1897,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "horizon-mobmodel"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "glam",
+ "png",
+ "rand",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "horizon-mod-abi"
 version = "0.1.0"
 dependencies = [
