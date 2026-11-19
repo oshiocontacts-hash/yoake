@@ -2214,6 +2214,8 @@ interface client-services {
     draw-mob-as-player: func(appearance: list<u8>) -> result<bool, string>;
     gui-size: func() -> result<vec2, string>;
     hud-place-v2: func(corner: hud-corner-v2, size: vec2) -> result<option<vec2>, string>;
+    ime-set-allowed: func(allowed: bool) -> result<_, string>;
+    ime-set-cursor-area: func(h: f32, w: f32, x: f32, y: f32) -> result<_, string>;
     item-sprite-set: func(item-id: string, rgba: list<u8>, size: tuple<u32, u32>) -> result<_, string>;
     item-sprite-reset: func(item-id: string) -> result<_, string>;
     block-sprite-set: func(rgba: list<u8>, size: tuple<u32, u32>, texture-id: string) -> result<_, string>;
@@ -3758,6 +3760,10 @@ interface client-hooks {
     /// `hand` is applied by the host: return `frame-command` commands for it.
     /// Returns the commands to apply.
     hand-drawn: func() -> list<frame-command>;
+    /// @API:ime@ The live composition on a mod screen. `cursor` is a byte-offset range.
+    ime-preedit: func(text: string, cursor: option<tuple<u32, u32>>);
+    /// @API:ime@ Text the input method committed on a mod screen, before character hooks.
+    ime-commit: func(text: string);
     /// A mod's own ingredient kind, matching a concrete stack at craft time:
     /// the ingredient's `test` calls here with the kind, its JSON and the
     /// stack being matched, `accept` already true (the load-time list named

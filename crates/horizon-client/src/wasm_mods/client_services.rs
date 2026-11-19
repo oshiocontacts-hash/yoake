@@ -594,6 +594,18 @@ impl ClientServices for GameHost {
         })
     }
 
+    fn ime_set_allowed(&mut self, allowed: bool) -> Result<(), String> {
+        self.client_call(|invocation| {
+            write_host(invocation)?.ime_set_allowed(self.native_id, allowed)
+        })
+    }
+
+    fn ime_set_cursor_area(&mut self, h: f32, w: f32, x: f32, y: f32) -> Result<(), String> {
+        self.client_call(|invocation| {
+            write_host(invocation)?.ime_set_cursor_area(self.native_id, [x, y, w, h])
+        })
+    }
+
     fn hud_place_v2(
         &mut self,
         corner: ct::HudCornerV2,

@@ -63,6 +63,16 @@ pub mod client {
         services::hud_place_v2(corner, size)
     }
 
+    /// Enable or disable the OS input method on this mod's open screen.
+    pub fn ime_set_allowed(allowed: bool) -> Result<(), String> {
+        services::ime_set_allowed(allowed)
+    }
+
+    /// Place the IME candidate window using a GUI-scaled rectangle.
+    pub fn ime_set_cursor_area(x: f32, y: f32, w: f32, h: f32) -> Result<(), String> {
+        services::ime_set_cursor_area(h, w, x, y)
+    }
+
     /// Owned GPU resources and checked command descriptors. Raw imports remain in `gpu_raw`.
     pub mod gpu {
         include!("gpu.rs");

@@ -530,6 +530,58 @@ working across engine updates of the same major version.
 
 A mod's own `version` in `yak.toml` is separate: bump it for each release, and expect the player to allow each new file.
 
+## 14. IME for mod screens (sandboxed `client-full`, not full-access)
+
+The sandboxed component API has IME support for a mod-owned screen. It is not exposed to full-access core modules:
+there are no ledger hook ids or `engine_call` bindings for it in this tree. Do not register service ids 201/202 as
+full-access hook ids; those ids belong only to the sandboxed client-service catalog.
+
+A `client-full` mod subscribes to `hook::SCREEN_INIT_POST`, `hook::FRAME`, `hook::IME_PREEDIT`, and
+`hook::IME_COMMIT`. The services need write access to the host, which `screen_init_post` does not have (the calls
+return `Err` there), so the mod notes the screen opening and calls them from `frame`, retrying until they succeed. On
+its own open mod screen, it enables input and places the candidate window:
+
+```rust
+use yoake_wasm_sdk::full::client::{ime_set_allowed, ime_set_cursor_area};
+
+fn screen_init_post(&mut self, _screen: et::NativeScreenView) {
+    self.pending = true; // IME state resets each time a mod screen opens
+}
+
+fn frame(&mut self, _elapsed: u64) {
+    if self.pending
+        && ime_set_allowed(true).is_ok()
+        && ime_set_cursor_area(32.0, 48.0, 180.0, 20.0).is_ok()
+    {
+        self.pending = false;
+    }
+}
+
+fn ime_preedit(&mut self, text: String, cursor: Option<(u32, u32)>) {
+    // Draw `text` in the mod's text field. Cursor offsets are UTF-8 bytes.
+}
+
+fn ime_commit(&mut self, text: String) {
+    // Insert the committed text once.
+}
+```
+
+`ime_set_allowed` is service **201**, and `ime_set_cursor_area` is **202**. The rectangle is `(x, y, w, h)` in
+GUI-scaled coordinates, not physical window pixels. Coordinates must be finite and the size nonnegative. The services
+return `Err` unless the caller owns the currently open mod screen. The state resets whenever a mod screen opens or
+closes. A mod screen whose mod never calls either service behaves exactly as before (IME on for a title-menu mod
+screen, off for an in-game one); once it calls one, the screen follows the mod. No `[wasm] permissions` entry is
+needed or accepted for `service.ime`.
+
+**Argument order trap:** the generator sorts service arguments alphabetically, so the raw WIT import
+`services::ime_set_cursor_area` takes `(h, w, x, y)`. Always call the SDK wrapper
+`yoake_wasm_sdk::full::client::ime_set_cursor_area(x, y, w, h)`, which reorders them.
+
+Preedit and commit hooks run only on an open mod screen and only for subscribers. Empty preedit clears the composition;
+`Ime::Disabled` sends `("", None)`. Commit arrives before the existing per-character `screen_char_typed_pre` hooks, which
+still run: use one route for insertion, not both. See `docs/guide-ja/10-ime.md` and
+`crates/yoake-wasm-sdk/examples/ime/` for the complete sandboxed example.
+
 ## 要確認 (not verified)
 
 1. **Client modules** are merged (MX3CL1) and tested through the loader, but not in a running game client: no client

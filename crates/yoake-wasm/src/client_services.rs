@@ -115,6 +115,8 @@ client_services! {
     hud_place(corner: HudCorner, size: Vec2) -> Option<Vec2>;
     gui_size() -> Vec2;
     hud_place_v2(corner: HudCornerV2, size: Vec2) -> Option<Vec2>;
+    ime_set_allowed(allowed: bool) -> ();
+    ime_set_cursor_area(h: f32, w: f32, x: f32, y: f32) -> ();
     item_sprite_set(item_id: String, rgba: Vec<u8>, size: (u32, u32)) -> ();
     item_sprite_reset(item_id: String) -> ();
     block_sprite_set(rgba: Vec<u8>, size: (u32, u32), texture_id: String) -> ();

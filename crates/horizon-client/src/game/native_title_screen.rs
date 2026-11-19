@@ -57,6 +57,8 @@ impl Game<'_> {
         self.drag_button = None;
         self.pad.menu.osk = None;
         self.ime_area = None;
+        self.mod_ime_allowed = None;
+        self.mod_ime_area = None;
         preedit::set_preedit(None);
         self.regrab_on_refocus = false;
         self.capture(false);
@@ -65,6 +67,9 @@ impl Game<'_> {
 
     pub(super) fn close_native_mod_screen(&mut self) {
         self.native_mod_screen = None;
+        self.mod_ime_allowed = None;
+        self.mod_ime_area = None;
+        preedit::set_preedit(None);
         let title_return = self.native_title_mod_screen_return.take();
         if let Some((screen, capture)) =
             close_destination(self.screen, self.title.is_some(), title_return)
@@ -113,7 +118,7 @@ impl Game<'_> {
             }
             WindowEvent::Ime(Ime::Commit(text)) => self.ime_commit(text),
             WindowEvent::Ime(Ime::Preedit(text, cursor)) => self.ime_preedit(text, *cursor),
-            WindowEvent::Ime(Ime::Disabled) => preedit::set_preedit(None),
+            WindowEvent::Ime(Ime::Disabled) => self.ime_disabled(),
             WindowEvent::MouseInput { state, button, .. } => {
                 let pressed = *state == ElementState::Pressed;
                 if !self.pad_synthetic_input() {

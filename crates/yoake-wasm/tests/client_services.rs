@@ -19,6 +19,7 @@ struct Observed {
     invalid_shaders: usize,
     writes: usize,
     invalid_writes: usize,
+    ime: Option<(bool, [f32; 4])>,
     dropped: Vec<u64>,
     released: usize,
     output: Vec<String>,
@@ -124,6 +125,18 @@ impl ClientServices for Host {
         observed.writes += 1;
         Ok(())
     }
+
+    fn ime_set_allowed(&mut self, allowed: bool) -> Result<(), String> {
+        self.0.lock().unwrap().ime = Some((allowed, [0.0; 4]));
+        Ok(())
+    }
+
+    fn ime_set_cursor_area(&mut self, h: f32, w: f32, x: f32, y: f32) -> Result<(), String> {
+        let mut observed = self.0.lock().unwrap();
+        let allowed = observed.ime.map(|value| value.0).unwrap_or(false);
+        observed.ime = Some((allowed, [x, y, w, h]));
+        Ok(())
+    }
 }
 
 #[test]
@@ -172,6 +185,7 @@ fn guest_calls_client_imports_and_receives_validation_errors() {
         ),
         (1, 1, 1)
     );
+    assert_eq!(observed.ime, Some((true, [10.0, 20.0, 30.0, 40.0])));
     assert_eq!(observed.dropped, [73]);
     assert_eq!(observed.released, 1);
     assert!(

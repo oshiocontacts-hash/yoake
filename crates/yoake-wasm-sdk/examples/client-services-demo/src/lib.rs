@@ -35,6 +35,8 @@ impl ClientMod for Demo {
             hud::GuiTexture::create(2, 2, TextureFormat::Rgba8, TextureFilter::Nearest).unwrap();
         services::gui_texture_write(&[255; 16], (0, 0), (2, 2), &texture).unwrap();
         assert!(services::gui_texture_write(&[255; 16], (1, 1), (2, 2), &texture).is_err());
+        services::ime_set_allowed(true).unwrap();
+        yoake_wasm_sdk::full::client::ime_set_cursor_area(10.0, 20.0, 30.0, 40.0).unwrap();
         println!("client services: real imports passed");
         et::HudOutcome {
             corners_commands: Vec::new(),

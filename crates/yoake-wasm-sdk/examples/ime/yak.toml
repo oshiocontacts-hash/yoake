@@ -1,0 +1,19 @@
+format = 1
+id = "ime-demo"
+version = "0.1.0"
+name = "IME Demo"
+authors = ["Yoake"]
+description = "Receives IME composition and places the candidate window on a mod screen."
+
+[yoake]
+version = "*"
+
+[side]
+client = true
+server = false
+required_on_join = false
+
+[wasm]
+interface = "1.0"
+world = "client-full"
+client = "bin/wasm/ime-demo.wasm"

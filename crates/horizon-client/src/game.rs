@@ -2665,6 +2665,11 @@ pub(crate) struct Game<'a> {
     ime_allowed: bool,
     /// The candidate window's area last given to the window, in pixels.
     ime_area: Option<[i32; 4]>,
+    /// What the open mod screen's mod asked of the IME: `None` until it calls
+    /// `ime_set_allowed` (then the engine keeps its old mod-screen behaviour).
+    mod_ime_allowed: Option<bool>,
+    /// The open mod screen's candidate rectangle, in GUI-scaled coordinates.
+    mod_ime_area: Option<[f32; 4]>,
     /// When the window lost focus, while it is still without
     /// (`Minecraft.lastActiveTime`: pausing waits 500 ms).
     focus_lost: Option<Instant>,
@@ -18177,9 +18182,7 @@ impl Game<'_> {
                 WindowEvent::Ime(winit::event::Ime::Preedit(text, cursor)) => {
                     self.ime_preedit(&text, cursor)
                 }
-                WindowEvent::Ime(winit::event::Ime::Disabled) => {
-                    horizon_client::preedit::set_preedit(None)
-                }
+                WindowEvent::Ime(winit::event::Ime::Disabled) => self.ime_disabled(),
                 WindowEvent::Resized(size) => {
                     if let Some(r) = &mut self.renderer {
                         r.resize(size.width, size.height);
@@ -19534,6 +19537,8 @@ impl<'a> Game<'a> {
             focused: start_focused,
             ime_allowed: false,
             ime_area: None,
+            mod_ime_allowed: None,
+            mod_ime_area: None,
             focus_lost: None,
             modifiers: winit::keyboard::ModifiersState::empty(),
             fullscreen: horizon_client::window::FullscreenState::new(false),
