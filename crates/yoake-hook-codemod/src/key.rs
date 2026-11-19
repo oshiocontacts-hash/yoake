@@ -162,9 +162,26 @@ pub fn to_snake_case(name: &str) -> String {
     out
 }
 
+/// F1 spike: `impl From<A> for T` and `impl From<B> for T` must not share one helper name.
+fn generic_args_suffix(trait_path: &Path) -> String {
+    use quote::ToTokens;
+    match trait_path.segments.last().map(|s| &s.arguments) {
+        Some(syn::PathArguments::AngleBracketed(args)) if !args.args.is_empty() => {
+            let text = args.to_token_stream().to_string();
+            let mut h: u64 = 0xcbf29ce484222325;
+            for b in text.bytes() {
+                h ^= u64::from(b);
+                h = h.wrapping_mul(0x100000001b3);
+            }
+            format!("_g{:08x}", h as u32)
+        }
+        _ => String::new(),
+    }
+}
+
 pub fn trait_helper_name(trait_path: &Path, method_ident: &Ident) -> String {
     let trait_snake = to_snake_case(&trait_last_segment_name(trait_path));
-    format!("__yoake_trait_{trait_snake}_{method_ident}")
+    format!("__yoake_trait_{trait_snake}{}_{method_ident}", generic_args_suffix(trait_path))
 }
 
 pub fn trait_helper_name_full(trait_path: &Path, method_ident: &Ident) -> String {
@@ -173,7 +190,7 @@ pub fn trait_helper_name_full(trait_path: &Path, method_ident: &Ident) -> String
         .iter()
         .map(|s| to_snake_case(&s.ident.to_string()))
         .collect();
-    format!("__yoake_trait_{}_{method_ident}", parts.join("_"))
+    format!("__yoake_trait_{}{}_{method_ident}", parts.join("_"), generic_args_suffix(trait_path))
 }
 
 #[derive(Default)]

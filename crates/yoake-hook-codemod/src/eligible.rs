@@ -184,8 +184,10 @@ pub fn check_trait_method_movable(
         trait_in_scope: meta.trait_in_scope,
         uses_trait_self_item: false,
         calls_unimported_trait_method: false,
+        in_sig: true,
     };
     scanner.visit_signature(sig);
+    scanner.in_sig = false;
     scanner.visit_block(block);
 
     if scanner.uses_trait_self_item {
@@ -288,10 +290,26 @@ struct TraitDependencyScan<'a> {
     trait_in_scope: bool,
     uses_trait_self_item: bool,
     calls_unimported_trait_method: bool,
+    in_sig: bool,
 }
 
 impl<'ast> TraitDependencyScan<'ast> {
     fn check_path(&mut self, path: &Path) {
+        // F1 spike: `Self::Item` of a supertrait (DoubleEndedIterator) is not an item of this impl, and
+        // `Type::trait_method(..)` needs the trait in scope outside the impl.
+        if self.in_sig
+            && path.segments.len() >= 2
+            && path.segments[0].ident == "Self"
+            && path.segments[1].ident.to_string().chars().next().is_some_and(char::is_uppercase)
+        {
+            self.uses_trait_self_item = true;
+        }
+        if !self.trait_in_scope
+            && path.segments.len() >= 2
+            && self.trait_methods.contains(&path.segments.last().unwrap().ident.to_string())
+        {
+            self.calls_unimported_trait_method = true;
+        }
         if path.segments.len() >= 2 && path.segments[0].ident == "Self" {
             let member = path.segments[1].ident.to_string();
             if self.trait_self_items.contains(&member) {
@@ -330,9 +348,8 @@ impl<'ast> Visit<'ast> for TraitDependencyScan<'ast> {
     }
 
     fn visit_expr_method_call(&mut self, node: &'ast ExprMethodCall) {
-        if !self.trait_in_scope
-            && matches!(&*node.receiver, Expr::Path(p) if p.path.is_ident("self"))
-            && self.trait_methods.contains(&node.method.to_string())
+        // F1 spike: any receiver (`e.fmt(f)` inside `impl Display`), not only `self`.
+        if !self.trait_in_scope && self.trait_methods.contains(&node.method.to_string())
         {
             self.calls_unimported_trait_method = true;
         }
