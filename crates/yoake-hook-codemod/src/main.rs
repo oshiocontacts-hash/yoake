@@ -9,6 +9,7 @@ mod modules;
 mod run;
 mod track_caller;
 mod types;
+mod verify;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -47,6 +48,11 @@ pub struct Config {
     /// W5: `--exclude-module NAME` (with `--module '*'`), `--min-stmts N`.
     pub exclude_modules: Vec<String>,
     pub min_stmts: usize,
+    /// W1: `apply --verify [--verify-arg A]... [--verify-dir D] [--verify-rounds N]`.
+    pub verify: bool,
+    pub verify_args: Vec<String>,
+    pub verify_dir: PathBuf,
+    pub verify_rounds: usize,
 }
 
 pub struct HistoryConfig {
@@ -163,6 +169,10 @@ fn parse_args() -> Result<Option<Command>, String> {
     let mut rustfmt = false;
     let mut exclude_modules: Vec<String> = Vec::new();
     let mut min_stmts: usize = 0;
+    let mut verify = false;
+    let mut verify_args: Vec<String> = Vec::new();
+    let mut verify_dir = PathBuf::from(".");
+    let mut verify_rounds: usize = 8;
     let mut stamp_config: Option<PathBuf> = None;
 
     while let Some(arg) = args.next() {
@@ -236,6 +246,13 @@ fn parse_args() -> Result<Option<Command>, String> {
                 let raw = next_arg(&mut args, "--min-stmts")?;
                 min_stmts = raw.parse().map_err(|_| format!("--min-stmts expects a number, got '{raw}'"))?;
             }
+            "--verify" => verify = true,
+            "--verify-arg" => verify_args.push(next_arg(&mut args, "--verify-arg")?),
+            "--verify-dir" => verify_dir = PathBuf::from(next_arg(&mut args, "--verify-dir")?),
+            "--verify-rounds" => {
+                let raw = next_arg(&mut args, "--verify-rounds")?;
+                verify_rounds = raw.parse().map_err(|_| format!("--verify-rounds expects a number, got '{raw}'"))?;
+            }
             "--stamp-config" => stamp_config = Some(PathBuf::from(next_arg(&mut args, "--stamp-config")?)),
             other => return Err(format!("unknown argument '{other}'\n{}", usage())),
         }
@@ -249,6 +266,9 @@ fn parse_args() -> Result<Option<Command>, String> {
     }
     if modules.is_empty() {
         return Err(format!("at least one --module is required\n{}", usage()));
+    }
+    if verify && (mode != Mode::Apply || callsites) {
+        return Err("--verify applies to `apply` without --callsites".to_string());
     }
     if thir.is_some() && !callsites {
         return Err("--thir requires --callsites".to_string());
@@ -295,6 +315,10 @@ fn parse_args() -> Result<Option<Command>, String> {
         rustfmt,
         exclude_modules,
         min_stmts,
+        verify,
+        verify_args,
+        verify_dir,
+        verify_rounds,
     })))
 }
 
@@ -491,6 +515,14 @@ fn main() -> ExitCode {
     };
 
     let result = match command {
+        Command::Run(config) if config.verify && config.mode == Mode::Apply => {
+            let options = verify::VerifyOptions {
+                cargo_args: config.verify_args.clone(),
+                dir: config.verify_dir.clone(),
+                rounds: config.verify_rounds,
+            };
+            verify::run(&config, &options)
+        }
         Command::Run(config) => run::execute(&config),
         Command::Bridge(config) => bridge::execute(&config),
         Command::CheckHistory(history) => ledger_io::run_check_history(&history.base, &history.current),

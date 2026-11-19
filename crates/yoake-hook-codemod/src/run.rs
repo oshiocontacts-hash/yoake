@@ -780,6 +780,21 @@ pub fn execute(config: &Config) -> Result<bool, String> {
         }
     }
 
+    // W1: keys the verify loop withdrew (`hook-ledger/stamp-exclude.txt`): retire a live id, then record the
+    // manual exclusion in the ledger (the request file is only the transport between rounds).
+    for (key, reason) in crate::verify::read_excludes(&config.ledger) {
+        let shard = ledger_set.shard_mut(&crate_ident);
+        if shard.live_id(&key).is_some() {
+            shard
+                .tombstone(&key)
+                .map_err(|e| format!("failed to tombstone '{key}': {e}"))?;
+        }
+        shard
+            .exclude_manual(Kind::Fn, &key, &reason)
+            .map_err(|e| format!("failed to record manual exclusion '{key}': {e}"))?;
+        manual_keys.entry(key).or_insert(reason);
+    }
+
     for (old_key, new_key) in &config.renames {
         ledger_set
             .shard_mut(&crate_ident)
