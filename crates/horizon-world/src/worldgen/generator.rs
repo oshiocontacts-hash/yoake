@@ -657,6 +657,11 @@ impl GeneratorData {
     pub fn warnings(&self) -> &[String] {
         &self.warnings
     }
+    /// The biome source catalog (the biomes, tags and presets this data
+    /// knows), which level stems are decoded against.
+    pub fn source_catalog(&self) -> &BiomeSourceCatalog {
+        &self.source_catalog
+    }
     pub fn block_states(&self) -> &GenBlockStates {
         &self.states
     }

@@ -211,13 +211,8 @@ impl Game<'_> {
             return Ok(None);
         }
         // `server.getLevel(dimension)`: the server's levels.
-        let dim = match def.dimension.as_str() {
-            "minecraft:overworld" | "minecraft:the_nether" | "minecraft:the_end" => {
-                // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
-                Some(Dim::lookup_or_overworld(&def.dimension))
-            }
-            _ => None,
-        }
+        let dim = self
+            .level_dim(&def.dimension)
         .filter(|d| *d == self.dim || !self.options.execution_role.is_client());
         let Some(dim) = dim else {
             self.test_failure(Text::literal(format!(

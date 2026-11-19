@@ -1417,7 +1417,7 @@ impl Game<'_> {
             .guests
             .iter()
             .filter(|g| g.placed)
-            // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+            // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
             .map(|g| (g.conn, super::Dim::lookup_or_overworld(&g.dimension)))
             .collect();
         for (conn, dim) in open {
@@ -1472,7 +1472,7 @@ impl Game<'_> {
             .filter(|g| g.placed && g.dimension == dim && Some(g.uuid) != but)
             .filter_map(|g| g.vehicle)
             .collect();
-        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+        // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
         if host && super::Dim::lookup_or_overworld(dim) == self.dim {
             others.extend(self.riding);
         }
@@ -1491,7 +1491,7 @@ impl Game<'_> {
     ) -> Option<(horizon_world::nbt::Tag, [i32; 4])> {
         vehicle?;
         let back = self.dim;
-        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+        // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
         let theirs = super::Dim::lookup_or_overworld(dim);
         if theirs != back
             && let Err(e) = self.enter_level(host.as_deref_mut(), theirs)
@@ -2000,7 +2000,7 @@ impl Game<'_> {
                     // (`ServerPlayer.disconnect` -> `doCloseContainer`).
                     if guest.placed {
                         let back = self.dim;
-                        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+                        // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
                         let theirs = super::Dim::lookup_or_overworld(&guest.dimension);
                         if self.enter_level(Some(&mut host), theirs).is_ok() {
                             let conn = guest.conn;
@@ -2637,7 +2637,17 @@ impl Game<'_> {
         }
         // A server places each player in their own level (`PlayerList.placeNewPlayer`).
         let back = self.dim;
-        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+        // F3-3: the player's saved level is looked up in the world's registry; one the world
+        // does not have (its pack was removed) is the Overworld, never another level's folder.
+        if !self.level_registry.contains(&g.dimension) {
+            log::warn!(
+                "Horizon: {} was last in level {}, which this world does not have; \
+                 placing them in the Overworld",
+                g.name,
+                g.dimension
+            );
+            g.dimension = super::Dim::Overworld.id().to_owned();
+        }
         let level = super::Dim::lookup_or_overworld(&g.dimension);
         let elsewhere = level != back;
         if !elsewhere {

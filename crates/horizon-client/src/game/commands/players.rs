@@ -197,7 +197,7 @@ impl Game<'_> {
         let theirs = host
             .hub
             .guest(conn)
-            // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+            // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
             .map(|g| super::super::Dim::lookup_or_overworld(&g.dimension));
         if let Some(dim) = theirs.filter(|d| *d != back)
             && let Err(e) = self.enter_level(Some(&mut host), dim)

@@ -14,6 +14,9 @@ pub(super) struct PreparedWorld {
     pub save_root: PathBuf,
     /// The levels' shapes, from the world's dimension types.
     pub shapes: horizon_client::chunk::LevelShapes,
+    /// The world's levels: the three vanilla ones plus the saved and data pack
+    /// level stems (F3-3).
+    pub registry: horizon_client::level_registry::LevelRegistry,
     pub level: Level,
     pub world: World,
     pub streaming: Streaming,
@@ -222,10 +225,32 @@ impl WorldRequest {
             level.dimension = d.clone();
             level.position = None;
         }
-        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
-        let dim = Dim::lookup_or_overworld(&level.dimension);
         let shapes = level_shapes(&save_root, res.biomes());
-        let shape = shapes.get(dim.id());
+        // F3-3: the world's levels, built before the player's level is looked up in them.
+        let registry = build_level_registry(
+            res,
+            pack,
+            options,
+            &save_root,
+            shapes,
+            &level.enabled_features,
+        );
+        let dim = match registry.get(&level.dimension) {
+            Some(entry) => Dim::intern(&entry.id),
+            None => {
+                // The save (or --dimension) names a level this world does not have
+                // (its pack was removed): the Overworld, at its spawn.
+                log::warn!(
+                    "Horizon: the player's level {} is not one of this world's levels; \
+                     using the Overworld",
+                    level.dimension
+                );
+                level.dimension = "minecraft:overworld".to_owned();
+                level.position = None;
+                Dim::Overworld
+            }
+        };
+        let shape = registry.shape(dim.id()).unwrap_or_else(|| shapes.get(dim.id()));
         let streaming_step = startup::step("world.make_streaming");
         let (mut streaming, save, locator) = make_streaming(
             res,
@@ -235,6 +260,7 @@ impl WorldRequest {
             &save_root,
             dim,
             shape,
+            registry.generator_stem(dim.id()),
             level.seed,
             &level.enabled_features,
         )?;
@@ -243,7 +269,7 @@ impl WorldRequest {
         let mut world = World::new(res.facts().air, level.seed);
         world.attachments = save.load_attachments();
         world.shape = shape;
-        world.fast_lava = dim == Dim::Nether;
+        world.fast_lava = level_fast_lava(&registry, dim);
         world.game_time = level.time;
         world.day_time = options.time.unwrap_or(level.day_time);
         world.weather = level.weather;
@@ -268,6 +294,7 @@ impl WorldRequest {
         Ok(PreparedWorld {
             save_root,
             shapes,
+            registry,
             level,
             world,
             streaming,
@@ -570,7 +597,7 @@ pub(super) fn creation_worldgen_overrides(
 }
 /// The worldgen entries of the world's enabled data packs, logging what
 /// the generator leaves out of them.
-fn world_worldgen_overrides(
+pub(super) fn world_worldgen_overrides(
     world_root: &std::path::Path,
     resources: &std::path::Path,
     biomes: &horizon_client::biome::Biomes,
@@ -654,6 +681,58 @@ pub(super) fn level_shapes(
     shapes
 }
 
+/// The world's level registry (F3-3): the vanilla levels, the saved level stems and the
+/// enabled data packs'. Problems (a stem that does not validate) are logged and the level
+/// left out; the vanilla levels are never affected.
+pub(super) fn build_level_registry(
+    res: &Resources,
+    pack: &PackResources,
+    options: &Options,
+    world_root: &std::path::Path,
+    shapes: horizon_client::chunk::LevelShapes,
+    enabled_features: &[String],
+) -> horizon_client::level_registry::LevelRegistry {
+    use horizon_client::level_registry::LevelRegistry;
+    let overrides = world_worldgen_overrides(world_root, &options.resources, res.biomes(), enabled_features);
+    // The biome catalog is only needed to decode stems of levels other than the three; a
+    // world with none does not load the worldgen data for it (the generator does, later).
+    let data = LevelRegistry::needs_catalog(world_root, &overrides)
+        .then(|| {
+            horizon_client::vanillagen::shared_data_with(
+                &options.resources.join("worldgen"),
+                &overrides,
+                pack.assets.registry,
+            )
+            .map_err(|e| log::warn!("Horizon: level stems cannot be checked: {e}"))
+            .ok()
+        })
+        .flatten();
+    let registry = LevelRegistry::for_world(
+        world_root,
+        &options.resources,
+        &overrides,
+        shapes,
+        data.as_ref().map(|d| d.source_catalog()),
+    );
+    for problem in registry.problems() {
+        log::error!("Horizon: {}", problem.message);
+    }
+    registry
+}
+
+/// Whether lava flows fast in the level (the `ultrawarm` type property in the Nether).
+pub(super) fn level_fast_lava(
+    registry: &horizon_client::level_registry::LevelRegistry,
+    dim: Dim,
+) -> bool {
+    match dim {
+        Dim::Overworld | Dim::End => false,
+        Dim::Nether => true,
+        // F3-4 replaces the three-way match by the type query for all levels.
+        _ => registry.get(dim.id()).is_some_and(|e| e.dimension_type.fast_lava()),
+    }
+}
+
 pub(super) fn make_streaming(
     res: &Resources,
     pack: &PackResources,
@@ -662,6 +741,7 @@ pub(super) fn make_streaming(
     world_root: &std::path::Path,
     dim: Dim,
     shape: horizon_client::chunk::LevelShape,
+    stem: Option<&serde_json::Value>,
     seed: i64,
     enabled_features: &[String],
 ) -> Result<(Streaming, Arc<SaveDir>, Option<Arc<VanillaTerrain>>)> {
@@ -812,9 +892,9 @@ pub(super) fn make_streaming(
         let preset = horizon_client::save::WorldGen::preset(world_root);
         let overrides =
             world_worldgen_overrides(world_root, &options.resources, &biomes, enabled_features);
-        let saved_stem = horizon_client::save::world_gen_settings(world_root)
-            .and_then(|s| s.get("dimensions")?.get(dim.id()).cloned())
-            .map(|stem| horizon_client::scoreboard::tag_to_json(&stem));
+        // The level's stem from the registry: the saved one, a data pack's over it, or a
+        // mod's (what `world_gen_settings` held for the three vanilla levels before F3-3).
+        let saved_stem = stem.cloned();
         let mut inner = VanillaTerrain::for_world_with_settings(&options.resources.join("worldgen"), &overrides, pack.assets.registry, &biomes, seed, preset, dim.id(), structures, saved_stem.as_ref()).map_err(|e| {
                 if overrides.is_empty() {
                     format!("{e}\nPrepare the worldgen bundle with the launcher, or: horizon-prepare --prepare")
@@ -867,7 +947,12 @@ pub(super) fn make_streaming(
         .horizon
         .leaf_culling_effective(&settings.resource_packs);
     streaming.biome_zoom = BiomeZoom::new(obfuscate_seed(seed));
-    streaming.sky_light = dim != Dim::Nether;
+    // F3-4 makes this the type's `has_skylight`; the three vanilla levels keep their rule.
+    streaming.sky_light = match dim {
+        Dim::Overworld | Dim::End => true,
+        Dim::Nether => false,
+        _ => shape.sky_light,
+    };
     streaming.nether_shading = dim == Dim::Nether;
     // A server draws nothing: neither the integrated server nor the
     // dedicated one meshes sections.

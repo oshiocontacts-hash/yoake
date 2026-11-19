@@ -9227,8 +9227,8 @@ impl Game<'_> {
         if self.serving.is_none() && self.options.dedicated.is_none() {
             return None;
         }
-        // F3-0: only known levels (the three vanilla ones until F3-3 registers more).
-        let dim = super::Dim::lookup(dimension)?;
+        // F3-3: the levels of the world's registry.
+        let dim = self.level_dim(dimension)?;
         if dim == self.dim {
             Some(&mut self.world.random)
         } else {
