@@ -407,7 +407,6 @@ pub(crate) fn log_startup() {
 
 pub(crate) fn refuse_binary(entry: &Installed, reason: &str) {
     log::warn!("YAK {} native library refused: {reason}", entry.manifest.id);
-    eprintln!("YAK {} native library refused: {reason}", entry.manifest.id);
     if let Some(runtime) = RUNTIME.get() {
         let mut problems = runtime
             .problems
@@ -598,7 +597,6 @@ pub(crate) fn wasm_mods_from(
             }),
             Err(reason) => {
                 log::warn!("YAK {} wasm module refused: {reason}", entry.manifest.id);
-                eprintln!("YAK {} wasm module refused: {reason}", entry.manifest.id);
             }
         }
     }

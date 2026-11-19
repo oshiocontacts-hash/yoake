@@ -213,7 +213,6 @@ pub fn load_package_on(side: ThreadSide, bytes: Vec<u8>, origin: Option<Origin>,
     if LOADED.with(|loaded| !loaded.borrow()[side.other().index()].is_empty()) {
         let refusal = Refusal::SharedThread { loading: side, holds: side.other() };
         log::warn!("yoake: full-access mod \x27{id}\x27 {refusal}");
-        eprintln!("yoake: full-access mod \x27{id}\x27 {refusal}");
         return Err(refusal);
     }
     // an unknown origin is refused before anything else looks at it; a server's or friend's package goes through
@@ -417,7 +416,6 @@ pub fn process_approved_list() -> Option<&'static ApprovedList> {
             }
             Err(e) => {
                 log::warn!("yoake: {e}; no full-access mod will run");
-                eprintln!("yoake: {e}; no full-access mod will run");
                 None
             }
         }
@@ -475,7 +473,6 @@ pub fn unload_client_mods() -> Vec<String> {
     let errors = unload_previous(ThreadSide::Client);
     for line in &errors {
         log::warn!("yoake: {line}");
-        eprintln!("yoake: {line}");
     }
     errors
 }
@@ -632,7 +629,6 @@ pub fn dev_reload_check(enabled: bool, side: ThreadSide, list_path: &Path, mods_
         // the stamp stays: the change is looked at again at the next check
         let line = format!("yoake: dev reload ({side:?}) postponed: a guest is running (never reload mid-activation)");
         log::warn!("{line}");
-        eprintln!("{line}");
         return None;
     }
     let set_stamp = || DEV_SIDES.with(|sides| sides.borrow_mut()[side.index()].stamp = stamp);
@@ -642,7 +638,6 @@ pub fn dev_reload_check(enabled: bool, side: ThreadSide, list_path: &Path, mods_
             set_stamp();
             let line = format!("yoake: dev reload ({side:?}): {e}; keeping the loaded mods");
             log::warn!("{line}");
-            eprintln!("{line}");
             return None;
         }
     };
@@ -673,14 +668,12 @@ pub fn dev_reload_check(enabled: bool, side: ThreadSide, list_path: &Path, mods_
         DEV_SIDES.with(|sides| sides.borrow_mut()[side.index()].stamp = last_stamp);
         let line = format!("yoake: dev reload ({side:?}) generation {} did not run ({}); it is tried again at the next check", list.generation(), report.problems.join("; "));
         log::warn!("{line}");
-        eprintln!("{line}");
         return None;
     }
     let refused = report.skipped.iter().filter(|(_, r)| !matches!(r, Refusal::Sandboxed | Refusal::OtherSide)).count();
     let ids: Vec<&str> = report.loaded.iter().map(|l| l.id.as_str()).collect();
     let line = format!("yoake: dev reload ({side:?}) generation {}: {} mod(s) loaded [{}], {refused} refused", list.generation(), ids.len(), ids.join(", "));
     log::info!("{line}");
-    eprintln!("{line}");
     Some(DevReload { generation: list.generation(), report })
 }
 
@@ -790,18 +783,15 @@ fn announce_loaded(side: ThreadSide, report: &LoadReport) {
         let hooks = runtime::stats_of(loaded.module).map_or(0, |stats| stats.registered.len());
         let line = format!("full-access mod '{}' {} loaded ({side:?} side, {hooks} hook(s) registered)", loaded.id, loaded.version);
         log::info!("yoake: {line}");
-        eprintln!("yoake: {line}");
     }
     let refused = report.skipped.iter().filter(|(_, r)| !matches!(r, Refusal::Sandboxed | Refusal::OtherSide)).count();
     let line = format!("{side:?}: {} full-access mod(s) loaded, {refused} refused", report.loaded.len());
     log::info!("yoake: {line}");
-    eprintln!("yoake: {line}");
 }
 
 fn announce(report: &LoadReport) {
     for line in report.messages() {
         log::warn!("yoake: {line}");
-        eprintln!("yoake: {line}");
     }
 }
 
