@@ -6,6 +6,8 @@ struct Registry {
     hosts: HashMap<usize, HashSet<u64>>,
     shaders: HashMap<(usize, String), u64>,
     screens: HashMap<usize, u64>,
+    item_sprites: HashMap<String, (usize, u64)>,
+    block_sprites: HashMap<String, (usize, u64)>,
     pending: Vec<Cleanup>,
 }
 
@@ -16,6 +18,8 @@ struct Cleanup {
     streams: Vec<NativeAudioStreamId>,
     shaders: Vec<String>,
     screen: bool,
+    item_sprites: Vec<String>,
+    block_sprites: Vec<String>,
 }
 
 impl Registry {
@@ -41,7 +45,26 @@ impl Registry {
             })
             .collect();
         cleanup.screen = self.screens.get(&cleanup.owner) == Some(&cleanup.generation);
-        if !cleanup.streams.is_empty() || !cleanup.shaders.is_empty() || cleanup.screen {
+        cleanup.item_sprites = self
+            .item_sprites
+            .iter()
+            .filter_map(|(id, &(owner, generation))| {
+                (owner == cleanup.owner && generation == cleanup.generation).then(|| id.clone())
+            })
+            .collect();
+        cleanup.block_sprites = self
+            .block_sprites
+            .iter()
+            .filter_map(|(id, &(owner, generation))| {
+                (owner == cleanup.owner && generation == cleanup.generation).then(|| id.clone())
+            })
+            .collect();
+        if !cleanup.streams.is_empty()
+            || !cleanup.shaders.is_empty()
+            || cleanup.screen
+            || !cleanup.item_sprites.is_empty()
+            || !cleanup.block_sprites.is_empty()
+        {
             self.pending.push(cleanup);
         }
     }
@@ -62,6 +85,22 @@ impl Registry {
             if cleanup.screen {
                 self.screens.remove(&cleanup.owner);
             }
+            cleanup.item_sprites.retain(|id| {
+                if self.item_sprites.get(id) == Some(&(cleanup.owner, cleanup.generation)) {
+                    self.item_sprites.remove(id);
+                    true
+                } else {
+                    false
+                }
+            });
+            cleanup.block_sprites.retain(|id| {
+                if self.block_sprites.get(id) == Some(&(cleanup.owner, cleanup.generation)) {
+                    self.block_sprites.remove(id);
+                    true
+                } else {
+                    false
+                }
+            });
         }
         pending
     }
@@ -117,6 +156,32 @@ impl Registration {
         }
     }
 
+    pub(super) fn claim_item_sprite(&self, id: String) {
+        registry()
+            .item_sprites
+            .insert(id, (self.owner, self.generation));
+    }
+
+    pub(super) fn remove_item_sprite(&self, id: &str) {
+        let mut state = registry();
+        if state.item_sprites.get(id) == Some(&(self.owner, self.generation)) {
+            state.item_sprites.remove(id);
+        }
+    }
+
+    pub(super) fn claim_block_sprite(&self, id: String) {
+        registry()
+            .block_sprites
+            .insert(id, (self.owner, self.generation));
+    }
+
+    pub(super) fn remove_block_sprite(&self, id: &str) {
+        let mut state = registry();
+        if state.block_sprites.get(id) == Some(&(self.owner, self.generation)) {
+            state.block_sprites.remove(id);
+        }
+    }
+
     pub(super) fn release(&mut self, streams: Vec<NativeAudioStreamId>) {
         if self.released {
             return;
@@ -130,6 +195,8 @@ impl Registration {
             streams,
             shaders: Vec::new(),
             screen: false,
+            item_sprites: Vec::new(),
+            block_sprites: Vec::new(),
         });
         PENDING.store(!state.pending.is_empty(), Ordering::Release);
     }
@@ -173,6 +240,12 @@ fn apply(host: &mut dyn Host, pending: Vec<Cleanup>) {
         if cleanup.screen {
             host.mod_screen_close(cleanup.id);
         }
+        for item_id in cleanup.item_sprites {
+            let _ = host.item_sprite_reset(&item_id);
+        }
+        for texture_id in cleanup.block_sprites {
+            let _ = host.block_sprite_reset(&texture_id);
+        }
     }
 }
 
@@ -211,6 +284,8 @@ mod tests {
             streams: Vec::new(),
             shaders: Vec::new(),
             screen: false,
+            item_sprites: Vec::new(),
+            block_sprites: Vec::new(),
         }
     }
 
@@ -309,5 +384,54 @@ mod tests {
         apply(&mut host, state.take());
         assert_eq!(host.audio.queued_audio_stream(2, other), Some(32));
         host.audio.end_fixed_audio_mix();
+    }
+
+    #[test]
+    fn cleanup_resets_only_sprites_still_owned_by_unloading_mod() {
+        #[derive(Default)]
+        struct SpriteHost {
+            item_resets: Vec<String>,
+            block_resets: Vec<String>,
+        }
+
+        impl Host for SpriteHost {
+            fn item_sprite_reset(&mut self, item_id: &str) -> Result<(), String> {
+                self.item_resets.push(item_id.to_owned());
+                Ok(())
+            }
+
+            fn block_sprite_reset(&mut self, texture_id: &str) -> Result<(), String> {
+                self.block_resets.push(texture_id.to_owned());
+                Ok(())
+            }
+        }
+
+        let mut state = Registry::default();
+        let gen_a = state.register(1);
+        let gen_b = state.register(2);
+        state
+            .item_sprites
+            .insert("minecraft:diamond".into(), (1, gen_a));
+        state
+            .item_sprites
+            .insert("minecraft:apple".into(), (1, gen_a));
+        // Mod B overwrites diamond after Mod A.
+        state
+            .item_sprites
+            .insert("minecraft:diamond".into(), (2, gen_b));
+        state
+            .block_sprites
+            .insert("mymod:block/pan".into(), (1, gen_a));
+
+        let mut host = SpriteHost::default();
+        state.release(cleanup(1, gen_a));
+        apply(&mut host, state.take());
+        assert_eq!(host.item_resets, ["minecraft:apple"]);
+        assert_eq!(host.block_resets, ["mymod:block/pan"]);
+
+        // Now Mod B unloads and resets diamond cleanly.
+        state.release(cleanup(2, gen_b));
+        apply(&mut host, state.take());
+        assert_eq!(host.item_resets, ["minecraft:apple", "minecraft:diamond"]);
     }
 }

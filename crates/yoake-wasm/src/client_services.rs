@@ -115,4 +115,10 @@ client_services! {
     hud_place(corner: HudCorner, size: Vec2) -> Option<Vec2>;
     gui_size() -> Vec2;
     hud_place_v2(corner: HudCornerV2, size: Vec2) -> Option<Vec2>;
+    item_sprite_set(item_id: String, rgba: Vec<u8>, size: (u32, u32)) -> ();
+    item_sprite_reset(item_id: String) -> ();
+    block_sprite_set(rgba: Vec<u8>, size: (u32, u32), texture_id: String) -> ();
+    block_sprite_reset(texture_id: String) -> ();
+    item_sprite_pixels(item_id: String) -> (u32, u32, Vec<u8>);
+    block_sprite_pixels(texture_id: String) -> (u32, u32, Vec<u8>);
 }

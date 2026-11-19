@@ -74,6 +74,8 @@ pub(super) struct SpriteAnimator {
     changed: Vec<u32>,
     /// Whether each sprite layer has an animation.
     is_animated: Vec<bool>,
+    /// Animated layers currently overridden by mods (empty unless a mod sets one).
+    overridden: std::collections::HashSet<u32>,
 }
 
 impl SpriteAnimator {
@@ -176,6 +178,7 @@ impl SpriteAnimator {
                 size,
                 changed: Vec::new(),
                 is_animated,
+                overridden: std::collections::HashSet::new(),
             };
         };
         let frames: Vec<_> = frames
@@ -256,6 +259,7 @@ impl SpriteAnimator {
             size,
             changed: Vec::new(),
             is_animated,
+            overridden: std::collections::HashSet::new(),
         }
     }
 
@@ -283,6 +287,19 @@ impl SpriteAnimator {
             .contains(wgpu::DownlevelFlags::COMPUTE_SHADERS)
             && limits.max_storage_textures_per_shader_stage >= 1
             && limits.max_storage_buffers_per_shader_stage >= 2
+    }
+
+    /// Pause or resume tick animation updates on `layer` while a mod overrides it.
+    pub fn set_layer_overridden(&mut self, layer: u32, overridden: bool) {
+        if overridden {
+            self.overridden.insert(layer);
+        } else if self.overridden.remove(&layer) {
+            for sprite in &mut self.sprites {
+                if sprite.animation.layer == layer {
+                    sprite.shown = None;
+                }
+            }
+        }
     }
 
     /// The layers the last `animate` rewrote (for the shader pack atlas).
@@ -365,6 +382,9 @@ impl SpriteAnimator {
         let mut count = 0;
         self.changed.clear();
         for sprite in &mut self.sprites {
+            if !self.overridden.is_empty() && self.overridden.contains(&sprite.animation.layer) {
+                continue;
+            }
             if let Some(active) = active {
                 let layer = sprite.animation.layer as usize;
                 let word = layer / u64::BITS as usize;

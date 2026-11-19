@@ -291,6 +291,7 @@ pub(crate) mod native_server_physics;
 mod native_session;
 mod native_shaders;
 mod native_sky_tint;
+mod native_sprites;
 mod native_streams;
 mod native_team;
 mod native_ticks;
@@ -3046,6 +3047,8 @@ pub(crate) struct Game<'a> {
     dragon_model: Option<horizon_client::mobs::Part>,
     /// Map textures waiting for the next HUD batch to upload them.
     map_patches: Vec<horizon_client::font::Patch>,
+    /// Mod item sprite sub-rects waiting for the next HUD batch to upload them.
+    sprite_patches: Vec<horizon_client::font::Patch>,
     text_displays: std::collections::HashMap<i32, text_displays::RemoteTextDisplay>,
     interactions: std::collections::HashMap<i32, interactions::RemoteInteraction>,
     /// The fence knots a server tracks to this client, by entity id, at their
@@ -3137,6 +3140,7 @@ pub(crate) struct Game<'a> {
     panel: native_panel::Panel,
     /// Horizon's own shader pack, while one is picked (`game/native_shaders.rs`).
     native_shaders: native_shaders::NativeShaders,
+    native_sprites: native_sprites::SpriteOverrideStore,
     /// The items native client mods claim and the events they haven't polled (game/native_claimed_items.rs).
     native_input: native_claimed_items::ModInput,
     /// The native lifecycle bookkeeping.
@@ -16465,10 +16469,11 @@ impl Game<'_> {
         } else {
             self.shader_pack_inputs(camera, alpha as f32, &sky)
         };
-        // Map textures and font glyphs changed while building this frame's
-        // geometry (game/maps.rs, world text) upload with this batch; draining
-        // map_patches any earlier leaves them a frame behind.
+        // Map textures, mod item sprites and font glyphs changed while building this frame's
+        // geometry (game/maps.rs, game/native_sprites.rs, world text) upload with this batch;
+        // draining them any earlier leaves them a frame behind.
         hud.patches.append(&mut self.map_patches);
+        hud.patches.append(&mut self.sprite_patches);
         let entity_spans = std::mem::take(self.entity_spans.get_mut());
         let entity_motion = std::mem::take(self.entity_motion.get_mut());
         let glowing = std::mem::take(self.glowing_vertices.get_mut());
@@ -19690,6 +19695,7 @@ impl<'a> Game<'a> {
             breath_clouds: Vec::new(),
             dragon_model: prepared.dragon_model,
             map_patches: Vec::new(),
+            sprite_patches: Vec::new(),
             text_displays: Default::default(),
             interactions: Default::default(),
             remote_knots: Default::default(),
@@ -19761,6 +19767,7 @@ impl<'a> Game<'a> {
             recipe_tables: Default::default(),
             panel: Default::default(),
             native_shaders: Default::default(),
+            native_sprites: Default::default(),
             native_input: Default::default(),
             native_lifecycle: Default::default(),
             native_mannequins: Default::default(),
