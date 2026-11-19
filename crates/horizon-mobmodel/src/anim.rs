@@ -8,8 +8,10 @@
 //! * Times are seconds. Rotations are degrees `[x, y, z]`, positions are model pixels, scale is a factor. Values are
 //!   taken as written in the file (no axis flips); the pose evaluator turns rotations into quaternions with the same
 //!   Euler order as `skeleton::bone_matrices` (X first, then Y, then Z).
-//! * A keyframe's `lerp_mode` and `easing` control the segment that **starts** at that keyframe. Easing shapes the
-//!   segment's progress for `linear` and `catmullrom`; it is ignored for `step` and `bezier`.
+//! * Two direction rules (verify both with a real Blockbench / GeckoLib export): a keyframe's Blockbench
+//!   `interpolation` / `lerp_mode` controls the segment that STARTS at that key (step holds the start value), while a
+//!   GeckoLib-style `easing` (+ `easingArgs`) on a keyframe shapes the segment that ENDS at that key (how motion
+//!   approaches it). Easing shapes the progress for `linear` and `catmullrom`; it is ignored for `step` and `bezier`.
 //! * `pre` is the value approached from the previous keyframe, `post` the value left towards the next one. At exactly
 //!   a keyframe's time the sample is its `post`. Before the first keyframe the first `pre` holds; after the last the
 //!   last `post` holds.
@@ -245,6 +247,14 @@ impl Easing {
 
     /// Map progress `x` in `[0, 1]` (clamped) to eased progress. 0 maps to 0 and 1 to 1 for every curve.
     pub fn apply(self, x: f32) -> f32 {
+        self.apply_with(x, None)
+    }
+
+    /// `apply` with the keyframe's first `easingArgs` value, for the families that take a parameter:
+    /// `back`: the overshoot (default 1.70158); `elastic`: an oscillation-frequency multiplier (default 1, clamped to
+    /// 0.1..10). The other families ignore it (bounce has no parameter here).
+    pub fn apply_with(self, x: f32, arg: Option<f32>) -> f32 {
+        let arg = arg.filter(|a| a.is_finite());
         let x = if x.is_finite() { x.clamp(0.0, 1.0) } else { 0.0 };
         let Easing::Ease(fam, dir) = self else { return x };
         if x == 0.0 || x == 1.0 {
@@ -293,24 +303,25 @@ impl Easing {
                 }
             }
             (EaseFamily::Back, d) => {
-                const C1: f32 = 1.70158;
-                const C2: f32 = C1 * 1.525;
-                const C3: f32 = C1 + 1.0;
+                let c1 = arg.unwrap_or(1.70158).clamp(-10.0, 10.0);
+                let c2 = c1 * 1.525;
+                let c3 = c1 + 1.0;
                 match d {
-                    EaseDir::In => C3 * x * x * x - C1 * x * x,
-                    EaseDir::Out => 1.0 + C3 * (x - 1.0).powi(3) + C1 * (x - 1.0).powi(2),
+                    EaseDir::In => c3 * x * x * x - c1 * x * x,
+                    EaseDir::Out => 1.0 + c3 * (x - 1.0).powi(3) + c1 * (x - 1.0).powi(2),
                     EaseDir::InOut => {
                         if x < 0.5 {
-                            ((2.0 * x).powi(2) * ((C2 + 1.0) * 2.0 * x - C2)) / 2.0
+                            ((2.0 * x).powi(2) * ((c2 + 1.0) * 2.0 * x - c2)) / 2.0
                         } else {
-                            ((2.0 * x - 2.0).powi(2) * ((C2 + 1.0) * (2.0 * x - 2.0) + C2) + 2.0) / 2.0
+                            ((2.0 * x - 2.0).powi(2) * ((c2 + 1.0) * (2.0 * x - 2.0) + c2) + 2.0) / 2.0
                         }
                     }
                 }
             }
             (EaseFamily::Elastic, d) => {
-                let c4 = 2.0 * PI / 3.0;
-                let c5 = 2.0 * PI / 4.5;
+                let freq = arg.unwrap_or(1.0).clamp(0.1, 10.0);
+                let c4 = 2.0 * PI / 3.0 * freq;
+                let c5 = 2.0 * PI / 4.5 * freq;
                 match d {
                     EaseDir::In => -(2.0f32.powf(10.0 * x - 10.0)) * ((10.0 * x - 10.75) * c4).sin(),
                     EaseDir::Out => 2.0f32.powf(-10.0 * x) * ((10.0 * x - 0.75) * c4).sin() + 1.0,
@@ -459,7 +470,10 @@ pub struct Keyframe {
     pub post: Vec3Expr,
     /// Interpolation of the segment that starts here.
     pub lerp: LerpMode,
+    /// GeckoLib-style `easing`: shapes the segment that ENDS at this key (how motion approaches it).
     pub easing: Easing,
+    /// First `easingArgs` value.
+    pub easing_args: Option<f32>,
     pub bezier: BezierHandles,
 }
 
@@ -569,13 +583,14 @@ fn sample_keys(keys: &[Keyframe], t: f32, inp: &ExprInputs) -> Vec3 {
         LerpMode::Step => a.post.eval(inp),
         LerpMode::Linear => {
             let (p1, p2) = (a.post.eval(inp), b.pre.eval(inp));
-            p1 + (p2 - p1) * a.easing.apply(s)
+            // Easing rule: the easing of the segment's END key (see `Keyframe::easing`); the lerp mode is the START key's.
+            p1 + (p2 - p1) * b.easing.apply_with(s, b.easing_args)
         }
         LerpMode::CatmullRom => {
             let (p1, p2) = (a.post.eval(inp), b.pre.eval(inp));
             let p0 = if i > 0 { keys[i - 1].post.eval(inp) } else { p1 };
             let p3 = keys.get(i + 2).map_or(p2, |k| k.pre.eval(inp));
-            catmull(p0, p1, p2, p3, a.easing.apply(s))
+            catmull(p0, p1, p2, p3, b.easing.apply_with(s, b.easing_args))
         }
         LerpMode::Bezier => {
             let (p1, p2) = (a.post.eval(inp), b.pre.eval(inp));
@@ -1007,6 +1022,7 @@ fn parse_channel(v: &Value, what: &str, ctx: &mut Ctx) -> Result<Channel, LoadEr
             post: Vec3Expr::constant(Vec3::ZERO),
             lerp: LerpMode::Linear,
             easing: Easing::Linear,
+            easing_args: None,
             bezier: BezierHandles::default(),
         };
         if let Value::Object(o) = kv {
@@ -1025,6 +1041,12 @@ fn parse_channel(v: &Value, what: &str, ctx: &mut Ctx) -> Result<Channel, LoadEr
                         Some(e) => key.easing = e,
                         None => ctx.warn(format!("{kw}: unknown easing {fv}, using linear")),
                     },
+                    "easingargs" | "easingArgs" | "easing_args" => {
+                        key.easing_args = fv.as_array().and_then(|v| v.first()).and_then(Value::as_f64).map(|x| x as f32);
+                        if key.easing_args.is_none() {
+                            ctx.warn(format!("{kw}: easingArgs must be a list of numbers (ignored)"));
+                        }
+                    }
                     "bezier_left_time" => key.bezier.left_time = f32_vec3(fv, &kw, ctx)?,
                     "bezier_left_value" => key.bezier.left_value = f32_vec3(fv, &kw, ctx)?,
                     "bezier_right_time" => key.bezier.right_time = f32_vec3(fv, &kw, ctx)?,
@@ -1231,7 +1253,7 @@ fn convert_bb_bone(bone: &str, kfs: &[Value], ctx: &mut Ctx) -> Result<Option<Bo
                 right_time: bb_vec3(k, "bezier_right_time", d.right_time, &what, ctx)?,
                 right_value: bb_vec3(k, "bezier_right_value", d.right_value, &what, ctx)?,
             };
-            keys.push(Keyframe { time, pre, post, lerp, easing: Easing::Linear, bezier });
+            keys.push(Keyframe { time, pre, post, lerp, easing: Easing::Linear, easing_args: None, bezier });
         }
         if keys.is_empty() {
             continue;
@@ -1471,9 +1493,49 @@ mod tests {
 
     #[test]
     fn easing_applies_to_linear_segments() {
-        let c = ch(r#"{"0": {"post": [0,0,0], "easing": "easeInQuad"}, "1": [8,0,0]}"#);
+        // Rule: the easing sits on the END key of the segment it shapes.
+        let c = ch(r#"{"0": [0,0,0], "1": {"post": [8,0,0], "easing": "easeInQuad"}}"#);
         near(c.sample(0.5, &inp()).x, 2.0);
         near(c.sample(0.25, &inp()).x, 0.5);
+        // An easing on the start key does not shape the segment that leaves it...
+        let c = ch(r#"{"0": {"post": [0,0,0], "easing": "easeInQuad"}, "1": [8,0,0], "2": [16,0,0]}"#);
+        near(c.sample(0.5, &inp()).x, 4.0);
+        // ...it shaped the one that ended there (none before the first key), and the end key's easing applies in segment 2.
+        let c = ch(r#"{"0": [0,0,0], "1": [8,0,0], "2": {"post": [16,0,0], "easing": "easeOutQuad"}}"#);
+        near(c.sample(0.5, &inp()).x, 4.0);
+        near(c.sample(1.5, &inp()).x, 8.0 + 8.0 * 0.75);
+    }
+
+    #[test]
+    fn lerp_mode_belongs_to_the_start_key() {
+        // Rule: the lerp mode of the START key rules the segment: step on key 0 holds across 0..1 even though key 1 is linear.
+        let c = ch(r#"{"0": {"post": [1,0,0], "lerp_mode": "step"}, "1": [5,0,0], "2": [9,0,0]}"#);
+        assert_eq!(c.sample(0.5, &inp()).x, 1.0);
+        near(c.sample(1.5, &inp()).x, 7.0); // key 1 is linear: 5 -> 9
+        // and step on the END key does not stop the segment before it from interpolating
+        let c = ch(r#"{"0": [1,0,0], "1": {"post": [5,0,0], "lerp_mode": "step"}, "2": [9,0,0]}"#);
+        near(c.sample(0.5, &inp()).x, 3.0);
+        assert_eq!(c.sample(1.5, &inp()).x, 5.0);
+    }
+
+    #[test]
+    fn easing_args_for_back_and_elastic() {
+        // easeInBack with overshoot 0: c3 = 1, so x^3: 0.125 at the middle.
+        let c = ch(r#"{"0": [0,0,0], "1": {"post": [1,0,0], "easing": "easeInBack", "easingArgs": [0]}}"#);
+        near(c.sample(0.5, &inp()).x, 0.125);
+        // default overshoot (no args): the golden table value
+        let c = ch(r#"{"0": [0,0,0], "1": {"post": [1,0,0], "easing": "easeInBack"}}"#);
+        near(c.sample(0.5, &inp()).x, -0.0876975);
+        // a stronger overshoot: c1 = 3 -> c3 = 4: 4/8 - 3/4 = -0.25
+        let c = ch(r#"{"0": [0,0,0], "1": {"post": [1,0,0], "easing": "easeInBack", "easingArgs": [3]}}"#);
+        near(c.sample(0.5, &inp()).x, -0.25);
+        // elastic frequency 1 is the default; 2 differs; endpoints stay exact
+        let e1 = Easing::parse("easeOutElastic").unwrap();
+        near(e1.apply_with(0.5, Some(1.0)), e1.apply(0.5));
+        assert!((e1.apply_with(0.5, Some(2.0)) - e1.apply(0.5)).abs() > 1e-3);
+        assert_eq!(e1.apply_with(1.0, Some(2.0)), 1.0);
+        // bad args are ignored
+        near(e1.apply_with(0.5, Some(f32::NAN)), e1.apply(0.5));
     }
 
     #[test]

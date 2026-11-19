@@ -35,6 +35,7 @@
 //!   (one-shot animations: trigger name to animation name; the trigger id is its position in the file).
 //! * At most [`MAX_STATE_ANIMS`] animations per state, [`MAX_STATES`] states and [`MAX_LAYERS`] layers.
 
+use crate::clock::AnimClock;
 use crate::anim::{load_err, Ctx, LoadError, OrderedMap, Scalar, Warning};
 use crate::expr::{Expr, ExprInputs, Query, Symbols};
 use serde::Deserialize;
@@ -408,17 +409,57 @@ impl Controller {
         events: &mut dyn FnMut(usize, usize, f32, f32),
     ) {
         let Some(state) = self.states.get(run.state) else { return };
-        inputs.set(Query::AnimTime, run.time);
-        let state_speed = state.speed.as_ref().map_or(1.0, |s| clamp_speed(s.eval(inputs)));
-        for (i, a) in state.animations.iter().enumerate().take(MAX_STATE_ANIMS) {
-            inputs.set(Query::AnimTime, run.clocks[i]);
-            let sp = a.speed.as_ref().map_or(1.0, |s| clamp_speed(s.eval(inputs))) * state_speed;
+        for (i, _) in state.animations.iter().enumerate().take(MAX_STATE_ANIMS) {
+            let sp = self.slot_speed(run, i, inputs);
             let old = run.clocks[i];
             let new = old + dt * sp;
             run.clocks[i] = new;
             events(run.state, i, old, new);
         }
         run.time += dt;
+    }
+
+    /// The effective clock speed of animation `slot` of a running state: state speed times animation speed, each an
+    /// expression clamped to `[0, 100]`. `query.anim_time` is overwritten.
+    pub fn slot_speed(&self, run: &StateRun, slot: usize, inputs: &mut ExprInputs) -> f32 {
+        let Some(state) = self.states.get(run.state) else { return 0.0 };
+        let Some(a) = state.animations.get(slot).filter(|_| slot < MAX_STATE_ANIMS) else { return 0.0 };
+        inputs.set(Query::AnimTime, run.time);
+        let state_speed = state.speed.as_ref().map_or(1.0, |s| clamp_speed(s.eval(inputs)));
+        inputs.set(Query::AnimTime, run.clocks[slot]);
+        a.speed.as_ref().map_or(1.0, |s| clamp_speed(s.eval(inputs))) * state_speed
+    }
+
+    /// The server's anchor for animation `slot` of the current state at game tick `tick`: the integrated clock and its
+    /// current speed. Send it whenever [`Controller::anchor_stale`] says so (and when the state changes).
+    pub fn anchor(&self, st: &ControllerState, slot: usize, tick: i64, inputs: &mut ExprInputs) -> AnimClock {
+        let time = st.cur.clocks.get(slot).copied().unwrap_or(0.0) as f64;
+        AnimClock::new(self.state_id(st), tick, time, self.slot_speed(&st.cur, slot, inputs))
+    }
+
+    /// Whether the state or speed of `slot` moved away from the last sent anchor.
+    pub fn anchor_stale(&self, st: &ControllerState, slot: usize, last: &AnimClock, inputs: &mut ExprInputs) -> bool {
+        last.is_stale(self.state_id(st), self.slot_speed(&st.cur, slot, inputs))
+    }
+
+    /// Client side: apply a received anchor. A different state id enters that state (with its fade), then the clock of
+    /// `slot` is set to the anchor's time at `tick + partial`. At the anchor tick the value equals the server's clock
+    /// exactly (f32 to f64 and back is lossless).
+    pub fn apply_anchor(
+        &self,
+        st: &mut ControllerState,
+        slot: usize,
+        clock: &AnimClock,
+        tick: i64,
+        partial: f32,
+        inputs: &mut ExprInputs,
+    ) {
+        if clock.state as usize != st.cur.state {
+            self.set_state(st, clock.state as usize, true, inputs);
+        }
+        if let Some(c) = st.cur.clocks.get_mut(slot) {
+            *c = clock.time_at(tick, partial) as f32;
+        }
     }
 
     /// Advance the clocks by `dt` seconds (0 while paused), then test the transitions. `events(state, slot,
@@ -611,6 +652,52 @@ mod tests {
         inp.set(Query::IsOnGround, 0.0);
         assert!(c.update(&mut st, 0.0, &mut inp, &mut noop()));
         assert_eq!(inp.variables[0], 2.0);
+    }
+
+    #[test]
+    fn anchors_agree_with_the_integrated_clock() {
+        let (c, _) = load();
+        let c = &c[0];
+        let mut server = c.initial_state();
+        let mut client = c.initial_state();
+        let mut inp = ExprInputs::default();
+        c.set_state(&mut server, 0, false, &mut inp); // walk: speed = ground_speed * 4
+        inp.set(Query::GroundSpeed, 0.5);
+        let mut tick = 0i64;
+        let mut last = c.anchor(&server, 0, tick, &mut inp);
+        assert_eq!(last.speed, 2.0);
+        c.apply_anchor(&mut client, 0, &last, tick, 0.0, &mut inp);
+        for _ in 0..100 {
+            tick += 1;
+            c.update(&mut server, 0.05, &mut inp, &mut noop());
+            // constant speed: the client's interpolated time tracks the server's integrated clock
+            let t = last.time_at(tick, 0.0);
+            assert!((t - server.cur.clocks[0] as f64).abs() < 1e-4, "tick {tick}");
+        }
+        // speed change at tick 100: the server re-anchors, time stays continuous
+        inp.set(Query::GroundSpeed, 0.25);
+        assert!(c.anchor_stale(&server, 0, &last, &mut inp));
+        let before = last.time_at(tick, 0.0);
+        let next = c.anchor(&server, 0, tick, &mut inp);
+        assert_eq!(next.speed, 1.0);
+        assert!((next.anchor_time - before).abs() < 1e-4);
+        last = next;
+        assert!(!c.anchor_stale(&server, 0, &last, &mut inp));
+        // exact agreement at the anchor, bit for bit
+        c.apply_anchor(&mut client, 0, &last, tick, 0.0, &mut inp);
+        assert_eq!(client.cur.clocks[0], server.cur.clocks[0]);
+        for _ in 0..40 {
+            tick += 1;
+            c.update(&mut server, 0.05, &mut inp, &mut noop());
+        }
+        let mut c2 = client;
+        c.apply_anchor(&mut c2, 0, &last, tick, 0.0, &mut inp);
+        assert!((c2.cur.clocks[0] - server.cur.clocks[0]).abs() < 1e-3);
+        // a state id in the anchor makes the client enter that state
+        let idle = AnimClock::new(1, tick, 0.0, 1.0);
+        c.apply_anchor(&mut c2, 0, &idle, tick, 0.0, &mut inp);
+        assert_eq!(c.state_id(&c2), 1);
+        assert!(c.anchor_stale(&c2, 0, &last, &mut inp));
     }
 
     #[test]

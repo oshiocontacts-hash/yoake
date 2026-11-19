@@ -38,8 +38,12 @@ swing it to -Z (`tests/pose_rig.rs`).
 ## Other conventions chosen (spec was ambiguous)
 
 * Time in seconds. Rotation interpolates per Euler component (as Bedrock does), then becomes a quaternion once per bone.
-* A keyframe's `lerp_mode`/`easing` control the segment that starts at it. Easing shapes linear and catmullrom progress,
-  is ignored for step and bezier. At exactly a key's time the value is its `post`; before the first key the first `pre`
+* Two direction rules (**verify both with a real Blockbench / GeckoLib export**): Blockbench `interpolation` /
+  `lerp_mode` on a key controls the segment that STARTS at that key (step holds the start value). GeckoLib-style
+  `easing` (+ `easingArgs`) on a key shapes the segment that ENDS at that key (how motion approaches it). Easing shapes
+  linear and catmullrom progress, is ignored for step and bezier. `easingArgs[0]`: `back` = overshoot (default 1.70158),
+  `elastic` = oscillation-frequency multiplier (default 1, clamped 0.1..10); other families ignore it (bounce has no
+  parameter). Tests: `easing_applies_to_linear_segments`, `lerp_mode_belongs_to_the_start_key`, `easing_args_for_back_and_elastic`. At exactly a key's time the value is its `post`; before the first key the first `pre`
   holds; after the last the last `post` holds. Catmull-Rom is the uniform spline over key values; at the ends the missing
   neighbour duplicates the endpoint. Bezier is per axis, time solved by 32 bisections, handle times clamped into the
   segment (keeps time monotonic); default handles are Blockbench's (0.1 s, flat). Step holds the start key's `post`.
@@ -96,11 +100,11 @@ body_y_rotation health max_health is_on_ground is_in_water is_baby hurt_time dea
   the VM stack is a fixed array sized from the compile-time depth (24 or 256) with saturating access. Evaluation does
   not allocate (proved with a counting allocator).
 
-## Tests (62 total, all green; clippy clean with `--all-targets`)
+## Tests (71 total, all green; clippy clean with `--all-targets`)
 
-* 44 unit tests in the crate: `anim` 22 (easing table of 30+ hand-computed values, names, linear/pre-post/step/catmullrom/
+* 53 unit tests in the crate: `clock` 6 (linear, re-anchor continuity, zero/negative speed, bad numbers, 1e12 ticks, constant-speed equivalence), `controller` 9 (incl. anchors agree with the integrated clock), `anim` 24 (easing table of 30+ hand-computed values, names, linear/pre-post/step/catmullrom/
   bezier goldens incl. value handles, bezier clamping and exact end points, loop/hold/once, anim_time_update, events in
-  windows, Bedrock axis conversion, bbmodel conversion and errors, library), `expr` 13, `controller` 8, `skeleton` 1 (F4M-0).
+  windows, Bedrock axis conversion, bbmodel conversion and errors, library), `expr` 13, `skeleton` 1 (F4M-0).
 * `tests/expr_props.rs` 4: 20,000 seeded token-soup expressions and 20,000 raw-character strings (never panic, finite,
   cost <= 256, error columns in range, both outcomes exercised), instruction cap (255 ok, 256 ok, 257 rejected), and a
   differential test of 4000 random expression trees against a reference evaluator.
@@ -110,14 +114,28 @@ body_y_rotation health max_health is_on_ground is_in_water is_baby hurt_time dea
   full, timeline events once per loop and not while paused, trigger events, binding errors/warnings, determinism,
   degenerate inputs (NaN/inf/negative dt).
 
+## Animation clock sync (`clock.rs`)
+
+`AnimClock { state: u8, anchor_tick: i64, anchor_time: f64 seconds, speed: f32 }`. Animation time is seconds, ticks are
+game ticks of 1/20 s, `partial` in `[0,1)`. The client computes
+`time = anchor_time + ((now_tick - anchor_tick) + partial) * speed / 20`, with the tick difference taken in `i64`
+first (no precision loss at 10^12 ticks), floored at 0, non-finite inputs counting as 0. Zero speed freezes, negative
+speed runs backwards down to 0. The server sends a new anchor whenever the state or the speed changes
+(`AnimClock::is_stale`, `Controller::anchor_stale`); `AnimClock::reanchor` keeps time continuous. Controller side:
+`Controller::slot_speed` (the speed the integrator uses), `Controller::anchor(state, slot, tick)` (produce from the
+integrated clock) and `Controller::apply_anchor` (consume: enters the state if the id differs, sets the slot's clock).
+At the anchor tick server and client clocks are bit-identical; between anchors they differ only by the f32 rounding of the
+server's integration (tested < 1e-4 s over 100 ticks). A paused server simply stops advancing and the client evaluates
+with the paused tick, as in section 3.5.
+
 ## Open questions
 
-1. Interpolation owner: Bedrock/Blockbench may apply `lerp_mode`/`easing` to the segment ending at a key rather than
-   starting at it. Needs real Blockbench exports (Cinder Fox) to confirm; one-line change in `sample_keys`.
+1. Both direction rules above (lerp mode from the start key, easing into the end key) are decisions awaiting a real
+   Blockbench/GeckoLib export; each is a one-line change in `sample_keys`.
 2. Bedrock `bezier` keyframes in animation.json: handle fields use the bbmodel names; no Bedrock sample seen.
 3. `catmullrom` neighbour choice at pre/post jumps (uses previous `post`, next `pre`) and the end-point rule are my choice.
-4. Because speeds are integrated, a client rebuilding a clock from a synced start tick is exact only for constant speed;
-   F4M-5b should sync the speed with the trigger (it already does for one-shots) or accept drift on speed-driven loops.
+4. (Sync design now in `clock.rs`, see "Animation clock sync"; open: whether the wire format carries one anchor per layer
+   animation slot or only per layer for the common single-animation state.)
 5. `query.delta_time`, `math.hermite_blend`, `math.lerprotate`, `math.die_roll` etc. are not in the spec list and warn;
    GeckoLib-style files that use them need a decision (real files will show how often).
 6. Variable assignment is only via controller `on_enter` (the language has no `=`); scripts write `ExprInputs::variables`.

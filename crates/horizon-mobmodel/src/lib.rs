@@ -9,6 +9,7 @@
 //! [`Pose`]. Change it only in agreement (both branches build on it).
 
 pub mod anim;
+pub mod clock;
 pub mod controller;
 pub mod expr;
 pub mod pose;
