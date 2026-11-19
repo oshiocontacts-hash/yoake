@@ -47,6 +47,7 @@ members = [
     "crates/yoake-hook-thir",
     "crates/yoake-callsite-match",
     "crates/yoake-slice",
+    "crates/yoake-mod-io",
     "crates/yoake-bindgen",
     "crates/yoake-guest-sdk",
     "crates/yoake-value",

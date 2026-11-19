@@ -56,7 +56,7 @@ pub fn install(source: &Path, game_dir: &Path) -> Result<Installed, String> {
             }
         }
         if let Some(wasm) = &installed.manifest.wasm {
-            for (side, path) in wasm.modules() {
+            for (side, path) in wasm.declared_files() {
                 let from = source.join(path);
                 if !from.is_file() {
                     return Err(format!("the {side} module {} is missing: run yoake build first", from.display()));

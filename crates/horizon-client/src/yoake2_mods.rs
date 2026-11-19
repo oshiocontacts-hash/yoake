@@ -236,6 +236,15 @@ pub fn load_package_on(side: ThreadSide, bytes: Vec<u8>, origin: Option<Origin>,
         });
     }
     let module = archive.full_access_module(side == ThreadSide::Client).map_err(Refusal::Package)?.ok_or_else(|| Refusal::Package("no full-access module".into()))?;
+    // FR-F2: files (`/data`, `/game`, maybe `/host/<letter>`) and the worker component, unless the caller already set them
+    let mut cfg = cfg;
+    if cfg.io.is_none() {
+        let host_filesystem = archive.manifest().wasm.as_ref().is_some_and(|wasm| wasm.host_filesystem);
+        let mut io = yoake_mod_io::ModIo::new(yoake_mod_io::FileAccess::new(crate::join_mods::game_root(), id.clone(), host_filesystem));
+        io.worker = archive.worker_module().map_err(Refusal::Package)?;
+        io.log = yoake_mod_io::LogSink::new(|line| log::info!("{line}"));
+        cfg.io = Some(io);
+    }
     // the ABI version is read from the module bytes: no guest code has run yet
     let abi = match runtime::module_abi_version(&module) {
         Err(e) => return Err(Refusal::Abi(e.to_string())),

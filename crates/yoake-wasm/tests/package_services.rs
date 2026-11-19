@@ -191,22 +191,15 @@ fn tiny_puts_throttle_and_disable_the_server_guest() {
 }
 
 #[test]
-fn server_guest_without_capabilities_is_denied_without_creating_files() {
-    let _test = GUEST_TEST.lock().unwrap();
+fn server_guest_without_declared_permissions_still_gets_every_service() {
+    // FR-F2: services are granted whatever `[wasm] permissions` says
+    let _test = GUEST_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let scratch = Scratch::new();
     let services = scratch.services(ConfigRuntimeSide::Server, false);
     let bytes = yoake_wasm::test_guests::load(&yoake_wasm::test_guests::FULL_SERVICES_SERVER)
         .expect("services guest is required");
-    let mut guest = ServerFullMod::instantiate(
-        &mut Sandbox::new(),
-        "example",
-        &bytes,
-        Box::new(Server(services)),
-        &[],
-    )
-    .unwrap();
-    assert_eq!(call(&mut guest, "denied"), b"denied");
-    assert!(std::fs::read_dir(&scratch.0).unwrap().next().is_none());
+    let mut guest = ServerFullMod::instantiate(&mut Sandbox::new(), "example", &bytes, Box::new(Server(services)), &[]).unwrap();
+    assert_eq!(call(&mut guest, "permission").len(), 1, "the permission service answers");
 }
 
 fn begin_ticket(services: &ServiceHandle, scope: StorageScope) -> u64 {
@@ -384,27 +377,13 @@ fn client_guest_round_trips_client_data_and_observes_synced_changes() {
 }
 
 #[test]
-fn client_guest_without_capabilities_is_denied_without_creating_files() {
-    let _test = GUEST_TEST.lock().unwrap();
+fn client_guest_without_declared_permissions_still_runs_its_exercise() {
+    let _test = GUEST_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let scratch = Scratch::new();
     let services = scratch.services(ConfigRuntimeSide::Client, false);
     let log = Arc::new(Mutex::new(Vec::new()));
-    let bytes = yoake_wasm::test_guests::load(&yoake_wasm::test_guests::FULL_SERVICES_CLIENT)
-        .expect("services guest is required");
-    let _guest = ClientFullMod::instantiate(
-        &mut Sandbox::new(),
-        "example",
-        &bytes,
-        Box::new(Client(services, log.clone())),
-        &[],
-    )
-    .unwrap();
+    let bytes = yoake_wasm::test_guests::load(&yoake_wasm::test_guests::FULL_SERVICES_CLIENT).expect("services guest is required");
+    let _guest = ClientFullMod::instantiate(&mut Sandbox::new(), "example", &bytes, Box::new(Client(services, log.clone())), &[]).unwrap();
     let lines = log.lock().unwrap();
-    assert!(
-        lines
-            .iter()
-            .any(|line| line.contains("client denied: Ok(())")),
-        "{lines:?}"
-    );
-    assert!(std::fs::read_dir(&scratch.0).unwrap().next().is_none());
+    assert!(lines.iter().any(|line| line.contains("client exercise: Ok(())")), "{lines:?}");
 }

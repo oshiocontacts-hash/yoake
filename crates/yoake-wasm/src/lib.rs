@@ -4,10 +4,12 @@ use std::collections::HashMap;
 #[path = "../../../tests/support/temp_dir.rs"]
 mod test_support;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Mutex, Weak};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 use wasmtime::component::{Component, Instance, Linker, ResourceTable};
+use wasmtime_wasi_http::{WasiHttpCtx, WasiHttpCtxView, WasiHttpView};
+use yoake_mod_io::{WorkerHandle, WorkerOptions};
 use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder, UpdateDeadline};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
@@ -48,6 +50,7 @@ pub use subscriptions::FullWorld;
 pub use subscriptions::Subscriptions;
 pub use test_mod::{TestHost, TestMod, TestOutcome, test_driver, validate_test_names};
 pub use wasi::{OutputLine, OutputStream, WASI_IMPORT_INTERFACES};
+pub use yoake_mod_io::{FileAccess, LogSink, ModIo};
 
 pub const MEMORY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
 /// Elements one table may hold (a Rust guest's function table is a few thousand).
@@ -157,6 +160,7 @@ pub fn store_limits() -> StoreLimits {
 #[derive(Default)]
 pub struct Sandbox {
     runtime: Option<Arc<RuntimeEngine>>,
+    io: Arc<IoRegistry>,
     texture_counts: HashMap<String, Weak<AtomicUsize>>,
 }
 
@@ -167,6 +171,22 @@ impl Sandbox {
 
     pub fn engine_started(&self) -> bool {
         self.runtime.is_some()
+    }
+
+    /// Gives the mod `id` its files (`/data`, `/game`, maybe `/host/<letter>`) and, when `io.worker` is set, its worker.
+    /// Call it before the mod is compiled and instantiated; it applies to every later instance of that id.
+    pub fn set_mod_io(&mut self, id: &str, io: ModIo) {
+        self.io.mods.lock().unwrap_or_else(|error| error.into_inner()).insert(id.to_owned(), io);
+    }
+
+    pub fn clear_mod_io(&mut self, id: &str) {
+        self.io.mods.lock().unwrap_or_else(|error| error.into_inner()).remove(id);
+    }
+
+    /// Lets the *main* instances use sockets and `wasi:http` (default: they may not; a connect or request can wait
+    /// for seconds and would stop the game thread). Only for tools and tests.
+    pub fn set_main_network(&self, allow: bool) {
+        self.io.main_network.store(allow, Ordering::Relaxed);
     }
 
     fn texture_count(&mut self, id: &str) -> Arc<AtomicUsize> {
@@ -218,7 +238,7 @@ impl Sandbox {
         for (name, _) in component_type.imports(&runtime.engine) {
             check_import(name, test_module, supports_config)?;
         }
-        Ok(CompiledComponent { runtime, component })
+        Ok(CompiledComponent { runtime, component, io: Arc::clone(&self.io) })
     }
 }
 
@@ -226,6 +246,9 @@ impl Sandbox {
 const TEST_INTERFACE: &str = "test-driver";
 
 fn check_import(name: &str, test_module: bool, supports_config: bool) -> Result<(), String> {
+    if name == yoake_mod_io::WORKER_INTERFACE {
+        return Ok(());
+    }
     if let Some(wasi) = name.strip_prefix("wasi:") {
         return if wasi::allowed_import(wasi) {
             Ok(())
@@ -317,9 +340,50 @@ pub struct HostState<T> {
     limits: StoreLimits,
     wasi: WasiCtx,
     table: ResourceTable,
+    http: WasiHttpCtx,
+    http_hooks: wasi::MainHttpHooks,
+    main_network: bool,
+    /// The mod's worker, if it declares one (stopped when this instance is dropped).
+    worker: Option<WorkerHandle>,
     output: wasi::Output,
     /// When the running call must be over (the epoch callback stops the guest after it).
     deadline: Instant,
+}
+
+/// Per-mod files and workers (FR-F2), keyed by mod id; filled by the loader before a mod is compiled.
+#[derive(Default)]
+struct IoRegistry {
+    mods: Mutex<HashMap<String, ModIo>>,
+    /// Whether the main instance may use sockets and `wasi:http` (default: no; use the worker).
+    main_network: AtomicBool,
+}
+
+impl<T: Send> WasiHttpView for HostState<T> {
+    fn http(&mut self) -> WasiHttpCtxView<'_> {
+        let hooks: &mut dyn wasmtime_wasi_http::WasiHttpHooks = if self.main_network {
+            wasmtime_wasi_http::default_hooks()
+        } else {
+            &mut self.http_hooks
+        };
+        WasiHttpCtxView { ctx: &mut self.http, table: &mut self.table, hooks }
+    }
+}
+
+/// `yoake:mods/worker@1.6.0`: the main instance's two calls to its worker. Neither blocks.
+fn link_worker_interface<T: Send + 'static>(linker: &mut Linker<HostState<T>>) -> wasmtime::Result<()> {
+    use wasmtime::StoreContextMut;
+    let mut instance = linker.instance(yoake_mod_io::WORKER_INTERFACE)?;
+    instance.func_wrap("worker-send", |cx: StoreContextMut<'_, HostState<T>>, (message,): (Vec<u8>,)| {
+        let result = match &cx.data().worker {
+            Some(worker) => worker.send(message).map_err(|error| error.to_string()),
+            None => Err("no-worker".to_owned()),
+        };
+        Ok((result,))
+    })?;
+    instance.func_wrap("worker-recv", |cx: StoreContextMut<'_, HostState<T>>, (): ()| {
+        Ok((cx.data().worker.as_ref().and_then(WorkerHandle::recv),))
+    })?;
+    Ok(())
 }
 
 impl<T: Send> WasiView for HostState<T> {
@@ -335,6 +399,7 @@ impl<T: Send> WasiView for HostState<T> {
 pub struct CompiledComponent {
     runtime: Arc<RuntimeEngine>,
     component: Component,
+    io: Arc<IoRegistry>,
 }
 
 impl CompiledComponent {
@@ -346,22 +411,45 @@ impl CompiledComponent {
     ) -> Result<ModInstance<T>, String> {
         let mut linker = Linker::new(&self.runtime.engine);
         wasi::add_to_linker(&mut linker).map_err(|error| error.to_string())?;
+        link_worker_interface(&mut linker).map_err(|error| error.to_string())?;
         configure(&mut linker)?;
         let limits = store_limits();
         let output = wasi::Output::default();
-        let wasi = WasiCtxBuilder::new()
+        let id = id.into();
+        let main_network = self.io.main_network.load(Ordering::Relaxed);
+        let mod_io = self.io.mods.lock().unwrap_or_else(|error| error.into_inner()).get(&id).cloned();
+        let mut builder = WasiCtxBuilder::new();
+        builder
             .stdout(output.stdout())
             .stderr(output.stderr())
-            .allow_tcp(false)
-            .allow_udp(false)
-            .allow_ip_name_lookup(false)
-            .build();
+            .allow_tcp(main_network)
+            .allow_udp(main_network)
+            .allow_ip_name_lookup(main_network);
+        if main_network {
+            builder.inherit_network();
+        }
+        let mut worker = None;
+        if let Some(mod_io) = &mod_io {
+            mod_io.files.apply(&mut builder).map_err(|error| format!("mod files: {error}"))?;
+            if let Some(bytes) = &mod_io.worker {
+                let options = WorkerOptions { log: mod_io.log.clone(), ..WorkerOptions::default() };
+                worker = Some(
+                    WorkerHandle::spawn(&id, bytes, mod_io.files.clone(), options)
+                        .map_err(|error| format!("worker: {error}"))?,
+                );
+            }
+        }
+        let wasi = builder.build();
         let deadline = Instant::now() + TimeLimits::INIT.call;
         let state = HostState {
             host,
             limits,
             wasi,
             table: ResourceTable::new(),
+            http: WasiHttpCtx::new(),
+            http_hooks: wasi::MainHttpHooks,
+            main_network,
+            worker,
             output,
             deadline,
         };
@@ -382,7 +470,7 @@ impl CompiledComponent {
             .instantiate(&mut store, &self.component)
             .map_err(|error| format!("component instantiation failed: {error:#}"))?;
         Ok(ModInstance {
-            id: id.into(),
+            id: id,
             store,
             instance,
             disabled: false,

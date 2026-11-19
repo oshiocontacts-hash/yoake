@@ -17,7 +17,10 @@ yoake-inject-rt = { path = "../yoake-inject-rt" }
 yoake-value = { path = "../yoake-value" }
 wasmtime = { version = "=48.0.7", default-features = false, features = ["runtime", "cranelift", "component-model", "std"] }
 
-wasmtime-wasi = { version = "=48.0.7", default-features = false, features = ["p2"] }
+wasmtime-wasi = { version = "=48.0.7", default-features = false, features = ["p1", "p2"] }
+wasmtime-wasi-http = { version = "=48.0.7", default-features = false, features = ["p2", "default-send-request"] }
+yoake-mod-io = { path = "../yoake-mod-io" }
+http = "1"
 bytes = { version = "1", default-features = false }
 tokio = { version = "1", default-features = false }
 

@@ -293,3 +293,61 @@ mod tests {
         assert_eq!(Error::from_status(-99), Error::Status(-99));
     }
 }
+
+/// The mod's worker (FR-F2): a component declared by `[wasm] worker` that runs on its own thread with full
+/// WASI p2 (sockets, http, blocking waits). The two calls never block the game thread.
+pub mod worker {
+    use super::sys;
+    use alloc::vec;
+    use alloc::vec::Vec;
+
+    /// Why [`send`] failed.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum SendError {
+        /// 1024 messages or 16 MiB are already waiting; nothing was queued.
+        QueueFull,
+        /// The mod declares no worker, or it stopped.
+        NoWorker,
+        /// The message alone is over 16 MiB.
+        TooLarge,
+        BadPointer,
+    }
+
+    /// Why [`recv`] failed.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum RecvError {
+        NoWorker,
+        BadPointer,
+    }
+
+    /// Queues a message for the worker.
+    pub fn send(message: &[u8]) -> Result<(), SendError> {
+        // SAFETY: the pointer and length describe `message`, which is alive for the call.
+        match unsafe { sys::yoake_worker_send(message.as_ptr() as i32, message.len() as i32) } {
+            0 => Ok(()),
+            -1 => Err(SendError::QueueFull),
+            -3 => Err(SendError::TooLarge),
+            -4 => Err(SendError::BadPointer),
+            _ => Err(SendError::NoWorker),
+        }
+    }
+
+    /// The next message from the worker, or `None`.
+    pub fn recv() -> Result<Option<Vec<u8>>, RecvError> {
+        let mut buffer = vec![0u8; 1024];
+        loop {
+            // SAFETY: the pointer and capacity describe `buffer`.
+            let result = unsafe { sys::yoake_worker_recv(buffer.as_mut_ptr() as i32, buffer.len() as i32) };
+            match result {
+                0 => return Ok(None),
+                n if n > 0 => {
+                    buffer.truncate(n as usize);
+                    return Ok(Some(buffer));
+                }
+                i32::MIN => return Err(RecvError::NoWorker),
+                n if n == i32::MIN + 1 => return Err(RecvError::BadPointer),
+                n => buffer.resize(n.unsigned_abs() as usize, 0),
+            }
+        }
+    }
+}

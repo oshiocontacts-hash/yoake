@@ -171,6 +171,14 @@ pub struct Wasm {
     /// `service.chat` additionally permits client chat/command injections.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub permissions: Vec<String>,
+    /// FR-F2: a worker component (`bin/wasm/<name>.wasm`, world `worker-mod`, `docs/yoake2/MOD-GUIDE.md`) the engine runs on
+    /// its own thread with full WASI p2 (sockets, http, blocking waits). The mod talks to it through byte messages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worker: Option<String>,
+    /// FR-F2: preopen every local drive root as `/host/<letter>` (read-write). The mod's own folder `/data` and the game folder
+    /// `/game` are always there.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub host_filesystem: bool,
 }
 
 /// The `[wasm] permissions` this build knows.
@@ -239,6 +247,15 @@ impl Wasm {
         modules
     }
 
+    /// Every file `[wasm]` declares: the modules (client first) and the worker.
+    pub fn declared_files(&self) -> Vec<(&'static str, &str)> {
+        let mut files = self.modules();
+        if let Some(path) = &self.worker {
+            files.push(("worker", path.as_str()));
+        }
+        files
+    }
+
     fn validate(&self) -> Result<(), String> {
         let (major, minor) = self.interface_version()?;
         if major != SUPPORTED_WASM_INTERFACE.0 {
@@ -299,11 +316,14 @@ impl Wasm {
         if self.has_permission("service.chat") && self.client.is_none() {
             return Err("wasm permission service.chat requires wasm.client".into());
         }
+        if self.worker.is_some() && self.client.is_none() && self.server.is_none() {
+            return Err("wasm.worker needs a wasm.client or wasm.server module that talks to it".into());
+        }
         let modules = self.modules();
         if modules.is_empty() {
             return Err("[wasm] needs at least one of client or server".into());
         }
-        for (side, path) in &modules {
+        for (side, path) in &self.declared_files() {
             horizon_release_sign::yak::check_path(path, false)
                 .map_err(|error| format!("wasm.{side}: {error}"))?;
             let name = path.strip_prefix("bin/wasm/").filter(|name| {

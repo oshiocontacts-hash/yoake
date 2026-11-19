@@ -81,6 +81,26 @@ pub const CLIENT_SERVICES_DEMO: Guest = Guest {
     artifact: "yoake_wasm_client_services_demo.wasm",
 };
 
+/// FR-F2 test guests (files, a mod that talks to a worker, the worker itself).
+pub const F2_FILES: Guest = Guest {
+    name: "f2-files",
+    example: "f2-io",
+    features: "files",
+    artifact: "yoake_wasm_f2_io.wasm",
+};
+pub const F2_MAIN: Guest = Guest {
+    name: "f2-main",
+    example: "f2-io",
+    features: "main",
+    artifact: "yoake_wasm_f2_io.wasm",
+};
+pub const F2_WORKER: Guest = Guest {
+    name: "f2-worker",
+    example: "f2-io",
+    features: "worker",
+    artifact: "yoake_wasm_f2_io.wasm",
+};
+
 pub const GPU_DEMO: Guest = Guest {
     name: "gpu-demo",
     example: "gpu-demo",

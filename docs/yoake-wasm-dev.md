@@ -82,10 +82,7 @@ export_mod!(Hello);
   `wasi:filesystem/{types,preopens}`. stdin is empty, the environment and the arguments are empty,
   `std::process::exit` traps the mod (only that mod is disabled), the clock never blocks the host:
   `thread::sleep` and `pollable.block()` on a clock wait of more than 2 ms trap the mod (shorter waits
-  return at once), the filesystem has **no
-  preopened directory** (every `std::fs` call fails; the interfaces are linked only because `std`
-  imports them) and there are **no sockets** (a component that imports `wasi:sockets/*`, or any
-  other interface outside `yoake:mods/*` and the list above, is rejected at load). The example is
+  return at once), the filesystem has the preopens `/data` (the mod's own folder `mod-data/<id>`), `/game` and, with `[wasm] host_filesystem = true`, `/host/<letter>` (FR-F2), and the main instance may not use sockets or `wasi:http` (they are linked, but the context denies them; use a worker, `docs/yoake2/MOD-GUIDE.md` section 14). A component that imports any interface outside `yoake:mods/*`, `yoake:mods/worker@1.3.0` and the list above is rejected at load. The example is
   `crates/yoake-wasm-sdk/examples/hello-std`.
 - For the smallest modules turn `std` off (`default-features = false, features = ["runtime"]`) and
   write `#![no_std]`: the SDK ships its own allocator and panic handler (feature `runtime`) and

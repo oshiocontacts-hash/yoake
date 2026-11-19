@@ -43,7 +43,7 @@ pub fn pack_directory(root: &Path, output: &Path, binaries: &BTreeMap<Target, Pa
         return Err("--bin requires [bin] in yak.toml".into());
     }
     if let Some(wasm) = &manifest.wasm {
-        for (_, name) in wasm.modules() {
+        for (_, name) in wasm.declared_files() {
             collect(&root.join(name), name, &mut sources)?;
         }
     }

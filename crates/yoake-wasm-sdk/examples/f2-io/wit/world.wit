@@ -1,0 +1,5 @@
+package test:f2;
+
+world files-guest {
+    export run: func(op: string) -> string;
+}
