@@ -3466,6 +3466,10 @@ mod dim_interner {
         i
     }
     pub(super) fn id(index: u16) -> &'static str {
+        // The vanilla levels are asked for every frame: answer them without the lock.
+        if let Some(id) = VANILLA.get(index as usize) {
+            return id;
+        }
         table().read().unwrap_or_else(|e| e.into_inner()).ids[index as usize]
     }
 }
