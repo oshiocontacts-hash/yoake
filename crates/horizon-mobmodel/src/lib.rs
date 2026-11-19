@@ -9,12 +9,20 @@
 //! [`Pose`]. Change it only in agreement (both branches build on it).
 
 pub mod anim;
+pub mod bake;
+pub mod bbmodel;
 pub mod clock;
 pub mod controller;
 pub mod expr;
+pub mod geo;
+pub mod model;
 pub mod pose;
 pub mod skeleton;
 
+pub use bake::{bake, BakedBone, BakedModel, BakedVertex};
+pub use bbmodel::load_bbmodel;
+pub use geo::{load_geo_json, load_geo_json_with};
+pub use model::{Cube, CubeUv, Face, FaceUv, Locator, Mesh, MeshCorner, MeshFace, Model, ModelError, Texture, VisibleBounds};
 pub use skeleton::{Bone, BoneIndex, BoneTransform, Pose, Skeleton};
 
 /// Limits per mob type (FR-F4-MOBS.md F4M-0).
