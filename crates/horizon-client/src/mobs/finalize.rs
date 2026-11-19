@@ -806,6 +806,10 @@ fn raider(s: Species) -> bool {
 }
 /// `EntityType.isAllowedInPeaceful`: the types built with `notInPeaceful`.
 pub fn allowed_in_peaceful(kind: &str) -> bool {
+    // F4M: a custom type follows its category.
+    if let Some(c) = super::custom::get(kind) {
+        return c.category != super::spawn_selection::Category::Monster;
+    }
     !matches!(
         kind.strip_prefix("minecraft:").unwrap_or(kind),
         "blaze"

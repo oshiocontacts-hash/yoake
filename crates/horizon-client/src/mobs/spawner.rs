@@ -529,6 +529,13 @@ impl SpawnerExt for Spawner {
                 if !SpawnData::valid_position(rules, l, block[0], block[1], block[2]) {
                     continue;
                 }
+            } else if species == Some(Species::Custom)
+                && category == Category::Monster
+                && l.peaceful()
+            {
+                // F4M: check_spawn_rules has no rule for a custom type; a monster-category
+                // one is not allowed in peaceful, like a vanilla `Monster`.
+                continue;
             } else if let Some(s) = species
                 && !spawn_rules::check_spawn_rules(
                     s,

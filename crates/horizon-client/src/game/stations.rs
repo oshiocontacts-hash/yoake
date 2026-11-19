@@ -2423,7 +2423,7 @@ impl Game<'_> {
             &display,
             &|id| {
                 self.res.mob_types().get(id).is_none_or(|t| {
-                    horizon_client::mobs::spawn_rules::allowed_in_peaceful(t.species)
+                    horizon_client::mobs::spawn_rules::allowed_in_peaceful_type(t)
                 })
             },
             &translate,

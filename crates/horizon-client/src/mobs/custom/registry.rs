@@ -94,4 +94,28 @@ mod tests {
         assert!(table.is_empty());
     }
 
+    fn kind_in(id: &str, category: &str) -> Arc<CustomType> {
+        let json = format!(
+            r#"{{"template":"yoake:mob","category":"{category}","size":{{"width":1,"height":1}}}}"#
+        );
+        let file = horizon_mods::custom_mob::CustomMobFile::parse(id, json.as_bytes()).unwrap();
+        Arc::new(CustomType::new(file, None).unwrap())
+    }
+
+    /// A monster-category custom mob is refused on peaceful like a vanilla `Monster`; a creature
+    /// is not; a vanilla id is unchanged.
+    #[test]
+    fn peaceful_follows_the_category() {
+        use crate::mobs::{finalize, spawn_rules};
+        let monster = kind_in("peacetest:monster", "monster");
+        let creature = kind_in("peacetest:creature", "creature");
+        assert!(registry().write().unwrap().insert(monster.clone()));
+        assert!(registry().write().unwrap().insert(creature.clone()));
+        assert!(!finalize::allowed_in_peaceful("peacetest:monster"));
+        assert!(finalize::allowed_in_peaceful("peacetest:creature"));
+        assert!(!spawn_rules::allowed_in_peaceful_type(&super::super::build::mob_type(&monster)));
+        assert!(spawn_rules::allowed_in_peaceful_type(&super::super::build::mob_type(&creature)));
+        assert!(!finalize::allowed_in_peaceful("minecraft:creeper"));
+        assert!(finalize::allowed_in_peaceful("minecraft:cow"));
+    }
 }

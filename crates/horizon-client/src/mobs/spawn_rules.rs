@@ -141,6 +141,14 @@ pub fn fire_immune(s: Species) -> bool {
             | S::ZombifiedPiglin
     )
 }
+/// `isAllowedInPeaceful` of a mob type: a custom type follows its category (a monster is not
+/// allowed, like a vanilla `Monster`), every other type its species.
+pub fn allowed_in_peaceful_type(t: &super::MobType) -> bool {
+    match &t.custom {
+        Some(c) => c.category != super::spawn_selection::Category::Monster,
+        None => allowed_in_peaceful(t.species),
+    }
+}
 /// `EntityType.isAllowedInPeaceful`.
 pub fn allowed_in_peaceful(s: Species) -> bool {
     use Species as S;
