@@ -6038,7 +6038,9 @@ impl Game<'_> {
 
     /// One client tick while connected (Minecraft.tick with a ClientLevel).
     pub(super) fn tick_remote(&mut self) -> Result<()> {
-        self.native_net.to_server = 0;
+        self.native_net
+            .to_server
+            .store(0, std::sync::atomic::Ordering::Relaxed);
         self.tick_remote_level()?;
         self.client_map_tick();
         // The rockets boosting this player tick after it, also while it waits

@@ -277,6 +277,7 @@ mod native_mounts;
 pub(crate) mod native_mouse_buttons;
 pub(crate) mod native_name_lines;
 mod native_net;
+mod native_s1;
 mod native_panel;
 mod native_panel_recipes;
 mod native_perms;
@@ -3152,6 +3153,8 @@ pub(crate) struct Game<'a> {
     native_streams: Option<native_streams::NativeStreams>,
     /// Native mods' messages waiting (`game/native_net.rs`).
     native_net: native_net::NativeNet,
+    /// Client sounds queued by hooks with a shared view of the game (`game/native_s1.rs`).
+    native_s1: native_s1::NativeS1,
     native_server_ops: native_server_ops::NativeServerOps,
     /// The mod whose own screen is open (`Screen::Mod`).
     native_mod_screen: Option<String>,
@@ -18892,6 +18895,10 @@ impl Game<'_> {
                     let PhysicalKey::Code(key) = event.physical_key else {
                         return Ok(());
                     };
+                    // `native_key_pre`: a mod that consumes the key keeps it from everything below.
+                    if self.native_key_pre_event(key, event.state == ElementState::Pressed, event.repeat) {
+                        return Ok(());
+                    }
                     self.native_key_event(key, event.state == ElementState::Pressed, event.repeat);
                     // Screen.keyPressed sees the physical key, repeats included.
                     if event.state == ElementState::Pressed
@@ -19773,6 +19780,7 @@ impl<'a> Game<'a> {
             native_mix_cursors,
             native_streams: None,
             native_net: Default::default(),
+            native_s1: Default::default(),
             native_server_ops: Default::default(),
             native_mod_screen: None,
             native_title_mod_screen_return: None,
