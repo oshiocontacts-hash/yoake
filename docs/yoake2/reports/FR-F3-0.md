@@ -41,7 +41,16 @@ Not touched: `crates/horizon-shaders/src/textures.rs` (`Dim` there is texture di
 No change with vanilla data: ids, indices, saves (`id()` strings), packets and rendering take the same values.
 
 ## Tests
-See the end of this file (filled in after the runs).
+* `cargo check -p horizon-client`: clean (no errors; warnings pre-existing).
+* `cargo check -p horizon-client --features yoake2-slice`: clean.
+* `cargo test -p horizon-client --lib`: 1199 passed, 1 failed, 40 ignored on the first run. The failure,
+  `entry::wasm_mods::full::tests::a_server_guest_runs_server_tick_and_perform_command_on_the_server_thread`
+  (`assertion failed: taken && other_continues`), is a threaded timing test; it ran during a heavily loaded machine
+  (several other cargo builds) and passed alone on rerun (1 passed, 19.8 s). Unrelated to `Dim`.
+* `cargo test -p horizon-client-lib --lib`: 1639 passed, 0 failed, 48 ignored.
+* New tests (4, all passing): `game::dim_tests::{vanilla_ids_have_fixed_indices,
+  unknown_lookup_is_none_and_old_fallback_is_overworld, intern_round_trips_and_is_idempotent,
+  intern_is_thread_safe}`.
 
 ## Needs checking
 * Only `horizon-client` / `horizon-client-lib` were built and tested here; golden tests A/B and the parity scripts from the
