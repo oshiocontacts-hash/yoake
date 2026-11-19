@@ -11950,7 +11950,13 @@ impl Game<'_> {
             if m.removed || Some(m.id) == self.riding || Some(m.id) == self.remote_camera_id() {
                 continue;
             }
-            if let Some(t) = ray_box(eye, dir, reach, self.pick_bounds(m))
+            // F4M: a custom mob is also picked by its pick parts.
+            let hit = if m.kind.custom.is_some() {
+                horizon_client::mobs::custom::hitbox::pick(m, &self.pick_bounds(m), eye, dir, reach)
+            } else {
+                ray_box(eye, dir, reach, self.pick_bounds(m))
+            };
+            if let Some(t) = hit
                 && best.is_none_or(|b| t < b.1)
             {
                 best = Some((i, t));

@@ -93,6 +93,7 @@ fn creative_tabs_keep_vanilla_items_missing_from_search() {
         defaults: BTreeMap::new(),
         sounds: BTreeMap::new(),
         tabs: vec![&tab],
+        custom_mobs: Vec::new(),
         names: BTreeMap::new(),
     };
     let mut doc: J = serde_json::from_str(
