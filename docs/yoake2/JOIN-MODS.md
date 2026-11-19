@@ -13,7 +13,15 @@ installed **fully automatically, with no confirmation, including full-access mod
   this host".
 - **Catalog first**: if an advertised entry carries a catalog id and the signed Yoake catalog has that id+sha256, it is
   downloaded from the catalog (verified signature) instead of from the host.
-- **Caps**: 64 MiB per mod, 256 MiB per join, 64 mods per join; the transfer stops on the first mismatch.
+- **Caps**: 64 MiB per mod, 256 MiB per join, 64 mods per join; the transfer stops on the first mismatch. A host's folder
+  holds at most 512 MiB and 64 mods in total (MX3RF1): a request that would go over installs nothing and says so.
+- **One automatic rejoin**: the launcher restarts the game once after a sync. A game it restarted itself that exits 75
+  again installs nothing and stops with an error on the Mods and Play pages (the player can still join again by hand).
+- **Per session, not per process** (MX3RF1): a host's mods run only while the connection of the session goes to exactly
+  that host (`join_mods::session_remote_key`). Leaving for single player or another server in the same process runs none
+  of them, and they are unloaded when the session ends.
+- **Old games**: the launcher passes `--full-access-approved`, `--full-access-dev`, `--join-mod-sync` and `--remote-mods`
+  only to a game whose `--launch-api` lists them (cached per executable); a 1.0 game gets none of them.
 
 ## Flow
 1. On join, the host sends its yak list: `{id, version, sha256, size, full_access, side_client, catalog_id?}` for every
@@ -34,5 +42,6 @@ installed **fully automatically, with no confirmation, including full-access mod
 4. If the setting is off, the game refuses as today, listing the missing mods.
 
 ## Host key
-`server:<lowercase host>:<port>` for direct joins, `friend:<portal user id>` for social/relay joins. Stored in the
+`server:<lowercase host>:<port>` for direct joins, `friend:<lowercase portal user id>` for social/relay joins. Keys are
+lowercase only (`valid_host_key`); the launcher requires the request's key to equal the key it recomputes from the address. Stored in the
 origins sidecar next to the origin.

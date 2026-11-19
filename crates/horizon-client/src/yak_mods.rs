@@ -319,6 +319,23 @@ fn installed_files(root: &Path) -> Result<Vec<String>, String> {
     Ok(names)
 }
 
+/// The runtime of a start in `game`. R1: the game root is known whenever a game dir is, **also without** `yoake-mods.txt`
+/// (a full-access-only install has none): the full-access loader finds `<root>/mods` through it. The sandboxed list is
+/// read only when there is a `yoake-mods.txt` or a remote host key.
+fn startup_runtime(game: &Path, has_remote_key: bool) -> Runtime {
+    if std::fs::symlink_metadata(game.join("yoake-mods.txt")).is_err_and(|error| error.kind() == ErrorKind::NotFound) && !has_remote_key {
+        return Runtime { game_root: game.to_path_buf(), ..Runtime::default() };
+    }
+    match Build::current() {
+        Ok(build) => Runtime::read(game, &build, &yak::trusted_keys()),
+        Err(reason) => {
+            let mut runtime = Runtime::default();
+            runtime.reject("yoake-mods.txt", abi::YOAKE_VERSION, &reason);
+            runtime
+        }
+    }
+}
+
 pub(crate) fn initialize() {
     // MX3JN1: what the connection code (in the client library) offers joining players and counts as installed
     horizon_client::join_mods::set_providers(
@@ -342,21 +359,7 @@ pub(crate) fn initialize() {
         .map(|pair| PathBuf::from(&pair[1]))
         .unwrap_or_else(|| PathBuf::from("."));
     let game = std::path::absolute(&game).unwrap_or(game);
-    if std::fs::symlink_metadata(game.join("yoake-mods.txt"))
-        .is_err_and(|error| error.kind() == ErrorKind::NotFound)
-        && horizon_client::join_mods::remote_key().is_none()
-    {
-        return;
-    }
-    let runtime = match Build::current() {
-        Ok(build) => Runtime::read(&game, &build, &yak::trusted_keys()),
-        Err(reason) => {
-            let mut runtime = Runtime::default();
-            runtime.reject("yoake-mods.txt", abi::YOAKE_VERSION, &reason);
-            runtime
-        }
-    };
-    let _ = RUNTIME.set(runtime);
+    let _ = RUNTIME.set(startup_runtime(&game, horizon_client::join_mods::remote_key().is_some()));
 }
 
 /// Whether the server thread runs the full-access package with this SHA-256 (lowercase hex).

@@ -180,6 +180,8 @@ pub fn decide(origin: Origin, approved: bool, signed_by_trusted: bool) -> Result
 pub struct Loaded {
     /// The manifest's id.
     pub id: String,
+    /// The manifest's version.
+    pub version: String,
     pub module: ModId,
     /// The package's SHA-256.
     pub sha256: String,
@@ -201,6 +203,7 @@ pub fn load_package_on(side: ThreadSide, bytes: Vec<u8>, origin: Option<Origin>,
     let sha256 = sha256_hex(&bytes);
     let mut archive = Archive::new(Cursor::new(bytes)).map_err(Refusal::Package)?;
     let id = archive.manifest().id.clone();
+    let version = archive.manifest().version.to_string();
     match archive.manifest().wasm.as_ref().filter(|wasm| wasm.full_access()) {
         None => return Err(Refusal::Sandboxed),
         Some(wasm) if !side.runs(wasm) => return Err(Refusal::OtherSide),
@@ -250,7 +253,7 @@ pub fn load_package_on(side: ThreadSide, bytes: Vec<u8>, origin: Option<Origin>,
         return Err(Refusal::Abi(why));
     }
     let module = runtime::load(&module, cfg, &id).map_err(|e| Refusal::Init(format!("{e:#}")))?;
-    Ok(Loaded { id, module, sha256, abi })
+    Ok(Loaded { id, version, module, sha256, abi })
 }
 
 /// What a folder scan did.
@@ -522,6 +525,7 @@ fn load_mods_scoped(side: ThreadSide, mods_dir: &Path, approved: Option<&Approve
     }
     report.unbridged = install_bridges(&report.loaded);
     announce(&report);
+    announce_loaded(side, &report);
     report
 }
 
@@ -738,6 +742,23 @@ pub fn install_bridges(loaded: &[Loaded]) -> Vec<(String, Vec<(u32, String)>)> {
         }
     }
     out
+}
+
+/// R2: one line per loaded full-access mod (id, version, side, hooks registered) and one summary per load.
+fn announce_loaded(side: ThreadSide, report: &LoadReport) {
+    if report.loaded.is_empty() {
+        return;
+    }
+    for loaded in &report.loaded {
+        let hooks = runtime::stats_of(loaded.module).map_or(0, |stats| stats.registered.len());
+        let line = format!("full-access mod '{}' {} loaded ({side:?} side, {hooks} hook(s) registered)", loaded.id, loaded.version);
+        log::info!("yoake: {line}");
+        eprintln!("yoake: {line}");
+    }
+    let refused = report.skipped.iter().filter(|(_, r)| !matches!(r, Refusal::Sandboxed | Refusal::OtherSide)).count();
+    let line = format!("{side:?}: {} full-access mod(s) loaded, {refused} refused", report.loaded.len());
+    log::info!("yoake: {line}");
+    eprintln!("yoake: {line}");
 }
 
 fn announce(report: &LoadReport) {

@@ -552,7 +552,9 @@ impl Source for FileSource {
         if self.permit {
             return true;
         }
-        self.permit = take_place(&ACTIVE_TRANSFERS, MAX_TRANSFERS);
+        // (the unit tests run many joins at once in one process: no limit there; the limit itself is tested on `take_place`)
+        let limit = if cfg!(test) { usize::MAX } else { MAX_TRANSFERS };
+        self.permit = take_place(&ACTIVE_TRANSFERS, limit);
         self.permit
     }
 

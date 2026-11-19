@@ -715,3 +715,14 @@ fn a_hosts_sandboxed_packages_are_installed_for_that_host_only() {
     assert!(wasm_mods_from(&found, WasmSide::Client, &[], false).is_empty());
     assert_eq!(wasm_mods_from(&found, WasmSide::Client, &[], true).len(), 1, "only the developer override loads an unsigned one");
 }
+
+/// R1: a full-access-only install has no `yoake-mods.txt` (the launcher leaves it out); the game root is still known, so
+/// the full-access loader finds `<root>/mods`.
+#[test]
+fn the_game_root_is_known_without_a_yoake_mods_list() {
+    let fixture = Fixture::new();
+    fixture.write(&fixture.0.join("mods").join("full.yak"), b"not read here");
+    let runtime = startup_runtime(&fixture.0, false);
+    assert_eq!(runtime.game_root, fixture.0);
+    assert!(runtime.entries.is_empty() && runtime.startup_log.is_empty());
+}

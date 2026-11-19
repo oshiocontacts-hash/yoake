@@ -477,23 +477,23 @@ fn wants(reaction_send: &[Vec<u8>], hash: &[u8; 32]) -> bool {
 fn m1_another_hosts_folder_does_not_count_as_already_there() {
     let host = host_game("m1_host");
     let (offer, _source) = running(&host);
-    let sandboxed = offer.entries().iter().find(|entry| entry.id == "sand_mod").unwrap().clone();
     let player = scratch("m1_player");
-    // the player has H's folder from an earlier join
+    // the player has all of H's mods from an earlier join
     let h_key = server().key;
     std::fs::create_dir_all(host_dir(&player, &h_key)).unwrap();
-    std::fs::copy(&host.sandboxed, host_dir(&player, &h_key).join(format!("{}.yak", transfer::hex(&sandboxed.sha256)))).unwrap();
-    // a process started for H, now joining H: nothing to fetch for that mod
+    for path in [&host.sandboxed, &host.full] {
+        std::fs::copy(path, host_dir(&player, &h_key).join(format!("{}.yak", transfer::hex(&sha_of(path))))).unwrap();
+    }
+    let requests = |sent: &[Vec<u8>]| sent.iter().filter(|payload| matches!(Message::decode(payload), Ok(Message::Request(_)))).count();
+    // a process started for H, now joining H: nothing to fetch
     let mut again = ClientJoin::new(player.clone(), Some(server()), true, Some(h_key.clone()), Vec::new());
     again.on_payload(transfer::CAPABILITIES);
-    let sent = again.on_payload(&offer.encode()).send;
-    assert!(!wants(&sent, &sandboxed.sha256), "H's own folder counts for H");
+    assert_eq!(requests(&again.on_payload(&offer.encode()).send), 0, "H's own folder counts for H");
     // the same process now joins S: H's files are not loaded there, so they must not count
     let other = server_host("other.example.com").unwrap();
     let mut elsewhere = ClientJoin::new(player.clone(), Some(other), true, Some(h_key), Vec::new());
     elsewhere.on_payload(transfer::CAPABILITIES);
-    let sent = elsewhere.on_payload(&offer.encode()).send;
-    assert!(wants(&sent, &sandboxed.sha256), "another host's folder does not count");
+    assert_eq!(requests(&elsewhere.on_payload(&offer.encode()).send), 1, "another host's folder does not count");
 }
 
 #[test]
@@ -525,22 +525,31 @@ fn s4_at_most_two_transfers_run_at_once() {
     assert_eq!(MAX_TRANSFERS, 2);
 }
 
+/// A source that is always full (what a host with two running transfers answers).
+struct Full;
+
+impl Source for Full {
+    fn admit(&mut self) -> bool {
+        false
+    }
+    fn open(&mut self, _: &OfferEntry) -> std::io::Result<()> {
+        panic!("a refused transfer is never opened")
+    }
+    fn read_at(&mut self, _: u64, _: &mut [u8]) -> std::io::Result<usize> {
+        Ok(0)
+    }
+    fn close(&mut self) {}
+}
+
 #[test]
-fn s4_a_third_transfer_is_answered_busy_and_places_come_back() {
-    use std::sync::atomic::Ordering;
+fn s4_a_transfer_beyond_the_limit_is_answered_busy() {
     let game = host_game("s4_busy");
-    let (offer, source) = running(&game);
+    let (offer, _) = running(&game);
     let entry = offer.entries()[0].clone();
-    // the counter is process wide and other tests may hold places: fill it the way two other connections would
-    let before = ACTIVE_TRANSFERS.load(Ordering::Acquire);
-    let missing = MAX_TRANSFERS.saturating_sub(before);
-    ACTIVE_TRANSFERS.fetch_add(missing, Ordering::AcqRel);
-    let mut session = HostSession::new(offer.clone(), source);
-    let event = session.handle(&transfer::request(&entry.sha256)).unwrap();
-    ACTIVE_TRANSFERS.fetch_sub(missing, Ordering::AcqRel);
-    let HostEvent::Reply(replies) = event else { panic!("expected a refusal") };
+    let mut session = HostSession::new(offer, Full);
+    let HostEvent::Reply(replies) = session.handle(&transfer::request(&entry.sha256)).unwrap() else { panic!("expected a refusal") };
     assert!(matches!(Message::decode(&replies[0]), Ok(Message::Refuse { reason: transfer::RefuseReason::Busy, .. })), "{replies:?}");
-    drop(session);
+    assert!(!session.transferring());
 }
 
 #[test]
