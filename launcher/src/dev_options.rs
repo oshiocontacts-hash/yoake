@@ -129,6 +129,9 @@ impl Launcher {
             Some(toggle.into_any_element()),
             &t,
         ));
+        if self.settings.dev_unsigned_wasm {
+            section = section.child(self.dev_folder_row(cx));
+        }
         if self.dev_unsigned_dll_confirmation {
             section = section.child(
                 div()
@@ -214,6 +217,88 @@ impl Launcher {
             None,
             section,
         ))
+    }
+}
+
+impl Launcher {
+    /// "Full-access dev folder": full-access .yak files built there are installed, allowed and reloaded in the running
+    /// game automatically (only while "Test your own WASM mods" is on).
+    fn dev_folder_row(&self, cx: &mut Context<Self>) -> Div {
+        let t = self.theme;
+        let folder = self.settings.full_access_dev_folder.clone();
+        let mut description = div().flex().flex_col().gap(px(4.)).child(tr(
+            "Full-access mods you build into this folder are installed, allowed and reloaded in the running game automatically. Choose a folder only you write to.",
+        ));
+        description = description.child(match &folder {
+            Some(path) => trf("Folder: {path}", &[("path", &path.display().to_string())]),
+            None => tr("No folder chosen.").to_owned(),
+        });
+        if let Some(error) = &self.dev_folder_error {
+            description = description.child(
+                div().text_color(glass_ui::color(horizon_theme::glass::WARN)).child(error.clone()),
+            );
+        }
+        let mut controls = div().flex().gap(px(8.)).child(
+            button("dev-folder-choose", "Choose folder…", Kind::Secondary, &t).on_click(cx.listener(
+                |this, _: &ClickEvent, _, cx| {
+                    this.choose_dev_folder(cx);
+                    cx.notify();
+                },
+            )),
+        );
+        if folder.is_some() {
+            controls = controls.child(
+                button("dev-folder-clear", "Clear", Kind::Secondary, &t).on_click(cx.listener(
+                    |this, _: &ClickEvent, _, cx| {
+                        this.apply_dev_folder(None);
+                        cx.notify();
+                    },
+                )),
+            );
+        }
+        index_row(
+            0,
+            tr("Full-access dev folder"),
+            Some(description.into_any_element()),
+            Some(controls.into_any_element()),
+            &t,
+        )
+    }
+
+    fn choose_dev_folder(&mut self, cx: &mut Context<Self>) {
+        let paths = cx.prompt_for_paths(PathPromptOptions {
+            files: false,
+            directories: true,
+            multiple: false,
+            prompt: Some(tr("Choose folder…").into()),
+        });
+        cx.spawn(async move |this, cx| {
+            if let Ok(Ok(Some(paths))) = paths.await {
+                if let Some(path) = paths.into_iter().next() {
+                    let _ = this.update(cx, |this, cx| {
+                        this.apply_dev_folder(Some(path));
+                        cx.notify();
+                    });
+                }
+            }
+        })
+        .detach();
+    }
+
+    /// Stores the folder through the backend (it validates and writes settings.json), then takes the stored value into
+    /// this window's settings so a later save keeps it.
+    fn apply_dev_folder(&mut self, path: Option<std::path::PathBuf>) {
+        match horizon_launcher::full_access::set_dev_folder(path) {
+            Ok(()) => {
+                self.dev_folder_error = None;
+                self.settings.full_access_dev_folder =
+                    backend::Settings::load().full_access_dev_folder;
+            }
+            Err(reason) => {
+                self.dev_folder_error =
+                    Some(trf("This folder cannot be used: {reason}", &[("reason", &reason)]));
+            }
+        }
     }
 }
 

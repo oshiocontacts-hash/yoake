@@ -68,13 +68,16 @@ fn is_sha256_hex(text: &str) -> bool {
     text.len() == 64 && text.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
-/// Where a package came from. Only `Local` and `Catalog` can be full-access.
+/// Where a package came from. Only `Local`, `Catalog` and `Dev` can be full-access.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Origin {
     /// Installed by the player from a file on their own computer.
     Local,
     /// Downloaded from the catalog (its signature is checked).
     Catalog,
+    /// Copied by the launcher from the player's own developer folder while a game it started runs (`dev`, shown as
+    /// "dev folder"); the launcher approves exactly those bytes itself.
+    Dev,
     /// Delivered by a server the player joined.
     Server,
     /// Delivered by a friend.
@@ -86,6 +89,7 @@ impl Origin {
         match self {
             Origin::Local => "local",
             Origin::Catalog => "catalog",
+            Origin::Dev => "dev",
             Origin::Server => "server",
             Origin::Friend => "friend",
         }
@@ -95,6 +99,7 @@ impl Origin {
         Some(match text {
             "local" => Origin::Local,
             "catalog" => Origin::Catalog,
+            "dev" => Origin::Dev,
             "server" => Origin::Server,
             "friend" => Origin::Friend,
             _ => return None,
@@ -103,7 +108,7 @@ impl Origin {
 
     /// Whether a package of this origin may ever be full-access (still needs approval or a trusted signer).
     pub fn can_be_full_access(self) -> bool {
-        matches!(self, Origin::Local | Origin::Catalog)
+        matches!(self, Origin::Local | Origin::Catalog | Origin::Dev)
     }
 }
 
@@ -761,6 +766,9 @@ impl ApprovedList {
         if let Some(host) = &self.host {
             text.push_str(&format!("host = {host:?}\n"));
         }
+        if self.generation != 0 {
+            text.push_str(&format!("generation = {}\n", self.generation));
+        }
         for e in &self.entries {
             text.push_str(&format!("\n[[package]]\nid = {:?}\nversion = {:?}\nsha256 = {:?}\norigin = {:?}\n", e.id, e.version, e.sha256, e.origin.as_str()));
         }
@@ -793,7 +801,7 @@ impl ApprovedList {
                 if !is_sha256_hex(&sha256) {
                     return Err(format!("approved list: package[{n}].sha256 must be 64 hex digits"));
                 }
-                let origin = Origin::parse(get("origin")?).ok_or_else(|| format!("approved list: package[{n}].origin must be local, catalog, server or friend"))?;
+                let origin = Origin::parse(get("origin")?).ok_or_else(|| format!("approved list: package[{n}].origin must be local, catalog, dev, server or friend"))?;
                 // MX3JN1: a server's or friend's package is valid only in a list scoped to its host, and the host's kind matches.
                 if !origin.can_be_full_access() {
                     let scoped = list.host.as_deref().is_some_and(|host| host.starts_with(&format!("{}:", origin.as_str())));
@@ -1140,6 +1148,12 @@ mod tests {
             assert!(ApprovedList::parse(&text).is_err(), "{bad_origin}");
         }
         assert!(ApprovedList::parse("format = 2\n").is_err());
+        assert_eq!(ApprovedList::parse(&list.to_text()).unwrap().generation(), 0, "old files have no generation");
+        let g = list.clone().with_generation(7);
+        assert!(g.to_text().contains("generation = 7"));
+        assert_eq!(ApprovedList::parse(&g.to_text()).unwrap(), g);
+        assert!(ApprovedList::parse("format = 1\ngeneration = -1\n").is_err());
+        assert!(ApprovedList::parse("format = 1\ngeneration = \"x\"\n").is_err());
         assert!(ApprovedList::parse("").is_err(), "no format line");
         assert!(ApprovedList::parse("format = 1\n[[package]]\nid = \"x\"\nversion = \"1\"\nsha256 = \"short\"\norigin = \"local\"\n").is_err());
         // one list per launch, never overwritten
@@ -1151,6 +1165,38 @@ mod tests {
         let (allow, origins) = list.to_files();
         assert!(allow.is_allowed("one", &"a".repeat(64)) && !allow.is_allowed("one", &"b".repeat(64)));
         assert_eq!(origins.origin_of(&"b".repeat(64)), Some(Origin::Catalog));
+    }
+
+    #[test]
+    fn the_dev_origin_round_trips_can_be_full_access_and_old_files_still_read() {
+        assert_eq!(Origin::parse("dev"), Some(Origin::Dev));
+        assert_eq!(Origin::Dev.as_str(), "dev");
+        assert!(Origin::Dev.can_be_full_access());
+        assert!(!Origin::Server.can_be_full_access() && !Origin::Friend.can_be_full_access());
+        assert!(remote_dir(Path::new("mods"), Origin::Dev).is_none(), "a dev package sits top-level like a local one");
+        // the approved list, with a dev entry and a generation
+        let list = ApprovedList::new(vec![entry("d", 'd', Origin::Dev), entry("l", 'f', Origin::Local)], vec![]).with_generation(7);
+        let text = list.to_text();
+        assert!(text.contains("generation = 7") && text.contains("origin = \"dev\""), "{text}");
+        let back = ApprovedList::parse(&text).unwrap();
+        assert_eq!(back, list);
+        assert_eq!(back.generation(), 7);
+        // generation 0 is not written, and a file without it (every older launcher) reads as 0
+        let plain = ApprovedList::new(vec![entry("l", 'a', Origin::Local)], vec![]);
+        assert!(!plain.to_text().contains("generation"));
+        assert_eq!(ApprovedList::parse(&plain.to_text()).unwrap().generation(), 0);
+        for bad in ["generation = -1", "generation = \"x\""] {
+            assert!(ApprovedList::parse(&format!("format = 1\n{bad}\n")).is_err(), "{bad}");
+        }
+        // the origin file: a dev record round-trips, and a file written before `dev` existed still reads
+        let mut origins = OriginFile::default();
+        origins.record(&"d".repeat(64), OriginRecord { origin: Origin::Dev, id: "d".into(), version: "1.0.0".into(), signer: None });
+        origins.record(&"a".repeat(64), OriginRecord { origin: Origin::Catalog, id: "a".into(), version: "1.0.0".into(), signer: Some("me".into()) });
+        let again = OriginFile::parse(&origins.to_text()).unwrap();
+        assert_eq!(again.origin_of(&"d".repeat(64)), Some(Origin::Dev));
+        assert_eq!(again.origin_of(&"a".repeat(64)), Some(Origin::Catalog));
+        let old = format!("[[package]]\nsha256 = \"{}\"\norigin = \"local\"\nid = \"x\"\nversion = \"1\"\n", "c".repeat(64));
+        assert_eq!(OriginFile::parse(&old).unwrap().origin_of(&"c".repeat(64)), Some(Origin::Local));
     }
 
     #[test]
@@ -1186,6 +1232,19 @@ mod tests {
         let out = dir.join(format!("{id}.yak"));
         super::super::pack_directory(&src, &out, &BTreeMap::new()).unwrap();
         std::fs::read(out).unwrap()
+    }
+
+    #[test]
+    fn a_list_keeps_its_host_and_its_generation_together() {
+        let key = "friend:user_7";
+        let list = ApprovedList::new(vec![entry("d", 'd', Origin::Dev), entry("l", 'a', Origin::Local), entry("f", 'f', Origin::Friend)], vec![]).with_host(key).with_generation(4);
+        let again = ApprovedList::parse(&list.to_text()).unwrap();
+        assert_eq!((again.host(), again.generation()), (Some(key), 4));
+        assert_eq!(again, list);
+        let error = ApprovedList::parse(&list.to_text().replace(r#"origin = "dev""#, r#"origin = "nope""#)).unwrap_err();
+        for word in ["local", "catalog", "dev", "server", "friend"] {
+            assert!(error.contains(word), "{error}");
+        }
     }
 
     #[test]

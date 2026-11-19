@@ -278,6 +278,16 @@ chain the total nesting can be deeper than 16 (each level still costs native sta
 (a generation counter), so the hot path is one hash lookup and an `Rc` clone. A mod's registrations change only
 inside its `yoake_init`, before it is in the list.
 
+## Dev reload (MX3HR1)
+
+For mod authors working with the launcher's developer mode. Only a game started with `--full-access-dev` (in addition to `--full-access-approved <path>`) does this; without the flag the list is read once, as always.
+
+- **What triggers it.** The launcher rewrites the approved-list file (temp file + rename) when a mod in the dev folder changed, and raises a top-level `generation = <integer>` in it (absent = 0). The game looks at the file's mtime and size at most once per second, from the server tick (`ServerTickStart`, just before the Game-root hook) and the client tick. A changed file that parses, with a `generation` higher than the one the side loaded with, reloads that side. The same or a lower generation, an unreadable file or a file that does not parse changes nothing (a line is logged for the last two).
+- **What a reload does.** Per thread, server and client independently (each only if it loaded mods for its session): every mod of that thread's runtime is dropped, the normal loader runs again with the new list (same trust rules: only listed bytes, never server or friend packages, same ABI check), then each mod's `yoake_init` runs again. A mod that does not load or traps in `yoake_init` is reported like at startup and the others still load. One line is printed per reload: `yoake: dev reload (Server) generation N: K mod(s) loaded [ids], R refused`.
+- **What it means for a guest.** A reloaded mod is a **new instance**: its linear memory, globals, registrations and tickets start from nothing; nothing is carried over. Engine state it changed stays as it is. Hook ids it registers for the first time are bridged then (dispatchers are installed once per process and never again; a reload only replaces the per-thread chains).
+- **Never mid-activation.** A reload waits while any guest of the thread is running (an `original` call on the stack); it is retried at the next check. The engine calls it between ticks, outside hooks.
+- **A world or session started later** loads with the newest list the reload accepted, not with the launch-time one.
+
 ## The launcher is the authority (MX3L3, MX3L4)
 
 **The game never reads the control files.** `full-access.toml` (approvals: id + version + SHA-256 of the `.yak`) and
