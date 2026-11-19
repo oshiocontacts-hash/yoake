@@ -9,13 +9,20 @@ use std::time::{Duration, Instant};
 
 use yoake_mod_io::{FileAccess, LogSink, ModIo};
 use yoake_wasm::test_guests::{F2_FILES, F2_MAIN, F2_WORKER, load};
-use yoake_wasm::{ModInstance, Sandbox};
+use yoake_wasm::{ModInstance, Sandbox, TimeLimits};
 
 fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("yoake-f2-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir
+}
+
+/// A loaded CI machine can pause a thread for longer than a hook's 20 ms budget; these tests are about files and the
+/// worker, not about the time budget (the bounded clock is what `a_wait_in_the_main_instance_still_traps` checks).
+fn relaxed(mut module: ModInstance<()>) -> ModInstance<()> {
+    module.set_limits(TimeLimits { call: Duration::from_secs(10), aggregate: Duration::from_secs(10) });
+    module
 }
 
 fn run(module: &mut ModInstance<()>, op: &str) -> Option<String> {
@@ -30,7 +37,7 @@ fn run(module: &mut ModInstance<()>, op: &str) -> Option<String> {
 fn files_module(game: &Path, id: &str, host_filesystem: bool, bytes: &[u8]) -> ModInstance<()> {
     let mut sandbox = Sandbox::new();
     sandbox.set_mod_io(id, ModIo::new(FileAccess::new(game, id, host_filesystem)));
-    sandbox.compile(bytes).unwrap().instantiate(id, (), |_| Ok(())).unwrap()
+    relaxed(sandbox.compile(bytes).unwrap().instantiate(id, (), |_| Ok(())).unwrap())
 }
 
 #[test]
@@ -65,7 +72,7 @@ fn host_filesystem_preopens_the_drives_only_when_asked() {
 #[test]
 fn without_a_configured_mod_there_are_no_files() {
     let Some(bytes) = load(&F2_FILES) else { return };
-    let mut module = Sandbox::new().compile(&bytes).unwrap().instantiate("plain", (), |_| Ok(())).unwrap();
+    let mut module = relaxed(Sandbox::new().compile(&bytes).unwrap().instantiate("plain", (), |_| Ok(())).unwrap());
     assert!(run(&mut module, "write").unwrap().starts_with("error"));
 }
 
@@ -122,7 +129,7 @@ fn worker_module(game: &Path, id: &str, log: &Log) -> Option<ModInstance<()>> {
     io.worker = Some(worker);
     io.log = log.sink();
     sandbox.set_mod_io(id, io);
-    Some(sandbox.compile(&main).unwrap().instantiate(id, (), |_| Ok(())).unwrap())
+    Some(relaxed(sandbox.compile(&main).unwrap().instantiate(id, (), |_| Ok(())).unwrap()))
 }
 
 /// Polls the mod's `recv` until a message arrives (the worker answers on its own thread).
@@ -242,7 +249,7 @@ fn a_worker_trap_disables_only_the_worker() {
 #[test]
 fn a_mod_without_a_worker_gets_no_worker_errors() {
     let Some(main) = load(&F2_MAIN) else { return };
-    let mut module = Sandbox::new().compile(&main).unwrap().instantiate("noworker", (), |_| Ok(())).unwrap();
+    let mut module = relaxed(Sandbox::new().compile(&main).unwrap().instantiate("noworker", (), |_| Ok(())).unwrap());
     assert_eq!(run(&mut module, "send:x").as_deref(), Some("error: no-worker"));
     assert_eq!(run(&mut module, "recv").as_deref(), Some("none"));
 }

@@ -9,7 +9,7 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 use wasmtime::component::{Component, Instance, Linker, ResourceTable};
 use wasmtime_wasi_http::{WasiHttpCtx, WasiHttpCtxView, WasiHttpView};
-use yoake_mod_io::{ModIo, WorkerHandle, WorkerOptions};
+use yoake_mod_io::{WorkerHandle, WorkerOptions};
 use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder, UpdateDeadline};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 

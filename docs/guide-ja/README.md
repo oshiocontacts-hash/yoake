@@ -80,6 +80,11 @@ WebAssembly MOD はゲーム本体の中の安全なサンドボックス（隔�
 - `inject-mod` の `yak.toml` の書き方、値の範囲と拒否、コマンド・チャットへの割り込み
 - 順番と競合、上限とトラップ、よくある失敗
 
+### 9. [ファイル・ネットワーク・ワーカー（`09-files-network.md`）](./09-files-network.md)
+- `/data`・`/game`・`/host` のフォルダと、`std::fs` での保存
+- ネットワークはワーカーで行う理由と、`worker-send` / `host-recv` のやり取り
+- キューの上限、ワーカーが落ちたとき、古い `permissions` の扱い
+
 ---
 
 ## おすすめの進め方
