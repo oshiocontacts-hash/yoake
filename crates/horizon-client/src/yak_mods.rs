@@ -256,6 +256,13 @@ impl Runtime {
         let Some(key) = horizon_client::join_mods::remote_key() else {
             return;
         };
+        // M1: these packages are read once at start, before any connection exists, so the launch's own `--server` must
+        // be the host of the key (the code of a package still needs a trusted signature, and `has_local` counts the
+        // folder only for a join of that host)
+        if !horizon_client::join_mods::launch_may_use_remote_from(&key, std::env::args().skip(1)) {
+            log::warn!("remote packages of {key} not loaded: this launch does not join that host");
+            return;
+        }
         for entry in remote_installed(game, &key, build, keys) {
             if self.entries.iter().any(|other| other.manifest.id == entry.manifest.id) {
                 log::warn!("remote YAK {}: you have a package with this id, yours is used", entry.manifest.id);

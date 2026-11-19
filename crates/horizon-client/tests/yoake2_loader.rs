@@ -303,6 +303,38 @@ fn a_hosts_full_access_package_loads_only_for_the_launch_that_joins_that_host() 
     }
 }
 
+/// M1: the same process, one launch for host H: H's mods load only while the session's connection goes to H.
+#[test]
+fn m1_a_hosts_mods_load_only_in_sessions_connected_to_that_host() {
+    use horizon_client::join_mods::{friend_host, server_host};
+    let key = "server:play.example.com:25565";
+    let packs = [("demo_host", "client", counting_guest(&ALL_THREE, None))];
+    let (mods, file) = remote_world("m1_sessions", key, key, Origin::Server, &packs);
+    let run = |host: Option<horizon_client::join_mods::HostId>| {
+        let (mods, file) = (mods.clone(), file.clone());
+        std::thread::spawn(move || {
+            let report = horizon_client::yoake2_mods::load_client_mods_for_host(&mods, Some(&ApprovedList::read(&file).unwrap()), Some(key), host.as_ref());
+            let out = loaded_ids(&report);
+            // the session ends: nothing of H stays loaded
+            assert!(unload_client_mods().is_empty());
+            assert!(!horizon_client::yoake2_mods::client_mods_loaded());
+            out
+        })
+        .join()
+        .unwrap()
+    };
+    // joining H loads them
+    assert_eq!(run(server_host("play.example.com")), ["demo_host"]);
+    // single player (or a replay) afterwards in the same process: none
+    assert!(run(None).is_empty());
+    // another server: none
+    assert!(run(server_host("other.example.com")).is_empty());
+    // a friend host of a similar name: none
+    assert!(run(friend_host("play.example.com")).is_empty());
+    // and H again still works
+    assert_eq!(run(server_host("PLAY.example.com:25565")), ["demo_host"]);
+}
+
 #[test]
 fn a_remote_folder_of_another_host_is_not_loaded_even_with_a_list_for_this_one() {
     // the list names host A, the launch joins host A, but the package sits in host B's folder

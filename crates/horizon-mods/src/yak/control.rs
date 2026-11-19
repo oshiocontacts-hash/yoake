@@ -902,14 +902,15 @@ impl ApprovedList {
 }
 
 /// MX3JN1: a host key as the launcher and the game pass it around: `server:<host>:<port>` or `friend:<portal user id>`,
-/// plain characters only (it names a folder and sits on a command line), at most [`MAX_HOST_KEY`] of them.
+/// lowercase letters, digits and `: . - _ [ ]` only (it names a folder and sits on a command line; a Windows folder
+/// name ignores case, so a key with capitals would alias another), at most [`MAX_HOST_KEY`] of them.
 pub fn valid_host_key(key: &str) -> bool {
     let Some((kind, rest)) = key.split_once(':') else { return false };
     matches!(kind, "server" | "friend")
         && !rest.is_empty()
         && key.len() <= MAX_HOST_KEY
         && !rest.contains("..")
-        && key.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b':' | b'.' | b'-' | b'_' | b'[' | b']'))
+        && key.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b':' | b'.' | b'-' | b'_' | b'[' | b']'))
 }
 
 /// Characters in a host key at most.
@@ -1289,7 +1290,7 @@ mod tests {
         for good in ["server:a.example:25565", "server:[::1]:25565", "friend:u-1_x", "server:192.168.0.2:1"] {
             assert!(valid_host_key(good), "{good}");
         }
-        for bad in ["", "server", "server:", "friend", "x:y", "server:a/b", "server:a b", "server:..", "server:a..b", "server:é:1"] {
+        for bad in ["", "server", "server:", "friend", "x:y", "server:a/b", "server:a b", "server:..", "server:a..b", "server:é:1", "server:A.example:25565", "friend:User_7"] {
             assert!(!valid_host_key(bad), "{bad:?}");
         }
         assert!(!valid_host_key(&format!("friend:{}", "a".repeat(MAX_HOST_KEY))));

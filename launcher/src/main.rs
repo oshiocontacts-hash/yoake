@@ -385,6 +385,11 @@ struct Launcher {
     /// MX3JN2: the game folder of the running Yoake game that was started with `--join-mod-sync`; its exit code 75 means
     /// "I fetched mods for a host" (`full_access::handle_join_exit`).
     join_sync_home: Option<std::path::PathBuf>,
+    /// M2: the running game was started by the launcher's own automatic rejoin after a join sync (not by the player), so
+    /// a second exit 75 of it is refused.
+    join_sync_auto: bool,
+    /// M2: the host key of an automatic rejoin just asked for (consumed by the next game start, within a minute).
+    auto_rejoin_for: Option<(String, Instant)>,
     /// MX3JN2: the host key of the social room the next guest game joins (set by `friends_join_room`).
     friend_join_host: Option<String>,
     /// MX3JN2: a friend's host principal whose room the launcher could not rejoin by itself after a sync: the page offers
@@ -699,6 +704,8 @@ impl Launcher {
             client_run: None,
             client_full_access: None,
             join_sync_home: None,
+            join_sync_auto: false,
+            auto_rejoin_for: None,
             friend_join_host: None,
             join_again: None,
             client_vars: Vec::new(),
@@ -1396,6 +1403,12 @@ impl Launcher {
                             cmd.arg(flag).arg(value);
                         }
                         let friend_host = self.friend_join_host.take();
+                        // M2: is this start the launcher's own automatic rejoin (one per join the player started)?
+                        let auto_rejoin = self.auto_rejoin_for.take().is_some_and(|(key, at)| {
+                            at.elapsed() < Duration::from_secs(60)
+                                && (join_host.as_deref() == Some(key.as_str())
+                                    || friend_host.as_deref() == Some(key.as_str()))
+                        });
                         // A room: the game gets the path of its private file and nothing else.
                         let handoff = self.take_social_handoff();
                         if matches!(&handoff, Some((_, None))) {
@@ -1442,10 +1455,14 @@ impl Launcher {
                                 join_host.as_deref(),
                                 self.settings.join_mod_sync,
                             );
-                            if prepared.join_mod_sync {
+                            // S1: a game that does not list the new options (a 1.0 build) gets none of them
+                            let support = horizon_launcher::full_access::GameSupport::detect(
+                                std::path::Path::new(cmd.get_program()),
+                            );
+                            if prepared.join_mod_sync && support.join_sync {
                                 join_sync = Some(instance_home.clone());
                             }
-                            prepared.apply(&mut cmd);
+                            prepared.apply_for(&mut cmd, support);
                             self.client_full_access = prepared.run;
                             self.reload_full_access();
                         }
@@ -1458,6 +1475,7 @@ impl Launcher {
                         match backend::spawn(Job::Client, cmd, self.tx.clone()) {
                             Ok(r) => {
                                 self.client = Some(r);
+                                self.join_sync_auto = auto_rejoin && join_sync.is_some();
                                 self.join_sync_home = join_sync;
                                 self.client_run = run.map(|id| (id, Instant::now()));
                                 self.step_aside(cx);
@@ -1615,6 +1633,8 @@ impl Launcher {
                     Ok(done) => {
                         self.client_error = None;
                         self.join_again = None;
+                        // M2: this rejoin is the one automatic rejoin of the join the player started
+                        self.auto_rejoin_for = Some((done.host_key.clone(), Instant::now()));
                         match done.rejoin {
                             horizon_launcher::full_access::Rejoin::Server(address) => {
                                 self.quick_play("--server", address)
@@ -1625,6 +1645,7 @@ impl Launcher {
                         }
                     }
                     Err(e) => {
+                        self.auto_rejoin_for = None;
                         self.client_error = Some(format!("Could not get the host's mods: {e}"));
                     }
                 },
@@ -1634,6 +1655,7 @@ impl Launcher {
                     // fetched (a worker thread; the control lock), then join the same host again.
                     if job == Job::Client {
                         let home = self.join_sync_home.take();
+                        let auto = std::mem::take(&mut self.join_sync_auto);
                         if let Some(home) = home.filter(|_| {
                             error
                                 .as_deref()
@@ -1642,9 +1664,13 @@ impl Launcher {
                             error = None;
                             let tx = self.tx.clone();
                             std::thread::spawn(move || {
-                                let _ = tx.send(Msg::JoinSync(
-                                    horizon_launcher::full_access::handle_join_exit(&home),
-                                ));
+                                // M2: a game the launcher restarted itself that asks again installs nothing
+                                let result = if auto {
+                                    horizon_launcher::full_access::refuse_repeated_join_exit(&home)
+                                } else {
+                                    horizon_launcher::full_access::handle_join_exit(&home)
+                                };
+                                let _ = tx.send(Msg::JoinSync(result));
                             });
                         }
                     }

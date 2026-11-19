@@ -1570,7 +1570,9 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 if let Some(problem) = &prepared.problem {
                     eprintln!("Full-access mods are off for this launch: {problem}");
                 }
-                prepared.apply(&mut cmd);
+                // S1: a game that does not list the new options (a 1.0 build) gets none of them
+                let support = horizon_launcher::full_access::GameSupport::detect(std::path::Path::new(cmd.get_program()));
+                prepared.apply_for(&mut cmd, support);
                 prepared
             });
             let current_yoake =
