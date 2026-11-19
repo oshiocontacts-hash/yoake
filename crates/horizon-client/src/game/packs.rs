@@ -388,6 +388,7 @@ impl Game<'_> {
             .set_resource_root(self.options.resources.clone());
         self.maps.slots.forget();
         self.map_patches.clear();
+        self.sprite_patches.clear();
         // Kept mod block entities name the old atlas's sprites.
         self.kept_block_entities.get_mut().clear();
         // The atlas's sprites moved: the particle engine re-reads every rect
@@ -464,6 +465,7 @@ impl Game<'_> {
             }
             self.restore_native_services(&mut renderer);
             self.renderer = Some(renderer);
+            self.reapply_native_sprites();
             self.apply_ui_settings();
         }
         // Horizon's own shader pack is built again: its sprite tags name the old atlas's

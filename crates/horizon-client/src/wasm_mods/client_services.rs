@@ -72,6 +72,14 @@ fn rect(value: ct::Box2) -> [f32; 4] {
     [value.x, value.y, value.width, value.height]
 }
 
+fn sprite_key(id: &str) -> String {
+    if id.contains(':') {
+        id.to_owned()
+    } else {
+        format!("minecraft:{id}")
+    }
+}
+
 fn quad(corners: Vec<ct::Vec3>) -> Result<[[f64; 3]; 4], String> {
     corners
         .into_iter()
@@ -611,6 +619,60 @@ impl ClientServices for GameHost {
             Ok(corners
                 .place_top_center(size.x, size.y)
                 .map(|(x, y)| ct::Vec2 { x, y }))
+        })
+    }
+
+    fn item_sprite_set(
+        &mut self,
+        item_id: String,
+        rgba: Vec<u8>,
+        size: (u32, u32),
+    ) -> Result<(), String> {
+        self.client_call(|invocation| {
+            write_host(invocation)?.item_sprite_set(&item_id, &rgba, [size.0, size.1])
+        })?;
+        self.resources.claim_item_sprite(sprite_key(&item_id));
+        Ok(())
+    }
+
+    fn item_sprite_reset(&mut self, item_id: String) -> Result<(), String> {
+        self.client_call(|invocation| write_host(invocation)?.item_sprite_reset(&item_id))?;
+        self.resources.remove_item_sprite(&sprite_key(&item_id));
+        Ok(())
+    }
+
+    fn block_sprite_set(
+        &mut self,
+        rgba: Vec<u8>,
+        size: (u32, u32),
+        texture_id: String,
+    ) -> Result<(), String> {
+        self.client_call(|invocation| {
+            write_host(invocation)?.block_sprite_set(&texture_id, &rgba, [size.0, size.1])
+        })?;
+        self.resources
+            .claim_block_sprite(sprite_key(&texture_id));
+        Ok(())
+    }
+
+    fn block_sprite_reset(&mut self, texture_id: String) -> Result<(), String> {
+        self.client_call(|invocation| write_host(invocation)?.block_sprite_reset(&texture_id))?;
+        self.resources
+            .remove_block_sprite(&sprite_key(&texture_id));
+        Ok(())
+    }
+
+    fn item_sprite_pixels(&mut self, item_id: String) -> Result<(u32, u32, Vec<u8>), String> {
+        self.client_call(|invocation| {
+            let ([width, height], rgba) = read_host(invocation)?.item_sprite_pixels(&item_id)?;
+            Ok((width, height, rgba))
+        })
+    }
+
+    fn block_sprite_pixels(&mut self, texture_id: String) -> Result<(u32, u32, Vec<u8>), String> {
+        self.client_call(|invocation| {
+            let ([width, height], rgba) = read_host(invocation)?.block_sprite_pixels(&texture_id)?;
+            Ok((width, height, rgba))
         })
     }
 }
