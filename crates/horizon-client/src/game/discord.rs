@@ -40,6 +40,8 @@ impl Game<'_> {
                 Dim::Overworld => Dimension::Overworld,
                 Dim::Nether => Dimension::Nether,
                 Dim::End => Dimension::End,
+                // F3-4: dimension-type query
+                _ => Dimension::Overworld,
             },
             mode: self.mode,
         }

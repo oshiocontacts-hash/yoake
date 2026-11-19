@@ -640,13 +640,15 @@ impl Game<'_> {
                 ) {
                     return Err(err("argument.dimension.invalid", &[dim]));
                 }
-                let dimension = Dim::from_id(dim);
+                // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+                let dimension = Dim::lookup_or_overworld(dim);
                 let coordinate_scale = |dim| if dim == Dim::Nether { 8.0 } else { 1.0 };
                 let scale = coordinate_scale(s.dimension) / coordinate_scale(dimension);
                 vec![Source {
                     pos: [s.pos[0] * scale, s.pos[1], s.pos[2] * scale],
                     dimension,
-                    level: Some(super::super::Dim::from_id(dim)),
+                    // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+                    level: Some(super::super::Dim::lookup_or_overworld(dim)),
                     ..s
                 }]
             }

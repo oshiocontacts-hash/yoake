@@ -2920,11 +2920,13 @@ impl Game<'_> {
             .guests
             .iter()
             .find(|g| g.placed && g.conn != own && g.uuid == uuid)
-            .map(|g| (g.position, g.yaw, g.pitch, Dim::from_id(&g.dimension)));
+            // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+            .map(|g| (g.position, g.yaw, g.pitch, Dim::lookup_or_overworld(&g.dimension)));
         let Some((at, yaw, pitch, dim)) = target else {
             return;
         };
-        if Dim::from_id(&host.hub.guests[gi].dimension) != dim {
+        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+        if Dim::lookup_or_overworld(&host.hub.guests[gi].dimension) != dim {
             self.level_teleports
                 .push(super::server_travel::LevelTeleport {
                     conn: own,
@@ -3711,7 +3713,8 @@ impl Game<'_> {
             ]
         });
         let back = self.dim;
-        let left = super::Dim::from_id(&host.hub.guests[i].dimension);
+        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+        let left = super::Dim::lookup_or_overworld(&host.hub.guests[i].dimension);
         let away = server && host.hub.guests[i].dimension != level.id();
         if server {
             self.server_trips.retain(|t| !t.is(conn));

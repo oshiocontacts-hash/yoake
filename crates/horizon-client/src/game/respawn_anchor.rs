@@ -45,7 +45,8 @@ impl RespawnConfig {
     }
     pub(super) fn from_saved((dim, pos, yaw, forced): &SavedRespawn) -> Self {
         Self {
-            dim: Dim::from_id(dim),
+            // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+            dim: Dim::lookup_or_overworld(dim),
             pos: *pos,
             yaw: *yaw,
             forced: *forced,

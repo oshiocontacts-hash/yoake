@@ -212,12 +212,8 @@ impl Game<'_> {
     }
 
     fn native_physics_world(&self, dimension: &str) -> Result<&World, String> {
-        let dim = match dimension {
-            "minecraft:overworld" => Dim::Overworld,
-            "minecraft:the_nether" => Dim::Nether,
-            "minecraft:the_end" => Dim::End,
-            _ => return Err("unknown native collision dimension".into()),
-        };
+        // F3-0: only known levels (the three vanilla ones until F3-3 registers more).
+        let dim = Dim::lookup(dimension).ok_or("unknown native collision dimension")?;
         if dim == self.dim {
             Ok(&self.world)
         } else {

@@ -2273,7 +2273,8 @@ impl Game<'_> {
             dimension.has_skylight,
             dimension.has_ceiling,
         )
-        .unwrap_or_else(|_| super::Dim::from_id(&dimension.name).shape());
+        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+        .unwrap_or_else(|_| super::Dim::lookup_or_overworld(&dimension.name).shape());
         // handleRespawn keeps the ClientLevel only for the same level key:
         // two levels sharing a dimension type are still two levels.
         let same = keep_world && r.heard_level.as_deref() == Some(spawn.dimension.as_str());
@@ -2300,7 +2301,8 @@ impl Game<'_> {
         r.position_sender = Default::default();
         r.predictions.clear();
         self.set_mode_id(spawn.game_type);
-        self.dim = Dim::from_id(&spawn.dimension);
+        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+        self.dim = Dim::lookup_or_overworld(&spawn.dimension);
         self.audio.set_world(&spawn.dimension);
         // ClientPacketListener.handleLogin / handleRespawn: the server's
         // Player.getLastDeathLocation, for the recovery compass.
@@ -3347,7 +3349,8 @@ impl Game<'_> {
                         r.own_on_fire = false;
                     }
                 }
-                let dimension_changed = self.dim != Dim::from_id(&p.spawn.dimension);
+                // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+                let dimension_changed = self.dim != Dim::lookup_or_overworld(&p.spawn.dimension);
                 let died = self.screen == Screen::Dead
                     || self
                         .player

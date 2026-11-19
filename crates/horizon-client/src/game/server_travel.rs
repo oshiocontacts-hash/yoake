@@ -865,7 +865,8 @@ impl Game<'_> {
             };
             let previous = self.dim;
             if ticket.is_some() {
-                let player_dim = Dim::from_id(&host.hub.guests[i].dimension);
+                // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+                let player_dim = Dim::lookup_or_overworld(&host.hub.guests[i].dimension);
                 if player_dim != self.dim
                     && let Err(e) = self.enter_level(Some(host), player_dim)
                 {

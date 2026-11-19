@@ -206,6 +206,8 @@ impl Game<'_> {
             Dim::Overworld => 0,
             Dim::Nether => -1,
             Dim::End => 1,
+            // F3-4: dimension-type query
+            _ => 0,
         };
         let path = crate::yak_mods::shaders::path(&name, &Self::shader_packs_dir());
         if horizon_shader_api::package::is_pack(&path) {

@@ -281,6 +281,8 @@ impl Game<'_> {
             Dim::Overworld => "minecraft:overworld",
             Dim::Nether => "minecraft:the_nether",
             Dim::End => "minecraft:the_end",
+            // F3-4: dimension-type query
+            _ => "minecraft:overworld",
         };
         let key = (
             self.frames,
