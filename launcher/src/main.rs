@@ -357,6 +357,8 @@ struct Launcher {
     dev_options: bool,
     dev_unsigned_dll_confirmation: bool,
     dev_unsigned_wasm_confirmation: bool,
+    /// Why the chosen full-access dev folder was refused (Settings, developer options).
+    dev_folder_error: Option<String>,
     /// The game is waiting for its session (a token renewal), or a Java instance for its files
     /// and Java (`start_java`), before it starts.
     starting_client: Option<String>,
@@ -675,6 +677,7 @@ impl Launcher {
             dev_options: false,
             dev_unsigned_dll_confirmation: false,
             dev_unsigned_wasm_confirmation: false,
+            dev_folder_error: None,
             starting_client: None,
             starting_yoake_home: None,
             play_when_prepared: None,

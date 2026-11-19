@@ -1316,5 +1316,17 @@
   "A mod delivered by a server or a friend cannot be full-access.": "サーバーやフレンドから届いた MOD はフルアクセスにできません。",
   "The changes moved while you were looking. Check them again.": "確認している間に変更が増減しました。もう一度確かめてください。",
   "The file changed while you were allowing it. Check it again.": "許可している間にファイルが変わりました。もう一度確かめてください。",
-  "This mod id is in the mods folder more than once. Remove the extra file first.": "この MOD ID のファイルが mods フォルダーに複数あります。先に余分なファイルを削除してください。"
+  "This mod id is in the mods folder more than once. Remove the extra file first.": "この MOD ID のファイルが mods フォルダーに複数あります。先に余分なファイルを削除してください。",
+  "Full-access dev folder": "フルアクセス MOD の開発フォルダー",
+  "Full-access mods you build into this folder are installed, allowed and reloaded in the running game automatically. Choose a folder only you write to.": "このフォルダーにビルドしたフルアクセス MOD は、自動で導入・許可され、起動中のゲームで読み込み直されます。自分しか書き込まないフォルダーを選んでください。",
+  "Folder: {path}": "フォルダー：{path}",
+  "No folder chosen.": "フォルダーは選ばれていません。",
+  "Choose folder…": "フォルダーを選ぶ…",
+  "Clear": "解除",
+  "This folder cannot be used: {reason}": "このフォルダーは使えません：{reason}",
+  "From your dev folder": "開発フォルダーから",
+  "Dev folder: watching {path}": "開発フォルダー：{path} を見張っています",
+  "Dev folder: {path} (watched while the game runs)": "開発フォルダー：{path}（ゲームの起動中に見張ります）",
+  "Last change: {event}": "最後の変更：{event}",
+  "Dev folder problem: {reason}": "開発フォルダーの問題：{reason}"
 }

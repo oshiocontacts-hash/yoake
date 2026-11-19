@@ -40,6 +40,11 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Mutex;
 
+mod dev;
+pub use dev::{
+    active_dev_folder, dev_folder_status, set_dev_folder, status_for, validate_dev_folder, DevStatus, DevSync, DEV_ARG,
+};
+
 /// The folder of per-launch lists, inside the launcher's data folder.
 pub const RUN_SUBDIR: &str = "run";
 /// The per-instance last accepted lists, inside the control folder.
@@ -75,7 +80,7 @@ pub struct FullAccessRow {
     pub sha256_short: String,
     /// The whole SHA-256 (what [`approve`] takes; a prefix of at least 8 digits is accepted too).
     pub sha256: String,
-    /// `"local"`, `"catalog"`, or `"unknown"` (no install record).
+    /// `"local"`, `"catalog"`, `"dev"` (copied from the developer folder) or `"unknown"` (no install record).
     pub origin: String,
     /// Who signed a catalog package (informational).
     pub signer: Option<String>,
@@ -384,6 +389,11 @@ pub fn remove_file(instance: &Path, file: &str) -> Result<(), String> {
 pub fn remove_file_in(data: &Path, instance: &Path, file: &str) -> Result<(), String> {
     let _lock = lock();
     let control = open_control(data, instance)?;
+    remove_file_unlocked(&control, instance, file)
+}
+
+/// [`remove_file_in`] for a caller that already holds the control lock.
+fn remove_file_unlocked(control: &Control, instance: &Path, file: &str) -> Result<(), String> {
     let found = scan(&mods_dir(instance));
     let item = found
         .iter()
@@ -403,9 +413,9 @@ pub fn remove_file_in(data: &Path, instance: &Path, file: &str) -> Result<(), St
     control.save_allow(&allow)?;
     control.save_origins(&origins)?;
     if !same_bytes {
-        let last = load_last(&control, instance);
+        let last = load_last(control, instance);
         let entries = last.entries().iter().filter(|e| e.sha256 != item.sha256).cloned().collect();
-        save_last(&control, instance, &ApprovedList::new(entries, last.protected().to_vec()))?;
+        save_last(control, instance, &ApprovedList::new(entries, last.protected().to_vec()))?;
     }
     std::fs::remove_file(&item.path).map_err(|e| format!("{}: {e}", item.path.display()))
 }
@@ -546,6 +556,8 @@ pub struct RunFolder {
     dir: PathBuf,
     approved: PathBuf,
     lock: Option<File>,
+    /// The dev-folder watcher of this run, when the dev folder was active at launch (stopped before the folder goes).
+    dev: Option<dev::DevWatcher>,
 }
 
 impl RunFolder {
@@ -564,6 +576,7 @@ impl RunFolder {
 
 impl Drop for RunFolder {
     fn drop(&mut self) {
+        self.dev = None;
         self.lock = None;
         let _ = std::fs::remove_dir_all(&self.dir);
     }
@@ -580,6 +593,9 @@ pub struct Prepared {
     pub pending: Option<ListDiff>,
     /// How many mods this launch passes.
     pub passed: usize,
+    /// The developer folder is active for this launch: `--full-access-dev` is passed and the folder is watched until
+    /// the run folder is dropped.
+    pub dev: bool,
 }
 
 impl Prepared {
@@ -587,12 +603,24 @@ impl Prepared {
     pub fn apply(&self, cmd: &mut Command) {
         if let Some(run) = &self.run {
             cmd.arg(APPROVED_ARG).arg(run.approved_path());
+            if self.dev {
+                cmd.arg(DEV_ARG);
+            }
         }
     }
 
     /// The argument pair, for callers that build their own command line.
     pub fn args(&self) -> Vec<std::ffi::OsString> {
-        self.run.iter().flat_map(|run| [APPROVED_ARG.into(), run.approved_path().as_os_str().to_owned()]).collect()
+        self.run
+            .iter()
+            .flat_map(|run| {
+                let mut args: Vec<std::ffi::OsString> = vec![APPROVED_ARG.into(), run.approved_path().as_os_str().to_owned()];
+                if self.dev {
+                    args.push(DEV_ARG.into());
+                }
+                args
+            })
+            .collect()
     }
 }
 
@@ -622,7 +650,7 @@ fn new_run_folder(data: &Path, list: &ApprovedList) -> Result<RunFolder, String>
     let lock = File::create(dir.join(OWNER_LOCK)).map_err(|e| format!("{}: {e}", dir.display()))?;
     lock.try_lock().map_err(|e| format!("{}: {e}", dir.display()))?;
     match list.write_for_launch(&dir) {
-        Ok(approved) => Ok(RunFolder { dir, approved, lock: Some(lock) }),
+        Ok(approved) => Ok(RunFolder { dir, approved, lock: Some(lock), dev: None }),
         Err(e) => {
             drop(lock);
             let _ = std::fs::remove_dir_all(&dir);
@@ -636,11 +664,35 @@ fn new_run_folder(data: &Path, list: &ApprovedList) -> Result<RunFolder, String>
 /// argument with [`Prepared::apply`] and keep [`Prepared::run`] until the game exits. On a problem nothing is passed
 /// and [`Prepared::problem`] says why (also kept for [`last_launch_problem`]).
 pub fn prepare(instance: &Path) -> Prepared {
-    prepare_in(&crate::backend::data_dir(), instance)
+    let dev = active_dev_folder(&crate::backend::Settings::load());
+    prepare_with(&crate::backend::data_dir(), instance, dev.as_deref())
 }
 
 pub fn prepare_in(data: &Path, instance: &Path) -> Prepared {
-    let _lock = lock();
+    prepare_with(data, instance, None)
+}
+
+/// [`prepare_in`] with the developer folder (`Some` only when developer mode is on and a folder is chosen, see
+/// [`active_dev_folder`]). An active folder that is not allowed for this instance ([`validate_dev_folder`]) is not
+/// used: no flag, no watcher, and the reason is shown by [`dev_folder_status`].
+pub fn prepare_with(data: &Path, instance: &Path, dev_folder: Option<&Path>) -> Prepared {
+    let mut prepared = {
+        let _lock = lock();
+        prepare_unlocked(data, instance)
+    };
+    if let (Some(folder), Some(run)) = (dev_folder, prepared.run.as_mut()) {
+        match dev::start(data, instance, folder, run.approved_path()) {
+            Ok(watcher) => {
+                run.dev = Some(watcher);
+                prepared.dev = true;
+            }
+            Err(error) => dev::note_start_failed(instance, folder, &error),
+        }
+    }
+    prepared
+}
+
+fn prepare_unlocked(data: &Path, instance: &Path) -> Prepared {
     let result = (|| {
         let control = open_control(data, instance)?;
         let mods = mods_dir(instance);
@@ -649,7 +701,7 @@ pub fn prepare_in(data: &Path, instance: &Path) -> Prepared {
         let pending = last.diff(&current);
         let effective = effective_list(&last, &current);
         let run = new_run_folder(data, &effective)?;
-        Ok::<_, String>(Prepared { passed: effective.entries().len(), run: Some(run), problem: None, pending: (!pending.is_empty()).then_some(pending) })
+        Ok::<_, String>(Prepared { passed: effective.entries().len(), run: Some(run), problem: None, pending: (!pending.is_empty()).then_some(pending), dev: false })
     })();
     let prepared = result.unwrap_or_else(|problem| Prepared {
         problem: Some(problem),

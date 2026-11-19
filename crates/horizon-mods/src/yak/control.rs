@@ -47,6 +47,8 @@ use super::Archive;
 
 /// Command-line option that gives the game this launch's approved list: `--full-access-approved <path>`.
 pub const APPROVED_ARG: &str = "--full-access-approved";
+/// MX3HR1: with this flag (dev mode only) the game re-reads the approved list and reloads when its `generation` grows.
+pub const DEV_ARG: &str = "--full-access-dev";
 /// Environment variable with the same meaning (the option wins).
 pub const APPROVED_ENV: &str = "YOAKE_FULL_ACCESS_APPROVED";
 /// The subfolder of the launcher's data folder.
@@ -66,13 +68,16 @@ fn is_sha256_hex(text: &str) -> bool {
     text.len() == 64 && text.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
-/// Where a package came from. Only `Local` and `Catalog` can be full-access.
+/// Where a package came from. Only `Local`, `Catalog` and `Dev` can be full-access.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Origin {
     /// Installed by the player from a file on their own computer.
     Local,
     /// Downloaded from the catalog (its signature is checked).
     Catalog,
+    /// Copied by the launcher from the player's own developer folder while a game it started runs (`dev`, shown as
+    /// "dev folder"); the launcher approves exactly those bytes itself.
+    Dev,
     /// Delivered by a server the player joined.
     Server,
     /// Delivered by a friend.
@@ -84,6 +89,7 @@ impl Origin {
         match self {
             Origin::Local => "local",
             Origin::Catalog => "catalog",
+            Origin::Dev => "dev",
             Origin::Server => "server",
             Origin::Friend => "friend",
         }
@@ -93,6 +99,7 @@ impl Origin {
         Some(match text {
             "local" => Origin::Local,
             "catalog" => Origin::Catalog,
+            "dev" => Origin::Dev,
             "server" => Origin::Server,
             "friend" => Origin::Friend,
             _ => return None,
@@ -101,7 +108,7 @@ impl Origin {
 
     /// Whether a package of this origin may ever be full-access (still needs approval or a trusted signer).
     pub fn can_be_full_access(self) -> bool {
-        matches!(self, Origin::Local | Origin::Catalog)
+        matches!(self, Origin::Local | Origin::Catalog | Origin::Dev)
     }
 }
 
@@ -622,7 +629,7 @@ impl Control {
             Err(e) => return Err(format!("{}: {e}", mods_dir.display())),
         };
         files.sort();
-        let mut list = ApprovedList { entries: Vec::new(), protected: vec![self.dir.clone(), self.checksum_path()] };
+        let mut list = ApprovedList { entries: Vec::new(), protected: vec![self.dir.clone(), self.checksum_path()], generation: 0 };
         for path in files {
             let Ok(bytes) = std::fs::read(&path) else { continue };
             let sha256 = sha256_hex(&bytes);
@@ -665,6 +672,9 @@ pub struct ApprovedEntry {
 /// origin = "local"          # or "catalog"; anything else makes the whole file invalid
 /// ```
 ///
+/// An optional top-level `generation = <integer>` (absent = 0) is raised by the launcher on every rewrite in dev mode
+/// (MX3HR1); a game started with `--full-access-dev` reloads its full-access mods when it grows. Written only when non-zero.
+///
 /// **How to pass it.** Write it with [`ApprovedList::write_for_launch`] into a fresh, launch-specific file *outside the
 /// game folder* (for example `<launcher data>/run/<launch id>/approved.toml`), and pass its absolute path on the game's
 /// command line as `--full-access-approved <path>` (or `--full-access-approved=<path>`); the environment variable
@@ -684,6 +694,9 @@ pub struct ApprovedEntry {
 pub struct ApprovedList {
     entries: Vec<ApprovedEntry>,
     protected: Vec<PathBuf>,
+    /// MX3HR1: dev-mode hot reload. The launcher raises it on every rewrite of the file; absent = 0. Only a game started
+    /// with `--full-access-dev` looks at it (it reloads when it grows); otherwise it is ignored.
+    generation: u64,
 }
 
 /// What changed between two lists (the launcher shows it to the player before approving a new launch).
@@ -706,7 +719,17 @@ impl ApprovedList {
     pub const MAX_BYTES: u64 = 1 << 20;
 
     pub fn new(entries: Vec<ApprovedEntry>, protected: Vec<PathBuf>) -> Self {
-        Self { entries, protected }
+        Self { entries, protected, generation: 0 }
+    }
+
+    /// The rewrite counter (0 when the file has none). See the `generation` field.
+    pub fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    pub fn with_generation(mut self, generation: u64) -> Self {
+        self.generation = generation;
+        self
     }
 
     pub fn entries(&self) -> &[ApprovedEntry] {
@@ -725,6 +748,9 @@ impl ApprovedList {
         let mut text = format!("# This launch's approved full-access packages (written by the launcher; the game reads it once).\nformat = {}\n", Self::FORMAT);
         let paths: Vec<String> = self.protected.iter().map(|p| format!("{:?}", p.to_string_lossy())).collect();
         text.push_str(&format!("protected = [{}]\n", paths.join(", ")));
+        if self.generation != 0 {
+            text.push_str(&format!("generation = {}\n", self.generation));
+        }
         for e in &self.entries {
             text.push_str(&format!("\n[[package]]\nid = {:?}\nversion = {:?}\nsha256 = {:?}\norigin = {:?}\n", e.id, e.version, e.sha256, e.origin.as_str()));
         }
@@ -737,6 +763,9 @@ impl ApprovedList {
             return Err(format!("approved list: format must be {}", Self::FORMAT));
         }
         let mut list = Self::default();
+        if let Some(generation) = table.get("generation") {
+            list.generation = generation.as_integer().and_then(|g| u64::try_from(g).ok()).ok_or("approved list: generation must be a non-negative integer")?;
+        }
         if let Some(protected) = table.get("protected") {
             for item in protected.as_array().ok_or("approved list: protected must be an array of paths")? {
                 list.protected.push(PathBuf::from(item.as_str().ok_or("approved list: protected holds strings")?));
@@ -750,7 +779,7 @@ impl ApprovedList {
                 if !is_sha256_hex(&sha256) {
                     return Err(format!("approved list: package[{n}].sha256 must be 64 hex digits"));
                 }
-                let origin = Origin::parse(get("origin")?).filter(|o| o.can_be_full_access()).ok_or_else(|| format!("approved list: package[{n}].origin must be local or catalog"))?;
+                let origin = Origin::parse(get("origin")?).filter(|o| o.can_be_full_access()).ok_or_else(|| format!("approved list: package[{n}].origin must be local, catalog or dev"))?;
                 list.entries.push(ApprovedEntry { id: get("id")?.to_owned(), version: get("version")?.to_owned(), sha256, origin });
             }
         }
@@ -1019,6 +1048,12 @@ mod tests {
             assert!(ApprovedList::parse(&text).is_err(), "{bad_origin}");
         }
         assert!(ApprovedList::parse("format = 2\n").is_err());
+        assert_eq!(ApprovedList::parse(&list.to_text()).unwrap().generation(), 0, "old files have no generation");
+        let g = list.clone().with_generation(7);
+        assert!(g.to_text().contains("generation = 7"));
+        assert_eq!(ApprovedList::parse(&g.to_text()).unwrap(), g);
+        assert!(ApprovedList::parse("format = 1\ngeneration = -1\n").is_err());
+        assert!(ApprovedList::parse("format = 1\ngeneration = \"x\"\n").is_err());
         assert!(ApprovedList::parse("").is_err(), "no format line");
         assert!(ApprovedList::parse("format = 1\n[[package]]\nid = \"x\"\nversion = \"1\"\nsha256 = \"short\"\norigin = \"local\"\n").is_err());
         // one list per launch, never overwritten
@@ -1030,6 +1065,38 @@ mod tests {
         let (allow, origins) = list.to_files();
         assert!(allow.is_allowed("one", &"a".repeat(64)) && !allow.is_allowed("one", &"b".repeat(64)));
         assert_eq!(origins.origin_of(&"b".repeat(64)), Some(Origin::Catalog));
+    }
+
+    #[test]
+    fn the_dev_origin_round_trips_can_be_full_access_and_old_files_still_read() {
+        assert_eq!(Origin::parse("dev"), Some(Origin::Dev));
+        assert_eq!(Origin::Dev.as_str(), "dev");
+        assert!(Origin::Dev.can_be_full_access());
+        assert!(!Origin::Server.can_be_full_access() && !Origin::Friend.can_be_full_access());
+        assert!(remote_dir(Path::new("mods"), Origin::Dev).is_none(), "a dev package sits top-level like a local one");
+        // the approved list, with a dev entry and a generation
+        let list = ApprovedList::new(vec![entry("d", 'd', Origin::Dev), entry("l", 'f', Origin::Local)], vec![]).with_generation(7);
+        let text = list.to_text();
+        assert!(text.contains("generation = 7") && text.contains("origin = \"dev\""), "{text}");
+        let back = ApprovedList::parse(&text).unwrap();
+        assert_eq!(back, list);
+        assert_eq!(back.generation(), 7);
+        // generation 0 is not written, and a file without it (every older launcher) reads as 0
+        let plain = ApprovedList::new(vec![entry("l", 'a', Origin::Local)], vec![]);
+        assert!(!plain.to_text().contains("generation"));
+        assert_eq!(ApprovedList::parse(&plain.to_text()).unwrap().generation(), 0);
+        for bad in ["generation = -1", "generation = \"x\""] {
+            assert!(ApprovedList::parse(&format!("format = 1\n{bad}\n")).is_err(), "{bad}");
+        }
+        // the origin file: a dev record round-trips, and a file written before `dev` existed still reads
+        let mut origins = OriginFile::default();
+        origins.record(&"d".repeat(64), OriginRecord { origin: Origin::Dev, id: "d".into(), version: "1.0.0".into(), signer: None });
+        origins.record(&"a".repeat(64), OriginRecord { origin: Origin::Catalog, id: "a".into(), version: "1.0.0".into(), signer: Some("me".into()) });
+        let again = OriginFile::parse(&origins.to_text()).unwrap();
+        assert_eq!(again.origin_of(&"d".repeat(64)), Some(Origin::Dev));
+        assert_eq!(again.origin_of(&"a".repeat(64)), Some(Origin::Catalog));
+        let old = format!("[[package]]\nsha256 = \"{}\"\norigin = \"local\"\nid = \"x\"\nversion = \"1\"\n", "c".repeat(64));
+        assert_eq!(OriginFile::parse(&old).unwrap().origin_of(&"c".repeat(64)), Some(Origin::Local));
     }
 
     #[test]

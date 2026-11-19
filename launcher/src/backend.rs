@@ -3544,6 +3544,11 @@ pub struct Settings {
     /// It does not permit unsigned native libraries.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub dev_unsigned_wasm: bool,
+    /// Developer folder for full-access mods: while a Yoake game the launcher started runs, the `*.yak` files in it are
+    /// installed (origin `dev`), approved and hot-reloaded. Active only while `dev_unsigned_wasm` ("Test your own WASM
+    /// mods") is on (`full_access::active_dev_folder`). Set it through `full_access::set_dev_folder`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub full_access_dev_folder: Option<PathBuf>,
 }
 
 impl Settings {
