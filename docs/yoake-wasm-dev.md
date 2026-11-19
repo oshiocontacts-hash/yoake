@@ -572,8 +572,17 @@ not reserved either. The original `services::hud_place` remains unchanged.
 * Corner reservations and world-stage draws: applied. Client imports forward key bindings, view hits,
   display names and namespace ownership, GUI items, screen kind and slot rectangles, world quads,
   lines and billboards (including `world-pre-post`), post shaders, map tiles and colors, players and
-  entities, camera overrides, writable GUI textures, PCM streams, mob-as-player and HUD placement.
-  The catalog is `crates/horizon-mod-api-gen/abi-subset-client.json` (ABI IDs 163–197 and 199–200).
+  entities, camera overrides, writable GUI textures, PCM streams, mob-as-player, HUD placement, and
+  runtime item/block sprite overrides (`item-sprite-set`, `item-sprite-reset`, `block-sprite-set`,
+  `block-sprite-reset` — ABI IDs 211–214; plus read-only `item-sprite-pixels` / `block-sprite-pixels` — 215–216, `interface_version` 1.3.0). Runtime sprite overrides patch only the changed item
+  sub-rectangle in the shared atlas or the changed mipmapped block texture layer, refuse mismatched
+  pixel dimensions/byte lengths, allow replacing vanilla or other mods' sprites, re-apply across
+  resource-pack reloads (skipping mismatched pack resolutions cleanly with a warning), and reset
+  entries still owned by an unloading WASM mod.
+  The catalog is `crates/horizon-mod-api-gen/abi-subset-client.json` (ABI IDs 163–197, 199–200,
+  and 211–216). `*-sprite-pixels` return `(width, height, rgba8)` of the current sprite (a mod override
+  included, an animated texture as its first frame) from the CPU copies of the atlases, so no GPU
+  readback and no extra memory; block pixels are at the array layer size (`sprite_size`).
   Native services run under the calling WASM package's stable identity, so namespace validation and
   native per-mod limits also apply to WASM. Texture resources are instance-owned and capped at 64;
   failed creation does not consume a slot. Unsupported hook context returns an error, not a dummy

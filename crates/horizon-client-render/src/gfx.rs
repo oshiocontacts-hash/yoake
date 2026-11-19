@@ -999,6 +999,7 @@ pub struct Renderer {
     lightmap_sampler: wgpu::Sampler,
     animations: animate::SpriteAnimator,
     active_animated_layers: Vec<u64>,
+    pending_block_sprites: Vec<(u32, Vec<Vec<u8>>)>,
     uploads: upload::Uploads,
     /// Section meshes are staged through their own belt into
     /// `section_copies`, which the next frame records its commands after:
@@ -4189,6 +4190,7 @@ impl Renderer {
             lightmap_sampler,
             animations,
             active_animated_layers: vec![0; active_layer_words],
+            pending_block_sprites: Vec::new(),
             uploads,
             section_uploads,
             section_copies: None,
@@ -6249,6 +6251,98 @@ impl Renderer {
         self.lightmap_pixels = pixels;
         self.lightmap_uploaded = true;
     }
+    /// Queue a sub-layer update for block sprite `layer` with regenerated mipmaps.
+    pub fn queue_block_sprite_layer(
+        &mut self,
+        layer: u32,
+        rgba: &[u8],
+        settings: crate::mipmap::Settings,
+        overridden: bool,
+    ) -> Result<()> {
+        let Some(array) = self.sprite_textures.get((layer / self.sprite_split) as usize) else {
+            return Err(format!("block sprite layer {layer} out of range").into());
+        };
+        let size = array.width();
+        let expected = (size as usize)
+            .checked_mul(size as usize)
+            .and_then(|pixels| pixels.checked_mul(4))
+            .ok_or("block sprite size overflow")?;
+        if rgba.len() != expected {
+            return Err(format!(
+                "block sprite layer {layer} expects {expected} bytes for {size}x{size}, got {}",
+                rgba.len()
+            )
+            .into());
+        }
+        self.animations.set_layer_overridden(layer, overridden);
+        let base = crate::mipmap::Image {
+            width: size,
+            height: size,
+            pixels: rgba.as_chunks::<4>().0.to_vec(),
+        };
+        let has_transparent = settings.has_transparent || base.pixels.iter().any(|p| p[3] == 0);
+        let mips: Vec<Vec<u8>> = crate::mipmap::generate(
+            base,
+            self.mip_levels.saturating_sub(1),
+            crate::mipmap::Settings {
+                native_size: size,
+                has_transparent,
+                ..settings
+            },
+        )
+        .into_iter()
+        .map(|image| image.pixels.into_iter().flatten().collect())
+        .collect();
+        if let Some(existing) = self
+            .pending_block_sprites
+            .iter_mut()
+            .find(|(queued, _)| *queued == layer)
+        {
+            existing.1 = mips;
+        } else {
+            self.pending_block_sprites.push((layer, mips));
+        }
+        Ok(())
+    }
+
+    fn flush_block_sprite_uploads(&mut self, encoder: &mut wgpu::CommandEncoder) {
+        if self.pending_block_sprites.is_empty() {
+            return;
+        }
+        let pending = std::mem::take(&mut self.pending_block_sprites);
+        let mut copied = Vec::with_capacity(pending.len());
+        for (layer, levels) in &pending {
+            let Some(array) = self.sprite_textures.get((*layer / self.sprite_split) as usize)
+            else {
+                continue;
+            };
+            let array_layer = *layer % self.sprite_split;
+            for (mip_level, pixels) in levels.iter().enumerate() {
+                let edge = (array.width() >> mip_level).max(1);
+                self.uploads.texture(
+                    encoder,
+                    wgpu::TexelCopyTextureInfo {
+                        texture: array,
+                        mip_level: mip_level as u32,
+                        origin: wgpu::Origin3d {
+                            x: 0,
+                            y: 0,
+                            z: array_layer,
+                        },
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    edge,
+                    edge,
+                    pixels,
+                );
+            }
+            copied.push(*layer);
+        }
+        if let Some(atlas) = &self.pack_atlas {
+            atlas.copy(encoder, &self.sprite_textures, copied);
+        }
+    }
+
     fn animate(&mut self, encoder: &mut wgpu::CommandEncoder, tick: u64, cull_inactive: bool) {
         let active = cull_inactive.then_some(&self.active_animated_layers[..]);
         self.animations.animate(
@@ -6282,7 +6376,9 @@ impl Renderer {
         if self.device_lost() {
             return Err("the graphics device was lost".into());
         }
-        if !matches!(rendered, Ok(true)) && !frame.hud.patches.is_empty() {
+        if !matches!(rendered, Ok(true))
+            && (!frame.hud.patches.is_empty() || !self.pending_block_sprites.is_empty())
+        {
             let section_copies = self.section_copies.take();
             let has_section_copies = section_copies.is_some();
             let mut encoder = section_copies.unwrap_or_else(|| {
@@ -6291,6 +6387,7 @@ impl Renderer {
                         label: Some("Horizon atlas patches"),
                     })
             });
+            self.flush_block_sprite_uploads(&mut encoder);
             self.hud
                 .upload_patches(&mut self.uploads, &mut encoder, &frame.hud.patches);
             self.uploads.finish(&encoder);
@@ -6561,6 +6658,7 @@ impl Renderer {
         if let Some(t) = &mut self.own_timing {
             t.begin(&self.device, &self.queue);
         }
+        self.flush_block_sprite_uploads(&mut encoder);
         if self.animated_textures {
             self.hud
                 .animate_sprites(&mut self.uploads, &mut encoder, frame.ticks);
@@ -6988,6 +7086,7 @@ impl Renderer {
                 height(b).total_cmp(&height(a))
             });
         }
+        self.flush_block_sprite_uploads(&mut encoder);
         if self.animated_textures {
             self.active_animated_layers.fill(0);
             for v in &visible {
