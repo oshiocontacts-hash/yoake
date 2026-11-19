@@ -22,6 +22,16 @@ use std::collections::{BTreeMap, BTreeSet};
 pub const TEMPLATE: &str = "yoake:mob";
 /// The accepted value of `format`.
 pub const FORMAT: u32 = 1;
+/// The file the content root keeps the mods' custom mob definitions in (a JSON array of
+/// [`CustomMobFile`] objects, each with its `id`): the game's mob loader reads it, so the client,
+/// the host and a dedicated server agree (as `horizon-mod-mobs.json` does for the template mobs).
+pub const CUSTOM_MOBS_FILE: &str = "horizon-mod-custom-mobs.json";
+
+/// The id of the generated spawn egg item of the custom mob `id` (`<ns>:<path>_spawn_egg`): the
+/// game spawns the mob when an item named `<type>_spawn_egg` is used.
+pub fn spawn_egg_item(id: &str) -> String {
+    format!("{id}_spawn_egg")
+}
 
 /// Limits a custom mob's files must keep (checked at load, never at run time).
 pub mod limits {
@@ -88,6 +98,19 @@ pub trait ModelInfo {
 pub struct LoadedModel {
     pub model: Option<horizon_mobmodel::Model>,
     pub animations: usize,
+}
+
+impl LoadedModel {
+    /// The rest position of bone `name`'s pivot in the model's space (pixels, +X east, +Y up, -Z
+    /// north, the origin at the mob's feet), with the rest rotations of its parents applied.
+    pub fn bone_rest_position(&self, name: &str) -> Option<[f64; 3]> {
+        use horizon_mobmodel::{Pose, skeleton::bone_matrices};
+        let model = self.model.as_ref()?;
+        let index = model.skeleton.find(name)?;
+        let matrices = bone_matrices(&model.skeleton, &Pose::rest(&model.skeleton));
+        let p = matrices[index.index()].transform_point3(model.skeleton.bones[index.index()].pivot);
+        Some([f64::from(p.x), f64::from(p.y), f64::from(p.z)])
+    }
 }
 
 impl ModelInfo for LoadedModel {
@@ -1493,6 +1516,17 @@ mod tests {
         assert!(file.load_model(&mut broken).is_err());
     }
 
+    /// The content root keeps the file as JSON (`CUSTOM_MOBS_FILE`): it reads back the same.
+    #[test]
+    fn the_file_round_trips_through_its_serialization() {
+        let file = parse(FOX).unwrap();
+        let mut v = serde_json::to_value(&file).unwrap();
+        let id = v.as_object_mut().unwrap().remove("id").unwrap();
+        assert_eq!(id, "sample_mobs:cinder_fox");
+        let back = CustomMobFile::parse("sample_mobs:cinder_fox", v.to_string().as_bytes()).unwrap();
+        assert_eq!(back, file);
+    }
+
     #[test]
     fn a_reference_outside_the_mod_is_refused() {
         let file = with(|v| v["model"]["textures"]["default"] = "other:entity/x".into()).unwrap();
@@ -1522,6 +1556,17 @@ mod tests {
         assert_eq!(content.custom_mobs.len(), 1);
         assert_eq!(content.custom_mobs[0].id, "sample_mobs:cinder_fox");
         assert!(content.entity_types.is_empty());
+        // The generated spawn egg is an item of the mod, in the colours' model.
+        let egg = content
+            .items
+            .iter()
+            .find(|i| i.id == spawn_egg_item("sample_mobs:cinder_fox"))
+            .expect("the generated spawn egg");
+        assert_eq!(egg.template, crate::content::GENERATED_EGG_TEMPLATE);
+        assert_eq!(
+            egg.components["minecraft:item_model"],
+            "sample_mobs:cinder_fox_spawn_egg"
+        );
         // The same mod without its model file.
         let scratch = std::env::temp_dir().join(format!("f4m0-fixture-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&scratch);

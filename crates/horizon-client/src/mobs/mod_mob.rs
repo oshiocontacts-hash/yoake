@@ -53,6 +53,10 @@ pub fn ids() -> Vec<String> {
 /// The loot table a mod mob type's death rolls: its own, else
 /// `<namespace>:entities/<path>` as vanilla names an entity type's.
 pub fn loot_table(id: &str) -> Option<String> {
+    // F4M: a custom mob type names its own table.
+    if let Some(custom) = super::custom::get(id) {
+        return Some(custom.loot_table.clone());
+    }
     let spec = spec(id)?;
     Some(spec.loot_table.clone().unwrap_or_else(|| {
         let (ns, path) = id.split_once(':').unwrap_or(("minecraft", id));
@@ -94,6 +98,8 @@ pub fn read(root: &Path) -> Vec<(String, EntityType)> {
 /// (built from the vanilla types already in `types`), and remembers their
 /// definitions for [`register`] and [`loot_table`].
 pub fn add(root: &Path, types: &mut HashMap<String, MobType>) {
+    // F4M: the fully custom mobs (`yoake:mob`) of the same root.
+    super::custom::build::add(root, types);
     let defs = read(root);
     let mut specs = HashMap::new();
     for (id, def) in defs {
@@ -156,6 +162,10 @@ fn species_of(id: &str) -> Option<Species> {
 /// Gives a mod mob that lists behaviours exactly those goals and targets;
 /// false (nothing done) for any other mob.
 pub fn register(m: &mut Mob) -> bool {
+    // F4M: a fully custom mob has its own state and goals.
+    if m.kind.custom.is_some() {
+        return super::custom::build::register(m);
+    }
     let Some(spec) = spec(&m.kind.id) else {
         return false;
     };
