@@ -136,15 +136,15 @@ fn both_formats_load_with_the_same_skeleton_rest_matrices_and_vertices() {
     assert_eq!(g.identifier, b.identifier);
     assert_eq!(g.texture_size, [64, 64]);
     assert_eq!(b.texture_size, [64, 64]);
-    assert_eq!(g.skeleton.len(), 16);
+    assert_eq!(g.skeleton.len(), 18);
     let names: Vec<&str> = g.skeleton.bones.iter().map(|b| b.name.as_str()).collect();
     assert_eq!(
         names,
-        ["root", "body", "head", "ear_l", "ear_r", "snout", "jaw", "leg_fl", "leg_fl_lower", "leg_fr", "leg_fr_lower", "leg_bl", "leg_br", "tail1", "tail2", "tail3"]
+        ["root", "body", "head", "ear_l", "ear_r", "snout", "jaw", "leg_fl", "leg_fl_lower", "leg_fr", "leg_fr_lower", "leg_bl", "leg_bl_lower", "leg_br", "leg_br_lower", "tail1", "tail2", "tail3"]
     );
     assert_eq!(g.skeleton, b.skeleton, "same skeleton (names, parents, pivots, rest rotations)");
-    assert_eq!(g.element_count(), 16);
-    assert_eq!(b.element_count(), 16);
+    assert_eq!(g.element_count(), 18);
+    assert_eq!(b.element_count(), 18);
 
     let rest_g = bone_matrices(&g.skeleton, &Pose::rest(&g.skeleton));
     let rest_b = bone_matrices(&b.skeleton, &Pose::rest(&b.skeleton));
@@ -239,7 +239,7 @@ fn golden_pose_tables_30_frames_per_animation() {
     let want = std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("{}: {e} (create it with MOBMODEL_UPDATE_GOLDENS=1)", path.display()));
     let (got, want) = (data_lines(&text), data_lines(&want));
-    assert_eq!(want.len(), ANIMATIONS.len() * FRAMES * 16, "golden file size");
+    assert_eq!(want.len(), ANIMATIONS.len() * FRAMES * 18, "golden file size");
     assert_eq!(got.len(), want.len());
     for (g, w) in got.iter().zip(&want) {
         let (gt, wt): (Vec<&str>, Vec<&str>) = (g.split_whitespace().collect(), w.split_whitespace().collect());
@@ -363,7 +363,7 @@ fn geo_route_and_bbmodel_route_give_the_same_pose_tables() {
         assert_eq!((ag.length, ag.loop_mode), (ab.length, ab.loop_mode), "{name} length and loop");
         assert_eq!(ag.anim_time_update.is_some(), ab.anim_time_update.is_some());
     }
-    assert_eq!(compared, ANIMATIONS.len() * FRAMES * 16);
+    assert_eq!(compared, ANIMATIONS.len() * FRAMES * 18);
 }
 
 #[test]

@@ -1167,3 +1167,53 @@ fn spring_gravity_follows_a_pitched_and_rolled_model_frame() {
     let rolled = settle(Mat4::from_quat(Quat::from_rotation_z(90f32.to_radians())));
     assert!(rolled.x.abs() > 0.1 && rolled.y.abs() < 1e-3, "rolled 90 degrees: {rolled}");
 }
+
+/// Four-leg ground IK on the Cinder Fox: every leg is a real two-bone chain (shoulder or hip, then the paw bone).
+#[test]
+fn cinder_fox_four_leg_ground_ik() {
+    for (route, model) in [
+        ("geo", load_geo_json("cinder_fox.geo.json", GEO).expect("geo")),
+        ("bbmodel", load_bbmodel("cinder_fox.bbmodel", BB).expect("bbmodel")),
+    ] {
+        let sk = &model.skeleton;
+        assert_eq!(sk.len(), 18, "{route}");
+        let rig = fox_rig(&model);
+        let idx = |n: &str| sk.find(n).unwrap().index();
+        let legs = ["leg_fl", "leg_fr", "leg_bl", "leg_br"];
+        for l in legs {
+            let low = idx(&format!("{l}_lower"));
+            assert_eq!(sk.bones[low].parent, Some(BoneIndex(idx(l) as u16)), "{route}: {l}_lower hangs below {l}");
+        }
+        let json = r#"[
+          {"type":"two_bone_ik","root":"leg_fl","mid":"leg_fl_lower","tip":"leg_fl_lower","tip_offset":[0,-1,0],"target":{"input":0},"pole":{"dir":[0,0,-1]},"fade":0},
+          {"type":"two_bone_ik","root":"leg_fr","mid":"leg_fr_lower","tip":"leg_fr_lower","tip_offset":[0,-1,0],"target":{"input":1},"pole":{"dir":[0,0,-1]},"fade":0},
+          {"type":"two_bone_ik","root":"leg_bl","mid":"leg_bl_lower","tip":"leg_bl_lower","tip_offset":[0,-1,0],"target":{"input":2},"pole":{"dir":[0,0,1]},"fade":0},
+          {"type":"two_bone_ik","root":"leg_br","mid":"leg_br_lower","tip":"leg_br_lower","tip_offset":[0,-1,0],"target":{"input":3},"pole":{"dir":[0,0,1]},"fade":0}
+        ]"#;
+        let mut syms = Symbols::new(&["state"]);
+        let set = parse_procedural_str("fox4.json", json, sk, &model.locators, &mut syms).unwrap_or_else(|e| panic!("{e}"));
+        let mut inputs = ExprInputs::default();
+        let mut rs = rig.initial_state();
+        rig.update(&mut rs, 0.05, &mut inputs, &mut |_| {});
+        let mut animated = Pose::default();
+        rig.evaluate(&rs, &[], &mut inputs, &mut Scratch::default(), None, &mut animated);
+        // uneven ground: each paw target 2.4 px below its hip, shifted by a different step
+        let steps = [Vec3::new(0.3, -2.4, -0.8), Vec3::new(-0.3, -2.1, 0.4), Vec3::new(0.2, -2.5, 0.9), Vec3::new(-0.2, -2.2, -0.5)];
+        let targets: Vec<Vec3> = legs.iter().zip(steps).map(|(l, s)| joint(sk, &animated, idx(l)) + s).collect();
+        let mut st = ProceduralState::new(&set);
+        let mut pose = animated.clone();
+        let mut inp = ProceduralInputs::new(&inputs, 0.05);
+        for (i, t) in targets.iter().enumerate() {
+            inp = inp.with_target(TargetSource::Custom(i as u8), *t);
+        }
+        let rep = set.evaluate(&mut pose, &mut st, &inp);
+        assert_eq!(rep.applied, 4, "{route}: {rep:?}");
+        let (m, m0) = (bone_matrices(sk, &pose), bone_matrices(sk, &animated));
+        assert!(m[idx("body")].abs_diff_eq(m0[idx("body")], 1e-6), "{route}: the body matrix is unchanged by the IK");
+        for (l, t) in legs.iter().zip(&targets) {
+            let low = idx(&format!("{l}_lower"));
+            let paw = m[low].transform_point3(sk.bones[low].pivot + Vec3::new(0.0, -1.0, 0.0));
+            assert!((paw - *t).length() < 1e-3, "{route}: {l} paw {paw} target {t}");
+        }
+    }
+}

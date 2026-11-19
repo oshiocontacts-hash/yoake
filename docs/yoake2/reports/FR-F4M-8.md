@@ -121,3 +121,11 @@ ticks), counter_rotate 16; yaw/pitch/max_angle 0..180; weight 0..1; fade 0..10 s
 
 1. Hind legs are single bones; split them the same way if a hind-leg IK demo is wanted.
 2. Does the engine want `EvalReport` / `WriteReport` counters in a debug overlay?
+
+## Update (F4M-9 branch): hind legs split, `ProceduralStats`
+
+* The Cinder Fox hind legs are now two bones as well (`leg_bl_lower`, `leg_br_lower`, children of the hip bones that keep their names, pivots and animations): the fox has
+  **18 bones and 18 cubes** (was 16). `golden_poses.txt` gained exactly 360 lines (the two new bones), no earlier line changed (checked as a set of lines). Both formats
+  regenerated from `gen_cinder_fox.py` and equal; `cinder_fox.png` changed only for the hind-leg UV regions. New test `cinder_fox_four_leg_ground_ik` (both routes): all four paws
+  reach their ground targets within 1e-3 and the body matrix is unchanged.
+* `ProceduralStats`: see the section below.

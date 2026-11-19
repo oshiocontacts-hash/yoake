@@ -998,11 +998,11 @@
   },
   {
    "type": "cube",
-   "name": "leg",
+   "name": "leg_up",
    "uuid": "cube-0013",
    "from": [
     1,
-    0,
+    1,
     3
    ],
    "to": [
@@ -1086,11 +1086,99 @@
   },
   {
    "type": "cube",
-   "name": "leg",
+   "name": "leg_low",
    "uuid": "cube-0014",
    "from": [
-    -3,
+    1,
     0,
+    3
+   ],
+   "to": [
+    3,
+    1,
+    5
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "inflate": 0,
+   "mirror_uv": false,
+   "box_uv": true,
+   "uv_offset": [
+    10,
+    34
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "texture": 0
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "texture": 0
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "texture": 0
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "texture": 0
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "texture": 0
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "texture": 0
+    }
+   }
+  },
+  {
+   "type": "cube",
+   "name": "leg_up",
+   "uuid": "cube-0015",
+   "from": [
+    -3,
+    1,
     3
    ],
    "to": [
@@ -1174,8 +1262,96 @@
   },
   {
    "type": "cube",
+   "name": "leg_low",
+   "uuid": "cube-0016",
+   "from": [
+    -3,
+    0,
+    3
+   ],
+   "to": [
+    -1,
+    1,
+    5
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "inflate": 0,
+   "mirror_uv": true,
+   "box_uv": true,
+   "uv_offset": [
+    10,
+    34
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "texture": 0
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "texture": 0
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "texture": 0
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "texture": 0
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "texture": 0
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "texture": 0
+    }
+   }
+  },
+  {
+   "type": "cube",
    "name": "tail",
-   "uuid": "cube-0015",
+   "uuid": "cube-0017",
    "from": [
     -1.5,
     5,
@@ -1263,7 +1439,7 @@
   {
    "type": "cube",
    "name": "tail",
-   "uuid": "cube-0016",
+   "uuid": "cube-0018",
    "from": [
     -2,
     4.5,
@@ -1351,7 +1527,7 @@
   {
    "type": "cube",
    "name": "tip",
-   "uuid": "cube-0017",
+   "uuid": "cube-0019",
    "from": [
     -1.5,
     5,
@@ -1638,7 +1814,24 @@
        ],
        "uuid": "grp-0012",
        "children": [
-        "cube-0013"
+        "cube-0013",
+        {
+         "name": "leg_bl_lower",
+         "origin": [
+          2,
+          1,
+          4
+         ],
+         "rotation": [
+          0,
+          0,
+          0
+         ],
+         "uuid": "grp-0013",
+         "children": [
+          "cube-0014"
+         ]
+        }
        ]
       },
       {
@@ -1653,9 +1846,26 @@
         0,
         0
        ],
-       "uuid": "grp-0013",
+       "uuid": "grp-0014",
        "children": [
-        "cube-0014"
+        "cube-0015",
+        {
+         "name": "leg_br_lower",
+         "origin": [
+          -2,
+          1,
+          4
+         ],
+         "rotation": [
+          0,
+          0,
+          0
+         ],
+         "uuid": "grp-0015",
+         "children": [
+          "cube-0016"
+         ]
+        }
        ]
       },
       {
@@ -1670,9 +1880,9 @@
         0,
         0
        ],
-       "uuid": "grp-0014",
+       "uuid": "grp-0016",
        "children": [
-        "cube-0015",
+        "cube-0017",
         {
          "name": "tail2",
          "origin": [
@@ -1685,9 +1895,9 @@
           0,
           0
          ],
-         "uuid": "grp-0015",
+         "uuid": "grp-0017",
          "children": [
-          "cube-0016",
+          "cube-0018",
           {
            "name": "tail3",
            "origin": [
@@ -1700,9 +1910,9 @@
             0,
             5
            ],
-           "uuid": "grp-0016",
+           "uuid": "grp-0018",
            "children": [
-            "cube-0017"
+            "cube-0019"
            ]
           }
          ]
@@ -1719,7 +1929,7 @@
    "name": "cinder_fox.png",
    "path": "cinder_fox.png",
    "id": "0",
-   "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAFBUlEQVR42u2a53LUMBRG8yT0ThKSQAqkEDoPQYdHg9ACz0GHoYTygw4vQRF7NDk7lyVZsAnJbtCd0Ui2ZVnfd4uuLff0/KHs3rkrPTm5Nu3pHUgD23rTy/Ob0+D2vvT50c30/t619PrWTPpw/3p6c/ty+vhgNvXUlMcn1qTnZzfmZ704t2nBcaZHxtKR8cl0YHRvOjoxteiz4nze3rmSPj28kd7dvVpvbru27sygAT+0oz+9urAlDfcNZuAMDgk8jMLx3xAwd2ZDJuHpqXW/jANgrlOOT01nAiBkobEAC3iIADyFedaaWP+WHXlS1BQmCikMyAOosQYeSF11fAChcWvGh+Rnp9fnc/Y7OLavSQBWcHjfxKIEaJUU2iqrNgFaAG5gm0FhVs1zXIcAQFMgmQJwnoEV0LYfgCMBEEIdQat15qNCVI4uQankDvg7EyQWjPQP5bYWAAH6Gw+tQ0DHCwSgEQhA8wQpiIBFSZB92quOAAIeWocI3AECsAAIQOsGQiyhdqTtZAGsgY9VAD+FDLWP+QMc84eEVUcAoAlI1Jg+BBAMAQwBAjcorjoC8HuiMTXuYCKE1l1ndYeuCoIENXwabWLesQ1AtG3yA3AK580IOaaPteNxP8cW7ue8NYV7OsK3BUstSAqTBZBmL0H05ZzEUDjHsdclUQIlgbb9KCtOABNlck5IkGpKrUbtCjZqX2BaCMXzksGYtH0mxx3h21qAGmLiAFX7Aqc2D4iABacFCZ5jx48E6FqMteIEHJvcn18oqA/tHc+pJW9ZtKkppJ9c5+XDtzCu0+Y8uTh9uJexaFNzncJ17qEv13wOpadIh2Z9+q/+3hoEjeJV/Zh7MH1XkaqrQbqyJ6Xro+nbzFAutNPV4cT5fDw7lr5f3p2+XBzI12rn/RYn6mQNiDEQVk2oYnC1/af3f7002AQqcNsA5xp90rWRXNdeGrUCA6F5gMRIBgRVJVfrcpmsEgwz2AZowOZ2owg6ax1CvN4gpbYLaJoxJ9ASXMbMHaoS4IrhcluFgKbZNzQMeEBzbsmXRooa1lSj/0Y3+B1g+nO/buSS6JhagzGnXYKUCZg370wCGm/Uf5UIASpOIGZyTkgLiCYsKF1DUFGjMevz3nhsTmBixL3t4gpaz+DngWdTrxvsoraZgGRQ0tx0c5K0o78aCNUc9xkjWk06XjM50nJiwuR4WtuyL3lqwLSYyTGZqLUYuOLKEJdMramrPnXFlxoA+OHQd32OqU1l4xthdIMYO7qGADWuBaA9wPuZO37uEhxgBR9fiCIpJZ0s0mUSc/t2+X2M9nVMnS/LLpV8WeZDq0GWnaAVJcB1uV0QM19w+arzcZU44caKgRPwKxI7DFoGQQOceUHrpzO/6MQEqErUZ1w3WEyusISq4yxp2tua4BjVo4ZdIcwMY9JU5W1OTTMObV1AIjo2RrAMtiuL3ad2AQnY+I8Bba9DLvsObr7oJl0fXLUmN1XMGAFnXkHNsR9dPKbfsk3UTU63uJcy1WYr24TJGGDaHQOgGSn9fdtcVhM3A6z9F8UCwm6S4ADulhqax9w5ZzYKEViKgZm+/xy4f03E9Jc251flLm+RIkV+EvzffX12btzBYfeGnSB2dWiz08M1d4bs0+4vra4Q/+0h+AEMMG5vSQA1gCluadGX2i2z/8ZisAD3Et3zK3t8RYoUKVKkSJEiRYoUKVKkSJEiRYoUKdIl8gNkma7DQbH9fwAAAABJRU5ErkJggg=="
+   "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAFFklEQVR42u2a53LUMBRG8yR0QksnJAEChM5D0OHRKCEBnoMOQwnlBx1egiL2aHJ27gSyiQ0kuxvdGY1kW5b1fbfo2nJPzzJl967B9OzM+jTaN5SGtvel15e2puEd/enrk9vp44OZ9PbOtfTp4Wx6d/d6+vzoZuqpKU9Pr0svL2zOz3p1ccsfx5kam0jH9x9Ih8f3phOTBxd9VpzP+3vT6cvjW+nD/Rv15ja4bVcGDfiRnQPpzeXetKd/OANncEjgYRSO/4aAufObMgnPz274bRwAc51y6uBUJgBC/jQWYAEPEYCnMM9aExvo3ZknRU1hopDCgDyAGmvggdRVxwcQGrdmfEh+cW5jPme/IxP7mgRgBcf2TS5KgFZJoa2yahOgBeAGthkUZtU8x3UIADQFkikA5xlYAW37ATgSACHUEbRaZz4qROXoEpRK7oC/M0FiwdjASG5rARCgv/HQOgS0vUAAGoEANE+QgghYlATZp911BBDw0DpE4A4QgAVAAFo3EGIJtSNtOwtgDXysAvgpZKh9zB/gmD8kdB0BgCYgUWP6EEAwBDAECNyg2HUE4PdEY2rcwUQIrbvO6g4dFQQJavg02sS8YxuAaNvkB+AUzpsRckwfa8fjfo4t3M95awr3tIVvC5ZakBQmCyDNXoLoyzmJoXCOY69LogRKAm37UVadACbK5JyQINWUWo3aFWzUvsC0EIrnJYMxaftMjtvCt7UANcTEAar2BU5tHhABC04LEjzHjh8J0LUYa9UJOHngUH6hoD66d39OLXnLok1NIf3kOi8fvoVxnTbnycXpw72MRZua6xSucw99ueZzKD1F2jTr03/194VB0Che1Y+5B9N3Fam6GqTp0ZRmx9OPayO50E439iTO5+ObE+nn9d3p25WhfK123m9xok7WgBgDYdWEKgZX28u9//vV4SZQgdsGONfok2bGcl17adQKDITmARIjGRBUlVyty2WySjDMYBugAZvbjSLorHUI8XqDlNouoGnGnEBLcBkzd6hKgCuGy20VAppm39Aw4AHNuX++NFLUsKYa/Te6wVKA6c/9upFLomNqDcacVglSJmDevDMJaLxR/1UiBKg4gZjJOSEtIJqwoHQNQUWNxqzPe+OxOYGJEfe2iitoPYOfB55NvW6wi9pmApJBSXNTzUnSjv5qIFRz3GeMWGjS8ZrJkZYTEybH09pWfMlTA6bFTI7JRK3FwBVXhrhkak0d9akrvtQAwA+HvutzTG0qG98IoxvE2NExBKhxLQDtAd7P3PFzl+AAK/j4QhRJKelkkQ6TmNu3yu9jtK9j6nxZdqnkyzIfWg2y7AStKgGuy62CmPmCy1edj6vECTdWDJyAX5XYYdAyCBrgzAsWfjrzi05MgKpEfcZ1g8XkCkuoOs4/TXsXJjhG9ahhVwgzw5g0VXmbU9OMQ1sXkIiuiy1qF5CAjf8Y0PY65LLv4OaLbtLxBGhNbqqYMQLOvIKaYz+6eEy/FZuom5xucS/WjySJ6/4VspxUm61sEyZjgGl3DIBmpPT3bXPFCACQGWCrvyhMjd0TXGpcdpMEB3C31NA85s45s1GIwFIMzPT978D9ayKmv2o57vLS9jcT9wD94aArN0OLFFkjgv/r0+zcuIPD7g07Qezq0Ganh2vuDNmn1V9aHSH+20PwAxhg3N6SAGoAU9zSoi+1W2ZrxmKwAPcS3fMre3xFihQpUqRIkSJFihQpUqRIkSJFihQp0iHyCzVCyXg3LKyDAAAAAElFTkSuQmCC"
   }
  ],
  "animations": [

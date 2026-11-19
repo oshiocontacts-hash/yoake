@@ -72,9 +72,13 @@ GROUPS = [
     dict(name="leg_fr_lower", parent="leg_fr", origin=[-2, 1, -4], rot=[0, 0, 0], cubes=[
         box("leg_low", [-3, 0, -5], [-1, 1, -3], [0, 34], mirror=True)]),
     dict(name="leg_bl", parent="body", origin=[2, 3, 4], rot=[0, 0, 0], cubes=[
-        box("leg", [1, 0, 3], [3, 3, 5], [10, 28])]),
+        box("leg_up", [1, 1, 3], [3, 3, 5], [10, 28])]),
+    dict(name="leg_bl_lower", parent="leg_bl", origin=[2, 1, 4], rot=[0, 0, 0], cubes=[
+        box("leg_low", [1, 0, 3], [3, 1, 5], [10, 34])]),
     dict(name="leg_br", parent="body", origin=[-2, 3, 4], rot=[0, 0, 0], cubes=[
-        box("leg", [-3, 0, 3], [-1, 3, 5], [10, 28], mirror=True)]),
+        box("leg_up", [-3, 1, 3], [-1, 3, 5], [10, 28], mirror=True)]),
+    dict(name="leg_br_lower", parent="leg_br", origin=[-2, 1, 4], rot=[0, 0, 0], cubes=[
+        box("leg_low", [-3, 0, 3], [-1, 1, 5], [10, 34], mirror=True)]),
     dict(name="tail1", parent="body", origin=[0, 6.5, 5], rot=[-25, 0, 0], cubes=[
         box("tail", [-1.5, 5, 5], [1.5, 8, 9], [24, 16])]),
     dict(name="tail2", parent="tail1", origin=[0, 6.5, 9], rot=[-10, 0, 0], cubes=[
@@ -82,7 +86,7 @@ GROUPS = [
     dict(name="tail3", parent="tail2", origin=[0, 6.5, 13], rot=[-5, 0, 5], cubes=[
         per_face("tip", [-1.5, 5, 13], [1.5, 8, 16], TIP_FACES)]),
 ]
-assert len(GROUPS) == 16
+assert len(GROUPS) == 18
 
 
 def conv_pos(p):
@@ -187,8 +191,10 @@ def build_textures():
         rect(r, "leg_up." + face, fur(CHAR))
     for face, r in box_rects(0, 34, 2, 1, 2).items():
         rect(r, "leg_low." + face, lambda lx, ly, x, y: (shade(CREAM, noise(x, y)), None))
-    for face, r in box_rects(10, 28, 2, 3, 2).items():
-        rect(r, "leg_b." + face, lambda lx, ly, x, y: (shade(CHAR, noise(x, y)) if ly < 2 else shade(CREAM, 0), None))
+    for face, r in box_rects(10, 28, 2, 2, 2).items():
+        rect(r, "leg_b_up." + face, fur(CHAR))
+    for face, r in box_rects(10, 34, 2, 1, 2).items():
+        rect(r, "leg_b_low." + face, lambda lx, ly, x, y: (shade(CREAM, noise(x, y)), None))
     for face, r in box_rects(24, 16, 3, 3, 4).items():
         rect(r, "tail1." + face, fur(CHAR))
     for face, r in box_rects(24, 28, 4, 4, 4).items():
