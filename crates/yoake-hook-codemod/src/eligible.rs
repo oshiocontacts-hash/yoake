@@ -69,6 +69,10 @@ pub fn check_fn(attrs: &[Attribute], sig: &Signature) -> Result<(), &'static str
                 }
             }
             FnArg::Typed(pat_type) => {
+                // F1 W2: `fn f(a: A, #[cfg(feature = "x")] b: B)`: the generated shim would drop the cfg.
+                if !pat_type.attrs.is_empty() {
+                    return Err("attribute on parameter");
+                }
                 let Pat::Ident(pattern) = &*pat_type.pat else {
                     return Err("destructuring argument");
                 };
@@ -370,6 +374,14 @@ impl<'ast> Visit<'ast> for TraitDependencyScan<'ast> {
 #[cfg(test)]
 mod inject_tests {
     use super::check_fn;
+
+    #[test]
+    fn a_parameter_with_an_attribute_is_not_hooked() {
+        let f: syn::ItemFn = syn::parse_quote! {
+            pub fn send(a: u32, #[cfg(feature = "capture")] fences: &Fences) {}
+        };
+        assert_eq!(check_fn(&f.attrs, &f.sig), Err("attribute on parameter"));
+    }
 
     #[test]
     fn a_function_wrapped_by_yoake_inject_is_not_hooked() {
