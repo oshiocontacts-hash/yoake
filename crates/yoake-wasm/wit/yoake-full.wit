@@ -2061,6 +2061,7 @@ interface server-services {
     storage-blob-commit: func(id: u64) -> result<_, string>;
     storage-blob-abort: func(id: u64) -> result<bool, string>;
     storage-blob-read: func(key: string, length: u32, offset: u64, scope: storage-scope) -> result<list<u8>, string>;
+    player-set-food: func(food: s32, player: string, saturation: f32) -> result<_, string>;
 }
 
 interface client-types {
@@ -2214,6 +2215,11 @@ interface client-services {
     draw-mob-as-player: func(appearance: list<u8>) -> result<bool, string>;
     gui-size: func() -> result<vec2, string>;
     hud-place-v2: func(corner: hud-corner-v2, size: vec2) -> result<option<vec2>, string>;
+    screen-carried: func() -> result<option<item-stack>, string>;
+    local-player-stacks: func() -> result<list<item-stack>, string>;
+    play-local-sound: func(pitch: f32, sound-id: string, volume: f32) -> result<_, string>;
+    play-local-sound-at: func(pitch: f32, position: vec3, sound-id: string, volume: f32) -> result<_, string>;
+    gui-texture-id: func(texture: borrow<gui-texture>) -> result<string, string>;
     config-get: func(key: string) -> result<config-value, string>;
     config-set: func(key: string, value: config-value) -> result<_, string>;
     storage-get: func(key: string, scope: storage-scope) -> result<option<list<u8>>, string>;
@@ -3838,6 +3844,19 @@ interface client-hooks {
     /// Collect: `listened` is the current value; return Some to change it (None keeps it).
     item-slot-cooldown-listened: func(listened: bool) -> option<bool>;
     key-binding-pressed: func(id: string);
+    /// A keyboard key in the world, before the game handles it
+    /// (`InputEvent.Key`, ahead of the key bindings): `key` is its vanilla name
+    /// (`key.keyboard.z`), `pressed` whether it went down, `repeat` whether it is
+    /// the keyboard's auto-repeat of a key held, and `modifiers` GLFW's bits
+    /// (shift 1, control 2, alt 4, super 8). Set `canceled` and the key is
+    /// consumed: no key binding, no `native_key`, no hotbar slot. Escape is never
+    /// offered, so the pause menu always opens. Cancel a release only when its
+    /// press was cancelled, or a binding it started may stay held. It fires
+    /// while playing with nothing over the world, not on a screen, the title
+    /// screen or a prompt. API @API:key_pre@.
+    ///
+    /// Returns true to cancel (take) the event; the first mod that cancels wins.
+    key-pre: func(key: string, pressed: bool, repeat: bool, modifiers: u32) -> bool;
     /// `LivingEntity.getProjectile(weapon)` (NeoForge's
     /// `LivingGetProjectileEvent`) for a player (`player` and `name`) or a
     /// mob (`entity`, `kind`): a skeleton or illusioner's shot, or the crossbow

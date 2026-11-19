@@ -428,6 +428,7 @@ pub const ITEM_RENDER: &str = "item_render";
 pub const ITEM_SLOT_COOLDOWN: &str = "item_slot_cooldown";
 pub const ITEM_SLOT_COOLDOWN_LISTENED: &str = "item_slot_cooldown_listened";
 pub const KEY_BINDING_PRESSED: &str = "key_binding_pressed";
+pub const KEY_PRE: &str = "key_pre";
 pub const LIVING_CONVERSION_POST: &str = "living_conversion_post";
 pub const LIVING_CONVERSION_PRE: &str = "living_conversion_pre";
 pub const LIVING_DEATH: &str = "living_death";
