@@ -10,10 +10,10 @@
 //!   rectangle as seen from outside the cube, with indices `[0, 3, 2, 0, 2, 1]` (counter-clockwise from outside).
 //! * Box UV layout (offset `(u, v)`, size `(w, h, d)` = X, Y, Z): east `(u, v+d)..(u+d, v+d+h)`; north
 //!   `(u+d, v+d)..(u+d+w, v+d+h)`; west `(u+d+w, v+d)..(u+2d+w, v+d+h)`; south `(u+2d+w, v+d)..(u+2d+2w, v+d+h)`;
-//!   up `(u+d, v)..(u+d+w, v+d)`; down `(u+d+w, v+d)..(u+d+2w, v)` (V runs backwards).
+//!   up `(u+d, v+d)..(u+d+w, v)` (V reversed); down `(u+d+w, v+d)..(u+d+2w, v)` (V runs backwards).
 //! * `mirror` swaps the east and west rectangles and flips every rectangle left to right.
 //! * Viewed from outside, a north face has +X on its left, south +X on its right, east +Z on its left, west +Z on its
-//!   right, up and down +X on the right; up has north at the top, down has south at the top.
+//!   right, up and down +X on the right; up has north at the top of its (V reversed) rectangle, down has south at the top.
 //! * A UV rotation of 90 degrees turns the image clockwise on the face: the corner `i` takes the texture corner
 //!   `(i - rotation / 90) mod 4`.
 //! * UVs are normalised by the texture size (0..1). Mesh faces are fan-triangulated `(0, i, i + 1)`.
@@ -101,7 +101,7 @@ pub fn box_uv_rects(offset: [f32; 2], size: Vec3, mirror: bool) -> [[f32; 4]; 6]
     r[Face::North as usize] = [u + d, v + d, u + d + w, v + d + h];
     r[Face::West as usize] = [u + d + w, v + d, u + 2.0 * d + w, v + d + h];
     r[Face::South as usize] = [u + 2.0 * d + w, v + d, u + 2.0 * d + 2.0 * w, v + d + h];
-    r[Face::Up as usize] = [u + d, v, u + d + w, v + d];
+    r[Face::Up as usize] = [u + d, v + d, u + d + w, v];
     r[Face::Down as usize] = [u + d + w, v + d, u + d + 2.0 * w, v];
     if mirror {
         r.swap(Face::East as usize, Face::West as usize);

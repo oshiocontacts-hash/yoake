@@ -172,6 +172,8 @@ def build_geo():
                     if v is None:
                         continue
                     face = {"uv": [v[0], v[1]], "uv_size": [v[2] - v[0], v[3] - v[1]]}
+                    if f in ("up", "down"):  # Blockbench's Bedrock export flips both axes
+                        face = {"uv": [v[2], v[3]], "uv_size": [v[0] - v[2], v[1] - v[3]]}
                     if v[4]:
                         face["uv_rotation"] = v[4]
                     o["uv"][f] = face

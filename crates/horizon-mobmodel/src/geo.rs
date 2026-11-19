@@ -6,6 +6,8 @@
 //!   alphabetically first `geometry.*` key (1.8). Geometry inheritance (`geometry.a:geometry.b`) is ignored.
 //! * Bones are re-ordered depth first from the roots (file order among siblings) so parents come first.
 //! * A cube without `pivot` rotates about `[0, 0, 0]`. A cube `mirror` / `inflate` defaults to the bone's.
+//! * Per-face `up` / `down` UV in geo is the bbmodel rectangle flipped on both axes (as Blockbench exports it):
+//!   `uv = [x2, y2]`, `uv_size = [x1 - x2, y1 - y2]`; the loader flips it back.
 //! * Per-face `uv_size` defaults to the face's natural size. `bind_pose_rotation` is read when `rotation` is absent.
 //! * `mirror` flips the box UV layout only (geometry is unchanged); it is ignored for per-face UV.
 //! * Locators come out sorted by name within each bone.
@@ -327,6 +329,12 @@ fn parse_cube(
                 let rotation = match Rd::opt(fo, "uv_rotation") {
                     Some(rv) => rd.uv_rotation(&key(&fp, "uv_rotation"), rv)?,
                     None => 0,
+                };
+                // Blockbench's Bedrock exporter writes up and down with both axes flipped; undo it.
+                let (uv, uv_size) = if matches!(face, Face::Up | Face::Down) {
+                    ([uv[0] + uv_size[0], uv[1] + uv_size[1]], [0.0 - uv_size[0], 0.0 - uv_size[1]])
+                } else {
+                    (uv, uv_size)
                 };
                 faces[face as usize] = Some(FaceUv { uv, uv_size, rotation });
             }

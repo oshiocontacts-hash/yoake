@@ -100,11 +100,11 @@ fn golden_cube_vertices() {
         ([-3.0, 3.0, 4.0], [10.0, 4.0]),
         ([-3.0, 0.0, 4.0], [10.0, 7.0]),
         ([-3.0, 0.0, 0.0], [6.0, 7.0]),
-        // up (y = 3): north at the top
-        ([-3.0, 3.0, 0.0], [4.0, 0.0]),
-        ([-1.0, 3.0, 0.0], [6.0, 0.0]),
-        ([-1.0, 3.0, 4.0], [6.0, 4.0]),
-        ([-3.0, 3.0, 4.0], [4.0, 4.0]),
+        // up (y = 3): V runs backwards, north at the top
+        ([-3.0, 3.0, 0.0], [4.0, 4.0]),
+        ([-1.0, 3.0, 0.0], [6.0, 4.0]),
+        ([-1.0, 3.0, 4.0], [6.0, 0.0]),
+        ([-3.0, 3.0, 4.0], [4.0, 0.0]),
         // down (y = 0): V runs backwards, south at the top
         ([-3.0, 0.0, 4.0], [6.0, 4.0]),
         ([-1.0, 0.0, 4.0], [8.0, 4.0]),
@@ -146,7 +146,7 @@ fn golden_mirrored_cube_swaps_and_flips_box_uv() {
         [10.0, 4.0], [6.0, 4.0], [6.0, 7.0], [10.0, 7.0],
         [12.0, 4.0], [10.0, 4.0], [10.0, 7.0], [12.0, 7.0],
         [4.0, 4.0], [0.0, 4.0], [0.0, 7.0], [4.0, 7.0],
-        [6.0, 0.0], [4.0, 0.0], [4.0, 4.0], [6.0, 4.0],
+        [6.0, 4.0], [4.0, 4.0], [4.0, 0.0], [6.0, 0.0],
         [8.0, 4.0], [6.0, 4.0], [6.0, 0.0], [8.0, 0.0],
     ];
     assert_eq!(uvs, want);
@@ -197,11 +197,12 @@ fn golden_per_face_uv_with_size_rotation_and_flip() {
         ([-3.0, 3.0, 4.0], [2.0, 6.0]),
         ([-3.0, 0.0, 4.0], [2.0, 3.0]),
         ([-3.0, 0.0, 0.0], [6.0, 3.0]),
-        // up: uv_size defaults to the natural size (2 x 4)
-        ([-3.0, 3.0, 0.0], [0.0, 0.0]),
-        ([-1.0, 3.0, 0.0], [2.0, 0.0]),
-        ([-1.0, 3.0, 4.0], [2.0, 4.0]),
-        ([-3.0, 3.0, 4.0], [0.0, 4.0]),
+        // up: geo uv_size defaults to the natural size (2 x 4) and up/down are stored flipped on both axes, so
+        // geo {uv [0,0], size [2,4]} is the bbmodel rectangle (2,4)-(0,0)
+        ([-3.0, 3.0, 0.0], [2.0, 4.0]),
+        ([-1.0, 3.0, 0.0], [0.0, 4.0]),
+        ([-1.0, 3.0, 4.0], [0.0, 0.0]),
+        ([-3.0, 3.0, 4.0], [2.0, 0.0]),
     ];
     assert_verts(&got, &want);
 }
@@ -214,7 +215,7 @@ fn bbmodel_per_face_uv_matches_geo_per_face_uv() {
             "north": {"uv": [1, 2, 3, 5], "texture": 0},
             "east": {"uv": [8, 8, 12, 11], "texture": 0, "rotation": 90},
             "west": {"uv": [6, 6, 2, 3], "texture": 0},
-            "up": {"uv": [0, 0, 2, 4], "texture": 0},
+            "up": {"uv": [2, 4, 0, 0], "texture": 0},
             "south": {"uv": [0, 0, 1, 1], "texture": null}
         }
     }]);
@@ -680,4 +681,25 @@ fn utf8_bom_is_accepted() {
     let mut text = vec![0xEF, 0xBB, 0xBF];
     text.extend_from_slice(FOX_GEO);
     assert!(load_geo_json("bom.geo.json", &text).is_ok());
+}
+
+/// Data from an independently authored Blockbench pair: geo up/down are the bbmodel rectangles flipped on both axes.
+#[test]
+fn geo_up_down_flip_matches_bbmodel_and_side_faces_do_not_flip() {
+    let cube = json!({"type": "cube", "uuid": "c", "from": [-19, 0, 0], "to": [0, 5, 13], "box_uv": false, "faces": {
+        "north": {"uv": [57, 0, 38, 10], "texture": 0},
+        "up": {"uv": [0, 13, 19, 0], "texture": 0},
+        "down": {"uv": [19, 13, 38, 0], "texture": 0}}});
+    let b = load_bbmodel("t.bbmodel", &bb(64, json!([{"name": "b", "children": ["c"]}]), json!([cube]))).unwrap();
+    let g = load_geo(64, json!([{"name": "b", "cubes": [{"origin": [0, 0, 0], "size": [19, 5, 13], "uv": {
+        "north": {"uv": [57, 0], "uv_size": [-19, 10]},
+        "up": {"uv": [19, 0], "uv_size": [-19, 13]},
+        "down": {"uv": [38, 0], "uv_size": [-19, 13]}}}]}]));
+    assert_eq!(b.parts[0].cubes[0].uv, g.parts[0].cubes[0].uv);
+    assert_eq!(b.bake(), g.bake());
+    let uvs = texel_verts(&g.bake(), 0, 64.0);
+    // north: top-left of the rectangle is (57,0); up: V reversed, TL is (0,13); down: TL is (19,13).
+    assert_eq!(uvs[0].1, [57.0, 0.0]);
+    assert_eq!(uvs[4].1, [0.0, 13.0]);
+    assert_eq!(uvs[8].1, [19.0, 13.0]);
 }

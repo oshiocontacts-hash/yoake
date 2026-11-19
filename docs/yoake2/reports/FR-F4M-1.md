@@ -41,12 +41,15 @@ Baked vertices are in model rest space per bone (cube rotation and inflate appli
 4. Bone order: depth first from the roots, siblings in file order (geo) or outliner order (bbmodel); parents always first.
    Top-level bbmodel elements go to a synthetic bone `root` added last (name made unique if taken).
 5. Box UV (offset u,v; size w,h,d for X,Y,Z): east `(u,v+d)-(u+d,v+d+h)`, north `(u+d,v+d)-(u+d+w,..)`, west
-   `(u+d+w,v+d)-(u+2d+w,..)`, south `(u+2d+w,v+d)-(u+2d+2w,..)`, up `(u+d,v)-(u+d+w,v+d)`, down `(u+d+w,v+d)-(u+d+2w,v)`
+   `(u+d+w,v+d)-(u+2d+w,..)`, south `(u+2d+w,v+d)-(u+2d+2w,..)`, up `(u+d,v+d)-(u+d+w,v)` (V reversed), down `(u+d+w,v+d)-(u+d+2w,v)`
    (V reversed). `mirror` swaps east/west and flips each rectangle left-right; geometry unchanged; ignored for per-face UV.
 6. Face orientation seen from outside: north has +X on the left, south +X right, east +Z left, west +Z right, up has north
-   at the top, down has south at the top. Vertex order per face: TL, TR, BR, BL; indices `[0,3,2, 0,2,1]`.
+   at the top of its V-reversed rectangle, down has south at the top. Vertex order per face: TL, TR, BR, BL; indices `[0,3,2, 0,2,1]`.
 7. UV rotation 90 = image turned clockwise on the face (corner `i` takes texture corner `i - rot/90`). Negative `uv_size`
-   flips. Per-face `uv_size` defaults to the face's natural size (geo). bbmodel face `uv` is `[x1,y1,x2,y2]`.
+   flips. **geo per-face `up`/`down` are stored with both axes flipped** (Blockbench's Bedrock exporter: `uv=[x2,y2]`,
+   `uv_size=[x1-x2,y1-y2]` for a bbmodel rectangle `[x1,y1,x2,y2]`); the geo loader flips them back, so bbmodel and geo agree.
+   Side faces are not flipped. (Verified on an independent bird pair from Yoake: north bb `[57,0,38,10]` = geo uv `[57,0]` size `[-19,10]`;
+   up bb `[0,13,19,0]` = geo `[19,0]`/`[-19,13]`; down bb `[19,13,38,0]` = geo `[38,0]`/`[-19,13]`.) Per-face `uv_size` defaults to the face's natural size (geo). bbmodel face `uv` is `[x1,y1,x2,y2]`.
 8. Inflate grows all faces outwards and does not change the box UV layout. Cube `mirror`/`inflate` default to the bone's (geo).
 9. Cube without `pivot` rotates about `[0,0,0]` (geo). `bind_pose_rotation` is used when `rotation` is absent.
 10. bbmodel mesh vertices are relative to the mesh `origin`; faces and vertices are processed sorted by id string, so output
@@ -66,10 +69,10 @@ Limits: bones 256 and cubes+meshes 4096 (`limits`), locators 1024, textures 64, 
 outliner depth 64, every number `|x| <= 1e6`, embedded texture source 48 MiB. Duplicate bone names, unknown parents, parent
 cycles, unknown uuids/vertex ids, bad base64/PNG are errors with paths.
 
-## Tests (`cargo test -p horizon-mobmodel`: 31 pass, 0 fail)
+## Tests (`cargo test -p horizon-mobmodel`: 32 pass, 0 fail)
 
 * 1 unit test (skeleton, from the skeleton commit).
-* `tests/model_tests.rs`: 24 tests: golden vertex sets (cube, mirrored cube, per-face UV with size/rotation/flip, bbmodel vs
+* `tests/model_tests.rs`: 25 tests: golden vertex sets (cube, mirrored cube, per-face UV with size/rotation/flip, bbmodel vs
   geo per-face, mesh quad/tri/pentagon with origin+rotation, geo poly_mesh winding), winding/normal check on all cube faces,
   nested pivots (hand-computed point), rotation order, Bedrock-to-internal mapping, inheritance of bone mirror/inflate,
   1.8 layout (child before parent, `bind_pose_rotation`), identifier selection, bbmodel root/null_object/export/warnings,
@@ -89,10 +92,11 @@ is a 1.8 sample.
 
 ## Open questions
 
-1. The Blockbench Bedrock mapping (`x -> -x`, rotation `(-x,-y,z)`) is from memory; check against a real Blockbench export
-   (a model with a rotated bone) before F4M-6 ships. The loaders keep it in two functions (`bedrock_position/rotation`).
-2. Default cube `pivot` when absent, `down` face UV orientation, and the sign of UV rotation follow my reading of the formats;
-   untested against Blockbench renders.
+1. The Blockbench Bedrock position/rotation mapping was cross-checked by Yoake on an independent bird pair (identical skeleton,
+   matrices and world vertices, rotated bone included). It lives in `bedrock_position/rotation`.
+2. Resolved for up/down UV: box-UV up is now V-reversed like down (matches the Blockbench-exported pair), and geo up/down
+   per-face UV is flipped on load. Still from my reading, untested against Blockbench renders: default cube `pivot` when
+   absent and the sign of UV rotation.
 3. Blockbench mesh vertices are assumed relative to the mesh origin (as in Blockbench's own mesh data).
 4. Textures referenced by `texture` index on faces are not tracked (one texture per model assumed by the renderer).
 5. `Cargo.toml` still lists `serde` unused.
