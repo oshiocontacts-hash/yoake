@@ -88,6 +88,16 @@ pub(super) fn log_startup() {
     }
 }
 
+/// FR-F2: gives the mod its folders (`/data`, `/game`, maybe `/host/<letter>`) and worker before it is compiled. Without a known
+/// game folder the mod gets none (the old behaviour).
+fn register_io(id: &str, host_filesystem: bool, worker: Option<&Vec<u8>>) {
+    let Some(game) = crate::yak_mods::game_root() else { return };
+    let mut io = yoake_wasm::ModIo::new(yoake_wasm::FileAccess::new(game, id, host_filesystem));
+    io.worker = worker.cloned();
+    io.log = yoake_wasm::LogSink::new(|line| log::info!("{line}"));
+    sandbox().lock().unwrap_or_else(|error| error.into_inner()).set_mod_io(id, io);
+}
+
 fn sandbox() -> &'static Mutex<Sandbox> {
     SANDBOX.get_or_init(|| Mutex::new(Sandbox::new()))
 }
@@ -154,6 +164,8 @@ struct Source {
     full: bool,
     mixin_targets: Vec<String>,
     permissions: Vec<String>,
+    host_filesystem: bool,
+    worker: Option<Vec<u8>>,
     gpu: bool,
     bytes: Vec<u8>,
     /// Watched for hot reload (developer mode and not signed).
@@ -215,6 +227,8 @@ fn dev_sources_with(
                 gpu,
                 mixin_targets: Vec::new(),
                 permissions: Vec::new(),
+                host_filesystem: false,
+                worker: None,
                 bytes,
                 watch: Some(path),
             }),
@@ -263,6 +277,8 @@ fn installed_source(module: crate::yak_mods::WasmMod, developer: bool) -> Source
         gpu: module.gpu,
         mixin_targets: module.mixin_targets,
         permissions: module.permissions,
+        host_filesystem: module.host_filesystem,
+        worker: module.worker,
         bytes: module.bytes,
         watch,
     }
@@ -399,6 +415,7 @@ pub(super) fn extend(
             ));
             continue;
         }
+        register_io(&source.id, source.host_filesystem, source.worker.as_ref());
         let digest = source
             .required_on_join
             .then(|| source.sha256.clone())
@@ -533,6 +550,7 @@ pub(super) fn extend(
             ));
             continue;
         }
+        register_io(&server.mod_id, server.host_filesystem, server.worker.as_ref());
         let digest = server.required_on_join.then(|| server.sha256.clone());
         let mut package = match position {
             Some(position) => accepted.swap_remove(position),
@@ -2032,6 +2050,8 @@ mod tests {
             signed: false,
             mixin_targets: Vec::new(),
             permissions: Vec::new(),
+            host_filesystem: false,
+            worker: None,
         };
         let source = installed_source(module, true);
         assert!(!source.required_on_join);

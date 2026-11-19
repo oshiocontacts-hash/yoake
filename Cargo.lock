@@ -6395,6 +6395,7 @@ dependencies = [
 name = "yoake-guest-sdk"
 version = "0.0.0"
 dependencies = [
+ "yoake-mod-io",
  "yoake-slice",
 ]
 

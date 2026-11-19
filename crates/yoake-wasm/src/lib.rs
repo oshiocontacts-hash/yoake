@@ -50,6 +50,7 @@ pub use subscriptions::FullWorld;
 pub use subscriptions::Subscriptions;
 pub use test_mod::{TestHost, TestMod, TestOutcome, test_driver, validate_test_names};
 pub use wasi::{OutputLine, OutputStream, WASI_IMPORT_INTERFACES};
+pub use yoake_mod_io::{FileAccess, LogSink, ModIo};
 
 pub const MEMORY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
 /// Elements one table may hold (a Rust guest's function table is a few thousand).

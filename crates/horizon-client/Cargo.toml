@@ -53,6 +53,7 @@ yoake-wasm = { path = "../yoake-wasm" }
 yoake-test-runner = { path = "../yoake-test-runner" }
 # MX3G1: the wire codec and handle receivers of the generated glue (feature `yoake2-slice` only).
 yoake-slice = { path = "../yoake-slice", optional = true }
+yoake-mod-io = { path = "../yoake-mod-io", optional = true }
 horizon-mods = { path = "../horizon-mods", default-features = false, features = ["index", "yak"] }
 toml = "1.1.6"
 wgpu = { version = "30.0.1", default-features = false, features = ["std", "parking_lot", "vulkan", "metal", "wgsl", "naga-ir"] }
@@ -126,7 +127,7 @@ yoake-hook-baseline = ["horizon-client-lib/yoake-hook-baseline"]
 # Call-site hooks off, fn hooks on (bench gate baseline).
 yoake-callsite-baseline = ["horizon-client-lib/yoake-callsite-baseline"]
 # MX3G1: compiles the generated binding glue (src/yoake_glue) into the game and entities modules. Off by default.
-yoake2-slice = ["dep:yoake-slice", "horizon-client-lib/yoake2-slice"]
+yoake2-slice = ["dep:yoake-slice", "dep:yoake-mod-io", "horizon-client-lib/yoake2-slice"]
 # Test-only: typed hook registration and bench constructors (`entities::hook_bench`, `StandStep::for_hook_bench`).
 yoake-hook-bench = ["horizon-client-lib/yoake-hook-bench"]
 default = ["audio", "controllers"]
