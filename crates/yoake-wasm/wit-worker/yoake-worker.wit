@@ -1,0 +1,38 @@
+package yoake:mods@1.3.0;
+
+/// The mod's side: talk to the worker declared by `[wasm] worker`. Neither call blocks.
+interface worker {
+    /// Queues a message for the worker. The error is "queue-full" (1024 messages or 16 MiB
+    /// waiting), "too-large", "closed" (the worker stopped) or "no-worker" (the mod declares none).
+    worker-send: func(message: list<u8>) -> result<_, string>;
+    /// The next message the worker sent, or none.
+    worker-recv: func() -> option<list<u8>>;
+}
+
+/// The worker's side: what the worker component imports.
+interface worker-host {
+    /// Queues a message for the mod. Never blocks; errors as `worker-send`.
+    host-send: func(message: list<u8>) -> result<_, string>;
+    /// Waits for the next message from the mod. none: the worker is being stopped.
+    host-recv: func() -> option<list<u8>>;
+    /// The next message from the mod, or none at once.
+    host-try-recv: func() -> option<list<u8>>;
+}
+
+/// The worker's entry point: called once on the worker's own thread. When it returns, the worker
+/// ends.
+interface worker-run {
+    run: func();
+}
+
+/// A mod that talks to a worker imports `worker` next to its usual world.
+world worker-user {
+    import worker;
+}
+
+/// What a worker component implements. It may also import any WASI 0.2 interface (files under
+/// /data and /game, sockets, name lookup, http, blocking clocks).
+world worker-mod {
+    import worker-host;
+    export worker-run;
+}

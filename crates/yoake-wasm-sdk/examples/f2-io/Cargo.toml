@@ -1,0 +1,25 @@
+[package]
+name = "yoake-wasm-f2-io"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+description = "Test guests of FR-F2 (files, network, workers): `files` and `main` are mod components, `worker` is a worker component."
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+files = []
+main = []
+worker = []
+
+[dependencies]
+wit-bindgen = { version = "=0.57.1", default-features = false, features = ["realloc", "macros"] }
+wasip2 = "1.0.4"
+
+[profile.release]
+opt-level = "s"
+panic = "abort"
+
+[workspace]

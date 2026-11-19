@@ -1,0 +1,18 @@
+[package]
+name = "yoake-mod-io"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Files, network and worker threads for Yoake WebAssembly mods (FR-F2): preopened directories, a byte-message channel to a worker component with its own thread, WASI p2 + wasi:http for the worker."
+publish = false
+
+[dependencies]
+bytes = { version = "1", default-features = false }
+tokio = { version = "1", default-features = false }
+wasmtime = { version = "=48.0.7", default-features = false, features = ["runtime", "cranelift", "component-model", "std"] }
+wasmtime-wasi = { version = "=48.0.7", default-features = false, features = ["p1", "p2"] }
+wasmtime-wasi-http = { version = "=48.0.7", default-features = false, features = ["p2", "default-send-request"] }
+
+[lints]
+workspace = true
